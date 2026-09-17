@@ -55,9 +55,9 @@ Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitr
 
 ## Projektfamilie
 
-- [`opengewerk`](https://github.com/opengewerk/opengewerk) – diese Handwerkersoftware, das CRM und ERP für den Betrieb.
-- [`opengewerk-kanzlei`](https://github.com/opengewerk/opengewerk-kanzlei) – der Kanzlei-Hub, mit dem ein Steuerberater alle seine OpenGewerk-Mandanten aus einer Anwendung heraus bearbeitet, ohne dass die Daten den Betrieb verlassen.
-- [`opengewerk-api-spec`](https://github.com/opengewerk/opengewerk-api-spec) – der gemeinsame API-Vertrag zwischen beiden, versioniert nach SemVer, damit Hub und Handwerkersoftware unabhängig releasen können.
+- [`opengewerk`](https://github.com/opengewerk/opengewerk): diese Handwerkersoftware, das CRM und ERP für den Betrieb.
+- [`opengewerk-kanzlei`](https://github.com/opengewerk/opengewerk-kanzlei): der Kanzlei-Hub, mit dem ein Steuerberater alle seine OpenGewerk-Mandanten aus einer Anwendung heraus bearbeitet, ohne dass die Daten den Betrieb verlassen.
+- [`opengewerk-api-spec`](https://github.com/opengewerk/opengewerk-api-spec): der gemeinsame API-Vertrag zwischen beiden, versioniert nach SemVer, damit Hub und Handwerkersoftware unabhängig releasen können.
 
 ## Mitmachen
 
