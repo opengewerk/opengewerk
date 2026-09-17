@@ -1,6 +1,11 @@
-# OpenGewerk
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/opengewerk/.github/main/brand/opengewerk-logo-dark.svg">
+    <img alt="OpenGewerk" src="https://raw.githubusercontent.com/opengewerk/.github/main/brand/opengewerk-logo.svg" width="420">
+  </picture>
+</p>
 
-**Self-hosted CRM & ERP für Handwerksbetriebe**
+<p align="center"><strong>Self-hosted CRM &amp; ERP für Handwerksbetriebe</strong></p>
 
 ## Was ist OpenGewerk?
 
