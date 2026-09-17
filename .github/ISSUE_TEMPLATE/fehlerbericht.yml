@@ -1,0 +1,64 @@
+name: Fehlerbericht
+description: Etwas funktioniert nicht wie beschrieben
+title: "[Fehler]: "
+labels: ["Fehler"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke, dass du dir die Zeit nimmst. Das Projekt ist in der Planungsphase,
+        es gibt noch keinen lauffähigen Code. Fehlerberichte betreffen daher
+        aktuell vor allem die Dokumente und die Spezifikation.
+
+  - type: textarea
+    id: beschreibung
+    attributes:
+      label: Was ist passiert?
+      description: Beschreibe den Fehler in eigenen Worten.
+    validations:
+      required: true
+
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Was hättest du erwartet?
+    validations:
+      required: true
+
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Schritte zum Nachvollziehen
+      description: Nummerierte Liste, damit andere den Fehler reproduzieren können.
+      placeholder: |
+        1. Datei X öffnen
+        2. Zu Abschnitt Y springen
+        3. Widerspruch zu Abschnitt Z
+    validations:
+      required: false
+
+  - type: input
+    id: fundstelle
+    attributes:
+      label: Fundstelle
+      description: Datei, Abschnitt oder URL, falls zutreffend.
+    validations:
+      required: false
+
+  - type: textarea
+    id: umgebung
+    attributes:
+      label: Umgebung
+      description: Nur ausfüllen, wenn es um Code oder Werkzeuge geht (Betriebssystem, Browser, Versionen).
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pruefung
+    attributes:
+      label: Vorab geprüft
+      options:
+        - label: Ich habe die offenen Issues durchgesehen und keinen passenden gefunden.
+          required: true
+        - label: Ich halte mich an den Verhaltenskodex der Organisation.
+          required: true

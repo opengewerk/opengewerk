@@ -1,0 +1,70 @@
+name: Funktionswunsch
+description: Eine neue Funktion oder eine Änderung am Konzept vorschlagen
+title: "[Wunsch]: "
+labels: ["Funktionswunsch"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Für offene Fragen und Ideen, die noch keinen konkreten Vorschlag haben,
+        sind die Discussions der bessere Ort. Ein Issue lohnt sich, wenn du
+        schon weißt, was du willst.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem löst der Vorschlag?
+      description: Beschreibe die Situation aus dem Betriebsalltag, nicht die Lösung.
+    validations:
+      required: true
+
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Wie soll es funktionieren?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativen
+    attributes:
+      label: Welche Alternativen hast du bedacht?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: bereich
+    attributes:
+      label: Bereich
+      description: Grobe Einordnung, damit der Vorschlag beim richtigen Modul landet.
+      options:
+        - Architektur und Grundbausteine
+        - CRM
+        - Belegwesen
+        - Termin- und Zeiterfassung
+        - Material, Lager, Fuhrpark
+        - Finance und Buchhaltung
+        - Elektro und PV
+        - Kanzlei-Anbindung
+        - Dokumentation
+        - Weiß ich nicht
+    validations:
+      required: true
+
+  - type: textarea
+    id: rechtliches
+    attributes:
+      label: Rechtlicher Hintergrund
+      description: Falls eine gesetzliche Anforderung dahintersteht, nenne sie mit Fundstelle (Paragraf, Norm, Frist).
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pruefung
+    attributes:
+      label: Vorab geprüft
+      options:
+        - label: Ich habe in den Konzeptdokumenten nachgesehen, ob der Punkt dort schon steht.
+          required: true
+        - label: Ich halte mich an den Verhaltenskodex der Organisation.
+          required: true

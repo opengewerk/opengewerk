@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  kodierung:
+    name: Kodierung und Zeilenenden
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Textdateien auf UTF-8 ohne BOM und LF prüfen
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess
+          import sys
+
+          BINAERE_ENDUNGEN = (
+              ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+              ".pdf", ".zip", ".gz", ".woff", ".woff2", ".ttf", ".otf",
+          )
+
+          roh = subprocess.run(
+              ["git", "ls-files", "-z"], capture_output=True, check=True
+          ).stdout
+          fehler = []
+
+          for eintrag in roh.split(b"\0"):
+              if not eintrag:
+                  continue
+              pfad = eintrag.decode("utf-8", "surrogateescape")
+              if pfad.lower().endswith(BINAERE_ENDUNGEN):
+                  continue
+              with open(pfad, "rb") as datei:
+                  inhalt = datei.read()
+              if b"\0" in inhalt:
+                  continue
+              if inhalt.startswith(b"\xef\xbb\xbf"):
+                  fehler.append(f"{pfad}: UTF-8 mit BOM")
+              try:
+                  inhalt.decode("utf-8")
+              except UnicodeDecodeError as ausnahme:
+                  fehler.append(f"{pfad}: kein gültiges UTF-8 ({ausnahme})")
+                  continue
+              if b"\r\n" in inhalt:
+                  fehler.append(f"{pfad}: enthält CRLF-Zeilenenden")
+
+          if fehler:
+              print("Gefundene Probleme:")
+              for zeile in fehler:
+                  print(f"  {zeile}")
+              sys.exit(1)
+
+          print("Alle Textdateien sind UTF-8 ohne BOM und benutzen LF.")
+          PYTHON

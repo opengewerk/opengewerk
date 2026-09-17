@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Frage oder Idee besprechen
+    url: https://github.com/opengewerk/opengewerk/discussions
+    about: Offene Fragen, Ideen und alles, was noch kein konkreter Vorschlag ist, gehören in die Discussions.
+  - name: Sicherheitslücke melden
+    url: https://github.com/opengewerk/opengewerk/security/advisories/new
+    about: Sicherheitslücken bitte nicht als öffentliches Issue, sondern über das private Sicherheitsformular melden.
+  - name: Verhaltenskodex
+    url: https://github.com/opengewerk/.github/blob/main/CODE_OF_CONDUCT.md
+    about: Die Regeln für den Umgang miteinander in diesem Projekt.
