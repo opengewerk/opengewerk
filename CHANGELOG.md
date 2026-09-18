@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- ADR 0009 zu Werkzeugen und Repo-Struktur: pnpm Workspaces mit Turborepo, Node 24,
+  TypeScript 7, Vitest mit fast-check für die Property-based Tests aus 4.8, ESLint mit
+  Flat Config und Prettier, PostgreSQL 18. Schließt die drei offenen Enden aus ADR 0002
+  (Paketmanager, Node-Version, endgültige Paketliste ohne `mobile-pwa`), ohne dessen
+  Text umzuschreiben
 - Initiales Repository-Gerüst
 - Feature-Gliederung v2.3 mit Regel-Engine, Anlagenstruktur, Finance-Absicherung
   und einer auf ein MVP geschnittenen Roadmap

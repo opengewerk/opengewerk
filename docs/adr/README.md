@@ -16,6 +16,7 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0006](0006-auth-und-mandantenfaehigkeit.md) | Authentifizierung, Autorisierung und Mandantenfähigkeit | angenommen |
 | [0007](0007-dateispeicher-dokumente-und-pdf.md) | Dateispeicher, Dokumentenerzeugung und E-Rechnung | angenommen |
 | [0008](0008-plugin-system-fuer-gewerke.md) | Plugin-System für Gewerke und Erweiterungen | angenommen |
+| [0009](0009-werkzeuge-und-repo-struktur.md) | Werkzeuge und Repo-Struktur | angenommen |
 
 ## Der Tech-Stack auf einen Blick
 
@@ -30,6 +31,7 @@ Die ADRs 0002 bis 0008 wurden am 18.09.2026 gemeinsam entschieden, nachdem sie e
 | 0006 | Eingebaute Auth über better-auth (Passkeys, TOTP, Magic-Link fürs Kundenportal), OIDC optional, Rollen und Rechte plus RLS |
 | 0007 | Inhaltsadressierter Dateispeicher (Dateisystem oder S3), PDF über Chromium in einem eigenen Container, E-Rechnung in TypeScript mit KoSIT-Validierung, Mustang als Notausgang |
 | 0008 | Gewerke als Datenpakete plus Compile-Time-Module im Monorepo, Elektro/PV als erstes Paket |
+| 0009 | pnpm Workspaces mit Turborepo, Node 24, TypeScript 7, Vitest mit fast-check, ESLint mit Prettier, PostgreSQL 18 |
 
 Drei Punkte, an denen die Entscheidung von der ursprünglichen Vorlage abweicht:
 
@@ -46,8 +48,10 @@ Immer dann, wenn eine Entscheidung schwer umkehrbar ist oder mehrere Module betr
 1. Die nächste freie vierstellige Nummer nehmen, die Nummern werden nie neu vergeben.
 2. Datei nach dem Muster `NNNN-kurzer-titel.md` benennen, kleingeschrieben, Wörter mit Bindestrich getrennt. Die Überschrift im Dokument ist der Titel allein, ohne die Nummer davor, die steht im Dateinamen.
 3. Das Dokument im MADR-Format schreiben: Kontext und Problemstellung, Entscheidungstreiber, betrachtete Optionen, Entscheidung mit Konsequenzen, Vor- und Nachteile der Optionen.
-4. Den Status im YAML-Frontmatter setzen: `vorgeschlagen`, `angenommen`, `abgelehnt`, `überholt durch NNNN`. Dazu gehören `date`, `decision-makers`, `consulted` und `informed`, so wie in den vorhandenen ADRs. Status und Datum gehören nicht als Aufzählung unter die Überschrift, sonst liest kein Werkzeug sie.
+4. Den Status im YAML-Frontmatter setzen: `vorgeschlagen`, `angenommen`, `abgelehnt`, `überholt durch NNNN`. Beantwortet ein neues ADR offene Enden eines alten, ohne dessen Entscheidung umzustoßen, bekommt das alte zusätzlich das Feld `amended-by: NNNN`; sein Text bleibt unangetastet. Dazu gehören `date`, `decision-makers`, `consulted` und `informed`, so wie in den vorhandenen ADRs. Status und Datum gehören nicht als Aufzählung unter die Überschrift, sonst liest kein Werkzeug sie.
 5. Die Tabelle in dieser Datei ergänzen.
 6. Als Pull Request einreichen. Die Diskussion findet im Pull Request statt, nicht im Dokument.
+
+ADR 0009 ist der erste Fall der zweiten Art: Es stößt 0002 nicht um, sondern schließt dessen offene Enden (Paketmanager, Node-Version, endgültige Paketliste) und legt Test-, Lint- und Formatierwerkzeug fest. Deshalb trägt 0002 den Zeiger `amended-by`, nicht `überholt durch`.
 
 Ein angenommenes ADR wird nicht mehr inhaltlich umgeschrieben. Ändert sich die Entscheidung, entsteht ein neues ADR, und das alte bekommt den Status `überholt durch` mit Verweis auf das neue. So bleibt die Historie lesbar.

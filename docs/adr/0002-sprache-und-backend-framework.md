@@ -1,5 +1,6 @@
 ---
 status: angenommen
+amended-by: 0009
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 0, 1, 9
