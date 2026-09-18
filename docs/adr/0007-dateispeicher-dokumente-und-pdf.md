@@ -1,5 +1,5 @@
 ---
-status: vorgeschlagen
+status: angenommen
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.5, 4.2, 4.7, 4.10
@@ -29,9 +29,9 @@ Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und 
 - Vorteile: Ein Backup für alles, Transaktionssicherheit.
 - Nachteile: Datenbank wächst schnell (Fotos), Backups werden schwerfällig.
 
-## Empfehlung Dateispeicher
+## Entscheidung Dateispeicher
 
-**Abstraktion mit zwei Treibern:** lokales Dateisystem als Standard, S3-kompatibel als Option. Dateien werden **inhaltsadressiert** abgelegt (SHA-256 als Schlüssel): dieselbe Datei existiert genau einmal, Änderung ist unmöglich ohne neuen Hash, Prüfung der Unversehrtheit ist ein Hash-Vergleich. Metadaten (Name, Typ, Zuordnung zu Kunde/Objekt/Anlage/Beleg, Hochladender, Zeitpunkt) liegen in PostgreSQL. Festgeschriebene Belege referenzieren ihre PDF- und XML-Datei per Hash; diese Dateien sind nach Festschreibung unlöschbar (bis zur Aufbewahrungsfrist; Löschung als protokollierter Vorgang).
+Gewählt wurde eine **Abstraktion mit zwei Treibern**: lokales Dateisystem als Standard, S3-kompatibel als Option. Dateien werden **inhaltsadressiert** abgelegt (SHA-256 als Schlüssel): dieselbe Datei existiert genau einmal, Änderung ist unmöglich ohne neuen Hash, Prüfung der Unversehrtheit ist ein Hash-Vergleich. Metadaten (Name, Typ, Zuordnung zu Kunde/Objekt/Anlage/Beleg, Hochladender, Zeitpunkt) liegen in PostgreSQL. Festgeschriebene Belege referenzieren ihre PDF- und XML-Datei per Hash; diese Dateien sind nach Festschreibung unlöschbar (bis zur Aufbewahrungsfrist; Löschung als protokollierter Vorgang).
 
 ## Betrachtete Optionen: Dokumentenerzeugung
 
@@ -50,9 +50,13 @@ Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und 
 - Vorteile: Schnell, deterministisch, gute Typografie, Vorlagen als Text.
 - Nachteile: Eigene Sprache für Vorlagen; Ökosystem jung; Daten-Übergabe über JSON.
 
-## Empfehlung Dokumentenerzeugung
+## Entscheidung Dokumentenerzeugung
 
-**Option A** für Phase 1 (Geschwindigkeit der Umsetzung, Vorlagen in HTML/Tailwind pflegbar), mit sauber gekapselter Schnittstelle `renderDocument(template, data) → PDF`, sodass Typst später als leichtgewichtiger Renderer eingesetzt werden kann, wenn Chromium im Betrieb stört.
+Gewählt wurde **Option A, HTML und CSS über headless Chromium**, weil die Vorlagen damit mit denselben Mitteln gepflegt werden wie die Oberfläche und nicht in einer eigenen Sprache.
+
+**Chromium läuft dabei nicht im Anwendungsprozess, sondern in einem eigenen Container**, der nur beim Rendern hochfährt. Grund ist das Speicherziel aus ADR 0002: Der Anwendungsprozess soll mit 2 GB neben PostgreSQL auskommen, und Chromium im selben Prozess hätte dieses Ziel gekippt. Die Trennung kostet einen Dienst mehr in der Compose-Datei und bringt dafür zwei Dinge: Das Speicherziel bleibt haltbar, und wer kein PDF braucht, lässt den Dienst weg.
+
+Die Schnittstelle bleibt gekapselt als `renderDocument(template, data) → PDF`, damit Typst später als leichtgewichtiger Renderer eintreten kann, ohne dass die Vorlagen-Aufrufe im Code angefasst werden. Typst jetzt schon zu nehmen wurde verworfen: eigene Vorlagensprache, die außer dem Maintainer niemand pflegen könnte.
 
 ## E-Rechnung
 
@@ -63,5 +67,6 @@ Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und 
 ## Konsequenzen
 
 - Backup umfasst PostgreSQL-Dump **und** den Dateispeicher; das Backup-Skript prüft nach dem Restore Hashes stichprobenartig.
+- Die Docker-Compose-Datei enthält den Render-Dienst als eigenen, abschaltbaren Container. Fehlt er, meldet die Anwendung beim PDF-Versuch einen verständlichen Fehler statt eines Absturzes.
 - Größenlimits und Bildkompression für Fotos (Ziel: unter 1 MB pro Foto, Original optional behalten).
 - Virenscan für Uploads aus dem Kundenportal und dem E-Mail-Import (ClamAV optional, standardmäßig aktiv, wenn vorhanden).

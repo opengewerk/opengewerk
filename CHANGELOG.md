@@ -15,6 +15,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - ADR 0002 bis 0008 als Entscheidungsvorlagen für den Tech-Stack
 - CI-Job "Schreibweise", der Gedankenstriche im gesamten Repository meldet
 
+### Geändert
+
+- ADR 0002 bis 0008 entschieden und auf `angenommen` gesetzt. Der Tech-Stack steht:
+  TypeScript mit NestJS, PostgreSQL mit Row-Level Security und Drizzle, React mit Vite
+  als eine PWA, eigene Outbox für den Offline-Sync, eingebaute Auth über better-auth,
+  inhaltsadressierter Dateispeicher mit PDF-Erzeugung in einem eigenen Container,
+  Gewerke als Datenpakete
+
 ### Behoben
 
 - Gedankenstriche in der Feature-Gliederung und in den ADRs durch Doppelpunkt,
