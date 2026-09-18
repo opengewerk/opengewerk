@@ -5,6 +5,7 @@
 // it and is checked against it by the compiler, so the two cannot drift apart
 // unnoticed.
 export * from './model/address.js'
+export * from './model/authorization.js'
 export * from './model/contact.js'
 export * from './model/customer.js'
 export * from './model/document.js'

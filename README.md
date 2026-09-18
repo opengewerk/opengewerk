@@ -99,6 +99,16 @@ Drei Dinge daran sind leicht zu übersehen:
 
 Ein Test prüft für jede Tabelle, dass RLS aktiviert und erzwungen ist, dass eine Policy existiert und dass die Anwendungsrolle Rechte hat. Eine Tabelle, die in einer späteren Migration dazukommt und eines davon vergisst, fällt damit sofort auf, statt still für alle sichtbar zu sein.
 
+### Rollen und Rechte
+
+Drei Rollen zum Start: Inhaber, Büro, Monteur. Die Rechte sind entlang der Aktion geschnitten, nicht entlang der Oberfläche, und heißen `subject.verb`. Der wichtigste Schnitt liegt zwischen `document.write` und `document.issue`: ein Monteur schreibt den Regiebericht auf der Baustelle, festschreiben darf ihn das Büro. Ab der Festschreibung ist der Beleg fix und wird nur noch storniert, nie geändert.
+
+Geprüft wird serverseitig an jeder Route, über einen global registrierten Guard. Global und nicht je Controller, weil das den Unterschied macht: eine Route, die kein Recht deklariert, wird abgelehnt statt durchgewunken. Ein Test zählt alle registrierten Routen auf und meldet jede ohne Rechteangabe; die Liste der Controller kommt aus dem Modul selbst, ein neuer Controller ist also automatisch dabei.
+
+**Rechte und Mandantentrennung sind zwei Fragen.** Die Rechte sagen, *was* jemand tun darf, Row-Level Security sagt, *wessen* Daten er dabei sieht. Das Büro des einen Mandanten hat jedes Recht auf die Kunden des anderen und sieht trotzdem keinen einzigen.
+
+Einen Einstiegspunkt, der den Server startet, gibt es noch nicht. Das ist Absicht: die Anwendung verlangt eine Identitätsquelle, und die einzige, die sich heute schreiben ließe, würde jeden hereinlassen. Der Server startet erst, wenn die Anmeldung da ist.
+
 ## Roadmap
 
 | Phase | Inhalt | Ergebnis |
