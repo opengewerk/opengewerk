@@ -17,6 +17,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Feature-Gliederung auf v2.5: Leitentscheidung 7 sagt jetzt, dass Fragen über
+  Zusammenhänge zuerst als Abfrage über Datenmodell, Regel- und Fristen-Engine gebaut
+  werden und KI nur den Rest übernimmt, ohne je direkt zu schreiben. Dazu die
+  Klarstellung in Abschnitt 6, dass die REST-API für Drittanbieter ein eigener Vertrag
+  wird und nicht der gedehnte Kanzlei-Vertrag
 - Feature-Gliederung auf v2.4: neue Leitentscheidung 9 zur Positionierung. OpenGewerk
   ist nicht die kostenlose Alternative, sondern die Software ohne künstlich beschränkte
   Funktionen. Dazu drei Festlegungen, die das tragen müssen: Einnahmen aus
