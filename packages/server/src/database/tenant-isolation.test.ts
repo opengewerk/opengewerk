@@ -107,10 +107,10 @@ describe('the tables', () => {
 
 describe('a tenant', () => {
   it('sees only its own rows, even without a where clause', async () => {
-    const seenByNorth = await database.forTenant(north.id, (tx) =>
+    const seenByNorth = await database.forTenant({ tenantId: north.id }, (tx) =>
       tx.select().from(schema.customers),
     )
-    const seenBySouth = await database.forTenant(south.id, (tx) =>
+    const seenBySouth = await database.forTenant({ tenantId: south.id }, (tx) =>
       tx.select().from(schema.customers),
     )
 
@@ -122,7 +122,7 @@ describe('a tenant', () => {
   })
 
   it('sees nothing of the other tenant through a join either', async () => {
-    const rows = await database.forTenant(north.id, (tx) =>
+    const rows = await database.forTenant({ tenantId: north.id }, (tx) =>
       tx
         .select({ site: schema.sites.id, customer: schema.customers.id })
         .from(schema.sites)
@@ -135,13 +135,13 @@ describe('a tenant', () => {
   })
 
   it('cannot read a row of the other tenant by its id', async () => {
-    const foreign = await database.forTenant(south.id, (tx) => tx.select().from(schema.customers))
+    const foreign = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
     const foreignId = foreign[0]?.id
     if (!foreignId) {
       throw new Error('The other tenant has no customer to try')
     }
 
-    const found = await database.forTenant(north.id, (tx) =>
+    const found = await database.forTenant({ tenantId: north.id }, (tx) =>
       tx
         .select()
         .from(schema.customers)
@@ -153,7 +153,7 @@ describe('a tenant', () => {
 
   it('cannot write a row into the other tenant', async () => {
     const refused = await refusedBy(
-      database.forTenant(north.id, (tx) =>
+      database.forTenant({ tenantId: north.id }, (tx) =>
         tx.insert(schema.customers).values({
           tenantId: south.id,
           kind: 'business',
@@ -165,12 +165,12 @@ describe('a tenant', () => {
     // it would then not be able to see, which is the worst of both worlds.
     expect(refused.code).toBe(insufficientPrivilege)
 
-    const stillOne = await database.forTenant(south.id, (tx) => tx.select().from(schema.customers))
+    const stillOne = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
     expect(stillOne).toHaveLength(1)
   })
 
   it('cannot update a row of the other tenant', async () => {
-    const changed = await database.forTenant(north.id, (tx) =>
+    const changed = await database.forTenant({ tenantId: north.id }, (tx) =>
       tx
         .update(schema.customers)
         .set({ name: 'Umbenannt' })
@@ -184,12 +184,12 @@ describe('a tenant', () => {
     expect(changed).toHaveLength(1)
     expect(changed[0]?.tenantId).toBe(north.id)
 
-    const untouched = await database.forTenant(south.id, (tx) => tx.select().from(schema.customers))
+    const untouched = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
     expect(untouched[0]?.name).toBe('Gleicher Name GmbH')
   })
 
   it('cannot delete a row of the other tenant', async () => {
-    const deleted = await database.forTenant(north.id, (tx) =>
+    const deleted = await database.forTenant({ tenantId: north.id }, (tx) =>
       tx
         .delete(schema.sites)
         .where(sql`true`)
@@ -198,7 +198,7 @@ describe('a tenant', () => {
     expect(deleted).toHaveLength(1)
     expect(deleted[0]?.tenantId).toBe(north.id)
 
-    const stillThere = await database.forTenant(south.id, (tx) => tx.select().from(schema.sites))
+    const stillThere = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.sites))
     expect(stillThere).toHaveLength(1)
   })
 })
@@ -206,11 +206,11 @@ describe('a tenant', () => {
 describe('without a tenant', () => {
   it('refuses before it even takes a connection', async () => {
     await expect(
-      database.forTenant('' as TenantId, async (tx) => tx.select().from(schema.customers)),
+      database.forTenant({ tenantId: '' as TenantId }, async (tx) => tx.select().from(schema.customers)),
     ).rejects.toThrow(/Not a tenant id/)
 
     await expect(
-      database.forTenant('kein-mandant' as TenantId, async (tx) =>
+      database.forTenant({ tenantId: 'kein-mandant' as TenantId }, async (tx) =>
         tx.select().from(schema.customers),
       ),
     ).rejects.toThrow(/Not a tenant id/)
@@ -240,13 +240,13 @@ describe('without a tenant', () => {
     // The setting is local to the transaction. If it were not, a pooled
     // connection would hand the last tenant's rows to whoever gets it next,
     // and that is the kind of leak that only shows up under load.
-    await database.forTenant(north.id, (tx) => tx.select().from(schema.customers))
+    await database.forTenant({ tenantId: north.id }, (tx) => tx.select().from(schema.customers))
 
-    const leaked = await database.forTenant(south.id, (tx) => tx.select().from(schema.customers))
+    const leaked = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
     expect(leaked).toHaveLength(1)
     expect(leaked[0]?.tenantId).toBe(south.id)
 
-    const setting = await database.forTenant(south.id, async (tx) => {
+    const setting = await database.forTenant({ tenantId: south.id }, async (tx) => {
       const result = await tx.execute(sql`select current_setting('app.tenant_id', true) as value`)
 
       return (result.rows[0] as { value: string | null }).value

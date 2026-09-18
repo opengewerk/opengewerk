@@ -26,6 +26,7 @@ export type PvModuleId = Id<'pv-module'>
 export type JobId = Id<'job'>
 export type DocumentId = Id<'document'>
 export type NumberRangeId = Id<'number-range'>
+export type AuditEntryId = Id<'audit-entry'>
 
 /**
  * Every record carries the tenant it belongs to and when it was written. The

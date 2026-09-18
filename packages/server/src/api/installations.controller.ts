@@ -1,12 +1,12 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common'
-import type { InstallationId, Identity } from '@opengewerk/domain'
+import type { InstallationId } from '@opengewerk/domain'
 import { eq } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
 import { installations } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
-import { CurrentIdentity } from './identity.js'
+import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = [
   'siteId',
@@ -26,17 +26,17 @@ export class InstallationsController {
 
   @Get()
   @RequiresPermission('installation.read')
-  list(@CurrentIdentity() identity: Identity) {
-    return this.database.forTenant(identity.tenantId, (tx) => tx.select().from(installations))
+  list(@CurrentIdentity() identity: RequestIdentity) {
+    return this.database.forTenant(identity, (tx) => tx.select().from(installations))
   }
 
   @Post()
   @RequiresPermission('installation.write')
-  async create(@CurrentIdentity() identity: Identity, @Body() body: unknown) {
+  async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFields(values, ['siteId', 'kind', 'designation'])
 
-    const [created] = await this.database.forTenant(identity.tenantId, (tx) =>
+    const [created] = await this.database.forTenant(identity, (tx) =>
       tx
         .insert(installations)
         .values({ ...(values as typeof installations.$inferInsert), tenantId: identity.tenantId })
@@ -49,14 +49,14 @@ export class InstallationsController {
   @Patch(':id')
   @RequiresPermission('installation.write')
   async update(
-    @CurrentIdentity() identity: Identity,
+    @CurrentIdentity() identity: RequestIdentity,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
     const values = pick(body, writableFields)
     requireSomething(values)
 
-    const [updated] = await this.database.forTenant(identity.tenantId, (tx) =>
+    const [updated] = await this.database.forTenant(identity, (tx) =>
       tx
         .update(installations)
         .set({ ...(values as Partial<typeof installations.$inferInsert>), updatedAt: new Date() })

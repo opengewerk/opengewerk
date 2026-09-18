@@ -55,3 +55,39 @@ export function ownTenantOnly(id: PgColumn) {
     withCheck: isSession,
   })
 }
+
+/**
+ * A table the application reads and never writes. The audit log is that case:
+ * its rows come from a trigger, not from a statement anybody sends.
+ */
+export function tenantReadOnly(tenantId: PgColumn) {
+  return pgPolicy('tenant_isolation', {
+    as: 'permissive',
+    for: 'select',
+    to: applicationRole,
+    using: sql`${tenantId} = ${sessionTenant()}`,
+  })
+}
+
+/**
+ * The gate the audit trigger writes through, and it is open on purpose.
+ *
+ * The trigger runs as its definer and has to work on every path, including a
+ * change somebody makes at a psql prompt, where no session tenant exists and
+ * there is nothing to compare a row against. A policy that asked for one would
+ * turn every change outside the application into an error, which is the
+ * opposite of what a log is for.
+ *
+ * What keeps this from being a hole is the grant, not the policy: the
+ * application role has SELECT on the table and nothing else, so it never gets
+ * as far as this check. A policy and a grant are two gates, and a write needs
+ * both of them.
+ */
+export function writtenByTrigger() {
+  return pgPolicy('written_by_trigger', {
+    as: 'permissive',
+    for: 'insert',
+    to: 'public',
+    withCheck: sql`true`,
+  })
+}

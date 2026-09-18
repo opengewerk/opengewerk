@@ -5,6 +5,26 @@ import { Pool, type PoolClient } from 'pg'
 /** What a caller gets inside a tenant transaction. */
 export type TenantTransaction = NodePgDatabase
 
+/**
+ * Who is changing something, and why. The tenant is the part that decides
+ * which rows are in reach; the other two end up in the audit log, on every
+ * row the transaction touches, without anybody writing a line for it.
+ *
+ * Both are optional because there are callers without either: a setup routine
+ * or a test has no user, and saying so honestly is better than inventing one.
+ * The log then records the database role instead, which is enough to tell "the
+ * application did this" from "somebody was at the database".
+ *
+ * `Identity` from the HTTP layer fits this shape as it is, which is the point:
+ * passing the identity through is less work than not passing it.
+ */
+export interface Actor {
+  readonly tenantId: TenantId
+  readonly userId?: string
+  /** What the change is for. The HTTP layer fills in the action it runs. */
+  readonly reason?: string
+}
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
@@ -33,9 +53,11 @@ export class Database {
    * throws.
    */
   async forTenant<Result>(
-    tenantId: TenantId,
+    actor: Actor,
     work: (tx: TenantTransaction) => Promise<Result>,
   ): Promise<Result> {
+    const { tenantId, userId, reason } = actor
+
     if (!uuidPattern.test(tenantId)) {
       // Refused before a connection is even taken. A caller that has no proper
       // tenant at hand has no business talking to the database, and failing
@@ -50,7 +72,17 @@ export class Database {
       await client.query('begin')
       // set_config with `is_local` true is SET LOCAL, and unlike SET LOCAL it
       // takes a parameter, so the value never gets pasted into the statement.
-      await client.query('select set_config($1, $2, true)', ['app.tenant_id', tenantId])
+      //
+      // The tenant is read by the policies, the other two by the trigger that
+      // writes the audit log. All three in one statement, because three round
+      // trips on every transaction would be three too many. An empty string
+      // stands for "not given"; the trigger turns it back into nothing.
+      await client.query(
+        `select set_config('app.tenant_id', $1, true),
+                set_config('app.user_id', $2, true),
+                set_config('app.reason', $3, true)`,
+        [tenantId, userId ?? '', reason ?? ''],
+      )
 
       const result = await work(drizzle(client))
 

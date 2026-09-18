@@ -31,7 +31,7 @@ let customerId: CustomerId
 const documentIsFixed = 'OG001'
 
 async function createDraft(kind: 'final_invoice' | 'quote' = 'final_invoice') {
-  return database.forTenant(tenant.id, async (tx) => {
+  return database.forTenant({ tenantId: tenant.id }, async (tx) => {
     const [draft] = await tx
       .insert(schema.documents)
       .values({
@@ -60,7 +60,7 @@ beforeAll(async () => {
   database = Database.connect(applicationDatabaseUrl())
 
   customerId = newId<'customer'>()
-  await database.forTenant(tenant.id, (tx) =>
+  await database.forTenant({ tenantId: tenant.id }, (tx) =>
     tx
       .insert(schema.customers)
       .values({ id: customerId, tenantId: tenant.id, kind: 'business', name: 'Bauherr' }),
@@ -81,7 +81,7 @@ describe('numbers issued at the same moment', () => {
     // that produces two invoices with the same number.
     const issued = await Promise.all(
       drafts.map((draft) =>
-        database.forTenant(tenant.id, async (tx) => {
+        database.forTenant({ tenantId: tenant.id }, async (tx) => {
           const issuedAt = new Date()
           const number = await assignDocumentNumber(tx, tenant.id, draft.kind, issuedAt)
 
@@ -108,7 +108,7 @@ describe('numbers issued at the same moment', () => {
     const before = await nextCounter()
 
     await expect(
-      database.forTenant(tenant.id, async (tx) => {
+      database.forTenant({ tenantId: tenant.id }, async (tx) => {
         await assignDocumentNumber(tx, tenant.id, 'final_invoice', new Date())
 
         throw new Error('Etwas geht schief, nachdem die Nummer gezogen wurde')
@@ -125,7 +125,7 @@ describe('numbers issued at the same moment', () => {
     const invoice = await createDraft('final_invoice')
     const quote = await createDraft('quote')
 
-    const numbers = await database.forTenant(tenant.id, async (tx) => ({
+    const numbers = await database.forTenant({ tenantId: tenant.id }, async (tx) => ({
       invoice: await assignDocumentNumber(tx, tenant.id, invoice.kind, new Date()),
       quote: await assignDocumentNumber(tx, tenant.id, quote.kind, new Date()),
     }))
@@ -138,7 +138,7 @@ describe('numbers issued at the same moment', () => {
 describe('an issued document', () => {
   it('cannot be changed, and the refusal comes from the database', async () => {
     const draft = await createDraft()
-    await database.forTenant(tenant.id, async (tx) => {
+    await database.forTenant({ tenantId: tenant.id }, async (tx) => {
       const number = await assignDocumentNumber(tx, tenant.id, draft.kind, new Date())
 
       await tx
@@ -164,7 +164,7 @@ describe('an issued document', () => {
 
   it('can be cancelled, and nothing else may change along the way', async () => {
     const draft = await createDraft()
-    await database.forTenant(tenant.id, async (tx) => {
+    await database.forTenant({ tenantId: tenant.id }, async (tx) => {
       const number = await assignDocumentNumber(tx, tenant.id, draft.kind, new Date())
 
       await tx
@@ -194,7 +194,7 @@ describe('an issued document', () => {
 
   it('cannot be issued twice, not even past the server', async () => {
     const draft = await createDraft()
-    await database.forTenant(tenant.id, async (tx) => {
+    await database.forTenant({ tenantId: tenant.id }, async (tx) => {
       const number = await assignDocumentNumber(tx, tenant.id, draft.kind, new Date())
 
       await tx
@@ -211,7 +211,7 @@ describe('an issued document', () => {
 })
 
 async function nextCounter(): Promise<number> {
-  const [range] = await database.forTenant(tenant.id, (tx) =>
+  const [range] = await database.forTenant({ tenantId: tenant.id }, (tx) =>
     tx
       .select()
       .from(schema.numberRanges)

@@ -10,7 +10,12 @@ import {
 import { Reflector } from '@nestjs/core'
 import { isAllowed, type Permission } from '@opengewerk/domain'
 
-import { IDENTITY_SOURCE, identityProperty, type IdentitySource } from './identity.js'
+import {
+  IDENTITY_SOURCE,
+  identityProperty,
+  type IdentitySource,
+  type RequestWithIdentity,
+} from './identity.js'
 
 export const PERMISSION_METADATA = 'opengewerk:permission'
 
@@ -27,6 +32,10 @@ export const RequiresPermission = (permission: Permission) =>
  * Resolves who is asking and whether they may. Runs on every request, so a
  * route without a declared right is refused rather than let through: a
  * forgotten decorator has to fail closed.
+ *
+ * It is also where the audit log gets its reason. The right a route declares
+ * is the nearest thing to "what is going on here" that is available on every
+ * request, and taking it here means no handler has to remember to pass one.
  */
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
@@ -36,14 +45,12 @@ export class AuthorizationGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Record<string, unknown>>()
+    const request = context.switchToHttp().getRequest<RequestWithIdentity>()
     const identity = await this.identities.identify(request)
 
     if (!identity) {
       throw new UnauthorizedException('Keine gültige Anmeldung.')
     }
-
-    request[identityProperty] = identity
 
     const permission = this.reflector.getAllAndOverride<Permission | undefined>(
       PERMISSION_METADATA,
@@ -59,6 +66,10 @@ export class AuthorizationGuard implements CanActivate {
     if (!isAllowed(identity, permission)) {
       throw new ForbiddenException(`Fehlendes Recht: ${permission}`)
     }
+
+    // Only once everything has passed. A handler that runs has an identity
+    // and a reason; one that does not never sees either.
+    request[identityProperty] = { ...identity, reason: permission }
 
     return true
   }
