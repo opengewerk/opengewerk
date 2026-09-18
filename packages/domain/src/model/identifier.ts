@@ -39,3 +39,32 @@ export interface TenantOwned {
   readonly createdAt: Date
   readonly updatedAt: Date
 }
+
+/**
+ * A record that travels to devices and back, and therefore has to survive
+ * being changed in two places at once.
+ *
+ * Not every record does. A number range is a counter that never leaves the
+ * server, and giving it a `deletedAt` would say something untrue about it. The
+ * entities that do sync are the ones a technician has in front of them in a
+ * basement, and they are listed once, in the sync policies.
+ */
+export interface Synced extends TenantOwned {
+  /** Counts up on every change. A shortcut for "has anything happened here". */
+  readonly version: number
+  /** Who wrote it last. On the row, because a device has no audit log. */
+  readonly updatedBy: string | null
+  readonly deviceId: string | null
+  /**
+   * Set instead of removing the row. A record that is gone is a record a
+   * device that was offline never hears about, because a delta pull delivers
+   * rows that changed and a deleted row is not one.
+   */
+  readonly deletedAt: Date | null
+  /**
+   * Where this change sits in the tenant's stream of changes. The cursor a
+   * device asks for more with, and it counts in commit order, which is what
+   * keeps a late commit from slipping past a cursor that has moved on.
+   */
+  readonly changeSequence: number
+}

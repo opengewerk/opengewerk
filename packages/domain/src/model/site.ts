@@ -1,5 +1,5 @@
 import type { Address } from './address.js'
-import type { CustomerId, SiteId, TenantOwned } from './identifier.js'
+import type { CustomerId, SiteId, Synced } from './identifier.js'
 
 /**
  * A building, an estate, a location. One customer can have many: the property
@@ -7,7 +7,7 @@ import type { CustomerId, SiteId, TenantOwned } from './identifier.js'
  * Everything that happens on site hangs off here, so the history stays with
  * the building even when the customer changes.
  */
-export interface Site extends TenantOwned, Address {
+export interface Site extends Synced, Address {
   readonly id: SiteId
   readonly customerId: CustomerId
   /** What the people on site call it: `Haus 3`, `Lager Nord`. */

@@ -1,10 +1,10 @@
-import type { ContactId, CustomerId, SiteId, TenantOwned } from './identifier.js'
+import type { ContactId, CustomerId, SiteId, Synced } from './identifier.js'
 
 /**
  * A person to talk to. Hangs off a customer (site manager, accounting) or off
  * a single site (tenant, caretaker), never off both, and never off neither.
  */
-export interface Contact extends TenantOwned {
+export interface Contact extends Synced {
   readonly id: ContactId
   readonly customerId: CustomerId | null
   readonly siteId: SiteId | null

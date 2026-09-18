@@ -1,6 +1,6 @@
 import { index, pgTable, text } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
+import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
@@ -28,6 +28,7 @@ export const sites = pgTable(
 
     notes: text('notes'),
     ...timestamps,
+    ...syncColumns,
   },
   (table) => [
     tenantIsolation(table.tenantId),

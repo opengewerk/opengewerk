@@ -3,7 +3,7 @@ import type {
   InverterId,
   PvModuleId,
   PvStringId,
-  TenantOwned,
+  Synced,
 } from './identifier.js'
 
 /**
@@ -14,7 +14,7 @@ import type {
  * their own.
  */
 
-export interface Inverter extends TenantOwned {
+export interface Inverter extends Synced {
   readonly id: InverterId
   readonly installationId: InstallationId
   readonly designation: string
@@ -25,14 +25,14 @@ export interface Inverter extends TenantOwned {
 }
 
 /** One string of modules on an inverter input. */
-export interface PvString extends TenantOwned {
+export interface PvString extends Synced {
   readonly id: PvStringId
   readonly inverterId: InverterId
   readonly designation: string
   readonly position: number
 }
 
-export interface PvModule extends TenantOwned {
+export interface PvModule extends Synced {
   readonly id: PvModuleId
   readonly pvStringId: PvStringId
   readonly manufacturer: string | null

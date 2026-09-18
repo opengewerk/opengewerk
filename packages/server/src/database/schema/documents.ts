@@ -12,7 +12,7 @@ import {
 
 import { sql } from 'drizzle-orm'
 
-import { primaryId, reference, timestamps } from './columns.js'
+import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
@@ -57,6 +57,7 @@ export const documents = pgTable(
     issuedAt: timestamp('issued_at', { withTimezone: true }),
     subject: text('subject'),
     ...timestamps,
+    ...syncColumns,
   },
   (table) => [
     tenantIsolation(table.tenantId),

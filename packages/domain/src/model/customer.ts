@@ -1,5 +1,5 @@
 import type { Address } from './address.js'
-import type { CustomerId, IsoDate, TenantOwned } from './identifier.js'
+import type { CustomerId, IsoDate, Synced } from './identifier.js'
 
 /**
  * The four kinds the concept distinguishes. They differ in how a job reaches
@@ -15,7 +15,7 @@ export const customerKinds = [
 
 export type CustomerKind = (typeof customerKinds)[number]
 
-export interface Customer extends TenantOwned, Address {
+export interface Customer extends Synced, Address {
   readonly id: CustomerId
   readonly kind: CustomerKind
   /** Company name, or the family name of a private customer. */

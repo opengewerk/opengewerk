@@ -88,6 +88,12 @@ describe('the tables', () => {
     // and quietly short one entry afterwards. A table added by a later
     // migration without the trigger makes this red, which is the moment to
     // notice it.
+    //
+    // Out of it are the tables the log and the sync layer are themselves made
+    // of, matched by prefix rather than by name so that the next one is
+    // covered as well. The log would otherwise record its own recording, and
+    // the sync layer's bookkeeping describes changes that are in the log
+    // already.
     const { rows } = await admin.query<{ table_name: string; triggers: string }>(
       `select c.relname as table_name,
               (select count(*) from pg_trigger t
@@ -96,7 +102,9 @@ describe('the tables', () => {
          join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'public'
           and c.relkind = 'r'
-          and c.relname not in ('audit_entries', 'audit_chains', '__drizzle_migrations')
+          and c.relname not like 'audit\\_%'
+          and c.relname not like 'sync\\_%'
+          and c.relname <> '__drizzle_migrations'
         order by c.relname`,
     )
 
@@ -108,9 +116,10 @@ describe('the tables', () => {
 
   it('leave the log itself alone, so that it does not log its own logging', async () => {
     const { rows } = await admin.query<{ count: string }>(
-      `select count(*) from pg_trigger
-        where tgrelid in ('audit_entries'::regclass, 'audit_chains'::regclass)
-          and tgname = 'audit_changes'`,
+      `select count(*) from pg_trigger t
+         join pg_class c on c.oid = t.tgrelid
+        where (c.relname like 'audit\\_%' or c.relname like 'sync\\_%')
+          and t.tgname = 'audit_changes'`,
     )
 
     expect(Number(rows[0]?.count)).toBe(0)

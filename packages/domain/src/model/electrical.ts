@@ -4,7 +4,7 @@ import type {
   DistributionBoardId,
   EquipmentId,
   InstallationId,
-  TenantOwned,
+  Synced,
 } from './identifier.js'
 
 /**
@@ -30,7 +30,7 @@ export const distributionBoardKinds = [
 
 export type DistributionBoardKind = (typeof distributionBoardKinds)[number]
 
-export interface DistributionBoard extends TenantOwned {
+export interface DistributionBoard extends Synced {
   readonly id: DistributionBoardId
   readonly installationId: InstallationId
   readonly kind: DistributionBoardKind
@@ -45,14 +45,14 @@ export interface DistributionBoard extends TenantOwned {
  * A section of a board. Large boards are divided into them, a small sub
  * distribution is not, which is why a circuit may point straight at its board.
  */
-export interface BoardSection extends TenantOwned {
+export interface BoardSection extends Synced {
   readonly id: BoardSectionId
   readonly distributionBoardId: DistributionBoardId
   readonly designation: string
   readonly position: number
 }
 
-export interface Circuit extends TenantOwned {
+export interface Circuit extends Synced {
   readonly id: CircuitId
   readonly distributionBoardId: DistributionBoardId
   /** Set when the board is divided into sections, null when it is not. */
@@ -63,7 +63,7 @@ export interface Circuit extends TenantOwned {
 }
 
 /** A device on a circuit: socket, luminaire, motor, whatever is connected. */
-export interface Equipment extends TenantOwned {
+export interface Equipment extends Synced {
   readonly id: EquipmentId
   readonly circuitId: CircuitId
   readonly designation: string

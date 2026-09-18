@@ -1,7 +1,7 @@
 import { customerKinds } from '@opengewerk/domain'
 import { boolean, date, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
 
-import { primaryId, timestamps } from './columns.js'
+import { primaryId, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
@@ -38,6 +38,7 @@ export const customers = pgTable(
 
     notes: text('notes'),
     ...timestamps,
+    ...syncColumns,
   },
   (table) => [tenantIsolation(table.tenantId)],
 )
