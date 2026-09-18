@@ -60,3 +60,62 @@ jobs:
 
           print("Alle Textdateien sind UTF-8 ohne BOM und benutzen LF.")
           PYTHON
+
+  schreibweise:
+    name: Schreibweise
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Auf Gedankenstriche prüfen
+        run: |
+          python3 - <<'PYTHON'
+          import subprocess
+          import sys
+
+          # Gedankenstrich und Halbgeviertstrich sind projektweit unerwünscht,
+          # auch in Zahlenbereichen. Dort steht ein einfacher Bindestrich
+          # (25-75, Z1-Z3). Begründung in der CLAUDE.md des Projektordners.
+          STRICHE = {chr(0x2013): "Halbgeviertstrich", chr(0x2014): "Geviertstrich"}
+          AUSNAHMEN = {"LICENSE"}
+          BINAERE_ENDUNGEN = (
+              ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+              ".pdf", ".zip", ".gz", ".woff", ".woff2", ".ttf", ".otf",
+          )
+
+          roh = subprocess.run(
+              ["git", "ls-files", "-z"], capture_output=True, check=True
+          ).stdout
+          fehler = []
+
+          for eintrag in roh.split(b"\0"):
+              if not eintrag:
+                  continue
+              pfad = eintrag.decode("utf-8", "surrogateescape")
+              if pfad in AUSNAHMEN or pfad.lower().endswith(BINAERE_ENDUNGEN):
+                  continue
+              with open(pfad, "rb") as datei:
+                  inhalt = datei.read()
+              if b"\0" in inhalt:
+                  continue
+              try:
+                  text = inhalt.decode("utf-8")
+              except UnicodeDecodeError:
+                  continue
+              for nummer, zeile in enumerate(text.splitlines(), start=1):
+                  for zeichen, name in STRICHE.items():
+                      if zeichen in zeile:
+                          fehler.append(f"{pfad}:{nummer}: {name} in: {zeile.strip()}")
+                          break
+
+          if fehler:
+              print("Gedankenstriche gefunden. Ersetze sie je nach Satzbau durch")
+              print("Doppelpunkt, Komma, Semikolon oder Punkt, bei Zahlenbereichen")
+              print("durch einen einfachen Bindestrich.")
+              for zeile in fehler:
+                  print(f"  {zeile}")
+              sys.exit(1)
+
+          print("Keine Gedankenstriche gefunden.")
+          PYTHON

@@ -1,4 +1,4 @@
-# ADR 0005 – Offline-Synchronisation und Konfliktauflösung
+# ADR 0005: Offline-Synchronisation und Konfliktauflösung
 
 - Status: vorgeschlagen
 - Datum: 2026-09-18
@@ -10,17 +10,17 @@ Monteure erfassen Zeiten, Regieberichte, Prüfprotokolle, Fotos, Aufmaße und M�
 
 ## Optionen
 
-### A – CRDT-basiert (Automerge, Yjs)
+### A: CRDT-basiert (Automerge, Yjs)
 
 - Vorteile: Automatische Zusammenführung ohne Konflikte; gut für gemeinsames Editieren von Texten.
-- Nachteile: Fachliche Invarianten (Summen, Nummernkreise, „Beleg ist festgeschrieben“) lassen sich mit CRDTs nicht ausdrücken; Speicherwachstum; Debugging schwer; Konflikte werden versteckt statt entschieden – Widerspruch zum Konzept.
+- Nachteile: Fachliche Invarianten (Summen, Nummernkreise, „Beleg ist festgeschrieben“) lassen sich mit CRDTs nicht ausdrücken; Speicherwachstum; Debugging schwer; Konflikte werden versteckt statt entschieden, Widerspruch zum Konzept.
 
-### B – Replikations-Engine (ElectricSQL, PowerSync, RxDB mit Replikation)
+### B: Replikations-Engine (ElectricSQL, PowerSync, RxDB mit Replikation)
 
 - Vorteile: Fertige lokale DB, Sync-Protokoll und Query-Layer; spart viel Eigenbau.
 - Nachteile: Abhängigkeit von einem Produkt/Lizenzmodell (PowerSync kommerziell, Electric in Bewegung); Konfliktregeln je Entität nur eingeschränkt; RLS/Mandantenlogik muss in deren Modell passen.
 
-### C – Eigener Outbox/Op-Log mit serverautoritativem Merge
+### C: Eigener Outbox/Op-Log mit serverautoritativem Merge
 
 - Vorteile: Volle Kontrolle über Konfliktregeln je Entität; GoBD-Grenze klar (Festschreibung nur online); schlank; keine Fremdabhängigkeit im Kern.
 - Nachteile: Eigenbau von Queue, Delta-Pull, Konflikt-UI; muss sorgfältig getestet werden.
@@ -40,10 +40,10 @@ Monteure erfassen Zeiten, Regieberichte, Prüfprotokolle, Fotos, Aufmaße und M�
 5. **Sichtbarkeit:** Sync-Panel mit Zähler unsynchronisierter Operationen, letzter erfolgreicher Sync, Konfliktliste mit beiden Versionen nebeneinander.
 6. **Idempotenz:** Jede Operation hat eine ID; der Server verwirft Duplikate; Wiederholung nach Abbruch ist sicher.
 
-Option B wird als Evaluierung offen gehalten: Sollte RxDB mit eigener Replikationsfunktion die Punkte 1–3 ohne Lizenzabhängigkeit abdecken, kann es den Eigenbau der Queue ersetzen; die Konfliktregeln (4) bleiben in jedem Fall eigener Code.
+Option B wird als Evaluierung offen gehalten: Sollte RxDB mit eigener Replikationsfunktion die Punkte 1-3 ohne Lizenzabhängigkeit abdecken, kann es den Eigenbau der Queue ersetzen; die Konfliktregeln (4) bleiben in jedem Fall eigener Code.
 
 ## Konsequenzen
 
-- Phase 0 liefert die Outbox, den Delta-Pull und die Konfliktregeln für Zeiteintrag und Regiebericht – ohne mobile Oberfläche; Phase 1 baut die UI darauf.
+- Phase 0 liefert die Outbox, den Delta-Pull und die Konfliktregeln für Zeiteintrag und Regiebericht, ohne mobile Oberfläche; Phase 1 baut die UI darauf.
 - Alle Tabellen bekommen `version`, `updated_at`, `updated_by`, `device_id`; Soft-Delete mit `deleted_at` statt physischem Löschen (DSGVO-Löschung als separater, protokollierter Vorgang).
 - Sync-Szenarien werden als Integrationstests mit zwei simulierten Geräten abgedeckt (offline schreiben, parallel ändern, unterschiedliche Reihenfolgen).

@@ -1,4 +1,4 @@
-# ADR 0003 – Datenbank und Datenzugriff
+# ADR 0003: Datenbank und Datenzugriff
 
 - Status: vorgeschlagen
 - Datum: 2026-09-18
@@ -10,24 +10,24 @@ Anforderungen an die Datenbank: unveränderbares Journal (GoBD), Mandantentrennu
 
 ## Optionen
 
-### A – PostgreSQL
+### A: PostgreSQL
 
 - Vorteile: JSONB mit Indizes für Formular- und Regeldaten; Row-Level Security als zweite Verteidigungslinie für Mandantentrennung; Trigger/Constraints zur technischen Absicherung des append-only-Journals; eingebaute Volltextsuche (deutsch); logische Replikation/`xmin`-basierte Änderungserkennung für Sync; sehr gute Tool-Landschaft; Standard bei ERPNext, Odoo, Dolibarr-Alternativen.
 - Nachteile: Etwas mehr Betriebsaufwand als SQLite; Backups brauchen `pg_dump`/WAL-Archiv.
 
-### B – MariaDB/MySQL
+### B: MariaDB/MySQL
 
 - Vorteile: Weit verbreitet auf Shared-Hosting; Referenzprojekt nutzt es.
 - Nachteile: JSON-Unterstützung und RLS schwächer; weniger geeignet für die Formular-Engine.
 
-### C – SQLite (Server-seitig)
+### C: SQLite (Server-seitig)
 
 - Vorteile: Null Betriebsaufwand, eine Datei, Backup = Kopie.
 - Nachteile: Schreibkonkurrenz bei mehreren Nutzern und Sync-Läufen; keine RLS; Volltext nur über FTS5; skaliert nicht auf Betriebe mit vielen Monteuren.
 
 ## Empfehlung
 
-**Option A – PostgreSQL** (16 oder neuer). Mandantentrennung als `tenant_id`-Spalte in jeder Tabelle **plus** Row-Level Security mit `SET LOCAL app.tenant_id` pro Transaktion (nicht Schema- oder Datenbank-pro-Mandant – das macht Migrationen und Backups unnötig komplex).
+**Option A: PostgreSQL** (16 oder neuer). Mandantentrennung als `tenant_id`-Spalte in jeder Tabelle **plus** Row-Level Security mit `SET LOCAL app.tenant_id` pro Transaktion (nicht Schema- oder Datenbank-pro-Mandant, das macht Migrationen und Backups unnötig komplex).
 
 Datenzugriff: **Drizzle ORM** (SQL-nah, typsicher, Migrationen als SQL-Dateien im Repo, keine Laufzeit-Magie). Alternative Kysely (reiner Query-Builder) bei Bedarf nach noch mehr Kontrolle. Prisma nicht, wegen eigener Query-Engine und schwächerer RLS-/Transaktionskontrolle.
 
@@ -35,7 +35,7 @@ Journal-Absicherung auf DB-Ebene: Tabelle `journal_entries` ohne UPDATE/DELETE-R
 
 Identitäten: **UUIDv7** als Primärschlüssel überall (zeitlich sortierbar, offline erzeugbar, keine Kollision zwischen Geräten). Fachliche Nummern (Rechnungsnummer) werden separat und nur serverseitig beim Festschreiben vergeben.
 
-Im Client (PWA) kommt zusätzlich eine lokale Datenbank zum Einsatz – siehe ADR 0005.
+Im Client (PWA) kommt zusätzlich eine lokale Datenbank zum Einsatz, siehe ADR 0005.
 
 ## Konsequenzen
 

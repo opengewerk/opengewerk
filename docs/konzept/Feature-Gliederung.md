@@ -1,4 +1,4 @@
-# OpenGewerk – Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.3
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.3
 
 2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
@@ -13,14 +13,14 @@ Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-ho
 
 ## 0. Leitentscheidungen
 
-1. **Elektro/PV ist das Kernmodul.** Alle anderen Gewerke (SHK, Dach, Maler, …) sind Plugins auf derselben Formular- und Fristen-Engine und werden nach dem Kern gebaut – idealerweise durch die Community.
+1. **Elektro/PV ist das Kernmodul.** Alle anderen Gewerke (SHK, Dach, Maler, …) sind Plugins auf derselben Formular- und Fristen-Engine und werden nach dem Kern gebaut, idealerweise durch die Community.
 2. **Ein Datenmodell für CRM und ERP.** Kunde → Objekt/Anlage → Auftrag/Projekt → Belege → Journal. Keine Duplikate, keine Schnittstellen zwischen "Modulen".
 3. **Offline-first.** Die Baustellen-App (PWA) muss ohne Netz vollständig erfassen können (Keller, Zählerschrank, Dachboden). Sync mit Konflikt-Log.
-4. **GoBD by design.** Belege werden festgeschrieben, nie gelöscht – nur storniert. Lückenlose Nummernkreise, Audit-Log, Verfahrensdokumentation automatisch generiert.
+4. **GoBD by design.** Belege werden festgeschrieben, nie gelöscht, sondern nur storniert. Lückenlose Nummernkreise, Audit-Log, Verfahrensdokumentation automatisch generiert.
 5. **Vollständige Buchhaltung, gestaffelt:** Belege → Journal → EÜR/USt-VA → Anlagenbuchhaltung → Bilanz/GuV. ELSTER-Direktübermittlung bleibt ⏳ (nur Anzeige/Export).
 6. **Mandantenfähig und betriebsfähig:** mehrere Firmen pro Instanz, Backup/Restore, Update-/Migrationspfad sind Teil des Produkts, nicht der Doku.
 7. **Keine Cloud-KI-Pflicht.** KI-Funktionen optional über selbst gehostete Modelle (Ollama-Anbindung) ★.
-8. **Projektname und Repositories.** Das Projekt heißt **OpenGewerk** (GitHub-Organisation `opengewerk`, Domain opengewerk.de). Drei Repositories: (a) `opengewerk` – diese Handwerkersoftware, (b) `opengewerk-kanzlei` – der Kanzlei-Hub „OpenGewerk Kanzlei“ für Steuerberater (eigenes Konzept), (c) `opengewerk-api-spec` – ein kleines, gemeinsam genutztes Paket mit OpenAPI-Definition, JSON-Schemas und Konformitätstests. Hub und Handwerkersoftware deklarieren jeweils die unterstützte Spec-Version und können unabhängig releasen, ohne sich gegenseitig zu brechen ★.
+8. **Projektname und Repositories.** Das Projekt heißt **OpenGewerk** (GitHub-Organisation `opengewerk`, Domain opengewerk.de). Drei Repositories: (a) `opengewerk` für diese Handwerkersoftware, (b) `opengewerk-kanzlei` für den Kanzlei-Hub „OpenGewerk Kanzlei“ für Steuerberater (eigenes Konzept), (c) `opengewerk-api-spec` für ein kleines, gemeinsam genutztes Paket mit OpenAPI-Definition, JSON-Schemas und Konformitätstests. Hub und Handwerkersoftware deklarieren jeweils die unterstützte Spec-Version und können unabhängig releasen, ohne sich gegenseitig zu brechen ★.
 
 ---
 
@@ -31,11 +31,11 @@ Diese Bausteine werden zuerst gebaut, weil fast jedes Modul darauf aufsetzt.
 ### 1.1 Datenmodell-Kern
 
 - **Kunde** (Privat/Gewerbe/Hausverwaltung/Generalunternehmer) mit mehreren Ansprechpartnern (Bauleiter, Buchhaltung, Mieter)
-- **Objekt** (Gebäude, Liegenschaft, Standort) – ein Kunde kann viele Objekte haben (Hausverwaltung mit 40 Liegenschaften)
-- **Anlage** (PV-Anlage, Zählerschrank, Wallbox, Heizung, Wechselrichter) – gehört zu einem Objekt, trägt Prüfhistorie, Gewährleistung, Wartungsvertrag
+- **Objekt** (Gebäude, Liegenschaft, Standort), ein Kunde kann viele Objekte haben (Hausverwaltung mit 40 Liegenschaften)
+- **Anlage** (PV-Anlage, Zählerschrank, Wallbox, Heizung, Wechselrichter), gehört zu einem Objekt, trägt Prüfhistorie, Gewährleistung, Wartungsvertrag
 - **Auftrag** in zwei Ausprägungen: **Projekt** (Baustelle, Teilprojekte/Gewerke) und **Serviceauftrag** (Kundendienst, Störung, Notdienst, Wartungseinsatz)
-- **Beleg** (siehe Dokumentenkette 4.2) – jeder Beleg referenziert Auftrag, Kunde, Objekt/Anlage
-- **Buchung** – jede Zahlung/Rechnung erzeugt Journal-Einträge (siehe Finance)
+- **Beleg** (siehe Dokumentenkette 4.2), jeder Beleg referenziert Auftrag, Kunde, Objekt/Anlage
+- **Buchung**: jede Zahlung/Rechnung erzeugt Journal-Einträge (siehe Finance)
 
 ### 1.2 Fristen-Engine ★
 
@@ -62,7 +62,7 @@ Aktionen: Erinnerung (Push/E-Mail), Aufgabe anlegen, Serviceauftrag anlegen, Sta
 
 ### 1.4 Dokumentenkette
 
-Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung → Lieferschein / Regiebericht → (Abschlags-/Teil-)Rechnung → Schlussrechnung → Storno/Gutschrift**. Jeder Beleg kennt seinen Vorgänger; Mengenabgleich (angeboten – geliefert – abgerechnet) ist jederzeit sichtbar.
+Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung → Lieferschein / Regiebericht → (Abschlags-/Teil-)Rechnung → Schlussrechnung → Storno/Gutschrift**. Jeder Beleg kennt seinen Vorgänger; Mengenabgleich (angeboten, geliefert, abgerechnet) ist jederzeit sichtbar.
 
 ### 1.5 Nummernkreise & Festschreibung ⚖
 
@@ -88,7 +88,7 @@ Gesetzliche Parameter stehen **nicht im Code**, sondern in versionierten Regelda
 - Aufbewahrung: GoBD-Fristen je Belegart, DSGVO-Löschfristen
 - Mahnwesen: Verzugszinssätze (Basiszins), Mahnpauschale
 
-Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn – kein Release. Regeln werden historisch angewendet: Ein Beleg von 2027 wird auch 2030 nach den Regeln von 2027 beurteilt. Regelpakete sind Teil des Repos (versioniert, community-pflegbar) und werden mit Updates ausgeliefert; ein Mandant kann Regeln nicht überschreiben, nur mandantenbezogene Parameter setzen (z. B. „ist Kleinunternehmer“).
+Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Release. Regeln werden historisch angewendet: Ein Beleg von 2027 wird auch 2030 nach den Regeln von 2027 beurteilt. Regelpakete sind Teil des Repos (versioniert, community-pflegbar) und werden mit Updates ausgeliefert; ein Mandant kann Regeln nicht überschreiben, nur mandantenbezogene Parameter setzen (z. B. „ist Kleinunternehmer“).
 
 ---
 
@@ -98,7 +98,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn – kein 
 - Mandantenfähigkeit: mehrere Firmen auf einer Instanz, getrennte Nummernkreise, Kontenrahmen, Briefpapier
 - Audit-Log/Änderungsprotokoll über alle Module
 - **Aufgabenverwaltung** (aus CRM hierher verschoben): To-Dos mit Fälligkeit, Verantwortlichem, Status; optional an Kunde/Objekt/Auftrag gebunden; automatisch erzeugt durch Fristen-Engine
-- Benachrichtigungssystem: E-Mail/Push (Web-Push) – gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen)
+- Benachrichtigungssystem: E-Mail/Push (Web-Push), gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen)
 - Dubletten-Prüfung (Kunden, Objekte, Artikel) beim Anlegen und Importieren
 - Datenimport/-export (CSV/Excel); Importassistenten für Migration aus plancraft/HERO/sevdesk-Exporten
 - Globale Volltextsuche (Kunden, Objekte, Anlagen, Belege, Dokumente, Protokolle)
@@ -123,11 +123,11 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn – kein 
 
 ### 3.2 Objekt- & Anlagenakte
 
-- Objekte mit Adresse, Zugang (Schlüssel, Codes – verschlüsselt gespeichert), Ansprechpartnern, Fotos
+- Objekte mit Adresse, Zugang (Schlüssel, Codes, verschlüsselt gespeichert), Ansprechpartnern, Fotos
 - Anlagen mit Typ, Hersteller, Seriennummer, Inbetriebnahme, Gewährleistungsende, zugeordneten Prüfprotokollen, Wartungsverträgen, Serviceaufträgen
 - **Anlagenstruktur (Elektro) ★**: Anlage → Verteiler (NSHV, UV) → Feld → Stromkreis → Betriebsmittel. Je Stromkreis: Bezeichnung, Sicherung (Typ, Nennstrom, Charakteristik), RCD (Typ, IΔn), Leitung (Typ, Querschnitt, Länge, Verlegeart), Verbraucher; je Betriebsmittel: Typ, Hersteller, Seriennummer. Diese Struktur ist zugleich das Gerüst der Prüfprotokolle nach VDE 0100-600 / 0105-100 (Messwerte werden je Stromkreis erfasst) und das Stromkreisverzeichnis für den Verteilerausdruck. Für PV analog: Anlage → Wechselrichter → String → Module, plus Speicher, Zähler, Wallbox.
 - **QR-Etikett je Anlage ★**: Aufkleber im Zählerschrank/am Wechselrichter → Scan öffnet Anlagenakte (Techniker) oder eine loginfreie Kundenseite mit nächster Prüfung und Störungsmeldung mit Foto (Kunde)
-- Komplette Historie pro Anlage – auch für den nächsten Handwerker nachvollziehbar
+- Komplette Historie pro Anlage, auch für den nächsten Handwerker nachvollziehbar
 
 ### 3.3 Vertriebspipeline
 
@@ -181,7 +181,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn – kein 
 **Projekte**
 - Auftragsmappe: Status, Historie, alle verknüpften Belege/Dokumente/Protokolle an einem Ort
 - Aufteilung großer Baustellen in Teilprojekte/Gewerke
-- **Bautagebuch**: tägliches Protokoll mit Wetter, anwesenden Mitarbeitern/Subunternehmern, Geräten, Ereignissen, Fotos – rechtssicher archiviert
+- **Bautagebuch**: tägliches Protokoll mit Wetter, anwesenden Mitarbeitern/Subunternehmern, Geräten, Ereignissen, Fotos, rechtssicher archiviert
 - Aufmaß mobil erfassen (mit Foto), automatische Übernahme in Kalkulation und Rechnung
 - Baubesprechungsprotokolle
 
@@ -201,21 +201,21 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn – kein 
 - Nachtragsverfolgung (angezeigt → beauftragt → abgerechnet)
 
 **Subunternehmer**
-- Stammdaten mit Nachweisen (Freistellungsbescheinigung §48 EStG, Unbedenklichkeitsbescheinigung, Versicherung) – Ablauf über Fristen-Engine ⚖
+- Stammdaten mit Nachweisen (Freistellungsbescheinigung §48 EStG, Unbedenklichkeitsbescheinigung, Versicherung), Ablauf über die Fristen-Engine ⚖
 - Beauftragung (Sub-Auftrag mit Leistungsverzeichnis), Leistungsnachweis, Eingangsrechnung mit Bauabzugsteuer-Prüfung
 - Zugang für Subunternehmer zu Bautagebuch/Zeiterfassung ihres Auftrags
 
 ### 4.2 Belegwesen (Angebote & Rechnungen)
 
 **Belegtypen**
-- Kostenvoranschlag (§650 BGB) und Angebot – getrennte Dokumente mit unterschiedlicher Rechtsfolge ⚖
+- Kostenvoranschlag (§650 BGB) und Angebot, getrennte Dokumente mit unterschiedlicher Rechtsfolge ⚖
 - Angebot mit Positionsgliederung, Titeln, Alternativ-/Eventual-/Bedarfspositionen, optionalen Positionen, Textbausteinen
 - Auftragsbestätigung
 - Lieferschein
 - Regiebericht / Stundenlohnzettel mit Kundenunterschrift (mobil)
-- Abschlagsrechnung **kumuliert** (Leistungsstand gesamt – bisher gestellt – bisher gezahlt), Teilrechnung, Schlussrechnung
+- Abschlagsrechnung **kumuliert** (Leistungsstand gesamt, abzüglich bisher gestellt und bisher gezahlt), Teilrechnung, Schlussrechnung
 - Sicherheitseinbehalt (VOB/B §17, prozentual, Auszahlungsdatum über Fristen-Engine)
-- Stornorechnung und Gutschrift (Rechnungskorrektur) – nie Löschung ⚖
+- Stornorechnung und Gutschrift (Rechnungskorrektur), nie Löschung ⚖
 - Dauerrechnung (Wartungsverträge)
 
 **Steuerliche Logik ⚖**
@@ -228,7 +228,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn – kein 
 
 **Zahlung**
 - Automatisierte Zahlungsbedingungen, Skonto, Zahlungsziele (Fristen-Engine)
-- GAEB-Import/Export (DA81–86, X83–X86) ohne Tarif-Beschränkung
+- GAEB-Import/Export (DA81-86, X83-X86) ohne Tarif-Beschränkung
 - **Mahnwesen** (einmalig hier definiert, Finance nutzt es): Mahnstufen, Mahngebühren, Verzugszinsen; manuell oder automatisch je Kunde
 
 ### 4.3 Termin- & Ressourcenplanung
@@ -286,9 +286,9 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 - EÜR, USt-Voranmeldung, BWA, Bilanz/GuV als Auswertungen über das Journal
 - Jahresabschluss-Unterstützung (Abgrenzungen, Rückstellungen, Saldovortrag)
 - Datenzugriff für Betriebsprüfung ⚖: Z1/Z2/Z3, GDPdU/IDEA-Export
-- **Absicherung des Finance-Moduls** (größtes fachliches Risiko des Projekts): Journal technisch append-only (kein UPDATE/DELETE auf Buchungszeilen, Storno als Gegenbuchung); Buchungslogik als reine Funktionen mit Property-based Tests (Summenprobe, Soll = Haben, Steuerverprobung); Referenzfälle aus Lehrbuch-/IHK-Buchungssätzen als Testdaten; **Parallelbetrieb**: der Pilotbetrieb führt mindestens ein Geschäftsjahr parallel in der bisherigen Buchhaltung und vergleicht monatlich; die Auswertungen EÜR/USt-VA/Bilanz tragen bis zur Prüfung durch einen Steuerberater das Label „Vorschau – nicht abgabefertig“
+- **Absicherung des Finance-Moduls** (größtes fachliches Risiko des Projekts): Journal technisch append-only (kein UPDATE/DELETE auf Buchungszeilen, Storno als Gegenbuchung); Buchungslogik als reine Funktionen mit Property-based Tests (Summenprobe, Soll = Haben, Steuerverprobung); Referenzfälle aus Lehrbuch-/IHK-Buchungssätzen als Testdaten; **Parallelbetrieb**: der Pilotbetrieb führt mindestens ein Geschäftsjahr parallel in der bisherigen Buchhaltung und vergleicht monatlich; die Auswertungen EÜR/USt-VA/Bilanz tragen bis zur Prüfung durch einen Steuerberater das Label „Vorschau, nicht abgabefertig“
 - DATEV-Exportschnittstelle (Buchungsstapel, Belegbilder)
-- **Steuerberater-Rolle ★**: Read-only-Mandantenzugang mit Belegbild, Journal, Kommentarfunktion – Fallback für Kanzleien ohne Kanzlei-Hub; die eigentliche Anbindung läuft über den Kanzlei-Connector (4.13)
+- **Steuerberater-Rolle ★**: Read-only-Mandantenzugang mit Belegbild, Journal, Kommentarfunktion, Fallback für Kanzleien ohne Kanzlei-Hub; die eigentliche Anbindung läuft über den Kanzlei-Connector (4.13)
 - ELSTER ⏳: nur Anzeige/Export der USt-VA-Werte; Direktübermittlung bewusst nicht umgesetzt
 
 ### 4.9 Personal / HR
@@ -303,13 +303,13 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 
 - Zentrale, GoBD-konforme Belegablage, verknüpft mit Kunde/Objekt/Anlage/Projekt
 - E-Signatur (einfache elektronische Signatur mit Zeitstempel und Geräteinfo) für Angebote, Abnahmen, Regieberichte, Protokolle
-- Verfahrensdokumentation als Pflichtbestandteil – **automatisch generiert ★** aus Rollen, Einstellungen, Belegflüssen und Aufbewahrungsregeln
+- Verfahrensdokumentation als Pflichtbestandteil, **automatisch generiert ★** aus Rollen, Einstellungen, Belegflüssen und Aufbewahrungsregeln
 - Versionierung, Volltextindex (inkl. OCR auf PDFs)
 
 ### 4.11 Abnahme, Mängel & Gewährleistung
 
-- Abnahmeprotokoll (§640 BGB) mit Vorbehalten, Unterschrift, Foto – **Abnahmedatum ist Trigger der Gewährleistungsfrist** ⚖
-- Gewährleistungsfrist automatisch: BGB 5 Jahre (Bauwerk) / 2 Jahre (sonst), VOB/B 4 Jahre (nur wenn VOB vollständig vereinbart – Kennzeichen am Auftrag); Erinnerung vor Fristablauf
+- Abnahmeprotokoll (§640 BGB) mit Vorbehalten, Unterschrift, Foto; **das Abnahmedatum ist Trigger der Gewährleistungsfrist** ⚖
+- Gewährleistungsfrist automatisch: BGB 5 Jahre (Bauwerk) / 2 Jahre (sonst), VOB/B 4 Jahre (nur wenn VOB vollständig vereinbart, Kennzeichen am Auftrag); Erinnerung vor Fristablauf
 - Mängel/Reklamationen mit Foto mobil erfassen; Statusverfolgung (gemeldet → in Bearbeitung → behoben → abgenommen)
 - Mängelanzeige/Mängelrüge auch für eigene Lieferanten/Subunternehmer
 - Mängelbericht als PDF-Export
@@ -329,12 +329,12 @@ Gegenstück zum separaten **Kanzlei-Hub**: Die Kanzlei arbeitet aus ihrem eigene
 
 **Einstellungsseite "Steuerberater"**
 - Einladungscode erzeugen (einmalig, 24 h gültig); Verbindung wird immer vom Mandanten aus initiiert, nie von der Kanzlei
-- Scope-Auswahl beim Einladen (lesen: Journal, Belege, Stammdaten, Perioden; schreiben: Kommentare/Rückfragen, Buchungsvorschläge, Kontenrahmen-Profil, Abschlussbuchungen; Audit-Export) – jeder Scope einzeln, jederzeit änderbar
+- Scope-Auswahl beim Einladen (lesen: Journal, Belege, Stammdaten, Perioden; schreiben: Kommentare/Rückfragen, Buchungsvorschläge, Kontenrahmen-Profil, Abschlussbuchungen; Audit-Export), jeder Scope einzeln, jederzeit änderbar
 - Übersicht verbundener Kanzleien mit Scopes, letztem Zugriff und **Trennen**-Button (sofortige Token-Sperre)
 - Zugriffslog: jeder Kanzleizugriff (wer, wann, welcher Beleg/Report) wird hier protokolliert und ist für den Mandanten einsehbar ⚖
 
 **API-Endpunkte (`opengewerk-api-spec`)**
-- `/periods`, `/journal`, `/accounts`, `/balances`, `/open-items`, `/documents/{id}` (Belegbild + E-Rechnungs-XML), `/inquiries`, `/proposals`, `/coa-profile`, `/audit-export` (Z1–Z3), `/access-log`
+- `/periods`, `/journal`, `/accounts`, `/balances`, `/open-items`, `/documents/{id}` (Belegbild + E-Rechnungs-XML), `/inquiries`, `/proposals`, `/coa-profile`, `/audit-export` (Z1-Z3), `/access-log`
 - Token gebunden an die Hub-Instanz (mTLS oder DPoP), rotierbar, Ablauf bei Inaktivität ⚖
 - ETags/Paginierung für effizienten Sync, Idempotenz-Keys bei schreibenden Aufrufen; Beträge als Integer-Cent, Steuerschlüssel nach DATEV-Konvention
 
@@ -349,7 +349,7 @@ Gegenstück zum separaten **Kanzlei-Hub**: Die Kanzlei arbeitet aus ihrem eigene
 
 **Vorschlags-Freigabe**
 - Buchungs- und Kontierungsvorschläge der Kanzlei werden als Vorschlagsliste angezeigt; Bestätigung mit einem Klick erzeugt die Buchung im Journal (mit Kennzeichen "Vorschlag Kanzlei, freigegeben von …")
-- Kontenrahmen-Profile der Kanzlei (Automatikkonten, Steuerschlüssel) können mit Scope `write:coa` übernommen werden – Vorschau vor Übernahme
+- Kontenrahmen-Profile der Kanzlei (Automatikkonten, Steuerschlüssel) können mit Scope `write:coa` übernommen werden, Vorschau vor Übernahme
 - Direktbuchung durch die Kanzlei nur mit explizitem Scope `write:closing`; erscheint im Audit-Log als Kanzleibuchung
 
 **GoBD/Datenschutz**
@@ -366,7 +366,7 @@ Gegenstück zum separaten **Kanzlei-Hub**: Die Kanzlei arbeitet aus ihrem eigene
 - **Messgeräte-Import ★**: Messwerte aus Installationstestern per Datei-Import direkt ins Protokoll; Grenzwertprüfung automatisch. **Realität:** Die Geräte selbst liefern selten brauchbare Rohdaten; importiert werden die Exporte der Hersteller-PC-Software (IZYTRONIQ/ETC bei Gossen Metrawatt, Metrel ES Manager, Fluke DMS, Benning PC-Win), die teils proprietär oder nur als CSV/XML/PDF vorliegen. Deshalb: ein Adapter je Hersteller-Software, beginnend mit dem Gerät des Pilotbetriebs; ein **Proof-of-Concept „Messdatei → Prüfprotokoll“ wird vor Phase 2 gebaut** (Roadmap 10), um Aufwand und Formatzugang realistisch zu bewerten. Fallback ist immer die manuelle Erfassung mit Grenzwertprüfung.
 - Stromkreisverzeichnis je Anlage aus der Anlagenstruktur (3.2), wiederverwendbar bei der nächsten Prüfung; Ausdruck für die Verteilertür
 - PV-Anlagendokumentation: Inbetriebnahmeprotokoll, Stringplan, Komponentenliste (Module, WR, Speicher, Zähler) mit Seriennummern, Ertragsprognose
-- Marktstammdatenregister: **Vorbereitung der Betreiber-Meldung** (Datenexport/Ausfüllhilfe); Direktmeldung nur mit MaStR-Webdienst ⏳ – meldepflichtig ist der Betreiber, nicht der Installateur
+- Marktstammdatenregister: **Vorbereitung der Betreiber-Meldung** (Datenexport/Ausfüllhilfe); Direktmeldung nur mit MaStR-Webdienst ⏳; meldepflichtig ist der Betreiber, nicht der Installateur
 - Netzbetreiber-Anmeldung: Formular-Vorausfüllung (Anmeldung, Fertigmeldung, E-Installateur-Nachweis)
 - **Anlagen-Monitoring als Servicetrigger ★**: Wechselrichter-APIs (SMA, Fronius, SolarEdge, Huawei) auslesen; Ertragsabfall oder Fehlercode erzeugt Serviceauftrag-Vorschlag
 - Wallbox/Speicher: Inbetriebnahme, Förderunterlagen, Prüfintervalle
@@ -403,7 +403,7 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 - Wetter-API (Bautagebuch, Plantafel)
 - KI optional ★: Ollama-Anbindung für Belegerkennung, Textbaustein-Vorschläge, Sprachnotiz → Aufmaß; Cloud-KI nicht erforderlich
 - REST-API + Webhooks für Drittanbieter
-- **Kanzlei-Connector** nach `opengewerk-api-spec` (eigenes Repo, SemVer) mit signierten Webhooks – siehe 4.13 und Konzept *Kanzlei-Hub*
+- **Kanzlei-Connector** nach `opengewerk-api-spec` (eigenes Repo, SemVer) mit signierten Webhooks, siehe 4.13 und Konzept *Kanzlei-Hub*
 
 ---
 
@@ -414,7 +414,7 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 | E-Rechnung Empfang | Seit 1.1.2025 Pflicht (B2B Inland) | Eingangsrechnungs-Workflow mit XML-Validierung, Archivierung des Originals |
 | E-Rechnung Ausstellung | Ab 2027 bei > 800.000 € Vorjahresumsatz, ab 2028 für alle | Automatische Formatwahl je Empfänger, Mandanteneinstellung |
 | Ausnahmen | Verbraucher, Kleinbetrag ≤ 250 €, Kleinunternehmer §19 | Kundentyp + Mandanteneinstellung steuern Format |
-| GoBD | Unveränderbarkeit, Nummernkreise, Verfahrensdoku, Datenzugriff | Festschreibung, Storno statt Löschen, Audit-Log, Z1–Z3-Export, generierte Verfahrensdoku |
+| GoBD | Unveränderbarkeit, Nummernkreise, Verfahrensdoku, Datenzugriff | Festschreibung, Storno statt Löschen, Audit-Log, Z1-Z3-Export, generierte Verfahrensdoku |
 | Aufbewahrung | Buchungsbelege 8 Jahre (seit 2025), Handelsbücher 10 Jahre | Fristen im Löschkonzept getrennt hinterlegt |
 | §13b UStG | Reverse Charge bei Bauleistungen an Bauunternehmer | Kundenattribut, Belegtext, Verbuchung |
 | §48 EStG | Bauabzugsteuer 15 % ohne Freistellung | Subunternehmer-Nachweise, Eingangsrechnungsprüfung |
@@ -465,29 +465,19 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 
 ## 10. Roadmap
 
-Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pilotbetrieb ist der Elektro-/PV-Betrieb des Maintainers; Version 1 ist erreicht, wenn dessen Aufträge vollständig in OpenGewerk laufen – von der Anfrage bis zur bezahlten Rechnung. Was dafür nicht nötig ist, kommt später. Ausnahme: Was sich nicht nachrüsten lässt (Datenmodell, Offline-Datenschicht, Festschreibung, Mandantentrennung), gehört ins Fundament, auch wenn die Oberfläche dafür später kommt.
+Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pilotbetrieb ist der Elektro-/PV-Betrieb des Maintainers; Version 1 ist erreicht, wenn dessen Aufträge vollständig in OpenGewerk laufen, von der Anfrage bis zur bezahlten Rechnung. Was dafür nicht nötig ist, kommt später. Ausnahme: Was sich nicht nachrüsten lässt (Datenmodell, Offline-Datenschicht, Festschreibung, Mandantentrennung), gehört ins Fundament, auch wenn die Oberfläche dafür später kommt.
 
 | Phase | Inhalt | Ergebnis |
 | --- | --- | --- |
-| 0 – Fundament (schlank) | Tech-Stack-Entscheidungen (ADR 0002–0008), Datenmodell-Kern (Kunde → Objekt → Anlage → Auftrag → Beleg), Mandanten + Rechte, Nummernkreise/Festschreibung, Audit-Log, **Offline-Datenschicht** (IDs, Sync-Queue, Konfliktregeln – ohne Baustellen-UI), Regel-Engine (1.7) mit den Regeln für Phase 1, Docker-Compose, Backup/Restore, Update | Gerüst, auf dem Phase 1 ohne Umbau aufsetzt |
-| 1 – MVP Pilotbetrieb | Kunden/Objekte/Anlagen (inkl. Anlagenstruktur Elektro), Angebot → AB → Regiebericht (mobil, Unterschrift) → Rechnung (Storno, Abschlag kumuliert), E-Rechnung ausgehend, Zeiterfassung (mobil, offline), Dokumentenablage, **ein** Prüfprotokoll (VDE 0100-600) über die Formular-Engine, Aufgaben, Benachrichtigung per E-Mail | Pilotbetrieb arbeitet produktiv damit; Parallelbetrieb der alten Buchhaltung beginnt |
-| 1b – Messgeräte-PoC | Import einer echten Messdatei des Pilotbetriebs ins VDE-Protokoll | Go/No-Go für den Umfang des Messgeräte-Imports in Phase 2 |
-| 2 – Elektro/PV-Kern | Alle Prüfprotokolle (0105-100, DGUV V3, VDE-AR-N 4105), Messgeräte-Adapter laut PoC, PV-Dokumentation, Wartungsverträge, Fristen-Engine vollständig, QR-Etikett, Plantafel, Serviceaufträge/Dispatch, Material/Fahrzeuglager | Alleinstellungsmerkmal; Betrieb mit mehreren Monteuren |
-| 3 – Finance | E-Rechnungs-Empfang/Eingangsrechnungen, Journal, OP/Mahnwesen, Bank (FinTS), EÜR/USt-VA, DATEV-Export, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Read-Endpunkte, Zugriffslog); Absicherung laut 4.8 | Buchhaltung ersetzt sevdesk/Lexware nach bestandenem Parallelbetrieb; Kanzlei-Hub kann anbinden |
-| 3b – Kanzlei-Zusammenarbeit | Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile | Monatsabschluss läuft ohne E-Mail/Telefon |
-| 4 – Projekt-Tiefe | Bautagebuch, Kalkulation/Nachkalkulation, Stundenverrechnungssatz-Rechner, Nachträge, Subunternehmer, Einkauf, Fuhrpark/Werkzeug | Baustellenbetriebe |
-| 5 – Kundenportal | Angebote, Rechnungen, Zahlung, Termine, Störungsmeldung, Hilfeseite | Selbstbedienung |
-| 6 – Bilanz & Erweiterung | Anlagenbuchhaltung, Bilanz/GuV, Report-Builder, Anlagen-Monitoring, Plugin-Gewerke, lokale KI | Vollausbau |
-
---- | --- | --- |
-| 0 – Fundament | Datenmodell-Kern, Mandanten, Rechte, Fristen-Engine, Formular-Engine, Nummernkreise/Festschreibung, Offline-Sync, Betrieb (Docker, Backup, Update) | Lauffähiges Gerüst ohne Fachlogik |
-| 1 – Operativer Kern | Kunden/Objekte/Anlagen, Angebot → AB → Regiebericht → Rechnung (inkl. Storno, Abschläge kumuliert), Zeiterfassung, Plantafel, Serviceaufträge, E-Rechnung aus- und eingehend | Betrieb kann damit arbeiten |
-| 2 – Elektro/PV-Kernmodul | Prüfprotokolle, Messgeräte-Import, PV-Dokumentation, Wartungsverträge, Anlagenakte mit QR | Alleinstellungsmerkmal |
-| 3 – Finance | Journal, OP/Mahnwesen, Bank, EÜR/USt-VA, DATEV, Steuerberater-Rolle, **Kanzlei-Connector (`opengewerk-api-spec` v1, Einladung/Scopes, Read-Endpunkte, Zugriffslog)** | Buchhaltung ersetzt sevdesk/Lexware; Kanzlei-Hub kann anbinden |
-| 3b – Kanzlei-Zusammenarbeit | Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile | Monatsabschluss läuft ohne E-Mail/Telefon |
-| 4 – Projekt-Tiefe | Bautagebuch, Kalkulation/Nachkalkulation, Nachträge, Subunternehmer, Material/Lager/Einkauf, Fuhrpark | Baustellenbetriebe |
-| 5 – Kundenportal | Angebote, Rechnungen, Zahlung, Termine, Störungsmeldung, Hilfeseite | Selbstbedienung |
-| 6 – Bilanz & Erweiterung | Anlagenbuchhaltung, Bilanz/GuV, Report-Builder, Anlagen-Monitoring, Plugin-Gewerke, lokale KI | Vollausbau |
+| 0: Fundament (schlank) | Tech-Stack-Entscheidungen (ADR 0002-0008), Datenmodell-Kern (Kunde → Objekt → Anlage → Auftrag → Beleg), Mandanten + Rechte, Nummernkreise/Festschreibung, Audit-Log, **Offline-Datenschicht** (IDs, Sync-Queue, Konfliktregeln, ohne Baustellen-UI), Regel-Engine (1.7) mit den Regeln für Phase 1, Docker-Compose, Backup/Restore, Update | Gerüst, auf dem Phase 1 ohne Umbau aufsetzt |
+| 1: MVP Pilotbetrieb | Kunden/Objekte/Anlagen (inkl. Anlagenstruktur Elektro), Angebot → AB → Regiebericht (mobil, Unterschrift) → Rechnung (Storno, Abschlag kumuliert), E-Rechnung ausgehend, Zeiterfassung (mobil, offline), Dokumentenablage, **ein** Prüfprotokoll (VDE 0100-600) über die Formular-Engine, Aufgaben, Benachrichtigung per E-Mail | Pilotbetrieb arbeitet produktiv damit; Parallelbetrieb der alten Buchhaltung beginnt |
+| 1b: Messgeräte-PoC | Import einer echten Messdatei des Pilotbetriebs ins VDE-Protokoll | Go/No-Go für den Umfang des Messgeräte-Imports in Phase 2 |
+| 2: Elektro/PV-Kern | Alle Prüfprotokolle (0105-100, DGUV V3, VDE-AR-N 4105), Messgeräte-Adapter laut PoC, PV-Dokumentation, Wartungsverträge, Fristen-Engine vollständig, QR-Etikett, Plantafel, Serviceaufträge/Dispatch, Material/Fahrzeuglager | Alleinstellungsmerkmal; Betrieb mit mehreren Monteuren |
+| 3: Finance | E-Rechnungs-Empfang/Eingangsrechnungen, Journal, OP/Mahnwesen, Bank (FinTS), EÜR/USt-VA, DATEV-Export, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Read-Endpunkte, Zugriffslog); Absicherung laut 4.8 | Buchhaltung ersetzt sevdesk/Lexware nach bestandenem Parallelbetrieb; Kanzlei-Hub kann anbinden |
+| 3b: Kanzlei-Zusammenarbeit | Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile | Monatsabschluss läuft ohne E-Mail/Telefon |
+| 4: Projekt-Tiefe | Bautagebuch, Kalkulation/Nachkalkulation, Stundenverrechnungssatz-Rechner, Nachträge, Subunternehmer, Einkauf, Fuhrpark/Werkzeug | Baustellenbetriebe |
+| 5: Kundenportal | Angebote, Rechnungen, Zahlung, Termine, Störungsmeldung, Hilfeseite | Selbstbedienung |
+| 6: Bilanz & Erweiterung | Anlagenbuchhaltung, Bilanz/GuV, Report-Builder, Anlagen-Monitoring, Plugin-Gewerke, lokale KI | Vollausbau |
 
 ---
 
@@ -497,7 +487,7 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 | --- | --- |
 | plancraft: keine vollständige Buchhaltung (EÜR/USt-VA fehlen, nur DATEV-Export) | Volles Finance-Modul mit eigenem Journal, EÜR/USt-VA/Bilanz, gestaffelt ausgebaut |
 | GAEB und Stammdaten nur in höheren Tarifen (openHandwerk, plancraft) | Alle Schnittstellen und Funktionen ohne Feature-Gates |
-| Laufende Nutzer-/Monatskosten (z. B. 25–75 €/Nutzer/Monat) | Self-hosted, einmaliger Aufwand |
+| Laufende Nutzer-/Monatskosten (z. B. 25-75 €/Nutzer/Monat) | Self-hosted, einmaliger Aufwand |
 | Daten beim Drittanbieter | Volle Datenkontrolle, Mandantenfähigkeit |
 | Generischer Gewerke-Fokus, keine Elektro/PV-Tiefe | Elektro/PV als Kernmodul mit Messgeräte-Import, Anlagenakte, PV-Doku |
 | Kundenzentriertes CRM ohne Objekt-/Anlagenmodell | Kunde → Objekt → Anlage als Kern |
@@ -511,23 +501,23 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 
 ## 12. Bewusst ausgeklammert / später
 
-- **ELSTER-Direktübermittlung** – ERiC-Integration aufwändig, lizenzrechtlich in Open Source heikel; nur Anzeige/Export
-- **Registrierkasse/TSE (KassenSichV)** – keine Kassenfunktion; Barzahlungen nur über Kassenbuch ohne elektronische Kasse
-- **Wero als Händlerzahlung** – bis zur allgemeinen Verfügbarkeit
-- **MaStR-Direktmeldung** – nur Vorbereitung
-- **SOKA-BAU-Meldungen** – nur bei Bedarf des Bauhauptgewerbes
-- **Mehrsprachigkeit** – Deutsch zuerst; i18n-Struktur von Anfang an, Übersetzungen später
-- **Native Apps** – Phase 2 der Plattform-Strategie
+- **ELSTER-Direktübermittlung**: ERiC-Integration aufwändig, lizenzrechtlich in Open Source heikel; nur Anzeige/Export
+- **Registrierkasse/TSE (KassenSichV)**: keine Kassenfunktion; Barzahlungen nur über Kassenbuch ohne elektronische Kasse
+- **Wero als Händlerzahlung**: bis zur allgemeinen Verfügbarkeit
+- **MaStR-Direktmeldung**: nur Vorbereitung
+- **SOKA-BAU-Meldungen**: nur bei Bedarf des Bauhauptgewerbes
+- **Mehrsprachigkeit**: Deutsch zuerst; i18n-Struktur von Anfang an, Übersetzungen später
+- **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
 
 ## Änderungsprotokoll v2.2 → v2.3
 
-- Neu: 1.7 Regel-Engine für Rechtsvorschriften – gesetzliche Parameter als versionierte Regeldatensätze mit Gültigkeitszeitraum statt im Code
+- Neu: 1.7 Regel-Engine für Rechtsvorschriften, gesetzliche Parameter als versionierte Regeldatensätze mit Gültigkeitszeitraum statt im Code
 - Neu: Anlagenstruktur Elektro (Anlage → Verteiler → Feld → Stromkreis → Betriebsmittel) und PV (Wechselrichter → String → Module) in 3.2; Stromkreisverzeichnis und VDE-Protokolle bauen darauf auf
-- Präzisiert: Messgeräte-Import in 5.1 – Importquelle ist die Hersteller-PC-Software, Adapter je Hersteller, PoC vor Phase 2
-- Neu: Absicherung des Finance-Moduls in 4.8 – append-only-Journal, Property-based Tests, Parallelbetrieb, „Vorschau“-Label bis zur Steuerberater-Prüfung
-- Roadmap (10) umgeschnitten: schlankes Fundament mit Offline-Datenschicht, Phase 1 als MVP für den Pilotbetrieb, neue Phase 1b Messgeräte-PoC; Plantafel, Serviceauftrag-Dispatch, Material und E-Rechnungs-Empfang nach hinten verschoben; Tech-Stack-Entscheidungen als ADR 0002–0008 referenziert
+- Präzisiert: Messgeräte-Import in 5.1, Importquelle ist die Hersteller-PC-Software, Adapter je Hersteller, PoC vor Phase 2
+- Neu: Absicherung des Finance-Moduls in 4.8 mit append-only-Journal, Property-based Tests, Parallelbetrieb und „Vorschau“-Label bis zur Steuerberater-Prüfung
+- Roadmap (10) umgeschnitten: schlankes Fundament mit Offline-Datenschicht, Phase 1 als MVP für den Pilotbetrieb, neue Phase 1b Messgeräte-PoC; Plantafel, Serviceauftrag-Dispatch, Material und E-Rechnungs-Empfang nach hinten verschoben; Tech-Stack-Entscheidungen als ADR 0002-0008 referenziert
 
 ## Änderungsprotokoll v2.1 → v2.2
 
@@ -536,8 +526,8 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 
 ## Änderungsprotokoll v2 → v2.1
 
-- Neu: Leitentscheidung 8 – drei Repositories (Handwerkersoftware, Kanzlei-Hub, `opengewerk-api-spec`)
-- Neu: Abschnitt 4.13 Kanzlei-Anbindung – Einstellungsseite Steuerberater (Einladungscode, Scopes, Zugriffslog), API-Endpunkte, Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile
+- Neu: Leitentscheidung 8, drei Repositories (Handwerkersoftware, Kanzlei-Hub, `opengewerk-api-spec`)
+- Neu: Abschnitt 4.13 Kanzlei-Anbindung, Einstellungsseite Steuerberater (Einladungscode, Scopes, Zugriffslog), API-Endpunkte, Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile
 - Ergänzt: Steuerberater-Rolle als Fallback ohne Hub (4.8), Schnittstellen (6), Roadmap Phase 3/3b (10), Vergleichstabelle (11)
 
 ## Änderungsprotokoll v1 → v2

@@ -1,4 +1,4 @@
-# ADR 0008 – Plugin-System für Gewerke und Erweiterungen
+# ADR 0008: Plugin-System für Gewerke und Erweiterungen
 
 - Status: vorgeschlagen
 - Datum: 2026-09-18
@@ -10,17 +10,17 @@ Elektro/PV ist Kernmodul; SHK, Dach, Maler und weitere Gewerke sollen später vo
 
 ## Optionen
 
-### A – Laufzeit-Plugins (dynamisch geladene Pakete, eigener Prozess oder WASM)
+### A: Laufzeit-Plugins (dynamisch geladene Pakete, eigener Prozess oder WASM)
 
 - Vorteile: Installation ohne Neubau; echte Drittanbieter-Erweiterungen.
-- Nachteile: Sicherheits- und Stabilitätsrisiko; Versionskonflikte; Sandboxing (WASM) für DB-Zugriff aufwändig; für ein Ein-Personen-Projekt in Phase 0–3 nicht tragbar.
+- Nachteile: Sicherheits- und Stabilitätsrisiko; Versionskonflikte; Sandboxing (WASM) für DB-Zugriff aufwändig; für ein Ein-Personen-Projekt in Phase 0-3 nicht tragbar.
 
-### B – Datenpakete + Compile-Time-Module im Monorepo
+### B: Datenpakete + Compile-Time-Module im Monorepo
 
 - Vorteile: Gewerke sind hauptsächlich JSON/YAML (Formulare, Regeln, Textbausteine), die per Pull Request kommen und ohne Code-Review-Risiko installierbar sind; Code-Anteile sind normale Module im Monorepo mit denselben Tests und derselben Release-Pipeline; keine Laufzeit-Unsicherheit.
 - Nachteile: Neue Code-Module erfordern ein Release; Drittanbieter können keinen proprietären Code anhängen (bei AGPL ohnehin nicht gewollt).
 
-### C – Nur Konfiguration, kein Plugin-Konzept
+### C: Nur Konfiguration, kein Plugin-Konzept
 
 - Vorteile: Einfachst.
 - Nachteile: Gewerke-spezifische Berechnungen (z. B. Dachflächen-Aufmaß) und Importadapter passen nicht in reine Konfiguration.
@@ -43,7 +43,7 @@ packages/gewerke/<name>/
 
 - Datenpakete werden beim Start registriert und in die Mandanten-Datenbank importiert; ein Mandant aktiviert Gewerke in den Einstellungen.
 - Der Kern definiert **Erweiterungspunkte** (Hooks) mit stabilen Schnittstellen: Belegberechnung, Aufmaß-Berechnung, Import-Adapter (Messgeräte, Kataloge), Dashboard-Kacheln, Anlagentypen mit eigenen Feldern.
-- Elektro/PV wird als erstes Paket in exakt diesem Format gebaut – der Kern darf nichts Elektro-Spezifisches hartkodieren. Das ist der Test, ob das Format trägt.
+- Elektro/PV wird als erstes Paket in exakt diesem Format gebaut, der Kern darf nichts Elektro-Spezifisches hartkodieren. Das ist der Test, ob das Format trägt.
 - Laufzeit-Plugins (Option A) bleiben als spätere Erweiterung offen, z. B. für externe Integrationen über die REST-API und Webhooks, die ohnehin außerhalb des Prozesses laufen.
 
 ## Konsequenzen
