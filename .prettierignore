@@ -12,3 +12,8 @@ pnpm-lock.yaml
 # Blockskalaren, und das Geruest drumherum umzuschreiben bringt nichts ausser
 # unlesbaren Diffs an genau den Stellen, die man lesen koennen muss.
 .github/
+
+# Die Migrationen erzeugt drizzle-kit, den Ordner meta schreibt es bei jedem
+# Lauf neu. Wer ihn formatiert, bekommt ihn beim naechsten generate wieder
+# umformatiert zurueck.
+packages/server/migrations/

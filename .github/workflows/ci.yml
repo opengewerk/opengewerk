@@ -123,6 +123,26 @@ jobs:
   code:
     name: Typprüfung, Lint und Tests
     runs-on: ubuntu-latest
+
+    # Die Tests des Datenmodells laufen gegen eine echte PostgreSQL, nicht
+    # gegen eine Nachbildung: geprüft werden Fremdschlüssel, Check-Constraints
+    # und uuidv7(), und genau das ist der Teil, den eine Nachbildung anders
+    # macht als der Ernstfall.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opengewerk
+          POSTGRES_PASSWORD: opengewerk
+          POSTGRES_DB: opengewerk_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opengewerk -d opengewerk_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
@@ -147,3 +167,5 @@ jobs:
 
       - name: Tests
         run: pnpm run test
+        env:
+          DATABASE_URL: postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test

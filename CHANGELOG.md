@@ -9,6 +9,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Datenmodell-Kern: Mandant, Kunde, Ansprechpartner, Objekt, Anlage, Auftrag und Beleg,
+  dazu die Elektro-Struktur unter der Anlage (Verteiler, Feld, Stromkreis, Betriebsmittel)
+  und die PV-Struktur (Wechselrichter, String, Module). Schlüssel sind UUIDv7, erzeugt von
+  PostgreSQL 18 oder vom Client, damit auf der Baustelle ohne Netz Datensätze entstehen
+  können
+- Erste Migration als SQL-Datei, dazu eine Rücknahme von Hand unter `migrations/down/`.
+  Ein Test fährt beide Richtungen gegen eine echte PostgreSQL 18 und prüft, dass danach
+  keine Tabelle und kein Typ übrig bleibt
+- Die Typen des Datenmodells liegen in `domain`, die Ablage in `server`, und der Compiler
+  hält beide Seiten deckungsgleich: eine Spalte, die nur auf einer Seite auftaucht, lässt
+  die Typprüfung scheitern
 - Monorepo-Gerüst nach ADR 0009: pnpm Workspaces mit Turborepo, die Pakete `domain`,
   `server` und `web`, ein gemeinsames `tsconfig.base.json`, ESLint mit Flat Config,
   Prettier und Vitest mit fast-check. `domain` ist ohne Node- und DOM-Typen
