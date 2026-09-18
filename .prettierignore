@@ -1,0 +1,14 @@
+node_modules
+dist
+.turbo
+pnpm-lock.yaml
+
+# Die Dokumentation wird von Hand gesetzt. Prettier wuerde Tabellen neu
+# ausrichten und Absaetze umbrechen, was jede inhaltliche Aenderung hinter
+# Formatierungsrauschen verstecken wuerde.
+*.md
+
+# Dasselbe gilt fuer die Workflows und Vorlagen: dort stehen Pruefskripte in
+# Blockskalaren, und das Geruest drumherum umzuschreiben bringt nichts ausser
+# unlesbaren Diffs an genau den Stellen, die man lesen koennen muss.
+.github/

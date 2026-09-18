@@ -1,0 +1,13 @@
+packages:
+  - packages/*
+  # Gewerke sind eigene Pakete nach ADR 0008. Der Ordner entsteht mit dem
+  # ersten Gewerk; bis dahin trifft dieses Muster nichts und stoert nicht.
+  - packages/gewerke/*
+
+# pnpm haelt frisch veroeffentlichte Versionen zurueck, bis sie eine Weile
+# draussen sind. Das ist der Schutz gegen ein uebernommenes npm-Konto, bei dem
+# die boesartige Fassung meist innerhalb von Stunden auffliegt und
+# zurueckgezogen wird. Wer eine Version braucht, die noch in dieser Frist
+# liegt, traegt sie unter minimumReleaseAgeExclude ein. Bisher war das nie
+# noetig: die Regel "neuestmoegliche Version" kostet dadurch hoechstens einen
+# Tag, und dafuer hebelt man keine Sperre aus.

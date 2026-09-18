@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Monorepo-Gerüst nach ADR 0009: pnpm Workspaces mit Turborepo, die Pakete `domain`,
+  `server` und `web`, ein gemeinsames `tsconfig.base.json`, ESLint mit Flat Config,
+  Prettier und Vitest mit fast-check. `domain` ist ohne Node- und DOM-Typen
+  konfiguriert, ein Zugriff auf `fs` oder das `document` ist dort ein Typfehler
+- Vier CI-Schritte für den Code: installieren, Typprüfung, Lint, Test. Die Prüfungen
+  auf Kodierung und Schreibweise laufen unverändert weiter
+- Test, der die Dekorator-Metadaten absichert, an denen NestJS seine Abhängigkeiten
+  erkennt. TypeScript 7 ist die native Neuimplementierung des Compilers, und ein
+  Versionssprung, der die Metadaten verliert, soll die CI rot machen statt den
+  Container beim Start
 - ADR 0009 zu Werkzeugen und Repo-Struktur: pnpm Workspaces mit Turborepo, Node 24,
   TypeScript 7, Vitest mit fast-check für die Property-based Tests aus 4.8, ESLint mit
   Flat Config und Prettier, PostgreSQL 18. Schließt die drei offenen Enden aus ADR 0002
