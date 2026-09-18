@@ -33,7 +33,7 @@ const south = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
 beforeAll(async () => {
   admin = await connect()
   await resetSchema(admin)
-  await applyMigrations(admin)
+  await applyMigrations()
   await allowApplicationLogin(admin)
 
   // Creating a tenant is not something the application role does: it has no

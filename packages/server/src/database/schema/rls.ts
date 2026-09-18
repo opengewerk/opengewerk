@@ -57,37 +57,38 @@ export function ownTenantOnly(id: PgColumn) {
 }
 
 /**
- * A table the application reads and never writes. The audit log is that case:
- * its rows come from a trigger, not from a statement anybody sends.
- */
-export function tenantReadOnly(tenantId: PgColumn) {
-  return pgPolicy('tenant_isolation', {
-    as: 'permissive',
-    for: 'select',
-    to: applicationRole,
-    using: sql`${tenantId} = ${sessionTenant()}`,
-  })
-}
-
-/**
- * The gate the audit trigger writes through, and it is open on purpose.
+ * The pair of policies both audit tables carry.
  *
- * The trigger runs as its definer and has to work on every path, including a
- * change somebody makes at a psql prompt, where no session tenant exists and
- * there is nothing to compare a row against. A policy that asked for one would
- * turn every change outside the application into an error, which is the
- * opposite of what a log is for.
+ * The trigger that writes them runs as its definer, and it has to work on
+ * every path, including a change somebody makes at a psql prompt, where no
+ * session tenant exists and there is nothing to compare a row against. It also
+ * has to read: the chain head comes from the table and goes back into it. So
+ * the first policy is open, and it has to be.
  *
- * What keeps this from being a hole is the grant, not the policy: the
- * application role has SELECT on the table and nothing else, so it never gets
- * as far as this check. A policy and a grant are two gates, and a write needs
- * both of them.
+ * The second one closes it again around the application, and it is restrictive
+ * rather than permissive. Permissive policies combine with OR, restrictive
+ * ones with AND, so no other policy can widen this: whatever else permits, the
+ * application role stays inside its own tenant and writes nothing. Without it,
+ * the open policy above would let one company count another company's changes.
+ *
+ * The grant is the third gate. The application role has SELECT and nothing
+ * else on either table, so a forged entry never even reaches a policy.
  */
-export function writtenByTrigger() {
-  return pgPolicy('written_by_trigger', {
-    as: 'permissive',
-    for: 'insert',
-    to: 'public',
-    withCheck: sql`true`,
-  })
+export function writtenByTriggerOnly(tenantId: PgColumn) {
+  return [
+    pgPolicy('written_by_trigger', {
+      as: 'permissive',
+      for: 'all',
+      to: 'public',
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+    pgPolicy('tenant_isolation', {
+      as: 'restrictive',
+      for: 'all',
+      to: applicationRole,
+      using: sql`${tenantId} = ${sessionTenant()}`,
+      withCheck: sql`false`,
+    }),
+  ]
 }

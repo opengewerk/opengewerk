@@ -1,9 +1,97 @@
 {
-  "id": "9bc8c817-a212-41db-a025-720ee90d0348",
+  "id": "72185b1a-fafb-496a-aa83-3529758eee9e",
   "prevId": "d2278422-0abb-4f8d-9bd5-dae8ad534aca",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.audit_chains": {
+      "name": "audit_chains",
+      "schema": "",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "next_sequence": {
+          "name": "next_sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "head_hash": {
+          "name": "head_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "audit_chains_tenant_id_tenants_id_fk": {
+          "name": "audit_chains_tenant_id_tenants_id_fk",
+          "tableFrom": "audit_chains",
+          "tableTo": "tenants",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "audit_chains_pk": {
+          "name": "audit_chains_pk",
+          "columns": [
+            "tenant_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {
+        "written_by_trigger": {
+          "name": "written_by_trigger",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "public"
+          ],
+          "using": "true",
+          "withCheck": "true"
+        },
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "RESTRICTIVE",
+          "for": "ALL",
+          "to": [
+            "opengewerk_app"
+          ],
+          "using": "\"audit_chains\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "false"
+        }
+      },
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.audit_entries": {
       "name": "audit_entries",
       "schema": "",
@@ -70,6 +158,24 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "previous_hash": {
+          "name": "previous_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hash": {
+          "name": "hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
@@ -156,25 +262,36 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "audit_entries_sequence": {
+          "name": "audit_entries_sequence",
+          "nullsNotDistinct": false,
+          "columns": [
+            "tenant_id",
+            "sequence"
+          ]
+        }
+      },
       "policies": {
-        "tenant_isolation": {
-          "name": "tenant_isolation",
-          "as": "PERMISSIVE",
-          "for": "SELECT",
-          "to": [
-            "opengewerk_app"
-          ],
-          "using": "\"audit_entries\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid"
-        },
         "written_by_trigger": {
           "name": "written_by_trigger",
           "as": "PERMISSIVE",
-          "for": "INSERT",
+          "for": "ALL",
           "to": [
             "public"
           ],
+          "using": "true",
           "withCheck": "true"
+        },
+        "tenant_isolation": {
+          "name": "tenant_isolation",
+          "as": "RESTRICTIVE",
+          "for": "ALL",
+          "to": [
+            "opengewerk_app"
+          ],
+          "using": "\"audit_entries\".\"tenant_id\" = nullif(current_setting('app.tenant_id', true), '')::uuid",
+          "withCheck": "false"
         }
       },
       "checkConstraints": {},

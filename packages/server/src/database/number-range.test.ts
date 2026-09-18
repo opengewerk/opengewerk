@@ -53,7 +53,7 @@ async function createDraft(kind: 'final_invoice' | 'quote' = 'final_invoice') {
 beforeAll(async () => {
   admin = await connect()
   await resetSchema(admin)
-  await applyMigrations(admin)
+  await applyMigrations()
   await allowApplicationLogin(admin)
   await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
 

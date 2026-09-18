@@ -39,6 +39,20 @@ export interface AuditEntry {
   readonly newValue: string | null
   readonly changedAt: Date
   /**
+   * Where the entry sits in its tenant's chain, counted from one. The chain is
+   * per tenant and not per instance, because a tenant can only ever see its
+   * own rows: a chain it cannot read is a chain it cannot check.
+   */
+  readonly sequence: number
+  /** The hash of the entry before this one, empty for the first. */
+  readonly previousHash: string | null
+  /**
+   * This entry, hashed together with the one before it. Changing a value,
+   * removing an entry or slipping one in breaks the chain from that point on,
+   * and the check finds the place.
+   */
+  readonly hash: string
+  /**
    * Who did it, empty when the change did not come through the application.
    * A migration or somebody at a psql prompt lands in the log all the same,
    * and the missing name is the finding, not a gap.
@@ -52,4 +66,30 @@ export interface AuditEntry {
    * application, anything else means somebody was at the database directly.
    */
   readonly databaseRole: string
+}
+
+/**
+ * The head of one tenant's chain, and the point where writers line up.
+ *
+ * The tenant is the key: there is exactly one chain per tenant, so a second
+ * column to identify the row would only be ceremony. Advancing this row is
+ * what puts concurrent changes into a defined order, which a chain needs and
+ * an unordered log does not.
+ */
+export interface AuditChain {
+  readonly tenantId: TenantId
+  /** The number the next entry will get. */
+  readonly nextSequence: number
+  readonly headHash: string | null
+  readonly createdAt: Date
+  readonly updatedAt: Date
+}
+
+/** What a walk over a tenant's chain found. */
+export interface ChainVerification {
+  readonly checked: number
+  /** The first entry that does not fit, or null when the chain is sound. */
+  readonly brokenAt: number | null
+  /** What was wrong there, in German, because a person reads it. */
+  readonly problem: string | null
 }

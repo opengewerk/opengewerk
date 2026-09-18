@@ -1,8 +1,9 @@
-import type { CustomerId } from '@opengewerk/domain'
+import type { ChainVerification, CustomerId } from '@opengewerk/domain'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { verifyAuditChain } from './audit.js'
 import { Database } from './database.js'
 import { newId } from './identifier.js'
 import * as schema from './schema/index.js'
@@ -39,7 +40,7 @@ const clerk = { tenantId: tenant.id, userId: 'benutzer-buero', reason: 'customer
 beforeAll(async () => {
   admin = await connect()
   await resetSchema(admin)
-  await applyMigrations(admin)
+  await applyMigrations()
   await allowApplicationLogin(admin)
 
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
@@ -95,7 +96,7 @@ describe('the tables', () => {
          join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'public'
           and c.relkind = 'r'
-          and c.relname not in ('audit_entries', '__drizzle_migrations')
+          and c.relname not in ('audit_entries', 'audit_chains', '__drizzle_migrations')
         order by c.relname`,
     )
 
@@ -108,7 +109,8 @@ describe('the tables', () => {
   it('leave the log itself alone, so that it does not log its own logging', async () => {
     const { rows } = await admin.query<{ count: string }>(
       `select count(*) from pg_trigger
-        where tgrelid = 'audit_entries'::regclass and tgname = 'audit_changes'`,
+        where tgrelid in ('audit_entries'::regclass, 'audit_chains'::regclass)
+          and tgname = 'audit_changes'`,
     )
 
     expect(Number(rows[0]?.count)).toBe(0)
@@ -282,6 +284,8 @@ describe('the log', () => {
           oldValue: 'nie passiert',
           newValue: 'auch nicht',
           databaseRole: applicationRole,
+          sequence: 1,
+          hash: 'erfunden',
         }),
       ),
     )
@@ -313,20 +317,30 @@ describe('the log', () => {
       can_delete: false,
     })
 
-    // The other half of the pair, and the one the tests cannot exercise: the
-    // database in these tests belongs to a superuser, for whom row level
-    // security never applies, so the trigger would get its row written even
-    // without a policy. On an installation where the migrations run as an
-    // ordinary owner it would not. Checking that the policy is there is the
-    // only way to keep that difference from being found in production.
-    const policies = await admin.query<{ to_public: boolean; with_check: string }>(
-      `select (0 = any(p.polroles)) as to_public,
-              pg_get_expr(p.polwithcheck, p.polrelid) as with_check
-         from pg_policy p
-        where p.polrelid = 'audit_entries'::regclass and p.polcmd = 'a'`,
-    )
+    // And the other half of the pair. The open policy lets the trigger write
+    // from any path; the restrictive one keeps the application inside its own
+    // tenant no matter what else permits, because restrictive policies are
+    // combined with AND and cannot be widened by another policy.
+    for (const table of ['audit_entries', 'audit_chains']) {
+      const policies = await admin.query<{
+        name: string
+        permissive: string
+        to_public: boolean
+      }>(
+        `select p.polname as name,
+                p.polpermissive as permissive,
+                (0 = any(p.polroles)) as to_public
+           from pg_policy p
+          where p.polrelid = $1::regclass
+          order by p.polname`,
+        [table],
+      )
 
-    expect(policies.rows).toEqual([{ to_public: true, with_check: 'true' }])
+      expect(policies.rows).toEqual([
+        { name: 'tenant_isolation', permissive: false, to_public: false },
+        { name: 'written_by_trigger', permissive: true, to_public: true },
+      ])
+    }
   })
 
   it('shows a tenant only its own entries', async () => {
@@ -342,5 +356,148 @@ describe('the log', () => {
     // old values as well as the new ones.
     expect(seenByOther).toEqual([])
     expect(await entriesFor(customerId)).not.toEqual([])
+  })
+})
+
+describe('the chain over the entries', () => {
+  /**
+   * Reaches past the bolt, lets the check look at the damage, and puts
+   * everything back.
+   *
+   * Turning the trigger off is what somebody with rights on the database does
+   * first, and it is the only way to get at an entry at all: the chain answers
+   * precisely that move, not a polite UPDATE. It all happens inside one
+   * transaction that is rolled back, which in PostgreSQL takes the disabled
+   * trigger back with it. Without that, the first of these tests would leave
+   * the chain broken and every later one would keep reporting its break
+   * instead of its own.
+   */
+  async function whileBroken(
+    damage: (run: (statement: string, values: unknown[]) => Promise<unknown>) => Promise<void>,
+  ): Promise<ChainVerification> {
+    const client = await admin.connect()
+
+    try {
+      await client.query('begin')
+      await client.query('alter table audit_entries disable trigger "audit_entries_stay"')
+
+      await damage((statement, values) => client.query(statement, values))
+
+      const { rows } = await client.query<{
+        checked: string
+        broken_at: string | null
+        problem: string | null
+      }>('select * from verify_audit_chain($1)', [tenant.id])
+
+      return {
+        checked: Number(rows[0]?.checked),
+        brokenAt: rows[0]?.broken_at == null ? null : Number(rows[0].broken_at),
+        problem: rows[0]?.problem ?? null,
+      }
+    } finally {
+      await client.query('rollback')
+      client.release()
+    }
+  }
+
+  async function nameEntryOf(name: string) {
+    const customerId = await createCustomer(name)
+    const [entry] = (await entriesFor(customerId)).filter((row) => row.field === 'name')
+
+    if (!entry) {
+      throw new Error('Nothing was logged')
+    }
+
+    return entry
+  }
+
+  it('links every entry to the one before it', async () => {
+    await createCustomer('Kettenglied GmbH')
+
+    const entries = await database.forTenant({ tenantId: tenant.id }, (tx) =>
+      tx.select().from(schema.auditEntries).orderBy(schema.auditEntries.sequence),
+    )
+
+    expect(entries.length).toBeGreaterThan(3)
+    expect(entries[0]?.sequence).toBe(1)
+    expect(entries[0]?.previousHash).toBeNull()
+
+    for (let index = 1; index < entries.length; index += 1) {
+      expect(entries[index]?.sequence).toBe(index + 1)
+      expect(entries[index]?.previousHash).toBe(entries[index - 1]?.hash)
+    }
+  })
+
+  it('counts its own entries and finds nothing wrong with them', async () => {
+    const sound = await database.forTenant({ tenantId: tenant.id }, (tx) =>
+      verifyAuditChain(tx, tenant.id),
+    )
+
+    expect(sound.brokenAt).toBeNull()
+    expect(sound.problem).toBeNull()
+    // Not a vacuous yes. An empty chain checks out too, so the number matters.
+    expect(sound.checked).toBeGreaterThan(3)
+  })
+
+  it('notices a value that was changed afterwards', async () => {
+    const entry = await nameEntryOf('Echt GmbH')
+
+    const broken = await whileBroken(async (run) => {
+      await run('update audit_entries set new_value = $1 where id = $2', ['Gefälscht', entry.id])
+    })
+
+    expect(broken.brokenAt).toBe(entry.sequence)
+    expect(broken.problem).toMatch(/verändert/)
+  })
+
+  it('notices an entry that was removed', async () => {
+    const entry = await nameEntryOf('Verschwunden GmbH')
+
+    const broken = await whileBroken(async (run) => {
+      await run('delete from audit_entries where id = $1', [entry.id])
+    })
+
+    expect(broken.brokenAt).toBe(entry.sequence)
+    expect(broken.problem).toMatch(/fehlt/)
+  })
+
+  it('still notices when the forged entry is given a matching hash of its own', async () => {
+    const entry = await nameEntryOf('Sorgfältig GmbH')
+
+    // This is what makes it a chain rather than a checksum per row. Somebody
+    // who changes a value and recomputes that one hash has an entry that is
+    // consistent with itself, and the next entry still points at the old one.
+    // Covering the tracks means rewriting everything that follows.
+    const broken = await whileBroken(async (run) => {
+      await run('update audit_entries set new_value = $1 where id = $2', ['Gefälscht', entry.id])
+      await run(
+        `update audit_entries u
+            set hash = (select audit_fingerprint(e) from audit_entries e where e.id = u.id)
+          where u.id = $1`,
+        [entry.id],
+      )
+
+      const { rows } = (await run(
+        'select hash = audit_fingerprint(e) as fits from audit_entries e where id = $1',
+        [entry.id],
+      )) as { rows: { fits: boolean }[] }
+
+      // The forged entry really does add up on its own now, otherwise the
+      // check below would be catching the wrong thing.
+      expect(rows[0]?.fits).toBe(true)
+    })
+
+    expect(broken.brokenAt).toBe(entry.sequence + 1)
+    expect(broken.problem).toMatch(/Vorgänger/)
+  })
+
+  it('runs per tenant, so one company cannot be checked into another', async () => {
+    const seenByOther = await database.forTenant({ tenantId: other.id }, (tx) =>
+      verifyAuditChain(tx, tenant.id),
+    )
+
+    // Row level security means the other tenant sees none of these entries, so
+    // the walk finds nothing rather than reporting on somebody else's chain.
+    expect(seenByOther.checked).toBe(0)
   })
 })

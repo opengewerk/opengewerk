@@ -28,7 +28,7 @@ let db: NodePgDatabase
 beforeAll(async () => {
   pool = await connect()
   await resetSchema(pool)
-  await applyMigrations(pool)
+  await applyMigrations()
   db = drizzle(pool)
 })
 
