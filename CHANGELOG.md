@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Nummernkreise je Mandant und Belegart, vergeben beim Festschreiben. Der Zähler steht in
+  einer Tabellenzeile statt in einer Sequenz, damit ein Abbruch die Nummer wieder mitnimmt
+  und keine Lücke bleibt. Alle Rechnungsarten teilen einen Kreis, Storno eingeschlossen
+- Ein Trigger, der festgeschriebene Belege unveränderlich macht. Erlaubt bleibt nur der
+  Wechsel auf storniert, und auch der nur, wenn sich sonst nichts ändert. Löschen gibt es
+  nicht
+- Vorschau der nächsten Belegnummer über dieselbe Funktion in `domain`, die auch die
+  endgültige Nummer baut
 - Rollen und Rechte: Inhaber, Büro und Monteur mit Rechten entlang der Aktion. Getrennt
   sind vor allem `document.write` und `document.issue`, weil ein Monteur den Regiebericht
   schreibt und das Büro ihn festschreibt

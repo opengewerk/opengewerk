@@ -2,6 +2,7 @@ import {
   type ArgumentsHost,
   BadRequestException,
   Catch,
+  ConflictException,
   type ExceptionFilter,
   ForbiddenException,
   HttpException,
@@ -21,6 +22,13 @@ const badRequestCodes = new Set([
 
 /** insufficient_privilege. What a row level security policy answers with. */
 const rowLevelSecurity = '42501'
+
+/**
+ * Our own class, raised by the trigger that keeps an issued document fixed.
+ * A conflict and not a bad request: the call was well formed, the document is
+ * simply past the point where it could still be changed.
+ */
+const documentIsFixed = 'OG001'
 
 function databaseCode(error: unknown): string | undefined {
   // Drizzle wraps the driver error and keeps the original as the cause.
@@ -66,10 +74,33 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       return new ForbiddenException('Kein Zugriff auf diesen Datensatz.')
     }
 
+    if (code === documentIsFixed) {
+      return new ConflictException(this.databaseMessage(error))
+    }
+
     if (code && badRequestCodes.has(code)) {
       return new BadRequestException('Die Angaben passen nicht zum Datenmodell.')
     }
 
     return new InternalServerErrorException()
+  }
+
+  /**
+   * The message the trigger raised. Passing it on is safe here and useful:
+   * these are our own texts, written for the person who is about to learn that
+   * an issued document is corrected rather than edited.
+   */
+  private databaseMessage(error: unknown): string {
+    const candidates = [error, (error as { cause?: unknown }).cause]
+
+    for (const candidate of candidates) {
+      const message = (candidate as { message?: unknown } | undefined)?.message
+
+      if (typeof message === 'string' && !message.startsWith('Failed query')) {
+        return message
+      }
+    }
+
+    return 'Der Beleg ist festgeschrieben.'
   }
 }

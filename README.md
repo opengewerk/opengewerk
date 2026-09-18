@@ -109,6 +109,18 @@ Geprüft wird serverseitig an jeder Route, über einen global registrierten Guar
 
 Einen Einstiegspunkt, der den Server startet, gibt es noch nicht. Das ist Absicht: die Anwendung verlangt eine Identitätsquelle, und die einzige, die sich heute schreiben ließe, würde jeden hereinlassen. Der Server startet erst, wenn die Anmeldung da ist.
 
+### Nummernkreise und Festschreibung
+
+Die Nummer bekommt ein Beleg beim Festschreiben, nicht beim Anlegen. Vorher ist er ein Entwurf ohne Nummer, danach ist er fest.
+
+**Der Zähler steht in einer Tabellenzeile, nicht in einer PostgreSQL-Sequenz.** Das ist die wichtigste Entscheidung hier. Eine Sequenz vergibt ihren Wert außerhalb der Transaktion und behält ihn auch dann, wenn die Transaktion zurückrollt; genau richtig für einen technischen Schlüssel und genau falsch für eine Rechnungsnummer. Der Zähler in der Zeile wird per `update ... returning` hochgezählt, was die Zeile bis zum Ende der Transaktion sperrt: gleichzeitige Anfragen werden nacheinander bedient, und ein Abbruch nimmt die Nummer wieder mit.
+
+Alle Rechnungsarten teilen einen Kreis, Storno und Gutschrift eingeschlossen. §14 UStG verlangt eine fortlaufende Nummer je Rechnung, und ein eigener Kreis fürs Storno risse ein Loch in den, auf den es ankommt.
+
+**Unveränderlichkeit sitzt in der Datenbank.** Ein Trigger auf `documents` lässt an einem festgeschriebenen Beleg genau einen Schritt zu, den Wechsel auf storniert, und auch den nur, wenn sich sonst kein Feld ändert. Verglichen wird über `to_jsonb`, nicht über eine Spaltenliste, damit eine später hinzugefügte Spalte automatisch mitgeschützt ist. Löschen gibt es nicht. Eine Regel, die nur der Server kennt, gilt nicht mehr, sobald jemand mit `psql` danebensteht.
+
+Die Vorschau der nächsten Nummer nutzt dieselbe Funktion in `domain` wie die endgültige Vergabe. Sie ist eine Vorschau und keine Zusage: wer zuerst festschreibt, bekommt die Nummer.
+
 ## Roadmap
 
 | Phase | Inhalt | Ergebnis |

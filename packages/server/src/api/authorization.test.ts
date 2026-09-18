@@ -225,3 +225,61 @@ describe('without an identity', () => {
       .expect(401)
   })
 })
+
+describe('the number a document gets', () => {
+  it('is the one the preview announced, and it is handed out only when issuing', async () => {
+    const preview = await request(app.getHttpServer())
+      .get('/documents/next-number/final_invoice')
+      .set('x-test-identity', as(north.id, 'office'))
+      .expect(200)
+
+    const draft = await request(app.getHttpServer())
+      .post('/documents')
+      .set('x-test-identity', as(north.id, 'office'))
+      .send({ customerId: northCustomer, kind: 'final_invoice', documentDate: '2026-09-18' })
+      .expect(201)
+
+    // A draft has no number. It gets one at the moment it is issued, which is
+    // the moment it starts counting for the bookkeeping.
+    expect(draft.body.number).toBeNull()
+
+    const issued = await request(app.getHttpServer())
+      .post(`/documents/${draft.body.id}/issue`)
+      .set('x-test-identity', as(north.id, 'office'))
+      .expect(201)
+
+    expect(issued.body.number).toBe(preview.body.preview)
+  })
+
+  it('runs per tenant, so two businesses both start at one', async () => {
+    const southCustomer = await request(app.getHttpServer())
+      .post('/customers')
+      .set('x-test-identity', as(south.id, 'office'))
+      .send({ kind: 'business', name: 'Bauherr Süd' })
+      .expect(201)
+
+    const draft = await request(app.getHttpServer())
+      .post('/documents')
+      .set('x-test-identity', as(south.id, 'office'))
+      .send({
+        customerId: southCustomer.body.id,
+        kind: 'final_invoice',
+        documentDate: '2026-09-18',
+      })
+      .expect(201)
+
+    const issued = await request(app.getHttpServer())
+      .post(`/documents/${draft.body.id}/issue`)
+      .set('x-test-identity', as(south.id, 'office'))
+      .expect(201)
+
+    expect(issued.body.number).toBe('RE-2026-0001')
+  })
+
+  it('refuses a document kind it does not know', async () => {
+    await request(app.getHttpServer())
+      .get('/documents/next-number/rechnung')
+      .set('x-test-identity', as(north.id, 'office'))
+      .expect(400)
+  })
+})

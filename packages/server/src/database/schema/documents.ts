@@ -7,7 +7,10 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
+
+import { sql } from 'drizzle-orm'
 
 import { primaryId, reference, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -60,5 +63,12 @@ export const documents = pgTable(
     index('documents_customer_idx').on(table.tenantId, table.customerId),
     index('documents_job_idx').on(table.tenantId, table.jobId),
     index('documents_predecessor_idx').on(table.predecessorDocumentId),
+    // The second lock on the numbering. The counter hands out each value once,
+    // and this makes sure of it even if somebody ever writes a number by hand
+    // or a counter is reset. Partial, because drafts carry no number and would
+    // otherwise all collide on null.
+    uniqueIndex('documents_number_unique')
+      .on(table.tenantId, table.number)
+      .where(sql`${table.number} is not null`),
   ],
 )
