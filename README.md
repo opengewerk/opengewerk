@@ -157,6 +157,22 @@ Der Stand, ab dem ein Gerät nachfragt, ist eine Nummer je Mandant, die in der R
 
 Die Warteschlange selbst liegt später im Browser. Die Regeln liegen jetzt schon in `domain`, denn nur so kann ein Gerät dieselbe Antwort ausrechnen, bevor es etwas schickt, und einen Konflikt anzeigen statt ihn zu entdecken.
 
+### Regel-Engine
+
+Gesetzliche Parameter stehen nicht im Quelltext, sondern als Datensätze in Regelpaketen unter `packages/domain/src/rules/data/`. Jeder Datensatz hat einen Gültigkeitszeitraum und die Fundstelle, aus der er stammt. Die Fundstelle ist keine Zierde: sie ist der Unterschied zwischen einer Zahl, die jemand nachprüfen kann, und einer, die jemand glauben muss.
+
+**Jede Abfrage braucht einen Tag, und es gibt keinen Weg, ohne einen zu fragen.** Diese eine fehlende Bequemlichkeit trägt die historische Anwendung aus Abschnitt 1.7: eine Rechnung von 2027 kann 2030 nicht versehentlich nach den Sätzen von 2030 beurteilt werden, weil keine Funktion in dieser Engine weiß, welcher Tag heute ist.
+
+**Ein neuer Steuersatz ist ein Eintrag, kein Release.** Der Basiszinssatz nach §247 BGB ist das beste Beispiel: die Bundesbank setzt ihn zum 1. Januar und zum 1. Juli neu fest, und jedes Mal ist das eine Zeile in einer Datei, die jeder gegen die Bekanntmachung prüfen kann, statt einer Änderung an einer Rechenfunktion.
+
+**Gerechnet wird in ganzen Zahlen**, in Basispunkten und in Cent. Neunzehn Prozent als 0,19 und ein Betrag als 22000.00 liefern jede Rechnung dem binären Fließkomma aus, und dort sind neunzehn Prozent von hundert Euro nicht verlässlich neunzehn Euro. Gerundet wird an genau einer Stelle, kaufmännisch und von der Null weg, damit eine Gutschrift die Rechnung spiegelt, die sie korrigiert, statt einen Cent daneben zu liegen.
+
+**Wo keine Regel hinterlegt ist, gibt es keine Antwort.** Die Engine rechnet nicht mit einem erfundenen Wert weiter. Ein erfundener Zinssatz auf einer echten Rechnung ist schlimmer als ein fehlender, und das Paket sagt in sich selbst, bis wann es reicht.
+
+Davon getrennt stehen die **mandantenbezogenen Parameter**: ob ein Betrieb die Kleinunternehmerregelung in Anspruch nimmt, welches Zahlungsziel er auf seine Rechnungen schreibt. Die liegen in der Datenbank, tragen ebenfalls einen Gültigkeitszeitraum und werden nicht geändert, sondern ab einem Tag abgelöst. Ein Betrieb kann damit nie eine gesetzliche Größe verschieben: der Schlüssel ist eine Aufzählung von Einstellungen, und keine Regel steht darin.
+
+> Die Werte in den Paketen sind nach bestem Wissen eingetragen und mit Fundstelle belegt, aber vor dem Produktivbetrieb gehören sie durch eine fachkundige Prüfung. Was dieses Fundament liefert, ist die Mechanik, nicht die Gewähr für jede Zahl darin.
+
 ## Roadmap
 
 | Phase | Inhalt | Ergebnis |
