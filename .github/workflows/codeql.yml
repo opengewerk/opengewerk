@@ -1,0 +1,43 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Montags früh, damit ein Fund am Wochenanfang auf dem Tisch liegt und nicht
+    # erst beim nächsten Push auffällt
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyse (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # Bislang gibt es hier nur Workflow-Dateien zu prüfen. Sobald Code
+        # dazukommt, gehört seine Sprache in diese Liste
+        language: [actions]
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: CodeQL vorbereiten
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Analyse ausführen
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
