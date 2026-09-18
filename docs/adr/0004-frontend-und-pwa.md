@@ -1,5 +1,5 @@
 ---
-status: vorgeschlagen
+status: angenommen
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.6, 9
@@ -34,9 +34,9 @@ Zwei Oberflächen: Büro-Anwendung (Desktop, datenintensiv, Tabellen, Plantafel,
 - Vorteile: Jede App bleibt schlank.
 - Nachteile: Doppelte Auth, doppelter Sync-Client, doppelte Komponenten; genau das Duplikat, das das Konzept vermeiden will.
 
-## Empfehlung
+## Entscheidung
 
-**Option A: React 19 + Vite + TypeScript**, eine Codebasis mit zwei Einstiegspunkten (`/` Büro, `/m` Baustelle), die dieselben Domänenpakete, denselben Sync-Client und dieselbe Auth teilen, aber unterschiedliche Layouts und Navigationsmuster haben. Geräteerkennung schlägt beim ersten Start den passenden Einstieg vor.
+Gewählt wurde **Option A, React 19 + Vite + TypeScript**: eine Codebasis mit zwei Einstiegspunkten (`/` Büro, `/m` Baustelle), die dieselben Domänenpakete, denselben Sync-Client und dieselbe Auth teilen, aber unterschiedliche Layouts und Navigationsmuster haben. Geräteerkennung schlägt beim ersten Start den passenden Einstieg vor.
 
 Bausteine: TanStack Router + Query, Formular-Engine auf TanStack Form mit JSON-Schema-Renderer, Tabellen mit TanStack Table, Styling mit Tailwind und eigenen Komponenten (Radix-Primitives), Icons Lucide. Kein UI-Kit mit eigener Designsprache (kein MUI/Ant), damit das OpenGewerk-Branding trägt.
 

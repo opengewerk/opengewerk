@@ -1,5 +1,5 @@
 ---
-status: vorgeschlagen
+status: angenommen
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 0, 1, 9
@@ -34,11 +34,11 @@ OpenGewerk ist ein self-hosted Modular-Monolith mit REST-API, Offline-first-PWA,
 - Vorteile: Schnell zu schreiben, Django-Admin, gute ORM/Migrationen; Odoo/ERPNext-Nähe.
 - Nachteile: Keine Typteilung; Performance; asynchrone Sync-Endpunkte weniger elegant; Frontend bleibt ohnehin TS.
 
-## Empfehlung
+## Entscheidung
 
-**Option A: TypeScript durchgängig.** Ausschlaggebend ist die Offline-first-Anforderung: Validierung, Nummernkreis-Vorschau, Belegberechnung (Summen, Steuer, Skonto) und Formular-Grenzwertprüfung müssen im Browser und auf dem Server identisch sein. Das ist mit geteilten TS-Modulen trivial und mit jeder anderen Sprache ein Generator-Projekt.
+Gewählt wurde **Option A, TypeScript durchgängig**. Ausschlaggebend ist die Offline-first-Anforderung: Validierung, Nummernkreis-Vorschau, Belegberechnung (Summen, Steuer, Skonto) und Formular-Grenzwertprüfung müssen im Browser und auf dem Server identisch sein. Das ist mit geteilten TS-Modulen trivial und mit jeder anderen Sprache ein Generator-Projekt.
 
-Framework: **NestJS** als Struktur für den Modular-Monolithen (Module, Dependency Injection, Guards für Mandanten/Rechte, OpenAPI-Generierung für `opengewerk-api-spec`). Alternative bei Wunsch nach weniger Magie: Fastify mit eigener Modulkonvention, dann muss die Modulgrenze selbst durchgesetzt werden.
+Als Framework wurde **NestJS** gewählt: Module, Dependency Injection, Guards für Mandant und Rechte, OpenAPI-Generierung für `opengewerk-api-spec`. Die schlankere Alternative Fastify mit eigener Modulkonvention wurde verworfen, weil die Modulgrenze dann von Hand durchgesetzt werden müsste und genau diese Grenze später die Erweiterungspunkte des Plugin-Systems trägt (ADR 0008). Die Einarbeitung in NestJS ist der bewusst in Kauf genommene Preis dafür.
 
 Monorepo (pnpm Workspaces oder Turborepo) mit Paketen: `domain` (Schemas, Berechnungen, Regeln; ohne I/O), `server`, `web`, `mobile-pwa` (oder ein `web` mit zwei Einstiegen), `api-spec` (Konsument von `opengewerk-api-spec`).
 
@@ -48,4 +48,4 @@ Laufzeit: Node.js LTS (aktuell 22). Bun/Deno erst, wenn der gesamte Stack dort o
 
 - ZUGFeRD/XRechnung wird mit TS-Bibliotheken umgesetzt (z. B. `@e-invoice-eu/core`, Factur-X-Bibliotheken); Eignung vor Phase 1 mit einer Validierung gegen den KoSIT-Validator prüfen. Falls unzureichend: Mustang als separater Java-Microservice ist der Notausgang, nicht der Standard.
 - Strenge Abhängigkeitsregeln: `domain` darf nichts aus `server`/`web` importieren; wird per ESLint-Boundary-Regel erzwungen.
-- Speicherbedarf des Servers wird im Admin-Handbuch angegeben (Ziel: läuft auf 2 GB RAM neben PostgreSQL).
+- Speicherbedarf des Servers wird im Admin-Handbuch angegeben. Ziel: Der Anwendungsprozess läuft mit 2 GB RAM neben PostgreSQL. Die PDF-Erzeugung zählt nicht hinein, sie läuft nach ADR 0007 in einem eigenen Container, der nur beim Rendern hochfährt. Ohne diese Trennung wäre das Ziel mit Chromium im selben Prozess nicht zu halten.

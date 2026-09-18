@@ -1,5 +1,5 @@
 ---
-status: vorgeschlagen
+status: angenommen
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 0 (Leitentscheidung 1), 1.3, 1.7, 5.2
@@ -29,9 +29,9 @@ Elektro/PV ist Kernmodul; SHK, Dach, Maler und weitere Gewerke sollen später vo
 - Vorteile: Einfachst.
 - Nachteile: Gewerke-spezifische Berechnungen (z. B. Dachflächen-Aufmaß) und Importadapter passen nicht in reine Konfiguration.
 
-## Empfehlung
+## Entscheidung
 
-**Option B**, mit einem klar definierten Gewerke-Paketformat:
+Gewählt wurde **Option B, Datenpakete plus Compile-Time-Module**, mit einem klar definierten Gewerke-Paketformat:
 
 ```
 packages/gewerke/<name>/

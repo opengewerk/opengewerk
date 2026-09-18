@@ -1,5 +1,5 @@
 ---
-status: vorgeschlagen
+status: angenommen
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.1, 1.3, 1.5, 2 (Mandanten), 4.8
@@ -29,11 +29,11 @@ Anforderungen an die Datenbank: unveränderbares Journal (GoBD), Mandantentrennu
 - Vorteile: Null Betriebsaufwand, eine Datei, Backup = Kopie.
 - Nachteile: Schreibkonkurrenz bei mehreren Nutzern und Sync-Läufen; keine RLS; Volltext nur über FTS5; skaliert nicht auf Betriebe mit vielen Monteuren.
 
-## Empfehlung
+## Entscheidung
 
-**Option A: PostgreSQL** (16 oder neuer). Mandantentrennung als `tenant_id`-Spalte in jeder Tabelle **plus** Row-Level Security mit `SET LOCAL app.tenant_id` pro Transaktion (nicht Schema- oder Datenbank-pro-Mandant, das macht Migrationen und Backups unnötig komplex).
+Gewählt wurde **Option A, PostgreSQL** (16 oder neuer). Mandantentrennung als `tenant_id`-Spalte in jeder Tabelle **plus** Row-Level Security mit `SET LOCAL app.tenant_id` pro Transaktion (nicht Schema- oder Datenbank-pro-Mandant, das macht Migrationen und Backups unnötig komplex).
 
-Datenzugriff: **Drizzle ORM** (SQL-nah, typsicher, Migrationen als SQL-Dateien im Repo, keine Laufzeit-Magie). Alternative Kysely (reiner Query-Builder) bei Bedarf nach noch mehr Kontrolle. Prisma nicht, wegen eigener Query-Engine und schwächerer RLS-/Transaktionskontrolle.
+Datenzugriff: **Drizzle ORM**, SQL-nah, typsicher, Migrationen als SQL-Dateien im Repo, keine Laufzeit-Magie. Prisma wurde verworfen, weil dessen eigene Query-Engine die für die Mandantentrennung nötige Kontrolle über Transaktionen und `SET LOCAL` erschwert. Kysely als reiner Query-Builder bleibt der Rückfallweg, falls Drizzle an einer Stelle im Weg steht.
 
 Journal-Absicherung auf DB-Ebene: Tabelle `journal_entries` ohne UPDATE/DELETE-Recht für die Anwendungsrolle; Trigger verhindert Änderungen; Storno ist eine neue Zeile mit Referenz.
 

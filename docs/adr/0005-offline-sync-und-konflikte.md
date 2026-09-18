@@ -1,5 +1,5 @@
 ---
-status: vorgeschlagen
+status: angenommen
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.5, 1.6, 4.2, 4.4, 5.1
@@ -29,9 +29,9 @@ Monteure erfassen Zeiten, Regieberichte, Prüfprotokolle, Fotos, Aufmaße und M�
 - Vorteile: Volle Kontrolle über Konfliktregeln je Entität; GoBD-Grenze klar (Festschreibung nur online); schlank; keine Fremdabhängigkeit im Kern.
 - Nachteile: Eigenbau von Queue, Delta-Pull, Konflikt-UI; muss sorgfältig getestet werden.
 
-## Empfehlung
+## Entscheidung
 
-**Option C** als Kern, mit klaren Regeln:
+Gewählt wurde **Option C, eigene Outbox mit serverautoritativem Merge**, mit diesen Regeln:
 
 1. **Lokaler Speicher:** IndexedDB (über Dexie) als Spiegel der für das Gerät relevanten Daten (eigene Aufträge, zugehörige Kunden/Objekte/Anlagen, Artikel-Favoriten, Formulardefinitionen, Regelpakete). Fotos als Blobs mit Größenlimit und Nachladen.
 2. **Schreiben offline:** Jede Änderung ist eine Operation in einer Outbox (Entität, ID, Feld-Patch, Zeitstempel, Geräte-ID, Basisversion). UUIDv7 werden lokal erzeugt.
