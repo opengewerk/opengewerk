@@ -6,7 +6,7 @@ import {
   connect,
   enumNames,
   resetSchema,
-  revertMigration,
+  revertAllMigrations,
   tableNames,
 } from './test-database.js'
 
@@ -20,8 +20,8 @@ afterAll(async () => {
   await pool.end()
 })
 
-describe('the first migration', () => {
-  it('runs against an empty database and back again', async () => {
+describe('the migrations', () => {
+  it('run against an empty database and back again', async () => {
     await resetSchema(pool)
     expect(await tableNames(pool)).toEqual([])
 
@@ -35,7 +35,7 @@ describe('the first migration', () => {
     expect(tables).toContain('documents')
     expect(await enumNames(pool)).toContain('customer_kind')
 
-    await revertMigration(pool, '0000_datenmodell_kern')
+    await revertAllMigrations(pool)
 
     // Nothing left behind. This is the part that catches a rollback which
     // forgot a table or a type: the check is what the database says, not a

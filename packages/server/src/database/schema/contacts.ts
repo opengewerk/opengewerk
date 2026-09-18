@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { check, index, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { sites } from './sites.js'
@@ -28,6 +29,7 @@ export const contacts = pgTable(
     ...timestamps,
   },
   (table) => [
+    tenantIsolation(table.tenantId),
     check(
       'contacts_belong_to_customer_or_site',
       sql`(${table.customerId} is null) <> (${table.siteId} is null)`,

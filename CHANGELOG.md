@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Mandantentrennung: Row-Level Security auf allen 14 Tabellen, erzwungen auch gegenüber
+  dem Tabelleneigentümer, dazu eine eigene Anwendungsrolle ohne Superuser-Rechte. Der
+  Mandant wird an genau einer Stelle gesetzt, in `Database.forTenant()`, und gilt nur
+  innerhalb der Transaktion
+- Ein Test, der für jede Tabelle prüft, dass Row-Level Security aktiviert und erzwungen
+  ist, eine Policy existiert und die Anwendungsrolle Rechte hat. Damit fällt eine Tabelle
+  auf, die in einer späteren Migration eines davon vergisst
 - Datenmodell-Kern: Mandant, Kunde, Ansprechpartner, Objekt, Anlage, Auftrag und Beleg,
   dazu die Elektro-Struktur unter der Anlage (Verteiler, Feld, Stromkreis, Betriebsmittel)
   und die PV-Struktur (Wechselrichter, String, Module). Schlüssel sind UUIDv7, erzeugt von
