@@ -343,6 +343,20 @@ describe('the log', () => {
     }
   })
 
+  it('does not let one company count how much another one is doing', async () => {
+    await createCustomer('Zaehlbar GmbH')
+
+    const chains = await database.forTenant({ tenantId: other.id }, (tx) =>
+      tx.select().from(schema.auditChains),
+    )
+
+    // The chain table carries one row per tenant, and its counter says how
+    // much a company has been doing. The policy that lets the trigger write
+    // from any path is open to everyone, so without the restrictive policy
+    // beside it this read would enumerate every tenant on the instance.
+    expect(chains.every((chain) => chain.tenantId === other.id)).toBe(true)
+  })
+
   it('shows a tenant only its own entries', async () => {
     const customerId = await createCustomer('Geheim GmbH')
 
@@ -489,6 +503,32 @@ describe('the chain over the entries', () => {
 
     expect(broken.brokenAt).toBe(entry.sequence + 1)
     expect(broken.problem).toMatch(/Vorgänger/)
+  })
+
+  it('hashes the link as well, so that the two checks overlap on purpose', async () => {
+    const entry = await nameEntryOf('Verkettet GmbH')
+
+    const broken = await whileBroken(async (run) => {
+      // Only the link, not a single other field.
+      await run("update audit_entries set previous_hash = repeat('0', 64) where id = $1", [
+        entry.id,
+      ])
+
+      const { rows } = (await run(
+        'select hash = audit_fingerprint(e) as fits from audit_entries e where id = $1',
+        [entry.id],
+      )) as { rows: { fits: boolean }[] }
+
+      // The fingerprint covers previous_hash, so touching the link alone
+      // already makes the entry disagree with itself. The walk would notice
+      // the broken link anyway, and that is the point: the two checks overlap
+      // deliberately, so loosening one of them does not open a door. Without
+      // this test the overlap is the kind of thing somebody removes as
+      // duplication, and nothing goes red.
+      expect(rows[0]?.fits).toBe(false)
+    })
+
+    expect(broken.brokenAt).toBe(entry.sequence)
   })
 
   it('holds when several people write at the same moment', async () => {
