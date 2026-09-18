@@ -1,6 +1,15 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common'
 import type { CustomerId } from '@opengewerk/domain'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
 import { customers } from '../database/schema/index.js'
@@ -33,7 +42,9 @@ export class CustomersController {
   @Get()
   @RequiresPermission('customer.read')
   list(@CurrentIdentity() identity: RequestIdentity) {
-    return this.database.forTenant(identity, (tx) => tx.select().from(customers))
+    return this.database.forTenant(identity, (tx) =>
+      tx.select().from(customers).where(isNull(customers.deletedAt)),
+    )
   }
 
   @Post()
@@ -69,7 +80,7 @@ export class CustomersController {
       tx
         .update(customers)
         .set({ ...(values as Partial<typeof customers.$inferInsert>), updatedAt: new Date() })
-        .where(eq(customers.id, id as CustomerId))
+        .where(and(eq(customers.id, id as CustomerId), isNull(customers.deletedAt)))
         .returning(),
     )
 
@@ -81,5 +92,28 @@ export class CustomersController {
     }
 
     return updated
+  }
+
+  /**
+   * Marked as deleted, not removed. A row that is gone is a row a device that
+   * was offline never hears about, because a delta pull delivers what changed
+   * and a row that is no longer there is not among it.
+   */
+  @Delete(':id')
+  @RequiresPermission('customer.write')
+  async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    const [removed] = await this.database.forTenant(identity, (tx) =>
+      tx
+        .update(customers)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(customers.id, id as CustomerId), isNull(customers.deletedAt)))
+        .returning(),
+    )
+
+    if (!removed) {
+      throw new NotFoundException()
+    }
+
+    return removed
   }
 }

@@ -50,7 +50,10 @@ describe('a value on its way to the server', () => {
 
 describe('the outbox', () => {
   it('hands its operations over in the order they were recorded', () => {
-    const later = operation({ id: 'a' as OperationId, recordedAt: new Date('2026-09-18T12:00:00Z') })
+    const later = operation({
+      id: 'a' as OperationId,
+      recordedAt: new Date('2026-09-18T12:00:00Z'),
+    })
     const earlier = operation({
       id: 'b' as OperationId,
       recordedAt: new Date('2026-09-18T09:00:00Z'),
@@ -91,7 +94,10 @@ describe('a record a technician fills in', () => {
     const elsewhere: RecordState = { version: 4, designation: 'UV Keller', notes: 'Zählerplatz' }
 
     const result = decideMerge(
-      operation({ baseVersion: 3, patches: [patch('designation', 'UV Keller', 'UV Keller links')] }),
+      operation({
+        baseVersion: 3,
+        patches: [patch('designation', 'UV Keller', 'UV Keller links')],
+      }),
       elsewhere,
     )
 
@@ -102,7 +108,10 @@ describe('a record a technician fills in', () => {
     const elsewhere: RecordState = { version: 4, designation: 'UV Keller rechts', notes: null }
 
     const result = decideMerge(
-      operation({ baseVersion: 3, patches: [patch('designation', 'UV Keller', 'UV Keller links')] }),
+      operation({
+        baseVersion: 3,
+        patches: [patch('designation', 'UV Keller', 'UV Keller links')],
+      }),
       elsewhere,
     )
 
@@ -274,7 +283,11 @@ describe('whatever the device sends', () => {
         fc.option(fc.dictionary(fc.string({ minLength: 1 }), value), { nil: null }),
         (entity, kind, current) => {
           const result = decideMerge(
-            operation({ entity, kind: kind as Operation['kind'], patches: [patch('a', null, 'b')] }),
+            operation({
+              entity,
+              kind: kind as Operation['kind'],
+              patches: [patch('a', null, 'b')],
+            }),
             current,
           )
 

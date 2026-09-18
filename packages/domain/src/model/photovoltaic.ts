@@ -1,10 +1,4 @@
-import type {
-  InstallationId,
-  InverterId,
-  PvModuleId,
-  PvStringId,
-  Synced,
-} from './identifier.js'
+import type { InstallationId, InverterId, PvModuleId, PvStringId, Synced } from './identifier.js'
 
 /**
  * The photovoltaic structure below an installation: inverter, string, module.

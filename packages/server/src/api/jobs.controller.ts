@@ -1,6 +1,15 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common'
 import type { JobId } from '@opengewerk/domain'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
 import { jobs } from '../database/schema/index.js'
@@ -26,7 +35,9 @@ export class JobsController {
   @Get()
   @RequiresPermission('job.read')
   list(@CurrentIdentity() identity: RequestIdentity) {
-    return this.database.forTenant(identity, (tx) => tx.select().from(jobs))
+    return this.database.forTenant(identity, (tx) =>
+      tx.select().from(jobs).where(isNull(jobs.deletedAt)),
+    )
   }
 
   @Post()
@@ -59,7 +70,7 @@ export class JobsController {
       tx
         .update(jobs)
         .set({ ...(values as Partial<typeof jobs.$inferInsert>), updatedAt: new Date() })
-        .where(eq(jobs.id, id as JobId))
+        .where(and(eq(jobs.id, id as JobId), isNull(jobs.deletedAt)))
         .returning(),
     )
 
@@ -71,5 +82,28 @@ export class JobsController {
     }
 
     return updated
+  }
+
+  /**
+   * Marked as deleted, not removed. A row that is gone is a row a device that
+   * was offline never hears about, because a delta pull delivers what changed
+   * and a row that is no longer there is not among it.
+   */
+  @Delete(':id')
+  @RequiresPermission('job.write')
+  async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    const [removed] = await this.database.forTenant(identity, (tx) =>
+      tx
+        .update(jobs)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(jobs.id, id as JobId), isNull(jobs.deletedAt)))
+        .returning(),
+    )
+
+    if (!removed) {
+      throw new NotFoundException()
+    }
+
+    return removed
   }
 }

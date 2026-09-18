@@ -10,6 +10,7 @@ import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { SitesController } from './sites.controller.js'
+import { SyncController } from './sync.controller.js'
 
 /**
  * The HTTP side. There is no entry point that starts this on its own, and that
@@ -33,6 +34,7 @@ export class ApiModule {
         InstallationsController,
         JobsController,
         DocumentsController,
+        SyncController,
       ],
       providers: [
         { provide: Database, useValue: database },

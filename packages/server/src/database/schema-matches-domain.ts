@@ -78,7 +78,5 @@ export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, 
 export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
 export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>
 export type SyncSequenceMatches = Assert<Exact<typeof syncSequences.$inferSelect, SyncSequence>>
-export type SyncOperationMatches = Assert<
-  Exact<typeof syncOperations.$inferSelect, SyncOperation>
->
+export type SyncOperationMatches = Assert<Exact<typeof syncOperations.$inferSelect, SyncOperation>>
 export type SyncConflictMatches = Assert<Exact<typeof syncConflicts.$inferSelect, SyncConflict>>
