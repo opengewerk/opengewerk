@@ -36,6 +36,13 @@ export const permissions = [
    */
   'sync.read',
   'sync.write',
+  /**
+   * What the business has set for itself: whether it claims the small business
+   * rule, what payment term it puts on an invoice. Not what the law says, that
+   * is not anybody's to set.
+   */
+  'settings.read',
+  'settings.write',
 ] as const
 
 export type Permission = (typeof permissions)[number]
@@ -70,6 +77,9 @@ const officePermissions: readonly Permission[] = [
   'document.issue',
   'sync.read',
   'sync.write',
+  // Reading, not setting. What a business claims about its own taxation is a
+  // decision for whoever answers for it.
+  'settings.read',
 ]
 
 /**

@@ -36,6 +36,13 @@
       "when": 1789751630287,
       "tag": "0004_offline_data_layer",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789753814419,
+      "tag": "0005_rule_engine",
+      "breakpoints": true
     }
   ]
 }

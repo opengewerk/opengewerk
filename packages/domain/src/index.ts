@@ -19,6 +19,15 @@ export * from './model/photovoltaic.js'
 export * from './model/site.js'
 export * from './model/tenant.js'
 
+// The legal parameters. Not in the code: they sit in data packages with a
+// period of validity and the paragraph they come from, and every question to
+// them needs a date, so that a document is judged by the rules of its own time.
+export * from './rules/parameter.js'
+export * from './rules/payment.js'
+export * from './rules/rule.js'
+export * from './rules/shipped.js'
+export * from './rules/tax.js'
+
 // The offline data layer. Rules, not storage: how an operation from a device
 // is merged and when that is a conflict. Where the outbox physically sits is
 // the client's business and comes with the interface that shows it.

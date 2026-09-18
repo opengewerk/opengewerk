@@ -19,6 +19,7 @@ import type {
   SyncOperation,
   SyncSequence,
   Tenant,
+  TenantParameter,
 } from '@opengewerk/domain'
 
 import type {
@@ -41,6 +42,7 @@ import type {
   syncConflicts,
   syncOperations,
   syncSequences,
+  tenantParameters,
   tenants,
 } from './schema/index.js'
 
@@ -59,6 +61,9 @@ type Exact<Row, Model> = [Row] extends [Model] ? ([Model] extends [Row] ? true :
 type Assert<Matches extends true> = Matches
 
 export type TenantMatches = Assert<Exact<typeof tenants.$inferSelect, Tenant>>
+export type TenantParameterMatches = Assert<
+  Exact<typeof tenantParameters.$inferSelect, TenantParameter>
+>
 export type CustomerMatches = Assert<Exact<typeof customers.$inferSelect, Customer>>
 export type ContactMatches = Assert<Exact<typeof contacts.$inferSelect, Contact>>
 export type SiteMatches = Assert<Exact<typeof sites.$inferSelect, Site>>

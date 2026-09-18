@@ -1,0 +1,38 @@
+{
+  "package": "base-rate",
+  "note": "Basiszinssatz nach § 247 BGB. Die Deutsche Bundesbank setzt ihn zum 1. Januar und zum 1. Juli neu fest und veröffentlicht ihn im Bundesanzeiger. Genau dafür ist diese Engine da: ein neuer Satz ist ein Eintrag in dieser Datei, kein Release. Das Paket endet bewusst dort, wo die hier eingetragenen Werte belegt sind. Für einen späteren Tag gibt die Engine keine Antwort, statt eine zu erfinden.",
+  "records": [
+    {
+      "key": "base_rate.value",
+      "validFrom": "2016-07-01",
+      "validUntil": "2023-06-30",
+      "unit": "basis_points",
+      "value": -88,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2023-07-01",
+      "validUntil": "2023-12-31",
+      "unit": "basis_points",
+      "value": 312,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2024-01-01",
+      "validUntil": "2024-06-30",
+      "unit": "basis_points",
+      "value": 362,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2024-07-01",
+      "validUntil": "2024-12-31",
+      "unit": "basis_points",
+      "value": 337,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    }
+  ]
+}

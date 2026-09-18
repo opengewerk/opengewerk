@@ -1,0 +1,56 @@
+{
+  "package": "payment",
+  "note": "Zahlungsverzug nach BGB. Der Aufschlag gilt auf den Basiszinssatz, der in einem eigenen Paket steht und zweimal im Jahr neu festgesetzt wird.",
+  "records": [
+    {
+      "key": "payment.default_after_days",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "days",
+      "value": 30,
+      "source": "§ 286 Abs. 3 BGB",
+      "note": "Spätestens dann tritt Verzug ein, auch ohne Mahnung. Gegenüber Verbrauchern nur, wenn darauf hingewiesen wurde."
+    },
+    {
+      "key": "payment.maximum_term_days_business",
+      "validFrom": "2014-07-29",
+      "validUntil": null,
+      "unit": "days",
+      "value": 60,
+      "source": "§ 271a Abs. 1 BGB"
+    },
+    {
+      "key": "late_payment.premium_consumer",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "basis_points",
+      "value": 500,
+      "source": "§ 288 Abs. 1 BGB"
+    },
+    {
+      "key": "late_payment.premium_business",
+      "validFrom": "2002-01-01",
+      "validUntil": "2014-07-28",
+      "unit": "basis_points",
+      "value": 800,
+      "source": "§ 288 Abs. 2 BGB in der bis 2014 geltenden Fassung"
+    },
+    {
+      "key": "late_payment.premium_business",
+      "validFrom": "2014-07-29",
+      "validUntil": null,
+      "unit": "basis_points",
+      "value": 900,
+      "source": "§ 288 Abs. 2 BGB"
+    },
+    {
+      "key": "late_payment.flat_fee",
+      "validFrom": "2014-07-29",
+      "validUntil": null,
+      "unit": "cents",
+      "value": 4000,
+      "source": "§ 288 Abs. 5 BGB",
+      "note": "Nur gegenüber Unternehmern, und auf einen Verzugsschaden anzurechnen."
+    }
+  ]
+}

@@ -33,6 +33,24 @@ export default tseslint.config(
         { name: 'document', message: 'domain runs on both sides and must not touch the DOM.' },
         { name: 'fetch', message: 'domain must not perform I/O. Pass the data in.' },
       ],
+      // The clock is input like any other, and this package takes its input as
+      // arguments. It matters most in the rule engine: every question there is
+      // about a given day, and there is deliberately no way to ask about
+      // today. That absence is the whole of the historical application, and it
+      // is one convenient helper away from being lost. A date built from a
+      // value stays allowed, it is only reading the current time that does not.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message:
+            'domain must not read the clock. Take the day as an argument, so that a document keeps being judged by the rules of its own time.',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'domain must not read the clock. Take the moment as an argument.',
+        },
+      ],
     },
   },
 

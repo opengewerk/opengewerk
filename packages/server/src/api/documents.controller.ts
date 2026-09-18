@@ -79,7 +79,7 @@ export class DocumentsController {
     const [updated] = await this.database.forTenant(identity, (tx) =>
       tx
         .update(documents)
-        .set({ ...(values as Partial<typeof documents.$inferInsert>), updatedAt: new Date() })
+        .set(values as Partial<typeof documents.$inferInsert>)
         // Only a draft can be changed. A document that has been issued is
         // corrected by a cancellation or a credit note, never edited; that is
         // leading decision 4 and it is not negotiable by a PATCH.

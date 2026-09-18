@@ -9,6 +9,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Regel-Engine: gesetzliche Parameter als Datensätze in Regelpaketen mit
+  Gültigkeitszeitraum und Fundstelle, nicht im Quelltext. Umsatzsteuersätze,
+  Kleinunternehmergrenzen, Verzugsregeln und der Basiszinssatz
+- Jede Abfrage braucht einen Tag, und es gibt keinen Weg, ohne einen zu fragen. Das
+  trägt die historische Anwendung: ein Beleg von 2027 wird auch 2030 nach den Regeln
+  von 2027 beurteilt
+- Gerechnet wird in Basispunkten und Cent, also in ganzen Zahlen, und gerundet an genau
+  einer Stelle, kaufmännisch und von der Null weg
+- Wo keine Regel hinterlegt ist, gibt es keine Antwort statt einer erfundenen. Die
+  Pakete sagen in sich selbst, bis wann sie reichen
+- Mandantenbezogene Parameter davon getrennt, in der Datenbank und ebenfalls mit
+  Gültigkeitszeitraum. Sie werden nicht geändert, sondern ab einem Tag abgelöst, und
+  kein Schlüssel darin kann eine gesetzliche Größe verschieben
+- Eine Strukturprüfung, die die Sync-Spalten gegen die Abgleichregeln in `domain` hält:
+  eine Tabelle, die in einem von beiden fehlt, macht sie rot
 - Offline-Datenschicht: Vorgänge mit Feld, altem und neuem Wert, die ein Gerät sammelt und
   der Reihe nach schickt. Der Server vergleicht, was das Gerät gesehen hat, mit dem, was
   dasteht, und lässt durch, was niemand sonst angefasst hat
