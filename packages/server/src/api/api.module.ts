@@ -9,6 +9,7 @@ import { DocumentsController } from './documents.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
+import { SettingsController } from './settings.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
 
@@ -35,6 +36,7 @@ export class ApiModule {
         JobsController,
         DocumentsController,
         SyncController,
+        SettingsController,
       ],
       providers: [
         { provide: Database, useValue: database },

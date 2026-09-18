@@ -1,0 +1,55 @@
+{
+  "package": "vat",
+  "note": "Umsatzsteuersätze nach UStG. Das Paket beginnt 2007, weil davor kein Beleg aus dieser Software stammen kann. Ein Beleg mit früherem Datum bekommt keine Antwort, statt einer geratenen.",
+  "records": [
+    {
+      "key": "vat.standard",
+      "validFrom": "2007-01-01",
+      "validUntil": "2020-06-30",
+      "unit": "basis_points",
+      "value": 1900,
+      "source": "§ 12 Abs. 1 UStG"
+    },
+    {
+      "key": "vat.standard",
+      "validFrom": "2020-07-01",
+      "validUntil": "2020-12-31",
+      "unit": "basis_points",
+      "value": 1600,
+      "source": "§ 28 Abs. 1 UStG, Zweites Corona-Steuerhilfegesetz",
+      "note": "Befristete Senkung im zweiten Halbjahr 2020."
+    },
+    {
+      "key": "vat.standard",
+      "validFrom": "2021-01-01",
+      "validUntil": null,
+      "unit": "basis_points",
+      "value": 1900,
+      "source": "§ 12 Abs. 1 UStG"
+    },
+    {
+      "key": "vat.reduced",
+      "validFrom": "2007-01-01",
+      "validUntil": "2020-06-30",
+      "unit": "basis_points",
+      "value": 700,
+      "source": "§ 12 Abs. 2 UStG"
+    },
+    {
+      "key": "vat.reduced",
+      "validFrom": "2020-07-01",
+      "validUntil": "2020-12-31",
+      "unit": "basis_points",
+      "value": 500,
+      "source": "§ 28 Abs. 2 UStG, Zweites Corona-Steuerhilfegesetz"
+    },
+    {
+      "key": "vat.reduced",
+      "validFrom": "2021-01-01",
+      "validUntil": null,
+      "unit": "basis_points",
+      "value": 700,
+      "source": "§ 12 Abs. 2 UStG"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { Identity, RoleKey, TenantId } from '@opengewerk/domain'
+import { type Identity, type RoleKey, syncEntities, type TenantId } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -131,6 +131,67 @@ afterAll(async () => {
   await app.close()
   await database.close()
   await admin.end()
+})
+
+describe('the tables', () => {
+  it('carry the sync columns exactly where the rules say they should', async () => {
+    // Asked of two places at once: the policies in `domain` say which entities
+    // a device knows, the catalogue says which tables are built for it. A
+    // table that is in one and not the other is the failure nobody notices,
+    // because everything keeps working until two devices meet.
+    const { rows } = await admin.query<{ table_name: string; columns: string }>(
+      `select c.relname as table_name,
+              (select count(*) from pg_attribute a
+                where a.attrelid = c.oid and not a.attisdropped
+                  and a.attname in ('version', 'updated_by', 'device_id',
+                                    'deleted_at', 'change_sequence')) as columns
+         from pg_class c
+         join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r'
+        order by c.relname`,
+    )
+
+    const prepared = new Set(
+      rows.filter((row) => Number(row.columns) === 5).map((row) => row.table_name),
+    )
+    const declared = new Set(syncEntities)
+
+    expect(declared.size).toBeGreaterThanOrEqual(13)
+    expect([...declared].filter((entity) => !prepared.has(entity))).toEqual([])
+    expect([...prepared].filter((table) => !declared.has(table))).toEqual([])
+  })
+
+  it('that stay on the server say so, rather than simply lacking the columns', async () => {
+    // The other direction, and the one that catches the next table. Anything
+    // with a tenant is either something a device syncs or something that
+    // deliberately never leaves, and there is no third case where somebody
+    // just forgot.
+    const { rows } = await admin.query<{ table_name: string }>(
+      `select c.relname as table_name
+         from pg_class c
+         join pg_namespace n on n.oid = c.relnamespace
+         join pg_attribute a on a.attrelid = c.oid
+          and a.attname = 'tenant_id' and not a.attisdropped
+        where n.nspname = 'public' and c.relkind = 'r'
+        order by c.relname`,
+    )
+
+    // Counters, the log, the sync layer's own bookkeeping and the settings a
+    // business makes about itself. None of them is work a technician does in a
+    // basement.
+    const serverOnly = (name: string) =>
+      name.startsWith('audit_') ||
+      name.startsWith('sync_') ||
+      name === 'number_ranges' ||
+      name === 'tenant_parameters'
+
+    const declared = new Set<string>(syncEntities)
+    const unaccounted = rows
+      .map((row) => row.table_name)
+      .filter((name) => !declared.has(name) && !serverOnly(name))
+
+    expect(unaccounted).toEqual([])
+  })
 })
 
 describe('two devices that wrote the same field', () => {

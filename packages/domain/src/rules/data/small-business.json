@@ -1,0 +1,46 @@
+{
+  "package": "small-business",
+  "note": "Grenzen der Kleinunternehmerregelung nach § 19 UStG. Zum 01.01.2025 hat sich nicht nur die Höhe geändert, sondern auch die Systematik: seitdem endet die Regelung, sobald die Grenze im laufenden Jahr überschritten wird. Diese Engine hält die Beträge, der Wechsel während des Jahres gehört zum Belegwesen in Phase 1.",
+  "records": [
+    {
+      "key": "small_business.previous_year_limit",
+      "validFrom": "2003-01-01",
+      "validUntil": "2019-12-31",
+      "unit": "cents",
+      "value": 1750000,
+      "source": "§ 19 Abs. 1 UStG in der bis 2019 geltenden Fassung"
+    },
+    {
+      "key": "small_business.previous_year_limit",
+      "validFrom": "2020-01-01",
+      "validUntil": "2024-12-31",
+      "unit": "cents",
+      "value": 2200000,
+      "source": "§ 19 Abs. 1 UStG, Bürokratieentlastungsgesetz III"
+    },
+    {
+      "key": "small_business.previous_year_limit",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "cents",
+      "value": 2500000,
+      "source": "§ 19 Abs. 1 UStG, Jahressteuergesetz 2024"
+    },
+    {
+      "key": "small_business.current_year_limit",
+      "validFrom": "2003-01-01",
+      "validUntil": "2024-12-31",
+      "unit": "cents",
+      "value": 5000000,
+      "source": "§ 19 Abs. 1 UStG in der bis 2024 geltenden Fassung"
+    },
+    {
+      "key": "small_business.current_year_limit",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "cents",
+      "value": 10000000,
+      "source": "§ 19 Abs. 1 UStG, Jahressteuergesetz 2024"
+    }
+  ]
+}
