@@ -41,9 +41,30 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-OpenGewerk ist in der **Planungsphase**. Es gibt noch keinen lauffähigen Code, nur das ausgearbeitete Konzept und dieses Repository-Gerüst.
+OpenGewerk steht am Anfang von **Phase 0**. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und seit dem 18.09.2026 das Monorepo-Gerüst mit Typprüfung, Lint und Tests. Fachlogik gibt es noch keine: die Pakete sind bis auf ihre Konfiguration leer, der Inhalt kommt mit den Issues der Phase 0.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
+
+## Entwicklung
+
+Vorausgesetzt werden Node 24 und ein aktiviertes Corepack (`corepack enable`). Corepack holt pnpm in genau der Version, die im Wurzelpaket steht, niemand muss es selbst installieren.
+
+```bash
+pnpm install
+pnpm run typecheck
+pnpm run lint
+pnpm run test
+```
+
+Die drei Prüfungen laufen über Turborepo und damit über alle Pakete. Dieselben vier Schritte laufen in der CI. Warum die Werkzeuge so gewählt sind, steht in [ADR 0009](docs/adr/0009-werkzeuge-und-repo-struktur.md).
+
+| Paket | Inhalt |
+| --- | --- |
+| [`packages/domain`](packages/domain) | Schemas, Berechnungen, Regeln, Fristen. Kein I/O, keine Frameworks |
+| [`packages/server`](packages/server) | NestJS, Drizzle, Auth, Sync-Endpunkte |
+| [`packages/web`](packages/web) | React und Vite, eine Codebasis, Einstiege `/` für das Büro und `/m` für die Baustelle |
+
+`domain` rechnet im Browser und auf dem Server identisch und kennt deshalb weder Node- noch DOM-Typen. Ein `import ... from 'node:fs'` ist dort ein Typfehler, kein Diskussionspunkt in der Codereview.
 
 ## Roadmap
 
