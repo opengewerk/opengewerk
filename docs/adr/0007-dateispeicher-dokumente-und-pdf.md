@@ -1,4 +1,4 @@
-# ADR 0007 – Dateispeicher, Dokumentenerzeugung und E-Rechnung
+# ADR 0007: Dateispeicher, Dokumentenerzeugung und E-Rechnung
 
 - Status: vorgeschlagen
 - Datum: 2026-09-18
@@ -6,21 +6,21 @@
 
 ## Kontext
 
-Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und CAD-/Office-Anhänge – GoBD-konform (unveränderbar, nachvollziehbar), mit Backup und ohne externe Cloud-Pflicht. Es erzeugt PDFs mit Briefpapier (Angebote, Rechnungen, Protokolle) und E-Rechnungen (XRechnung, ZUGFeRD) und muss eingehende E-Rechnungen validieren.
+Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und CAD-/Office-Anhänge, GoBD-konform (unveränderbar, nachvollziehbar), mit Backup und ohne externe Cloud-Pflicht. Es erzeugt PDFs mit Briefpapier (Angebote, Rechnungen, Protokolle) und E-Rechnungen (XRechnung, ZUGFeRD) und muss eingehende E-Rechnungen validieren.
 
 ## Optionen Dateispeicher
 
-### A – Lokales Dateisystem (Volume)
+### A: Lokales Dateisystem (Volume)
 
 - Vorteile: Einfachst, Backup per Dateikopie, keine weiteren Dienste.
 - Nachteile: Skaliert nicht über einen Server; Zugriff nur vom App-Prozess.
 
-### B – S3-kompatibler Objektspeicher (MinIO, Garage, Hetzner Object Storage)
+### B: S3-kompatibler Objektspeicher (MinIO, Garage, Hetzner Object Storage)
 
 - Vorteile: Object-Lock/Versionierung als Unveränderbarkeits-Garantie; Skalierung; Backups ausgelagert.
 - Nachteile: Zweiter Dienst für kleine Betriebe.
 
-### C – Blobs in PostgreSQL
+### C: Blobs in PostgreSQL
 
 - Vorteile: Ein Backup für alles, Transaktionssicherheit.
 - Nachteile: Datenbank wächst schnell (Fotos), Backups werden schwerfällig.
@@ -31,17 +31,17 @@ Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und 
 
 ## Optionen Dokumentenerzeugung
 
-### A – HTML/CSS → PDF über headless Chromium (Playwright)
+### A: HTML/CSS → PDF über headless Chromium (Playwright)
 
 - Vorteile: Layouts mit denselben Mitteln wie die Oberfläche; Briefpapier, Tabellen, Seitenumbrüche gut beherrschbar; eine Vorlage für Bildschirm und Druck.
 - Nachteile: Chromium im Container (ca. 300 MB, RAM); Rendering nicht vollständig deterministisch.
 
-### B – Programmatische PDF-Bibliothek (pdf-lib, PDFKit)
+### B: Programmatische PDF-Bibliothek (pdf-lib, PDFKit)
 
 - Vorteile: Klein, deterministisch.
 - Nachteile: Layout von Hand; Tabellen mit Umbruch mühsam; Vorlagenpflege durch Nicht-Entwickler unrealistisch.
 
-### C – Typst
+### C: Typst
 
 - Vorteile: Schnell, deterministisch, gute Typografie, Vorlagen als Text.
 - Nachteile: Eigene Sprache für Vorlagen; Ökosystem jung; Daten-Übergabe über JSON.
@@ -52,7 +52,7 @@ Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und 
 
 ## E-Rechnung
 
-- **Ausgehend:** XRechnung (UBL oder CII) und ZUGFeRD 2.x (Profil EN 16931) aus demselben Datenmodell; PDF/A-3 mit eingebettetem XML für ZUGFeRD. Bibliothek: TS-Ökosystem (z. B. `@e-invoice-eu/core` oder Factur-X-Pakete) – **Eignung wird vor Phase 1 mit dem KoSIT-Validator und einem Praxistest bei einem Empfänger geprüft.** Fällt der Test durch, läuft die Erzeugung über Mustang (Java) als isolierten Container-Dienst.
+- **Ausgehend:** XRechnung (UBL oder CII) und ZUGFeRD 2.x (Profil EN 16931) aus demselben Datenmodell; PDF/A-3 mit eingebettetem XML für ZUGFeRD. Bibliothek: TS-Ökosystem (z. B. `@e-invoice-eu/core` oder Factur-X-Pakete). **Eignung wird vor Phase 1 mit dem KoSIT-Validator und einem Praxistest bei einem Empfänger geprüft.** Fällt der Test durch, läuft die Erzeugung über Mustang (Java) als isolierten Container-Dienst.
 - **Eingehend:** XML aus PDF (ZUGFeRD) extrahieren oder XRechnung-XML direkt annehmen; Schematron-Validierung (KoSIT); Original unverändert archivieren (Hash), strukturierte Daten für den Eingangsrechnungs-Workflow.
 - **Archivierung:** PDF/A-3 für alle eigenen Belege; eingehende Dateien im Originalformat plus Hash.
 

@@ -17,7 +17,7 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0007](0007-dateispeicher-dokumente-und-pdf.md) | Dateispeicher, Dokumentenerzeugung und E-Rechnung | vorgeschlagen |
 | [0008](0008-plugin-system-fuer-gewerke.md) | Plugin-System für Gewerke und Erweiterungen | vorgeschlagen |
 
-## Offene Entscheidungen (0002–0008)
+## Offene Entscheidungen (0002-0008)
 
 Die ADRs 0002 bis 0008 sind Entscheidungsvorlagen: Sie enthalten die betrachteten Optionen mit Vor- und Nachteilen, eine Empfehlung und die Konsequenzen. Der Status bleibt `vorgeschlagen`, bis der Maintainer entschieden hat; danach wird er auf `angenommen` gesetzt, die nicht gewählten Optionen bleiben zur Nachvollziehbarkeit im Dokument.
 
