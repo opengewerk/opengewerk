@@ -9,6 +9,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Hashkette über dem Audit-Log: jeder Eintrag trägt den Hash seines Vorgängers, eine
+  nachträgliche Änderung ist damit nicht nur verboten, sondern sichtbar. Eine Prüfung
+  läuft die Kette eines Mandanten ab und nennt die erste Stelle, an der es nicht mehr
+  aufgeht
+- Gehasht wird die ganze Zeile ohne ihren eigenen Hash, eine später hinzugefügte Spalte
+  ist damit automatisch abgedeckt. Die Zeitzone steht dabei fest auf UTC, sonst hashte
+  derselbe Eintrag in Berlin anders als in Sydney und eine heile Kette sähe unterwegs
+  kaputt aus
+- Die Testdatenbank läuft unter einem Eigentümer ohne Superuser-Rechte. Vorher galt
+  Row-Level Security für den Eigentümer der Tabellen nie, der Teil des Entwurfs, der nur
+  für ihn gilt, war damit ungetestet
 - Audit-Log auf Feldebene: eine Zeile je geändertem Feld mit altem Wert, neuem Wert,
   Zeitpunkt, Benutzer und Anlass. Geschrieben von einem Trigger an jeder Tabelle, damit
   auch eine Änderung im Log steht, die nicht über die Anwendung kommt. Der Benutzer bleibt
