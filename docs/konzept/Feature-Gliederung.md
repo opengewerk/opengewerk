@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.4
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.5
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -19,7 +19,7 @@ Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-ho
 4. **GoBD by design.** Belege werden festgeschrieben, nie gelöscht, sondern nur storniert. Lückenlose Nummernkreise, Audit-Log, Verfahrensdokumentation automatisch generiert.
 5. **Vollständige Buchhaltung, gestaffelt:** Belege → Journal → EÜR/USt-VA → Anlagenbuchhaltung → Bilanz/GuV. ELSTER-Direktübermittlung bleibt ⏳ (nur Anzeige/Export).
 6. **Mandantenfähig und betriebsfähig:** mehrere Firmen pro Instanz, Backup/Restore, Update-/Migrationspfad sind Teil des Produkts, nicht der Doku.
-7. **Keine Cloud-KI-Pflicht.** KI-Funktionen optional über selbst gehostete Modelle (Ollama-Anbindung) ★.
+7. **Keine Cloud-KI-Pflicht, und Abfrage vor KI.** KI-Funktionen laufen optional über selbst gehostete Modelle (Ollama-Anbindung) ★. Zwei Regeln halten das zusammen: **Fragen über Zusammenhänge werden zuerst als Abfrage gebaut**, nicht als KI-Funktion. Was zum Monatsabschluss noch fehlt, an welcher Anlage eine Prüfung ansteht, welche Eingangsrechnung zu welcher Bestellung gehört: das beantworten Datenmodell, Regel-Engine und Fristen-Engine deterministisch, nachvollziehbar und ohne Netz. KI bleibt für den Rest, etwa eine Konfidenz zu den Zuordnungen, die unsicher sind. Und **KI schreibt nie direkt**, sondern erzeugt Vorschläge, die ein Mensch freigibt; die Trennung von Vorschlag und Festschreibung ist ohnehin vorhanden (4.8, Kanzlei-Connector), eine zweite Tür daneben gibt es nicht.
 8. **Projektname und Repositories.** Das Projekt heißt **OpenGewerk** (GitHub-Organisation `opengewerk`, Domain opengewerk.de). Drei Repositories: (a) `opengewerk` für diese Handwerkersoftware, (b) `opengewerk-kanzlei` für den Kanzlei-Hub „OpenGewerk Kanzlei“ für Steuerberater (eigenes Konzept), (c) `opengewerk-api-spec` für ein kleines, gemeinsam genutztes Paket mit OpenAPI-Definition, JSON-Schemas und Konformitätstests. Hub und Handwerkersoftware deklarieren jeweils die unterstützte Spec-Version und können unabhängig releasen, ohne sich gegenseitig zu brechen ★.
 9. **Keine künstlich beschränkten Funktionen.** OpenGewerk ist nicht „die kostenlose Alternative“, sondern die Software, in der niemand eine Funktion zurückhält, um einen höheren Tarif zu verkaufen. Es gibt keine Tarifstufen, keine Nutzerlimits, keine Schnittstelle, die erst ab einem Paket freigeschaltet wird, und keine Funktion, die nur in einer kommerziellen Fassung existiert. Der vollständige Funktionsumfang ist der, der im Repository liegt. Daraus folgen drei Festlegungen ★:
    - **Einnahmen entstehen neben der Software, nicht in ihr:** Hosting für Betriebe, die nicht selbst hosten wollen, Installation und Migration, Support und Wartungsverträge, Backups und Managed Updates, Schulungen, Messgeräte- und Fremdsystem-Anbindungen als Auftragsarbeit, Dienstleistungen rund um den Kanzlei-Hub. Jede dieser Leistungen ist ein Angebot, keine Voraussetzung: Ein Betrieb muss OpenGewerk ohne fremde Hilfe betreiben können, sonst ist die Beschränkung nur an eine andere Stelle gewandert.
@@ -405,8 +405,8 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 - Messgeräte: Import-Adapter je Hersteller (siehe 5.1)
 - Wechselrichter-/Monitoring-APIs (siehe 5.1)
 - Wetter-API (Bautagebuch, Plantafel)
-- KI optional ★: Ollama-Anbindung für Belegerkennung, Textbaustein-Vorschläge, Sprachnotiz → Aufmaß; Cloud-KI nicht erforderlich
-- REST-API + Webhooks für Drittanbieter
+- KI optional ★: Ollama-Anbindung für Belegerkennung, Textbaustein-Vorschläge, Sprachnotiz → Aufmaß; Cloud-KI nicht erforderlich. Auswertungen über Zusammenhänge entstehen zuerst als Abfrage, siehe Leitentscheidung 7
+- REST-API + Webhooks für Drittanbieter. Das wird ein eigener Vertrag und nicht der gedehnte Kanzlei-Vertrag: `opengewerk-api-spec` ist auf genau einen Konsumenten zugeschnitten, bis in die Namen von Token und Scopes hinein
 - **Kanzlei-Connector** nach `opengewerk-api-spec` (eigenes Repo, SemVer) mit signierten Webhooks, siehe 4.13 und Konzept *Kanzlei-Hub*
 
 ---
@@ -516,6 +516,11 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.4 → v2.5
+
+- Präzisiert: Leitentscheidung 7 nennt die Reihenfolge. Fragen über Zusammenhänge werden zuerst als Abfrage über Datenmodell, Regel-Engine und Fristen-Engine gebaut, KI übernimmt nur den Rest, und KI schreibt nie direkt, sondern schlägt vor
+- Präzisiert: Die REST-API für Drittanbieter in Abschnitt 6 wird ein eigener Vertrag. `opengewerk-api-spec` ist auf den Kanzlei-Hub zugeschnitten und soll dafür nicht gedehnt werden
 
 ## Änderungsprotokoll v2.3 → v2.4
 
