@@ -1,0 +1,25 @@
+# Die Datenbank fuer die Tests, nicht fuer den Betrieb. Das Compose fuer den
+# Betrieb kommt mit seinem eigenen Issue und sieht anders aus: dort gehoert ein
+# Volume hin, hier ausdruecklich keins, damit jeder Lauf leer anfaengt.
+#
+#   docker compose -f docker/compose.test.yaml up -d
+#
+# Der Name endet auf _test, und die Tests weigern sich, gegen eine Datenbank zu
+# laufen, bei der das nicht so ist. Diese Tests raeumen naemlich auf, bevor sie
+# anfangen, und das soll niemandem seinen Entwicklungsbestand kosten.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: opengewerk-test-db
+    environment:
+      POSTGRES_USER: opengewerk
+      POSTGRES_PASSWORD: opengewerk
+      POSTGRES_DB: opengewerk_test
+    ports:
+      - '127.0.0.1:5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U opengewerk -d opengewerk_test']
+      interval: 2s
+      timeout: 3s
+      retries: 20
