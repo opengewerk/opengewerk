@@ -1,14 +1,18 @@
-# ADR 0003: Datenbank und Datenzugriff
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.1, 1.3, 1.5, 2 (Mandanten), 4.8
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitte 1.1, 1.3, 1.5, 2 (Mandanten), 4.8
+# Datenbank und Datenzugriff
 
-## Kontext
+## Kontext und Problemstellung
 
 Anforderungen an die Datenbank: unveränderbares Journal (GoBD), Mandantentrennung, JSON-basierte Formulardaten mit Abfragen darauf, Volltextsuche, Änderungsverfolgung für den Offline-Sync, Betrieb auf einem einzelnen kleinen Server, einfache Backups.
 
-## Optionen
+## Betrachtete Optionen
 
 ### A: PostgreSQL
 

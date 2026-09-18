@@ -1,14 +1,18 @@
-# ADR 0006: Authentifizierung, Autorisierung und Mandantenfähigkeit
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitt 2, 3.6 (Kundenportal), 4.13 (Kanzlei-Connector)
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitt 2, 3.6 (Kundenportal), 4.13 (Kanzlei-Connector)
+# Authentifizierung, Autorisierung und Mandantenfähigkeit
 
-## Kontext
+## Kontext und Problemstellung
 
 Drei Nutzergruppen mit unterschiedlichen Anforderungen: Mitarbeiter (Rollen, 2FA, lange Sitzungen auf der Baustelle), Kunden im Portal (schwellenarm, oft nur Magic-Link), Kanzlei-Hub (Maschine-zu-Maschine mit Scopes, widerrufbar). Dazu Mandantenfähigkeit auf einer Instanz und optional Anbindung an einen bestehenden Identitätsanbieter.
 
-## Optionen
+## Betrachtete Optionen
 
 ### A: Externer Identity-Provider (Keycloak, Authentik)
 

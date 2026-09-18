@@ -1,14 +1,18 @@
-# ADR 0008: Plugin-System für Gewerke und Erweiterungen
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 0 (Leitentscheidung 1), 1.3, 1.7, 5.2
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitte 0 (Leitentscheidung 1), 1.3, 1.7, 5.2
+# Plugin-System für Gewerke und Erweiterungen
 
-## Kontext
+## Kontext und Problemstellung
 
 Elektro/PV ist Kernmodul; SHK, Dach, Maler und weitere Gewerke sollen später von der Community beigesteuert werden. Ein Gewerk besteht zum größten Teil aus **Daten** (Formulardefinitionen, Regelpakete, Textbausteine, Artikelkategorien, Berechtigungen, Fristentypen) und nur zu einem kleinen Teil aus Code (spezielle Berechnungen, Importadapter). Sicherheits- und Wartungsrisiken von zur Laufzeit geladenem Fremdcode müssen vermieden werden.
 
-## Optionen
+## Betrachtete Optionen
 
 ### A: Laufzeit-Plugins (dynamisch geladene Pakete, eigener Prozess oder WASM)
 

@@ -1,14 +1,18 @@
-# ADR 0002: Programmiersprache und Backend-Framework
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 0, 1, 9
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen (Entscheidung durch den Maintainer)
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitte 0, 1, 9
+# Programmiersprache und Backend-Framework
 
-## Kontext
+## Kontext und Problemstellung
 
 OpenGewerk ist ein self-hosted Modular-Monolith mit REST-API, Offline-first-PWA, Formular- und Regel-Engine und später einem Plugin-Ökosystem für Gewerke. Entwickelt wird zunächst von einer Person, die Wert auf schnelle Iteration am eigenen Pilotbetrieb legt. Die Sprache entscheidet über Typteilung zwischen Client und Server (wichtig für Offline-Validierung), über die Einstiegshürde für Community-Beiträge und über die Betriebskosten auf kleinen Servern.
 
-## Optionen
+## Betrachtete Optionen
 
 ### A: TypeScript durchgängig (Node.js)
 

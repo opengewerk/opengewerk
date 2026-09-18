@@ -1,14 +1,18 @@
-# ADR 0005: Offline-Synchronisation und Konfliktauflösung
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.5, 1.6, 4.2, 4.4, 5.1
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitte 1.5, 1.6, 4.2, 4.4, 5.1
+# Offline-Synchronisation und Konfliktauflösung
 
-## Kontext
+## Kontext und Problemstellung
 
 Monteure erfassen Zeiten, Regieberichte, Prüfprotokolle, Fotos, Aufmaße und Mängel ohne Netz und synchronisieren später. Gleichzeitig verlangt GoBD, dass festgeschriebene Belege nur serverseitig und eindeutig entstehen. Das Konzept fordert sichtbare Konflikte, die der Nutzer entscheidet.
 
-## Optionen
+## Betrachtete Optionen
 
 ### A: CRDT-basiert (Automerge, Yjs)
 

@@ -1,14 +1,18 @@
-# ADR 0007: Dateispeicher, Dokumentenerzeugung und E-Rechnung
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.5, 4.2, 4.7, 4.10
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitte 1.5, 4.2, 4.7, 4.10
+# Dateispeicher, Dokumentenerzeugung und E-Rechnung
 
-## Kontext
+## Kontext und Problemstellung
 
 Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und CAD-/Office-Anhänge, GoBD-konform (unveränderbar, nachvollziehbar), mit Backup und ohne externe Cloud-Pflicht. Es erzeugt PDFs mit Briefpapier (Angebote, Rechnungen, Protokolle) und E-Rechnungen (XRechnung, ZUGFeRD) und muss eingehende E-Rechnungen validieren.
 
-## Optionen Dateispeicher
+## Betrachtete Optionen: Dateispeicher
 
 ### A: Lokales Dateisystem (Volume)
 
@@ -29,7 +33,7 @@ Das System speichert Fotos, Belegbilder, E-Rechnungs-XML, PDFs, Messdateien und 
 
 **Abstraktion mit zwei Treibern:** lokales Dateisystem als Standard, S3-kompatibel als Option. Dateien werden **inhaltsadressiert** abgelegt (SHA-256 als Schlüssel): dieselbe Datei existiert genau einmal, Änderung ist unmöglich ohne neuen Hash, Prüfung der Unversehrtheit ist ein Hash-Vergleich. Metadaten (Name, Typ, Zuordnung zu Kunde/Objekt/Anlage/Beleg, Hochladender, Zeitpunkt) liegen in PostgreSQL. Festgeschriebene Belege referenzieren ihre PDF- und XML-Datei per Hash; diese Dateien sind nach Festschreibung unlöschbar (bis zur Aufbewahrungsfrist; Löschung als protokollierter Vorgang).
 
-## Optionen Dokumentenerzeugung
+## Betrachtete Optionen: Dokumentenerzeugung
 
 ### A: HTML/CSS → PDF über headless Chromium (Playwright)
 
