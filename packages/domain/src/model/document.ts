@@ -5,7 +5,7 @@ import type {
   IsoDate,
   JobId,
   SiteId,
-  TenantOwned,
+  Synced,
 } from './identifier.js'
 
 /**
@@ -43,7 +43,7 @@ export const documentStatuses = ['draft', 'issued', 'cancelled'] as const
 
 export type DocumentStatus = (typeof documentStatuses)[number]
 
-export interface Document extends TenantOwned {
+export interface Document extends Synced {
   readonly id: DocumentId
   readonly customerId: CustomerId
   readonly jobId: JobId | null

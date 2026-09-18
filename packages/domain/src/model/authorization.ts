@@ -29,6 +29,13 @@ export const permissions = [
    * fixes on site and a piece of bookkeeping.
    */
   'document.issue',
+  /**
+   * Sending an outbox and reading what came back. A right of its own because
+   * it is a different way in, not a different thing to do: what an operation
+   * may touch is still decided by the rights above, entity by entity.
+   */
+  'sync.read',
+  'sync.write',
 ] as const
 
 export type Permission = (typeof permissions)[number]
@@ -61,6 +68,8 @@ const officePermissions: readonly Permission[] = [
   'document.read',
   'document.write',
   'document.issue',
+  'sync.read',
+  'sync.write',
 ]
 
 /**
@@ -81,6 +90,9 @@ const technicianPermissions: readonly Permission[] = [
   'job.read',
   'document.read',
   'document.write',
+  // The one who is actually in a basement without a network.
+  'sync.read',
+  'sync.write',
 ]
 
 export const roles: Readonly<Record<RoleKey, Role>> = {

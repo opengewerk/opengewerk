@@ -15,6 +15,9 @@ import type {
   PvModule,
   PvString,
   Site,
+  SyncConflict,
+  SyncOperation,
+  SyncSequence,
   Tenant,
 } from '@opengewerk/domain'
 
@@ -35,6 +38,9 @@ import type {
   pvModules,
   pvStrings,
   sites,
+  syncConflicts,
+  syncOperations,
+  syncSequences,
   tenants,
 } from './schema/index.js'
 
@@ -71,3 +77,6 @@ export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Docume
 export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>
 export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
 export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>
+export type SyncSequenceMatches = Assert<Exact<typeof syncSequences.$inferSelect, SyncSequence>>
+export type SyncOperationMatches = Assert<Exact<typeof syncOperations.$inferSelect, SyncOperation>>
+export type SyncConflictMatches = Assert<Exact<typeof syncConflicts.$inferSelect, SyncConflict>>

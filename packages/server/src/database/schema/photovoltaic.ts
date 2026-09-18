@@ -1,6 +1,6 @@
 import { index, integer, pgTable, text } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
+import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { installations } from './installations.js'
@@ -20,6 +20,7 @@ export const inverters = pgTable(
     serialNumber: text('serial_number'),
     position: integer('position').notNull().default(0),
     ...timestamps,
+    ...syncColumns,
   },
   (table) => [
     tenantIsolation(table.tenantId),
@@ -38,6 +39,7 @@ export const pvStrings = pgTable(
     designation: text('designation').notNull(),
     position: integer('position').notNull().default(0),
     ...timestamps,
+    ...syncColumns,
   },
   (table) => [
     tenantIsolation(table.tenantId),
@@ -58,6 +60,7 @@ export const pvModules = pgTable(
     serialNumber: text('serial_number'),
     position: integer('position').notNull().default(0),
     ...timestamps,
+    ...syncColumns,
   },
   (table) => [tenantIsolation(table.tenantId), index('pv_modules_string_idx').on(table.pvStringId)],
 )

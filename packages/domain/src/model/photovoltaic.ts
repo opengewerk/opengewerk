@@ -1,10 +1,4 @@
-import type {
-  InstallationId,
-  InverterId,
-  PvModuleId,
-  PvStringId,
-  TenantOwned,
-} from './identifier.js'
+import type { InstallationId, InverterId, PvModuleId, PvStringId, Synced } from './identifier.js'
 
 /**
  * The photovoltaic structure below an installation: inverter, string, module.
@@ -14,7 +8,7 @@ import type {
  * their own.
  */
 
-export interface Inverter extends TenantOwned {
+export interface Inverter extends Synced {
   readonly id: InverterId
   readonly installationId: InstallationId
   readonly designation: string
@@ -25,14 +19,14 @@ export interface Inverter extends TenantOwned {
 }
 
 /** One string of modules on an inverter input. */
-export interface PvString extends TenantOwned {
+export interface PvString extends Synced {
   readonly id: PvStringId
   readonly inverterId: InverterId
   readonly designation: string
   readonly position: number
 }
 
-export interface PvModule extends TenantOwned {
+export interface PvModule extends Synced {
   readonly id: PvModuleId
   readonly pvStringId: PvStringId
   readonly manufacturer: string | null

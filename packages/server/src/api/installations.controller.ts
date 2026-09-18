@@ -1,6 +1,15 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common'
 import type { InstallationId } from '@opengewerk/domain'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
 import { installations } from '../database/schema/index.js'
@@ -27,7 +36,9 @@ export class InstallationsController {
   @Get()
   @RequiresPermission('installation.read')
   list(@CurrentIdentity() identity: RequestIdentity) {
-    return this.database.forTenant(identity, (tx) => tx.select().from(installations))
+    return this.database.forTenant(identity, (tx) =>
+      tx.select().from(installations).where(isNull(installations.deletedAt)),
+    )
   }
 
   @Post()
@@ -60,7 +71,7 @@ export class InstallationsController {
       tx
         .update(installations)
         .set({ ...(values as Partial<typeof installations.$inferInsert>), updatedAt: new Date() })
-        .where(eq(installations.id, id as InstallationId))
+        .where(and(eq(installations.id, id as InstallationId), isNull(installations.deletedAt)))
         .returning(),
     )
 
@@ -72,5 +83,28 @@ export class InstallationsController {
     }
 
     return updated
+  }
+
+  /**
+   * Marked as deleted, not removed. A row that is gone is a row a device that
+   * was offline never hears about, because a delta pull delivers what changed
+   * and a row that is no longer there is not among it.
+   */
+  @Delete(':id')
+  @RequiresPermission('installation.write')
+  async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    const [removed] = await this.database.forTenant(identity, (tx) =>
+      tx
+        .update(installations)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(installations.id, id as InstallationId), isNull(installations.deletedAt)))
+        .returning(),
+    )
+
+    if (!removed) {
+      throw new NotFoundException()
+    }
+
+    return removed
   }
 }

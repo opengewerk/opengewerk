@@ -1,4 +1,4 @@
-import type { InstallationId, IsoDate, SiteId, TenantOwned } from './identifier.js'
+import type { InstallationId, IsoDate, SiteId, Synced } from './identifier.js'
 
 /**
  * What stands in a building and needs looking after. The inverter of a PV
@@ -20,7 +20,7 @@ export type InstallationKind = (typeof installationKinds)[number]
  * history, its warranty and later its test records. Below it the trade
  * specific structure branches out, electrical or photovoltaic.
  */
-export interface Installation extends TenantOwned {
+export interface Installation extends Synced {
   readonly id: InstallationId
   readonly siteId: SiteId
   readonly kind: InstallationKind

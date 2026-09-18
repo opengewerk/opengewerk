@@ -1,4 +1,4 @@
-import type { CustomerId, InstallationId, JobId, SiteId, TenantOwned } from './identifier.js'
+import type { CustomerId, InstallationId, JobId, SiteId, Synced } from './identifier.js'
 
 /**
  * A job is either a project or a service call. The concept keeps them apart
@@ -14,7 +14,7 @@ export const jobStatuses = ['draft', 'active', 'completed', 'cancelled'] as cons
 
 export type JobStatus = (typeof jobStatuses)[number]
 
-export interface Job extends TenantOwned {
+export interface Job extends Synced {
   readonly id: JobId
   readonly customerId: CustomerId
   readonly siteId: SiteId | null

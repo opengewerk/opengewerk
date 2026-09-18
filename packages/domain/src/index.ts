@@ -18,3 +18,11 @@ export * from './model/number-range.js'
 export * from './model/photovoltaic.js'
 export * from './model/site.js'
 export * from './model/tenant.js'
+
+// The offline data layer. Rules, not storage: how an operation from a device
+// is merged and when that is a conflict. Where the outbox physically sits is
+// the client's business and comes with the interface that shows it.
+export * from './sync/merge.js'
+export * from './sync/operation.js'
+export * from './sync/policy.js'
+export * from './sync/record.js'

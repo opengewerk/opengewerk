@@ -1,0 +1,109 @@
+import type { Operation, SyncValue } from './operation.js'
+import { sameValue } from './operation.js'
+import { policyFor } from './policy.js'
+
+/** The record as it stands on the server, field by field, already flattened. */
+export type RecordState = Readonly<Record<string, SyncValue>>
+
+export const conflictReasons = [
+  /** Somebody changed one of these fields while the device was away. */
+  'changed_elsewhere',
+  /** The record left the state in which offline changes are allowed. */
+  'record_is_fixed',
+  /** This kind of record is only changed with a connection. */
+  'online_only',
+  /** The record is not there, or not any more. */
+  'record_missing',
+  /** Nothing on this instance knows this entity. */
+  'unknown_entity',
+] as const
+
+export type ConflictReason = (typeof conflictReasons)[number]
+
+export type MergeResult =
+  | { readonly outcome: 'apply'; readonly values: RecordState }
+  | {
+      readonly outcome: 'conflict'
+      readonly reason: ConflictReason
+      /** The fields it hangs on, empty when the whole record is the reason. */
+      readonly fields: readonly string[]
+    }
+  | { readonly outcome: 'skip'; readonly reason: 'already_there' | 'nothing_to_do' }
+
+function wanted(operation: Operation): RecordState {
+  return Object.fromEntries(operation.patches.map((patch) => [patch.field, patch.to]))
+}
+
+/**
+ * What the server does with one operation, given what it currently holds.
+ *
+ * All of it is decided here rather than in the server, and the reason is the
+ * same one that keeps the model in this package: the device has to be able to
+ * work out the same answer before it sends anything, so that it can show a
+ * conflict rather than discover one. A rule that lives in the server can only
+ * be asked over a network, which is the one thing that is missing.
+ *
+ * An operation applies whole or not at all. Two devices that edited different
+ * fields of the same record both go through, which is the merge on field level
+ * ADR 0005 asks for. As soon as one field really collides, nothing of that
+ * operation lands and the whole intended change goes into the conflict, where
+ * a person can see it side by side. Applying half of it would leave a record
+ * that neither device ever meant.
+ */
+export function decideMerge(operation: Operation, current: RecordState | null): MergeResult {
+  const policy = policyFor(operation.entity)
+
+  if (!policy) {
+    return { outcome: 'conflict', reason: 'unknown_entity', fields: [] }
+  }
+
+  if (operation.kind === 'create') {
+    // The id came from the device before there was a network, so a record that
+    // is already there under that id is this very operation, arriving twice.
+    // The recorded operation ids catch the ordinary repeat; this catches the
+    // half finished one, where the row landed and the receipt did not.
+    return current
+      ? { outcome: 'skip', reason: 'already_there' }
+      : { outcome: 'apply', values: wanted(operation) }
+  }
+
+  if (!current) {
+    return { outcome: 'conflict', reason: 'record_missing', fields: [] }
+  }
+
+  if (policy.change === 'never') {
+    return { outcome: 'conflict', reason: 'online_only', fields: [] }
+  }
+
+  const gate = policy.onlyWhile
+
+  if (gate && !gate.values.some((value) => sameValue(current[gate.field], value))) {
+    return { outcome: 'conflict', reason: 'record_is_fixed', fields: [gate.field] }
+  }
+
+  if (operation.kind === 'delete') {
+    return { outcome: 'apply', values: {} }
+  }
+
+  // The shortcut. Nothing has happened to the record since the device read it,
+  // so there is nothing to compare field by field.
+  if (operation.baseVersion !== null && operation.baseVersion === current['version']) {
+    return { outcome: 'apply', values: wanted(operation) }
+  }
+
+  const collided = operation.patches
+    .filter((patch) => !sameValue(current[patch.field], patch.from))
+    .map((patch) => patch.field)
+
+  if (collided.length > 0) {
+    return { outcome: 'conflict', reason: 'changed_elsewhere', fields: collided }
+  }
+
+  const changing = operation.patches.filter((patch) => !sameValue(patch.from, patch.to))
+
+  if (changing.length === 0) {
+    return { outcome: 'skip', reason: 'nothing_to_do' }
+  }
+
+  return { outcome: 'apply', values: wanted(operation) }
+}

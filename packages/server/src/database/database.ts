@@ -23,6 +23,12 @@ export interface Actor {
   readonly userId?: string
   /** What the change is for. The HTTP layer fills in the action it runs. */
   readonly reason?: string
+  /**
+   * Which device the change came from. Empty for anything that happened in
+   * the office; a sync run fills it in from the operation, so that a record
+   * says which phone was in a basement when it was written.
+   */
+  readonly deviceId?: string
 }
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -56,7 +62,7 @@ export class Database {
     actor: Actor,
     work: (tx: TenantTransaction) => Promise<Result>,
   ): Promise<Result> {
-    const { tenantId, userId, reason } = actor
+    const { tenantId, userId, reason, deviceId } = actor
 
     if (!uuidPattern.test(tenantId)) {
       // Refused before a connection is even taken. A caller that has no proper
@@ -80,8 +86,9 @@ export class Database {
       await client.query(
         `select set_config('app.tenant_id', $1, true),
                 set_config('app.user_id', $2, true),
-                set_config('app.reason', $3, true)`,
-        [tenantId, userId ?? '', reason ?? ''],
+                set_config('app.reason', $3, true),
+                set_config('app.device_id', $4, true)`,
+        [tenantId, userId ?? '', reason ?? '', deviceId ?? ''],
       )
 
       const result = await work(drizzle(client))

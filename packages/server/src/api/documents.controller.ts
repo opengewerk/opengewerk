@@ -4,6 +4,7 @@ import {
   ConflictException,
   Controller,
   Get,
+  Delete,
   NotFoundException,
   Param,
   Patch,
@@ -17,7 +18,7 @@ import {
   formatDocumentNumber,
   numberRangeOf,
 } from '@opengewerk/domain'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
@@ -44,7 +45,9 @@ export class DocumentsController {
   @Get()
   @RequiresPermission('document.read')
   list(@CurrentIdentity() identity: RequestIdentity) {
-    return this.database.forTenant(identity, (tx) => tx.select().from(documents))
+    return this.database.forTenant(identity, (tx) =>
+      tx.select().from(documents).where(isNull(documents.deletedAt)),
+    )
   }
 
   @Post()
@@ -80,7 +83,13 @@ export class DocumentsController {
         // Only a draft can be changed. A document that has been issued is
         // corrected by a cancellation or a credit note, never edited; that is
         // leading decision 4 and it is not negotiable by a PATCH.
-        .where(and(eq(documents.id, id as DocumentId), eq(documents.status, 'draft')))
+        .where(
+          and(
+            eq(documents.id, id as DocumentId),
+            eq(documents.status, 'draft'),
+            isNull(documents.deletedAt),
+          ),
+        )
         .returning(),
     )
 
@@ -163,5 +172,35 @@ export class DocumentsController {
         pattern,
       }
     })
+  }
+
+  /**
+   * Only a draft, and the database says so too. A document that has been
+   * issued is cancelled, never removed, not even by marking it: that is
+   * leading decision 4, and the trigger on the table refuses it whichever way
+   * somebody comes.
+   */
+  @Delete(':id')
+  @RequiresPermission('document.write')
+  async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    const [removed] = await this.database.forTenant(identity, (tx) =>
+      tx
+        .update(documents)
+        .set({ deletedAt: new Date() })
+        .where(
+          and(
+            eq(documents.id, id as DocumentId),
+            eq(documents.status, 'draft'),
+            isNull(documents.deletedAt),
+          ),
+        )
+        .returning(),
+    )
+
+    if (!removed) {
+      throw new NotFoundException()
+    }
+
+    return removed
   }
 }

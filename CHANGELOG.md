@@ -9,6 +9,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Offline-Datenschicht: Vorgänge mit Feld, altem und neuem Wert, die ein Gerät sammelt und
+  der Reihe nach schickt. Der Server vergleicht, was das Gerät gesehen hat, mit dem, was
+  dasteht, und lässt durch, was niemand sonst angefasst hat
+- Konflikte landen in einer Liste mit drei Bildern nebeneinander, statt still aufgelöst zu
+  werden. Ein Vorgang wirkt ganz oder gar nicht
+- Konfliktregeln je Entität in `domain`: Stammdaten dürfen offline angelegt, aber nicht
+  geändert werden, ein Beleg nur solange er Entwurf ist, festgeschrieben wird nur online
+- Dieselbe Übertragung zweimal erzeugt keinen zweiten Datensatz. Jeder Vorgang hat eine
+  Kennung vom Gerät, und der Server quittiert jede, die er gesehen hat
+- Soft-Delete auf allen abgeglichenen Tabellen. Eine entfernte Zeile wäre eine, von der
+  ein Gerät, das offline war, nie wieder etwas hört
+- Sync-Spalten auf jeder abgeglichenen Tabelle, gepflegt von einem Trigger: Version, wer
+  zuletzt geschrieben hat, von welchem Gerät, und die Änderungsnummer, die den Stand für
+  den nächsten Abgleich trägt
+- Ein Stolperdraht auf die Spalten des Audit-Logs. Gemessen: eine einzige neue Spalte lässt
+  die ganze Hashkette ab Eintrag 1 als manipuliert gelten, weil über die ganze Zeile
+  gehasht wird
 - Hashkette über dem Audit-Log: jeder Eintrag trägt den Hash seines Vorgängers, eine
   nachträgliche Änderung ist damit nicht nur verboten, sondern sichtbar. Eine Prüfung
   läuft die Kette eines Mandanten ab und nennt die erste Stelle, an der es nicht mehr
