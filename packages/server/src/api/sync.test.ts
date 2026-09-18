@@ -194,6 +194,33 @@ describe('the tables', () => {
   })
 })
 
+describe('the five columns the server keeps', () => {
+  it('move on their own, without a controller asking them to', async () => {
+    const board = await http()
+      .post('/installations')
+      .set('x-test-identity', office())
+      .send({ siteId, kind: 'meter_cabinet', designation: 'Gestempelt' })
+      .expect(201)
+
+    const changed = await http()
+      .patch(`/installations/${board.body.id}`)
+      .set('x-test-identity', office())
+      .send({ designation: 'Gestempelt und geändert' })
+      .expect(200)
+
+    // The request said nothing about any of these. The trigger owns them, and
+    // that is the point: a line the application has to remember is a line it
+    // forgets at the sixteenth place, and a stale version only hurts the next
+    // time two devices meet, days later and somewhere else.
+    expect(new Date(changed.body.updatedAt).getTime()).toBeGreaterThan(
+      new Date(board.body.updatedAt).getTime(),
+    )
+    expect(changed.body.version).toBe(board.body.version + 1)
+    expect(changed.body.changeSequence).toBeGreaterThan(board.body.changeSequence)
+    expect(changed.body.updatedBy).toBe('test')
+  })
+})
+
 describe('two devices that wrote the same field', () => {
   it('leave an entry to decide, not a quiet takeover', async () => {
     const board = await installation('UV Keller')

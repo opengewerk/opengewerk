@@ -70,7 +70,7 @@ export class InstallationsController {
     const [updated] = await this.database.forTenant(identity, (tx) =>
       tx
         .update(installations)
-        .set({ ...(values as Partial<typeof installations.$inferInsert>), updatedAt: new Date() })
+        .set(values as Partial<typeof installations.$inferInsert>)
         .where(and(eq(installations.id, id as InstallationId), isNull(installations.deletedAt)))
         .returning(),
     )

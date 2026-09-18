@@ -79,7 +79,7 @@ export class CustomersController {
     const [updated] = await this.database.forTenant(identity, (tx) =>
       tx
         .update(customers)
-        .set({ ...(values as Partial<typeof customers.$inferInsert>), updatedAt: new Date() })
+        .set(values as Partial<typeof customers.$inferInsert>)
         .where(and(eq(customers.id, id as CustomerId), isNull(customers.deletedAt)))
         .returning(),
     )
