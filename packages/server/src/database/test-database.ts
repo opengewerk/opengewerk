@@ -72,6 +72,23 @@ export async function revertMigration(pool: Pool, name: string): Promise<void> {
   }
 }
 
+/**
+ * Rolls every applied migration back, newest first. Reads the journal that
+ * drizzle-kit keeps, so a migration added later is included without anybody
+ * remembering to. A migration without a file under `down/` makes this throw,
+ * which is the point: that is the moment to notice, not the evening a rollback
+ * is needed in production.
+ */
+export async function revertAllMigrations(pool: Pool): Promise<void> {
+  const journal = JSON.parse(
+    readFileSync(join(migrationsFolder, 'meta', '_journal.json'), 'utf8'),
+  ) as { entries: { idx: number; tag: string }[] }
+
+  for (const entry of [...journal.entries].sort((left, right) => right.idx - left.idx)) {
+    await revertMigration(pool, entry.tag)
+  }
+}
+
 export async function tableNames(pool: Pool): Promise<string[]> {
   const result = await pool.query<{ table_name: string }>(
     "select table_name from information_schema.tables where table_schema = 'public' order by table_name",
@@ -90,3 +107,53 @@ export async function enumNames(pool: Pool): Promise<string[]> {
 
   return result.rows.map((row) => row.typname)
 }
+
+/**
+ * The role the application connects as. The migration creates it without a
+ * password and without LOGIN, because credentials do not belong in a file that
+ * sits in every clone of the repository. The tests give it both, for their own
+ * throwaway database only.
+ */
+export const applicationRole = 'opengewerk_app'
+const applicationPassword = 'nur-fuer-die-testdatenbank'
+
+export async function allowApplicationLogin(pool: Pool): Promise<void> {
+  await pool.query(`alter role "${applicationRole}" login password '${applicationPassword}'`)
+}
+
+/** The same database, seen through the role that row level security applies to. */
+export function applicationDatabaseUrl(): string {
+  const url = new URL(testDatabaseUrl())
+  url.username = applicationRole
+  url.password = applicationPassword
+
+  return url.toString()
+}
+
+/**
+ * Runs a write that the database has to refuse, and says why it refused.
+ * Drizzle wraps the driver error in one that only repeats the query, so the
+ * code and the constraint name have to be read from the cause. Checking both
+ * matters: a test that only asserts "it threw" would still pass if the row
+ * were rejected for an entirely different reason, such as a typo in a column.
+ */
+export async function refusedBy(
+  write: Promise<unknown>,
+): Promise<{ code: string; constraint: string }> {
+  try {
+    await write
+  } catch (error) {
+    const cause = (error as { cause?: { code?: string; constraint?: string } }).cause
+
+    return { code: cause?.code ?? 'unknown', constraint: cause?.constraint ?? 'unknown' }
+  }
+
+  throw new Error('The database accepted a write that it should have refused')
+}
+
+/** integrity_constraint_violation, check_violation. */
+export const checkViolation = '23514'
+/** integrity_constraint_violation, foreign_key_violation. */
+export const foreignKeyViolation = '23503'
+/** insufficient_privilege. What a row level security policy answers with. */
+export const insufficientPrivilege = '42501'

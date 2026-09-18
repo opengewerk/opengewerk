@@ -2,6 +2,7 @@ import { distributionBoardKinds } from '@opengewerk/domain'
 import { foreignKey, index, integer, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { installations } from './installations.js'
 
@@ -21,7 +22,10 @@ export const distributionBoards = pgTable(
     position: integer('position').notNull().default(0),
     ...timestamps,
   },
-  (table) => [index('distribution_boards_installation_idx').on(table.installationId)],
+  (table) => [
+    tenantIsolation(table.tenantId),
+    index('distribution_boards_installation_idx').on(table.installationId),
+  ],
 )
 
 /**
@@ -42,6 +46,7 @@ export const boardSections = pgTable(
     ...timestamps,
   },
   (table) => [
+    tenantIsolation(table.tenantId),
     unique('board_sections_id_board_key').on(table.id, table.distributionBoardId),
     index('board_sections_board_idx').on(table.distributionBoardId),
   ],
@@ -67,6 +72,7 @@ export const circuits = pgTable(
     ...timestamps,
   },
   (table) => [
+    tenantIsolation(table.tenantId),
     foreignKey({
       columns: [table.boardSectionId, table.distributionBoardId],
       foreignColumns: [boardSections.id, boardSections.distributionBoardId],
@@ -93,5 +99,5 @@ export const equipment = pgTable(
     position: integer('position').notNull().default(0),
     ...timestamps,
   },
-  (table) => [index('equipment_circuit_idx').on(table.circuitId)],
+  (table) => [tenantIsolation(table.tenantId), index('equipment_circuit_idx').on(table.circuitId)],
 )

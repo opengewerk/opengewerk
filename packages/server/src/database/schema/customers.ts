@@ -2,6 +2,7 @@ import { customerKinds } from '@opengewerk/domain'
 import { boolean, date, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 export const customerKind = pgEnum('customer_kind', customerKinds)
@@ -11,28 +12,32 @@ export const customerKind = pgEnum('customer_kind', customerKinds)
  * to be written; the rules that read them live in the rule engine, not in the
  * schema.
  */
-export const customers = pgTable('customers', {
-  id: primaryId<'customer'>(),
-  ...tenantColumn,
-  kind: customerKind('kind').notNull(),
-  name: text('name').notNull(),
-  email: text('email'),
-  phone: text('phone'),
+export const customers = pgTable(
+  'customers',
+  {
+    id: primaryId<'customer'>(),
+    ...tenantColumn,
+    kind: customerKind('kind').notNull(),
+    name: text('name').notNull(),
+    email: text('email'),
+    phone: text('phone'),
 
-  street: text('street'),
-  houseNumber: text('house_number'),
-  postalCode: text('postal_code'),
-  city: text('city'),
-  country: text('country').notNull().default('DE'),
+    street: text('street'),
+    houseNumber: text('house_number'),
+    postalCode: text('postal_code'),
+    city: text('city'),
+    country: text('country').notNull().default('DE'),
 
-  vatId: text('vat_id'),
-  isBusiness: boolean('is_business').notNull().default(false),
-  isConstructionServiceRecipient: boolean('is_construction_service_recipient')
-    .notNull()
-    .default(false),
-  taxExemptionCertificateNumber: text('tax_exemption_certificate_number'),
-  taxExemptionValidUntil: date('tax_exemption_valid_until'),
+    vatId: text('vat_id'),
+    isBusiness: boolean('is_business').notNull().default(false),
+    isConstructionServiceRecipient: boolean('is_construction_service_recipient')
+      .notNull()
+      .default(false),
+    taxExemptionCertificateNumber: text('tax_exemption_certificate_number'),
+    taxExemptionValidUntil: date('tax_exemption_valid_until'),
 
-  notes: text('notes'),
-  ...timestamps,
-})
+    notes: text('notes'),
+    ...timestamps,
+  },
+  (table) => [tenantIsolation(table.tenantId)],
+)

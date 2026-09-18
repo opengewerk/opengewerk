@@ -10,6 +10,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { installations } from './installations.js'
@@ -55,6 +56,7 @@ export const documents = pgTable(
     ...timestamps,
   },
   (table) => [
+    tenantIsolation(table.tenantId),
     index('documents_customer_idx').on(table.tenantId, table.customerId),
     index('documents_job_idx').on(table.tenantId, table.jobId),
     index('documents_predecessor_idx').on(table.predecessorDocumentId),

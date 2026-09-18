@@ -2,6 +2,7 @@ import { installationKinds } from '@opengewerk/domain'
 import { date, index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { sites } from './sites.js'
 
@@ -29,5 +30,8 @@ export const installations = pgTable(
     notes: text('notes'),
     ...timestamps,
   },
-  (table) => [index('installations_site_idx').on(table.tenantId, table.siteId)],
+  (table) => [
+    tenantIsolation(table.tenantId),
+    index('installations_site_idx').on(table.tenantId, table.siteId),
+  ],
 )

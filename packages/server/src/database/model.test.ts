@@ -6,7 +6,21 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { newId } from './identifier.js'
 import * as schema from './schema/index.js'
-import { applyMigrations, connect, resetSchema } from './test-database.js'
+import {
+  applyMigrations,
+  checkViolation,
+  connect,
+  foreignKeyViolation,
+  refusedBy,
+  resetSchema,
+} from './test-database.js'
+
+/**
+ * These tests check the shape of the data: keys, foreign keys, check
+ * constraints. They connect as the owner, so row level security does not apply
+ * to them, and that is on purpose: what the isolation does is checked in
+ * `tenant-isolation.test.ts`, through the role the application actually uses.
+ */
 
 let pool: Pool
 let db: NodePgDatabase
@@ -31,30 +45,6 @@ async function createTenant(name: string) {
 
   return tenant
 }
-
-/**
- * Runs a write that the database has to refuse, and says why it refused.
- * Drizzle wraps the driver error in one that only repeats the query, so the
- * code and the constraint name have to be read from the cause. Checking both
- * matters: a test that only asserts "it threw" would still pass if the row
- * were rejected for an entirely different reason, such as a typo in a column.
- */
-async function refusedBy(write: Promise<unknown>): Promise<{ code: string; constraint: string }> {
-  try {
-    await write
-  } catch (error) {
-    const cause = (error as { cause?: { code?: string; constraint?: string } }).cause
-
-    return { code: cause?.code ?? 'unknown', constraint: cause?.constraint ?? 'unknown' }
-  }
-
-  throw new Error('The database accepted a row that it should have refused')
-}
-
-/** integrity_constraint_violation, check_violation. */
-const checkViolation = '23514'
-/** integrity_constraint_violation, foreign_key_violation. */
-const foreignKeyViolation = '23503'
 
 describe('a property management company with forty buildings', () => {
   it('is one customer with forty sites, each with its own system and history', async () => {

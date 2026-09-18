@@ -2,6 +2,7 @@ import { jobKinds, jobStatuses } from '@opengewerk/domain'
 import { type AnyPgColumn, index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { installations } from './installations.js'
@@ -38,6 +39,7 @@ export const jobs = pgTable(
     ...timestamps,
   },
   (table) => [
+    tenantIsolation(table.tenantId),
     index('jobs_customer_idx').on(table.tenantId, table.customerId),
     index('jobs_site_idx').on(table.tenantId, table.siteId),
     index('jobs_parent_idx').on(table.parentJobId),
