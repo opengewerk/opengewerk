@@ -9,6 +9,7 @@ import type {
   Installation,
   Inverter,
   Job,
+  NumberRange,
   PvModule,
   PvString,
   Site,
@@ -26,6 +27,7 @@ import type {
   installations,
   inverters,
   jobs,
+  numberRanges,
   pvModules,
   pvStrings,
   sites,
@@ -62,3 +64,4 @@ export type PvStringMatches = Assert<Exact<typeof pvStrings.$inferSelect, PvStri
 export type PvModuleMatches = Assert<Exact<typeof pvModules.$inferSelect, PvModule>>
 export type JobMatches = Assert<Exact<typeof jobs.$inferSelect, Job>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
+export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>

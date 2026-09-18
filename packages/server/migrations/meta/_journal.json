@@ -15,6 +15,13 @@
       "when": 1789743660752,
       "tag": "0001_mandantentrennung",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789745528991,
+      "tag": "0002_nummernkreise",
+      "breakpoints": true
     }
   ]
 }

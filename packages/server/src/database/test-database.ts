@@ -143,9 +143,19 @@ export async function refusedBy(
   try {
     await write
   } catch (error) {
-    const cause = (error as { cause?: { code?: string; constraint?: string } }).cause
+    // Drizzle wraps the driver error and keeps the original as the cause; a
+    // query sent straight through the pool carries the fields itself.
+    for (const candidate of [error, (error as { cause?: unknown }).cause]) {
+      const code = (candidate as { code?: unknown } | undefined)?.code
 
-    return { code: cause?.code ?? 'unknown', constraint: cause?.constraint ?? 'unknown' }
+      if (typeof code === 'string') {
+        const constraint = (candidate as { constraint?: unknown }).constraint
+
+        return { code, constraint: typeof constraint === 'string' ? constraint : 'unknown' }
+      }
+    }
+
+    return { code: 'unknown', constraint: 'unknown' }
   }
 
   throw new Error('The database accepted a write that it should have refused')

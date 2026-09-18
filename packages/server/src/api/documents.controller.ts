@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -8,11 +9,20 @@ import {
   Patch,
   Post,
 } from '@nestjs/common'
-import type { DocumentId, Identity } from '@opengewerk/domain'
+import {
+  defaultPatterns,
+  type DocumentId,
+  type DocumentKind,
+  documentKinds,
+  formatDocumentNumber,
+  type Identity,
+  numberRangeOf,
+} from '@opengewerk/domain'
 import { and, eq } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
-import { documents } from '../database/schema/index.js'
+import { assignDocumentNumber } from '../database/number-ranges.js'
+import { documents, numberRanges } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity } from './identity.js'
@@ -87,9 +97,13 @@ export class DocumentsController {
    * a technician writes the report on site, the office turns it into something
    * the bookkeeping is built on.
    *
-   * What happens here is deliberately thin. The gap free number and the write
-   * protection that goes with it belong to the number range work; this route
-   * sets the status and the timestamp and makes sure nothing is issued twice.
+   * From here the document is fixed. The number is handed out inside this
+   * transaction, so a failure further down takes the number back with it and
+   * leaves no hole in the sequence.
+   *
+   * This route exists only on the server, and that is the answer to "issuing
+   * works online only": there is no offline path to it. A device without a
+   * network can write drafts and nothing else.
    */
   @Post(':id/issue')
   @RequiresPermission('document.issue')
@@ -108,13 +122,47 @@ export class DocumentsController {
         throw new ConflictException('Der Beleg ist nicht mehr im Entwurf.')
       }
 
+      const issuedAt = new Date()
+      const number = await assignDocumentNumber(tx, identity.tenantId, existing.kind, issuedAt)
+
       const [issued] = await tx
         .update(documents)
-        .set({ status: 'issued', issuedAt: new Date(), updatedAt: new Date() })
+        .set({ status: 'issued', number, issuedAt, updatedAt: issuedAt })
         .where(and(eq(documents.id, existing.id), eq(documents.status, 'draft')))
         .returning()
 
       return issued
+    })
+  }
+
+  /**
+   * What the next number will be. The client shows it while somebody is still
+   * writing the document, and it is a preview and not a promise: whoever
+   * issues first takes it, and the next one moves on. It is built by the same
+   * function that builds the real one, so the two cannot drift apart.
+   */
+  @Get('next-number/:kind')
+  @RequiresPermission('document.read')
+  async nextNumber(@CurrentIdentity() identity: Identity, @Param('kind') kind: string) {
+    if (!(documentKinds as readonly string[]).includes(kind)) {
+      throw new BadRequestException(`Unbekannte Belegart: ${kind}`)
+    }
+
+    const key = numberRangeOf(kind as DocumentKind)
+
+    return this.database.forTenant(identity.tenantId, async (tx) => {
+      const [range] = await tx
+        .select()
+        .from(numberRanges)
+        .where(and(eq(numberRanges.tenantId, identity.tenantId), eq(numberRanges.key, key)))
+
+      const pattern = range?.pattern ?? defaultPatterns[key]
+      const counter = range?.nextValue ?? 1
+
+      return {
+        preview: formatDocumentNumber(pattern, { counter, year: new Date().getFullYear() }),
+        pattern,
+      }
     })
   }
 }
