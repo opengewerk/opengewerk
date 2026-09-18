@@ -21,6 +21,8 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 
 Die ADRs 0002 bis 0008 sind Entscheidungsvorlagen: Sie enthalten die betrachteten Optionen mit Vor- und Nachteilen, eine Empfehlung und die Konsequenzen. Der Status bleibt `vorgeschlagen`, bis der Maintainer entschieden hat; danach wird er auf `angenommen` gesetzt, die nicht gewählten Optionen bleiben zur Nachvollziehbarkeit im Dokument.
 
+Solange der Status `vorgeschlagen` lautet, heißt der entscheidende Abschnitt in diesen Dokumenten **Empfehlung** und nicht **Entscheidung**. Das ist Absicht: Eine Vorlage soll nicht so aussehen, als sei bereits entschieden. Mit dem Wechsel auf `angenommen` wird die Überschrift auf **Entscheidung** geändert und der gewählte Weg dort ausgeschrieben.
+
 Empfehlungen in Kurzform:
 
 | ADR | Empfehlung |
@@ -42,9 +44,9 @@ Immer dann, wenn eine Entscheidung schwer umkehrbar ist oder mehrere Module betr
 ## Ein neues ADR anlegen
 
 1. Die nächste freie vierstellige Nummer nehmen, die Nummern werden nie neu vergeben.
-2. Datei nach dem Muster `NNNN-kurzer-titel.md` benennen, kleingeschrieben, Wörter mit Bindestrich getrennt.
+2. Datei nach dem Muster `NNNN-kurzer-titel.md` benennen, kleingeschrieben, Wörter mit Bindestrich getrennt. Die Überschrift im Dokument ist der Titel allein, ohne die Nummer davor, die steht im Dateinamen.
 3. Das Dokument im MADR-Format schreiben: Kontext und Problemstellung, Entscheidungstreiber, betrachtete Optionen, Entscheidung mit Konsequenzen, Vor- und Nachteile der Optionen.
-4. Den Status im Frontmatter setzen: `vorgeschlagen`, `angenommen`, `abgelehnt`, `überholt durch NNNN`.
+4. Den Status im YAML-Frontmatter setzen: `vorgeschlagen`, `angenommen`, `abgelehnt`, `überholt durch NNNN`. Dazu gehören `date`, `decision-makers`, `consulted` und `informed`, so wie in den vorhandenen ADRs. Status und Datum gehören nicht als Aufzählung unter die Überschrift, sonst liest kein Werkzeug sie.
 5. Die Tabelle in dieser Datei ergänzen.
 6. Als Pull Request einreichen. Die Diskussion findet im Pull Request statt, nicht im Dokument.
 

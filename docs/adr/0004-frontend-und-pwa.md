@@ -1,14 +1,18 @@
-# ADR 0004: Frontend-Framework und PWA-Architektur
+---
+status: vorgeschlagen
+date: 2026-09-18
+decision-makers: Projektleitung OpenGewerk
+consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.3, Abschnitte 1.6, 9
+informed: Mitwirkende der Organisation opengewerk
+---
 
-- Status: vorgeschlagen
-- Datum: 2026-09-18
-- Bezug: Feature-Gliederung v2.3, Abschnitte 1.6, 9
+# Frontend-Framework und PWA-Architektur
 
-## Kontext
+## Kontext und Problemstellung
 
 Zwei Oberflächen: Büro-Anwendung (Desktop, datenintensiv, Tabellen, Plantafel, Belegeditor) und Baustellen-App (Mobil, offline, Kamera, Unterschrift, wenige große Bedienelemente). Beide sollen als eine installierbare PWA ausgeliefert werden; native Apps sind Phase 2 der Plattform-Strategie.
 
-## Optionen
+## Betrachtete Optionen
 
 ### A: React + Vite (SPA/PWA)
 
