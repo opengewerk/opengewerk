@@ -136,6 +136,21 @@ describe('a setting a business makes', () => {
     expect(refused.body.message).toMatch(/nur später/)
   })
 
+  it('refuses the same day twice, with a sentence rather than a constraint', () => {
+    // The boundary, and it matters more than it looks: the unique index would
+    // catch it too, but as a database error nobody can act on. Two periods
+    // starting on the same day is a question without an answer, and saying so
+    // is part of the answer.
+    return http()
+      .post('/settings/parameters')
+      .set('x-test-identity', owner())
+      .send({ key: 'small_business.claimed', from: '2026-01-01', value: 1 })
+      .expect(400)
+      .expect((answer) => {
+        expect(answer.body.message).toMatch(/bereits ein Wert ab 2026-01-01/)
+      })
+  })
+
   it('cannot be a legal parameter, because the key will not take one', async () => {
     // The seam between the two. There is no row a business could write that
     // moves a threshold: the keys are an enum of settings, and no rule key is

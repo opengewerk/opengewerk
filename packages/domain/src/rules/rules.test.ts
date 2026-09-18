@@ -218,6 +218,15 @@ describe('the small business limits', () => {
 describe('an invoice that was not paid', () => {
   it('falls late by a number of days that is a rule, not a constant', () => {
     expect(lateFrom(shippedRules, '2024-03-01' as IsoDate)).toBe('2024-03-31')
+
+    // And it really is read rather than written into the function: a set that
+    // says fourteen gives a different day. Without this the test above would
+    // pass just as happily with a 30 sitting in the code, which is the one
+    // thing this whole issue exists to prevent.
+    const shorter = ruleSet([
+      record({ key: 'payment.default_after_days', unit: 'days', value: 14 }),
+    ])
+    expect(lateFrom(shorter, '2024-03-01' as IsoDate)).toBe('2024-03-15')
   })
 
   it('costs the base rate of its own half year plus the premium', () => {
