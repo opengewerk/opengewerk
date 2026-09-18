@@ -1,5 +1,5 @@
 import type { ChainVerification, CustomerId } from '@opengewerk/domain'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -489,6 +489,49 @@ describe('the chain over the entries', () => {
 
     expect(broken.brokenAt).toBe(entry.sequence + 1)
     expect(broken.problem).toMatch(/Vorgänger/)
+  })
+
+  it('holds when several people write at the same moment', async () => {
+    const before = await database.forTenant({ tenantId: tenant.id }, (tx) =>
+      verifyAuditChain(tx, tenant.id),
+    )
+
+    // Twelve transactions on twelve connections, started together. Each one
+    // wants a place in the same chain, and a chain has exactly one order, so
+    // they have to be handed through one at a time. Two that chained off the
+    // same predecessor would leave a fork, and a fork is not a chain.
+    await Promise.all(
+      Array.from({ length: 12 }, (_, index) => createCustomer(`Gleichzeitig ${index} GmbH`)),
+    )
+
+    const entries = await database.forTenant({ tenantId: tenant.id }, (tx) =>
+      tx.select().from(schema.auditEntries).orderBy(schema.auditEntries.sequence),
+    )
+
+    const sequences = entries.map((entry) => entry.sequence)
+    expect(sequences).toEqual(Array.from({ length: entries.length }, (_, index) => index + 1))
+    expect(new Set(sequences).size).toBe(entries.length)
+
+    const after = await database.forTenant({ tenantId: tenant.id }, (tx) =>
+      verifyAuditChain(tx, tenant.id),
+    )
+    expect(after.brokenAt).toBeNull()
+    expect(after.checked).toBeGreaterThan(before.checked)
+  })
+
+  it('checks out the same way in any time zone', async () => {
+    // jsonb renders a timestamp in the session time zone, so an entry hashed
+    // in Berlin would come out differently in Sydney and a sound chain would
+    // look broken abroad. The fingerprint pins UTC for exactly that reason,
+    // and this is what says so.
+    const elsewhere = await database.forTenant({ tenantId: tenant.id }, async (tx) => {
+      await tx.execute(sql`set local time zone 'Australia/Sydney'`)
+
+      return verifyAuditChain(tx, tenant.id)
+    })
+
+    expect(elsewhere.brokenAt).toBeNull()
+    expect(elsewhere.checked).toBeGreaterThan(3)
   })
 
   it('runs per tenant, so one company cannot be checked into another', async () => {
