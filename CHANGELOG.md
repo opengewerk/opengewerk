@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Rollen und Rechte: Inhaber, Büro und Monteur mit Rechten entlang der Aktion. Getrennt
+  sind vor allem `document.write` und `document.issue`, weil ein Monteur den Regiebericht
+  schreibt und das Büro ihn festschreibt
+- Erste HTTP-Schicht auf NestJS mit den schreibenden Routen für Kunde, Objekt, Anlage,
+  Auftrag und Beleg. Die Rechteprüfung läuft über einen global registrierten Guard, eine
+  Route ohne Rechteangabe wird abgelehnt statt durchgewunken
+- Ein Test, der alle registrierten Routen aufzählt und jede ohne Rechteangabe meldet. Die
+  Controller kommen aus dem Modul selbst, ein neuer ist damit automatisch dabei
 - Mandantentrennung: Row-Level Security auf allen 14 Tabellen, erzwungen auch gegenüber
   dem Tabelleneigentümer, dazu eine eigene Anwendungsrolle ohne Superuser-Rechte. Der
   Mandant wird an genau einer Stelle gesetzt, in `Database.forTenant()`, und gilt nur
