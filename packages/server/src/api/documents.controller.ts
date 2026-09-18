@@ -15,7 +15,6 @@ import {
   type DocumentKind,
   documentKinds,
   formatDocumentNumber,
-  type Identity,
   numberRangeOf,
 } from '@opengewerk/domain'
 import { and, eq } from 'drizzle-orm'
@@ -25,7 +24,7 @@ import { assignDocumentNumber } from '../database/number-ranges.js'
 import { documents, numberRanges } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
-import { CurrentIdentity } from './identity.js'
+import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = [
   'customerId',
@@ -44,17 +43,17 @@ export class DocumentsController {
 
   @Get()
   @RequiresPermission('document.read')
-  list(@CurrentIdentity() identity: Identity) {
-    return this.database.forTenant(identity.tenantId, (tx) => tx.select().from(documents))
+  list(@CurrentIdentity() identity: RequestIdentity) {
+    return this.database.forTenant(identity, (tx) => tx.select().from(documents))
   }
 
   @Post()
   @RequiresPermission('document.write')
-  async create(@CurrentIdentity() identity: Identity, @Body() body: unknown) {
+  async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFields(values, ['customerId', 'kind', 'documentDate'])
 
-    const [created] = await this.database.forTenant(identity.tenantId, (tx) =>
+    const [created] = await this.database.forTenant(identity, (tx) =>
       tx
         .insert(documents)
         .values({ ...(values as typeof documents.$inferInsert), tenantId: identity.tenantId })
@@ -67,14 +66,14 @@ export class DocumentsController {
   @Patch(':id')
   @RequiresPermission('document.write')
   async update(
-    @CurrentIdentity() identity: Identity,
+    @CurrentIdentity() identity: RequestIdentity,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
     const values = pick(body, writableFields)
     requireSomething(values)
 
-    const [updated] = await this.database.forTenant(identity.tenantId, (tx) =>
+    const [updated] = await this.database.forTenant(identity, (tx) =>
       tx
         .update(documents)
         .set({ ...(values as Partial<typeof documents.$inferInsert>), updatedAt: new Date() })
@@ -107,8 +106,8 @@ export class DocumentsController {
    */
   @Post(':id/issue')
   @RequiresPermission('document.issue')
-  async issue(@CurrentIdentity() identity: Identity, @Param('id') id: string) {
-    return this.database.forTenant(identity.tenantId, async (tx) => {
+  async issue(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    return this.database.forTenant(identity, async (tx) => {
       const [existing] = await tx
         .select()
         .from(documents)
@@ -143,14 +142,14 @@ export class DocumentsController {
    */
   @Get('next-number/:kind')
   @RequiresPermission('document.read')
-  async nextNumber(@CurrentIdentity() identity: Identity, @Param('kind') kind: string) {
+  async nextNumber(@CurrentIdentity() identity: RequestIdentity, @Param('kind') kind: string) {
     if (!(documentKinds as readonly string[]).includes(kind)) {
       throw new BadRequestException(`Unbekannte Belegart: ${kind}`)
     }
 
     const key = numberRangeOf(kind as DocumentKind)
 
-    return this.database.forTenant(identity.tenantId, async (tx) => {
+    return this.database.forTenant(identity, async (tx) => {
       const [range] = await tx
         .select()
         .from(numberRanges)

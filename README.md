@@ -121,6 +121,22 @@ Alle Rechnungsarten teilen einen Kreis, Storno und Gutschrift eingeschlossen. §
 
 Die Vorschau der nächsten Nummer nutzt dieselbe Funktion in `domain` wie die endgültige Vergabe. Sie ist eine Vorschau und keine Zusage: wer zuerst festschreibt, bekommt die Nummer.
 
+### Audit-Log
+
+Jede Änderung an jeder Tabelle steht im Log, eine Zeile je Feld, das sich wirklich geändert hat: alter Wert, neuer Wert, Zeitpunkt, Benutzer und Anlass. Die Felder einer Änderung teilen sich eine Kennung, damit die Frage "und was hat sich im selben Moment noch bewegt" beantwortbar bleibt.
+
+**Geschrieben wird von einem Datenbank-Trigger, nicht von der Anwendung.** Das ist die Entscheidung, an der hier alles hängt. Eine Zeile im Server fängt genau dort nichts, wo der Server umgangen wird, und eine Änderung über `psql` oder aus einer Migration ist der Fall, für den ein Log überhaupt existiert. Der Trigger hängt an jeder Tabelle, angebracht über eine Schleife über den Katalog statt über eine Liste; ein Test stellt dieselbe Frage später noch einmal an den Katalog, damit eine Tabelle aus einer künftigen Migration nicht still durchrutscht.
+
+Kommt die Änderung über die Anwendung, stehen Benutzer und Anlass dabei. Kommt sie nicht von dort, steht der Benutzer leer, und das ist kein Loch, sondern der Befund: daneben steht die Datenbankrolle, und die sagt, dass jemand direkt an der Datenbank war. Den Anlass setzt heute die HTTP-Schicht auf das Recht, das die Route verlangt hat, also etwa `document.issue`. Ein Anlass, den ein Mensch eintippt ("Storno wegen Zahlendreher"), ist die bessere Antwort auf dieselbe Frage und gehört zu der Oberfläche, die danach fragt.
+
+**Ergänzt wird das Log, mehr nicht.** Ändern, Löschen und Leeren sind durch einen eigenen Trigger versperrt, auch für den Eigentümer der Tabelle, und die Anwendungsrolle hat auf der Tabelle nur Leserecht. Das verhindert eine Änderung. Es verhindert sie aber nur, solange der Trigger da ist, und wer Rechte auf der Datenbank hat, schaltet ihn ab.
+
+**Deshalb die Hashkette.** Jeder Eintrag wird zusammen mit dem Hash seines Vorgängers gehasht. Eine Änderung im Nachhinein ist damit nicht mehr unsichtbar: entweder passt der Eintrag nicht mehr zu seinem eigenen Fingerabdruck, oder der folgende zeigt ins Leere. Eine Prüfung läuft die Kette eines Mandanten ab und nennt die erste Stelle, an der es nicht mehr aufgeht. Gehasht wird die ganze Zeile ohne ihren eigenen Hash, eine später hinzugefügte Spalte ist also automatisch mit abgedeckt, und dieselbe Funktion berechnet den Fingerabdruck beim Schreiben und beim Prüfen; zwei Definitionen würden auseinanderlaufen.
+
+Die Kette läuft je Mandant. Das ist keine Feinheit, sondern folgt aus der Mandantentrennung: ein Mandant sieht nur seine eigenen Einträge, und eine Kette, die er nicht lesen kann, kann er auch nicht nachrechnen. Die Reihenfolge entsteht an einer Zähler-Zeile je Mandant, nach demselben Muster wie bei den Nummernkreisen. Der Preis ist, dass zwei gleichzeitige Schreibvorgänge desselben Betriebs aufeinander warten; bei einem Handwerksbetrieb ist das nichts.
+
+**Und was auch die Kette nicht leistet.** Wer den Trigger abschalten kann, kann auch jeden Eintrag ab der geänderten Stelle neu schreiben, und dann geht die Kette wieder auf. Sie macht eine kleine Korrektur unmöglich zu verstecken und eine große teuer. Ein echter Beweis wird sie erst gegen einen Hash, der woanders liegt, etwa in einem Backup: der schreibt alles fest, was vor ihm geschrieben wurde. Das gehört zum Backup-Issue, nicht hierher.
+
 ## Roadmap
 
 | Phase | Inhalt | Ergebnis |

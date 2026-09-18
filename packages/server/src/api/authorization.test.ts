@@ -1,12 +1,14 @@
 import { Test } from '@nestjs/testing'
 import type { INestApplication } from '@nestjs/common'
 import type { Identity, RoleKey, TenantId } from '@opengewerk/domain'
+import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import { auditEntries } from '../database/schema/index.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -52,7 +54,7 @@ function as(tenantId: TenantId, ...roles: RoleKey[]): string {
 beforeAll(async () => {
   admin = await connect()
   await resetSchema(admin)
-  await applyMigrations(admin)
+  await applyMigrations()
   await allowApplicationLogin(admin)
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     north.id,
@@ -281,5 +283,56 @@ describe('the number a document gets', () => {
       .get('/documents/next-number/rechnung')
       .set('x-test-identity', as(north.id, 'office'))
       .expect(400)
+  })
+})
+
+describe('what the audit log says about a request', () => {
+  function entriesFor(recordId: string) {
+    return database.forTenant({ tenantId: north.id }, (tx) =>
+      tx
+        .select()
+        .from(auditEntries)
+        .where(eq(auditEntries.recordId, recordId))
+        .orderBy(auditEntries.changedAt, auditEntries.field),
+    )
+  }
+
+  it('names the person behind the request', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/customers')
+      .set('x-test-identity', as(north.id, 'office'))
+      .send({ kind: 'business', name: 'Protokoll GmbH' })
+      .expect(201)
+
+    const entries = await entriesFor(created.body.id)
+
+    expect(entries.find((entry) => entry.field === 'name')).toMatchObject({
+      operation: 'insert',
+      newValue: 'Protokoll GmbH',
+      userId: 'test',
+      reason: 'customer.write',
+    })
+  })
+
+  it('takes the reason from the route that ran, not from a handler that remembered to pass one', async () => {
+    const draft = await request(app.getHttpServer())
+      .post('/documents')
+      .set('x-test-identity', as(north.id, 'office'))
+      .send({ customerId: northCustomer, kind: 'quote', documentDate: '2026-09-18' })
+      .expect(201)
+
+    await request(app.getHttpServer())
+      .post(`/documents/${draft.body.id}/issue`)
+      .set('x-test-identity', as(north.id, 'office'))
+      .expect(201)
+
+    const reasons = new Map((await entriesFor(draft.body.id)).map((e) => [e.field, e.reason]))
+
+    // Two routes, one record, two reasons. Writing the draft and issuing it
+    // are different rights, and the log is where that difference has to be
+    // visible afterwards: a number was handed out, and this says under what
+    // authority.
+    expect(reasons.get('kind')).toBe('document.write')
+    expect(reasons.get('number')).toBe('document.issue')
   })
 })

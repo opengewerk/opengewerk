@@ -46,15 +46,58 @@ export async function connect(): Promise<Pool> {
   return pool
 }
 
+/**
+ * The role the migrations run as, and the one that ends up owning the tables.
+ *
+ * It is deliberately not a superuser, and that is the whole reason it exists.
+ * Row level security never applies to a superuser, so a schema created by one
+ * would let every policy pass untested, including the ones that only matter
+ * for the owner: `FORCE`, and the pair of policies the audit trigger writes
+ * through. Those would then be exercised for the first time on somebody's
+ * installation.
+ *
+ * `createrole` because the first migration creates the application role.
+ */
+export const ownerRole = 'opengewerk_owner'
+const ownerPassword = 'nur-fuer-die-testdatenbank'
+
+/** The same database, seen through the role that owns the tables. */
+export function ownerDatabaseUrl(): string {
+  const url = new URL(testDatabaseUrl())
+  url.username = ownerRole
+  url.password = ownerPassword
+
+  return url.toString()
+}
+
 /** Back to an empty database, the state a fresh installation starts from. */
 export async function resetSchema(pool: Pool): Promise<void> {
   await pool.query('drop schema if exists public cascade')
   await pool.query('drop schema if exists drizzle cascade')
   await pool.query('create schema public')
+
+  await pool.query(`do $$
+    begin
+      if not exists (select from pg_roles where rolname = '${ownerRole}') then
+        create role "${ownerRole}" login password '${ownerPassword}' createrole;
+      end if;
+    end
+  $$`)
+
+  const database = new URL(testDatabaseUrl()).pathname.replace(/^\//, '')
+  await pool.query(`grant create on database "${database}" to "${ownerRole}"`)
+  await pool.query(`alter schema public owner to "${ownerRole}"`)
 }
 
-export async function applyMigrations(pool: Pool): Promise<void> {
-  await migrate(drizzle(pool), { migrationsFolder })
+/** Runs the migrations the way an installation does, as the owner. */
+export async function applyMigrations(): Promise<void> {
+  const pool = new Pool({ connectionString: ownerDatabaseUrl(), max: 1 })
+
+  try {
+    await migrate(drizzle(pool), { migrationsFolder })
+  } finally {
+    await pool.end()
+  }
 }
 
 /**

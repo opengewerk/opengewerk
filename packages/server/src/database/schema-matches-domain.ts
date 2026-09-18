@@ -1,4 +1,6 @@
 import type {
+  AuditChain,
+  AuditEntry,
   BoardSection,
   Circuit,
   Contact,
@@ -17,6 +19,8 @@ import type {
 } from '@opengewerk/domain'
 
 import type {
+  auditChains,
+  auditEntries,
   boardSections,
   circuits,
   contacts,
@@ -65,3 +69,5 @@ export type PvModuleMatches = Assert<Exact<typeof pvModules.$inferSelect, PvModu
 export type JobMatches = Assert<Exact<typeof jobs.$inferSelect, Job>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>
+export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
+export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>

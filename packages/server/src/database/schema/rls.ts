@@ -55,3 +55,40 @@ export function ownTenantOnly(id: PgColumn) {
     withCheck: isSession,
   })
 }
+
+/**
+ * The pair of policies both audit tables carry.
+ *
+ * The trigger that writes them runs as its definer, and it has to work on
+ * every path, including a change somebody makes at a psql prompt, where no
+ * session tenant exists and there is nothing to compare a row against. It also
+ * has to read: the chain head comes from the table and goes back into it. So
+ * the first policy is open, and it has to be.
+ *
+ * The second one closes it again around the application, and it is restrictive
+ * rather than permissive. Permissive policies combine with OR, restrictive
+ * ones with AND, so no other policy can widen this: whatever else permits, the
+ * application role stays inside its own tenant and writes nothing. Without it,
+ * the open policy above would let one company count another company's changes.
+ *
+ * The grant is the third gate. The application role has SELECT and nothing
+ * else on either table, so a forged entry never even reaches a policy.
+ */
+export function writtenByTriggerOnly(tenantId: PgColumn) {
+  return [
+    pgPolicy('written_by_trigger', {
+      as: 'permissive',
+      for: 'all',
+      to: 'public',
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+    pgPolicy('tenant_isolation', {
+      as: 'restrictive',
+      for: 'all',
+      to: applicationRole,
+      using: sql`${tenantId} = ${sessionTenant()}`,
+      withCheck: sql`false`,
+    }),
+  ]
+}
