@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Audit-Log auf Feldebene: eine Zeile je geändertem Feld mit altem Wert, neuem Wert,
+  Zeitpunkt, Benutzer und Anlass. Geschrieben von einem Trigger an jeder Tabelle, damit
+  auch eine Änderung im Log steht, die nicht über die Anwendung kommt. Der Benutzer bleibt
+  dann leer, und die Datenbankrolle daneben sagt, woher die Änderung kam
+- Das Log wird nur ergänzt. Ändern, Löschen und Leeren sind durch einen eigenen Trigger
+  versperrt, auch für den Eigentümer der Tabelle, und die Anwendungsrolle hat darauf nur
+  Leserecht
+- Ein Test, der für jede Tabelle am Katalog prüft, dass der Trigger hängt. Eine Tabelle aus
+  einer späteren Migration ohne Trigger macht ihn rot
 - Nummernkreise je Mandant und Belegart, vergeben beim Festschreiben. Der Zähler steht in
   einer Tabellenzeile statt in einer Sequenz, damit ein Abbruch die Nummer wieder mitnimmt
   und keine Lücke bleibt. Alle Rechnungsarten teilen einen Kreis, Storno eingeschlossen

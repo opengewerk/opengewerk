@@ -59,10 +59,7 @@ afterAll(async () => {
 
 async function createCustomer(name: string): Promise<CustomerId> {
   const [created] = await database.forTenant(clerk, (tx) =>
-    tx
-      .insert(schema.customers)
-      .values({ tenantId: tenant.id, kind: 'business', name })
-      .returning(),
+    tx.insert(schema.customers).values({ tenantId: tenant.id, kind: 'business', name }).returning(),
   )
 
   if (!created) {
@@ -336,10 +333,7 @@ describe('the log', () => {
     const customerId = await createCustomer('Geheim GmbH')
 
     const seenByOther = await database.forTenant({ tenantId: other.id }, (tx) =>
-      tx
-        .select()
-        .from(schema.auditEntries)
-        .where(eq(schema.auditEntries.recordId, customerId)),
+      tx.select().from(schema.auditEntries).where(eq(schema.auditEntries.recordId, customerId)),
     )
 
     // Rights say what somebody may do, row level security says whose data it

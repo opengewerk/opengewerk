@@ -135,7 +135,9 @@ describe('a tenant', () => {
   })
 
   it('cannot read a row of the other tenant by its id', async () => {
-    const foreign = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
+    const foreign = await database.forTenant({ tenantId: south.id }, (tx) =>
+      tx.select().from(schema.customers),
+    )
     const foreignId = foreign[0]?.id
     if (!foreignId) {
       throw new Error('The other tenant has no customer to try')
@@ -165,7 +167,9 @@ describe('a tenant', () => {
     // it would then not be able to see, which is the worst of both worlds.
     expect(refused.code).toBe(insufficientPrivilege)
 
-    const stillOne = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
+    const stillOne = await database.forTenant({ tenantId: south.id }, (tx) =>
+      tx.select().from(schema.customers),
+    )
     expect(stillOne).toHaveLength(1)
   })
 
@@ -184,7 +188,9 @@ describe('a tenant', () => {
     expect(changed).toHaveLength(1)
     expect(changed[0]?.tenantId).toBe(north.id)
 
-    const untouched = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
+    const untouched = await database.forTenant({ tenantId: south.id }, (tx) =>
+      tx.select().from(schema.customers),
+    )
     expect(untouched[0]?.name).toBe('Gleicher Name GmbH')
   })
 
@@ -198,7 +204,9 @@ describe('a tenant', () => {
     expect(deleted).toHaveLength(1)
     expect(deleted[0]?.tenantId).toBe(north.id)
 
-    const stillThere = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.sites))
+    const stillThere = await database.forTenant({ tenantId: south.id }, (tx) =>
+      tx.select().from(schema.sites),
+    )
     expect(stillThere).toHaveLength(1)
   })
 })
@@ -206,7 +214,9 @@ describe('a tenant', () => {
 describe('without a tenant', () => {
   it('refuses before it even takes a connection', async () => {
     await expect(
-      database.forTenant({ tenantId: '' as TenantId }, async (tx) => tx.select().from(schema.customers)),
+      database.forTenant({ tenantId: '' as TenantId }, async (tx) =>
+        tx.select().from(schema.customers),
+      ),
     ).rejects.toThrow(/Not a tenant id/)
 
     await expect(
@@ -242,7 +252,9 @@ describe('without a tenant', () => {
     // and that is the kind of leak that only shows up under load.
     await database.forTenant({ tenantId: north.id }, (tx) => tx.select().from(schema.customers))
 
-    const leaked = await database.forTenant({ tenantId: south.id }, (tx) => tx.select().from(schema.customers))
+    const leaked = await database.forTenant({ tenantId: south.id }, (tx) =>
+      tx.select().from(schema.customers),
+    )
     expect(leaked).toHaveLength(1)
     expect(leaked[0]?.tenantId).toBe(south.id)
 
