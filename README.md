@@ -137,6 +137,26 @@ Die Kette läuft je Mandant. Das ist keine Feinheit, sondern folgt aus der Manda
 
 **Und was auch die Kette nicht leistet.** Wer den Trigger abschalten kann, kann auch jeden Eintrag ab der geänderten Stelle neu schreiben, und dann geht die Kette wieder auf. Sie macht eine kleine Korrektur unmöglich zu verstecken und eine große teuer. Ein echter Beweis wird sie erst gegen einen Hash, der woanders liegt, etwa in einem Backup: der schreibt alles fest, was vor ihm geschrieben wurde. Das gehört zum Backup-Issue, nicht hierher.
 
+### Offline-Datenschicht
+
+Ein Monteur im Keller hat kein Netz und muss trotzdem arbeiten können. Jede Änderung wird deshalb auf dem Gerät als Vorgang in eine Warteschlange gelegt und später der Reihe nach verschickt. Die Schlüssel entstehen auf dem Gerät (UUIDv7), bevor irgendeine Verbindung da ist.
+
+**Ein Vorgang trägt für jedes Feld mit, was das Gerät dort gesehen hat.** Das ist die Entscheidung, an der alles andere hängt. Der Server vergleicht diesen Wert mit dem aktuellen: stimmt er, hat niemand dazwischengefunkt und die Änderung geht durch. Stimmt er nicht, ist das ein Konflikt. Zwei Geräte, die verschiedene Felder desselben Datensatzes geändert haben, gehen beide durch, ohne dass jemand etwas entscheiden muss. Das ist der Abgleich auf Feldebene aus ADR 0005, und er braucht dafür keine Uhr auf jedem Feld.
+
+**Ein Vorgang wirkt ganz oder gar nicht.** Sobald eines seiner Felder kollidiert, landet nichts davon, und die ganze beabsichtigte Änderung geht in die Konfliktliste. Halb anzuwenden ergäbe einen Datensatz, den keines der beiden Geräte je gemeint hat.
+
+**Konflikte werden nicht aufgelöst, sondern gezeigt.** Dafür wurden CRDTs in ADR 0005 abgelehnt: eine Mechanik, die alles selbst entscheidet, entscheidet die Fälle, die sie falsch trifft, genauso still wie die richtigen. Die Konfliktliste hat drei Bilder nebeneinander: was das Gerät wollte, was es zu sehen glaubte, und was tatsächlich dastand.
+
+Was ein Gerät ohne Verbindung darf, steht je Entität fest. Stammdaten dürfen angelegt, aber nicht geändert werden; ein Beleg darf geschrieben werden, solange er Entwurf ist, und keinen Moment länger. Festschreiben gibt es offline gar nicht, es vergibt eine Nummer und macht den Beleg fest, und das passiert auf dem Server.
+
+**Dieselbe Übertragung zweimal ändert nichts.** Jeder Vorgang hat eine Kennung vom Gerät, der Server merkt sich jede, die er gesehen hat. Ein Gerät, dem die Verbindung nach dem Commit abbricht, schickt seine Warteschlange noch einmal, und das ist der Normalfall, nicht die Ausnahme.
+
+**Gelöscht wird durch Markieren, nicht durch Entfernen.** Eine entfernte Zeile ist eine Zeile, von der ein Gerät, das gerade offline war, nie wieder etwas hört: der Abgleich liefert, was sich geändert hat, und eine Zeile, die es nicht mehr gibt, ist nicht darunter.
+
+Der Stand, ab dem ein Gerät nachfragt, ist eine Nummer je Mandant, die in der Reihenfolge hochzählt, in der Transaktionen festschreiben. Ein Stand auf Zeitstempeln würde still eine Zeile überspringen, deren Transaktion früh begann und spät festschrieb.
+
+Die Warteschlange selbst liegt später im Browser. Die Regeln liegen jetzt schon in `domain`, denn nur so kann ein Gerät dieselbe Antwort ausrechnen, bevor es etwas schickt, und einen Konflikt anzeigen statt ihn zu entdecken.
+
 ## Roadmap
 
 | Phase | Inhalt | Ergebnis |

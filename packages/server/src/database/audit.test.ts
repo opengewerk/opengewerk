@@ -126,6 +126,44 @@ describe('the tables', () => {
   })
 })
 
+describe('the shape of an entry', () => {
+  it('is frozen, because the chain is hashed over the whole row', async () => {
+    // Measured, not assumed: adding a single column makes every existing entry
+    // disagree with its own fingerprint, and a chain that was sound reports a
+    // break at entry one. On an installation that has been running, an upgrade
+    // with one extra column here would tell the owner their audit log had been
+    // tampered with.
+    //
+    // So this list is not a duplicate of the schema, it is the promise. If a
+    // column really has to be added, the way through is a second fingerprint
+    // that old entries keep being measured by, not a quiet ALTER TABLE.
+    const { rows } = await admin.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = 'audit_entries'
+        order by column_name`,
+    )
+
+    expect(rows.map((row) => row.column_name)).toEqual([
+      'change_id',
+      'changed_at',
+      'database_role',
+      'field',
+      'hash',
+      'id',
+      'new_value',
+      'old_value',
+      'operation',
+      'previous_hash',
+      'reason',
+      'record_id',
+      'sequence',
+      'table_name',
+      'tenant_id',
+      'user_id',
+    ])
+  })
+})
+
 describe('a change through the application', () => {
   it('lands in the log field by field, with who and why', async () => {
     const customerId = await createCustomer('Meier Elektrotechnik')

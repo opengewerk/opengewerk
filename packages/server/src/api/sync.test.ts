@@ -413,6 +413,34 @@ describe('what a device gets back', () => {
     expect((listed.body as { id: string }[]).some((entry) => entry.id === board.id)).toBe(false)
   })
 
+  it('sees one a device deleted through its outbox, for the same reason', async () => {
+    const board = await installation('Vom Gerät gelöscht')
+
+    const before = await http().get('/sync').set('x-test-identity', technician()).expect(200)
+    const cursor = (before.body as { cursor: number }).cursor
+
+    const answer = await push(technician(), 'telefon-anna', [
+      change({ recordId: board.id, kind: 'delete', baseVersion: board.version }),
+    ])
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+
+    const after = await http()
+      .get(`/sync?since=${cursor}`)
+      .set('x-test-identity', technician())
+      .expect(200)
+
+    const rows = (
+      after.body as { changes: { entity: string; rows: Record<string, unknown>[] }[] }
+    ).changes.find((entry) => entry.entity === 'installations')?.rows
+    const gone = rows?.find((row) => row['id'] === board.id)
+
+    // The path that matters most: a technician deletes something on a phone.
+    // Removing the row here would be the one place where the deletion never
+    // reaches the other device, because there would be nothing left to send.
+    expect(gone).toBeDefined()
+    expect(gone?.['deletedAt']).not.toBeNull()
+  })
+
   it('moves its cursor forward and does not hand the same change out twice', async () => {
     const first = await http().get('/sync').set('x-test-identity', technician()).expect(200)
     const cursor = (first.body as { cursor: number }).cursor
