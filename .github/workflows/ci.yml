@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  kodierung:
+  encoding:
     name: Kodierung und Zeilenenden
     runs-on: ubuntu-latest
     steps:
@@ -22,46 +22,46 @@ jobs:
           import subprocess
           import sys
 
-          BINAERE_ENDUNGEN = (
+          BINARY_EXTENSIONS = (
               ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
               ".pdf", ".zip", ".gz", ".woff", ".woff2", ".ttf", ".otf",
           )
 
-          roh = subprocess.run(
+          raw = subprocess.run(
               ["git", "ls-files", "-z"], capture_output=True, check=True
           ).stdout
-          fehler = []
+          problems = []
 
-          for eintrag in roh.split(b"\0"):
-              if not eintrag:
+          for entry in raw.split(b"\0"):
+              if not entry:
                   continue
-              pfad = eintrag.decode("utf-8", "surrogateescape")
-              if pfad.lower().endswith(BINAERE_ENDUNGEN):
+              path = entry.decode("utf-8", "surrogateescape")
+              if path.lower().endswith(BINARY_EXTENSIONS):
                   continue
-              with open(pfad, "rb") as datei:
-                  inhalt = datei.read()
-              if b"\0" in inhalt:
+              with open(path, "rb") as handle:
+                  content = handle.read()
+              if b"\0" in content:
                   continue
-              if inhalt.startswith(b"\xef\xbb\xbf"):
-                  fehler.append(f"{pfad}: UTF-8 mit BOM")
+              if content.startswith(b"\xef\xbb\xbf"):
+                  problems.append(f"{path}: UTF-8 mit BOM")
               try:
-                  inhalt.decode("utf-8")
-              except UnicodeDecodeError as ausnahme:
-                  fehler.append(f"{pfad}: kein gültiges UTF-8 ({ausnahme})")
+                  content.decode("utf-8")
+              except UnicodeDecodeError as error:
+                  problems.append(f"{path}: kein gültiges UTF-8 ({error})")
                   continue
-              if b"\r\n" in inhalt:
-                  fehler.append(f"{pfad}: enthält CRLF-Zeilenenden")
+              if b"\r\n" in content:
+                  problems.append(f"{path}: enthält CRLF-Zeilenenden")
 
-          if fehler:
+          if problems:
               print("Gefundene Probleme:")
-              for zeile in fehler:
-                  print(f"  {zeile}")
+              for line in problems:
+                  print(f"  {line}")
               sys.exit(1)
 
           print("Alle Textdateien sind UTF-8 ohne BOM und benutzen LF.")
           PYTHON
 
-  schreibweise:
+  typography:
     name: Schreibweise
     runs-on: ubuntu-latest
     steps:
@@ -74,47 +74,47 @@ jobs:
           import subprocess
           import sys
 
-          # Gedankenstrich und Halbgeviertstrich sind projektweit unerwünscht,
-          # auch in Zahlenbereichen. Dort steht ein einfacher Bindestrich
-          # (25-75, Z1-Z3). Begründung in der CLAUDE.md des Projektordners.
-          STRICHE = {chr(0x2013): "Halbgeviertstrich", chr(0x2014): "Geviertstrich"}
-          AUSNAHMEN = {"LICENSE"}
-          BINAERE_ENDUNGEN = (
+          # Em dash and en dash are unwanted across the project, number ranges
+          # included: those take a plain hyphen (25-75, Z1-Z3). The reason is
+          # written down in the CLAUDE.md of the project folder.
+          DASHES = {chr(0x2013): "Halbgeviertstrich", chr(0x2014): "Geviertstrich"}
+          EXEMPT = {"LICENSE"}
+          BINARY_EXTENSIONS = (
               ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
               ".pdf", ".zip", ".gz", ".woff", ".woff2", ".ttf", ".otf",
           )
 
-          roh = subprocess.run(
+          raw = subprocess.run(
               ["git", "ls-files", "-z"], capture_output=True, check=True
           ).stdout
-          fehler = []
+          problems = []
 
-          for eintrag in roh.split(b"\0"):
-              if not eintrag:
+          for entry in raw.split(b"\0"):
+              if not entry:
                   continue
-              pfad = eintrag.decode("utf-8", "surrogateescape")
-              if pfad in AUSNAHMEN or pfad.lower().endswith(BINAERE_ENDUNGEN):
+              path = entry.decode("utf-8", "surrogateescape")
+              if path in EXEMPT or path.lower().endswith(BINARY_EXTENSIONS):
                   continue
-              with open(pfad, "rb") as datei:
-                  inhalt = datei.read()
-              if b"\0" in inhalt:
+              with open(path, "rb") as handle:
+                  content = handle.read()
+              if b"\0" in content:
                   continue
               try:
-                  text = inhalt.decode("utf-8")
+                  text = content.decode("utf-8")
               except UnicodeDecodeError:
                   continue
-              for nummer, zeile in enumerate(text.splitlines(), start=1):
-                  for zeichen, name in STRICHE.items():
-                      if zeichen in zeile:
-                          fehler.append(f"{pfad}:{nummer}: {name} in: {zeile.strip()}")
+              for number, line in enumerate(text.splitlines(), start=1):
+                  for character, label in DASHES.items():
+                      if character in line:
+                          problems.append(f"{path}:{number}: {label} in: {line.strip()}")
                           break
 
-          if fehler:
+          if problems:
               print("Gedankenstriche gefunden. Ersetze sie je nach Satzbau durch")
               print("Doppelpunkt, Komma, Semikolon oder Punkt, bei Zahlenbereichen")
               print("durch einen einfachen Bindestrich.")
-              for zeile in fehler:
-                  print(f"  {zeile}")
+              for line in problems:
+                  print(f"  {line}")
               sys.exit(1)
 
           print("Keine Gedankenstriche gefunden.")
