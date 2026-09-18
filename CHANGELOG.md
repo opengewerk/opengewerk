@@ -17,6 +17,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Feature-Gliederung auf v2.4: neue Leitentscheidung 9 zur Positionierung. OpenGewerk
+  ist nicht die kostenlose Alternative, sondern die Software ohne künstlich beschränkte
+  Funktionen. Dazu drei Festlegungen, die das tragen müssen: Einnahmen aus
+  Dienstleistungen neben der Software, keine proprietären Erweiterungen auch durch das
+  Projekt selbst, kein Contributor License Agreement
 - Die Workflow-Dateien folgen der Regel "Code ist immer Englisch": Job-Kennungen,
   Variablen und Kommentare in den eingebetteten Skripten sind englisch. Deutsch bleibt,
   was ein Mensch liest, also die Job- und Schrittnamen in der Actions-Oberfläche und die

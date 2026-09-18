@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.3
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.4
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -21,6 +21,10 @@ Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-ho
 6. **Mandantenfähig und betriebsfähig:** mehrere Firmen pro Instanz, Backup/Restore, Update-/Migrationspfad sind Teil des Produkts, nicht der Doku.
 7. **Keine Cloud-KI-Pflicht.** KI-Funktionen optional über selbst gehostete Modelle (Ollama-Anbindung) ★.
 8. **Projektname und Repositories.** Das Projekt heißt **OpenGewerk** (GitHub-Organisation `opengewerk`, Domain opengewerk.de). Drei Repositories: (a) `opengewerk` für diese Handwerkersoftware, (b) `opengewerk-kanzlei` für den Kanzlei-Hub „OpenGewerk Kanzlei“ für Steuerberater (eigenes Konzept), (c) `opengewerk-api-spec` für ein kleines, gemeinsam genutztes Paket mit OpenAPI-Definition, JSON-Schemas und Konformitätstests. Hub und Handwerkersoftware deklarieren jeweils die unterstützte Spec-Version und können unabhängig releasen, ohne sich gegenseitig zu brechen ★.
+9. **Keine künstlich beschränkten Funktionen.** OpenGewerk ist nicht „die kostenlose Alternative“, sondern die Software, in der niemand eine Funktion zurückhält, um einen höheren Tarif zu verkaufen. Es gibt keine Tarifstufen, keine Nutzerlimits, keine Schnittstelle, die erst ab einem Paket freigeschaltet wird, und keine Funktion, die nur in einer kommerziellen Fassung existiert. Der vollständige Funktionsumfang ist der, der im Repository liegt. Daraus folgen drei Festlegungen ★:
+   - **Einnahmen entstehen neben der Software, nicht in ihr:** Hosting für Betriebe, die nicht selbst hosten wollen, Installation und Migration, Support und Wartungsverträge, Backups und Managed Updates, Schulungen, Messgeräte- und Fremdsystem-Anbindungen als Auftragsarbeit, Dienstleistungen rund um den Kanzlei-Hub. Jede dieser Leistungen ist ein Angebot, keine Voraussetzung: Ein Betrieb muss OpenGewerk ohne fremde Hilfe betreiben können, sonst ist die Beschränkung nur an eine andere Stelle gewandert.
+   - **Keine proprietären Erweiterungen, auch nicht durch das Projekt selbst.** Ein bezahltes Gewerke-Paket oder ein bezahlter Importadapter wäre dasselbe Feature-Gate, nur an der Modulgrenze statt am Preisschild. Das deckt sich mit ADR 0008: Gewerke sind Datenpakete plus Compile-Time-Module, für Fremdcode mit eigener Lizenz ist darin kein Platz.
+   - **Kein Contributor License Agreement.** Beiträge kommen unter der Lizenz des Repositories herein, mehr wird nicht verlangt. Ein CLA wäre nur nötig, um später doppelt zu lizenzieren, also um genau die geschlossene Fassung zu ermöglichen, die es nicht geben soll. Diese Festlegung ist praktisch nur jetzt umkehrbar, solange das Projekt einen einzigen Autor hat; sie wird bewusst so getroffen.
 
 ---
 
@@ -483,11 +487,13 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 
 ## 11. Schwächen der Vergleichssysteme & unser Ansatz
 
+Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern derselbe Grundsatz an drei Stellen: Es gibt keine Funktion, die hinter einem Tarif liegt. Ausformuliert in Leitentscheidung 9.
+
 | Schwäche in Vergleichssystemen | Unser Ansatz |
 | --- | --- |
 | plancraft: keine vollständige Buchhaltung (EÜR/USt-VA fehlen, nur DATEV-Export) | Volles Finance-Modul mit eigenem Journal, EÜR/USt-VA/Bilanz, gestaffelt ausgebaut |
 | GAEB und Stammdaten nur in höheren Tarifen (openHandwerk, plancraft) | Alle Schnittstellen und Funktionen ohne Feature-Gates |
-| Laufende Nutzer-/Monatskosten (z. B. 25-75 €/Nutzer/Monat) | Self-hosted, einmaliger Aufwand |
+| Laufende Nutzer-/Monatskosten (z. B. 25-75 €/Nutzer/Monat) | Self-hosted, kein Abo und keine Nutzerlimits. Hosting, Wartung und Support sind buchbare Leistungen, aber keine Voraussetzung für den Betrieb |
 | Daten beim Drittanbieter | Volle Datenkontrolle, Mandantenfähigkeit |
 | Generischer Gewerke-Fokus, keine Elektro/PV-Tiefe | Elektro/PV als Kernmodul mit Messgeräte-Import, Anlagenakte, PV-Doku |
 | Kundenzentriertes CRM ohne Objekt-/Anlagenmodell | Kunde → Objekt → Anlage als Kern |
@@ -510,6 +516,11 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.3 → v2.4
+
+- Neu: Leitentscheidung 9 zur Positionierung. OpenGewerk ist nicht die kostenlose Alternative, sondern die Software ohne künstlich beschränkte Funktionen. Dazu die drei Festlegungen, die das tragen: Einnahmen aus Dienstleistungen neben der Software, keine proprietären Erweiterungen auch durch das Projekt selbst, kein Contributor License Agreement
+- Abschnitt 11 bezieht die Zeilen zu Feature-Gates und Tarifgrenzen auf diese Leitentscheidung; die Zeile zu laufenden Kosten sagt jetzt ausdrücklich, dass Dienstleistungen ein Angebot und keine Betriebsvoraussetzung sind
 
 ## Änderungsprotokoll v2.2 → v2.3
 
