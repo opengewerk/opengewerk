@@ -17,6 +17,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- CodeQL ermittelt die zu prüfenden Sprachen aus dem Dateibestand, statt sie in einer
+  Liste zu führen. Dort stand bisher nur `actions`, mit einer Notiz, sie beim ersten
+  Code zu ergänzen. Wer den ersten TypeScript-Code einspielt, denkt aber nicht an diese
+  Datei und hätte danach ein Scanning, das nichts scannt
 - ADR 0002 bis 0008 entschieden und auf `angenommen` gesetzt. Der Tech-Stack steht:
   TypeScript mit NestJS, PostgreSQL mit Row-Level Security und Drizzle, React mit Vite
   als eine PWA, eigene Outbox für den Offline-Sync, eingebaute Auth über better-auth,

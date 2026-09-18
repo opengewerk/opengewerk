@@ -14,8 +14,43 @@ permissions:
   contents: read
 
 jobs:
+  sprachen:
+    name: Sprachen bestimmen
+    runs-on: ubuntu-latest
+    outputs:
+      liste: ${{ steps.ermitteln.outputs.sprachen }}
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Sprachen aus dem Dateibestand ermitteln
+        id: ermitteln
+        run: |
+          # Eine Liste von Hand heißt, sie irgendwann zu vergessen. Wer den
+          # ersten TypeScript-Code einspielt, denkt nicht an diese Datei und hat
+          # danach ein Scanning, das nichts scannt. Also sucht der Job die
+          # Sprachen selbst zusammen.
+          #
+          # Aufgeführt sind nur Sprachen, die CodeQL ohne Bauvorgang analysiert.
+          # Kompilierte Sprachen wie Java, C#, Go, C/C++ und Swift brauchen einen
+          # Build-Schritt und gehören von Hand ergänzt, zusammen mit ihm.
+          sprachen=(actions)
+          if [ -n "$(git ls-files -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs')" ]; then
+            sprachen+=(javascript-typescript)
+          fi
+          if [ -n "$(git ls-files -- '*.py')" ]; then
+            sprachen+=(python)
+          fi
+          # Die Namen stammen aus einer festen Liste, deshalb reicht es, die
+          # JSON-Liste von Hand zusammenzusetzen.
+          liste=$(printf '"%s",' "${sprachen[@]}")
+          liste="[${liste%,}]"
+          echo "sprachen=$liste" >> "$GITHUB_OUTPUT"
+          echo "Geprüft wird: $liste"
+
   analyze:
     name: Analyse (${{ matrix.language }})
+    needs: sprachen
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -24,9 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Bislang gibt es hier nur Workflow-Dateien zu prüfen. Sobald Code
-        # dazukommt, gehört seine Sprache in diese Liste
-        language: [actions]
+        language: ${{ fromJSON(needs.sprachen.outputs.liste) }}
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
