@@ -9,6 +9,31 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | Nummer | Titel | Status |
 | --- | --- | --- |
 | [0001](0001-drei-repositories.md) | Drei Repositories statt eines Monorepos | angenommen |
+| [0002](0002-sprache-und-backend-framework.md) | Programmiersprache und Backend-Framework | vorgeschlagen |
+| [0003](0003-datenbank-und-datenzugriff.md) | Datenbank und Datenzugriff | vorgeschlagen |
+| [0004](0004-frontend-und-pwa.md) | Frontend-Framework und PWA-Architektur | vorgeschlagen |
+| [0005](0005-offline-sync-und-konflikte.md) | Offline-Synchronisation und Konfliktauflösung | vorgeschlagen |
+| [0006](0006-auth-und-mandantenfaehigkeit.md) | Authentifizierung, Autorisierung und Mandantenfähigkeit | vorgeschlagen |
+| [0007](0007-dateispeicher-dokumente-und-pdf.md) | Dateispeicher, Dokumentenerzeugung und E-Rechnung | vorgeschlagen |
+| [0008](0008-plugin-system-fuer-gewerke.md) | Plugin-System für Gewerke und Erweiterungen | vorgeschlagen |
+
+## Offene Entscheidungen (0002–0008)
+
+Die ADRs 0002 bis 0008 sind Entscheidungsvorlagen: Sie enthalten die betrachteten Optionen mit Vor- und Nachteilen, eine Empfehlung und die Konsequenzen. Der Status bleibt `vorgeschlagen`, bis der Maintainer entschieden hat; danach wird er auf `angenommen` gesetzt, die nicht gewählten Optionen bleiben zur Nachvollziehbarkeit im Dokument.
+
+Empfehlungen in Kurzform:
+
+| ADR | Empfehlung |
+| --- | --- |
+| 0002 | TypeScript durchgängig, NestJS, Monorepo mit `domain`-Paket ohne I/O |
+| 0003 | PostgreSQL mit Row-Level Security, Drizzle ORM, UUIDv7, append-only-Journal per DB-Regel |
+| 0004 | React + Vite als eine PWA mit Büro- und Baustellen-Einstieg, Workbox |
+| 0005 | Eigene Outbox mit serverautoritativem Merge, Konfliktregeln je Entität, Festschreibung nur online |
+| 0006 | Eingebaute Auth (Passkeys/TOTP, Magic-Link fürs Kundenportal), OIDC optional, Rollen + Rechte + RLS |
+| 0007 | Inhaltsadressierter Dateispeicher (Dateisystem/S3), HTML→PDF via Chromium, E-Rechnung in TS mit KoSIT-Validierung, Mustang als Notausgang |
+| 0008 | Gewerke als Datenpakete plus Compile-Time-Module im Monorepo, Elektro/PV als erstes Paket |
+
+Sinnvolle Reihenfolge der Entscheidung: 0002 → 0003 → 0005 → 0004 → 0006 → 0007 → 0008. 0005 steht vor 0004, weil der Sync-Mechanismus das Datenmodell im Client bestimmt.
 
 ## Wann ein ADR sinnvoll ist
 
