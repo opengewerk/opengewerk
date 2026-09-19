@@ -1,0 +1,132 @@
+/*
+ * The design tokens, and the only place a colour value is written down.
+ *
+ * Three brand colours carry it: Schiefer #1B2430, Kupfer #C8671F, Elfenbein
+ * #F4F1EA. Everything else is derived from them or is a signal colour.
+ *
+ * Two things here are not decoration and are checked by `contrast.test.ts`:
+ *
+ * 1. Copper has four values, not one. White on the plain brand copper reaches
+ *    3.88:1, which carries large text and fails everything below 18.66px. A
+ *    brand book fixes a colour for a mark, where contrast hardly matters, and
+ *    its authority is exactly why nobody recomputes it for a button.
+ * 2. The dark values appear twice, once for the system preference and once for
+ *    the explicit switch. Two blocks that have to say the same thing drift, so
+ *    the test compares them value by value.
+ */
+
+@theme {
+  --font-sans: 'Barlow', system-ui, sans-serif;
+  --font-condensed: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+
+  /* Light is the ground state: read on a roof in the sun, and printed paper
+     next to the screen looks like the screen. */
+  --color-ground: #f4f1ea;
+  --color-surface: #fbfaf7;
+  --color-surface-sunken: #eae6dd;
+  --color-line: #dcd8cf;
+  --color-line-strong: #837c6f;
+
+  --color-ink: #1b2430;
+  --color-ink-muted: #4a5260;
+  --color-ink-faint: #5c6470;
+
+  --color-copper: #c8671f;
+  --color-copper-solid: #a6521a;
+  --color-copper-text: #9a4f16;
+  --color-on-copper: #ffffff;
+
+  --color-done: #2f6b4f;
+  --color-waiting: #7a5e13;
+  --color-conflict: #a3312b;
+  --color-on-status: #ffffff;
+
+  /* The office is the ground state here too. The site entry widens everything
+     below; see the `[data-entry='site']` block. */
+  --spacing-control: 2.125rem;
+  --spacing-control-lg: 2.625rem;
+  --spacing-tap: 2.75rem;
+
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.1;
+  --text-table: 0.8125rem;
+  --text-table--line-height: 1.35;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.45;
+  --text-title: 1.5625rem;
+  --text-title--line-height: 1.2;
+
+  --radius-control: 0.25rem;
+  --radius-card: 0.375rem;
+}
+
+/*
+ * The dark ground. Copper turns around here: the filled surface carries dark
+ * lettering, not white, because white on copper is glaring against a dark page
+ * and fails the ratio anyway.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --color-ground: #141a23;
+    --color-surface: #1b2430;
+    --color-surface-sunken: #232d3b;
+    --color-line: #38424f;
+    --color-line-strong: #6b7889;
+
+    --color-ink: #f4f1ea;
+    --color-ink-muted: #a8afb9;
+    --color-ink-faint: #8f97a4;
+
+    --color-copper: #e08a3c;
+    --color-copper-solid: #e08a3c;
+    --color-copper-text: #e08a3c;
+    --color-on-copper: #1b2430;
+
+    --color-done: #62b38a;
+    --color-waiting: #d9a83c;
+    --color-conflict: #e0736b;
+    --color-on-status: #141a23;
+  }
+}
+
+:root[data-theme='dark'] {
+  --color-ground: #141a23;
+  --color-surface: #1b2430;
+  --color-surface-sunken: #232d3b;
+  --color-line: #38424f;
+  --color-line-strong: #6b7889;
+
+  --color-ink: #f4f1ea;
+  --color-ink-muted: #a8afb9;
+  --color-ink-faint: #8f97a4;
+
+  --color-copper: #e08a3c;
+  --color-copper-solid: #e08a3c;
+  --color-copper-text: #e08a3c;
+  --color-on-copper: #1b2430;
+
+  --color-done: #62b38a;
+  --color-waiting: #d9a83c;
+  --color-conflict: #e0736b;
+  --color-on-status: #141a23;
+}
+
+/*
+ * The site entry, `/m`. Not a breakpoint: a thumb in a work glove is a
+ * different input device from a mouse, so the two entries of ADR 0004 are two
+ * densities and not one layout that stretches.
+ *
+ * Nothing tappable goes below `--spacing-tap`.
+ */
+[data-entry='site'] {
+  --spacing-control: 3.75rem;
+  --spacing-control-lg: 3.75rem;
+  --spacing-tap: 3.5rem;
+
+  --text-label: 0.875rem;
+  --text-table: 1rem;
+  --text-body: 1.0625rem;
+  --text-title: 1.6875rem;
+
+  --radius-control: 0.375rem;
+}
