@@ -1,0 +1,49 @@
+/*
+ * The stylesheet an entry point loads. Order matters: Tailwind first, then the
+ * tokens it reads, then the handful of base rules.
+ *
+ * Barlow comes from the bundle, not from a font service. A self hosted
+ * installation must not need the open internet to render its own interface,
+ * and the site app has no network at all half the time. `@fontsource` ships
+ * the same OFL files Google serves, as a dependency that is versioned with
+ * everything else.
+ */
+
+@import 'tailwindcss';
+
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/barlow-condensed/600.css';
+
+@import './tokens.css';
+
+@layer base {
+  html {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+
+  /*
+   * Amounts line up in columns or they are unreadable. This is the one place
+   * the figures are switched over; a component only has to say that a cell
+   * holds a number.
+   */
+  .numeric {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * Keyboard focus stays visible everywhere. ADR 0004 puts accessibility into
+   * the components rather than after them, and an outline that somebody
+   * removes for looks is the most common way it leaves again.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-copper-text);
+    outline-offset: 2px;
+  }
+}

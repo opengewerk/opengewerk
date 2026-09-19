@@ -4,7 +4,10 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
     "moduleResolution": "bundler",
-    "types": [],
+    // Vite's own types, for two things the tests need and nothing else does:
+    // `import.meta.glob`, and the declaration that makes a `?raw` import a
+    // string. Node types stay out: this package runs in a browser.
+    "types": ["vite/client"],
     "jsx": "react-jsx"
   },
   "include": ["src"]
