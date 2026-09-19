@@ -1,0 +1,119 @@
+# OpenGewerk for operation. One call, and an empty machine runs a migrated
+# instance:
+#
+#   cp .env.example .env    (and replace the four passwords in it)
+#   docker compose up -d
+#
+# Four services, two of which run at all times. The order is not a
+# convenience: the database has to answer before anything migrates, and the
+# migration has to be through before the application starts. Otherwise the
+# application looks for tables on its first start that do not exist yet.
+
+name: opengewerk
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
+      POSTGRES_DB: opengewerk
+      OPENGEWERK_OWNER_PASSWORD: ${OPENGEWERK_OWNER_PASSWORD:?OPENGEWERK_OWNER_PASSWORD fehlt in der .env-Datei}
+      OPENGEWERK_APP_PASSWORD: ${OPENGEWERK_APP_PASSWORD:?OPENGEWERK_APP_PASSWORD fehlt in der .env-Datei}
+    volumes:
+      # On /var/lib/postgresql, not on .../data. The images from PostgreSQL 18
+      # on put the data in a subdirectory per major version, so that a later
+      # "pg_upgrade --link" does not trip over a mount boundary. A volume on
+      # the old path keeps the container from starting at all.
+      - datenbank:/var/lib/postgresql
+      # Creates the two roles, once, on the first start. After that the data
+      # lives in the volume and this directory is never looked at again.
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    # No published port. The database is reachable over the docker network for
+    # the application and for nobody else. Whoever wants psql takes
+    # "docker compose exec postgres psql".
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d opengewerk']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Brings the database up to date and exits. Runs on every "up", not only on
+  # the first: against a database that is already current the run does
+  # nothing. That is what makes an update the two steps from issue #21,
+  # replace the image and start.
+  #
+  # Its own service, because it signs in as opengewerk_owner. The application
+  # is never to see those credentials.
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: opengewerk/opengewerk:${OPENGEWERK_VERSION:-latest}
+    command: ['node', '--enable-source-maps', 'dist/migrate.js']
+    environment:
+      MIGRATION_DATABASE_URL: postgres://opengewerk_owner:${OPENGEWERK_OWNER_PASSWORD}@postgres:5432/opengewerk
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: opengewerk/opengewerk:${OPENGEWERK_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      # opengewerk_app, never opengewerk_owner: for the owner of the tables
+      # row level security applies only through FORCE. The application refuses
+      # an address carrying the wrong role at startup.
+      DATABASE_URL: postgres://opengewerk_app:${OPENGEWERK_APP_PASSWORD}@postgres:5432/opengewerk
+      PORT: '3000'
+      # Where the renderer would listen. The address stands here even when the
+      # profile is not active: nobody answers then, and an attempt at a PDF
+      # gets the message that the service is not running rather than the one
+      # saying none is set up. The first is the true one.
+      RENDERER_URL: http://renderer:3000
+      RENDERER_TOKEN: ${RENDERER_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Loopback only. A reverse proxy terminating TLS belongs in front of it;
+    # an application keeping invoices does not stand unencrypted on a network.
+    ports:
+      - '127.0.0.1:${OPENGEWERK_PORT:-3000}:3000'
+
+  # Chromium for document rendering, per ADR 0007 a container of its own and
+  # not part of the application process. The reason is the memory target from
+  # ADR 0002: Chromium in the same process would have broken it.
+  #
+  # Only runs when asked for:
+  #
+  #   docker compose --profile renderer up -d
+  #
+  # Without it everything else keeps running, and an attempt at a PDF gets a
+  # readable message instead of a crash. Whoever never renders a document
+  # saves close to 4 GB of disk and around 340 MB of memory.
+  renderer:
+    image: ghcr.io/browserless/chromium:latest
+    restart: unless-stopped
+    profiles: ['renderer']
+    environment:
+      # The service wants a token, even on its own network. It sits in the
+      # .env file and reaches the application as RENDERER_TOKEN.
+      TOKEN: ${RENDERER_TOKEN:?RENDERER_TOKEN fehlt in der .env-Datei}
+      # One browser per job, and two minutes is the end of it. A PDF for an
+      # invoice takes seconds; anything beyond that is stuck and should give
+      # up.
+      CONCURRENT: '1'
+      TIMEOUT: '120000'
+    # No published port either. It is reachable from the docker network only,
+    # which means from the application.
+
+volumes:
+  datenbank:

@@ -6,6 +6,7 @@ import { AuthorizationGuard } from './authorization.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentsController } from './documents.controller.js'
+import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
@@ -14,10 +15,11 @@ import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
 
 /**
- * The HTTP side. There is no entry point that starts this on its own, and that
- * is not an oversight: an identity source has to be handed in, and the only
- * one that could be written today would be a stand in that lets anybody
- * through. A server that cannot start is better than one that starts open.
+ * The HTTP side. An identity source has to be handed in; there is no default,
+ * because the only one that could be written today would let everybody
+ * through. `main.ts` hands in a source that recognises nobody instead, so an
+ * instance can run and be checked while every route behind the guard answers
+ * 401. See `closed-identity.ts` for why that is the safe end of the choice.
  *
  * The guard is registered globally rather than per controller. Per controller
  * it would be a decision somebody has to remember on the next one; globally it
@@ -30,6 +32,7 @@ export class ApiModule {
     return {
       module: ApiModule,
       controllers: [
+        HealthController,
         CustomersController,
         SitesController,
         InstallationsController,

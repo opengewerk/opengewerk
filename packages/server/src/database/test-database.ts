@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Pool } from 'pg'
 
-export const migrationsFolder = join(dirname(fileURLToPath(import.meta.url)), '../../migrations')
+import { migrationsFolder, runMigrations } from './migrations.js'
+
+export { migrationsFolder }
 
 /**
  * The database the tests run against. These tests empty the schema before they
@@ -91,13 +90,7 @@ export async function resetSchema(pool: Pool): Promise<void> {
 
 /** Runs the migrations the way an installation does, as the owner. */
 export async function applyMigrations(): Promise<void> {
-  const pool = new Pool({ connectionString: ownerDatabaseUrl(), max: 1 })
-
-  try {
-    await migrate(drizzle(pool), { migrationsFolder })
-  } finally {
-    await pool.end()
-  }
+  await runMigrations(ownerDatabaseUrl())
 }
 
 /**

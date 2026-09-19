@@ -1,12 +1,12 @@
-# Die Datenbank fuer die Tests, nicht fuer den Betrieb. Das Compose fuer den
-# Betrieb kommt mit seinem eigenen Issue und sieht anders aus: dort gehoert ein
-# Volume hin, hier ausdruecklich keins, damit jeder Lauf leer anfaengt.
+# The database for the tests, not for operation. Operation has its own file,
+# compose.yaml next to this one, and it looks different: a volume belongs
+# there, and deliberately none here, so that every run starts empty.
 #
 #   docker compose -f docker/compose.test.yaml up -d
 #
-# Der Name endet auf _test, und die Tests weigern sich, gegen eine Datenbank zu
-# laufen, bei der das nicht so ist. Diese Tests raeumen naemlich auf, bevor sie
-# anfangen, und das soll niemandem seinen Entwicklungsbestand kosten.
+# The name ends in _test, and the tests refuse to run against a database where
+# it does not. These tests clean up before they start, and that is not to cost
+# anybody their development data.
 
 services:
   postgres:

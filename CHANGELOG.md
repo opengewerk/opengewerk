@@ -9,6 +9,34 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Betrieb über Docker Compose: ein Aufruf auf einer leeren Maschine liefert eine
+  erreichbare Instanz mit migrierter Datenbank. Drei Dienste, dazu ein Migrationslauf,
+  der sich vor jedem Start als Eigentümer der Tabellen anmeldet und danach beendet
+- Ein Einstiegspunkt, der den Server startet, mit einer Identitätsquelle, die niemanden
+  erkennt. Jede Route hinter dem Guard antwortet damit mit 401, und eine Instanz lässt
+  sich betreiben, migrieren und messen, bevor es eine Anmeldung gibt. Der Notbehelf, der
+  beim Bau der Rechte verworfen wurde, hätte jeden hereingelassen; dieser lässt keinen
+  herein
+- Ein Health-Endpunkt, der die Datenbank einbezieht: 200, solange sie antwortet, sonst
+  503. Ein Server, dessen Datenbank weg ist, nimmt weiter Verbindungen an und scheitert
+  an jeder Anfrage, und das als gesund zu melden machte aus einem lauten Ausfall einen
+  leisen
+- Eine Prüfung der Verbindungsadresse beim Start, die zwei Fehler abfängt, bevor sie
+  teuer werden: eine Anwendung, die sich als Eigentümer der Tabellen oder als Superuser
+  anmeldet, bekäme eine Mandantentrennung, die aussieht wie eine und keine ist. Und ein
+  Passwort mit `/` oder `@` darin teilt die Adresse an der falschen Stelle, was als
+  Namensauflösung für einen Rechner scheitert, den niemand gemeint hat
+- Die Anbindung an den Renderer nach ADR 0007, gekapselt als `renderPdf(html)`. Fehlt der
+  Dienst oder antwortet er nicht, kommt eine Meldung mit dem Befehl, der ihn startet,
+  statt eines Absturzes. Antwortet er mit einer Ablehnung, ist das ein anderer Fehler,
+  weil dann das Dokument falsch ist und nicht die Installation
+- Ein Build über alle Pakete, damit es etwas zum Ausliefern gibt, und ein Abbild in zwei
+  Stufen: gebaut mit allen Werkzeugen, ausgeliefert ohne sie, ohne Zugangsdaten, unter
+  einem Benutzer ohne Rechte und mit einer eigenen Gesundheitsprüfung
+- Ein CI-Job, der den Stapel so startet, wie eine Installation es tut, und prüft, dass
+  die Instanz antwortet, dass sie ohne Anmeldung jede Datenroute ablehnt und dass keine
+  einzige Tabelle ohne Row-Level Security dasteht
+
 - Regel-Engine: gesetzliche Parameter als Datensätze in Regelpaketen mit
   Gültigkeitszeitraum und Fundstelle, nicht im Quelltext. Umsatzsteuersätze,
   Kleinunternehmergrenzen, Verzugsregeln und der Basiszinssatz
@@ -117,6 +145,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - CI-Job "Schreibweise", der Gedankenstriche im gesamten Repository meldet
 
 ### Geändert
+
+- Die beiden Compose-Dateien und das Dockerfile folgen der Regel "Code ist immer
+  Englisch": Kommentare englisch, deutsch bleibt, was ein Mensch im Betrieb als Meldung
+  liest. `compose.test.yaml` sagte außerdem noch, die Datei für den Betrieb komme mit
+  einem eigenen Issue, und das stimmt seit diesem Stand nicht mehr
+- `@opengewerk/domain` wird gebaut statt aus dem Quelltext geladen. Ein Container kann
+  kein TypeScript ausführen, solange NestJS an den Dekorator-Metadaten hängt, und die
+  bringt das eingebaute Ausführen von TypeScript in Node nicht mit
 
 - Feature-Gliederung auf v2.5: Leitentscheidung 7 sagt jetzt, dass Fragen über
   Zusammenhänge zuerst als Abfrage über Datenmodell, Regel- und Fristen-Engine gebaut

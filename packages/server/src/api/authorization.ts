@@ -18,6 +18,7 @@ import {
 } from './identity.js'
 
 export const PERMISSION_METADATA = 'opengewerk:permission'
+export const PUBLIC_METADATA = 'opengewerk:public'
 
 /**
  * The right a handler needs. Sits on the handler, not in its body, so that a
@@ -27,6 +28,19 @@ export const PERMISSION_METADATA = 'opengewerk:permission'
  */
 export const RequiresPermission = (permission: Permission) =>
   SetMetadata(PERMISSION_METADATA, permission)
+
+/**
+ * A route that answers without an identity. There is exactly one reason to
+ * use this today, the health check an operator and the container runtime ask
+ * for, and it has to stay that way: anything that touches tenant data goes
+ * through the guard.
+ *
+ * It is a decorator rather than a list of paths in the guard so that a test
+ * can count them. The test holds the current set, which means adding one is a
+ * red test and therefore a decision somebody made on purpose, not a line that
+ * slipped through a review.
+ */
+export const PublicRoute = () => SetMetadata(PUBLIC_METADATA, true)
 
 /**
  * Resolves who is asking and whether they may. Runs on every request, so a
@@ -45,6 +59,19 @@ export class AuthorizationGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean | undefined>(PUBLIC_METADATA, [
+      context.getHandler(),
+      context.getClass(),
+    ])
+
+    if (isPublic) {
+      // No identity is resolved for these, on purpose. Asking the identity
+      // source would mean the health check stops answering the moment the
+      // authentication has a problem, which is the one moment somebody needs
+      // an answer from it.
+      return true
+    }
+
     const request = context.switchToHttp().getRequest<RequestWithIdentity>()
     const identity = await this.identities.identify(request)
 

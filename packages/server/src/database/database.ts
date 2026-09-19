@@ -104,6 +104,24 @@ export class Database {
     }
   }
 
+  /**
+   * Whether the database answers at all. For the health check, and the only
+   * query in this class that runs outside a tenant transaction.
+   *
+   * That is not a hole in the isolation: `select 1` reads no table, so there
+   * is nothing for a policy to let through. Handing out the pool or a client
+   * would be a hole, which is why this returns a boolean and not a connection.
+   */
+  async isReachable(): Promise<boolean> {
+    try {
+      await this.pool.query('select 1')
+
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async close(): Promise<void> {
     await this.pool.end()
   }
