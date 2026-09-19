@@ -3,6 +3,7 @@ import {
   inOutboxOrder,
   type Operation,
   type OperationOutcome,
+  policyFor,
   type RecordState,
   type SyncValue,
   type TenantId,
@@ -72,12 +73,22 @@ function forColumn(column: PgColumn, value: SyncValue): unknown {
 
 export class UnknownFieldError extends Error {}
 
+/**
+ * The columns an operation may write, refusing the ones it may not.
+ *
+ * The second guard against a reserved field, after `decideMerge`. Not
+ * redundant: the merge decides, this one writes, and a path that reaches the
+ * write without passing the decision would otherwise put the value in. The
+ * fields the server reserves are exactly the ones where that must not happen
+ * quietly, so the cheaper of the two checks sits where it cannot be skipped.
+ */
 function columnsFor(table: PgTable, fields: readonly string[]): Record<string, PgColumn> {
   const columns = getTableColumns(table) as Record<string, PgColumn>
+  const reserved = policyFor(getTableName(table))?.reserved ?? []
   const picked: Record<string, PgColumn> = {}
 
   for (const field of fields) {
-    if (keptByTheServer.has(field)) {
+    if (keptByTheServer.has(field) || reserved.includes(field)) {
       // Not a conflict, a mistake in the client. A conflict is two people
       // disagreeing about a value; this is a device reaching for something
       // that was never its to set.

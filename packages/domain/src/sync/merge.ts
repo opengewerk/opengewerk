@@ -16,6 +16,8 @@ export const conflictReasons = [
   'record_missing',
   /** Nothing on this instance knows this entity. */
   'unknown_entity',
+  /** A field only the server writes, such as the number on a document. */
+  'set_by_server',
 ] as const
 
 export type ConflictReason = (typeof conflictReasons)[number]
@@ -55,6 +57,23 @@ export function decideMerge(operation: Operation, current: RecordState | null): 
 
   if (!policy) {
     return { outcome: 'conflict', reason: 'unknown_entity', fields: [] }
+  }
+
+  // Before everything else, and deliberately before the branch for creating.
+  // A field the server reserves is refused whether the record already exists
+  // or is arriving for the first time; the first time is the easier way in.
+  //
+  // A conflict and not an error, unlike the columns the server keeps
+  // everywhere: a device that sets a document's status wanted something
+  // sensible and may not have it. That belongs in front of a person, with
+  // what the device intended still attached, and it has to be an answer the
+  // device could have worked out itself before sending.
+  const reserved = operation.patches
+    .filter((patch) => policy.reserved?.includes(patch.field))
+    .map((patch) => patch.field)
+
+  if (reserved.length > 0) {
+    return { outcome: 'conflict', reason: 'set_by_server', fields: reserved }
   }
 
   if (operation.kind === 'create') {

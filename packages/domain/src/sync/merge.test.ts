@@ -206,6 +206,67 @@ describe('a document', () => {
 
     expect(result).toEqual({ outcome: 'conflict', reason: 'record_is_fixed', fields: ['status'] })
   })
+
+  it('cannot be issued from a device', () => {
+    // The gate above asks what the record was before, so it lets exactly this
+    // through: a draft is still a draft while the patch that ends it is being
+    // judged. These three fields together are the issuing, and issuing needs
+    // the counter and the server clock.
+    const result = decideMerge(
+      operation({
+        entity: 'documents',
+        patches: [
+          patch('status', 'draft', 'issued'),
+          patch('number', null, 'RE-2026-0001'),
+          patch('issuedAt', null, '2026-09-19T08:00:00.000Z'),
+        ],
+      }),
+      { version: 1, status: 'draft', number: null, issuedAt: null },
+    )
+
+    expect(result).toEqual({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+      fields: ['status', 'number', 'issuedAt'],
+    })
+  })
+
+  it('cannot arrive already issued either', () => {
+    // The harder way in, because there is no previous state for the gate to
+    // look at. A document created like this would never have passed the
+    // counter.
+    const result = decideMerge(
+      operation({
+        entity: 'documents',
+        kind: 'create',
+        patches: [
+          patch('kind', null, 'final_invoice'),
+          patch('status', null, 'issued'),
+          patch('number', null, 'RE-2026-0002'),
+        ],
+      }),
+      null,
+    )
+
+    expect(result).toEqual({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+      fields: ['status', 'number'],
+    })
+  })
+
+  it('is created as a draft when the device leaves those fields alone', () => {
+    const result = decideMerge(
+      operation({
+        entity: 'documents',
+        kind: 'create',
+        patches: [patch('kind', null, 'final_invoice'), patch('subject', null, 'Störung Küche')],
+      }),
+      null,
+    )
+
+    expect(result.outcome).toBe('apply')
+  })
 })
 
 describe('an operation that arrives twice', () => {
