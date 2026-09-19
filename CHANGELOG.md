@@ -198,6 +198,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Roadmap steht nur noch in Abschnitt 10 der Feature-Gliederung. Die Abschrift in
+  der README war die Fassung aus v2.2: der Umschnitt auf den MVP-Fahrplan in v2.3 kam
+  dort nie an, die Zeilen für Phase 0, 1, 2 und 4 waren zeichengleich mit dem
+  Archivstand, Phase 1b fehlte ganz. Für Phase 0 nannte sie eine Fristen- und eine
+  Formular-Engine, die dort nicht hingehören, und ließ die Regel-Engine weg, die
+  dazugehört. An ihrer Stelle steht jetzt ein Verweis, weil eine Kopie driftet
+
 - Der Mountpunkt des Dateispeichers gehört im Abbild dem Benutzer `node`. Docker
   übernimmt Eigentümer und Rechte eines vorhandenen Verzeichnisses in ein neues Volume,
   und ein Volume, das aus dem Nichts entsteht, gehört `root`. Die Anwendung läuft nicht
