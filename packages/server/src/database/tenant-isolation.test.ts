@@ -96,7 +96,11 @@ describe('the tables', () => {
       [applicationRole],
     )
 
-    expect(rows.length).toBeGreaterThanOrEqual(14)
+    // The floor moves with the schema and is only here so that a query which
+    // returns nothing cannot pass as "no table unprotected". It stood at 14,
+    // the count right after the first migration, while five migrations have
+    // been added since.
+    expect(rows.length).toBeGreaterThanOrEqual(21)
 
     const unprotected = rows.filter(
       (row) => !row.enabled || !row.forced || Number(row.policies) === 0 || !row.granted,
@@ -208,6 +212,60 @@ describe('a tenant', () => {
       tx.select().from(schema.sites),
     )
     expect(stillThere).toHaveLength(1)
+  })
+})
+
+/**
+ * The table the policy sits on rather than points at. Everywhere else the
+ * tenant is a foreign key; here it is the primary key, and that is a different
+ * enough case to be worth its own run with two tenants in the database.
+ */
+describe('the tenants table', () => {
+  it('shows a tenant its own row and no other', async () => {
+    const seenByNorth = await database.forTenant({ tenantId: north.id }, (tx) =>
+      tx.select().from(schema.tenants),
+    )
+    const seenBySouth = await database.forTenant({ tenantId: south.id }, (tx) =>
+      tx.select().from(schema.tenants),
+    )
+
+    expect(seenByNorth).toHaveLength(1)
+    expect(seenBySouth).toHaveLength(1)
+    expect(seenByNorth[0]?.id).toBe(north.id)
+    expect(seenBySouth[0]?.id).toBe(south.id)
+  })
+
+  it('cannot be written by the application role at all', async () => {
+    // Reading was never the hole. The policy narrowed that to the session
+    // tenant from the first migration on. What stood open was the blanket
+    // grant from 0001: a tenant could rename itself, and it could delete its
+    // own row, which the foreign keys would follow all the way down.
+    const inserted = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx.insert(schema.tenants).values({ name: 'Selbst angelegt' }),
+      ),
+    )
+    expect(inserted.code).toBe(insufficientPrivilege)
+
+    const renamed = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx
+          .update(schema.tenants)
+          .set({ name: 'Selbst umbenannt' })
+          .where(sql`true`),
+      ),
+    )
+    expect(renamed.code).toBe(insufficientPrivilege)
+
+    const removed = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx.delete(schema.tenants).where(sql`true`),
+      ),
+    )
+    expect(removed.code).toBe(insufficientPrivilege)
+
+    const { rows } = await admin.query<{ count: string }>('select count(*) from tenants')
+    expect(rows[0]?.count).toBe('2')
   })
 })
 

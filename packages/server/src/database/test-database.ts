@@ -153,6 +153,31 @@ export async function enumNames(pool: Pool): Promise<string[]> {
 }
 
 /**
+ * The functions the migrations left behind, for the same check as the tables.
+ *
+ * Extensions are excluded through `pg_depend`, otherwise `uuidv7` comes along
+ * and the round trip could never end at an empty list. Seven of the nine
+ * `CREATE FUNCTION` in the migrations go without `OR REPLACE`, so a forgotten
+ * rollback does not merely leave something behind: the next run forward fails
+ * with "function already exists", and going forward again is what the down
+ * files are for.
+ */
+export async function functionNames(pool: Pool): Promise<string[]> {
+  const result = await pool.query<{ proname: string }>(
+    `select p.proname from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and not exists (
+          select 1 from pg_depend d
+           where d.objid = p.oid and d.deptype = 'e'
+        )
+      order by p.proname`,
+  )
+
+  return result.rows.map((row) => row.proname)
+}
+
+/**
  * The role the application connects as. The migration creates it without a
  * password and without LOGIN, because credentials do not belong in a file that
  * sits in every clone of the repository. The tests give it both, for their own
