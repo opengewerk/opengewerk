@@ -9,6 +9,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Discord-Server ist in der README verlinkt. Er ist für kurze Fragen gedacht und
+  nicht als Ersatz für die Discussions: ein Chatverlauf ist nicht durchsuchbar
+
 - Ein Update ist zwei Aufrufe: erst `docker compose run --rm --build migrate`, dann
   `docker compose up -d`. Die Reihenfolge ist keine Vorliebe. `up` allein erzeugt jeden
   Container mit geändertem Abbild neu, bevor es irgendeinen startet, der laufende
