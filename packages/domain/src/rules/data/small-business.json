@@ -1,6 +1,6 @@
 {
   "package": "small-business",
-  "note": "Grenzen der Kleinunternehmerregelung nach § 19 UStG. Zum 01.01.2025 hat sich nicht nur die Höhe geändert, sondern auch die Systematik: seitdem endet die Regelung, sobald die Grenze im laufenden Jahr überschritten wird. Diese Engine hält die Beträge, der Wechsel während des Jahres gehört zum Belegwesen in Phase 1.",
+  "note": "Grenzen der Kleinunternehmerregelung nach § 19 UStG. Zum 01.01.2025 hat sich nicht nur die Höhe geändert, sondern auch die Systematik: seitdem endet die Regelung, sobald die Grenze im laufenden Jahr überschritten wird. Diese Engine hält die Beträge, der Wechsel während des Jahres gehört zum Belegwesen in Phase 1. Ebenso dorthin gehört, woran gemessen wird: bis 2024 war es der Umsatz zuzüglich der darauf entfallenden Steuer, seit 2025 der Gesamtumsatz nach Absatz 2 ohne sie. Die Beträge hier sind am 19.09.2026 gegen die datierten Fassungen des § 19 UStG geprüft, für die Jahre ab 2006 gegen den Wortlaut, für 2003 bis 2005 nur mittelbar über eine BFH-Entscheidung zum Kleinunternehmerförderungsgesetz.",
   "records": [
     {
       "key": "small_business.previous_year_limit",
