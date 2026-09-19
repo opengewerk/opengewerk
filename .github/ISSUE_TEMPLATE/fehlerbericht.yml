@@ -54,7 +54,7 @@ body:
       required: false
 
   - type: checkboxes
-    id: pruefung
+    id: prüfung
     attributes:
       label: Vorab geprüft
       options:

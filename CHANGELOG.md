@@ -9,6 +9,32 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Sicherung und Rückspielen als Skripte, nicht als Anleitung. Ein Lauf schreibt
+  Datenbank, Dateispeicher und die Köpfe der Audit-Ketten in ein Archiv, ein zweiter
+  spielt es zurück und prüft danach nach, ob alles zurückgekommen ist
+- Die Reihenfolge im Sicherungslauf ist Datenbank zuerst, Dateien danach. Andersherum
+  hätte alles, was zwischen beiden Schritten hochgeladen wird, eine Zeile im Dump und
+  keine Datei im Archiv, also einen Beleg, der auf nichts zeigt
+- Drei Prüfungen nach dem Rückspielen: das Manifest gegen eine beschädigte Sicherung,
+  bevor die Datenbank angefasst wird; die Dateinamen gegen den Hash ihres Inhalts, was
+  ein inhaltsadressierter Speicher allein beantworten kann; die Audit-Ketten gegen die
+  Sicherung
+- `verify.sh` hält das Audit-Log einer laufenden Instanz gegen die Köpfe aus einer
+  Sicherung, ohne etwas zurückzuspielen. Das ist die eine Prüfung, die die Kette in der
+  Datenbank nicht an sich selbst vornehmen kann: wer den Trigger abschalten kann,
+  rechnet die Kette nach einer Fälschung neu, und sie geht wieder auf. Gegengeprüft, die
+  Prüfung in der Datenbank meldet danach "gebrochen bei: nirgends" und die gegen die
+  Sicherung nennt den Mandanten
+- Verschlüsselung der Archive über age mit einem öffentlichen Schlüssel. Die Maschine,
+  die sichert, kann damit ihre eigenen älteren Sicherungen nicht lesen
+- Aufbewahrung über `BACKUP_KEEP`, Ziel über `BACKUP_TARGET`, beides in der `.env`
+- Der Dateispeicher aus ADR 0007 als eigenes Volume, und die Anwendung startet nicht,
+  wenn sie nicht hineinschreiben kann. Ein falscher Mount sieht sonst genauso aus wie
+  eine laufende Instanz, bis das erste Foto verloren geht
+- Ein CI-Job, der den ganzen Weg fährt: Daten anlegen, sichern, beide Datenvolumes
+  löschen, in die leere Instanz zurückspielen, Bestand und Audit-Ketten vergleichen und
+  zuletzt prüfen, dass eine beschädigte Sicherung abgelehnt wird
+
 - Betrieb über Docker Compose: ein Aufruf auf einer leeren Maschine liefert eine
   erreichbare Instanz mit migrierter Datenbank. Drei Dienste, dazu ein Migrationslauf,
   der sich vor jedem Start als Eigentümer der Tabellen anmeldet und danach beendet
@@ -145,6 +171,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - CI-Job "Schreibweise", der Gedankenstriche im gesamten Repository meldet
 
 ### Geändert
+
+- Der Mountpunkt des Dateispeichers gehört im Abbild dem Benutzer `node`. Docker
+  übernimmt Eigentümer und Rechte eines vorhandenen Verzeichnisses in ein neues Volume,
+  und ein Volume, das aus dem Nichts entsteht, gehört `root`. Die Anwendung läuft nicht
+  als `root`, konnte also nicht hineinschreiben
 
 - Die beiden Compose-Dateien und das Dockerfile folgen der Regel "Code ist immer
   Englisch": Kommentare englisch, deutsch bleibt, was ein Mensch im Betrieb als Meldung

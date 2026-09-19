@@ -3,17 +3,17 @@ dist
 .turbo
 pnpm-lock.yaml
 
-# Die Dokumentation wird von Hand gesetzt. Prettier wuerde Tabellen neu
+# Die Dokumentation wird von Hand gesetzt. Prettier würde Tabellen neu
 # ausrichten und Absaetze umbrechen, was jede inhaltliche Aenderung hinter
-# Formatierungsrauschen verstecken wuerde.
+# Formatierungsrauschen verstecken würde.
 *.md
 
-# Dasselbe gilt fuer die Workflows und Vorlagen: dort stehen Pruefskripte in
+# Dasselbe gilt für die Workflows und Vorlagen: dort stehen Prüfskripte in
 # Blockskalaren, und das Geruest drumherum umzuschreiben bringt nichts ausser
-# unlesbaren Diffs an genau den Stellen, die man lesen koennen muss.
+# unlesbaren Diffs an genau den Stellen, die man lesen können muss.
 .github/
 
 # Die Migrationen erzeugt drizzle-kit, den Ordner meta schreibt es bei jedem
 # Lauf neu. Wer ihn formatiert, bekommt ihn beim naechsten generate wieder
-# umformatiert zurueck.
+# umformatiert zurück.
 packages/server/migrations/

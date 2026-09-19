@@ -173,7 +173,7 @@ jobs:
         env:
           DATABASE_URL: postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test
 
-  betrieb:
+  operations:
     name: Betrieb über Docker Compose
     runs-on: ubuntu-latest
 
@@ -233,3 +233,136 @@ jobs:
         if: always()
         working-directory: docker
         run: docker compose down --volumes
+
+  backup:
+    name: Sicherung und Rückspielen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Zugangsdaten und Schlüsselpaar erzeugen
+        working-directory: docker
+        run: |
+          set -eu
+          cp .env.example .env
+          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN; do
+            sed -i "s|^${name}=.*|${name}=$(openssl rand -hex 32)|" .env
+          done
+
+          # The archive is encrypted in this run too, because an untested
+          # encryption path is the one that fails on the evening it is needed.
+          docker build --tag opengewerk/backup:latest ./backup
+          docker run --rm opengewerk/backup:latest age-keygen > key.txt 2> keygen.txt
+          grep -o 'AGE-SECRET-KEY-[A-Z0-9]*' key.txt > identity.txt
+          recipient=$(grep -o 'age1[a-z0-9]*' keygen.txt | head -1)
+          sed -i "s|^BACKUP_AGE_RECIPIENT=.*|BACKUP_AGE_RECIPIENT=${recipient}|" .env
+          echo "Verschlüsselt an: ${recipient}"
+
+      - name: Stapel starten
+        working-directory: docker
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Daten und Dateien anlegen
+        working-directory: docker
+        run: |
+          set -eu
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
+            insert into tenants (id, name) values
+              ('01931c00-0000-7000-8000-000000000001', 'Elektro Nord GmbH'),
+              ('01931c00-0000-7000-8000-000000000002', 'Elektro Sued GmbH');
+            insert into customers (tenant_id, kind, name) values
+              ('01931c00-0000-7000-8000-000000000001', 'business', 'Bauherr Nord'),
+              ('01931c00-0000-7000-8000-000000000002', 'business', 'Bauherr Sued');"
+
+          # Content addressed, so a file name has to be the hash of what is in
+          # it. The restore checks exactly that, and a file written any other
+          # way would make it fail for the wrong reason.
+          docker compose exec -T app sh -c 'for text in eins zwei drei; do hash=$(printf "%s" "$text" | sha256sum | cut -d" " -f1); printf "%s" "$text" > "/var/lib/opengewerk/storage/$hash"; done'
+
+      - name: Stand vor der Sicherung festhalten
+        working-directory: docker
+        run: |
+          set -eu
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from audit_entries" > /tmp/before.txt
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-before.txt
+          cat /tmp/before.txt /tmp/chains-before.txt
+
+      - name: Sicherung erstellen
+        working-directory: docker
+        run: docker compose --profile backup run --rm backup backup.sh
+
+      - name: Datenplatte verlieren, Sicherung behalten
+        working-directory: docker
+        run: |
+          set -eu
+          docker compose --profile backup down --remove-orphans
+          docker volume rm opengewerk_database opengewerk_files
+          docker compose up -d --wait --wait-timeout 300
+
+          empty=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants")
+          echo "Mandanten in der leeren Instanz: ${empty}"
+          test "${empty}" = "0"
+
+      - name: Sicherung zurückspielen
+        working-directory: docker
+        run: |
+          docker compose --profile backup run --rm -v "$(pwd)/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest
+
+      - name: Derselbe Datenbestand, dieselbe Audit-Kette
+        working-directory: docker
+        run: |
+          set -eu
+          docker compose restart app
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from audit_entries" > /tmp/after.txt
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-after.txt
+
+          diff /tmp/before.txt /tmp/after.txt
+          # The heads matter most. They were written outside the database, so a
+          # log rewritten to fit itself still fails this comparison.
+          diff /tmp/chains-before.txt /tmp/chains-after.txt
+          echo "Datenbestand und Audit-Ketten stimmen mit der Sicherung überein."
+
+          files=$(docker compose exec -T app sh -c "ls -1 /var/lib/opengewerk/storage | wc -l" | tr -d "\r")
+          echo "Dateien im Speicher: ${files}"
+          test "${files}" = "3"
+
+          # The instance has to come back up on the restored data, not merely
+          # hold it. That is the part of the issue saying "and the application
+          # starts with the same data".
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --silent --fail http://127.0.0.1:3000/health | grep -q bereit; then
+              echo "Die Anwendung läuft auf dem zurückgespielten Bestand."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Die Anwendung wird nach dem Rückspielen nicht gesund." >&2
+          exit 1
+
+      - name: Eine beschädigte Sicherung wird abgelehnt
+        working-directory: docker
+        run: |
+          set -eu
+          # Overwrite a stretch in the middle of the archive. The manifest has
+          # to catch that before anything touches the database, because a
+          # restore that half succeeds is worse than one that never starts.
+          docker compose --profile backup run --rm --entrypoint sh backup -c 'file=$(find /var/lib/opengewerk/backups -name "opengewerk-*" | sort | tail -n 1); size=$(stat -c %s "$file"); dd if=/dev/urandom of="$file" bs=1 seek=$((size / 2)) count=64 conv=notrunc 2>/dev/null; echo "Byte in $file verändert."'
+
+          if docker compose --profile backup run --rm -v "$(pwd)/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest; then
+            echo "Die beschädigte Sicherung wurde angenommen. Das ist der Fehler." >&2
+            exit 1
+          fi
+
+          echo "Die beschädigte Sicherung wurde abgelehnt."
+
+      - name: Protokolle bei einem Fehlschlag
+        if: failure()
+        working-directory: docker
+        run: docker compose logs
+
+      - name: Aufräumen
+        if: always()
+        working-directory: docker
+        run: docker compose --profile backup down --volumes --remove-orphans

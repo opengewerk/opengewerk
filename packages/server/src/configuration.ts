@@ -1,3 +1,5 @@
+import { accessSync, constants, statSync } from 'node:fs'
+
 /**
  * What an instance needs to know, read from the environment once and checked
  * before anything connects.
@@ -17,6 +19,16 @@ export interface Configuration {
   readonly port: number
   /** The address to bind. Inside a container that has to be every interface. */
   readonly host: string
+  /**
+   * Where the content addressed file store lives. Photos, receipts, the PDF
+   * and XML of an issued document; per ADR 0007 a directory whose file names
+   * are the SHA-256 of their contents.
+   *
+   * It belongs to the same backup run as the database, because a document row
+   * points at a file by hash. A backup holding only one of the two restores
+   * invoices that refer to files nobody has.
+   */
+  readonly storagePath: string
 }
 
 /** What went wrong, phrased for whoever is looking at the container log. */
@@ -122,9 +134,68 @@ export const migrationRole = 'opengewerk_owner'
 /** The role the application connects as, the one the policies are written for. */
 export const applicationRole = 'opengewerk_app'
 
-export function readConfiguration(environment: Environment = process.env): Configuration {
+/**
+ * The file store, checked for reachable and writable at startup rather than
+ * at the first upload.
+ *
+ * A wrong mount and missing permissions look identical from the outside: the
+ * instance starts, serves every page, and loses the first photo somebody takes
+ * on a roof. Finding that at startup costs a restart; finding it later costs
+ * the photo.
+ */
+function storagePath(environment: Environment, checkAccess: AccessCheck): string {
+  const path = required(environment, 'STORAGE_PATH')
+  const problem = checkAccess(path)
+
+  if (problem) {
+    throw new ConfigurationError(
+      `Auf den Dateispeicher unter "${path}" kann nicht geschrieben werden: ${problem}. ` +
+        'Existiert das Verzeichnis, und gehört es dem Benutzer, unter dem OpenGewerk läuft?',
+    )
+  }
+
+  return path
+}
+
+/**
+ * Whether a directory can be written to. Returns the reason when it cannot.
+ *
+ * Handed in rather than imported so that the check can be run against a
+ * temporary directory in a test, and so that this module stays testable
+ * without a file system underneath it.
+ */
+export type AccessCheck = (path: string) => string | null
+
+/**
+ * The real check, the one an instance uses.
+ *
+ * "Is it a directory" comes before "may I write to it", and not only for the
+ * nicer message. Linux answers `access(file, X_OK)` on a plain file with
+ * EACCES while Windows lets it pass, so asking about the permissions first
+ * makes the same wrong configuration report two different things depending on
+ * where the tests happen to run.
+ */
+export function directoryIsWritable(path: string): string | null {
+  try {
+    if (!statSync(path).isDirectory()) {
+      return 'es ist kein Verzeichnis'
+    }
+
+    accessSync(path, constants.W_OK | constants.X_OK)
+
+    return null
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+}
+
+export function readConfiguration(
+  environment: Environment = process.env,
+  checkAccess: AccessCheck = directoryIsWritable,
+): Configuration {
   return {
     databaseUrl: databaseUrl(environment),
+    storagePath: storagePath(environment, checkAccess),
     port: port(environment, 'PORT', 3000),
     // Every interface, because inside a container the loopback address means
     // "reachable by nobody". What limits access is the published port and the
