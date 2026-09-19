@@ -90,6 +90,23 @@ export function decideMerge(operation: Operation, current: RecordState | null): 
     return { outcome: 'conflict', reason: 'record_missing', fields: [] }
   }
 
+  // Deleted counts as not there, and this is the half of `record_missing` that
+  // could never be reached: nothing is ever removed for real, so a row is found
+  // whatever state it is in. Without this, a change to a deleted record is
+  // answered with "applied" and lands on a row no list will ever show again.
+  //
+  // It sits after the branch for creating on purpose. Creating has to keep
+  // finding the deleted row, because that is what makes a repeated create a
+  // `skip` instead of a primary key collision.
+  if (!sameValue(current['deletedAt'], null)) {
+    // Deleting something that is already deleted is not a disagreement, it is
+    // a queue arriving twice. A conflict here would put an entry in front of a
+    // person for every repeat of a transmission that did exactly what it said.
+    return operation.kind === 'delete'
+      ? { outcome: 'skip', reason: 'nothing_to_do' }
+      : { outcome: 'conflict', reason: 'record_missing', fields: [] }
+  }
+
   if (policy.change === 'never') {
     return { outcome: 'conflict', reason: 'online_only', fields: [] }
   }
@@ -101,6 +118,18 @@ export function decideMerge(operation: Operation, current: RecordState | null): 
   }
 
   if (operation.kind === 'delete') {
+    // A delete carries no patches, so the field by field comparison below has
+    // nothing to work on and the version is the only thing left to ask. It is
+    // also the right question: deleting touches every field at once, so it
+    // collides with any change somebody made in the meantime, and that is a
+    // decision for a person and not for whoever sent last.
+    //
+    // Without a base version the device made no claim about the state it saw,
+    // so there is nothing to contradict and the delete stands.
+    if (operation.baseVersion !== null && !sameValue(operation.baseVersion, current['version'])) {
+      return { outcome: 'conflict', reason: 'changed_elsewhere', fields: [] }
+    }
+
     return { outcome: 'apply', values: {} }
   }
 

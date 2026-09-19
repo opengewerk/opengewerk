@@ -23,6 +23,12 @@ import { syncConflicts, syncOperations } from './schema/index.js'
  * the request, never by its body. The rest are kept by a trigger, and a device
  * that wrote its own version number could make any change look like the newest
  * one there is.
+ *
+ * `deletedAt` is in the list although the server writes it from an operation
+ * and not from a trigger. Deleting has its own kind of operation and a rule of
+ * its own to pass; a device that sets the column as an ordinary field would
+ * walk around that rule, and one that sets it back to null would undelete
+ * something nobody restored.
  */
 const keptByTheServer = new Set([
   'id',
@@ -32,6 +38,7 @@ const keptByTheServer = new Set([
   'updatedBy',
   'version',
   'changeSequence',
+  'deletedAt',
 ])
 
 /**
@@ -181,6 +188,11 @@ async function applyOne(
     throw new Error(`The table ${operation.entity} has no id to find a record by`)
   }
 
+  // Without `isNull(deletedAt)`, unlike every controller, and that is the
+  // point: a deleted row has to be found here. It is what turns a repeated
+  // create into a `skip` instead of a primary key collision, and what lets the
+  // merge tell "never existed" apart from "deleted since". The merge refuses
+  // the deleted row itself; leaving it out of the query would hide it.
   const found = await tx.select().from(table).where(eq(id, operation.recordId))
   const current = found[0] ? toRecordState(found[0] as Record<string, unknown>) : null
   const decision = decideMerge(operation, current)

@@ -527,6 +527,30 @@ describe('what a device may not do without a connection', () => {
     expect(refused.body.message).toMatch(/version/)
   })
 
+  it('cannot delete by writing the column that marks it', async () => {
+    const board = await installation('Löschen an der Regel vorbei')
+
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          change({
+            recordId: board.id,
+            baseVersion: board.version,
+            patches: [{ field: 'deletedAt', from: null, to: '2026-09-19T08:00:00.000Z' }],
+          }),
+        ],
+      })
+      .expect(400)
+
+    // Deleting has its own kind of operation and a rule of its own to pass.
+    // As an ordinary field the column would walk around that rule, and set
+    // back to null it would undelete something nobody restored.
+    expect(refused.body.message).toMatch(/deletedAt/)
+  })
+
   it('cannot sync an entity nobody offered', async () => {
     await http()
       .post('/sync')
@@ -536,6 +560,77 @@ describe('what a device may not do without a connection', () => {
         operations: [change({ entity: 'number_ranges', recordId: newId<'number-range'>() })],
       })
       .expect(400)
+  })
+})
+
+describe('a record that was deleted while the device was away', () => {
+  it('takes no further change, it is as good as missing', async () => {
+    const board = await installation('Aus dem Büro gelöscht')
+
+    await http().delete(`/installations/${board.id}`).set('x-test-identity', office()).expect(200)
+
+    const answer = await push(technician(), 'telefon-anna', [
+      change({
+        recordId: board.id,
+        baseVersion: board.version,
+        patches: [{ field: 'designation', from: 'Aus dem Büro gelöscht', to: 'Umbenannt' }],
+      }),
+    ])
+
+    // Nothing is ever removed for real, so the row is still there to be found
+    // and the change would land on it. Nobody would ever see the result: the
+    // record is out of every list.
+    expect(answer.receipts[0]?.outcome).toBe('conflict')
+    expect(answer.receipts[0]?.reason).toBe('record_missing')
+
+    const conflicts = await http()
+      .get('/sync/conflicts')
+      .set('x-test-identity', office())
+      .expect(200)
+    expect(
+      (conflicts.body as { recordId: string }[]).some((entry) => entry.recordId === board.id),
+    ).toBe(true)
+  })
+
+  it('is not deleted a second time when the queue arrives again', async () => {
+    const board = await installation('Zweimal gelöscht')
+
+    const first = await push(technician(), 'telefon-anna', [
+      change({ recordId: board.id, kind: 'delete', baseVersion: board.version }),
+    ])
+    expect(first.receipts[0]?.outcome).toBe('applied')
+
+    // A new operation id, so the recorded receipt does not catch it. What
+    // catches it is the state: the row is already gone, and asking a person to
+    // decide about that would be an entry on the list for nothing.
+    const again = await push(technician(), 'telefon-anna', [
+      change({ recordId: board.id, kind: 'delete', baseVersion: board.version }),
+    ])
+    expect(again.receipts[0]?.outcome).toBe('skipped')
+    expect(again.receipts[0]?.reason).toBe('nothing_to_do')
+  })
+
+  it('collides with a delete when somebody changed it in the meantime', async () => {
+    const board = await installation('Geändert und gelöscht')
+
+    await http()
+      .patch(`/installations/${board.id}`)
+      .set('x-test-identity', office())
+      .send({ designation: 'Im Büro umbenannt' })
+      .expect(200)
+
+    // The device still holds the version from before the office touched it. A
+    // delete carries no fields to compare, so the version is the only thing
+    // that can say the record moved on.
+    const answer = await push(technician(), 'telefon-anna', [
+      change({ recordId: board.id, kind: 'delete', baseVersion: board.version }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('conflict')
+    expect(answer.receipts[0]?.reason).toBe('changed_elsewhere')
+
+    const listed = await http().get('/installations').set('x-test-identity', office()).expect(200)
+    expect((listed.body as { id: string }[]).some((entry) => entry.id === board.id)).toBe(true)
   })
 })
 
