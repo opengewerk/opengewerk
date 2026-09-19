@@ -44,6 +44,14 @@ export interface LateInterest {
  * rather than a release. Where no rate has been entered for a day, nothing is
  * returned but an error, because a made up interest rate on a real invoice is
  * worse than a missing one.
+ *
+ * The one number here that carries no source is the 360 the year is divided
+ * into. Every rate beside it comes out of a package and names its paragraph;
+ * this divisor is an assumption about how days are counted, it sits in code
+ * rather than in data, and it is worth real money: ten thousand euro ninety
+ * days late come to 263.00 euro over 360 days and 259.40 euro over 365. It is
+ * written down as an open question in the check of 19.09.2026 on issue #31
+ * rather than quietly settled here.
  */
 export function lateInterestOn(
   rules: RuleSet,
@@ -58,7 +66,6 @@ export function lateInterestOn(
   )
   const basisPoints = baseRateBasisPoints + premiumBasisPoints
 
-  // A year of 360 days, the way German commercial practice counts it.
   const perYear = applyRate(owed.principalCents, basisPoints)
 
   return {

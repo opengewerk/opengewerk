@@ -150,6 +150,20 @@ describe('the packages that ship', () => {
     }
   })
 
+  it('say when somebody last held them against their source', () => {
+    // What came out of the check on issue #31, kept where it cannot be
+    // mislaid. These files are the one place in the repository where a value
+    // can be wrong without any code being wrong with it, so the date of the
+    // last look belongs in the file rather than in a comment on an issue that
+    // nobody reads again. A new package without one turns this red, which is
+    // the moment to go and look rather than a year later.
+    for (const entry of rulePackages) {
+      expect({ [entry.package]: /\b\d{2}\.\d{2}\.\d{4}\b/.test(entry.note) }).toEqual({
+        [entry.package]: true,
+      })
+    }
+  })
+
   it('leave no hole inside a run of one key', () => {
     // A hole is allowed at the end of a package, where knowledge stops. One in
     // the middle is a maintenance slip, and it would show up as an invoice

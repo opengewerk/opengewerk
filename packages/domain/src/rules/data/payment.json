@@ -1,6 +1,6 @@
 {
   "package": "payment",
-  "note": "Zahlungsverzug nach BGB. Der Aufschlag gilt auf den Basiszinssatz, der in einem eigenen Paket steht und zweimal im Jahr neu festgesetzt wird.",
+  "note": "Zahlungsverzug nach BGB. Der Aufschlag gilt auf den Basiszinssatz, der in einem eigenen Paket steht und zweimal im Jahr neu festgesetzt wird. Die Werte sind am 19.09.2026 gegen den Gesetzestext bei gesetze-im-internet.de geprüft. Ein Vorbehalt gilt für die Stichtage von 2014: Art. 229 § 34 EGBGB knüpft sie an das Schuldverhältnis und nicht an den Tag, nach dem diese Engine sucht, siehe die Notizen an den betroffenen Datensätzen.",
   "records": [
     {
       "key": "payment.default_after_days",
@@ -17,7 +17,8 @@
       "validUntil": null,
       "unit": "days",
       "value": 60,
-      "source": "§ 271a Abs. 1 BGB"
+      "source": "§ 271a Abs. 1 BGB",
+      "note": "Keine feste Obergrenze, sondern die Schwelle, ab der eine längere Frist ausdrücklich vereinbart und nicht grob unbillig sein muss. Gegenüber einem öffentlichen Auftraggeber gelten nach Abs. 2 schärfere Grenzen, 30 Tage und absolut 60, die hier noch fehlen. Gilt nicht gegenüber Verbrauchern, Abs. 5 Nr. 2. Zum Stichtag siehe Art. 229 § 34 EGBGB."
     },
     {
       "key": "late_payment.premium_consumer",
@@ -33,7 +34,8 @@
       "validUntil": "2014-07-28",
       "unit": "basis_points",
       "value": 800,
-      "source": "§ 288 Abs. 2 BGB in der bis 2014 geltenden Fassung"
+      "source": "§ 288 Abs. 2 BGB in der bis 2014 geltenden Fassung",
+      "note": "Über lateInterestOn heute nicht erreichbar, weil das Basiszinspaket erst am 01.07.2016 beginnt. Der Datensatz steht trotzdem hier, denn er ist der Grund, warum der Nachfolger einen Stichtag hat."
     },
     {
       "key": "late_payment.premium_business",
@@ -41,7 +43,8 @@
       "validUntil": null,
       "unit": "basis_points",
       "value": 900,
-      "source": "§ 288 Abs. 2 BGB"
+      "source": "§ 288 Abs. 2 BGB",
+      "note": "Der Stichtag ist der Tag des Gesetzes, nicht der Tag der Forderung. Nach Art. 229 § 34 EGBGB gelten neun Punkte nur für ein Schuldverhältnis, das nach dem 28.07.2014 entstanden ist, bei einem älteren Dauerschuldverhältnis für Gegenleistungen nach dem 30.06.2016. Diese Engine sucht nach einem Tag und kennt das Schuldverhältnis nicht, ein alter Vertrag bekäme hier also neun statt acht Punkte."
     },
     {
       "key": "late_payment.flat_fee",
@@ -50,7 +53,7 @@
       "unit": "cents",
       "value": 4000,
       "source": "§ 288 Abs. 5 BGB",
-      "note": "Nur gegenüber Unternehmern, und auf einen Verzugsschaden anzurechnen."
+      "note": "Nur gegenüber Unternehmern, und auf einen Verzugsschaden anzurechnen. Derselbe Vorbehalt wie beim Aufschlag von 2014: die Pauschale gibt es nach Art. 229 § 34 EGBGB erst für ein Schuldverhältnis, das nach dem 28.07.2014 entstanden ist."
     }
   ]
 }

@@ -171,7 +171,7 @@ Gesetzliche Parameter stehen nicht im Quelltext, sondern als Datensätze in Rege
 
 Davon getrennt stehen die **mandantenbezogenen Parameter**: ob ein Betrieb die Kleinunternehmerregelung in Anspruch nimmt, welches Zahlungsziel er auf seine Rechnungen schreibt. Die liegen in der Datenbank, tragen ebenfalls einen Gültigkeitszeitraum und werden nicht geändert, sondern ab einem Tag abgelöst. Ein Betrieb kann damit nie eine gesetzliche Größe verschieben: der Schlüssel ist eine Aufzählung von Einstellungen, und keine Regel steht darin.
 
-> Die Werte in den Paketen sind nach bestem Wissen eingetragen und mit Fundstelle belegt, aber vor dem Produktivbetrieb gehören sie durch eine fachkundige Prüfung. Was dieses Fundament liefert, ist die Mechanik, nicht die Gewähr für jede Zahl darin.
+> **Stand der Prüfung:** Am 19.09.2026 sind alle 26 Datensätze gegen ihre Fundstelle gehalten worden, die Basiszinssätze gegen die Tabelle der Bundesbank, die übrigen gegen die datierten Gesetzesfassungen. Kein eingetragener Wert wich von seiner Fundstelle ab. Was dabei aufgefallen ist, steht in Issue #31: der Nenner von 360 Tagen in der Verzugszinsrechnung trägt als einzige Zahl der Engine keine Fundstelle, die Stichtage von 2014 hängen nach Art. 229 § 34 EGBGB am Schuldverhältnis und nicht am Tag, und mehrere gesetzliche Größen, die Abschnitt 1.7 des Konzepts aufzählt, stehen noch in keinem Paket. **Das ersetzt die fachkundige Abnahme nicht.** Eine Vorprüfung sagt, dass die Zahl zur Fundstelle passt; ob die Fundstelle die richtige ist und ob die Vereinfachungen tragen, sagt sie nicht.
 
 ## Betrieb
 

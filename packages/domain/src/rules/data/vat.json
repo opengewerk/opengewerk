@@ -1,6 +1,6 @@
 {
   "package": "vat",
-  "note": "Umsatzsteuersätze nach UStG. Das Paket beginnt 2007, weil davor kein Beleg aus dieser Software stammen kann. Ein Beleg mit früherem Datum bekommt keine Antwort, statt einer geratenen.",
+  "note": "Umsatzsteuersätze nach UStG. Das Paket beginnt 2007, weil davor kein Beleg aus dieser Software stammen kann. Ein Beleg mit früherem Datum bekommt keine Antwort, statt einer geratenen. Die sechs Datensätze sind am 19.09.2026 gegen § 12 und § 28 UStG bei gesetze-im-internet.de geprüft. Was hier steht, sind die beiden allgemeinen Sätze; die Zuordnung eines einzelnen Umsatzes zum ermäßigten Satz richtet sich nach Anlage 2 und gehört zum Belegwesen, nicht in dieses Paket.",
   "records": [
     {
       "key": "vat.standard",
