@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Basiszinssätze bis zum 31.12.2026 sind eingetragen: 2,27 Prozent ab 01.01.2025,
+  1,27 ab 01.07.2025, 1,27 ab 01.01.2026 und 1,52 ab 01.07.2026. Vorher gab die Engine
+  für jeden Tag ab dem 01.01.2025 einen Fehler statt eines Verzugszinses, was die
+  gewollte Reaktion war und das Mahnwesen blockiert hätte
+
 - Zwei Verhaltenstests für `tenants` mit zwei Mandanten in der Datenbank: die Tabelle
   zeigt jedem genau seine eigene Zeile, und Anlegen, Umbenennen und Löschen werden
   abgewiesen. Es ist die einzige Tabelle, auf der die Policy den Primärschlüssel
@@ -264,6 +269,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Gewerke als Datenpakete
 
 ### Behoben
+
+- Der Basiszinssatz für das erste Halbjahr 2023 war falsch. Das Paket führte den Satz
+  von minus 0,88 Prozent bis zum 30.06.2023, tatsächlich endete er am 31.12.2022; ab
+  dem 01.01.2023 sind es 1,62 Prozent. Auf eine Forderung von 10.000 Euro, 90 Tage
+  überfällig, gegenüber einem Unternehmen ergab das 203,00 Euro Verzugszins statt
+  265,50 Euro. Gefunden beim Eintragen der neuen Werte, indem die vorhandenen gegen
+  dieselbe Tabelle gehalten wurden
 
 - Die Anwendungsrolle darf `tenants` nur noch lesen. Migration 0001 vergab pauschal auf
   alle damals vorhandenen Tabellen, jede spätere Tabelle bekam einen zugeschnittenen

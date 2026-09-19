@@ -1,14 +1,23 @@
 {
   "package": "base-rate",
-  "note": "Basiszinssatz nach § 247 BGB. Die Deutsche Bundesbank setzt ihn zum 1. Januar und zum 1. Juli neu fest und veröffentlicht ihn im Bundesanzeiger. Genau dafür ist diese Engine da: ein neuer Satz ist ein Eintrag in dieser Datei, kein Release. Das Paket endet bewusst dort, wo die hier eingetragenen Werte belegt sind. Für einen späteren Tag gibt die Engine keine Antwort, statt eine zu erfinden.",
+  "note": "Basiszinssatz nach § 247 BGB. Die Deutsche Bundesbank setzt ihn zum 1. Januar und zum 1. Juli neu fest und veröffentlicht ihn im Bundesanzeiger. Genau dafür ist diese Engine da: ein neuer Satz ist ein Eintrag in dieser Datei, kein Release. Das Paket endet bewusst dort, wo die hier eingetragenen Werte belegt sind, zuletzt am 31.12.2026. Für einen späteren Tag gibt die Engine keine Antwort, statt eine zu erfinden. Die Werte sind am 19.09.2026 gegen die Tabelle der Bundesbank geprüft, einzusehen unter bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820.",
   "records": [
     {
       "key": "base_rate.value",
       "validFrom": "2016-07-01",
-      "validUntil": "2023-06-30",
+      "validUntil": "2022-12-31",
       "unit": "basis_points",
       "value": -88,
       "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2023-01-01",
+      "validUntil": "2023-06-30",
+      "unit": "basis_points",
+      "value": 162,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank",
+      "note": "Der erste Satz über null seit Juli 2016."
     },
     {
       "key": "base_rate.value",
@@ -32,6 +41,38 @@
       "validUntil": "2024-12-31",
       "unit": "basis_points",
       "value": 337,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2025-01-01",
+      "validUntil": "2025-06-30",
+      "unit": "basis_points",
+      "value": 227,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2025-07-01",
+      "validUntil": "2025-12-31",
+      "unit": "basis_points",
+      "value": 127,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2026-01-01",
+      "validUntil": "2026-06-30",
+      "unit": "basis_points",
+      "value": 127,
+      "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
+    },
+    {
+      "key": "base_rate.value",
+      "validFrom": "2026-07-01",
+      "validUntil": "2026-12-31",
+      "unit": "basis_points",
+      "value": 152,
       "source": "§ 247 BGB, Bekanntmachung der Deutschen Bundesbank"
     }
   ]

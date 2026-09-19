@@ -257,12 +257,20 @@ describe('an invoice that was not paid', () => {
     // rather than inventing a rate. An invented interest rate on a real
     // invoice is worse than a missing one, and this is how the gap announces
     // itself: loudly, and before anything leaves the house.
+    //
+    // The day comes out of the package rather than standing here as a literal.
+    // Every new rate the Bundesbank sets moves the end, and a fixed date would
+    // turn each of those entries into a red test with nothing wrong.
+    const entered = shippedRules
+      .all()
+      .filter((entry) => entry.key === 'base_rate.value')
+      .map((entry) => entry.validUntil)
+      .filter((until): until is IsoDate => until !== null)
+      .sort()
+    const beyond = addDays(entered[entered.length - 1] as IsoDate, 1)
+
     expect(() =>
-      lateInterestOn(
-        shippedRules,
-        { principalCents: 1000, days: 30, debtor: 'business' },
-        '2026-01-01' as IsoDate,
-      ),
+      lateInterestOn(shippedRules, { principalCents: 1000, days: 30, debtor: 'business' }, beyond),
     ).toThrow(/base_rate/)
   })
 })
