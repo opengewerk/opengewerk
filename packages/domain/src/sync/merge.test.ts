@@ -310,6 +310,70 @@ describe('an operation on something that is not there', () => {
   })
 })
 
+describe('a record that has been deleted', () => {
+  const deleted: RecordState = {
+    version: 2,
+    designation: 'UV Keller',
+    deletedAt: '2026-09-19T08:00:00.000Z',
+  }
+
+  it('is as good as missing for a change', () => {
+    // Nothing is ever removed for real, so the row is still found. Answering
+    // "applied" would put the change on a row no list shows again.
+    expect(
+      decideMerge(operation({ patches: [patch('designation', 'UV Keller', 'UV Bad')] }), deleted),
+    ).toEqual({
+      outcome: 'conflict',
+      reason: 'record_missing',
+      fields: [],
+    })
+  })
+
+  it('is not deleted a second time', () => {
+    // A queue that arrives twice did exactly what it said the first time.
+    // A conflict here would ask a person to decide about nothing.
+    expect(decideMerge(operation({ kind: 'delete' }), deleted)).toEqual({
+      outcome: 'skip',
+      reason: 'nothing_to_do',
+    })
+  })
+
+  it('is still found when the same create arrives again', () => {
+    // The reason the query behind this keeps deleted rows. Hiding them would
+    // send a repeated create into the insert and onto a primary key collision.
+    const create = operation({ kind: 'create', patches: [patch('designation', null, 'UV Keller')] })
+
+    expect(decideMerge(create, deleted)).toEqual({ outcome: 'skip', reason: 'already_there' })
+  })
+})
+
+describe('deleting a record', () => {
+  const current: RecordState = { version: 3, designation: 'UV Keller', deletedAt: null }
+
+  it('collides with a change made while the device was away', () => {
+    // A delete carries no patches, so there is no field to compare. It touches
+    // every field at once, which is why any change in the meantime collides.
+    expect(decideMerge(operation({ kind: 'delete', baseVersion: 2 }), current)).toEqual({
+      outcome: 'conflict',
+      reason: 'changed_elsewhere',
+      fields: [],
+    })
+  })
+
+  it('goes through when nothing happened since the device read it', () => {
+    expect(decideMerge(operation({ kind: 'delete', baseVersion: 3 }), current)).toEqual({
+      outcome: 'apply',
+      values: {},
+    })
+  })
+
+  it('goes through when the device claims nothing about the version', () => {
+    expect(decideMerge(operation({ kind: 'delete', baseVersion: null }), current).outcome).toBe(
+      'apply',
+    )
+  })
+})
+
 describe('whatever the device sends', () => {
   const value = fc.oneof(fc.string(), fc.integer(), fc.boolean(), fc.constant(null))
 

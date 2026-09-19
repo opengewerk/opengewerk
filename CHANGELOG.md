@@ -247,6 +247,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Änderung an einem gelöschten Datensatz wird im Abgleich zum Konflikt und nicht
+  mehr angewendet. Weil nichts wirklich entfernt wird, findet der Abgleich die Zeile
+  weiterhin, quittierte die Änderung mit "angewendet" und schrieb sie auf einen
+  Datensatz, den keine Liste mehr zeigt. Ein wiederholtes Löschen zählt dabei als
+  übersprungen: eine doppelt gesendete Warteschlange ist keine Meinungsverschiedenheit
+- Ein Löschen über den Abgleich kollidiert mit einer Änderung, die inzwischen jemand
+  anders gemacht hat. Es trägt keine Feld-Patches, der Feldvergleich lief also ins Leere
+  und jedes Löschen ging durch. Maßgeblich ist jetzt die Basisversion
+- `deletedAt` steht in der Liste der Spalten, die nur der Server schreibt. Als
+  gewöhnliches Feld gesetzt wäre es ein Löschen an der Löschregel vorbei, auf null
+  zurückgesetzt eine Wiederherstellung, die niemand veranlasst hat
+- Belege können über den Abgleich nicht mehr festgeschrieben werden. `status`, `number`
+  und `issuedAt` sind dem Server vorbehalten, die Prüfung sitzt in der
+  Merge-Entscheidung und ein zweites Mal vor dem Schreiben. Über `POST /sync` genügte
+  `document.write`, und der Trigger hält nur `UPDATE` und `DELETE` auf, beim Anlegen ist
+  er nicht beteiligt
 - Gedankenstriche in der Feature-Gliederung und in den ADRs durch Doppelpunkt,
   Komma, Semikolon oder Punkt ersetzt, Zahlenbereiche durch einfache Bindestriche
 - Übrig gebliebene Kopie der alten Roadmap-Tabelle aus der Feature-Gliederung
