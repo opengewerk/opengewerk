@@ -216,9 +216,9 @@ jobs:
           # The migration created the tables, and every one of them is under
           # row level security. One without it would be readable across
           # tenants, and this is the run where that has to show up.
-          ungeschuetzt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from pg_tables where schemaname = 'public' and not rowsecurity")
-          echo "Tabellen ohne Row-Level Security: ${ungeschuetzt}"
-          test "${ungeschuetzt}" = "0"
+          unprotected=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from pg_tables where schemaname = 'public' and not rowsecurity")
+          echo "Tabellen ohne Row-Level Security: ${unprotected}"
+          test "${unprotected}" = "0"
 
       - name: Speicherbedarf im Leerlauf melden
         working-directory: docker
@@ -422,9 +422,9 @@ jobs:
         working-directory: docker
         run: |
           set -eu
-          eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          echo "Migrationen auf dem alten Stand: ${eingespielt}"
-          test "${eingespielt}" = "$(cat /tmp/migrations-old.txt)"
+          applied=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
+          echo "Migrationen auf dem alten Stand: ${applied}"
+          test "${applied}" = "$(cat /tmp/migrations-old.txt)"
 
           docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
             insert into tenants (id, name) values
@@ -456,28 +456,28 @@ jobs:
         working-directory: docker
         run: |
           set -eu
-          eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          # Aus dem Journal und nicht als feste Zahl: die naechste Migration
-          # wuerde diesen Job sonst reissen, ohne dass etwas kaputt waere.
+          applied=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
+          # From the journal rather than a fixed number: the next migration
+          # would otherwise break this job with nothing actually wrong.
           python3 -c "import json, pathlib; pathlib.Path('/tmp/migrations-new.txt').write_text(str(len(json.loads(pathlib.Path('../packages/server/migrations/meta/_journal.json').read_text(encoding='utf-8'))['entries'])), encoding='utf-8')"
-          echo "Migrationen nach dem Update: ${eingespielt}, erwartet: $(cat /tmp/migrations-new.txt)"
-          test "${eingespielt}" = "$(cat /tmp/migrations-new.txt)"
+          echo "Migrationen nach dem Update: ${applied}, erwartet: $(cat /tmp/migrations-new.txt)"
+          test "${applied}" = "$(cat /tmp/migrations-new.txt)"
 
-          kunden=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
-          test "${kunden}" = "2"
+          customers=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
+          test "${customers}" = "2"
 
           # One of the columns the update hangs on every table that holds
           # records. On rows that were there already it has to carry its
           # default, otherwise the migration would have stopped.
-          ohne=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers where change_sequence is null")
-          test "${ohne}" = "0"
+          missing=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers where change_sequence is null")
+          test "${missing}" = "0"
 
           docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-after.txt
           diff /tmp/chains-before.txt /tmp/chains-after.txt
 
-          gebrochen=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t, verify_audit_chain(t.id) v where v.broken_at is not null")
-          echo "Mandanten mit gebrochener Kette: ${gebrochen}"
-          test "${gebrochen}" = "0"
+          broken=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t, verify_audit_chain(t.id) v where v.broken_at is not null")
+          echo "Mandanten mit gebrochener Kette: ${broken}"
+          test "${broken}" = "0"
 
           health=$(curl --silent --fail http://127.0.0.1:3000/health)
           echo "Health nach dem Update: ${health}"
@@ -521,7 +521,7 @@ jobs:
           PYTHON
 
           cd docker
-          vorher=$(docker compose ps --quiet app)
+          before=$(docker compose ps --quiet app)
 
           if docker compose run --rm --build migrate > /tmp/migrate.log 2>&1; then
             echo "Die fehlerhafte Migration ging durch. Das ist der Fehler." >&2
@@ -540,8 +540,8 @@ jobs:
           # That is what makes a failed update a postponed one rather than an
           # outage, and it holds only because the migration ran before the
           # swap.
-          nachher=$(docker compose ps --quiet app)
-          test "${vorher}" = "${nachher}"
+          after=$(docker compose ps --quiet app)
+          test "${before}" = "${after}"
 
           health=$(curl --silent --fail http://127.0.0.1:3000/health)
           echo "Health nach dem Fehlschlag: ${health}"
@@ -550,15 +550,15 @@ jobs:
           # And the database stands where it stood. The first statement of the
           # failed migration went through without complaint, its table is gone
           # all the same, because both were inside one transaction.
-          eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          test "${eingespielt}" = "$(cat /tmp/migrations-new.txt)"
+          applied=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
+          test "${applied}" = "$(cat /tmp/migrations-new.txt)"
 
-          reste=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'warranties'")
-          echo "Reste der abgebrochenen Migration: ${reste}"
-          test "${reste}" = "0"
+          leftovers=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'warranties'")
+          echo "Reste der abgebrochenen Migration: ${leftovers}"
+          test "${leftovers}" = "0"
 
-          kunden=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
-          test "${kunden}" = "2"
+          customers=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
+          test "${customers}" = "2"
 
       - name: Protokolle bei einem Fehlschlag
         if: failure()
