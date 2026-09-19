@@ -42,8 +42,18 @@ services:
 
   # Brings the database up to date and exits. Runs on every "up", not only on
   # the first: against a database that is already current the run does
-  # nothing. That is what makes an update the two steps from issue #21,
-  # replace the image and start.
+  # nothing, which is what lets it stand in front of every start.
+  #
+  # An update calls it on its own first, and not through "up" alone:
+  #
+  #   docker compose run --rm --build migrate
+  #   docker compose up -d
+  #
+  # "up" recreates every container whose image changed before it starts any of
+  # them, so by the time the migration runs the serving container is already
+  # gone. If the migration then fails, the instance is down rather than still
+  # answering on the old state. Measured on 19.09.2026, the reason stands in
+  # the README under "Aktualisieren".
   #
   # Its own service, because it signs in as opengewerk_owner. The application
   # is never to see those credentials.

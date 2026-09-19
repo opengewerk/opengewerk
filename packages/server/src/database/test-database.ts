@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { Pool } from 'pg'
@@ -203,3 +204,103 @@ export const checkViolation = '23514'
 export const foreignKeyViolation = '23503'
 /** insufficient_privilege. What a row level security policy answers with. */
 export const insufficientPrivilege = '42501'
+
+/**
+ * A migration that does not exist in the repository, for a test that needs one
+ * to fail or to arrive out of order.
+ */
+export interface AddedMigration {
+  readonly tag: string
+  readonly sql: string
+  /**
+   * The timestamp in the journal. Left out it lands after the last real one,
+   * which is where a new migration belongs.
+   */
+  readonly when?: number
+}
+
+/**
+ * Builds the migrations folder as an older release carried it: the first
+ * `count` migrations and a journal that ends there.
+ *
+ * This is what makes an update testable without a second image. An older
+ * version differs from this one in exactly this respect, it brings fewer
+ * migration files, and a database migrated from such a folder stands on the
+ * state that release left behind.
+ *
+ * Returns the path to a folder in the temporary directory. Whoever asked for
+ * it removes it again.
+ */
+export function migrationsFolderUpTo(count: number, ...added: AddedMigration[]): string {
+  const journal = JSON.parse(
+    readFileSync(join(migrationsFolder, 'meta', '_journal.json'), 'utf8'),
+  ) as {
+    version: string
+    dialect: string
+    entries: { idx: number; version: string; when: number; tag: string; breakpoints: boolean }[]
+  }
+
+  const entries = [...journal.entries].sort((left, right) => left.idx - right.idx).slice(0, count)
+
+  if (entries.length < count) {
+    throw new Error(`Asked for ${count} migrations, the repository has ${journal.entries.length}`)
+  }
+
+  const folder = mkdtempSync(join(tmpdir(), 'opengewerk-migrations-'))
+  mkdirSync(join(folder, 'meta'))
+
+  for (const entry of entries) {
+    copyFileSync(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`))
+  }
+
+  const last = entries.at(-1)
+
+  for (const [position, migration] of added.entries()) {
+    writeFileSync(join(folder, `${migration.tag}.sql`), migration.sql, 'utf8')
+    entries.push({
+      idx: entries.length,
+      version: journal.version,
+      when: migration.when ?? (last?.when ?? 0) + 1000 * (position + 1),
+      tag: migration.tag,
+      breakpoints: true,
+    })
+  }
+
+  writeFileSync(
+    join(folder, 'meta', '_journal.json'),
+    JSON.stringify({ version: journal.version, dialect: journal.dialect, entries }, null, 2),
+    'utf8',
+  )
+
+  return folder
+}
+
+/**
+ * Changes a migration in a folder built by `migrationsFolderUpTo`, the way
+ * somebody would who corrects a merged migration instead of writing a new one.
+ */
+export function changeMigration(folder: string, tag: string, addition: string): void {
+  const path = join(folder, `${tag}.sql`)
+
+  writeFileSync(path, `${readFileSync(path, 'utf8')}\n${addition}\n`, 'utf8')
+}
+
+/** How many migrations the database says have run. */
+export async function appliedMigrationCount(pool: Pool): Promise<number> {
+  const { rows } = await pool.query<{ count: string }>(
+    'select count(*) as count from drizzle.__drizzle_migrations',
+  )
+
+  return Number(rows[0]?.count ?? 0)
+}
+
+export async function columnNames(pool: Pool, table: string): Promise<string[]> {
+  const result = await pool.query<{ column_name: string }>(
+    `select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = $1
+      order by column_name`,
+    [table],
+  )
+
+  return result.rows.map((row) => row.column_name)
+}

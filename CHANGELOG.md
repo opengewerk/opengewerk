@@ -9,6 +9,32 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Update ist zwei Aufrufe: erst `docker compose run --rm --build migrate`, dann
+  `docker compose up -d`. Die Reihenfolge ist keine Vorliebe. `up` allein erzeugt jeden
+  Container mit geändertem Abbild neu, bevor es irgendeinen startet, der laufende
+  Anwendungscontainer ist also schon weg, wenn die Migration anfängt. Schlägt sie dann
+  fehl, steht die Instanz still statt weiterzulaufen. Nachgemessen am 19.09.2026
+- Alle ausstehenden Migrationen laufen in einer einzigen Transaktion. Scheitert die
+  dritte von drei, steht die Datenbank auf dem Stand davor und nicht irgendwo dazwischen.
+  Der Preis ist, dass eine Migration nichts enthalten darf, was außerhalb einer
+  Transaktion laufen muss; ein Test hält das fest
+- Der Migrationslauf prüft die Hashes der bereits eingespielten Migrationen gegen die
+  Dateien im Abbild und lehnt ab, wenn eine geändert wurde. Ohne diese Prüfung passiert
+  schlicht nichts: drizzle vergleicht nur Zeitstempel, überspringt die geänderte Datei
+  und meldet Erfolg. Gegengeprüft, die Tabelle blieb ungebaut und der Lauf sagte kein Wort
+- Nach dem Lauf wird nachgesehen, ob wirklich alles eingespielt wurde. Eine Migration mit
+  einem Zeitstempel vor dem der zuletzt eingespielten wird sonst stillschweigend
+  übergangen, und das ist genau das, was zwei in der falschen Reihenfolge gemergte
+  Branches hinterlassen
+- Ein Abbild, das älter ist als die Datenbank, wird abgelehnt statt ausgeführt. Es kennt
+  die Spalten nicht, die der neuere Stand angelegt hat
+- Acht Tests für den Update-Pfad, darunter der Sprung von einem älteren Stand mit Daten
+  über zwei Migrationen hinweg: Bestand, Spaltenvorgaben und Audit-Kette müssen danach
+  unverändert sein, und die Kette muss von ihrem alten Kopf aus weiterlaufen
+- Ein CI-Job fährt dasselbe mit Containern: ältere Fassung starten, Daten anlegen,
+  aktualisieren, vergleichen, danach eine fehlerhafte Migration einsetzen und prüfen, dass
+  der Aufruf abbricht, die Instanz weiterläuft und die Datenbank unberührt bleibt
+
 - Sicherung und Rückspielen als Skripte, nicht als Anleitung. Ein Lauf schreibt
   Datenbank, Dateispeicher und die Köpfe der Audit-Ketten in ein Archiv, ein zweiter
   spielt es zurück und prüft danach nach, ob alles zurückgekommen ist

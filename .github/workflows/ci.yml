@@ -366,3 +366,202 @@ jobs:
         if: always()
         working-directory: docker
         run: docker compose --profile backup down --volumes --remove-orphans
+
+  update:
+    name: Update einer laufenden Instanz
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Zugangsdaten für den Lauf erzeugen
+        working-directory: docker
+        run: |
+          set -eu
+          cp .env.example .env
+          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN; do
+            sed -i "s|^${name}=.*|${name}=$(openssl rand -hex 32)|" .env
+          done
+
+      - name: Auf den Stand einer älteren Fassung zurücknehmen
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          from pathlib import Path
+
+          # An older release differs from this one in the one respect that
+          # matters for an update: it brought fewer migrations. Four leaves the
+          # two that follow as the ones that have to carry data over.
+          #
+          # What this run cannot show is older application code, because none
+          # of it reads these tables yet. The path under test is the database
+          # one, and at this point that is the whole of it.
+          keep = 4
+
+          folder = Path("packages/server/migrations")
+          journal = json.loads((folder / "meta" / "_journal.json").read_text(encoding="utf-8"))
+          entries = sorted(journal["entries"], key=lambda entry: entry["idx"])
+
+          for entry in entries[keep:]:
+              (folder / (entry["tag"] + ".sql")).unlink()
+
+          journal["entries"] = entries[:keep]
+          (folder / "meta" / "_journal.json").write_text(
+              json.dumps(journal, indent=2), encoding="utf-8"
+          )
+          print("Zurückgenommen auf " + entries[keep - 1]["tag"] + ".")
+          PYTHON
+
+      - name: Ältere Fassung starten
+        working-directory: docker
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Daten anlegen und den Stand festhalten
+        working-directory: docker
+        run: |
+          set -eu
+          eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
+          echo "Migrationen auf dem alten Stand: ${eingespielt}"
+          test "${eingespielt}" = "4"
+
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
+            insert into tenants (id, name) values
+              ('01931c00-0000-7000-8000-000000000001', 'Elektro Nord GmbH');
+            insert into customers (tenant_id, kind, name) values
+              ('01931c00-0000-7000-8000-000000000001', 'business', 'Bauherr Nord'),
+              ('01931c00-0000-7000-8000-000000000001', 'private', 'Familie Weber');"
+
+          # The head of the audit chain is the strict half of "data intact". It
+          # was computed over entries the update passes over, so whatever the
+          # update does to the log turns up here.
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-before.txt
+          cat /tmp/chains-before.txt
+
+      - name: Aktualisieren, erst migrieren und dann tauschen
+        run: |
+          set -eu
+          git checkout -- packages/server/migrations
+          cd docker
+
+          # In this order and not through "up" alone. "up" recreates every
+          # container whose image changed before it starts any of them, so the
+          # serving container would already be gone when the migration runs.
+          # The next step is the one that depends on it.
+          docker compose run --rm --build migrate
+          docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Derselbe Bestand auf dem neuen Stand
+        working-directory: docker
+        run: |
+          set -eu
+          eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
+          echo "Migrationen nach dem Update: ${eingespielt}"
+          test "${eingespielt}" = "6"
+
+          kunden=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
+          test "${kunden}" = "2"
+
+          # One of the columns the update hangs on every table that holds
+          # records. On rows that were there already it has to carry its
+          # default, otherwise the migration would have stopped.
+          ohne=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers where change_sequence is null")
+          test "${ohne}" = "0"
+
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-after.txt
+          diff /tmp/chains-before.txt /tmp/chains-after.txt
+
+          gebrochen=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t, verify_audit_chain(t.id) v where v.broken_at is not null")
+          echo "Mandanten mit gebrochener Kette: ${gebrochen}"
+          test "${gebrochen}" = "0"
+
+          health=$(curl --silent --fail http://127.0.0.1:3000/health)
+          echo "Health nach dem Update: ${health}"
+          test "${health}" = '{"status":"bereit","database":true}'
+
+      - name: Eine fehlerhafte Migration bricht ab, die Instanz läuft weiter
+        run: |
+          set -eu
+          python3 - <<'PYTHON'
+          import json
+          from pathlib import Path
+
+          # The mistake this really guards against: a column added without a
+          # default. It passes every development database that has no rows in
+          # it yet and fails on the first installation that has.
+          folder = Path("packages/server/migrations")
+          journal = json.loads((folder / "meta" / "_journal.json").read_text(encoding="utf-8"))
+          entries = sorted(journal["entries"], key=lambda entry: entry["idx"])
+          last = entries[-1]
+          tag = "9999_kreditrahmen"
+
+          (folder / (tag + ".sql")).write_text(
+              'CREATE TABLE "warranties" ("id" uuid PRIMARY KEY);--> statement-breakpoint\n'
+              'ALTER TABLE "customers" ADD COLUMN "credit_limit" numeric(12, 2) NOT NULL;\n',
+              encoding="utf-8",
+          )
+          entries.append(
+              {
+                  "idx": last["idx"] + 1,
+                  "version": last["version"],
+                  "when": last["when"] + 1000,
+                  "tag": tag,
+                  "breakpoints": True,
+              }
+          )
+          journal["entries"] = entries
+          (folder / "meta" / "_journal.json").write_text(
+              json.dumps(journal, indent=2), encoding="utf-8"
+          )
+          print("Fehlerhafte Migration " + tag + " eingesetzt.")
+          PYTHON
+
+          cd docker
+          vorher=$(docker compose ps --quiet app)
+
+          if docker compose run --rm --build migrate > /tmp/migrate.log 2>&1; then
+            echo "Die fehlerhafte Migration ging durch. Das ist der Fehler." >&2
+            cat /tmp/migrate.log
+            exit 1
+          fi
+
+          # The reason has to stand in the output. Somebody reads this in the
+          # moment the update stops, and "Migration fehlgeschlagen" without the
+          # statement sends them looking through six files.
+          tail -n 25 /tmp/migrate.log
+          grep -q "Die Migration ist fehlgeschlagen" /tmp/migrate.log
+          grep -q "credit_limit" /tmp/migrate.log
+
+          # The instance was never touched: same container, still answering.
+          # That is what makes a failed update a postponed one rather than an
+          # outage, and it holds only because the migration ran before the
+          # swap.
+          nachher=$(docker compose ps --quiet app)
+          test "${vorher}" = "${nachher}"
+
+          health=$(curl --silent --fail http://127.0.0.1:3000/health)
+          echo "Health nach dem Fehlschlag: ${health}"
+          test "${health}" = '{"status":"bereit","database":true}'
+
+          # And the database stands where it stood. The first statement of the
+          # failed migration went through without complaint, its table is gone
+          # all the same, because both were inside one transaction.
+          eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
+          test "${eingespielt}" = "6"
+
+          reste=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'warranties'")
+          echo "Reste der abgebrochenen Migration: ${reste}"
+          test "${reste}" = "0"
+
+          kunden=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
+          test "${kunden}" = "2"
+
+      - name: Protokolle bei einem Fehlschlag
+        if: failure()
+        working-directory: docker
+        run: docker compose logs
+
+      - name: Aufräumen
+        if: always()
+        working-directory: docker
+        run: docker compose down --volumes --remove-orphans
