@@ -166,12 +166,24 @@ function storagePath(environment: Environment, checkAccess: AccessCheck): string
  */
 export type AccessCheck = (path: string) => string | null
 
-/** The real check, the one an instance uses. */
+/**
+ * The real check, the one an instance uses.
+ *
+ * "Is it a directory" comes before "may I write to it", and not only for the
+ * nicer message. Linux answers `access(file, X_OK)` on a plain file with
+ * EACCES while Windows lets it pass, so asking about the permissions first
+ * makes the same wrong configuration report two different things depending on
+ * where the tests happen to run.
+ */
 export function directoryIsWritable(path: string): string | null {
   try {
+    if (!statSync(path).isDirectory()) {
+      return 'es ist kein Verzeichnis'
+    }
+
     accessSync(path, constants.W_OK | constants.X_OK)
 
-    return statSync(path).isDirectory() ? null : 'es ist kein Verzeichnis'
+    return null
   } catch (error) {
     return error instanceof Error ? error.message : String(error)
   }

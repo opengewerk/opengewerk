@@ -119,13 +119,21 @@ describe('the file store', () => {
     expect(() => readConfiguration(valid, denied)).toThrow(/\/var\/lib\/opengewerk\/storage/)
   })
 
+  /**
+   * Against the real file system, because the interesting part of this check
+   * is what the operating system answers, and a stub would only repeat what
+   * the test already assumes.
+   */
   it('really looks at the file system, not only at a stub', () => {
     const temporary = mkdtempSync(join(tmpdir(), 'opengewerk-storage-'))
 
     try {
       expect(directoryIsWritable(temporary)).toBeNull()
-      expect(directoryIsWritable(join(temporary, 'gibt-es-nicht'))).not.toBeNull()
+      expect(directoryIsWritable(join(temporary, 'gibt-es-nicht'))).toMatch(/ENOENT/)
 
+      // The same message on Linux and on Windows. Asking about permissions
+      // first would give EACCES on one and pass on the other, and a wrong
+      // mount would then be reported differently depending on the machine.
       const file = join(temporary, 'keine-mappe')
       writeFileSync(file, 'x')
       expect(directoryIsWritable(file)).toBe('es ist kein Verzeichnis')
