@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-OpenGewerk steht am Anfang von **Phase 0**. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und seit dem 18.09.2026 das Monorepo-Gerüst mit Typprüfung, Lint und Tests. Fachlogik gibt es noch keine: die Pakete sind bis auf ihre Konfiguration leer, der Inhalt kommt mit den Issues der Phase 0.
+OpenGewerk steckt mitten in **Phase 0**. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und das Fundament: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose. Eine Anmeldung gibt es noch nicht, eine Oberfläche auch nicht; eine laufende Instanz lehnt deshalb jede Anfrage an die Daten ab. Was an Fachlogik darauf aufsetzt, kommt mit Phase 1.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -107,7 +107,7 @@ Geprüft wird serverseitig an jeder Route, über einen global registrierten Guar
 
 **Rechte und Mandantentrennung sind zwei Fragen.** Die Rechte sagen, *was* jemand tun darf, Row-Level Security sagt, *wessen* Daten er dabei sieht. Das Büro des einen Mandanten hat jedes Recht auf die Kunden des anderen und sieht trotzdem keinen einzigen.
 
-Einen Einstiegspunkt, der den Server startet, gibt es noch nicht. Das ist Absicht: die Anwendung verlangt eine Identitätsquelle, und die einzige, die sich heute schreiben ließe, würde jeden hereinlassen. Der Server startet erst, wenn die Anmeldung da ist.
+Eine Anmeldung gibt es noch nicht, und solange das so ist, läuft eine Instanz mit einer Identitätsquelle, die **niemanden** erkennt. Jede Route hinter dem Guard antwortet damit mit 401. Das ist nicht dieselbe Sache wie der Notbehelf, der beim Bau der Rechte verworfen wurde: der hätte jeden hereingelassen. Dieser lässt keinen herein, und deshalb kann eine Instanz betrieben, migriert und gemessen werden, bevor es irgendwo etwas zum Anmelden gibt. Wenn die Authentifizierung kommt, wird genau diese eine Klasse ausgetauscht.
 
 ### Nummernkreise und Festschreibung
 
@@ -172,6 +172,103 @@ Gesetzliche Parameter stehen nicht im Quelltext, sondern als Datensätze in Rege
 Davon getrennt stehen die **mandantenbezogenen Parameter**: ob ein Betrieb die Kleinunternehmerregelung in Anspruch nimmt, welches Zahlungsziel er auf seine Rechnungen schreibt. Die liegen in der Datenbank, tragen ebenfalls einen Gültigkeitszeitraum und werden nicht geändert, sondern ab einem Tag abgelöst. Ein Betrieb kann damit nie eine gesetzliche Größe verschieben: der Schlüssel ist eine Aufzählung von Einstellungen, und keine Regel steht darin.
 
 > Die Werte in den Paketen sind nach bestem Wissen eingetragen und mit Fundstelle belegt, aber vor dem Produktivbetrieb gehören sie durch eine fachkundige Prüfung. Was dieses Fundament liefert, ist die Mechanik, nicht die Gewähr für jede Zahl darin.
+
+## Betrieb
+
+Betriebsfähigkeit gehört zum Produkt, nicht in eine Anleitung. Auf einer leeren
+Maschine mit Docker reichen drei Zeilen:
+
+```bash
+cp docker/.env.example docker/.env
+```
+
+Dann die vier Passwörter in `docker/.env` ersetzen, jedes einzeln erzeugt mit
+`openssl rand -hex 32`, und starten:
+
+```bash
+docker compose -f docker/compose.yaml up -d
+```
+
+Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
+`curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Alles
+andere antwortet mit 401, weil es noch keine Anmeldung gibt.
+
+**Hex und nicht base64 bei den Passwörtern**, und das ist kein Geschmack. Die
+Passwörter stehen in Verbindungsadressen, und ein `/` oder `@` darin teilt die
+Adresse an der falschen Stelle: aus `postgres://opengewerk_owner:ab/cd@postgres/...`
+wird ein Zugriff auf einen Rechner namens `opengewerk_owner`. Die Fehlermeldung
+lautet dann "getaddrinfo ENOTFOUND", und darauf kommt niemand von selbst.
+`openssl rand -base64` liefert regelmäßig beide Zeichen. OpenGewerk erkennt
+diesen Fall beim Start und sagt, woran es liegt.
+
+### Drei Dienste, und was sie kosten
+
+| Dienst | Abbild | Speicher im Leerlauf |
+| --- | --- | --- |
+| Anwendung | 291 MB | 81 MiB unter einem Limit von 1 GB, 195 MiB ohne Limit |
+| PostgreSQL 18 | 433 MB | 33 MiB |
+| Renderer (abschaltbar) | 3,9 GB | 342 MiB |
+
+Gemessen am 19.09.2026 mit `docker stats --no-stream` auf einer leeren
+Instanz. Die zwei Zahlen bei der Anwendung sind die wichtigste Angabe hier:
+Node wählt seinen Heap nach dem verfügbaren Speicher, und auf einer Maschine
+mit 30 GB nimmt es sich mehr, als es braucht. Bekommt der Container ein Limit,
+schrumpft der Bedarf auf ein Drittel. Für das Ziel aus ADR 0002, zwei Gigabyte
+für alles, ist damit reichlich Luft: Anwendung und Datenbank zusammen bleiben
+unter 120 MiB, nachgemessen mit `mem_limit` von 1 GB und 768 MB.
+
+Der Renderer ist der Grund, warum er ein eigener Container ist. Er kostet
+allein mehr Speicher als der Rest zusammen und fast vier Gigabyte auf der
+Platte, und die meisten Installationen brauchen ihn selten. Er läuft deshalb
+nur, wenn er angefordert wird:
+
+```bash
+docker compose -f docker/compose.yaml --profile renderer up -d
+```
+
+Ohne ihn läuft alles andere weiter, und ein Versuch, ein PDF zu erzeugen,
+bekommt eine Meldung, die den Befehl oben nennt. Das ist die Zusage aus
+ADR 0007.
+
+> Das Abbild `ghcr.io/browserless/chromium` bringt eine fertige PDF-Schnittstelle
+> mit, ist mit 3,9 GB aber deutlich größer als die 300 MB, mit denen ADR 0007
+> gerechnet hat. Ob ein schlankeres Chromium diese Schnittstelle ersetzen kann,
+> wird mit der Dokumentenerzeugung in Phase 1 entschieden.
+
+### Zwei Rollen, nicht eine
+
+Der Container migriert nicht beim Start, sondern in einem eigenen Schritt davor,
+und der meldet sich mit einer anderen Rolle an:
+
+- `opengewerk_owner` besitzt die Tabellen und führt die Migrationen aus.
+- `opengewerk_app` ist die Rolle, mit der die Anwendung arbeitet. Sie darf
+  nichts anlegen und nichts ändern am Schema, und für sie gilt die
+  Mandantentrennung.
+
+Die Trennung ist der Grund, warum eine Anwendung mit den Zugangsdaten des
+Eigentümers gar nicht erst startet: für den Eigentümer einer Tabelle greift
+Row-Level Security nur über `FORCE`, und eine Instanz, die als er verbindet,
+hätte eine Absicherung, die aussieht wie eine und keine ist. OpenGewerk weist
+so eine `DATABASE_URL` beim Start zurück, statt sie hinzunehmen.
+
+Angelegt werden beide Rollen einmalig von `docker/postgres-init/10-roles.sh`,
+beim ersten Start des Datenbank-Containers. Die Migration legt `opengewerk_app`
+bewusst ohne Passwort und ohne Anmelderecht an: Zugangsdaten gehören nicht in
+eine Datei, die in jedem Klon dieses Repositories liegt.
+
+### Was beim Aufsetzen sonst noch Zeit kostet
+
+- **Das Volume gehört auf `/var/lib/postgresql`, nicht auf `.../data`.** Die
+  Abbilder ab PostgreSQL 18 legen die Daten in einem Unterverzeichnis je
+  Hauptversion ab, damit ein späteres `pg_upgrade --link` nicht über eine
+  Mount-Grenze stolpert. Auf dem alten Pfad startet der Container gar nicht
+  erst, mit einer langen Meldung, in der die eine entscheidende Zeile
+  untergeht.
+- **Vor die Anwendung gehört ein Reverse Proxy mit TLS.** Sie lauscht
+  absichtlich nur auf `127.0.0.1`. Eine Anwendung, die Rechnungen führt, steht
+  nicht unverschlüsselt im Netz.
+- **Die `.env` ist die einzige Datei mit Zugangsdaten.** `chmod 600`, und sie
+  bleibt draußen aus dem Repository.
 
 ## Roadmap
 

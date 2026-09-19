@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { Database } from '../database/database.js'
 import { ApiModule } from './api.module.js'
-import { PERMISSION_METADATA } from './authorization.js'
+import { PERMISSION_METADATA, PUBLIC_METADATA } from './authorization.js'
 import type { IdentitySource } from './identity.js'
 
 /**
@@ -26,6 +26,7 @@ interface Route {
   readonly name: string
   readonly writes: boolean
   readonly permission: Permission | undefined
+  readonly isPublic: boolean
 }
 
 function routesOf(controllers: readonly unknown[]): Route[] {
@@ -57,6 +58,7 @@ function routesOf(controllers: readonly unknown[]): Route[] {
         name: `${verb ?? 'GET'} /${base}${path === '/' ? '' : `/${path}`}`,
         writes: verb !== undefined,
         permission: Reflect.getMetadata(PERMISSION_METADATA, handler) as Permission | undefined,
+        isPublic: Reflect.getMetadata(PUBLIC_METADATA, handler) === true,
       })
     }
   }
@@ -80,10 +82,32 @@ describe('every route', () => {
 
   it('declares the right it needs, writing ones above all', () => {
     const undeclared = routesOf(controllers)
-      .filter((route) => route.permission === undefined)
+      .filter((route) => route.permission === undefined && !route.isPublic)
       .map((route) => route.name)
 
     expect(undeclared).toEqual([])
+  })
+
+  /**
+   * The exception to the rule above, held as a list on purpose. A route
+   * without a right is refused, a public one is not, so the second kind is
+   * the one worth counting: adding one turns this test red, which makes it a
+   * decision instead of a line in a diff nobody looked at twice.
+   */
+  it('that answers without an identity is one of the two the health check needs', () => {
+    const publicRoutes = routesOf(controllers)
+      .filter((route) => route.isPublic)
+      .map((route) => route.name)
+
+    expect(publicRoutes).toEqual(['GET /health'])
+  })
+
+  it('that answers without an identity never writes', () => {
+    const writingAndPublic = routesOf(controllers)
+      .filter((route) => route.isPublic && route.writes)
+      .map((route) => route.name)
+
+    expect(writingAndPublic).toEqual([])
   })
 
   it('that issues a document asks for the right to issue, not the right to write', () => {

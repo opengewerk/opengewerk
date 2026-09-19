@@ -159,6 +159,9 @@ jobs:
       - name: Abhängigkeiten installieren
         run: pnpm install --frozen-lockfile
 
+      - name: Bauen
+        run: pnpm run build
+
       - name: Typprüfung
         run: pnpm run typecheck
 
@@ -169,3 +172,64 @@ jobs:
         run: pnpm run test
         env:
           DATABASE_URL: postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test
+
+  betrieb:
+    name: Betrieb über Docker Compose
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Zugangsdaten für den Lauf erzeugen
+        working-directory: docker
+        run: |
+          # Hex and not base64: a "/" in a password splits the connection
+          # string at the wrong place, and the failure that reaches the log is
+          # a name lookup for a host nobody meant.
+          cp .env.example .env
+          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN; do
+            secret=$(openssl rand -hex 32)
+            sed -i "s|^${name}=.*|${name}=${secret}|" .env
+          done
+          ! grep -q "bitte-ersetzen" .env
+
+      - name: Stapel starten
+        working-directory: docker
+        run: docker compose up -d --build --wait --wait-timeout 300
+
+      - name: Instanz antwortet mit migrierter Datenbank
+        working-directory: docker
+        run: |
+          set -eu
+
+          health=$(curl --silent --fail http://127.0.0.1:3000/health)
+          echo "Health: ${health}"
+          test "${health}" = '{"status":"bereit","database":true}'
+
+          # Without authentication every route touching data has to refuse. An
+          # instance answering 200 here would be handing out tenant data.
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/customers)
+          echo "GET /customers: ${status}"
+          test "${status}" = "401"
+
+          # The migration created the tables, and every one of them is under
+          # row level security. One without it would be readable across
+          # tenants, and this is the run where that has to show up.
+          ungeschuetzt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from pg_tables where schemaname = 'public' and not rowsecurity")
+          echo "Tabellen ohne Row-Level Security: ${ungeschuetzt}"
+          test "${ungeschuetzt}" = "0"
+
+      - name: Speicherbedarf im Leerlauf melden
+        working-directory: docker
+        run: docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}'
+
+      - name: Protokolle bei einem Fehlschlag
+        if: failure()
+        working-directory: docker
+        run: docker compose logs
+
+      - name: Aufräumen
+        if: always()
+        working-directory: docker
+        run: docker compose down --volumes

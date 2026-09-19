@@ -5,12 +5,18 @@
     "enabled": false
   },
   "tasks": {
-    "typecheck": {
-      "dependsOn": ["^typecheck"]
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     },
-    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
     "test": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^build"]
     }
   }
 }

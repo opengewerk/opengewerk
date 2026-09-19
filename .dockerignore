@@ -1,0 +1,23 @@
+# What does not belong in the build context. Everything here either makes the
+# image bigger or makes it wrong: node_modules of another platform, a dist
+# from yesterday, or a .env holding real credentials.
+
+.git/
+.github/
+.turbo/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.env
+.env.*
+!.env.example
+*.log
+
+# None of this is built or shipped.
+docs/
+assets/
+docker/
+README.md
+CHANGELOG.md
+LICENSE
