@@ -389,13 +389,33 @@ describe('what a device may not do without a connection', () => {
     expect(answer.receipts[0]?.outcome).toBe('applied')
   })
 
+  it('lets a technician create one, which is the case the whole thing is for', async () => {
+    // Two questions that used to give opposite answers. The sync policy says
+    // master data may be created without a network, the rights said a
+    // technician may not create it at all, and the rights won. Since the
+    // decision on #32 there is a right for exactly this, so the two agree:
+    // the call out at an address nobody has entered yet goes through.
+    const answer = await push(technician(), 'telefon-anna', [
+      change({
+        entity: 'customers',
+        recordId: newId<'customer'>(),
+        kind: 'create',
+        patches: [
+          { field: 'kind', from: null, to: 'private' },
+          { field: 'name', from: null, to: 'Notdienst, noch nicht erfasst' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+  })
+
   it('still needs the right for it, whatever the sync policy allows', async () => {
-    // Two questions, two answers, and this is where they meet. The sync policy
-    // says master data may be created without a network; the rights say who
-    // may create it at all, and a technician may not. ADR 0005 pictures a
-    // technician adding a customer on site, ADR 0006 gives them only
-    // `customer.read`. The rights win, because sending a queue is a different
-    // way in and not a different thing to do.
+    // The other half of the same sentence, and the reason the right was split
+    // rather than widened. Creating is granted, changing is not, and a queue
+    // is still a different way in and not a different thing to do. The right
+    // answers before the policy is asked at all: for the office the same
+    // operation comes back as `online_only`, here it never reaches the merge.
     const refused = await http()
       .post('/sync')
       .set('x-test-identity', technician())
@@ -404,15 +424,39 @@ describe('what a device may not do without a connection', () => {
         operations: [
           change({
             entity: 'customers',
-            recordId: newId<'customer'>(),
-            kind: 'create',
-            patches: [{ field: 'name', from: null, to: 'Ohne Recht' }],
+            recordId: customerId,
+            patches: [{ field: 'name', from: 'Bauherr Nord', to: 'Ohne Recht' }],
           }),
         ],
       })
       .expect(400)
 
     expect(refused.body.message).toMatch(/customer\.write/)
+  })
+
+  it('may not create a site either way, because only the customer is cut that finely', async () => {
+    // The visible exception, written down where it can be seen. Splitting the
+    // verbs for every subject was the other way out of #32 and was not taken,
+    // so a building still needs `site.write` and the office enters it. The
+    // technician can record who was called out and where they were only once
+    // somebody with a connection has entered the address.
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          change({
+            entity: 'sites',
+            recordId: newId<'site'>(),
+            kind: 'create',
+            patches: [{ field: 'designation', from: null, to: 'Haus ohne Recht' }],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toMatch(/site\.write/)
   })
 
   it('cannot touch a document once it has been issued', async () => {

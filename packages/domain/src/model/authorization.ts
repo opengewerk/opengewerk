@@ -13,6 +13,17 @@ import type { TenantId } from './identifier.js'
  */
 export const permissions = [
   'customer.read',
+  /**
+   * Bringing a customer into being, apart from changing one that exists. The
+   * one subject whose verbs are cut this finely, and a deliberate exception
+   * rather than the start of a scheme: ADR 0005 pictures a call out at an
+   * address nobody has entered yet, and a technician who may create that
+   * customer must still not be able to correct the address of another. Every
+   * other subject keeps one writing right until a case like this one turns up
+   * for it too.
+   */
+  'customer.create',
+  /** Changing and removing a customer that is already there, not creating one. */
   'customer.write',
   'site.read',
   'site.write',
@@ -65,6 +76,7 @@ export interface Role {
 
 const officePermissions: readonly Permission[] = [
   'customer.read',
+  'customer.create',
   'customer.write',
   'site.read',
   'site.write',
@@ -94,6 +106,10 @@ const officePermissions: readonly Permission[] = [
  */
 const technicianPermissions: readonly Permission[] = [
   'customer.read',
+  // A call out at an address that is not in the system yet is the case the
+  // whole offline story is built around, so this one is granted. Correcting
+  // what the office has entered is not, and `customer.write` stays away.
+  'customer.create',
   'site.read',
   'installation.read',
   'installation.write',

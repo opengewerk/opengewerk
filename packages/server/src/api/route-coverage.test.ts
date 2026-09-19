@@ -115,4 +115,16 @@ describe('every route', () => {
 
     expect(issuing?.permission).toBe('document.issue')
   })
+
+  it('that creates a customer asks for the right to create, not the right to write', () => {
+    // The same shape as the line above, for the second place where one
+    // subject has two writing rights. It also fixes the reason the audit log
+    // records: the guard takes it from the route, so a customer that appears
+    // out of nowhere says so in the log rather than looking like an edit.
+    const byName = new Map(routesOf(controllers).map((route) => [route.name, route.permission]))
+
+    expect(byName.get('POST /customers')).toBe('customer.create')
+    expect(byName.get('PATCH /customers/:id')).toBe('customer.write')
+    expect(byName.get('DELETE /customers/:id')).toBe('customer.write')
+  })
 })
