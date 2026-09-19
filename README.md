@@ -433,16 +433,22 @@ wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
 
 ## Roadmap
 
-| Phase | Inhalt | Ergebnis |
-| --- | --- | --- |
-| 0: Fundament | Datenmodell-Kern, Mandanten, Rechte, Fristen-Engine, Formular-Engine, Nummernkreise/Festschreibung, Offline-Sync, Betrieb (Docker, Backup, Update) | Lauffähiges Gerüst ohne Fachlogik |
-| 1: Operativer Kern | Kunden/Objekte/Anlagen, Angebot → AB → Regiebericht → Rechnung (inkl. Storno, Abschläge kumuliert), Zeiterfassung, Plantafel, Serviceaufträge, E-Rechnung aus- und eingehend | Betrieb kann damit arbeiten |
-| 2: Elektro/PV-Kernmodul | Prüfprotokolle, Messgeräte-Import, PV-Dokumentation, Wartungsverträge, Anlagenakte mit QR | Alleinstellungsmerkmal |
-| 3: Finance | Journal, OP/Mahnwesen, Bank, EÜR/USt-VA, DATEV, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Einladung/Scopes, Read-Endpunkte, Zugriffslog) | Buchhaltung ersetzt sevdesk/Lexware; Kanzlei-Hub kann anbinden |
-| 3b: Kanzlei-Zusammenarbeit | Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile | Monatsabschluss läuft ohne E-Mail/Telefon |
-| 4: Projekt-Tiefe | Bautagebuch, Kalkulation/Nachkalkulation, Nachträge, Subunternehmer, Material/Lager/Einkauf, Fuhrpark | Baustellenbetriebe |
-| 5: Kundenportal | Angebote, Rechnungen, Zahlung, Termine, Störungsmeldung, Hilfeseite | Selbstbedienung |
-| 6: Bilanz & Erweiterung | Anlagenbuchhaltung, Bilanz/GuV, Report-Builder, Anlagen-Monitoring, Plugin-Gewerke, lokale KI | Vollausbau |
+Der Fahrplan steht in Abschnitt 10 der
+[Feature-Gliederung](docs/konzept/Feature-Gliederung.md) und bewusst nur dort.
+An dieser Stelle stand bis zum 19.09.2026 eine Abschrift, die beim Umschnitt auf
+den MVP-Fahrplan nicht mitgezogen wurde und am Ende zwei Bausteine in Phase 0
+nannte, die dort nicht hingehören. Eine Kopie driftet, also gibt es keine mehr.
+
+Leitgedanke ist, so früh wie möglich einen echten Betrieb damit abzuwickeln.
+Pilotkunde ist der Elektro- und PV-Betrieb des Maintainers; Version 1 ist
+erreicht, wenn dessen Aufträge vollständig in OpenGewerk laufen, von der Anfrage
+bis zur bezahlten Rechnung. Was dafür nicht nötig ist, kommt später. Ausgenommen
+ist, was sich nicht nachrüsten lässt: Datenmodell, Offline-Datenschicht,
+Festschreibung und Mandantentrennung gehören ins Fundament, auch wenn die
+Oberfläche dafür erst danach kommt.
+
+Phase 0 (Fundament) ist gebaut. Als Nächstes kommt Phase 1, der MVP für den
+Pilotbetrieb.
 
 ## Projektfamilie
 
