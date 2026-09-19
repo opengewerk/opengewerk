@@ -38,6 +38,12 @@ WORKDIR /app
 
 COPY --from=build --chown=node:node /anwendung ./
 
+# The mount point of the file store, created here and owned by node. Docker
+# copies owner and permissions of an existing directory into a new named
+# volume, which is the only way this ends up writable: a volume created from
+# nothing belongs to root, and the application does not run as root.
+RUN mkdir -p /var/lib/opengewerk/storage && chown node:node /var/lib/opengewerk/storage
+
 # Not as root. An escape from the application then lands on a user with no
 # rights, and the application misses nothing: it writes nothing into the image.
 USER node

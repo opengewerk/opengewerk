@@ -26,7 +26,7 @@ services:
       # on put the data in a subdirectory per major version, so that a later
       # "pg_upgrade --link" does not trip over a mount boundary. A volume on
       # the old path keeps the container from starting at all.
-      - datenbank:/var/lib/postgresql
+      - database:/var/lib/postgresql
       # Creates the two roles, once, on the first start. After that the data
       # lives in the volume and this directory is never looked at again.
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
@@ -78,6 +78,12 @@ services:
       # saying none is set up. The first is the true one.
       RENDERER_URL: http://renderer:3000
       RENDERER_TOKEN: ${RENDERER_TOKEN}
+      # The content addressed file store from ADR 0007. The application
+      # refuses to start when it cannot write here, because a wrong mount
+      # otherwise shows up as the first lost photo rather than as an error.
+      STORAGE_PATH: /var/lib/opengewerk/storage
+    volumes:
+      - files:/var/lib/opengewerk/storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,5 +121,49 @@ services:
     # No published port either. It is reachable from the docker network only,
     # which means from the application.
 
+  # Backup and restore. Runs on demand, never in the background, because a
+  # backup that nobody ever watched is the one that turns out to be empty:
+  #
+  #   docker compose --profile backup run --rm backup backup.sh
+  #   docker compose --profile backup run --rm backup restore.sh latest
+  #
+  # Built on the database image so that pg_dump always matches the server.
+  # Connects as the superuser, and that is not laziness: row level security is
+  # FORCEd on every table and applies to the owner too, so a dump taken as
+  # anybody else comes back refused or, worse, empty.
+  backup:
+    build:
+      context: ./backup
+    image: opengewerk/backup:${OPENGEWERK_VERSION:-latest}
+    profiles: ['backup']
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: opengewerk
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
+      STORAGE_PATH: /var/lib/opengewerk/storage
+      BACKUP_PATH: /var/lib/opengewerk/backups
+      # How many generations to keep. 14 daily runs is a fortnight, which is
+      # long enough to notice that something went wrong before the last good
+      # copy is gone.
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      # The public key an archive is encrypted to. Without it the archive is
+      # written in the clear, and it holds customer data and invoices.
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      # Only a restore needs this, and only for an encrypted archive. It
+      # points at a key file, which is why the key itself never stands in the
+      # .env next to the data it protects.
+      BACKUP_AGE_IDENTITY: ${BACKUP_AGE_IDENTITY:-}
+    volumes:
+      - files:/var/lib/opengewerk/storage
+      - ${BACKUP_TARGET:-backups}:/var/lib/opengewerk/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
-  datenbank:
+  database:
+  files:
+  # Where the archives land by default. An installation that means it points
+  # BACKUP_TARGET at a path on another machine, because a backup on the same
+  # disk as the data survives a mistake and not a disk.
+  backups:

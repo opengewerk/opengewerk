@@ -256,6 +256,114 @@ beim ersten Start des Datenbank-Containers. Die Migration legt `opengewerk_app`
 bewusst ohne Passwort und ohne Anmelderecht an: Zugangsdaten gehören nicht in
 eine Datei, die in jedem Klon dieses Repositories liegt.
 
+### Sicherung und Rückspielen
+
+Ein Backup, das nie zurückgespielt wurde, ist kein Backup. Deshalb liegt hier
+beides als Skript vor, und der Rückspielweg prüft danach nach, ob wirklich
+alles zurückgekommen ist.
+
+```bash
+docker compose -f docker/compose.yaml --profile backup run --rm backup backup.sh
+```
+
+Das Ergebnis ist ein Archiv mit drei Teilen und einem Manifest:
+
+| Teil | Inhalt |
+| --- | --- |
+| `database.dump` | die Datenbank, `pg_dump` im Custom-Format |
+| `storage.tar` | der inhaltsadressierte Dateispeicher |
+| `audit-chains.tsv` | je Mandant der Kopf der Audit-Hashkette |
+| `manifest.json` | Zeitstempel, PostgreSQL-Version und eine Prüfsumme je Teil |
+
+**Datenbank und Dateien liegen im selben Lauf, und die Reihenfolge ist nicht
+vertauschbar.** Ein Beleg zeigt per Hash auf eine Datei. Würden zuerst die
+Dateien gesichert, hätte alles, was zwischen den beiden Schritten hochgeladen
+wird, eine Zeile im Dump und keine Datei im Archiv: eine zurückgespielte
+Rechnung, die auf nichts zeigt. Andersherum ist der schlimmste Fall eine Datei,
+auf die niemand verweist, und die kostet Plattenplatz und sonst nichts.
+
+**Die Sicherung meldet sich als Superuser an**, nicht als Eigentümer der
+Tabellen. Row-Level Security ist auf jeder Tabelle mit `FORCE` gesetzt und gilt
+damit auch für den Eigentümer; ein Dump unter dieser Rolle käme entweder mit
+einer Fehlermeldung zurück oder, schlimmer, leer. Eine Sicherung, die weniger
+sehen darf als alles, ist keine.
+
+### Zurückspielen
+
+```bash
+docker compose -f docker/compose.yaml --profile backup run --rm backup restore.sh latest
+```
+
+Der Lauf sperrt die Anwendung für seine Dauer aus, spielt beide Teile zurück
+und prüft danach drei Dinge, von denen jedes eine Frage beantwortet, die die
+anderen nicht beantworten können:
+
+1. **Das Manifest**, ob das Archiv heil angekommen ist. Diese Prüfung läuft
+   vor allem anderen: eine beschädigte Sicherung wird abgelehnt, bevor die
+   Datenbank angefasst wird.
+2. **Die Dateihashes.** Ein inhaltsadressierter Speicher kann das allein
+   beantworten, denn der Name einer Datei ist der SHA-256 ihres Inhalts. ADR
+   0007 verlangt eine Stichprobe; geprüft werden alle, weil das bei den
+   Datenmengen eines Handwerksbetriebs Sekunden kostet und eine Stichprobe
+   "wahrscheinlich" sagt, wo das hier "ja" sagt.
+3. **Die Audit-Ketten**, ob das Log dasselbe Log ist.
+
+**Die Anwendung wird ausgesperrt, nicht um Abwesenheit gebeten.** Der erste
+Entwurf zählte offene Verbindungen und schützte vor nichts: der
+Verbindungspool schließt eine ungenutzte Verbindung nach Sekunden, die Zählung
+steht also auf null, während die Anwendung läuft. Stattdessen bekommt
+`opengewerk_app` für die Dauer des Laufs `NOLOGIN`, bestehende Verbindungen
+werden beendet, und der Superuser, der zurückspielt, ist davon nicht betroffen.
+Die gesamte Datenbank zu sperren ginge nicht, das schlösse auch ihn aus.
+
+### Die Sicherung als Zeuge für das Audit-Log
+
+Die Hashkette im Audit-Log macht eine kleine Korrektur unmöglich zu verstecken.
+Gegen jemanden, der den Trigger abschalten kann, hilft sie allein nicht: er
+ändert einen Eintrag, rechnet alle folgenden neu, und die Kette geht wieder
+auf. Genau dafür liegt der Kopf jeder Kette in der Sicherung, also außerhalb
+der Datenbank.
+
+```bash
+docker compose -f docker/compose.yaml --profile backup run --rm backup verify.sh latest
+```
+
+Das hält das Log der laufenden Instanz gegen die Sicherung, ohne etwas
+zurückzuspielen, und beantwortet nicht "geht die Kette auf", sondern "ist
+Eintrag Nummer N noch derselbe, den diese Sicherung gesehen hat".
+
+Am 19.09.2026 gegengeprüft: nach einer gefälschten Änderung mit anschließend
+neu berechneter Kette meldet die Prüfung in der Datenbank
+`gebrochen bei: nirgends`, und `verify.sh` nennt trotzdem den betroffenen
+Mandanten samt beider Fingerabdrücke. Der unbeteiligte zweite Mandant bleibt
+dabei unauffällig.
+
+### Verschlüsselung und Aufbewahrung
+
+Ein Archiv wird mit einem **öffentlichen** Schlüssel verschlüsselt (age). Das
+ist nicht dasselbe wie eine Passphrase: die Maschine, die sichert, kann ihre
+eigenen älteren Sicherungen nicht lesen. Wer den Server übernimmt, bekommt das
+Archiv nicht mit dazu.
+
+```bash
+docker run --rm opengewerk/backup:latest age-keygen
+```
+
+Die Zeile mit `age1…` ist der öffentliche Schlüssel und gehört als
+`BACKUP_AGE_RECIPIENT` in die `.env`. Die Zeile mit `AGE-SECRET-KEY-…` gehört
+woanders hin, nicht auf diese Maschine: ein Schlüssel, der neben dem Archiv
+liegt, schützt vor nichts. Zum Zurückspielen wird er für genau diesen einen
+Lauf hineingereicht.
+
+Ohne gesetzten Empfänger läuft die Sicherung trotzdem, gibt aber eine Warnung
+aus. Sie enthält Kundendaten, Belege und das Audit-Log.
+
+`BACKUP_KEEP` legt fest, wie viele Generationen bleiben (Vorgabe 14). Ältere
+werden nach jedem Lauf entfernt. `BACKUP_TARGET` bestimmt, wohin die Archive
+gehen; die Vorgabe ist ein Docker-Volume, und das überlebt ein
+`docker compose down`, aber keinen Plattendefekt. Eine Installation, die es
+ernst meint, zeigt damit auf ein Verzeichnis auf einer anderen Maschine.
+
 ### Was beim Aufsetzen sonst noch Zeit kostet
 
 - **Das Volume gehört auf `/var/lib/postgresql`, nicht auf `.../data`.** Die
