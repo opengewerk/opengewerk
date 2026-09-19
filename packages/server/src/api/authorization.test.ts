@@ -135,6 +135,18 @@ describe('a technician', () => {
       .send({ name: 'Umbenannt' })
       .expect(403)
   })
+
+  it('can create one, which is not the same right and on purpose', async () => {
+    // The pair that decision #32 is about. A call out at an address nobody
+    // has entered yet is the case the offline story is built around, so this
+    // goes through; correcting what the office wrote down is the test above,
+    // and it stays refused.
+    await request(app.getHttpServer())
+      .post('/customers')
+      .set('x-test-identity', technician())
+      .send({ kind: 'private', name: 'Notdienst Sonntag' })
+      .expect(201)
+  })
 })
 
 describe('the office', () => {
@@ -310,7 +322,7 @@ describe('what the audit log says about a request', () => {
       operation: 'insert',
       newValue: 'Protokoll GmbH',
       userId: 'test',
-      reason: 'customer.write',
+      reason: 'customer.create',
     })
   })
 

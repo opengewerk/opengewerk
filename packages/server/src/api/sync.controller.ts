@@ -134,14 +134,24 @@ function parseOperation(entry: unknown, index: number, deviceId: string): Operat
 }
 
 /**
- * What an operation on an entity needs beyond the right to sync at all.
+ * What an operation needs beyond the right to sync at all.
  *
  * Sending a queue is a different way in, not a different thing to do. A
  * technician who may not change a customer online may not change one through
  * an outbox either, and the check belongs here rather than in the merge, which
- * knows nothing about who is asking.
+ * knows nothing about who is asking. That runs both ways: creating a customer
+ * asks for the same right here as the route does, which is why this looks at
+ * what the operation does and not only at what it touches.
+ *
+ * The customer is the only subject where the two differ. A contact counts as
+ * part of it: writing down who opened the door is the same act as writing down
+ * whose door it was.
  */
-function permissionFor(entity: string): Permission | null {
+function permissionFor(entity: string, kind: OperationKind): Permission | null {
+  if ((entity === 'customers' || entity === 'contacts') && kind === 'create') {
+    return 'customer.create'
+  }
+
   const subject: Record<string, Permission> = {
     customers: 'customer.write',
     contacts: 'customer.write',
@@ -179,7 +189,7 @@ export class SyncController {
     const { deviceId, operations } = parseOperations(body)
 
     for (const operation of operations) {
-      const needed = permissionFor(operation.entity)
+      const needed = permissionFor(operation.entity, operation.kind)
 
       if (!needed) {
         throw new BadRequestException(

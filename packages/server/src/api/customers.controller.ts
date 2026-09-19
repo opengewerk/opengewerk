@@ -48,7 +48,7 @@ export class CustomersController {
   }
 
   @Post()
-  @RequiresPermission('customer.write')
+  @RequiresPermission('customer.create')
   async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFields(values, ['kind', 'name'])
