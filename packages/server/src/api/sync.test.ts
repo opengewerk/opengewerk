@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import { changesSince } from '../database/sync.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -707,10 +708,63 @@ describe('what a device gets back', () => {
       .get(`/sync?since=${cursor}`)
       .set('x-test-identity', technician())
       .expect(200)
-    const changes = next.body as { changes: { entity: string }[]; cursor: number }
+    const changes = next.body as {
+      changes: { entity: string }[]
+      cursor: number
+      hasMore: boolean
+    }
 
     expect(changes.changes.map((entry) => entry.entity)).toContain('installations')
     expect(changes.cursor).toBeGreaterThan(cursor)
+    // Nothing ran into the limit, so the cursor is the highest there is and
+    // the device has everything.
+    expect(changes.hasMore).toBe(false)
+  })
+
+  it('leaves nothing behind when one entity has more waiting than fits', async () => {
+    const start = await http().get('/sync').set('x-test-identity', technician()).expect(200)
+    const from = (start.body as { cursor: number }).cursor
+
+    const boards = [
+      await installation('Verteilung eins'),
+      await installation('Verteilung zwei'),
+      await installation('Verteilung drei'),
+    ]
+
+    // One change on another entity, made last, so it carries the highest
+    // sequence number of the lot. That is the whole setup: the limit bites on
+    // `installations`, and the number that looked like a safe cursor comes
+    // from somewhere else entirely.
+    await http()
+      .post('/customers')
+      .set('x-test-identity', office())
+      .send({ kind: 'business', name: 'Zuletzt angelegt' })
+      .expect(201)
+
+    const pull = (since: number) =>
+      database.forTenant({ userId: 'test', tenantId: north.id }, (tx) => changesSince(tx, since, 2))
+
+    const first = await pull(from)
+    const second = await pull(first.cursor)
+
+    const seen = new Set(
+      [...first.changes, ...second.changes]
+        .filter((entry) => entry.entity === 'installations')
+        .flatMap((entry) => entry.rows.map((row) => String(row['id']))),
+    )
+
+    // The third one is what used to fall out of the window, and it would never
+    // come back: no error, no hint, and it hits exactly the device that was
+    // away for a long time. This is the assertion that matters, so it comes
+    // before the flag.
+    for (const board of boards) {
+      expect(seen.has(board.id)).toBe(true)
+    }
+
+    // Two of the three fit, so the cursor stops at the second one rather than
+    // at the customer, and the answer says to come back.
+    expect(first.hasMore).toBe(true)
+    expect(second.hasMore).toBe(false)
   })
 })
 

@@ -247,6 +247,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Delta-Pull überspringt keine Änderungen mehr. Die Obergrenze je Abruf wirkt je
+  Entität, der Cursor war aber das Höchste, was im ganzen Abruf vorkam. Hatte eine
+  Entität mehr ausstehende Änderungen als hineinpassen und eine andere eine einzige mit
+  einer höheren Nummer, fiel alles dazwischen für immer aus dem Fenster, ohne Fehler und
+  ohne Hinweis. Der Cursor bleibt jetzt bei der niedrigsten ausgeschöpften Entität
+  stehen, und die Antwort trägt ein `hasMore`
+- Ein Beleg, der gelöscht wurde, lässt sich nicht mehr festschreiben. Das Löschen setzt
+  nur `deletedAt` und lässt den Status auf `draft`, es griff also weder die
+  Statusprüfung noch der Trigger. Was herauskam, war eine verbrauchte Nummer, ein
+  Eintrag in der Hashkette und ein unveränderlicher Beleg, den `GET /documents` nie
+  wieder zeigt. Die Bedingung steht jetzt auch am Update, sonst bliebe der Wettlauf
+  zwischen Löschen und Festschreiben bestehen
 - Eine Änderung an einem gelöschten Datensatz wird im Abgleich zum Konflikt und nicht
   mehr angewendet. Weil nichts wirklich entfernt wird, findet der Abgleich die Zeile
   weiterhin, quittierte die Änderung mit "angewendet" und schrieb sie auf einen

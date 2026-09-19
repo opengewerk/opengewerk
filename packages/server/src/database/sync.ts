@@ -313,14 +313,25 @@ export interface ChangedRows {
  * The cursor is the change sequence, which counts in the order transactions
  * commit. A cursor on timestamps would skip a row whose transaction started
  * before the last pull and committed after it.
+ *
+ * The limit is per entity, so the cursor cannot be the highest sequence seen.
+ * One entity with more waiting than fits would then hand the device a cursor
+ * taken from another one, and everything between the two numbers would be
+ * outside the window on the next pull: gone, without an error and without a
+ * hint, and hitting exactly the device that was away for a long time. So the
+ * cursor stops at the lowest entity that ran into its limit, and `hasMore`
+ * says to come back. Rows above that number arrive a second time, which costs
+ * a little and is the right way round: sending a row twice is nothing, losing
+ * one is forever.
  */
 export async function changesSince(
   tx: TenantTransaction,
   since: number,
   limit = 500,
-): Promise<{ changes: readonly ChangedRows[]; cursor: number }> {
+): Promise<{ changes: readonly ChangedRows[]; cursor: number; hasMore: boolean }> {
   const changes: ChangedRows[] = []
-  let cursor = since
+  let highest = since
+  let stoppedAt: number | null = null
 
   for (const [entity, table] of tablesByName) {
     const columns = getTableColumns(table) as Record<string, PgColumn>
@@ -337,17 +348,29 @@ export async function changesSince(
       .orderBy(asc(sequence))
       .limit(limit)
 
-    if (rows.length > 0) {
-      changes.push({ entity, rows: rows as Record<string, unknown>[] })
+    if (rows.length === 0) {
+      continue
+    }
 
-      for (const row of rows) {
-        const at = (row as Record<string, unknown>)['changeSequence']
-        cursor = Math.max(cursor, Number(at))
-      }
+    changes.push({ entity, rows: rows as Record<string, unknown>[] })
+
+    let last = since
+
+    for (const row of rows) {
+      const at = (row as Record<string, unknown>)['changeSequence']
+      last = Math.max(last, Number(at))
+    }
+
+    highest = Math.max(highest, last)
+
+    if (rows.length === limit) {
+      // Full to the limit, so there may well be more behind it. What follows
+      // `last` is still waiting, and the cursor must not move past it.
+      stoppedAt = stoppedAt === null ? last : Math.min(stoppedAt, last)
     }
   }
 
-  return { changes, cursor }
+  return { changes, cursor: stoppedAt ?? highest, hasMore: stoppedAt !== null }
 }
 
 /** The conflicts somebody still has to decide, oldest first. */

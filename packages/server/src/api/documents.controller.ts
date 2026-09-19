@@ -120,7 +120,7 @@ export class DocumentsController {
       const [existing] = await tx
         .select()
         .from(documents)
-        .where(eq(documents.id, id as DocumentId))
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
 
       if (!existing) {
         throw new NotFoundException()
@@ -133,11 +133,27 @@ export class DocumentsController {
       const issuedAt = new Date()
       const number = await assignDocumentNumber(tx, identity.tenantId, existing.kind, issuedAt)
 
+      // `deletedAt` a second time, and not out of habit: between the read
+      // above and this write somebody can delete the document, and the two
+      // conditions that are here anyway would both still hold. What comes out
+      // of that race cannot be repaired on a running installation. The number
+      // is spent, the entry is in the hash chain, and the document is fixed
+      // and out of every list at the same time.
       const [issued] = await tx
         .update(documents)
         .set({ status: 'issued', number, issuedAt, updatedAt: issuedAt })
-        .where(and(eq(documents.id, existing.id), eq(documents.status, 'draft')))
+        .where(
+          and(
+            eq(documents.id, existing.id),
+            eq(documents.status, 'draft'),
+            isNull(documents.deletedAt),
+          ),
+        )
         .returning()
+
+      if (!issued) {
+        throw new NotFoundException()
+      }
 
       return issued
     })
