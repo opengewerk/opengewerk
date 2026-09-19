@@ -59,7 +59,7 @@ export async function connect(): Promise<Pool> {
  * `createrole` because the first migration creates the application role.
  */
 export const ownerRole = 'opengewerk_owner'
-const ownerPassword = 'nur-fuer-die-testdatenbank'
+const ownerPassword = 'nur-für-die-testdatenbank'
 
 /** The same database, seen through the role that owns the tables. */
 export function ownerDatabaseUrl(): string {
@@ -76,10 +76,17 @@ export async function resetSchema(pool: Pool): Promise<void> {
   await pool.query('drop schema if exists drizzle cascade')
   await pool.query('create schema public')
 
+  // The role survives a reset, the password has to be set either way. Only
+  // creating it when it is missing looks the same until somebody changes the
+  // password here: CI starts from an empty database and goes through, every
+  // local database still holds the old one and every test fails at the
+  // connection. Setting it on both paths costs one statement.
   await pool.query(`do $$
     begin
       if not exists (select from pg_roles where rolname = '${ownerRole}') then
         create role "${ownerRole}" login password '${ownerPassword}' createrole;
+      else
+        alter role "${ownerRole}" login password '${ownerPassword}' createrole;
       end if;
     end
   $$`)
@@ -152,7 +159,7 @@ export async function enumNames(pool: Pool): Promise<string[]> {
  * throwaway database only.
  */
 export const applicationRole = 'opengewerk_app'
-const applicationPassword = 'nur-fuer-die-testdatenbank'
+const applicationPassword = 'nur-für-die-testdatenbank'
 
 export async function allowApplicationLogin(pool: Pool): Promise<void> {
   await pool.query(`alter role "${applicationRole}" login password '${applicationPassword}'`)

@@ -29,8 +29,11 @@ export const documentStatus = pgEnum('document_status', documentStatuses)
  * quantity comparison works later, instead of guessing from dates.
  *
  * The number stays empty while the document is a draft. It is assigned when
- * the document is issued, server side and gap free, which is its own issue.
- * Nothing here enforces that yet; the model only leaves room for it.
+ * the document is issued, server side and gap free, and three things hold that
+ * together: `assignDocumentNumber()` takes the counter under a row lock, the
+ * trigger `documents_stay_fixed` refuses every later change to an issued
+ * document, and the partial unique index below catches a number that somehow
+ * got in by another way.
  */
 export const documents = pgTable(
   'documents',

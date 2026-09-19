@@ -35,9 +35,13 @@ export type DocumentKind = (typeof documentKinds)[number]
 /**
  * A document is a draft until it is issued. From then on it is fixed: nothing
  * is deleted, a mistake is corrected by a cancellation or a credit note. That
- * is leading decision 4, GoBD by design. The mechanism that enforces it, the
- * number range and the write protection, arrives with its own issue; the model
- * only has to leave room for it.
+ * is leading decision 4, GoBD by design.
+ *
+ * Enforced, not merely described. The number comes out of a counter under a
+ * row lock, a trigger in the database refuses every later change to an issued
+ * document, and the sync rules keep the three fields that make up the issuing
+ * out of a device's reach. What is left here is the vocabulary those rules
+ * are written in.
  */
 export const documentStatuses = ['draft', 'issued', 'cancelled'] as const
 

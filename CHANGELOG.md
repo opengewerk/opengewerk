@@ -9,6 +9,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Paketgrenze aus ADR 0002 ist jetzt eine ESLint-Regel. `packages/domain` darf
+  weder `@opengewerk/server` noch `@opengewerk/web` importieren, auch nicht über einen
+  relativen Pfad. Gescheitert wäre ein solcher Import schon vorher, nur als fehlendes
+  Modul und erst im Bau; jetzt steht die Regel im Editor und sagt, dass sie eine ist
 - Der Discord-Server ist in der README verlinkt. Er ist für kurze Fragen gedacht und
   nicht als Ersatz für die Discussions: ein Chatverlauf ist nicht durchsuchbar
 
@@ -201,6 +205,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die zehn deutschen Shell-Variablen in `ci.yml` heißen englisch, wie die Job-Kennungen
+  und die Kommentare daneben schon. Die Meldungstexte bleiben deutsch, sie stehen in der
+  Actions-Oberfläche. Stehengeblieben waren sie bei der Umbenennung von `betrieb` auf
+  `operations`
+
 - Die Roadmap steht nur noch in Abschnitt 10 der Feature-Gliederung. Die Abschrift in
   der README war die Fassung aus v2.2: der Umschnitt auf den MVP-Fahrplan in v2.3 kam
   dort nie an, die Zeilen für Phase 0, 1, 2 und 4 waren zeichengleich mit dem
@@ -247,6 +256,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Zwei Kommentare behaupteten weiterhin, die Nummernvergabe sei nicht durchgesetzt.
+  Durchgesetzt ist sie seit dem Zähler unter Zeilensperre, dem Trigger und dem
+  partiellen Unique-Index. Die Schema-Datei widersprach sich vierzig Zeilen tiefer sogar
+  selbst
+- Umschriebene Umlaute an vier Stellen: in den Kommentaren der Rücknahme zu `0000`, im
+  Testpasswort und in einem Kundennamen im Test. Der CI-Job prüft nur UTF-8, BOM und
+  Zeilenenden, ASCII-Umschreibungen sieht er nicht
+- `resetSchema()` setzt das Passwort der Eigentümerrolle auch dann, wenn die Rolle schon
+  da ist. Vorher wurde es nur beim Anlegen gesetzt: eine Änderung daran ging in der CI
+  durch, weil dort jede Datenbank frisch ist, und riss lokal die gesamte Testsuite an
+  der Anmeldung. Aufgefallen beim Umlaut im Testpasswort
 - Der Delta-Pull überspringt keine Änderungen mehr. Die Obergrenze je Abruf wirkt je
   Entität, der Cursor war aber das Höchste, was im ganzen Abruf vorkam. Hatte eine
   Entität mehr ausstehende Änderungen als hineinpassen und eine andere eine einzige mit

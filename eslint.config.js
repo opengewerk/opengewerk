@@ -51,6 +51,34 @@ export default tseslint.config(
           message: 'domain must not read the clock. Take the moment as an argument.',
         },
       ],
+      // The package boundary ADR 0002 promises. Three things already make an
+      // import from here fail: the package declares no runtime dependency,
+      // pnpm therefore cannot resolve one, and `rootDir` keeps the build
+      // inside `src`. All three fail as a missing module, which reads like a
+      // broken install rather than like a rule. This one says what the rule
+      // is, and it says it in the editor instead of in CI.
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@opengewerk/server', '@opengewerk/server/*'],
+              message: 'domain is the layer underneath. Pass what it needs in as an argument.',
+            },
+            {
+              group: ['@opengewerk/web', '@opengewerk/web/*'],
+              message: 'domain is the layer underneath. Pass what it needs in as an argument.',
+            },
+            {
+              // The relative way out, at whatever depth. Deliberately not
+              // `../../*`: from `src/rules/data` that is an ordinary path to a
+              // sibling folder inside the package.
+              group: ['../**/server/**', '../**/web/**'],
+              message: 'A path leading into another package leaves the boundary as well.',
+            },
+          ],
+        },
+      ],
     },
   },
 

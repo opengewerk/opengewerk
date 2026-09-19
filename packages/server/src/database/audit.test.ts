@@ -391,7 +391,7 @@ describe('the log', () => {
   })
 
   it('does not let one company count how much another one is doing', async () => {
-    await createCustomer('Zaehlbar GmbH')
+    await createCustomer('Zählbar GmbH')
 
     const chains = await database.forTenant({ tenantId: other.id }, (tx) =>
       tx.select().from(schema.auditChains),

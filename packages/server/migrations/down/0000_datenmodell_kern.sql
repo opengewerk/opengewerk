@@ -1,10 +1,10 @@
--- Die Ruecknahme zu 0000_datenmodell_kern.sql. drizzle-kit erzeugt so eine
+-- Die Rücknahme zu 0000_datenmodell_kern.sql. drizzle-kit erzeugt so eine
 -- Datei nicht, ADR 0003 verlangt sie trotzdem: eine Migration, die sich nicht
--- zuruecknehmen laesst, ist beim ersten Fehlschlag im Betrieb ein Restore aus
--- dem Backup statt eines Rueckbaus.
+-- zurücknehmen lässt, ist beim ersten Fehlschlag im Betrieb ein Restore aus
+-- dem Backup statt eines Rückbaus.
 --
--- Die Reihenfolge ist die umgekehrte Abhaengigkeitskette, kein CASCADE. Ein
--- CASCADE wuerde auch wegraeumen, was jemand spaeter danebengebaut hat, und
+-- Die Reihenfolge ist die umgekehrte Abhängigkeitskette, kein CASCADE. Ein
+-- CASCADE würde auch wegräumen, was jemand später danebengebaut hat, und
 -- genau das soll hier auffallen statt lautlos zu verschwinden.
 
 DROP TABLE IF EXISTS "documents";--> statement-breakpoint
