@@ -40,20 +40,20 @@ export function tenantIsolation(tenantId: PgColumn) {
 }
 
 /**
- * The tenants table itself. A tenant sees its own row and no other. Creating a
- * tenant is not something the application role does; that belongs to whoever
- * sets up the instance.
+ * The tenants table itself. A tenant sees its own row and no other.
+ *
+ * The same policy as above, and it stays its own name because the column it
+ * gets is a different thing: everywhere else the tenant is a foreign key, here
+ * it is the primary key. Two identical bodies were worse than one call, though.
+ * Whoever changes the comparison has to change it once, not notice that there
+ * are two.
+ *
+ * Reading is all the application role does here. Creating, renaming and
+ * deleting a tenant belong to whoever sets up the instance, and since 0007
+ * that is not merely the intention but the grant.
  */
 export function ownTenantOnly(id: PgColumn) {
-  const isSession = sql`${id} = ${sessionTenant()}`
-
-  return pgPolicy('tenant_isolation', {
-    as: 'permissive',
-    for: 'all',
-    to: applicationRole,
-    using: isSession,
-    withCheck: isSession,
-  })
+  return tenantIsolation(id)
 }
 
 /**

@@ -1,0 +1,13 @@
+-- The application role may read its own tenant row and nothing else about it.
+--
+-- Migration 0001 granted SELECT, INSERT, UPDATE and DELETE on every table that
+-- existed at the time, `tenants` among them. Every table since has come with a
+-- grant cut to what it needs; this one kept the blanket. The policy on the
+-- table narrows reading to the session tenant, so nothing ever leaked, but a
+-- tenant could rename itself, and with the WITH CHECK half satisfied it could
+-- delete its own row and take every record with it through the foreign keys.
+--
+-- Creating a tenant belongs to whoever sets up the instance, and the comment
+-- above the policy in `rls.ts` has said so since it was written. This is that
+-- sentence as a grant.
+REVOKE INSERT, UPDATE, DELETE ON "tenants" FROM "opengewerk_app";

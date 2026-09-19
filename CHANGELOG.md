@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Zwei Verhaltenstests für `tenants` mit zwei Mandanten in der Datenbank: die Tabelle
+  zeigt jedem genau seine eigene Zeile, und Anlegen, Umbenennen und Löschen werden
+  abgewiesen. Es ist die einzige Tabelle, auf der die Policy den Primärschlüssel
+  vergleicht statt einen Fremdschlüssel, und sie war bis hierher nie durchgespielt
+- Der Migrations-Rundlauf prüft auch die Funktionen. Sieben der neun `CREATE FUNCTION`
+  kommen ohne `OR REPLACE`, eine vergessene Rücknahme lässt das nächste Vorwärtsspielen
+  also mit "function already exists" scheitern, und genau dafür gibt es die down-Dateien.
+  Gegengeprüft mit einer entfernten Rücknahme, der Test nennt die Funktion beim Namen
+
 - Die Paketgrenze aus ADR 0002 ist jetzt eine ESLint-Regel. `packages/domain` darf
   weder `@opengewerk/server` noch `@opengewerk/web` importieren, auch nicht über einen
   relativen Pfad. Gescheitert wäre ein solcher Import schon vorher, nur als fehlendes
@@ -255,6 +264,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Gewerke als Datenpakete
 
 ### Behoben
+
+- Die Anwendungsrolle darf `tenants` nur noch lesen. Migration 0001 vergab pauschal auf
+  alle damals vorhandenen Tabellen, jede spätere Tabelle bekam einen zugeschnittenen
+  Grant, `tenants` behielt den weiten. Gelesen wurde nie etwas Fremdes, dafür sorgt die
+  Policy, aber ein Mandant konnte sich umbenennen und seine eigene Zeile löschen, und
+  die Fremdschlüssel wären mitgegangen
 
 - Zwei Kommentare behaupteten weiterhin, die Nummernvergabe sei nicht durchgesetzt.
   Durchgesetzt ist sie seit dem Zähler unter Zeilensperre, dem Trigger und dem
