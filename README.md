@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-OpenGewerk steckt mitten in **Phase 0**. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und das Fundament: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose. Eine Anmeldung gibt es noch nicht, eine Oberfläche auch nicht; eine laufende Instanz lehnt deshalb jede Anfrage an die Daten ab. Was an Fachlogik darauf aufsetzt, kommt mit Phase 1.
+Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Eine Anmeldung gibt es noch nicht, eine Oberfläche auch nicht; eine laufende Instanz lehnt deshalb jede Anfrage an die Daten ab. Was an Fachlogik darauf aufsetzt, kommt mit Phase 1.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -85,7 +85,7 @@ pnpm --filter @opengewerk/server run db:generate
 
 Zu jeder Migration gehört eine Rücknahme unter `migrations/down/` mit demselben Dateinamen. drizzle-kit erzeugt die nicht, ADR 0003 verlangt sie trotzdem: eine Migration, die sich nicht zurücknehmen lässt, ist beim ersten Fehlschlag im Betrieb ein Restore aus dem Backup statt eines Rückbaus. Ein Test prüft, dass nach der Rücknahme wirklich nichts übrig bleibt.
 
-Einmal gemergte Migrationen werden nicht mehr geändert. Sie sind auf fremden Datenbanken bereits gelaufen; eine Korrektur ist eine neue Datei.
+Einmal gemergte Migrationen werden nicht mehr geändert. Sie sind auf fremden Datenbanken bereits gelaufen; eine Korrektur ist eine neue Datei. Der Migrationslauf verlässt sich nicht darauf, dass alle daran denken: er vergleicht die Hashes in der Datenbank mit den Dateien und lehnt ab, wenn eine davon nicht mehr dieselbe ist. Warum das nötig ist, steht unter [Aktualisieren](#aktualisieren).
 
 ### Mandantentrennung
 
@@ -363,6 +363,59 @@ werden nach jedem Lauf entfernt. `BACKUP_TARGET` bestimmt, wohin die Archive
 gehen; die Vorgabe ist ein Docker-Volume, und das überlebt ein
 `docker compose down`, aber keinen Plattendefekt. Eine Installation, die es
 ernst meint, zeigt damit auf ein Verzeichnis auf einer anderen Maschine.
+
+### Aktualisieren
+
+Ein Update ist das, was Leitentscheidung 6 verspricht: Abbild tauschen,
+Migration läuft, Dienst startet. Zwei Aufrufe, und ihre Reihenfolge ist der
+ganze Punkt:
+
+```bash
+docker compose -f docker/compose.yaml run --rm --build migrate
+docker compose -f docker/compose.yaml up -d
+```
+
+Läuft die Migration durch, tauscht der zweite Aufruf die Container, und nach
+wenigen Sekunden antwortet die Instanz wieder. Schlägt sie fehl, bricht der
+erste Aufruf mit dem Grund ab, der zweite wird nie erreicht, und die laufende
+Instanz beantwortet weiter Anfragen. Die Datenbank steht dabei unverändert auf
+dem Stand davor: alle ausstehenden Migrationen laufen in einer einzigen
+Transaktion, ein halbes Update gibt es nicht.
+
+**Nicht `docker compose up -d` allein**, obwohl der Migrationsdienst auch dort
+davorhängt. Compose erzeugt zuerst alle Container neu, deren Abbild sich
+geändert hat, und startet sie erst danach. Der laufende Anwendungscontainer ist
+also schon weg, wenn die Migration überhaupt anfängt. Geht sie schief, steht
+die Instanz still, statt weiter zu antworten. Nachgemessen am 19.09.2026; der
+Unterschied ist genau ein Aufruf mehr.
+
+Daraus folgt eine Regel für die Migrationen selbst: **eine Migration muss auch
+zur vorherigen Fassung passen.** Zwischen den beiden Aufrufen läuft die alte
+Anwendung einen Moment lang auf dem neuen Schema. Eine Spalte hinzufügen ist
+deshalb unbedenklich, eine umbenennen oder entfernen nicht. Das braucht zwei
+Fassungen: in der ersten die neue Spalte anlegen und beschreiben, in der
+zweiten die alte entfernen.
+
+Sprünge über mehrere Stände hinweg funktionieren, ein Betrieb aktualisiert
+nicht jede Woche. Der Lauf spielt alles ein, was seit dem Stand der Datenbank
+dazugekommen ist, und tut gegen eine schon aktuelle Datenbank nichts. Die CI
+fährt genau das: eine Instanz auf einem älteren Stand, Daten darauf, zwei
+Migrationen darüber, danach derselbe Bestand und dieselbe Audit-Kette.
+
+Zwei Fälle lehnt der Lauf ab, statt sie stillschweigend zu übergehen:
+
+- **Eine gemergte Migration wurde nachträglich geändert.** Geprüft werden die
+  Hashes in der Datenbank gegen die Dateien im Abbild. Ohne diese Prüfung
+  passiert schlicht nichts, und genau das ist das Problem: das Werkzeug
+  vergleicht nur Zeitstempel, findet nichts Neueres und meldet Erfolg. Wer die
+  Änderung gemacht hat, hält sie für eingespielt.
+- **Das Abbild ist älter als die Datenbank**, ein zurückgedrehtes Update also.
+  Zurück geht nicht, das ältere Abbild kennt die Spalten nicht, die der neuere
+  Stand angelegt hat. Der Weg zurück führt über die Sicherung von vor dem
+  Update.
+
+Vor ein Update gehört eine Sicherung, siehe oben. Sie ist auch der Weg zurück,
+wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
 
 ### Was beim Aufsetzen sonst noch Zeit kostet
 

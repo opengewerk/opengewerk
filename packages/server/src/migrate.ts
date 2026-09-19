@@ -1,5 +1,5 @@
 import { ConfigurationError, migrationRole, parseConnectionString } from './configuration.js'
-import { runMigrations } from './database/migrations.js'
+import { MigrationHistoryError, runMigrations } from './database/migrations.js'
 
 /**
  * Brings the database up to the current state, then exits.
@@ -39,15 +39,18 @@ async function main(): Promise<void> {
 try {
   await main()
 } catch (error) {
-  if (error instanceof ConfigurationError) {
+  // Both carry a finished sentence and no stack worth printing: the one names
+  // the variable that is missing, the other what the database and the image
+  // disagree about. A stack under either would only bury it.
+  if (error instanceof ConfigurationError || error instanceof MigrationHistoryError) {
     console.error(error.message)
   } else {
     // The reason belongs in the log in full. Somebody reads this during an
     // update that has just stopped, and "migration failed" without the
     // statement that failed sends them looking through six files.
     console.error(
-      'Die Migration ist fehlgeschlagen. Die Datenbank steht auf dem Stand davor, und ' +
-        'eine Instanz mit dem alten Abbild läuft darauf weiter. Grund:',
+      'Die Migration ist fehlgeschlagen. Die Datenbank steht unverändert auf dem Stand ' +
+        'davor, es wurde nichts halb eingespielt. Grund:',
     )
     console.error(error)
   }
