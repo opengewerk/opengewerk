@@ -339,7 +339,7 @@ Gegenstück zum separaten **Kanzlei-Hub**: Die Kanzlei arbeitet aus ihrem eigene
 
 **API-Endpunkte (`opengewerk-api-spec`)**
 - `/periods`, `/journal`, `/accounts`, `/balances`, `/open-items`, `/documents/{id}` (Belegbild + E-Rechnungs-XML), `/inquiries`, `/proposals`, `/coa-profile`, `/audit-export` (Z1-Z3), `/access-log`
-- Token gebunden an die Hub-Instanz (mTLS oder DPoP), rotierbar, Ablauf bei Inaktivität ⚖
+- Token rotierbar, Ablauf bei Inaktivität; kryptografische Bindung an die Hub-Instanz (mTLS oder DPoP) nach der ersten Fassung, siehe ADR 0006 ⚖
 - ETags/Paginierung für effizienten Sync, Idempotenz-Keys bei schreibenden Aufrufen; Beträge als Integer-Cent, Steuerschlüssel nach DATEV-Konvention
 
 **Webhooks an die Kanzlei**

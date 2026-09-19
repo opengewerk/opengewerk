@@ -219,6 +219,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Feature-Gliederung sagt die Bindung des Tokens an die Hub-Instanz nicht mehr für
+  die erste Fassung zu. ADR 0006 hat am 18.09.2026 anders entschieden, rotierende
+  Bearer-Token in Phase 3 und die kryptografische Bindung danach, und der Vertrag sagt
+  dasselbe. Die Zusage stand an einer Stelle mit dem Zeichen für berufsrechtliche
+  Relevanz
+
 - Die zehn deutschen Shell-Variablen in `ci.yml` heißen englisch, wie die Job-Kennungen
   und die Kommentare daneben schon. Die Meldungstexte bleiben deutsch, sie stehen in der
   Actions-Oberfläche. Stehengeblieben waren sie bei der Umbenennung von `betrieb` auf
