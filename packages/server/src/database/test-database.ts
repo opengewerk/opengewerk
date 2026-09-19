@@ -153,6 +153,30 @@ export async function enumNames(pool: Pool): Promise<string[]> {
 }
 
 /**
+ * Every enum type in `public` with its values, in the order PostgreSQL keeps
+ * them. `enumsortorder` rather than the name: the order is part of the type,
+ * it decides what `order by` on such a column does, and `ALTER TYPE ... ADD
+ * VALUE BEFORE` exists precisely to place a value inside it.
+ */
+export async function enumValues(pool: Pool): Promise<Map<string, string[]>> {
+  const result = await pool.query<{ typname: string; label: string }>(
+    `select t.typname, e.enumlabel as label from pg_type t
+       join pg_namespace n on n.oid = t.typnamespace
+       join pg_enum e on e.enumtypid = t.oid
+      where t.typtype = 'e' and n.nspname = 'public'
+      order by t.typname, e.enumsortorder`,
+  )
+
+  const values = new Map<string, string[]>()
+
+  for (const row of result.rows) {
+    values.set(row.typname, [...(values.get(row.typname) ?? []), row.label])
+  }
+
+  return values
+}
+
+/**
  * The functions the migrations left behind, for the same check as the tables.
  *
  * Extensions are excluded through `pg_depend`, otherwise `uuidv7` comes along

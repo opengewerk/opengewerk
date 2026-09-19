@@ -20,12 +20,18 @@ import type {
  * merged, so those columns get added, not rewritten.
  */
 
+/**
+ * What kind of board this is. A meter cabinet is not among them: it is an
+ * installation of its own and carries the boards inside it, the same way the
+ * two files beside this one put the inverter below the PV system and storage,
+ * meters and the wallbox next to it. A board is part of an installation, never
+ * a stand in for one.
+ */
 export const distributionBoardKinds = [
   /** Niederspannungshauptverteilung. */
   'main_distribution',
   /** Unterverteilung. */
   'sub_distribution',
-  'meter_cabinet',
 ] as const
 
 export type DistributionBoardKind = (typeof distributionBoardKinds)[number]

@@ -220,6 +220,49 @@ describe('an update from an older release', () => {
     expect(Number((await chain()).nextSequence)).toBeGreaterThan(Number(chainBefore.nextSequence))
     expect(await chainProblem()).toBeNull()
   })
+
+  it('refuses to take a kind away from a board that still carries it', async () => {
+    // `meter_cabinet` leaves `distribution_board_kind` in 0008. It leaves the
+    // code, not a database somebody has already filled, and a cast that simply
+    // went through would put such a board on a kind nobody chose for it. The
+    // database refuses instead, and this is that refusal written down: the
+    // whole update stops, the row keeps what it says, and the reason names the
+    // value rather than the file.
+    //
+    // The release is looked up by the tag, not counted. A count would be right
+    // today and point at the wrong migration the next time one is added.
+    const beforeTheChange = readMigrationIndex().findIndex(
+      (entry) => entry.tag === '0008_anlagenarten',
+    )
+    expect(beforeTheChange).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(beforeTheChange))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `with customer as (
+         insert into customers (tenant_id, kind, name)
+           values ($1, 'business', 'Hausverwaltung Süd') returning id
+       ), site as (
+         insert into sites (tenant_id, customer_id, designation)
+           select $1, id, 'Haus 4' from customer returning id
+       ), installation as (
+         insert into installations (tenant_id, site_id, kind, designation)
+           select $1, id, 'meter_cabinet', 'Zählerschrank' from site returning id
+       )
+       insert into distribution_boards (tenant_id, installation_id, kind, designation)
+         select $1, id, 'meter_cabinet', 'Zählerschrank' from installation`,
+      [tenant.id],
+    )
+
+    const failure = await runMigrations(ownerDatabaseUrl()).catch((error: unknown) => error)
+
+    expect(reasonOf(failure)).toContain('meter_cabinet')
+    expect(await appliedMigrationCount(admin)).toBe(beforeTheChange)
+
+    const { rows } = await admin.query<{ kind: string }>('select kind from distribution_boards')
+    expect(rows.map((row) => row.kind)).toEqual(['meter_cabinet'])
+  })
 })
 
 describe('the migration run', () => {

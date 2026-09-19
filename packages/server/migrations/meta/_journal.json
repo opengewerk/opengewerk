@@ -57,6 +57,13 @@
       "when": 1789832968194,
       "tag": "0007_revoke_tenant_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789837752786,
+      "tag": "0008_anlagenarten",
+      "breakpoints": true
     }
   ]
 }
