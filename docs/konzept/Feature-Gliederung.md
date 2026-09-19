@@ -343,7 +343,7 @@ Gegenstück zum separaten **Kanzlei-Hub**: Die Kanzlei arbeitet aus ihrem eigene
 - ETags/Paginierung für effizienten Sync, Idempotenz-Keys bei schreibenden Aufrufen; Beträge als Integer-Cent, Steuerschlüssel nach DATEV-Konvention
 
 **Webhooks an die Kanzlei**
-- Neuer Beleg, Beleg geändert, Rückfrage beantwortet, Periode festgeschrieben, Bankumsatz ohne Beleg
+- Neuer Beleg, Beleg geändert, Rückfrage beantwortet, Vorschlag entschieden, Periode festgeschrieben, Bankumsatz ohne Beleg
 - Signierte Payloads, Retry mit Backoff, Zustellprotokoll
 
 **Rückfragen-Postfach**

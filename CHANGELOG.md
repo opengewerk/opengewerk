@@ -219,6 +219,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Webhook-Liste in Abschnitt 4.13 führt "Vorschlag entschieden". Ohne dieses
+  Ereignis erfährt die Kanzlei nur durch Nachfragen, ob der Mandant einen
+  Buchungsvorschlag übernommen hat
 - Die Feature-Gliederung sagt die Bindung des Tokens an die Hub-Instanz nicht mehr für
   die erste Fassung zu. ADR 0006 hat am 18.09.2026 anders entschieden, rotierende
   Bearer-Token in Phase 3 und die kryptografische Bindung danach, und der Vertrag sagt
