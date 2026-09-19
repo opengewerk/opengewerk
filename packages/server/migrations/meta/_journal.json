@@ -43,6 +43,13 @@
       "when": 1789753814419,
       "tag": "0005_rule_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789824074595,
+      "tag": "0006_reserved_sync_fields",
+      "breakpoints": true
     }
   ]
 }

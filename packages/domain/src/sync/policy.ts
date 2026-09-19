@@ -25,6 +25,20 @@ export interface SyncPolicy {
     readonly field: string
     readonly values: readonly SyncValue[]
   }
+  /**
+   * Fields only the server ever writes, whatever a device sends.
+   *
+   * Different from the columns the server keeps everywhere (id, version and
+   * the like): those are bookkeeping a device has no opinion about. These are
+   * fields a device very much has an opinion about and still may not set,
+   * because setting them is an act that needs a connection, a right and a
+   * counter.
+   *
+   * Listed per entity, because the same field name means different things on
+   * different tables, and because a generic rule would either be too wide or
+   * would have to be widened at the wrong moment.
+   */
+  readonly reserved?: readonly string[]
 }
 
 /**
@@ -73,8 +87,27 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * fixes the document, which happens on the server and only there. A device
    * without a network can prepare a document; it cannot turn one into
    * bookkeeping.
+   *
+   * `onlyWhile` alone did not say that. It asks what the record looked like
+   * before, so it catches a device writing to something already issued and
+   * lets the step that does the issuing straight through: a draft is a draft
+   * until the patch lands. `reserved` is the other half, and it is the half
+   * that matters, because these three fields together are the issuing. The
+   * number comes from the counter, the timestamp from the server clock, and
+   * the status from the endpoint that holds both.
+   *
+   * It covers creating as well, which is where the gate cannot help at all:
+   * there is no previous state to look at, and a document arriving as
+   * `issued` with a number of its own would never have passed through the
+   * counter. `status` carries its default, so a device that leaves it alone
+   * still gets a draft.
    */
-  documents: { create: true, change: 'merge', onlyWhile: { field: 'status', values: ['draft'] } },
+  documents: {
+    create: true,
+    change: 'merge',
+    onlyWhile: { field: 'status', values: ['draft'] },
+    reserved: ['status', 'number', 'issuedAt'],
+  },
 }
 
 export const syncEntities = Object.keys(syncPolicies)

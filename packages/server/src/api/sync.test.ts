@@ -437,6 +437,73 @@ describe('what a device may not do without a connection', () => {
     expect(answer.receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'record_is_fixed' })
   })
 
+  it('cannot be issued through the sync channel', async () => {
+    // The whole point of the endpoint that does it: a number out of the
+    // counter, a timestamp from the server clock, and a right the sender may
+    // not even have. None of that is on this road.
+    const draft = await http()
+      .post('/documents')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'final_invoice', documentDate: '2026-09-18' })
+      .expect(201)
+
+    const answer = await push(office(), 'telefon-anna', [
+      change({
+        entity: 'documents',
+        recordId: draft.body.id,
+        patches: [
+          { field: 'status', from: 'draft', to: 'issued' },
+          { field: 'number', from: null, to: 'RE-2026-0001' },
+          { field: 'issuedAt', from: null, to: '2026-09-19T08:00:00.000Z' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+    })
+
+    const documents = await http().get('/documents').set('x-test-identity', office()).expect(200)
+    const after = (documents.body as { id: string; status: string; number: string | null }[]).find(
+      (document) => document.id === draft.body.id,
+    )
+
+    expect(after).toMatchObject({ status: 'draft', number: null })
+  })
+
+  it('cannot arrive from a device already issued', async () => {
+    // The harder way in, and the one the gate on `status` cannot see: there is
+    // no previous state to hold the patch against.
+    const recordId = newId<'document'>()
+
+    const answer = await push(office(), 'telefon-anna', [
+      change({
+        entity: 'documents',
+        recordId,
+        kind: 'create',
+        patches: [
+          { field: 'customerId', from: null, to: customerId },
+          { field: 'kind', from: null, to: 'final_invoice' },
+          { field: 'documentDate', from: null, to: '2026-09-18' },
+          { field: 'status', from: null, to: 'issued' },
+          { field: 'number', from: null, to: 'RE-2026-9999' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+    })
+
+    const documents = await http().get('/documents').set('x-test-identity', office()).expect(200)
+
+    expect((documents.body as { id: string }[]).some((document) => document.id === recordId)).toBe(
+      false,
+    )
+  })
+
   it('cannot write the columns the server keeps', async () => {
     const board = await installation('Fremde Spalte')
 

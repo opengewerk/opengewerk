@@ -410,6 +410,7 @@ jobs:
           (folder / "meta" / "_journal.json").write_text(
               json.dumps(journal, indent=2), encoding="utf-8"
           )
+          Path("/tmp/migrations-old.txt").write_text(str(keep), encoding="utf-8")
           print("Zurückgenommen auf " + entries[keep - 1]["tag"] + ".")
           PYTHON
 
@@ -423,7 +424,7 @@ jobs:
           set -eu
           eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
           echo "Migrationen auf dem alten Stand: ${eingespielt}"
-          test "${eingespielt}" = "4"
+          test "${eingespielt}" = "$(cat /tmp/migrations-old.txt)"
 
           docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
             insert into tenants (id, name) values
@@ -456,8 +457,11 @@ jobs:
         run: |
           set -eu
           eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          echo "Migrationen nach dem Update: ${eingespielt}"
-          test "${eingespielt}" = "6"
+          # Aus dem Journal und nicht als feste Zahl: die naechste Migration
+          # wuerde diesen Job sonst reissen, ohne dass etwas kaputt waere.
+          python3 -c "import json, pathlib; pathlib.Path('/tmp/migrations-new.txt').write_text(str(len(json.loads(pathlib.Path('../packages/server/migrations/meta/_journal.json').read_text(encoding='utf-8'))['entries'])), encoding='utf-8')"
+          echo "Migrationen nach dem Update: ${eingespielt}, erwartet: $(cat /tmp/migrations-new.txt)"
+          test "${eingespielt}" = "$(cat /tmp/migrations-new.txt)"
 
           kunden=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
           test "${kunden}" = "2"
@@ -547,7 +551,7 @@ jobs:
           # failed migration went through without complaint, its table is gone
           # all the same, because both were inside one transaction.
           eingespielt=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          test "${eingespielt}" = "6"
+          test "${eingespielt}" = "$(cat /tmp/migrations-new.txt)"
 
           reste=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'warranties'")
           echo "Reste der abgebrochenen Migration: ${reste}"
