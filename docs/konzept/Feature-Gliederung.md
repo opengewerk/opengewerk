@@ -36,7 +36,7 @@ Diese Bausteine werden zuerst gebaut, weil fast jedes Modul darauf aufsetzt.
 
 - **Kunde** (Privat/Gewerbe/Hausverwaltung/Generalunternehmer) mit mehreren Ansprechpartnern (Bauleiter, Buchhaltung, Mieter)
 - **Objekt** (Gebäude, Liegenschaft, Standort), ein Kunde kann viele Objekte haben (Hausverwaltung mit 40 Liegenschaften)
-- **Anlage** (PV-Anlage, Zählerschrank, Wallbox, Heizung, Wechselrichter), gehört zu einem Objekt, trägt Prüfhistorie, Gewährleistung, Wartungsvertrag
+- **Anlage** (PV-Anlage, Speicher, Zähler, Zählerschrank, Wallbox, Heizung), gehört zu einem Objekt, trägt Prüfhistorie, Gewährleistung, Wartungsvertrag. Der Wechselrichter gehört nicht dazu, er hängt nach 3.2 unter der PV-Anlage
 - **Auftrag** in zwei Ausprägungen: **Projekt** (Baustelle, Teilprojekte/Gewerke) und **Serviceauftrag** (Kundendienst, Störung, Notdienst, Wartungseinsatz)
 - **Beleg** (siehe Dokumentenkette 4.2), jeder Beleg referenziert Auftrag, Kunde, Objekt/Anlage
 - **Buchung**: jede Zahlung/Rechnung erzeugt Journal-Einträge (siehe Finance)
