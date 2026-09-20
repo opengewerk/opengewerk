@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 import express from 'express'
@@ -20,7 +20,14 @@ import type { Express, Request, Response } from 'express'
  * offline, written twice because it has to hold in both places.
  */
 
-/** Where the built files sit inside the image, and where they sit locally. */
+/**
+ * Where the built files sit inside the image, and where they sit locally.
+ *
+ * A folder only counts when both shells are in it. A directory with one of
+ * them is a build that went wrong, and the honest answer then is that there is
+ * no interface: the instance says so once at start and serves its API, rather
+ * than answering half the addresses and 404ing the other half.
+ */
 export function interfacePath(): string | null {
   for (const candidate of [
     // In the image: the web build is copied next to the server's own dist.
@@ -28,7 +35,13 @@ export function interfacePath(): string | null {
     // In a checkout: straight out of the other package.
     resolve(process.cwd(), '..', 'web', 'dist'),
   ]) {
-    if (existsSync(candidate) && statSync(candidate).isDirectory()) {
+    const complete =
+      existsSync(candidate) &&
+      statSync(candidate).isDirectory() &&
+      existsSync(join(candidate, 'index.html')) &&
+      existsSync(join(candidate, 'm', 'index.html'))
+
+    if (complete) {
       return candidate
     }
   }
@@ -64,8 +77,17 @@ function belongsToTheApi(path: string): boolean {
 }
 
 export function serveInterface(application: Express, directory: string): void {
-  const officeShell = join(directory, 'index.html')
-  const siteShell = join(directory, 'm', 'index.html')
+  /**
+   * Both shells, read once and kept.
+   *
+   * Not read per request, and that is not only about speed. The fallback below
+   * answers every address that is not the API's, so a handler that touched the
+   * disk would turn any flood of requests for nonsense paths into disk work.
+   * There is nothing to re-read: the files come out of a build, and a new
+   * build is a new container.
+   */
+  const officeShell = readFileSync(join(directory, 'index.html'), 'utf8')
+  const siteShell = readFileSync(join(directory, 'm', 'index.html'), 'utf8')
 
   application.use(
     express.static(directory, {
@@ -108,6 +130,6 @@ export function serveInterface(application: Express, directory: string): void {
     }
 
     response.setHeader('Cache-Control', 'no-cache')
-    response.sendFile(request.path.startsWith('/m') ? siteShell : officeShell)
+    response.type('html').send(request.path.startsWith('/m') ? siteShell : officeShell)
   })
 }

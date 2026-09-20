@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,7 +7,7 @@ import type { Express } from 'express'
 import request from 'supertest'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { serveInterface } from './interface.js'
+import { interfacePath, serveInterface } from './interface.js'
 
 /**
  * A built interface, as small as one can be and still have two shells.
@@ -30,15 +30,51 @@ function builtInterface(): string {
 }
 
 let application: Express
+let served: string
 
 beforeAll(() => {
   application = express()
+  served = builtInterface()
 
   application.get('/customers', (_request, response) => {
     response.json([{ name: 'Meyer' }])
   })
 
-  serveInterface(application, builtInterface())
+  serveInterface(application, served)
+})
+
+describe('where the server looks for a built interface', () => {
+  it('finds nothing when neither place has one', () => {
+    const empty = mkdtempSync(join(tmpdir(), 'opengewerk-empty-'))
+    const wasAt = process.cwd()
+
+    try {
+      process.chdir(empty)
+
+      expect(interfacePath()).toBeNull()
+    } finally {
+      process.chdir(wasAt)
+    }
+  })
+
+  it('finds nothing when only one of the two shells is there', () => {
+    // Half a build. Saying so at start and serving the API beats answering
+    // one half of the addresses and 404ing the other, which looks like a
+    // routing fault in an application that was simply never built whole.
+    const half = mkdtempSync(join(tmpdir(), 'opengewerk-half-'))
+    const wasAt = process.cwd()
+
+    mkdirSync(join(half, 'interface'))
+    writeFileSync(join(half, 'interface', 'index.html'), '<!doctype html>')
+
+    try {
+      process.chdir(half)
+
+      expect(interfacePath()).toBeNull()
+    } finally {
+      process.chdir(wasAt)
+    }
+  })
 })
 
 describe('the interface the server hands out', () => {
@@ -102,6 +138,21 @@ describe('the interface the server hands out', () => {
     // year of caching on this one file is an installation that keeps starting
     // the version it had the day somebody first opened it.
     expect(worker.headers['cache-control']).toBe('no-cache')
+  })
+
+  it('reads each shell once instead of touching the disk per request', async () => {
+    // The fallback answers every address that is not the API's. A handler that
+    // reached for the disk would turn a flood of requests for nonsense paths
+    // into disk work, which is what CodeQL calls an unrated file system
+    // access and what an operator would call a bad afternoon.
+    const first = await request(application).get('/')
+
+    rmSync(join(served, 'index.html'))
+
+    const afterwards = await request(application).get('/kunden/018f-abc')
+
+    expect(first.text).toContain('Büro')
+    expect(afterwards.text).toBe(first.text)
   })
 
   it('never reaches a file outside the built interface', async () => {

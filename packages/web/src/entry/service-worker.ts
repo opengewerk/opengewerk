@@ -55,9 +55,18 @@ registerRoute(
  * The application asks for the swap, this only performs it. `registerType` is
  * `prompt`, so a new version waits here until somebody who is not in the
  * middle of something says go.
+ *
+ * The origin is checked although only a page inside this worker's scope can
+ * reach it at all, so the check can never fail in practice. It is here because
+ * "a handler that acts on a message without looking where it came from" is a
+ * shape worth never writing: the next message handler will do something more
+ * than swap a build, and by then the habit decides. An empty origin is let
+ * through because a message from another worker on this origin has one.
  */
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
-  if ((event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
+  const fromHere = event.origin === '' || event.origin === self.location.origin
+
+  if (fromHere && (event.data as { type?: string } | undefined)?.type === 'SKIP_WAITING') {
     void self.skipWaiting()
   }
 })
