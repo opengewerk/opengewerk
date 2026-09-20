@@ -18,6 +18,7 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
+import type { Authentication } from './authentication.js'
 import { authenticationPath, createAuthentication } from './authentication.js'
 import { SessionIdentitySource } from './session-identity.js'
 import { addStaffMember } from './staff.js'
@@ -37,6 +38,7 @@ const password = 'ein-ordentlich-langes-passwort'
 
 let admin: Pool
 let database: Database
+let authentication: Authentication
 let app: INestApplication
 let closedApp: INestApplication
 let closedDatabase: Database
@@ -83,7 +85,7 @@ beforeAll(async () => {
 
   database = Database.connect(applicationDatabaseUrl())
 
-  const authentication = createAuthentication({
+  authentication = createAuthentication({
     database,
     secret: 'z'.repeat(64),
     trustedOrigins: [origin],
@@ -211,6 +213,50 @@ describe('signing in', () => {
       tx.select().from(authUsers).where(eq(authUsers.email, 'fremd@example.de')),
     )
     expect(created).toEqual([])
+  })
+})
+
+describe('putting somebody into a business', () => {
+  /**
+   * Whether the account came into being here or was already on the instance.
+   *
+   * The command line needs the answer, and not for a nicer sentence: an
+   * account that was already there keeps the password it had, so a command
+   * that printed the one it brought along would be naming a password that does
+   * not work. Somebody in two companies is the ordinary case for the second
+   * half, not an edge one.
+   */
+  it('says whether the account was new, because a second business reuses it', async () => {
+    const fresh = await addStaffMember(authentication, database, {
+      email: 'neu@example.de',
+      name: 'Nina Neu',
+      password,
+      tenantId: north.id,
+      roles: ['office'],
+    })
+
+    expect(fresh.created).toBe(true)
+
+    const again = await addStaffMember(authentication, database, {
+      email: 'neu@example.de',
+      name: 'Nina Neu',
+      password: 'ein-ganz-anderes-passwort',
+      tenantId: south.id,
+      roles: ['office'],
+    })
+
+    expect(again.created).toBe(false)
+    expect(again.userId).toBe(fresh.userId)
+
+    // And the password really is the first one, which is what the flag is
+    // there to let a caller say out loud.
+    await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .send({ email: 'neu@example.de', password: 'ein-ganz-anderes-passwort' })
+      .expect(401)
+
+    await signIn('neu@example.de')
   })
 })
 

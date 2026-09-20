@@ -2,6 +2,7 @@ import type { RoleKey, TenantId } from '@opengewerk/domain'
 import { roleKeys } from '@opengewerk/domain'
 
 import { createAuthentication } from './authentication/authentication.js'
+import { generatePassword } from './authentication/password.js'
 import { addStaffMember } from './authentication/staff.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
@@ -43,15 +44,19 @@ async function main(): Promise<void> {
     )
   }
 
-  const password = process.env['OPENGEWERK_PASSWORD']?.trim()
+  const given = process.env['OPENGEWERK_PASSWORD']?.trim()
 
-  if (!password || password.length < 12) {
+  if (given !== undefined && given.length < 12) {
+    // Only when one was given. A password that is there and too short is a
+    // mistake worth stopping for; none at all is the case below.
     throw new ConfigurationError(
-      'OPENGEWERK_PASSWORD fehlt oder ist kürzer als 12 Zeichen. Kurze Passwörter sind ' +
-        'genau bei der Anmeldung die teure Stelle, weil sie einmal gesetzt und jahrelang ' +
-        'benutzt werden.',
+      'OPENGEWERK_PASSWORD ist kürzer als 12 Zeichen. Kurze Passwörter sind genau bei der ' +
+        'Anmeldung die teure Stelle, weil sie einmal gesetzt und jahrelang benutzt werden. ' +
+        'Wer keines zur Hand hat, lässt die Variable weg: dann wird eines erzeugt.',
     )
   }
+
+  const password = given ?? generatePassword()
 
   const configuration = readConfiguration()
   const database = Database.connect(configuration.databaseUrl)
@@ -70,7 +75,7 @@ async function main(): Promise<void> {
       trustedOrigins: configuration.trustedOrigins,
     })
 
-    await addStaffMember(authentication, database, {
+    const { created } = await addStaffMember(authentication, database, {
       email,
       name,
       password,
@@ -78,12 +83,29 @@ async function main(): Promise<void> {
       roles: roles as RoleKey[],
     })
 
-    console.info(`${email} ist im Betrieb ${tenantId} angelegt, Rollen: ${roles.join(', ')}.`)
+    console.info(
+      created
+        ? `${email} ist im Betrieb ${tenantId} angelegt, Rollen: ${roles.join(', ')}.`
+        : `${email} gab es schon auf dieser Instanz. Die Rollen im Betrieb ${tenantId} ` +
+            `stehen jetzt auf: ${roles.join(', ')}. Das Passwort ist unverändert.`,
+    )
+
+    if (created && given === undefined) {
+      // Once, on standard output, and nowhere else. This command runs under
+      // `docker compose exec`, so what it prints goes to the terminal of
+      // whoever ran it and not into the log of the container, and the log is
+      // what somebody hands over when they ask for help.
+      console.info(`Erzeugtes Passwort: ${password}`)
+      console.info(
+        'Es steht nur hier und nirgends sonst. Beim ersten Anmelden gehört es ersetzt, ' +
+          'denn bis dahin kennt es jeder, der diese Zeile gesehen hat.',
+      )
+    }
 
     if (roles.includes('owner')) {
       console.info(
-        'Für die Rolle "Inhaber" ist ein zweiter Faktor Pflicht. Bis er eingerichtet ist, ' +
-          'kommt diese Anmeldung bis zur Betriebswahl und nicht weiter.',
+        'Für die Rolle "Inhaber" ist ein zweiter Faktor Pflicht. Die Anwendung fragt bei der ' +
+          'ersten Anmeldung danach und richtet ihn ein.',
       )
     }
   } finally {

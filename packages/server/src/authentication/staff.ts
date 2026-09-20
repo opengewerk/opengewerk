@@ -112,23 +112,28 @@ export async function grantMembership(
  * membership without a user cannot exist, the foreign key sees to that. One
  * transaction is what makes the first half true as well, and it is the reason
  * this walks from the instance into the business rather than opening two.
+ *
+ * `created` says whether the account came into being here or was already on
+ * the instance. It matters to the caller: an account that was already there
+ * keeps the password it had, so a command that printed the password it brought
+ * along would be naming one that does not work.
  */
 export async function addStaffMember(
   authentication: Authentication,
   database: Database,
   member: StaffMember,
-): Promise<{ userId: string }> {
+): Promise<{ userId: string; created: boolean }> {
   const context = await authentication.$context
 
   return database.forInstanceAndTenant(
     'membership.create',
     async ({ tx, enter }: StraddlingTransaction) => {
-      const { userId } = await createAccount(context, tx, member)
+      const { userId, created } = await createAccount(context, tx, member)
 
       await enter(member.tenantId, userId)
       await grantMembership(tx, { tenantId: member.tenantId, userId, roles: member.roles })
 
-      return { userId }
+      return { userId, created }
     },
   )
 }
