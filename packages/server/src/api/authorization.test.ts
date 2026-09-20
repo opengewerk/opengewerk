@@ -1,6 +1,5 @@
 import { Test } from '@nestjs/testing'
 import type { INestApplication } from '@nestjs/common'
-import type { Identity, RoleKey, TenantId } from '@opengewerk/domain'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -17,7 +16,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import type { IdentitySource } from './identity.js'
+import { as, testIdentities as identities } from './test-identity.js'
 
 /**
  * The rights are checked on the server, through the API, not in the interface.
@@ -32,24 +31,6 @@ let admin: Pool
 let database: Database
 let app: INestApplication
 let northCustomer: string
-
-/**
- * The stand in for authentication, and it lives here rather than in the
- * server: it reads the identity straight out of a header, which is exactly
- * what a real one must never do. The server ships without any implementation,
- * so it cannot start until a genuine one is handed in.
- */
-const identities: IdentitySource = {
-  identify: async (request: unknown) => {
-    const header = (request as { headers?: Record<string, string> }).headers?.['x-test-identity']
-
-    return header ? (JSON.parse(header) as Identity) : null
-  },
-}
-
-function as(tenantId: TenantId, ...roles: RoleKey[]): string {
-  return JSON.stringify({ userId: 'test', tenantId, roles } satisfies Identity)
-}
 
 beforeAll(async () => {
   admin = await connect()

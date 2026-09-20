@@ -3,10 +3,11 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
 import type { Permission } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
+import { authenticationPath } from '../authentication/authentication.js'
 import { Database } from '../database/database.js'
 import { ApiModule } from './api.module.js'
-import { PERMISSION_METADATA, PUBLIC_METADATA } from './authorization.js'
-import type { IdentitySource } from './identity.js'
+import { PERMISSION_METADATA, PUBLIC_METADATA, SESSION_METADATA } from './authorization.js'
+import { noIdentities } from './test-identity.js'
 
 /**
  * Walks every route the module registers and reports the ones that declare no
@@ -27,6 +28,7 @@ interface Route {
   readonly writes: boolean
   readonly permission: Permission | undefined
   readonly isPublic: boolean
+  readonly needsSessionOnly: boolean
 }
 
 function routesOf(controllers: readonly unknown[]): Route[] {
@@ -59,6 +61,7 @@ function routesOf(controllers: readonly unknown[]): Route[] {
         writes: verb !== undefined,
         permission: Reflect.getMetadata(PERMISSION_METADATA, handler) as Permission | undefined,
         isPublic: Reflect.getMetadata(PUBLIC_METADATA, handler) === true,
+        needsSessionOnly: Reflect.getMetadata(SESSION_METADATA, handler) === true,
       })
     }
   }
@@ -66,9 +69,8 @@ function routesOf(controllers: readonly unknown[]): Route[] {
   return routes
 }
 
-const identities: IdentitySource = { identify: async () => null }
 const controllers =
-  ApiModule.create(Database.connect('postgres://unused'), identities).controllers ?? []
+  ApiModule.create(Database.connect('postgres://unused'), noIdentities).controllers ?? []
 
 describe('every route', () => {
   it('is registered in the first place', () => {
@@ -82,7 +84,9 @@ describe('every route', () => {
 
   it('declares the right it needs, writing ones above all', () => {
     const undeclared = routesOf(controllers)
-      .filter((route) => route.permission === undefined && !route.isPublic)
+      .filter(
+        (route) => route.permission === undefined && !route.isPublic && !route.needsSessionOnly,
+      )
       .map((route) => route.name)
 
     expect(undeclared).toEqual([])
@@ -108,6 +112,46 @@ describe('every route', () => {
       .map((route) => route.name)
 
     expect(writingAndPublic).toEqual([])
+  })
+
+  /**
+   * The third kind, and held as a list for the same reason as the second.
+   *
+   * These need somebody signed in but no business, so they cannot ask for a
+   * right: a right comes from a membership and a membership is per business,
+   * which is exactly what has not been decided yet at this point. All four are
+   * about that moment and nothing else. A fifth one turns this red, and it
+   * should, because the next route that "only needs a session" is far more
+   * likely to be one that forgot to say which business it means.
+   */
+  it('that needs a session but no business is one of the four around signing in', () => {
+    const sessionOnly = routesOf(controllers)
+      .filter((route) => route.needsSessionOnly)
+      .map((route) => route.name)
+      .sort()
+
+    expect(sessionOnly).toEqual([
+      'DELETE /auth/devices/:sessionId',
+      'GET /auth/devices',
+      'GET /auth/tenants',
+      'POST /auth/sign-out',
+      'POST /auth/tenant',
+    ])
+  })
+
+  /**
+   * better-auth's own routes are mounted as middleware, in front of Nest and
+   * outside the guard, because a route that hands out a session cannot ask for
+   * one. That is defensible exactly as long as nothing of ours shares the
+   * prefix: a controller under it would be outside the guard without anybody
+   * meaning it to, and no other test here would notice.
+   */
+  it('of ours never lives under the path the authentication handler is mounted on', () => {
+    const underneath = routesOf(controllers)
+      .map((route) => route.name)
+      .filter((name) => name.includes(` ${authenticationPath}`))
+
+    expect(underneath).toEqual([])
   })
 
   it('that issues a document asks for the right to issue, not the right to write', () => {

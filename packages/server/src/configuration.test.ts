@@ -21,13 +21,25 @@ import {
  * becomes 3000 while the proxy waits on 8080.
  */
 
+const secret = 'a'.repeat(64)
+
 const valid: Environment = {
   DATABASE_URL: `postgres://${applicationRole}:geheim@db:5432/opengewerk`,
   STORAGE_PATH: '/var/lib/opengewerk/storage',
+  SESSION_SECRET: secret,
+  TRUSTED_ORIGINS: 'https://opengewerk.example.de',
 }
 
 /** Every directory is fine, so that the other checks are what fails. */
 const writable: AccessCheck = () => null
+
+/** The valid environment minus one variable, to see what its absence does. */
+function without(name: keyof typeof valid): Environment {
+  const environment = { ...valid }
+  delete environment[name]
+
+  return environment
+}
 
 describe('the configuration', () => {
   it('reads what an instance needs', () => {
@@ -36,6 +48,9 @@ describe('the configuration', () => {
     expect(configuration).toEqual({
       databaseUrl: `postgres://${applicationRole}:geheim@db:5432/opengewerk`,
       storagePath: '/var/lib/opengewerk/storage',
+      sessionSecret: secret,
+      trustedOrigins: ['https://opengewerk.example.de'],
+      closed: false,
       port: 8080,
       host: '127.0.0.1',
     })
@@ -63,6 +78,64 @@ describe('the configuration', () => {
     expect(() =>
       readConfiguration({ ...valid, DATABASE_URL: 'mysql://user:pw@db:3306/opengewerk' }, writable),
     ).toThrow(/PostgreSQL/)
+  })
+
+  it('refuses to start without a cookie secret, and without a short one', () => {
+    expect(() => readConfiguration(without('SESSION_SECRET'), writable)).toThrow(/SESSION_SECRET/)
+    // Long enough to look deliberate, short enough to be somebody typing.
+    expect(() =>
+      readConfiguration({ ...valid, SESSION_SECRET: 'geheimes-passwort-1' }, writable),
+    ).toThrow(/mindestens 32 Zeichen/)
+  })
+
+  /**
+   * The origin list is the CSRF defence, so the ways it can be present and
+   * useless matter more than the way it can be absent. A trailing slash is the
+   * one somebody writes without thinking: it never matches what a browser puts
+   * in the Origin header, so the entry looks configured and protects nothing.
+   */
+  it('refuses an origin list that would never match a browser', () => {
+    expect(() => readConfiguration(without('TRUSTED_ORIGINS'), writable)).toThrow(/TRUSTED_ORIGINS/)
+    expect(() =>
+      readConfiguration({ ...valid, TRUSTED_ORIGINS: 'https://opengewerk.example.de/' }, writable),
+    ).toThrow(/ohne Pfad/)
+    expect(() =>
+      readConfiguration(
+        { ...valid, TRUSTED_ORIGINS: 'https://opengewerk.example.de/app' },
+        writable,
+      ),
+    ).toThrow(/ohne Pfad/)
+    expect(() =>
+      readConfiguration({ ...valid, TRUSTED_ORIGINS: 'opengewerk.example.de' }, writable),
+    ).toThrow(/gültige Adresse/)
+  })
+
+  it('takes several origins, because an instance can answer under more than one name', () => {
+    const configuration = readConfiguration(
+      {
+        ...valid,
+        TRUSTED_ORIGINS: 'https://opengewerk.example.de, https://app.example.de:8443',
+      },
+      writable,
+    )
+
+    expect(configuration.trustedOrigins).toEqual([
+      'https://opengewerk.example.de',
+      'https://app.example.de:8443',
+    ])
+  })
+
+  /**
+   * A flag that opens or closes an instance is one where a typo must not be
+   * read as "no". `CLOSED=ture` meaning false would be the quiet kind of
+   * mistake this whole file exists to prevent.
+   */
+  it('reads the closed flag strictly, so that a typo is not silently a no', () => {
+    expect(readConfiguration(valid, writable).closed).toBe(false)
+    expect(readConfiguration({ ...valid, CLOSED: 'true' }, writable).closed).toBe(true)
+    expect(readConfiguration({ ...valid, CLOSED: '1' }, writable).closed).toBe(true)
+    expect(readConfiguration({ ...valid, CLOSED: 'false' }, writable).closed).toBe(false)
+    expect(() => readConfiguration({ ...valid, CLOSED: 'ture' }, writable)).toThrow(/CLOSED/)
   })
 
   it('accepts either spelling of the postgres scheme', () => {

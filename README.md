@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Eine Anmeldung gibt es noch nicht, eine Oberfläche auch nicht; eine laufende Instanz lehnt deshalb jede Anfrage an die Daten ab. Was an Fachlogik darauf aufsetzt, kommt mit Phase 1.
+Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006: Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste. Eine Oberfläche gibt es noch nicht, die API lässt sich aber mit einer echten Anmeldung benutzen. Was an Fachlogik darauf aufsetzt, kommt mit Phase 1.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -182,8 +182,9 @@ Maschine mit Docker reichen drei Zeilen:
 cp docker/.env.example docker/.env
 ```
 
-Dann die vier Passwörter in `docker/.env` ersetzen, jedes einzeln erzeugt mit
-`openssl rand -hex 32`, und starten:
+Dann die fünf Passwörter in `docker/.env` ersetzen, jedes einzeln erzeugt mit
+`openssl rand -hex 32`, dazu `TRUSTED_ORIGINS` auf die Adresse setzen, unter der
+die Instanz erreichbar sein wird. Danach starten:
 
 ```bash
 docker compose -f docker/compose.yaml up -d
@@ -191,7 +192,40 @@ docker compose -f docker/compose.yaml up -d
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
 `curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Alles
-andere antwortet mit 401, weil es noch keine Anmeldung gibt.
+andere antwortet mit 401, denn es gibt noch kein Konto.
+
+### Der erste Zugang
+
+Niemand meldet sich selbst an. Ein Konto entsteht nur über die Kommandozeile,
+und der erste muss es, denn er soll ja gerade die Person anlegen, die sich
+anmelden könnte:
+
+```bash
+docker compose -f docker/compose.yaml exec app node dist/add-staff.js <betriebs-id> chefin@betrieb.de "Olga Beispiel" owner
+```
+
+Das Passwort kommt aus `OPENGEWERK_PASSWORD` und nicht aus einem Argument: ein
+Argument steht in der Prozessliste und im Verlauf der Shell, wo es monatelang
+liegen bleibt.
+
+Für die Rolle `owner` ist ein zweiter Faktor Pflicht. Bis er eingerichtet ist,
+kommt die Anmeldung bis zur Betriebswahl und nicht weiter. Das ist Absicht: die
+Pflicht hängt an der Rolle und nicht an einer Einstellung, sonst wäre sie keine.
+
+`TRUSTED_ORIGINS` ist die Liste der Adressen, von denen aus ein Browser eine
+angemeldete Anfrage schicken darf, und damit der Schutz davor, dass ein Formular
+auf einer fremden Seite hier etwas auslöst. Nur Herkunft, also Schema, Host und
+notfalls Port: ein Pfad oder ein Schrägstrich am Ende passt nie zu dem, was ein
+Browser sendet, und die Sperre sähe konfiguriert aus, ohne etwas zu tun.
+
+`SESSION_SECRET` gehört in die Sicherung der Installation. Wird es getauscht,
+sind alle abgemeldet und jeder schon eingerichtete zweite Faktor ist nicht mehr
+lesbar.
+
+`CLOSED=true` schaltet die Instanz zu: sie startet, migriert, beantwortet ihren
+Health-Check und lehnt jede Anfrage an die Daten ab, die Anmeldung
+eingeschlossen. Für ein Rückspielen oder ein Wartungsfenster, in dem die Instanz
+erreichbar sein soll, ohne etwas herauszugeben.
 
 **Hex und nicht base64 bei den Passwörtern**, und das ist kein Geschmack. Die
 Passwörter stehen in Verbindungsadressen, und ein `/` oder `@` darin teilt die

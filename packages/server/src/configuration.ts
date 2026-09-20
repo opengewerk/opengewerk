@@ -29,6 +29,34 @@ export interface Configuration {
    * invoices that refer to files nobody has.
    */
   readonly storagePath: string
+  /**
+   * Signs the session cookies and encrypts the TOTP secrets.
+   *
+   * Changing it signs everybody out and makes every second factor that was
+   * already set up unreadable, so it belongs in the backup of an installation
+   * as much as the database does.
+   */
+  readonly sessionSecret: string
+  /**
+   * The addresses a browser may send an authenticated request from, and the
+   * CSRF defence in one line: better-auth compares the Origin header against
+   * this list, so a form on a stranger's page cannot post here with somebody's
+   * cookie attached.
+   *
+   * There is no default and there must not be one. A list that quietly falls
+   * back to "anything" turns the protection off in exactly the installation
+   * whose operator did not think about it.
+   */
+  readonly trustedOrigins: readonly string[]
+  /**
+   * Whether the instance recognises nobody at all.
+   *
+   * Off in normal operation. An operator switches it on to keep an instance
+   * up and reachable while a restore or a migration window is running: it
+   * starts, answers its health check and refuses every request for data,
+   * including the sign in. See `ClosedIdentitySource`.
+   */
+  readonly closed: boolean
 }
 
 /** What went wrong, phrased for whoever is looking at the container log. */
@@ -189,6 +217,89 @@ export function directoryIsWritable(path: string): string | null {
   }
 }
 
+/**
+ * The cookie secret, with a floor on how short it may be.
+ *
+ * 32 characters is what `openssl rand -hex 32` produces and what the
+ * documentation of an installation asks for. Refusing anything shorter is the
+ * cheap half of the protection; the other half nothing here can check, namely
+ * that it was not typed by a person.
+ */
+function sessionSecret(environment: Environment): string {
+  const value = required(environment, 'SESSION_SECRET')
+
+  if (value.length < 32) {
+    throw new ConfigurationError(
+      'SESSION_SECRET ist zu kurz. Erwartet werden mindestens 32 Zeichen, etwa aus ' +
+        '"openssl rand -hex 32".',
+    )
+  }
+
+  return value
+}
+
+/**
+ * The addresses a browser may send an authenticated request from.
+ *
+ * Every entry has to be an origin and nothing more: scheme, host, optional
+ * port. A path or a trailing slash never matches what a browser puts in the
+ * Origin header, so an entry with one would look configured and protect
+ * nothing.
+ */
+function trustedOrigins(environment: Environment): readonly string[] {
+  const raw = required(environment, 'TRUSTED_ORIGINS')
+  const entries = raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+
+  if (entries.length === 0) {
+    throw new ConfigurationError(
+      'TRUSTED_ORIGINS ist leer. Erwartet wird mindestens die Adresse, unter der ' +
+        'OpenGewerk erreichbar ist, etwa https://opengewerk.example.de',
+    )
+  }
+
+  for (const entry of entries) {
+    let parsed: URL
+
+    try {
+      parsed = new URL(entry)
+    } catch {
+      throw new ConfigurationError(
+        `TRUSTED_ORIGINS enthält keine gültige Adresse: "${entry}". Erwartet wird etwa ` +
+          'https://opengewerk.example.de',
+      )
+    }
+
+    if (parsed.origin !== entry) {
+      throw new ConfigurationError(
+        `TRUSTED_ORIGINS darf nur Herkunft enthalten, ohne Pfad und ohne Schrägstrich am ` +
+          `Ende. Gelesen wurde "${entry}", gemeint ist vermutlich "${parsed.origin}".`,
+      )
+    }
+  }
+
+  return entries
+}
+
+/** A flag that is on only for the exact word, so a typo does not open an instance. */
+function flag(environment: Environment, name: string): boolean {
+  const raw = environment[name]?.trim().toLowerCase()
+
+  if (raw === undefined || raw === '' || raw === 'false' || raw === '0') {
+    return false
+  }
+
+  if (raw === 'true' || raw === '1') {
+    return true
+  }
+
+  throw new ConfigurationError(
+    `${name} muss "true" oder "false" sein, gelesen wurde: ${environment[name]?.trim()}`,
+  )
+}
+
 export function readConfiguration(
   environment: Environment = process.env,
   checkAccess: AccessCheck = directoryIsWritable,
@@ -196,6 +307,9 @@ export function readConfiguration(
   return {
     databaseUrl: databaseUrl(environment),
     storagePath: storagePath(environment, checkAccess),
+    sessionSecret: sessionSecret(environment),
+    trustedOrigins: trustedOrigins(environment),
+    closed: flag(environment, 'CLOSED'),
     port: port(environment, 'PORT', 3000),
     // Every interface, because inside a container the loopback address means
     // "reachable by nobody". What limits access is the published port and the

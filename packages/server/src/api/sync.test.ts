@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { type Identity, type RoleKey, syncEntities, type TenantId } from '@opengewerk/domain'
+import { syncEntities } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -16,7 +16,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import type { IdentitySource } from './identity.js'
+import { as, testIdentities as identities } from './test-identity.js'
 
 /**
  * Two devices in a basement, one connection between them and the server, and
@@ -31,18 +31,6 @@ let database: Database
 let app: INestApplication
 let customerId: string
 let siteId: string
-
-const identities: IdentitySource = {
-  identify: async (incoming: unknown) => {
-    const header = (incoming as { headers?: Record<string, string> }).headers?.['x-test-identity']
-
-    return header ? (JSON.parse(header) as Identity) : null
-  },
-}
-
-function as(tenantId: TenantId, ...roles: RoleKey[]): string {
-  return JSON.stringify({ userId: 'test', tenantId, roles } satisfies Identity)
-}
 
 const office = () => as(north.id, 'office')
 const technician = () => as(north.id, 'technician')
@@ -177,14 +165,24 @@ describe('the tables', () => {
         order by c.relname`,
     )
 
-    // Counters, the log, the sync layer's own bookkeeping and the settings a
-    // business makes about itself. None of them is work a technician does in a
-    // basement.
+    // Counters, the log, the sync layer's own bookkeeping, the settings a
+    // business makes about itself, and who may work in it. None of them is work
+    // a technician does in a basement.
+    //
+    // The last two are worth a sentence, because they look syncable and are
+    // not. A membership says what somebody may do, and a device that carried
+    // its own copy would answer that question from a copy that is as old as
+    // its last connection: rights taken away in the office would go on working
+    // on the roof until it next came online. A tenant session records a sign
+    // in, which happens on the server by definition. Both are read live or not
+    // at all.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
       name === 'number_ranges' ||
-      name === 'tenant_parameters'
+      name === 'tenant_parameters' ||
+      name === 'memberships' ||
+      name === 'tenant_sessions'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

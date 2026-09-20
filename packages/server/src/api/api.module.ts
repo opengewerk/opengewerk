@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 
+import { AuthenticationController } from '../authentication/authentication.controller.js'
 import { Database } from '../database/database.js'
 import { AuthorizationGuard } from './authorization.js'
 import { CustomersController } from './customers.controller.js'
@@ -33,6 +34,7 @@ export class ApiModule {
       module: ApiModule,
       controllers: [
         HealthController,
+        AuthenticationController,
         CustomersController,
         SitesController,
         InstallationsController,

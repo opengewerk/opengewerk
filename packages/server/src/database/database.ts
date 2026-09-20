@@ -36,11 +36,20 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 /**
  * The way to the data, and there is no second one.
  *
- * Every query runs inside `forTenant`, which opens a transaction and puts the
- * tenant into `app.tenant_id` before anything else happens. The policies in
- * the database read exactly that setting. Nothing here hands out the pool or a
- * client, so there is no way to run a query beside this path: a forgotten
- * `where` clause returns fewer rows than expected, never rows of a stranger.
+ * Every query about a business runs inside `forTenant`, which opens a
+ * transaction and puts the tenant into `app.tenant_id` before anything else
+ * happens. The policies in the database read exactly that setting. Nothing
+ * here hands out the pool or a client, so there is no way to run such a query
+ * beside this path: a forgotten `where` clause returns fewer rows than
+ * expected, never rows of a stranger.
+ *
+ * Since 0009 there is a second path, `forInstance`, and it takes nothing away
+ * from the first. It sets no tenant, and a policy that compares a row against
+ * a tenant that was never set matches nothing, so the tables with a business
+ * in them are simply empty inside it. What it reaches is the half of the
+ * schema whose policy asks for the opposite: the accounts, which belong to the
+ * instance and to no company. Signing in happens there, before anybody knows
+ * which company is meant.
  *
  * The setting is local to the transaction. When the client goes back to the
  * pool it carries nothing with it, which is the part that matters most: a
@@ -105,12 +114,83 @@ export class Database {
   }
 
   /**
-   * Whether the database answers at all. For the health check, and the only
-   * query in this class that runs outside a tenant transaction.
+   * Runs work that belongs to the instance rather than to a business: signing
+   * in, the list of companies somebody may enter, the rate limit counters.
    *
-   * That is not a hole in the isolation: `select 1` reads no table, so there
-   * is nothing for a policy to let through. Handing out the pool or a client
-   * would be a hole, which is why this returns a boolean and not a connection.
+   * This is the second way to the data and the only one, and it is worth being
+   * plain about why it does not undo what `forTenant` promises. It sets no
+   * tenant, so every policy that compares a row against `app.tenant_id`
+   * compares it against nothing and matches nothing: inside here, `customers`
+   * is empty however it is queried, and so is every other table that carries a
+   * business. What is in reach is exactly the set of tables whose policy asks
+   * for the opposite, the `auth_` ones, plus the caller's own memberships.
+   *
+   * So the two halves are disjoint by the same mechanism that keeps two
+   * companies apart, not by a new promise somebody has to keep. There is a
+   * test that puts a row on each side and looks from both.
+   *
+   * The user is passed for the same reason the tenant is passed to
+   * `forTenant`: a policy reads it. Before somebody is identified there is
+   * none, which is the honest state during a sign in, and the membership
+   * policy then matches nothing.
+   */
+  async forInstance<Result>(
+    work: (tx: TenantTransaction) => Promise<Result>,
+    userId?: string,
+  ): Promise<Result> {
+    const client: PoolClient = await this.pool.connect()
+
+    try {
+      await client.query('begin')
+      // The tenant is set to the empty string rather than left alone. A
+      // connection comes back from the pool with nothing on it, so the two are
+      // the same today; writing it down keeps them the same if that ever
+      // changes.
+      await client.query(
+        `select set_config('app.tenant_id', '', true),
+                set_config('app.user_id', $1, true),
+                set_config('app.reason', $2, true)`,
+        [userId ?? '', 'authentication'],
+      )
+
+      const result = await work(drizzle(client))
+
+      await client.query('commit')
+
+      return result
+    } catch (error) {
+      await client.query('rollback')
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
+   * The handle better-auth's adapter works through, and the one place that
+   * gets a drizzle instance over the pool rather than over one transaction.
+   *
+   * The library decides for itself when to query and cannot be wrapped in a
+   * transaction that somebody else opened. It does not need to be: a client
+   * fresh from the pool carries no tenant, because `SET LOCAL` is undone at
+   * commit, so every query made through here lands in the same state
+   * `forInstance` sets up on purpose. The `auth_` tables are in reach, the
+   * tables with a business in them are empty, and that holds by the policies
+   * rather than by the library behaving itself.
+   *
+   * Nothing else may use this. It is named after its one caller for that
+   * reason.
+   */
+  authenticationHandle(): TenantTransaction {
+    return drizzle(this.pool)
+  }
+
+  /**
+   * Whether the database answers at all. For the health check.
+   *
+   * `select 1` reads no table, so there is nothing for a policy to let
+   * through. Handing out the pool or a client would be a hole, which is why
+   * this returns a boolean and not a connection.
    */
   async isReachable(): Promise<boolean> {
     try {
