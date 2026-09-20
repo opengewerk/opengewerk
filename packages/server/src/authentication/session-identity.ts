@@ -32,6 +32,8 @@ interface RequestWithHeaders {
  * 3. **What may they do here?** From the membership, read fresh on every
  *    request. Not from the session, and not cached: rights taken away in the
  *    office have to stop working now and not when a session happens to expire.
+ *    The same row says whether this person is blocked in this business, which
+ *    is the same question asked as sharply as it can be.
  *
  * The cost is one query per request, and it buys the property that a
  * revocation takes effect immediately. That is the right side to err on for a
@@ -78,7 +80,7 @@ export class SessionIdentitySource implements IdentitySource {
 
     const membership = await this.database.forTenant({ tenantId }, async (tx) => {
       const [row] = await tx
-        .select({ roles: memberships.roles })
+        .select({ roles: memberships.roles, blockedAt: memberships.blockedAt })
         .from(memberships)
         .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, found.user.id)))
         .limit(1)
@@ -91,6 +93,19 @@ export class SessionIdentitySource implements IdentitySource {
       // session itself is still good, so this is a 403 and not a 401: signing
       // in again would change nothing.
       throw new ForbiddenException('Kein Zugang zu diesem Betrieb.')
+    }
+
+    if (membership.blockedAt) {
+      // Blocking already deletes the sessions that were working in this
+      // business, so in practice nobody arrives here. It is checked anyway,
+      // because "the sessions were all found" is a promise the delete makes
+      // and this one is a property of the row: a session created in the moment
+      // between the two, or one that somehow survived, still gets nowhere.
+      // Read fresh on every request like the roles next to it, for the same
+      // reason.
+      throw new ForbiddenException(
+        'Dieser Zugang ist im Betrieb gesperrt. Der Inhaber kann ihn wieder freigeben.',
+      )
     }
 
     const roles = membership.roles as readonly RoleKey[]

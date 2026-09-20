@@ -54,6 +54,20 @@ export const permissions = [
    */
   'settings.read',
   'settings.write',
+  /**
+   * Who works in this business, what they may do here, and whether they still
+   * get in. Named in ADR 0006 as the place a change of rights belongs, and in
+   * `rls.ts` since the memberships got their policies; until #63 neither name
+   * existed as a key.
+   *
+   * Only the owner has them. Not the office, although the screen behind them
+   * lives in the office application: somebody who can hand out roles can hand
+   * themselves the owner role, and a right that can be widened by whoever
+   * holds it is not a boundary. Widening this later is one line; narrowing it
+   * once somebody works that way is a conversation.
+   */
+  'membership.read',
+  'membership.write',
 ] as const
 
 export type Permission = (typeof permissions)[number]
@@ -150,17 +164,38 @@ export interface Identity {
   readonly roles: readonly RoleKey[]
 }
 
-/** Every right the roles of this identity add up to. */
-export function permissionsOf(identity: Identity): ReadonlySet<Permission> {
+/** Every right a set of roles adds up to. */
+export function permissionsOfRoles(keys: readonly RoleKey[]): ReadonlySet<Permission> {
   const granted = new Set<Permission>()
 
-  for (const key of identity.roles) {
+  for (const key of keys) {
     for (const permission of roles[key].permissions) {
       granted.add(permission)
     }
   }
 
   return granted
+}
+
+/** Every right the roles of this identity add up to. */
+export function permissionsOf(identity: Identity): ReadonlySet<Permission> {
+  return permissionsOfRoles(identity.roles)
+}
+
+/**
+ * Whether these roles carry this right.
+ *
+ * The same question `isAllowed` answers, asked where there is no identity to
+ * hand. The interface is such a place: it knows the roles of the business it
+ * is working in, because the chooser handed them over, and it uses them to
+ * decide which entries the navigation shows. That is a courtesy and not a
+ * gate, and it has to be said out loud: the gate is the guard on the server,
+ * which asks the same question of the membership on every request. A hidden
+ * entry and a refused route are two different promises, and only the second
+ * one is kept here.
+ */
+export function rolesAllow(keys: readonly RoleKey[], permission: Permission): boolean {
+  return permissionsOfRoles(keys).has(permission)
 }
 
 export function isAllowed(identity: Identity, permission: Permission): boolean {

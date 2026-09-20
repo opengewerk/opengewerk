@@ -30,6 +30,7 @@ export type NumberRangeId = Id<'number-range'>
 export type AuditEntryId = Id<'audit-entry'>
 export type MembershipId = Id<'membership'>
 export type TenantSessionId = Id<'tenant-session'>
+export type InvitationId = Id<'invitation'>
 
 /**
  * Every record carries the tenant it belongs to and when it was written. The

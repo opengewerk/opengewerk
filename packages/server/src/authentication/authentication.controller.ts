@@ -58,6 +58,11 @@ export class AuthenticationController {
    * across businesses, and only one's own: the policy compares the row against
    * `app.user_id`. So this cannot be turned into a way of asking who else
    * works where.
+   *
+   * A business somebody is blocked in is left out rather than shown and
+   * refused. Offering it would mean a chooser with an entry that answers 403
+   * to every click, and the sentence that explains why belongs to whoever did
+   * the blocking, not to a screen that can only guess.
    */
   @Get('tenants')
   @RequiresSession()
@@ -71,7 +76,7 @@ export class AuthenticationController {
         })
         .from(memberships)
         .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
-        .where(eq(memberships.userId, user.userId))
+        .where(and(eq(memberships.userId, user.userId), isNull(memberships.blockedAt)))
 
       return rows.map((row) => ({ ...row, roles: row.roles as readonly RoleKey[] }))
     }, user.userId)
@@ -111,16 +116,25 @@ export class AuthenticationController {
       const [row] = await tx
         .select({ id: memberships.id })
         .from(memberships)
-        .where(and(eq(memberships.tenantId, chosen), eq(memberships.userId, user.userId)))
+        .where(
+          and(
+            eq(memberships.tenantId, chosen),
+            eq(memberships.userId, user.userId),
+            isNull(memberships.blockedAt),
+          ),
+        )
         .limit(1)
 
       return row !== undefined
     }, user.userId)
 
     if (!allowed) {
-      // The same answer whether the business does not exist or this person is
-      // not in it. Telling the two apart would turn this route into a way of
-      // finding out which companies are on an instance.
+      // The same answer whether the business does not exist, this person is
+      // not in it, or they are blocked in it. Telling the three apart would
+      // turn this route into a way of finding out which companies are on an
+      // instance. Blocking has to be checked here as well as on every request:
+      // a session that had chosen no business yet survives a block, and this
+      // is the route it would use to walk into one.
       throw new ForbiddenException('Kein Zugang zu diesem Betrieb.')
     }
 

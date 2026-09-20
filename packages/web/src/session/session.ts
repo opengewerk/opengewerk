@@ -17,6 +17,17 @@ import { request } from '../sync/transport.js'
 /** Where better-auth's own routes are mounted, in front of the API. */
 const authentication = '/api/auth'
 
+/**
+ * The shortest password the server accepts for an account somebody sets up
+ * for themselves.
+ *
+ * Said here as well so that the screen can refuse a short one without a round
+ * trip, and only here, so that the two screens that ask for a password do not
+ * each carry a twelve of their own. The server keeps the same floor and is
+ * the one that decides; this is the courtesy in front of it.
+ */
+export const shortestPassword = 12
+
 export interface Account {
   readonly userId: string
   readonly email: string
@@ -208,4 +219,144 @@ export async function revokeDevice(sessionId: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   await request('/auth/sign-out', { method: 'POST' })
+}
+
+/**
+ * Who works in this business, and what the office may do about it.
+ *
+ * Behind `membership.read` and `membership.write`, which only the owner has.
+ * The screen that uses them lives in the office application because that is
+ * where a desk is, not because the office role reaches it.
+ */
+
+export interface StaffEntry {
+  readonly userId: string
+  readonly name: string
+  readonly email: string
+  readonly roles: readonly RoleKey[]
+  /** Null while they work here, a moment in time once they were shut out. */
+  readonly blockedAt: string | null
+  /** When this business last saw them start work, not the instance. */
+  readonly lastSignInAt: string | null
+  readonly twoFactorEnabled: boolean
+}
+
+export interface InvitationEntry {
+  readonly id: string
+  readonly email: string
+  readonly name: string
+  readonly roles: readonly RoleKey[]
+  readonly expiresAt: string
+  readonly invitedBy: string
+}
+
+export function staff(): Promise<readonly StaffEntry[]> {
+  return request<readonly StaffEntry[]>('/staff')
+}
+
+export function openInvitations(): Promise<readonly InvitationEntry[]> {
+  return request<readonly InvitationEntry[]>('/staff/invitations')
+}
+
+/**
+ * Invites somebody, and hands the link back once.
+ *
+ * The address is put together here rather than on the server, out of the one
+ * the browser is already looking at. The server would have to be told an
+ * address, and a wrong one would produce links that lead nowhere on exactly
+ * the installations nobody tested.
+ */
+export async function invite(wanted: {
+  readonly email: string
+  readonly name: string
+  readonly roles: readonly RoleKey[]
+}): Promise<{ link: string; expiresAt: string }> {
+  const answer = await request<{ token: string; expiresAt: string }>('/staff', {
+    method: 'POST',
+    body: JSON.stringify(wanted),
+  })
+
+  return {
+    link: `${globalThis.location.origin}${invitationPath}/${answer.token}`,
+    expiresAt: answer.expiresAt,
+  }
+}
+
+export async function withdrawInvitation(invitationId: string): Promise<void> {
+  await request(`/staff/invitations/${encodeURIComponent(invitationId)}`, { method: 'DELETE' })
+}
+
+export async function setRoles(userId: string, roles: readonly RoleKey[]): Promise<void> {
+  await request(`/staff/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ roles }),
+  })
+}
+
+export async function setBlocked(userId: string, blocked: boolean): Promise<void> {
+  await request(`/staff/${encodeURIComponent(userId)}/block`, {
+    method: blocked ? 'PUT' : 'DELETE',
+  })
+}
+
+export function staffDevices(userId: string): Promise<readonly DeviceEntry[]> {
+  return request<readonly DeviceEntry[]>(`/staff/${encodeURIComponent(userId)}/devices`)
+}
+
+export async function revokeStaffDevice(userId: string, sessionId: string): Promise<void> {
+  await request(`/staff/${encodeURIComponent(userId)}/devices/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * The far end of the link, which is a screen somebody reaches before they have
+ * an account at all.
+ *
+ * The path is the one thing both halves have to agree on: the office builds a
+ * link with it and the gate recognises one by it. So it is written once, here,
+ * rather than as a string in each of the two places.
+ */
+export const invitationPath = '/einladung'
+
+export type InvitationState = 'open' | 'redeemed' | 'revoked' | 'expired'
+
+export interface InvitationOffer {
+  readonly state: InvitationState
+  readonly company: string
+  readonly name: string
+  readonly email: string
+  readonly expiresAt: string
+  /** Whether this address already has an account, which keeps its password. */
+  readonly knownAccount: boolean
+}
+
+/** The token out of the address bar, or nothing. */
+export function invitationToken(path: string): string | null {
+  if (!path.startsWith(`${invitationPath}/`)) {
+    return null
+  }
+
+  const token = path.slice(invitationPath.length + 1).split('/')[0] ?? ''
+
+  return /^[A-Za-z0-9_-]{43}$/.test(token) ? token : null
+}
+
+export function invitationOffer(token: string): Promise<InvitationOffer> {
+  return request<InvitationOffer>(`/invitation/${encodeURIComponent(token)}`)
+}
+
+/**
+ * Uses the link. Signing in afterwards is the ordinary sign in and a separate
+ * call, because a route that handed out a session of its own would be a second
+ * way in to keep right.
+ */
+export function redeemInvitation(
+  token: string,
+  password: string,
+): Promise<{ tenantId: TenantId; company: string; email: string; created: boolean }> {
+  return request(`/invitation/${encodeURIComponent(token)}`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
 }

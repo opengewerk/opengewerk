@@ -207,9 +207,9 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Der Postausgang wird über den Serverstand gelegt, nicht in ihn hineingeschrieben.** Das ist die Entscheidung, an der die Schicht hängt. Lehnt der Server einen Vorgang ab, ändert sich an dem Datensatz dort nichts, der nächste Abgleich bringt also nichts mit, und eine in die lokale Kopie geschriebene Änderung stünde für immer auf dem Bildschirm, ohne irgendwo sonst zu existieren. Übereinandergelegt heilt es sich von selbst: der Vorgang fällt aus der Warteschlange, und übrig bleibt, was der Server wirklich hält.
 
-**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 20.09.2026 gemessen: **Baustelle 129 kB, Büro 146 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
+**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 20.09.2026 gemessen: **Baustelle 131 kB, Büro 150 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
 
-**Vor der Anmeldung stehen zwei Bildschirme, die es nur gibt, solange sie gebraucht werden.** Eine leere Instanz zeigt die Ersteinrichtung statt der Anmeldung, und ein Konto, dessen Rolle einen zweiten Faktor verlangt, richtet ihn ein, bevor es einen Betrieb wählt. Beides sitzt im Tor und nicht hinter der Navigation, denn wer dort steht, erreicht keinen einzigen Bildschirm dahinter. Nachträglich geht der zweite Faktor über "Konto" im Büro, wo auch die Geräteliste steht.
+**Vor der Anmeldung stehen drei Bildschirme, die es nur gibt, solange sie gebraucht werden.** Eine leere Instanz zeigt die Ersteinrichtung statt der Anmeldung. Ein Konto, dessen Rolle einen zweiten Faktor verlangt, richtet ihn ein, bevor es einen Betrieb wählt. Und wer einen Einladungslink bekommen hat, löst ihn dort ein und wählt dabei sein Passwort selbst. Alle drei sitzen im Tor und nicht hinter der Navigation, denn wer dort steht, erreicht keinen einzigen Bildschirm dahinter. Nachträglich geht der zweite Faktor über "Konto" im Büro, wo auch die eigene Geräteliste steht.
 
 **Die gebaute Oberfläche liefert derselbe Prozess aus, der auch die API bedient.** Ein zweiter Container davor wäre eine weitere Sache, die eine Installation einrichten und aktualisieren muss. Zwei Hüllen gibt es trotzdem: alles unter `/m` kommt mit der Baustellen-Hülle zurück, alles andere mit der des Büros. Ein tiefer Link in die Baustelle, der mit der Bürohülle beantwortet wird, öffnet auf einem Telefon eine Oberfläche für Maus und Tastatur.
 
@@ -258,8 +258,41 @@ den Bildschirm gleichzeitig öffnen, legen einen Betrieb an und nicht zwei. Ein
 zweiter Versuch bekommt 409 und den Satz dazu. `CLOSED=true` schaltet sie mit
 ab, dann gibt es die Route gar nicht.
 
-Wer keinen Browser hat, legt Konten weiter über die Kommandozeile an, und ab dem
-zweiten Konto ist das ohnehin der Weg, bis es eine Benutzerverwaltung gibt:
+### Jeder weitere Zugang
+
+Im Büro, unter "Zugänge", und nur für den Inhaber: wer Rollen vergeben kann,
+kann sich selbst die Rolle des Inhabers geben, deshalb liegt das nicht bei der
+Bürokraft. Dort stehen die Konten des Betriebs mit Rollen, Zustand und der
+letzten Anmeldung, daneben die offenen Einladungen.
+
+**Ein Passwort vergibt das Büro nicht.** Wer angelegt wird, bekommt einen
+Einmal-Link, und den gibt das Büro weiter, wie es die Person eben erreicht. Auf
+der anderen Seite wählt sie ihr Passwort selbst; niemand im Betrieb bekommt es
+je zu sehen. Ein Passwort, das ein Kollege kennt und das dann drei Jahre bleibt,
+ist schlechter als eines, das niemand kennt.
+
+Der Link gilt sieben Tage, funktioniert genau einmal und lässt sich zurückziehen.
+Gespeichert wird von ihm nur eine Prüfsumme, er steht also genau in dem Moment
+auf dem Bildschirm, in dem er entsteht, und danach nie wieder. Wer ihn verlegt,
+erzeugt einen neuen; der alte wird dabei ungültig.
+
+**Gesperrt statt gelöscht.** Ein gesperrter Zugang kommt nicht mehr hinein, und
+zwar sofort: die laufenden Sitzungen dieses Betriebs werden beendet, nicht erst
+beim Ablauf. In jeder Historie und im Audit-Log bleibt die Person sichtbar, denn
+ein gelöschtes Konto nähme allem den Namen, was sie je geschrieben hat. Wer in
+zwei Betrieben arbeitet, wird in beiden getrennt gesperrt: die Sperre hängt an
+der Zugehörigkeit und nicht am Konto.
+
+**Der letzte Inhaber lässt sich weder sperren noch entmachten.** Sonst schließt
+sich ein Betrieb aus seiner eigenen Benutzerverwaltung aus, und der Weg zurück
+führt über psql.
+
+Wer Inhaber wird, braucht ab dem nächsten Aufruf einen zweiten Faktor. Der
+Bildschirm sagt das, bevor das Häkchen gesetzt wird, und nicht der 403 danach.
+
+Über die Kommandozeile geht es weiterhin, und dafür bleibt es auch: das ist der
+Rückweg, wenn sich jemand ausgesperrt hat, und der einzige Weg auf einer
+Maschine ohne Browser.
 
 ```bash
 docker compose -f docker/compose.yaml exec app node dist/add-staff.js <betriebs-id> monteur@betrieb.de "Max Beispiel" technician

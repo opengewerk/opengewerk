@@ -14,7 +14,10 @@ import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { SettingsController } from './settings.controller.js'
-import { AUTHENTICATION, SetupController, TRUSTED_ORIGINS } from './setup.controller.js'
+import { AUTHENTICATION, TRUSTED_ORIGINS } from './handed-in.js'
+import { InvitationController } from './invitation.controller.js'
+import { SetupController } from './setup.controller.js'
+import { StaffController } from './staff.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
 
@@ -22,16 +25,18 @@ import { SyncController } from './sync.controller.js'
  * What the module needs beyond a database and an identity source.
  *
  * The authentication is handed in only when the instance is open, and that is
- * what switches the first run setup on. Left out, the controller is not
- * registered and its routes do not exist: a closed instance hands out nothing,
- * and a way in that stayed open during a restore would take the meaning out of
- * `CLOSED`.
+ * what switches the two public parts on: the first run setup and the
+ * redemption of an invitation link. Left out, neither controller is
+ * registered and their routes do not exist: a closed instance hands out
+ * nothing, and a way in that stayed open during a restore would take the
+ * meaning out of `CLOSED`.
  */
 export interface ApiOptions {
   readonly authentication?: Authentication
   /**
-   * The addresses a browser may send a first run from. Only read when the
-   * authentication is there, because the route that needs it only exists then.
+   * The addresses a browser may send a first run or a redeemed invitation
+   * from. Only read when the authentication is there, because the routes that
+   * need it only exist then.
    */
   readonly trustedOrigins?: readonly string[]
 }
@@ -61,8 +66,11 @@ export class ApiModule {
       module: ApiModule,
       controllers: [
         HealthController,
-        ...(authentication ? [SetupController] : []),
+        // Both of these answer without an identity and both are left out on a
+        // closed instance, which is what leaving the authentication out does.
+        ...(authentication ? [SetupController, InvitationController] : []),
         AuthenticationController,
+        StaffController,
         CustomersController,
         SitesController,
         InstallationsController,

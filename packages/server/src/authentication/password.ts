@@ -17,6 +17,21 @@ import { randomBytes } from 'node:crypto'
  */
 const alphabet = '0123456789abcdefghjkmnpqrstvwxyz'
 
+/**
+ * The shortest password anybody may choose for themselves.
+ *
+ * Twelve, everywhere it is asked: on the command line, in the first run setup,
+ * and when a new colleague redeems their link. It stood in three files as
+ * three twelves until #63 put it here, which is two too many for a number
+ * whose whole value is that it is the same one.
+ *
+ * Why twelve and not eight: these accounts are set up once and used for years,
+ * and the thing on the other side of them is a company's books. It says
+ * nothing about capitals or punctuation, because a rule about those buys a
+ * predictable password with a capital at the front.
+ */
+export const shortestPassword = 12
+
 /** Five groups of five, which is what makes it readable across a room. */
 const groups = 5
 const perGroup = 5

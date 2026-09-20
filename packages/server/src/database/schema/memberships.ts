@@ -1,9 +1,9 @@
 import type { RoleKey } from '@opengewerk/domain'
-import { pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 import { authUsers } from './authentication.js'
 import { primaryId, timestamps } from './columns.js'
-import { membershipVisibility, tenantIsolation } from './rls.js'
+import { membershipVisibility, readableByTheOwner, tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**
@@ -37,6 +37,19 @@ export const memberships = pgTable(
      * be a second place to look with nothing extra in it.
      */
     roles: text('roles').array().notNull().$type<readonly RoleKey[]>(),
+    /**
+     * When this person was shut out of this business, null while they work in
+     * it.
+     *
+     * Here and not on the account, because a business may shut somebody out of
+     * itself and may not shut them out of the company next door on the same
+     * instance. The same reason the roles are here.
+     *
+     * A timestamp rather than a flag: "since when" is the question somebody
+     * asks three months later, and the audit log answers it only for as long
+     * as nobody has blocked and unblocked twice.
+     */
+    blockedAt: timestamp('blocked_at', { withTimezone: true }),
     ...timestamps,
   },
   (table) => [
@@ -79,4 +92,65 @@ export const tenantSessions = pgTable(
     ...timestamps,
   },
   (table) => [tenantIsolation(table.tenantId)],
+)
+
+/**
+ * An offer of a way into this business, handed over as a link.
+ *
+ * A tenant bound table like any other, so the audit trigger watches it: who
+ * was invited, by whom, when it was used. That is where the record of a new
+ * way in comes from, without a line written for the purpose, exactly as the
+ * change of rights comes from `memberships`.
+ *
+ * It carries the hash of the token and never the token. A backup of this table
+ * is then a list of who was invited rather than a ring of keys, and the link
+ * can be shown exactly once, at the moment it is made, which is what makes it
+ * a one time link rather than a password with a longer name.
+ *
+ * Two policies. The ordinary isolation is what the office works through. The
+ * second one is for the function that redeems a link: it runs as the owner of
+ * the tables, the caller has no session and therefore no business, and without
+ * a policy the owner can pass it would find no row on an instance full of
+ * invitations. See `readableByTheOwner`, and `0012` for why the writing half
+ * of the redemption does not need the same thing.
+ */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: primaryId<'invitation'>(),
+    ...tenantColumn,
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    roles: text('roles').array().notNull().$type<readonly RoleKey[]>(),
+    /** Hex SHA-256 of the token in the link. Unique, so a lookup is one index hit. */
+    tokenHash: text('token_hash').notNull(),
+    invitedBy: text('invited_by')
+      .notNull()
+      .references(() => authUsers.id, { onDelete: 'restrict' }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /**
+     * Set the moment it is used, which is the only moment it can be used. The
+     * redemption updates this row with `redeemed_at is null` in its where
+     * clause and counts what it changed, so two people opening the same link
+     * at the same time leave one membership between them and not two.
+     */
+    redeemedAt: timestamp('redeemed_at', { withTimezone: true }),
+    /**
+     * Set when the office calls the offer back before anybody used it.
+     *
+     * A third state next to used and expired, and worth its own column rather
+     * than a clever reuse of the expiry: an invitation that was withdrawn and
+     * one that simply ran out are different things, and the log should be able
+     * to say which happened. Withdrawing marks the row instead of removing it,
+     * for the same reason a blocked person keeps their membership.
+     */
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    unique('invitations_token').on(table.tokenHash),
+    index('invitations_open_idx').on(table.tenantId, table.redeemedAt),
+    tenantIsolation(table.tenantId),
+    readableByTheOwner(),
+  ],
 )

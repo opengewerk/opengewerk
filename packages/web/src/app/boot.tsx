@@ -10,9 +10,16 @@ import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { directWrite, httpTransport } from '../sync/transport.js'
 import { deviceIdentity } from './device.js'
+import { InvitationScreen } from './invitation.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { Gate, SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
-import { availableTenants, currentAccount, setupNeeded, signOut } from './../session/session.js'
+import {
+  availableTenants,
+  currentAccount,
+  invitationToken,
+  setupNeeded,
+  signOut,
+} from './../session/session.js'
 import type { Account } from './../session/session.js'
 
 /**
@@ -24,15 +31,29 @@ import type { Account } from './../session/session.js'
  * application is ever rendered without a business behind it, so no screen has
  * to remember to ask.
  *
- * Two steps sit in front of the first question and both are about an instance
- * that is not ready yet. An empty one is set up here rather than at a psql
- * prompt, and an account whose role needs a second factor sets it up here
- * rather than being refused at every request with no way to fix it.
+ * Three steps sit in front of the first question and all three are about
+ * somebody who cannot reach a single screen behind the navigation. An empty
+ * instance is set up here rather than at a psql prompt. An account whose role
+ * needs a second factor sets it up here rather than being refused at every
+ * request with no way to fix it. And somebody who was handed a link redeems it
+ * here, because at that moment they have no account at all.
+ *
+ * The link is recognised by its path and before anything else is asked. Not by
+ * the router: the routers start after there is a session and a business, which
+ * is exactly what the person holding a link does not have. And before the
+ * account query, because the answer does not depend on it; somebody who is
+ * already signed in on this browser can be handed a link for somebody else,
+ * and the screen has to be the one the link points at rather than the office
+ * of whoever used the machine last.
  */
 type Step = 'second-factor' | 'asking' | 'working'
 
 export function Boot({ entry, children }: { readonly entry: Entry; readonly children: ReactNode }) {
   const queries = useQueryClient()
+  // Read once and then constant, like the device identity below. The screen it
+  // leads to leaves the address behind when it is done, so this never has to
+  // notice a change.
+  const [token] = useState(() => invitationToken(globalThis.location.pathname))
   const [step, setStep] = useState<Step>('asking')
   const [client, setClient] = useState<SyncClient | null>(null)
   // Worked out once and then constant. A ref would say the same thing and
@@ -111,6 +132,10 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
       setClient(null)
     }
   }, [tenantId, deviceId, forget])
+
+  if (token) {
+    return <InvitationScreen token={token} />
+  }
 
   if (account.isPending) {
     return <Gate title="Einen Moment">Die Anwendung fragt, wer angemeldet ist.</Gate>

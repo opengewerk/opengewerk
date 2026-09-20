@@ -80,6 +80,14 @@ export async function createAccount(
  * user and the reason the caller set. That is where ADR 0006 gets its "a
  * change of rights is in the log" from, without a line written for the
  * purpose.
+ *
+ * A membership that was blocked is let back in. Every caller of this means
+ * "this person works here": the first run setup, a redeemed invitation, and
+ * `add-staff`, which #63 left in place as the way back when somebody has shut
+ * themselves out. Leaving the block in place would make that way back a
+ * command that reports success and changes nothing anybody notices. Changing
+ * roles in the office does not come through here, precisely so that it cannot
+ * unblock somebody as a side effect.
  */
 export async function grantMembership(
   tx: TenantTransaction,
@@ -94,7 +102,7 @@ export async function grantMembership(
     .values({ tenantId: grant.tenantId, userId: grant.userId, roles: grant.roles })
     .onConflictDoUpdate({
       target: [memberships.tenantId, memberships.userId],
-      set: { roles: grant.roles, updatedAt: new Date() },
+      set: { roles: grant.roles, blockedAt: null, updatedAt: new Date() },
     })
 }
 

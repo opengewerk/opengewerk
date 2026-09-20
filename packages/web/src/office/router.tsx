@@ -7,6 +7,7 @@ import { CustomerList, CustomerScreen } from './screens/customers.js'
 import { InstallationScreen } from './screens/installations.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { SiteScreen } from './screens/sites.js'
+import { StaffScreen } from './screens/staff.js'
 
 /**
  * The routes of the office, written out rather than generated from file names.
@@ -38,6 +39,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
   createRoute({ getParentRoute: () => root, path: '/konto', component: AccountScreen }),
+  createRoute({ getParentRoute: () => root, path: '/zugaenge', component: StaffScreen }),
 ]
 
 export const officeRouter = createRouter({

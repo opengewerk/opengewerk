@@ -170,20 +170,22 @@ describe('the tables', () => {
     // business makes about itself, and who may work in it. None of them is work
     // a technician does in a basement.
     //
-    // The last two are worth a sentence, because they look syncable and are
+    // The last three are worth a sentence, because they look syncable and are
     // not. A membership says what somebody may do, and a device that carried
-    // its own copy would answer that question from a copy that is as old as
-    // its last connection: rights taken away in the office would go on working
-    // on the roof until it next came online. A tenant session records a sign
-    // in, which happens on the server by definition. Both are read live or not
-    // at all.
+    // its own copy would answer that question from a copy as old as its last
+    // connection: rights taken away in the office would go on working on the
+    // roof until it next came online. A tenant session records a sign in,
+    // which happens on the server by definition. An invitation is a way into
+    // the business, and a way in that a phone holds a copy of is a way in that
+    // survives being called back. All three are read live or not at all.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
       name === 'number_ranges' ||
       name === 'tenant_parameters' ||
       name === 'memberships' ||
-      name === 'tenant_sessions'
+      name === 'tenant_sessions' ||
+      name === 'invitations'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows
