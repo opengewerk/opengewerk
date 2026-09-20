@@ -265,9 +265,21 @@ zweiten Konto ist das ohnehin der Weg, bis es eine Benutzerverwaltung gibt:
 docker compose -f docker/compose.yaml exec app node dist/add-staff.js <betriebs-id> monteur@betrieb.de "Max Beispiel" technician
 ```
 
-Das Passwort kommt aus `OPENGEWERK_PASSWORD` und nicht aus einem Argument: ein
+**Ohne Passwort im Aufruf, und das ist der Normalfall.** Fehlt
+`OPENGEWERK_PASSWORD`, erzeugt der Befehl eines und gibt es einmal aus, in fünf
+Fünfergruppen aus einem Alphabet ohne `i`, `l`, `o` und `u`, damit es niemand
+falsch abliest. Es steht dann auf dem Terminal dessen, der den Befehl abgesetzt
+hat, und nirgends sonst: nicht im Protokoll des Containers, das jemand
+weitergibt, wenn er um Hilfe bittet, nicht in der Prozessliste und nicht in der
+Umgebung. Beim ersten Anmelden gehört es ersetzt.
+
+Wer eines vorgeben will, setzt `OPENGEWERK_PASSWORD`, und dann gilt weiter die
+Untergrenze von zwölf Zeichen. Als Argument geht es nicht und soll es nicht: ein
 Argument steht in der Prozessliste und im Verlauf der Shell, wo es monatelang
 liegen bleibt.
+
+Gab es das Konto schon, sagt der Befehl das und rührt das Passwort nicht an. Nur
+die Rollen im genannten Betrieb ändern sich.
 
 Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschirm
 "Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst
