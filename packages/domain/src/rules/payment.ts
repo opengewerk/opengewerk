@@ -1,5 +1,14 @@
 import type { IsoDate } from '../model/identifier.js'
-import { applyRate, type RuleSet } from './rule.js'
+import { applyRate, type RuleSet, withoutNegativeZero } from './rule.js'
+
+/**
+ * The days a year is counted as having when interest is worked out.
+ *
+ * Named rather than written into the formula, so that the one number this
+ * calculation turns on is findable, and so that a test can name it too instead
+ * of repeating a literal that nobody would connect to the decision behind it.
+ */
+export const daysInYear = 365
 
 export const debtorKinds = ['business', 'consumer'] as const
 
@@ -45,13 +54,26 @@ export interface LateInterest {
  * returned but an error, because a made up interest rate on a real invoice is
  * worse than a missing one.
  *
- * The one number here that carries no source is the 360 the year is divided
- * into. Every rate beside it comes out of a package and names its paragraph;
- * this divisor is an assumption about how days are counted, it sits in code
- * rather than in data, and it is worth real money: ten thousand euro ninety
- * days late come to 263.00 euro over 360 days and 259.40 euro over 365. It is
- * written down as an open question in the check of 19.09.2026 on issue #31
- * rather than quietly settled here.
+ * **The year is divided into 365 days**, decided by Moritz on 20.09.2026 as
+ * part of the expert acceptance in issue #31. It was the one open question
+ * there, and it was worth real money: ten thousand euro ninety days late at
+ * the rate of early 2024 come to 315.50 euro over 360 days and 311.18 over
+ * 365. A test pins that figure, because nothing else did: the tests around it
+ * only compared two results with each other and would have passed just as
+ * happily with either divisor.
+ *
+ * It stays in code rather than moving into a data package, and that is not an
+ * oversight. A package holds what the law sets and changes on a date: a rate,
+ * a threshold, a number of days. The divisor is not that. It is the convention
+ * the days are counted in, it has no period of validity, and giving it one
+ * would invite somebody to set it per tenant, which is exactly the sort of
+ * thing section 1.7 keeps out of a business's reach.
+ *
+ * A leap year gets no special treatment. Dividing by 366 in one year and 365
+ * in the next would make two invoices that straddle a turn of the year
+ * incomparable, and act/365 is the convention in ordinary use. If that is ever
+ * to change, it is a decision of the same kind as this one and belongs in the
+ * same place.
  */
 export function lateInterestOn(
   rules: RuleSet,
@@ -72,7 +94,9 @@ export function lateInterestOn(
     basisPoints,
     baseRateBasisPoints,
     premiumBasisPoints,
-    interestCents: Math.sign(perYear) * Math.round((Math.abs(perYear) * owed.days) / 360),
+    interestCents: withoutNegativeZero(
+      Math.sign(perYear) * Math.round((Math.abs(perYear) * owed.days) / daysInYear),
+    ),
     flatFeeCents:
       owed.debtor === 'business' ? rules.valueAt('late_payment.flat_fee', 'cents', on) : 0,
   }

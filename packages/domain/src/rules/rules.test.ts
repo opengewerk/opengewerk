@@ -2,7 +2,7 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
 import type { IsoDate } from '../model/identifier.js'
-import { addDays, lateFrom, lateInterestOn } from './payment.js'
+import { addDays, daysInYear, lateFrom, lateInterestOn } from './payment.js'
 import { applyRate, RuleError, type RuleRecord, ruleSet } from './rule.js'
 import { tenantParameterKeys, tenantParameterUnits } from './parameter.js'
 import { rulePackages, shippedRules } from './shipped.js'
@@ -256,6 +256,36 @@ describe('an invoice that was not paid', () => {
     expect(later.basisPoints).toBe(1237)
     expect(early.interestCents).toBeGreaterThan(later.interestCents)
     expect(early.flatFeeCents).toBe(4000)
+  })
+
+  /**
+   * Der Teiler, festgenagelt. Bis zum 20.09.2026 stand dort 360, entschieden
+   * war nichts, und kein Test hätte den Unterschied bemerkt: die Prüfungen
+   * ringsum vergleichen nur zwei Ergebnisse miteinander und wären mit beiden
+   * Werten grün gewesen.
+   *
+   * Zehntausend Euro, neunzig Tage, Satz des ersten Halbjahres 2024. Über 365
+   * sind das 311,18 Euro, über 360 wären es 315,50. Ein Teiler, der sich
+   * unbemerkt ändern kann, ist bei einer Mahnung bares Geld.
+   */
+  it('divides the year into the days the decision of 20.09.2026 settled on', () => {
+    const owed = { principalCents: 1_000_000, days: 90, debtor: 'business' as const }
+    const interest = lateInterestOn(shippedRules, owed, '2024-03-01' as IsoDate)
+
+    expect(daysInYear).toBe(365)
+    expect(interest.interestCents).toBe(31_118)
+  })
+
+  /**
+   * Die Gegenprobe dazu: ein volles Jahr trägt genau den Jahreszins, weder
+   * mehr noch weniger. Mit einem Teiler von 360 wären es rund anderthalb
+   * Prozent zu viel, und das fiele an keiner anderen Stelle auf.
+   */
+  it('charges exactly one year of interest for a year', () => {
+    const owed = { principalCents: 1_000_000, days: daysInYear, debtor: 'business' as const }
+    const interest = lateInterestOn(shippedRules, owed, '2024-03-01' as IsoDate)
+
+    expect(interest.interestCents).toBe(126_200)
   })
 
   it('costs a consumer less, and no flat fee', () => {
