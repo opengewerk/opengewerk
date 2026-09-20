@@ -8,6 +8,7 @@ import { Gate } from './sign-in.js'
 import {
   runSetup,
   secretFrom,
+  shortestPassword,
   signIn,
   startSecondFactor,
   verifySecondFactor,
@@ -16,9 +17,6 @@ import {
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
-
-/** The floor the server keeps, said here too so nobody types twice for nothing. */
-const shortestPassword = 12
 
 /**
  * The first screen a freshly installed instance shows: the business, the

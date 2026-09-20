@@ -2,7 +2,7 @@ import type { RoleKey, TenantId } from '@opengewerk/domain'
 import { roleKeys } from '@opengewerk/domain'
 
 import { createAuthentication } from './authentication/authentication.js'
-import { generatePassword } from './authentication/password.js'
+import { generatePassword, shortestPassword } from './authentication/password.js'
 import { addStaffMember } from './authentication/staff.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
@@ -46,11 +46,12 @@ async function main(): Promise<void> {
 
   const given = process.env['OPENGEWERK_PASSWORD']?.trim()
 
-  if (given !== undefined && given.length < 12) {
+  if (given !== undefined && given.length < shortestPassword) {
     // Only when one was given. A password that is there and too short is a
     // mistake worth stopping for; none at all is the case below.
     throw new ConfigurationError(
-      'OPENGEWERK_PASSWORD ist kürzer als 12 Zeichen. Kurze Passwörter sind genau bei der ' +
+      `OPENGEWERK_PASSWORD ist kürzer als ${String(shortestPassword)} Zeichen. Kurze ` +
+        'Passwörter sind genau bei der ' +
         'Anmeldung die teure Stelle, weil sie einmal gesetzt und jahrelang benutzt werden. ' +
         'Wer keines zur Hand hat, lässt die Variable weg: dann wird eines erzeugt.',
     )

@@ -1,5 +1,5 @@
 import type { RoleKey } from './authorization.js'
-import type { MembershipId, TenantId, TenantSessionId } from './identifier.js'
+import type { InvitationId, MembershipId, TenantId, TenantSessionId } from './identifier.js'
 
 /**
  * What a person is in one business. A user belongs to the instance, a
@@ -17,9 +17,62 @@ export interface Membership {
   /** The user of the instance. Not a branded id: it is better-auth's key. */
   readonly userId: string
   readonly roles: readonly RoleKey[]
+  /**
+   * When this person was shut out of this business, or null while they work
+   * here.
+   *
+   * On the membership and not on the account, and that is the whole
+   * multi-tenant rule made structural: a business can shut somebody out of
+   * itself and cannot shut them out of the company next door on the same
+   * instance. Blocking rather than deleting, because deleting would take the
+   * name off everything this person ever wrote and leave the audit log
+   * pointing at an identifier nobody can resolve.
+   */
+  readonly blockedAt: Date | null
   readonly createdAt: Date
   readonly updatedAt: Date
 }
+
+/**
+ * An offer of a way into one business, handed over as a link.
+ *
+ * The office types a name, an address and the roles, and gets back a link to
+ * pass on. What it does not get is a password: one that a colleague knows and
+ * that then stays for three years is worse than one nobody knows. The person
+ * who opens the link sets their own.
+ *
+ * The token itself is never here. What is stored is its SHA-256, so a copy of
+ * this table is a list of who was invited and not a set of keys. That is the
+ * same reason a password is not stored either, and it costs nothing: the link
+ * is shown once, at the moment it is made.
+ */
+export interface Invitation {
+  readonly id: InvitationId
+  readonly tenantId: TenantId
+  readonly email: string
+  readonly name: string
+  readonly roles: readonly RoleKey[]
+  /** Hex SHA-256 of the token in the link. Never the token. */
+  readonly tokenHash: string
+  /** Who issued it. A user of the instance, like every other `userId` here. */
+  readonly invitedBy: string
+  readonly expiresAt: Date
+  /** Set the moment it is used, which is the only time it can be used. */
+  readonly redeemedAt: Date | null
+  readonly createdAt: Date
+  readonly updatedAt: Date
+}
+
+/**
+ * How long a link is good for.
+ *
+ * Long enough to survive a weekend and a forgotten message, short enough that
+ * a link in an old chat is not a way in months later. Days rather than hours
+ * because the office hands these over by hand, sometimes on paper, and an
+ * expiry that runs out before the person is back from a site is a link that
+ * gets reissued until somebody stops bothering with the expiry.
+ */
+export const invitationDays = 7
 
 /**
  * One stretch of somebody working in one business.

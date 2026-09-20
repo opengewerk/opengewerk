@@ -32,10 +32,20 @@ export const RequiresPermission = (permission: Permission) =>
   SetMetadata(PERMISSION_METADATA, permission)
 
 /**
- * A route that answers without an identity. There is exactly one reason to
- * use this today, the health check an operator and the container runtime ask
- * for, and it has to stay that way: anything that touches tenant data goes
- * through the guard.
+ * A route that answers without an identity.
+ *
+ * There are three reasons to use this and they are the only three. The health
+ * check, which an operator and the container runtime ask for and which must
+ * keep answering when the authentication itself is in trouble. The first run
+ * setup, which creates the first account on an empty instance and therefore
+ * cannot ask for one. And the redemption of an invitation link, which creates
+ * every account after that and cannot either.
+ *
+ * The two that write are not open in the sense of unguarded: each has
+ * something standing in for an identity, the state of the data in one case and
+ * a token in the other, and `route-coverage.test.ts` says what that is for
+ * each of them. Anything that touches the data of a business that already
+ * exists goes through the guard.
  *
  * It is a decorator rather than a list of paths in the guard so that a test
  * can count them. The test holds the current set, which means adding one is a

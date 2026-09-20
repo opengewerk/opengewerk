@@ -115,50 +115,76 @@ describe('every route', () => {
    * the one worth counting: adding one turns this test red, which makes it a
    * decision instead of a line in a diff nobody looked at twice.
    */
-  it('that answers without an identity is the health check or the first run setup', () => {
+  it('that answers without an identity is the health check, the setup or a link', () => {
     const publicRoutes = routesOf(controllers)
       .filter((route) => route.isPublic)
       .map((route) => route.name)
       .sort()
 
-    expect(publicRoutes).toEqual(['GET /health', 'GET /setup', 'POST /setup'])
+    expect(publicRoutes).toEqual([
+      'GET /health',
+      'GET /invitation/:token',
+      'GET /setup',
+      'POST /invitation/:token',
+      'POST /setup',
+    ])
   })
 
   /**
-   * The one public route that writes, and the list is held by hand for the
+   * The two public routes that write, and the list is held by hand for the
    * same reason as the one above.
    *
-   * It has to be public: it creates the first account on the instance, so
-   * there is nobody to authenticate at the moment it runs, and that is the
-   * whole problem it exists to solve. What stands in for authentication is the
-   * state of the data. `create_first_tenant` refuses unless the instance is
-   * empty, under a lock rather than after a look, so the route answers exactly
-   * once in the life of an installation.
+   * Both have to be public, and for the same reason: they create an account,
+   * so at the moment they run there is nobody to authenticate, and that is the
+   * whole problem each of them exists to solve. What stands in for
+   * authentication is different in each case and is the thing to look at when
+   * one of them is changed.
    *
-   * A second entry here would be a public route that writes for some other
+   * For the first run it is the state of the data. `create_first_tenant`
+   * refuses unless the instance is empty, under a lock rather than after a
+   * look, so the route answers exactly once in the life of an installation.
+   *
+   * For the redemption it is the token: 32 random bytes the office of one
+   * business made, good once, for a week, and callable back. Nothing else
+   * about that request is trusted, and the business it lands in is the one the
+   * token names rather than one a body could ask for.
+   *
+   * A third entry here would be a public route that writes for some other
    * reason, and there is no other reason.
    */
   it('that answers without an identity writes only where there is nobody to ask yet', () => {
     const writingAndPublic = routesOf(controllers)
       .filter((route) => route.isPublic && route.writes)
       .map((route) => route.name)
+      .sort()
 
-    expect(writingAndPublic).toEqual(['POST /setup'])
+    expect(writingAndPublic).toEqual(['POST /invitation/:token', 'POST /setup'])
   })
 
   /**
-   * `CLOSED=true` hands no authentication to the module, and without one the
-   * setup controller is not registered at all. Checked on the routing table
-   * rather than on a response, because "the route is not there" and "the route
-   * is there and refuses" are two different promises and this is the stronger
-   * one.
+   * `CLOSED=true` hands no authentication to the module, and without one
+   * neither of the two public controllers is registered at all. Checked on the
+   * routing table rather than on a response, because "the route is not there"
+   * and "the route is there and refuses" are two different promises and this
+   * is the stronger one.
    */
-  it('of the first run setup does not exist on a closed instance', () => {
+  it('that answers without an identity does not exist on a closed instance', () => {
     const names = routesOf(whenClosed).map((route) => route.name)
 
-    expect(names).not.toContain('GET /setup')
-    expect(names).not.toContain('POST /setup')
+    for (const gone of [
+      'GET /setup',
+      'POST /setup',
+      'GET /invitation/:token',
+      'POST /invitation/:token',
+    ]) {
+      expect(names).not.toContain(gone)
+    }
+
     expect(names).toContain('GET /health')
+    // The user administration is behind the guard like everything else, so it
+    // stays on the table and answers 401. Closing an instance is about the
+    // ways in that need no identity, not about taking routes away.
+    expect(names).toContain('GET /staff')
   })
 
   /**
@@ -217,5 +243,27 @@ describe('every route', () => {
     expect(byName.get('POST /customers')).toBe('customer.create')
     expect(byName.get('PATCH /customers/:id')).toBe('customer.write')
     expect(byName.get('DELETE /customers/:id')).toBe('customer.write')
+  })
+
+  /**
+   * The user administration, which is where a business hands out rights, and
+   * therefore the last place a route should be able to forget which one it
+   * needs. The list is held by hand so that a route added to it is a decision.
+   *
+   * Reading and writing are told apart on purpose. Seeing who works here is
+   * not the same as deciding it, and the day the office role gets one of the
+   * two it will be the reading one.
+   */
+  it('of the user administration asks for a membership right and says which kind', () => {
+    const staff = routesOf(controllers).filter((route) => route.name.includes('/staff'))
+
+    expect(staff.length).toBeGreaterThanOrEqual(9)
+
+    for (const route of staff) {
+      expect([route.name, route.permission]).toEqual([
+        route.name,
+        route.writes ? 'membership.write' : 'membership.read',
+      ])
+    }
   })
 })

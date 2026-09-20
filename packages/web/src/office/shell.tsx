@@ -2,6 +2,7 @@ import { Link, Outlet } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { Shell } from '../components/index.js'
+import { useMay } from '../app/queries.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { useSyncStatus } from '../sync/provider.js'
@@ -15,6 +16,11 @@ import { useSyncStatus } from '../sync/provider.js'
  */
 function Navigation() {
   const { conflicts } = useSyncStatus()
+  // Only the owner administers accounts, so for everybody else the entry is
+  // not there. A courtesy and not the gate: the routes behind it ask the
+  // membership on every request, and typing the address reaches a screen whose
+  // every call is refused.
+  const administers = useMay('membership.read')
 
   const items: readonly { readonly to: string; readonly label: ReactNode }[] = [
     { to: '/', label: 'Kunden' },
@@ -23,6 +29,7 @@ function Navigation() {
       to: '/konflikte',
       label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',
     },
+    ...(administers ? [{ to: '/zugaenge', label: 'Zugänge' as ReactNode }] : []),
     { to: '/konto', label: 'Konto' },
   ]
 

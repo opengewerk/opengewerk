@@ -3,7 +3,6 @@ import {
   Body,
   ConflictException,
   Controller,
-  ForbiddenException,
   Get,
   Inject,
   Post,
@@ -12,25 +11,13 @@ import {
 import type { TenantId } from '@opengewerk/domain'
 
 import type { Authentication } from '../authentication/authentication.js'
+import { shortestPassword } from '../authentication/password.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
 import { PublicRoute } from './authorization.js'
+import { AUTHENTICATION, TRUSTED_ORIGINS } from './handed-in.js'
+import { refuseAForeignForm } from './origin.js'
 import { pick, requireFields } from './body.js'
 import { Database } from '../database/database.js'
-
-/** Where the authentication is handed in, for the one controller that needs it. */
-export const AUTHENTICATION = Symbol('Authentication')
-
-/** The addresses a browser may send a first run from, the same list better-auth gets. */
-export const TRUSTED_ORIGINS = Symbol('TrustedOrigins')
-
-/**
- * The shortest password a first owner may pick.
- *
- * The same floor as the command line has, and for the same reason written
- * there: this one is set once and used for years, and it is the password that
- * can hand out every other password on the instance.
- */
-const shortestPassword = 12
 
 /** How long a caller waits after a first run that failed before the next one. */
 const restAfterFailure = 2000
@@ -103,7 +90,7 @@ export class SetupController {
   @Post()
   @PublicRoute()
   async run(@Req() request: unknown, @Body() body: unknown): Promise<{ tenantId: TenantId }> {
-    this.refuseAForeignForm(request)
+    refuseAForeignForm(request, this.trustedOrigins, 'Die Ersteinrichtung')
 
     const values = pick(body, ['company', 'name', 'email', 'password'] as const)
 
@@ -147,42 +134,6 @@ export class SetupController {
       throw trouble
     } finally {
       this.running = false
-    }
-  }
-
-  /**
-   * The same defence better-auth puts in front of the sign in, on the one
-   * writing route of ours that nobody has to be signed in for.
-   *
-   * Without it a form on a stranger's page could set a fresh instance up while
-   * somebody was looking at that page, and the owner of the new business would
-   * be whoever wrote the form. The window is narrow, between the first start
-   * and the first run, and it is the window in which an instance is worth
-   * taking over whole.
-   *
-   * Two checks, and they cover different halves. A browser sends `Origin` on
-   * every cross site POST, so a form is refused by the first. A request that
-   * carries no `Origin` at all is let through by it, which is the ordinary
-   * case for `curl` on the machine itself; the second check catches what a
-   * browser could still send that way, because a form can only send the two
-   * encodings HTML knows and neither of them is JSON. Anything that wants JSON
-   * from another origin is asked for permission first, and nothing here gives
-   * it.
-   */
-  private refuseAForeignForm(request: unknown): void {
-    const headers = (request as { headers?: Record<string, unknown> }).headers ?? {}
-    const origin = headers['origin']
-    const contentType = headers['content-type']
-
-    if (typeof origin === 'string' && origin !== '' && !this.trustedOrigins.includes(origin)) {
-      throw new ForbiddenException(
-        'Diese Anfrage kommt von einer fremden Adresse. Die Ersteinrichtung läuft nur über ' +
-          'die Adresse, unter der die Instanz erreichbar ist (TRUSTED_ORIGINS).',
-      )
-    }
-
-    if (typeof contentType !== 'string' || !contentType.includes('application/json')) {
-      throw new BadRequestException('Die Ersteinrichtung erwartet JSON.')
     }
   }
 }

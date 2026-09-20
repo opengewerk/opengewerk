@@ -68,6 +68,8 @@ const apiPrefixes = [
   'sync',
   'settings',
   'setup',
+  'staff',
+  'invitation',
   'health',
 ]
 

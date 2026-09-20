@@ -85,6 +85,13 @@
       "when": 1789910830163,
       "tag": "0011_first_run_setup",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789916993366,
+      "tag": "0012_user_administration",
+      "breakpoints": true
     }
   ]
 }
