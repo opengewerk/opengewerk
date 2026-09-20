@@ -1,23 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Card, Cell, Column, Table } from '../../components/index.js'
+import { Button, Cell, Column, Table } from '../../components/index.js'
 import { moment } from '../../app/format.js'
-import { devices, revokeDevice, signOut } from '../../session/session.js'
-import { Nothing, Page } from '../layout.js'
+import { SecondFactorSetup } from '../../app/setup.js'
+import { currentAccount, devices, revokeDevice, signOut } from '../../session/session.js'
+import { Nothing, Page, Section } from '../layout.js'
 
 /**
- * Where somebody is signed in, and the way to cut one of them off.
+ * What somebody can look after about their own account: the second factor and
+ * the devices they are signed in on.
  *
- * The screen that makes the long session of ADR 0006 bearable. A phone on a
- * registered device stays signed in for thirty days, which is right for
- * somebody in a cellar and wrong for a phone left in a van that was broken
- * into, so there has to be a place to end it from a desk.
+ * One screen and not two, because both answer the same question: who can get
+ * in as me, and how do I stop them. The device list is what makes the long
+ * session of ADR 0006 bearable, a phone on a registered device stays signed in
+ * for thirty days, which is right for somebody in a cellar and wrong for a
+ * phone left in a van that was broken into.
  */
-export function DeviceScreen() {
+export function AccountScreen() {
   const queries = useQueryClient()
+  const account = useQuery({ queryKey: ['account'], queryFn: currentAccount })
   const list = useQuery({ queryKey: ['devices'], queryFn: devices })
   const [trouble, setTrouble] = useState<string | null>(null)
+  const [setting, setSetting] = useState(false)
 
   const revoke = useMutation({
     mutationFn: revokeDevice,
@@ -31,8 +36,8 @@ export function DeviceScreen() {
 
   return (
     <Page
-      title="Geräte"
-      meta="Jede Anmeldung, die gerade gilt."
+      title="Konto"
+      meta={account.data ? `${account.data.name}, ${account.data.email}` : 'Dieses Konto.'}
       actions={
         <Button
           tone="secondary"
@@ -55,7 +60,46 @@ export function DeviceScreen() {
         </p>
       ) : null}
 
-      <Card label="Angemeldete Geräte">
+      <Section title="Zweiter Faktor">
+        {account.data?.twoFactorEnabled ? (
+          <p className="text-body">
+            Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der App.
+          </p>
+        ) : setting ? (
+          <SecondFactorSetup
+            onDone={() => {
+              setSetting(false)
+              // The confirmation swaps the session, so what the application
+              // knows about the account and about the devices is both a step
+              // behind.
+              void queries.invalidateQueries({ queryKey: ['account'] })
+              void queries.invalidateQueries({ queryKey: ['devices'] })
+            }}
+            onCancel={() => {
+              setSetting(false)
+            }}
+          />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <p className="text-body">
+              Noch nicht eingerichtet. Ein zweiter Faktor macht ein gestohlenes Passwort allein
+              nutzlos. Für die Rolle Inhaber ist er Pflicht, für alle anderen empfohlen.
+            </p>
+            <div>
+              <Button
+                tone="primary"
+                onClick={() => {
+                  setSetting(true)
+                }}
+              >
+                Zweiten Faktor einrichten
+              </Button>
+            </div>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Angemeldete Geräte">
         {list.isPending ? (
           <Nothing>Wird geladen.</Nothing>
         ) : list.isError ? (
@@ -104,7 +148,7 @@ export function DeviceScreen() {
             </tbody>
           </Table>
         )}
-      </Card>
+      </Section>
     </Page>
   )
 }

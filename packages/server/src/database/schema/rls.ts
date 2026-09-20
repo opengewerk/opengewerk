@@ -184,3 +184,70 @@ export function writtenByTriggerOnly(tenantId: PgColumn) {
     }),
   ]
 }
+
+/**
+ * Lets the role that owns the tables read this one.
+ *
+ * `FORCE ROW LEVEL SECURITY` makes the policies apply to the owner as well,
+ * and every policy in this file names the application role, so for the owner
+ * there is no policy at all and no policy means no row. Usually that is
+ * exactly right. It stops being right for the two tables the first run setup
+ * has to ask about: `instance_is_empty` runs as the owner, and without this it
+ * would find an empty instance on a server full of companies and offer the
+ * setup screen again.
+ *
+ * Reading only, and only where it is needed. What the owner could do with it
+ * that it could not do anyway is nothing: it owns the tables and can take
+ * `FORCE` off in one statement. The protection `FORCE` actually buys is
+ * against the application being pointed at the owner by mistake, and that is
+ * refused at startup in `configuration.ts`, one layer before this one.
+ *
+ * `current_user` rather than the name of the role, because the name belongs to
+ * whoever set the instance up. PostgreSQL resolves it when the policy is
+ * created, which is while the migration runs, which is as the owner.
+ */
+export function readableByTheOwner() {
+  return pgPolicy('readable_by_the_owner', {
+    as: 'permissive',
+    for: 'select',
+    to: 'current_user',
+    using: sql`true`,
+  })
+}
+
+/**
+ * The two policies that let the first run setup create the one business an
+ * empty instance needs, and keep the application from creating any.
+ *
+ * The same shape as `writtenByTriggerOnly` and for the same reason: the insert
+ * happens inside a function that runs as the owner of the tables, and `FORCE
+ * ROW LEVEL SECURITY` applies to the owner as well. Every policy on `tenants`
+ * names the application role, so none of them matches the owner, and with row
+ * level security on and nothing matching, the row is refused. So there has to
+ * be a policy the function can pass, and it has to be open, exactly as the
+ * audit trigger's is.
+ *
+ * What keeps that from being a hole is the same three gates as there: the
+ * application role has no INSERT grant since 0007, the restrictive policy
+ * below shuts the door a second time whatever else permits, and the function
+ * itself refuses unless the instance is empty.
+ *
+ * Insert only. Renaming and deleting a business stay where 0007 put them, with
+ * whoever set the instance up.
+ */
+export function createdBySetupOnly() {
+  return [
+    pgPolicy('created_by_setup', {
+      as: 'permissive',
+      for: 'insert',
+      to: 'public',
+      withCheck: sql`true`,
+    }),
+    pgPolicy('no_application_insert', {
+      as: 'restrictive',
+      for: 'insert',
+      to: applicationRole,
+      withCheck: sql`false`,
+    }),
+  ]
+}

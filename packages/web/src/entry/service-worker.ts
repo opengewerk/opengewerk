@@ -46,7 +46,7 @@ registerRoute(
       // and the failure reads like the server returning HTML.
       /^\/m(\/|$)/,
       /^\/api(\/|$)/,
-      /^\/(auth|customers|sites|installations|jobs|documents|sync|settings|health)(\/|$)/,
+      /^\/(auth|customers|sites|installations|jobs|documents|sync|settings|setup|health)(\/|$)/,
     ],
   }),
 )

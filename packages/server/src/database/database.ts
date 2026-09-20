@@ -6,6 +6,22 @@ import { Pool, type PoolClient } from 'pg'
 export type TenantTransaction = NodePgDatabase
 
 /**
+ * What a caller gets from `forInstanceAndTenant`: one transaction, and the
+ * step that moves it from the instance into a business.
+ */
+export interface StraddlingTransaction {
+  readonly tx: TenantTransaction
+  /**
+   * Puts the rest of the transaction inside this business, as this person.
+   *
+   * The user comes along because before this step there is nothing to say: an
+   * account is being created, so there is nobody to name yet. From here on
+   * every row the transaction writes carries them in the audit log.
+   */
+  enter(tenantId: TenantId, userId: string): Promise<void>
+}
+
+/**
  * Who is changing something, and why. The tenant is the part that decides
  * which rows are in reach; the other two end up in the audit log, on every
  * row the transaction touches, without anybody writing a line for it.
@@ -154,6 +170,75 @@ export class Database {
       )
 
       const result = await work(drizzle(client))
+
+      await client.query('commit')
+
+      return result
+    } catch (error) {
+      await client.query('rollback')
+      throw error
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
+   * The one transaction that begins outside any business and ends inside one.
+   *
+   * It exists because putting somebody to work in a business touches both of
+   * the halves `forInstance` and `forTenant` keep apart: an account, which
+   * lives on the instance, and a membership, which lives in the business. The
+   * first run setup adds the business itself in the middle. Done in two
+   * transactions, a failure between them would leave an account that belongs
+   * nowhere, or a business nobody can sign in to, on the one installation that
+   * has nobody to repair it.
+   *
+   * So the tenant is set in the middle rather than at the start, and `enter`
+   * is the step that does it. Before it the `auth_` tables are in reach and
+   * the business tables are empty; after it the other way round, by the same
+   * policies as everywhere else. Nothing here widens what either half can see,
+   * it only walks from one to the other once.
+   *
+   * Read committed is spelled out rather than left to the server's default,
+   * because the first run setup depends on it: `create_first_tenant` takes a
+   * lock and then asks whether the instance is still empty, and under a
+   * stricter level that question would be answered from a snapshot taken
+   * before the wait.
+   */
+  async forInstanceAndTenant<Result>(
+    reason: string,
+    work: (straddling: StraddlingTransaction) => Promise<Result>,
+  ): Promise<Result> {
+    const client: PoolClient = await this.pool.connect()
+
+    try {
+      await client.query('begin isolation level read committed')
+      await client.query(
+        `select set_config('app.tenant_id', '', true),
+                set_config('app.user_id', '', true),
+                set_config('app.reason', $1, true),
+                set_config('app.device_id', '', true)`,
+        [reason],
+      )
+
+      const result = await work({
+        tx: drizzle(client),
+        enter: async (tenantId: TenantId, userId: string) => {
+          if (!uuidPattern.test(tenantId)) {
+            // The same refusal as in `forTenant`, and for the same reason: a
+            // caller without a proper business at hand would otherwise write
+            // rows that no policy matches and read an empty result as "this
+            // company has no data yet".
+            throw new Error(`Not a tenant id: ${JSON.stringify(tenantId)}`)
+          }
+
+          await client.query(
+            `select set_config('app.tenant_id', $1, true),
+                    set_config('app.user_id', $2, true)`,
+            [tenantId, userId],
+          )
+        },
+      })
 
       await client.query('commit')
 

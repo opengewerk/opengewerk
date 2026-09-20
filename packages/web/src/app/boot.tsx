@@ -1,4 +1,4 @@
-import { syncEntities } from '@opengewerk/domain'
+import { requiresSecondFactor, syncEntities } from '@opengewerk/domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -10,17 +10,24 @@ import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { directWrite, httpTransport } from '../sync/transport.js'
 import { deviceIdentity } from './device.js'
+import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { Gate, SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
-import { availableTenants, currentAccount, signOut } from './../session/session.js'
+import { availableTenants, currentAccount, setupNeeded, signOut } from './../session/session.js'
+import type { Account } from './../session/session.js'
 
 /**
  * Everything between opening the application and being able to work.
  *
- * Four states and they are the three questions of ADR 0006 in order: who are
- * you, which business, and only then anything at all. The order is the point,
- * and it is why this is a gate rather than a redirect somewhere inside the
- * router: no screen in the application is ever rendered without a business
- * behind it, so no screen has to remember to ask.
+ * The three questions of ADR 0006 in order: who are you, which business, and
+ * only then anything at all. The order is the point, and it is why this is a
+ * gate rather than a redirect somewhere inside the router: no screen in the
+ * application is ever rendered without a business behind it, so no screen has
+ * to remember to ask.
+ *
+ * Two steps sit in front of the first question and both are about an instance
+ * that is not ready yet. An empty one is set up here rather than at a psql
+ * prompt, and an account whose role needs a second factor sets it up here
+ * rather than being refused at every request with no way to fix it.
  */
 type Step = 'second-factor' | 'asking' | 'working'
 
@@ -39,6 +46,21 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
     // again on every focus is what turns "nothing works any more" into a sign
     // in screen.
     staleTime: 30_000,
+    retry: false,
+  })
+
+  /**
+   * Whether this instance has never been used.
+   *
+   * Only asked while nobody is signed in, which is the one moment it can be
+   * true and the one moment an extra request costs nothing. A browser with a
+   * session never sends it.
+   */
+  const setup = useQuery({
+    queryKey: ['setup'],
+    queryFn: setupNeeded,
+    enabled: !account.isPending && !account.data,
+    staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   })
 
@@ -106,6 +128,21 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   }
 
   if (!account.data) {
+    if (setup.data === undefined && !setup.isError) {
+      return <Gate title="Einen Moment">Die Anwendung sieht nach, ob sie schon läuft.</Gate>
+    }
+
+    if (setup.data === true) {
+      return (
+        <SetupScreen
+          onDone={() => {
+            void queries.invalidateQueries({ queryKey: ['setup'] })
+            void queries.invalidateQueries({ queryKey: ['account'] })
+          }}
+        />
+      )
+    }
+
     return (
       <SignInScreen
         onSignedIn={() => {
@@ -119,7 +156,7 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   }
 
   if (!tenantId) {
-    return <ChooseTenant entry={entry} deviceId={deviceId} onDone={forget} />
+    return <ChooseTenant entry={entry} deviceId={deviceId} account={account.data} onDone={forget} />
   }
 
   if (!client) {
@@ -132,10 +169,12 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
 function ChooseTenant({
   entry,
   deviceId,
+  account,
   onDone,
 }: {
   readonly entry: Entry
   readonly deviceId: string
+  readonly account: Account
   readonly onDone: () => void
 }) {
   const tenants = useQuery({ queryKey: ['tenants'], queryFn: availableTenants, retry: false })
@@ -160,6 +199,21 @@ function ChooseTenant({
         </Button>
       </Gate>
     )
+  }
+
+  /**
+   * The wall from #62, and the way through it.
+   *
+   * The requirement hangs on the role and is checked on every request, so an
+   * owner without a second factor gets as far as this screen and no further,
+   * whichever business they pick. Asking here rather than after the choice is
+   * deliberate: setting the factor up replaces the session, and at this point
+   * there is no business on it yet and nothing to put back.
+   */
+  const needed = tenants.data.some((tenant) => requiresSecondFactor(tenant.roles))
+
+  if (needed && !account.twoFactorEnabled) {
+    return <SecondFactorSetupScreen onDone={onDone} />
   }
 
   return (

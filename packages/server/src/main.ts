@@ -8,6 +8,7 @@ import { ApiModule } from './api/api.module.js'
 import { ClosedIdentitySource } from './api/closed-identity.js'
 import { authenticationPath, createAuthentication } from './authentication/authentication.js'
 import { SessionIdentitySource } from './authentication/session-identity.js'
+import { instanceIsEmpty } from './authentication/setup.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
 import { interfacePath, serveInterface } from './interface.js'
@@ -17,9 +18,9 @@ import { interfacePath, serveInterface } from './interface.js'
  *
  * The identity source is better-auth's, unless `CLOSED` is set, in which case
  * it is the one that recognises nobody: the instance runs, migrates, reports
- * its health and hands out no data at all. That is what an operator wants
- * during a restore, and it is the state this server shipped in until the
- * authentication existed.
+ * its health and hands out no data at all, the sign in and the first run setup
+ * included. That is what an operator wants during a restore, and it is the
+ * state this server shipped in until the authentication existed.
  *
  * better-auth's own routes are mounted as middleware, in front of Nest and
  * outside the guard. They have to be: a route that hands out a session cannot
@@ -56,7 +57,14 @@ async function start(): Promise<void> {
     : new SessionIdentitySource(authentication, database)
 
   const application = await NestFactory.create(
-    ApiModule.create(database, identities),
+    // The authentication goes in only when the instance is open, and that is
+    // what puts the first run setup on the routing table at all. Closed, the
+    // controller is not registered and its two routes are simply not there.
+    ApiModule.create(
+      database,
+      identities,
+      configuration.closed ? {} : { authentication, trustedOrigins: configuration.trustedOrigins },
+    ),
     // The container log is the only log there is, so it carries warnings and
     // errors and not the route table of every start. At twenty routes that
     // table is noise; at two hundred it buries the line that matters.
@@ -115,12 +123,26 @@ async function start(): Promise<void> {
 
   await application.listen(configuration.port, configuration.host)
 
+  // Asked once at startup, because the answer decides what somebody sees when
+  // they open the address for the first time. A fresh installation that says
+  // nothing here looks in the log exactly like one that is set up, and the
+  // sentence saves whoever put it there from wondering where the login went.
+  //
+  // A sentence in the log is never worth a server that does not start, so a
+  // database that cannot answer simply gets no sentence. That is the case on
+  // an instance whose migrations have not run.
+  const empty = configuration.closed ? false : await instanceIsEmpty(database).catch(() => false)
+
   console.info(
     `OpenGewerk lauscht auf ${configuration.host}:${configuration.port}.` +
       (built ? '' : ' Es ist keine gebaute Oberfläche dabei, nur die API.') +
       (configuration.closed
         ? ' Die Instanz ist über CLOSED geschlossen, jede Anfrage an die Daten wird ' +
-          'abgelehnt, auch die Anmeldung.'
+          'abgelehnt, die Anmeldung und die Ersteinrichtung eingeschlossen.'
+        : '') +
+      (empty
+        ? ' Diese Instanz ist noch leer: im Browser steht die Ersteinrichtung, die den ' +
+          'Betrieb und den ersten Zugang anlegt.'
         : ''),
   )
 }

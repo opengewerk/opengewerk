@@ -23,7 +23,7 @@ function Navigation() {
       to: '/konflikte',
       label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',
     },
-    { to: '/geraete', label: 'Geräte' },
+    { to: '/konto', label: 'Konto' },
   ]
 
   return (
