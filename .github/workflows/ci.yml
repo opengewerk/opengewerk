@@ -293,6 +293,13 @@ jobs:
         env:
           DATABASE_URL: postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test
 
+      # ADR 0004 verlangt ein Bündelbudget je Einstieg und nennt eine Zahl:
+      # unter 300 kB gzip beim ersten Laden auf der Baustelle. Gemessen wird,
+      # was der Browser holt, bevor die Anwendung läuft, aus den gebauten
+      # HTML-Dateien und nicht aus einer Liste, die jemand pflegen müsste.
+      - name: Bündelbudget je Einstieg
+        run: pnpm --filter @opengewerk/web run budget
+
   operations:
     name: Betrieb über Docker Compose
     runs-on: ubuntu-latest

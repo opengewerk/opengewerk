@@ -157,6 +157,41 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   },
 }
 
+/**
+ * Columns a device never sets, whatever it sends.
+ *
+ * The first two say where a record belongs and are decided by the identity of
+ * the request, never by its body. The rest are kept by a trigger, and a device
+ * that wrote its own version number could make any change look like the newest
+ * one there is.
+ *
+ * `deletedAt` is in the list although the server writes it from an operation
+ * and not from a trigger. Deleting has its own kind of operation and a rule of
+ * its own to pass; a device that sets the column as an ordinary field would
+ * walk around that rule, and one that sets it back to null would undelete
+ * something nobody restored.
+ *
+ * It sits here rather than in the server because both ends need it. The server
+ * refuses a patch that names one of these; a device has to leave them out in
+ * the first place, and it can only do that if it knows which they are. Two
+ * copies of the list would agree until the day a column is added to one.
+ */
+export const keptByTheServer: readonly string[] = [
+  'id',
+  'tenantId',
+  'createdAt',
+  'updatedAt',
+  'updatedBy',
+  'version',
+  'changeSequence',
+  'deletedAt',
+]
+
+/** True when this field is the server's to write, on this entity. */
+export function isSetByServer(entity: string, field: string): boolean {
+  return keptByTheServer.includes(field) || (policyFor(entity)?.reserved?.includes(field) ?? false)
+}
+
 export const syncEntities = Object.keys(syncPolicies)
 
 export function policyFor(entity: string): SyncPolicy | null {

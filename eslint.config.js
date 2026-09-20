@@ -15,6 +15,21 @@ export default tseslint.config(
   tseslint.configs.recommended,
 
   {
+    rules: {
+      // A leading underscore means "this exists because something else
+      // demands it". Two cases only, and both are real: a method implementing
+      // an interface that passes an argument this implementation ignores, and
+      // a type parameter a library's declaration merging insists on by
+      // position. Without the escape the alternative is a disable comment at
+      // every one of them, which is louder and says less.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
+  },
+
+  {
     // The domain package computes; it does not talk to the outside world.
     // ADR 0009 keeps Node and DOM types out of its tsconfig, and this rule
     // catches the remaining way in: a runtime global that needs no import.
@@ -105,7 +120,11 @@ export default tseslint.config(
   },
 
   {
-    files: ['*.js', '*.config.js', '*.config.ts'],
+    // Everything that runs in Node rather than in a browser: the shared
+    // configuration at the root, and the small scripts a package keeps beside
+    // its source. The build tooling is the one place where reading the
+    // environment and writing to a console is the job.
+    files: ['*.js', '*.config.js', '*.config.ts', 'packages/*/scripts/**/*.js'],
     languageOptions: {
       globals: globals.node,
     },

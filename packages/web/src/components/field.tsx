@@ -1,9 +1,16 @@
 import clsx from 'clsx'
 import { useId } from 'react'
-import type { InputHTMLAttributes, ReactNode } from 'react'
+import type { InputHTMLAttributes, ReactNode, Ref } from 'react'
 
 export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   readonly label: string
+  /**
+   * Handed through to the input itself. React 19 passes `ref` like any other
+   * prop, so this needs no forwarding wrapper; it needs to be declared, or a
+   * caller that wants to move the focus here has nowhere to put it. The search
+   * box of a list is the case: the slash key has to land somewhere.
+   */
+  readonly ref?: Ref<HTMLInputElement>
   /** Shown under the field, in plain words. Not a tooltip. */
   readonly hint?: ReactNode
   /** When set, the field is marked invalid and this is read out with it. */
@@ -20,7 +27,15 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
  * announces "edit text" with no idea what for. Making the caller pass an id
  * would mean the first person in a hurry ships one without.
  */
-export function Field({ label, hint, problem, numeric = false, className, ...rest }: FieldProps) {
+export function Field({
+  label,
+  hint,
+  problem,
+  numeric = false,
+  className,
+  ref,
+  ...rest
+}: FieldProps) {
   const id = useId()
   const hintId = `${id}-hint`
   const problemId = `${id}-problem`
@@ -33,6 +48,7 @@ export function Field({ label, hint, problem, numeric = false, className, ...res
       </label>
       <input
         id={id}
+        ref={ref}
         aria-invalid={problem ? true : undefined}
         aria-describedby={described.length > 0 ? described : undefined}
         className={clsx(

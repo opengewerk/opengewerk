@@ -28,6 +28,26 @@ export interface SyncOperation {
 }
 
 /**
+ * What the server answers for one operation of a transmission.
+ *
+ * The receipt of the whole exchange, and it lives here rather than in the
+ * server because both ends read it: the server writes one per operation, the
+ * device decides from it what may leave its outbox. Two declarations of the
+ * same wire shape would agree until the day one of them gains a field.
+ *
+ * `reason` is a `ConflictReason` when the outcome is a conflict, and the
+ * reason for a skip otherwise. It stays a string on purpose: a device that has
+ * not been updated in a while must not fail to empty its outbox because the
+ * server has learned a word it does not know yet.
+ */
+export interface OperationReceipt {
+  readonly operationId: OperationId
+  readonly outcome: OperationOutcome
+  readonly reason: string | null
+  readonly fields: readonly string[]
+}
+
+/**
  * A change that could not be applied, kept for a person to decide.
  *
  * This is what ADR 0005 rejected CRDTs for. A merge that resolves everything
