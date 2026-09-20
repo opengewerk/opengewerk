@@ -16,6 +16,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
+import { permissionFor } from './sync.controller.js'
 import { as, testIdentities as identities } from './test-identity.js'
 
 /**
@@ -851,5 +852,144 @@ describe('a conflict', () => {
       .post(`/sync/conflicts/${mine.id}/resolve`)
       .set('x-test-identity', office())
       .expect(404)
+  })
+})
+
+/**
+ * The positions of a document, over the queue. The rule that matters is not on
+ * the line at all: whether it may be touched follows from the status of the
+ * document it hangs on, which is the case `gateFrom` exists for.
+ */
+describe('a document line from a device', () => {
+  async function draftDocument() {
+    const created = await http()
+      .post('/documents')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'final_invoice', documentDate: '2026-09-20' })
+      .expect(201)
+
+    return created.body as { id: string }
+  }
+
+  function linePatches(over: Record<string, string | number> = {}) {
+    const values: Record<string, string | number> = {
+      position: 1,
+      designation: 'Montage vor Ort',
+      quantityMilli: 2000,
+      unit: 'hour',
+      unitPriceCents: 5000,
+      ...over,
+    }
+
+    return Object.entries(values).map(([field, to]) => ({ field, from: null, to }))
+  }
+
+  it('lands while the document is a draft', async () => {
+    const document = await draftDocument()
+    const lineId = newId<'document-line'>()
+
+    const answer = await push(technician(), 'tablet-1', [
+      change({
+        entity: 'document_lines',
+        recordId: lineId,
+        kind: 'create',
+        patches: [...linePatches(), { field: 'documentId', from: null, to: document.id }],
+      }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+
+    // Und der Server hat die Summe selbst gerechnet: 2 Stunden zu 50,00 Euro.
+    const lines = await http()
+      .get(`/documents/${document.id}/lines`)
+      .set('x-test-identity', office())
+      .expect(200)
+    expect((lines.body as { netCents: number }[])[0]?.netCents).toBe(10000)
+  })
+
+  it('is refused once the document is issued, with the reason the document gets', async () => {
+    const document = await draftDocument()
+    await http()
+      .post(`/documents/${document.id}/issue`)
+      .set('x-test-identity', office())
+      .expect(201)
+
+    const answer = await push(technician(), 'tablet-1', [
+      change({
+        entity: 'document_lines',
+        recordId: newId<'document-line'>(),
+        kind: 'create',
+        patches: [...linePatches(), { field: 'documentId', from: null, to: document.id }],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'record_is_fixed',
+    })
+  })
+
+  /**
+   * The other half of the same rule. `netCents` is the server's, because a
+   * client that rounded differently would put an amount in the books that does
+   * not follow from the two numbers printed beside it.
+   */
+  it('cannot set the line total itself', async () => {
+    const document = await draftDocument()
+
+    const answer = await push(technician(), 'tablet-1', [
+      change({
+        entity: 'document_lines',
+        recordId: newId<'document-line'>(),
+        kind: 'create',
+        patches: [
+          ...linePatches(),
+          { field: 'documentId', from: null, to: document.id },
+          { field: 'netCents', from: null, to: 1 },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+    })
+  })
+
+  it('is refused when the document it names is not there', async () => {
+    const answer = await push(technician(), 'tablet-1', [
+      change({
+        entity: 'document_lines',
+        recordId: newId<'document-line'>(),
+        kind: 'create',
+        patches: [...linePatches(), { field: 'documentId', from: null, to: newId<'document'>() }],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'record_missing',
+    })
+  })
+})
+
+describe('the rights the queue asks for', () => {
+  /**
+   * Asked of the policy list rather than kept beside it. `document_lines` was
+   * added to the policies and forgotten here, and the failure was a 400 on
+   * every transmission carrying a position: well formed, allowed, and refused
+   * as an unknown kind of record. A list that has to be remembered twice is a
+   * list that is wrong once.
+   */
+  it('cover every entity a device may send', () => {
+    const without = syncEntities.filter((entity) => permissionFor(entity, 'create') === null)
+
+    expect(without).toEqual([])
+  })
+
+  it('ask for writing, not for reading', () => {
+    for (const entity of syncEntities) {
+      expect(permissionFor(entity, 'update')).toMatch(/\.(write|create)$/)
+    }
   })
 })

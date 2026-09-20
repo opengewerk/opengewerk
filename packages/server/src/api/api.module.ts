@@ -6,6 +6,7 @@ import { Database } from '../database/database.js'
 import { AuthorizationGuard } from './authorization.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
+import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
@@ -40,6 +41,8 @@ export class ApiModule {
         InstallationsController,
         JobsController,
         DocumentsController,
+        DocumentLinesController,
+        DocumentTotalsController,
         SyncController,
         SettingsController,
       ],

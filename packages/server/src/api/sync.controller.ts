@@ -147,7 +147,7 @@ function parseOperation(entry: unknown, index: number, deviceId: string): Operat
  * part of it: writing down who opened the door is the same act as writing down
  * whose door it was.
  */
-function permissionFor(entity: string, kind: OperationKind): Permission | null {
+export function permissionFor(entity: string, kind: OperationKind): Permission | null {
   if ((entity === 'customers' || entity === 'contacts') && kind === 'create') {
     return 'customer.create'
   }
@@ -166,6 +166,10 @@ function permissionFor(entity: string, kind: OperationKind): Permission | null {
     pv_modules: 'installation.write',
     jobs: 'job.write',
     documents: 'document.write',
+    // A position is not a subject of its own. Whoever may write the document
+    // may write its lines, and whoever may not, may not: a technician filling
+    // in a report on site is doing one thing, not two.
+    document_lines: 'document.write',
   }
 
   return subject[entity] ?? null

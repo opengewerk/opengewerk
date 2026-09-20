@@ -1,6 +1,7 @@
 import {
   decideMerge,
   inOutboxOrder,
+  lineNetCents,
   type Operation,
   type OperationOutcome,
   policyFor,
@@ -76,6 +77,84 @@ function forColumn(column: PgColumn, value: SyncValue): unknown {
   }
 
   return column.dataType === 'date' ? new Date(String(value)) : value
+}
+
+/**
+ * The record an operation's record hangs on, when its policy has a `gateFrom`.
+ *
+ * A document line is the case: whether it may be touched follows from the
+ * status of its document, not from anything on the line. The reference is
+ * taken from the operation first and from the stored row second, and the order
+ * is what makes moving a line between documents safe. A patch that sets
+ * `documentId` is asking to hang the line on a different document, so it is
+ * that document which has to be a draft, not the one it is leaving.
+ *
+ * Returns null when there is no parent to find. The merge turns that into
+ * `record_missing`, which is what it is: a line whose document is gone belongs
+ * to nothing.
+ */
+async function parentFor(
+  tx: TenantTransaction,
+  operation: Operation,
+  current: RecordState | null,
+): Promise<RecordState | null> {
+  const inherited = policyFor(operation.entity)?.gateFrom
+
+  if (!inherited) {
+    return null
+  }
+
+  const patched = operation.patches.find((patch) => patch.field === inherited.reference)
+  const reference = patched ? patched.to : (current?.[inherited.reference] ?? null)
+
+  if (typeof reference !== 'string') {
+    return null
+  }
+
+  const table = syncTableFor(inherited.entity)
+
+  if (!table) {
+    throw new Error(
+      `The policy of ${operation.entity} names an entity nothing knows: ${inherited.entity}`,
+    )
+  }
+
+  const id = (getTableColumns(table) as Record<string, PgColumn>)['id']
+
+  if (!id) {
+    throw new Error(`The table ${inherited.entity} has no id to find a record by`)
+  }
+
+  const found = await tx.select().from(table).where(eq(id, reference))
+
+  return found[0] ? toRecordState(found[0] as Record<string, unknown>) : null
+}
+
+/**
+ * The line total, put in by the server on the way to the database.
+ *
+ * Two numbers decide it, and an operation may carry one, both or neither: a
+ * device that corrects only the quantity still changes the total. So the
+ * figure is worked out from what the operation sets, falling back to what the
+ * row already holds, rather than from the patches alone.
+ *
+ * Nothing happens for any other entity. It is written as a check on the entity
+ * rather than as a hook somebody registers, because there is exactly one such
+ * field and a mechanism for one case is harder to read than the case.
+ */
+function withLineTotal(
+  entity: string,
+  values: Record<string, unknown>,
+  current: RecordState | null,
+): Record<string, unknown> {
+  if (entity !== 'document_lines') {
+    return values
+  }
+
+  const quantityMilli = Number(values['quantityMilli'] ?? current?.['quantityMilli'] ?? 0)
+  const unitPriceCents = Number(values['unitPriceCents'] ?? current?.['unitPriceCents'] ?? 0)
+
+  return { ...values, netCents: lineNetCents({ quantityMilli, unitPriceCents }) }
 }
 
 export class UnknownFieldError extends Error {}
@@ -195,7 +274,7 @@ async function applyOne(
   // the deleted row itself; leaving it out of the query would hide it.
   const found = await tx.select().from(table).where(eq(id, operation.recordId))
   const current = found[0] ? toRecordState(found[0] as Record<string, unknown>) : null
-  const decision = decideMerge(operation, current)
+  const decision = decideMerge(operation, current, await parentFor(tx, operation, current))
 
   if (decision.outcome === 'skip') {
     return await record(tx, tenantId, operation, {
@@ -227,8 +306,13 @@ async function applyOne(
     }
   }
 
+  // The line total is worked out here and not taken from the device. It is
+  // reserved in the policy, so a device that sends one is refused outright;
+  // this is the other half, the figure the server puts in its place.
+  const complete = withLineTotal(operation.entity, values, current)
+
   if (operation.kind === 'create') {
-    await tx.insert(table).values({ ...values, id: operation.recordId, tenantId } as never)
+    await tx.insert(table).values({ ...complete, id: operation.recordId, tenantId } as never)
   } else if (operation.kind === 'delete') {
     // Marked, not removed. A row that is gone is a row a device that was
     // offline never hears about again.
@@ -239,7 +323,7 @@ async function applyOne(
   } else {
     await tx
       .update(table)
-      .set(values as never)
+      .set(complete as never)
       .where(eq(id, operation.recordId))
   }
 

@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006: Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste. Eine Oberfläche gibt es noch nicht, die API lässt sich aber mit einer echten Anmeldung benutzen. Was an Fachlogik darauf aufsetzt, kommt mit Phase 1.
+Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste) und die **Belegpositionen** mit Beträgen und Steuer. Eine Oberfläche gibt es noch nicht, die API lässt sich aber mit einer echten Anmeldung benutzen und stellt rechnerisch eine Rechnung.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -107,7 +107,9 @@ Geprüft wird serverseitig an jeder Route, über einen global registrierten Guar
 
 **Rechte und Mandantentrennung sind zwei Fragen.** Die Rechte sagen, *was* jemand tun darf, Row-Level Security sagt, *wessen* Daten er dabei sieht. Das Büro des einen Mandanten hat jedes Recht auf die Kunden des anderen und sieht trotzdem keinen einzigen.
 
-Eine Anmeldung gibt es noch nicht, und solange das so ist, läuft eine Instanz mit einer Identitätsquelle, die **niemanden** erkennt. Jede Route hinter dem Guard antwortet damit mit 401. Das ist nicht dieselbe Sache wie der Notbehelf, der beim Bau der Rechte verworfen wurde: der hätte jeden hereingelassen. Dieser lässt keinen herein, und deshalb kann eine Instanz betrieben, migriert und gemessen werden, bevor es irgendwo etwas zum Anmelden gibt. Wenn die Authentifizierung kommt, wird genau diese eine Klasse ausgetauscht.
+Bis zum 20.09.2026 lief eine Instanz mit einer Identitätsquelle, die **niemanden** erkannte, und jede Route hinter dem Guard antwortete mit 401. Das war nicht dieselbe Sache wie der Notbehelf, der beim Bau der Rechte verworfen wurde: der hätte jeden hereingelassen. Dieser ließ keinen herein, und deshalb konnte eine Instanz betrieben, migriert und gemessen werden, bevor es irgendwo etwas zum Anmelden gab. Mit der Anmeldung ist genau diese eine Klasse ausgetauscht worden; sie ist geblieben und lässt sich über `CLOSED=true` wieder einschalten.
+
+**Der Guard kennt seit der Anmeldung eine dritte Art von Route.** Öffentlich ist der Health-Check, mit einem Recht läuft alles, was Daten anfasst, und dazwischen liegen die fünf Routen zwischen Passwort und Betriebswahl: angemeldet ja, Betrieb nein, Recht nein. Ein Recht können sie nicht verlangen, denn Rechte kommen aus einer Mitgliedschaft und die gilt je Betrieb. Sie stehen als Liste im Test, eine sechste macht ihn rot.
 
 ### Nummernkreise und Festschreibung
 
@@ -120,6 +122,18 @@ Alle Rechnungsarten teilen einen Kreis, Storno und Gutschrift eingeschlossen. §
 **Unveränderlichkeit sitzt in der Datenbank.** Ein Trigger auf `documents` lässt an einem festgeschriebenen Beleg genau einen Schritt zu, den Wechsel auf storniert, und auch den nur, wenn sich sonst kein Feld ändert. Verglichen wird über `to_jsonb`, nicht über eine Spaltenliste, damit eine später hinzugefügte Spalte automatisch mitgeschützt ist. Löschen gibt es nicht. Eine Regel, die nur der Server kennt, gilt nicht mehr, sobald jemand mit `psql` danebensteht.
 
 Die Vorschau der nächsten Nummer nutzt dieselbe Funktion in `domain` wie die endgültige Vergabe. Sie ist eine Vorschau und keine Zusage: wer zuerst festschreibt, bekommt die Nummer.
+
+### Belegpositionen
+
+Die Beträge stehen an der Zeile und nicht am Kopf. Eine Summe am Beleg wäre dieselbe Zahl an einem zweiten Ort, und zwei Orte laufen auseinander. Was der Beleg zeigt, rechnet `totalsFor` jedes Mal aus den Zeilen, mit dem **Belegdatum**: eine Rechnung aus dem zweiten Halbjahr 2020 ist auch 2030 eine Rechnung mit sechzehn Prozent.
+
+**Die Reihenfolge der Rechenschritte ist die deutsche.** Erst werden die Zeilen je Steuersatz addiert, dann wird die Steuer einmal auf diese Summe gerechnet. Jede Zeile einzeln zu besteuern und die Steuerbeträge zu addieren ergibt bei etwa jeder dritten Rechnung einen anderen Betrag, weil jede Zeile für sich rundet.
+
+**Die Nettosumme der Zeile wird gespeichert und von einem Check gehalten.** Gespeichert, weil Menge mal Preis gerundet werden muss und die gerundete Zahl die ist, die der Kunde gesehen hat. Gehalten, weil eine gespeicherte abgeleitete Zahl, die niemand prüft, einmal falsch wird und falsch bleibt. Der Check rechnet über `numeric`, nicht über die Ganzzahlen: PostgreSQL rundet ein `numeric` kaufmännisch und ein `double precision` zur geraden Zahl, und nur das erste stimmt mit der Anwendung überein.
+
+**Die Positionen frieren mit ihrem Beleg ein.** Ein Trigger liest den Status des Belegs, nicht ein Feld an der Zeile. Ohne ihn ließe sich eine Position nach dem Festschreiben noch ändern, und dann wäre die ganze Nummernvergabe nichts wert. Geprüft wird das durch die API und an ihr vorbei, direkt auf der Tabelle.
+
+**Zwei Fälle zeigen keine Steuer, sondern einen Satz.** Kleinunternehmer nach §19 UStG und Bauleistung nach §13b UStG. Beide tragen den vorgeschriebenen Hinweis statt eines Betrags von null, denn eine Zeile "0,00 EUR Umsatzsteuer" sagt etwas anderes und Falsches. Welcher Fall gilt, wird beim Anlegen aus dem Kunden und den Einstellungen des Betriebs abgeleitet, am Beleg gespeichert und mit dem Festschreiben eingefroren: wer ihn beim Lesen neu ableitete, schriebe die Rechnung vom letzten Jahr um, sobald sich ein Kennzeichen ändert. §19 geht dabei vor §13b, denn wo keine Steuer anfällt, ist auch keine umzukehren.
 
 ### Audit-Log
 

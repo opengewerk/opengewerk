@@ -11,21 +11,56 @@ import {
   Post,
 } from '@nestjs/common'
 import {
+  type CustomerId,
   defaultPatterns,
   type DocumentId,
   type DocumentKind,
   documentKinds,
   formatDocumentNumber,
+  type IsoDate,
   numberRangeOf,
+  type TaxTreatment,
+  treatmentFor,
 } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
+import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
-import { documents, numberRanges } from '../database/schema/index.js'
+import { parameterAt } from '../database/parameters.js'
+import { customers, documents, numberRanges } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+
+/**
+ * What treatment a new document should carry, from the two sides that decide
+ * it: what the customer is, and what the business claims for itself.
+ *
+ * Both are read as they stood on the document's date, not as they stand today,
+ * because that is the only reading that keeps an old invoice readable. A
+ * business that claimed section 19 in 2027 wrote section 19 invoices in 2027,
+ * whatever it claims now.
+ *
+ * A proposal, not a verdict: the field is writable while the document is a
+ * draft, because the two flags do not know every case.
+ */
+async function proposedTreatment(
+  tx: TenantTransaction,
+  customerId: CustomerId,
+  on: IsoDate,
+): Promise<TaxTreatment> {
+  const [customer] = await tx
+    .select({ construction: customers.isConstructionServiceRecipient })
+    .from(customers)
+    .where(eq(customers.id, customerId))
+
+  const claimed = await parameterAt(tx, 'small_business.claimed', on)
+
+  return treatmentFor({
+    customerIsConstructionServiceRecipient: customer?.construction ?? false,
+    businessClaimsSmallBusiness: claimed?.value === 1,
+  })
+}
 
 const writableFields = [
   'customerId',
@@ -36,6 +71,10 @@ const writableFields = [
   'kind',
   'documentDate',
   'subject',
+  // Writable while the document is a draft, and refused afterwards by the
+  // trigger like every other field. The proposal above is right in the common
+  // case and cannot be right in all of them.
+  'taxTreatment',
 ] as const
 
 @Controller('documents')
@@ -56,10 +95,23 @@ export class DocumentsController {
     const values = pick(body, writableFields)
     requireFields(values, ['customerId', 'kind', 'documentDate'])
 
-    const [created] = await this.database.forTenant(identity, (tx) =>
+    const [created] = await this.database.forTenant(identity, async (tx) =>
       tx
         .insert(documents)
-        .values({ ...(values as typeof documents.$inferInsert), tenantId: identity.tenantId })
+        .values({
+          ...(values as typeof documents.$inferInsert),
+          tenantId: identity.tenantId,
+          // Worked out once, here, and then it belongs to the document. Asking
+          // the customer record again on reading would rewrite an invoice from
+          // last year the day a customer's flag changes.
+          taxTreatment:
+            (values['taxTreatment'] as TaxTreatment | undefined) ??
+            (await proposedTreatment(
+              tx,
+              values['customerId'] as CustomerId,
+              values['documentDate'] as IsoDate,
+            )),
+        })
         .returning(),
     )
 

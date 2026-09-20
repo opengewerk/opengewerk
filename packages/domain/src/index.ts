@@ -10,6 +10,7 @@ export * from './model/authorization.js'
 export * from './model/contact.js'
 export * from './model/customer.js'
 export * from './model/document.js'
+export * from './model/document-line.js'
 export * from './model/electrical.js'
 export * from './model/identifier.js'
 export * from './model/installation.js'
@@ -23,6 +24,7 @@ export * from './model/tenant.js'
 // The legal parameters. Not in the code: they sit in data packages with a
 // period of validity and the paragraph they come from, and every question to
 // them needs a date, so that a document is judged by the rules of its own time.
+export * from './rules/invoice.js'
 export * from './rules/parameter.js'
 export * from './rules/payment.js'
 export * from './rules/rule.js'
