@@ -35,7 +35,7 @@ let database: Database
 const logIsAppendOnly = 'OG002'
 
 /** Somebody in the office, with a right that says what they are doing. */
-const clerk = { tenantId: tenant.id, userId: 'benutzer-buero', reason: 'customer.write' }
+const clerk = { tenantId: tenant.id, userId: 'office-clerk', reason: 'customer.write' }
 
 beforeAll(async () => {
   admin = await connect()
@@ -186,7 +186,7 @@ describe('a change through the application', () => {
       operation: 'insert',
       oldValue: null,
       newValue: 'Meier Elektrotechnik',
-      userId: 'benutzer-buero',
+      userId: 'office-clerk',
       reason: 'customer.write',
       databaseRole: applicationRole,
     })

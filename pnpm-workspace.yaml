@@ -1,18 +1,18 @@
 packages:
   - packages/*
   # Gewerke sind eigene Pakete nach ADR 0008. Der Ordner entsteht mit dem
-  # ersten Gewerk; bis dahin trifft dieses Muster nichts und stoert nicht.
+  # ersten Gewerk; bis dahin trifft dieses Muster nichts und stört nicht.
   - packages/gewerke/*
 
-# pnpm haelt frisch veroeffentlichte Versionen zurück, bis sie eine Weile
-# draussen sind. Das ist der Schutz gegen ein übernommenes npm-Konto, bei dem
-# die boesartige Fassung meist innerhalb von Stunden auffliegt und
+# pnpm hält frisch veröffentlichte Versionen zurück, bis sie eine Weile
+# draußen sind. Das ist der Schutz gegen ein übernommenes npm-Konto, bei dem
+# die bösartige Fassung meist innerhalb von Stunden auffliegt und
 # zurückgezogen wird. Wer eine Version braucht, die noch in dieser Frist
-# liegt, traegt sie unter minimumReleaseAgeExclude ein. Bisher war das nie
-# noetig: die Regel "neuestmoegliche Version" kostet dadurch hoechstens einen
+# liegt, trägt sie unter minimumReleaseAgeExclude ein. Bisher war das nie
+# nötig: die Regel "neuestmögliche Version" kostet dadurch höchstens einen
 # Tag, und dafür hebelt man keine Sperre aus.
 
-# pnpm fuehrt Installationsskripte fremder Pakete nicht von sich aus aus. Das
+# pnpm führt Installationsskripte fremder Pakete nicht von sich aus aus. Das
 # ist der Schutz gegen ein Paket, das beim Installieren etwas anderes tut als
 # installieren. esbuild kommt über drizzle-kit herein und braucht sein Skript
 # nicht: seine Binary liegt in einem optionalen Paket je Plattform, und
