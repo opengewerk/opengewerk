@@ -3,7 +3,7 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
 import type { Permission } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
-import { authenticationPath } from '../authentication/authentication.js'
+import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
 import { Database } from '../database/database.js'
 import { ApiModule } from './api.module.js'
 import { PERMISSION_METADATA, PUBLIC_METADATA, SESSION_METADATA } from './authorization.js'
@@ -69,8 +69,25 @@ function routesOf(controllers: readonly unknown[]): Route[] {
   return routes
 }
 
-const controllers =
-  ApiModule.create(Database.connect('postgres://unused'), noIdentities).controllers ?? []
+const database = Database.connect('postgres://unused')
+
+/**
+ * Built, not connected. `createAuthentication` reads its configuration and
+ * hands back a handle; nothing here calls it, and nothing in this file touches
+ * the database either. It is needed because the first run setup is registered
+ * only on an open instance, and a module built without it would walk a
+ * routing table that is missing exactly the two routes worth looking at.
+ */
+const authentication = createAuthentication({
+  database,
+  secret: 'x'.repeat(64),
+  trustedOrigins: ['https://opengewerk.example.de'],
+})
+
+const controllers = ApiModule.create(database, noIdentities, { authentication }).controllers ?? []
+
+/** The same module on a closed instance, where the setup is left out. */
+const whenClosed = ApiModule.create(database, noIdentities).controllers ?? []
 
 describe('every route', () => {
   it('is registered in the first place', () => {
@@ -98,20 +115,50 @@ describe('every route', () => {
    * the one worth counting: adding one turns this test red, which makes it a
    * decision instead of a line in a diff nobody looked at twice.
    */
-  it('that answers without an identity is one of the two the health check needs', () => {
+  it('that answers without an identity is the health check or the first run setup', () => {
     const publicRoutes = routesOf(controllers)
       .filter((route) => route.isPublic)
       .map((route) => route.name)
+      .sort()
 
-    expect(publicRoutes).toEqual(['GET /health'])
+    expect(publicRoutes).toEqual(['GET /health', 'GET /setup', 'POST /setup'])
   })
 
-  it('that answers without an identity never writes', () => {
+  /**
+   * The one public route that writes, and the list is held by hand for the
+   * same reason as the one above.
+   *
+   * It has to be public: it creates the first account on the instance, so
+   * there is nobody to authenticate at the moment it runs, and that is the
+   * whole problem it exists to solve. What stands in for authentication is the
+   * state of the data. `create_first_tenant` refuses unless the instance is
+   * empty, under a lock rather than after a look, so the route answers exactly
+   * once in the life of an installation.
+   *
+   * A second entry here would be a public route that writes for some other
+   * reason, and there is no other reason.
+   */
+  it('that answers without an identity writes only where there is nobody to ask yet', () => {
     const writingAndPublic = routesOf(controllers)
       .filter((route) => route.isPublic && route.writes)
       .map((route) => route.name)
 
-    expect(writingAndPublic).toEqual([])
+    expect(writingAndPublic).toEqual(['POST /setup'])
+  })
+
+  /**
+   * `CLOSED=true` hands no authentication to the module, and without one the
+   * setup controller is not registered at all. Checked on the routing table
+   * rather than on a response, because "the route is not there" and "the route
+   * is there and refuses" are two different promises and this is the stronger
+   * one.
+   */
+  it('of the first run setup does not exist on a closed instance', () => {
+    const names = routesOf(whenClosed).map((route) => route.name)
+
+    expect(names).not.toContain('GET /setup')
+    expect(names).not.toContain('POST /setup')
+    expect(names).toContain('GET /health')
   })
 
   /**

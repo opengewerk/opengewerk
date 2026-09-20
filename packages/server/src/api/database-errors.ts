@@ -24,11 +24,19 @@ const badRequestCodes = new Set([
 const rowLevelSecurity = '42501'
 
 /**
- * Our own class, raised by the trigger that keeps an issued document fixed.
- * A conflict and not a bad request: the call was well formed, the document is
- * simply past the point where it could still be changed.
+ * Our own classes, raised where the call was well formed and the state of the
+ * data is what refuses it. A conflict and not a bad request: an issued
+ * document is past the point where it could still be changed, and an instance
+ * that has been set up is past the point where it could be set up again.
+ *
+ * The message travels back with them, which is safe here and useful: these are
+ * our own sentences, written for the person about to learn that a document is
+ * corrected rather than edited.
  */
-const documentIsFixed = 'OG001'
+const ourConflicts = new Map([
+  ['OG001', 'Der Beleg ist festgeschrieben.'],
+  ['OG003', 'Diese Instanz ist bereits eingerichtet.'],
+])
 
 function databaseCode(error: unknown): string | undefined {
   // Drizzle wraps the driver error and keeps the original as the cause.
@@ -74,8 +82,10 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       return new ForbiddenException('Kein Zugriff auf diesen Datensatz.')
     }
 
-    if (code === documentIsFixed) {
-      return new ConflictException(this.databaseMessage(error))
+    const conflict = code === undefined ? undefined : ourConflicts.get(code)
+
+    if (conflict !== undefined) {
+      return new ConflictException(this.databaseMessage(error, conflict))
     }
 
     if (code && badRequestCodes.has(code)) {
@@ -85,12 +95,8 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
     return new InternalServerErrorException()
   }
 
-  /**
-   * The message the trigger raised. Passing it on is safe here and useful:
-   * these are our own texts, written for the person who is about to learn that
-   * an issued document is corrected rather than edited.
-   */
-  private databaseMessage(error: unknown): string {
+  /** The sentence the database raised, or the one that stands in for it. */
+  private databaseMessage(error: unknown, fallback: string): string {
     const candidates = [error, (error as { cause?: unknown }).cause]
 
     for (const candidate of candidates) {
@@ -101,6 +107,6 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
       }
     }
 
-    return 'Der Beleg ist festgeschrieben.'
+    return fallback
   }
 }

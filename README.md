@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste), die **Belegpositionen** mit Beträgen und Steuer und die **erste Oberfläche**: beide Einstiege, Kunde bis Auftrag, der Abgleich als Leiste und der Konfliktbildschirm. Eine Installation zeigt damit nicht mehr nur eine API, sondern eine Anwendung, mit der sich arbeiten lässt.
+Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste), die **Belegpositionen** mit Beträgen und Steuer, die **erste Oberfläche** (beide Einstiege, Kunde bis Auftrag, der Abgleich als Leiste und der Konfliktbildschirm) und die **Ersteinrichtung im Browser**: eine frische Installation kommt von null bis zum angemeldeten Inhaber, ohne Kommandozeile und ohne SQL. Eine Installation zeigt damit nicht mehr nur eine API, sondern eine Anwendung, mit der sich arbeiten lässt.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -207,7 +207,9 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Der Postausgang wird über den Serverstand gelegt, nicht in ihn hineingeschrieben.** Das ist die Entscheidung, an der die Schicht hängt. Lehnt der Server einen Vorgang ab, ändert sich an dem Datensatz dort nichts, der nächste Abgleich bringt also nichts mit, und eine in die lokale Kopie geschriebene Änderung stünde für immer auf dem Bildschirm, ohne irgendwo sonst zu existieren. Übereinandergelegt heilt es sich von selbst: der Vorgang fällt aus der Warteschlange, und übrig bleibt, was der Server wirklich hält.
 
-**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 20.09.2026 gemessen: **Baustelle 124 kB, Büro 140 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
+**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 20.09.2026 gemessen: **Baustelle 129 kB, Büro 146 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
+
+**Vor der Anmeldung stehen zwei Bildschirme, die es nur gibt, solange sie gebraucht werden.** Eine leere Instanz zeigt die Ersteinrichtung statt der Anmeldung, und ein Konto, dessen Rolle einen zweiten Faktor verlangt, richtet ihn ein, bevor es einen Betrieb wählt. Beides sitzt im Tor und nicht hinter der Navigation, denn wer dort steht, erreicht keinen einzigen Bildschirm dahinter. Nachträglich geht der zweite Faktor über "Konto" im Büro, wo auch die Geräteliste steht.
 
 **Die gebaute Oberfläche liefert derselbe Prozess aus, der auch die API bedient.** Ein zweiter Container davor wäre eine weitere Sache, die eine Installation einrichten und aktualisieren muss. Zwei Hüllen gibt es trotzdem: alles unter `/m` kommt mit der Baustellen-Hülle zurück, alles andere mit der des Büros. Ein tiefer Link in die Baustelle, der mit der Bürohülle beantwortet wird, öffnet auf einem Telefon eine Oberfläche für Maus und Tastatur.
 
@@ -233,26 +235,43 @@ docker compose -f docker/compose.yaml up -d
 Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
 `curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
-Beide zeigen die Anmeldung, denn es gibt noch kein Konto, und jede Anfrage an
-die Daten antwortet bis dahin mit 401.
 
 ### Der erste Zugang
 
-Niemand meldet sich selbst an. Ein Konto entsteht nur über die Kommandozeile,
-und der erste muss es, denn er soll ja gerade die Person anlegen, die sich
-anmelden könnte:
+Im Browser, und sonst nirgends nötig. Eine Instanz, auf der es weder einen
+Betrieb noch ein Konto gibt, zeigt statt der Anmeldung die Einrichtung: Name des
+Betriebs, Name und E-Mail der Person, die ihn führt, und ein Passwort, das sie
+selbst wählt. Daraus entstehen in einem Zug der Betrieb, das Konto und die
+Zugehörigkeit dazwischen, alle drei in einer Transaktion.
+
+Direkt danach kommt der zweite Faktor, denn das erste Konto ist ein `owner`, und
+für diese Rolle ist er Pflicht (ADR 0006). Ein QR-Code für die
+Authenticator-App, derselbe Schlüssel darunter zum Abtippen und zehn
+Wiederherstellungscodes, die einmal zu sehen sind. Erst wenn ein Code aus der App
+gestimmt hat, gilt der Faktor als eingerichtet: ein falsch abgetippter Schlüssel
+sperrt sonst die einzige Person aus, die diese Instanz hat.
+
+**Die Einrichtung verschwindet, sobald es einen Betrieb oder ein Konto gibt.**
+Die Bedingung ist eine Abfrage an die Datenbank und kein Schalter, den jemand
+zurückstellen kann, und sie wird unter einer Sperre gestellt: zwei Leute, die
+den Bildschirm gleichzeitig öffnen, legen einen Betrieb an und nicht zwei. Ein
+zweiter Versuch bekommt 409 und den Satz dazu. `CLOSED=true` schaltet sie mit
+ab, dann gibt es die Route gar nicht.
+
+Wer keinen Browser hat, legt Konten weiter über die Kommandozeile an, und ab dem
+zweiten Konto ist das ohnehin der Weg, bis es eine Benutzerverwaltung gibt:
 
 ```bash
-docker compose -f docker/compose.yaml exec app node dist/add-staff.js <betriebs-id> chefin@betrieb.de "Olga Beispiel" owner
+docker compose -f docker/compose.yaml exec app node dist/add-staff.js <betriebs-id> monteur@betrieb.de "Max Beispiel" technician
 ```
 
 Das Passwort kommt aus `OPENGEWERK_PASSWORD` und nicht aus einem Argument: ein
 Argument steht in der Prozessliste und im Verlauf der Shell, wo es monatelang
 liegen bleibt.
 
-Für die Rolle `owner` ist ein zweiter Faktor Pflicht. Bis er eingerichtet ist,
-kommt die Anmeldung bis zur Betriebswahl und nicht weiter. Das ist Absicht: die
-Pflicht hängt an der Rolle und nicht an einer Einstellung, sonst wäre sie keine.
+Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschirm
+"Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst
+danach, für alle anderen ist er eine Empfehlung.
 
 `TRUSTED_ORIGINS` ist die Liste der Adressen, von denen aus ein Browser eine
 angemeldete Anfrage schicken darf, und damit der Schutz davor, dass ein Formular

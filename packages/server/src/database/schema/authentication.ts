@@ -1,7 +1,7 @@
 import type { TenantId } from '@opengewerk/domain'
 import { bigint, boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
-import { outsideAnyTenant } from './rls.js'
+import { outsideAnyTenant, readableByTheOwner } from './rls.js'
 import { tenants } from './tenants.js'
 
 /**
@@ -49,7 +49,10 @@ export const authUsers = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  () => [outsideAnyTenant()],
+  // The second one is for the first run setup, which asks whether there is an
+  // account on this instance from a function that runs as the owner of the
+  // tables. See `readableByTheOwner`.
+  () => [outsideAnyTenant(), readableByTheOwner()],
 )
 
 /**

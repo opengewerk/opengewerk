@@ -65,6 +65,7 @@ export default defineConfig({
         '/documents',
         '/sync',
         '/settings',
+        '/setup',
         '/health',
       ].map((path) => [path, { target: 'http://127.0.0.1:3000', changeOrigin: false }]),
     ),

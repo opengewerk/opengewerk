@@ -2,8 +2,8 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 
 import { ConflictScreen } from '../app/conflicts.js'
 import { OfficeShell } from './shell.js'
+import { AccountScreen } from './screens/account.js'
 import { CustomerList, CustomerScreen } from './screens/customers.js'
-import { DeviceScreen } from './screens/devices.js'
 import { InstallationScreen } from './screens/installations.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { SiteScreen } from './screens/sites.js'
@@ -37,7 +37,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
-  createRoute({ getParentRoute: () => root, path: '/geraete', component: DeviceScreen }),
+  createRoute({ getParentRoute: () => root, path: '/konto', component: AccountScreen }),
 ]
 
 export const officeRouter = createRouter({
