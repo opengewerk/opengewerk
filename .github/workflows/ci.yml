@@ -120,6 +120,126 @@ jobs:
           print("Keine Gedankenstriche gefunden.")
           PYTHON
 
+      - name: Auf umgeschriebene Umlaute prüfen
+        run: |
+          python3 - <<'PYTHON'
+          import re
+          import subprocess
+          import sys
+
+          # German text keeps its real characters, so "ae" where an "ä" belongs is a
+          # mistake. The reason this needs a check rather than good intentions is the
+          # same as for the dashes above: a file delivered from outside brings tidied up
+          # places back, all at once, and a diff of a whole file hides it.
+          #
+          # The words are written correctly here and transliterated at startup. That is
+          # not a detour, it is what keeps this job from tripping over its own word
+          # list: this file holds the proper spelling, the search runs on the other one.
+          #
+          # A list rather than a pattern on "ae|oe|ue", because those pairs sit in a
+          # great many English words (value, queue, issue, guest, true) and a pattern on
+          # them reports almost nothing but noise.
+          #
+          # "ss" for "ß" is only in here where it is unambiguous. "dass", "muss" and
+          # "Fluss" are correct, and a rule on "ss" could not tell those from "Straße".
+          GERMAN_WORDS = (
+              "hält häng häuf hätt änder ähnlich währ wähl träg absätz fäll läuft "
+              "längst täglich nächst spät mäßig gemäß erklär zähl stärk schwäch bänd "
+              "länd männ gefähr anhäng beschränk bösartig nötig möglich öffn veröffent "
+              "lösch lösung stör höchst höher größ könn schön ström wört zöger ökonom "
+              "führ für über übung üblich müss prüf gründ würde verfüg zurück dürf tür "
+              "gültig günstig büro gebühr spüren fünf kürz lücke stück schlüssel "
+              "unterstütz berücksicht natürlich gerüst draußen straße größe maßnahme "
+              "schließ außer"
+          ).split()
+
+          TRANSLITERATION = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
+
+
+          def transliterate(word):
+              for character, replacement in TRANSLITERATION.items():
+                  word = word.replace(character, replacement)
+              return word
+
+
+          STEMS = [transliterate(word) for word in GERMAN_WORDS]
+
+          # Where ASCII is right and stays right, and where none of the rules below
+          # already covers it. A list on purpose, so that a fourth entry is a decision in
+          # a diff and not a line nobody looked at twice. A word in here is accepted
+          # everywhere, this file included.
+          ALLOWED = {
+              # The id field of the issue templates, an identifier and not prose.
+              "pruefung",
+              # Keys under x-konventionen in the API contract, identifiers as well.
+              "betraege",
+              "steuerschluessel",
+          }
+
+          EXEMPT = {"LICENSE"}
+          BINARY_EXTENSIONS = (
+              ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico",
+              ".pdf", ".zip", ".gz", ".woff", ".woff2", ".ttf", ".otf",
+          )
+
+          WORD = re.compile(r"[A-Za-zÄÖÜäöüß]+")
+          # A chunk without whitespace that carries a path, a file name or an address.
+          # None of that is prose and all of it is deliberately ASCII: a file is not
+          # called "0008-plugin-system-für-gewerke.md", and the local part of a mail
+          # address carries no umlaut.
+          NOT_PROSE = re.compile(r"[/\\@]|\.[A-Za-z0-9]{1,5}\b")
+
+
+          def offending_words(line):
+              for chunk in line.split():
+                  if NOT_PROSE.search(chunk):
+                      continue
+                  for match in WORD.finditer(chunk):
+                      word = match.group(0)
+                      lowered = word.lower()
+                      if lowered in ALLOWED:
+                          continue
+                      # An abbreviation such as GAEB is spelled without an umlaut.
+                      if word.isupper():
+                          continue
+                      if any(stem in lowered for stem in STEMS):
+                          yield word
+
+
+          raw = subprocess.run(["git", "ls-files", "-z"], capture_output=True, check=True).stdout
+          problems = []
+
+          for entry in raw.split(b"\0"):
+              if not entry:
+                  continue
+              path = entry.decode("utf-8", "surrogateescape")
+              if path in EXEMPT or path.lower().endswith(BINARY_EXTENSIONS):
+                  continue
+              with open(path, "rb") as handle:
+                  content = handle.read()
+              if b"\0" in content:
+                  continue
+              try:
+                  text = content.decode("utf-8")
+              except UnicodeDecodeError:
+                  continue
+
+              for number, line in enumerate(text.splitlines(), start=1):
+                  for word in offending_words(line):
+                      problems.append(f"{path}:{number}: {word} in: {line.strip()}")
+                      break
+
+          if problems:
+              print("Umgeschriebene Umlaute gefunden. In den Text gehören die echten")
+              print("Zeichen: ä ö ü Ä Ö Ü ß. Ist ASCII an der Stelle richtig, weil das Wort")
+              print("ein Bezeichner ist, gehört es in die Liste ALLOWED in diesem Job.")
+              for line in problems:
+                  print(f"  {line}")
+              sys.exit(1)
+
+          print("Keine umgeschriebenen Umlaute gefunden.")
+          PYTHON
+
   code:
     name: Typprüfung, Lint und Tests
     runs-on: ubuntu-latest
