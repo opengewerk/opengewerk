@@ -1,6 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { type Identity, type RoleKey, type TenantId } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -15,7 +14,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import type { IdentitySource } from './identity.js'
+import { as, testIdentities as identities } from './test-identity.js'
 
 /**
  * The one route where a mistake cannot be undone afterwards.
@@ -37,18 +36,6 @@ let admin: Pool
 let database: Database
 let app: INestApplication
 let customerId: string
-
-const identities: IdentitySource = {
-  identify: async (incoming: unknown) => {
-    const header = (incoming as { headers?: Record<string, string> }).headers?.['x-test-identity']
-
-    return header ? (JSON.parse(header) as Identity) : null
-  },
-}
-
-function as(tenantId: TenantId, ...roles: RoleKey[]): string {
-  return JSON.stringify({ userId: 'test', tenantId, roles } satisfies Identity)
-}
 
 const office = () => as(north.id, 'office')
 

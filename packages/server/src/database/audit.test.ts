@@ -94,6 +94,14 @@ describe('the tables', () => {
     // covered as well. The log would otherwise record its own recording, and
     // the sync layer's bookkeeping describes changes that are in the log
     // already.
+    //
+    // The `auth_` tables joined them in 0009, and for a different reason worth
+    // keeping straight. They are not excluded because logging them would be
+    // redundant but because it is impossible: an entry needs a tenant, these
+    // rows belong to the instance and have none, and the trigger would fail on
+    // the foreign key rather than write a wrong one. What a business may see of
+    // somebody signing in is `tenant_sessions`, which does have a tenant, does
+    // carry the trigger, and is covered by this test like everything else.
     const { rows } = await admin.query<{ table_name: string; triggers: string }>(
       `select c.relname as table_name,
               (select count(*) from pg_trigger t
@@ -104,6 +112,7 @@ describe('the tables', () => {
           and c.relkind = 'r'
           and c.relname not like 'audit\\_%'
           and c.relname not like 'sync\\_%'
+          and c.relname not like 'auth\\_%'
           and c.relname <> '__drizzle_migrations'
         order by c.relname`,
     )
@@ -118,7 +127,8 @@ describe('the tables', () => {
     const { rows } = await admin.query<{ count: string }>(
       `select count(*) from pg_trigger t
          join pg_class c on c.oid = t.tgrelid
-        where (c.relname like 'audit\\_%' or c.relname like 'sync\\_%')
+        where (c.relname like 'audit\\_%' or c.relname like 'sync\\_%'
+               or c.relname like 'auth\\_%')
           and t.tgname = 'audit_changes'`,
     )
 

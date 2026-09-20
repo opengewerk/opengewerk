@@ -15,10 +15,12 @@ import {
   identityProperty,
   type IdentitySource,
   type RequestWithIdentity,
+  userProperty,
 } from './identity.js'
 
 export const PERMISSION_METADATA = 'opengewerk:permission'
 export const PUBLIC_METADATA = 'opengewerk:public'
+export const SESSION_METADATA = 'opengewerk:session'
 
 /**
  * The right a handler needs. Sits on the handler, not in its body, so that a
@@ -41,6 +43,23 @@ export const RequiresPermission = (permission: Permission) =>
  * slipped through a review.
  */
 export const PublicRoute = () => SetMetadata(PUBLIC_METADATA, true)
+
+/**
+ * A route that needs somebody signed in but no business, and therefore no
+ * right either.
+ *
+ * There are only a few, and all of them are about the moment between the
+ * password and the choice of company: listing the businesses somebody may
+ * enter, picking one, seeing and revoking one's own devices, signing out. A
+ * right cannot be asked for there, because rights come from a membership and a
+ * membership is per business.
+ *
+ * It is a third kind and not a variety of `PublicRoute`, because the
+ * difference matters: a public route answers anybody, one of these answers
+ * only somebody who has proved who they are. Counted by the same test that
+ * counts the public ones, for the same reason.
+ */
+export const RequiresSession = () => SetMetadata(SESSION_METADATA, true)
 
 /**
  * Resolves who is asking and whether they may. Runs on every request, so a
@@ -73,6 +92,28 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<RequestWithIdentity>()
+
+    const needsSessionOnly = this.reflector.getAllAndOverride<boolean | undefined>(
+      SESSION_METADATA,
+      [context.getHandler(), context.getClass()],
+    )
+
+    if (needsSessionOnly) {
+      // Signed in is the whole requirement. No business has been chosen yet,
+      // so there is no membership to read a right from, and asking for one
+      // would make choosing a business impossible without already being in
+      // one.
+      const user = await this.identities.authenticate(request)
+
+      if (!user) {
+        throw new UnauthorizedException('Keine gültige Anmeldung.')
+      }
+
+      request[userProperty] = user
+
+      return true
+    }
+
     const identity = await this.identities.identify(request)
 
     if (!identity) {

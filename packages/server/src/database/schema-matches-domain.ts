@@ -11,6 +11,7 @@ import type {
   Installation,
   Inverter,
   Job,
+  Membership,
   NumberRange,
   PvModule,
   PvString,
@@ -20,6 +21,7 @@ import type {
   SyncSequence,
   Tenant,
   TenantParameter,
+  TenantSession,
 } from '@opengewerk/domain'
 
 import type {
@@ -35,6 +37,7 @@ import type {
   installations,
   inverters,
   jobs,
+  memberships,
   numberRanges,
   pvModules,
   pvStrings,
@@ -44,6 +47,7 @@ import type {
   syncSequences,
   tenantParameters,
   tenants,
+  tenantSessions,
 } from './schema/index.js'
 
 /**
@@ -85,3 +89,14 @@ export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, Au
 export type SyncSequenceMatches = Assert<Exact<typeof syncSequences.$inferSelect, SyncSequence>>
 export type SyncOperationMatches = Assert<Exact<typeof syncOperations.$inferSelect, SyncOperation>>
 export type SyncConflictMatches = Assert<Exact<typeof syncConflicts.$inferSelect, SyncConflict>>
+export type MembershipMatches = Assert<Exact<typeof memberships.$inferSelect, Membership>>
+export type TenantSessionMatches = Assert<Exact<typeof tenantSessions.$inferSelect, TenantSession>>
+
+// The `auth_*` tables are not on this list, and that is the one deliberate gap
+// in it. Their shape is better-auth's, not ours: the library decides what a
+// session row carries, and a model in `domain` mirroring it would claim an
+// authority over those columns that we do not have. The two columns we did add
+// to a session, the chosen tenant and the device, are the ones this server
+// reads, and `SessionContext` in `authentication/session.ts` is where they are
+// given a shape. What a business may see of a sign in is `TenantSession`, and
+// that one is on the list.

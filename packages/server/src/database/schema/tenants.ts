@@ -2,7 +2,7 @@ import type { Id } from '@opengewerk/domain'
 import { pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
-import { ownTenantOnly } from './rls.js'
+import { ownTenantOnly, ownTenantsOutsideTenant } from './rls.js'
 
 /** One company on the instance. Several can share a server (ADR 0006). */
 export const tenants = pgTable(
@@ -12,7 +12,10 @@ export const tenants = pgTable(
     name: text('name').notNull(),
     ...timestamps,
   },
-  (table) => [ownTenantOnly(table.id)],
+  // The second one arrived with the authentication: a company has to be
+  // readable by name from outside any company, or nobody could ever pick one
+  // after signing in.
+  (table) => [ownTenantOnly(table.id), ownTenantsOutsideTenant(table.id)],
 )
 
 /**

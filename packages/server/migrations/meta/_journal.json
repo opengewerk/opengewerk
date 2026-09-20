@@ -64,6 +64,13 @@
       "when": 1789837752786,
       "tag": "0008_anlagenarten",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789889073172,
+      "tag": "0009_authentication",
+      "breakpoints": true
     }
   ]
 }

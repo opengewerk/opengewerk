@@ -92,6 +92,20 @@ services:
       # refuses to start when it cannot write here, because a wrong mount
       # otherwise shows up as the first lost photo rather than as an error.
       STORAGE_PATH: /var/lib/opengewerk/storage
+      # Signs the session cookies and encrypts the second factors. Changing it
+      # signs everybody out and makes every TOTP secret that was already set up
+      # unreadable, so it belongs in the backup of an installation.
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET fehlt in der .env-Datei}
+      # The addresses a browser may send an authenticated request from, and the
+      # protection against a form on a stranger's page posting here with
+      # somebody's cookie. There is no default on purpose: one would switch the
+      # protection off in exactly the installation whose operator did not think
+      # about it.
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:?TRUSTED_ORIGINS fehlt in der .env-Datei}
+      # Recognises nobody while this is on, the sign in included. For a restore
+      # or a migration window, when the instance should be up and reachable and
+      # hand out nothing.
+      CLOSED: ${CLOSED:-false}
     volumes:
       - files:/var/lib/opengewerk/storage
     depends_on:

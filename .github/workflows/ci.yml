@@ -188,7 +188,7 @@ jobs:
           # string at the wrong place, and the failure that reaches the log is
           # a name lookup for a host nobody meant.
           cp .env.example .env
-          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN; do
+          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
             secret=$(openssl rand -hex 32)
             sed -i "s|^${name}=.*|${name}=${secret}|" .env
           done
@@ -247,7 +247,7 @@ jobs:
         run: |
           set -eu
           cp .env.example .env
-          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN; do
+          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
             sed -i "s|^${name}=.*|${name}=$(openssl rand -hex 32)|" .env
           done
 
@@ -380,7 +380,7 @@ jobs:
         run: |
           set -eu
           cp .env.example .env
-          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN; do
+          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
             sed -i "s|^${name}=.*|${name}=$(openssl rand -hex 32)|" .env
           done
 

@@ -18,4 +18,13 @@ export class ClosedIdentitySource implements IdentitySource {
   async identify(): Promise<null> {
     return null
   }
+
+  /**
+   * Closed means closed. Signing in is refused as well, otherwise an operator
+   * who switched this on during a restore would still have people getting as
+   * far as the company chooser and finding half an application.
+   */
+  async authenticate(): Promise<null> {
+    return null
+  }
 }

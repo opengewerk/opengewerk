@@ -4,7 +4,14 @@
 // has somewhere to import from.
 export { ApiModule } from './api/api.module.js'
 export { ClosedIdentitySource } from './api/closed-identity.js'
-export { IDENTITY_SOURCE, type IdentitySource } from './api/identity.js'
+export { IDENTITY_SOURCE, type IdentitySource, type SignedInUser } from './api/identity.js'
+export {
+  type Authentication,
+  authenticationPath,
+  createAuthentication,
+} from './authentication/authentication.js'
+export { SessionIdentitySource } from './authentication/session-identity.js'
+export { addStaffMember, type StaffMember } from './authentication/staff.js'
 export { readConfiguration, type Configuration } from './configuration.js'
 export { Database } from './database/database.js'
 export { runMigrations } from './database/migrations.js'
