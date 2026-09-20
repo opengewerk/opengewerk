@@ -2,8 +2,10 @@ import {
   decideMerge,
   inOutboxOrder,
   lineNetCents,
+  isSetByServer,
   type Operation,
   type OperationOutcome,
+  type OperationReceipt,
   policyFor,
   type RecordState,
   type SyncValue,
@@ -16,31 +18,6 @@ import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 import type { TenantTransaction } from './database.js'
 import * as schema from './schema/index.js'
 import { syncConflicts, syncOperations } from './schema/index.js'
-
-/**
- * Columns a device never sets, whatever it sends.
- *
- * The first two say where a record belongs and are decided by the identity of
- * the request, never by its body. The rest are kept by a trigger, and a device
- * that wrote its own version number could make any change look like the newest
- * one there is.
- *
- * `deletedAt` is in the list although the server writes it from an operation
- * and not from a trigger. Deleting has its own kind of operation and a rule of
- * its own to pass; a device that sets the column as an ordinary field would
- * walk around that rule, and one that sets it back to null would undelete
- * something nobody restored.
- */
-const keptByTheServer = new Set([
-  'id',
-  'tenantId',
-  'createdAt',
-  'updatedAt',
-  'updatedBy',
-  'version',
-  'changeSequence',
-  'deletedAt',
-])
 
 /**
  * The tables a device can talk about, taken from the schema itself.
@@ -170,11 +147,10 @@ export class UnknownFieldError extends Error {}
  */
 function columnsFor(table: PgTable, fields: readonly string[]): Record<string, PgColumn> {
   const columns = getTableColumns(table) as Record<string, PgColumn>
-  const reserved = policyFor(getTableName(table))?.reserved ?? []
   const picked: Record<string, PgColumn> = {}
 
   for (const field of fields) {
-    if (keptByTheServer.has(field) || reserved.includes(field)) {
+    if (isSetByServer(getTableName(table), field)) {
       // Not a conflict, a mistake in the client. A conflict is two people
       // disagreeing about a value; this is a device reaching for something
       // that was never its to set.
@@ -191,13 +167,6 @@ function columnsFor(table: PgTable, fields: readonly string[]): Record<string, P
   }
 
   return picked
-}
-
-export interface OperationReceipt {
-  readonly operationId: string
-  readonly outcome: OperationOutcome
-  readonly reason: string | null
-  readonly fields: readonly string[]
 }
 
 /**

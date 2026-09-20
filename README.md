@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste) und die **Belegpositionen** mit Beträgen und Steuer. Eine Oberfläche gibt es noch nicht, die API lässt sich aber mit einer echten Anmeldung benutzen und stellt rechnerisch eine Rechnung.
+Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste), die **Belegpositionen** mit Beträgen und Steuer und die **erste Oberfläche**: beide Einstiege, Kunde bis Auftrag, der Abgleich als Leiste und der Konfliktbildschirm. Eine Installation zeigt damit nicht mehr nur eine API, sondern eine Anwendung, mit der sich arbeiten lässt.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -58,11 +58,19 @@ pnpm run test
 
 Die drei Prüfungen laufen über Turborepo und damit über alle Pakete. Dieselben vier Schritte laufen in der CI. Warum die Werkzeuge so gewählt sind, steht in [ADR 0009](docs/adr/0009-werkzeuge-und-repo-struktur.md).
 
+An der Oberfläche arbeitet man mit zwei Prozessen nebeneinander: der Server auf Port 3000, und daneben
+
+```bash
+pnpm --filter @opengewerk/web run dev
+```
+
+Vite liefert dann beide Einstiege aus, `/` und `/m`, und reicht jeden Pfad, der dem Server gehört, an ihn weiter. Der Service Worker bleibt dabei aus: einer, der weiter die vorige Fassung ausliefert, ist das Verwirrendste, was beim Bauen an einer Oberfläche passieren kann.
+
 | Paket | Inhalt |
 | --- | --- |
 | [`packages/domain`](packages/domain) | Schemas, Berechnungen, Regeln, Fristen. Kein I/O, keine Frameworks |
 | [`packages/server`](packages/server) | NestJS, Drizzle, Auth, Sync-Endpunkte |
-| [`packages/web`](packages/web) | React und Vite, eine Codebasis, Einstiege `/` für das Büro und `/m` für die Baustelle |
+| [`packages/web`](packages/web) | React und Vite, eine Codebasis, Einstiege `/` für das Büro und `/m` für die Baustelle, Abgleich-Client und PWA |
 
 `domain` rechnet im Browser und auf dem Server identisch und kennt deshalb weder Node- noch DOM-Typen. Ein `import ... from 'node:fs'` ist dort ein Typfehler, kein Diskussionspunkt in der Codereview.
 
@@ -169,7 +177,7 @@ Was ein Gerät ohne Verbindung darf, steht je Entität fest. Stammdaten dürfen 
 
 Der Stand, ab dem ein Gerät nachfragt, ist eine Nummer je Mandant, die in der Reihenfolge hochzählt, in der Transaktionen festschreiben. Ein Stand auf Zeitstempeln würde still eine Zeile überspringen, deren Transaktion früh begann und spät festschrieb.
 
-Die Warteschlange selbst liegt später im Browser. Die Regeln liegen jetzt schon in `domain`, denn nur so kann ein Gerät dieselbe Antwort ausrechnen, bevor es etwas schickt, und einen Konflikt anzeigen statt ihn zu entdecken.
+Die Warteschlange liegt seit dem 20.09.2026 wirklich im Browser, in IndexedDB, je Betrieb eine eigene Datenbank. Die Regeln liegen in `domain`, und genau deshalb rechnet das Gerät dieselbe Antwort aus, bevor es etwas schickt: eine Belegposition an einer festgeschriebenen Rechnung wird abgelehnt, solange das Formular noch offen ist, und nicht zwei Stunden später auf einem Bildschirm, den niemand mehr ansieht.
 
 ### Regel-Engine
 
@@ -186,6 +194,24 @@ Gesetzliche Parameter stehen nicht im Quelltext, sondern als Datensätze in Rege
 Davon getrennt stehen die **mandantenbezogenen Parameter**: ob ein Betrieb die Kleinunternehmerregelung in Anspruch nimmt, welches Zahlungsziel er auf seine Rechnungen schreibt. Die liegen in der Datenbank, tragen ebenfalls einen Gültigkeitszeitraum und werden nicht geändert, sondern ab einem Tag abgelöst. Ein Betrieb kann damit nie eine gesetzliche Größe verschieben: der Schlüssel ist eine Aufzählung von Einstellungen, und keine Regel steht darin.
 
 > **Stand der Prüfung:** Am 19.09.2026 sind alle 26 Datensätze gegen ihre Fundstelle gehalten worden, die Basiszinssätze gegen die Tabelle der Bundesbank, die übrigen gegen die datierten Gesetzesfassungen. Kein eingetragener Wert wich von seiner Fundstelle ab. Was dabei aufgefallen ist, steht in Issue #31: der Nenner von 360 Tagen in der Verzugszinsrechnung trägt als einzige Zahl der Engine keine Fundstelle, die Stichtage von 2014 hängen nach Art. 229 § 34 EGBGB am Schuldverhältnis und nicht am Tag, und mehrere gesetzliche Größen, die Abschnitt 1.7 des Konzepts aufzählt, stehen noch in keinem Paket. **Das ersetzt die fachkundige Abnahme nicht.** Eine Vorprüfung sagt, dass die Zahl zur Fundstelle passt; ob die Fundstelle die richtige ist und ob die Vereinfachungen tragen, sagt sie nicht.
+
+### Oberfläche
+
+Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m` ist die Baustelle. Sie teilen sich das Domänenpaket, den Abgleich-Client, die Anmeldung und jede einzelne Komponente; verschieden sind Dichte, Navigation und der Zuschnitt der Bildschirme.
+
+**Die beiden Einstiege sind nicht zwei Bildschirmbreiten, sondern zwei Eingabegeräte.** Das Büro bekommt 34 Pixel hohe Bedienelemente und dichte Tabellen, die Baustelle 60 Pixel und eine Hauptaktion je Bildschirm. Gesteuert wird das über ein Attribut an der Wurzel und nicht über eine Medienabfrage, denn ein breites Tablet auf dem Dach ist immer noch eine Baustelle. Beim ersten Start schlägt die Anwendung den passenden Einstieg vor und merkt sich, was jemand wählt, auch das Bleiben: ein Vorschlag, der jeden Morgen wiederkommt, ist einer, den man wegklickt, ohne ihn zu lesen.
+
+**Der Abgleich ist immer sichtbar, als Leiste und nie als Hinweis, der verschwindet.** Sie sagt, ob alles angekommen ist, wie viel noch auf dem Gerät liegt und warum. Ein Konflikt bekommt einen eigenen Bildschirm mit drei Spalten: was das Gerät wollte, was inzwischen im System steht, und was das Gerät vorfand, als jemand es geändert hat. Die dritte Spalte ist die, die die beiden anderen erklärt. Entschieden wird auf dem Gerät, und die Entscheidung geht als gewöhnliche Änderung durch denselben Postausgang, damit sie dieselben Regeln passiert und im selben Audit-Log landet.
+
+**Gelesen wird lokal, geschrieben auf zwei Wegen.** Alles, was ein Gerät anzeigt, kommt aus IndexedDB, mit dem Postausgang darübergelegt. Was ohne Verbindung entstehen darf, geht in die Warteschlange; was eine Verbindung braucht, geht direkt an die Route, der der Datensatz gehört. Stammdaten sind der zweite Fall: ein Monteur darf einen Kunden anlegen, den es noch nicht gibt, und die Anschrift eines bestehenden korrigiert das Büro, das eine Verbindung hat.
+
+**Der Postausgang wird über den Serverstand gelegt, nicht in ihn hineingeschrieben.** Das ist die Entscheidung, an der die Schicht hängt. Lehnt der Server einen Vorgang ab, ändert sich an dem Datensatz dort nichts, der nächste Abgleich bringt also nichts mit, und eine in die lokale Kopie geschriebene Änderung stünde für immer auf dem Bildschirm, ohne irgendwo sonst zu existieren. Übereinandergelegt heilt es sich von selbst: der Vorgang fällt aus der Warteschlange, und übrig bleibt, was der Server wirklich hält.
+
+**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 20.09.2026 gemessen: **Baustelle 124 kB, Büro 140 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
+
+**Die gebaute Oberfläche liefert derselbe Prozess aus, der auch die API bedient.** Ein zweiter Container davor wäre eine weitere Sache, die eine Installation einrichten und aktualisieren muss. Zwei Hüllen gibt es trotzdem: alles unter `/m` kommt mit der Baustellen-Hülle zurück, alles andere mit der des Büros. Ein tiefer Link in die Baustelle, der mit der Bürohülle beantwortet wird, öffnet auf einem Telefon eine Oberfläche für Maus und Tastatur.
+
+Was ausdrücklich noch fehlt und je ein eigenes Issue bekommt: Regiebericht, Rechnung, Prüfprotokoll, der Aufbau unterhalb der Anlage (Verteiler, Feld, Stromkreis) und die Plantafel.
 
 ## Betrieb
 
@@ -205,8 +231,10 @@ docker compose -f docker/compose.yaml up -d
 ```
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
-`curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Alles
-andere antwortet mit 401, denn es gibt noch kein Konto.
+`curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Im
+Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
+Beide zeigen die Anmeldung, denn es gibt noch kein Konto, und jede Anfrage an
+die Daten antwortet bis dahin mit 401.
 
 ### Der erste Zugang
 
@@ -230,7 +258,10 @@ Pflicht hängt an der Rolle und nicht an einer Einstellung, sonst wäre sie kein
 angemeldete Anfrage schicken darf, und damit der Schutz davor, dass ein Formular
 auf einer fremden Seite hier etwas auslöst. Nur Herkunft, also Schema, Host und
 notfalls Port: ein Pfad oder ein Schrägstrich am Ende passt nie zu dem, was ein
-Browser sendet, und die Sperre sähe konfiguriert aus, ohne etwas zu tun.
+Browser sendet, und die Sperre sähe konfiguriert aus, ohne etwas zu tun. Seit es
+eine Oberfläche gibt, ist das die erste Zeile, die eine Installation anfassen
+muss: steht dort nicht die Adresse, unter der die Anwendung erreichbar ist,
+scheitert die Anmeldung im Browser, während `curl` durchgeht.
 
 `SESSION_SECRET` gehört in die Sicherung der Installation. Wird es getauscht,
 sind alle abgemeldet und jeder schon eingerichtete zweite Faktor ist nicht mehr

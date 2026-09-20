@@ -6,9 +6,12 @@
     "moduleResolution": "bundler",
     // Vite's own types, for two things the tests need and nothing else does:
     // `import.meta.glob`, and the declaration that makes a `?raw` import a
-    // string. Node types stay out: this package runs in a browser.
-    "types": ["vite/client"],
+    // string. The second one declares `virtual:pwa-register`, which exists
+    // only while the plugin is running and would otherwise be an unresolved
+    // import in every check. Node types stay out: this package runs in a
+    // browser.
+    "types": ["vite/client", "vite-plugin-pwa/client"],
     "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
 }

@@ -20,11 +20,23 @@ COPY packages/web/package.json packages/web/
 RUN pnpm install --frozen-lockfile
 
 COPY . .
-RUN pnpm --filter @opengewerk/server... run build
+
+# Both, and web explicitly: `@opengewerk/server...` means the server and what
+# it depends on, and it does not depend on the interface. Without this line
+# the image would start, migrate, answer the API and hand out nothing at the
+# root, which looks exactly like a broken install.
+RUN pnpm --filter @opengewerk/server... --filter @opengewerk/web run build
+
+# The budget of ADR 0004, checked where the artefact really is. The CI checks
+# it too; here it also protects an image somebody builds by hand.
+RUN pnpm --filter @opengewerk/web run budget
 
 # Ties the package and its dependencies into a self contained folder. --prod
 # leaves out everything that only exists for building and checking.
 RUN pnpm deploy --filter @opengewerk/server --prod /anwendung
+
+# The built interface goes in beside it, under the name the server looks for.
+RUN cp -r packages/web/dist /anwendung/interface
 
 FROM node:24-alpine AS runtime
 

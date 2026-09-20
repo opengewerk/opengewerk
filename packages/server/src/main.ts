@@ -10,6 +10,7 @@ import { authenticationPath, createAuthentication } from './authentication/authe
 import { SessionIdentitySource } from './authentication/session-identity.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
+import { interfacePath, serveInterface } from './interface.js'
 
 /**
  * Starts an instance.
@@ -73,6 +74,19 @@ async function start(): Promise<void> {
   // and a scanner looking for a known weakness is told where to look.
   application.getHttpAdapter().getInstance().disable('x-powered-by')
 
+  // The interface, from the same process. Mounted after Nest's routes, so a
+  // path the API owns is answered by the API; the fallback inside knows the
+  // same list and refuses to hand a shell to anything under it.
+  //
+  // Absent during development, where vite serves the two entry points itself
+  // and proxies the API here. Saying so out loud beats a silent 404 at the
+  // root that reads like a broken install.
+  const built = interfacePath()
+
+  if (built) {
+    serveInterface(application.getHttpAdapter().getInstance(), built)
+  }
+
   // A container gets SIGTERM and then, a moment later, SIGKILL. Closing in
   // between lets running transactions commit instead of being cut off, which
   // matters most during an update: that is when a restart is most likely to
@@ -103,6 +117,7 @@ async function start(): Promise<void> {
 
   console.info(
     `OpenGewerk lauscht auf ${configuration.host}:${configuration.port}.` +
+      (built ? '' : ' Es ist keine gebaute Oberfläche dabei, nur die API.') +
       (configuration.closed
         ? ' Die Instanz ist über CLOSED geschlossen, jede Anfrage an die Daten wird ' +
           'abgelehnt, auch die Anmeldung.'
