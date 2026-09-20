@@ -140,6 +140,20 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
 }
 
 /**
+ * Zero, and never minus zero.
+ *
+ * `Math.sign` hands back a signed zero, so an amount of nothing on the credit
+ * side comes out as `-0`. It compares equal to `0` with `==` and `===`, which
+ * is why it goes unnoticed, and unequal with `Object.is`, which is what a test
+ * uses and what `Map` keys and `includes` use. A bookkeeping figure has no
+ * signed nothing, so it is taken out where it appears rather than worked
+ * around wherever it lands.
+ */
+export function withoutNegativeZero(value: number): number {
+  return value === 0 ? 0 : value
+}
+
+/**
  * A rate applied to an amount, rounded the way a merchant rounds: half a cent
  * goes up, and away from zero, so a credit note mirrors the invoice it
  * corrects instead of drifting a cent away from it.
@@ -147,5 +161,5 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
 export function applyRate(cents: number, basisPoints: number): number {
   const exact = cents * basisPoints
 
-  return Math.sign(exact) * Math.round(Math.abs(exact) / 10_000)
+  return withoutNegativeZero(Math.sign(exact) * Math.round(Math.abs(exact) / 10_000))
 }

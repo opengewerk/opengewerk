@@ -47,6 +47,49 @@ export const documentStatuses = ['draft', 'issued', 'cancelled'] as const
 
 export type DocumentStatus = (typeof documentStatuses)[number]
 
+/**
+ * How a document is taxed. Three cases, and two of them show no tax at all.
+ *
+ * It is stored on the document rather than worked out on reading, and that is
+ * the same decision as the one behind a stored line total. The treatment
+ * follows from the customer and from what the business claims for itself, and
+ * both of those change. An invoice that was issued under section 19 has to go
+ * on saying so after the business grows out of it; asking the customer record
+ * today would rewrite last year's invoice.
+ *
+ * `standard` is the default. Both others have to be chosen, because both are
+ * a statement about the law that somebody is answerable for.
+ */
+export const taxTreatments = [
+  /** Umsatzsteuer wird ausgewiesen. */
+  'standard',
+  /** Kleinunternehmer nach § 19 UStG, keine Umsatzsteuer. */
+  'small_business',
+  /** Bauleistung nach § 13b UStG, der Empfänger schuldet die Steuer. */
+  'reverse_charge',
+] as const
+
+export type TaxTreatment = (typeof taxTreatments)[number]
+
+/**
+ * The sentence a document has to carry when it shows no tax.
+ *
+ * German, because it is printed and read by a person, and required by law in
+ * both cases: section 14 (4) number 8 UStG for the reverse charge, section 14
+ * (4) UStG together with section 19 for the small business.
+ *
+ * Not in a rule package, although they are legal wordings. The packages hold
+ * numbers with a unit and a period of validity, and `RuleRecord.value` is a
+ * number; a sentence has no unit and nothing to add up. Should a wording ever
+ * need a validity period of its own, the engine needs a text valued record
+ * first, and that is a larger change than a text belongs in.
+ */
+export const taxNotes: Readonly<Record<TaxTreatment, string | null>> = {
+  standard: null,
+  small_business: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+  reverse_charge: 'Steuerschuldnerschaft des Leistungsempfängers gemäß § 13b UStG.',
+}
+
 export interface Document extends Synced {
   readonly id: DocumentId
   readonly customerId: CustomerId
@@ -67,4 +110,10 @@ export interface Document extends Synced {
   /** When it was fixed. Null while it is a draft. */
   readonly issuedAt: Date | null
   readonly subject: string | null
+  /**
+   * How this document is taxed, decided when it is written and frozen when it
+   * is issued. `treatmentFor` works out what it should be from the customer
+   * and the tenant's own parameters; this column is where that answer is kept.
+   */
+  readonly taxTreatment: TaxTreatment
 }

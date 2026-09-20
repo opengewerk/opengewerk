@@ -1,4 +1,4 @@
-import { documentKinds, documentStatuses } from '@opengewerk/domain'
+import { documentKinds, documentStatuses, taxTreatments } from '@opengewerk/domain'
 import {
   type AnyPgColumn,
   date,
@@ -22,6 +22,7 @@ import { sites } from './sites.js'
 
 export const documentKind = pgEnum('document_kind', documentKinds)
 export const documentStatus = pgEnum('document_status', documentStatuses)
+export const taxTreatment = pgEnum('tax_treatment', taxTreatments)
 
 /**
  * A document. The predecessor reference carries the chain of section 1.4:
@@ -59,6 +60,13 @@ export const documents = pgTable(
     documentDate: date('document_date').notNull(),
     issuedAt: timestamp('issued_at', { withTimezone: true }),
     subject: text('subject'),
+    /**
+     * How this document is taxed, written when it is created and frozen when
+     * it is issued. Not worked out on reading: the customer flag and the
+     * tenant parameter it follows from both change, and an invoice issued
+     * under section 19 has to go on saying so afterwards.
+     */
+    taxTreatment: taxTreatment('tax_treatment').notNull().default('standard'),
     ...timestamps,
     ...syncColumns,
   },

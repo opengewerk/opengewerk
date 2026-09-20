@@ -25,6 +25,7 @@ export type PvStringId = Id<'pv-string'>
 export type PvModuleId = Id<'pv-module'>
 export type JobId = Id<'job'>
 export type DocumentId = Id<'document'>
+export type DocumentLineId = Id<'document-line'>
 export type NumberRangeId = Id<'number-range'>
 export type AuditEntryId = Id<'audit-entry'>
 export type MembershipId = Id<'membership'>

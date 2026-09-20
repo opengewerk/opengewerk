@@ -52,11 +52,36 @@ function wanted(operation: Operation): RecordState {
  * a person can see it side by side. Applying half of it would leave a record
  * that neither device ever meant.
  */
-export function decideMerge(operation: Operation, current: RecordState | null): MergeResult {
+export function decideMerge(
+  operation: Operation,
+  current: RecordState | null,
+  /**
+   * The record this one hangs on, when the policy has a `gateFrom`. Null when
+   * there is no parent to be found, which for a line means the document is
+   * gone and the line has nothing left to belong to.
+   */
+  parent: RecordState | null = null,
+): MergeResult {
   const policy = policyFor(operation.entity)
 
   if (!policy) {
     return { outcome: 'conflict', reason: 'unknown_entity', fields: [] }
+  }
+
+  const inherited = policy.gateFrom
+
+  if (inherited) {
+    // Before everything else, including creating. A line arriving for an
+    // invoice that was issued in the meantime is refused whether it is new or
+    // a change, because in both cases it would add something to bookkeeping
+    // that is already closed.
+    if (!parent) {
+      return { outcome: 'conflict', reason: 'record_missing', fields: [inherited.reference] }
+    }
+
+    if (!inherited.values.some((value) => sameValue(parent[inherited.field], value))) {
+      return { outcome: 'conflict', reason: 'record_is_fixed', fields: [inherited.field] }
+    }
   }
 
   // Before everything else, and deliberately before the branch for creating.

@@ -71,6 +71,13 @@
       "when": 1789889073172,
       "tag": "0009_authentication",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789899295990,
+      "tag": "0010_belegpositionen",
+      "breakpoints": true
     }
   ]
 }

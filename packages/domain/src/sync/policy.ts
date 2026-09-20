@@ -39,6 +39,31 @@ export interface SyncPolicy {
    * would have to be widened at the wrong moment.
    */
   readonly reserved?: readonly string[]
+  /**
+   * A gate that sits on another record, not on this one.
+   *
+   * A document line is the case it exists for. Whether it may be changed does
+   * not follow from anything on the line, it follows from the status of the
+   * document the line belongs to: an invoice that has been issued freezes its
+   * positions with it, or the numbering is worth nothing.
+   *
+   * `onlyWhile` cannot say that, because it looks at the record's own fields.
+   * Copying the parent's status onto the line would let it answer, and would
+   * put the same fact in two places, where the copy is stale exactly at the
+   * moment somebody issues the document.
+   *
+   * The server resolves the parent through `reference` and hands its state to
+   * `decideMerge`. A device works out the same answer from the parent it
+   * already holds, which is the point of the rule living here.
+   */
+  readonly gateFrom?: {
+    /** The field on this record that names the parent. */
+    readonly reference: string
+    /** The parent's entity, so the server knows where to look. */
+    readonly entity: string
+    readonly field: string
+    readonly values: readonly SyncValue[]
+  }
 }
 
 /**
@@ -107,6 +132,28 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
     change: 'merge',
     onlyWhile: { field: 'status', values: ['draft'] },
     reserved: ['status', 'number', 'issuedAt'],
+  },
+  /**
+   * The positions of a document, and they follow their document in everything.
+   *
+   * The gate is on the parent, not here: a line carries no status of its own,
+   * and whether it may still be touched is decided by whether the invoice has
+   * been issued. A device that hangs a line on an invoice that was issued in
+   * the meantime gets `record_is_fixed`, the same answer it would get for the
+   * document itself.
+   *
+   * `netCents` is reserved. It is quantity times price, rounded, and the one
+   * figure on the line that must not come from a device: a client that rounds
+   * differently, or simply sends something else, would put an amount in the
+   * books that does not follow from the two numbers next to it. The server
+   * works it out from what the device did send, and a check constraint in the
+   * database holds the result.
+   */
+  document_lines: {
+    create: true,
+    change: 'merge',
+    gateFrom: { reference: 'documentId', entity: 'documents', field: 'status', values: ['draft'] },
+    reserved: ['netCents'],
   },
 }
 
