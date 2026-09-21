@@ -35,6 +35,7 @@ export type FileId = Id<'file'>
 export type LetterheadId = Id<'letterhead'>
 export type DocumentSnapshotId = Id<'document-snapshot'>
 export type DocumentFileId = Id<'document-file'>
+export type TextSnippetId = Id<'text-snippet'>
 
 /**
  * Every record carries the tenant it belongs to and when it was written. The

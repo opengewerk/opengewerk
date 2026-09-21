@@ -23,6 +23,7 @@ export * from './model/number-range.js'
 export * from './model/photovoltaic.js'
 export * from './model/site.js'
 export * from './model/tenant.js'
+export * from './model/text-snippet.js'
 
 // The legal parameters. Not in the code: they sit in data packages with a
 // period of validity and the paragraph they come from, and every question to
@@ -30,6 +31,7 @@ export * from './model/tenant.js'
 export * from './rules/document-content.js'
 export * from './rules/invoice.js'
 export * from './rules/mandatory-details.js'
+export * from './rules/outline.js'
 export * from './rules/parameter.js'
 export * from './rules/payment.js'
 export * from './rules/rule.js'

@@ -1,8 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field } from '../components/index.js'
+import { Button, Field, SelectField } from '../components/index.js'
 import { refusalText } from '../sync/client.js'
 import type { EditResult } from '../sync/client.js'
 
@@ -62,48 +62,6 @@ export const yesOrNo = [
   { value: 'false', label: 'Nein' },
   { value: 'true', label: 'Ja' },
 ] as const
-
-function Choice({
-  field,
-  value,
-  onChange,
-}: {
-  readonly field: FormField
-  readonly value: string
-  readonly onChange: (value: string) => void
-}) {
-  const id = useId()
-
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-body font-medium text-ink">
-        {field.label}
-      </label>
-      {/*
-        A plain `<select>`. The package has Radix for the cases where a native
-        control cannot do the job, and this is not one of them: the native one
-        is the only control on a phone that opens the wheel people already know
-        how to use, and it is announced correctly everywhere without help.
-      */}
-      <select
-        id={id}
-        required={field.required}
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value)
-        }}
-        className="h-control-lg min-h-tap px-3 rounded-control bg-surface text-ink text-body border border-line-strong"
-      >
-        {field.options?.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {field.hint ? <p className="text-table text-ink-muted">{field.hint}</p> : null}
-    </div>
-  )
-}
 
 /**
  * A form over one record, in the one shape every screen here uses.
@@ -173,9 +131,12 @@ export function RecordForm({
       <div className="grid gap-4 sm:grid-cols-2">
         {fields.map((field) =>
           field.options ? (
-            <Choice
+            <SelectField
               key={field.name}
-              field={field}
+              label={field.label}
+              options={field.options}
+              required={field.required}
+              hint={field.hint}
               value={values[field.name] ?? ''}
               onChange={(value) => {
                 setValues((current) => ({ ...current, [field.name]: value }))

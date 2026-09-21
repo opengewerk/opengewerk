@@ -30,6 +30,13 @@ const quantity = new Intl.NumberFormat('de-DE', {
 const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' })
 const dayAndTime = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
 
+const percentages = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
+
+/** A rate in basis points the way the printed document writes it: "19 %". */
+export function percent(basisPoints: number): string {
+  return `${percentages.format(basisPoints / 100)} %`
+}
+
 /** Cents into euros. The storage is integral, the display is not. */
 export function euros(cents: number): string {
   return money.format(cents / 100)
@@ -112,4 +119,86 @@ export function sinceThen(then: Date | null, now: Date = new Date()): string {
   }
 
   return `am ${day.format(then)}`
+}
+
+const twoPlaces = new Intl.NumberFormat('de-DE', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/** Cents as a figure to edit: no currency sign, two places, the way it is typed. */
+export function centsAsInput(cents: number): string {
+  return twoPlaces.format(cents / 100)
+}
+
+/** The largest figure a column of the database holds, a signed 32 bit integer. */
+export const largestStored = 2_147_483_647
+
+/**
+ * A number the way somebody in Germany types it, scaled to whole units of a
+ * given size: thousandths for a quantity, cents for a price. Null when it is
+ * not a number, has more places than the unit holds, or does not fit.
+ *
+ * A comma is the decimal separator, and then every dot is a thousands
+ * separator: "1.234,5" is one thousand two hundred and thirty-four and a
+ * half. Without a comma a single dot is read as a decimal point unless
+ * exactly three digits follow it, because "2.5" is a slip on an English
+ * keyboard and "1.234" is how a thousand is written here.
+ *
+ * Not `parseFloat`. It stops at the first character it does not know and
+ * reads "1.234,56" as 1.234, which on an invoice is a price off by a factor
+ * of a thousand.
+ */
+export function scaledNumber(input: string, places: number): number | null {
+  // Spaces go, the no-break space a copied amount often carries among them,
+  // which `\s` covers in JavaScript. So does a euro sign typed along.
+  const compact = input.replaceAll(/[\s€]/g, '')
+
+  if (!/^[+-]?[\d.,]+$/.test(compact) || (compact.match(/,/g)?.length ?? 0) > 1) {
+    return null
+  }
+
+  const sign = compact.startsWith('-') ? -1 : 1
+  const digits = compact.replace(/^[+-]/, '')
+  const dots = digits.match(/\./g)?.length ?? 0
+
+  const normal = digits.includes(',')
+    ? digits.replaceAll('.', '').replace(',', '.')
+    : dots === 1 && !/\.\d{3}$/.test(digits)
+      ? digits
+      : digits.replaceAll('.', '')
+
+  const [whole = '', fraction = ''] = normal.split('.')
+
+  if ((whole === '' && fraction === '') || fraction.length > places) {
+    return null
+  }
+
+  const scaled = Number(whole || '0') * 10 ** places + Number(fraction.padEnd(places, '0'))
+
+  if (!Number.isSafeInteger(scaled) || scaled > largestStored) {
+    return null
+  }
+
+  // "-0" is zero, and a zero that prints with a minus sign is a question.
+  return scaled === 0 ? 0 : sign * scaled
+}
+
+/** A quantity as typed, in thousandths. */
+export function parseQuantity(input: string): number | null {
+  return scaledNumber(input, 3)
+}
+
+/** An amount in euros as typed, in cents. */
+export function parseEuros(input: string): number | null {
+  return scaledNumber(input, 2)
+}
+
+/**
+ * Today, in the time zone of the businesses this is written for. Not the
+ * browser's clock read as UTC: shortly after midnight that is still
+ * yesterday, and a document dated yesterday is a different document.
+ */
+export function today(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now)
 }

@@ -2,7 +2,7 @@ import type { DocumentTotals } from '../rules/invoice.js'
 import type { VatRate } from '../rules/tax.js'
 import type { Address } from './address.js'
 import type { DocumentKind, TaxTreatment } from './document.js'
-import type { LineUnit } from './document-line.js'
+import type { LineKind, LineUnit } from './document-line.js'
 import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from './identifier.js'
 
 /**
@@ -21,10 +21,13 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  * printed, not on a query that might have been assembled a little differently.
  *
  * Plain data and nothing else, so it can be stored as it is and read back by
- * a later version. `version` says which shape a stored record has; a template
- * that meets an older one knows what to expect instead of guessing.
+ * a later version. `version` says which shape a stored record has, and
+ * `currentContent` brings an older one up to the present shape before anybody
+ * prints it, so the template only ever knows one.
+ *
+ * Version 2 added the titles among the lines and the two texts around them.
  */
-export const documentContentVersion = 1
+export const documentContentVersion = 2
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -66,6 +69,7 @@ export interface SiteContent extends Address {
 }
 
 export interface LineContent {
+  readonly kind: LineKind
   readonly position: number
   readonly designation: string
   readonly description: string | null
@@ -85,6 +89,10 @@ export interface DocumentContent {
   readonly serviceFrom: IsoDate | null
   readonly serviceUntil: IsoDate | null
   readonly subject: string | null
+  /** The paragraph above the lines. */
+  readonly introText: string | null
+  /** The paragraph at the end, after the totals and the notes. */
+  readonly closingText: string | null
   readonly taxTreatment: TaxTreatment
   readonly issuer: IssuerContent
   readonly recipient: RecipientContent
@@ -103,6 +111,22 @@ export interface DocumentContent {
 }
 
 /**
+ * The first shape, from #71: no titles among the lines and no texts around
+ * them. Records in it exist on every installation that issued a document
+ * before version 2, and they are never rewritten, only read.
+ */
+export interface DocumentContentV1 extends Omit<
+  DocumentContent,
+  'version' | 'introText' | 'closingText' | 'lines'
+> {
+  readonly version: 1
+  readonly lines: readonly Omit<LineContent, 'kind'>[]
+}
+
+/** Any shape a snapshot may have been written in. */
+export type StoredDocumentContent = DocumentContent | DocumentContentV1
+
+/**
  * The content of a document, written once, when it is issued.
  *
  * No `updatedAt`, because there is no update. The application may insert a
@@ -114,6 +138,6 @@ export interface DocumentSnapshot {
   readonly id: DocumentSnapshotId
   readonly tenantId: TenantId
   readonly documentId: DocumentId
-  readonly content: DocumentContent
+  readonly content: StoredDocumentContent
   readonly createdAt: Date
 }

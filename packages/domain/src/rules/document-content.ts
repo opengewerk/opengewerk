@@ -6,6 +6,7 @@ import type {
   LineContent,
   RecipientContent,
   SiteContent,
+  StoredDocumentContent,
 } from '../model/document-content.js'
 import { documentContentVersion } from '../model/document-content.js'
 import type { DocumentLine } from '../model/document-line.js'
@@ -16,7 +17,15 @@ import type { RuleSet } from './rule.js'
 export interface ContentSources {
   readonly document: Pick<
     Document,
-    'kind' | 'number' | 'documentDate' | 'serviceFrom' | 'serviceUntil' | 'subject' | 'taxTreatment'
+    | 'kind'
+    | 'number'
+    | 'documentDate'
+    | 'serviceFrom'
+    | 'serviceUntil'
+    | 'subject'
+    | 'introText'
+    | 'closingText'
+    | 'taxTreatment'
   >
   readonly lines: readonly Pick<DocumentLine, keyof LineContent>[]
   readonly issuer: IssuerContent
@@ -80,6 +89,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
   const lines: LineContent[] = [...sources.lines]
     .sort((left, right) => left.position - right.position)
     .map((line) => ({
+      kind: line.kind,
       position: line.position,
       designation: line.designation,
       description: line.description,
@@ -98,6 +108,8 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     serviceFrom: document.serviceFrom,
     serviceUntil: document.serviceUntil,
     subject: document.subject,
+    introText: document.introText,
+    closingText: document.closingText,
     taxTreatment: document.taxTreatment,
     issuer: sources.issuer,
     recipient: sources.recipient,
@@ -109,5 +121,28 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       taxTreatment: document.taxTreatment,
       recipientIsBusiness: sources.recipient.isBusiness,
     }),
+  }
+}
+
+/**
+ * A stored snapshot in the shape of today, whatever shape it was written in.
+ *
+ * The snapshot itself is never rewritten, that is the point of it. What
+ * changes is how it is read: a record from version 1 had no titles and no
+ * texts, so every line of it is a position and both texts are empty, which
+ * is exactly what it said when it was printed. The figures, the addresses and
+ * the notes are carried over as they are.
+ */
+export function currentContent(stored: StoredDocumentContent): DocumentContent {
+  if (stored.version === documentContentVersion) {
+    return stored
+  }
+
+  return {
+    ...stored,
+    version: documentContentVersion,
+    introText: null,
+    closingText: null,
+    lines: stored.lines.map((line) => ({ ...line, kind: 'item' as const })),
   }
 }

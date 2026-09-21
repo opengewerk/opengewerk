@@ -167,13 +167,14 @@ describe('the office', () => {
       .set('x-test-identity', as(north.id, 'office'))
       .expect(201)
 
-    // Not editable any more. A correction is a cancellation or a credit note,
-    // which is leading decision 4 and not something a PATCH may undo.
+    // Not editable any more, which is leading decision 4 and not something a
+    // PATCH may undo. Since #72 the answer says so, instead of claiming that a
+    // document the office is looking at does not exist.
     await request(app.getHttpServer())
       .patch(`/documents/${draft.body.id}`)
       .set('x-test-identity', as(north.id, 'office'))
       .send({ subject: 'Nachträglich geändert' })
-      .expect(404)
+      .expect(409)
   })
 })
 

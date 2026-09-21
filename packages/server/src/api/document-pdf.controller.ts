@@ -13,6 +13,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
+  currentContent,
   type DocumentContent,
   type DocumentId,
   type DocumentKind,
@@ -195,7 +196,10 @@ export class DocumentPdfController {
       )
     }
 
-    return { state: 'unprinted', content: snapshot.content }
+    // A snapshot keeps the shape it was written in. One from before titles and
+    // document texts is read as a document without either, which is what it
+    // was, and printed from that.
+    return { state: 'unprinted', content: currentContent(snapshot.content) }
   }
 
   /**

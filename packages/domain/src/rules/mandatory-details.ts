@@ -237,7 +237,10 @@ export function missingDetails(rules: RuleSet, content: DocumentContent): readon
     }
   }
 
-  if (content.lines.length === 0) {
+  // Titles do not count. A document of three headings and no position says
+  // nothing about the quantity and the kind of the work, which is what the
+  // paragraph asks for.
+  if (!content.lines.some((line) => line.kind === 'item')) {
     missing.push({
       detail: 'lines',
       message:

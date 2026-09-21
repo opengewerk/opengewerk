@@ -1,0 +1,661 @@
+import 'fake-indexeddb/auto'
+
+import type { Operation, OperationReceipt, RecordState, RoleKey } from '@opengewerk/domain'
+import { lineNetCents } from '@opengewerk/domain'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from '@tanstack/react-router'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { DirectWriter } from '../../sync/client.js'
+import { SyncClient } from '../../sync/client.js'
+import { SyncProvider } from '../../sync/provider.js'
+import { openLocalStore } from '../../sync/store.js'
+import type { PullResult, SyncTransport } from '../../sync/transport.js'
+import { DocumentScreen } from './documents.js'
+import { JobScreen } from './jobs.js'
+import { TextSnippetScreen } from './text-snippets.js'
+
+/**
+ * The office side of #72: a quote with titles and positions, the estimate as
+ * a kind of its own, the refusal of an issued document that says why, the
+ * order confirmation made out of a quote, and the texts it is written from.
+ *
+ * The stand in for the server takes what the outbox sends and hands it back
+ * on the next pull, the way the real one does, so a line added on the screen
+ * is on the screen afterwards and not only in a list of sent operations.
+ */
+
+type Row = Record<string, unknown>
+
+class Server implements SyncTransport, DirectWriter {
+  readonly sent: Operation[][] = []
+  private readonly tables = new Map<string, Map<string, Row>>()
+  private changed = new Map<string, Set<string>>()
+  private cursor = 1
+
+  put(entity: string, row: Row): void {
+    const table = this.tables.get(entity) ?? new Map<string, Row>()
+    const id = String(row['id'])
+
+    table.set(id, row)
+    this.tables.set(entity, table)
+    this.changed.set(entity, (this.changed.get(entity) ?? new Set()).add(id))
+  }
+
+  row(entity: string, id: string): Row | undefined {
+    return this.tables.get(entity)?.get(id)
+  }
+
+  private apply(entity: string, id: string, values: Row, removed = false): void {
+    const current = this.row(entity, id) ?? { id, deletedAt: null, version: 0 }
+    const next: Row = {
+      ...current,
+      ...values,
+      version: Number(current['version'] ?? 0) + 1,
+      deletedAt: removed ? '2026-09-21T08:00:00.000Z' : (current['deletedAt'] ?? null),
+    }
+
+    if (entity === 'document_lines') {
+      next['netCents'] = lineNetCents({
+        quantityMilli: Number(next['quantityMilli'] ?? 0),
+        unitPriceCents: Number(next['unitPriceCents'] ?? 0),
+      })
+    }
+
+    this.put(entity, next)
+  }
+
+  push(_deviceId: string, operations: readonly Operation[]) {
+    this.sent.push([...operations])
+
+    for (const operation of operations) {
+      this.apply(
+        operation.entity,
+        operation.recordId,
+        Object.fromEntries(operation.patches.map((patch) => [patch.field, patch.to])),
+        operation.kind === 'delete',
+      )
+    }
+
+    return Promise.resolve(
+      operations.map((operation): OperationReceipt => ({
+        operationId: operation.id,
+        outcome: 'applied',
+        reason: null,
+        fields: [],
+      })),
+    )
+  }
+
+  pull(): Promise<PullResult> {
+    const changes = [...this.changed].map(([entity, ids]) => ({
+      entity,
+      rows: [...ids].map((id) => this.row(entity, id) as RecordState),
+    }))
+
+    this.changed = new Map()
+    this.cursor += 1
+
+    return Promise.resolve({ changes, cursor: this.cursor, hasMore: false })
+  }
+
+  conflicts() {
+    return Promise.resolve([])
+  }
+
+  resolve() {
+    return Promise.resolve()
+  }
+
+  patch(entity: string, id: string, values: Readonly<Record<string, unknown>>) {
+    this.apply(entity, id, { ...values })
+
+    return Promise.resolve(undefined)
+  }
+
+  remove(entity: string, id: string) {
+    this.apply(entity, id, {}, true)
+
+    return Promise.resolve(undefined)
+  }
+
+  /** Everything the outbox sent for one kind of record, in order. */
+  operationsOn(entity: string): Operation[] {
+    return this.sent.flat().filter((operation) => operation.entity === entity)
+  }
+}
+
+/** What an operation set, as one object. */
+function valuesOf(operation: Operation | undefined): Row {
+  return Object.fromEntries((operation?.patches ?? []).map((patch) => [patch.field, patch.to]))
+}
+
+type Answer = { status: number; body: unknown }
+
+let server: Server
+let calls: { method: string; path: string; body: unknown }[]
+let answers: Map<string, (body: unknown) => Answer>
+let counter = 0
+
+function serverSays(method: string, path: string, answer: (body: unknown) => Answer): void {
+  answers.set(`${method} ${path}`, answer)
+}
+
+function signedInAs(...roles: RoleKey[]) {
+  serverSays('GET', '/api/auth/get-session', () => ({
+    status: 200,
+    body: {
+      user: { id: 'u-1', email: 'buero@nord.example.de', name: 'Britta Büro' },
+      session: { activeTenantId: 't-1' },
+    },
+  }))
+  serverSays('GET', '/auth/tenants', () => ({
+    status: 200,
+    body: [{ id: 't-1', name: 'Elektro Nord GmbH', roles }],
+  }))
+}
+
+const customer = { id: 'c-1', kind: 'private', name: 'Familie Berg', version: 1, deletedAt: null }
+
+const job = {
+  id: 'j-1',
+  customerId: 'c-1',
+  siteId: null,
+  installationId: null,
+  parentJobId: null,
+  kind: 'project',
+  status: 'active',
+  designation: 'Zählerschrank Lindenweg',
+  description: null,
+  number: null,
+  version: 1,
+  deletedAt: null,
+}
+
+function document(over: Row = {}): Row {
+  return {
+    id: 'd-1',
+    customerId: 'c-1',
+    jobId: 'j-1',
+    siteId: null,
+    installationId: null,
+    predecessorDocumentId: null,
+    kind: 'quote',
+    status: 'draft',
+    number: null,
+    documentDate: '2026-09-21',
+    serviceFrom: null,
+    serviceUntil: null,
+    issuedAt: null,
+    subject: 'Zählerschrank erneuern',
+    introText: null,
+    closingText: null,
+    taxTreatment: 'standard',
+    version: 1,
+    deletedAt: null,
+    ...over,
+  }
+}
+
+function line(id: string, position: number, over: Row = {}): Row {
+  const quantityMilli = Number(over['quantityMilli'] ?? 1000)
+  const unitPriceCents = Number(over['unitPriceCents'] ?? 120000)
+
+  return {
+    id,
+    documentId: 'd-1',
+    kind: 'item',
+    position,
+    designation: 'Zählerschrank setzen',
+    description: null,
+    quantityMilli,
+    unit: 'piece',
+    unitPriceCents,
+    vatRate: 'standard',
+    netCents: lineNetCents({ quantityMilli, unitPriceCents }),
+    version: 1,
+    deletedAt: null,
+    ...over,
+  }
+}
+
+function title(id: string, position: number, designation: string): Row {
+  return line(id, position, { kind: 'title', designation, quantityMilli: 0, unitPriceCents: 0 })
+}
+
+/** A quote under two titles, the example the issue itself uses. */
+const outlined = [
+  title('l-1', 1, 'Zählerschrank'),
+  line('l-2', 2),
+  line('l-3', 3, {
+    designation: 'Überspannungsschutz',
+    quantityMilli: 2000,
+    unitPriceCents: 15000,
+  }),
+  title('l-4', 4, 'Außenbeleuchtung'),
+  line('l-5', 5, {
+    designation: 'Wandleuchte montieren',
+    quantityMilli: 4000,
+    unitPriceCents: 4500,
+  }),
+]
+
+async function mount(
+  path: string,
+  rows: { documents?: Row[]; document_lines?: Row[] } = {},
+  roles: RoleKey[] = ['office'],
+) {
+  signedInAs(...roles)
+  server.put('customers', customer)
+  server.put('jobs', job)
+
+  for (const row of rows.documents ?? [document()]) {
+    server.put('documents', row)
+  }
+
+  for (const row of rows.document_lines ?? []) {
+    server.put('document_lines', row)
+  }
+
+  const client = await SyncClient.start({
+    store: await openLocalStore(`documents${String((counter += 1))}`),
+    transport: server,
+    writer: server,
+    deviceId: 'device',
+    entities: ['customers', 'jobs', 'documents', 'document_lines'],
+    onSignedOut: () => {},
+  })
+
+  await client.synchronise()
+
+  const root = createRootRoute()
+  const tree = root.addChildren([
+    createRoute({
+      getParentRoute: () => root,
+      path: '/belege/$documentId',
+      component: DocumentScreen,
+    }),
+    createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
+    createRoute({
+      getParentRoute: () => root,
+      path: '/textbausteine',
+      component: TextSnippetScreen,
+    }),
+    createRoute({ getParentRoute: () => root, path: '/auftraege', component: () => null }),
+    createRoute({ getParentRoute: () => root, path: '/kunden/$customerId', component: () => null }),
+  ])
+  const router = createRouter({
+    routeTree: tree,
+    history: createMemoryHistory({ initialEntries: [path] }),
+  })
+
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <SyncProvider client={client}>
+        <RouterProvider router={router} />
+      </SyncProvider>
+    </QueryClientProvider>,
+  )
+
+  return { client, router }
+}
+
+beforeEach(() => {
+  server = new Server()
+  calls = []
+  answers = new Map()
+
+  serverSays('GET', '/documents/text-snippets', () => ({
+    status: 200,
+    body: [
+      { id: 's-1', purpose: 'intro', title: 'Anfrage', text: 'Vielen Dank für Ihre Anfrage.' },
+      {
+        id: 's-2',
+        purpose: 'line',
+        title: 'Zählerschrank setzen',
+        text: 'Zählerschrank nach VDE-AR-N 4100 liefern und setzen.',
+      },
+    ],
+  }))
+
+  vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
+    const method = init?.method ?? 'GET'
+    const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body
+
+    calls.push({ method, path, body })
+
+    const answer = answers.get(`${method} ${path}`)?.(body) ?? { status: 200, body: {} }
+
+    return Promise.resolve(
+      new Response(JSON.stringify(answer.body), {
+        status: answer.status,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('a quote with titles', () => {
+  it('is laid out under its titles, numbered and summed, with the totals of its date', async () => {
+    await mount('/belege/d-1', { document_lines: outlined })
+
+    const table = within(await screen.findByRole('table', { name: 'Positionen des Belegs' }))
+
+    for (const number of ['1', '1.1', '1.2', '2', '2.1']) {
+      expect(table.getByRole('cell', { name: number })).toBeDefined()
+    }
+
+    expect(table.getByText('Summe Titel 1: Zählerschrank')).toBeDefined()
+    expect(table.getByText('Summe Titel 2: Außenbeleuchtung')).toBeDefined()
+    expect(screen.getByText(/Umsatzsteuer 19 % auf 1\.680,00\s€/)).toBeDefined()
+    expect(screen.getByText(/1\.999,20\s€/)).toBeDefined()
+  })
+
+  it('gets a title through the outbox, without an amount, at the end of the list', async () => {
+    await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Titel hinzufügen' }))
+    await person.type(screen.getByLabelText('Titel'), 'Außenbeleuchtung')
+    await person.click(screen.getByRole('button', { name: 'Titel hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      documentId: 'd-1',
+      kind: 'title',
+      designation: 'Außenbeleuchtung',
+      position: 2,
+      quantityMilli: 0,
+      unitPriceCents: 0,
+    })
+    expect(await screen.findByRole('cell', { name: '1' })).toBeDefined()
+  })
+
+  it('reads a quantity and a price the way they are typed here', async () => {
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByLabelText('Bezeichnung'), 'Fehlersuche')
+    await person.clear(screen.getByLabelText('Menge'))
+    await person.type(screen.getByLabelText('Menge'), '2,5')
+    await person.selectOptions(screen.getByLabelText('Einheit'), 'hour')
+    await person.type(screen.getByLabelText('Einzelpreis in Euro'), '1.234,56')
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      kind: 'item',
+      quantityMilli: 2500,
+      unit: 'hour',
+      unitPriceCents: 123456,
+    })
+    expect(await screen.findAllByText(/3\.086,40\s€/)).not.toHaveLength(0)
+  })
+
+  it('refuses a price it cannot read, and says what it expects', async () => {
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByLabelText('Bezeichnung'), 'Fehlersuche')
+    await person.type(screen.getByLabelText('Einzelpreis in Euro'), 'zwölf Euro')
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    expect(screen.getByText(/höchstens zwei Nachkommastellen/)).toBeDefined()
+    expect(server.operationsOn('document_lines')).toHaveLength(0)
+  })
+
+  it('takes a position from a text snippet', async () => {
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.selectOptions(await screen.findByLabelText('Position aus Textbaustein'), 's-2')
+
+    expect((screen.getByLabelText('Bezeichnung') as HTMLInputElement).value).toBe(
+      'Zählerschrank setzen',
+    )
+    expect((screen.getByLabelText('Beschreibung') as HTMLTextAreaElement).value).toContain(
+      'VDE-AR-N 4100',
+    )
+  })
+
+  it('moves a line by numbering the whole list afresh, gaps included', async () => {
+    await mount('/belege/d-1', {
+      document_lines: [
+        line('l-1', 1, { designation: 'Erste' }),
+        line('l-2', 2, { designation: 'Zweite' }),
+        line('l-3', 5, { designation: 'Dritte' }),
+      ],
+    })
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: '3 nach oben' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(2)
+    })
+
+    const moved = new Map(
+      server
+        .operationsOn('document_lines')
+        .map((operation) => [operation.recordId, valuesOf(operation)['position']]),
+    )
+
+    expect(moved).toEqual(
+      new Map([
+        ['l-3', 2],
+        ['l-2', 3],
+      ]),
+    )
+  })
+
+  it('takes the text above the lines from a snippet and sends it with the head', async () => {
+    await mount('/belege/d-1')
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
+    await person.selectOptions(await screen.findByLabelText('Textbaustein für oben'), 's-1')
+
+    expect((screen.getByLabelText('Text über den Positionen') as HTMLTextAreaElement).value).toBe(
+      'Vielen Dank für Ihre Anfrage.',
+    )
+
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(valuesOf(server.operationsOn('documents')[0])).toMatchObject({
+        introText: 'Vielen Dank für Ihre Anfrage.',
+      })
+    })
+  })
+})
+
+describe('issuing', () => {
+  it('is offered to the office and not to a technician', async () => {
+    await mount('/belege/d-1', { document_lines: [line('l-1', 1)] }, ['technician'])
+
+    await screen.findByRole('heading', { level: 1, name: 'Angebot' })
+
+    expect(screen.queryByRole('button', { name: 'Festschreiben' })).toBeNull()
+  })
+
+  it('lists the mandatory details that are missing, each with its paragraph', async () => {
+    serverSays('POST', '/documents/d-9/issue', () => ({
+      status: 422,
+      body: {
+        message: 'Der Beleg kann noch nicht festgeschrieben werden, es fehlen Pflichtangaben.',
+        missing: [
+          {
+            detail: 'issuer_address',
+            message: 'Die Anschrift des Betriebs fehlt (§ 14 Abs. 4 Nr. 1 UStG).',
+          },
+          {
+            detail: 'service_date',
+            message: 'Der Leistungszeitraum fehlt (§ 14 Abs. 4 Nr. 6 UStG).',
+          },
+        ],
+      },
+    }))
+
+    await mount('/belege/d-9', {
+      documents: [document({ id: 'd-9', kind: 'final_invoice' })],
+      document_lines: [line('l-1', 1, { documentId: 'd-9' })],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+    await person.click(screen.getByRole('button', { name: 'Jetzt festschreiben' }))
+
+    expect(
+      await screen.findByText('Die Anschrift des Betriebs fehlt (§ 14 Abs. 4 Nr. 1 UStG).'),
+    ).toBeDefined()
+    expect(screen.getByText('Der Leistungszeitraum fehlt (§ 14 Abs. 4 Nr. 6 UStG).')).toBeDefined()
+  })
+
+  it('fixes the document on the server and shows it fixed', async () => {
+    serverSays('POST', '/documents/d-1/issue', () => {
+      const issued = { ...server.row('documents', 'd-1'), status: 'issued', number: 'AN-2026-0001' }
+
+      server.put('documents', issued)
+
+      return { status: 201, body: issued }
+    })
+
+    await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+    await person.click(screen.getByRole('button', { name: 'Jetzt festschreiben' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Angebot AN-2026-0001' }),
+    ).toBeDefined()
+    expect(screen.getByText(/liegt er beim Kunden/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Position hinzufügen' })).toBeNull()
+  })
+})
+
+describe('an issued quote', () => {
+  const issued = document({ status: 'issued', number: 'AN-2026-0001' })
+
+  it('says why it can no longer be changed, and offers nothing that would', async () => {
+    await mount('/belege/d-1', { documents: [issued], document_lines: outlined })
+
+    expect(
+      await screen.findByText(/Soll sich etwas ändern, entsteht dafür ein neuer Beleg/),
+    ).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Position hinzufügen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '1.1 entfernen' })).toBeNull()
+  })
+
+  it('becomes an order confirmation that knows where it came from', async () => {
+    serverSays('POST', '/documents/d-1/successors', (body) => {
+      const made = document({
+        id: 'd-2',
+        kind: (body as { kind: string }).kind,
+        predecessorDocumentId: 'd-1',
+      })
+
+      server.put('documents', made)
+
+      return { status: 201, body: made }
+    })
+
+    await mount('/belege/d-1', { documents: [issued], document_lines: outlined })
+
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Auftragsbestätigung erstellen' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Auftragsbestätigung' }),
+    ).toBeDefined()
+    expect(calls.find((call) => call.path === '/documents/d-1/successors')?.body).toEqual({
+      kind: 'order_confirmation',
+    })
+
+    const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
+
+    expect(chain.getByRole('link', { name: 'Angebot' })).toBeDefined()
+  })
+})
+
+describe('the job', () => {
+  it('starts a quote and an estimate from two buttons, not from one with a choice', async () => {
+    serverSays('POST', '/documents', (body) => {
+      const made = document({ ...(body as Row), id: 'd-7' })
+
+      server.put('documents', made)
+
+      return { status: 201, body: made }
+    })
+
+    await mount('/auftraege/j-1', { documents: [] })
+
+    expect(await screen.findByRole('button', { name: 'Angebot anlegen' })).toBeDefined()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Kostenvoranschlag anlegen' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Kostenvoranschlag' }),
+    ).toBeDefined()
+    expect(screen.getByText(/§ 649 BGB/)).toBeDefined()
+    expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+      customerId: 'c-1',
+      jobId: 'j-1',
+      kind: 'cost_estimate',
+      subject: 'Zählerschrank Lindenweg',
+    })
+  })
+})
+
+describe('the text snippets', () => {
+  it('are listed by what they are for, and a new one is sent as typed', async () => {
+    serverSays('POST', '/documents/text-snippets', (body) => ({
+      status: 201,
+      body: { id: 's-3', ...(body as Row) },
+    }))
+
+    await mount('/textbausteine')
+    const person = userEvent.setup()
+
+    const intro = within(await screen.findByRole('region', { name: 'Texte über den Positionen' }))
+    expect(await intro.findByText('Anfrage')).toBeDefined()
+
+    await person.click(screen.getByRole('button', { name: 'Textbaustein anlegen' }))
+    await person.selectOptions(screen.getByLabelText('Wofür'), 'closing')
+    await person.type(screen.getByLabelText('Name'), 'Gruß')
+    await person.type(screen.getByLabelText('Text'), 'Mit freundlichen Grüßen')
+    await person.click(screen.getByRole('button', { name: 'Textbaustein anlegen' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        purpose: 'closing',
+        title: 'Gruß',
+        text: 'Mit freundlichen Grüßen',
+      })
+    })
+  })
+})

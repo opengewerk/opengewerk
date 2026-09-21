@@ -1,4 +1,4 @@
-import type { DocumentLine, LineUnit } from '../model/document-line.js'
+import type { DocumentLine, LineKind, LineUnit } from '../model/document-line.js'
 import { quantityFactor } from '../model/document-line.js'
 import type { TaxTreatment } from '../model/document.js'
 import { taxNotes } from '../model/document.js'
@@ -66,13 +66,20 @@ export interface DocumentTotals {
  * lines of a rate are added up first, then the tax is worked out once on that
  * sum. Taxing each line and adding the tax afterwards gives a different figure
  * on about one invoice in three, because every line rounds on its own.
+ *
+ * A title among the lines is left out. Its amount is zero anyway, but it
+ * carries the default rate like every line, and counted it would open a tax
+ * group of its own: "19 % on 0,00 euros" on a document whose positions are
+ * all taxed at another rate. A line without a kind is a position, which is
+ * what every line was before titles existed.
  */
 export function totalsFor(
   rules: RuleSet,
-  lines: readonly Pick<DocumentLine, 'netCents' | 'vatRate'>[],
+  lines: readonly (Pick<DocumentLine, 'netCents' | 'vatRate'> & { readonly kind?: LineKind })[],
   document: { readonly documentDate: IsoDate; readonly taxTreatment: TaxTreatment },
 ): DocumentTotals {
-  const netCents = withoutNegativeZero(lines.reduce((sum, line) => sum + line.netCents, 0))
+  const positions = lines.filter((line) => line.kind !== 'title')
+  const netCents = withoutNegativeZero(positions.reduce((sum, line) => sum + line.netCents, 0))
 
   if (document.taxTreatment !== 'standard') {
     // No tax, and no entry saying zero. What the document owes instead is the
@@ -88,7 +95,7 @@ export function totalsFor(
 
   const netByRate = new Map<VatRate, number>()
 
-  for (const line of lines) {
+  for (const line of positions) {
     netByRate.set(line.vatRate, (netByRate.get(line.vatRate) ?? 0) + line.netCents)
   }
 

@@ -1,13 +1,30 @@
 import type {
   CustomerKind,
   DocumentKind,
+  DocumentStatus,
   InstallationKind,
   JobKind,
   JobStatus,
+  LineKind,
+  LineUnit,
   RecordState,
   RoleKey,
+  SnippetPurpose,
+  TaxTreatment,
+  VatRate,
 } from '@opengewerk/domain'
-import { customerKinds, installationKinds, jobKinds, jobStatuses } from '@opengewerk/domain'
+import {
+  customerKinds,
+  documentKinds,
+  documentStatuses,
+  installationKinds,
+  jobKinds,
+  jobStatuses,
+  lineKinds,
+  lineUnits,
+  taxTreatments,
+  vatRates,
+} from '@opengewerk/domain'
 
 import { oneOf } from '../sync/fields.js'
 
@@ -81,6 +98,62 @@ export const documentKindLabel: Readonly<Record<DocumentKind, string>> = {
 }
 
 /**
+ * How a document is taxed, in the words the office uses. The two exceptions
+ * name their paragraph, because choosing one is a statement about the law.
+ */
+export const taxTreatmentLabel: Readonly<Record<TaxTreatment, string>> = {
+  standard: 'Mit Umsatzsteuer',
+  small_business: 'Kleinunternehmer, § 19 UStG',
+  reverse_charge: 'Steuerschuld beim Empfänger, § 13b UStG',
+}
+
+/** The unit in a choice list, written out. */
+export const lineUnitLabel: Readonly<Record<LineUnit, string>> = {
+  piece: 'Stück',
+  hour: 'Stunden',
+  day: 'Tage',
+  metre: 'Meter',
+  square_metre: 'Quadratmeter',
+  cubic_metre: 'Kubikmeter',
+  kilogram: 'Kilogramm',
+  litre: 'Liter',
+  package: 'Pakete',
+  flat_rate: 'Pauschal',
+}
+
+/**
+ * The unit beside a quantity, short, because the column is. The same short
+ * forms the printed document uses, so the screen and the paper agree.
+ */
+export const lineUnitShort: Readonly<Record<LineUnit, string>> = {
+  piece: 'Stk.',
+  hour: 'Std.',
+  day: 'Tag',
+  metre: 'm',
+  square_metre: 'm²',
+  cubic_metre: 'm³',
+  kilogram: 'kg',
+  litre: 'l',
+  package: 'Pkg.',
+  flat_rate: 'psch.',
+}
+
+/**
+ * The rate by name and not by figure. The figure depends on the date of the
+ * document, and the totals below the lines show it for that date.
+ */
+export const vatRateLabel: Readonly<Record<VatRate, string>> = {
+  standard: 'Regelsatz',
+  reduced: 'Ermäßigt',
+}
+
+export const snippetPurposeLabel: Readonly<Record<SnippetPurpose, string>> = {
+  line: 'Position',
+  intro: 'Text über den Positionen',
+  closing: 'Text unter den Positionen',
+}
+
+/**
  * The colour a job's state carries in a list.
  *
  * Never colour alone: every place that uses this writes the word beside it.
@@ -116,4 +189,28 @@ export function jobKindOf(record: RecordState | null | undefined): JobKind {
 
 export function jobStatusOf(record: RecordState | null | undefined): JobStatus {
   return oneOf(record, 'status', jobStatuses, 'draft')
+}
+
+export function documentKindOf(record: RecordState | null | undefined): DocumentKind {
+  return oneOf(record, 'kind', documentKinds, 'quote')
+}
+
+export function documentStatusOf(record: RecordState | null | undefined): DocumentStatus {
+  return oneOf(record, 'status', documentStatuses, 'draft')
+}
+
+export function taxTreatmentOf(record: RecordState | null | undefined): TaxTreatment {
+  return oneOf(record, 'taxTreatment', taxTreatments, 'standard')
+}
+
+export function lineKindOf(record: RecordState | null | undefined): LineKind {
+  return oneOf(record, 'kind', lineKinds, 'item')
+}
+
+export function lineUnitOf(record: RecordState | null | undefined): LineUnit {
+  return oneOf(record, 'unit', lineUnits, 'piece')
+}
+
+export function vatRateOf(record: RecordState | null | undefined): VatRate {
+  return oneOf(record, 'vatRate', vatRates, 'standard')
 }

@@ -32,6 +32,7 @@ import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
+import { TextSnippetsController } from './text-snippets.controller.js'
 
 /**
  * What the module needs beyond a database and an identity source.
@@ -116,6 +117,10 @@ export class ApiModule implements NestModule {
         SitesController,
         InstallationsController,
         JobsController,
+        // Before the documents, whose routes take an id in the same place.
+        // None of them clashes with this path today, and this order keeps it
+        // that way when one is added that would.
+        TextSnippetsController,
         DocumentsController,
         DocumentLinesController,
         DocumentTotalsController,

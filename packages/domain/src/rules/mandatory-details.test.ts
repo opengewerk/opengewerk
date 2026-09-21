@@ -52,6 +52,7 @@ const recipient: RecipientContent = {
 
 function position(position: number, netCents: number, designation = 'Unterverteilung setzen') {
   return {
+    kind: 'item',
     position,
     designation,
     description: null,
@@ -80,6 +81,8 @@ function invoice(
       serviceFrom: '2026-09-01',
       serviceUntil: '2026-09-15',
       subject: null,
+      introText: null,
+      closingText: null,
       taxTreatment: 'standard',
       ...document,
     },
@@ -271,6 +274,12 @@ describe('the lines', () => {
     expect(details(invoice({}, { lines: [] }))).toContain('lines')
   })
 
+  it('do not count a title as a position', () => {
+    const onlyTitles = invoice({}, { lines: [{ ...position(1, 0, 'Erdgeschoss'), kind: 'title' }] })
+
+    expect(details(onlyTitles)).toContain('lines')
+  })
+
   it('each need a designation, and the message says which one', () => {
     const content = invoice({}, { lines: [position(1, 50000), position(2, 50000, '  ')] })
     const [missing] = missingDetails(rules, content)
@@ -355,6 +364,7 @@ describe('the content record', () => {
       [
         'description',
         'designation',
+        'kind',
         'netCents',
         'position',
         'quantityMilli',

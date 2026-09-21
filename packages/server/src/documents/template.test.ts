@@ -39,6 +39,7 @@ const issuer: IssuerContent = {
 
 function line(position: number, netCents: number, over: Partial<LineContent> = {}): LineContent {
   return {
+    kind: 'item',
     position,
     designation: 'Unterverteilung setzen',
     description: null,
@@ -63,6 +64,8 @@ function page(
       serviceFrom: '2026-09-01',
       serviceUntil: '2026-09-15',
       subject: 'Zählerschrank erneuert',
+      introText: null,
+      closingText: null,
       taxTreatment: 'standard',
       ...document,
     },
@@ -141,6 +144,82 @@ describe('the page', () => {
   })
 })
 
+/** A title among the lines: a heading with no amount. */
+function title(position: number, designation: string): LineContent {
+  return line(position, 0, {
+    kind: 'title',
+    designation,
+    quantityMilli: 0,
+    unitPriceCents: 0,
+  })
+}
+
+describe('titles and document texts', () => {
+  const quote = { kind: 'quote', number: 'AN-2026-0007', serviceFrom: null } as const
+
+  it('lays the lines out under their titles, numbered and summed per title', () => {
+    const { html } = page(quote, {
+      lines: [
+        title(1, 'Zählerschrank'),
+        line(2, 120000),
+        line(3, 30000, { designation: 'Überspannungsschutz' }),
+        title(4, 'Außenbeleuchtung'),
+        line(5, 45000, { designation: 'Wandleuchten montieren' }),
+      ],
+    })
+
+    expect(html).toMatch(
+      /<tr class="title">\s*<td class="position">1<\/td>\s*<td colspan="5">Zählerschrank/,
+    )
+    expect(html).toMatch(/<td class="position">1\.1<\/td>\s*<td>Unterverteilung setzen/)
+    expect(html).toMatch(/<td class="position">1\.2<\/td>\s*<td>Überspannungsschutz/)
+    expect(html).toMatch(/<td class="position">2\.1<\/td>\s*<td>Wandleuchten montieren/)
+    expect(html).toMatch(/Summe Titel 1: Zählerschrank<\/td>\s*<td class="figure">1\.500,00\s€/)
+    expect(html).toMatch(/Summe Titel 2: Außenbeleuchtung<\/td>\s*<td class="figure">450,00\s€/)
+    // A title is a heading, and the total is what the positions add up to.
+    expect(html).toMatch(/Summe netto<\/td><td class="figure">1\.950,00\s€/)
+  })
+
+  it('numbers a document without titles plainly and prints no section sums', () => {
+    const { html } = page(quote, { lines: [line(1, 1000), line(2, 2000)] })
+
+    expect(html).toMatch(/<td class="position">2<\/td>/)
+    expect(html).not.toContain('Summe Titel')
+    expect(html).not.toContain('class="title"')
+  })
+
+  it('prints the text above the lines and the one below the notes, as written', () => {
+    const { html } = page({
+      ...quote,
+      taxTreatment: 'small_business',
+      introText: 'Sehr geehrte Familie Berg,\nvielen Dank für Ihre Anfrage.',
+      closingText: 'Wir freuen uns auf Ihren Auftrag. <b>Gültig vier Wochen.</b>',
+    })
+
+    expect(html).toContain(
+      '<div class="text intro">Sehr geehrte Familie Berg,\nvielen Dank für Ihre Anfrage.</div>',
+    )
+    expect(html).toContain('&lt;b&gt;Gültig vier Wochen.&lt;/b&gt;')
+
+    const order = [
+      html.indexOf('class="text intro"'),
+      html.indexOf('<table class="lines">'),
+      html.indexOf('Gemäß § 19 UStG'),
+      html.indexOf('class="text closing"'),
+    ]
+
+    expect(order.every((at) => at > 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+  })
+
+  it('leaves both texts out when there are none', () => {
+    const { html } = page(quote)
+
+    expect(html).not.toContain('class="text intro"')
+    expect(html).not.toContain('class="text closing"')
+  })
+})
+
 describe('a draft', () => {
   it('says so, has no number yet, and carries the mark across the page', () => {
     const { html } = page({ number: null })
@@ -173,6 +252,8 @@ describe('the footer', () => {
         serviceFrom: null,
         serviceUntil: null,
         subject: null,
+        introText: null,
+        closingText: null,
         taxTreatment: 'standard',
       },
       lines: [line(1, 1000)],

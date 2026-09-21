@@ -186,6 +186,10 @@ describe('the tables', () => {
     // document file by the first print, both on the server by definition. And
     // `files` holds nothing a device writes yet; the photo taken on a roof
     // arrives with its own issue, and with it the question how a file travels.
+    //
+    // The text snippets from #72 are picked from at a desk, and inserting one
+    // copies its text into the document, which does travel. A device that
+    // needed the list would get it with the documents that come to the site.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -197,7 +201,8 @@ describe('the tables', () => {
       name === 'letterheads' ||
       name === 'document_snapshots' ||
       name === 'document_files' ||
-      name === 'files'
+      name === 'files' ||
+      name === 'text_snippets'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

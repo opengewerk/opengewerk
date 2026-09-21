@@ -40,6 +40,13 @@ export class RequestRefused extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /**
+     * The whole answer, for the few refusals that carry more than a sentence:
+     * issuing a document lists every mandatory detail that is missing, and a
+     * screen that wants to show them as a list should not have to take the
+     * sentence apart again.
+     */
+    readonly body: unknown = null,
   ) {
     super(message)
     this.name = 'RequestRefused'
@@ -62,6 +69,7 @@ async function refusal(response: Response): Promise<RequestRefused> {
     return new RequestRefused(
       response.status,
       typeof message === 'string' ? message : Array.isArray(message) ? message.join(' ') : fallback,
+      body,
     )
   } catch {
     return new RequestRefused(response.status, fallback)
