@@ -6,6 +6,7 @@ import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import {
   type DocumentContent,
+  documentContentVersion,
   policyFor,
   roles,
   signedContentFingerprint,
@@ -522,8 +523,9 @@ describe('a signed report', () => {
       [report.id],
     )
 
+    // The number itself is held in `domain`, where the outline test pins it.
     expect(rows[0]?.content).toMatchObject({
-      version: 3,
+      version: documentContentVersion,
       signature: { signerName: 'Erika Berg', path: scribble },
     })
   })

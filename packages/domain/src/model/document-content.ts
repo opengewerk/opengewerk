@@ -1,4 +1,4 @@
-import type { DocumentTotals } from '../rules/invoice.js'
+import type { BilledAmount, DocumentTotals } from '../rules/invoice.js'
 import type { VatRate } from '../rules/tax.js'
 import type { Address } from './address.js'
 import type { DocumentKind, TaxTreatment } from './document.js'
@@ -26,9 +26,10 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  * prints it, so the template only ever knows one.
  *
  * Version 2 added the titles among the lines and the two texts around them,
- * version 3 the signature.
+ * version 3 the signature, version 4 the progress invoices a document deducts
+ * and the amount it bills after them.
  */
-export const documentContentVersion = 3
+export const documentContentVersion = 4
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -94,6 +95,21 @@ export interface SignatureContent {
   readonly path: string
 }
 
+/**
+ * A progress invoice an invoice takes off, as it was printed: its number and
+ * date, so the customer can find it, and what it billed, net and tax per rate.
+ *
+ * The figures are copied out of that invoice's own snapshot and never worked
+ * out again. That is what section 14 (5) UStG asks for, and it is what makes
+ * the chain add up: see `billedAfter`.
+ */
+export interface DeductionContent {
+  readonly number: string
+  readonly documentDate: IsoDate
+  readonly taxTreatment: TaxTreatment
+  readonly billed: BilledAmount
+}
+
 export interface DocumentContent {
   readonly version: typeof documentContentVersion
   readonly kind: DocumentKind
@@ -124,10 +140,28 @@ export interface DocumentContent {
   readonly notes: readonly string[]
   /** Null for every document nobody signed, which is nearly all of them. */
   readonly signature: SignatureContent | null
+  /**
+   * The earlier progress invoices of the chain that this one takes off, oldest
+   * first. Empty for every document that deducts nothing.
+   */
+  readonly deductions: readonly DeductionContent[]
+  /**
+   * What this document asks to be paid: the totals less the deductions. The
+   * same figures as the totals whenever nothing is deducted.
+   */
+  readonly billed: BilledAmount
+}
+
+/** The third shape, from #73: the signature, and nothing deducted yet. */
+export interface DocumentContentV3 extends Omit<
+  DocumentContent,
+  'version' | 'deductions' | 'billed'
+> {
+  readonly version: 3
 }
 
 /** The second shape, from #72: titles and texts, and no signature yet. */
-export interface DocumentContentV2 extends Omit<DocumentContent, 'version' | 'signature'> {
+export interface DocumentContentV2 extends Omit<DocumentContentV3, 'version' | 'signature'> {
   readonly version: 2
 }
 
@@ -145,7 +179,8 @@ export interface DocumentContentV1 extends Omit<
 }
 
 /** Any shape a snapshot may have been written in. */
-export type StoredDocumentContent = DocumentContent | DocumentContentV2 | DocumentContentV1
+export type StoredDocumentContent =
+  DocumentContent | DocumentContentV3 | DocumentContentV2 | DocumentContentV1
 
 /**
  * The content of a document, written once, when it is issued.

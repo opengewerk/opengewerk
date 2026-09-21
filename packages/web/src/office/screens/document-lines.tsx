@@ -1,5 +1,16 @@
-import type { DocumentTotals, LineKind, RecordState, VatRate } from '@opengewerk/domain'
+import type {
+  BilledAmount,
+  DeductionContent,
+  DocumentKind,
+  DocumentTotals,
+  LineKind,
+  RecordState,
+  TaxTreatment,
+  VatRate,
+} from '@opengewerk/domain'
 import {
+  billedAfter,
+  deducts,
   lineNetCents,
   lineUnits,
   outlineRows,
@@ -9,6 +20,7 @@ import {
   totalsFor,
   vatRates,
 } from '@opengewerk/domain'
+import { useQuery } from '@tanstack/react-query'
 import { Fragment, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -26,6 +38,7 @@ import {
 import {
   amount,
   centsAsInput,
+  date,
   euros,
   largestStored,
   parseEuros,
@@ -43,10 +56,12 @@ import {
   vatRateOf,
 } from '../../app/labels.js'
 import { asTextOrNull } from '../../app/record-form.js'
+import { deductionsOf } from '../../session/documents.js'
 import { refusalText } from '../../sync/client.js'
 import type { EditResult } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRelated, useSync } from '../../sync/provider.js'
+import { RequestRefused } from '../../sync/transport.js'
 import { Nothing, Section } from '../layout.js'
 import { SnippetPicker } from './snippet-picker.js'
 
@@ -307,7 +322,16 @@ export function LinesSection({
   const documentId = String(document['id'])
   const records = useRelated('document_lines', 'documentId', documentId)
   const lines = useMemo(() => inOrder(records), [records])
-  const priced = showsPrices(documentKindOf(document))
+  const kind = documentKindOf(document)
+  const priced = showsPrices(kind)
+  const deducting = deducts(kind)
+  // What earlier progress invoices billed, as they froze it. Only the server
+  // holds that; everything else on this screen comes out of the local store.
+  const deductions = useQuery({
+    queryKey: ['deductions', documentId],
+    queryFn: () => deductionsOf(documentId),
+    enabled: deducting,
+  })
   const taxed = priced && taxTreatmentOf(document) === 'standard'
   const rows = outlineRows(lines).filter((row) => priced || row.row !== 'subtotal')
   const totals = totalsOf(document, lines)
@@ -536,7 +560,22 @@ export function LinesSection({
           </div>
         )}
 
-        {priced ? <Totals totals={totals} taxed={taxed} /> : null}
+        {priced ? (
+          <Totals
+            totals={totals}
+            taxed={taxed}
+            kind={kind}
+            taxTreatment={taxTreatmentOf(document)}
+            deductions={deducting && Array.isArray(deductions.data) ? deductions.data : []}
+            deductionTrouble={
+              deductions.error
+                ? deductions.error instanceof RequestRefused
+                  ? deductions.error.message
+                  : 'Die Abzüge früherer Abschlagsrechnungen ließen sich ohne Verbindung nicht laden.'
+                : null
+            }
+          />
+        ) : null}
 
         {editable && adding === null ? (
           <div className="flex flex-wrap gap-2">
@@ -592,16 +631,49 @@ export function LinesSection({
 }
 
 /**
+ * What a document bills after its deductions, or the sentence the rule answers
+ * with when the progress invoices do not fit it.
+ */
+function billedOrRefusal(
+  totals: DocumentTotals,
+  deductions: readonly DeductionContent[],
+  taxTreatment: TaxTreatment,
+): BilledAmount | string {
+  try {
+    return billedAfter(totals, deductions, taxTreatment)
+  } catch (error) {
+    if (error instanceof RuleError) {
+      return error.message
+    }
+
+    throw error
+  }
+}
+
+/**
  * The figures under the lines, in the order the printed document has them:
  * the net sum, the tax per rate with the amount it is on, the total. Without
  * tax only the total, and the sentence that says why.
+ *
+ * An invoice that takes off earlier progress invoices goes on the way the
+ * paper does: each of them with its number, date and what it billed, and then
+ * what this one asks for. The arithmetic is `billedAfter` from `domain`, the
+ * same the server prints with.
  */
 function Totals({
   totals,
   taxed,
+  kind,
+  taxTreatment,
+  deductions,
+  deductionTrouble,
 }: {
   readonly totals: DocumentTotals | string
   readonly taxed: boolean
+  readonly kind: DocumentKind
+  readonly taxTreatment: TaxTreatment
+  readonly deductions: readonly DeductionContent[]
+  readonly deductionTrouble: string | null
 }) {
   if (typeof totals === 'string') {
     return (
@@ -610,6 +682,14 @@ function Totals({
       </p>
     )
   }
+
+  const deducting = deductions.length > 0
+  const billed = deducting ? billedOrRefusal(totals, deductions, taxTreatment) : null
+  const whole = deducting
+    ? kind === 'progress_invoice'
+      ? 'Leistungsstand gesamt'
+      : 'Gesamtleistung'
+    : 'Gesamtbetrag'
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -628,9 +708,53 @@ function Totals({
             ))}
           </>
         ) : null}
-        <dt className="font-semibold">Gesamtbetrag</dt>
+        <dt className="font-semibold">{whole}</dt>
         <dd className="numeric text-right font-semibold">{euros(totals.grossCents)}</dd>
+        {deductions.map((deduction) => (
+          <Fragment key={deduction.number}>
+            <dt className="text-ink-muted">
+              {`abzüglich Abschlagsrechnung ${deduction.number} vom ${date(deduction.documentDate)}`}
+              {taxed ? (
+                <span className="block text-table">
+                  {`netto ${euros(deduction.billed.netCents)}, Umsatzsteuer ${euros(deduction.billed.taxCents)}`}
+                </span>
+              ) : null}
+            </dt>
+            <dd className="numeric text-right">{euros(-deduction.billed.grossCents)}</dd>
+          </Fragment>
+        ))}
+        {billed !== null && typeof billed !== 'string' ? (
+          <>
+            {taxed
+              ? billed.byRate.map((entry) => {
+                  const group =
+                    billed.byRate.length === 1 ? '' : ` zu ${percent(entry.basisPoints)}`
+
+                  return (
+                    <Fragment key={entry.rate}>
+                      <dt className="text-ink-muted">{`Rechnungsbetrag netto${group}`}</dt>
+                      <dd className="numeric text-right">{euros(entry.netCents)}</dd>
+                      <dt className="text-ink-muted">{`Umsatzsteuer${group}`}</dt>
+                      <dd className="numeric text-right">{euros(entry.taxCents)}</dd>
+                    </Fragment>
+                  )
+                })
+              : null}
+            <dt className="font-semibold">Rechnungsbetrag</dt>
+            <dd className="numeric text-right font-semibold">{euros(billed.grossCents)}</dd>
+          </>
+        ) : null}
       </dl>
+      {typeof billed === 'string' ? (
+        <p role="alert" className="text-body font-semibold text-conflict">
+          {billed}
+        </p>
+      ) : null}
+      {deductionTrouble ? (
+        <p role="alert" className="text-body font-semibold text-conflict">
+          {deductionTrouble}
+        </p>
+      ) : null}
       {totals.taxNote ? <p className="text-table text-ink-muted">{totals.taxNote}</p> : null}
     </div>
   )

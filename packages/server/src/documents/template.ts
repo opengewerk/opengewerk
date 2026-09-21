@@ -356,32 +356,81 @@ function lines(content: DocumentContent): string {
  *
  * Without tax there is one figure and no zero line. What explains it is the
  * note underneath, and "0,00 € Umsatzsteuer" would say something else.
+ *
+ * An invoice that takes off earlier progress invoices prints three parts, in
+ * the order the arithmetic runs: the whole of the work, each progress invoice
+ * it deducts with its number and date and what it billed, and what this
+ * invoice asks for. The last part states net and tax once more, per rate,
+ * because those are the figures of this invoice in the sense of numbers 7 and
+ * 8; the first part is what they are worked out from. The tax of the last part
+ * carries no percentage. After a change of rate it is the tax on the whole less
+ * the tax stated before, which is right and is not the rate times the net
+ * beside it; the rate stands in the first part, where it applies.
  */
 function totals(content: DocumentContent): string {
-  const { totals: sums } = content
+  const { totals: sums, billed } = content
 
   if (!showsPrices(content.kind)) {
     return ''
   }
 
-  if (content.taxTreatment !== 'standard') {
-    return `<table class="totals">
-      <tr class="grand"><td>Gesamtbetrag</td><td class="figure">${euros(sums.grossCents)}</td></tr>
-    </table>`
+  const taxed = content.taxTreatment === 'standard'
+  const deducting = content.deductions.length > 0
+  const figure = (cents: number) => `<td class="figure">${euros(cents)}</td>`
+  const whole = deducting
+    ? content.kind === 'progress_invoice'
+      ? 'Leistungsstand gesamt'
+      : 'Gesamtleistung'
+    : 'Gesamtbetrag'
+
+  const work = taxed
+    ? `<tr><td>Summe netto</td>${figure(sums.netCents)}</tr>` +
+      sums.byRate
+        .map(
+          (entry) =>
+            `<tr><td>Umsatzsteuer ${percent(entry.basisPoints)} auf ${euros(entry.netCents)}</td>` +
+            `${figure(entry.taxCents)}</tr>`,
+        )
+        .join('') +
+      `<tr class="${deducting ? 'whole' : 'grand'}"><td>${whole}</td>${figure(sums.grossCents)}</tr>`
+    : `<tr class="${deducting ? 'whole' : 'grand'}"><td>${whole}</td>${figure(sums.grossCents)}</tr>`
+
+  if (!deducting) {
+    return `<table class="totals">${work}</table>`
   }
 
-  const rates = sums.byRate
+  const deductions = content.deductions
     .map(
-      (entry) =>
-        `<tr><td>Umsatzsteuer ${percent(entry.basisPoints)} auf ${euros(entry.netCents)}</td>` +
-        `<td class="figure">${euros(entry.taxCents)}</td></tr>`,
+      (deduction) =>
+        `<tr class="deduction"><td>abzüglich Abschlagsrechnung ${text(deduction.number)} ` +
+        `vom ${day(deduction.documentDate)}` +
+        (taxed
+          ? `<div class="detail">netto ${euros(deduction.billed.netCents)}, ` +
+            `Umsatzsteuer ${euros(deduction.billed.taxCents)}</div>`
+          : '') +
+        `</td>${figure(-deduction.billed.grossCents)}</tr>`,
     )
     .join('')
 
+  const single = billed.byRate.length === 1
+  const due = taxed
+    ? billed.byRate
+        .map((entry) => {
+          const group = single ? '' : ` zu ${percent(entry.basisPoints)}`
+
+          return (
+            `<tr><td>Rechnungsbetrag netto${group}</td>${figure(entry.netCents)}</tr>` +
+            `<tr><td>Umsatzsteuer${group}</td>${figure(entry.taxCents)}</tr>`
+          )
+        })
+        .join('')
+    : ''
+
   return `<table class="totals">
-    <tr><td>Summe netto</td><td class="figure">${euros(sums.netCents)}</td></tr>
-    ${rates}
-    <tr class="grand"><td>Gesamtbetrag</td><td class="figure">${euros(sums.grossCents)}</td></tr>
+    ${work}
+    ${deductions}
+    ${due}
+    <tr class="grand"><td>Rechnungsbetrag</td>${figure(billed.grossCents)}</tr>
   </table>`
 }
 
@@ -443,6 +492,9 @@ const pageStyle = `
   .totals .grand td {
     font-weight: 600; font-size: 10.5pt; border-top: 0.6pt solid #1b2430; padding-top: 1.8mm;
   }
+  .totals .whole td { font-weight: 600; border-top: 0.3pt solid #9aa3ad; padding-bottom: 2.5mm; }
+  .totals .deduction td { vertical-align: top; }
+  .totals .detail { font-size: 8pt; color: #5b6573; }
   .signature { margin-top: 12mm; width: 80mm; break-inside: avoid; }
   .signature-picture { display: block; width: 80mm; height: 32mm; }
   .signature-line {

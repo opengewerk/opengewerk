@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { DocumentContentV1, LineContent } from '../model/document-content.js'
-import { successorsOf } from '../model/document.js'
+import { deducts, documentKinds, successorsOf } from '../model/document.js'
 import { currentContent } from './document-content.js'
 import { outlineRows } from './outline.js'
 
@@ -129,21 +129,54 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(3)
+    expect(read.version).toBe(4)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
     expect(read.lines).toEqual([{ ...plain, kind: 'item' }])
     // The figures are carried over, not worked out again.
     expect(read.totals).toBe(first.totals)
+    // Nothing was deducted before version 4, so it billed what it totalled.
+    expect(read.deductions).toEqual([])
+    expect(read.billed).toEqual({
+      netCents: 124000,
+      taxCents: 23560,
+      grossCents: 147560,
+      byRate: [],
+    })
   })
 })
 
 describe('the chain of documents', () => {
-  it('lets an order confirmation follow a quote and an estimate, and nothing else yet', () => {
-    expect(successorsOf('quote')).toEqual(['order_confirmation'])
-    expect(successorsOf('cost_estimate')).toEqual(['order_confirmation'])
-    expect(successorsOf('order_confirmation')).toEqual([])
+  it('lets an order confirmation follow a quote and an estimate', () => {
+    expect(successorsOf('quote')).toContain('order_confirmation')
+    expect(successorsOf('cost_estimate')).toContain('order_confirmation')
+  })
+
+  it('lets an invoice follow whatever the work was agreed or recorded on', () => {
+    for (const agreed of ['quote', 'cost_estimate', 'order_confirmation'] as const) {
+      expect(successorsOf(agreed)).toEqual(
+        expect.arrayContaining(['progress_invoice', 'final_invoice']),
+      )
+    }
+
+    // A report records work that is done, so it is settled and not paid on.
+    expect(successorsOf('time_and_material_report')).toEqual(['final_invoice'])
+  })
+
+  it('chains progress invoices, each deducting the ones before it', () => {
+    expect(successorsOf('progress_invoice')).toEqual(['progress_invoice', 'final_invoice'])
+    expect(deducts('progress_invoice')).toBe(true)
+    expect(deducts('final_invoice')).toBe(true)
+    expect(deducts('order_confirmation')).toBe(false)
+  })
+
+  it('ends at the final invoice, which is cancelled and not followed', () => {
     expect(successorsOf('final_invoice')).toEqual([])
+    // The cancellation has a route of its own and is never written out of the
+    // chain, so no kind leads to it.
+    for (const kind of documentKinds) {
+      expect(successorsOf(kind)).not.toContain('cancellation_invoice')
+    }
   })
 })

@@ -4,7 +4,7 @@ import type { TaxTreatment } from '../model/document.js'
 import { taxNotes } from '../model/document.js'
 import type { IsoDate } from '../model/identifier.js'
 import type { RuleSet } from './rule.js'
-import { withoutNegativeZero } from './rule.js'
+import { RuleError, withoutNegativeZero } from './rule.js'
 import type { TaxedAmount, VatRate } from './tax.js'
 import { vatOn } from './tax.js'
 
@@ -119,6 +119,124 @@ export function totalsFor(
     byRate,
     taxNote: taxNotes.standard,
   }
+}
+
+/**
+ * What a document asks to be paid: its totals, less what the progress
+ * invoices before it billed. The same figures as the totals for every document
+ * that deducts nothing, which is nearly all of them.
+ */
+export interface BilledAmount {
+  readonly netCents: number
+  readonly taxCents: number
+  readonly grossCents: number
+  /** Per rate, in the same fixed order as the totals. */
+  readonly byRate: readonly RateTotal[]
+}
+
+/** An earlier invoice taken off this one, as far as the arithmetic needs it. */
+export interface Deducted {
+  readonly number: string
+  readonly taxTreatment: TaxTreatment
+  readonly billed: BilledAmount
+}
+
+/** The totals of a document that deducts nothing, as the amount it bills. */
+export function billedOf(totals: DocumentTotals): BilledAmount {
+  return {
+    netCents: totals.netCents,
+    taxCents: totals.taxCents,
+    grossCents: totals.grossCents,
+    byRate: totals.byRate,
+  }
+}
+
+/**
+ * What a document bills once the progress invoices before it have been taken
+ * off: section 4.2, the total progress less what was billed so far.
+ *
+ * Taken off as they were printed, net and tax per rate, and never worked out
+ * again. That is what makes the chain add up to the cent: every progress
+ * invoice bills the difference between its own total and what the ones before
+ * it said, so the final invoice ends exactly at the total of the work, however
+ * each of them rounded. It is also what section 14 (5) UStG asks of a final
+ * invoice: the partial amounts and the tax on them are deducted as invoiced.
+ *
+ * A rate is matched by its name and not by its figure. Should the rate change
+ * between a progress invoice and the final one, the final invoice taxes the
+ * whole work at the rate of its own date and deducts the tax that was stated
+ * before, which is how a change of rate is settled. The figure printed for the
+ * rate is the document's own.
+ *
+ * The treatment has to be the same throughout. A progress invoice with tax and
+ * a final invoice under section 19 cannot be subtracted from each other without
+ * producing a negative tax nobody owes, so that is refused with the number of
+ * the invoice that does not fit.
+ */
+export function billedAfter(
+  totals: DocumentTotals,
+  deductions: readonly Deducted[],
+  taxTreatment: TaxTreatment,
+): BilledAmount {
+  const odd = deductions.find((deduction) => deduction.taxTreatment !== taxTreatment)
+
+  if (odd) {
+    throw new RuleError(
+      `Die Abschlagsrechnung ${odd.number} ist anders besteuert als diese Rechnung. Beide ` +
+        'gehen nur mit demselben Steuerfall ineinander auf.',
+    )
+  }
+
+  if (deductions.length === 0) {
+    return billedOf(totals)
+  }
+
+  const perRate = new Map<VatRate, { basisPoints: number; netCents: number; taxCents: number }>()
+
+  for (const entry of totals.byRate) {
+    perRate.set(entry.rate, {
+      basisPoints: entry.basisPoints,
+      netCents: entry.netCents,
+      taxCents: entry.taxCents,
+    })
+  }
+
+  for (const deduction of deductions) {
+    for (const entry of deduction.billed.byRate) {
+      const current = perRate.get(entry.rate) ?? {
+        basisPoints: entry.basisPoints,
+        netCents: 0,
+        taxCents: 0,
+      }
+
+      perRate.set(entry.rate, {
+        basisPoints: current.basisPoints,
+        netCents: current.netCents - entry.netCents,
+        taxCents: current.taxCents - entry.taxCents,
+      })
+    }
+  }
+
+  const byRate: RateTotal[] = [...perRate.keys()].sort().map((rate) => {
+    const entry = perRate.get(rate) ?? { basisPoints: 0, netCents: 0, taxCents: 0 }
+
+    return {
+      rate,
+      basisPoints: entry.basisPoints,
+      netCents: withoutNegativeZero(entry.netCents),
+      taxCents: withoutNegativeZero(entry.taxCents),
+      grossCents: withoutNegativeZero(entry.netCents + entry.taxCents),
+    }
+  })
+
+  const netCents = withoutNegativeZero(
+    deductions.reduce((rest, deduction) => rest - deduction.billed.netCents, totals.netCents),
+  )
+  const taxCents = withoutNegativeZero(
+    deductions.reduce((rest, deduction) => rest - deduction.billed.taxCents, totals.taxCents),
+  )
+
+  return { netCents, taxCents, grossCents: withoutNegativeZero(netCents + taxCents), byRate }
 }
 
 /** What the two sides say about how a document should be taxed. */

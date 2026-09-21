@@ -1,8 +1,10 @@
 import type { Document } from '../model/document.js'
 import { isInvoice, retentionNote, showsPrices, taxNotes } from '../model/document.js'
 import type {
+  DeductionContent,
   DocumentContent,
   DocumentContentV2,
+  DocumentContentV3,
   IssuerContent,
   LineContent,
   RecipientContent,
@@ -12,7 +14,7 @@ import type {
 } from '../model/document-content.js'
 import { documentContentVersion } from '../model/document-content.js'
 import type { DocumentLine } from '../model/document-line.js'
-import { totalsFor } from './invoice.js'
+import { billedAfter, billedOf, totalsFor } from './invoice.js'
 import type { RuleSet } from './rule.js'
 
 /** What a document is put together from. Gathering it is the caller's work. */
@@ -34,6 +36,13 @@ export interface ContentSources {
   readonly recipient: RecipientContent
   readonly site: SiteContent | null
   readonly signature: SignatureContent | null
+  /**
+   * The progress invoices of the chain this document takes off, oldest first,
+   * as their snapshots state them. Gathered by the caller, because finding them
+   * means walking the chain and reading what was frozen, and empty for every
+   * kind that deducts nothing.
+   */
+  readonly deductions: readonly DeductionContent[]
 }
 
 /**
@@ -105,6 +114,8 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       netCents: line.netCents,
     }))
 
+  const totals = totalsFor(rules, lines, document)
+
   return {
     version: documentContentVersion,
     kind: document.kind,
@@ -120,13 +131,15 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     recipient: sources.recipient,
     site: sources.site,
     lines,
-    totals: totalsFor(rules, lines, document),
+    totals,
     notes: printedNotes({
       kind: document.kind,
       taxTreatment: document.taxTreatment,
       recipientIsBusiness: sources.recipient.isBusiness,
     }),
     signature: sources.signature,
+    deductions: sources.deductions,
+    billed: billedAfter(totals, sources.deductions, document.taxTreatment),
   }
 }
 
@@ -136,16 +149,27 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * The snapshot itself is never rewritten, that is the point of it. What
  * changes is how it is read, one version at a time: a record from version 1
  * had no titles and no texts, so every line of it is a position and both texts
- * are empty; a record from version 2 had no signature. That is exactly what
- * each of them said when it was printed. The figures, the addresses and the
- * notes are carried over as they are.
+ * are empty; a record from version 2 had no signature; a record from version 3
+ * deducted nothing and billed its totals. That is exactly what each of them
+ * said when it was printed. The figures, the addresses and the notes are
+ * carried over as they are.
  */
 export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 2:
-      return { ...stored, version: documentContentVersion, signature: null }
+    case 3:
+      return {
+        ...stored,
+        version: documentContentVersion,
+        deductions: [],
+        billed: billedOf(stored.totals),
+      }
+    case 2: {
+      const third: DocumentContentV3 = { ...stored, version: 3, signature: null }
+
+      return currentContent(third)
+    }
     case 1: {
       const second: DocumentContentV2 = {
         ...stored,

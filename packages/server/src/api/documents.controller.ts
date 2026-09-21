@@ -40,6 +40,7 @@ import {
   numberRanges,
 } from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
+import { deductionsFor } from '../documents/deductions.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
@@ -292,8 +293,9 @@ export class DocumentsController {
 
   /**
    * The next document in the chain of section 1.4, made out of this one: an
-   * order confirmation out of a quote, and later the report and the invoice out
-   * of that. Which kind may follow which is `successorKinds` in `domain`.
+   * order confirmation out of a quote, an invoice out of what the work was
+   * agreed or recorded on, the next progress invoice out of the one before.
+   * Which kind may follow which is `successorKinds` in `domain`.
    *
    * On the server and in one transaction, because it is a head and every line
    * of the predecessor. Through the outbox it would be dozens of operations
@@ -316,6 +318,11 @@ export class DocumentsController {
    * The texts above and below the lines stay behind. They were written for
    * the letter the quote was, and an order confirmation that opens with
    * "thank you for your enquiry" answers a question nobody asked any more.
+   *
+   * The time of the work comes along where the predecessor knows it. A report
+   * is written on the day of the work, so its date is the date of service of
+   * the invoice made out of it, which section 14 (4) number 6 UStG asks for;
+   * any other predecessor passes on the period it states, if it states one.
    */
   @Post(':id/successors')
   @RequiresPermission('document.write')
@@ -373,6 +380,10 @@ export class DocumentsController {
           documentDate,
           subject: predecessor.subject,
           taxTreatment: predecessor.taxTreatment,
+          serviceFrom:
+            predecessor.serviceFrom ??
+            (predecessor.kind === 'time_and_material_report' ? predecessor.documentDate : null),
+          serviceUntil: predecessor.serviceUntil,
         })
         .returning()
 
@@ -405,6 +416,38 @@ export class DocumentsController {
       }
 
       return created
+    })
+  }
+
+  /**
+   * The progress invoices this document takes off, as they stand in their
+   * snapshots, oldest first. Empty for a kind that deducts nothing.
+   *
+   * For the screen of a draft. Once the document is issued, the same list is
+   * part of what it froze, and its PDF prints from there.
+   */
+  @Get(':id/deductions')
+  @RequiresPermission('document.read')
+  async deductions(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    return this.database.forTenant(identity, async (tx) => {
+      const [document] = await tx
+        .select()
+        .from(documents)
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+
+      if (!document) {
+        throw new NotFoundException()
+      }
+
+      try {
+        return await deductionsFor(tx, document)
+      } catch (error) {
+        if (error instanceof RuleError) {
+          throw new UnprocessableEntityException(error.message)
+        }
+
+        throw error
+      }
     })
   }
 

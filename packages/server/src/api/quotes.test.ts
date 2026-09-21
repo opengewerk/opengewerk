@@ -492,7 +492,9 @@ describe('an order confirmation out of a quote', () => {
   it('follows only the kinds the chain allows', async () => {
     const quote = await issuedQuote()
 
-    await successor(quote.id, { kind: 'final_invoice' }).expect(400)
+    // A cancellation is made out of an invoice by a route of its own, never
+    // written out of the chain.
+    await successor(quote.id, { kind: 'cancellation_invoice' }).expect(400)
     await successor(quote.id, { kind: 'invoice' }).expect(400)
     await successor(quote.id, {}).expect(400)
 
@@ -501,7 +503,8 @@ describe('an order confirmation out of a quote', () => {
     await add(confirmation.id, item('Nachtrag', 1000))
     await issue(confirmation.id)
 
-    // Not yet: the report and the invoice add their links when they are built.
+    // An order confirmation confirms one quote; a second one out of it would
+    // confirm the confirmation.
     await successor(confirmation.id, { kind: 'order_confirmation' }).expect(400)
   })
 

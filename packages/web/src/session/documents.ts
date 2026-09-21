@@ -1,4 +1,5 @@
 import type {
+  DeductionContent,
   DocumentKind,
   IsoDate,
   MissingDetail,
@@ -69,6 +70,16 @@ export function makeSuccessor(id: string, kind: DocumentKind): Promise<RecordSta
  * browser opens it in a tab of its own, with its own viewer, and the session
  * cookie goes along by itself.
  */
+/**
+ * The progress invoices a document takes off, read by the server out of what
+ * those invoices froze when they were issued. Only the server can answer: the
+ * frozen records never travel to a device, and working the figures out again
+ * from the lines could deduct an amount that is not the one on the paper.
+ */
+export function deductionsOf(id: string): Promise<readonly DeductionContent[]> {
+  return request<readonly DeductionContent[]>(`/documents/${encodeURIComponent(id)}/deductions`)
+}
+
 export function pdfAddress(id: string): string {
   return `/documents/${encodeURIComponent(id)}/pdf`
 }
