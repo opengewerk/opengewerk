@@ -163,15 +163,26 @@ export class EInvoiceController {
   ): Promise<EInvoiceStatus> {
     return this.database.forTenant(identity, async (tx) => {
       const { document, content } = await contentFor(tx, documentId)
-      const choice = formatFor(shippedRules, content)
 
-      return {
-        ...choice,
-        duty: choice.format === 'e_invoice' ? await dutyOf(tx, content) : null,
-        issued: document.number !== null,
-        xrechnung: {
-          missing: choice.format === 'e_invoice' ? eInvoiceGaps(content, 'xrechnung') : [],
-        },
+      try {
+        const choice = formatFor(shippedRules, content)
+
+        return {
+          ...choice,
+          duty: choice.format === 'e_invoice' ? await dutyOf(tx, content) : null,
+          issued: document.number !== null,
+          xrechnung: {
+            missing: choice.format === 'e_invoice' ? eInvoiceGaps(content, 'xrechnung') : [],
+          },
+        }
+      } catch (error) {
+        // A date the rules have no answer for, one from before the packages
+        // begin, is something the office can fix, as it is at issuing.
+        if (error instanceof RuleError) {
+          throw new UnprocessableEntityException(error.message)
+        }
+
+        throw error
       }
     })
   }
@@ -243,29 +254,29 @@ export class EInvoiceController {
    * something somebody fixes in another place.
    */
   private make(content: DocumentContent): Uint8Array {
-    const choice = formatFor(shippedRules, content)
-
-    if (choice.format !== 'e_invoice') {
-      throw new ConflictException(`Dieser Beleg geht als PDF hinaus. ${choice.reason}`)
-    }
-
-    const missing = [
-      ...missingDetails(shippedRules, content),
-      ...eInvoiceGaps(content, 'xrechnung'),
-    ]
-
-    if (missing.length > 0) {
-      throw new UnprocessableEntityException({
-        statusCode: 422,
-        error: 'Unprocessable Entity',
-        message:
-          'Für die XRechnung fehlen noch Angaben. ' +
-          missing.map((entry) => entry.message).join(' '),
-        missing,
-      })
-    }
-
     try {
+      const choice = formatFor(shippedRules, content)
+
+      if (choice.format !== 'e_invoice') {
+        throw new ConflictException(`Dieser Beleg geht als PDF hinaus. ${choice.reason}`)
+      }
+
+      const missing = [
+        ...missingDetails(shippedRules, content),
+        ...eInvoiceGaps(content, 'xrechnung'),
+      ]
+
+      if (missing.length > 0) {
+        throw new UnprocessableEntityException({
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          message:
+            'Für die XRechnung fehlen noch Angaben. ' +
+            missing.map((entry) => entry.message).join(' '),
+          missing,
+        })
+      }
+
       return new TextEncoder().encode(checkedCii(ciiInvoice(content, 'xrechnung')))
     } catch (error) {
       if (error instanceof RuleError) {

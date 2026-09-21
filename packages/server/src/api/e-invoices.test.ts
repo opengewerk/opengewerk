@@ -354,6 +354,24 @@ describe('the XRechnung', () => {
     ])
   })
 
+  it('answers a date the rules know nothing about with the sentence and not with an error', async () => {
+    const created = await http()
+      .post('/documents')
+      .set('x-test-identity', office())
+      .send({
+        customerId: await customer(business),
+        kind: 'final_invoice',
+        documentDate: '2005-06-01',
+      })
+      .expect(201)
+    const answer = await http()
+      .get(`/documents/${(created.body as { id: string }).id}/e-invoice`)
+      .set('x-test-identity', office())
+      .expect(422)
+
+    expect((answer.body as { message: string }).message).toContain('Zum 2005-06-01')
+  })
+
   it('belongs to the business that issued the invoice and to nobody else', async () => {
     const id = await draft(await customer(business))
 
