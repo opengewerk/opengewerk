@@ -1,14 +1,10 @@
 import {
-  BadGatewayException,
   ConflictException,
   Controller,
   Get,
-  Inject,
-  InternalServerErrorException,
   NotFoundException,
   Param,
   Res,
-  ServiceUnavailableException,
   StreamableFile,
   UnprocessableEntityException,
 } from '@nestjs/common'
@@ -24,18 +20,11 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
 import { Database, type TenantTransaction } from '../database/database.js'
-import { documentFiles, documents, documentSnapshots, files } from '../database/schema/index.js'
+import { documents, documentSnapshots } from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
-import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
-import { documentTitle, printJob } from '../documents/template.js'
-import {
-  type FileStorage,
-  StoredFileDamagedError,
-  StoredFileMissingError,
-} from '../storage/file-store.js'
-import { fileRowFor } from '../storage/files.js'
+import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
-import { FILE_STORE, RENDERER } from './handed-in.js'
+import { DocumentFiles } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** What the first transaction found out about the document. */
@@ -108,8 +97,7 @@ function disposition(printed: Printed): string {
 export class DocumentPdfController {
   constructor(
     private readonly database: Database,
-    @Inject(FILE_STORE) private readonly store: FileStorage,
-    @Inject(RENDERER) private readonly render: Renderer,
+    private readonly files: DocumentFiles,
   ) {}
 
   @Get()
@@ -125,28 +113,25 @@ export class DocumentPdfController {
 
     if (found.state === 'stored') {
       printed = {
-        bytes: await this.read(found.sha256),
+        bytes: await this.files.read(found.sha256),
         kind: found.kind,
         number: found.number,
         signed: false,
       }
+    } else if (found.state === 'live') {
+      printed = {
+        bytes: await this.files.print(found.content),
+        kind: found.content.kind,
+        number: null,
+        signed: found.content.signature !== null,
+      }
     } else {
-      const bytes = await this.print(found.content)
-
-      printed =
-        found.state === 'live'
-          ? {
-              bytes,
-              kind: found.content.kind,
-              number: null,
-              signed: found.content.signature !== null,
-            }
-          : {
-              bytes: await this.keep(identity, documentId as DocumentId, bytes),
-              kind: found.content.kind,
-              number: found.content.number,
-              signed: false,
-            }
+      printed = {
+        bytes: await this.files.issuedPdf(identity, documentId as DocumentId, found.content, null),
+        kind: found.content.kind,
+        number: found.content.number,
+        signed: false,
+      }
     }
 
     // Not for any cache between here and the browser, and not for the
@@ -185,19 +170,10 @@ export class DocumentPdfController {
       }
     }
 
-    const [stored] = await tx
-      .select({ sha256: files.sha256 })
-      .from(documentFiles)
-      .innerJoin(files, eq(files.id, documentFiles.fileId))
-      .where(and(eq(documentFiles.documentId, document.id), eq(documentFiles.purpose, 'pdf')))
+    const stored = await this.files.stored(tx, document.id, 'pdf')
 
-    if (stored) {
-      return {
-        state: 'stored',
-        sha256: stored.sha256,
-        kind: document.kind,
-        number: document.number,
-      }
+    if (stored !== null) {
+      return { state: 'stored', sha256: stored, kind: document.kind, number: document.number }
     }
 
     const [snapshot] = await tx
@@ -220,78 +196,5 @@ export class DocumentPdfController {
     // document texts is read as a document without either, which is what it
     // was, and printed from that.
     return { state: 'unprinted', content: currentContent(snapshot.content) }
-  }
-
-  /**
-   * Prints a content record. A renderer that is not there is an operating
-   * matter and says which service is missing; one that refuses the document
-   * is a fault in the template and says so too, and neither is a crash.
-   */
-  private async print(content: DocumentContent): Promise<Uint8Array> {
-    const logo = content.issuer.logo
-      ? {
-          mediaType: content.issuer.logo.mediaType,
-          bytes: await this.read(content.issuer.logo.sha256),
-        }
-      : null
-
-    try {
-      return await this.render(printJob(content, { logo }))
-    } catch (error) {
-      if (error instanceof RendererUnavailableError) {
-        throw new ServiceUnavailableException(error.message)
-      }
-
-      throw new BadGatewayException(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  /**
-   * Stores the first PDF of an issued document and links it. Returns the bytes
-   * that are linked afterwards, which are these unless somebody else was
-   * faster, in which case they are theirs.
-   *
-   * The bytes go into the store before the row goes into the database. The
-   * other order would, on a failure between the two, leave a row pointing at
-   * a file that does not exist; this order leaves at worst a file nothing
-   * points at, which harms nobody.
-   */
-  private async keep(
-    identity: RequestIdentity,
-    documentId: DocumentId,
-    bytes: Uint8Array,
-  ): Promise<Uint8Array> {
-    const blob = await this.store.put(bytes)
-
-    const linked = await this.database.forTenant(identity, async (tx) => {
-      const fileId = await fileRowFor(tx, identity.tenantId, blob, 'application/pdf')
-
-      await tx
-        .insert(documentFiles)
-        .values({ tenantId: identity.tenantId, documentId, purpose: 'pdf', fileId })
-        .onConflictDoNothing({ target: [documentFiles.documentId, documentFiles.purpose] })
-
-      const [row] = await tx
-        .select({ sha256: files.sha256 })
-        .from(documentFiles)
-        .innerJoin(files, eq(files.id, documentFiles.fileId))
-        .where(and(eq(documentFiles.documentId, documentId), eq(documentFiles.purpose, 'pdf')))
-
-      return row?.sha256
-    })
-
-    return linked === undefined || linked === blob.sha256 ? bytes : await this.read(linked)
-  }
-
-  private async read(sha256: string): Promise<Uint8Array> {
-    try {
-      return await this.store.get(sha256)
-    } catch (error) {
-      if (error instanceof StoredFileMissingError || error instanceof StoredFileDamagedError) {
-        throw new InternalServerErrorException(error.message)
-      }
-
-      throw error
-    }
   }
 }

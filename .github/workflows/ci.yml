@@ -301,19 +301,35 @@ jobs:
         run: pnpm --filter @opengewerk/web run budget
 
   e-invoice:
-    name: E-Rechnung gegen den KoSIT-Validator
+    name: E-Rechnung gegen KoSIT und Mustang
     runs-on: ubuntu-latest
 
     # Das Schema prüft die Anwendung selbst, bei jeder E-Rechnung, bevor sie
     # gespeichert wird. Die Geschäftsregeln von EN 16931 und XRechnung sind
     # Schematron und brauchen XSLT 2, also Java; sie laufen hier, mit dem
     # Validator der KoSIT, gegen die Musterrechnungen aus
-    # packages/server/src/documents/cii.test.ts. Validator und Konfiguration
-    # sind auf eine Fassung festgenagelt und werden per SHA-256 geprüft, damit
-    # ein neuer Regelstand eine bewusste Änderung bleibt.
+    # packages/server/src/documents/test-samples.ts.
+    #
+    # Das ZUGFeRD-PDF prüft Mustang: PDF/A-3 über veraPDF, dazu das XML darin
+    # gegen die Regeln von Factur-X. Gedruckt werden die Muster dafür vom
+    # echten Renderer, demselben Abbild wie in docker/compose.yaml, denn ob
+    # ein PDF als PDF/A-3 durchgeht, hängt an dem, was Chromium schreibt.
+    #
+    # Validator, Konfiguration und Mustang sind auf eine Fassung festgenagelt
+    # und werden per SHA-256 geprüft, damit ein neuer Regelstand eine bewusste
+    # Änderung bleibt.
+    services:
+      renderer:
+        image: ghcr.io/browserless/chromium:latest
+        env:
+          TOKEN: probe
+        ports:
+          - 3999:3000
+
     env:
       KOSIT_VALIDATOR: 1.6.3
       KOSIT_CONFIGURATION: 2026-08-31
+      MUSTANG: 2.26.0
       SAMPLES: ${{ github.workspace }}/e-invoice-samples
 
     steps:
@@ -341,12 +357,31 @@ jobs:
       - name: Domäne bauen
         run: pnpm --filter @opengewerk/domain run build
 
+      - name: Auf den Renderer warten
+        run: |
+          set -euo pipefail
+          # The service container is started before the first step, not
+          # necessarily ready by it.
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:3999/json/version?token=probe"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Der Renderer ist nach einer Minute nicht erreichbar."
+          exit 1
+
       - name: Musterrechnungen schreiben
-        run: pnpm --filter @opengewerk/server exec vitest run src/documents/cii.test.ts
+        run: >-
+          pnpm --filter @opengewerk/server exec vitest run
+          src/documents/cii.test.ts src/documents/zugferd.test.ts
         env:
           CII_SAMPLES_DIR: ${{ env.SAMPLES }}
+          ZUGFERD_SAMPLES_DIR: ${{ env.SAMPLES }}/zugferd
+          RENDERER_URL: http://127.0.0.1:3999
+          RENDERER_TOKEN: probe
 
-      - name: Validator und XRechnung-Konfiguration holen
+      - name: Validator, XRechnung-Konfiguration und Mustang holen
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP"
@@ -354,9 +389,12 @@ jobs:
             "https://github.com/itplr-kosit/validator/releases/download/v${KOSIT_VALIDATOR}/validator-${KOSIT_VALIDATOR}-standalone.jar"
           curl -fsSL -o configuration.zip \
             "https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v${KOSIT_CONFIGURATION}/xrechnung-3.0.2-validator-configuration-${KOSIT_CONFIGURATION}.zip"
+          curl -fsSL -o mustang.jar \
+            "https://github.com/ZUGFeRD/mustangproject/releases/download/core-${MUSTANG}/Mustang-CLI-${MUSTANG}.jar"
           sha256sum -c - <<'SUMS'
           799e64befca97d4080e03608c80b85dd5a5ecc5f4ae4f35d1116ec2855b9a7c9  validator.jar
           2530cd107c414511c5d0462ec10f886910395abfca820db82e83d70bf01221a8  configuration.zip
+          42d7868cb68264874a7b8cab4c3587b03b23ccc7cd72373da917f66758bb9736  mustang.jar
           SUMS
           unzip -q configuration.zip -d configuration
 
@@ -374,11 +412,35 @@ jobs:
             -o "$RUNNER_TEMP/reports" \
             "$SAMPLES"/*.xml
 
+      - name: ZUGFeRD-PDFs prüfen
+        run: |
+          set -euo pipefail
+          count=$(find "$SAMPLES/zugferd" -name '*.pdf' | wc -l)
+          if [ "$count" -lt 5 ]; then
+            echo "Erwartet waren mindestens fünf ZUGFeRD-PDFs, gefunden: $count."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/reports"
+          for pdf in "$SAMPLES"/zugferd/*.pdf; do
+            name=$(basename "$pdf" .pdf)
+            report="$RUNNER_TEMP/reports/$name-mustang.xml"
+            # Mustang ends with an error code on a rejection. The report is
+            # read as well, so that a version which stops doing that does not
+            # turn a rejection into a pass.
+            if ! java -jar "$RUNNER_TEMP/mustang.jar" --action validate --source "$pdf" \
+              --no-notices > "$report" || grep -q 'status="invalid"' "$report"; then
+              echo "Mustang lehnt $name ab:"
+              cat "$report"
+              exit 1
+            fi
+            echo "$name: gültig als PDF/A-3 und als ZUGFeRD im Profil EN 16931"
+          done
+
       - name: Berichte bei einem Fehlschlag
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: kosit-berichte
+          name: e-rechnung-berichte
           path: |
             ${{ runner.temp }}/reports
             ${{ env.SAMPLES }}

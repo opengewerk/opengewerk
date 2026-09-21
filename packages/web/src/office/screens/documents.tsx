@@ -1,4 +1,10 @@
-import type { DocumentKind, DocumentStatus, MissingDetail, RecordState } from '@opengewerk/domain'
+import type {
+  DocumentKind,
+  DocumentStatus,
+  EInvoiceGap,
+  MissingDetail,
+  RecordState,
+} from '@opengewerk/domain'
 import {
   invoiceFormats,
   isCancellable,
@@ -24,6 +30,7 @@ import {
   missingFrom,
   pdfAddress,
   xrechnungAddress,
+  zugferdAddress,
 } from '../../session/documents.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
@@ -344,16 +351,47 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   )
 }
 
+/** A download that looks like the other buttons in the head of the page. */
+const downloadLink =
+  'inline-flex items-center justify-center h-control min-h-tap px-4 rounded-control text-body ' +
+  'font-semibold bg-surface text-ink border border-line-strong'
+
+/** What a form of the e-invoice still lacks, under a heading that says which form. */
+function Gaps({
+  heading,
+  gaps,
+}: {
+  readonly heading: string
+  readonly gaps: readonly EInvoiceGap[]
+}) {
+  if (gaps.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-body font-semibold text-ink">{heading}</p>
+      <ul className="list-disc pl-6 text-body text-ink">
+        {gaps.map((gap) => (
+          <li key={gap.detail}>{gap.message}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /**
  * How an invoice goes out, and why. The customer decides it, not a switch on
  * the document, so the screen says what the master data made of it: an
  * e-invoice for a business in Germany, a PDF for everybody else, each with the
  * paragraph.
  *
- * For an e-invoice it says whether the law already requires it and what an
- * XRechnung would still lack, and it says so on the draft, where a missing
- * e-mail address of the customer is still cheap to add. Once the invoice is
- * issued it offers the file.
+ * For an e-invoice it says whether the law already requires it and what each
+ * of its two forms would still lack, and it says so on the draft, where a
+ * missing e-mail address of the customer is still cheap to add. Once the
+ * invoice is issued it offers the files: the ZUGFeRD PDF, which a business
+ * reads like any invoice and its software reads as data, and the XRechnung,
+ * the XML a public authority asks for.
  *
  * Without a connection it shows nothing rather than a guess. What an issued
  * invoice froze is on the server, and the answer depends on it.
@@ -375,7 +413,7 @@ function EInvoiceCard({
     return null
   }
 
-  const { format, reason, duty, issued, xrechnung } = answer.data
+  const { format, reason, duty, issued, xrechnung, zugferd } = answer.data
 
   if (format === 'pdf') {
     return (
@@ -385,33 +423,45 @@ function EInvoiceCard({
     )
   }
 
+  // The XRechnung asks everything the standard asks and more. What the
+  // standard lacks stops both forms, the rest only the XRechnung.
+  const both = zugferd.missing
+  const onlyXrechnung = xrechnung.missing.filter(
+    (gap) => !both.some((other) => other.detail === gap.detail),
+  )
+
   return (
     <Card label="E-Rechnung">
       <div className="flex flex-col gap-3">
         <p className="text-body text-ink">{reason}</p>
         {duty ? <p className="text-body text-ink">{duty.reason}</p> : null}
-        {xrechnung.missing.length > 0 ? (
-          <div className="flex flex-col gap-1">
-            <p className="text-body font-semibold text-ink">Für die XRechnung fehlt noch:</p>
-            <ul className="list-disc pl-6 text-body text-ink">
-              {xrechnung.missing.map((gap) => (
-                <li key={gap.detail}>{gap.message}</li>
-              ))}
-            </ul>
-          </div>
-        ) : issued ? (
-          <div>
-            <a
-              href={xrechnungAddress(documentId)}
-              download
-              className="inline-flex items-center justify-center h-control min-h-tap px-4 rounded-control text-body font-semibold bg-surface text-ink border border-line-strong"
-            >
-              XRechnung herunterladen
-            </a>
-          </div>
+        <Gaps heading="Für die E-Rechnung fehlt noch:" gaps={both} />
+        <Gaps
+          heading={
+            both.length > 0 ? 'Für die XRechnung außerdem:' : 'Für die XRechnung fehlt noch:'
+          }
+          gaps={onlyXrechnung}
+        />
+        {both.length > 0 ? null : issued ? (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <a href={zugferdAddress(documentId)} download className={downloadLink}>
+                ZUGFeRD-PDF herunterladen
+              </a>
+              {onlyXrechnung.length === 0 ? (
+                <a href={xrechnungAddress(documentId)} download className={downloadLink}>
+                  XRechnung herunterladen
+                </a>
+              ) : null}
+            </div>
+            <p className="text-body text-ink-muted">
+              Das ZUGFeRD-PDF ist die Rechnung als PDF mit den Daten darin, für Unternehmen. Die
+              XRechnung ist die Rechnung als reines XML, wie Behörden sie verlangen.
+            </p>
+          </>
         ) : (
           <p className="text-body text-ink-muted">
-            Die XRechnung gibt es, sobald die Rechnung festgeschrieben ist.
+            Die E-Rechnung gibt es, sobald die Rechnung festgeschrieben ist.
           </p>
         )}
       </div>
