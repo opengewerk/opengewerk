@@ -1,6 +1,7 @@
 import type {
   DeductionContent,
   DocumentKind,
+  EInvoiceStatus,
   IsoDate,
   MissingDetail,
   RecordState,
@@ -95,6 +96,21 @@ export function deductionsOf(id: string): Promise<readonly DeductionContent[]> {
  */
 export function pdfAddress(id: string): string {
   return `/documents/${encodeURIComponent(id)}/pdf`
+}
+
+/**
+ * Which format an invoice goes out in, whether the law already requires the
+ * e-invoice, and what an XRechnung of it would lack. The server answers,
+ * because for an issued invoice only it holds what the invoice froze, and it
+ * answers for a draft too, so that a gap shows before the number is spent.
+ */
+export function eInvoiceOf(id: string): Promise<EInvoiceStatus> {
+  return request<EInvoiceStatus>(`/documents/${encodeURIComponent(id)}/e-invoice`)
+}
+
+/** Where the XRechnung of an issued invoice is, a download like the PDF. */
+export function xrechnungAddress(id: string): string {
+  return `/documents/${encodeURIComponent(id)}/xrechnung`
 }
 
 export interface TextSnippet {

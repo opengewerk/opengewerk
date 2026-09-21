@@ -69,6 +69,7 @@ const fields: Readonly<Record<string, string>> = {
   serviceFrom: 'Leistung ab',
   serviceUntil: 'Leistung bis',
   vatId: 'USt-IdNr.',
+  buyerReference: 'Käuferreferenz',
   isBusiness: 'Unternehmen',
   isConstructionServiceRecipient: 'Bauleistungsempfänger',
   signerName: 'Unterschrieben von',
