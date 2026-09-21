@@ -7,6 +7,7 @@ import {
   ForbiddenException,
   HttpException,
   InternalServerErrorException,
+  PayloadTooLargeException,
 } from '@nestjs/common'
 import type { Response } from 'express'
 
@@ -74,6 +75,13 @@ export class DatabaseExceptionFilter implements ExceptionFilter {
   private translate(error: unknown): HttpException {
     if (error instanceof HttpException) {
       return error
+    }
+
+    // Not the database, but it lands here as well: the body parser refusing a
+    // body over its limit, which since the logo upload is a thing a person
+    // can do by picking the wrong file. Without this it would read as a 500.
+    if ((error as { type?: unknown } | undefined)?.type === 'entity.too.large') {
+      return new PayloadTooLargeException('Die Anfrage ist zu groß.')
     }
 
     const code = databaseCode(error)

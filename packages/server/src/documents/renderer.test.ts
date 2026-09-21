@@ -82,6 +82,32 @@ describe('the renderer', () => {
     })
   })
 
+  it('asks for a footer on every page, and for an empty header with it', async () => {
+    const fetched = vi.fn(async () => new Response(new Uint8Array([0x25]), { status: 200 }))
+    vi.stubGlobal('fetch', fetched)
+
+    await renderPdf('<p>Rechnung</p>', configured, {
+      footerHtml: '<div>Seite <span class="pageNumber"></span></div>',
+      margin: { top: '15mm', right: '20mm', bottom: '32mm', left: '20mm' },
+    })
+
+    const [, request] = fetched.mock.calls[0] as unknown as [URL, RequestInit]
+
+    // Without the empty header Chromium fills the space above every page with
+    // the date and the title of the document, which nobody asked for.
+    expect(JSON.parse(String(request.body))).toEqual({
+      html: '<p>Rechnung</p>',
+      options: {
+        format: 'A4',
+        printBackground: true,
+        displayHeaderFooter: true,
+        headerTemplate: '<span></span>',
+        footerTemplate: '<div>Seite <span class="pageNumber"></span></div>',
+        margin: { top: '15mm', right: '20mm', bottom: '32mm', left: '20mm' },
+      },
+    })
+  })
+
   it('gives up rather than holding a request open forever', async () => {
     vi.stubGlobal(
       'fetch',

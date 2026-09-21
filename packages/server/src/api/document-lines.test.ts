@@ -20,6 +20,7 @@ import {
 
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
+import { invoiceable, readyToInvoice } from './test-invoice.js'
 
 /** Der Fehlercode, mit dem die Trigger einen festgeschriebenen Beleg abweisen. */
 const documentIsFixed = 'OG001'
@@ -92,6 +93,7 @@ beforeAll(async () => {
   await applyMigrations()
   await allowApplicationLogin(admin)
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await readyToInvoice(admin, north.id)
 
   database = Database.connect(applicationDatabaseUrl())
 
@@ -105,7 +107,7 @@ beforeAll(async () => {
   const customer = await http()
     .post('/customers')
     .set('x-test-identity', office())
-    .send({ kind: 'business', name: 'Bauherr Nord' })
+    .send({ kind: 'business', name: 'Bauherr Nord', ...invoiceable })
     .expect(201)
   customerId = customer.body.id
 
@@ -389,6 +391,9 @@ describe('an issued document', () => {
 
   it('refuses a new line written straight to the table as well', async () => {
     const document = await draft()
+    // An invoice without a line is refused at issuing since #71, so it gets
+    // one before. What is tested is the line that comes after.
+    await addLine(document.id)
     await http()
       .post(`/documents/${document.id}/issue`)
       .set('x-test-identity', office())

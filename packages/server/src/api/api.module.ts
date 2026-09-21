@@ -1,20 +1,32 @@
-import { type DynamicModule, Module } from '@nestjs/common'
+import {
+  type DynamicModule,
+  type MiddlewareConsumer,
+  Module,
+  type NestModule,
+  RequestMethod,
+} from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
+import { largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
+import { raw } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { AuthenticationController } from '../authentication/authentication.controller.js'
 import { Database } from '../database/database.js'
+import { type Renderer, rendererFor } from '../documents/renderer.js'
+import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { AuthorizationGuard } from './authorization.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
+import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
+import { LetterheadController } from './letterhead.controller.js'
 import { SettingsController } from './settings.controller.js'
-import { AUTHENTICATION, TRUSTED_ORIGINS } from './handed-in.js'
+import { AUTHENTICATION, FILE_STORE, RENDERER, TRUSTED_ORIGINS } from './handed-in.js'
 import { InvitationController } from './invitation.controller.js'
 import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
@@ -39,6 +51,16 @@ export interface ApiOptions {
    * need it only exist then.
    */
   readonly trustedOrigins?: readonly string[]
+  /**
+   * Where files are kept. Left out, every route that needs one refuses with a
+   * sentence, which is what a test that never touches a file wants.
+   */
+  readonly files?: FileStorage
+  /**
+   * What prints a document. Left out, it is the renderer of an instance that
+   * has none configured, and a request for a PDF gets the message saying so.
+   */
+  readonly renderer?: Renderer
 }
 
 /**
@@ -54,13 +76,32 @@ export interface ApiOptions {
  * waved through.
  */
 @Module({})
-export class ApiModule {
+export class ApiModule implements NestModule {
+  /**
+   * The one route that takes a body that is not JSON: the logo, as the image
+   * itself. Read as raw bytes there and nowhere else, so that no other route
+   * can be sent a megabyte of something it does not expect.
+   *
+   * The limit sits above the one the controller enforces, so that a logo
+   * just over it gets the controller's sentence and not the parser's.
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer
+      .apply(raw({ type: [...logoMediaTypes], limit: largestLogoBytes * 2 }))
+      .forRoutes({ path: 'settings/letterhead/logo', method: RequestMethod.PUT })
+  }
+
   static create(
     database: Database,
     identities: IdentitySource,
     options: ApiOptions = {},
   ): DynamicModule {
-    const { authentication, trustedOrigins = [] } = options
+    const {
+      authentication,
+      trustedOrigins = [],
+      files = noFileStorage,
+      renderer = rendererFor({ url: undefined, token: undefined }),
+    } = options
 
     return {
       module: ApiModule,
@@ -78,11 +119,15 @@ export class ApiModule {
         DocumentsController,
         DocumentLinesController,
         DocumentTotalsController,
+        DocumentPdfController,
         SyncController,
         SettingsController,
+        LetterheadController,
       ],
       providers: [
         { provide: Database, useValue: database },
+        { provide: FILE_STORE, useValue: files },
+        { provide: RENDERER, useValue: renderer },
         ...(authentication
           ? [
               { provide: AUTHENTICATION, useValue: authentication },

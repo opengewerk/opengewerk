@@ -21,6 +21,9 @@ function Navigation() {
   // membership on every request, and typing the address reaches a screen whose
   // every call is refused.
   const administers = useMay('membership.read')
+  // The office reads the letterhead as well, since it writes the documents it
+  // ends up on. Changing it is the owner's, and the screen says so.
+  const readsSettings = useMay('settings.read')
 
   const items: readonly { readonly to: string; readonly label: ReactNode }[] = [
     { to: '/', label: 'Kunden' },
@@ -29,6 +32,7 @@ function Navigation() {
       to: '/konflikte',
       label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',
     },
+    ...(readsSettings ? [{ to: '/briefkopf', label: 'Briefkopf' as ReactNode }] : []),
     ...(administers ? [{ to: '/zugaenge', label: 'Zugänge' as ReactNode }] : []),
     { to: '/konto', label: 'Konto' },
   ]

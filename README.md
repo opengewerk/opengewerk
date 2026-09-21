@@ -41,7 +41,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 ## Status
 
-Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste), die **Belegpositionen** mit Beträgen und Steuer, die **erste Oberfläche** (beide Einstiege, Kunde bis Auftrag, der Abgleich als Leiste und der Konfliktbildschirm) und die **Ersteinrichtung im Browser**: eine frische Installation kommt von null bis zum angemeldeten Inhaber, ohne Kommandozeile und ohne SQL. Eine Installation zeigt damit nicht mehr nur eine API, sondern eine Anwendung, mit der sich arbeiten lässt.
+Das Fundament aus **Phase 0** steht. Es gibt das ausgearbeitete Konzept, die Architekturentscheidungen und den Unterbau: Datenmodell, Mandantentrennung, Rechte, Nummernkreise, Audit-Log, Offline-Datenschicht, Regel-Engine und seit dem 19.09.2026 den Betrieb über Docker Compose samt Sicherung, Rückspielen und Update-Pfad. Seit dem 20.09.2026 gibt es die **Anmeldung** nach ADR 0006 (Sitzungen, zweiter Faktor, Betriebswahl, Geräteliste), die **Belegpositionen** mit Beträgen und Steuer, die **erste Oberfläche** (beide Einstiege, Kunde bis Auftrag, der Abgleich als Leiste und der Konfliktbildschirm) und die **Ersteinrichtung im Browser**: eine frische Installation kommt von null bis zum angemeldeten Inhaber, ohne Kommandozeile und ohne SQL. Eine Installation zeigt damit nicht mehr nur eine API, sondern eine Anwendung, mit der sich arbeiten lässt. Seit dem 21.09.2026 kommt ein festgeschriebener Beleg als **PDF** heraus, mit dem Briefkopf des Betriebs, und eine Rechnung ohne die Pflichtangaben nach §14 UStG wird gar nicht erst festgeschrieben. Den Briefkopf pflegt der Betrieb im Büro; die Bildschirme, auf denen Belege entstehen, kommen mit Angebot und Rechnung.
 
 Das vollständige Konzept liegt unter [`docs/konzept/`](docs/konzept/). Wer mitreden will, fängt am besten dort an. Architekturentscheidungen werden unter [`docs/adr/`](docs/adr/) festgehalten.
 
@@ -143,6 +143,30 @@ Die Beträge stehen an der Zeile und nicht am Kopf. Eine Summe am Beleg wäre di
 
 **Zwei Fälle zeigen keine Steuer, sondern einen Satz.** Kleinunternehmer nach §19 UStG und Bauleistung nach §13b UStG. Beide tragen den vorgeschriebenen Hinweis statt eines Betrags von null, denn eine Zeile "0,00 EUR Umsatzsteuer" sagt etwas anderes und Falsches. Welcher Fall gilt, wird beim Anlegen aus dem Kunden und den Einstellungen des Betriebs abgeleitet, am Beleg gespeichert und mit dem Festschreiben eingefroren: wer ihn beim Lesen neu ableitete, schriebe die Rechnung vom letzten Jahr um, sobald sich ein Kennzeichen ändert. §19 geht dabei vor §13b, denn wo keine Steuer anfällt, ist auch keine umzukehren.
 
+### Belegvorlage und PDF
+
+Ein Rahmen für alle Belegarten: Briefkopf, Anschriftfeld, Informationsblock, Positionen, Summen, Hinweise und eine Fußzeile auf jeder Seite. Der Aufbau folgt DIN 5008 Form B, damit die Anschrift im Fenster eines Umschlags landet. Die Vorlage liegt im Repository (`packages/server/src/documents/template.ts`), was ein Betrieb beisteuert, pflegt er im Büro unter "Briefkopf": Name, Anschrift, Kontakt, Steuernummer, Bankverbindung, Handelsregister und ein Logo. Ändern darf das nur der Inhaber, lesen auch das Büro.
+
+**Die Pflichtangaben werden vor der Festschreibung geprüft, nicht danach.** Fehlt einer Rechnung etwas, wird sie mit 422 abgelehnt, und die Antwort zählt auf, was fehlt und nach welchem Paragrafen. Der Zähler rührt sich dabei nicht, es entsteht also keine Lücke. Geprüft wird nach der Liste, die der Beleg wirklich braucht, und davon gibt es drei: §14 Abs. 4 UStG als Regel, §33 UStDV für eine Kleinbetragsrechnung und seit 2025 §34a UStDV für einen Kleinunternehmer. Die Kleinbetragsrechnung kommt ohne Anschrift des Kunden aus, ein Kleinunternehmer ohne Rechnungsnummer und Leistungsdatum, und ein Reverse Charge bekommt nie die kurze Liste. Die Grenze von 250 Euro und der Stichtag von §34a stehen im Regelpaket `invoice.json`, nicht im Code. Die Prüfung selbst liegt in `domain` und rechnet auf dem Gerät dieselbe Antwort aus wie auf dem Server.
+
+**Der Beleg hält beim Festschreiben fest, was er sagt.** In derselben Transaktion, die die Nummer vergibt, entsteht eine Zeile in `document_snapshots` mit allem, was gedruckt wird: Briefkopf, Kunde, Objekt, Positionen, Summen und die Pflichthinweise. Gedruckt wird danach nur noch daraus. Zieht der Kunde um oder ändert der Betrieb seine Bankverbindung, bleibt die Rechnung vom letzten Monat, wie sie war. Die Anwendung darf diese Zeile nur einfügen und lesen, und ein Trigger lehnt Ändern und Löschen für jede Rolle ab, auch für einen Superuser.
+
+**Das PDF entsteht beim ersten Abruf und wird danach nur noch ausgeliefert.** `GET /documents/:id/pdf` druckt einen festgeschriebenen Beleg einmal aus seinem Stand, legt das Ergebnis im Dateispeicher ab und gibt ab dann genau diese Bytes zurück. Chromium setzt eine Seite nicht zweimal gleich, und ein Beleg, der bei jedem Öffnen ein wenig anders aussieht, ist nicht der Beleg, der verschickt wurde. Dass das PDF nicht schon beim Festschreiben entsteht, hat einen Grund: der Renderer ist ein Container, den eine Installation weglassen darf, und eine Rechnung festzuschreiben darf nicht daran scheitern, dass er gerade nicht läuft. Fehlt er, antwortet die Route mit 503 und nennt den Befehl, der ihn startet. Ein Entwurf wird bei jedem Abruf neu gesetzt, trägt quer über jede Seite "Entwurf" und wird nie gespeichert.
+
+**Der Dateispeicher ist inhaltsadressiert.** Eine Datei liegt unter dem SHA-256 ihres Inhalts, zwei Verzeichnisebenen tief (`ab/cd/abcd…`), wird vor dem Umbenennen auf die Platte geschrieben und beim Lesen gegen ihren Namen geprüft. Wem eine Datei gehört, weiß der Speicher nicht; das beantwortet die Tabelle `files` unter derselben Mandantentrennung wie alles andere. Wer den Hash der Rechnung eines anderen Betriebs kennt, hat eine Zeichenkette und keine Datei. Das ist das Fundament, auf dem die Dokumentenablage aufsetzt.
+
+**Die Schrift reist mit.** Barlow steckt als Daten im HTML, das an den Renderer geht, damit ein PDF nach einem Update des Renderer-Abbilds nicht anders umbricht als vorher. Die Fußzeile mit Seitenzahl setzt Chromium selbst, als eigenes kleines Dokument mit eigener Schrift. Was von einer Person kommt, wird vor dem Einsetzen maskiert; ein Test hält fest, dass aus einer Position `<script>` Text wird und kein Markup.
+
+Was diese Vorlage bewusst noch nicht kann: Zahlungsbedingungen, Reverse Charge mit den Angaben des Empfängers, Bauabzugsteuer und Widerrufsbelehrung. Sie gehören zu den Belegarten, die sie brauchen, und kommen mit deren Issues. PDF/A erzeugt Chromium nicht; das wird mit der E-Rechnung nötig, denn ZUGFeRD verlangt es.
+
+Ein PDF lokal ansehen geht mit demselben Renderer wie im Betrieb:
+
+```bash
+docker run -d --rm --name renderer -p 127.0.0.1:3999:3000 -e TOKEN=probe ghcr.io/browserless/chromium:latest
+```
+
+und dann `RENDERER_URL=http://127.0.0.1:3999` und `RENDERER_TOKEN=probe` für den Server. In der CI läuft kein Renderer, die Tests der Route arbeiten mit einem Ersatz, der feste Bytes zurückgibt.
+
 ### Audit-Log
 
 Jede Änderung an jeder Tabelle steht im Log, eine Zeile je Feld, das sich wirklich geändert hat: alter Wert, neuer Wert, Zeitpunkt, Benutzer und Anlass. Die Felder einer Änderung teilen sich eine Kennung, damit die Frage "und was hat sich im selben Moment noch bewegt" beantwortbar bleibt.
@@ -193,7 +217,7 @@ Gesetzliche Parameter stehen nicht im Quelltext, sondern als Datensätze in Rege
 
 Davon getrennt stehen die **mandantenbezogenen Parameter**: ob ein Betrieb die Kleinunternehmerregelung in Anspruch nimmt, welches Zahlungsziel er auf seine Rechnungen schreibt. Die liegen in der Datenbank, tragen ebenfalls einen Gültigkeitszeitraum und werden nicht geändert, sondern ab einem Tag abgelöst. Ein Betrieb kann damit nie eine gesetzliche Größe verschieben: der Schlüssel ist eine Aufzählung von Einstellungen, und keine Regel steht darin.
 
-> **Stand der Prüfung:** Am 19.09.2026 sind alle 26 Datensätze gegen ihre Fundstelle gehalten worden, die Basiszinssätze gegen die Tabelle der Bundesbank, die übrigen gegen die datierten Gesetzesfassungen. Kein eingetragener Wert wich von seiner Fundstelle ab. Was dabei aufgefallen ist, steht in Issue #31: der Nenner von 360 Tagen in der Verzugszinsrechnung trägt als einzige Zahl der Engine keine Fundstelle, die Stichtage von 2014 hängen nach Art. 229 § 34 EGBGB am Schuldverhältnis und nicht am Tag, und mehrere gesetzliche Größen, die Abschnitt 1.7 des Konzepts aufzählt, stehen noch in keinem Paket. **Das ersetzt die fachkundige Abnahme nicht.** Eine Vorprüfung sagt, dass die Zahl zur Fundstelle passt; ob die Fundstelle die richtige ist und ob die Vereinfachungen tragen, sagt sie nicht.
+> **Stand der Prüfung:** Am 19.09.2026 sind alle 26 Datensätze gegen ihre Fundstelle gehalten worden, die Basiszinssätze gegen die Tabelle der Bundesbank, die übrigen gegen die datierten Gesetzesfassungen. Kein eingetragener Wert wich von seiner Fundstelle ab. Was dabei aufgefallen ist, steht in Issue #31: der Nenner von 360 Tagen in der Verzugszinsrechnung trägt als einzige Zahl der Engine keine Fundstelle, die Stichtage von 2014 hängen nach Art. 229 § 34 EGBGB am Schuldverhältnis und nicht am Tag, und mehrere gesetzliche Größen, die Abschnitt 1.7 des Konzepts aufzählt, stehen noch in keinem Paket. **Das ersetzt die fachkundige Abnahme nicht.** Eine Vorprüfung sagt, dass die Zahl zur Fundstelle passt; ob die Fundstelle die richtige ist und ob die Vereinfachungen tragen, sagt sie nicht. Am 21.09.2026 kam das Paket `invoice` mit vier Datensätzen dazu, die Grenze der Kleinbetragsrechnung nach §33 UStDV und der Stichtag der vereinfachten Rechnung für Kleinunternehmer nach §34a UStDV, beide auf dieselbe Weise gegen den Gesetzestext und die Änderungsgesetze gehalten.
 
 ### Oberfläche
 
@@ -375,8 +399,12 @@ ADR 0007.
 
 > Das Abbild `ghcr.io/browserless/chromium` bringt eine fertige PDF-Schnittstelle
 > mit, ist mit 3,9 GB aber deutlich größer als die 300 MB, mit denen ADR 0007
-> gerechnet hat. Ob ein schlankeres Chromium diese Schnittstelle ersetzen kann,
-> wird mit der Dokumentenerzeugung in Phase 1 entschieden.
+> gerechnet hat. Die Dokumentenerzeugung aus #71 läuft über dieses Abbild, und
+> ein Beleg braucht dort gemessen unter einer halben Sekunde. Ob ein
+> schlankeres Chromium die Schnittstelle ersetzen kann, ist damit nicht
+> entschieden, nur leichter zu entscheiden: die Naht dafür ist `Renderer` in
+> `packages/server/src/documents/renderer.ts`, und ein Wechsel ändert keine
+> Vorlage.
 
 ### Zwei Rollen, nicht eine
 

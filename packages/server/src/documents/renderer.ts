@@ -16,11 +16,26 @@
 /** What a caller gets instead of a PDF, phrased for whoever reads the log. */
 export class RendererUnavailableError extends Error {}
 
+/** The four margins of a page, as CSS lengths: `20mm`. */
+export interface PageMargin {
+  readonly top: string
+  readonly right: string
+  readonly bottom: string
+  readonly left: string
+}
+
 export interface RendererOptions {
   /** Paper format the service understands. A4 unless somebody says otherwise. */
   readonly format?: string
   /** How long to wait before giving up, in milliseconds. */
   readonly timeoutMs?: number
+  /**
+   * HTML printed into the bottom margin of every page, with Chromium's own
+   * `pageNumber` and `totalPages` classes filled in. It is rendered as a
+   * document of its own, so it brings its styles and fonts inline.
+   */
+  readonly footerHtml?: string
+  readonly margin?: PageMargin
 }
 
 export interface RendererConfiguration {
@@ -72,13 +87,30 @@ export async function renderPdf(
   const timeout = AbortSignal.timeout(options.timeoutMs ?? 60_000)
   let response: Response
 
+  // The footer switches Chromium's header and footer on, and then the header
+  // has to be given as well: left out, Chromium prints the date and the title
+  // of the page into it.
+  const footer =
+    options.footerHtml === undefined
+      ? {}
+      : {
+          displayHeaderFooter: true,
+          headerTemplate: '<span></span>',
+          footerTemplate: options.footerHtml,
+        }
+
   try {
     response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         html,
-        options: { format: options.format ?? 'A4', printBackground: true },
+        options: {
+          format: options.format ?? 'A4',
+          printBackground: true,
+          ...footer,
+          ...(options.margin === undefined ? {} : { margin: options.margin }),
+        },
       }),
       signal: timeout,
     })
@@ -96,4 +128,27 @@ export async function renderPdf(
   }
 
   return new Uint8Array(await response.arrayBuffer())
+}
+
+/** What gets printed: the page itself, and what goes into every footer. */
+export interface PrintJob {
+  readonly html: string
+  readonly footerHtml?: string
+  readonly margin?: PageMargin
+}
+
+/**
+ * Turns a print job into a PDF. A function rather than the service itself, so
+ * the routes that print can be tested without a Chromium: a test hands in one
+ * that answers with fixed bytes, or one that is not there.
+ */
+export type Renderer = (job: PrintJob) => Promise<Uint8Array>
+
+/** The renderer an instance uses, the service from ADR 0007 behind `renderPdf`. */
+export function rendererFor(configuration: RendererConfiguration): Renderer {
+  return (job) =>
+    renderPdf(job.html, configuration, {
+      ...(job.footerHtml === undefined ? {} : { footerHtml: job.footerHtml }),
+      ...(job.margin === undefined ? {} : { margin: job.margin }),
+    })
 }
