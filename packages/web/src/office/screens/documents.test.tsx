@@ -250,7 +250,7 @@ const outlined = [
 
 async function mount(
   path: string,
-  rows: { documents?: Row[]; document_lines?: Row[] } = {},
+  rows: { documents?: Row[]; document_lines?: Row[]; document_signatures?: Row[] } = {},
   roles: RoleKey[] = ['office'],
 ) {
   signedInAs(...roles)
@@ -265,12 +265,16 @@ async function mount(
     server.put('document_lines', row)
   }
 
+  for (const row of rows.document_signatures ?? []) {
+    server.put('document_signatures', row)
+  }
+
   const client = await SyncClient.start({
     store: await openLocalStore(`documents${String((counter += 1))}`),
     transport: server,
     writer: server,
     deviceId: 'device',
-    entities: ['customers', 'jobs', 'documents', 'document_lines'],
+    entities: ['customers', 'jobs', 'documents', 'document_lines', 'document_signatures'],
     onSignedOut: () => {},
   })
 
@@ -599,6 +603,78 @@ describe('an issued quote', () => {
     const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
 
     expect(chain.getByRole('link', { name: 'Angebot' })).toBeDefined()
+  })
+})
+
+/**
+ * The office's side of #73. The report arrives signed from site, and what is
+ * left to do with it here is to read it and to issue it.
+ */
+describe('a report signed on site', () => {
+  const report = document({
+    kind: 'time_and_material_report',
+    status: 'signed',
+    subject: 'Sicherungen fliegen raus',
+    introText: 'Zwei Leitungsschutzschalter getauscht.',
+  })
+  const hours = line('l-1', 1, {
+    designation: 'Arbeitszeit',
+    quantityMilli: 2500,
+    unit: 'hour',
+    unitPriceCents: 0,
+  })
+  const signature = {
+    id: 's-1',
+    documentId: 'd-1',
+    signerName: 'Erika Berg',
+    signedAt: '2026-09-21T12:32:00.000Z',
+    deviceInfo: 'Tablet im Transporter',
+    path: 'M100,300L240,120',
+    contentFingerprint: 'fnv1a32:00000000:0',
+    version: 1,
+    deletedAt: null,
+  }
+  const signed = { documents: [report], document_lines: [hours], document_signatures: [signature] }
+
+  it('shows the signature it carries and no prices, like its printed page', async () => {
+    await mount('/belege/d-1', signed)
+
+    expect(await screen.findByRole('img', { name: 'Unterschrift von Erika Berg' })).toBeDefined()
+    expect(
+      within(screen.getByRole('region', { name: 'Unterschrift' })).getByText(
+        'Tablet im Transporter',
+      ),
+    ).toBeDefined()
+    expect(screen.getByText(/unterschrieben und wird nicht mehr geändert/)).toBeDefined()
+
+    const table = within(screen.getByRole('table', { name: 'Positionen des Belegs' }))
+
+    expect(table.getByText(/2,5\s*Std\./)).toBeDefined()
+    expect(table.queryByRole('columnheader', { name: 'Einzelpreis' })).toBeNull()
+    expect(screen.queryByText('Gesamtbetrag')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Position hinzufügen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull()
+  })
+
+  it('is issued by the office, the one step left for it', async () => {
+    serverSays('POST', '/documents/d-1/issue', () => {
+      const issued = { ...server.row('documents', 'd-1'), status: 'issued', number: 'RB-2026-0001' }
+
+      server.put('documents', issued)
+
+      return { status: 201, body: issued }
+    })
+
+    await mount('/belege/d-1', signed)
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+    await person.click(screen.getByRole('button', { name: 'Jetzt festschreiben' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Regiebericht RB-2026-0001' }),
+    ).toBeDefined()
+    expect(screen.getByRole('img', { name: 'Unterschrift von Erika Berg' })).toBeDefined()
   })
 })
 

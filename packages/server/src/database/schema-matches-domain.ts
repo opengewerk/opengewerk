@@ -9,6 +9,7 @@ import type {
   Document,
   DocumentFile,
   DocumentLine,
+  DocumentSignature,
   DocumentSnapshot,
   Equipment,
   Installation,
@@ -41,6 +42,7 @@ import type {
   documentFiles,
   documentLines,
   documents,
+  documentSignatures,
   documentSnapshots,
   equipment,
   files,
@@ -103,6 +105,9 @@ export type DocumentFileMatches = Assert<Exact<typeof documentFiles.$inferSelect
 export type StoredFileMatches = Assert<Exact<typeof files.$inferSelect, StoredFile>>
 export type LetterheadMatches = Assert<Exact<typeof letterheads.$inferSelect, Letterhead>>
 export type TextSnippetMatches = Assert<Exact<typeof textSnippets.$inferSelect, TextSnippet>>
+export type DocumentSignatureMatches = Assert<
+  Exact<typeof documentSignatures.$inferSelect, DocumentSignature>
+>
 export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>
 export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
 export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>

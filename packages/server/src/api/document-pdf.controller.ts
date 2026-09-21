@@ -40,7 +40,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** What the first transaction found out about the document. */
 type Found =
-  | { readonly state: 'draft'; readonly content: DocumentContent }
+  | { readonly state: 'live'; readonly content: DocumentContent }
   | {
       readonly state: 'stored'
       readonly sha256: string
@@ -54,6 +54,8 @@ interface Printed {
   readonly bytes: Uint8Array
   readonly kind: DocumentKind
   readonly number: string | null
+  /** Signed and not yet issued: no number, and no draft either. */
+  readonly signed: boolean
 }
 
 /**
@@ -64,13 +66,17 @@ interface Printed {
 function disposition(printed: Printed): string {
   const safe = (value: string) => value.replaceAll(/[\\/:*?"<>|]+/g, '-')
   const name =
-    printed.number === null
-      ? `Entwurf ${documentTitle(printed.kind)}.pdf`
-      : `${documentTitle(printed.kind)} ${safe(printed.number)}.pdf`
+    printed.number !== null
+      ? `${documentTitle(printed.kind)} ${safe(printed.number)}.pdf`
+      : printed.signed
+        ? `${documentTitle(printed.kind)} unterschrieben.pdf`
+        : `Entwurf ${documentTitle(printed.kind)}.pdf`
   const plain =
-    printed.number === null
-      ? 'Entwurf.pdf'
-      : `Beleg-${safe(printed.number).replaceAll(/[^\w.-]/g, '-')}.pdf`
+    printed.number !== null
+      ? `Beleg-${safe(printed.number).replaceAll(/[^\w.-]/g, '-')}.pdf`
+      : printed.signed
+        ? 'Unterschrieben.pdf'
+        : 'Entwurf.pdf'
 
   return `inline; filename="${plain}"; filename*=UTF-8''${encodeURIComponent(name)}`
 }
@@ -118,17 +124,28 @@ export class DocumentPdfController {
     let printed: Printed
 
     if (found.state === 'stored') {
-      printed = { bytes: await this.read(found.sha256), kind: found.kind, number: found.number }
+      printed = {
+        bytes: await this.read(found.sha256),
+        kind: found.kind,
+        number: found.number,
+        signed: false,
+      }
     } else {
       const bytes = await this.print(found.content)
 
       printed =
-        found.state === 'draft'
-          ? { bytes, kind: found.content.kind, number: null }
+        found.state === 'live'
+          ? {
+              bytes,
+              kind: found.content.kind,
+              number: null,
+              signed: found.content.signature !== null,
+            }
           : {
               bytes: await this.keep(identity, documentId as DocumentId, bytes),
               kind: found.content.kind,
               number: found.content.number,
+              signed: false,
             }
     }
 
@@ -153,9 +170,12 @@ export class DocumentPdfController {
       throw new NotFoundException()
     }
 
-    if (document.status === 'draft') {
+    // Printed from the rows every time while there is no snapshot to print
+    // from: a draft, because it may still change, and a signed report, because
+    // it has no number yet and so no snapshot. Neither is kept.
+    if (document.status === 'draft' || document.status === 'signed') {
       try {
-        return { state: 'draft', content: await contentOf(tx, document, shippedRules) }
+        return { state: 'live', content: await contentOf(tx, document, shippedRules) }
       } catch (error) {
         if (error instanceof RuleError) {
           throw new UnprocessableEntityException(error.message)

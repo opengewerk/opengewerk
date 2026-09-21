@@ -10,6 +10,9 @@ import {
   type LineUnit,
   outlineRows,
   quantityFactor,
+  showsPrices,
+  signatureBox,
+  signaturePathIsValid,
   type VatRate,
 } from '@opengewerk/domain'
 
@@ -273,8 +276,13 @@ function descriptionOf(line: LineContent): string {
  * what position 2.3 is.
  */
 function lines(content: DocumentContent): string {
-  const taxed = content.taxTreatment === 'standard'
-  const columns = taxed ? 6 : 5
+  // A report records what was done and is printed without prices, see
+  // `showsPrices`. Its lines keep their quantities and lose the three columns
+  // that would only say zero, and its titles lose their sums for the same
+  // reason.
+  const priced = showsPrices(content.kind)
+  const taxed = priced && content.taxTreatment === 'standard'
+  const columns = priced ? (taxed ? 6 : 5) : 3
   const rateOf = new Map<VatRate, number>(
     content.totals.byRate.map((entry) => [entry.rate, entry.basisPoints]),
   )
@@ -289,6 +297,10 @@ function lines(content: DocumentContent): string {
       </tr>`
 
         case 'subtotal':
+          if (!priced) {
+            return ''
+          }
+
           return `<tr class="subtotal">
         <td></td>
         <td colspan="${String(columns - 2)}">Summe Titel ${row.number}: ${text(row.designation)}</td>
@@ -298,6 +310,14 @@ function lines(content: DocumentContent): string {
         case 'item': {
           const { line } = row
           const rate = rateOf.get(line.vatRate)
+
+          if (!priced) {
+            return `<tr>
+        <td class="position">${row.number}</td>
+        <td>${text(line.designation)}${descriptionOf(line)}</td>
+        <td class="figure">${quantities.format(line.quantityMilli / quantityFactor)} ${units[line.unit]}</td>
+      </tr>`
+          }
 
           return `<tr>
         <td class="position">${row.number}</td>
@@ -312,14 +332,18 @@ function lines(content: DocumentContent): string {
     })
     .join('')
 
+  const head = priced
+    ? `<th class="figure">Einzelpreis</th>
+      ${taxed ? '<th class="figure">USt.</th>' : ''}
+      <th class="figure">Gesamt</th>`
+    : ''
+
   return `<table class="lines">
     <thead><tr>
       <th class="position">Pos.</th>
       <th>Bezeichnung</th>
       <th class="figure">Menge</th>
-      <th class="figure">Einzelpreis</th>
-      ${taxed ? '<th class="figure">USt.</th>' : ''}
-      <th class="figure">Gesamt</th>
+      ${head}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`
@@ -335,6 +359,10 @@ function lines(content: DocumentContent): string {
  */
 function totals(content: DocumentContent): string {
   const { totals: sums } = content
+
+  if (!showsPrices(content.kind)) {
+    return ''
+  }
 
   if (content.taxTreatment !== 'standard') {
     return `<table class="totals">
@@ -415,6 +443,11 @@ const pageStyle = `
   .totals .grand td {
     font-weight: 600; font-size: 10.5pt; border-top: 0.6pt solid #1b2430; padding-top: 1.8mm;
   }
+  .signature { margin-top: 12mm; width: 80mm; break-inside: avoid; }
+  .signature-picture { display: block; width: 80mm; height: 32mm; }
+  .signature-line {
+    border-top: 0.6pt solid #1b2430; padding-top: 1.2mm; font-size: 8.5pt; color: #5b6573;
+  }
   .notes { margin-top: 8mm; break-inside: avoid; }
   .notes p { margin: 0 0 2mm; }
   .text { white-space: pre-line; }
@@ -426,6 +459,38 @@ const pageStyle = `
     color: rgba(27, 36, 48, 0.08); transform: rotate(-30deg);
   }
 `
+
+const moments = new Intl.DateTimeFormat('de-DE', {
+  timeZone: 'Europe/Berlin',
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
+/**
+ * The customer's signature, under everything else, where a signature goes:
+ * the picture, and below the line who signed and when.
+ *
+ * The picture goes in only as a path that passes `signaturePathIsValid`, the
+ * check the device, the server and the database make as well. It is the one
+ * value on the page that is not escaped text, and the check is what keeps it
+ * from being anything but a line.
+ */
+function signatureOf(content: DocumentContent): string {
+  const signature = content.signature
+
+  if (!signature) {
+    return ''
+  }
+
+  const picture = signaturePathIsValid(signature.path)
+    ? `<svg class="signature-picture" viewBox="0 0 ${String(signatureBox.width)} ${String(signatureBox.height)}" aria-hidden="true"><path d="${signature.path}" fill="none" stroke="#1b2430" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : ''
+
+  return `<section class="signature">
+    ${picture}
+    <div class="signature-line">${text(signature.signerName)}, ${moments.format(new Date(signature.signedAt))} Uhr</div>
+  </section>`
+}
 
 /**
  * What goes into the bottom margin of every page: who the business is, how
@@ -493,10 +558,17 @@ function footer(content: DocumentContent): string {
  * mistaken for the invoice itself if it is printed and left on a desk.
  */
 export function printJob(content: DocumentContent, assets: PrintAssets): Required<PrintJob> {
-  const draft = content.number === null
-  const title = draft
-    ? `${titles[content.kind]} (Entwurf)`
-    : `${titles[content.kind]} ${content.number ?? ''}`
+  // Without a number a document is a draft, unless a customer signed it: a
+  // signed report is final in what it says and waits only for its number, and
+  // the copy the customer takes away must not call itself a draft.
+  const signed = content.signature !== null
+  const draft = content.number === null && !signed
+  const title =
+    content.number !== null
+      ? `${titles[content.kind]} ${content.number}`
+      : signed
+        ? titles[content.kind]
+        : `${titles[content.kind]} (Entwurf)`
 
   const subject = present(content.subject) ? `<p class="subject">${text(content.subject)}</p>` : ''
   const notes = content.notes.length
@@ -533,6 +605,7 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
   ${totals(content)}
   ${notes}
   ${closing}
+  ${signatureOf(content)}
 </main>
 </body>
 </html>`

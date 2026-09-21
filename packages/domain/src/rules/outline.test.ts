@@ -128,9 +128,11 @@ describe('a snapshot written in the first shape', () => {
 
     const read = currentContent(first)
 
-    expect(read.version).toBe(2)
+    // Lifted all the way to today, one version at a time.
+    expect(read.version).toBe(3)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
+    expect(read.signature).toBeNull()
     expect(read.lines).toEqual([{ ...plain, kind: 'item' }])
     // The figures are carried over, not worked out again.
     expect(read.totals).toBe(first.totals)

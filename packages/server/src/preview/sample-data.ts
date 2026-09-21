@@ -1,4 +1,7 @@
 import type { IsoDate } from '@opengewerk/domain'
+import { lineUnits, signedContentFingerprint } from '@opengewerk/domain'
+
+import { newId } from '../database/identifier.js'
 
 type Answer = Record<string, unknown>
 
@@ -67,15 +70,22 @@ const item = (
   ...(description ? { description } : {}),
 })
 
+/** Two strokes that pass for a name, in the units of the signature box. */
+const sampleSignature =
+  'M120,300L150,200L185,120L215,205L250,300M205,215L160,215' +
+  'M320,280L350,190L385,265L420,175L455,280L520,230L600,260L690,215L780,250L860,205'
+
 /**
  * A business with enough in it to reach every screen that exists: two
  * customers, a building with an installation, two jobs, an issued quote with
- * the order confirmation made out of it, a cost estimate in progress and the
- * snippets they are written from.
+ * the order confirmation made out of it, a cost estimate in progress, a
+ * report the customer has signed on site, and the snippets they are written
+ * from.
  *
  * The quote is issued and the confirmation is a draft on purpose. Together
  * they show both states of a document, the chain between them, and a document
- * that refuses to be changed next to one that can be.
+ * that refuses to be changed next to one that can be. The signed report is
+ * the third state, waiting in the office for its number.
  */
 export async function plantSampleData(base: string, today: IsoDate): Promise<void> {
   const post = (path: string, body: unknown) => send(base, 'POST', path, body)
@@ -208,15 +218,16 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   async function document(values: Record<string, unknown>, lines: readonly Line[]) {
     const id = idOf(await post('/documents', { documentDate: today, ...values }))
+    const written: Answer[] = []
 
     for (const line of lines) {
-      await post(`/documents/${id}/lines`, line)
+      written.push(await post(`/documents/${id}/lines`, line))
     }
 
-    return id
+    return { id, lines: written }
   }
 
-  const quote = await document(
+  const { id: quote } = await document(
     {
       customerId: berg,
       jobId: renewal,
@@ -269,4 +280,70 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       item('Entsorgung der Altleuchten', 1000, 'flat_rate', 6000),
     ],
   )
+
+  const workDone =
+    'Alten Zählerschrank abgebaut, neuen gesetzt und angeschlossen. Anlage geprüft und ' +
+    'wieder in Betrieb genommen.'
+  const report = await document(
+    {
+      customerId: berg,
+      jobId: renewal,
+      siteId: house,
+      installationId: cabinet,
+      kind: 'time_and_material_report',
+      subject: 'Zählerschrank erneuern',
+      introText: workDone,
+    },
+    [
+      item('Arbeitszeit Elektromeister', 6500, 'hour', 0),
+      item('Überspannungsschutz Typ 1+2', 1000, 'piece', 0),
+      item('NYM-J 5x10 mm²', 8000, 'metre', 0),
+    ],
+  )
+
+  // Signed the only way a signature is ever made: on a device, through the
+  // outbox, with a fingerprint of the page the customer saw. There is no
+  // route for it, and there should not be one for sample data either.
+  const signed = await post('/sync', {
+    deviceId: 'vorschau-tablet',
+    operations: [
+      {
+        id: newId<'operation'>(),
+        entity: 'document_signatures',
+        recordId: newId<'document-signature'>(),
+        kind: 'create',
+        baseVersion: null,
+        patches: Object.entries({
+          documentId: report.id,
+          signerName: 'Erika Berg',
+          signedAt: new Date().toISOString(),
+          deviceInfo: 'Tablet der Vorschau',
+          path: sampleSignature,
+          contentFingerprint: signedContentFingerprint({
+            introText: workDone,
+            lines: report.lines.map((line) => ({
+              id: String(line['id']),
+              position: Number(line['position']),
+              kind: line['kind'] === 'title' ? 'title' : 'item',
+              designation: String(line['designation']),
+              description: typeof line['description'] === 'string' ? line['description'] : null,
+              quantityMilli: Number(line['quantityMilli']),
+              unit: lineUnits.find((unit) => unit === line['unit']) ?? 'piece',
+            })),
+          }),
+        }).map(([field, to]) => ({ field, from: null, to })),
+        recordedAt: new Date().toISOString(),
+      },
+    ],
+  })
+  const [receipt] = (signed['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+
+  // A refused signature is a receipt and not an error, so it has to be looked
+  // for. Unnoticed, the preview would show a draft where a signed report was
+  // meant, and nobody would know why.
+  if (receipt?.outcome !== 'applied') {
+    throw new Error(
+      `The sample signature was not taken: ${String(receipt?.outcome)} ${String(receipt?.reason)}`,
+    )
+  }
 }

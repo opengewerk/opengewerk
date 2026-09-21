@@ -65,6 +65,39 @@ export type Draft = Readonly<Record<string, unknown>>
 const cursorKey = 'cursor'
 
 /**
+ * The kinds of record the build knew that last moved the cursor, as a sorted
+ * list with commas.
+ */
+const entitiesKey = 'entities'
+
+/**
+ * Whether the cursor in the store can be trusted by this build.
+ *
+ * A build skips the rows of a kind it does not know and moves the cursor past
+ * them all the same, which is right while it has no screen for them. The next
+ * build does, and asking from that cursor it would never see those rows: they
+ * sit behind it. It happened with the first new kind after the offline layer
+ * shipped. A device still running the old build from its service worker
+ * pulled the signatures, dropped them, and after "Jetzt übernehmen" the new
+ * build showed signed reports without a signature.
+ *
+ * So the cursor only stands when the build that wrote it knew at least what
+ * this one knows. A store without the list was written before the list
+ * existed, and its cursor does not stand either. Starting again from the
+ * beginning costs one full pull and nothing else: a pull only overwrites rows
+ * by their id, and the outbox is laid over whatever arrives.
+ */
+function cursorStands(known: string | number | null, entities: readonly string[]): boolean {
+  if (typeof known !== 'string') {
+    return false
+  }
+
+  const knew = new Set(known.split(','))
+
+  return entities.every((entity) => knew.has(entity))
+}
+
+/**
  * The reason a refusal reads the way it does, in words a person can act on.
  *
  * Deliberately not a mapping from the reason to a technical phrase. Each of
@@ -154,7 +187,24 @@ export class SyncClient {
     const client = new SyncClient(store, transport, writer, deviceId, onSignedOut)
 
     const cursor = await store.readMeta(cursorKey)
-    client.cursor = typeof cursor === 'number' ? cursor : 0
+    const known = await store.readMeta(entitiesKey)
+    const list = [...entities].sort().join(',')
+    const stands = cursorStands(known, entities)
+
+    client.cursor = typeof cursor === 'number' && stands ? cursor : 0
+
+    // The cursor first. The other way round, a device closed in between would
+    // keep a list that vouches for a cursor nobody checked. And the list on
+    // every change, a shorter one included: a build that knows less moves the
+    // cursor past the rows it drops, and the next longer list must not find a
+    // record that says otherwise.
+    if (!stands) {
+      await store.writeMeta(cursorKey, client.cursor)
+    }
+
+    if (known !== list) {
+      await store.writeMeta(entitiesKey, list)
+    }
 
     for (const entity of entities) {
       const rows = await store.readAll(entity)

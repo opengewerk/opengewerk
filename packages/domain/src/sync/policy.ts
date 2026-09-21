@@ -40,6 +40,22 @@ export interface SyncPolicy {
    */
   readonly reserved?: readonly string[]
   /**
+   * What a new record holds in its reserved fields before anything else
+   * happens to it: the state every record of this kind starts in.
+   *
+   * The server has it from the column default and needs nothing here. A
+   * device does. Until the server has answered, a record made on the device
+   * exists only as its create operation, which by definition carries none of
+   * the reserved fields, and a gate asking one of them finds nothing and
+   * refuses. A report written in a cellar then turned down its own first line
+   * as already fixed, and every change to its text with it.
+   *
+   * Written down here so that both ends read the same start. A test holds
+   * that every gate on a reserved field has one, and that the start lies
+   * inside the gate.
+   */
+  readonly createdAs?: Readonly<Record<string, SyncValue>>
+  /**
    * A gate that sits on another record, not on this one.
    *
    * A document line is the case it exists for. Whether it may be changed does
@@ -125,13 +141,15 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * there is no previous state to look at, and a document arriving as
    * `issued` with a number of its own would never have passed through the
    * counter. `status` carries its default, so a device that leaves it alone
-   * still gets a draft.
+   * still gets a draft, and `createdAs` tells the device so before the server
+   * has.
    */
   documents: {
     create: true,
     change: 'merge',
     onlyWhile: { field: 'status', values: ['draft'] },
     reserved: ['status', 'number', 'issuedAt'],
+    createdAs: { status: 'draft' },
   },
   /**
    * The positions of a document, and they follow their document in everything.
@@ -154,6 +172,20 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
     change: 'merge',
     gateFrom: { reference: 'documentId', entity: 'documents', field: 'status', values: ['draft'] },
     reserved: ['netCents'],
+  },
+  /**
+   * A customer's signature, given on site and so made offline, and after that
+   * never touched again: `change: 'never'` with no route behind it, and a
+   * database that grants nothing but reading and inserting.
+   *
+   * Only on a draft. Once the signature lands the document is `signed`, so a
+   * second signature for the same document finds no draft and is refused, and
+   * so is every change to the document and its lines that arrives after it.
+   */
+  document_signatures: {
+    create: true,
+    change: 'never',
+    gateFrom: { reference: 'documentId', entity: 'documents', field: 'status', values: ['draft'] },
   },
 }
 

@@ -2,10 +2,11 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 
 import { ConflictScreen } from '../app/conflicts.js'
 import { SiteJobList, SiteJobScreen } from './screens/jobs.js'
+import { SiteReportScreen } from './screens/report.js'
 import { SiteShell } from './shell.js'
 
 /**
- * The routes of the site entry, three of them.
+ * The routes of the site entry, four of them.
  *
  * `basepath` is what makes this a second application at `/m` rather than a
  * section of the first. The two are separate documents with separate bundles,
@@ -21,6 +22,11 @@ const root = createRootRoute({ component: SiteShell })
 const routes = [
   createRoute({ getParentRoute: () => root, path: '/', component: SiteJobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: SiteJobScreen }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/berichte/$documentId',
+    component: SiteReportScreen,
+  }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
 ]
 

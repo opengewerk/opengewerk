@@ -18,6 +18,7 @@ import {
   type DocumentId,
   type DocumentKind,
   documentKinds,
+  type DocumentStatus,
   formatDocumentNumber,
   type IsoDate,
   missingDetails,
@@ -26,56 +27,24 @@ import {
   shippedRules,
   successorsOf,
   type TaxTreatment,
-  treatmentFor,
   whyFixed,
 } from '@opengewerk/domain'
-import { and, asc, eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
-import { parameterAt } from '../database/parameters.js'
 import {
-  customers,
   documentLines,
   documents,
   documentSnapshots,
   numberRanges,
 } from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
+import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
-
-/**
- * What treatment a new document should carry, from the two sides that decide
- * it: what the customer is, and what the business claims for itself.
- *
- * Both are read as they stood on the document's date, not as they stand today,
- * because that is the only reading that keeps an old invoice readable. A
- * business that claimed section 19 in 2027 wrote section 19 invoices in 2027,
- * whatever it claims now.
- *
- * A proposal, not a verdict: the field is writable while the document is a
- * draft, because the two flags do not know every case.
- */
-async function proposedTreatment(
-  tx: TenantTransaction,
-  customerId: CustomerId,
-  on: IsoDate,
-): Promise<TaxTreatment> {
-  const [customer] = await tx
-    .select({ construction: customers.isConstructionServiceRecipient })
-    .from(customers)
-    .where(eq(customers.id, customerId))
-
-  const claimed = await parameterAt(tx, 'small_business.claimed', on)
-
-  return treatmentFor({
-    customerIsConstructionServiceRecipient: customer?.construction ?? false,
-    businessClaimsSmallBusiness: claimed?.value === 1,
-  })
-}
 
 /**
  * What a document says, put together for issuing, and what it still lacks.
@@ -112,6 +81,9 @@ async function contentForIssuing(
 function todayInGermany(): IsoDate {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
 }
+
+/** The states a document is issued from: a draft, or a report the customer signed. */
+const issuable: readonly DocumentStatus[] = ['draft', 'signed']
 
 const writableFields = [
   'customerId',
@@ -246,6 +218,10 @@ export class DocumentsController {
    * This route exists only on the server, and that is the answer to "issuing
    * works online only": there is no offline path to it. A device without a
    * network can write drafts and nothing else.
+   *
+   * A signed report is issued the same way. The customer's signature froze
+   * what it says; issuing adds the number and the moment, and the trigger on
+   * the table lets exactly that through and nothing more.
    */
   @Post(':id/issue')
   @RequiresPermission('document.issue')
@@ -260,8 +236,8 @@ export class DocumentsController {
         throw new NotFoundException()
       }
 
-      if (existing.status !== 'draft') {
-        throw new ConflictException('Der Beleg ist nicht mehr im Entwurf.')
+      if (!issuable.includes(existing.status)) {
+        throw new ConflictException('Der Beleg ist schon festgeschrieben.')
       }
 
       const { content, missing } = await contentForIssuing(tx, existing)
@@ -294,7 +270,7 @@ export class DocumentsController {
         .where(
           and(
             eq(documents.id, existing.id),
-            eq(documents.status, 'draft'),
+            inArray(documents.status, [...issuable]),
             isNull(documents.deletedAt),
           ),
         )
@@ -472,8 +448,8 @@ export class DocumentsController {
   @Delete(':id')
   @RequiresPermission('document.write')
   async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
-    const [removed] = await this.database.forTenant(identity, (tx) =>
-      tx
+    return this.database.forTenant(identity, async (tx) => {
+      const [removed] = await tx
         .update(documents)
         .set({ deletedAt: new Date() })
         .where(
@@ -483,13 +459,26 @@ export class DocumentsController {
             isNull(documents.deletedAt),
           ),
         )
-        .returning(),
-    )
+        .returning()
 
-    if (!removed) {
-      throw new NotFoundException()
-    }
+      if (removed) {
+        return removed
+      }
 
-    return removed
+      // The same two answers as a refused change: not there, or there and
+      // past the point where it could be removed, with the sentence why.
+      const [existing] = await tx
+        .select({ kind: documents.kind, status: documents.status })
+        .from(documents)
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+
+      const reason = existing ? whyFixed(existing) : null
+
+      if (reason === null) {
+        throw new NotFoundException()
+      }
+
+      throw new ConflictException(reason)
+    })
   }
 }

@@ -1,10 +1,12 @@
 import type { RecordState } from '@opengewerk/domain'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
-import { Button, Card, FieldLabel } from '../../components/index.js'
-import { addressLine, date } from '../../app/format.js'
+import { Button, Card, DocumentState, FieldLabel } from '../../components/index.js'
+import { addressLine, date, today } from '../../app/format.js'
 import {
+  documentKindOf,
+  documentStatusOf,
   installationKindLabel,
   installationKindOf,
   jobKindLabel,
@@ -13,8 +15,9 @@ import {
   jobStatusOf,
 } from '../../app/labels.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
+import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync } from '../../sync/provider.js'
+import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 
 /**
  * The jobs this device is meant to work through.
@@ -96,12 +99,99 @@ export function SiteJobList() {
 }
 
 /**
+ * The reports of a job, and the way to start one.
+ *
+ * A report is made on the device and waits in the outbox like everything else
+ * written here. The tax treatment is left to the server, which proposes it
+ * when the report arrives, as it does for a document made in the office: the
+ * device knows neither the customer's standing nor what the business claims
+ * for itself on that date.
+ */
+function JobReports({ job }: { readonly job: RecordState }) {
+  const jobId = String(job['id'])
+  const client = useSync()
+  const navigate = useNavigate()
+  const documents = useRelated('documents', 'jobId', jobId)
+  const reports = useMemo(
+    () =>
+      documents
+        .filter((document) => documentKindOf(document) === 'time_and_material_report')
+        .sort(
+          (left, right) =>
+            text(left, 'documentDate').localeCompare(text(right, 'documentDate')) ||
+            String(left['id']).localeCompare(String(right['id'])),
+        ),
+    [documents],
+  )
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  async function start() {
+    setTrouble(null)
+
+    const made = await client.create('documents', {
+      kind: 'time_and_material_report',
+      customerId: String(job['customerId']),
+      jobId,
+      siteId: maybeText(job, 'siteId'),
+      installationId: maybeText(job, 'installationId'),
+      documentDate: today(),
+      subject: maybeText(job, 'designation'),
+    })
+
+    if (made.outcome === 'refused') {
+      setTrouble(refusalText[made.reason])
+
+      return
+    }
+
+    await navigate({ to: `/auftraege/${jobId}/berichte/${made.id}` })
+  }
+
+  return (
+    <Card label="Regieberichte">
+      <div className="flex flex-col gap-3">
+        {reports.length === 0 ? (
+          <p className="text-body text-ink-muted">Zu diesem Auftrag gibt es noch keinen.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {reports.map((report) => (
+              <li key={String(report['id'])}>
+                <Link
+                  to={`/auftraege/${jobId}/berichte/${String(report['id'])}`}
+                  className="flex flex-wrap items-center gap-3 p-3 rounded-card border border-line bg-surface min-h-tap"
+                >
+                  <span className="text-body font-semibold">
+                    {`Regiebericht vom ${date(report['documentDate'])}`}
+                  </span>
+                  <DocumentState
+                    status={documentStatusOf(report)}
+                    number={maybeText(report, 'number')}
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+        <Button tone="secondary" wide onClick={() => void start()}>
+          Regiebericht schreiben
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+/**
  * One job on site.
  *
  * One main action per screen, and here it is finishing the job. Everything
- * else is reading: who, where, which system, what was agreed. Recording hours
- * and writing a report are their own screens with their own rules and their
- * own issues, and the issue for this one names them as explicitly out.
+ * else is reading: who, where, which system, what was agreed, and the reports
+ * written for it, which open on a screen of their own. Recording hours is its
+ * own issue and not part of this one.
  */
 export function SiteJobScreen() {
   const { jobId } = useParams({ strict: false }) as { jobId?: string }
@@ -223,6 +313,8 @@ export function SiteJobScreen() {
           <p className="text-body whitespace-pre-line">{text(job, 'description')}</p>
         </Card>
       ) : null}
+
+      <JobReports job={job} />
 
       {noting ? (
         <Card label="Notiz zum Auftrag">

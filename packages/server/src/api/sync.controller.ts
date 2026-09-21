@@ -170,6 +170,9 @@ export function permissionFor(entity: string, kind: OperationKind): Permission |
     // may write its lines, and whoever may not, may not: a technician filling
     // in a report on site is doing one thing, not two.
     document_lines: 'document.write',
+    // The same for a signature. The technician who wrote the report is the
+    // one who hands the device to the customer.
+    document_signatures: 'document.write',
   }
 
   return subject[entity] ?? null

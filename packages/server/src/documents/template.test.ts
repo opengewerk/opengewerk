@@ -3,6 +3,7 @@ import {
   documentContent,
   type IssuerContent,
   type LineContent,
+  type SignatureContent,
   shippedRules,
 } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
@@ -54,7 +55,11 @@ function line(position: number, netCents: number, over: Partial<LineContent> = {
 
 function page(
   document: Partial<ContentSources['document']> = {},
-  parts: { readonly lines?: readonly LineContent[]; readonly country?: string } = {},
+  parts: {
+    readonly lines?: readonly LineContent[]
+    readonly country?: string
+    readonly signature?: SignatureContent | null
+  } = {},
 ) {
   const content = documentContent(shippedRules, {
     document: {
@@ -81,6 +86,7 @@ function page(
       isBusiness: false,
     },
     site: null,
+    signature: parts.signature ?? null,
   })
 
   return printJob(content, { logo: null })
@@ -268,11 +274,86 @@ describe('the footer', () => {
         isBusiness: false,
       },
       site: null,
+      signature: null,
     })
 
     const { footerHtml } = printJob(content, { logo: null })
 
     expect(footerHtml).not.toContain('Telefon')
     expect(footerHtml.match(/class="column"/g)).toHaveLength(3)
+  })
+})
+
+describe('a report', () => {
+  const signed: SignatureContent = {
+    signerName: 'Erika Berg',
+    // 12:32 in UTC is 14:32 in Hamburg in September.
+    signedAt: '2026-09-21T12:32:00.000Z',
+    path: 'M100,300L200,120L300,280L400,100',
+  }
+  const worked = [
+    line(1, 0, {
+      designation: 'Arbeitszeit',
+      quantityMilli: 2500,
+      unit: 'hour',
+      unitPriceCents: 0,
+      netCents: 0,
+    }),
+    line(2, 0, {
+      designation: 'LS-Schalter B16',
+      quantityMilli: 2000,
+      unit: 'piece',
+      unitPriceCents: 0,
+      netCents: 0,
+    }),
+  ]
+
+  function report(signature: SignatureContent | null = signed) {
+    return page(
+      {
+        kind: 'time_and_material_report',
+        number: null,
+        serviceFrom: null,
+        serviceUntil: null,
+        introText: 'Zwei Leitungsschutzschalter im Keller getauscht.',
+        taxTreatment: 'small_business',
+      },
+      { lines: worked, signature },
+    )
+  }
+
+  it('is printed with what was done and how much, and without a single price', () => {
+    const { html } = report()
+
+    expect(html).toMatch(/2,5\sStd\./)
+    expect(html).toContain('LS-Schalter B16')
+    expect(html).not.toContain('Einzelpreis')
+    expect(html).not.toContain('Gesamtbetrag')
+    // Nor the note on section 19, which would explain figures that are not there.
+    expect(html).not.toContain('§ 19 UStG')
+  })
+
+  it('carries the signature, with who signed and when, and calls itself final', () => {
+    const { html } = report()
+
+    expect(html).toContain('<path d="M100,300L200,120L300,280L400,100"')
+    expect(html).toMatch(/Erika Berg, 21\.09\.2026, 14:32 Uhr/)
+    expect(html).toContain('<h1>Regiebericht</h1>')
+    expect(html).not.toContain('class="draft"')
+  })
+
+  it('leaves out a picture that is not a path this system draws, and keeps the name', () => {
+    const { html } = report({ ...signed, path: 'M1,1"/><script>alert(1)</script>' })
+
+    expect(html).not.toContain('<svg class="signature-picture"')
+    expect(html).not.toContain('<script>alert')
+    expect(html).toContain('Erika Berg')
+  })
+
+  it('is a draft as long as nobody signed it', () => {
+    const { html } = report(null)
+
+    expect(html).toContain('<h1>Regiebericht (Entwurf)</h1>')
+    expect(html).toContain('<div class="draft">ENTWURF</div>')
   })
 })

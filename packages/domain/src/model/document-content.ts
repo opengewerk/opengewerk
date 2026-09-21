@@ -25,9 +25,10 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  * `currentContent` brings an older one up to the present shape before anybody
  * prints it, so the template only ever knows one.
  *
- * Version 2 added the titles among the lines and the two texts around them.
+ * Version 2 added the titles among the lines and the two texts around them,
+ * version 3 the signature.
  */
-export const documentContentVersion = 2
+export const documentContentVersion = 3
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -80,6 +81,19 @@ export interface LineContent {
   readonly netCents: number
 }
 
+/**
+ * The signature on a document, as far as it is printed: who, when, and the
+ * picture. The device information stays with the signature itself and is not
+ * printed; it answers a question somebody asks later, not one the customer
+ * has.
+ */
+export interface SignatureContent {
+  readonly signerName: string
+  /** The moment, as an ISO string, the way JSON keeps it. */
+  readonly signedAt: string
+  readonly path: string
+}
+
 export interface DocumentContent {
   readonly version: typeof documentContentVersion
   readonly kind: DocumentKind
@@ -108,6 +122,13 @@ export interface DocumentContent {
   readonly totals: DocumentTotals
   /** The sentences under the totals, each one required by some paragraph. */
   readonly notes: readonly string[]
+  /** Null for every document nobody signed, which is nearly all of them. */
+  readonly signature: SignatureContent | null
+}
+
+/** The second shape, from #72: titles and texts, and no signature yet. */
+export interface DocumentContentV2 extends Omit<DocumentContent, 'version' | 'signature'> {
+  readonly version: 2
 }
 
 /**
@@ -116,7 +137,7 @@ export interface DocumentContent {
  * before version 2, and they are never rewritten, only read.
  */
 export interface DocumentContentV1 extends Omit<
-  DocumentContent,
+  DocumentContentV2,
   'version' | 'introText' | 'closingText' | 'lines'
 > {
   readonly version: 1
@@ -124,7 +145,7 @@ export interface DocumentContentV1 extends Omit<
 }
 
 /** Any shape a snapshot may have been written in. */
-export type StoredDocumentContent = DocumentContent | DocumentContentV1
+export type StoredDocumentContent = DocumentContent | DocumentContentV2 | DocumentContentV1
 
 /**
  * The content of a document, written once, when it is issued.

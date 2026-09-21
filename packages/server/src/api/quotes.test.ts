@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import { documentContentVersion } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -312,10 +313,12 @@ describe('the texts above and below the lines', () => {
       [quote.id],
     )
 
+    // The number itself is held in `domain`, where the outline test pins it.
     expect(rows[0]?.content).toMatchObject({
-      version: 2,
+      version: documentContentVersion,
       introText: 'Sehr geehrte Familie Berg,',
       closingText: 'Mit freundlichen Grüßen',
+      signature: null,
     })
   })
 })

@@ -16,7 +16,15 @@ import { openLocalStore } from './store.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
 import { RequestRefused } from './transport.js'
 
-const entities = ['customers', 'sites', 'installations', 'jobs', 'documents', 'document_lines']
+const entities = [
+  'customers',
+  'sites',
+  'installations',
+  'jobs',
+  'documents',
+  'document_lines',
+  'document_signatures',
+]
 
 const operationId = (value: string) => value as unknown as OperationId
 
@@ -39,6 +47,8 @@ class Recorded implements SyncTransport {
   pulls: PullResult[] = []
   open: SyncConflict[] = []
   readonly resolved: string[] = []
+  /** The cursor of every pull, in order. */
+  readonly asked: number[] = []
   refuse: Error | null = null
 
   push(_deviceId: string, operations: readonly Operation[]) {
@@ -51,12 +61,14 @@ class Recorded implements SyncTransport {
     return Promise.resolve(this.receipts(operations))
   }
 
-  pull(_since: number) {
+  pull(since: number) {
     if (this.refuse) {
       return Promise.reject(this.refuse)
     }
 
-    return Promise.resolve(this.pulls.shift() ?? { changes: [], cursor: 0, hasMore: false })
+    this.asked.push(since)
+
+    return Promise.resolve(this.pulls.shift() ?? { changes: [], cursor: since, hasMore: false })
   }
 
   conflicts() {
@@ -329,6 +341,65 @@ describe('a device without a network', () => {
     })
   })
 
+  /**
+   * A document made on this device has no status until the server answers.
+   * The gates that ask for one found nothing there and refused, and a report
+   * written in a cellar turned down its own first line as already fixed.
+   */
+  it('lets a document made on the device take lines and changes before the server has it', async () => {
+    const client = await start(transport)
+
+    transport.refuse = new TypeError('Failed to fetch')
+
+    const report = await client.create('documents', {
+      kind: 'time_and_material_report',
+      customerId: 'c-1',
+      documentDate: '2026-09-21',
+    })
+
+    if (report.outcome !== 'queued') {
+      throw new Error('The report itself was refused')
+    }
+
+    expect(client.get('documents', report.id)?.['status']).toBe('draft')
+
+    const results = [
+      await client.update('documents', report.id, { introText: 'Sicherungen getauscht.' }),
+      await client.create('document_lines', {
+        documentId: report.id,
+        position: 1,
+        designation: 'Arbeitszeit',
+        quantityMilli: 2500,
+        unit: 'hour',
+        unitPriceCents: 0,
+      }),
+      await client.create('document_signatures', {
+        documentId: report.id,
+        signerName: 'Erika Berg',
+        signedAt: '2026-09-21T12:32:00.000Z',
+        deviceInfo: 'Testgerät',
+        path: 'M100,300L200,120',
+        contentFingerprint: 'fnv1a32:00000000:0',
+      }),
+    ]
+
+    expect(results.map((result) => result.outcome)).toEqual(['queued', 'queued', 'queued'])
+
+    // The status is what the device assumes, not what it sends: the field is
+    // the server's, and naming it in a patch is refused. The first exchange
+    // is the failing one still under way; after a failure the client waits to
+    // be asked again, so the network coming back is a second call.
+    await client.synchronise()
+    transport.refuse = null
+    await client.synchronise()
+
+    const created = transport.sent
+      .flat()
+      .find((operation) => operation.entity === 'documents' && operation.kind === 'create')
+
+    expect(created?.patches.map((patch) => patch.field)).not.toContain('status')
+  })
+
   it('never sends a field the server keeps, whatever a form hands it', async () => {
     const client = await start(transport)
 
@@ -349,6 +420,116 @@ describe('a device without a network', () => {
     })
 
     expect(transport.sent.at(-1)?.[0]?.patches.map((patch) => patch.field)).toEqual(['designation'])
+  })
+})
+
+/**
+ * A device that already holds data and gets a new build. The cursor it kept
+ * was moved by the old build, past every row of a kind the old build did not
+ * know, and the new build must not trust it for those.
+ */
+describe('a new build on a device that already has data', () => {
+  let transport: Recorded
+
+  beforeEach(() => {
+    transport = new Recorded()
+  })
+
+  async function startWith(known: readonly string[], name: string) {
+    return await Client.start({
+      store: await openLocalStore(name),
+      transport,
+      writer: new Writing(),
+      deviceId: 'device',
+      entities: known,
+      onSignedOut: () => {},
+    })
+  }
+
+  const signature = row({ id: 's-1', documentId: 'd-1', signerName: 'Erika Berg' })
+
+  it('asks from the beginning once when it knows a kind of record the last build did not', async () => {
+    const older = await startWith(['customers'], 'upgrade')
+
+    transport.pulls = [
+      {
+        changes: [
+          { entity: 'customers', rows: [row({ id: 'c-1', name: 'Meyer', kind: 'private' })] },
+          { entity: 'document_signatures', rows: [signature] },
+        ],
+        cursor: 7,
+        hasMore: false,
+      },
+    ]
+    await older.synchronise()
+    older.stop()
+
+    const newer = await startWith(['customers', 'document_signatures'], 'upgrade')
+
+    transport.pulls = [
+      {
+        changes: [{ entity: 'document_signatures', rows: [signature] }],
+        cursor: 7,
+        hasMore: false,
+      },
+    ]
+    await newer.synchronise()
+
+    expect(transport.asked).toEqual([0, 0])
+    expect(newer.list('document_signatures').map((entry) => entry['signerName'])).toEqual([
+      'Erika Berg',
+    ])
+  })
+
+  it('keeps its place when it knows nothing the last build did not', async () => {
+    const first = await startWith(['customers'], 'same-build')
+
+    transport.pulls = [{ changes: [], cursor: 7, hasMore: false }]
+    await first.synchronise()
+    first.stop()
+
+    await (await startWith(['customers'], 'same-build')).synchronise()
+
+    expect(transport.asked).toEqual([0, 7])
+  })
+
+  it('asks from the beginning after a build that kept no list, and only the once', async () => {
+    const store = await openLocalStore('before-the-list')
+
+    await store.writeMeta('cursor', 7)
+    store.close()
+
+    const first = await startWith(['customers'], 'before-the-list')
+
+    transport.pulls = [{ changes: [], cursor: 9, hasMore: false }]
+    await first.synchronise()
+    first.stop()
+
+    await (await startWith(['customers'], 'before-the-list')).synchronise()
+
+    expect(transport.asked).toEqual([0, 9])
+  })
+
+  it('starts again after going back to a build that knew less and forward once more', async () => {
+    const both = ['customers', 'document_signatures']
+
+    const first = await startWith(both, 'back-and-forth')
+
+    transport.pulls = [{ changes: [], cursor: 5, hasMore: false }]
+    await first.synchronise()
+    first.stop()
+
+    const back = await startWith(['customers'], 'back-and-forth')
+
+    transport.pulls = [{ changes: [], cursor: 8, hasMore: false }]
+    await back.synchronise()
+    back.stop()
+
+    await (await startWith(both, 'back-and-forth')).synchronise()
+
+    // The build in the middle dropped whatever signatures arrived between 5
+    // and 8, so the third asks from the beginning and not from 8.
+    expect(transport.asked).toEqual([0, 5, 0])
   })
 })
 

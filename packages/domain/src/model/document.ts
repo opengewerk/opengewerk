@@ -80,9 +80,30 @@ export function successorsOf(kind: DocumentKind): readonly DocumentKind[] {
 }
 
 /**
+ * The kinds that record what was done rather than what it costs, and are
+ * printed without prices and totals.
+ *
+ * The report of #73 is the case. It is written on site, where nobody prices
+ * anything, and signed for its hours and materials; the prices come with the
+ * invoice made out of it. A report printed with a column of zero euros would
+ * say something nobody meant.
+ */
+export const unpricedKinds: readonly DocumentKind[] = ['time_and_material_report']
+
+export function showsPrices(kind: DocumentKind): boolean {
+  return !unpricedKinds.includes(kind)
+}
+
+/**
  * A document is a draft until it is issued. From then on it is fixed: nothing
  * is deleted, a mistake is corrected by a cancellation or a credit note. That
  * is leading decision 4, GoBD by design.
+ *
+ * `signed` sits between the two, for a document a customer signs on site: the
+ * report of #73. From the signature on it no longer changes, because the
+ * customer signed exactly this; it has no number yet, because issuing is the
+ * office's step and not the technician's. The office issues it later, and
+ * that is the only step left to it.
  *
  * Enforced, not merely described. The number comes out of a counter under a
  * row lock, a trigger in the database refuses every later change to an issued
@@ -90,7 +111,7 @@ export function successorsOf(kind: DocumentKind): readonly DocumentKind[] {
  * out of a device's reach. What is left here is the vocabulary those rules
  * are written in.
  */
-export const documentStatuses = ['draft', 'issued', 'cancelled'] as const
+export const documentStatuses = ['draft', 'signed', 'issued', 'cancelled'] as const
 
 export type DocumentStatus = (typeof documentStatuses)[number]
 
@@ -111,6 +132,11 @@ export function whyFixed(document: {
   switch (document.status) {
     case 'draft':
       return null
+    case 'signed':
+      return (
+        'Der Beleg ist unterschrieben und wird nicht mehr geändert: unterschrieben wurde genau ' +
+        'dieser Stand. Soll sich etwas ändern, entsteht dafür ein neuer Beleg.'
+      )
     case 'cancelled':
       return 'Der Beleg ist storniert und wird nicht mehr geändert.'
     case 'issued':

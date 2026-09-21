@@ -1,10 +1,12 @@
 import type { Document } from '../model/document.js'
-import { isInvoice, retentionNote, taxNotes } from '../model/document.js'
+import { isInvoice, retentionNote, showsPrices, taxNotes } from '../model/document.js'
 import type {
   DocumentContent,
+  DocumentContentV2,
   IssuerContent,
   LineContent,
   RecipientContent,
+  SignatureContent,
   SiteContent,
   StoredDocumentContent,
 } from '../model/document-content.js'
@@ -31,6 +33,7 @@ export interface ContentSources {
   readonly issuer: IssuerContent
   readonly recipient: RecipientContent
   readonly site: SiteContent | null
+  readonly signature: SignatureContent | null
 }
 
 /**
@@ -54,7 +57,9 @@ export function printedNotes(document: {
   const notes: string[] = []
   const taxNote = taxNotes[document.taxTreatment]
 
-  if (taxNote) {
+  // Only where there are figures for it to explain. A report without prices
+  // that says no VAT is charged answers a question it never raised.
+  if (taxNote && showsPrices(document.kind)) {
     notes.push(taxNote)
   }
 
@@ -121,6 +126,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       taxTreatment: document.taxTreatment,
       recipientIsBusiness: sources.recipient.isBusiness,
     }),
+    signature: sources.signature,
   }
 }
 
@@ -128,21 +134,28 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * A stored snapshot in the shape of today, whatever shape it was written in.
  *
  * The snapshot itself is never rewritten, that is the point of it. What
- * changes is how it is read: a record from version 1 had no titles and no
- * texts, so every line of it is a position and both texts are empty, which
- * is exactly what it said when it was printed. The figures, the addresses and
- * the notes are carried over as they are.
+ * changes is how it is read, one version at a time: a record from version 1
+ * had no titles and no texts, so every line of it is a position and both texts
+ * are empty; a record from version 2 had no signature. That is exactly what
+ * each of them said when it was printed. The figures, the addresses and the
+ * notes are carried over as they are.
  */
 export function currentContent(stored: StoredDocumentContent): DocumentContent {
-  if (stored.version === documentContentVersion) {
-    return stored
-  }
+  switch (stored.version) {
+    case documentContentVersion:
+      return stored
+    case 2:
+      return { ...stored, version: documentContentVersion, signature: null }
+    case 1: {
+      const second: DocumentContentV2 = {
+        ...stored,
+        version: 2,
+        introText: null,
+        closingText: null,
+        lines: stored.lines.map((line) => ({ ...line, kind: 'item' as const })),
+      }
 
-  return {
-    ...stored,
-    version: documentContentVersion,
-    introText: null,
-    closingText: null,
-    lines: stored.lines.map((line) => ({ ...line, kind: 'item' as const })),
+      return currentContent(second)
+    }
   }
 }

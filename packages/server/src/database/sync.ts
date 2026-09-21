@@ -1,6 +1,8 @@
 import {
+  type CustomerId,
   decideMerge,
   inOutboxOrder,
+  type IsoDate,
   lineNetCents,
   isSetByServer,
   type Operation,
@@ -8,6 +10,7 @@ import {
   type OperationReceipt,
   policyFor,
   type RecordState,
+  signaturePathIsValid,
   type SyncValue,
   type TenantId,
   toSyncValue,
@@ -15,6 +18,8 @@ import {
 import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull } from 'drizzle-orm'
 import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
+import { signatureRefusal } from '../documents/signing.js'
+import { proposedTreatment } from '../documents/treatment.js'
 import type { TenantTransaction } from './database.js'
 import * as schema from './schema/index.js'
 import { syncConflicts, syncOperations } from './schema/index.js'
@@ -132,6 +137,39 @@ function withLineTotal(
   const unitPriceCents = Number(values['unitPriceCents'] ?? current?.['unitPriceCents'] ?? 0)
 
   return { ...values, netCents: lineNetCents({ quantityMilli, unitPriceCents }) }
+}
+
+/**
+ * The tax treatment of a document made on a device, proposed here as the
+ * route proposes it for one made in the office.
+ *
+ * Only when the device did not choose one. It may, a draft's treatment is
+ * writable; what it may not get is the default by accident, which is what a
+ * report written in a cellar for a small business used to arrive with.
+ */
+async function withProposedTreatment(
+  tx: TenantTransaction,
+  operation: Operation,
+  values: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  if (
+    operation.kind !== 'create' ||
+    operation.entity !== 'documents' ||
+    values['taxTreatment'] !== undefined ||
+    typeof values['customerId'] !== 'string' ||
+    typeof values['documentDate'] !== 'string'
+  ) {
+    return values
+  }
+
+  return {
+    ...values,
+    taxTreatment: await proposedTreatment(
+      tx,
+      values['customerId'] as CustomerId,
+      values['documentDate'] as IsoDate,
+    ),
+  }
 }
 
 export class UnknownFieldError extends Error {}
@@ -275,10 +313,35 @@ async function applyOne(
     }
   }
 
+  if (operation.kind === 'create' && operation.entity === 'document_signatures') {
+    // A path that is not one this system draws is a mistake in the client,
+    // like a field it may not set, and not a disagreement between two people.
+    // The check in the database would refuse it too, with a sentence nobody
+    // on site could act on.
+    if (typeof values['path'] !== 'string' || !signaturePathIsValid(values['path'])) {
+      throw new UnknownFieldError('Die Unterschrift ist kein Pfad, wie OpenGewerk ihn zeichnet.')
+    }
+
+    const refusal = await signatureRefusal(tx, values)
+
+    if (refusal) {
+      return await record(tx, tenantId, operation, {
+        outcome: 'conflict',
+        reason: refusal.reason,
+        fields: refusal.fields,
+        current,
+      })
+    }
+  }
+
   // The line total is worked out here and not taken from the device. It is
   // reserved in the policy, so a device that sends one is refused outright;
   // this is the other half, the figure the server puts in its place.
-  const complete = withLineTotal(operation.entity, values, current)
+  const complete = await withProposedTreatment(
+    tx,
+    operation,
+    withLineTotal(operation.entity, values, current),
+  )
 
   if (operation.kind === 'create') {
     await tx.insert(table).values({ ...complete, id: operation.recordId, tenantId } as never)

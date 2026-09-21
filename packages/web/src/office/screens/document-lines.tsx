@@ -5,6 +5,7 @@ import {
   outlineRows,
   RuleError,
   shippedRules,
+  showsPrices,
   totalsFor,
   vatRates,
 } from '@opengewerk/domain'
@@ -32,6 +33,7 @@ import {
   percent,
 } from '../../app/format.js'
 import {
+  documentKindOf,
   lineKindOf,
   lineUnitLabel,
   lineUnitOf,
@@ -121,12 +123,14 @@ const rateOptions = vatRates.map((rate) => ({ value: rate, label: vatRateLabel[r
 
 /**
  * One line, new or changed. A title asks for its heading and nothing else:
- * it carries no amount, and the server refuses one that does.
+ * it carries no amount, and the server refuses one that does. On a document
+ * without prices, a report, a position asks for no price either.
  */
 function LineForm({
   kind,
   record,
   taxed,
+  priced,
   submitLabel,
   onSave,
   onCancel,
@@ -134,6 +138,7 @@ function LineForm({
   readonly kind: LineKind
   readonly record?: RecordState
   readonly taxed: boolean
+  readonly priced: boolean
   readonly submitLabel: string
   readonly onSave: (values: LineValues) => Promise<EditResult>
   readonly onCancel: () => void
@@ -154,7 +159,7 @@ function LineForm({
 
     const found: Record<string, string> = {}
     const quantityMilli = item ? parseQuantity(quantity) : 0
-    const unitPriceCents = item ? parseEuros(price) : 0
+    const unitPriceCents = item && priced ? parseEuros(price) : 0
 
     if (designation.trim() === '') {
       found['designation'] = 'Eine Bezeichnung braucht es.'
@@ -245,17 +250,19 @@ function LineForm({
             }}
           />
           <SelectField label="Einheit" value={unit} options={unitOptions} onChange={setUnit} />
-          <Field
-            label="Einzelpreis in Euro"
-            inputMode="decimal"
-            numeric
-            value={price}
-            problem={problems['price']}
-            onChange={(event) => {
-              setPrice(event.target.value)
-            }}
-          />
-          {taxed ? (
+          {priced ? (
+            <Field
+              label="Einzelpreis in Euro"
+              inputMode="decimal"
+              numeric
+              value={price}
+              problem={problems['price']}
+              onChange={(event) => {
+                setPrice(event.target.value)
+              }}
+            />
+          ) : null}
+          {priced && taxed ? (
             <SelectField label="Steuersatz" value={rate} options={rateOptions} onChange={setRate} />
           ) : null}
         </div>
@@ -284,6 +291,10 @@ function LineForm({
  * lays them out: titles over their positions, the positions numbered below
  * them, a sum under each title. `outlineRows` does the numbering for both, so
  * position 2.3 on the screen is position 2.3 on paper.
+ *
+ * A report has no prices on paper and none here: quantity and what it was,
+ * no price, no sum, no tax. The same `showsPrices` decides both, so the screen
+ * cannot show a figure the printed report leaves out.
  */
 export function LinesSection({
   document,
@@ -296,13 +307,14 @@ export function LinesSection({
   const documentId = String(document['id'])
   const records = useRelated('document_lines', 'documentId', documentId)
   const lines = useMemo(() => inOrder(records), [records])
-  const taxed = taxTreatmentOf(document) === 'standard'
-  const rows = outlineRows(lines)
+  const priced = showsPrices(documentKindOf(document))
+  const taxed = priced && taxTreatmentOf(document) === 'standard'
+  const rows = outlineRows(lines).filter((row) => priced || row.row !== 'subtotal')
   const totals = totalsOf(document, lines)
   const rateOf = new Map(
     typeof totals === 'string' ? [] : totals.byRate.map((entry) => [entry.rate, entry.basisPoints]),
   )
-  const width = 5 + (taxed ? 1 : 0) + (editable ? 1 : 0)
+  const width = (priced ? 5 : 3) + (taxed ? 1 : 0) + (editable ? 1 : 0)
   const [adding, setAdding] = useState<LineKind | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
@@ -369,9 +381,9 @@ export function LinesSection({
                   <Column>Pos.</Column>
                   <Column>Bezeichnung</Column>
                   <Column numeric>Menge</Column>
-                  <Column numeric>Einzelpreis</Column>
+                  {priced ? <Column numeric>Einzelpreis</Column> : null}
                   {taxed ? <Column numeric>USt.</Column> : null}
-                  <Column numeric>Gesamt</Column>
+                  {priced ? <Column numeric>Gesamt</Column> : null}
                   {editable ? <Column>Ändern</Column> : null}
                 </tr>
               </thead>
@@ -402,6 +414,7 @@ export function LinesSection({
                             kind={line.kind}
                             record={line.record}
                             taxed={taxed}
+                            priced={priced}
                             submitLabel="Speichern"
                             onCancel={() => {
                               setEditing(null)
@@ -430,7 +443,7 @@ export function LinesSection({
                       <Cell className={title ? 'font-semibold' : 'text-ink-muted'}>
                         {row.number}
                       </Cell>
-                      <Cell colSpan={title ? (taxed ? 5 : 4) : undefined}>
+                      <Cell colSpan={title ? width - 1 - (editable ? 1 : 0) : undefined}>
                         <span className={title ? 'font-semibold' : undefined}>
                           {line.designation}
                         </span>
@@ -445,7 +458,9 @@ export function LinesSection({
                           <Cell numeric>
                             {`${amount(count(line.record, 'quantityMilli'))} ${lineUnitShort[lineUnitOf(line.record)]}`}
                           </Cell>
-                          <Cell numeric>{euros(count(line.record, 'unitPriceCents'))}</Cell>
+                          {priced ? (
+                            <Cell numeric>{euros(count(line.record, 'unitPriceCents'))}</Cell>
+                          ) : null}
                           {taxed ? (
                             <Cell numeric>
                               {rateOf.has(line.vatRate)
@@ -453,7 +468,7 @@ export function LinesSection({
                                 : vatRateLabel[line.vatRate]}
                             </Cell>
                           ) : null}
-                          <Cell numeric>{euros(line.netCents)}</Cell>
+                          {priced ? <Cell numeric>{euros(line.netCents)}</Cell> : null}
                         </>
                       )}
                       {editable ? (
@@ -521,7 +536,7 @@ export function LinesSection({
           </div>
         )}
 
-        <Totals totals={totals} taxed={taxed} />
+        {priced ? <Totals totals={totals} taxed={taxed} /> : null}
 
         {editable && adding === null ? (
           <div className="flex flex-wrap gap-2">
@@ -549,6 +564,7 @@ export function LinesSection({
             <LineForm
               kind={adding}
               taxed={taxed}
+              priced={priced}
               submitLabel={adding === 'item' ? 'Position hinzufügen' : 'Titel hinzufügen'}
               onCancel={() => {
                 setAdding(null)
