@@ -501,6 +501,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Roadmap in der README sagt, dass an Phase 1 gearbeitet wird, und verweist für das
+  Offene auf den Meilenstein. Dort stand noch, Phase 1 komme als Nächstes, ein Satz aus
+  der Zeit vor der ersten Oberfläche
+- Die Projektfamilie in der README nennt die Website unter opengewerk.de, die seit dem
+  21.09.2026 live ist und bis dahin nirgends im Repository vorkam
+- `docs/konzept/README.md` nennt die Konzepte nicht mehr nur verbindlich, solange es
+  keinen Code gibt. Code gibt es inzwischen, und verbindlich bleiben sie trotzdem: was
+  gebaut wird, steht zuerst dort
+
 - Speichern, Verknüpfen und Lesen der Dateien eines Belegs stehen an einer Stelle,
   gemeinsam für PDF, XRechnung und ZUGFeRD-PDF. Die Reihenfolge, erst die Bytes und dann
   die Zeile, darf zwischen den drei Routen nicht auseinanderlaufen

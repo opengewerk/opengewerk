@@ -713,14 +713,16 @@ ist, was sich nicht nachrüsten lässt: Datenmodell, Offline-Datenschicht,
 Festschreibung und Mandantentrennung gehören ins Fundament, auch wenn die
 Oberfläche dafür erst danach kommt.
 
-Phase 0 (Fundament) ist gebaut. Als Nächstes kommt Phase 1, der MVP für den
-Pilotbetrieb.
+Phase 0 (Fundament) ist gebaut, an Phase 1, dem MVP für den Pilotbetrieb, wird
+gearbeitet. Was davon steht, sagt das Kapitel Status oben, was noch offen ist, der
+[Meilenstein Phase 1](https://github.com/opengewerk/opengewerk/milestone/2).
 
 ## Projektfamilie
 
 - [`opengewerk`](https://github.com/opengewerk/opengewerk): diese Handwerkersoftware, das CRM und ERP für den Betrieb.
 - [`opengewerk-kanzlei`](https://github.com/opengewerk/opengewerk-kanzlei): der Kanzlei-Hub, mit dem ein Steuerberater alle seine OpenGewerk-Mandanten aus einer Anwendung heraus bearbeitet, ohne dass die Daten den Betrieb verlassen.
 - [`opengewerk-api-spec`](https://github.com/opengewerk/opengewerk-api-spec): der gemeinsame API-Vertrag zwischen beiden, versioniert nach SemVer, damit Hub und Handwerkersoftware unabhängig releasen können.
+- [opengewerk.de](https://opengewerk.de): die Website des Projekts, gebaut aus [`opengewerk-website`](https://github.com/opengewerk/opengewerk-website).
 
 ## Mitmachen
 

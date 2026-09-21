@@ -1,6 +1,6 @@
 # Konzept
 
-Hier liegen die Planungsdokumente von OpenGewerk. Sie sind die verbindliche Quelle für den Funktionsumfang, solange es noch keinen Code gibt.
+Hier liegen die Planungsdokumente von OpenGewerk. Sie sind die verbindliche Quelle für den Funktionsumfang: was gebaut wird, steht zuerst hier. Was davon schon gebaut ist, sagt die [README](../../README.md) im Wurzelverzeichnis.
 
 | Datei | Inhalt |
 | --- | --- |
