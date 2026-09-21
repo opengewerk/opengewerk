@@ -13,13 +13,15 @@ import { RequestRefused, request } from '../sync/transport.js'
  * The calls about documents that go straight to the server instead of into
  * the outbox.
  *
- * Four of them, and each for a reason the outbox cannot serve. A new document
- * is created at the route because that is where its tax treatment is proposed
- * from the customer and the business; through the outbox it would arrive with
- * the default and a small business would write its first quote with tax on
- * it. Issuing hands out a number from a counter. A successor is a head and
- * every line of its predecessor in one transaction. And the PDF is printed on
- * the server, where the renderer is.
+ * Each for a reason the outbox cannot serve. A new document is created at the
+ * route because that is where its tax treatment is proposed from the customer
+ * and the business; through the outbox it would arrive with the default and a
+ * small business would write its first quote with tax on it. Issuing hands out
+ * a number from a counter. A successor is a head and every line of its
+ * predecessor in one transaction, and a cancellation is the same and issued in
+ * that transaction too. The deductions of an invoice are read out of what
+ * earlier invoices froze, which never travels to a device. And the PDF is
+ * printed on the server, where the renderer is.
  *
  * Everything else about a document, its fields and its lines, goes through
  * the outbox like any other record, and the screen shows it from there.
@@ -66,10 +68,16 @@ export function makeSuccessor(id: string, kind: DocumentKind): Promise<RecordSta
 }
 
 /**
- * Where the PDF of a document is. A plain address rather than a fetch: the
- * browser opens it in a tab of its own, with its own viewer, and the session
- * cookie goes along by itself.
+ * Cancels an issued invoice. The answer is the cancellation invoice, already
+ * issued with its number; the invoice itself is `cancelled` from then on, and
+ * the next exchange brings both down.
  */
+export function cancelDocument(id: string): Promise<RecordState> {
+  return request<RecordState>(`/documents/${encodeURIComponent(id)}/cancellation`, {
+    method: 'POST',
+  })
+}
+
 /**
  * The progress invoices a document takes off, read by the server out of what
  * those invoices froze when they were issued. Only the server can answer: the
@@ -80,6 +88,11 @@ export function deductionsOf(id: string): Promise<readonly DeductionContent[]> {
   return request<readonly DeductionContent[]>(`/documents/${encodeURIComponent(id)}/deductions`)
 }
 
+/**
+ * Where the PDF of a document is. A plain address rather than a fetch: the
+ * browser opens it in a tab of its own, with its own viewer, and the session
+ * cookie goes along by itself.
+ */
 export function pdfAddress(id: string): string {
   return `/documents/${encodeURIComponent(id)}/pdf`
 }

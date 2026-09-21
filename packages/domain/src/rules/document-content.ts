@@ -5,6 +5,7 @@ import type {
   DocumentContent,
   DocumentContentV2,
   DocumentContentV3,
+  DocumentContentV4,
   IssuerContent,
   LineContent,
   RecipientContent,
@@ -140,6 +141,9 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     signature: sources.signature,
     deductions: sources.deductions,
     billed: billedAfter(totals, sources.deductions, document.taxTreatment),
+    // Only a cancellation cancels something, and it is not put together here
+    // but mirrored out of its invoice: see `cancellationOf`.
+    corrects: null,
   }
 }
 
@@ -150,21 +154,26 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * changes is how it is read, one version at a time: a record from version 1
  * had no titles and no texts, so every line of it is a position and both texts
  * are empty; a record from version 2 had no signature; a record from version 3
- * deducted nothing and billed its totals. That is exactly what each of them
- * said when it was printed. The figures, the addresses and the notes are
- * carried over as they are.
+ * deducted nothing and billed its totals; a record from version 4 cancelled
+ * nothing. That is exactly what each of them said when it was printed. The
+ * figures, the addresses and the notes are carried over as they are.
  */
 export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 3:
-      return {
+    case 4:
+      return { ...stored, version: documentContentVersion, corrects: null }
+    case 3: {
+      const fourth: DocumentContentV4 = {
         ...stored,
-        version: documentContentVersion,
+        version: 4,
         deductions: [],
         billed: billedOf(stored.totals),
       }
+
+      return currentContent(fourth)
+    }
     case 2: {
       const third: DocumentContentV3 = { ...stored, version: 3, signature: null }
 

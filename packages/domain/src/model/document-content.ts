@@ -27,9 +27,10 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  *
  * Version 2 added the titles among the lines and the two texts around them,
  * version 3 the signature, version 4 the progress invoices a document deducts
- * and the amount it bills after them.
+ * and the amount it bills after them, version 5 the invoice a cancellation
+ * cancels.
  */
-export const documentContentVersion = 4
+export const documentContentVersion = 5
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -110,6 +111,18 @@ export interface DeductionContent {
   readonly billed: BilledAmount
 }
 
+/**
+ * The invoice a cancellation cancels, as far as the cancellation names it:
+ * what it was, its number and its date. Printed at the top of the
+ * cancellation, because a cancellation that does not say which invoice it
+ * takes back takes back nothing a reader can find.
+ */
+export interface CorrectionContent {
+  readonly kind: DocumentKind
+  readonly number: string
+  readonly documentDate: IsoDate
+}
+
 export interface DocumentContent {
   readonly version: typeof documentContentVersion
   readonly kind: DocumentKind
@@ -150,11 +163,18 @@ export interface DocumentContent {
    * same figures as the totals whenever nothing is deducted.
    */
   readonly billed: BilledAmount
+  /** The invoice this one cancels. Null for everything but a cancellation. */
+  readonly corrects: CorrectionContent | null
+}
+
+/** The fourth shape, from #74: deductions and the billed amount, no cancellation yet. */
+export interface DocumentContentV4 extends Omit<DocumentContent, 'version' | 'corrects'> {
+  readonly version: 4
 }
 
 /** The third shape, from #73: the signature, and nothing deducted yet. */
 export interface DocumentContentV3 extends Omit<
-  DocumentContent,
+  DocumentContentV4,
   'version' | 'deductions' | 'billed'
 > {
   readonly version: 3
@@ -180,7 +200,7 @@ export interface DocumentContentV1 extends Omit<
 
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
-  DocumentContent | DocumentContentV3 | DocumentContentV2 | DocumentContentV1
+  DocumentContent | DocumentContentV4 | DocumentContentV3 | DocumentContentV2 | DocumentContentV1
 
 /**
  * The content of a document, written once, when it is issued.

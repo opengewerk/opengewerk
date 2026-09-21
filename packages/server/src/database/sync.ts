@@ -334,6 +334,19 @@ async function applyOne(
     }
   }
 
+  // A cancellation invoice is made by the server out of the invoice it cancels
+  // and nowhere else. The database refuses one written by hand, and it would
+  // do so for the whole transmission; refused here first, it is a conflict
+  // about this one operation, the way a field the server keeps is refused.
+  if (operation.entity === 'documents' && values['kind'] === 'cancellation_invoice') {
+    return await record(tx, tenantId, operation, {
+      outcome: 'conflict',
+      reason: 'set_by_server',
+      fields: ['kind'],
+      current,
+    })
+  }
+
   // The line total is worked out here and not taken from the device. It is
   // reserved in the policy, so a device that sends one is refused outright;
   // this is the other half, the figure the server puts in its place.

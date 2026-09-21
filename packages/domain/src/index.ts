@@ -29,6 +29,7 @@ export * from './model/text-snippet.js'
 // The legal parameters. Not in the code: they sit in data packages with a
 // period of validity and the paragraph they come from, and every question to
 // them needs a date, so that a document is judged by the rules of its own time.
+export * from './rules/cancellation.js'
 export * from './rules/document-content.js'
 export * from './rules/invoice.js'
 export * from './rules/mandatory-details.js'

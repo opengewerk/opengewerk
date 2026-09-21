@@ -12,6 +12,8 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
+  cancellationOf,
+  currentContent,
   type CustomerId,
   defaultPatterns,
   type DocumentContent,
@@ -20,6 +22,7 @@ import {
   documentKinds,
   type DocumentStatus,
   formatDocumentNumber,
+  isCancellable,
   type IsoDate,
   missingDetails,
   numberRangeOf,
@@ -29,7 +32,7 @@ import {
   type TaxTreatment,
   whyFixed,
 } from '@opengewerk/domain'
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
@@ -39,7 +42,7 @@ import {
   documentSnapshots,
   numberRanges,
 } from '../database/schema/index.js'
-import { contentOf } from '../documents/content.js'
+import { contentOf, issuerOf } from '../documents/content.js'
 import { deductionsFor } from '../documents/deductions.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
@@ -81,6 +84,20 @@ async function contentForIssuing(
  */
 function todayInGermany(): IsoDate {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
+}
+
+/** The refusal for a document that lacks mandatory details, the same for every route. */
+function lacking(missing: ReturnType<typeof missingDetails>): UnprocessableEntityException {
+  // A sentence for whoever reads only `message`, and the list for a screen
+  // that wants to point at each field.
+  return new UnprocessableEntityException({
+    statusCode: 422,
+    error: 'Unprocessable Entity',
+    message:
+      'Der Beleg kann noch nicht festgeschrieben werden, es fehlen Pflichtangaben. ' +
+      missing.map((entry) => entry.message).join(' '),
+    missing,
+  })
 }
 
 /** The states a document is issued from: a draft, or a report the customer signed. */
@@ -244,16 +261,7 @@ export class DocumentsController {
       const { content, missing } = await contentForIssuing(tx, existing)
 
       if (missing.length > 0) {
-        // A sentence for whoever reads only `message`, and the list for a
-        // screen that wants to point at each field.
-        throw new UnprocessableEntityException({
-          statusCode: 422,
-          error: 'Unprocessable Entity',
-          message:
-            'Der Beleg kann noch nicht festgeschrieben werden, es fehlen Pflichtangaben. ' +
-            missing.map((entry) => entry.message).join(' '),
-          missing,
-        })
+        throw lacking(missing)
       }
 
       const issuedAt = new Date()
@@ -420,11 +428,13 @@ export class DocumentsController {
   }
 
   /**
-   * The progress invoices this document takes off, as they stand in their
-   * snapshots, oldest first. Empty for a kind that deducts nothing.
+   * The progress invoices this document takes off, oldest first. Empty for a
+   * kind that deducts nothing.
    *
-   * For the screen of a draft. Once the document is issued, the same list is
-   * part of what it froze, and its PDF prints from there.
+   * A draft gets them out of its chain, as they stand in the snapshots of the
+   * progress invoices. An issued document gets the list it froze, and that is
+   * also how a cancellation shows the deductions it turns round: it has no
+   * chain of its own to walk, only the mirror of its invoice.
    */
   @Get(':id/deductions')
   @RequiresPermission('document.read')
@@ -439,6 +449,17 @@ export class DocumentsController {
         throw new NotFoundException()
       }
 
+      if (document.status === 'issued' || document.status === 'cancelled') {
+        const [snapshot] = await tx
+          .select({ content: documentSnapshots.content })
+          .from(documentSnapshots)
+          .where(eq(documentSnapshots.documentId, document.id))
+
+        if (snapshot) {
+          return currentContent(snapshot.content).deductions
+        }
+      }
+
       try {
         return await deductionsFor(tx, document)
       } catch (error) {
@@ -448,6 +469,204 @@ export class DocumentsController {
 
         throw error
       }
+    })
+  }
+
+  /**
+   * Cancelling an invoice, section 4.2 and leading decision 4: an issued
+   * invoice is never changed and never deleted, it is cancelled by an invoice
+   * of its own that turns every figure round, and both stay in the books.
+   *
+   * One step and one transaction, like issuing. The cancellation is made, its
+   * lines are written as the mirror of the invoice's, its mandatory details
+   * are checked, it gets the next number of the invoice sequence and its
+   * snapshot, and the invoice becomes `cancelled`. A failure anywhere takes all
+   * of it back and leaves no hole in the numbers. What it says comes out of
+   * the invoice's own snapshot, see `cancellationOf`.
+   *
+   * Its right is the right to issue: a cancellation is a booking as much as
+   * the invoice was, and a technician writes neither.
+   *
+   * Not while another issued invoice builds on this one. A progress invoice
+   * that a later invoice deducted is part of that invoice's figures, and
+   * cancelling it from under it would leave the later one deducting something
+   * that no longer stands. The later one goes first.
+   *
+   * The transaction marks itself with `app.cancelling`, the one mark the
+   * database accepts for making a document of this kind; see migration 0016.
+   */
+  @Post(':id/cancellation')
+  @RequiresPermission('document.issue')
+  async cancel(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    return this.database.forTenant(identity, async (tx) => {
+      const [original] = await tx
+        .select()
+        .from(documents)
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+
+      if (!original) {
+        throw new NotFoundException()
+      }
+
+      if (original.kind === 'cancellation_invoice') {
+        throw new BadRequestException(
+          'Eine Stornorechnung wird nicht storniert. Soll die Leistung wieder berechnet werden, ' +
+            'entsteht dafür eine neue Rechnung.',
+        )
+      }
+
+      if (!isCancellable(original.kind)) {
+        throw new BadRequestException(
+          'Storniert wird nur eine Rechnung. Ein anderer Beleg, der nicht mehr gilt, wird durch ' +
+            'einen neuen ersetzt.',
+        )
+      }
+
+      if (original.status === 'draft') {
+        throw new ConflictException(
+          'Ein Entwurf wird nicht storniert, sondern gelöscht: er steht noch in keinen Büchern.',
+        )
+      }
+
+      if (original.status !== 'issued') {
+        throw new ConflictException('Die Rechnung ist schon storniert.')
+      }
+
+      const [later] = await tx
+        .select({ kind: documents.kind, number: documents.number })
+        .from(documents)
+        .where(
+          and(
+            eq(documents.predecessorDocumentId, original.id),
+            eq(documents.status, 'issued'),
+            isNull(documents.deletedAt),
+          ),
+        )
+        .limit(1)
+
+      if (later) {
+        throw new ConflictException(
+          `Auf diese Rechnung baut die ${documentTitle(later.kind)} ${later.number ?? ''} auf. ` +
+            'Erst jene stornieren, dann diese.',
+        )
+      }
+
+      const [snapshot] = await tx
+        .select({ content: documentSnapshots.content })
+        .from(documentSnapshots)
+        .where(eq(documentSnapshots.documentId, original.id))
+
+      if (!snapshot) {
+        throw new UnprocessableEntityException(
+          'Für diese Rechnung ist nicht festgehalten, was sie gestellt hat, deshalb lässt sich ' +
+            'ihr Spiegel nicht schreiben.',
+        )
+      }
+
+      const documentDate = todayInGermany()
+      const content = cancellationOf(currentContent(snapshot.content), {
+        number: null,
+        documentDate,
+        issuer: await issuerOf(tx, identity.tenantId),
+      })
+      const missing = missingDetails(shippedRules, content)
+
+      if (missing.length > 0) {
+        throw lacking(missing)
+      }
+
+      await tx.execute(sql`select set_config('app.cancelling', 'on', true)`)
+
+      const [created] = await tx
+        .insert(documents)
+        .values({
+          tenantId: identity.tenantId,
+          customerId: original.customerId,
+          jobId: original.jobId,
+          siteId: original.siteId,
+          installationId: original.installationId,
+          predecessorDocumentId: original.id,
+          kind: 'cancellation_invoice',
+          documentDate,
+          serviceFrom: original.serviceFrom,
+          serviceUntil: original.serviceUntil,
+          subject: original.subject,
+          taxTreatment: original.taxTreatment,
+        })
+        .returning()
+
+      if (!created) {
+        throw new Error('The cancellation was written and is not readable afterwards.')
+      }
+
+      const lines = await tx
+        .select()
+        .from(documentLines)
+        .where(and(eq(documentLines.documentId, original.id), isNull(documentLines.deletedAt)))
+        .orderBy(asc(documentLines.position), asc(documentLines.id))
+
+      if (lines.length > 0) {
+        await tx.insert(documentLines).values(
+          lines.map((line) => ({
+            tenantId: identity.tenantId,
+            documentId: created.id,
+            kind: line.kind,
+            position: line.position,
+            designation: line.designation,
+            description: line.description,
+            // The mirror: the quantity turned round, the price as it was, so
+            // the total comes out turned round by the same arithmetic.
+            quantityMilli: -line.quantityMilli || 0,
+            unit: line.unit,
+            unitPriceCents: line.unitPriceCents,
+            vatRate: line.vatRate,
+            netCents: -line.netCents || 0,
+          })),
+        )
+      }
+
+      const issuedAt = new Date()
+      const number = await assignDocumentNumber(
+        tx,
+        identity.tenantId,
+        'cancellation_invoice',
+        issuedAt,
+      )
+
+      const [issued] = await tx
+        .update(documents)
+        .set({ status: 'issued', number, issuedAt, updatedAt: issuedAt })
+        .where(and(eq(documents.id, created.id), eq(documents.status, 'draft')))
+        .returning()
+
+      await tx.insert(documentSnapshots).values({
+        tenantId: identity.tenantId,
+        documentId: created.id,
+        content: { ...content, number },
+      })
+
+      // The status and nothing else, which is exactly what the trigger on the
+      // table lets through for an issued document. Checked on `issued` again:
+      // two cancellations of the same invoice at the same moment would both
+      // have passed the check above, and the second finds nothing to cancel
+      // here and takes its own cancellation back with it.
+      const [cancelled] = await tx
+        .update(documents)
+        .set({ status: 'cancelled', updatedAt: issuedAt })
+        .where(
+          and(
+            eq(documents.id, original.id),
+            eq(documents.status, 'issued'),
+            isNull(documents.deletedAt),
+          ),
+        )
+        .returning({ id: documents.id })
+
+      if (!issued || !cancelled) {
+        throw new ConflictException('Die Rechnung ist inzwischen storniert worden.')
+      }
+
+      return issued
     })
   }
 

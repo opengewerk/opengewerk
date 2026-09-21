@@ -113,6 +113,13 @@
       "when": 1789981463142,
       "tag": "0015_signed_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789986802609,
+      "tag": "0016_cancellation_only_from_its_invoice",
+      "breakpoints": true
     }
   ]
 }

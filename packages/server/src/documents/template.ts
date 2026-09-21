@@ -238,6 +238,13 @@ function information(content: DocumentContent): string {
   ])
   rows.push(['Datum', day(content.documentDate)])
 
+  if (content.corrects !== null) {
+    rows.push([
+      'Zur Rechnung',
+      `${text(content.corrects.number)} vom ${day(content.corrects.documentDate)}`,
+    ])
+  }
+
   if (content.serviceFrom !== null) {
     const until = content.serviceUntil
     const single = until === null || until === content.serviceFrom
@@ -377,11 +384,20 @@ function totals(content: DocumentContent): string {
   const taxed = content.taxTreatment === 'standard'
   const deducting = content.deductions.length > 0
   const figure = (cents: number) => `<td class="figure">${euros(cents)}</td>`
+  // A cancellation speaks of the invoice it mirrors: the progress of a
+  // progress invoice, the whole work of a final one.
+  const mirrored = content.corrects?.kind ?? content.kind
   const whole = deducting
-    ? content.kind === 'progress_invoice'
+    ? mirrored === 'progress_invoice'
       ? 'Leistungsstand gesamt'
       : 'Gesamtleistung'
     : 'Gesamtbetrag'
+  // On a cancellation the deductions are turned round like everything else:
+  // what the invoice took off, the cancellation gives back.
+  const deducted =
+    content.kind === 'cancellation_invoice'
+      ? 'zurückgenommener Abzug der Abschlagsrechnung'
+      : 'abzüglich Abschlagsrechnung'
 
   const work = taxed
     ? `<tr><td>Summe netto</td>${figure(sums.netCents)}</tr>` +
@@ -402,7 +418,7 @@ function totals(content: DocumentContent): string {
   const deductions = content.deductions
     .map(
       (deduction) =>
-        `<tr class="deduction"><td>abzüglich Abschlagsrechnung ${text(deduction.number)} ` +
+        `<tr class="deduction"><td>${deducted} ${text(deduction.number)} ` +
         `vom ${day(deduction.documentDate)}` +
         (taxed
           ? `<div class="detail">netto ${euros(deduction.billed.netCents)}, ` +
@@ -632,6 +648,14 @@ export function printJob(content: DocumentContent, assets: PrintAssets): Require
   const intro = present(content.introText)
     ? `<div class="text intro">${text(content.introText)}</div>`
     : ''
+  // A cancellation says in its first sentence which invoice it takes back, and
+  // that it takes all of it back: every figure below is that invoice's, turned
+  // round.
+  const cancels = content.corrects
+    ? `<div class="text intro">Hiermit stornieren wir die ${titles[content.corrects.kind]} ` +
+      `${text(content.corrects.number)} vom ${day(content.corrects.documentDate)} in voller Höhe. ` +
+      'Die Beträge sind die dieser Rechnung mit umgekehrtem Vorzeichen.</div>'
+    : ''
   const closing = present(content.closingText)
     ? `<div class="text closing">${text(content.closingText)}</div>`
     : ''
@@ -652,6 +676,7 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
 <main>
   <h1>${text(title)}</h1>
   ${subject}
+  ${cancels}
   ${intro}
   ${lines(content)}
   ${totals(content)}

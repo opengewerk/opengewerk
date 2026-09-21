@@ -107,6 +107,23 @@ export function deducts(kind: DocumentKind): boolean {
 }
 
 /**
+ * The invoices a cancellation can be made out of. Not the two correcting
+ * kinds: a cancellation of a cancellation would bring back an invoice that is
+ * in the books as cancelled, and whoever wants to bill that work again writes
+ * a new invoice, which says so.
+ */
+export const cancellableKinds: readonly DocumentKind[] = [
+  'progress_invoice',
+  'partial_invoice',
+  'final_invoice',
+  'recurring_invoice',
+]
+
+export function isCancellable(kind: DocumentKind): boolean {
+  return cancellableKinds.includes(kind)
+}
+
+/**
  * The kinds that record what was done rather than what it costs, and are
  * printed without prices and totals.
  *
@@ -165,8 +182,18 @@ export function whyFixed(document: {
         'dieser Stand. Soll sich etwas ändern, entsteht dafür ein neuer Beleg.'
       )
     case 'cancelled':
-      return 'Der Beleg ist storniert und wird nicht mehr geändert.'
+      return (
+        'Der Beleg ist storniert und wird nicht mehr geändert. Die Stornorechnung hebt ihn auf, ' +
+        'beide bleiben in den Büchern.'
+      )
     case 'issued':
+      if (document.kind === 'cancellation_invoice') {
+        return (
+          'Die Stornorechnung ist festgeschrieben und wird nicht mehr geändert. Soll die Leistung ' +
+          'wieder berechnet werden, entsteht dafür eine neue Rechnung.'
+        )
+      }
+
       return isInvoice(document.kind)
         ? 'Die Rechnung ist festgeschrieben und wird nicht mehr geändert. Korrigiert wird sie ' +
             'durch eine Stornorechnung oder eine Gutschrift.'
