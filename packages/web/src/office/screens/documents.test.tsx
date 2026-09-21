@@ -800,6 +800,188 @@ describe('invoices in the chain', () => {
   })
 })
 
+/**
+ * The cancellation of #74, from the office. An issued invoice is taken back
+ * by one of its own with every figure turned round, both stay, and the screen
+ * shows each of them for what it is.
+ */
+describe('cancelling an invoice', () => {
+  const invoice = document({
+    kind: 'final_invoice',
+    status: 'issued',
+    number: 'RE-2026-0001',
+    documentDate: '2026-09-18',
+  })
+
+  /** The cancellation the server writes for `d-1`, with its lines turned round. */
+  function stornoOf(original: Row, over: Row = {}): { head: Row; lines: Row[] } {
+    return {
+      head: document({
+        id: 'd-2',
+        kind: 'cancellation_invoice',
+        status: 'issued',
+        number: 'RE-2026-0002',
+        predecessorDocumentId: String(original['id']),
+        ...over,
+      }),
+      lines: [line('l-9', 1, { documentId: 'd-2', quantityMilli: -1000 })],
+    }
+  }
+
+  it('is offered to the office on an issued invoice, and not to a technician', async () => {
+    await mount('/belege/d-1', { documents: [invoice], document_lines: [line('l-1', 1)] }, [
+      'technician',
+    ])
+
+    await screen.findByRole('heading', { level: 1, name: 'Schlussrechnung RE-2026-0001' })
+
+    expect(screen.queryByRole('button', { name: 'Stornieren' })).toBeNull()
+  })
+
+  it('writes the cancellation on the server and moves on to it', async () => {
+    serverSays('POST', '/documents/d-1/cancellation', () => {
+      const { head, lines } = stornoOf(invoice)
+
+      server.put('documents', head)
+      server.put('documents', { ...server.row('documents', 'd-1'), status: 'cancelled' })
+
+      for (const row of lines) {
+        server.put('document_lines', row)
+      }
+
+      return { status: 201, body: head }
+    })
+
+    await mount('/belege/d-1', { documents: [invoice], document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Stornieren' }))
+
+    expect(
+      screen.getByText(/wiederholt jeden ihrer Beträge mit umgekehrtem Vorzeichen/),
+    ).toBeDefined()
+
+    await person.click(screen.getByRole('button', { name: 'Jetzt stornieren' }))
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Stornorechnung RE-2026-0002' }),
+    ).toBeDefined()
+    expect(calls.filter((call) => call.path === '/documents/d-1/cancellation')).toHaveLength(1)
+    expect(screen.getByText(/Die Stornorechnung ist festgeschrieben/)).toBeDefined()
+    // 1.200,00 € and 19 % on it, taken back.
+    expect(screen.getByText('Gesamtbetrag').nextElementSibling?.textContent).toMatch(
+      /-1\.428,00\s€/,
+    )
+    expect(screen.queryByRole('button', { name: 'Stornieren' })).toBeNull()
+
+    const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
+
+    expect(chain.getByText('Storno zu')).toBeDefined()
+    expect(chain.getByRole('link', { name: 'Schlussrechnung' })).toBeDefined()
+  })
+
+  it('says why it refuses, and stays on the invoice', async () => {
+    serverSays('POST', '/documents/d-1/cancellation', () => ({
+      status: 409,
+      body: {
+        message:
+          'Auf diese Rechnung baut die Schlussrechnung RE-2026-0003 auf. Erst jene stornieren, ' +
+          'dann diese.',
+      },
+    }))
+
+    await mount('/belege/d-1', { documents: [invoice], document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Stornieren' }))
+    await person.click(screen.getByRole('button', { name: 'Jetzt stornieren' }))
+
+    expect(await screen.findByText(/Erst jene stornieren, dann diese/)).toBeDefined()
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Schlussrechnung RE-2026-0001' }),
+    ).toBeDefined()
+  })
+
+  it('leaves the invoice in the books as cancelled, with nothing more to do on it', async () => {
+    const { head, lines } = stornoOf(invoice)
+
+    await mount('/belege/d-1', {
+      documents: [{ ...invoice, status: 'cancelled' }, head],
+      document_lines: [line('l-1', 1), ...lines],
+    })
+
+    const card = within(await screen.findByRole('region', { name: 'Storniert' }))
+
+    expect(card.getByText(/Der Beleg ist storniert/)).toBeDefined()
+    expect(screen.queryByRole('region', { name: 'Festgeschrieben' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Stornieren' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull()
+
+    const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
+
+    expect(chain.getByRole('link', { name: 'Stornorechnung' })).toBeDefined()
+  })
+
+  it('gives back what a progress invoice took off, and names the work as the invoice did', async () => {
+    const progress = { ...invoice, kind: 'progress_invoice', status: 'cancelled' }
+    const { head, lines } = stornoOf(progress)
+    const earlier = {
+      netCents: -48_000,
+      taxCents: -9_120,
+      grossCents: -57_120,
+      byRate: [
+        {
+          rate: 'standard',
+          basisPoints: 1900,
+          netCents: -48_000,
+          taxCents: -9_120,
+          grossCents: -57_120,
+        },
+      ],
+    }
+
+    serverSays('GET', '/documents/d-2/deductions', () => ({
+      status: 200,
+      body: [
+        {
+          number: 'RE-2026-0000',
+          documentDate: '2026-09-01',
+          taxTreatment: 'standard',
+          billed: earlier,
+        },
+      ],
+    }))
+
+    await mount('/belege/d-2', { documents: [progress, head], document_lines: lines })
+
+    expect(await screen.findByText('Leistungsstand gesamt')).toBeDefined()
+    expect(
+      screen.getByText(
+        /zurückgenommener Abzug der Abschlagsrechnung RE-2026-0000 vom 01\.09\.2026/,
+      ),
+    ).toBeDefined()
+    expect(screen.queryByText(/abzüglich Abschlagsrechnung/)).toBeNull()
+    // -1.428,00 € for the work, 571,20 € given back: what the progress
+    // invoice asked for, turned round.
+    expect(screen.getByText('Rechnungsbetrag').nextElementSibling?.textContent).toMatch(
+      /-856,80\s€/,
+    )
+  })
+
+  it('counts the tax at the rates of the invoice it takes back, not of its own date', async () => {
+    const old = { ...invoice, status: 'cancelled', documentDate: '2020-09-01' }
+    const { head, lines } = stornoOf(old)
+
+    await mount('/belege/d-2', { documents: [old, head], document_lines: lines })
+
+    // Sixteen percent in the second half of 2020, as the invoice stated it.
+    expect(await screen.findByText(/Umsatzsteuer 16\s%/)).toBeDefined()
+    expect(screen.getByText('Gesamtbetrag').nextElementSibling?.textContent).toMatch(
+      /-1\.392,00\s€/,
+    )
+  })
+})
+
 describe('the job', () => {
   it('starts a quote and an estimate from two buttons, not from one with a choice', async () => {
     serverSays('POST', '/documents', (body) => {

@@ -1,5 +1,5 @@
-import type { DocumentKind, MissingDetail, RecordState } from '@opengewerk/domain'
-import { successorsOf, whyFixed } from '@opengewerk/domain'
+import type { DocumentKind, DocumentStatus, MissingDetail, RecordState } from '@opengewerk/domain'
+import { isCancellable, successorsOf, whyFixed } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
@@ -9,6 +9,7 @@ import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/l
 import { useMay } from '../../app/queries.js'
 import { SignaturePicture } from '../../app/signature.js'
 import {
+  cancelDocument,
   createDocument,
   issueDocument,
   makeSuccessor,
@@ -142,12 +143,13 @@ export function JobDocuments({ job }: { readonly job: RecordState }) {
 
 /**
  * The screen of one document: a quote, an estimate, an order confirmation, a
- * report signed on site.
+ * report signed on site, an invoice and its cancellation.
  *
  * Everything on it reads from the sync client, and everything written while
  * it is a draft goes into the outbox: the head, the texts, every line. What
  * goes straight to the server is what only the server can do, which is
- * handing out a number, making a successor in one step and printing.
+ * handing out a number, making a successor or a cancellation in one step and
+ * printing.
  */
 export function DocumentScreen() {
   const { documentId } = useParams({ strict: false }) as { documentId?: string }
@@ -180,6 +182,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   const mayWrite = useMay('document.write')
   const mayIssue = useMay('document.issue')
   const [issuing, setIssuing] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [following, setFollowing] = useState(false)
 
@@ -192,6 +195,9 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   // the office's step, and the only one left: nothing on it changes on the way.
   const issuable = status === 'draft' || status === 'signed'
   const next = status === 'issued' && mayWrite ? successorsOf(kind) : []
+  // Cancelling is issuing the other way round, so it takes the same right: a
+  // cancellation goes into the books like the invoice did.
+  const cancellable = status === 'issued' && isCancellable(kind) && mayIssue
 
   async function follow(successor: DocumentKind) {
     setFollowing(true)
@@ -262,6 +268,16 @@ function DocumentView({ document }: { readonly document: RecordState }) {
               Festschreiben
             </Button>
           ) : null}
+          {cancellable ? (
+            <Button
+              onClick={() => {
+                setCancelling(true)
+              }}
+              disabled={cancelling}
+            >
+              Stornieren
+            </Button>
+          ) : null}
           {next.map((successor) => (
             <Button
               key={successor}
@@ -284,7 +300,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       {kind === 'cost_estimate' ? <EstimateNotice /> : null}
 
       {fixed ? (
-        <Card label={status === 'signed' ? 'Unterschrieben' : 'Festgeschrieben'} tone="sunken">
+        <Card label={fixedLabel[status] ?? 'Festgeschrieben'} tone="sunken">
           <p role="status" className="text-body text-ink">
             {fixed}
           </p>
@@ -300,12 +316,27 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         />
       ) : null}
 
+      {cancelling && cancellable ? (
+        <CancelCard
+          documentId={documentId}
+          onDone={() => {
+            setCancelling(false)
+          }}
+        />
+      ) : null}
+
       <HeaderSection document={document} editable={editable} />
       <LinesSection document={document} editable={editable} />
       <SignatureSection documentId={documentId} />
-      <ChainSection predecessor={predecessor} successors={successors} />
+      <ChainSection kind={kind} predecessor={predecessor} successors={successors} />
     </Page>
   )
+}
+
+/** What the card of a fixed document is headed with, where it is not the default. */
+const fixedLabel: Readonly<Partial<Record<DocumentStatus, string>>> = {
+  signed: 'Unterschrieben',
+  cancelled: 'Storniert',
 }
 
 /**
@@ -415,6 +446,76 @@ function IssueCard({
 }
 
 /**
+ * The second step of cancelling, for the reason issuing has one: neither step
+ * can be undone. The cancellation gets the next number of the invoices and
+ * goes into the books beside the invoice, and the screen moves on to it.
+ *
+ * Nothing on this device has to reach the server first. The invoice is issued
+ * and has nothing left in the outbox, and the cancellation is written out of
+ * what the invoice froze, not out of anything held here.
+ */
+function CancelCard({
+  documentId,
+  onDone,
+}: {
+  readonly documentId: string
+  readonly onDone: () => void
+}) {
+  const client = useSync()
+  const navigate = useNavigate()
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  async function cancel() {
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      const created = await cancelDocument(documentId)
+
+      await client.synchronise()
+      await navigate({ to: `/belege/${String(created['id'])}` })
+    } catch (error) {
+      setTrouble(
+        reasonOf(
+          error,
+          'Keine Verbindung. Storniert wird mit Verbindung, weil der Server dabei die nächste ' +
+            'Rechnungsnummer vergibt.',
+        ),
+      )
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Card label="Stornieren">
+      <div className="flex flex-col gap-3">
+        <p className="text-body text-ink">
+          Stornieren schreibt eine Stornorechnung mit der nächsten Rechnungsnummer. Sie nennt diese
+          Rechnung und wiederholt jeden ihrer Beträge mit umgekehrtem Vorzeichen. Die Rechnung
+          bleibt in den Büchern und gilt danach als storniert. Zurücknehmen lässt sich das nicht;
+          soll die Leistung wieder berechnet werden, entsteht dafür eine neue Rechnung.
+        </p>
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-3">
+          <Button tone="primary" disabled={working} onClick={() => void cancel()}>
+            {working ? 'Wird storniert' : 'Jetzt stornieren'}
+          </Button>
+          <Button tone="quiet" disabled={working} onClick={onDone}>
+            Abbrechen
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/**
  * The customer's signature, as it was given on site: the picture, the name
  * typed beside it, the moment, and what the device said about itself. The
  * last two are what section 4.10 asks a simple signature to carry.
@@ -445,12 +546,15 @@ function SignatureSection({ documentId }: { readonly documentId: string }) {
 
 /**
  * Where the document stands in the chain of section 1.4: what it was made
- * from, and what has been made from it.
+ * from, and what has been made from it. A cancellation was not made from its
+ * invoice so much as against it, and says so.
  */
 function ChainSection({
+  kind,
   predecessor,
   successors,
 }: {
+  readonly kind: DocumentKind
   readonly predecessor: RecordState | null
   readonly successors: readonly RecordState[]
 }) {
@@ -462,7 +566,7 @@ function ChainSection({
     <Section title="Belegkette">
       <Facts>
         {predecessor ? (
-          <Fact label="Entstanden aus">
+          <Fact label={kind === 'cancellation_invoice' ? 'Storno zu' : 'Entstanden aus'}>
             <ul>
               <DocumentEntry document={predecessor} />
             </ul>

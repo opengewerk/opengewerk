@@ -60,7 +60,7 @@ import { deductionsOf } from '../../session/documents.js'
 import { refusalText } from '../../sync/client.js'
 import type { EditResult } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
-import { useRelated, useSync } from '../../sync/provider.js'
+import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Nothing, Section } from '../layout.js'
 import { SnippetPicker } from './snippet-picker.js'
@@ -104,10 +104,23 @@ function inOrder(records: readonly RecordState[]): readonly ShownLine[] {
 }
 
 /** The totals, or the sentence the rules answer with for a date they do not cover. */
-function totalsOf(document: RecordState, lines: readonly ShownLine[]): DocumentTotals | string {
+/**
+ * What the lines add up to, by the rules of the date the tax belongs to: the
+ * document's own, or for a cancellation the date of the invoice it takes back.
+ *
+ * A cancellation undoes the tax that invoice stated, and should a rate change
+ * between the two, its own date would work out a different tax from the same
+ * lines. The server does not work it out at all, it mirrors what the invoice
+ * froze; counting by the invoice's date is how the screen comes to the same.
+ */
+function totalsOf(
+  document: RecordState,
+  lines: readonly ShownLine[],
+  original: RecordState | null,
+): DocumentTotals | string {
   try {
     return totalsFor(shippedRules, lines, {
-      documentDate: text(document, 'documentDate'),
+      documentDate: text(original ?? document, 'documentDate'),
       taxTreatment: taxTreatmentOf(document),
     })
   } catch (error) {
@@ -324,7 +337,17 @@ export function LinesSection({
   const lines = useMemo(() => inOrder(records), [records])
   const kind = documentKindOf(document)
   const priced = showsPrices(kind)
-  const deducting = deducts(kind)
+  const cancelling = kind === 'cancellation_invoice'
+  // The invoice a cancellation takes back. Its kind names the figures, its
+  // date says which rates they were taxed at.
+  const original = useRecord(
+    'documents',
+    cancelling ? (maybeText(document, 'predecessorDocumentId') ?? undefined) : undefined,
+  )
+  // A cancellation has no chain of its own to take off. What it shows are the
+  // deductions of its invoice turned round, and the server answers with those
+  // out of what the cancellation froze.
+  const deducting = deducts(kind) || cancelling
   // What earlier progress invoices billed, as they froze it. Only the server
   // holds that; everything else on this screen comes out of the local store.
   const deductions = useQuery({
@@ -334,7 +357,7 @@ export function LinesSection({
   })
   const taxed = priced && taxTreatmentOf(document) === 'standard'
   const rows = outlineRows(lines).filter((row) => priced || row.row !== 'subtotal')
-  const totals = totalsOf(document, lines)
+  const totals = totalsOf(document, lines, original)
   const rateOf = new Map(
     typeof totals === 'string' ? [] : totals.byRate.map((entry) => [entry.rate, entry.basisPoints]),
   )
@@ -565,6 +588,7 @@ export function LinesSection({
             totals={totals}
             taxed={taxed}
             kind={kind}
+            original={original ? documentKindOf(original) : null}
             taxTreatment={taxTreatmentOf(document)}
             deductions={deducting && Array.isArray(deductions.data) ? deductions.data : []}
             deductionTrouble={
@@ -659,11 +683,17 @@ function billedOrRefusal(
  * paper does: each of them with its number, date and what it billed, and then
  * what this one asks for. The arithmetic is `billedAfter` from `domain`, the
  * same the server prints with.
+ *
+ * A cancellation shows the same rows as its invoice with every figure turned
+ * round, and names them as its invoice did: a progress invoice's work so far
+ * stays the work so far. What the invoice took off, the cancellation gives
+ * back, and says so.
  */
 function Totals({
   totals,
   taxed,
   kind,
+  original,
   taxTreatment,
   deductions,
   deductionTrouble,
@@ -671,6 +701,8 @@ function Totals({
   readonly totals: DocumentTotals | string
   readonly taxed: boolean
   readonly kind: DocumentKind
+  /** The kind of the invoice a cancellation takes back, and null otherwise. */
+  readonly original: DocumentKind | null
   readonly taxTreatment: TaxTreatment
   readonly deductions: readonly DeductionContent[]
   readonly deductionTrouble: string | null
@@ -686,10 +718,14 @@ function Totals({
   const deducting = deductions.length > 0
   const billed = deducting ? billedOrRefusal(totals, deductions, taxTreatment) : null
   const whole = deducting
-    ? kind === 'progress_invoice'
+    ? (original ?? kind) === 'progress_invoice'
       ? 'Leistungsstand gesamt'
       : 'Gesamtleistung'
     : 'Gesamtbetrag'
+  const deducted =
+    kind === 'cancellation_invoice'
+      ? 'zurückgenommener Abzug der Abschlagsrechnung'
+      : 'abzüglich Abschlagsrechnung'
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -713,7 +749,7 @@ function Totals({
         {deductions.map((deduction) => (
           <Fragment key={deduction.number}>
             <dt className="text-ink-muted">
-              {`abzüglich Abschlagsrechnung ${deduction.number} vom ${date(deduction.documentDate)}`}
+              {`${deducted} ${deduction.number} vom ${date(deduction.documentDate)}`}
               {taxed ? (
                 <span className="block text-table">
                   {`netto ${euros(deduction.billed.netCents)}, Umsatzsteuer ${euros(deduction.billed.taxCents)}`}
