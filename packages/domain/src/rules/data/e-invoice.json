@@ -1,0 +1,87 @@
+{
+  "package": "e-invoice",
+  "note": "Ab wann eine Rechnung an ein Unternehmen als E-Rechnung ausgestellt werden muss. Die Pflicht steht seit 2025 in § 14 Abs. 2 Satz 2 Nr. 1 UStG, § 27 Abs. 38 UStG lässt bis Ende 2027 Übergänge zu. Gesucht wird nach dem Tag der Leistung und nicht nach dem Belegdatum, weil der Übergang an den ausgeführten Umsatz anknüpft; ein Übergang gilt zudem nur für eine Rechnung, die innerhalb seines Zeitraums ausgestellt wird. Die Ausnahmen für die Kleinbetragsrechnung und für den Kleinunternehmer gelten für die Rechnung selbst und werden nach dem Belegdatum gesucht. Vor 2025 gab es keine Pflicht, und damit auch keine Ausnahme von ihr. Wortlaut und Gliederung von § 14 und § 27 Abs. 38 UStG sowie § 33 und § 34a UStDV sind am 21.09.2026 bei gesetze-im-internet.de nachgesehen.",
+  "records": [
+    {
+      "key": "e_invoice.required",
+      "validFrom": "2007-01-01",
+      "validUntil": "2024-12-31",
+      "unit": "flag",
+      "value": 0,
+      "source": "§ 14 Abs. 1 UStG in der bis 2024 geltenden Fassung",
+      "note": "Bis 2024 gab es keine Pflicht zur elektronischen Rechnung. Eine elektronische Rechnung brauchte die Zustimmung des Empfängers."
+    },
+    {
+      "key": "e_invoice.required",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 14 Abs. 2 Satz 2 Nr. 1 UStG, Wachstumschancengesetz",
+      "note": "Eine Rechnung an einen anderen Unternehmer für dessen Unternehmen ist als elektronische Rechnung auszustellen, wenn beide im Inland ansässig sind. Bis Ende 2027 lässt § 27 Abs. 38 UStG Übergänge zu, siehe e_invoice.transition."
+    },
+    {
+      "key": "e_invoice.transition",
+      "validFrom": "2007-01-01",
+      "validUntil": "2024-12-31",
+      "unit": "flag",
+      "value": 0,
+      "source": "§ 14 Abs. 1 UStG in der bis 2024 geltenden Fassung",
+      "note": "Ohne Pflicht kein Übergang."
+    },
+    {
+      "key": "e_invoice.transition",
+      "validFrom": "2025-01-01",
+      "validUntil": "2026-12-31",
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 27 Abs. 38 Satz 1 Nr. 1 UStG, Wachstumschancengesetz",
+      "note": "Für eine Leistung aus 2025 oder 2026 darf die Rechnung noch auf Papier oder, wenn der Empfänger zustimmt, in einem anderen elektronischen Format gehen, etwa als PDF. Das gilt nur für eine Rechnung, die bis zum 31.12.2026 ausgestellt wird."
+    },
+    {
+      "key": "e_invoice.transition",
+      "validFrom": "2027-01-01",
+      "validUntil": "2027-12-31",
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 27 Abs. 38 Satz 1 Nr. 2 UStG, Wachstumschancengesetz",
+      "note": "Für eine Leistung aus 2027 gilt der Übergang nur für einen Betrieb, dessen Gesamtumsatz im Vorjahr die Grenze in e_invoice.transition_turnover_limit nicht überstieg, und nur für eine Rechnung, die bis zum 31.12.2027 ausgestellt wird."
+    },
+    {
+      "key": "e_invoice.transition",
+      "validFrom": "2028-01-01",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 0,
+      "source": "§ 27 Abs. 38 UStG",
+      "note": "Für eine Leistung ab 2028 gibt es keinen Übergang mehr."
+    },
+    {
+      "key": "e_invoice.transition_turnover_limit",
+      "validFrom": "2027-01-01",
+      "validUntil": "2027-12-31",
+      "unit": "cents",
+      "value": 80000000,
+      "source": "§ 27 Abs. 38 Satz 1 Nr. 2 UStG, Wachstumschancengesetz",
+      "note": "Gesamtumsatz nach § 19 Abs. 2 UStG im vorangegangenen Kalenderjahr, für eine Leistung aus 2027 also der Umsatz von 2026. Wer darüber lag, stellt schon 2027 E-Rechnungen. Für 2025 und 2026 hing der Übergang an keinem Umsatz, deshalb steht für diese Jahre hier nichts."
+    },
+    {
+      "key": "e_invoice.small_amount_exception",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 33 Satz 4 UStDV",
+      "note": "Eine Rechnung bis zur Grenze in invoice.small_amount_limit darf immer als sonstige Rechnung gehen, also auf Papier oder als PDF. Das gilt nicht für eine Leistung nach § 13b UStG, für die § 33 UStDV nach seinem Satz 3 insgesamt nicht gilt."
+    },
+    {
+      "key": "e_invoice.small_business_exception",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 34a Satz 4 UStDV",
+      "note": "Ein Kleinunternehmer darf jede Rechnung als sonstige Rechnung stellen."
+    }
+  ]
+}

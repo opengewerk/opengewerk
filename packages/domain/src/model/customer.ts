@@ -30,6 +30,12 @@ export interface Customer extends Synced, Address {
   /** VAT identification number, `DE123456789`. */
   readonly vatId: string | null
   /**
+   * The reference the customer wants to find an invoice by: for a public
+   * authority its Leitweg-ID, for a business whatever it asked for. An
+   * XRechnung cannot go out without one, see `eInvoiceGaps`.
+   */
+  readonly buyerReference: string | null
+  /**
    * The customer is a business for VAT purposes. Drives the electronic
    * invoicing obligation, which is not the same question as `kind`: a sole
    * trader can be a private customer for one job and a business for the next.

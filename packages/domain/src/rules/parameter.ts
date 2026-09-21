@@ -25,6 +25,17 @@ export const tenantParameterKeys = [
   'small_business.claimed',
   /** The payment term the business puts on its invoices, in days. */
   'invoice.payment_term_days',
+  /**
+   * Whether the business claims the transition of section 27 (38) sentence 1
+   * number 2 UStG: its total turnover of the year before was not above the
+   * limit in the rule package, so for a supply of 2027 it may still send an
+   * invoice to another business as a PDF. A claim and not a figure, like the
+   * small business rule above. The turnover is not something this software
+   * knows before the bookkeeping of phase 3, and a statement somebody makes is
+   * what the law asks for anyway. Not claimed means required, which is the
+   * reading that is never wrong.
+   */
+  'e_invoice.transition_claimed',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -32,6 +43,7 @@ export type TenantParameterKey = (typeof tenantParameterKeys)[number]
 export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>> = {
   'small_business.claimed': 'flag',
   'invoice.payment_term_days': 'days',
+  'e_invoice.transition_claimed': 'flag',
 }
 
 /**
