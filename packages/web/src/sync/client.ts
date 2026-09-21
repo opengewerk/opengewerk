@@ -423,7 +423,7 @@ export class SyncClient {
       deviceId: this.deviceId,
     }
 
-    const decision = decideMerge(operation, current, this.parentFor(entity, current))
+    const decision = decideMerge(operation, current, this.parentFor(operation, current))
 
     if (decision.outcome === 'conflict') {
       return { outcome: 'refused', reason: decision.reason, fields: decision.fields }
@@ -485,15 +485,23 @@ export class SyncClient {
    * the status of its document, not from anything on the line. The server
    * looks the parent up in the database; here it is looked up in what the
    * device holds, which is the point of the rule living in `domain`.
+   *
+   * The reference comes from the operation first and from the record second,
+   * in the same order the server reads them. A new line exists only in the
+   * operation that creates it, so reading the record alone found no document
+   * for it, and every line added on this device was refused on the spot as
+   * belonging to nothing. Nobody noticed until #72, which is the first screen
+   * that adds lines at all.
    */
-  private parentFor(entity: string, current: RecordState | null): RecordState | null {
-    const gate = policyFor(entity)?.gateFrom
+  private parentFor(operation: Operation, current: RecordState | null): RecordState | null {
+    const gate = policyFor(operation.entity)?.gateFrom
 
-    if (!gate || !current) {
+    if (!gate) {
       return null
     }
 
-    const reference = current[gate.reference]
+    const patched = operation.patches.find((patch) => patch.field === gate.reference)
+    const reference = patched ? patched.to : (current?.[gate.reference] ?? null)
 
     return typeof reference === 'string' ? this.get(gate.entity, reference) : null
   }

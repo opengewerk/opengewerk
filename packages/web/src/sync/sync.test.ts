@@ -300,6 +300,35 @@ describe('a device without a network', () => {
     )
   })
 
+  /**
+   * A new line exists only in the operation that creates it, so the document
+   * it belongs to has to be read from there. Read from the stored record, as
+   * it once was, every new line looked like one without a document and was
+   * refused before it left the device.
+   */
+  it('finds the document of a new position in what the position is created with', async () => {
+    const client = await start(transport)
+
+    await holding(client, transport, {
+      entity: 'documents',
+      rows: [
+        row({ id: 'd-1', status: 'draft', number: null }),
+        row({ id: 'd-2', status: 'issued', number: 'AN-2026-0001' }),
+      ],
+    })
+
+    const line = { designation: 'Zählerschrank setzen', quantityMilli: 1000, unitPriceCents: 1 }
+
+    expect((await client.create('document_lines', { ...line, documentId: 'd-1' })).outcome).toBe(
+      'queued',
+    )
+    expect(await client.create('document_lines', { ...line, documentId: 'd-2' })).toEqual({
+      outcome: 'refused',
+      reason: 'record_is_fixed',
+      fields: ['status'],
+    })
+  })
+
   it('never sends a field the server keeps, whatever a form hands it', async () => {
     const client = await start(transport)
 
