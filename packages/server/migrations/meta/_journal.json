@@ -99,6 +99,13 @@
       "when": 1789973107517,
       "tag": "0013_letterhead_and_document_output",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789976071453,
+      "tag": "0014_quotes_and_text_snippets",
+      "breakpoints": true
     }
   ]
 }

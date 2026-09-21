@@ -10,7 +10,11 @@ import type {
 
 /**
  * The document types of section 4.2. Estimate and quote are separate on
- * purpose: under section 650 BGB they carry different consequences.
+ * purpose: a Kostenanschlag under section 649 BGB is an estimate the business
+ * does not stand behind, and exceeding it substantially obliges it to tell the
+ * customer before going on, while a quote is an offer at its prices. The
+ * concept cited section 650 up to v2.5, which is where the Kostenanschlag
+ * stood before the reform of 2018.
  */
 export const documentKinds = [
   'cost_estimate',
@@ -56,6 +60,26 @@ export function isInvoice(kind: DocumentKind): boolean {
 }
 
 /**
+ * Which document may follow which, the chain of section 1.4 one link at a
+ * time.
+ *
+ * Only the links that exist as screens so far: an order confirmation out of a
+ * quote or out of an estimate. The report, the invoices and the cancellation
+ * add theirs when they are built, and a kind that is not in this table cannot
+ * be made from another one at all. That is the point of writing it down: a
+ * chain that anything can be attached to is not a chain.
+ */
+export const successorKinds: Readonly<Partial<Record<DocumentKind, readonly DocumentKind[]>>> = {
+  quote: ['order_confirmation'],
+  cost_estimate: ['order_confirmation'],
+}
+
+/** The kinds that may follow a document of this kind. */
+export function successorsOf(kind: DocumentKind): readonly DocumentKind[] {
+  return successorKinds[kind] ?? []
+}
+
+/**
  * A document is a draft until it is issued. From then on it is fixed: nothing
  * is deleted, a mistake is corrected by a cancellation or a credit note. That
  * is leading decision 4, GoBD by design.
@@ -69,6 +93,35 @@ export function isInvoice(kind: DocumentKind): boolean {
 export const documentStatuses = ['draft', 'issued', 'cancelled'] as const
 
 export type DocumentStatus = (typeof documentStatuses)[number]
+
+/**
+ * Why a document can no longer be changed, in the words the office reads, or
+ * null while it is a draft and can.
+ *
+ * One sentence for the server's refusal and for the notice on the screen, so
+ * that the two never say different things. The way forward depends on the
+ * kind: an invoice is in the books and is corrected by a cancellation or a
+ * credit note, while a quote that went out is simply followed by a new one,
+ * because nothing was booked on it.
+ */
+export function whyFixed(document: {
+  readonly kind: DocumentKind
+  readonly status: DocumentStatus
+}): string | null {
+  switch (document.status) {
+    case 'draft':
+      return null
+    case 'cancelled':
+      return 'Der Beleg ist storniert und wird nicht mehr geändert.'
+    case 'issued':
+      return isInvoice(document.kind)
+        ? 'Die Rechnung ist festgeschrieben und wird nicht mehr geändert. Korrigiert wird sie ' +
+            'durch eine Stornorechnung oder eine Gutschrift.'
+        : 'Der Beleg ist festgeschrieben und wird nicht mehr geändert: so, wie er ' +
+            'festgeschrieben wurde, liegt er beim Kunden. Soll sich etwas ändern, entsteht dafür ein ' +
+            'neuer Beleg.'
+  }
+}
 
 /**
  * How a document is taxed. Three cases, and two of them show no tax at all.
@@ -159,6 +212,13 @@ export interface Document extends Synced {
   /** When it was fixed. Null while it is a draft. */
   readonly issuedAt: Date | null
   readonly subject: string | null
+  /**
+   * The paragraph above the lines and the one below them. Free text, usually
+   * taken from a text snippet and adapted: "Vielen Dank für Ihre Anfrage" and
+   * "Wir freuen uns auf Ihren Auftrag". Printed as written, line breaks kept.
+   */
+  readonly introText: string | null
+  readonly closingText: string | null
   /**
    * How this document is taxed, decided when it is written and frozen when it
    * is issued. `treatmentFor` works out what it should be from the customer

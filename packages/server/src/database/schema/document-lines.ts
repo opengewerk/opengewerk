@@ -1,4 +1,4 @@
-import { lineUnits, quantityFactor, vatRates } from '@opengewerk/domain'
+import { lineKinds, lineUnits, quantityFactor, vatRates } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 import { check, index, integer, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
 
@@ -7,6 +7,7 @@ import { documents } from './documents.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
+export const lineKind = pgEnum('line_kind', lineKinds)
 export const lineUnit = pgEnum('line_unit', lineUnits)
 export const vatRate = pgEnum('vat_rate', vatRates)
 
@@ -40,6 +41,8 @@ export const documentLines = pgTable(
     documentId: reference<'document'>('document_id')
       .notNull()
       .references(() => documents.id, { onDelete: 'cascade' }),
+    /** A position, or the title of the section after it. Titles carry no amount. */
+    kind: lineKind('kind').notNull().default('item'),
     /**
      * Where the line stands, counted from one. Not unique, and on purpose: a
      * unique index would refuse the ordinary reordering of a list, which moves
@@ -62,6 +65,12 @@ export const documentLines = pgTable(
     tenantIsolation(table.tenantId),
     index('document_lines_document_idx').on(table.tenantId, table.documentId, table.position),
     check('document_lines_position_positive', sql`${table.position} >= 1`),
+    // A title is a heading and nothing else. With an amount on it, a total
+    // would contain a figure nobody sees as a position.
+    check(
+      'document_lines_title_has_no_amount',
+      sql`${table.kind} = 'item' or (${table.quantityMilli} = 0 and ${table.unitPriceCents} = 0)`,
+    ),
     /**
      * The same arithmetic as `lineNetCents`, in the one other place that can
      * enforce it.

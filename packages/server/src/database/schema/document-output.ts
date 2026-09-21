@@ -1,4 +1,4 @@
-import { type DocumentContent, documentFilePurposes } from '@opengewerk/domain'
+import { documentFilePurposes, type StoredDocumentContent } from '@opengewerk/domain'
 import { jsonb, pgEnum, pgTable, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference } from './columns.js'
@@ -33,7 +33,9 @@ export const documentSnapshots = pgTable(
     documentId: reference<'document'>('document_id')
       .notNull()
       .references(() => documents.id, { onDelete: 'restrict' }),
-    content: jsonb('content').$type<DocumentContent>().notNull(),
+    // Any shape a snapshot was ever written in. `currentContent` reads an older
+    // one in the shape of today; the row itself is never rewritten.
+    content: jsonb('content').$type<StoredDocumentContent>().notNull(),
     createdAt,
   },
   (table) => [

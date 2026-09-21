@@ -24,10 +24,13 @@ function Navigation() {
   // The office reads the letterhead as well, since it writes the documents it
   // ends up on. Changing it is the owner's, and the screen says so.
   const readsSettings = useMay('settings.read')
+  // Whoever reads documents reads the texts they are written from.
+  const readsDocuments = useMay('document.read')
 
   const items: readonly { readonly to: string; readonly label: ReactNode }[] = [
     { to: '/', label: 'Kunden' },
     { to: '/auftraege', label: 'Aufträge' },
+    ...(readsDocuments ? [{ to: '/textbausteine', label: 'Textbausteine' as ReactNode }] : []),
     {
       to: '/konflikte',
       label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',

@@ -69,6 +69,9 @@ export const documents = pgTable(
     serviceUntil: date('service_until'),
     issuedAt: timestamp('issued_at', { withTimezone: true }),
     subject: text('subject'),
+    /** The paragraphs above and below the lines, free text as it is printed. */
+    introText: text('intro_text'),
+    closingText: text('closing_text'),
     /**
      * How this document is taxed, written when it is created and frozen when
      * it is issued. Not worked out on reading: the customer flag and the

@@ -6,7 +6,9 @@ import {
   type DocumentKind,
   type IsoDate,
   isInvoice,
+  type LineContent,
   type LineUnit,
+  outlineRows,
   quantityFactor,
   type VatRate,
 } from '@opengewerk/domain'
@@ -258,27 +260,55 @@ function information(content: DocumentContent): string {
     .join('')}</table>`
 }
 
+/** The small grey text under a designation, line breaks as they were typed. */
+function descriptionOf(line: LineContent): string {
+  return present(line.description) ? `<div class="description">${text(line.description)}</div>` : ''
+}
+
+/**
+ * The lines, in the outline a quote is read in: titles as headings over their
+ * positions, the positions numbered below them, and after each title the sum
+ * of what it holds. The numbering and the sums come from `outlineRows`, the
+ * same function the office screen uses, so the paper and the screen agree on
+ * what position 2.3 is.
+ */
 function lines(content: DocumentContent): string {
   const taxed = content.taxTreatment === 'standard'
+  const columns = taxed ? 6 : 5
   const rateOf = new Map<VatRate, number>(
     content.totals.byRate.map((entry) => [entry.rate, entry.basisPoints]),
   )
 
-  const rows = content.lines
-    .map((line) => {
-      const rate = rateOf.get(line.vatRate)
-      const description = present(line.description)
-        ? `<div class="description">${text(line.description)}</div>`
-        : ''
+  const rows = outlineRows(content.lines)
+    .map((row) => {
+      switch (row.row) {
+        case 'title':
+          return `<tr class="title">
+        <td class="position">${row.number}</td>
+        <td colspan="${String(columns - 1)}">${text(row.line.designation)}${descriptionOf(row.line)}</td>
+      </tr>`
 
-      return `<tr>
-        <td class="position">${String(line.position)}</td>
-        <td>${text(line.designation)}${description}</td>
+        case 'subtotal':
+          return `<tr class="subtotal">
+        <td></td>
+        <td colspan="${String(columns - 2)}">Summe Titel ${row.number}: ${text(row.designation)}</td>
+        <td class="figure">${euros(row.netCents)}</td>
+      </tr>`
+
+        case 'item': {
+          const { line } = row
+          const rate = rateOf.get(line.vatRate)
+
+          return `<tr>
+        <td class="position">${row.number}</td>
+        <td>${text(line.designation)}${descriptionOf(line)}</td>
         <td class="figure">${quantities.format(line.quantityMilli / quantityFactor)} ${units[line.unit]}</td>
         <td class="figure">${euros(line.unitPriceCents)}</td>
         ${taxed ? `<td class="figure">${rate === undefined ? '' : percent(rate)}</td>` : ''}
         <td class="figure">${euros(line.netCents)}</td>
       </tr>`
+        }
+      }
     })
     .join('')
 
@@ -366,10 +396,18 @@ const pageStyle = `
   }
   .lines td { padding: 1.8mm 1.5mm; border-bottom: 0.3pt solid #d5d9de; vertical-align: top; }
   .lines tr { break-inside: avoid; }
-  .position { width: 9mm; text-align: left; color: #5b6573; }
+  .lines tr.title td {
+    font-weight: 600; padding-top: 4mm; border-bottom: 0.6pt solid #9aa3ad;
+  }
+  .lines tr.title td.position { color: #1b2430; }
+  .lines tr.title { break-after: avoid; }
+  .lines tr.subtotal td { font-weight: 600; border-bottom: none; padding-bottom: 3mm; }
+  .position { width: 11mm; text-align: left; color: #5b6573; white-space: nowrap; }
   .figure { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .lines th.figure { text-align: right; }
-  .description { font-size: 8.5pt; color: #5b6573; white-space: pre-line; margin-top: 0.8mm; }
+  .description {
+    font-size: 8.5pt; font-weight: 400; color: #5b6573; white-space: pre-line; margin-top: 0.8mm;
+  }
   .totals {
     margin: 4mm 0 0 auto; width: 88mm; border-collapse: collapse; break-inside: avoid;
   }
@@ -379,6 +417,9 @@ const pageStyle = `
   }
   .notes { margin-top: 8mm; break-inside: avoid; }
   .notes p { margin: 0 0 2mm; }
+  .text { white-space: pre-line; }
+  .intro { margin: 0 0 4mm; }
+  .closing { margin-top: 8mm; break-inside: avoid; }
   .draft {
     position: fixed; top: 120mm; left: 0; right: 0; text-align: center;
     font-size: 64pt; font-weight: 600; letter-spacing: 6mm;
@@ -461,6 +502,15 @@ export function printJob(content: DocumentContent, assets: PrintAssets): Require
   const notes = content.notes.length
     ? `<div class="notes">${content.notes.map((note) => `<p>${text(note)}</p>`).join('')}</div>`
     : ''
+  // Above the lines and below everything else, the way a letter reads: the
+  // greeting and the reason for writing first, the legal notes where the
+  // figures they explain are, and the closing words at the end.
+  const intro = present(content.introText)
+    ? `<div class="text intro">${text(content.introText)}</div>`
+    : ''
+  const closing = present(content.closingText)
+    ? `<div class="text closing">${text(content.closingText)}</div>`
+    : ''
 
   const html = `<!doctype html>
 <html lang="de">
@@ -478,9 +528,11 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
 <main>
   <h1>${text(title)}</h1>
   ${subject}
+  ${intro}
   ${lines(content)}
   ${totals(content)}
   ${notes}
+  ${closing}
 </main>
 </body>
 </html>`

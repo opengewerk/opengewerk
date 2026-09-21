@@ -286,3 +286,92 @@ describe('a logo on the letterhead', () => {
     expect(jobs.at(-1)?.html).toContain(`src="data:image/png;base64,${png.toString('base64')}"`)
   })
 })
+
+describe('a quote', () => {
+  it('is printed with its titles, the sums under them and the texts around the lines', async () => {
+    const created = await http()
+      .post('/documents')
+      .set('x-test-identity', office())
+      .send({
+        customerId,
+        kind: 'quote',
+        documentDate: '2026-09-21',
+        introText: 'Vielen Dank für Ihre Anfrage.',
+        closingText: 'Wir freuen uns auf Ihren Auftrag.',
+      })
+      .expect(201)
+    const quote = (created.body as { id: string }).id
+
+    for (const line of [
+      { kind: 'title', designation: 'Zählerschrank' },
+      {
+        designation: 'Zählerschrank setzen',
+        quantityMilli: 1000,
+        unit: 'piece',
+        unitPriceCents: 120000,
+      },
+    ]) {
+      await http()
+        .post(`/documents/${quote}/lines`)
+        .set('x-test-identity', office())
+        .send(line)
+        .expect(201)
+    }
+
+    await http().post(`/documents/${quote}/issue`).set('x-test-identity', office()).expect(201)
+    const answer = await pdfOf(quote).expect(200)
+
+    expect(answer.headers['content-disposition']).toContain("filename*=UTF-8''Angebot")
+
+    const html = jobs.at(-1)?.html ?? ''
+
+    expect(html).toContain('<div class="text intro">Vielen Dank für Ihre Anfrage.</div>')
+    expect(html).toMatch(/<td class="position">1\.1<\/td>\s*<td>Zählerschrank setzen/)
+    expect(html).toMatch(/Summe Titel 1: Zählerschrank<\/td>\s*<td class="figure">1\.200,00\s€/)
+    expect(html).toContain('<div class="text closing">Wir freuen uns auf Ihren Auftrag.</div>')
+  })
+})
+
+describe('a document issued before titles and document texts existed', () => {
+  it('is printed from its snapshot in the old shape, without either', async () => {
+    // The shape of a snapshot written before 0014: no texts, no kind of line.
+    const model = await issued()
+    const { rows } = await admin.query<{ content: Record<string, unknown> }>(
+      'select content from document_snapshots where document_id = $1',
+      [model],
+    )
+    const current = rows[0]?.content ?? {}
+    const old = {
+      ...Object.fromEntries(
+        Object.entries(current).filter(([key]) => key !== 'introText' && key !== 'closingText'),
+      ),
+      version: 1,
+      number: 'RE-ALT-0001',
+      lines: (current['lines'] as Record<string, unknown>[]).map((line) =>
+        Object.fromEntries(Object.entries(line).filter(([key]) => key !== 'kind')),
+      ),
+    }
+
+    // Issued the way a document was issued then, with a snapshot written by
+    // that version. Through the superuser, because the route writes today's.
+    const document = await issuableDraft(app, office(), customerId)
+    await admin.query(
+      `update documents set status = 'issued', number = 'RE-ALT-0001', issued_at = now()
+        where id = $1`,
+      [document],
+    )
+    await admin.query(
+      'insert into document_snapshots (tenant_id, document_id, content) values ($1, $2, $3)',
+      [north.id, document, JSON.stringify(old)],
+    )
+
+    await pdfOf(document).expect(200)
+
+    const html = jobs.at(-1)?.html ?? ''
+
+    expect(html).toContain('<h1>Schlussrechnung RE-ALT-0001</h1>')
+    expect(html).toMatch(/<td class="position">1<\/td>\s*<td>Unterverteilung erneuert/)
+    expect(html).not.toContain('Summe Titel')
+    expect(html).not.toContain('class="text intro"')
+  })
+})

@@ -39,6 +39,24 @@ export type LineUnit = (typeof lineUnits)[number]
 export const quantityFactor = 1000
 
 /**
+ * What a line is: a position with a quantity and a price, or the title of a
+ * section the positions after it belong to.
+ *
+ * A title is a line of its own and not a separate table, because its place in
+ * the list is the whole of its meaning: everything up to the next title
+ * belongs to it. Kept in one list, reordering a quote moves titles and
+ * positions with the same field, and a title travels to a device and back
+ * like any other line.
+ *
+ * A title carries no amount. Quantity and price are zero and a check in the
+ * database holds them there, so a title can never add something to a total
+ * that nobody sees as a position.
+ */
+export const lineKinds = ['item', 'title'] as const
+
+export type LineKind = (typeof lineKinds)[number]
+
+/**
  * One position on a document.
  *
  * `netCents` is stored rather than worked out on reading, and that is a
@@ -55,6 +73,8 @@ export const quantityFactor = 1000
 export interface DocumentLine extends Synced {
   readonly id: DocumentLineId
   readonly documentId: DocumentId
+  /** A position, or the title of the section that follows. */
+  readonly kind: LineKind
   /** Where it stands on the document, counted from one. */
   readonly position: number
   readonly designation: string

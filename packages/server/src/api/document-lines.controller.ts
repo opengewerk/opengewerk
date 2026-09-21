@@ -13,11 +13,13 @@ import {
 import {
   type DocumentId,
   type DocumentLineId,
+  lineKinds,
   lineNetCents,
   lineUnits,
   shippedRules,
   totalsFor,
   vatRates,
+  whyFixed,
 } from '@opengewerk/domain'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
@@ -28,6 +30,7 @@ import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = [
+  'kind',
   'position',
   'designation',
   'description',
@@ -55,6 +58,24 @@ function totalOf(
     quantityMilli: Number(values.quantityMilli ?? from?.quantityMilli ?? 0),
     unitPriceCents: Number(values.unitPriceCents ?? from?.unitPriceCents ?? 0),
   })
+}
+
+/**
+ * A title is a heading and carries no amount, so a request for one needs no
+ * quantity and no price and gets zero for both. That holds for a position
+ * changed into a title as well: it loses its amount, as a new title would
+ * have none. Sent with an amount anyway, it keeps it, and the check in the
+ * database refuses the row: a title that adds to a total is a mistake worth a
+ * 400, not something to correct quietly.
+ */
+function withoutAmountForTitle(
+  values: Partial<Record<(typeof writableFields)[number], unknown>>,
+): Partial<Record<(typeof writableFields)[number], unknown>> {
+  if (values.kind !== 'title') {
+    return values
+  }
+
+  return { quantityMilli: 0, unitPriceCents: 0, unit: 'flat_rate', ...values }
 }
 
 /** Refuses a value that is not one of the ones the column knows. */
@@ -100,13 +121,14 @@ export class DocumentLinesController {
   private async draftOf(tx: TenantTransaction, documentId: string) {
     const document = await this.documentOf(tx, documentId)
 
-    if (document.status !== 'draft') {
+    const reason = whyFixed(document)
+
+    if (reason !== null) {
       // The database would refuse it too, and says so in German through the
-      // trigger. This is here so that the answer is a 409 and not a 500: the
-      // request was well formed, the document has simply moved on.
-      throw new ConflictException(
-        'Der Beleg ist festgeschrieben. Eine Korrektur ist eine Stornierung oder eine Gutschrift.',
-      )
+      // trigger. This is here so that the answer is a 409 with the way
+      // forward, which depends on the kind: an invoice is cancelled, a quote
+      // is followed by a new one.
+      throw new ConflictException(reason)
     }
 
     return document
@@ -138,8 +160,9 @@ export class DocumentLinesController {
     @Param('documentId') documentId: string,
     @Body() body: unknown,
   ) {
-    const values = pick(body, writableFields)
+    const values = withoutAmountForTitle(pick(body, writableFields))
     requireFields(values, ['designation', 'quantityMilli', 'unit', 'unitPriceCents'])
+    oneOf('kind', values.kind, lineKinds)
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
 
@@ -171,8 +194,9 @@ export class DocumentLinesController {
     @Param('lineId') lineId: string,
     @Body() body: unknown,
   ) {
-    const values = pick(body, writableFields)
+    const values = withoutAmountForTitle(pick(body, writableFields))
     requireSomething(values)
+    oneOf('kind', values.kind, lineKinds)
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
 
@@ -279,8 +303,13 @@ export class DocumentTotalsController {
         throw new NotFoundException()
       }
 
+      // The kind comes along so that a title stays out of the tax groups.
       const lines = await tx
-        .select({ netCents: documentLines.netCents, vatRate: documentLines.vatRate })
+        .select({
+          kind: documentLines.kind,
+          netCents: documentLines.netCents,
+          vatRate: documentLines.vatRate,
+        })
         .from(documentLines)
         .where(
           and(

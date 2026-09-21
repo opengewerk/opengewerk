@@ -18,6 +18,7 @@ import type { FormField } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { JobDocuments } from './documents.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
 const statusOptions = jobStatuses.map((status) => ({
@@ -228,6 +229,8 @@ export function JobScreen() {
           </Facts>
         </Card>
       )}
+
+      <JobDocuments job={job} />
 
       {children.length > 0 ? (
         <Section title="Teilaufträge">

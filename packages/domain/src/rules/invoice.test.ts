@@ -107,6 +107,14 @@ describe('the totals of a document', () => {
     expect(reverse.taxNote).toContain('§ 13b')
   })
 
+  it('leaves a title out, so it opens no tax group of zero at its default rate', () => {
+    const heading = { netCents: 0, vatRate: 'standard', kind: 'title' } as const
+    const totals = totalsFor(rules, [heading, line(5000, 'reduced')], standard)
+
+    expect(totals.byRate.map((entry) => entry.rate)).toEqual(['reduced'])
+    expect(totals.grossCents).toBe(5350)
+  })
+
   it('is empty rather than wrong for a document without lines', () => {
     const totals = totalsFor(rules, [], standard)
 

@@ -24,16 +24,25 @@ import {
   numberRangeOf,
   RuleError,
   shippedRules,
+  successorsOf,
   type TaxTreatment,
   treatmentFor,
+  whyFixed,
 } from '@opengewerk/domain'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
 import { parameterAt } from '../database/parameters.js'
-import { customers, documents, documentSnapshots, numberRanges } from '../database/schema/index.js'
+import {
+  customers,
+  documentLines,
+  documents,
+  documentSnapshots,
+  numberRanges,
+} from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
+import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -94,6 +103,16 @@ async function contentForIssuing(
   }
 }
 
+/**
+ * Today as a date, in the time zone of the businesses this is written for.
+ * Not the server's clock read as UTC: between midnight and two in the morning
+ * that would still be yesterday, and a document dated yesterday is a
+ * different document.
+ */
+function todayInGermany(): IsoDate {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
+}
+
 const writableFields = [
   'customerId',
   'jobId',
@@ -107,6 +126,8 @@ const writableFields = [
   'serviceFrom',
   'serviceUntil',
   'subject',
+  'introText',
+  'closingText',
   // Writable while the document is a draft, and refused afterwards by the
   // trigger like every other field. The proposal above is right in the common
   // case and cannot be right in all of them.
@@ -164,8 +185,8 @@ export class DocumentsController {
     const values = pick(body, writableFields)
     requireSomething(values)
 
-    const [updated] = await this.database.forTenant(identity, (tx) =>
-      tx
+    return this.database.forTenant(identity, async (tx) => {
+      const [updated] = await tx
         .update(documents)
         .set(values as Partial<typeof documents.$inferInsert>)
         // Only a draft can be changed. A document that has been issued is
@@ -178,14 +199,29 @@ export class DocumentsController {
             isNull(documents.deletedAt),
           ),
         )
-        .returning(),
-    )
+        .returning()
 
-    if (!updated) {
-      throw new NotFoundException()
-    }
+      if (updated) {
+        return updated
+      }
 
-    return updated
+      // Nothing changed, and there are two very different reasons for that.
+      // A document that is not there is a 404. One that is there and fixed
+      // gets the sentence why, because "not found" for a quote the office is
+      // looking at would send somebody searching for a fault that is none.
+      const [existing] = await tx
+        .select({ kind: documents.kind, status: documents.status })
+        .from(documents)
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+
+      const reason = existing ? whyFixed(existing) : null
+
+      if (reason === null) {
+        throw new NotFoundException()
+      }
+
+      throw new ConflictException(reason)
+    })
   }
 
   /**
@@ -275,6 +311,124 @@ export class DocumentsController {
       })
 
       return issued
+    })
+  }
+
+  /**
+   * The next document in the chain of section 1.4, made out of this one: an
+   * order confirmation out of a quote, and later the report and the invoice out
+   * of that. Which kind may follow which is `successorKinds` in `domain`.
+   *
+   * On the server and in one transaction, because it is a head and every line
+   * of the predecessor. Through the outbox it would be dozens of operations
+   * arriving one by one, and a connection lost halfway would leave an order
+   * confirmation with half the positions of the quote it confirms.
+   *
+   * Only out of an issued document. What the customer accepted is the quote
+   * that went out, not a draft that may still change after the confirmation
+   * has been written against it.
+   *
+   * The lines are copied and not referenced. The confirmation is a document of
+   * its own: it may drop a position the customer did not order, and it is
+   * frozen on its own when it is issued. The link back is the predecessor
+   * reference, which is what the quantity comparison of section 1.4 walks.
+   *
+   * The tax treatment comes along from the predecessor rather than being
+   * proposed anew. The confirmation confirms that deal, and a treatment
+   * somebody chose by hand on the quote is part of it.
+   *
+   * The texts above and below the lines stay behind. They were written for
+   * the letter the quote was, and an order confirmation that opens with
+   * "thank you for your enquiry" answers a question nobody asked any more.
+   */
+  @Post(':id/successors')
+  @RequiresPermission('document.write')
+  async successor(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const values = pick(body, ['kind', 'documentDate'] as const)
+    requireFields(values, ['kind'])
+
+    if (!(documentKinds as readonly string[]).includes(String(values.kind))) {
+      throw new BadRequestException(`Unbekannte Belegart: ${String(values.kind)}`)
+    }
+
+    const kind = values.kind as DocumentKind
+    const documentDate = (values.documentDate as IsoDate | undefined) ?? todayInGermany()
+
+    return this.database.forTenant(identity, async (tx) => {
+      const [predecessor] = await tx
+        .select()
+        .from(documents)
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+
+      if (!predecessor) {
+        throw new NotFoundException()
+      }
+
+      if (!successorsOf(predecessor.kind).includes(kind)) {
+        throw new BadRequestException(
+          `Aus einem Beleg der Art ${documentTitle(predecessor.kind)} entsteht keine ` +
+            `${documentTitle(kind)}.`,
+        )
+      }
+
+      if (predecessor.status !== 'issued') {
+        throw new ConflictException(
+          predecessor.status === 'draft'
+            ? 'Ein Folgebeleg entsteht aus einem festgeschriebenen Beleg, und dieser ist noch ein ' +
+                'Entwurf. Erst festschreiben, dann den Folgebeleg anlegen.'
+            : 'Aus einem stornierten Beleg entsteht kein Folgebeleg.',
+        )
+      }
+
+      const [created] = await tx
+        .insert(documents)
+        .values({
+          tenantId: identity.tenantId,
+          customerId: predecessor.customerId,
+          jobId: predecessor.jobId,
+          siteId: predecessor.siteId,
+          installationId: predecessor.installationId,
+          predecessorDocumentId: predecessor.id,
+          kind,
+          documentDate,
+          subject: predecessor.subject,
+          taxTreatment: predecessor.taxTreatment,
+        })
+        .returning()
+
+      if (!created) {
+        throw new Error('The successor was written and is not readable afterwards.')
+      }
+
+      const lines = await tx
+        .select()
+        .from(documentLines)
+        .where(and(eq(documentLines.documentId, predecessor.id), isNull(documentLines.deletedAt)))
+        .orderBy(asc(documentLines.position), asc(documentLines.id))
+
+      if (lines.length > 0) {
+        await tx.insert(documentLines).values(
+          lines.map((line) => ({
+            tenantId: identity.tenantId,
+            documentId: created.id,
+            kind: line.kind,
+            position: line.position,
+            designation: line.designation,
+            description: line.description,
+            quantityMilli: line.quantityMilli,
+            unit: line.unit,
+            unitPriceCents: line.unitPriceCents,
+            vatRate: line.vatRate,
+            netCents: line.netCents,
+          })),
+        )
+      }
+
+      return created
     })
   }
 
