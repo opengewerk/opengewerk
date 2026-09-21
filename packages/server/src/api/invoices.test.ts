@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DeductionContent, DocumentContent } from '@opengewerk/domain'
+import { documentContentVersion } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -283,7 +284,7 @@ describe('a final invoice out of a report', () => {
 
     const content = await snapshotOf(invoice.id)
 
-    expect(content).toMatchObject({ version: 4, deductions: [] })
+    expect(content).toMatchObject({ version: documentContentVersion, deductions: [] })
     expect(content?.billed.grossCents).toBe(content?.totals.grossCents)
     expect(content?.totals.netCents).toBe(2.5 * 6800 + 2 * 1450)
   })
