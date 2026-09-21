@@ -604,6 +604,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die PDF-Vorlage nimmt dieselben Zeichen heraus wie die E-Rechnung: Steuerzeichen außer
+  Tabulator und Zeilenumbruch und was XML 1.0 sonst nicht tragen kann. Chromium zeichnete
+  ein solches Zeichen als sichtbares Kästchen, das PDF und die E-Rechnung derselben
+  Rechnung wichen darum um ein Zeichen voneinander ab. Beide lesen die Zeichenklasse
+  jetzt an einer Stelle; ein schon gespeichertes PDF bleibt, wie es gedruckt wurde
+
 - Ein Beleg aus dem Postausgang bekommt denselben Vorschlag zum Steuerfall wie einer
   über die Route. Bis dahin kam er mit der Vorgabe an, und ein Kleinunternehmer hätte
   später eine Rechnung mit Umsatzsteuer daraus gemacht

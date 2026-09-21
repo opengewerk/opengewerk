@@ -12,6 +12,7 @@ import {
   type TaxTreatment,
 } from '@opengewerk/domain'
 
+import { withoutUnwritable } from './characters.js'
 import { documentTitle } from './template.js'
 
 /**
@@ -108,13 +109,9 @@ function typeCode(content: DocumentContent): string {
   return code
 }
 
-/** What XML 1.0 cannot carry at all, taken out rather than sent broken. */
-const unwritable = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu
-
 /** XML escaping for anything a person typed. */
 function escaped(value: string): string {
-  return value
-    .replaceAll(unwritable, '')
+  return withoutUnwritable(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')

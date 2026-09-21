@@ -16,6 +16,7 @@ import {
   type VatRate,
 } from '@opengewerk/domain'
 
+import { withoutUnwritable } from './characters.js'
 import type { PageMargin, PrintJob } from './renderer.js'
 
 /**
@@ -47,9 +48,14 @@ import type { PageMargin, PrintJob } from './renderer.js'
 /** What the page is printed on, measured from the edges of an A4 sheet. */
 const margin: PageMargin = { top: '15mm', right: '20mm', bottom: '32mm', left: '20mm' }
 
-/** HTML escaping for anything a person typed. */
+/**
+ * HTML escaping for anything a person typed. The characters no document
+ * carries go first, the same ones the e-invoice drops, so the page and the
+ * XML of one invoice say the same thing. Line breaks stay: the texts rely on
+ * them.
+ */
 function text(value: string | null | undefined): string {
-  return (value ?? '')
+  return withoutUnwritable(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')

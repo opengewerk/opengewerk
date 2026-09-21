@@ -148,6 +148,22 @@ describe('the page', () => {
     expect(html).toContain('&lt;script&gt;alert(&quot;Rechnung&quot;)&lt;/script&gt;')
   })
 
+  it('drops the control characters the e-invoice drops, and keeps the line breaks', () => {
+    // Built rather than written as an escape, so that no editing tool turns it
+    // into the character itself on the way into this file.
+    const bell = String.fromCharCode(7)
+    const { html } = page(
+      { introText: `Sehr geehrte Familie Berg,${bell}\nvielen Dank.` },
+      { lines: [line(1, 100000, { designation: `Montage Bad <innen>${bell}` })] },
+    )
+
+    // Chromium draws a control character as a visible symbol, so one that
+    // reached the page would stand in the PDF and not in the XML beside it.
+    expect(html).not.toContain(bell)
+    expect(html).toContain('Montage Bad &lt;innen&gt;</td>')
+    expect(html).toContain('<div class="text intro">Sehr geehrte Familie Berg,\nvielen Dank.</div>')
+  })
+
   it('brings its own font, so the page does not depend on the renderer image', () => {
     const { html, footerHtml } = page()
 
