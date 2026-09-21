@@ -300,6 +300,90 @@ jobs:
       - name: Bündelbudget je Einstieg
         run: pnpm --filter @opengewerk/web run budget
 
+  e-invoice:
+    name: E-Rechnung gegen den KoSIT-Validator
+    runs-on: ubuntu-latest
+
+    # Das Schema prüft die Anwendung selbst, bei jeder E-Rechnung, bevor sie
+    # gespeichert wird. Die Geschäftsregeln von EN 16931 und XRechnung sind
+    # Schematron und brauchen XSLT 2, also Java; sie laufen hier, mit dem
+    # Validator der KoSIT, gegen die Musterrechnungen aus
+    # packages/server/src/documents/cii.test.ts. Validator und Konfiguration
+    # sind auf eine Fassung festgenagelt und werden per SHA-256 geprüft, damit
+    # ein neuer Regelstand eine bewusste Änderung bleibt.
+    env:
+      KOSIT_VALIDATOR: 1.6.3
+      KOSIT_CONFIGURATION: 2026-08-31
+      SAMPLES: ${{ github.workspace }}/e-invoice-samples
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: pnpm über Corepack bereitstellen
+        run: corepack enable
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Java einrichten
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Domäne bauen
+        run: pnpm --filter @opengewerk/domain run build
+
+      - name: Musterrechnungen schreiben
+        run: pnpm --filter @opengewerk/server exec vitest run src/documents/cii.test.ts
+        env:
+          CII_SAMPLES_DIR: ${{ env.SAMPLES }}
+
+      - name: Validator und XRechnung-Konfiguration holen
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o validator.jar \
+            "https://github.com/itplr-kosit/validator/releases/download/v${KOSIT_VALIDATOR}/validator-${KOSIT_VALIDATOR}-standalone.jar"
+          curl -fsSL -o configuration.zip \
+            "https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v${KOSIT_CONFIGURATION}/xrechnung-3.0.2-validator-configuration-${KOSIT_CONFIGURATION}.zip"
+          sha256sum -c - <<'SUMS'
+          799e64befca97d4080e03608c80b85dd5a5ecc5f4ae4f35d1116ec2855b9a7c9  validator.jar
+          2530cd107c414511c5d0462ec10f886910395abfca820db82e83d70bf01221a8  configuration.zip
+          SUMS
+          unzip -q configuration.zip -d configuration
+
+      - name: Musterrechnungen prüfen
+        run: |
+          set -euo pipefail
+          count=$(find "$SAMPLES" -name '*.xml' | wc -l)
+          if [ "$count" -lt 9 ]; then
+            echo "Erwartet waren mindestens neun Musterrechnungen, gefunden: $count."
+            exit 1
+          fi
+          java --enable-native-access=ALL-UNNAMED -jar "$RUNNER_TEMP/validator.jar" \
+            -s "$RUNNER_TEMP/configuration/scenarios.xml" \
+            -r "$RUNNER_TEMP/configuration" \
+            -o "$RUNNER_TEMP/reports" \
+            "$SAMPLES"/*.xml
+
+      - name: Berichte bei einem Fehlschlag
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kosit-berichte
+          path: |
+            ${{ runner.temp }}/reports
+            ${{ env.SAMPLES }}
+          if-no-files-found: ignore
+
   operations:
     name: Betrieb über Docker Compose
     runs-on: ubuntu-latest
