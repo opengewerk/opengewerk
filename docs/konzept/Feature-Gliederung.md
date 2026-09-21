@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.5
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.6
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -212,7 +212,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 ### 4.2 Belegwesen (Angebote & Rechnungen)
 
 **Belegtypen**
-- Kostenvoranschlag (§650 BGB) und Angebot, getrennte Dokumente mit unterschiedlicher Rechtsfolge ⚖
+- Kostenvoranschlag (§649 BGB) und Angebot, getrennte Dokumente mit unterschiedlicher Rechtsfolge ⚖
 - Angebot mit Positionsgliederung, Titeln, Alternativ-/Eventual-/Bedarfspositionen, optionalen Positionen, Textbausteinen
 - Auftragsbestätigung
 - Lieferschein
@@ -424,7 +424,7 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 | §48 EStG | Bauabzugsteuer 15 % ohne Freistellung | Subunternehmer-Nachweise, Eingangsrechnungsprüfung |
 | §14 UStG | Pflichtangaben auf Rechnungen | Prüfung vor Festschreibung |
 | §312g BGB | Widerruf bei Haustürgeschäften (Verbraucher) | Widerrufsbelehrung als Angebotsanhang |
-| §650 / §650i BGB | Kostenvoranschlag; Verbraucherbauvertrag mit Baubeschreibung | Getrennte Belegtypen, Vorlage Baubeschreibung |
+| §649 / §650i BGB | Kostenvoranschlag; Verbraucherbauvertrag mit Baubeschreibung | Getrennte Belegtypen, Vorlage Baubeschreibung |
 | §640 BGB / VOB/B §12 | Abnahme als Fristbeginn | Abnahmeprotokoll triggert Gewährleistung |
 | Gewährleistung | BGB 5/2 Jahre, VOB/B 4 Jahre | Automatik + VOB-Kennzeichen am Auftrag |
 | VOB/B §17 | Sicherheitseinbehalt | Belegfunktion + Fristen-Engine |
@@ -516,6 +516,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.5 → v2.6
+
+- Korrigiert: Der Kostenanschlag steht seit der Reform des Bauvertragsrechts zum 01.01.2018 in §649 BGB. §650 BGB regelt heute den Werklieferungsvertrag; die Fundstelle in 4.2 und in der Rechtsübersicht nannte noch die alte Nummer
 
 ## Änderungsprotokoll v2.4 → v2.5
 
