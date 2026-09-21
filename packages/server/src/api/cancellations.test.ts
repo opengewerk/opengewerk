@@ -442,7 +442,7 @@ describe('a cancellation invoice', () => {
       .post('/sync')
       .set('x-test-identity', office())
       .send({
-        deviceId: 'geraet-im-buero',
+        deviceId: 'office-desk',
         operations: [
           {
             id: newId<'operation'>(),
