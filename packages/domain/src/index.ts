@@ -31,6 +31,7 @@ export * from './model/text-snippet.js'
 // them needs a date, so that a document is judged by the rules of its own time.
 export * from './rules/cancellation.js'
 export * from './rules/document-content.js'
+export * from './rules/e-invoice.js'
 export * from './rules/invoice.js'
 export * from './rules/mandatory-details.js'
 export * from './rules/outline.js'

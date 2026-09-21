@@ -80,13 +80,19 @@ const sampleSignature =
  * customers, a building with an installation, two jobs, an issued quote with
  * the order confirmation made out of it, a progress invoice out of the same
  * quote with the final invoice after it, a cost estimate in progress, a report
- * the customer has signed on site, and the snippets they are written from.
+ * the customer has signed on site, a maintenance invoice to the property
+ * management company, and the snippets they are written from.
  *
  * The quote is issued and the confirmation is a draft on purpose. Together
  * they show both states of a document, the chain between them, and a document
  * that refuses to be changed next to one that can be. The signed report is
  * the third state, waiting in the office for its number. The final invoice is
  * a draft, so the office sees what it takes off before anybody issues it.
+ *
+ * The two customers are the two formats. The family gets its invoices as a
+ * PDF; the property management company is a business in Germany with a
+ * reference for its invoices, and its maintenance invoice is issued, so the
+ * XRechnung of it can be fetched.
  */
 export async function plantSampleData(base: string, today: IsoDate): Promise<void> {
   const post = (path: string, body: unknown) => send(base, 'POST', path, body)
@@ -131,6 +137,8 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       postalCode: '22763',
       city: 'Hamburg',
       email: 'technik@nordblick.example',
+      vatId: 'DE987654321',
+      buyerReference: 'Objekt Elbchaussee 140',
       isBusiness: true,
     }),
   )
@@ -331,6 +339,34 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       item('Entsorgung der Altleuchten', 1000, 'flat_rate', 6000),
     ],
   )
+
+  // The maintenance of the last two months, invoiced to a business, issued:
+  // the invoice that goes out as an e-invoice.
+  const maintained = new Date(`${today}T12:00:00Z`)
+
+  maintained.setUTCDate(maintained.getUTCDate() - 1)
+
+  const maintenanceStart = new Date(maintained)
+
+  maintenanceStart.setUTCDate(maintenanceStart.getUTCDate() - 60)
+
+  const maintenance = await document(
+    {
+      customerId: nordblick,
+      jobId: stairwell,
+      siteId: estate,
+      kind: 'recurring_invoice',
+      subject: 'Wartung der Notbeleuchtung',
+      serviceFrom: maintenanceStart.toISOString().slice(0, 10),
+      serviceUntil: maintained.toISOString().slice(0, 10),
+    },
+    [
+      item('Notleuchte geprüft und gewartet', 24000, 'piece', 1250),
+      item('Prüfprotokoll nach DIN VDE 0108', 1000, 'flat_rate', 8500),
+    ],
+  )
+
+  await post(`/documents/${maintenance.id}/issue`, {})
 
   const workDone =
     'Alten Zählerschrank abgebaut, neuen gesetzt und angeschlossen. Anlage geprüft und ' +

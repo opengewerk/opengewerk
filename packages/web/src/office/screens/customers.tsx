@@ -39,6 +39,11 @@ const customerFields: readonly FormField[] = [
   { name: 'city', label: 'Ort' },
   { name: 'vatId', label: 'USt-IdNr.', hint: 'Zum Beispiel DE123456789.' },
   {
+    name: 'buyerReference',
+    label: 'Käuferreferenz',
+    hint: 'Braucht die XRechnung. Eine Behörde nennt hier ihre Leitweg-ID.',
+  },
+  {
     name: 'isBusiness',
     label: 'Unternehmen im Sinne der Umsatzsteuer',
     options: [...yesOrNo],
@@ -65,6 +70,7 @@ function asCustomer(values: Record<string, string>) {
     postalCode: asTextOrNull(values['postalCode']),
     city: asTextOrNull(values['city']),
     vatId: asTextOrNull(values['vatId']),
+    buyerReference: asTextOrNull(values['buyerReference']),
     isBusiness: asBoolean(values['isBusiness']),
     isConstructionServiceRecipient: asBoolean(values['isConstructionServiceRecipient']),
     notes: asTextOrNull(values['notes']),
@@ -229,6 +235,7 @@ export function CustomerScreen() {
             <Fact label="E-Mail">{maybeText(customer, 'email')}</Fact>
             <Fact label="Telefon">{maybeText(customer, 'phone')}</Fact>
             <Fact label="USt-IdNr.">{maybeText(customer, 'vatId')}</Fact>
+            <Fact label="Käuferreferenz">{maybeText(customer, 'buyerReference')}</Fact>
             <Fact label="Unternehmen">{customer['isBusiness'] === true ? 'Ja' : 'Nein'}</Fact>
             <Fact label="Bauleistungsempfänger">
               {customer['isConstructionServiceRecipient'] === true ? 'Ja' : 'Nein'}

@@ -1,5 +1,12 @@
 import type { DocumentKind, DocumentStatus, MissingDetail, RecordState } from '@opengewerk/domain'
-import { isCancellable, successorsOf, whyFixed } from '@opengewerk/domain'
+import {
+  invoiceFormats,
+  isCancellable,
+  isInvoice,
+  successorsOf,
+  whyFixed,
+} from '@opengewerk/domain'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
@@ -11,10 +18,12 @@ import { SignaturePicture } from '../../app/signature.js'
 import {
   cancelDocument,
   createDocument,
+  eInvoiceOf,
   issueDocument,
   makeSuccessor,
   missingFrom,
   pdfAddress,
+  xrechnungAddress,
 } from '../../session/documents.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
@@ -325,11 +334,88 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         />
       ) : null}
 
+      {isInvoice(kind) ? <EInvoiceCard documentId={documentId} status={status} /> : null}
+
       <HeaderSection document={document} editable={editable} />
       <LinesSection document={document} editable={editable} />
       <SignatureSection documentId={documentId} />
       <ChainSection kind={kind} predecessor={predecessor} successors={successors} />
     </Page>
+  )
+}
+
+/**
+ * How an invoice goes out, and why. The customer decides it, not a switch on
+ * the document, so the screen says what the master data made of it: an
+ * e-invoice for a business in Germany, a PDF for everybody else, each with the
+ * paragraph.
+ *
+ * For an e-invoice it says whether the law already requires it and what an
+ * XRechnung would still lack, and it says so on the draft, where a missing
+ * e-mail address of the customer is still cheap to add. Once the invoice is
+ * issued it offers the file.
+ *
+ * Without a connection it shows nothing rather than a guess. What an issued
+ * invoice froze is on the server, and the answer depends on it.
+ */
+function EInvoiceCard({
+  documentId,
+  status,
+}: {
+  readonly documentId: string
+  readonly status: DocumentStatus
+}) {
+  const answer = useQuery({
+    queryKey: ['e-invoice', documentId, status],
+    queryFn: () => eInvoiceOf(documentId),
+  })
+
+  // An answer this screen does not understand shows nothing, like no answer.
+  if (!answer.data || !invoiceFormats.includes(answer.data.format)) {
+    return null
+  }
+
+  const { format, reason, duty, issued, xrechnung } = answer.data
+
+  if (format === 'pdf') {
+    return (
+      <Card label="Versand als PDF" tone="sunken">
+        <p className="text-body text-ink">{reason}</p>
+      </Card>
+    )
+  }
+
+  return (
+    <Card label="E-Rechnung">
+      <div className="flex flex-col gap-3">
+        <p className="text-body text-ink">{reason}</p>
+        {duty ? <p className="text-body text-ink">{duty.reason}</p> : null}
+        {xrechnung.missing.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            <p className="text-body font-semibold text-ink">Für die XRechnung fehlt noch:</p>
+            <ul className="list-disc pl-6 text-body text-ink">
+              {xrechnung.missing.map((gap) => (
+                <li key={gap.detail}>{gap.message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : issued ? (
+          <div>
+            <a
+              href={xrechnungAddress(documentId)}
+              download
+              className="inline-flex items-center justify-center h-control min-h-tap px-4 rounded-control text-body font-semibold bg-surface text-ink border border-line-strong"
+            >
+              XRechnung herunterladen
+            </a>
+          </div>
+        ) : (
+          <p className="text-body text-ink-muted">
+            Die XRechnung gibt es, sobald die Rechnung festgeschrieben ist.
+          </p>
+        )}
+      </div>
+    </Card>
   )
 }
 

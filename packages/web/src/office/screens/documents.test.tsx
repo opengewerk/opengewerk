@@ -982,6 +982,103 @@ describe('cancelling an invoice', () => {
   })
 })
 
+describe('the e-invoice', () => {
+  const toBusiness = {
+    format: 'e_invoice',
+    reason:
+      'Der Kunde ist ein Unternehmen im Inland, die Rechnung geht deshalb als E-Rechnung ' +
+      '(§ 14 Abs. 2 Satz 2 Nr. 1 UStG).',
+    duty: {
+      required: false,
+      reason:
+        'Noch keine Pflicht: eine Rechnung, die bis zum 31.12.2026 ausgestellt wird, darf für ' +
+        'diese Leistung auch als PDF gehen, wenn der Kunde zustimmt (§ 27 Abs. 38 Satz 1 Nr. 1 UStG).',
+    },
+  }
+
+  it('is announced on the draft, with what the XRechnung still lacks', async () => {
+    serverSays('GET', '/documents/d-1/e-invoice', () => ({
+      status: 200,
+      body: {
+        ...toBusiness,
+        issued: false,
+        xrechnung: {
+          missing: [
+            {
+              detail: 'buyer_reference',
+              message:
+                'Für die XRechnung fehlt die Käuferreferenz des Kunden, bei einer Behörde ihre ' +
+                'Leitweg-ID (XRechnung, BR-DE-15).',
+            },
+          ],
+        },
+      },
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice' })],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const card = within(await screen.findByRole('region', { name: 'E-Rechnung' }))
+
+    expect(card.getByText(/geht deshalb als E-Rechnung/)).toBeDefined()
+    expect(card.getByText(/Noch keine Pflicht/)).toBeDefined()
+    expect(card.getByText('Für die XRechnung fehlt noch:')).toBeDefined()
+    expect(card.getByText(/Käuferreferenz des Kunden/)).toBeDefined()
+    expect(card.queryByRole('link', { name: 'XRechnung herunterladen' })).toBeNull()
+  })
+
+  it('offers the XRechnung once the invoice is issued and lacks nothing', async () => {
+    serverSays('GET', '/documents/d-1/e-invoice', () => ({
+      status: 200,
+      body: { ...toBusiness, issued: true, xrechnung: { missing: [] } },
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice', status: 'issued', number: 'RE-2026-0001' })],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const link = await screen.findByRole('link', { name: 'XRechnung herunterladen' })
+
+    expect(link.getAttribute('href')).toBe('/documents/d-1/xrechnung')
+    expect(link.hasAttribute('download')).toBe(true)
+  })
+
+  it('says why an invoice goes out as a PDF, without anybody choosing it', async () => {
+    serverSays('GET', '/documents/d-1/e-invoice', () => ({
+      status: 200,
+      body: {
+        format: 'pdf',
+        reason:
+          'Der Kunde ist kein Unternehmen. Die E-Rechnung ist nur zwischen Unternehmen ' +
+          'vorgeschrieben (§ 14 Abs. 2 Satz 2 Nr. 1 UStG).',
+        duty: null,
+        issued: false,
+        xrechnung: { missing: [] },
+      },
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice' })],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const card = within(await screen.findByRole('region', { name: 'Versand als PDF' }))
+
+    expect(card.getByText(/Der Kunde ist kein Unternehmen/)).toBeDefined()
+    expect(screen.queryByRole('region', { name: 'E-Rechnung' })).toBeNull()
+  })
+
+  it('is not asked about for a quote, which is no invoice', async () => {
+    await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Angebot' })).toBeDefined()
+    expect(calls.some((call) => call.path === '/documents/d-1/e-invoice')).toBe(false)
+  })
+})
+
 describe('the job', () => {
   it('starts a quote and an estimate from two buttons, not from one with a choice', async () => {
     serverSays('POST', '/documents', (body) => {

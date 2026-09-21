@@ -28,11 +28,11 @@ export interface StoredFile extends TenantOwned {
 export const sha256Pattern = /^[0-9a-f]{64}$/
 
 /**
- * What a file is to a document. Only the PDF so far; the XML of an electronic
- * invoice joins it with its own issue, as a second purpose on the same
- * document and not as a column somebody has to add.
+ * What a file is to a document: the PDF, and since #75 the XRechnung, the XML
+ * an e-invoice goes out as. A second purpose on the same document and not a
+ * column somebody had to add, which is why the table was built this way.
  */
-export const documentFilePurposes = ['pdf'] as const
+export const documentFilePurposes = ['pdf', 'xrechnung'] as const
 
 export type DocumentFilePurpose = (typeof documentFilePurposes)[number]
 

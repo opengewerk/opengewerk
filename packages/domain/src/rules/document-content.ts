@@ -6,6 +6,7 @@ import type {
   DocumentContentV2,
   DocumentContentV3,
   DocumentContentV4,
+  DocumentContentV5,
   IssuerContent,
   LineContent,
   RecipientContent,
@@ -155,15 +156,30 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * had no titles and no texts, so every line of it is a position and both texts
  * are empty; a record from version 2 had no signature; a record from version 3
  * deducted nothing and billed its totals; a record from version 4 cancelled
- * nothing. That is exactly what each of them said when it was printed. The
- * figures, the addresses and the notes are carried over as they are.
+ * nothing; a record from version 5 kept nothing of the recipient that only an
+ * e-invoice needs. That is exactly what each of them said when it was printed.
+ * The figures, the addresses and the notes are carried over as they are.
+ *
+ * Version 5 is lifted with empty values and not with those of the customer
+ * today. An e-invoice made out of such a record lacks them and says so, which
+ * is better than one that carries an e-mail address the customer did not have
+ * when the invoice went out.
  */
 export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 4:
-      return { ...stored, version: documentContentVersion, corrects: null }
+    case 5:
+      return {
+        ...stored,
+        version: documentContentVersion,
+        recipient: { ...stored.recipient, email: null, vatId: null, buyerReference: null },
+      }
+    case 4: {
+      const fifth: DocumentContentV5 = { ...stored, version: 5, corrects: null }
+
+      return currentContent(fifth)
+    }
     case 3: {
       const fourth: DocumentContentV4 = {
         ...stored,

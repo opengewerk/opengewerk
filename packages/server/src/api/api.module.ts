@@ -20,6 +20,7 @@ import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
+import { EInvoiceController } from './e-invoice.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
@@ -125,6 +126,7 @@ export class ApiModule implements NestModule {
         DocumentLinesController,
         DocumentTotalsController,
         DocumentPdfController,
+        EInvoiceController,
         SyncController,
         SettingsController,
         LetterheadController,

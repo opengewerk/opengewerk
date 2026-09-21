@@ -28,9 +28,9 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  * Version 2 added the titles among the lines and the two texts around them,
  * version 3 the signature, version 4 the progress invoices a document deducts
  * and the amount it bills after them, version 5 the invoice a cancellation
- * cancels.
+ * cancels, version 6 what an e-invoice needs to know about the recipient.
  */
-export const documentContentVersion = 5
+export const documentContentVersion = 6
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -61,9 +61,21 @@ export interface RecipientContent extends Address {
   /**
    * A business for VAT purposes. Carried along because it decides one of the
    * printed sentences, and on reading a year later it has to be the answer of
-   * the day the invoice was written.
+   * the day the invoice was written. It also decides whether the invoice goes
+   * out as an e-invoice, see `formatFor`.
    */
   readonly isBusiness: boolean
+  /**
+   * The three things an e-invoice says about its recipient that the paper
+   * does not: where it is sent electronically, the VAT identification number
+   * a reverse charge names, and the reference the buyer wants to find it by,
+   * for a public authority its Leitweg-ID. Frozen with the rest, so that the
+   * e-invoice made a year later is the one that could have gone out that day.
+   * Null in every record written before version 6.
+   */
+  readonly email: string | null
+  readonly vatId: string | null
+  readonly buyerReference: string | null
 }
 
 /** The building the work was done on, when the document names one. */
@@ -167,8 +179,14 @@ export interface DocumentContent {
   readonly corrects: CorrectionContent | null
 }
 
+/** The fifth shape, from #74: the cancellation, and a recipient without e-invoice details. */
+export interface DocumentContentV5 extends Omit<DocumentContent, 'version' | 'recipient'> {
+  readonly version: 5
+  readonly recipient: Omit<RecipientContent, 'email' | 'vatId' | 'buyerReference'>
+}
+
 /** The fourth shape, from #74: deductions and the billed amount, no cancellation yet. */
-export interface DocumentContentV4 extends Omit<DocumentContent, 'version' | 'corrects'> {
+export interface DocumentContentV4 extends Omit<DocumentContentV5, 'version' | 'corrects'> {
   readonly version: 4
 }
 
@@ -200,7 +218,12 @@ export interface DocumentContentV1 extends Omit<
 
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
-  DocumentContent | DocumentContentV4 | DocumentContentV3 | DocumentContentV2 | DocumentContentV1
+  | DocumentContent
+  | DocumentContentV5
+  | DocumentContentV4
+  | DocumentContentV3
+  | DocumentContentV2
+  | DocumentContentV1
 
 /**
  * The content of a document, written once, when it is issued.

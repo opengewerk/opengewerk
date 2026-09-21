@@ -120,6 +120,13 @@
       "when": 1789986802609,
       "tag": "0016_cancellation_only_from_its_invoice",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789992351717,
+      "tag": "0017_e_invoice_outgoing",
+      "breakpoints": true
     }
   ]
 }

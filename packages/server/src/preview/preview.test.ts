@@ -186,6 +186,16 @@ describe('the sample data', () => {
       status: 'draft',
       predecessorDocumentId: byKind.get('progress_invoice')?.id,
     })
+    expect(byKind.get('recurring_invoice')).toMatchObject({ status: 'issued' })
+  })
+
+  it('has an invoice to a business whose XRechnung can be fetched', async () => {
+    const documents = await read<{ id: string; kind: string }[]>('/documents')
+    const maintenance = documents.find((document) => document.kind === 'recurring_invoice')
+    const response = await fetch(new URL(`/documents/${maintenance?.id ?? ''}/xrechnung`, base))
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('urn:xeinkauf.de:kosit:xrechnung_3.0')
   })
 
   it('carries titles among the lines and snippets for all three places', async () => {

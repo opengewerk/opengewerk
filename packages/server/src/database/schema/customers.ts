@@ -29,6 +29,9 @@ export const customers = pgTable(
     country: text('country').notNull().default('DE'),
 
     vatId: text('vat_id'),
+    // The Käuferreferenz, for a public authority its Leitweg-ID. Only an
+    // XRechnung asks for it, and it cannot go out without it.
+    buyerReference: text('buyer_reference'),
     isBusiness: boolean('is_business').notNull().default(false),
     isConstructionServiceRecipient: boolean('is_construction_service_recipient')
       .notNull()

@@ -48,6 +48,9 @@ const recipient: RecipientContent = {
   city: 'Hamburg',
   country: 'DE',
   isBusiness: false,
+  email: null,
+  vatId: null,
+  buyerReference: null,
 }
 
 function position(position: number, netCents: number, designation = 'Unterverteilung setzen') {
