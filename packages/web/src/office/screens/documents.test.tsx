@@ -1012,6 +1012,7 @@ describe('the e-invoice', () => {
             },
           ],
         },
+        zugferd: { missing: [] },
       },
     }))
 
@@ -1026,13 +1027,15 @@ describe('the e-invoice', () => {
     expect(card.getByText(/Noch keine Pflicht/)).toBeDefined()
     expect(card.getByText('Für die XRechnung fehlt noch:')).toBeDefined()
     expect(card.getByText(/Käuferreferenz des Kunden/)).toBeDefined()
+    expect(card.getByText(/sobald die Rechnung festgeschrieben ist/)).toBeDefined()
     expect(card.queryByRole('link', { name: 'XRechnung herunterladen' })).toBeNull()
+    expect(card.queryByRole('link', { name: 'ZUGFeRD-PDF herunterladen' })).toBeNull()
   })
 
-  it('offers the XRechnung once the invoice is issued and lacks nothing', async () => {
+  it('offers both forms once the invoice is issued and lacks nothing', async () => {
     serverSays('GET', '/documents/d-1/e-invoice', () => ({
       status: 200,
-      body: { ...toBusiness, issued: true, xrechnung: { missing: [] } },
+      body: { ...toBusiness, issued: true, xrechnung: { missing: [] }, zugferd: { missing: [] } },
     }))
 
     await mount('/belege/d-1', {
@@ -1040,10 +1043,69 @@ describe('the e-invoice', () => {
       document_lines: [line('l-1', 1)],
     })
 
-    const link = await screen.findByRole('link', { name: 'XRechnung herunterladen' })
+    const zugferd = await screen.findByRole('link', { name: 'ZUGFeRD-PDF herunterladen' })
+    const xrechnung = screen.getByRole('link', { name: 'XRechnung herunterladen' })
 
-    expect(link.getAttribute('href')).toBe('/documents/d-1/xrechnung')
-    expect(link.hasAttribute('download')).toBe(true)
+    expect(zugferd.getAttribute('href')).toBe('/documents/d-1/zugferd')
+    expect(zugferd.hasAttribute('download')).toBe(true)
+    expect(xrechnung.getAttribute('href')).toBe('/documents/d-1/xrechnung')
+    expect(xrechnung.hasAttribute('download')).toBe(true)
+  })
+
+  it('offers the ZUGFeRD PDF when only the XRechnung lacks something', async () => {
+    serverSays('GET', '/documents/d-1/e-invoice', () => ({
+      status: 200,
+      body: {
+        ...toBusiness,
+        issued: true,
+        xrechnung: { missing: [{ detail: 'buyer_reference', message: 'Käuferreferenz fehlt.' }] },
+        zugferd: { missing: [] },
+      },
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice', status: 'issued', number: 'RE-2026-0001' })],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const card = within(await screen.findByRole('region', { name: 'E-Rechnung' }))
+
+    expect(await card.findByRole('link', { name: 'ZUGFeRD-PDF herunterladen' })).toBeDefined()
+    expect(card.getByText('Für die XRechnung fehlt noch:')).toBeDefined()
+    expect(card.queryByRole('link', { name: 'XRechnung herunterladen' })).toBeNull()
+  })
+
+  it('offers neither form when the standard itself lacks something', async () => {
+    const identifier = {
+      detail: 'issuer_identifier',
+      message: 'Für die E-Rechnung fehlt die Umsatzsteuer-Identifikationsnummer (BR-CO-26).',
+    }
+
+    serverSays('GET', '/documents/d-1/e-invoice', () => ({
+      status: 200,
+      body: {
+        ...toBusiness,
+        issued: true,
+        xrechnung: {
+          missing: [identifier, { detail: 'recipient_email', message: 'E-Mail fehlt.' }],
+        },
+        zugferd: { missing: [identifier] },
+      },
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice', status: 'issued', number: 'RE-2026-0001' })],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const card = within(await screen.findByRole('region', { name: 'E-Rechnung' }))
+
+    expect(await card.findByText('Für die E-Rechnung fehlt noch:')).toBeDefined()
+    // Each gap is named once, under the form it stops first.
+    expect(card.getAllByText(/Umsatzsteuer-Identifikationsnummer/)).toHaveLength(1)
+    expect(card.getByText('Für die XRechnung außerdem:')).toBeDefined()
+    expect(card.getByText('E-Mail fehlt.')).toBeDefined()
+    expect(card.queryByRole('link')).toBeNull()
   })
 
   it('says why an invoice goes out as a PDF, without anybody choosing it', async () => {
@@ -1057,6 +1119,7 @@ describe('the e-invoice', () => {
         duty: null,
         issued: false,
         xrechnung: { missing: [] },
+        zugferd: { missing: [] },
       },
     }))
 

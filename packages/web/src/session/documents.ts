@@ -100,9 +100,9 @@ export function pdfAddress(id: string): string {
 
 /**
  * Which format an invoice goes out in, whether the law already requires the
- * e-invoice, and what an XRechnung of it would lack. The server answers,
- * because for an issued invoice only it holds what the invoice froze, and it
- * answers for a draft too, so that a gap shows before the number is spent.
+ * e-invoice, and what each form of it would lack. The server answers, because
+ * for an issued invoice only it holds what the invoice froze, and it answers
+ * for a draft too, so that a gap shows before the number is spent.
  */
 export function eInvoiceOf(id: string): Promise<EInvoiceStatus> {
   return request<EInvoiceStatus>(`/documents/${encodeURIComponent(id)}/e-invoice`)
@@ -111,6 +111,11 @@ export function eInvoiceOf(id: string): Promise<EInvoiceStatus> {
 /** Where the XRechnung of an issued invoice is, a download like the PDF. */
 export function xrechnungAddress(id: string): string {
   return `/documents/${encodeURIComponent(id)}/xrechnung`
+}
+
+/** Where the ZUGFeRD PDF of an issued invoice is, the PDF with the e-invoice inside. */
+export function zugferdAddress(id: string): string {
+  return `/documents/${encodeURIComponent(id)}/zugferd`
 }
 
 export interface TextSnippet {
