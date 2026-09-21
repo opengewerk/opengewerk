@@ -74,6 +74,21 @@ Vite liefert dann beide Einstiege aus, `/` und `/m`, und reicht jeden Pfad, der 
 
 `domain` rechnet im Browser und auf dem Server identisch und kennt deshalb weder Node- noch DOM-Typen. Ein `import ... from 'node:fs'` ist dort ein Typfehler, kein Diskussionspunkt in der Codereview.
 
+### Vorschau ohne Anmeldung
+
+Um die Oberfläche anzusehen, ohne ein Konto anzulegen:
+
+```bash
+docker compose -f docker/compose.test.yaml up -d
+pnpm run preview
+```
+
+Das baut die Oberfläche, legt in einer eigenen Datenbank `opengewerk_preview` einen Beispielbetrieb an und startet den Server unter `http://127.0.0.1:3000`. Dort läuft jede Anfrage ohne Anmeldung mit der Rolle Inhaber dieses Betriebs. Im Betrieb stehen zwei Kunden, ein Objekt mit Anlage, zwei Aufträge, ein festgeschriebenes Angebot mit der Auftragsbestätigung daraus, ein Kostenvoranschlag in Arbeit und Textbausteine. Angelegt wird das alles über die echten Routen, also mit Steuerfall, Nummernkreis und eingefrorenem Belegstand wie in einem echten Betrieb. Bei jedem Start entsteht der Betrieb neu; was in der Vorschau geändert wird, ist danach weg.
+
+**Die Vorschau lässt jede Anfrage durch und ist deshalb eingezäunt.** Sie liegt unter `packages/server/src/preview/` und wird nicht nach `dist` übersetzt, sondern nach `preview-build/`, und steht damit in keinem Abbild. Sie startet nicht mit `NODE_ENV=production`, lauscht nur auf 127.0.0.1 und nimmt nur eine Datenbank auf diesem Rechner, deren Name auf `_preview` endet; gelesen wird die Adresse aus `PREVIEW_DATABASE_URL` und nie aus `DATABASE_URL`. Hinter dem Wächter ist alles echt: Rechte, Mandantentrennung und Audit-Log. Ein Test lässt die Beispieldaten bei jedem Lauf gegen die echten Routen laufen, damit eine geänderte Route hier auffällt und nicht erst beim nächsten Start der Vorschau.
+
+Wer dabei an der Oberfläche baut, lässt die Vorschau laufen und startet daneben `pnpm --filter @opengewerk/web run dev`; Vite reicht die API an Port 3000 weiter. Ein PDF entsteht, wenn `RENDERER_URL` und `RENDERER_TOKEN` gesetzt sind, wie bei einer Instanz. Die Anmeldung selbst deckt die Vorschau nicht ab, die prüfen die Tests der Anmeldebildschirme.
+
 ### Datenbank
 
 Die Tests des Datenmodells laufen gegen eine echte PostgreSQL 18, nicht gegen eine Nachbildung. Geprüft werden Fremdschlüssel, Check-Constraints und `uuidv7()`, also genau das, was eine Nachbildung anders macht als der Ernstfall.

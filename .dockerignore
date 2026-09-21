@@ -9,6 +9,9 @@ node_modules/
 **/node_modules/
 dist/
 **/dist/
+# The build of the preview, which lets every request through. Never in an
+# image, not even in the build stage.
+**/preview-build/
 .env
 .env.*
 !.env.example

@@ -29,6 +29,7 @@ venv/
 
 # Bauartefakte und Protokolle
 dist/
+preview-build/
 build/
 *.log
 .turbo/

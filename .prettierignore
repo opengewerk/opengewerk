@@ -1,5 +1,6 @@
 node_modules
 dist
+preview-build
 .turbo
 pnpm-lock.yaml
 
