@@ -12,6 +12,10 @@ export { migrationsFolder }
  * The database the tests run against. These tests empty the schema before they
  * start, so the name has to end in `_test`: nobody is going to lose a
  * development database to a stray environment variable.
+ *
+ * The helpers below take another address as well, for the one other throwaway
+ * database there is: the preview in `src/preview`, which checks its own name
+ * the same way before it gets anywhere near them.
  */
 export function testDatabaseUrl(): string {
   const url =
@@ -62,8 +66,8 @@ export const ownerRole = 'opengewerk_owner'
 const ownerPassword = 'nur-für-die-testdatenbank'
 
 /** The same database, seen through the role that owns the tables. */
-export function ownerDatabaseUrl(): string {
-  const url = new URL(testDatabaseUrl())
+export function ownerDatabaseUrl(database: string = testDatabaseUrl()): string {
+  const url = new URL(database)
   url.username = ownerRole
   url.password = ownerPassword
 
@@ -71,7 +75,7 @@ export function ownerDatabaseUrl(): string {
 }
 
 /** Back to an empty database, the state a fresh installation starts from. */
-export async function resetSchema(pool: Pool): Promise<void> {
+export async function resetSchema(pool: Pool, database: string = testDatabaseUrl()): Promise<void> {
   await pool.query('drop schema if exists public cascade')
   await pool.query('drop schema if exists drizzle cascade')
   await pool.query('create schema public')
@@ -91,14 +95,14 @@ export async function resetSchema(pool: Pool): Promise<void> {
     end
   $$`)
 
-  const database = new URL(testDatabaseUrl()).pathname.replace(/^\//, '')
-  await pool.query(`grant create on database "${database}" to "${ownerRole}"`)
+  const name = new URL(database).pathname.replace(/^\//, '')
+  await pool.query(`grant create on database "${name}" to "${ownerRole}"`)
   await pool.query(`alter schema public owner to "${ownerRole}"`)
 }
 
 /** Runs the migrations the way an installation does, as the owner. */
-export async function applyMigrations(): Promise<void> {
-  await runMigrations(ownerDatabaseUrl())
+export async function applyMigrations(database: string = testDatabaseUrl()): Promise<void> {
+  await runMigrations(ownerDatabaseUrl(database))
 }
 
 /**
@@ -215,8 +219,8 @@ export async function allowApplicationLogin(pool: Pool): Promise<void> {
 }
 
 /** The same database, seen through the role that row level security applies to. */
-export function applicationDatabaseUrl(): string {
-  const url = new URL(testDatabaseUrl())
+export function applicationDatabaseUrl(database: string = testDatabaseUrl()): string {
+  const url = new URL(database)
   url.username = applicationRole
   url.password = applicationPassword
 
