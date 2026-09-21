@@ -11,7 +11,9 @@ import { SessionIdentitySource } from './authentication/session-identity.js'
 import { instanceIsEmpty } from './authentication/setup.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
+import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { interfacePath, serveInterface } from './interface.js'
+import { FileStore } from './storage/file-store.js'
 
 /**
  * Starts an instance.
@@ -56,6 +58,14 @@ async function start(): Promise<void> {
     ? new ClosedIdentitySource()
     : new SessionIdentitySource(authentication, database)
 
+  // The file store and the renderer go in whether the instance is open or
+  // closed. Closed, nothing reaches them, because every route that would is
+  // behind the guard; open, they are what a PDF is printed with and kept in.
+  const output = {
+    files: new FileStore(configuration.storagePath),
+    renderer: rendererFor(readRendererConfiguration()),
+  }
+
   const application = await NestFactory.create(
     // The authentication goes in only when the instance is open, and that is
     // what puts the first run setup on the routing table at all. Closed, the
@@ -63,7 +73,9 @@ async function start(): Promise<void> {
     ApiModule.create(
       database,
       identities,
-      configuration.closed ? {} : { authentication, trustedOrigins: configuration.trustedOrigins },
+      configuration.closed
+        ? output
+        : { ...output, authentication, trustedOrigins: configuration.trustedOrigins },
     ),
     // The container log is the only log there is, so it carries warnings and
     // errors and not the route table of every start. At twenty routes that

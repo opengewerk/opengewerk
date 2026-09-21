@@ -7,16 +7,20 @@ import type {
   Customer,
   DistributionBoard,
   Document,
+  DocumentFile,
   DocumentLine,
+  DocumentSnapshot,
   Equipment,
   Installation,
   Inverter,
   Job,
+  Letterhead,
   Membership,
   NumberRange,
   PvModule,
   PvString,
   Site,
+  StoredFile,
   SyncConflict,
   SyncOperation,
   SyncSequence,
@@ -33,12 +37,16 @@ import type {
   contacts,
   customers,
   distributionBoards,
+  documentFiles,
   documentLines,
   documents,
+  documentSnapshots,
   equipment,
+  files,
   installations,
   inverters,
   jobs,
+  letterheads,
   memberships,
   numberRanges,
   pvModules,
@@ -86,6 +94,12 @@ export type PvModuleMatches = Assert<Exact<typeof pvModules.$inferSelect, PvModu
 export type JobMatches = Assert<Exact<typeof jobs.$inferSelect, Job>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>
+export type DocumentSnapshotMatches = Assert<
+  Exact<typeof documentSnapshots.$inferSelect, DocumentSnapshot>
+>
+export type DocumentFileMatches = Assert<Exact<typeof documentFiles.$inferSelect, DocumentFile>>
+export type StoredFileMatches = Assert<Exact<typeof files.$inferSelect, StoredFile>>
+export type LetterheadMatches = Assert<Exact<typeof letterheads.$inferSelect, Letterhead>>
 export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>
 export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
 export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>

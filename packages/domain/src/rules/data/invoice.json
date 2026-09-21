@@ -1,0 +1,42 @@
+{
+  "package": "invoice",
+  "note": "Was eine Rechnung mindestens tragen muss, soweit es an einer Zahl oder an einem Stichtag hängt. Die Liste der Angaben selbst steht in rules/mandatory-details.ts, weil sie aus Sätzen besteht und nicht aus Zahlen; hier stehen die Grenze der Kleinbetragsrechnung nach § 33 UStDV und der Tag, ab dem ein Kleinunternehmer nach § 34a UStDV eine vereinfachte Rechnung ausstellen darf. Das Paket beginnt 2007 wie das Umsatzsteuerpaket, weil davor kein Beleg aus dieser Software stammen kann. Ein Vorbehalt zum Stichtag 2007: die Anhebung auf 150 Euro galt für Leistungen, die nach dem 31.12.2006 ausgeführt wurden, diese Engine sucht aber nach dem Belegdatum. Die Werte sind am 21.09.2026 gegen § 33 und § 34a UStDV bei gesetze-im-internet.de und gegen die Änderungsgesetze geprüft.",
+  "records": [
+    {
+      "key": "invoice.small_amount_limit",
+      "validFrom": "2007-01-01",
+      "validUntil": "2016-12-31",
+      "unit": "cents",
+      "value": 15000,
+      "source": "§ 33 UStDV in der bis 2016 geltenden Fassung, Erstes Gesetz zum Abbau bürokratischer Hemmnisse insbesondere in der mittelständischen Wirtschaft",
+      "note": "Gemessen am Gesamtbetrag einschließlich Umsatzsteuer. Vor 2007 lag die Grenze bei 100 Euro."
+    },
+    {
+      "key": "invoice.small_amount_limit",
+      "validFrom": "2017-01-01",
+      "validUntil": null,
+      "unit": "cents",
+      "value": 25000,
+      "source": "§ 33 UStDV, Zweites Bürokratieentlastungsgesetz",
+      "note": "Rückwirkend zum 01.01.2017 in Kraft gesetzt. Gemessen am Gesamtbetrag einschließlich Umsatzsteuer. Gilt nach § 33 Satz 3 UStDV nicht für Leistungen nach § 13b UStG."
+    },
+    {
+      "key": "invoice.small_business_simplified",
+      "validFrom": "2007-01-01",
+      "validUntil": "2024-12-31",
+      "unit": "flag",
+      "value": 0,
+      "source": "§ 14 Abs. 4 UStG",
+      "note": "Bis 2024 gab es keine eigene Vorschrift für die Rechnung eines Kleinunternehmers. Sie brauchte die Angaben nach § 14 Abs. 4 UStG, nur ohne Steuersatz und Steuerbetrag."
+    },
+    {
+      "key": "invoice.small_business_simplified",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 34a UStDV, Jahressteuergesetz 2024",
+      "note": "Seit 2025 genügen Name und Anschrift beider Seiten, Steuernummer oder Umsatzsteuer-Identifikationsnummer, das Ausstellungsdatum, Menge und Art der Leistung, das Entgelt und der Hinweis auf die Steuerbefreiung. Rechnungsnummer und Leistungszeitpunkt gehören nicht mehr dazu."
+    }
+  ]
+}

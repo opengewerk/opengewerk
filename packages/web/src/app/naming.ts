@@ -58,6 +58,8 @@ const fields: Readonly<Record<string, string>> = {
   netCents: 'Netto',
   vatRate: 'Steuersatz',
   taxTreatment: 'Steuerfall',
+  serviceFrom: 'Leistung ab',
+  serviceUntil: 'Leistung bis',
   vatId: 'USt-IdNr.',
   isBusiness: 'Unternehmen',
   isConstructionServiceRecipient: 'Bauleistungsempfänger',

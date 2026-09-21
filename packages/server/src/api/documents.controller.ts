@@ -9,16 +9,21 @@ import {
   Param,
   Patch,
   Post,
+  UnprocessableEntityException,
 } from '@nestjs/common'
 import {
   type CustomerId,
   defaultPatterns,
+  type DocumentContent,
   type DocumentId,
   type DocumentKind,
   documentKinds,
   formatDocumentNumber,
   type IsoDate,
+  missingDetails,
   numberRangeOf,
+  RuleError,
+  shippedRules,
   type TaxTreatment,
   treatmentFor,
 } from '@opengewerk/domain'
@@ -27,7 +32,8 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
 import { parameterAt } from '../database/parameters.js'
-import { customers, documents, numberRanges } from '../database/schema/index.js'
+import { customers, documents, documentSnapshots, numberRanges } from '../database/schema/index.js'
+import { contentOf } from '../documents/content.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -62,6 +68,32 @@ async function proposedTreatment(
   })
 }
 
+/**
+ * What a document says, put together for issuing, and what it still lacks.
+ *
+ * A date the rules have nothing for is the one way this can fail on input
+ * rather than on a bug: a document dated 2005 has no VAT rate and no limit
+ * for a small amount in the packages, and the engine says so instead of
+ * guessing. That is something the person issuing can fix, so it comes back as
+ * a refusal with the sentence.
+ */
+async function contentForIssuing(
+  tx: TenantTransaction,
+  document: typeof documents.$inferSelect,
+): Promise<{ content: DocumentContent; missing: ReturnType<typeof missingDetails> }> {
+  try {
+    const content = await contentOf(tx, document, shippedRules)
+
+    return { content, missing: missingDetails(shippedRules, content) }
+  } catch (error) {
+    if (error instanceof RuleError) {
+      throw new UnprocessableEntityException(error.message)
+    }
+
+    throw error
+  }
+}
+
 const writableFields = [
   'customerId',
   'jobId',
@@ -70,6 +102,10 @@ const writableFields = [
   'predecessorDocumentId',
   'kind',
   'documentDate',
+  // When the work was done. Required on most invoices, see `missingDetails`,
+  // and entered by whoever writes the document, not worked out.
+  'serviceFrom',
+  'serviceUntil',
   'subject',
   // Writable while the document is a draft, and refused afterwards by the
   // trigger like every other field. The proposal above is right in the common
@@ -161,6 +197,16 @@ export class DocumentsController {
    * transaction, so a failure further down takes the number back with it and
    * leaves no hole in the sequence.
    *
+   * Before the number, the mandatory details. An invoice that lacks one of
+   * them is refused with a list of what is missing, each item naming the
+   * paragraph, and the counter is not touched: section 4.2 wants the check
+   * before the fixing, and a number spent on an invoice that then cannot go
+   * out would be a hole the next tax audit asks about.
+   *
+   * After the number, the snapshot. What the document says is written down in
+   * the same transaction, so that the PDF printed from it next week or in ten
+   * years shows the customer's address of today and not of then.
+   *
    * This route exists only on the server, and that is the answer to "issuing
    * works online only": there is no offline path to it. A device without a
    * network can write drafts and nothing else.
@@ -180,6 +226,21 @@ export class DocumentsController {
 
       if (existing.status !== 'draft') {
         throw new ConflictException('Der Beleg ist nicht mehr im Entwurf.')
+      }
+
+      const { content, missing } = await contentForIssuing(tx, existing)
+
+      if (missing.length > 0) {
+        // A sentence for whoever reads only `message`, and the list for a
+        // screen that wants to point at each field.
+        throw new UnprocessableEntityException({
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          message:
+            'Der Beleg kann noch nicht festgeschrieben werden, es fehlen Pflichtangaben. ' +
+            missing.map((entry) => entry.message).join(' '),
+          missing,
+        })
       }
 
       const issuedAt = new Date()
@@ -206,6 +267,12 @@ export class DocumentsController {
       if (!issued) {
         throw new NotFoundException()
       }
+
+      await tx.insert(documentSnapshots).values({
+        tenantId: identity.tenantId,
+        documentId: issued.id,
+        content: { ...content, number },
+      })
 
       return issued
     })

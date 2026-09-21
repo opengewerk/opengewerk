@@ -1,4 +1,5 @@
 import baseRate from './data/base-rate.json' with { type: 'json' }
+import invoice from './data/invoice.json' with { type: 'json' }
 import payment from './data/payment.json' with { type: 'json' }
 import { type RuleRecord, ruleSet, type RuleSet } from './rule.js'
 import smallBusiness from './data/small-business.json' with { type: 'json' }
@@ -29,6 +30,7 @@ export interface RulePackage {
 export const rulePackages: readonly RulePackage[] = [
   vat as RulePackage,
   smallBusiness as RulePackage,
+  invoice as RulePackage,
   payment as RulePackage,
   baseRate as RulePackage,
 ]

@@ -1,6 +1,7 @@
 import { documentKinds, documentStatuses, taxTreatments } from '@opengewerk/domain'
 import {
   type AnyPgColumn,
+  check,
   date,
   index,
   pgEnum,
@@ -58,6 +59,14 @@ export const documents = pgTable(
     status: documentStatus('status').notNull().default('draft'),
     number: text('number'),
     documentDate: date('document_date').notNull(),
+    /**
+     * When the work was done, section 14 (4) number 6 UStG. A period, with
+     * the end left empty for a single day. The check below keeps an end
+     * without a start and an end before the start out, because either one
+     * printed on an invoice states a time of service that cannot be true.
+     */
+    serviceFrom: date('service_from'),
+    serviceUntil: date('service_until'),
     issuedAt: timestamp('issued_at', { withTimezone: true }),
     subject: text('subject'),
     /**
@@ -82,5 +91,10 @@ export const documents = pgTable(
     uniqueIndex('documents_number_unique')
       .on(table.tenantId, table.number)
       .where(sql`${table.number} is not null`),
+    check(
+      'documents_service_period',
+      sql`${table.serviceUntil} is null
+        or (${table.serviceFrom} is not null and ${table.serviceUntil} >= ${table.serviceFrom})`,
+    ),
   ],
 )

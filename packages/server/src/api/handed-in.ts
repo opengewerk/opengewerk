@@ -21,3 +21,13 @@ export const AUTHENTICATION = Symbol('Authentication')
  * The same list better-auth gets, because the check is the same check.
  */
 export const TRUSTED_ORIGINS = Symbol('TrustedOrigins')
+
+/**
+ * The content addressed file store. An interface of its own rather than the
+ * class, so that a module built without one gets a store that says so the
+ * moment it is used, instead of writing into some directory nobody chose.
+ */
+export const FILE_STORE = Symbol('FileStore')
+
+/** What turns a print job into a PDF: the renderer service, or a stand-in. */
+export const RENDERER = Symbol('Renderer')

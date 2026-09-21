@@ -18,6 +18,7 @@ import {
 import { ApiModule } from './api.module.js'
 import { permissionFor } from './sync.controller.js'
 import { as, testIdentities as identities } from './test-identity.js'
+import { invoiceable, issuableDraft, readyToInvoice } from './test-invoice.js'
 
 /**
  * Two devices in a basement, one connection between them and the server, and
@@ -92,6 +93,7 @@ beforeAll(async () => {
   await applyMigrations()
   await allowApplicationLogin(admin)
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await readyToInvoice(admin, north.id)
 
   database = Database.connect(applicationDatabaseUrl())
 
@@ -105,7 +107,7 @@ beforeAll(async () => {
   const customer = await http()
     .post('/customers')
     .set('x-test-identity', office())
-    .send({ kind: 'business', name: 'Bauherr Nord' })
+    .send({ kind: 'business', name: 'Bauherr Nord', ...invoiceable })
     .expect(201)
   customerId = customer.body.id
 
@@ -178,6 +180,12 @@ describe('the tables', () => {
     // which happens on the server by definition. An invitation is a way into
     // the business, and a way in that a phone holds a copy of is a way in that
     // survives being called back. All three are read live or not at all.
+    //
+    // The four from #71 stay here for plainer reasons. The letterhead is a
+    // setting like the parameters. A snapshot is written by the issuing and a
+    // document file by the first print, both on the server by definition. And
+    // `files` holds nothing a device writes yet; the photo taken on a roof
+    // arrives with its own issue, and with it the question how a file travels.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -185,7 +193,11 @@ describe('the tables', () => {
       name === 'tenant_parameters' ||
       name === 'memberships' ||
       name === 'tenant_sessions' ||
-      name === 'invitations'
+      name === 'invitations' ||
+      name === 'letterheads' ||
+      name === 'document_snapshots' ||
+      name === 'document_files' ||
+      name === 'files'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows
@@ -461,21 +473,14 @@ describe('what a device may not do without a connection', () => {
   })
 
   it('cannot touch a document once it has been issued', async () => {
-    const draft = await http()
-      .post('/documents')
-      .set('x-test-identity', office())
-      .send({ customerId, kind: 'final_invoice', documentDate: '2026-09-18' })
-      .expect(201)
+    const draft = await issuableDraft(app, office(), customerId)
 
-    await http()
-      .post(`/documents/${draft.body.id}/issue`)
-      .set('x-test-identity', office())
-      .expect(201)
+    await http().post(`/documents/${draft}/issue`).set('x-test-identity', office()).expect(201)
 
     const answer = await push(office(), 'telefon-anna', [
       change({
         entity: 'documents',
-        recordId: draft.body.id,
+        recordId: draft,
         patches: [{ field: 'subject', from: null, to: 'Nachträglich' }],
       }),
     ])
@@ -910,7 +915,8 @@ describe('a document line from a device', () => {
   })
 
   it('is refused once the document is issued, with the reason the document gets', async () => {
-    const document = await draftDocument()
+    // One line already on it, because an invoice without one is not issued.
+    const document = { id: await issuableDraft(app, office(), customerId) }
     await http()
       .post(`/documents/${document.id}/issue`)
       .set('x-test-identity', office())

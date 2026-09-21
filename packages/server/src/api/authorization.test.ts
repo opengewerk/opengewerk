@@ -17,6 +17,7 @@ import {
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
+import { invoiceable, issuableDraft, readyToInvoice } from './test-invoice.js'
 
 /**
  * The rights are checked on the server, through the API, not in the interface.
@@ -43,6 +44,7 @@ beforeAll(async () => {
     south.id,
     south.name,
   ])
+  await readyToInvoice(admin, north.id, south.id)
 
   database = Database.connect(applicationDatabaseUrl())
 
@@ -56,7 +58,7 @@ beforeAll(async () => {
   const created = await request(app.getHttpServer())
     .post('/customers')
     .set('x-test-identity', as(north.id, 'office'))
-    .send({ kind: 'business', name: 'Bauherr Nord' })
+    .send({ kind: 'business', name: 'Bauherr Nord', ...invoiceable })
     .expect(201)
   northCustomer = created.body.id
 })
@@ -132,21 +134,17 @@ describe('a technician', () => {
 
 describe('the office', () => {
   it('can issue a document, and only once', async () => {
-    const draft = await request(app.getHttpServer())
-      .post('/documents')
-      .set('x-test-identity', as(north.id, 'office'))
-      .send({ customerId: northCustomer, kind: 'final_invoice', documentDate: '2026-09-18' })
-      .expect(201)
+    const draft = await issuableDraft(app, as(north.id, 'office'), northCustomer)
 
     const issued = await request(app.getHttpServer())
-      .post(`/documents/${draft.body.id}/issue`)
+      .post(`/documents/${draft}/issue`)
       .set('x-test-identity', as(north.id, 'office'))
       .expect(201)
     expect(issued.body.status).toBe('issued')
     expect(issued.body.issuedAt).not.toBeNull()
 
     await request(app.getHttpServer())
-      .post(`/documents/${draft.body.id}/issue`)
+      .post(`/documents/${draft}/issue`)
       .set('x-test-identity', as(north.id, 'office'))
       .expect(409)
   })
@@ -228,18 +226,21 @@ describe('the number a document gets', () => {
       .set('x-test-identity', as(north.id, 'office'))
       .expect(200)
 
-    const draft = await request(app.getHttpServer())
-      .post('/documents')
-      .set('x-test-identity', as(north.id, 'office'))
-      .send({ customerId: northCustomer, kind: 'final_invoice', documentDate: '2026-09-18' })
-      .expect(201)
+    const draft = await issuableDraft(app, as(north.id, 'office'), northCustomer)
 
     // A draft has no number. It gets one at the moment it is issued, which is
     // the moment it starts counting for the bookkeeping.
-    expect(draft.body.number).toBeNull()
+    const before = await request(app.getHttpServer())
+      .get('/documents')
+      .set('x-test-identity', as(north.id, 'office'))
+      .expect(200)
+    expect(
+      (before.body as { id: string; number: string | null }[]).find((entry) => entry.id === draft)
+        ?.number,
+    ).toBeNull()
 
     const issued = await request(app.getHttpServer())
-      .post(`/documents/${draft.body.id}/issue`)
+      .post(`/documents/${draft}/issue`)
       .set('x-test-identity', as(north.id, 'office'))
       .expect(201)
 
@@ -250,21 +251,13 @@ describe('the number a document gets', () => {
     const southCustomer = await request(app.getHttpServer())
       .post('/customers')
       .set('x-test-identity', as(south.id, 'office'))
-      .send({ kind: 'business', name: 'Bauherr Süd' })
+      .send({ kind: 'business', name: 'Bauherr Süd', ...invoiceable })
       .expect(201)
 
-    const draft = await request(app.getHttpServer())
-      .post('/documents')
-      .set('x-test-identity', as(south.id, 'office'))
-      .send({
-        customerId: southCustomer.body.id,
-        kind: 'final_invoice',
-        documentDate: '2026-09-18',
-      })
-      .expect(201)
+    const draft = await issuableDraft(app, as(south.id, 'office'), southCustomer.body.id)
 
     const issued = await request(app.getHttpServer())
-      .post(`/documents/${draft.body.id}/issue`)
+      .post(`/documents/${draft}/issue`)
       .set('x-test-identity', as(south.id, 'office'))
       .expect(201)
 
