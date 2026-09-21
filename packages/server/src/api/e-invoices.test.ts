@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { PDFDocument } from '@cantoo/pdf-lib'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DocumentContent, EInvoiceStatus } from '@opengewerk/domain'
@@ -20,7 +21,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { checkedCii } from '../documents/cii-schema.js'
-import type { Renderer } from '../documents/renderer.js'
+import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { FileStore } from '../storage/file-store.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
@@ -47,7 +48,24 @@ let database: Database
 let app: INestApplication
 let storageRoot: string
 
-const standIn: Renderer = () => Promise.resolve(new TextEncoder().encode('%PDF-1.7 Probedruck'))
+/**
+ * A PDF of one page, and a real one, because the ZUGFeRD PDF is built around
+ * what the renderer returns. The renderer counts what it prints, so a test can
+ * say that something was not printed a second time, and can be switched off.
+ */
+let page: Uint8Array
+let prints = 0
+let rendererRunning = true
+
+const standIn: Renderer = () => {
+  if (!rendererRunning) {
+    return Promise.reject(new RendererUnavailableError('Der Renderer antwortet nicht.'))
+  }
+
+  prints += 1
+
+  return Promise.resolve(page)
+}
 
 const office = (tenant = north) => as(tenant.id, 'office')
 const owner = (tenant = north) => as(tenant.id, 'owner')
@@ -144,6 +162,34 @@ function xrechnung(documentId: string, tenant = north) {
     .parse(binary)
 }
 
+function zugferd(documentId: string, tenant = north) {
+  return http()
+    .get(`/documents/${documentId}/zugferd`)
+    .set('x-test-identity', office(tenant))
+    .buffer(true)
+    .parse(binary)
+}
+
+function pdf(documentId: string, tenant = north) {
+  return http()
+    .get(`/documents/${documentId}/pdf`)
+    .set('x-test-identity', office(tenant))
+    .buffer(true)
+    .parse(binary)
+}
+
+/** The purposes of the files a document keeps, with their media types. */
+async function keptFiles(documentId: string): Promise<{ purpose: string; media_type: string }[]> {
+  const { rows } = await admin.query<{ purpose: string; media_type: string }>(
+    `select document_files.purpose, files.media_type from document_files
+       join files on files.id = document_files.file_id where document_id = $1
+       order by document_files.purpose`,
+    [documentId],
+  )
+
+  return rows
+}
+
 const namespaces = {
   rsm: 'urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100',
   ram: 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100',
@@ -177,6 +223,11 @@ beforeAll(async () => {
     [north.id],
   )
   await readyToInvoice(admin, south.id)
+
+  const printed = await PDFDocument.create()
+
+  printed.addPage().drawRectangle({ x: 50, y: 50, width: 200, height: 100 })
+  page = await printed.save()
 
   storageRoot = mkdtempSync(join(tmpdir(), 'opengewerk-e-invoice-'))
   database = Database.connect(applicationDatabaseUrl())
@@ -313,14 +364,7 @@ describe('the XRechnung', () => {
     const second = (await xrechnung(id).expect(200)).body as Buffer
 
     expect(second.equals(first)).toBe(true)
-
-    const { rows } = await admin.query<{ purpose: string; media_type: string }>(
-      `select document_files.purpose, files.media_type from document_files
-         join files on files.id = document_files.file_id where document_id = $1`,
-      [id],
-    )
-
-    expect(rows).toEqual([{ purpose: 'xrechnung', media_type: 'application/xml' }])
+    expect(await keptFiles(id)).toEqual([{ purpose: 'xrechnung', media_type: 'application/xml' }])
   })
 
   it('is not there for a draft, which has no number to be booked under', async () => {
@@ -338,6 +382,9 @@ describe('the XRechnung', () => {
       'buyer_reference',
       'recipient_email',
     ])
+    // Both are demands of XRechnung and not of the standard, so the ZUGFeRD
+    // PDF lacks nothing.
+    expect(before.zugferd.missing).toEqual([])
     // Not required yet in 2026, so it does not stand in the way of the invoice.
     expect(before.duty).toMatchObject({ required: false })
 
@@ -394,6 +441,114 @@ describe('the XRechnung', () => {
       invoice.number,
     ])
     expect(read(xml, '//ram:DuePayableAmount')).toEqual(['-1475.60'])
+  })
+})
+
+describe('the ZUGFeRD PDF', () => {
+  it('is the PDF of the invoice with the e-invoice of the standard inside', async () => {
+    const id = await draft(await customer(business))
+    const invoice = await issued(id)
+    const answer = await zugferd(id).expect(200)
+
+    expect(answer.headers['content-type']).toBe('application/pdf')
+    expect(answer.headers['content-disposition']).toContain(
+      encodeURIComponent(`Schlussrechnung ${invoice.number ?? ''} ZUGFeRD.pdf`),
+    )
+    expect(answer.headers['cache-control']).toBe('no-store')
+
+    const attachments = (await PDFDocument.load(answer.body as Buffer)).getAttachments()
+
+    expect(attachments.map((attachment) => attachment.name)).toEqual(['factur-x.xml'])
+
+    const xml = new TextDecoder().decode(attachments[0]?.data)
+
+    expect(checkedCii(xml)).toBe(xml)
+    expect(read(xml, '//ram:GuidelineSpecifiedDocumentContextParameter/ram:ID')).toEqual([
+      'urn:cen.eu:en16931:2017',
+    ])
+    expect(read(xml, '//rsm:ExchangedDocument/ram:ID')).toEqual([invoice.number])
+
+    // Printed for it, and kept as the PDF of the invoice as well.
+    expect(await keptFiles(id)).toEqual([
+      { purpose: 'pdf', media_type: 'application/pdf' },
+      { purpose: 'zugferd', media_type: 'application/pdf' },
+    ])
+  })
+
+  it('is built around the PDF the invoice keeps, and nothing is printed twice', async () => {
+    const id = await draft(await customer(business))
+
+    await issued(id)
+
+    const kept = (await pdf(id).expect(200)).body as Buffer
+    const printedBefore = prints
+    const first = (await zugferd(id).expect(200)).body as Buffer
+    const second = (await zugferd(id).expect(200)).body as Buffer
+
+    expect(prints).toBe(printedBefore)
+    expect(second.equals(first)).toBe(true)
+    expect(((await pdf(id).expect(200)).body as Buffer).equals(kept)).toBe(true)
+    expect(prints).toBe(printedBefore)
+  })
+
+  it('asks only what the standard asks, not what XRechnung adds to it', async () => {
+    const id = await draft(await customer({ ...business, buyerReference: null, email: null }))
+
+    await issued(id)
+    await xrechnung(id).expect(422)
+    await zugferd(id).expect(200)
+  })
+
+  it('refuses before anything is printed, and says why', async () => {
+    const person = await draft(
+      await customer({ kind: 'private', name: 'Familie Berg', ...invoiceable }),
+    )
+    const unissued = await draft(await customer(business))
+    // South has a tax number and nothing that identifies it across borders,
+    // which in 2026 does not stop the invoice and does stop its e-invoice.
+    const lacking = await draft(await customer(business, south), {}, south)
+
+    await issued(person)
+    await issued(lacking, south)
+
+    const printedBefore = prints
+    const asPdf = await zugferd(person).expect(409)
+    const asDraft = await zugferd(unissued).expect(409)
+    const withGaps = await zugferd(lacking, south).expect(422)
+    const gaps = JSON.parse((withGaps.body as Buffer).toString('utf8')) as {
+      message: string
+      missing: { detail: string }[]
+    }
+
+    expect(asPdf.body.toString()).toContain('kein Unternehmen')
+    expect(asDraft.body.toString()).toContain('festgeschrieben')
+    expect(gaps.message).toContain('Für das ZUGFeRD-PDF fehlen noch Angaben.')
+    expect(gaps.missing.map((entry) => entry.detail)).toEqual(['issuer_identifier'])
+    expect(prints).toBe(printedBefore)
+  })
+
+  it('says which service is missing when there is no renderer, and keeps nothing', async () => {
+    const id = await draft(await customer(business))
+
+    await issued(id)
+    rendererRunning = false
+
+    try {
+      const answer = await zugferd(id).expect(503)
+
+      expect(answer.body.toString()).toContain('Renderer')
+    } finally {
+      rendererRunning = true
+    }
+
+    expect(await keptFiles(id)).toEqual([])
+  })
+
+  it('belongs to the business that issued the invoice and to nobody else', async () => {
+    const id = await draft(await customer(business))
+
+    await issued(id)
+    await zugferd(id, south).expect(404)
   })
 })
 

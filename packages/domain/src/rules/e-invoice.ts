@@ -294,7 +294,13 @@ export interface EInvoiceStatus extends FormatChoice {
   readonly duty: Duty | null
   /** Whether the document has its number, and an e-invoice can be made of it now. */
   readonly issued: boolean
+  /**
+   * What each of the two forms would lack. The ZUGFeRD PDF carries the
+   * standard itself, the XRechnung its German usage with the further demands
+   * that has, so the second list holds the first.
+   */
   readonly xrechnung: { readonly missing: readonly EInvoiceGap[] }
+  readonly zugferd: { readonly missing: readonly EInvoiceGap[] }
 }
 
 /**

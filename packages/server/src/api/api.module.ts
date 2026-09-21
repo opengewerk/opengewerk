@@ -17,6 +17,7 @@ import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { AuthorizationGuard } from './authorization.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
+import { DocumentFiles } from './document-files.js'
 import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
@@ -135,6 +136,7 @@ export class ApiModule implements NestModule {
         { provide: Database, useValue: database },
         { provide: FILE_STORE, useValue: files },
         { provide: RENDERER, useValue: renderer },
+        DocumentFiles,
         ...(authentication
           ? [
               { provide: AUTHENTICATION, useValue: authentication },

@@ -127,6 +127,13 @@
       "when": 1789992351717,
       "tag": "0017_e_invoice_outgoing",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789995907941,
+      "tag": "0018_zugferd",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,6 @@ import {
   ConflictException,
   Controller,
   Get,
-  Inject,
   InternalServerErrorException,
   NotFoundException,
   Param,
@@ -14,8 +13,10 @@ import {
   currentContent,
   type DocumentContent,
   type DocumentId,
+  type DocumentKind,
   type Duty,
   type EInvoiceGap,
+  type EInvoiceProfile,
   type EInvoiceStatus,
   eInvoiceDuty,
   eInvoiceGaps,
@@ -30,18 +31,14 @@ import type { Response } from 'express'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
-import { documentFiles, documents, documentSnapshots, files } from '../database/schema/index.js'
+import { documents, documentSnapshots } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
 import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { contentOf } from '../documents/content.js'
-import {
-  type FileStorage,
-  StoredFileDamagedError,
-  StoredFileMissingError,
-} from '../storage/file-store.js'
-import { fileRowFor } from '../storage/files.js'
+import { documentTitle } from '../documents/template.js'
+import { zugferdPdf } from '../documents/zugferd.js'
 import { RequiresPermission } from './authorization.js'
-import { FILE_STORE } from './handed-in.js'
+import { DocumentFiles } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
@@ -126,33 +123,73 @@ async function contentFor(
   return { document, content: currentContent(snapshot.content) }
 }
 
-/** A file name that works in every browser, like the one of the PDF. */
-function disposition(number: string): string {
-  const safe = number.replaceAll(/[\\/:*?"<>|]+/g, '-')
-  const plain = `XRechnung-${safe.replaceAll(/[^\w.-]/g, '-')}.xml`
+/** The document an e-invoice is asked for, which has to have its number by then. */
+async function numberedDocument(
+  tx: TenantTransaction,
+  documentId: string,
+): Promise<{ readonly id: DocumentId; readonly kind: DocumentKind; readonly number: string }> {
+  const [document] = await tx
+    .select({ id: documents.id, kind: documents.kind, number: documents.number })
+    .from(documents)
+    .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
 
-  return `attachment; filename="${plain}"; filename*=UTF-8''${encodeURIComponent(`XRechnung ${safe}.xml`)}`
+  if (!document) {
+    throw new NotFoundException()
+  }
+
+  if (document.number === null) {
+    throw new ConflictException(
+      'Eine E-Rechnung gibt es erst, wenn die Rechnung festgeschrieben ist: vorher hat sie ' +
+        'keine Nummer, und ohne Nummer bucht sie niemand.',
+    )
+  }
+
+  return { id: document.id, kind: document.kind, number: document.number }
+}
+
+/** A number as it may stand in a file name. A number pattern may well contain a slash. */
+function safe(number: string): string {
+  return number.replaceAll(/[\\/:*?"<>|]+/g, '-')
+}
+
+/**
+ * A file name that works in every browser, like the one of the PDF: the
+ * German one in `filename*`, and a plain one for whoever reads only
+ * `filename`.
+ */
+function disposition(name: string, plain: string): string {
+  return (
+    `attachment; filename="${plain.replaceAll(/[^\w.-]/g, '-')}"; ` +
+    `filename*=UTF-8''${encodeURIComponent(name)}`
+  )
+}
+
+/** What the two forms are called in a sentence that says what one of them lacks. */
+const formNames: Readonly<Record<EInvoiceProfile, string>> = {
+  xrechnung: 'die XRechnung',
+  en16931: 'das ZUGFeRD-PDF',
 }
 
 /**
  * The e-invoice of a document, beside its PDF and under the same right.
  *
- * Two routes. One tells the office which format a document goes out in, why,
- * whether the law already requires it, and what an XRechnung of it would lack;
- * it answers for a draft too, so that a missing value is found before the
- * number is spent. The other hands out the XRechnung itself.
+ * Three routes. One tells the office which format a document goes out in,
+ * why, whether the law already requires it, and what each form of the
+ * e-invoice would lack; it answers for a draft too, so that a missing value is
+ * found before the number is spent. The other two hand out the two forms: the
+ * XRechnung, XML of its own, and the ZUGFeRD PDF, the PDF of the invoice with
+ * the XML inside.
  *
- * The XRechnung is made the first time somebody asks for it, like the PDF, and
- * stored under its hash; every later request gets these bytes back. Unlike the
- * PDF it would come out the same if it were made again, but a later version of
- * the writer might not write it the same, and what went to the customer is the
- * file that was stored.
+ * Both are made the first time somebody asks for them, like the PDF, and kept
+ * from then on. Unlike the PDF the XML would come out the same if it were made
+ * again, but a later version of the writer might not write it the same, and
+ * what went to the customer is the file that was stored.
  */
 @Controller('documents/:documentId')
 export class EInvoiceController {
   constructor(
     private readonly database: Database,
-    @Inject(FILE_STORE) private readonly store: FileStorage,
+    private readonly files: DocumentFiles,
   ) {}
 
   @Get('e-invoice')
@@ -166,14 +203,14 @@ export class EInvoiceController {
 
       try {
         const choice = formatFor(shippedRules, content)
+        const electronic = choice.format === 'e_invoice'
 
         return {
           ...choice,
-          duty: choice.format === 'e_invoice' ? await dutyOf(tx, content) : null,
+          duty: electronic ? await dutyOf(tx, content) : null,
           issued: document.number !== null,
-          xrechnung: {
-            missing: choice.format === 'e_invoice' ? eInvoiceGaps(content, 'xrechnung') : [],
-          },
+          xrechnung: { missing: electronic ? eInvoiceGaps(content, 'xrechnung') : [] },
+          zugferd: { missing: electronic ? eInvoiceGaps(content, 'en16931') : [] },
         }
       } catch (error) {
         // A date the rules have no answer for, one from before the packages
@@ -195,65 +232,112 @@ export class EInvoiceController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
     const found = await this.database.forTenant(identity, async (tx) => {
-      const [document] = await tx
-        .select({ id: documents.id, number: documents.number, status: documents.status })
-        .from(documents)
-        .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
-
-      if (!document) {
-        throw new NotFoundException()
-      }
-
-      if (document.number === null) {
-        throw new ConflictException(
-          'Eine E-Rechnung gibt es erst, wenn die Rechnung festgeschrieben ist: vorher hat sie ' +
-            'keine Nummer, und ohne Nummer bucht sie niemand.',
-        )
-      }
-
-      const [stored] = await tx
-        .select({ sha256: files.sha256 })
-        .from(documentFiles)
-        .innerJoin(files, eq(files.id, documentFiles.fileId))
-        .where(
-          and(eq(documentFiles.documentId, document.id), eq(documentFiles.purpose, 'xrechnung')),
-        )
-
-      if (stored) {
-        return { number: document.number, sha256: stored.sha256, content: null }
-      }
+      const document = await numberedDocument(tx, documentId)
+      const stored = await this.files.stored(tx, document.id, 'xrechnung')
 
       return {
-        number: document.number,
-        sha256: null,
-        content: (await contentFor(tx, documentId)).content,
+        document,
+        stored,
+        content: stored === null ? (await contentFor(tx, documentId)).content : null,
       }
     })
 
     const bytes =
       found.content === null
-        ? await this.read(found.sha256 ?? '')
-        : await this.keep(identity, documentId as DocumentId, this.make(found.content))
+        ? await this.files.read(found.stored ?? '')
+        : await this.files.keep(
+            identity,
+            found.document.id,
+            'xrechnung',
+            new TextEncoder().encode(this.make(found.content, 'xrechnung')),
+            'application/xml',
+          )
 
     // Not for any cache on the way, like the PDF: an invoice is personal data.
     response.setHeader('Cache-Control', 'no-store')
 
     return new StreamableFile(Buffer.from(bytes), {
       type: 'application/xml; charset=utf-8',
-      disposition: disposition(found.number),
+      disposition: disposition(
+        `XRechnung ${safe(found.document.number)}.xml`,
+        `XRechnung-${safe(found.document.number)}.xml`,
+      ),
       length: bytes.byteLength,
     })
   }
 
   /**
-   * Writes the XRechnung of a frozen content and holds it against the schema.
+   * The ZUGFeRD PDF: the PDF of the invoice, the one the document keeps, with
+   * the e-invoice in the profile of the standard inside it.
+   *
+   * The XML is written and checked before anything is printed, so a document
+   * that goes out as a PDF or lacks a value is refused without a round trip
+   * to the renderer. The page is the PDF the document keeps, printed now and
+   * kept as its PDF if nobody asked for that before: a customer who got the
+   * PDF first and the ZUGFeRD PDF later sees the same page twice.
+   */
+  @Get('zugferd')
+  @RequiresPermission('document.read')
+  async zugferd(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('documentId') documentId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const found = await this.database.forTenant(identity, async (tx) => {
+      const document = await numberedDocument(tx, documentId)
+      const stored = await this.files.stored(tx, document.id, 'zugferd')
+
+      if (stored !== null) {
+        return { document, stored, content: null, pdf: null }
+      }
+
+      return {
+        document,
+        stored,
+        content: (await contentFor(tx, documentId)).content,
+        pdf: await this.files.stored(tx, document.id, 'pdf'),
+      }
+    })
+
+    let bytes: Uint8Array
+
+    if (found.content === null) {
+      bytes = await this.files.read(found.stored ?? '')
+    } else {
+      const xml = this.make(found.content, 'en16931')
+      const pdf = await this.files.issuedPdf(identity, found.document.id, found.content, found.pdf)
+
+      bytes = await this.files.keep(
+        identity,
+        found.document.id,
+        'zugferd',
+        await zugferdPdf(pdf, xml, new Date()),
+        'application/pdf',
+      )
+    }
+
+    response.setHeader('Cache-Control', 'no-store')
+
+    return new StreamableFile(Buffer.from(bytes), {
+      type: 'application/pdf',
+      disposition: disposition(
+        `${documentTitle(found.document.kind)} ${safe(found.document.number)} ZUGFeRD.pdf`,
+        `ZUGFeRD-${safe(found.document.number)}.pdf`,
+      ),
+      length: bytes.byteLength,
+    })
+  }
+
+  /**
+   * Writes the e-invoice of a frozen content in a profile and holds it
+   * against the schema.
    *
    * Refused with the reason when it should not exist: a document that goes
-   * out as a PDF, or one that lacks what XRechnung asks for. The second is a
+   * out as a PDF, or one that lacks what the profile asks for. The second is a
    * list, like the missing details of an invoice, because each item is
    * something somebody fixes in another place.
    */
-  private make(content: DocumentContent): Uint8Array {
+  private make(content: DocumentContent, profile: EInvoiceProfile): string {
     try {
       const choice = formatFor(shippedRules, content)
 
@@ -261,23 +345,20 @@ export class EInvoiceController {
         throw new ConflictException(`Dieser Beleg geht als PDF hinaus. ${choice.reason}`)
       }
 
-      const missing = [
-        ...missingDetails(shippedRules, content),
-        ...eInvoiceGaps(content, 'xrechnung'),
-      ]
+      const missing = [...missingDetails(shippedRules, content), ...eInvoiceGaps(content, profile)]
 
       if (missing.length > 0) {
         throw new UnprocessableEntityException({
           statusCode: 422,
           error: 'Unprocessable Entity',
           message:
-            'Für die XRechnung fehlen noch Angaben. ' +
+            `Für ${formNames[profile]} fehlen noch Angaben. ` +
             missing.map((entry) => entry.message).join(' '),
           missing,
         })
       }
 
-      return new TextEncoder().encode(checkedCii(ciiInvoice(content, 'xrechnung')))
+      return checkedCii(ciiInvoice(content, profile))
     } catch (error) {
       if (error instanceof RuleError) {
         throw new UnprocessableEntityException(error.message)
@@ -287,52 +368,6 @@ export class EInvoiceController {
       // business entered: those are checked above. It is not stored and not
       // handed out, and the message says what the schema found.
       if (error instanceof SchemaCheckError) {
-        throw new InternalServerErrorException(error.message)
-      }
-
-      throw error
-    }
-  }
-
-  /**
-   * Stores the XRechnung and links it, the bytes before the row, as for the
-   * PDF. Two first requests at the same moment both write it; the unique index
-   * lets one of them link, and both hand out what was linked.
-   */
-  private async keep(
-    identity: RequestIdentity,
-    documentId: DocumentId,
-    bytes: Uint8Array,
-  ): Promise<Uint8Array> {
-    const blob = await this.store.put(bytes)
-
-    const linked = await this.database.forTenant(identity, async (tx) => {
-      const fileId = await fileRowFor(tx, identity.tenantId, blob, 'application/xml')
-
-      await tx
-        .insert(documentFiles)
-        .values({ tenantId: identity.tenantId, documentId, purpose: 'xrechnung', fileId })
-        .onConflictDoNothing({ target: [documentFiles.documentId, documentFiles.purpose] })
-
-      const [row] = await tx
-        .select({ sha256: files.sha256 })
-        .from(documentFiles)
-        .innerJoin(files, eq(files.id, documentFiles.fileId))
-        .where(
-          and(eq(documentFiles.documentId, documentId), eq(documentFiles.purpose, 'xrechnung')),
-        )
-
-      return row?.sha256
-    })
-
-    return linked === undefined || linked === blob.sha256 ? bytes : await this.read(linked)
-  }
-
-  private async read(sha256: string): Promise<Uint8Array> {
-    try {
-      return await this.store.get(sha256)
-    } catch (error) {
-      if (error instanceof StoredFileMissingError || error instanceof StoredFileDamagedError) {
         throw new InternalServerErrorException(error.message)
       }
 
