@@ -193,6 +193,48 @@ describe('the conflict screen', () => {
     expect(server.resolved).toEqual(['k-1'])
   })
 
+  /**
+   * A signature refused because the report changed under it. Taken anyway it
+   * would stand under a page the customer never saw, so there is nothing to
+   * choose between, and a table of two fingerprints would explain nothing.
+   */
+  it('explains a refused signature instead of offering to push it through', async () => {
+    server.open = [
+      conflict({
+        entity: 'document_signatures',
+        recordId: 's-1',
+        fields: ['contentFingerprint'],
+        wanted: {
+          documentId: 'd-1',
+          signerName: 'Erika Berg',
+          path: 'M100,300L240,120',
+          contentFingerprint: 'fnv1a32:0badf00d:61',
+        },
+        seen: {},
+        found: {},
+      }),
+    ]
+
+    const client = await withClient(server)
+
+    render(
+      <SyncProvider client={client}>
+        <ConflictScreen />
+      </SyncProvider>,
+    )
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Erika Berg' })).toBeDefined()
+    expect(screen.getByText(/Die Unterschrift gilt nicht/)).toBeDefined()
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Verstanden' }))
+
+    expect(server.sent).toEqual([])
+    expect(server.patched).toEqual([])
+    expect(server.resolved).toEqual(['k-1'])
+  })
+
   it('says so plainly when there is nothing to decide', async () => {
     const client = await withClient(server)
 

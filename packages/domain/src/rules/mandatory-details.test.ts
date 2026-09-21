@@ -90,6 +90,7 @@ function invoice(
     issuer: { ...issuer, ...parts.issuer },
     recipient: { ...recipient, ...parts.recipient },
     site: null,
+    signature: null,
   })
 }
 

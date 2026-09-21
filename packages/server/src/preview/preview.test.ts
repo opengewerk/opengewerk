@@ -180,6 +180,7 @@ describe('the sample data', () => {
       predecessorDocumentId: byKind.get('quote')?.id,
     })
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
+    expect(byKind.get('time_and_material_report')).toMatchObject({ status: 'signed', number: null })
   })
 
   it('carries titles among the lines and snippets for all three places', async () => {

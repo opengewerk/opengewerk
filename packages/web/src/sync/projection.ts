@@ -1,5 +1,5 @@
 import type { Operation, RecordState } from '@opengewerk/domain'
-import { inOutboxOrder } from '@opengewerk/domain'
+import { inOutboxOrder, policyFor } from '@opengewerk/domain'
 
 /** The key a record has in the outbox index. */
 export function recordKey(entity: string, id: string): string {
@@ -46,8 +46,15 @@ export function project(
     // The id is put in here rather than sent: it is one of the columns the
     // server keeps, so a patch naming it is refused outright. It travels as
     // the operation's `recordId` instead, which is where this one comes from.
+    //
+    // Under it go the fields the server fills in on creating, as the policy
+    // says it will. A document made on this device is a draft before the
+    // server has said so, and the gates that ask for its status get an answer
+    // instead of a refusal.
     current =
-      operation.kind === 'create' ? { ...values, id: recordId } : { ...(current ?? {}), ...values }
+      operation.kind === 'create'
+        ? { ...policyFor(operation.entity)?.createdAs, ...values, id: recordId }
+        : { ...(current ?? {}), ...values }
   }
 
   return current

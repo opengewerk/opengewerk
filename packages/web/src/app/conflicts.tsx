@@ -18,6 +18,22 @@ function reasonText(reason: ConflictReason): string {
   return refusalText[reason]
 }
 
+/**
+ * Conflicts that taking the device's version cannot settle, with what to do
+ * instead.
+ *
+ * A signature is the one so far. It is refused when the report changed while
+ * the customer was signing, and taken anyway it would stand under a page the
+ * customer never saw, which is the whole of what the refusal prevents. The way
+ * on is a new signature on the report as it is now, and that is what the card
+ * says instead of offering a choice that is not one.
+ */
+const settledOnSite: Readonly<Record<string, string>> = {
+  document_signatures:
+    'Die Unterschrift gilt nicht, weil sich der Bericht geändert hat, während unterschrieben ' +
+    'wurde. Der Bericht ist wieder offen; bitte ansehen und noch einmal unterschreiben lassen.',
+}
+
 function shown(value: SyncValue | undefined): string {
   if (value === null || value === undefined) {
     return 'leer'
@@ -51,8 +67,11 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
-  const record = client.get(conflict.entity, conflict.recordId)
+  // A record the server refused to create is on neither side, and then what
+  // the device wanted is the only thing that can name it.
+  const record = client.get(conflict.entity, conflict.recordId) ?? conflict.wanted
   const involved = conflict.fields.length > 0 ? conflict.fields : Object.keys(conflict.wanted)
+  const settled = settledOnSite[conflict.entity]
 
   async function decide(takeMine: boolean) {
     setWorking(true)
@@ -92,28 +111,32 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
         </div>
       }
     >
-      <Table caption={`Die beiden Stände von ${titleOf(conflict.entity, record)}`}>
-        <thead>
-          <tr>
-            <Column>Feld</Column>
-            <Column>Auf dem Gerät</Column>
-            <Column>Im System</Column>
-            <Column>Das Gerät sah</Column>
-          </tr>
-        </thead>
-        <tbody>
-          {involved.map((field) => (
-            <tr key={field}>
-              <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
-                {fieldLabel(field)}
-              </th>
-              <Cell>{shown(conflict.wanted[field])}</Cell>
-              <Cell>{shown(conflict.found[field])}</Cell>
-              <Cell className="text-ink-muted">{shown(conflict.seen[field])}</Cell>
+      {settled ? (
+        <p className="text-body text-ink">{settled}</p>
+      ) : (
+        <Table caption={`Die beiden Stände von ${titleOf(conflict.entity, record)}`}>
+          <thead>
+            <tr>
+              <Column>Feld</Column>
+              <Column>Auf dem Gerät</Column>
+              <Column>Im System</Column>
+              <Column>Das Gerät sah</Column>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {involved.map((field) => (
+              <tr key={field}>
+                <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
+                  {fieldLabel(field)}
+                </th>
+                <Cell>{shown(conflict.wanted[field])}</Cell>
+                <Cell>{shown(conflict.found[field])}</Cell>
+                <Cell className="text-ink-muted">{shown(conflict.seen[field])}</Cell>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
 
       <p className="mt-3 text-table text-ink-muted">
         {`Erfasst ${moment(conflict.recordedAt)} auf Gerät ${conflict.deviceId}.`}
@@ -126,24 +149,38 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button
-          tone="primary"
-          disabled={working}
-          onClick={() => {
-            void decide(true)
-          }}
-        >
-          Fassung vom Gerät übernehmen
-        </Button>
-        <Button
-          tone="secondary"
-          disabled={working}
-          onClick={() => {
-            void decide(false)
-          }}
-        >
-          Stand im System behalten
-        </Button>
+        {settled ? (
+          <Button
+            tone="primary"
+            disabled={working}
+            onClick={() => {
+              void decide(false)
+            }}
+          >
+            Verstanden
+          </Button>
+        ) : (
+          <>
+            <Button
+              tone="primary"
+              disabled={working}
+              onClick={() => {
+                void decide(true)
+              }}
+            >
+              Fassung vom Gerät übernehmen
+            </Button>
+            <Button
+              tone="secondary"
+              disabled={working}
+              onClick={() => {
+                void decide(false)
+              }}
+            >
+              Stand im System behalten
+            </Button>
+          </>
+        )}
       </div>
     </Card>
   )

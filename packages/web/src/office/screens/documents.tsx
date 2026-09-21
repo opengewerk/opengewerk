@@ -4,9 +4,10 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import { Button, Card, DocumentState } from '../../components/index.js'
-import { date, today } from '../../app/format.js'
+import { date, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
+import { SignaturePicture } from '../../app/signature.js'
 import {
   createDocument,
   issueDocument,
@@ -140,7 +141,8 @@ export function JobDocuments({ job }: { readonly job: RecordState }) {
 }
 
 /**
- * The screen of one document: a quote, an estimate, an order confirmation.
+ * The screen of one document: a quote, an estimate, an order confirmation, a
+ * report signed on site.
  *
  * Everything on it reads from the sync client, and everything written while
  * it is a draft goes into the outbox: the head, the texts, every line. What
@@ -186,6 +188,9 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   const number = maybeText(document, 'number')
   const fixed = whyFixed({ kind, status })
   const editable = fixed === null && mayWrite
+  // A signed report is fixed and still waits for its number. Issuing it is
+  // the office's step, and the only one left: nothing on it changes on the way.
+  const issuable = status === 'draft' || status === 'signed'
   const next = status === 'issued' && mayWrite ? successorsOf(kind) : []
 
   async function follow(successor: DocumentKind) {
@@ -247,7 +252,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
           >
             {status === 'draft' ? 'Entwurf als PDF' : 'PDF öffnen'}
           </a>
-          {status === 'draft' && mayIssue ? (
+          {issuable && mayIssue ? (
             <Button
               onClick={() => {
                 setIssuing(true)
@@ -279,14 +284,14 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       {kind === 'cost_estimate' ? <EstimateNotice /> : null}
 
       {fixed ? (
-        <Card label="Festgeschrieben" tone="sunken">
+        <Card label={status === 'signed' ? 'Unterschrieben' : 'Festgeschrieben'} tone="sunken">
           <p role="status" className="text-body text-ink">
             {fixed}
           </p>
         </Card>
       ) : null}
 
-      {issuing && status === 'draft' ? (
+      {issuing && issuable ? (
         <IssueCard
           documentId={documentId}
           onDone={() => {
@@ -297,6 +302,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
 
       <HeaderSection document={document} editable={editable} />
       <LinesSection document={document} editable={editable} />
+      <SignatureSection documentId={documentId} />
       <ChainSection predecessor={predecessor} successors={successors} />
     </Page>
   )
@@ -405,6 +411,35 @@ function IssueCard({
         </div>
       </div>
     </Card>
+  )
+}
+
+/**
+ * The customer's signature, as it was given on site: the picture, the name
+ * typed beside it, the moment, and what the device said about itself. The
+ * last two are what section 4.10 asks a simple signature to carry.
+ */
+function SignatureSection({ documentId }: { readonly documentId: string }) {
+  const [signature] = useRelated('document_signatures', 'documentId', documentId)
+
+  if (!signature) {
+    return null
+  }
+
+  return (
+    <Section title="Unterschrift">
+      <div className="flex flex-col gap-4">
+        <SignaturePicture
+          path={text(signature, 'path')}
+          label={`Unterschrift von ${text(signature, 'signerName')}`}
+        />
+        <Facts>
+          <Fact label="Unterschrieben von">{text(signature, 'signerName')}</Fact>
+          <Fact label="Unterschrieben am">{`${moment(maybeText(signature, 'signedAt'))} Uhr`}</Fact>
+          <Fact label="Gerät">{maybeText(signature, 'deviceInfo')}</Fact>
+        </Facts>
+      </div>
+    </Section>
   )
 }
 

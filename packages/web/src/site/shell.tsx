@@ -21,6 +21,7 @@ export function SiteShell() {
   const { conflicts } = useSyncStatus()
   const matchRoute = useMatchRoute()
   const onJob = matchRoute({ to: '/auftraege/$jobId' })
+  const onReport = matchRoute({ to: '/auftraege/$jobId/berichte/$documentId' })
 
   return (
     <Shell entry="site">
@@ -42,13 +43,13 @@ export function SiteShell() {
           but a screen opened from a notification has no history to go back
           through, and then the gesture leaves the application.
         */}
-        {onJob ? (
+        {onJob || onReport ? (
           <nav aria-label="Zurück" className="px-4 py-2">
             <Link
-              to="/"
+              to={onReport ? `/auftraege/${onReport.jobId}` : '/'}
               className="inline-flex items-center h-control min-h-tap px-3 rounded-control text-body font-semibold text-copper-text"
             >
-              Zurück zu den Aufträgen
+              {onReport ? 'Zurück zum Auftrag' : 'Zurück zu den Aufträgen'}
             </Link>
           </nav>
         ) : null}

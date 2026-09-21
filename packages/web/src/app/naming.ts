@@ -27,6 +27,7 @@ const entities: Readonly<Record<string, string>> = {
   jobs: 'Auftrag',
   documents: 'Beleg',
   document_lines: 'Belegposition',
+  document_signatures: 'Unterschrift',
 }
 
 const fields: Readonly<Record<string, string>> = {
@@ -70,6 +71,11 @@ const fields: Readonly<Record<string, string>> = {
   vatId: 'USt-IdNr.',
   isBusiness: 'Unternehmen',
   isConstructionServiceRecipient: 'Bauleistungsempfänger',
+  signerName: 'Unterschrieben von',
+  signedAt: 'Unterschrieben am',
+  deviceInfo: 'Gerät',
+  path: 'Unterschrift',
+  contentFingerprint: 'Unterschriebener Stand',
 }
 
 export function entityLabel(entity: string): string {
@@ -83,13 +89,17 @@ export function fieldLabel(field: string): string {
 /**
  * The name a record goes by on a screen, for the places that only have an id.
  *
- * A customer has a `name`, everything else a `designation`, and a document a
- * number. Nothing falls through to an empty string: a row with no name at all
- * still has to be clickable, so it says what it is.
+ * A customer has a `name`, everything else a `designation`, a document a
+ * number and a signature the person who gave it. Nothing falls through to an
+ * empty string: a row with no name at all still has to be clickable, so it
+ * says what it is.
  */
 export function titleOf(entity: string, record: RecordState | null): string {
   const named =
-    maybeText(record, 'name') ?? maybeText(record, 'designation') ?? maybeText(record, 'number')
+    maybeText(record, 'name') ??
+    maybeText(record, 'designation') ??
+    maybeText(record, 'number') ??
+    maybeText(record, 'signerName')
 
   return named ?? `${entityLabel(entity)} ohne Bezeichnung`
 }

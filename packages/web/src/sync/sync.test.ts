@@ -16,7 +16,15 @@ import { openLocalStore } from './store.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
 import { RequestRefused } from './transport.js'
 
-const entities = ['customers', 'sites', 'installations', 'jobs', 'documents', 'document_lines']
+const entities = [
+  'customers',
+  'sites',
+  'installations',
+  'jobs',
+  'documents',
+  'document_lines',
+  'document_signatures',
+]
 
 const operationId = (value: string) => value as unknown as OperationId
 
@@ -327,6 +335,65 @@ describe('a device without a network', () => {
       reason: 'record_is_fixed',
       fields: ['status'],
     })
+  })
+
+  /**
+   * A document made on this device has no status until the server answers.
+   * The gates that ask for one found nothing there and refused, and a report
+   * written in a cellar turned down its own first line as already fixed.
+   */
+  it('lets a document made on the device take lines and changes before the server has it', async () => {
+    const client = await start(transport)
+
+    transport.refuse = new TypeError('Failed to fetch')
+
+    const report = await client.create('documents', {
+      kind: 'time_and_material_report',
+      customerId: 'c-1',
+      documentDate: '2026-09-21',
+    })
+
+    if (report.outcome !== 'queued') {
+      throw new Error('The report itself was refused')
+    }
+
+    expect(client.get('documents', report.id)?.['status']).toBe('draft')
+
+    const results = [
+      await client.update('documents', report.id, { introText: 'Sicherungen getauscht.' }),
+      await client.create('document_lines', {
+        documentId: report.id,
+        position: 1,
+        designation: 'Arbeitszeit',
+        quantityMilli: 2500,
+        unit: 'hour',
+        unitPriceCents: 0,
+      }),
+      await client.create('document_signatures', {
+        documentId: report.id,
+        signerName: 'Erika Berg',
+        signedAt: '2026-09-21T12:32:00.000Z',
+        deviceInfo: 'Testgerät',
+        path: 'M100,300L200,120',
+        contentFingerprint: 'fnv1a32:00000000:0',
+      }),
+    ]
+
+    expect(results.map((result) => result.outcome)).toEqual(['queued', 'queued', 'queued'])
+
+    // The status is what the device assumes, not what it sends: the field is
+    // the server's, and naming it in a patch is refused. The first exchange
+    // is the failing one still under way; after a failure the client waits to
+    // be asked again, so the network coming back is a second call.
+    await client.synchronise()
+    transport.refuse = null
+    await client.synchronise()
+
+    const created = transport.sent
+      .flat()
+      .find((operation) => operation.entity === 'documents' && operation.kind === 'create')
+
+    expect(created?.patches.map((patch) => patch.field)).not.toContain('status')
   })
 
   it('never sends a field the server keeps, whatever a form hands it', async () => {

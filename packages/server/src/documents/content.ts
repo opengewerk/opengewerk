@@ -14,6 +14,7 @@ import {
   customers,
   documentLines,
   type documents,
+  documentSignatures,
   files,
   letterheads,
   sites,
@@ -104,6 +105,17 @@ export async function contentOf(
     throw new Error(`The customer of document ${document.id} is not readable.`)
   }
 
+  // The signature, when a customer has signed. What is printed of it is the
+  // name, the moment and the picture; the device information stays in the row.
+  const [signature] = await tx
+    .select({
+      signerName: documentSignatures.signerName,
+      signedAt: documentSignatures.signedAt,
+      path: documentSignatures.path,
+    })
+    .from(documentSignatures)
+    .where(eq(documentSignatures.documentId, document.id))
+
   let site: SiteContent | null = null
 
   if (document.siteId) {
@@ -135,5 +147,12 @@ export async function contentOf(
       isBusiness: customer.isBusiness,
     },
     site,
+    signature: signature
+      ? {
+          signerName: signature.signerName,
+          signedAt: signature.signedAt.toISOString(),
+          path: signature.path,
+        }
+      : null,
   })
 }
