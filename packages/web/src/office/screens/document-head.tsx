@@ -1,11 +1,11 @@
 import type { RecordState } from '@opengewerk/domain'
-import { taxTreatments } from '@opengewerk/domain'
+import { isInvoice, taxTreatments } from '@opengewerk/domain'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Button, Field, SelectField, TextArea } from '../../components/index.js'
 import { date } from '../../app/format.js'
-import { taxTreatmentLabel, taxTreatmentOf } from '../../app/labels.js'
+import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/labels.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
@@ -14,9 +14,25 @@ import { Fact, Facts, Section } from '../layout.js'
 import { SnippetPicker, withSnippet } from './snippet-picker.js'
 
 /**
+ * When the work was done, the way an invoice prints it: one day, or a period
+ * from the first day to the last. Empty while nobody has entered it.
+ */
+function servicePeriod(document: RecordState): string {
+  const from = maybeText(document, 'serviceFrom')
+  const until = maybeText(document, 'serviceUntil')
+
+  if (from === null) {
+    return ''
+  }
+
+  return until === null || until === from ? date(from) : `${date(from)} bis ${date(until)}`
+}
+
+/**
  * The head of a document and the texts around its lines: what it is about,
  * when it was written, how it is taxed, and what it says before and after the
- * positions.
+ * positions. An invoice adds when the work was done, section 14 (4) number 6
+ * UStG; a final invoice is not issued without it.
  */
 export function HeaderSection({
   document,
@@ -53,6 +69,9 @@ export function HeaderSection({
         <Facts>
           <Fact label="Betreff">{text(document, 'subject')}</Fact>
           <Fact label="Belegdatum">{date(document['documentDate'])}</Fact>
+          {isInvoice(documentKindOf(document)) ? (
+            <Fact label="Leistungszeitraum">{servicePeriod(document)}</Fact>
+          ) : null}
           <Fact label="Umsatzsteuer">{taxTreatmentLabel[taxTreatmentOf(document)]}</Fact>
           <Fact label="Text über den Positionen">
             {maybeText(document, 'introText') ? (
@@ -85,6 +104,9 @@ function HeaderForm({
   const client = useSync()
   const [subject, setSubject] = useState(text(document, 'subject'))
   const [documentDate, setDocumentDate] = useState(text(document, 'documentDate'))
+  const [serviceFrom, setServiceFrom] = useState(text(document, 'serviceFrom'))
+  const [serviceUntil, setServiceUntil] = useState(text(document, 'serviceUntil'))
+  const invoice = isInvoice(documentKindOf(document))
   const [treatment, setTreatment] = useState<string>(taxTreatmentOf(document))
   const [introText, setIntroText] = useState(text(document, 'introText'))
   const [closingText, setClosingText] = useState(text(document, 'closingText'))
@@ -100,6 +122,14 @@ function HeaderForm({
       const saved = await client.update('documents', String(document['id']), {
         subject: asTextOrNull(subject),
         documentDate,
+        // Only on an invoice, and there as entered: the first day alone is a
+        // single day of work, and a last day without a first is not a period.
+        ...(invoice
+          ? {
+              serviceFrom: asTextOrNull(serviceFrom),
+              serviceUntil: asTextOrNull(serviceFrom) === null ? null : asTextOrNull(serviceUntil),
+            }
+          : {}),
         taxTreatment: treatment,
         introText: asTextOrNull(introText),
         closingText: asTextOrNull(closingText),
@@ -139,6 +169,28 @@ function HeaderForm({
             setDocumentDate(event.target.value)
           }}
         />
+        {invoice ? (
+          <>
+            <Field
+              label="Leistung von"
+              type="date"
+              hint="Der Tag der Arbeit, bei mehreren Tagen der erste."
+              value={serviceFrom}
+              onChange={(event) => {
+                setServiceFrom(event.target.value)
+              }}
+            />
+            <Field
+              label="Leistung bis"
+              type="date"
+              hint="Leer lassen, wenn es ein einziger Tag war."
+              value={serviceUntil}
+              onChange={(event) => {
+                setServiceUntil(event.target.value)
+              }}
+            />
+          </>
+        ) : null}
         <SelectField
           label="Umsatzsteuer"
           value={treatment}

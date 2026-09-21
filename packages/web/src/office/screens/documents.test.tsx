@@ -678,6 +678,128 @@ describe('a report signed on site', () => {
   })
 })
 
+/**
+ * The office's side of #74: the invoices the chain now leads to, what a
+ * cumulative invoice takes off, and the time of the work an invoice has to
+ * state.
+ */
+describe('invoices in the chain', () => {
+  it('are offered on an issued order confirmation, the progress and the final one', async () => {
+    serverSays('POST', '/documents/d-1/successors', (body) => {
+      const made = document({
+        id: 'd-2',
+        kind: (body as { kind: string }).kind,
+        predecessorDocumentId: 'd-1',
+      })
+
+      server.put('documents', made)
+
+      return { status: 201, body: made }
+    })
+
+    await mount('/belege/d-1', {
+      documents: [
+        document({ kind: 'order_confirmation', status: 'issued', number: 'AB-2026-0001' }),
+      ],
+      document_lines: [line('l-1', 1)],
+    })
+
+    expect(await screen.findByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeDefined()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Schlussrechnung erstellen' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Schlussrechnung' })).toBeDefined()
+    expect(calls.find((call) => call.path === '/documents/d-1/successors')?.body).toEqual({
+      kind: 'final_invoice',
+    })
+  })
+
+  it('offer only the final invoice on an issued report, which records work that is done', async () => {
+    await mount('/belege/d-1', {
+      documents: [
+        document({ kind: 'time_and_material_report', status: 'issued', number: 'RB-2026-0001' }),
+      ],
+      document_lines: [line('l-1', 1, { unitPriceCents: 0 })],
+    })
+
+    expect(await screen.findByRole('button', { name: 'Schlussrechnung erstellen' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeNull()
+  })
+
+  it('show what a final invoice takes off and what it asks for, as the paper does', async () => {
+    serverSays('GET', '/documents/d-1/deductions', () => ({
+      status: 200,
+      body: [
+        {
+          number: 'RE-2026-0001',
+          documentDate: '2026-09-01',
+          taxTreatment: 'standard',
+          billed: {
+            netCents: 48_000,
+            taxCents: 9_120,
+            grossCents: 57_120,
+            byRate: [
+              {
+                rate: 'standard',
+                basisPoints: 1900,
+                netCents: 48_000,
+                taxCents: 9_120,
+                grossCents: 57_120,
+              },
+            ],
+          },
+        },
+      ],
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice', predecessorDocumentId: 'd-0' })],
+      document_lines: [line('l-1', 1, { quantityMilli: 1000, unitPriceCents: 120_000 })],
+    })
+
+    expect(await screen.findByText('Gesamtleistung')).toBeDefined()
+    expect(
+      screen.getByText(/abzüglich Abschlagsrechnung RE-2026-0001 vom 01\.09\.2026/),
+    ).toBeDefined()
+    expect(screen.getByText(/netto 480,00\s€, Umsatzsteuer 91,20\s€/)).toBeDefined()
+    expect(screen.getByText('Rechnungsbetrag netto').nextElementSibling?.textContent).toMatch(
+      /720,00\s€/,
+    )
+    expect(screen.getByText('Rechnungsbetrag').nextElementSibling?.textContent).toMatch(/856,80\s€/)
+  })
+
+  it('take the time of the work in the head, and show it', async () => {
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice' })],
+      document_lines: [line('l-1', 1)],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
+    await person.type(screen.getByLabelText('Leistung von'), '2026-09-01')
+    await person.type(screen.getByLabelText('Leistung bis'), '2026-09-15')
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('documents')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('documents')[0])).toMatchObject({
+      serviceFrom: '2026-09-01',
+      serviceUntil: '2026-09-15',
+    })
+    expect(await screen.findByText('01.09.2026 bis 15.09.2026')).toBeDefined()
+  })
+
+  it('leave the time of the work off a quote, which states none', async () => {
+    await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+
+    await screen.findByRole('heading', { level: 1, name: 'Angebot' })
+
+    expect(screen.queryByText('Leistungszeitraum')).toBeNull()
+  })
+})
+
 describe('the job', () => {
   it('starts a quote and an estimate from two buttons, not from one with a choice', async () => {
     serverSays('POST', '/documents', (body) => {

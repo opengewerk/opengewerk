@@ -1,5 +1,6 @@
 import {
   type ContentSources,
+  type DeductionContent,
   documentContent,
   type IssuerContent,
   type LineContent,
@@ -59,6 +60,7 @@ function page(
     readonly lines?: readonly LineContent[]
     readonly country?: string
     readonly signature?: SignatureContent | null
+    readonly deductions?: readonly DeductionContent[]
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -87,6 +89,7 @@ function page(
     },
     site: null,
     signature: parts.signature ?? null,
+    deductions: parts.deductions ?? [],
   })
 
   return printJob(content, { logo: null })
@@ -275,6 +278,7 @@ describe('the footer', () => {
       },
       site: null,
       signature: null,
+      deductions: [],
     })
 
     const { footerHtml } = printJob(content, { logo: null })
@@ -355,5 +359,82 @@ describe('a report', () => {
 
     expect(html).toContain('<h1>Regiebericht (Entwurf)</h1>')
     expect(html).toContain('<div class="draft">ENTWURF</div>')
+  })
+})
+
+describe('an invoice that deducts progress invoices', () => {
+  const earlier: DeductionContent = {
+    number: 'RE-2026-0040',
+    documentDate: '2026-09-01',
+    taxTreatment: 'standard',
+    billed: {
+      netCents: 40000,
+      taxCents: 7600,
+      grossCents: 47600,
+      byRate: [
+        { rate: 'standard', basisPoints: 1900, netCents: 40000, taxCents: 7600, grossCents: 47600 },
+      ],
+    },
+  }
+
+  it('prints the whole work, each invoice it takes off, and what it asks for', () => {
+    const { html } = page({}, { lines: [line(1, 100000)], deductions: [earlier] })
+
+    expect(html).toMatch(/Gesamtleistung<\/td><td class="figure">1\.190,00\s€/)
+    expect(html).toContain('abzüglich Abschlagsrechnung RE-2026-0040 vom 01.09.2026')
+    expect(html).toMatch(/netto 400,00\s€, Umsatzsteuer 76,00\s€/)
+    expect(html).toMatch(/<td class="figure">[-−]476,00\s€<\/td>/)
+    expect(html).toMatch(/Rechnungsbetrag netto<\/td><td class="figure">600,00\s€/)
+    expect(html).toMatch(/Umsatzsteuer<\/td><td class="figure">114,00\s€/)
+    expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">714,00\s€/)
+  })
+
+  it('calls the whole the progress so far on a progress invoice', () => {
+    const { html } = page(
+      { kind: 'progress_invoice' },
+      { lines: [line(1, 100000)], deductions: [earlier] },
+    )
+
+    expect(html).toContain('Leistungsstand gesamt')
+    expect(html).not.toContain('Gesamtleistung')
+  })
+
+  it('names the group of each rate when there is more than one', () => {
+    const { html } = page(
+      {},
+      {
+        lines: [line(1, 100000), line(2, 20000, { vatRate: 'reduced' })],
+        deductions: [earlier],
+      },
+    )
+
+    expect(html).toMatch(/Rechnungsbetrag netto zu 7 %<\/td><td class="figure">200,00\s€/)
+    expect(html).toMatch(/Rechnungsbetrag netto zu 19 %<\/td><td class="figure">600,00\s€/)
+    expect(html).toMatch(/Umsatzsteuer zu 7 %<\/td><td class="figure">14,00\s€/)
+  })
+
+  it('prints gross figures only under section 19, as the rest of such an invoice does', () => {
+    const noTax: DeductionContent = {
+      ...earlier,
+      taxTreatment: 'small_business',
+      billed: { netCents: 40000, taxCents: 0, grossCents: 40000, byRate: [] },
+    }
+    const { html } = page(
+      { taxTreatment: 'small_business' },
+      { lines: [line(1, 100000)], deductions: [noTax] },
+    )
+
+    expect(html).toContain('abzüglich Abschlagsrechnung RE-2026-0040 vom 01.09.2026')
+    expect(html).not.toContain('Rechnungsbetrag netto')
+    expect(html).not.toMatch(/netto 400,00/)
+    expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">600,00\s€/)
+  })
+
+  it('leaves an invoice that deducts nothing as it was', () => {
+    const { html } = page()
+
+    expect(html).not.toContain('abzüglich')
+    expect(html).not.toContain('Rechnungsbetrag')
+    expect(html).toMatch(/Gesamtbetrag<\/td><td class="figure">1\.190,00\s€/)
   })
 })

@@ -181,6 +181,11 @@ describe('the sample data', () => {
     })
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
     expect(byKind.get('time_and_material_report')).toMatchObject({ status: 'signed', number: null })
+    expect(byKind.get('progress_invoice')).toMatchObject({ status: 'issued' })
+    expect(byKind.get('final_invoice')).toMatchObject({
+      status: 'draft',
+      predecessorDocumentId: byKind.get('progress_invoice')?.id,
+    })
   })
 
   it('carries titles among the lines and snippets for all three places', async () => {

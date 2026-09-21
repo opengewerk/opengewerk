@@ -10,6 +10,7 @@ import {
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
+import { deductionsFor } from './deductions.js'
 import {
   customers,
   documentLines,
@@ -85,6 +86,10 @@ export async function issuerOf(tx: TenantTransaction, tenantId: TenantId): Promi
  *
  * A line that was deleted from a draft stays behind as a row with `deletedAt`
  * set, like every synced record, and is left out here.
+ *
+ * A progress invoice and a final invoice take off what the progress invoices
+ * before them in the chain billed, read from what those froze when they were
+ * issued. Every other kind deducts nothing.
  */
 export async function contentOf(
   tx: TenantTransaction,
@@ -154,5 +159,6 @@ export async function contentOf(
           path: signature.path,
         }
       : null,
+    deductions: await deductionsFor(tx, document),
   })
 }

@@ -78,14 +78,15 @@ const sampleSignature =
 /**
  * A business with enough in it to reach every screen that exists: two
  * customers, a building with an installation, two jobs, an issued quote with
- * the order confirmation made out of it, a cost estimate in progress, a
- * report the customer has signed on site, and the snippets they are written
- * from.
+ * the order confirmation made out of it, a progress invoice out of the same
+ * quote with the final invoice after it, a cost estimate in progress, a report
+ * the customer has signed on site, and the snippets they are written from.
  *
  * The quote is issued and the confirmation is a draft on purpose. Together
  * they show both states of a document, the chain between them, and a document
  * that refuses to be changed next to one that can be. The signed report is
- * the third state, waiting in the office for its number.
+ * the third state, waiting in the office for its number. The final invoice is
+ * a draft, so the office sees what it takes off before anybody issues it.
  */
 export async function plantSampleData(base: string, today: IsoDate): Promise<void> {
   const post = (path: string, body: unknown) => send(base, 'POST', path, body)
@@ -261,6 +262,56 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await post(`/documents/${quote}/issue`, {})
   await post(`/documents/${quote}/successors`, { kind: 'order_confirmation' })
+
+  // The cabinet is done and the lighting is not: a cumulative progress invoice
+  // for the first part, issued, and the final invoice after it with the rest
+  // added back, still a draft.
+  const progress = idOf(await post(`/documents/${quote}/successors`, { kind: 'progress_invoice' }))
+  const lineOf = (line: Answer) => `/documents/${progress}/lines/${String(line['id'])}`
+  const outstanding = ['Außenbeleuchtung', 'Wandleuchte montieren', 'NYM-J 3x1,5 mm²']
+
+  for (const line of (await send(
+    base,
+    'GET',
+    `/documents/${progress}/lines`,
+  )) as unknown as Answer[]) {
+    if (outstanding.includes(String(line['designation']))) {
+      await send(base, 'DELETE', lineOf(line))
+    } else if (line['designation'] === 'Arbeitszeit Elektromeister') {
+      await send(base, 'PATCH', lineOf(line), { quantityMilli: 3000 })
+    }
+  }
+
+  await post(`/documents/${progress}/issue`, {})
+
+  const final = idOf(await post(`/documents/${progress}/successors`, { kind: 'final_invoice' }))
+  const started = new Date(`${today}T12:00:00Z`)
+
+  started.setUTCDate(started.getUTCDate() - 14)
+  await send(base, 'PATCH', `/documents/${final}`, {
+    serviceFrom: started.toISOString().slice(0, 10),
+    serviceUntil: today,
+  })
+
+  for (const line of (await send(
+    base,
+    'GET',
+    `/documents/${final}/lines`,
+  )) as unknown as Answer[]) {
+    if (line['designation'] === 'Arbeitszeit Elektromeister') {
+      await send(base, 'PATCH', `/documents/${final}/lines/${String(line['id'])}`, {
+        quantityMilli: 6500,
+      })
+    }
+  }
+
+  for (const line of [
+    title('Außenbeleuchtung'),
+    item('Wandleuchte montieren', 4000, 'piece', 4500),
+    item('NYM-J 3x1,5 mm²', 25000, 'metre', 129),
+  ]) {
+    await post(`/documents/${final}/lines`, line)
+  }
 
   await document(
     {

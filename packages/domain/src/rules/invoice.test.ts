@@ -1,8 +1,19 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
+import type { TaxTreatment } from '../model/document.js'
+import type { IsoDate } from '../model/identifier.js'
+import type { BilledAmount, Deducted } from './invoice.js'
+import {
+  billedAfter,
+  billedOf,
+  comparableQuantities,
+  lineNetCents,
+  totalsFor,
+  treatmentFor,
+} from './invoice.js'
+import { RuleError } from './rule.js'
 import type { VatRate } from './tax.js'
-import { comparableQuantities, lineNetCents, totalsFor, treatmentFor } from './invoice.js'
 import { shippedRules } from './shipped.js'
 
 /**
@@ -174,6 +185,155 @@ describe('a quantity comparison', () => {
  * cover what somebody imagined, and a sum is the kind of thing that is wrong
  * in the case nobody imagined.
  */
+/**
+ * A chain of cumulative invoices. Every state is the total progress so far,
+ * every invoice deducts what the ones before it billed, and the last one is
+ * the final invoice.
+ */
+function billedChain(
+  states: readonly (readonly { netCents: number; vatRate: VatRate }[])[],
+  dates: readonly IsoDate[] = [],
+  taxTreatment: TaxTreatment = 'standard',
+): readonly BilledAmount[] {
+  const earlier: Deducted[] = []
+
+  states.forEach((state, index) => {
+    const document = { documentDate: dates[index] ?? '2026-09-20', taxTreatment }
+    const billed = billedAfter(totalsFor(rules, state, document), earlier, taxTreatment)
+
+    earlier.push({ number: `RE-2026-000${String(index + 1)}`, taxTreatment, billed })
+  })
+
+  return earlier.map((entry) => entry.billed)
+}
+
+describe('a cumulative invoice', () => {
+  /**
+   * The case #74 names: two progress invoices and a final one, and together
+   * they come to the total of the work. Three times 4.000,50 euros, because at
+   * that amount the tax of each part falls on half a cent. Billed one by one,
+   * every part rounds up and the three together state 2.280,30 euros of tax on
+   * work that owes 2.280,29. Billed cumulatively, the second invoice states a
+   * cent less and the chain ends exactly on the whole.
+   */
+  it('adds up to the whole work to the cent, which billing each part alone does not', () => {
+    const part = 400050
+    const billed = billedChain([[line(part)], [line(2 * part)], [line(3 * part)]])
+    const whole = totalsFor(rules, [line(3 * part)], standard)
+
+    expect(billed.map((one) => one.netCents)).toEqual([400050, 400050, 400050])
+    expect(billed.map((one) => one.taxCents)).toEqual([76010, 76009, 76010])
+    expect(billed.map((one) => one.grossCents)).toEqual([476060, 476059, 476060])
+
+    expect(whole.taxCents).toBe(228029)
+    expect(billed.reduce((sum, one) => sum + one.taxCents, 0)).toBe(whole.taxCents)
+    expect(billed.reduce((sum, one) => sum + one.grossCents, 0)).toBe(whole.grossCents)
+
+    // Each part taxed on its own, the way unrelated invoices would be.
+    const alone = totalsFor(rules, [line(part)], standard).taxCents
+
+    expect(3 * alone).toBe(228030)
+  })
+
+  /**
+   * The rate of 2020: sixteen percent from July to December. A progress
+   * invoice in October states sixteen, the final invoice in January taxes the
+   * whole work at nineteen and deducts the tax that was stated, which settles
+   * the three points on the first part as well.
+   */
+  it('settles a change of rate in the final invoice', () => {
+    const [progress, final] = billedChain(
+      [[line(1_000_000)], [line(2_500_000)]],
+      ['2020-10-01', '2021-01-15'],
+    )
+
+    expect(progress).toMatchObject({ netCents: 1_000_000, taxCents: 160_000 })
+    expect(final).toMatchObject({ netCents: 1_500_000, taxCents: 315_000 })
+    expect(final?.byRate).toEqual([
+      {
+        rate: 'standard',
+        basisPoints: 1900,
+        netCents: 1_500_000,
+        taxCents: 315_000,
+        grossCents: 1_815_000,
+      },
+    ])
+  })
+
+  it('deducts every rate from its own rate', () => {
+    const [, final] = billedChain([
+      [line(100_000), line(50_000, 'reduced')],
+      [line(300_000), line(80_000, 'reduced')],
+    ])
+
+    expect(final?.byRate.map((entry) => [entry.rate, entry.netCents, entry.taxCents])).toEqual([
+      ['reduced', 30_000, 2_100],
+      ['standard', 200_000, 38_000],
+    ])
+  })
+
+  it('bills its totals when there is nothing to deduct', () => {
+    const totals = totalsFor(rules, [line(12_345)], standard)
+
+    expect(billedAfter(totals, [], 'standard')).toEqual(billedOf(totals))
+  })
+
+  it('refuses progress invoices taxed another way, and names the one that does not fit', () => {
+    const totals = totalsFor(rules, [line(100_000)], standard)
+    const other: Deducted = {
+      number: 'RE-2026-0007',
+      taxTreatment: 'small_business',
+      billed: billedOf(
+        totalsFor(rules, [line(40_000)], { ...standard, taxTreatment: 'small_business' }),
+      ),
+    }
+
+    expect(() => billedAfter(totals, [other], 'standard')).toThrow(RuleError)
+    expect(() => billedAfter(totals, [other], 'standard')).toThrow(/RE-2026-0007/)
+  })
+
+  it('works under section 19 as well, without a rate block and without tax', () => {
+    const billed = billedChain([[line(60_000)], [line(100_000)]], [], 'small_business')
+
+    expect(billed.map((one) => [one.netCents, one.taxCents, one.byRate.length])).toEqual([
+      [60_000, 0, 0],
+      [40_000, 0, 0],
+    ])
+  })
+
+  /**
+   * The property behind the example: however long the chain, however the
+   * progress moved, up or back, and whatever rates it touched, what all the
+   * invoices billed together is exactly the total of the last state, in each
+   * rate and in each figure.
+   */
+  it('a chain of any length ends exactly on its last total, always', () => {
+    const amount = fc.integer({ min: -5_000_000, max: 50_000_000 })
+    const rate: fc.Arbitrary<VatRate> = fc.constantFrom('standard', 'reduced')
+    const state = fc.array(fc.record({ netCents: amount, vatRate: rate }), { maxLength: 8 })
+
+    fc.assert(
+      fc.property(fc.array(state, { minLength: 1, maxLength: 6 }), (states) => {
+        const billed = billedChain(states)
+        const last = totalsFor(rules, states.at(-1) ?? [], standard)
+        const sum = (pick: (one: BilledAmount) => number) =>
+          billed.reduce((total, one) => total + pick(one), 0)
+
+        expect(sum((one) => one.netCents)).toBe(last.netCents)
+        expect(sum((one) => one.taxCents)).toBe(last.taxCents)
+        expect(sum((one) => one.grossCents)).toBe(last.grossCents)
+
+        for (const which of ['standard', 'reduced'] as const) {
+          const perRate = (entries: readonly { rate: VatRate; taxCents: number }[]) =>
+            entries.find((entry) => entry.rate === which)?.taxCents ?? 0
+
+          expect(sum((one) => perRate(one.byRate))).toBe(perRate(last.byRate))
+        }
+      }),
+    )
+  })
+})
+
 describe('whatever the lines are', () => {
   const amount = fc.integer({ min: -1_000_000_00, max: 1_000_000_00 })
   const rate: fc.Arbitrary<VatRate> = fc.constantFrom('standard', 'reduced')

@@ -63,20 +63,47 @@ export function isInvoice(kind: DocumentKind): boolean {
  * Which document may follow which, the chain of section 1.4 one link at a
  * time.
  *
- * Only the links that exist as screens so far: an order confirmation out of a
- * quote or out of an estimate. The report, the invoices and the cancellation
- * add theirs when they are built, and a kind that is not in this table cannot
- * be made from another one at all. That is the point of writing it down: a
- * chain that anything can be attached to is not a chain.
+ * An invoice follows whatever the work was agreed or recorded on: the quote,
+ * the estimate, the order confirmation, the report. A progress invoice is
+ * followed by the next one or by the final invoice, and that is how the
+ * cumulative billing of section 4.2 is chained: each of them deducts what the
+ * progress invoices before it in the chain billed.
+ *
+ * The report leads to the final invoice and to nothing else. It records work
+ * that is done, and a progress invoice is for work that is still going on.
+ *
+ * The cancellation is not in the table. It is not written, it is made in one
+ * step out of the invoice it cancels, and it has a route of its own. A kind
+ * that is not in this table cannot be made from another one at all, which is
+ * the point of writing it down: a chain that anything can be attached to is
+ * not a chain.
  */
 export const successorKinds: Readonly<Partial<Record<DocumentKind, readonly DocumentKind[]>>> = {
-  quote: ['order_confirmation'],
-  cost_estimate: ['order_confirmation'],
+  quote: ['order_confirmation', 'progress_invoice', 'final_invoice'],
+  cost_estimate: ['order_confirmation', 'progress_invoice', 'final_invoice'],
+  order_confirmation: ['progress_invoice', 'final_invoice'],
+  time_and_material_report: ['final_invoice'],
+  progress_invoice: ['progress_invoice', 'final_invoice'],
 }
 
 /** The kinds that may follow a document of this kind. */
 export function successorsOf(kind: DocumentKind): readonly DocumentKind[] {
   return successorKinds[kind] ?? []
+}
+
+/**
+ * The kinds that take off what the progress invoices before them in the chain
+ * billed: the next progress invoice and the final invoice.
+ *
+ * Section 4.2 wants the progress invoice cumulative, the total progress less
+ * what was billed so far, and section 14 (5) UStG wants the same of the final
+ * invoice. Written down once, because the server gathers the deductions for
+ * exactly these kinds and the screens show them for exactly these.
+ */
+export const deductingKinds: readonly DocumentKind[] = ['progress_invoice', 'final_invoice']
+
+export function deducts(kind: DocumentKind): boolean {
+  return deductingKinds.includes(kind)
 }
 
 /**
