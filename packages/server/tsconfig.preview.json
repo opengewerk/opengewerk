@@ -3,9 +3,10 @@
   "compilerOptions": {
     "noEmit": false,
     "rootDir": "src",
-    "outDir": "dist",
+    "outDir": "preview-build",
     "declaration": false,
     "sourceMap": true
   },
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/preview/**"]
+  "include": ["src/preview"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

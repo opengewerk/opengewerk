@@ -12,6 +12,7 @@
     "start": "node dist/main.js",
     "migrate": "node dist/migrate.js",
     "add-staff": "node dist/add-staff.js",
+    "preview": "tsc -p tsconfig.preview.json && node --enable-source-maps preview-build/preview/preview.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

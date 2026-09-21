@@ -8,7 +8,13 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   {
     // Nothing generated or vendored is worth linting.
-    ignores: ['**/dist/**', '**/node_modules/**', '**/.turbo/**', '**/coverage/**'],
+    ignores: [
+      '**/dist/**',
+      '**/preview-build/**',
+      '**/node_modules/**',
+      '**/.turbo/**',
+      '**/coverage/**',
+    ],
   },
 
   eslint.configs.recommended,
