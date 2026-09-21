@@ -12,7 +12,7 @@ Copyright UN/CEFACT. Der Hinweis im Kopf jeder Datei erlaubt Kopie und Weitergab
 
 ## Was hier nicht liegt
 
-Die Geschäftsregeln von EN 16931 und XRechnung sind Schematron und brauchen einen XSLT-2-Prozessor, also Java. Sie laufen nicht in der Anwendung, sondern in der CI: der Job "E-Rechnung gegen den KoSIT-Validator" prüft die Musterrechnungen aus `src/documents/cii.test.ts` mit dem Validator der KoSIT, in einer festgenagelten Fassung. Was von den Angaben eines Betriebs abhängt, prüft die Anwendung vor dem Festschreiben selbst (`eInvoiceGaps` in `domain`).
+Die Geschäftsregeln von EN 16931 und XRechnung sind Schematron und brauchen einen XSLT-2-Prozessor, also Java. Sie laufen nicht in der Anwendung, sondern in der CI: der Job "E-Rechnung gegen KoSIT und Mustang" prüft die Musterrechnungen aus `src/documents/test-samples.ts` mit dem Validator der KoSIT, in einer festgenagelten Fassung, und die ZUGFeRD-PDFs daraus mit Mustang. Was von den Angaben eines Betriebs abhängt, prüft die Anwendung vor dem Festschreiben selbst (`eInvoiceGaps` in `domain`).
 
 ## Austausch
 
