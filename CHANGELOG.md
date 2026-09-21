@@ -9,6 +9,288 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das ZUGFeRD-PDF einer festgeschriebenen Rechnung über `GET /documents/:id/zugferd`: das
+  PDF, das die Rechnung aufbewahrt, mit der E-Rechnung im Profil EN 16931 als
+  `factur-x.xml`, umgebaut zu PDF/A-3b. Fehlt das PDF noch, wird es dabei gedruckt und
+  mit aufbewahrt, damit ein Kunde, der beide bekommt, zweimal dieselbe Seite sieht
+- Das ZUGFeRD-PDF verlangt nur, was die Norm verlangt, und nicht die Zusätze von
+  XRechnung. Eine Rechnung ohne Käuferreferenz geht damit als ZUGFeRD-PDF hinaus, auch
+  wenn es für sie keine XRechnung gibt
+- Die Karte "E-Rechnung" im Büro bietet nach dem Festschreiben beide Dateien an und
+  trennt die Lücken: was der Norm fehlt, hält beide auf, was nur XRechnung verlangt, nur
+  sie. So ist an jeder Lücke zu sehen, welche Datei an ihr scheitert
+- Der CI-Job "E-Rechnung gegen KoSIT und Mustang" druckt Musterrechnungen mit dem echten
+  Renderer und prüft die ZUGFeRD-PDFs mit Mustang, als PDF/A-3 und gegen die Regeln von
+  Factur-X. Ob ein PDF als PDF/A-3 durchgeht, hängt an dem, was Chromium schreibt, und
+  das zeigt nur der echte Renderer
+
+- Eine Rechnung an ein Unternehmen im Inland geht als E-Rechnung hinaus, eine an eine
+  Privatperson oder ins Ausland als PDF. Das entscheiden die Stammdaten des Kunden, wie
+  die Rechnung ihn festhält, und kein Schalter am Beleg, weil ein Schalter irgendwann
+  falsch gesetzt würde. Rechnungen bis 250 Euro und jede Rechnung eines
+  Kleinunternehmers gehen nach § 33 Satz 4 und § 34a Satz 4 UStDV weiter als PDF
+- `GET /documents/:id/xrechnung` schreibt beim ersten Abruf aus dem eingefrorenen Stand
+  eine XRechnung in UN/CEFACT CII nach XRechnung 3.0, hält sie vor dem Speichern gegen
+  das XML-Schema und gibt danach nur noch diese Datei heraus. Die Schemadateien liegen im
+  Repository, weil eine selbst betriebene Installation eine Rechnung auch ohne Netz
+  schreiben können muss
+- Das Regelpaket `e-invoice` sagt, ab wann die E-Rechnung Pflicht ist: seit 2025 nach
+  § 14 Abs. 2 Satz 2 Nr. 1 UStG, mit den Übergängen nach § 27 Abs. 38 UStG. Den Übergang
+  von 2027 erklärt der Betrieb als Einstellung, weil OpenGewerk den dafür maßgeblichen
+  Vorjahresumsatz vor der Buchhaltung nicht kennt; ohne Erklärung gilt die Pflicht
+- Ist die E-Rechnung Pflicht, wird eine Rechnung, der dafür eine Angabe fehlt, nicht
+  festgeschrieben. Vorher wird sie festgeschrieben und die Karte "E-Rechnung" sagt, was
+  fehlt, denn erst ab dann ist das PDF allein keine ordnungsgemäße Rechnung mehr
+- Die Käuferreferenz, bei einer Behörde die Leitweg-ID, als Feld in den Stammdaten des
+  Kunden. Sie steht beim Kunden und nicht an der Rechnung, weil eine Behörde eine
+  Leitweg-ID hat und nicht eine je Rechnung
+- Ein CI-Job hält neun Musterrechnungen gegen den Validator der KoSIT, in fester Fassung
+  und mit SHA-256 geprüft. Die Geschäftsregeln von EN 16931 und XRechnung sind
+  Schematron und brauchen Java, das in der Anwendung nicht läuft
+
+- Eine festgeschriebene Rechnung lässt sich stornieren, im Büro über "Stornieren" und
+  über `POST /documents/:id/cancellation`. Die Stornorechnung spiegelt den eingefrorenen
+  Stand der Rechnung mit umgekehrtem Vorzeichen und bekommt die nächste Nummer aus dem
+  Kreis der Rechnungen; neu gerechnet wird nichts, damit sie auf den Cent aufhebt, was
+  verschickt wurde
+- Die Stornorechnung nennt die aufgehobene Rechnung unter "Zur Rechnung" und in einem
+  Satz über den Positionen, und ohne diesen Verweis wird sie nicht festgeschrieben. Er
+  ist nach § 31 Abs. 5 UStDV Pflicht, der eingefrorene Stand trägt ihn dafür in Fassung 5
+- Hat die Rechnung Abschlagsrechnungen abgezogen, gibt die Stornorechnung sie als
+  zurückgenommenen Abzug zurück, damit beide Rechnungsbeträge zusammen null ergeben
+- In einer Kette wird die spätere Rechnung zuerst storniert. Baut eine festgeschriebene
+  Rechnung auf der zu stornierenden auf, antwortet die Route mit 409 und ihrer Nummer,
+  denn die spätere hat die frühere schon abgezogen
+- Eine Stornorechnung entsteht nur über ihre Route, Migration 0016 lehnt jeden anderen
+  Weg ab, auch direkt an der Datenbank. Nur dort entsteht sie aus dem eingefrorenen Stand
+  der Rechnung, die sie aufhebt
+
+- Schlussrechnung und kumulierte Abschlagsrechnung als Glieder der Belegkette: aus
+  Angebot, Kostenvoranschlag, Auftragsbestätigung und der vorigen Abschlagsrechnung, aus
+  dem Regiebericht nur die Schlussrechnung, weil er fertige Arbeit festhält
+- Jede Abschlagsrechnung und die Schlussrechnung ziehen ab, was die Abschlagsrechnungen
+  davor in ihrer Kette gestellt haben, netto und Steuer je Satz, aus deren eingefrorenem
+  Stand und nie neu gerechnet. So ergeben alle Rechnungen einer Kette zusammen genau die
+  ganze Leistung, auch über einen Wechsel des Steuersatzes hinweg; einzeln besteuert tun
+  sie das nicht
+- Abgezogen wird, was gestellt wurde, und nicht, was gezahlt wurde. Zahlungen kennt die
+  Anwendung erst mit Finance in Phase 3, und die Lesart gehört vor die fachkundige
+  Abnahme in #31
+- Fassung 4 des eingefrorenen Belegstands trägt die Abzüge und den Rechnungsbetrag. PDF
+  und Büro zeigen Gesamtleistung, jeden Abzug mit Nummer und Datum und den
+  Rechnungsbetrag mit Steuer je Satz, beide aus derselben Funktion, damit sie dieselben
+  Zahlen zeigen
+- Das Büro trägt den Leistungszeitraum einer Rechnung im Kopf ein, eine Schlussrechnung
+  aus dem Regiebericht nimmt dessen Datum als Tag der Leistung. Ohne ihn wird eine
+  Schlussrechnung nicht festgeschrieben, weil § 14 Abs. 4 Nr. 6 UStG ihn verlangt
+
+- Der Regiebericht auf der Baustelle: was gemacht wurde, Arbeitszeit und Material, ohne
+  Netz geschrieben. Alles geht durch den Postausgang, auch die Unterschrift, denn
+  geschrieben wird im Keller
+- Der Kunde unterschreibt auf dem Gerät genau die Seite, die er sieht: die Unterschrift
+  trägt einen Fingerabdruck über Text und Zeilen, und der Server nimmt sie nur für
+  diesen Stand an. Hat das Büro inzwischen etwas ergänzt, wird sie als Konflikt
+  abgelehnt und muss neu geleistet werden, statt eine Seite zu bestätigen, die der Kunde
+  nie gesehen hat
+- Mit der Unterschrift ist der Bericht `signed` und ändert sich nicht mehr: Postausgang,
+  Routen und Datenbank lehnen jede Änderung ab, jede mit ihrem Grund. Die Unterschrift
+  soll zu dem passen, was unterschrieben wurde
+- Ein Regiebericht zeigt keine Preise, im PDF wie im Büro. Er hält fest, was geleistet
+  wurde, bepreist wird die Rechnung daraus
+- Die Unterschrift ist ein Pfad aus ganzen Zahlen in einem Rahmen von 1000 mal 400, und
+  Server wie Datenbank prüfen seine Form. So gelangt über diesen Weg kein Markup in SVG
+  oder PDF
+
+- `pnpm run preview` startet eine Vorschau ohne Anmeldung: ein Beispielbetrieb in einer
+  eigenen Datenbank `opengewerk_preview`, angelegt über die echten Routen, jede Anfrage
+  mit der Rolle Inhaber, der Server auf 127.0.0.1:3000. Damit lässt sich die Oberfläche
+  ansehen und durchklicken, ohne ein Konto anzulegen
+- Die Vorschau steht in keinem Abbild, startet nicht mit `NODE_ENV=production`, lauscht
+  nur auf 127.0.0.1 und nimmt nur eine lokale Datenbank, deren Name auf `_preview`
+  endet. Eine Instanz, in der jede Anfrage als Inhaber gilt, darf nirgends sonst laufen
+
+- Angebot und Kostenvoranschlag am Auftrag, als zwei Belegarten über zwei Knöpfe und
+  nicht als eine mit Schalter. Ein Kostenvoranschlag ist eine Schätzung ohne Gewähr
+  (§ 649 BGB), ein Angebot sagt einen Preis zu, und ein Feld mit Vorgabe verschickt
+  irgendwann das Falsche
+- Titel als Zeile ohne Betrag, mit einer Summe unter jedem Titel. Die Gliederung rechnet
+  `outlineRows` in `domain` für Bildschirm und PDF, damit Position 2.3 auf beiden
+  dieselbe ist
+- Texte über und unter den Positionen, dazu Textbausteine unter "Textbausteine" im
+  Büro. Einsetzen kopiert den Text, eine spätere Änderung am Baustein ändert also keinen
+  Beleg
+- Die Auftragsbestätigung entsteht aus dem festgeschriebenen Angebot über
+  `POST /documents/:id/successors`, mit allen Zeilen in einer Transaktion und dem Verweis
+  auf den Vorgänger, und der Belegbildschirm zeigt die Kette in beide Richtungen. So
+  beschreibt Abschnitt 1.4 der Feature-Gliederung die Belegkette
+
+- Der Briefkopf im Büro: Anschrift, Kontakt, Steuernummer, USt-IdNr., Bankverbindung,
+  Handelsregister, Vertretung und ein Logo als PNG oder JPEG bis 1 MB. Ändern darf ihn
+  nur der Inhaber, das Büro liest mit. Aus ihm kommen die Angaben zum Betrieb, die
+  § 14 UStG auf jeder Rechnung verlangt
+- Vor dem Festschreiben prüft `domain` die Pflichtangaben nach der Liste, die der Beleg
+  braucht: § 14 Abs. 4 UStG als Regel, § 33 UStDV für Kleinbeträge bis 250 Euro und
+  § 34a UStDV für Kleinunternehmer seit 2025. Fehlt etwas, antwortet die Route mit 422
+  und nennt jeden Punkt mit Paragraf, und der Zähler bleibt stehen, damit keine Nummer
+  an eine Rechnung geht, die so nicht hinausgehen darf
+- Grenze und Stichtag der vereinfachten Rechnungen stehen im Regelpaket `invoice`, und
+  der Leistungszeitraum ist ein neues Feld am Beleg, weil § 14 Abs. 4 Nr. 6 UStG ihn
+  verlangt und es ihn bisher nicht gab
+- Beim Festschreiben hält `document_snapshots` fest, was der Beleg sagt, in derselben
+  Transaktion wie die Nummer, und ein Trigger lehnt jede Änderung ab. Zieht der Kunde
+  später um, bleibt die Rechnung, wie sie war
+- `GET /documents/:id/pdf` druckt einen festgeschriebenen Beleg beim ersten Abruf aus
+  diesem Stand, legt das PDF inhaltsadressiert im Dateispeicher ab und gibt danach nur
+  noch diese Bytes zurück. Festschreiben braucht den Renderer damit nicht, und fehlt er,
+  kommt 503 mit dem Befehl, der ihn startet
+- Die Vorlage folgt DIN 5008 Form B, damit die Anschrift im Fenster landet, und bettet
+  Barlow ein, damit ein Update des Renderer-Abbilds den Umbruch nicht ändert. Ein
+  Entwurf trägt "Entwurf" quer über jeder Seite und wird nie gespeichert, damit ein
+  ausgedruckter Entwurf nicht für den Beleg gehalten wird
+
+- Unter "Zugänge" stehen im Büro die Konten des Betriebs mit Rollen, Zustand und letzter
+  Anmeldung. Ein Zugang entstand bisher nur über `add-staff` auf der Kommandozeile, und
+  ein Betrieb öffnet keine SSH-Sitzung, um jemanden in den Urlaub zu schicken
+- Ein neuer Zugang entsteht als Einmal-Link, das Passwort wählt die eingeladene Person
+  selbst. Ein Passwort, das ein Kollege kennt und das dann drei Jahre bleibt, ist
+  schlechter als eines, das niemand kennt. Gespeichert wird vom Token nur sein SHA-256,
+  der Link gilt sieben Tage und wirkt einmal
+- Gesperrt wird statt gelöscht, und sofort: die Sitzungen im Betrieb enden gleich und
+  nicht erst beim Ablauf, der auf einem registrierten Gerät dreißig Tage beträgt. Die
+  Sperre hängt an der Zugehörigkeit, ein Betrieb kann also niemanden aus dem
+  Nachbarbetrieb aussperren
+- Der letzte Inhaber lässt sich weder sperren noch entmachten, sonst führte der Weg
+  zurück nur über psql
+- `membership.read` und `membership.write` gehören ausschließlich zur Rolle Inhaber und
+  nicht zum Büro: wer Rollen vergeben kann, kann sich selbst die des Inhabers geben
+
+- `add-staff` erzeugt ein Passwort, wenn `OPENGEWERK_PASSWORD` fehlt, und gibt es einmal
+  auf der Standardausgabe aus. Bei einer unbeaufsichtigten Installation brach der Befehl
+  bisher ab, und dann denkt sich jemand `Test1234!` aus
+- Das Passwort besteht aus fünf Fünfergruppen aus 32 Zeichen ohne `i`, `l`, `o` und `u`,
+  zusammen 125 Bit. Es wird von einem Terminal abgelesen und einmal von Hand getippt, und
+  ein Zeichen, bei dem jemand raten muss, kostet mehr als das Bit, das es trägt
+- Gab es das Konto schon, sagt der Befehl das und gibt kein Passwort aus. Ein Konto, das
+  es schon gab, behält sein Passwort, und ein ausgegebenes neues funktionierte nicht
+
+- Die Ersteinrichtung im Browser: solange es weder einen Betrieb noch ein Konto gibt,
+  zeigt die Anwendung statt der Anmeldung ein Formular für Betrieb und Inhaber und legt
+  Betrieb, Konto und Zugehörigkeit in einer Transaktion an. Vorher brauchte eine neue
+  Instanz ein `INSERT` über psql und `add-staff`, und der so angelegte Inhaber kam nicht
+  über die Betriebswahl hinaus
+- Direkt danach wird der zweite Faktor eingerichtet, mit QR-Code und
+  Wiederherstellungscodes. Er gilt erst, wenn ein Code aus der App gestimmt hat, sonst
+  sperrt ein falsch abgetippter Schlüssel dieselbe Person aus
+- Ob die Ersteinrichtung erscheint, entscheidet eine Abfrage an die Datenbank und kein
+  Schalter in der `.env`. Einen Schalter stellt irgendwann jemand zurück, und dann legt
+  der nächste Besucher einen zweiten Inhaber an; die Abfrage läuft unter einer
+  Vorgangssperre, damit zwei gleichzeitig geöffnete Bildschirme einen Betrieb anlegen und
+  nicht zwei
+- Die schreibende Route der Ersteinrichtung prüft Herkunft und Inhaltstyp selbst und
+  lässt nur einen Lauf gleichzeitig zu. Sonst könnte ein Formular auf einer fremden Seite
+  eine frische Instanz übernehmen, und Argon2id wäre unangemeldet bestellbar
+
+- Die erste Oberfläche, eine Codebasis mit zwei Einstiegen nach ADR 0004: `/` für das
+  Büro mit Kundenliste, Kundenakte, Objekt, Anlage, Aufträgen und der Geräteliste, `/m`
+  für die Baustelle mit den offenen Aufträgen und dem Konfliktbildschirm. Eine
+  Installation zeigt damit nicht mehr nur eine API, sondern eine Anwendung, mit der sich
+  arbeiten lässt
+- Der Abgleich-Client im Browser: IndexedDB je Betrieb, Postausgang und Konflikte. Die
+  Regeln bleiben in `domain`, so rechnet das Gerät dieselbe Antwort aus wie der Server,
+  bevor es etwas schickt
+- Der Postausgang wird über den Serverstand gelegt und nicht in die lokale Kopie
+  geschrieben. Lehnt der Server einen Vorgang ab, stünde der abgelehnte Wert sonst für
+  immer auf dem Bildschirm, ohne irgendwo sonst zu existieren
+- Die Geräteerkennung schlägt den passenden Einstieg vor und leitet nicht um. Eine
+  Weiterleitung vom Büro ließe ein Telefon erst das eine und dann das andere Bündel laden
+- Die Liste auf der Baustelle heißt "Offene Aufträge" und nicht "Meine Aufträge". Eine
+  Zuordnung von Personen zu Aufträgen gibt es im Modell noch nicht, und "Meine" wäre ein
+  Versprechen, das die Daten nicht halten
+- Das Bündelbudget aus ADR 0004 als Prüfung in der CI, gemessen an den gebauten
+  HTML-Dateien und nicht an einer Liste, die jemand pflegen müsste
+
+- Zwei Tests halten den Teiler der Verzugszinsrechnung fest: den Betrag selbst und dass
+  ein volles Jahr genau den Jahreszins trägt. Die Prüfungen ringsum vergleichen nur
+  Ergebnisse miteinander und wären mit jedem Teiler grün gewesen
+
+- Belegpositionen mit Reihenfolge, Einheit, Menge in Tausendsteln, Einzelpreis in Cent
+  und dem Steuersatz als Schlüssel in die Regel-Engine. Der Beleg war bis dahin ein Kopf
+  ohne Inhalt, eine Rechnung ließ sich nicht stellen
+- `GET /documents/:id/totals` rechnet die Summen jedes Mal aus den Zeilen, mit dem
+  Belegdatum und nicht mit heute. Eine Summe am Beleg wäre dieselbe Zahl an einem
+  zweiten Ort, und zwei Orte laufen auseinander
+- Erst je Steuersatz summieren, dann einmal besteuern. Jede Zeile einzeln zu besteuern
+  ergibt bei etwa jeder dritten Rechnung einen anderen Betrag, weil jede Zeile für sich
+  rundet
+- Die Nettosumme der Zeile wird gespeichert, weil die gerundete Zahl die ist, die der
+  Kunde gesehen hat, und von einem Check gehalten, der über `numeric` rechnet: nur dort
+  rundet PostgreSQL kaufmännisch
+- Die Positionen frieren mit ihrem Beleg ein, durchgesetzt von einem eigenen Trigger. Im
+  Abgleich hängt die Regel dafür am Status des Belegs (`gateFrom`), weil eine Kopie des
+  Status an der Zeile genau dann veraltet wäre, wenn jemand festschreibt
+- Ein Beleg nach § 19 oder § 13b UStG trägt den vorgeschriebenen Hinweis statt einer
+  Steuer von null, denn "0,00 EUR Umsatzsteuer" sagt etwas anderes und Falsches. Die
+  Behandlung wird beim Anlegen abgeleitet und mit dem Festschreiben eingefroren, sonst
+  schriebe ein geändertes Kennzeichen am Kunden die Rechnung vom letzten Jahr um
+
+- Der CI-Job "Schreibweise" prüft neben Gedankenstrichen auch umgeschriebene Umlaute,
+  gegen eine Wortliste und nicht gegen ein Muster auf Buchstabenpaare, denn die stehen
+  in sehr vielen englischen Wörtern. Pfade, Dateinamen, Adressen und Kürzel in
+  Großbuchstaben bleiben ASCII
+
+- Anmeldung und Sitzungen nach ADR 0006: better-auth im Kern, Sitzungen als
+  HttpOnly-Cookies, Passkeys und TOTP, Argon2id, Ratenbegrenzung mit Zählern in der
+  Datenbank und Herkunftsprüfung gegen `TRUSTED_ORIGINS`. Bis dahin lehnte eine Instanz
+  jede Anfrage an die Daten mit 401 ab, weil es keine Anmeldung gab
+- Die `auth_`-Tabellen tragen die übliche Richtlinie umgedreht: erreichbar nur, solange
+  kein Mandant gesetzt ist. Ein Benutzer gehört zur Instanz und nicht zu einem Betrieb,
+  und so kann eine Anfrage, die in einem Betrieb arbeitet, die Belegschaft des
+  Nachbarbetriebs nicht lesen
+- Was ein Betrieb von einer Anmeldung sieht, steht in `tenant_sessions` und damit im
+  Audit-Log. Ein Eintrag dort braucht einen Mandanten, und zwischen Passwort und
+  Betriebswahl gibt es keinen
+- Eine dritte Art von Route, angemeldet und noch ohne Betrieb (`@RequiresSession`), für
+  die Betriebswahl. Sie kann kein Recht verlangen, weil Rechte aus einer Mitgliedschaft
+  je Betrieb kommen, und öffentlich darf sie nicht sein
+- Konten entstehen über `add-staff` auf der Kommandozeile, das Passwort kommt aus einer
+  Umgebungsvariablen. Ein Argument stünde in der Prozessliste und im Verlauf der Shell
+- Neu in der `.env`: `SESSION_SECRET`, `TRUSTED_ORIGINS` und `CLOSED`. Die erlaubten
+  Herkünfte haben keinen Vorgabewert, weil eine Vorgabe den Schutz genau dort abschalten
+  würde, wo niemand darüber nachgedacht hat
+
+- Die Bausteine der Oberfläche: Design-Tokens in `packages/web/src/styles/tokens.css`,
+  heller und dunkler Grund und acht Komponenten. ADR 0004 verlangt eigene Komponenten
+  ohne UI-Kit, damit das Branding trägt, und ließ offen, was das Branding dann ist
+- Kupfer hat vier Werte statt einem. Weiße Schrift auf dem reinen Markenkupfer erreicht
+  3,88:1 und fällt bei jedem Knopf unter 18,66 px durch, also auch bei "Festschreiben"
+- Zwei Dichten für Büro und Baustelle über `data-entry` und nicht über einen
+  Umbruchpunkt, weil die beiden Einstiege zwei Eingabegeräte sind und keine zwei
+  Bildschirmbreiten
+- Barlow kommt aus dem Bündel und nicht von einem Schriftdienst. Eine selbst betriebene
+  Instanz darf für ihre eigene Darstellung nicht am offenen Netz hängen
+- Ein Kontrasttest rechnet jede Kombination aus Vordergrund und Fläche aus der
+  Token-Datei nach, in beiden Grundtönen, und fand beim ersten Lauf drei Werte, die
+  durchfielen. Er rechnet nicht im Browser, weil `color-mix()` dort Artefakte liefert
+
+- Alle 26 Datensätze der Regelpakete sind gegen ihre Fundstelle vorgeprüft, die
+  Basiszinssätze gegen die Tabelle der Bundesbank, die übrigen gegen die datierten
+  Gesetzesfassungen; kein Wert wich ab. Die Befunde stehen als Notizen an den
+  Datensätzen, dort wo jemand den Wert prüft, und nicht nur in einem Issue
+- Ein Test verlangt von jedem Paket ein Prüfdatum in seiner Notiz. Die Pakete sind die
+  eine Stelle, an der ein Wert falsch sein kann, ohne dass Code falsch ist, und ohne
+  Datum weiß bei der nächsten Prüfung niemand, wann die letzte war
+
+- Ein eigenes Recht `customer.create` neben `customer.write`, für Monteur, Büro und
+  Inhaber: der Monteur legt beim Störungseinsatz offline einen Kunden an, ändern darf er
+  bestehende weiterhin nicht. ADR 0005 beschreibt genau diesen Einsatz, und ADR 0006 gab
+  dem Monteur bis dahin nur `customer.read`
+
+- Speicher und Zähler sind eigene Anlagenarten. Bis dahin landeten sie auf `other` und
+  verloren damit die eine Angabe, die sagt, was sie sind
+- Ein Test hält jedes Enum der Datenbank Wert für Wert gegen die Liste im Code. Einen
+  Wert in die Liste schreiben und die Migration vergessen besteht sonst Typprüfung,
+  Linter und jeden Test und fällt erst an einer laufenden Installation auf
+
 - Die Basiszinssätze bis zum 31.12.2026 sind eingetragen: 2,27 Prozent ab 01.01.2025,
   1,27 ab 01.07.2025, 1,27 ab 01.01.2026 und 1,52 ab 01.07.2026. Vorher gab die Engine
   für jeden Tag ab dem 01.01.2025 einen Fehler statt eines Verzugszinses, was die
@@ -219,6 +501,40 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Speichern, Verknüpfen und Lesen der Dateien eines Belegs stehen an einer Stelle,
+  gemeinsam für PDF, XRechnung und ZUGFeRD-PDF. Die Reihenfolge, erst die Bytes und dann
+  die Zeile, darf zwischen den drei Routen nicht auseinanderlaufen
+
+- Fassung 6 des eingefrorenen Belegstands hält vom Kunden E-Mail, USt-IdNr. und
+  Käuferreferenz fest. Die E-Rechnung entsteht aus diesem Stand, und was später am Kunden
+  nachgetragen wird, erreicht eine festgeschriebene Rechnung nicht mehr
+
+- Eine Änderung an einem festgeschriebenen Beleg bekommt 409 mit dem Grund statt 404,
+  und der Satz hängt an der Belegart: eine Rechnung wird storniert, auf ein Angebot folgt
+  ein neues. Wer es versucht, soll erfahren, warum es nicht geht und was stattdessen
+
+- Der Bildschirm "Geräte" im Büro heißt "Konto" und trägt den zweiten Faktor mit, damit
+  jedes Konto ihn auch nachträglich und freiwillig einrichten kann
+
+- Verzugszinsen werden über 365 Tage gerechnet statt über 360, entschieden am 20.09.2026
+  als Teil der Abnahme in #31. Der Teiler war die einzige Zahl der Rechnung ohne
+  Fundstelle; auf 10.000 Euro über 90 Tage zum Satz des ersten Halbjahres 2024 sind es
+  311,18 statt 315,50 Euro
+
+- Der Kommentar am Teiler der Verzugszinsrechnung behauptet keine Quelle mehr, die sich
+  nicht belegen ließ, und nennt stattdessen, was an der Frage hängt. Entschieden wurde
+  sie danach mit 365 Tagen
+
+- `POST /customers` verlangt `customer.create`, ändern und entfernen weiterhin
+  `customer.write`, und der Abgleich prüft neben der Entität auch, was ein Vorgang mit
+  ihr tut. Eine Warteschlange ist ein anderer Weg hinein und keine andere Sache; im
+  Audit-Log steht ein neuer Kunde dadurch als Anlage und nicht als Änderung
+
+- Der Zählerschrank ist nur noch eine Anlagenart und keine Art von Verteiler mehr,
+  Migration 0008 nimmt den Wert aus dem Enum. Er stand auf zwei Ebenen, ohne dass
+  irgendwo stand, welche gemeint ist; nach Abschnitt 3.2 des Konzepts sind die Verteiler
+  NSHV und UV und der Schrank die Anlage, in der sie hängen
+
 - Die Webhook-Liste in Abschnitt 4.13 führt "Vorschlag entschieden". Ohne dieses
   Ereignis erfährt die Kanzlei nur durch Nachfragen, ob der Mandant einen
   Buchungsvorschlag übernommen hat
@@ -278,6 +594,38 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Gewerke als Datenpakete
 
 ### Behoben
+
+- Ein Beleg aus dem Postausgang bekommt denselben Vorschlag zum Steuerfall wie einer
+  über die Route. Bis dahin kam er mit der Vorgabe an, und ein Kleinunternehmer hätte
+  später eine Rechnung mit Umsatzsteuer daraus gemacht
+- Ein auf dem Gerät angelegter Beleg lehnte seine eigene erste Position als
+  festgeschrieben ab, weil ihm der Status fehlte, den nur der Server setzt. Die
+  Abgleichrichtlinie nennt jetzt unter `createdAs` den Startzustand solcher Felder, und
+  ein Test verlangt ihn für jede Regel auf einem reservierten Feld
+- Eine Fassung, die eine Entität nicht kannte, schob den Abgleich-Cursor über deren
+  Zeilen hinweg, und unterschriebene Berichte blieben danach dauerhaft ohne Unterschrift.
+  Das Gerät merkt sich jetzt die Entitäten neben dem Cursor und fängt von vorn an, sobald
+  die laufende Fassung eine mehr kennt
+
+- Der Abgleich-Client lehnte jede neue Position auf dem Gerät ab, weil er ihren Beleg nur
+  am gespeicherten Datensatz suchte; eine neue Position gibt es aber nur in der
+  Operation, die sie anlegt. Das lag seit der ersten Oberfläche im Code und fiel erst mit
+  dem ersten Bildschirm auf, der Positionen anlegt
+- Die Fundstelle des Kostenanschlags in der Feature-Gliederung ist § 649 BGB und nicht
+  § 650, korrigiert in v2.6. Seit der Reform des Bauvertragsrechts zum 01.01.2018 regelt
+  § 650 den Werklieferungsvertrag
+
+- `add-staff` legt Konto und Zugehörigkeit wirklich in einer Transaktion an. Sein
+  Kommentar behauptete "alle drei oder keines", umgesetzt waren es drei Commits mit zwei
+  Lücken
+
+- Umgeschriebene Umlaute in den Kommentaren von `pnpm-workspace.yaml` und
+  `.prettierignore`, teils neben richtig gesetzten im selben Absatz, und ein deutscher
+  Bezeichner in einem Test, der nach der Sprachregel englisch gehört. Die neue Prüfung
+  fand drei Stellen mehr als der Blick von Hand
+
+- Die Feature-Gliederung nannte in Abschnitt 1.1 den Wechselrichter als Anlage und
+  widersprach damit ihrem eigenen Abschnitt 3.2, nach dem sich der Code richtet
 
 - Der Basiszinssatz für das erste Halbjahr 2023 war falsch. Das Paket führte den Satz
   von minus 0,88 Prozent bis zum 30.06.2023, tatsächlich endete er am 31.12.2022; ab
