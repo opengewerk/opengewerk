@@ -28,6 +28,7 @@ const writableFields = [
   'city',
   'country',
   'vatId',
+  'buyerReference',
   'isBusiness',
   'isConstructionServiceRecipient',
   'taxExemptionCertificateNumber',

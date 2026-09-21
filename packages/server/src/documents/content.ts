@@ -150,6 +150,9 @@ export async function contentOf(
       city: customer.city,
       country: customer.country,
       isBusiness: customer.isBusiness,
+      email: customer.email,
+      vatId: customer.vatId,
+      buyerReference: customer.buyerReference,
     },
     site,
     signature: signature

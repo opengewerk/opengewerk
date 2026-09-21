@@ -21,9 +21,11 @@ import {
   type DocumentKind,
   documentKinds,
   type DocumentStatus,
+  type EInvoiceGap,
   formatDocumentNumber,
   isCancellable,
   type IsoDate,
+  type MissingDetail,
   missingDetails,
   numberRangeOf,
   RuleError,
@@ -48,7 +50,11 @@ import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
+import { eInvoiceRefusals } from './e-invoice.controller.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+
+/** What stands between a draft and its number, whatever the list it comes from. */
+type Missing = MissingDetail | EInvoiceGap
 
 /**
  * What a document says, put together for issuing, and what it still lacks.
@@ -58,15 +64,23 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
  * for a small amount in the packages, and the engine says so instead of
  * guessing. That is something the person issuing can fix, so it comes back as
  * a refusal with the sentence.
+ *
+ * What an invoice lacks includes, once the law requires the e-invoice of it,
+ * what the e-invoice lacks. From then on a PDF alone is not a proper invoice,
+ * and an invoice that could only go out as one is not issued; before then it
+ * is, and the office sees on its screen what the e-invoice would still need.
  */
 async function contentForIssuing(
   tx: TenantTransaction,
   document: typeof documents.$inferSelect,
-): Promise<{ content: DocumentContent; missing: ReturnType<typeof missingDetails> }> {
+): Promise<{ content: DocumentContent; missing: readonly Missing[] }> {
   try {
     const content = await contentOf(tx, document, shippedRules)
 
-    return { content, missing: missingDetails(shippedRules, content) }
+    return {
+      content,
+      missing: [...missingDetails(shippedRules, content), ...(await eInvoiceRefusals(tx, content))],
+    }
   } catch (error) {
     if (error instanceof RuleError) {
       throw new UnprocessableEntityException(error.message)
@@ -87,7 +101,7 @@ function todayInGermany(): IsoDate {
 }
 
 /** The refusal for a document that lacks mandatory details, the same for every route. */
-function lacking(missing: ReturnType<typeof missingDetails>): UnprocessableEntityException {
+function lacking(missing: readonly Missing[]): UnprocessableEntityException {
   // A sentence for whoever reads only `message`, and the list for a screen
   // that wants to point at each field.
   return new UnprocessableEntityException({
@@ -569,6 +583,11 @@ export class DocumentsController {
         documentDate,
         issuer: await issuerOf(tx, identity.tenantId),
       })
+      // Not held back for the e-invoice, unlike an invoice: a cancellation that
+      // cannot be written leaves an invoice standing that should not stand,
+      // which is worse than a cancellation whose e-invoice lacks a value. It
+      // names the same customer as the invoice, so on that side it lacks at
+      // most what the invoice lacked, and the office sees it on its screen.
       const missing = missingDetails(shippedRules, content)
 
       if (missing.length > 0) {
