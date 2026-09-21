@@ -28,6 +28,7 @@ export const mandatoryDetails = [
   'lines',
   'line_designation',
   'service_date',
+  'corrected_invoice',
 ] as const
 
 export type MandatoryDetail = (typeof mandatoryDetails)[number]
@@ -52,8 +53,8 @@ export interface MissingDetail {
  * and for a payment on account section 14 (4) number 6 UStG asks for the day
  * the money arrived, and only when that is known and differs from the date of
  * the invoice. Not the two correcting kinds either: they refer to an invoice
- * that states it already, and the link to that invoice arrives with the
- * cancellation in its own issue.
+ * that states it already, and naming that invoice is a requirement of its
+ * own, `corrected_invoice` below.
  */
 const servicedKinds: readonly DocumentKind[] = [
   'partial_invoice',
@@ -257,6 +258,17 @@ export function missingDetails(rules: RuleSet, content: DocumentContent): readon
         message: `Position ${String(line.position)} hat keine Bezeichnung (${cited.lines}).`,
       })
     }
+  }
+
+  // In every regime: a cancellation that does not name the invoice it takes
+  // back cannot be matched to it, and section 31 (5) UStDV wants a correcting
+  // document to refer to its invoice specifically and unambiguously. The route
+  // that makes a cancellation always names it; this is the net under it.
+  if (content.kind === 'cancellation_invoice' && content.corrects === null) {
+    missing.push({
+      detail: 'corrected_invoice',
+      message: 'Die Stornorechnung nennt die Rechnung nicht, die sie aufhebt (§ 31 Abs. 5 UStDV).',
+    })
   }
 
   if (

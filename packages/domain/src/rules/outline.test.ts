@@ -129,14 +129,16 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(4)
+    expect(read.version).toBe(5)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
     expect(read.lines).toEqual([{ ...plain, kind: 'item' }])
     // The figures are carried over, not worked out again.
     expect(read.totals).toBe(first.totals)
-    // Nothing was deducted before version 4, so it billed what it totalled.
+    // Nothing was deducted before version 4, so it billed what it totalled,
+    // and nothing was cancelled before version 5.
+    expect(read.corrects).toBeNull()
     expect(read.deductions).toEqual([])
     expect(read.billed).toEqual({
       netCents: 124000,
