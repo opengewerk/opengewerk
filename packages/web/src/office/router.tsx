@@ -8,6 +8,8 @@ import { DocumentScreen } from './screens/documents.js'
 import { InstallationScreen } from './screens/installations.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
+import { NumberRangesScreen } from './screens/number-ranges.js'
+import { SettingsScreen } from './screens/settings.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
 import { TaskListScreen } from './screens/tasks.js'
@@ -25,6 +27,10 @@ import { TextSnippetScreen } from './screens/text-snippets.js'
  * The paths are German because the address bar is something a person reads.
  * The parameters are not: `$customerId` is an identifier in the code and never
  * appears in a URL, only its value does.
+ *
+ * The settings all live under `/einstellungen`, so that the one entry in the
+ * navigation stays lit on every one of them. They are routes side by side and
+ * not nested, because none of them shares a frame with the others.
  */
 const root = createRootRoute({ component: OfficeShell })
 
@@ -56,10 +62,28 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
   createRoute({ getParentRoute: () => root, path: '/konto', component: AccountScreen }),
-  createRoute({ getParentRoute: () => root, path: '/zugaenge', component: StaffScreen }),
-  createRoute({ getParentRoute: () => root, path: '/briefkopf', component: LetterheadScreen }),
-  createRoute({ getParentRoute: () => root, path: '/steuern', component: TaxScreen }),
-  createRoute({ getParentRoute: () => root, path: '/e-mail', component: MailSettingsScreen }),
+  createRoute({ getParentRoute: () => root, path: '/einstellungen', component: SettingsScreen }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/briefkopf',
+    component: LetterheadScreen,
+  }),
+  createRoute({ getParentRoute: () => root, path: '/einstellungen/steuern', component: TaxScreen }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/nummernkreise',
+    component: NumberRangesScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/e-mail',
+    component: MailSettingsScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/zugaenge',
+    component: StaffScreen,
+  }),
 ]
 
 export const officeRouter = createRouter({

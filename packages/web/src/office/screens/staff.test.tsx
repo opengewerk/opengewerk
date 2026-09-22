@@ -80,7 +80,10 @@ beforeEach(() => {
     )
   })
 
-  vi.stubGlobal('location', { origin: 'https://opengewerk.example.de', pathname: '/zugaenge' })
+  vi.stubGlobal('location', {
+    origin: 'https://opengewerk.example.de',
+    pathname: '/einstellungen/zugaenge',
+  })
 })
 
 afterEach(() => {
