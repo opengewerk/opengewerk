@@ -190,6 +190,11 @@ describe('the tables', () => {
     // The text snippets from #72 are picked from at a desk, and inserting one
     // copies its text into the document, which does travel. A device that
     // needed the list would get it with the documents that come to the site.
+    //
+    // The mail outbox from #81 is the server's own work from end to end: a
+    // message is written by a cause on the server and sent from there. What a
+    // device does raises causes, a task written on site for instance, and
+    // those travel; the message about it never needs to.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -202,7 +207,8 @@ describe('the tables', () => {
       name === 'document_snapshots' ||
       name === 'document_files' ||
       name === 'files' ||
-      name === 'text_snippets'
+      name === 'text_snippets' ||
+      name === 'mail_outbox'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

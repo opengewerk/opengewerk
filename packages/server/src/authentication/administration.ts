@@ -479,9 +479,10 @@ export async function revokeDeviceOf(
  * Read outside any business, which is the only place the `auth_` tables exist
  * at all. What keeps it from being a way of reading the whole instance is the
  * list it is handed: made from the memberships of one company, a line above
- * every call.
+ * every call. The notifications use it the same way, for the address of the
+ * person a task names, which the key on the task ties to a membership here.
  */
-async function accountsOf(
+export async function accountsOf(
   database: Database,
   userIds: readonly string[],
   asUser: string,

@@ -280,6 +280,18 @@ Was ein Betrieb über seine eigene Besteuerung erklärt, steht im Büro unter "S
 
 **Was die Erklärungen bewirken.** Mit der Kleinunternehmerregelung schlägt OpenGewerk neue Belege ohne Umsatzsteuer vor, mit dem Hinweis auf die Steuerbefreiung, und eine Rechnung geht als PDF hinaus; am Entwurf lässt sich das ändern. Die Ist-Versteuerung ändert heute genau eines: ab dem 1. Januar 2028 trägt jede Rechnung mit ausgewiesener Umsatzsteuer die Angabe „Versteuerung nach vereinnahmten Entgelten“, die § 14 Abs. 4 Satz 1 Nr. 6a UStG von da an verlangt, im PDF wie in der E-Rechnung. Ab demselben Tag darf der Kunde die Vorsteuer aus einer solchen Rechnung erst abziehen, wenn er gezahlt hat, und daran erkennt er es. Gelesen wird die Erklärung am Belegdatum und mit dem Festschreiben eingefroren. Eine Rechnung nach § 19 oder § 13b trägt die Angabe nicht, dort weist sie keine Steuer aus; diese Lesart steht mit auf der Liste für #31. Wofür der Unterschied zwischen Soll- und Ist-Versteuerung eigentlich zählt, der Zeitraum, in dem die Steuer anzumelden ist, gehört zur Umsatzsteuer-Voranmeldung der Buchhaltung, die dieselbe Einstellung liest.
 
+### Benachrichtigung per E-Mail
+
+Abschnitt 2 der Feature-Gliederung sieht Benachrichtigungen aus genau zwei Quellen vor, der Fristen-Engine und Statuswechseln, und dazu einen Satz, der wichtiger ist als die Funktion selbst: keine modulspezifischen Erinnerungen. Wer eine Mail dort verschickt, wo sie gebraucht wird, hat am Ende sieben Absender, sieben Vorlagen und sieben Stellen für die Adresse des Betriebs. Deshalb gibt es einen Absender und einen Weg zu ihm.
+
+**Auslöser, keine Aufrufe.** Wer jemanden benachrichtigen will, meldet in `notifications/` einen Anlass, heute eine fällige Aufgabe. Dort wird entschieden, wer es erfährt und was die Nachricht sagt, und sie landet als Zeile in `mail_outbox`. Verschickt wird nur aus `mail/`. Ein Test in `mail/boundaries.test.ts` wird rot, sobald eine Datei außerhalb dieser beiden Ordner nodemailer einbindet oder in den Postausgang schreibt.
+
+**Ein Postausgang, der einen Ausfall übersteht.** Ein Job läuft jede Minute über alle Betriebe, schreibt, was fällig geworden ist, und verschickt, was wartet. Eine Nachricht wird in einer kurzen Transaktion beansprucht, außerhalb davon verschickt und danach als versendet vermerkt, so bleibt keine Transaktion offen, während ein Mailserver sich Zeit lässt. Antwortet er nicht, wartet die Nachricht und wird wieder versucht, nach einer, fünf, fünfzehn und sechzig Minuten, dann alle drei Stunden, zwanzigmal und damit gut zwei Tage lang. Eine Antwort, die sich nicht ändern wird, etwa ein Postfach, das es nicht gibt, beendet die Versuche sofort. Gelöscht wird keine Nachricht, auch keine gescheiterte: sie bleibt mit dem letzten Fehler stehen. Stirbt der Prozess zwischen Versand und Vermerk, geht die Nachricht nach zehn Minuten ein zweites Mal hinaus, und zweimal ist besser als nie.
+
+**Was bisher verschickt wird.** Eine Aufgabe erreicht die verantwortliche Person am Morgen ihres Fälligkeitstags, ab sechs Uhr, einmal je Aufgabe und Tag. Wird sie verschoben, gibt es am neuen Tag eine neue Nachricht; ist sie erledigt, gelöscht oder die Person im Betrieb gesperrt, keine. Eine Aufgabe, deren Tag beim Anlegen schon vorbei war, bekommt keine, sonst fände, wer den Versand einschaltet, einen Stapel alter Erinnerungen im Postfach. Der Beleg an den Kunden kommt mit dem zweiten Teil von #81.
+
+**Der Betrieb steht in jeder Nachricht.** Als Absender erscheint der Name aus dem Briefkopf, Antworten gehen an die E-Mail-Adresse aus dem Briefkopf, und am Ende steht der Betrieb mit Anschrift und Kontakt. Die Adresse, von der verschickt wird, ist die der Instanz aus `MAIL_FROM`; auf einer Instanz mit mehreren Betrieben sieht so jeder Kunde den Namen seines Betriebs.
+
 ### Audit-Log
 
 Jede Änderung an jeder Tabelle steht im Log, eine Zeile je Feld, das sich wirklich geändert hat: alter Wert, neuer Wert, Zeitpunkt, Benutzer und Anlass. Die Felder einer Änderung teilen sich eine Kennung, damit die Frage "und was hat sich im selben Moment noch bewegt" beantwortbar bleibt.
@@ -484,6 +496,20 @@ wird ein Zugriff auf einen Rechner namens `opengewerk_owner`. Die Fehlermeldung
 lautet dann "getaddrinfo ENOTFOUND", und darauf kommt niemand von selbst.
 `openssl rand -base64` liefert regelmäßig beide Zeichen. OpenGewerk erkennt
 diesen Fall beim Start und sagt, woran es liegt.
+
+### E-Mail
+
+OpenGewerk verschickt über einen Mailserver, den die Instanz in der `.env` bekommt, einmal für alle Module. Ohne `SMTP_HOST` verschickt sie nichts, und nichts wartet auf den Versand.
+
+```bash
+SMTP_HOST=mail.example.de
+SMTP_SECURITY=starttls
+MAIL_FROM=rechnung@betrieb.example.de
+```
+
+Dazu `SMTP_USER` und `SMTP_PASSWORD`, wenn der Server eine Anmeldung verlangt, beide oder keines. `SMTP_SECURITY` ist `starttls` für Port 587 und verlangt die Verschlüsselung, statt sie nur anzunehmen, `tls` für Port 465 oder `none` für einen Relay im selben Netz; `SMTP_PORT` braucht es nur für einen anderen Port. `MAIL_FROM` ist nur die Adresse, den Namen davor nimmt jede Nachricht aus dem Briefkopf ihres Betriebs.
+
+**Geprüft wird beim Start.** Eine Anmeldung, die der Server ablehnt, ein Rechnername, den es nicht gibt, oder eine verschlüsselte Verbindung, die nicht zustande kommt, halten den Start an und stehen als ein Satz im Log. Das sind falsche Angaben, und sie sollen auffallen, bevor die erste Rechnung nicht ankommt. Antwortet der Server nur gerade nicht, startet die Instanz trotzdem und sagt das im Log, die Nachrichten warten im Postausgang. Die Startzeile nennt Server und Absender, oder dass kein Mailserver eingerichtet ist. Eine geschlossene Instanz (`CLOSED=true`) verschickt nichts.
 
 ### Drei Dienste, und was sie kosten
 

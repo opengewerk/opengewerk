@@ -106,6 +106,14 @@ services:
       # or a migration window, when the instance should be up and reachable and
       # hand out nothing.
       CLOSED: ${CLOSED:-false}
+      # The mail server. Empty SMTP_HOST means no mail; the rest is explained in
+      # the .env template.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURITY: ${SMTP_SECURITY:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     volumes:
       - files:/var/lib/opengewerk/storage
     depends_on:

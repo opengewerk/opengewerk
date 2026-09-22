@@ -9,6 +9,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Versand von E-Mails über SMTP, eingerichtet einmal je Instanz in der `.env`
+  (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`)
+  und beim Start geprüft. Eine falsche Angabe hält den Start an, ein Server, der gerade
+  nicht antwortet, nicht. Ohne `SMTP_HOST` verschickt die Instanz nichts
+- Ein Postausgang für E-Mails (`mail_outbox`, Migration 0021): jede Nachricht wird erst
+  geschrieben und dann von einem Job verschickt, der jede Minute läuft. Antwortet der
+  Mailserver nicht, wartet sie und wird zwanzigmal über gut zwei Tage erneut versucht,
+  denn ein Ausfall von zwei Stunden darf keine Nachricht kosten; gelöscht wird keine
+- Eine fällige Aufgabe erreicht die verantwortliche Person am Morgen ihres Tages per
+  E-Mail, einmal je Aufgabe und Tag, mit dem Betrieb als Absender
+- Nachrichten entstehen nur über `notifications/` und werden nur aus `mail/` verschickt.
+  Ein Test hält fest, dass kein anderes Modul selbst verschickt, damit es bei einem
+  Absender und einer Stelle für die Vorlagen bleibt
+
 - Auf dem Bildschirm "Steuern" erklärt der Inhaber jetzt auch die Kleinunternehmerregelung
   nach § 19 UStG und die Ist-Versteuerung nach § 20 UStG, jeweils ab einem Tag, den er
   selbst wählt, mit Verlauf und freiwilliger Grundlage. Die Kleinunternehmerregelung ließ

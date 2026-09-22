@@ -32,6 +32,7 @@
     "drizzle-orm": "0.45.2",
     "express": "5.2.1",
     "libxml2-wasm": "0.7.2",
+    "nodemailer": "10.0.10",
     "pg": "8.23.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
