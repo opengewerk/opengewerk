@@ -19,6 +19,13 @@ describe('the mail settings', () => {
     )
   })
 
+  it('leave an instance alone whose template names a kind of connection and no server', () => {
+    // What the template of the .env carried in the first draft, and what
+    // stopped every instance built from it: a value with a sensible default
+    // is not somebody meaning to send mail.
+    expect(readMailConfiguration({ SMTP_SECURITY: 'starttls', SMTP_PORT: '587' })).toBeNull()
+  })
+
   it('submit on 587 with STARTTLS required unless told otherwise', () => {
     expect(
       readMailConfiguration({

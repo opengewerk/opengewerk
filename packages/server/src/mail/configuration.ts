@@ -49,9 +49,13 @@ const address = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/
  * Without `SMTP_HOST` the instance runs as it did before: nothing is sent and
  * nothing waits to be sent. That is a real configuration, not a broken one,
  * so it is not an error. What is an error is half a configuration, a sender
- * without a server or a user without a password: it means somebody meant to
- * set this up and got it wrong, and that is found at startup rather than at
- * the first invoice that never arrives.
+ * or a login without a server, or a user without a password: it means
+ * somebody meant to set this up and got it wrong, and that is found at
+ * startup rather than at the first invoice that never arrives.
+ *
+ * The kind of connection and the port do not count as half a setup. Both have
+ * a value that is right without a server to go with it, and a template that
+ * fills one in must not stop an instance that sends no mail at all.
  */
 export function readMailConfiguration(
   environment: Environment = process.env,
@@ -64,9 +68,7 @@ export function readMailConfiguration(
   const password = value('SMTP_PASSWORD')
 
   if (host === null) {
-    const stray = ['MAIL_FROM', 'SMTP_PORT', 'SMTP_SECURITY', 'SMTP_USER', 'SMTP_PASSWORD'].filter(
-      (name) => value(name) !== null,
-    )
+    const stray = ['MAIL_FROM', 'SMTP_USER', 'SMTP_PASSWORD'].filter((name) => value(name) !== null)
 
     if (stray.length > 0) {
       throw new ConfigurationError(
