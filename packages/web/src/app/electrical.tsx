@@ -223,6 +223,15 @@ export const boardFields: readonly FormField[] = [
   { name: 'location', label: 'Ort', hint: 'Wo er hängt: Keller, Raum 2.' },
 ]
 
+/**
+ * What a new board starts as: the first one of an installation is usually its
+ * main distribution, every one after it a sub distribution. A starting point
+ * for the form and nothing more, the list lets anybody choose the other.
+ */
+export function newBoard(siblings: readonly RecordState[]): RecordState {
+  return { kind: siblings.length === 0 ? 'main_distribution' : 'sub_distribution' }
+}
+
 export function asBoard(values: Record<string, string>): Draft {
   return {
     designation: values['designation']?.trim() ?? '',
@@ -276,13 +285,24 @@ const cableTypes = ['NYM-J', 'NYM-O', 'NYY-J', 'NYY-O', 'H07V-K', 'H07V-U', 'H07
 
 type Read = { readonly value: number | null } | { readonly problem: string }
 
-/** A figure somebody typed, in units of a given number of places, or what is wrong with it. */
-function readFigure(input: string, places: number): Read {
-  if (input.trim() === '') {
+/**
+ * A figure somebody typed, in units of a given number of places, or what is
+ * wrong with it.
+ *
+ * The unit may come along, "16 A" in a field labelled "in A": it is what a
+ * breaker says, and refusing it as no number would be refusing the right
+ * answer. Only the unit of the field, and only at the end.
+ */
+function readFigure(input: string, places: number, units: readonly string[] = []): Read {
+  const trimmed = input.trim()
+  const unit = units.find((candidate) => trimmed.endsWith(candidate))
+  const bare = unit === undefined ? trimmed : trimmed.slice(0, -unit.length).trim()
+
+  if (bare === '') {
     return { value: null }
   }
 
-  const value = scaledNumber(input, places)
+  const value = scaledNumber(bare, places)
 
   if (value !== null) {
     return { value }
@@ -290,7 +310,7 @@ function readFigure(input: string, places: number): Read {
 
   // Letters are a different mistake from one decimal place too many, and
   // the sentence says which, so that nobody hunts for a comma in "sechzehn".
-  if (!/^[\s+-]*[\d.,\s]+$/.test(input)) {
+  if (!/^[\s+-]*[\d.,\s]+$/.test(bare)) {
     return { problem: 'Das ist keine Zahl.' }
   }
 
@@ -365,11 +385,11 @@ export function CircuitForm({
     setTrouble(null)
 
     const read: Record<string, Read> = {
-      ratedCurrentMilli: readFigure(ratedCurrent, 3),
-      ratedResidualCurrentMilli: readFigure(residualCurrent, 0),
+      ratedCurrentMilli: readFigure(ratedCurrent, 3, ['A']),
+      ratedResidualCurrentMilli: readFigure(residualCurrent, 0, ['mA']),
       cableCores: readFigure(cores, 0),
-      cableCrossSectionMilli: readFigure(crossSection, 3),
-      cableLengthMilli: readFigure(length, 3),
+      cableCrossSectionMilli: readFigure(crossSection, 3, ['mm²', 'mm2', 'qmm']),
+      cableLengthMilli: readFigure(length, 3, ['m']),
     }
     const figures = Object.fromEntries(
       Object.entries(read).map(([field, result]) => [

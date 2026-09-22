@@ -192,7 +192,9 @@ describe('the boards of an installation', () => {
       Object.fromEntries(created?.patches.map((patch) => [patch.field, patch.to]) ?? []),
     ).toEqual({
       designation: 'UV Küche',
-      kind: 'main_distribution',
+      // The installation has its main distribution, so the next one starts
+      // as a sub distribution.
+      kind: 'sub_distribution',
       installationId: 'i-1',
       position: 1,
     })

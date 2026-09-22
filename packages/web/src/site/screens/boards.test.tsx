@@ -213,10 +213,11 @@ describe('a board on site', () => {
       'Leitungsschutzschalter (LS)',
     )
     await user.selectOptions(within(protection).getByLabelText('Charakteristik'), 'B')
-    await user.type(within(protection).getByLabelText('Nennstrom in A'), '16')
+    // With the unit, the way it is read off the breaker and the cable.
+    await user.type(within(protection).getByLabelText('Nennstrom in A'), '16 A')
 
     const cable = within(form).getByRole('group', { name: 'Leitung' })
-    await user.type(within(cable).getByLabelText('Querschnitt in mm²'), '1,5')
+    await user.type(within(cable).getByLabelText('Querschnitt in mm²'), '1,5 mm²')
     await user.type(within(cable).getByLabelText('Länge in m'), '12,5')
 
     await user.click(within(form).getByRole('button', { name: 'Stromkreis sichern' }))

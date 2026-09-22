@@ -21,6 +21,7 @@ import {
   circuitsInWords,
   figuresOf,
   moveAmong,
+  newBoard,
   nextPosition,
   ordered,
   sectionFields,
@@ -135,6 +136,7 @@ export function BoardsSection({ installationId }: { readonly installationId: str
         <div className="mb-4">
           <RecordForm
             fields={boardFields}
+            record={newBoard(boards)}
             submitLabel="Anlegen"
             onCancel={() => {
               setAdding(false)

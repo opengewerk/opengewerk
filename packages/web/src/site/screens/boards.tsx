@@ -15,6 +15,7 @@ import {
   circuitsInWords,
   circuitSummary,
   equipmentFields,
+  newBoard,
   nextPosition,
   ordered,
   useBoards,
@@ -89,6 +90,7 @@ export function InstallationBoards({
       {adding ? (
         <RecordForm
           fields={boardFields}
+          record={newBoard(boards)}
           submitLabel="Verteiler sichern"
           onCancel={() => {
             setAdding(false)
