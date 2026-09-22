@@ -187,6 +187,17 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
     change: 'never',
     gateFrom: { reference: 'documentId', entity: 'documents', field: 'status', values: ['draft'] },
   },
+  /**
+   * Written wherever somebody notices that something has to happen, and done
+   * wherever somebody does it, on site as much as in the office, so both
+   * without a network. One device moving the day while another marks the task
+   * done is ordinary work on different fields.
+   *
+   * `createdBy` is the server's. It says who wrote the task, or that nobody
+   * did, and a device that set it could put its task under somebody else's
+   * name or pass it off as one the deadline engine made.
+   */
+  tasks: { create: true, change: 'merge', reserved: ['createdBy'] },
 }
 
 /**

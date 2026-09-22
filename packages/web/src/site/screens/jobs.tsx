@@ -18,6 +18,7 @@ import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
+import { JobTasks, MyTasks } from './tasks.js'
 
 /**
  * The jobs this device is meant to work through.
@@ -78,6 +79,8 @@ export function SiteJobList() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <MyTasks />
+
       <h1 className="text-title font-semibold">Offene Aufträge</h1>
 
       {open.length === 0 ? (
@@ -315,6 +318,8 @@ export function SiteJobScreen() {
       ) : null}
 
       <JobReports job={job} />
+
+      <JobTasks job={job} />
 
       {noting ? (
         <Card label="Notiz zum Auftrag">

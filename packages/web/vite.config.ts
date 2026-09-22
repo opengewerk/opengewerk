@@ -62,6 +62,7 @@ export default defineConfig({
         '/sites',
         '/installations',
         '/jobs',
+        '/tasks',
         '/documents',
         '/sync',
         '/settings',

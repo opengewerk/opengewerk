@@ -173,6 +173,7 @@ export function permissionFor(entity: string, kind: OperationKind): Permission |
     // The same for a signature. The technician who wrote the report is the
     // one who hands the device to the customer.
     document_signatures: 'document.write',
+    tasks: 'task.write',
   }
 
   return subject[entity] ?? null

@@ -25,6 +25,7 @@ import type {
   SyncConflict,
   SyncOperation,
   SyncSequence,
+  Task,
   Tenant,
   TenantParameter,
   TenantSession,
@@ -58,6 +59,7 @@ import type {
   syncConflicts,
   syncOperations,
   syncSequences,
+  tasks,
   tenantParameters,
   tenants,
   tenantSessions,
@@ -108,6 +110,7 @@ export type TextSnippetMatches = Assert<Exact<typeof textSnippets.$inferSelect, 
 export type DocumentSignatureMatches = Assert<
   Exact<typeof documentSignatures.$inferSelect, DocumentSignature>
 >
+export type TaskMatches = Assert<Exact<typeof tasks.$inferSelect, Task>>
 export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>
 export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
 export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>

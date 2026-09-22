@@ -9,6 +9,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Aufgaben mit Fälligkeit, verantwortlicher Person und Status, auf Wunsch an einem Kunden,
+  Objekt oder Auftrag. Sie stehen an dem Datensatz, an dem sie hängen, und in einer
+  eigenen Liste unter "Aufgaben", weil eine Aufgabe nur am Kunden morgens niemand findet
+  und eine nur in der Liste bei der Arbeit am Kunden übersehen wird
+- Auf der Baustelle stehen die eigenen offenen Aufgaben über den Aufträgen, und an jedem
+  Auftrag lässt sich eine notieren. Aufgaben gehen durch den Postausgang wie alles, was
+  vor Ort entsteht, also auch ohne Netz
+- Wer eine Aufgabe geschrieben hat, trägt ein Trigger aus der Anfrage ein, und eine
+  Aufgabe ohne menschlichen Urheber lässt sich anlegen. Das ist der Weg, den die
+  Fristen-Engine aus Phase 2 nehmen wird, damit sie keinen zweiten braucht
+- Die verantwortliche Person muss im Betrieb arbeiten und darf nicht gesperrt sein. Der
+  Abgleich lehnt sonst den einen Vorgang ab, ein Fremdschlüssel auf die Mitgliedschaft
+  hält es zusätzlich in der Datenbank fest
+- `GET /tasks/assignees` nennt die Namen der Belegschaft für die Auswahl, an jeden mit
+  `task.read` und ohne Adressen oder Rollen, denn die Liste der Zugänge liest nur der
+  Inhaber
+- Die Vorschau bringt drei Aufgaben mit, eine davon überfällig und eine erledigt
+
 - Der Bildschirm "Steuern" im Büro. Dort erklärt der Betrieb den Übergang von 2027 nach
   § 27 Abs. 38 Satz 1 Nr. 2 UStG und nimmt ihn wieder zurück, mit Verlauf und einer
   freiwilligen Grundlage; Jahr, Grenze und Frist kommen aus dem Regelpaket. Bisher ging

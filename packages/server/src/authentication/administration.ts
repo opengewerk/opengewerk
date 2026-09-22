@@ -56,6 +56,23 @@ export interface StaffEntry {
   readonly twoFactorEnabled: boolean
 }
 
+/**
+ * One person in this business, as whoever hands out a task sees them: the
+ * name and whether they can still be given one. Nothing else, because this
+ * list is read by everybody who may read tasks, the technician included, and
+ * roles, addresses and sign ins are the owner's to see.
+ */
+export interface Colleague {
+  readonly userId: string
+  readonly name: string
+  /**
+   * False for somebody shut out of this business. Still listed, so that a task
+   * handed to them earlier shows their name and not a key; not offered for a
+   * new one, which nobody would ever see.
+   */
+  readonly active: boolean
+}
+
 /** One invitation that can still be used, as the office sees it. */
 export interface InvitationEntry {
   readonly id: InvitationId
@@ -81,6 +98,36 @@ export interface IssuedInvitation {
   readonly token: string
   readonly expiresAt: Date
   readonly email: string
+}
+
+/**
+ * The people of this business by name, for the tasks.
+ *
+ * The same two reads as the staff list, and for the same reason: the names
+ * asked for are the ones that came out of this company's memberships, so the
+ * second read cannot reach anybody else's staff.
+ */
+export async function listColleagues(database: Database, identity: Identity): Promise<Colleague[]> {
+  const rows = await database.forTenant(identity, (tx) =>
+    tx
+      .select({ userId: memberships.userId, blockedAt: memberships.blockedAt })
+      .from(memberships)
+      .where(eq(memberships.tenantId, identity.tenantId)),
+  )
+
+  const accounts = await accountsOf(
+    database,
+    rows.map((row) => row.userId),
+    identity.userId,
+  )
+
+  return rows
+    .map((row) => ({
+      userId: row.userId,
+      name: accounts.get(row.userId)?.name ?? 'Unbekanntes Konto',
+      active: row.blockedAt === null,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name, 'de'))
 }
 
 /** Whether a membership row carries the owner role. */
