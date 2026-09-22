@@ -26,10 +26,12 @@ function Navigation() {
   const readsSettings = useMay('settings.read')
   // Whoever reads documents reads the texts they are written from.
   const readsDocuments = useMay('document.read')
+  const readsTasks = useMay('task.read')
 
   const items: readonly { readonly to: string; readonly label: ReactNode }[] = [
     { to: '/', label: 'Kunden' },
     { to: '/auftraege', label: 'Aufträge' },
+    ...(readsTasks ? [{ to: '/aufgaben', label: 'Aufgaben' as ReactNode }] : []),
     ...(readsDocuments ? [{ to: '/textbausteine', label: 'Textbausteine' as ReactNode }] : []),
     {
       to: '/konflikte',

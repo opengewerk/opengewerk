@@ -64,6 +64,7 @@ const apiPrefixes = [
   'sites',
   'installations',
   'jobs',
+  'tasks',
   'documents',
   'sync',
   'settings',

@@ -20,6 +20,7 @@ import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
 import { signatureRefusal } from '../documents/signing.js'
 import { proposedTreatment } from '../documents/treatment.js'
+import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
 import * as schema from './schema/index.js'
 import { syncConflicts, syncOperations } from './schema/index.js'
@@ -323,6 +324,22 @@ async function applyOne(
     }
 
     const refusal = await signatureRefusal(tx, values)
+
+    if (refusal) {
+      return await record(tx, tenantId, operation, {
+        outcome: 'conflict',
+        reason: refusal.reason,
+        fields: refusal.fields,
+        current,
+      })
+    }
+  }
+
+  // A task goes to somebody who works here. The key in the database would say
+  // so too, for the whole transmission at once; said here, it is a conflict
+  // about this one operation.
+  if (operation.entity === 'tasks' && operation.kind !== 'delete') {
+    const refusal = await assigneeRefusal(tx, tenantId, operation.kind === 'create', values)
 
     if (refusal) {
       return await record(tx, tenantId, operation, {

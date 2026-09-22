@@ -2,6 +2,7 @@ import type { IsoDate } from '@opengewerk/domain'
 import { lineUnits, signedContentFingerprint } from '@opengewerk/domain'
 
 import { newId } from '../database/identifier.js'
+import { previewUser } from './preview-database.js'
 
 type Answer = Record<string, unknown>
 
@@ -81,7 +82,8 @@ const sampleSignature =
  * the order confirmation made out of it, a progress invoice out of the same
  * quote with the final invoice after it, a cost estimate in progress, a report
  * the customer has signed on site, a maintenance invoice to the property
- * management company, and the snippets they are written from.
+ * management company, the snippets they are written from, and three tasks on
+ * the jobs, one of them overdue and one done.
  *
  * The quote is issued and the confirmation is a draft on purpose. Together
  * they show both states of a document, the chain between them, and a document
@@ -432,5 +434,63 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     throw new Error(
       `The sample signature was not taken: ${String(receipt?.outcome)} ${String(receipt?.reason)}`,
     )
+  }
+
+  // Tasks travel like everything written on site, so they come through the
+  // outbox as well. The only person of the preview is the one looking, so all
+  // three are theirs: one for the next days, one overdue, one done.
+  const dayFromToday = (days: number): IsoDate => {
+    const at = new Date(`${today}T12:00:00Z`)
+
+    at.setUTCDate(at.getUTCDate() + days)
+
+    return at.toISOString().slice(0, 10)
+  }
+  const tasks = [
+    {
+      title: 'Material für den Zählerschrank bestellen',
+      dueOn: dayFromToday(2),
+      status: 'open',
+      customerId: berg,
+      siteId: house,
+      jobId: renewal,
+    },
+    {
+      title: 'Bei der Hausverwaltung wegen der Treppenhausbeleuchtung nachfassen',
+      dueOn: dayFromToday(-1),
+      status: 'open',
+      customerId: nordblick,
+      siteId: estate,
+      jobId: stairwell,
+    },
+    {
+      title: 'Zählerplatz ausmessen',
+      dueOn: dayFromToday(-7),
+      status: 'done',
+      customerId: berg,
+      siteId: house,
+      jobId: renewal,
+    },
+  ]
+  const noted = await post('/sync', {
+    deviceId: 'vorschau-tablet',
+    operations: tasks.map((values) => ({
+      id: newId<'operation'>(),
+      entity: 'tasks',
+      recordId: newId<'task'>(),
+      kind: 'create',
+      baseVersion: null,
+      patches: Object.entries({ ...values, assigneeUserId: previewUser.id, notes: null }).map(
+        ([field, to]) => ({ field, from: null, to }),
+      ),
+      recordedAt: new Date().toISOString(),
+    })),
+  })
+  const refused = (
+    (noted['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+  ).filter((taken) => taken.outcome !== 'applied')
+
+  if (refused.length > 0) {
+    throw new Error(`The sample tasks were not all taken: ${JSON.stringify(refused)}`)
   }
 }

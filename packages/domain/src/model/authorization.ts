@@ -41,6 +41,14 @@ export const permissions = [
    */
   'document.issue',
   /**
+   * Tasks, one right to read and one to write, and writing includes marking
+   * one done. Not narrowed to one's own: a task is written by whoever notices
+   * that something has to happen, for whoever has to do it, and the office
+   * that hands a task on is as much its user as the technician who does it.
+   */
+  'task.read',
+  'task.write',
+  /**
    * Sending an outbox and reading what came back. A right of its own because
    * it is a different way in, not a different thing to do: what an operation
    * may touch is still decided by the rights above, entity by entity.
@@ -101,6 +109,8 @@ const officePermissions: readonly Permission[] = [
   'document.read',
   'document.write',
   'document.issue',
+  'task.read',
+  'task.write',
   'sync.read',
   'sync.write',
   // Reading, not setting. What a business claims about its own taxation is a
@@ -130,6 +140,10 @@ const technicianPermissions: readonly Permission[] = [
   'job.read',
   'document.read',
   'document.write',
+  // What turns up on site and has to be done later, and what the office
+  // handed on to be done there.
+  'task.read',
+  'task.write',
   // The one who is actually in a basement without a network.
   'sync.read',
   'sync.write',

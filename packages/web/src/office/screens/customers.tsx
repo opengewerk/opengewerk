@@ -13,6 +13,7 @@ import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { JobLine, NewJobForm } from './jobs.js'
+import { TasksSection } from './tasks.js'
 
 const kindOptions = customerKinds.map((kind) => ({
   value: kind,
@@ -348,6 +349,13 @@ export function CustomerScreen() {
           </ul>
         )}
       </Section>
+
+      <TasksSection
+        field="customerId"
+        id={customerId}
+        links={{ customerId }}
+        empty="Für diesen Kunden ist keine Aufgabe offen."
+      />
 
       <p className="text-table text-ink-faint">
         {`Fassung ${String(count(customer, 'version'))}.`}

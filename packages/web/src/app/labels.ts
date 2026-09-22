@@ -10,6 +10,7 @@ import type {
   RecordState,
   RoleKey,
   SnippetPurpose,
+  TaskStatus,
   TaxTreatment,
   VatRate,
 } from '@opengewerk/domain'
@@ -22,6 +23,7 @@ import {
   jobStatuses,
   lineKinds,
   lineUnits,
+  taskStatuses,
   taxTreatments,
   vatRates,
 } from '@opengewerk/domain'
@@ -65,6 +67,11 @@ export const jobStatusLabel: Readonly<Record<JobStatus, string>> = {
   active: 'Laufend',
   completed: 'Abgeschlossen',
   cancelled: 'Abgebrochen',
+}
+
+export const taskStatusLabel: Readonly<Record<TaskStatus, string>> = {
+  open: 'Offen',
+  done: 'Erledigt',
 }
 
 export const roleLabel: Readonly<Record<RoleKey, string>> = {
@@ -189,6 +196,10 @@ export function jobKindOf(record: RecordState | null | undefined): JobKind {
 
 export function jobStatusOf(record: RecordState | null | undefined): JobStatus {
   return oneOf(record, 'status', jobStatuses, 'draft')
+}
+
+export function taskStatusOf(record: RecordState | null | undefined): TaskStatus {
+  return oneOf(record, 'status', taskStatuses, 'open')
 }
 
 export function documentKindOf(record: RecordState | null | undefined): DocumentKind {

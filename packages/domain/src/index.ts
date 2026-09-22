@@ -23,6 +23,7 @@ export * from './model/membership.js'
 export * from './model/number-range.js'
 export * from './model/photovoltaic.js'
 export * from './model/site.js'
+export * from './model/task.js'
 export * from './model/tenant.js'
 export * from './model/text-snippet.js'
 

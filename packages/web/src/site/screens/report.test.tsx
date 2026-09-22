@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState } from '@opengewerk/domain'
 import { signaturePathIsValid, signedContentFingerprint } from '@opengewerk/domain'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -207,10 +208,16 @@ async function mount(path: string, rows: Readonly<Record<string, Row[]>> = {}) {
     history: createMemoryHistory({ initialEntries: [path] }),
   })
 
+  // The job screen asks who is looking, for its tasks. Nobody answers here,
+  // so it shows none, which is all these tests need of it.
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
   render(
-    <SyncProvider client={client}>
-      <RouterProvider router={router} />
-    </SyncProvider>,
+    <QueryClientProvider client={queries}>
+      <SyncProvider client={client}>
+        <RouterProvider router={router} />
+      </SyncProvider>
+    </QueryClientProvider>,
   )
 
   return { client, router }

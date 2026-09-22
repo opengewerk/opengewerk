@@ -19,6 +19,7 @@ import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { JobDocuments } from './documents.js'
+import { TasksSection } from './tasks.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
 const statusOptions = jobStatuses.map((status) => ({
@@ -231,6 +232,17 @@ export function JobScreen() {
       )}
 
       <JobDocuments job={job} />
+
+      <TasksSection
+        field="jobId"
+        id={jobId}
+        links={{
+          customerId: String(job['customerId']),
+          siteId: maybeText(job, 'siteId'),
+          jobId,
+        }}
+        empty="Zu diesem Auftrag ist keine Aufgabe offen."
+      />
 
       {children.length > 0 ? (
         <Section title="Teilaufträge">

@@ -10,6 +10,7 @@ import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
+import { TaskListScreen } from './screens/tasks.js'
 import { TaxScreen } from './screens/taxes.js'
 import { TextSnippetScreen } from './screens/text-snippets.js'
 
@@ -41,6 +42,7 @@ const routes = [
   }),
   createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
+  createRoute({ getParentRoute: () => root, path: '/aufgaben', component: TaskListScreen }),
   createRoute({
     getParentRoute: () => root,
     path: '/belege/$documentId',

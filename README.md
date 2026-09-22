@@ -258,6 +258,20 @@ Eine Rechnung an ein Unternehmen im Inland geht als **E-Rechnung** hinaus, eine 
 
 Was noch fehlt: eine Oberfläche für die Erklärung zum Übergang, die Gutschrift als E-Rechnung und der Versand, der mit der Benachrichtigung per E-Mail kommt. Der Empfang von E-Rechnungen gehört zu Phase 3.
 
+### Aufgaben
+
+Eine Aufgabe ist etwas, das eine Person bis zu einem bestimmten Tag erledigen soll. Abschnitt 2 der Feature-Gliederung verschiebt sie ausdrücklich aus dem CRM in die Querschnittsfunktionen, und das ist die eigentliche Aussage: Aufgaben gehören keinem Modul, sie hängen an allem. Eine Aufgabe hat einen Text, einen Fälligkeitstag, eine verantwortliche Person, den Status offen oder erledigt und auf Wunsch eine Notiz. Sie kann an einem Kunden, einem Objekt oder einem Auftrag hängen, muss es aber nicht.
+
+**Sichtbar dort, wo sie hängt, und in einer eigenen Liste.** Kunde, Objekt und Auftrag haben im Büro einen Abschnitt "Aufgaben", und eine Aufgabe, die dort entsteht, hängt an diesem Datensatz. Am Auftrag nimmt sie Kunde und Objekt mit, damit sie auf allen drei Bildschirmen steht. Unter "Aufgaben" in der Navigation steht die Liste für den Morgen: erst die eigenen, dann was bei den anderen offen ist, jeweils nach Fälligkeit. Überfällig steht in Worten da und nicht nur in Rot. Auf der Baustelle stehen die eigenen offenen Aufgaben über den Aufträgen, und an jedem Auftrag lässt sich eine notieren, für sich selbst oder fürs Büro.
+
+**Eine Aufgabe reist wie alles, was auf dem Gerät entsteht.** Anlegen, erledigen und weitergeben gehen durch den Postausgang, auch im Keller, und zwei Geräte an verschiedenen Feldern derselben Aufgabe kommen beide durch. Lesen und schreiben dürfen alle drei Rollen (`task.read`, `task.write`), denn eine Aufgabe schreibt, wem etwas auffällt, für den, der es tun muss. Löschen bietet die Oberfläche nicht an: was erledigt ist, bleibt an seinem Datensatz stehen und fällt aus den Listen für den Morgen heraus.
+
+**Wer sie geschrieben hat, sagt die Datenbank.** Ein Trigger setzt `created_by` beim Anlegen auf den Benutzer der Anfrage und hält den Wert bei jeder Änderung fest. Ein Gerät, das selbst einen Urheber mitschickt, bekommt einen Konflikt `set_by_server`, sonst ließe sich eine Aufgabe jemand anderem unterschieben. Eine Transaktion, die für keinen Menschen handelt, schreibt eine Aufgabe ohne Urheber. Das ist die Naht für die Fristen-Engine aus Phase 2: sie legt ihre Aufgaben über dieselbe Tabelle und dieselben Trigger an und braucht keinen zweiten Weg.
+
+**Verantwortlich ist jemand, der im Betrieb arbeitet.** Der Fremdschlüssel `tasks_assignee_works_here` zeigt auf Betrieb und Benutzer der Mitgliedschaft zusammen und findet damit nur eine Zugehörigkeit zu diesem Betrieb, auch an jeder Prüfung der Anwendung vorbei. Davor prüft der Abgleich, ob die Person dazugehört und nicht gesperrt ist, und lehnt sonst genau diesen einen Vorgang ab. Der Schlüssel allein ließe die ganze Übertragung scheitern, und ein Postausgang, der an einer Aufgabe hängen bleibt, schickt auch den Regiebericht dahinter nicht mehr. Die Namen zur Auswahl liefert `GET /tasks/assignees`, gesperrte Zugänge eingeschlossen, damit eine alte Aufgabe ihren Namen behält; auswählen lassen sie sich nicht.
+
+Was nicht dazugehört: automatisch erzeugte Aufgaben, die mit den Fristen in Phase 2 kommen, eine Zuweisung über Betriebsgrenzen und Kanban oder Plantafel. Die Benachrichtigung der verantwortlichen Person per E-Mail kommt mit #81.
+
 ### Audit-Log
 
 Jede Änderung an jeder Tabelle steht im Log, eine Zeile je Feld, das sich wirklich geändert hat: alter Wert, neuer Wert, Zeitpunkt, Benutzer und Anlass. Die Felder einer Änderung teilen sich eine Kennung, damit die Frage "und was hat sich im selben Moment noch bewegt" beantwortbar bleibt.

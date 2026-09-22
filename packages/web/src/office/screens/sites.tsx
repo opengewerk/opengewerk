@@ -11,6 +11,7 @@ import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { JobLine, NewJobForm } from './jobs.js'
+import { TasksSection } from './tasks.js'
 
 const siteFields: readonly FormField[] = [
   {
@@ -250,6 +251,13 @@ export function SiteScreen() {
           </ul>
         )}
       </Section>
+
+      <TasksSection
+        field="siteId"
+        id={siteId}
+        links={{ customerId, siteId }}
+        empty="Für dieses Objekt ist keine Aufgabe offen."
+      />
     </Page>
   )
 }
