@@ -247,6 +247,9 @@ importers:
       libxml2-wasm:
         specifier: 0.7.2
         version: 0.7.2
+      nodemailer:
+        specifier: 10.0.10
+        version: 10.0.10
       pg:
         specifier: 8.23.0
         version: 8.23.0
@@ -4180,6 +4183,10 @@ packages:
   node-releases@2.0.56:
     resolution: {integrity: sha512-x0InOIyzgdk+eyaWaRJFH5snEtiImgBgblZ2CyPrLmqqcuMQkEvcDPHbzqbD8eDsSeJbVOjn+crzyzHaM4D+/A==}
     engines: {node: '>=18'}
+
+  nodemailer@10.0.10:
+    resolution: {integrity: sha512-He9XskOFms62SyAKkLu8CcGcYHAo+BSHSsORI8s4PJH8qZgZY4L4lDfvyN0twvmbpyG+eGrxpyBlskj9d9rJ8A==}
+    engines: {node: '>=20.0.0'}
 
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -8555,6 +8562,8 @@ snapshots:
       html-entities: 2.6.0
 
   node-releases@2.0.56: {}
+
+  nodemailer@10.0.10: {}
 
   object-assign@4.1.1: {}
 

@@ -13,6 +13,10 @@ import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { interfacePath, serveInterface } from './interface.js'
+import { checkMailServer } from './mail/check.js'
+import { readMailConfiguration } from './mail/configuration.js'
+import { smtpTransport } from './mail/transport.js'
+import { startMailWorker } from './mail/worker.js'
 import { FileStore } from './storage/file-store.js'
 
 /**
@@ -57,6 +61,22 @@ async function start(): Promise<void> {
   const identities = configuration.closed
     ? new ClosedIdentitySource()
     : new SessionIdentitySource(authentication, database)
+
+  // The mail server is asked before anything listens, so that a wrong setting
+  // stops the start instead of the first message. A closed instance sends
+  // nothing: it is closed for a restore or a migration window, and a message
+  // out of a database that is being put back is a message about a state that
+  // may not survive the next hour.
+  const mail = configuration.closed ? null : readMailConfiguration()
+  const transport = mail ? smtpTransport(mail) : null
+
+  if (mail && transport) {
+    const check = await checkMailServer(transport, mail)
+
+    if (check.outcome === 'unreachable') {
+      console.warn(check.reason)
+    }
+  }
 
   // The file store and the renderer go in whether the instance is open or
   // closed. Closed, nothing reaches them, because every route that would is
@@ -115,10 +135,17 @@ async function start(): Promise<void> {
   // The order is the point. The server stops taking requests first, then the
   // pool closes; the other way round the requests still in flight would lose
   // their connection.
+  let mailWorker: { readonly stop: () => Promise<void> } | null = null
+
   const stop = async (signal: NodeJS.Signals): Promise<void> => {
     console.info(`${signal} empfangen, OpenGewerk fährt herunter.`)
 
     try {
+      // The mail job first. A pass that is running finishes, so that a
+      // message is not sent and then forgotten because the pool closed
+      // before the row could say so.
+      await mailWorker?.stop()
+      transport?.close()
       await application.close()
       await database.close()
     } catch (error) {
@@ -134,6 +161,17 @@ async function start(): Promise<void> {
   }
 
   await application.listen(configuration.port, configuration.host)
+
+  if (mail && transport) {
+    mailWorker = startMailWorker({
+      database,
+      transport,
+      from: mail.from,
+      // The first trusted origin is the address the instance is reached at,
+      // the one a link in a message has to point to.
+      origin: configuration.trustedOrigins[0] ?? '',
+    })
+  }
 
   // Asked once at startup, because the answer decides what somebody sees when
   // they open the address for the first time. A fresh installation that says
@@ -152,6 +190,11 @@ async function start(): Promise<void> {
         ? ' Die Instanz ist über CLOSED geschlossen, jede Anfrage an die Daten wird ' +
           'abgelehnt, die Anmeldung und die Ersteinrichtung eingeschlossen.'
         : '') +
+      (mail
+        ? ` E-Mails gehen über ${mail.host}:${String(mail.port)} von ${mail.from}.`
+        : configuration.closed
+          ? ''
+          : ' Es ist kein Mailserver eingerichtet, OpenGewerk verschickt keine E-Mails.') +
       (empty
         ? ' Diese Instanz ist noch leer: im Browser steht die Ersteinrichtung, die den ' +
           'Betrieb und den ersten Zugang anlegt.'
