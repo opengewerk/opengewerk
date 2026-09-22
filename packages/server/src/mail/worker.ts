@@ -2,7 +2,7 @@ import type { TenantId } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
-import { dueTasks, notify } from '../notifications/notify.js'
+import { dueTasks, notify, signedReports } from '../notifications/notify.js'
 import type { AttachmentSource } from './attachments.js'
 import { claimDue, markFailed, markSent, type OutboxRow } from './outbox.js'
 import {
@@ -123,7 +123,12 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
     try {
       const now = clock()
 
-      for (const notification of await dueTasks(job.database, tenantId, now)) {
+      const raised = [
+        ...(await dueTasks(job.database, tenantId, now)),
+        ...(await signedReports(job.database, tenantId, now)),
+      ]
+
+      for (const notification of raised) {
         const written = await notify(job.database, tenantId, notification, {
           origin: job.origin,
         })

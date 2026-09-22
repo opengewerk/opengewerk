@@ -1,11 +1,32 @@
-import type { DocumentId, IsoDate, TaskId, TenantId } from '@opengewerk/domain'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import {
+  type DocumentId,
+  type IsoDate,
+  shippedRules,
+  type TaskId,
+  type TenantId,
+} from '@opengewerk/domain'
+import { and, eq, gte, isNull, sql } from 'drizzle-orm'
 
 import { accountsOf } from '../authentication/administration.js'
 import type { Database } from '../database/database.js'
-import { customers, jobs, mailOutbox, memberships, sites, tasks } from '../database/schema/index.js'
-import { frozenContent, issuerOf } from '../documents/content.js'
-import { type DocumentAttachment, documentMessage, taskDueMessage } from './templates.js'
+import { parameterAt } from '../database/parameters.js'
+import {
+  customers,
+  documents,
+  documentSignatures,
+  jobs,
+  mailOutbox,
+  memberships,
+  sites,
+  tasks,
+} from '../database/schema/index.js'
+import { contentOf, frozenContent, issuerOf } from '../documents/content.js'
+import {
+  type DocumentAttachment,
+  documentMessage,
+  signedReportMessage,
+  taskDueMessage,
+} from './templates.js'
 
 /**
  * Something that happened and may be worth a message.
@@ -40,6 +61,15 @@ export type Notification =
       /** Who asked, for the audit log and for the screen of the document. */
       readonly requestedBy: string
     }
+  | {
+      /**
+       * A report the customer signed on site, sent to that customer at once
+       * where the business has switched that on. A change of status like the
+       * one above, raised by the signature instead of by a button.
+       */
+      readonly kind: 'report_signed'
+      readonly documentId: DocumentId
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -49,9 +79,14 @@ export interface NotifyContext {
 
 /** The cause a message is written once for. */
 export function causeOf(notification: Notification): string {
-  return notification.kind === 'task_due'
-    ? `task_due:${notification.taskId}:${notification.dueOn}`
-    : `document:${notification.documentId}:${notification.request}`
+  switch (notification.kind) {
+    case 'task_due':
+      return `task_due:${notification.taskId}:${notification.dueOn}`
+    case 'document':
+      return `document:${notification.documentId}:${notification.request}`
+    case 'report_signed':
+      return `report_signed:${notification.documentId}`
+  }
 }
 
 /** The day and the minute of the day in Berlin, where the businesses are. */
@@ -148,9 +183,14 @@ export async function notify(
   notification: Notification,
   context: NotifyContext,
 ): Promise<readonly string[]> {
-  return notification.kind === 'task_due'
-    ? taskDue(database, tenantId, notification, context)
-    : documentToCustomer(database, tenantId, notification)
+  switch (notification.kind) {
+    case 'task_due':
+      return taskDue(database, tenantId, notification, context)
+    case 'document':
+      return documentToCustomer(database, tenantId, notification)
+    case 'report_signed':
+      return signedReport(database, tenantId, notification)
+  }
 }
 
 async function taskDue(
@@ -259,14 +299,44 @@ async function documentToCustomer(
   const actor = { tenantId, userId: notification.requestedBy, reason: 'notification' }
 
   return database.forTenant(actor, async (tx) => {
-    const content = await frozenContent(tx, notification.documentId)
+    const [document] = await tx
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, notification.documentId), isNull(documents.deletedAt)))
 
-    if (content === null || content.number === null) {
+    if (!document) {
       return []
     }
 
     const issuer = await issuerOf(tx, tenantId)
-    const text = documentMessage({ content, attachment: notification.attachment, issuer })
+    let text: { readonly subject: string; readonly body: string }
+
+    if (document.number === null) {
+      // A report signed on site and not issued yet: read from its rows, which
+      // the signature has fixed, and named by its day and the signature.
+      const [signature] = await tx
+        .select({ signedAt: documentSignatures.signedAt })
+        .from(documentSignatures)
+        .where(eq(documentSignatures.documentId, document.id))
+
+      if (document.status !== 'signed' || !signature) {
+        return []
+      }
+
+      text = signedReportMessage({
+        content: await contentOf(tx, document, shippedRules),
+        signedOn: berlinClock(signature.signedAt).day,
+        issuer,
+      })
+    } else {
+      const content = await frozenContent(tx, document.id)
+
+      if (content === null) {
+        return []
+      }
+
+      text = documentMessage({ content, attachment: notification.attachment, issuer })
+    }
 
     const written = await tx
       .insert(mailOutbox)
@@ -281,6 +351,142 @@ async function documentToCustomer(
         replyTo: issuer.email,
         recipientAddress: notification.to.address,
         recipientName: notification.to.name,
+        subject: text.subject,
+        body: text.body,
+      })
+      .onConflictDoNothing({ target: [mailOutbox.tenantId, mailOutbox.cause] })
+      .returning({ id: mailOutbox.id })
+
+    return written.map((row) => row.id)
+  })
+}
+
+/**
+ * How far back a signature counts. The job looks every minute, so a report
+ * signed a moment ago is found a moment later; the margin is for an instance
+ * that was down for a night. Older signatures are left alone, and switching
+ * the setting on with a day in the past does not send a pile of old reports.
+ */
+const signaturesWithinHours = 48
+
+/**
+ * The reports signed lately that the business wants sent to their customer
+ * and that have not been, as notifications.
+ *
+ * Whether it wants that is the setting `report.mail_on_signature` on the day
+ * of the signature, in Berlin: a report signed before it was switched on is
+ * not sent afterwards, one signed while it was on is sent even if it was
+ * switched off since.
+ */
+export async function signedReports(
+  database: Database,
+  tenantId: TenantId,
+  now: Date,
+): Promise<readonly Notification[]> {
+  const since = new Date(now.getTime() - signaturesWithinHours * 3_600_000)
+
+  return database.forTenant({ tenantId, reason: 'notification' }, async (tx) => {
+    const rows = await tx
+      .select({ id: documents.id, signedAt: documentSignatures.signedAt })
+      .from(documents)
+      .innerJoin(documentSignatures, eq(documentSignatures.documentId, documents.id))
+      .where(
+        and(
+          eq(documents.kind, 'time_and_material_report'),
+          isNull(documents.deletedAt),
+          gte(documentSignatures.signedAt, since),
+          sql`not exists (
+            select 1 from ${mailOutbox}
+             where ${mailOutbox.tenantId} = ${documents.tenantId}
+               and ${mailOutbox.cause} = 'report_signed:' || ${documents.id}::text
+          )`,
+        ),
+      )
+
+    const wanted: Notification[] = []
+
+    for (const row of rows) {
+      const setting = await parameterAt(
+        tx,
+        'report.mail_on_signature',
+        berlinClock(row.signedAt).day,
+      )
+
+      if (setting?.value === 1) {
+        wanted.push({ kind: 'report_signed', documentId: row.id })
+      }
+    }
+
+    return wanted
+  })
+}
+
+/**
+ * A signed report on its way to the customer who signed it.
+ *
+ * To the address the customer has now, and to nobody when there is none: the
+ * office can still send it from the report once there is one. The report is
+ * read the way its PDF is, from what it froze if it was issued in the
+ * meantime, otherwise from its rows, which the signature has fixed.
+ */
+async function signedReport(
+  database: Database,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'report_signed' }>,
+): Promise<readonly string[]> {
+  return database.forTenant({ tenantId, reason: 'notification' }, async (tx) => {
+    const [document] = await tx
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, notification.documentId), isNull(documents.deletedAt)))
+
+    if (!document) {
+      return []
+    }
+
+    const [signature] = await tx
+      .select({ signedAt: documentSignatures.signedAt })
+      .from(documentSignatures)
+      .where(eq(documentSignatures.documentId, document.id))
+
+    const [customer] = await tx
+      .select({ name: customers.name, email: customers.email })
+      .from(customers)
+      .where(eq(customers.id, document.customerId))
+
+    if (!signature || !customer?.email) {
+      return []
+    }
+
+    const content =
+      document.number !== null
+        ? await frozenContent(tx, document.id)
+        : await contentOf(tx, document, shippedRules)
+
+    if (content === null) {
+      return []
+    }
+
+    const issuer = await issuerOf(tx, tenantId)
+    const text = signedReportMessage({
+      content,
+      signedOn: berlinClock(signature.signedAt).day,
+      issuer,
+    })
+
+    const written = await tx
+      .insert(mailOutbox)
+      .values({
+        tenantId,
+        kind: 'document',
+        cause: causeOf(notification),
+        documentId: document.id,
+        attachment: 'pdf',
+        requestedBy: null,
+        senderName: issuer.name,
+        replyTo: issuer.email,
+        recipientAddress: customer.email,
+        recipientName: customer.name,
         subject: text.subject,
         body: text.body,
       })

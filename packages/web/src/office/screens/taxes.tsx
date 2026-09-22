@@ -111,7 +111,7 @@ function latestStart(periods: readonly Pick<ParameterPeriod, 'validFrom'>[]): Is
  * new period begins after it. Not the one covering today, which a statement
  * made for a day still ahead would leave saying the opposite.
  */
-function latestPeriod(periods: readonly ParameterPeriod[]): ParameterPeriod | null {
+export function latestPeriod(periods: readonly ParameterPeriod[]): ParameterPeriod | null {
   return (
     [...periods].sort((left, right) => right.validFrom.localeCompare(left.validFrom))[0] ?? null
   )
@@ -236,7 +236,7 @@ export function TaxScreen() {
 }
 
 /** Every period of one statement, oldest first, with what it rested on. */
-function History({
+export function History({
   periods,
   stated,
   notStated,

@@ -50,6 +50,14 @@ export const tenantParameterKeys = [
    * the tax arises, which is the difference the setting is really about.
    */
   'cash_accounting.permitted',
+  /**
+   * Whether a report the customer signs on site goes to that customer by mail
+   * right away, with its PDF. A decision of the business and nothing the law
+   * asks for: some want the customer to have the paper at once, others send
+   * it with the invoice. Read on the day of the signature, so that switching
+   * it on sends nothing that was signed before.
+   */
+  'report.mail_on_signature',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -59,6 +67,7 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'invoice.payment_term_days': 'days',
   'e_invoice.transition_claimed': 'flag',
   'cash_accounting.permitted': 'flag',
+  'report.mail_on_signature': 'flag',
 }
 
 /**

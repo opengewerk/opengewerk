@@ -105,7 +105,7 @@ async function start(): Promise<void> {
             ...output,
             authentication,
             trustedOrigins: configuration.trustedOrigins,
-            mail: mail ? { origin } : null,
+            mail: mail ? { origin, from: mail.from } : null,
           },
     ),
     // The container log is the only log there is, so it carries warnings and

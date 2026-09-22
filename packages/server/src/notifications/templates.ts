@@ -167,3 +167,35 @@ export function documentMessage(facts: {
     body,
   }
 }
+
+/**
+ * The message a report goes to its customer with, right after the signature.
+ *
+ * It has no number yet when it is signed; the office gives it one later, and
+ * the invoice made out of it names that. So the report is named by its day,
+ * and the sentence says what the customer did with it, which is why it comes.
+ */
+export function signedReportMessage(facts: {
+  readonly content: DocumentContent
+  readonly signedOn: string
+  readonly issuer: IssuerContent
+}): MessageText {
+  const { content } = facts
+  const named = content.number
+    ? `${documentTitle(content.kind)} ${content.number}`
+    : `${documentTitle(content.kind)} vom ${germanDate(content.documentDate)}`
+
+  const body = [
+    'Guten Tag,',
+    '',
+    `im Anhang erhalten Sie ${asObject[content.kind]} vom ${germanDate(content.documentDate)}, ` +
+      `den Sie am ${germanDate(facts.signedOn)} unterschrieben haben.`,
+    '',
+    'Mit freundlichen Grüßen',
+    '',
+    '-- ',
+    signatureOf(facts.issuer),
+  ].join('\n')
+
+  return { subject: `${named} von ${facts.issuer.name}`, body }
+}

@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Regiebericht, den der Kunde auf der Baustelle unterschreibt, geht auf Wunsch gleich
+  danach per E-Mail an diesen Kunden, als PDF mit der Unterschrift. Ein- und ausgeschaltet
+  wird das vom Inhaber auf dem neuen Bildschirm "E-Mail", ab heute und nie rückwirkend
+  (`report.mail_on_signature`, Migration 0023). Der Bildschirm sagt auch, ob die Instanz
+  einen Mailserver hat und von welcher Adresse sie verschickt (`GET /settings/mail`)
+- Ein unterschriebener Regiebericht lässt sich über die Karte "Per E-Mail" auch vor seiner
+  Nummer verschicken, etwa wenn beim Kunden erst später eine Adresse dazukommt
+
 - Ein festgeschriebener Beleg geht aus dem Büro per E-Mail an den Kunden, mit der Datei, die
   zu ihm passt: ein Unternehmen im Inland bekommt das ZUGFeRD-PDF, alle anderen das PDF.
   Die Karte "Per E-Mail" am Beleg zeigt, was verschickt wurde und ob es ankam, und nimmt
