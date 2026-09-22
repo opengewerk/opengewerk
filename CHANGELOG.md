@@ -815,13 +815,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Auch außerhalb der Anlagenstruktur ließ sich ein Datensatz an den eines anderen Betriebs
+  hängen, wenn dessen Kennung bekannt war: ein Objekt an einen fremden Kunden, ein Auftrag
+  an eine fremde Anlage, eine Aufgabe an einen fremden Auftrag, insgesamt 29 Verweise
+  (#113). Sie laufen jetzt alle über Betrieb und Kennung zusammen (Migration 0031). Die
+  Routen lehnen so einen Verweis vorher mit 422 und dem Feld im Satz ab, der Abgleich als
+  Konflikt für den einen Vorgang, und beide nehmen auch einen gelöschten Datensatz nicht
+  mehr an, den der Schlüssel noch nähme. Zeigt auf einer Installation schon eine Zeile über
+  die Grenze, bricht das Update mit Tabelle, Spalte und Anzahl ab, statt daran etwas
+  umzubiegen, denn wem die Zeile gehört, kann keine Migration wissen
 - Ein Betrieb konnte über den Abgleich einen Verteiler, ein Feld, einen Stromkreis oder ein
   Betriebsmittel an den Datensatz eines anderen Betriebs hängen, wenn er dessen Kennung
   kannte, denn PostgreSQL prüft einen Fremdschlüssel an der Row-Level Security vorbei. Die
   Schlüssel der Anlagenstruktur laufen jetzt über Betrieb und Kennung zusammen, und der
   Abgleich lehnt so einen Vorgang vorher als Konflikt ab, statt dass die Datenbank die ganze
-  Übertragung scheitern lässt. Für die übrigen Verweise des Datenmodells steht dasselbe
-  noch aus
+  Übertragung scheitern lässt
 - Ein Feld mit Stromkreisen ließ sich nicht endgültig entfernen, und damit auch kein
   Verteiler und keine Anlage darüber: der Schlüssel vom Stromkreis zum Feld leerte beim
   Entfernen beide Spalten, den Verteiler eingeschlossen, und der ist Pflicht. Die Anwendung
