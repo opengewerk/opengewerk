@@ -14,15 +14,22 @@ import request from 'supertest'
  */
 
 /**
- * A letterhead with an address and a tax number, straight into the table.
- * Through the superuser pool, because the tests that need it set up their
- * businesses the same way.
+ * A letterhead with an address, a telephone number, an e-mail address and a
+ * tax number, straight into the table. Through the superuser pool, because the
+ * tests that need it set up their businesses the same way.
+ *
+ * The telephone and the e-mail address since #109: a quote to a customer who
+ * is not a business carries the instruction on withdrawal, and its model asks
+ * for both. The tests that issue a quote are no more about that than about
+ * section 14; what the check does is tested in `document-instructions.test.ts`.
  */
 export async function readyToInvoice(admin: Pool, ...tenantIds: readonly string[]): Promise<void> {
   for (const tenantId of tenantIds) {
     await admin.query(
-      `insert into letterheads (tenant_id, street, house_number, postal_code, city, tax_number)
-       values ($1, 'Hafenstraße', '12', '20457', 'Hamburg', '22/815/08154')
+      `insert into letterheads
+         (tenant_id, street, house_number, postal_code, city, phone, email, tax_number)
+       values ($1, 'Hafenstraße', '12', '20457', 'Hamburg', '040 123456', 'info@nord.example.de',
+               '22/815/08154')
        on conflict (tenant_id) do nothing`,
       [tenantId],
     )

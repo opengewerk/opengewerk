@@ -200,6 +200,11 @@ describe('the tables', () => {
     // clearest case of all. A device does not send mail, and a login to a
     // mailbox in the storage of a phone that was left on a roof is exactly
     // what sealing it on the server was for.
+    //
+    // The instructions from #109 are kept at a desk like the text snippets, and
+    // what went with a document is copied into its snapshot. What the office
+    // chose on a draft is chosen before issuing, which needs a connection, and a
+    // device has no instructions to choose from.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -213,6 +218,8 @@ describe('the tables', () => {
       name === 'document_files' ||
       name === 'files' ||
       name === 'text_snippets' ||
+      name === 'instructions' ||
+      name === 'document_instruction_choices' ||
       name === 'mail_outbox' ||
       name === 'mail_settings' ||
       name === 'secrets'

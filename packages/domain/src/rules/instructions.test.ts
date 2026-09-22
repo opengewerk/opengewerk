@@ -5,11 +5,13 @@ import {
   filledInstruction,
   instructionPlaceholders,
   instructionTemplates,
+  noInstructionChoices,
   placeholdersIn,
   withdrawalVariants,
 } from '../model/instruction.js'
 import {
   contractBlocksAt,
+  documentInstructions,
   instructionWordingAt,
   latestWording,
   normalizedWording,
@@ -257,5 +259,178 @@ describe('a wording compared', () => {
     expect(normalizedWording(wordingAt('withdrawal', '2026-09-22')?.text ?? '')).toBe(
       wordingAt('withdrawal', '2026-09-22')?.text,
     )
+  })
+})
+
+describe('the instructions of a document', () => {
+  const withdrawalRow = {
+    id: 'i-1',
+    template: 'withdrawal' as const,
+    title: 'Widerrufsbelehrung',
+    body: null,
+    kinds: ['cost_estimate', 'quote'] as const,
+    consumersOnly: true,
+    withDocument: true,
+  }
+  const shippedRows = [
+    withdrawalRow,
+    {
+      id: 'i-2',
+      template: 'withdrawal_form' as const,
+      title: 'Muster-Widerrufsformular',
+      body: null,
+      kinds: ['cost_estimate', 'quote'] as const,
+      consumersOnly: true,
+      withDocument: true,
+    },
+    {
+      id: 'i-3',
+      template: 'early_start' as const,
+      title: 'Beginn vor Ablauf der Widerrufsfrist',
+      body: null,
+      kinds: ['cost_estimate', 'quote'] as const,
+      consumersOnly: true,
+      withDocument: false,
+    },
+  ]
+  const own = {
+    id: 'i-4',
+    template: null,
+    title: 'Hinweise zur Wartung',
+    body: 'Bitte lassen Sie die Anlage jährlich prüfen, {name}.',
+    kinds: ['final_invoice'] as const,
+    consumersOnly: false,
+    withDocument: true,
+  }
+  const quote = { kind: 'quote' as const, documentDate: '2026-09-22', recipientIsBusiness: false }
+  const off =
+    ' Gehört die Belehrung nicht zu diesem Beleg, lässt sie sich am Beleg unter „Belehrungen“ ' +
+    'abschalten.'
+
+  it('go with a quote to a consumer as proposed, in the order of the business', () => {
+    const { contents, gaps } = documentInstructions(
+      [...shippedRows, own],
+      noInstructionChoices,
+      quote,
+      issuer,
+    )
+
+    expect(gaps).toEqual([])
+    expect(contents.map((entry) => [entry.title, entry.withDocument])).toEqual([
+      ['Widerrufsbelehrung', true],
+      ['Muster-Widerrufsformular', true],
+      ['Beginn vor Ablauf der Widerrufsfrist', false],
+    ])
+    expect(contents[0]?.text).toBe(serviceInstruction)
+    expect(contents[0]?.model).toEqual({
+      template: 'withdrawal',
+      validFrom: '2026-06-19',
+      source: wordingAt('withdrawal', '2026-09-22')?.source,
+      changed: false,
+    })
+    expect(contents[2]?.text).toContain('per E-Mail an info@elektro-kohm.de')
+  })
+
+  it('stay away from a customer who is a business, unless switched on', () => {
+    const toBusiness = { ...quote, recipientIsBusiness: true }
+
+    expect(
+      documentInstructions(shippedRows, noInstructionChoices, toBusiness, issuer).contents,
+    ).toEqual([])
+    expect(
+      documentInstructions(
+        shippedRows,
+        { ...noInstructionChoices, switchedOn: ['i-2'] },
+        toBusiness,
+        issuer,
+      ).contents.map((entry) => entry.title),
+    ).toEqual(['Muster-Widerrufsformular'])
+  })
+
+  it('follow what the office switched off, and one of its own that it switched on', () => {
+    const { contents } = documentInstructions(
+      [...shippedRows, own],
+      { variant: 'service', switchedOn: ['i-4'], switchedOff: ['i-2', 'i-3'] },
+      quote,
+      issuer,
+    )
+
+    expect(contents.map((entry) => entry.title)).toEqual([
+      'Widerrufsbelehrung',
+      'Hinweise zur Wartung',
+    ])
+    expect(contents[1]).toMatchObject({
+      text: 'Bitte lassen Sie die Anlage jährlich prüfen, Elektro Kohm.',
+      model: null,
+    })
+  })
+
+  it('are filled in for a delivery with installation when the office chose one', () => {
+    const { contents } = documentInstructions(
+      shippedRows,
+      { ...noInstructionChoices, variant: 'goods' },
+      quote,
+      issuer,
+    )
+
+    expect(contents[0]?.variant).toBe('goods')
+    expect(contents[0]?.text).toContain('die Waren in Besitz genommen haben bzw. hat.')
+  })
+
+  it('say what the letterhead lacks for them, and still show what they can', () => {
+    const { contents, gaps } = documentInstructions(shippedRows, noInstructionChoices, quote, {
+      ...issuer,
+      phone: null,
+      email: ' ',
+    })
+
+    expect(gaps.map((gap) => gap.message)).toEqual([
+      'Für die Belehrung „Widerrufsbelehrung“ fehlen im Briefkopf die Telefonnummer des ' +
+        'Betriebs und die E-Mail-Adresse des Betriebs. Eintragen lässt sich das unter ' +
+        '„Einstellungen“, „Briefkopf“.' +
+        off,
+      'Für die Belehrung „Muster-Widerrufsformular“ fehlt im Briefkopf die E-Mail-Adresse des ' +
+        'Betriebs. Eintragen lässt sich das unter „Einstellungen“, „Briefkopf“.' +
+        off,
+      'Für die Belehrung „Beginn vor Ablauf der Widerrufsfrist“ fehlt im Briefkopf die ' +
+        'E-Mail-Adresse des Betriebs. Eintragen lässt sich das unter „Einstellungen“, „Briefkopf“.' +
+        off,
+    ])
+    expect(contents).toHaveLength(3)
+  })
+
+  it('are none of the shipped ones on a day before their first version, and say so', () => {
+    const { contents, gaps } = documentInstructions(
+      [withdrawalRow, { ...own, kinds: ['quote'] as const }],
+      noInstructionChoices,
+      { ...quote, documentDate: '2021-03-01' },
+      issuer,
+    )
+
+    expect(contents.map((entry) => entry.title)).toEqual(['Hinweise zur Wartung'])
+    expect(gaps).toEqual([
+      {
+        detail: 'instruction',
+        message:
+          'Die Belehrung „Widerrufsbelehrung“ ist für den 01.03.2021 nicht hinterlegt, die erste ' +
+          'mitgelieferte Fassung gilt ab dem 28.05.2022.' +
+          off,
+      },
+    ])
+  })
+
+  it('mark a changed model as changed and keep the business words', () => {
+    const { contents } = documentInstructions(
+      [{ ...withdrawalRow, body: 'Geänderte Belehrung von {name}.' }],
+      noInstructionChoices,
+      quote,
+      issuer,
+    )
+
+    expect(contents[0]).toMatchObject({
+      title: 'Widerrufsbelehrung',
+      text: 'Geänderte Belehrung von Elektro Kohm.',
+      model: { template: 'withdrawal', changed: true },
+    })
   })
 })

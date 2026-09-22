@@ -1,17 +1,24 @@
 import {
+  type DocumentId,
+  documentInstructions,
   type DocumentKind,
+  type InstructionChoices,
+  type InstructionContent,
+  type InstructionGap,
   type InstructionTemplate,
   instructionTemplates,
   type IsoDate,
+  type IssuerContent,
   latestWording,
+  noInstructionChoices,
   shippedInstructionDefaults,
   type TenantId,
   wordingAt,
 } from '@opengewerk/domain'
-import { asc, sql } from 'drizzle-orm'
+import { asc, eq, sql } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
-import { instructions } from '../database/schema/index.js'
+import { documentInstructionChoices, instructions } from '../database/schema/index.js'
 
 export type InstructionRow = typeof instructions.$inferSelect
 
@@ -126,4 +133,54 @@ export function instructionView(row: InstructionRow, today: IsoDate): Instructio
     withDocument: row.withDocument,
     position: row.position,
   }
+}
+
+/** What the office chose on a document, or the proposal as a contract about work. */
+export async function choicesOf(
+  tx: TenantTransaction,
+  documentId: DocumentId,
+): Promise<InstructionChoices> {
+  const [row] = await tx
+    .select({
+      variant: documentInstructionChoices.variant,
+      switchedOn: documentInstructionChoices.switchedOn,
+      switchedOff: documentInstructionChoices.switchedOff,
+    })
+    .from(documentInstructionChoices)
+    .where(eq(documentInstructionChoices.documentId, documentId))
+
+  return row ?? noInstructionChoices
+}
+
+/**
+ * The instructions of a document the way it goes out, and what is missing for
+ * them: the business's instructions, the choices on the document and the
+ * letterhead, put together by `documentInstructions` in `domain`.
+ *
+ * Writes the shipped instructions first when the business has none yet, so
+ * that its first quote to a consumer gets the instruction on withdrawal
+ * whether or not anybody opened the settings before.
+ */
+export async function instructionsFor(
+  tx: TenantTransaction,
+  document: {
+    readonly id: DocumentId
+    readonly tenantId: TenantId
+    readonly kind: DocumentKind
+    readonly documentDate: IsoDate
+  },
+  issuer: IssuerContent,
+  recipientIsBusiness: boolean,
+): Promise<{
+  readonly contents: readonly InstructionContent[]
+  readonly gaps: readonly InstructionGap[]
+}> {
+  await ensureShippedInstructions(tx, document.tenantId)
+
+  return documentInstructions(
+    await instructionsOf(tx),
+    await choicesOf(tx, document.id),
+    { kind: document.kind, documentDate: document.documentDate, recipientIsBusiness },
+    issuer,
+  )
 }

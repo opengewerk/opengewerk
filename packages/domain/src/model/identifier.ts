@@ -39,6 +39,7 @@ export type TextSnippetId = Id<'text-snippet'>
 export type DocumentSignatureId = Id<'document-signature'>
 export type TaskId = Id<'task'>
 export type InstructionId = Id<'instruction'>
+export type DocumentInstructionChoicesId = Id<'document-instruction-choices'>
 
 /**
  * Every record carries the tenant it belongs to and when it was written. The

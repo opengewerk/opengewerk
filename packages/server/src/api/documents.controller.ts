@@ -22,11 +22,13 @@ import {
   documentKinds,
   type DocumentStatus,
   type EInvoiceGap,
+  type InstructionGap,
   formatDocumentNumber,
   isCancellable,
   type IsoDate,
   type MissingDetail,
   missingDetails,
+  noInstructionChoices,
   numberRangeOf,
   paymentTermProblem,
   RuleError,
@@ -40,13 +42,15 @@ import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
 import {
+  documentInstructionChoices,
   documentLines,
   documents,
   documentSnapshots,
   numberRanges,
 } from '../database/schema/index.js'
-import { contentOf, issuerOf } from '../documents/content.js'
+import { contentAndGapsOf, issuerOf } from '../documents/content.js'
 import { deductionsFor } from '../documents/deductions.js'
+import { choicesOf } from '../documents/instructions.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
@@ -56,7 +60,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { todayInGermany } from './today.js'
 
 /** What stands between a draft and its number, whatever the list it comes from. */
-type Missing = MissingDetail | EInvoiceGap
+type Missing = MissingDetail | EInvoiceGap | InstructionGap
 
 /**
  * What a document says, put together for issuing, and what it still lacks.
@@ -77,11 +81,15 @@ async function contentForIssuing(
   document: typeof documents.$inferSelect,
 ): Promise<{ content: DocumentContent; missing: readonly Missing[] }> {
   try {
-    const content = await contentOf(tx, document, shippedRules)
+    const { content, gaps } = await contentAndGapsOf(tx, document, shippedRules)
 
     return {
       content,
-      missing: [...missingDetails(shippedRules, content), ...(await eInvoiceRefusals(tx, content))],
+      missing: [
+        ...missingDetails(shippedRules, content),
+        ...(await eInvoiceRefusals(tx, content)),
+        ...gaps,
+      ],
     }
   } catch (error) {
     if (error instanceof RuleError) {
@@ -429,6 +437,18 @@ export class DocumentsController {
 
       if (!created) {
         throw new Error('The successor was written and is not readable afterwards.')
+      }
+
+      // The kind of contract belongs to the deal and not to the letter: the
+      // order confirmation of a delivery is about a delivery as well. What is
+      // switched on or off stays behind, because the successor is a different
+      // kind and gets the proposal for its own.
+      const { variant } = await choicesOf(tx, predecessor.id)
+
+      if (variant !== noInstructionChoices.variant) {
+        await tx
+          .insert(documentInstructionChoices)
+          .values({ tenantId: identity.tenantId, documentId: created.id, variant })
       }
 
       const lines = await tx

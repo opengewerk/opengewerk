@@ -1,4 +1,4 @@
-import { type DocumentKind, instructionTemplates } from '@opengewerk/domain'
+import { type DocumentKind, instructionTemplates, withdrawalVariants } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -9,10 +9,11 @@ import {
   pgTable,
   text,
   uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, timestamps } from './columns.js'
-import { documentKind } from './documents.js'
+import { primaryId, reference, timestamps } from './columns.js'
+import { documentKind, documents } from './documents.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
@@ -72,5 +73,50 @@ export const instructions = pgTable(
       'instructions_based_on',
       sql`${table.basedOn} is null or (${table.template} is not null and ${table.body} is not null)`,
     ),
+  ],
+)
+
+export const withdrawalVariant = pgEnum('withdrawal_variant', withdrawalVariants)
+
+/**
+ * What the office chose on a document about its instructions: the kind of
+ * contract the instruction on withdrawal is filled in for, and the
+ * instructions switched on or off against the proposal.
+ *
+ * One row per document, and only once somebody chose something; a document
+ * without one follows the proposal as a contract about work. Written by a
+ * route and not by the outbox: the choice is made at a desk before issuing,
+ * which needs a connection anyway, and a device has no instructions to choose
+ * from.
+ *
+ * The ids in the two lists are not held by a key, so that deleting an
+ * instruction the business wrote leaves nothing to clean up here. What went
+ * out with an issued document is in its snapshot, and this row says nothing
+ * about it any more.
+ */
+export const documentInstructionChoices = pgTable(
+  'document_instruction_choices',
+  {
+    id: primaryId<'document-instruction-choices'>(),
+    ...tenantColumn,
+    documentId: reference<'document'>('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'restrict' }),
+    variant: withdrawalVariant('variant').notNull().default('service'),
+    switchedOn: uuid('switched_on')
+      .array()
+      .notNull()
+      .default(sql`'{}'`)
+      .$type<readonly string[]>(),
+    switchedOff: uuid('switched_off')
+      .array()
+      .notNull()
+      .default(sql`'{}'`)
+      .$type<readonly string[]>(),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    uniqueIndex('document_instruction_choices_document').on(table.documentId),
   ],
 )

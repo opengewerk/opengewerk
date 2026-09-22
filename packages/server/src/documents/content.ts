@@ -4,6 +4,7 @@ import {
   type DocumentContent,
   documentContent,
   type DocumentId,
+  type InstructionGap,
   type IssuerContent,
   type LogoContent,
   type RuleSet,
@@ -15,6 +16,7 @@ import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import { deductionsFor } from './deductions.js'
+import { instructionsFor } from './instructions.js'
 import {
   customers,
   documentLines,
@@ -100,12 +102,16 @@ export async function issuerOf(tx: TenantTransaction, tenantId: TenantId): Promi
  * it stood on the document's date, like the small business claim that
  * proposed the treatment: an invoice of 2028 says what applied in 2028. The
  * payment term the same way, unless the document states its own.
+ *
+ * The instructions go in filled with the same letterhead the document prints,
+ * and what they lack comes back beside the content, for the one caller that
+ * has to refuse over it: issuing.
  */
-export async function contentOf(
+export async function contentAndGapsOf(
   tx: TenantTransaction,
   document: DocumentRow,
   rules: RuleSet,
-): Promise<DocumentContent> {
+): Promise<{ readonly content: DocumentContent; readonly gaps: readonly InstructionGap[] }> {
   const rows = await tx
     .select()
     .from(documentLines)
@@ -148,10 +154,13 @@ export async function contentOf(
       : null
   }
 
-  return documentContent(rules, {
+  const issuer = await issuerOf(tx, document.tenantId)
+  const instructions = await instructionsFor(tx, document, issuer, customer.isBusiness)
+
+  const content = documentContent(rules, {
     document,
     lines: rows,
-    issuer: await issuerOf(tx, document.tenantId),
+    issuer,
     recipient: {
       name: customer.name,
       street: customer.street,
@@ -176,7 +185,19 @@ export async function contentOf(
       (await parameterAt(tx, 'cash_accounting.permitted', document.documentDate))?.value === 1,
     deductions: await deductionsFor(tx, document),
     paymentTermDays: await paymentTermDaysOf(tx, document),
+    instructions: instructions.contents,
   })
+
+  return { content, gaps: instructions.gaps }
+}
+
+/** Everything a document says, as `contentAndGapsOf` puts it together. */
+export async function contentOf(
+  tx: TenantTransaction,
+  document: DocumentRow,
+  rules: RuleSet,
+): Promise<DocumentContent> {
+  return (await contentAndGapsOf(tx, document, rules)).content
 }
 
 /**

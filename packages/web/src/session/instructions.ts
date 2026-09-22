@@ -1,4 +1,9 @@
-import type { DocumentKind, InstructionTemplate, IsoDate } from '@opengewerk/domain'
+import type {
+  DocumentKind,
+  InstructionTemplate,
+  IsoDate,
+  WithdrawalVariant,
+} from '@opengewerk/domain'
 
 import { request } from '../sync/transport.js'
 
@@ -72,4 +77,65 @@ export function restoreInstruction(id: string): Promise<InstructionView> {
 
 export function removeInstruction(id: string): Promise<unknown> {
   return request(one(id), { method: 'DELETE' })
+}
+
+/** One instruction of the business, and whether it goes with a document. */
+export interface InstructionChoice {
+  readonly id: string
+  readonly title: string
+  readonly template: InstructionTemplate | null
+  readonly proposed: boolean
+  readonly included: boolean
+  readonly withDocument: boolean
+  readonly changed: boolean
+}
+
+/** An instruction the way it is printed with a document; the index names its sheet. */
+export interface PrintedInstruction {
+  readonly index: number
+  readonly title: string
+  readonly withDocument: boolean
+  readonly changed: boolean
+  readonly source: string | null
+}
+
+export interface DocumentInstructions {
+  /** Nothing left to choose: issued, or signed on site. */
+  readonly fixed: boolean
+  readonly variant: WithdrawalVariant
+  readonly choices: readonly InstructionChoice[]
+  readonly printed: readonly PrintedInstruction[]
+  /** What stands in the way of issuing with these instructions. */
+  readonly gaps: readonly string[]
+}
+
+function ofDocument(documentId: string): string {
+  return `/documents/${encodeURIComponent(documentId)}/instructions`
+}
+
+/**
+ * The instructions of a document. Read at the server, which is where the
+ * instructions of the business are and where an issued document keeps what
+ * went out with it.
+ */
+export function documentInstructions(documentId: string): Promise<DocumentInstructions> {
+  return request<DocumentInstructions>(ofDocument(documentId))
+}
+
+/** One choice on a draft: the kind of contract, or one instruction on or off. */
+export function chooseInstructions(
+  documentId: string,
+  choice:
+    | { readonly variant: WithdrawalVariant }
+    | { readonly instructionId: string; readonly included: boolean },
+): Promise<DocumentInstructions> {
+  return request<DocumentInstructions>(ofDocument(documentId), {
+    method: 'PUT',
+    body: JSON.stringify(choice),
+  })
+}
+
+/** Where one instruction of a document can be opened as a sheet of its own. */
+export function instructionSheetAddress(documentId: string, index: number): string {
+  return `${ofDocument(documentId)}/${String(index)}/pdf`
 }

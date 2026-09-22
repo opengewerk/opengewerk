@@ -1,10 +1,17 @@
 import type { DocumentKind } from '../model/document.js'
+import type { InstructionContent, IssuerContent } from '../model/document-content.js'
 import type { IsoDate } from '../model/identifier.js'
-import type {
-  ContractBlocks,
-  Instruction,
-  InstructionTemplate,
-  WithdrawalVariant,
+import {
+  type ContractBlocks,
+  filledInstruction,
+  type Instruction,
+  type InstructionChoices,
+  type InstructionForDocument,
+  type InstructionTemplate,
+  placeholdersIn,
+  proposedFor,
+  unfilledPlaceholders,
+  type WithdrawalVariant,
 } from '../model/instruction.js'
 import shipped from './data/instructions.json' with { type: 'json' }
 
@@ -197,4 +204,156 @@ export function instructionWordingAt(
   }
 
   return wording ? { title: wording.title, text: wording.text, wording, changed: false } : null
+}
+
+/** "28.05.2022", the way a German reads a date. */
+function day(on: IsoDate): string {
+  return `${on.slice(8, 10)}.${on.slice(5, 7)}.${on.slice(0, 4)}`
+}
+
+/** "die Telefonnummer", "die Telefonnummer und die E-Mail-Adresse". */
+function inWords(parts: readonly string[]): string {
+  return parts.length <= 1
+    ? parts.join('')
+    : `${parts.slice(0, -1).join(', ')} und ${parts.at(-1) ?? ''}`
+}
+
+/** Whether an instruction goes with a document: the office's choice, else the proposal. */
+export function includedIn(
+  instruction: Pick<InstructionForDocument, 'id' | 'kinds' | 'consumersOnly'>,
+  choices: InstructionChoices,
+  document: { readonly kind: DocumentKind; readonly recipientIsBusiness: boolean },
+): boolean {
+  if (choices.switchedOff.includes(instruction.id)) {
+    return false
+  }
+
+  return choices.switchedOn.includes(instruction.id) || proposedFor(instruction, document)
+}
+
+/**
+ * The way out that every refusal over an instruction shares: the instruction
+ * was proposed, and a proposal can be wrong for this one document.
+ */
+const switchOff =
+  ' Gehört die Belehrung nicht zu diesem Beleg, lässt sie sich am Beleg unter „Belehrungen“ ' +
+  'abschalten.'
+
+/** Something a document lacks before its instructions can go out, as a sentence. */
+export interface InstructionGap {
+  readonly detail: 'instruction'
+  /** German, and it says where to fix it. */
+  readonly message: string
+}
+
+/**
+ * The instructions of a document, put together the way it goes out, and what
+ * is still missing for them.
+ *
+ * Every instruction of the business is asked whether it goes with this
+ * document, in the business's order. The one that does gets its words of the
+ * document's date, and its placeholders filled from the letterhead and from
+ * the kind of contract chosen on the document.
+ *
+ * What cannot be filled is not printed as a gap in the text, it is a reason
+ * not to issue: an instruction on withdrawal without the business's telephone
+ * number is not the model filled in correctly, and only the model filled in
+ * correctly is a safe harbour. A shipped instruction on a day before its
+ * first version is left out and said to be missing, because printing today's
+ * words under an old date would be a statement about a law that did not say
+ * them.
+ *
+ * Pure, like `documentContent`: the caller reads the instructions, the
+ * choices and the letterhead, and a draft and its issuing come to the same
+ * answer.
+ */
+export function documentInstructions(
+  instructions: readonly InstructionForDocument[],
+  choices: InstructionChoices,
+  document: {
+    readonly kind: DocumentKind
+    readonly documentDate: IsoDate
+    readonly recipientIsBusiness: boolean
+  },
+  issuer: IssuerContent,
+  wordings: readonly ShippedWording[] = shippedWordings,
+): { readonly contents: readonly InstructionContent[]; readonly gaps: readonly InstructionGap[] } {
+  const contents: InstructionContent[] = []
+  const gaps: InstructionGap[] = []
+  const on = document.documentDate
+
+  for (const instruction of instructions) {
+    if (!includedIn(instruction, choices, document)) {
+      continue
+    }
+
+    const words = instructionWordingAt(instruction, on, wordings)
+    const named = `Die Belehrung „${instruction.title}“`
+
+    if (words === null) {
+      const first = instruction.template
+        ? wordings
+            .filter((wording) => wording.template === instruction.template)
+            .map((wording) => wording.validFrom)
+            .sort()[0]
+        : undefined
+
+      gaps.push({
+        detail: 'instruction',
+        message:
+          `${named} ist für den ${day(on)} nicht hinterlegt` +
+          (first ? `, die erste mitgelieferte Fassung gilt ab dem ${day(first)}.` : '.') +
+          switchOff,
+      })
+      continue
+    }
+
+    const blocks = contractBlocksAt(choices.variant, on, wordings)
+    const usesContract = placeholdersIn(words.text).some(
+      (token) => token === '{fristbeginn}' || token === '{folgen}',
+    )
+
+    if (usesContract && blocks === null) {
+      gaps.push({
+        detail: 'instruction',
+        message:
+          `${named} hängt von der Art des Vertrags ab, und für den ${day(on)} ist dafür keine ` +
+          `Fassung des Musters hinterlegt.${switchOff}`,
+      })
+      continue
+    }
+
+    const unfilled = unfilledPlaceholders(words.text, issuer)
+
+    if (unfilled.length > 0) {
+      gaps.push({
+        detail: 'instruction',
+        message:
+          `Für die Belehrung „${instruction.title}“ ${unfilled.length === 1 ? 'fehlt' : 'fehlen'} ` +
+          `im Briefkopf ${inWords(unfilled.map((entry) => entry.missing))}. Eintragen lässt sich ` +
+          `das unter „Einstellungen“, „Briefkopf“.${switchOff}`,
+      })
+    }
+
+    contents.push({
+      title: words.title,
+      text: filledInstruction(words.text, {
+        issuer,
+        blocks: blocks ?? { fristbeginn: '', folgen: '' },
+      }),
+      withDocument: instruction.withDocument,
+      model:
+        instruction.template && words.wording
+          ? {
+              template: instruction.template,
+              validFrom: words.wording.validFrom,
+              source: words.wording.source,
+              changed: words.changed,
+            }
+          : null,
+      variant: choices.variant,
+    })
+  }
+
+  return { contents, gaps }
 }

@@ -4,6 +4,7 @@ import type { Address } from './address.js'
 import type { DocumentKind, TaxTreatment } from './document.js'
 import type { LineKind, LineUnit } from './document-line.js'
 import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from './identifier.js'
+import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
 
 /**
  * Everything a document says, in one record, as it stood when it was issued.
@@ -29,9 +30,9 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  * version 3 the signature, version 4 the progress invoices a document deducts
  * and the amount it bills after them, version 5 the invoice a cancellation
  * cancels, version 6 what an e-invoice needs to know about the recipient,
- * version 7 the payment term.
+ * version 7 the payment term, version 8 the instructions that went with it.
  */
-export const documentContentVersion = 7
+export const documentContentVersion = 8
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -156,6 +157,46 @@ export interface PaymentTermContent {
   readonly dueOn: IsoDate | null
 }
 
+/**
+ * The shipped model an instruction follows, as far as a record of what went
+ * out has to say: which one, which version of the law, and whether the
+ * business changed its words. Whether a document carried the model or
+ * something that only looks like it is a question somebody asks when a
+ * customer withdraws a year later.
+ */
+export interface InstructionModelContent {
+  readonly template: InstructionTemplate
+  /** The version in force on the date of the document. */
+  readonly validFrom: IsoDate
+  readonly source: string
+  /** The business had changed the words; the model's safe harbour does not cover them. */
+  readonly changed: boolean
+}
+
+/**
+ * An instruction as it went out with a document, in the words the customer
+ * got, every placeholder filled in.
+ *
+ * The words are kept whole and not as a reference to the instruction or to
+ * the package. Both change: the business edits its instructions, and the law
+ * edits the model. What the customer was told is what the customer was told,
+ * and the customer portal of phase 5 shows it from here.
+ */
+export interface InstructionContent {
+  readonly title: string
+  /** The words as printed, in the markup `instructionBlocks` reads. */
+  readonly text: string
+  /**
+   * Printed in the document's PDF after the document, and so in its mail as
+   * well; otherwise a sheet of its own, printed when it is needed.
+   */
+  readonly withDocument: boolean
+  /** The shipped model it is or was changed from, or null for one the business wrote. */
+  readonly model: InstructionModelContent | null
+  /** The kind of contract its words were filled in for. */
+  readonly variant: WithdrawalVariant
+}
+
 export interface DocumentContent {
   readonly version: typeof documentContentVersion
   readonly kind: DocumentKind
@@ -204,10 +245,21 @@ export interface DocumentContent {
    * progress invoices before it billed all of it.
    */
   readonly paymentTerm: PaymentTermContent | null
+  /**
+   * The instructions that went with the document, in the order they are
+   * printed. Empty for every document that carried none, and for every
+   * document issued before version 8.
+   */
+  readonly instructions: readonly InstructionContent[]
+}
+
+/** The seventh shape, from #106: the payment term, and no instructions yet. */
+export interface DocumentContentV7 extends Omit<DocumentContent, 'version' | 'instructions'> {
+  readonly version: 7
 }
 
 /** The sixth shape, from #75: the e-invoice details of the recipient, no payment term yet. */
-export interface DocumentContentV6 extends Omit<DocumentContent, 'version' | 'paymentTerm'> {
+export interface DocumentContentV6 extends Omit<DocumentContentV7, 'version' | 'paymentTerm'> {
   readonly version: 6
 }
 
@@ -251,6 +303,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV7
   | DocumentContentV6
   | DocumentContentV5
   | DocumentContentV4

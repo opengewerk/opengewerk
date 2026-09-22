@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import {
   type DocumentContent,
   type DocumentKind,
+  instructionBlocks,
   type IsoDate,
   isInvoice,
   type LineContent,
@@ -528,6 +529,14 @@ const pageStyle = `
   .text { white-space: pre-line; }
   .intro { margin: 0 0 4mm; }
   .closing { margin-top: 8mm; break-inside: avoid; }
+  .instruction { break-before: page; }
+  .annex { font-size: 8.5pt; color: #5b6573; margin: 0 0 2mm; }
+  .instruction h2 { font-size: 13pt; font-weight: 600; margin: 0 0 4mm; }
+  .instruction h3, .sheet h3 { font-size: 10pt; font-weight: 600; margin: 5mm 0 1.5mm; }
+  .instruction p, .sheet p { margin: 0 0 2.5mm; }
+  .instruction ul, .sheet ul { margin: 0 0 2mm; padding-left: 5mm; }
+  .instruction li, .sheet li { margin: 0 0 1.5mm; }
+  .write-line { height: 8mm; border-bottom: 0.4pt solid #1b2430; margin: 0 0 2.5mm; }
   .draft {
     position: fixed; top: 120mm; left: 0; right: 0; text-align: center;
     font-size: 64pt; font-weight: 600; letter-spacing: 6mm;
@@ -565,6 +574,70 @@ function signatureOf(content: DocumentContent): string {
     ${picture}
     <div class="signature-line">${text(signature.signerName)}, ${moments.format(new Date(signature.signedAt))} Uhr</div>
   </section>`
+}
+
+/** "Angebot AN-2026-0012 vom 22.09.2026", and without a number for a draft. */
+function reference(content: DocumentContent): string {
+  const number = content.number === null ? '' : ` ${content.number}`
+
+  return `${titles[content.kind]}${number} vom ${day(content.documentDate)}`
+}
+
+/**
+ * The words of an instruction as the page shows them: headings, paragraphs,
+ * lines to write on, and points that follow each other as one list. Every
+ * piece goes through `text`, like everything else a person typed.
+ */
+function instructionBody(words: string): string {
+  const parts: string[] = []
+  let points: string[] = []
+
+  const closeList = () => {
+    if (points.length > 0) {
+      parts.push(`<ul>${points.join('')}</ul>`)
+      points = []
+    }
+  }
+
+  for (const block of instructionBlocks(words)) {
+    if (block.kind === 'item') {
+      points.push(`<li>${text(block.text)}</li>`)
+      continue
+    }
+
+    closeList()
+
+    if (block.kind === 'heading') {
+      parts.push(`<h3>${text(block.text)}</h3>`)
+    } else if (block.kind === 'paragraph') {
+      parts.push(`<p class="text">${text(block.text)}</p>`)
+    } else {
+      parts.push('<div class="write-line"></div>')
+    }
+  }
+
+  closeList()
+
+  return parts.join('\n')
+}
+
+/**
+ * The instructions that go out with the document, after it, each starting on
+ * a page of its own and saying which document it belongs to. They are part of
+ * the one PDF, so that whoever prints the quote for a customer's kitchen table
+ * cannot forget them, and the mail with the PDF carries them in text form.
+ */
+function appendix(content: DocumentContent): string {
+  return content.instructions
+    .filter((instruction) => instruction.withDocument)
+    .map(
+      (instruction) => `<section class="instruction">
+    <p class="annex">Anlage zu ${text(reference(content))}</p>
+    <h2>${text(instruction.title)}</h2>
+    ${instructionBody(instruction.text)}
+  </section>`,
+    )
+    .join('\n')
 }
 
 /**
@@ -696,6 +769,55 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
   ${notes}
   ${closing}
   ${signatureOf(content)}
+  ${appendix(content)}
+</main>
+</body>
+</html>`
+
+  return { html, footerHtml: footer(content), margin }
+}
+
+/**
+ * One instruction of a document as a sheet of its own: the head of the
+ * document, so that it can go into a window envelope like a letter, the
+ * heading, which document it belongs to, and the words.
+ *
+ * For the instructions that do not go out with the document, the sheet for
+ * an early start first of all, which is printed when the customer wants the
+ * work to begin within the fourteen days and comes back signed. Printed from
+ * the same record as the document, and not kept: it carries nothing the
+ * snapshot does not.
+ */
+export function instructionSheet(
+  content: DocumentContent,
+  index: number,
+  assets: PrintAssets,
+): Required<PrintJob> {
+  const instruction = content.instructions[index]
+
+  if (!instruction) {
+    throw new Error(`The document has no instruction ${String(index)}.`)
+  }
+
+  const draft = content.number === null && content.signature === null
+
+  const html = `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>${text(`${instruction.title}, ${content.issuer.name}`)}</title>
+<style>
+${fontFaces([400, 600])}
+${pageStyle}
+</style>
+</head>
+<body>
+${draft ? '<div class="draft">ENTWURF</div>' : ''}
+<section class="first">${head(content, assets)}</section>
+<main class="sheet">
+  <h1>${text(instruction.title)}</h1>
+  <p class="annex">Zu ${text(reference(content))}</p>
+  ${instructionBody(instruction.text)}
 </main>
 </body>
 </html>`

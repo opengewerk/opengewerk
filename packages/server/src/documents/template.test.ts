@@ -2,6 +2,7 @@ import {
   type ContentSources,
   type DeductionContent,
   documentContent,
+  type InstructionContent,
   type IssuerContent,
   type LineContent,
   type SignatureContent,
@@ -63,6 +64,7 @@ function page(
     readonly deductions?: readonly DeductionContent[]
     readonly cashAccounting?: boolean
     readonly paymentTermDays?: number
+    readonly instructions?: readonly InstructionContent[]
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -97,6 +99,7 @@ function page(
     cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
     paymentTermDays: parts.paymentTermDays ?? 14,
+    instructions: parts.instructions ?? [],
   })
 
   return printJob(content, { logo: null })
@@ -337,6 +340,7 @@ describe('the footer', () => {
       cashAccounting: false,
       deductions: [],
       paymentTermDays: 14,
+      instructions: [],
     })
 
     const { footerHtml } = printJob(content, { logo: null })

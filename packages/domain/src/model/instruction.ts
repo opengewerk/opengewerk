@@ -1,7 +1,13 @@
 import type { Address } from './address.js'
 import type { DocumentKind } from './document.js'
 import type { IssuerContent } from './document-content.js'
-import type { InstructionId, IsoDate, TenantOwned } from './identifier.js'
+import type {
+  DocumentId,
+  DocumentInstructionChoicesId,
+  InstructionId,
+  IsoDate,
+  TenantOwned,
+} from './identifier.js'
 
 /**
  * The instructions OpenGewerk ships, one key per wording.
@@ -80,6 +86,49 @@ export interface Instruction extends TenantOwned {
   readonly withDocument: boolean
   /** Where it stands in the list and in the PDF, lowest first. */
   readonly position: number
+}
+
+/**
+ * What the office chose on a document: the kind of contract, and the
+ * instructions it switched on or off against the proposal. An instruction in
+ * neither list follows the proposal, so that a document written before an
+ * instruction existed gets it proposed like any other.
+ */
+export interface InstructionChoices {
+  readonly variant: WithdrawalVariant
+  readonly switchedOn: readonly string[]
+  readonly switchedOff: readonly string[]
+}
+
+/** A document nobody chose anything on: a contract about work, and the proposal. */
+export const noInstructionChoices: InstructionChoices = {
+  variant: 'service',
+  switchedOn: [],
+  switchedOff: [],
+}
+
+/**
+ * An instruction as far as a document needs it. The id is plain text here,
+ * because the choices on a document name instructions the same way.
+ */
+export type InstructionForDocument = Pick<
+  Instruction,
+  'template' | 'title' | 'body' | 'kinds' | 'consumersOnly' | 'withDocument'
+> & { readonly id: string }
+
+/**
+ * The choices of one document, as they are kept: one row per document, and
+ * only once somebody chose something. A document without a row gets
+ * `noInstructionChoices`.
+ *
+ * The ids in the two lists are not held by a key. An instruction the business
+ * deleted leaves its id behind here, where it names nothing and changes
+ * nothing, and a document that was issued has its instructions in its
+ * snapshot anyway.
+ */
+export interface DocumentInstructionChoices extends TenantOwned, InstructionChoices {
+  readonly id: DocumentInstructionChoicesId
+  readonly documentId: DocumentId
 }
 
 /**
@@ -182,7 +231,7 @@ function issuerValues(issuer: IssuerContent): Readonly<Record<string, string | n
 
 /** What a placeholder is called in a sentence that says it is missing. */
 const missingWords: Readonly<Record<string, string>> = {
-  '{name}': 'den Namen des Betriebs',
+  '{name}': 'der Name des Betriebs',
   '{anschrift}': 'die vollständige Anschrift des Betriebs mit Straße, Postleitzahl und Ort',
   '{telefon}': 'die Telefonnummer des Betriebs',
   '{email}': 'die E-Mail-Adresse des Betriebs',

@@ -28,7 +28,7 @@ import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
-import { printJob } from '../documents/template.js'
+import { instructionSheet, type PrintAssets, printJob } from '../documents/template.js'
 import { zugferdPdf } from '../documents/zugferd.js'
 import {
   type FileStorage,
@@ -244,6 +244,22 @@ export class DocumentFiles {
    * is a fault in the template and says so too, and neither is a crash.
    */
   async print(content: DocumentContent): Promise<Uint8Array> {
+    return this.rendered(content, (assets) => printJob(content, assets))
+  }
+
+  /**
+   * One instruction of a content record as a sheet of its own. Printed on
+   * every request and not kept: it says nothing the snapshot does not, and
+   * nobody receives it by mail.
+   */
+  async printSheet(content: DocumentContent, index: number): Promise<Uint8Array> {
+    return this.rendered(content, (assets) => instructionSheet(content, index, assets))
+  }
+
+  private async rendered(
+    content: DocumentContent,
+    job: (assets: PrintAssets) => Parameters<Renderer>[0],
+  ): Promise<Uint8Array> {
     const logo = content.issuer.logo
       ? {
           mediaType: content.issuer.logo.mediaType,
@@ -252,7 +268,7 @@ export class DocumentFiles {
       : null
 
     try {
-      return await this.render(printJob(content, { logo }))
+      return await this.render(job({ logo }))
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)

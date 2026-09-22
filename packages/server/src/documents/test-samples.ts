@@ -158,6 +158,7 @@ export function content(
     cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
     paymentTermDays: parts.paymentTermDays ?? 14,
+    instructions: [],
   })
 }
 

@@ -91,5 +91,8 @@ export function cancellationOf(
     // A cancellation gives back what the invoice asked for, it asks for
     // nothing itself, and the due date of the invoice is not one of its own.
     paymentTerm: null,
+    // And it tells the customer nothing new: whatever went with the invoice
+    // went with the invoice.
+    instructions: [],
   }
 }
