@@ -501,6 +501,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Workflows nehmen die neuesten Hauptversionen der Actions: `actions/checkout` und
+  `actions/setup-node` in v7, CodeQL in v4. Die alten Fassungen liefen noch auf Node 20,
+  dessen Pflege im April 2026 endete, und CodeQL v3 wird im Dezember 2026 abgekündigt
+
 - Die Roadmap in der README sagt, dass an Phase 1 gearbeitet wird, und verweist für das
   Offene auf den Meilenstein. Dort stand noch, Phase 1 komme als Nächstes, ein Satz aus
   der Zeit vor der ersten Oberfläche
