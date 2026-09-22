@@ -36,6 +36,7 @@ function Navigation() {
       label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',
     },
     ...(readsSettings ? [{ to: '/briefkopf', label: 'Briefkopf' as ReactNode }] : []),
+    ...(readsSettings ? [{ to: '/steuern', label: 'Steuern' as ReactNode }] : []),
     ...(administers ? [{ to: '/zugaenge', label: 'Zugänge' as ReactNode }] : []),
     { to: '/konto', label: 'Konto' },
   ]

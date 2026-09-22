@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Bildschirm "Steuern" im Büro. Dort erklärt der Betrieb den Übergang von 2027 nach
+  § 27 Abs. 38 Satz 1 Nr. 2 UStG und nimmt ihn wieder zurück, mit Verlauf und einer
+  freiwilligen Grundlage; Jahr, Grenze und Frist kommen aus dem Regelpaket. Bisher ging
+  das nur über die Schnittstelle, und ohne Erklärung hält die Pflicht jede Rechnung für
+  Arbeit aus 2027 auf, der für die E-Rechnung eine Angabe fehlt
+- Die Karte "E-Rechnung" einer Rechnung für Arbeit aus 2027 verweist auf diese
+  Erklärung, weil die Pflicht dort an ihr hängt
+
 - Das ZUGFeRD-PDF einer festgeschriebenen Rechnung über `GET /documents/:id/zugferd`: das
   PDF, das die Rechnung aufbewahrt, mit der E-Rechnung im Profil EN 16931 als
   `factur-x.xml`, umgebaut zu PDF/A-3b. Fehlt das PDF noch, wird es dabei gedruckt und

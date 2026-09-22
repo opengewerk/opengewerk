@@ -2,6 +2,7 @@ import type {
   DocumentKind,
   DocumentStatus,
   EInvoiceGap,
+  IsoDate,
   MissingDetail,
   RecordState,
 } from '@opengewerk/domain'
@@ -9,7 +10,9 @@ import {
   invoiceFormats,
   isCancellable,
   isInvoice,
+  shippedRules,
   successorsOf,
+  supplyDateOf,
   whyFixed,
 } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
@@ -38,6 +41,7 @@ import { RequestRefused } from '../../sync/transport.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { HeaderSection } from './document-head.js'
 import { LinesSection } from './document-lines.js'
+import { claimableTransitions } from './taxes.js'
 
 /** What went wrong with a call to the server, in a sentence somebody can act on. */
 function reasonOf(error: unknown, offline: string): string {
@@ -341,7 +345,13 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         />
       ) : null}
 
-      {isInvoice(kind) ? <EInvoiceCard documentId={documentId} status={status} /> : null}
+      {isInvoice(kind) ? (
+        <EInvoiceCard
+          documentId={documentId}
+          status={status}
+          claimMatters={hangsOnClaim(document)}
+        />
+      ) : null}
 
       <HeaderSection document={document} editable={editable} />
       <LinesSection document={document} editable={editable} />
@@ -381,6 +391,23 @@ function Gaps({
 }
 
 /**
+ * Whether the invoice is for work in a year whose transition hangs on the
+ * turnover the business states under "Steuern". The same day the server asks
+ * about, out of the same rule package.
+ */
+function hangsOnClaim(document: RecordState): boolean {
+  const supplied = supplyDateOf({
+    documentDate: text(document, 'documentDate') as IsoDate,
+    serviceFrom: maybeText(document, 'serviceFrom') as IsoDate | null,
+    serviceUntil: maybeText(document, 'serviceUntil') as IsoDate | null,
+  })
+
+  return claimableTransitions(shippedRules).some(
+    (transition) => supplied >= transition.from && supplied <= transition.until,
+  )
+}
+
+/**
  * How an invoice goes out, and why. The customer decides it, not a switch on
  * the document, so the screen says what the master data made of it: an
  * e-invoice for a business in Germany, a PDF for everybody else, each with the
@@ -399,14 +426,18 @@ function Gaps({
 function EInvoiceCard({
   documentId,
   status,
+  claimMatters,
 }: {
   readonly documentId: string
   readonly status: DocumentStatus
+  /** The duty hangs on the transition the business states under "Steuern". */
+  readonly claimMatters: boolean
 }) {
   const answer = useQuery({
     queryKey: ['e-invoice', documentId, status],
     queryFn: () => eInvoiceOf(documentId),
   })
+  const readsSettings = useMay('settings.read')
 
   // An answer this screen does not understand shows nothing, like no answer.
   if (!answer.data || !invoiceFormats.includes(answer.data.format)) {
@@ -435,6 +466,13 @@ function EInvoiceCard({
       <div className="flex flex-col gap-3">
         <p className="text-body text-ink">{reason}</p>
         {duty ? <p className="text-body text-ink">{duty.reason}</p> : null}
+        {duty && claimMatters && readsSettings ? (
+          <p className="text-body text-ink">
+            <Link to="/steuern" className="text-copper-text underline underline-offset-2">
+              Erklärung zum Übergang unter „Steuern“
+            </Link>
+          </p>
+        ) : null}
         <Gaps heading="Für die E-Rechnung fehlt noch:" gaps={both} />
         <Gaps
           heading={

@@ -10,6 +10,7 @@ import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
+import { TaxScreen } from './screens/taxes.js'
 import { TextSnippetScreen } from './screens/text-snippets.js'
 
 /**
@@ -54,6 +55,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/konto', component: AccountScreen }),
   createRoute({ getParentRoute: () => root, path: '/zugaenge', component: StaffScreen }),
   createRoute({ getParentRoute: () => root, path: '/briefkopf', component: LetterheadScreen }),
+  createRoute({ getParentRoute: () => root, path: '/steuern', component: TaxScreen }),
 ]
 
 export const officeRouter = createRouter({

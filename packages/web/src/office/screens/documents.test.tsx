@@ -295,6 +295,7 @@ async function mount(
     }),
     createRoute({ getParentRoute: () => root, path: '/auftraege', component: () => null }),
     createRoute({ getParentRoute: () => root, path: '/kunden/$customerId', component: () => null }),
+    createRoute({ getParentRoute: () => root, path: '/steuern', component: () => null }),
   ])
   const router = createRouter({
     routeTree: tree,
@@ -1030,6 +1031,43 @@ describe('the e-invoice', () => {
     expect(card.getByText(/sobald die Rechnung festgeschrieben ist/)).toBeDefined()
     expect(card.queryByRole('link', { name: 'XRechnung herunterladen' })).toBeNull()
     expect(card.queryByRole('link', { name: 'ZUGFeRD-PDF herunterladen' })).toBeNull()
+    // Work of 2026 falls under a transition nobody has to state.
+    expect(card.queryByRole('link', { name: /Steuern/ })).toBeNull()
+  })
+
+  it('points to the statement under "Steuern" for work of 2027, whose duty hangs on it', async () => {
+    serverSays('GET', '/documents/d-1/e-invoice', () => ({
+      status: 200,
+      body: {
+        ...toBusiness,
+        duty: {
+          required: true,
+          reason:
+            'Pflicht: die Ausnahme für einen Gesamtumsatz im Vorjahr bis 800.000 Euro hat der ' +
+            'Betrieb nicht in Anspruch genommen (§ 27 Abs. 38 Satz 1 Nr. 2 UStG).',
+        },
+        issued: false,
+        xrechnung: { missing: [] },
+        zugferd: { missing: [] },
+      },
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [
+        document({
+          kind: 'final_invoice',
+          documentDate: '2027-02-01',
+          serviceFrom: '2027-01-11',
+          serviceUntil: '2027-01-29',
+        }),
+      ],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const card = within(await screen.findByRole('region', { name: 'E-Rechnung' }))
+    const link = await card.findByRole('link', { name: /unter „Steuern“/ })
+
+    expect(link.getAttribute('href')).toBe('/steuern')
   })
 
   it('offers both forms once the invoice is issued and lacks nothing', async () => {
