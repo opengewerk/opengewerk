@@ -634,6 +634,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Widerrufsbelehrung gehört zu jedem Angebot an einen Verbraucher zwingend, zusammen
+  mit dem Formular und den neuen Hinweisen zum Erlöschen des Widerrufsrechts
+  (Feature-Gliederung v2.13). Am Angebot lassen sich die drei nicht abschalten, unter
+  "Einstellungen" nicht vom Angebot lösen und nicht vom Versand trennen, denn nimmt der
+  Kunde an, muss die Belehrung schon bei ihm sein (Art. 246a § 4 Abs. 1 EGBGB). Einem
+  Kostenvoranschlag wird keine Belehrung mehr vorgeschlagen, von Hand dazunehmen lässt sie
+  sich weiter. Die Hinweise sagen, wann kein Widerrufsrecht besteht und wann es vorzeitig
+  erlischt (Art. 246a § 1 Abs. 3 EGBGB); sie und der Vordruck, der jetzt "Verlangen auf
+  vorzeitigen Leistungsbeginn" heißt, tragen den Wortlaut aus der Widerrufsbelehrung eines
+  Handwerksbetriebs, an der Nummerierung von § 356 BGB berichtigt, und gehen damit wie die
+  Muster in die Prüfung in #31 (Migration 0029)
+
 - Aus der Widerrufsbelehrung als Angebotsanhang werden in der Feature-Gliederung
   Belehrungen, die der Betrieb pflegt (v2.11): mitgeliefert das Muster nach Art. 246a
   EGBGB, dazu eigene, vorhandene änderbar und erweiterbar, je Belehrung mit der E-Mail des
