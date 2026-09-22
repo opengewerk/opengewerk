@@ -199,3 +199,52 @@ export function signedReportMessage(facts: {
 
   return { subject: `${named} von ${facts.issuer.name}`, body }
 }
+
+/**
+ * Where the link of an invitation goes in its message.
+ *
+ * The message is written with this in place of the link, and the job puts the
+ * link in when it sends: the token is made at that moment and exists in the
+ * outgoing mail only. A row in the outbox, and the entries the audit log keeps
+ * of it, never hold a way into the business.
+ */
+export const invitationLink = '{{link}}'
+
+/**
+ * The message a new colleague is invited with.
+ *
+ * Who invites them to what, the link, and the two things a one time link
+ * comes with: it works once and not after its day. And one sentence for the
+ * address that got it by mistake, which is the one person who can do nothing
+ * else with it.
+ */
+export function invitationMessage(facts: {
+  readonly name: string
+  readonly inviter: string | null
+  readonly expiresAt: Date
+  readonly issuer: IssuerContent
+}): MessageText {
+  const until = new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(facts.expiresAt)
+
+  const body = [
+    `Hallo ${facts.name},`,
+    '',
+    `${facts.inviter ?? 'Jemand'} hat Sie eingeladen, bei ${facts.issuer.name} mit OpenGewerk ` +
+      'zu arbeiten. Über diesen Link legen Sie Ihr Passwort fest und sind danach angemeldet:',
+    '',
+    invitationLink,
+    '',
+    `Der Link gilt bis zum ${until} und funktioniert genau einmal. Wenn Sie mit dieser ` +
+      'Einladung nichts anfangen können, ignorieren Sie sie einfach.',
+    '',
+    '-- ',
+    signatureOf(facts.issuer),
+  ].join('\n')
+
+  return { subject: `Einladung zu OpenGewerk von ${facts.issuer.name}`, body }
+}

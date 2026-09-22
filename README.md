@@ -294,6 +294,8 @@ Abschnitt 2 der Feature-Gliederung sieht Benachrichtigungen aus genau zwei Quell
 
 **Der unterschriebene Regiebericht, auf Wunsch sofort.** Unter "E-Mail" im Büro schaltet der Inhaber ein, dass ein Regiebericht, den der Kunde auf der Baustelle unterschreibt, gleich danach an diesen Kunden geht, als PDF mit der Unterschrift (`report.mail_on_signature`). Die Unterschrift ist dafür der Auslöser: der Job findet neu unterschriebene Berichte und schreibt je Bericht eine Nachricht, wenn die Einstellung am Tag der Unterschrift an war und beim Kunden eine Adresse steht. Geschaltet wird ab heute und nie rückwirkend, und der Job sieht nur Unterschriften der letzten 48 Stunden an; wer einschaltet, verschickt damit keinen Stapel alter Berichte. Fehlt die Adresse, bleibt der Bericht beim Büro und lässt sich über die Karte "Per E-Mail" verschicken, wie jeder festgeschriebene Beleg auch schon vor seiner Nummer. Derselbe Bildschirm sagt, ob die Instanz überhaupt einen Mailserver hat und von welcher Adresse sie verschickt.
 
+**Die Einladung, ohne dass das Büro den Link sieht.** Unter "Zugänge" lässt sich ein neuer Zugang auch per E-Mail einladen, statt den Link selbst weiterzugeben. Das Token entsteht dann erst beim Versand: der Job erzeugt es, legt seine Prüfsumme an die Einladung und den Link in die Nachricht. In `mail_outbox` steht an seiner Stelle ein Platzhalter, und damit auch in allem, was das Audit-Log vom Postausgang festhält; wer eine Sicherung der Datenbank in die Hände bekommt, findet darin keinen Weg in einen Betrieb. Scheitert ein Versuch, entsteht beim nächsten ein neues Token, und nur der Link, der ankommt, funktioniert. Eine Einladung, die zurückgezogen, benutzt oder abgelaufen ist, wird nicht mehr verschickt, und die Nachricht bleibt mit diesem Grund stehen. Der Link beginnt mit dem ersten Eintrag aus `TRUSTED_ORIGINS`, wie jeder Link in einer Nachricht.
+
 **Der Betrieb steht in jeder Nachricht.** Als Absender erscheint der Name aus dem Briefkopf, Antworten gehen an die E-Mail-Adresse aus dem Briefkopf, und am Ende steht der Betrieb mit Anschrift und Kontakt. Die Adresse, von der verschickt wird, ist die der Instanz aus `MAIL_FROM`; auf einer Instanz mit mehreren Betrieben sieht so jeder Kunde den Namen seines Betriebs.
 
 ### Audit-Log
@@ -427,6 +429,11 @@ Einmal-Link, und den gibt das Büro weiter, wie es die Person eben erreicht. Auf
 der anderen Seite wählt sie ihr Passwort selbst; niemand im Betrieb bekommt es
 je zu sehen. Ein Passwort, das ein Kollege kennt und das dann drei Jahre bleibt,
 ist schlechter als eines, das niemand kennt.
+
+Hat die Instanz einen Mailserver, geht der Link auf Wunsch gleich per E-Mail an
+die Person, und dann sieht ihn auch im Büro niemand. Unter den offenen
+Einladungen steht, ob die E-Mail angekommen ist; wie das Token dabei entsteht,
+steht unter "Benachrichtigung per E-Mail".
 
 Der Link gilt sieben Tage, funktioniert genau einmal und lässt sich zurückziehen.
 Gespeichert wird von ihm nur eine Prüfsumme, er steht also genau in dem Moment

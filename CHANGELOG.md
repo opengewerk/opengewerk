@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein neuer Zugang lässt sich unter "Zugänge" per E-Mail einladen, statt den Link selbst
+  weiterzugeben. Das Token entsteht erst beim Versand und steht nur in der Mail, weder im
+  Postausgang noch im Audit-Log; scheitert ein Versuch, gilt nur der Link aus dem nächsten.
+  Die offenen Einladungen zeigen, ob die E-Mail angekommen ist (Migration 0024)
+
 - Ein Regiebericht, den der Kunde auf der Baustelle unterschreibt, geht auf Wunsch gleich
   danach per E-Mail an diesen Kunden, als PDF mit der Unterschrift. Ein- und ausgeschaltet
   wird das vom Inhaber auf dem neuen Bildschirm "E-Mail", ab heute und nie rückwirkend

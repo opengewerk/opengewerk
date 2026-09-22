@@ -168,6 +168,7 @@ describe('the staff screen', () => {
       name: 'Nele Neu',
       email: 'neue@nord.example.de',
       roles: ['technician'],
+      send: 'link',
     })
 
     // The address is put together in the browser, out of the one it is already
@@ -177,6 +178,92 @@ describe('the staff screen', () => {
       `https://opengewerk.example.de/einladung/${'b'.repeat(43)}`,
     )
     expect(screen.getByText(/nur jetzt hier/)).toBeTruthy()
+  })
+
+  it('sends the invitation by mail where the instance has a mail server', async () => {
+    serverSays('GET', '/settings/mail', { configured: true, from: 'buero@nord.example.de' })
+    serverSays('POST', '/staff', {
+      id: 'i-1',
+      token: null,
+      expiresAt: '2026-09-29T08:00:00.000Z',
+      email: 'neue@nord.example.de',
+    })
+
+    render(inQueries(<StaffScreen />))
+    await screen.findByText('Max Monteur')
+
+    const person = userEvent.setup()
+
+    await person.click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await person.type(screen.getByLabelText('Name'), 'Nele Neu')
+    await person.type(screen.getByLabelText('E-Mail'), 'neue@nord.example.de')
+    await person.click(await screen.findByRole('button', { name: 'Per E-Mail einladen' }))
+
+    expect(asked('/staff', 'POST')?.body).toEqual({
+      name: 'Nele Neu',
+      email: 'neue@nord.example.de',
+      roles: ['technician'],
+      send: 'mail',
+    })
+
+    // No link to copy: it exists in the message and nowhere else.
+    expect(
+      await screen.findByText(/Die Einladung geht per E-Mail an neue@nord\.example\.de/),
+    ).toBeTruthy()
+    expect(screen.queryByLabelText('Einmal-Link')).toBeNull()
+  })
+
+  it('offers only the link on an instance without a mail server', async () => {
+    serverSays('GET', '/settings/mail', { configured: false, from: null })
+
+    render(inQueries(<StaffScreen />))
+    await screen.findByText('Max Monteur')
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+
+    expect(screen.getByRole('button', { name: 'Link erzeugen' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Per E-Mail einladen' })).toBeNull()
+    expect(screen.getByText(/sobald die Instanz einen Mailserver hat/)).toBeTruthy()
+  })
+
+  it('says for each open invitation how it travels', async () => {
+    const invitation = {
+      email: 'x@nord.example.de',
+      roles: ['technician'],
+      expiresAt: '2026-09-29T08:00:00.000Z',
+      invitedBy: 'u-1',
+    }
+
+    serverSays('GET', '/staff/invitations', [
+      { ...invitation, id: 'i-1', name: 'Lina Link', mail: null },
+      {
+        ...invitation,
+        id: 'i-2',
+        name: 'Paul Post',
+        mail: { status: 'sent', sentAt: '2026-09-22T08:05:00.000Z', lastError: null },
+      },
+      {
+        ...invitation,
+        id: 'i-3',
+        name: 'Fritz Fehler',
+        mail: { status: 'failed', sentAt: null, lastError: 'EENVELOPE: Adresse unbekannt' },
+      },
+    ])
+
+    render(inQueries(<StaffScreen />))
+
+    const table = await screen.findByRole('table', {
+      name: 'Einladungen, die noch benutzt werden können',
+    })
+    const row = (name: string) => within(table).getByText(name).closest('tr') as HTMLElement
+
+    expect(within(row('Lina Link')).getByText('Link weitergegeben')).toBeTruthy()
+    expect(within(row('Paul Post')).getByText(/^Per E-Mail verschickt am /)).toBeTruthy()
+    expect(
+      within(row('Fritz Fehler')).getByText(
+        'E-Mail nicht zugestellt: EENVELOPE: Adresse unbekannt',
+      ),
+    ).toBeTruthy()
   })
 
   it('sends the roles of one person the moment a box is ticked', async () => {

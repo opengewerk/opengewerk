@@ -10,6 +10,7 @@ import {
 import { and, count, eq, inArray, isNull, max, ne, sql } from 'drizzle-orm'
 
 import type { Database, TenantTransaction } from '../database/database.js'
+import { newId } from '../database/identifier.js'
 import {
   authSessions,
   authUsers,
@@ -17,6 +18,7 @@ import {
   memberships,
   tenantSessions,
 } from '../database/schema/index.js'
+import { type InvitationMail, invitationMails } from '../notifications/invitation-mail.js'
 import { mintToken } from './invitation.js'
 
 /**
@@ -81,6 +83,8 @@ export interface InvitationEntry {
   readonly roles: readonly RoleKey[]
   readonly expiresAt: Date
   readonly invitedBy: string
+  /** The message it went out with, for one sent by mail. */
+  readonly mail: InvitationMail | null
 }
 
 /** One device somebody is signed in on in this business. */
@@ -95,7 +99,13 @@ export interface StaffDevice {
 
 /** What an invitation hands back, once. */
 export interface IssuedInvitation {
-  readonly token: string
+  readonly id: InvitationId
+  /**
+   * The token, once, for the office to pass on. Null for an invitation sent
+   * by mail: its token is made when the message goes out and ends up in the
+   * message and nowhere else, the office's screen included.
+   */
+  readonly token: string | null
   readonly expiresAt: Date
   readonly email: string
 }
@@ -206,7 +216,16 @@ export async function listInvitations(
       .from(invitations)
       .where(stillOpen())
 
-    return rows.map((row) => ({ ...row, roles: row.roles as readonly RoleKey[] }))
+    const mails = await invitationMails(
+      tx,
+      rows.map((row) => row.id),
+    )
+
+    return rows.map((row) => ({
+      ...row,
+      roles: row.roles as readonly RoleKey[],
+      mail: mails.get(row.id) ?? null,
+    }))
   })
 }
 
@@ -223,11 +242,17 @@ export async function listInvitations(
  * The case is somebody clicking twice, or an office that mislaid the link, and
  * a second link working alongside the first would be a second way in left over
  * from a mistake.
+ *
+ * An invitation sent by mail keeps the hash of a token nobody ever sees. The
+ * job that sends the message makes the real one at that moment, puts its hash
+ * here and its link into the message, so the token exists in the mail and
+ * nowhere else: not in the outbox, not in the audit log, not on a screen.
  */
 export async function inviteStaff(
   database: Database,
   identity: Identity,
   wanted: { readonly email: string; readonly name: string; readonly roles: readonly RoleKey[] },
+  options: { readonly byMail?: boolean } = {},
 ): Promise<IssuedInvitation> {
   const email = normalise(wanted.email)
   const name = wanted.name.trim()
@@ -251,6 +276,7 @@ export async function inviteStaff(
 
   const { token, hash } = mintToken()
   const expiresAt = new Date(Date.now() + invitationDays * 24 * 60 * 60 * 1000)
+  const id = newId<'invitation'>()
 
   await database.forTenant(identity, async (tx) => {
     await tx
@@ -259,6 +285,7 @@ export async function inviteStaff(
       .where(and(eq(invitations.email, email), stillOpen()))
 
     await tx.insert(invitations).values({
+      id,
       tenantId: identity.tenantId,
       email,
       name,
@@ -269,7 +296,7 @@ export async function inviteStaff(
     })
   })
 
-  return { token, expiresAt, email }
+  return { id, token: options.byMail ? null : token, expiresAt, email }
 }
 
 /** Calls an invitation back before anybody has used it. */
@@ -510,8 +537,8 @@ export async function accountsOf(
   return new Map(rows.map((row) => [row.id, row]))
 }
 
-/** An invitation nobody has used, called back or let run out. */
-function stillOpen() {
+/** An invitation nobody has used, called back or let run out. The job that mails one asks the same. */
+export function stillOpen() {
   return and(
     isNull(invitations.redeemedAt),
     isNull(invitations.revokedAt),

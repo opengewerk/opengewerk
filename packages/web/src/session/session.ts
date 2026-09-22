@@ -241,6 +241,13 @@ export interface StaffEntry {
   readonly twoFactorEnabled: boolean
 }
 
+/** Where the message with an invitation stands, for one sent by mail. */
+export interface InvitationMail {
+  readonly status: 'pending' | 'sent' | 'failed'
+  readonly sentAt: string | null
+  readonly lastError: string | null
+}
+
 export interface InvitationEntry {
   readonly id: string
   readonly email: string
@@ -248,6 +255,8 @@ export interface InvitationEntry {
   readonly roles: readonly RoleKey[]
   readonly expiresAt: string
   readonly invitedBy: string
+  /** Null for a link the office passed on itself. */
+  readonly mail: InvitationMail | null
 }
 
 export function staff(): Promise<readonly StaffEntry[]> {
@@ -259,25 +268,32 @@ export function openInvitations(): Promise<readonly InvitationEntry[]> {
 }
 
 /**
- * Invites somebody, and hands the link back once.
+ * Invites somebody, and hands the link back once, or has it sent by mail.
  *
- * The address is put together here rather than on the server, out of the one
- * the browser is already looking at. The server would have to be told an
- * address, and a wrong one would produce links that lead nowhere on exactly
- * the installations nobody tested.
+ * For a link the office passes on, the address is put together here rather
+ * than on the server, out of the one the browser is already looking at. The
+ * server would have to be told an address, and a wrong one would produce links
+ * that lead nowhere on exactly the installations nobody tested.
+ *
+ * Sent by mail, there is no link to hand back: the server makes the token when
+ * the message goes out, and it is in that message and nowhere else.
  */
 export async function invite(wanted: {
   readonly email: string
   readonly name: string
   readonly roles: readonly RoleKey[]
-}): Promise<{ link: string; expiresAt: string }> {
-  const answer = await request<{ token: string; expiresAt: string }>('/staff', {
+  readonly send: 'link' | 'mail'
+}): Promise<{ link: string | null; expiresAt: string }> {
+  const answer = await request<{ token: string | null; expiresAt: string }>('/staff', {
     method: 'POST',
     body: JSON.stringify(wanted),
   })
 
   return {
-    link: `${globalThis.location.origin}${invitationPath}/${answer.token}`,
+    link:
+      answer.token === null
+        ? null
+        : `${globalThis.location.origin}${invitationPath}/${answer.token}`,
     expiresAt: answer.expiresAt,
   }
 }

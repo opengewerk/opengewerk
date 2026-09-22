@@ -2,12 +2,13 @@ import { index, integer, pgEnum, pgTable, text, timestamp, unique } from 'drizzl
 
 import { primaryId, reference, timestamps } from './columns.js'
 import { documents } from './documents.js'
+import { invitations } from './memberships.js'
 import { tenantIsolation } from './rls.js'
 import { tasks } from './tasks.js'
 import { tenantColumn } from './tenants.js'
 
 /** What a message is about. One kind per cause the notifications know. */
-export const mailKind = pgEnum('mail_kind', ['task_due', 'document'])
+export const mailKind = pgEnum('mail_kind', ['task_due', 'document', 'invitation'])
 
 /**
  * The file a message about a document carries: the PDF, or one of the two
@@ -53,6 +54,9 @@ export const mailOutbox = pgTable(
       onDelete: 'restrict',
     }),
     attachment: mailAttachment('attachment'),
+    invitationId: reference<'invitation'>('invitation_id').references(() => invitations.id, {
+      onDelete: 'restrict',
+    }),
     /** Who asked for the message, for one somebody asked for. Null for a due task. */
     requestedBy: text('requested_by'),
     senderName: text('sender_name').notNull(),
@@ -74,5 +78,6 @@ export const mailOutbox = pgTable(
     index('mail_outbox_due_idx').on(table.tenantId, table.status, table.nextAttemptAt),
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),
     index('mail_outbox_document_idx').on(table.tenantId, table.documentId),
+    index('mail_outbox_invitation_idx').on(table.tenantId, table.invitationId),
   ],
 )
