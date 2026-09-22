@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common'
 import {
   type IsoDate,
+  paymentTermProblem,
   type TenantParameterKey,
   tenantParameterKeys,
   tenantParameterUnits,
@@ -39,8 +40,9 @@ function asDate(value: unknown, what: string): IsoDate {
  *
  * Deliberately not a place where the legal parameters can be reached. Those
  * ship as data packages and are the same for everybody; what is here is the
- * handful of decisions a business makes about its own taxation, and each one
- * carries the period it applied to.
+ * handful of decisions a business makes about itself, its taxation and the
+ * payment term it gives its customers, and each one carries the period it
+ * applied to.
  */
 @Controller('settings/parameters')
 export class SettingsController {
@@ -88,6 +90,17 @@ export class SettingsController {
       throw new BadRequestException(
         `Der Wert muss eine ganze Zahl sein, gezählt in ${tenantParameterUnits[key]}.`,
       )
+    }
+
+    // The payment term goes onto every document that states none of its own,
+    // so the range a document may state is the range the setting may have,
+    // refused with the same sentence the forms show.
+    if (key === 'invoice.payment_term_days') {
+      const problem = paymentTermProblem(value)
+
+      if (problem !== null) {
+        throw new BadRequestException(problem)
+      }
     }
 
     const note = fields['note']

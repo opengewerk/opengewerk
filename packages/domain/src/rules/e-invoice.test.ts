@@ -97,6 +97,7 @@ function invoice(
     signature: null,
     cashAccounting: false,
     deductions: [],
+    paymentTermDays: 14,
   })
 }
 

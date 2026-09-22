@@ -9,6 +9,7 @@ import {
   type LineContent,
   type LineUnit,
   outlineRows,
+  paymentTermText,
   quantityFactor,
   showsPrices,
   signatureBox,
@@ -645,8 +646,14 @@ export function printJob(content: DocumentContent, assets: PrintAssets): Require
         : `${titles[content.kind]} (Entwurf)`
 
   const subject = present(content.subject) ? `<p class="subject">${text(content.subject)}</p>` : ''
-  const notes = content.notes.length
-    ? `<div class="notes">${content.notes.map((note) => `<p>${text(note)}</p>`).join('')}</div>`
+  // Under the totals the sentences the law requires, the tax note first
+  // because it explains the figures right above it, and then when to pay.
+  const sentences = [
+    ...content.notes,
+    ...(content.paymentTerm ? [paymentTermText(content.paymentTerm)] : []),
+  ]
+  const notes = sentences.length
+    ? `<div class="notes">${sentences.map((note) => `<p>${text(note)}</p>`).join('')}</div>`
     : ''
   // Above the lines and below everything else, the way a letter reads: the
   // greeting and the reason for writing first, the legal notes where the

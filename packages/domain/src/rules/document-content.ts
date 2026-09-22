@@ -13,6 +13,7 @@ import type {
   DocumentContentV3,
   DocumentContentV4,
   DocumentContentV5,
+  DocumentContentV6,
   IssuerContent,
   LineContent,
   RecipientContent,
@@ -23,6 +24,7 @@ import type {
 import { documentContentVersion } from '../model/document-content.js'
 import type { DocumentLine } from '../model/document-line.js'
 import { billedAfter, billedOf, totalsFor } from './invoice.js'
+import { paymentTermOf } from './payment.js'
 import type { RuleSet } from './rule.js'
 
 /** What a document is put together from. Gathering it is the caller's work. */
@@ -58,6 +60,13 @@ export interface ContentSources {
    * kind that deducts nothing.
    */
   readonly deductions: readonly DeductionContent[]
+  /**
+   * The payment term that applies, in days: the document's own, or else the
+   * business's setting on the document's date, or else the default. Worked
+   * out by the caller, which reads the setting; whether the document states
+   * it, and as which day, is decided below.
+   */
+  readonly paymentTermDays: number
 }
 
 /**
@@ -139,6 +148,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     }))
 
   const totals = totalsFor(rules, lines, document)
+  const billed = billedAfter(totals, sources.deductions, document.taxTreatment)
 
   // From 2028 an invoice says that the business pays the tax it shows on what
   // it receives, because the customer may only deduct it once it is paid.
@@ -175,10 +185,11 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     }),
     signature: sources.signature,
     deductions: sources.deductions,
-    billed: billedAfter(totals, sources.deductions, document.taxTreatment),
+    billed,
     // Only a cancellation cancels something, and it is not put together here
     // but mirrored out of its invoice: see `cancellationOf`.
     corrects: null,
+    paymentTerm: paymentTermOf(document.kind, sources.paymentTermDays, document.documentDate, billed),
   }
 }
 
@@ -191,24 +202,32 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * are empty; a record from version 2 had no signature; a record from version 3
  * deducted nothing and billed its totals; a record from version 4 cancelled
  * nothing; a record from version 5 kept nothing of the recipient that only an
- * e-invoice needs. That is exactly what each of them said when it was printed.
- * The figures, the addresses and the notes are carried over as they are.
+ * e-invoice needs; a record from version 6 stated no payment term. That is
+ * exactly what each of them said when it was printed. The figures, the
+ * addresses and the notes are carried over as they are.
  *
  * Version 5 is lifted with empty values and not with those of the customer
  * today. An e-invoice made out of such a record lacks them and says so, which
  * is better than one that carries an e-mail address the customer did not have
- * when the invoice went out.
+ * when the invoice went out. Version 6 is lifted the same way, without a term:
+ * its paper named none, and a due date made up today would be a claim the
+ * customer never read.
  */
 export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 5:
-      return {
+    case 6:
+      return { ...stored, version: documentContentVersion, paymentTerm: null }
+    case 5: {
+      const sixth: DocumentContentV6 = {
         ...stored,
-        version: documentContentVersion,
+        version: 6,
         recipient: { ...stored.recipient, email: null, vatId: null, buyerReference: null },
       }
+
+      return currentContent(sixth)
+    }
     case 4: {
       const fifth: DocumentContentV5 = { ...stored, version: 5, corrects: null }
 

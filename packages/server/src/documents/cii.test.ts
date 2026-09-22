@@ -293,6 +293,39 @@ describe('an e-invoice', () => {
     expect(read(ciiInvoice(singleDay, 'en16931'), '//ram:ShipToTradeParty')).toEqual([])
   })
 
+  it('states when to pay, as the sentence of the PDF and as the day, BT-20 and BT-9', () => {
+    const terms = `${settlement}/ram:SpecifiedTradePaymentTerms`
+    const progress = ciiInvoice(secondProgress, 'xrechnung')
+
+    expect(read(progress, `${terms}/ram:Description`)).toEqual([
+      'Zahlbar ohne Abzug bis zum 17.08.2026.',
+    ])
+    expect(read(progress, `${terms}/ram:DueDateDateTime/udt:DateTimeString`)).toEqual([
+      '20260817',
+    ])
+    // Thirty days agreed with the general contractor, and an hour of fault
+    // finding payable at once.
+    expect(
+      read(ciiInvoice(reverseCharge, 'xrechnung'), `${terms}/ram:DueDateDateTime/udt:DateTimeString`),
+    ).toEqual(['20261021'])
+    expect(read(ciiInvoice(singleDay, 'en16931'), `${terms}/ram:Description`)).toEqual([
+      'Zahlbar sofort ohne Abzug.',
+    ])
+  })
+
+  it('asks nothing of the customer where nothing is owed', () => {
+    // The final invoice of the samples comes out below zero, because its
+    // progress invoices billed more than the whole work, and a cancellation
+    // gives back. A due date on either would ask for money nobody owes.
+    expect(finalInvoice.billed.grossCents).toBeLessThan(0)
+
+    for (const owedNothing of [finalInvoice, cancellation]) {
+      expect(
+        read(ciiInvoice(owedNothing, 'xrechnung'), `${settlement}/ram:SpecifiedTradePaymentTerms`),
+      ).toEqual([])
+    }
+  })
+
   it('is refused for what is not an issued invoice this software can write as one', () => {
     expect(() => ciiInvoice({ ...finalInvoice, number: null }, 'xrechnung')).toThrow(RuleError)
     expect(() => ciiInvoice({ ...finalInvoice, kind: 'credit_note' }, 'xrechnung')).toThrow(

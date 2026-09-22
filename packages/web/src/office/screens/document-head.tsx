@@ -1,17 +1,44 @@
 import type { RecordState } from '@opengewerk/domain'
-import { isInvoice, taxTreatments } from '@opengewerk/domain'
+import { isInvoice, paymentTermLabel, statesPaymentTerm, taxTreatments } from '@opengewerk/domain'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Button, Field, SelectField, TextArea } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/labels.js'
+import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
+import { parameterHistory } from '../../session/parameters.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useSync } from '../../sync/provider.js'
 import { Fact, Facts, Section } from '../layout.js'
+import { daysFrom, paymentTermOn } from './payment-term.js'
 import { SnippetPicker, withSnippet } from './snippet-picker.js'
+
+/** The payment term the document states for itself, or null when the setting applies. */
+function ownTerm(document: RecordState): number | null {
+  const value = document['paymentTermDays']
+
+  return typeof value === 'number' ? value : null
+}
+
+/**
+ * The payment term a document shows, and where it comes from: its own, or
+ * the business's setting on its date. The setting is only known to whoever
+ * may read the settings; everybody else learns that it applies, not what it
+ * says.
+ */
+function termFact(own: number | null, setting: number | null): string {
+  if (own !== null) {
+    return `${paymentTermLabel(own)}, nur für diesen Beleg`
+  }
+
+  return setting === null
+    ? 'aus den Einstellungen'
+    : `${paymentTermLabel(setting)}, aus den Einstellungen`
+}
 
 /**
  * When the work was done, the way an invoice prints it: one day, or a period
@@ -33,6 +60,10 @@ function servicePeriod(document: RecordState): string {
  * when it was written, how it is taxed, and what it says before and after the
  * positions. An invoice adds when the work was done, section 14 (4) number 6
  * UStG; a final invoice is not issued without it.
+ *
+ * Every kind that states a payment term shows it here, and here it is
+ * overridden for this one document. Left empty, the business's setting of
+ * the document's date applies, and that is what the head says.
  */
 export function HeaderSection({
   document,
@@ -42,6 +73,16 @@ export function HeaderSection({
   readonly editable: boolean
 }) {
   const [editing, setEditing] = useState(false)
+  const statesTerm = statesPaymentTerm(documentKindOf(document))
+  const readsSettings = useMay('settings.read')
+  const history = useQuery({
+    queryKey: ['parameters'],
+    queryFn: parameterHistory,
+    enabled: statesTerm && readsSettings,
+  })
+  const setting = history.data
+    ? paymentTermOn(history.data, text(document, 'documentDate'))
+    : null
 
   return (
     <Section
@@ -61,6 +102,7 @@ export function HeaderSection({
       {editing && editable ? (
         <HeaderForm
           document={document}
+          setting={setting}
           onDone={() => {
             setEditing(false)
           }}
@@ -73,6 +115,9 @@ export function HeaderSection({
             <Fact label="Leistungszeitraum">{servicePeriod(document)}</Fact>
           ) : null}
           <Fact label="Umsatzsteuer">{taxTreatmentLabel[taxTreatmentOf(document)]}</Fact>
+          {statesTerm ? (
+            <Fact label="Zahlungsziel">{termFact(ownTerm(document), setting)}</Fact>
+          ) : null}
           <Fact label="Text über den Positionen">
             {maybeText(document, 'introText') ? (
               <span className="whitespace-pre-line">{text(document, 'introText')}</span>
@@ -96,9 +141,12 @@ const treatmentOptions = taxTreatments.map((treatment) => ({
 
 function HeaderForm({
   document,
+  setting,
   onDone,
 }: {
   readonly document: RecordState
+  /** The business's payment term on the document's date, when it can be read. */
+  readonly setting: number | null
   readonly onDone: () => void
 }) {
   const client = useSync()
@@ -107,14 +155,33 @@ function HeaderForm({
   const [serviceFrom, setServiceFrom] = useState(text(document, 'serviceFrom'))
   const [serviceUntil, setServiceUntil] = useState(text(document, 'serviceUntil'))
   const invoice = isInvoice(documentKindOf(document))
+  const statesTerm = statesPaymentTerm(documentKindOf(document))
   const [treatment, setTreatment] = useState<string>(taxTreatmentOf(document))
+  const [term, setTerm] = useState(() => {
+    const own = ownTerm(document)
+
+    return own === null ? '' : String(own)
+  })
   const [introText, setIntroText] = useState(text(document, 'introText'))
   const [closingText, setClosingText] = useState(text(document, 'closingText'))
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
+  // Empty is not a mistake here, it hands the document back to the setting.
+  const termRead = term.trim() === '' ? null : daysFrom(term)
+  const termProblem = termRead !== null && 'problem' in termRead ? termRead.problem : null
+
   async function save(event: FormEvent) {
     event.preventDefault()
+
+    // The server would refuse it with the same sentence; said here, it never
+    // reaches the outbox, where a refusal would hold up everything behind it.
+    if (termProblem !== null) {
+      setTrouble(termProblem)
+
+      return
+    }
+
     setWorking(true)
     setTrouble(null)
 
@@ -131,6 +198,9 @@ function HeaderForm({
             }
           : {}),
         taxTreatment: treatment,
+        ...(statesTerm
+          ? { paymentTermDays: termRead !== null && 'days' in termRead ? termRead.days : null }
+          : {}),
         introText: asTextOrNull(introText),
         closingText: asTextOrNull(closingText),
       })
@@ -198,6 +268,25 @@ function HeaderForm({
           hint="Beim Anlegen aus dem Kunden und den Angaben des Betriebs vorgeschlagen."
           onChange={setTreatment}
         />
+        {statesTerm ? (
+          <Field
+            label="Zahlungsziel in Tagen"
+            name="paymentTermDays"
+            inputMode="numeric"
+            numeric
+            value={term}
+            onChange={(event) => {
+              setTerm(event.target.value)
+            }}
+            {...(termProblem === null ? {} : { problem: termProblem })}
+            hint={
+              setting === null
+                ? 'Leer lassen für das Zahlungsziel aus den Einstellungen. 0 heißt sofort zahlbar.'
+                : `Leer lassen für das Zahlungsziel aus den Einstellungen, ${paymentTermLabel(setting)}. ` +
+                  '0 heißt sofort zahlbar.'
+            }
+          />
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

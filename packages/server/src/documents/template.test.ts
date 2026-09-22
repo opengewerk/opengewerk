@@ -62,6 +62,7 @@ function page(
     readonly signature?: SignatureContent | null
     readonly deductions?: readonly DeductionContent[]
     readonly cashAccounting?: boolean
+    readonly paymentTermDays?: number
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -95,6 +96,7 @@ function page(
     signature: parts.signature ?? null,
     cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
+    paymentTermDays: parts.paymentTermDays ?? 14,
   })
 
   return printJob(content, { logo: null })
@@ -144,6 +146,24 @@ describe('the page', () => {
       statement,
     )
     expect(page({ documentDate: '2028-01-03' }).html).not.toContain(statement)
+  })
+
+  it('says when to pay, after the notes that explain the figures above', () => {
+    const { html } = page()
+    const due = 'Zahlbar ohne Abzug bis zum 05.10.2026.'
+
+    expect(html).toContain(`<p>${due}</p>`)
+    expect(html.indexOf('§ 14b Abs. 1 Satz 5 UStG')).toBeLessThan(html.indexOf(due))
+    expect(page({}, { paymentTermDays: 0 }).html).toContain('<p>Zahlbar sofort ohne Abzug.</p>')
+  })
+
+  it('names the days after the invoice on a quote, which has no due date to name', () => {
+    const { html } = page({ kind: 'quote', number: 'AN-2026-0001' }, { paymentTermDays: 30 })
+
+    expect(html).toContain(
+      'Zahlungsbedingungen: zahlbar innerhalb von 30 Tagen nach Rechnungsstellung ohne Abzug.',
+    )
+    expect(html).not.toContain('Zahlbar ohne Abzug bis zum')
   })
 
   it('writes the country of a foreign customer, in capitals, and not the home one', () => {
@@ -316,6 +336,7 @@ describe('the footer', () => {
       signature: null,
       cashAccounting: false,
       deductions: [],
+      paymentTermDays: 14,
     })
 
     const { footerHtml } = printJob(content, { logo: null })
@@ -370,8 +391,11 @@ describe('a report', () => {
     expect(html).toContain('LS-Schalter B16')
     expect(html).not.toContain('Einzelpreis')
     expect(html).not.toContain('Gesamtbetrag')
-    // Nor the note on section 19, which would explain figures that are not there.
+    // Nor the note on section 19, which would explain figures that are not there,
+    // nor a payment term for an amount nobody asks for.
     expect(html).not.toContain('§ 19 UStG')
+    expect(html).not.toContain('Zahlbar')
+    expect(html).not.toContain('Zahlungsbedingungen')
   })
 
   it('carries the signature, with who signed and when, and calls itself final', () => {

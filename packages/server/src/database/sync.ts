@@ -8,6 +8,7 @@ import {
   type Operation,
   type OperationOutcome,
   type OperationReceipt,
+  paymentTermProblem,
   policyFor,
   type RecordState,
   signaturePathIsValid,
@@ -332,6 +333,22 @@ async function applyOne(
         fields: refusal.fields,
         current,
       })
+    }
+  }
+
+  // A payment term outside what `paymentTermProblem` allows is a mistake in
+  // the client, like a signature path it did not draw: the form checks the
+  // same function before anything is queued. Refused here with that sentence
+  // rather than by the check in the database with one nobody can act on.
+  if (
+    operation.entity === 'documents' &&
+    values['paymentTermDays'] !== undefined &&
+    values['paymentTermDays'] !== null
+  ) {
+    const problem = paymentTermProblem(values['paymentTermDays'])
+
+    if (problem !== null) {
+      throw new UnknownFieldError(problem)
     }
   }
 

@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Zahlungsziel: der Inhaber stellt unter "Einstellungen" und dort "Zahlungsziel" ein,
+  wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben sind 14, gültig ab einem Tag wie
+  die übrigen Einstellungen. Jeder Beleg kann in seinem Kopf ein eigenes haben, und ein
+  Folgebeleg übernimmt es (Migration 0026). Angebot, Kostenvoranschlag und
+  Auftragsbestätigung drucken die Tage, eine Rechnung den Tag, bis zu dem sie bezahlt sein
+  soll; die E-Rechnung trägt beides (BT-20, BT-9). Eingefroren wird es mit dem Beleg, in
+  Fassung 7 des eingefrorenen Stands, damit eine spätere Änderung keine Rechnung verschiebt,
+  die schon draußen ist
 - Die Nummernkreise im Büro: je Kreis das Muster und die nächste Nummer, mit einer Vorschau
   des nächsten Belegs beim Tippen. Ein neues Muster gilt ab dem nächsten Beleg, die nächste
   Nummer lässt sich nur erhöhen, etwa um die Zählung eines bisherigen Programms

@@ -7,6 +7,7 @@ import {
   type IsoDate,
   type LineUnit,
   outlineRows,
+  paymentTermText,
   quantityFactor,
   RuleError,
   type TaxTreatment,
@@ -517,6 +518,28 @@ function paymentMeans(content: DocumentContent): string {
 }
 
 /**
+ * When to pay, BT-20 and BT-9: the sentence the PDF prints and the day it
+ * names. BR-CO-25 asks for one of the two whenever the amount due is positive,
+ * and both go in, because a person reads the one and a program the other. An
+ * invoice that asks for nothing has no term, see `paymentTermOf`, and a
+ * cancellation never has one.
+ */
+function paymentTerms(content: DocumentContent): string {
+  const term = content.paymentTerm
+
+  if (term === null) {
+    return ''
+  }
+
+  return (
+    '<ram:SpecifiedTradePaymentTerms>' +
+    element('ram:Description', paymentTermText(term)) +
+    (term.dueOn === null ? '' : `<ram:DueDateDateTime>${date(term.dueOn)}</ram:DueDateDateTime>`) +
+    '</ram:SpecifiedTradePaymentTerms>'
+  )
+}
+
+/**
  * The notes of the document, BG-1: the subject, the sentence a cancellation
  * opens with, and the sentences the law requires under the totals. The letter
  * around the lines stays in the PDF, it is a letter and no statement of the
@@ -618,6 +641,7 @@ export function ciiInvoice(content: DocumentContent, profile: EInvoiceProfile): 
     paymentMeans(content) +
     groups.map((group) => headerTax(group, content)).join('') +
     period +
+    paymentTerms(content) +
     '<ram:SpecifiedTradeSettlementHeaderMonetarySummation>' +
     `<ram:LineTotalAmount>${amount(lineTotal)}</ram:LineTotalAmount>` +
     `<ram:TaxBasisTotalAmount>${amount(lineTotal)}</ram:TaxBasisTotalAmount>` +

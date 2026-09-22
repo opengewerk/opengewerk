@@ -333,6 +333,10 @@ beforeEach(() => {
   calls = []
   answers = new Map()
 
+  // The head of a quote or an invoice reads the payment term of the business.
+  // None set, so the default applies, unless a test says otherwise.
+  serverSays('GET', '/settings/parameters', () => ({ status: 200, body: [] }))
+
   serverSays('GET', '/documents/text-snippets', () => ({
     status: 200,
     body: [
@@ -811,6 +815,89 @@ describe('invoices in the chain', () => {
     await screen.findByRole('heading', { level: 1, name: 'Angebot' })
 
     expect(screen.queryByText('Leistungszeitraum')).toBeNull()
+  })
+})
+
+/**
+ * The payment term in the head of a document: the business's setting of the
+ * document's date, or one for this document alone. Emptied, the field hands
+ * the document back to the setting.
+ */
+describe('the payment term', () => {
+  const thirtyFromSeptember = [
+    {
+      id: 'p-1',
+      key: 'invoice.payment_term_days',
+      validFrom: '2026-09-01',
+      validUntil: null,
+      value: 30,
+      note: null,
+    },
+  ]
+
+  it('is the setting of the date of the quote, and says so', async () => {
+    serverSays('GET', '/settings/parameters', () => ({ status: 200, body: thirtyFromSeptember }))
+    await mount('/belege/d-1')
+
+    expect(await screen.findByText('30 Tage, aus den Einstellungen')).toBeDefined()
+  })
+
+  it('is set for this document alone through the outbox', async () => {
+    await mount('/belege/d-1')
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
+    await person.type(screen.getByLabelText('Zahlungsziel in Tagen'), '45')
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('documents')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('documents')[0])).toMatchObject({ paymentTermDays: 45 })
+    expect(await screen.findByText('45 Tage, nur für diesen Beleg')).toBeDefined()
+  })
+
+  it('goes back to the setting when the field is emptied', async () => {
+    await mount('/belege/d-1', { documents: [document({ paymentTermDays: 45 })] })
+    const person = userEvent.setup()
+
+    expect(await screen.findByText('45 Tage, nur für diesen Beleg')).toBeDefined()
+
+    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
+    await person.clear(screen.getByLabelText('Zahlungsziel in Tagen'))
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('documents')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('documents')[0])).toMatchObject({ paymentTermDays: null })
+    expect(await screen.findByText('14 Tage, aus den Einstellungen')).toBeDefined()
+  })
+
+  it('refuses a term no document may state, before anything is queued', async () => {
+    await mount('/belege/d-1')
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
+    await person.type(screen.getByLabelText('Zahlungsziel in Tagen'), '400')
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Das Zahlungsziel liegt zwischen 0 und 365 Tagen, 0 heißt sofort zahlbar.',
+    )
+    expect(server.operationsOn('documents')).toHaveLength(0)
+  })
+
+  it('is not asked on a report, which asks for nothing', async () => {
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'time_and_material_report', subject: null })],
+    })
+
+    await screen.findByRole('heading', { level: 1, name: 'Regiebericht' })
+
+    expect(screen.queryByText('Zahlungsziel')).toBeNull()
   })
 })
 

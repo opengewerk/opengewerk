@@ -88,5 +88,8 @@ export function cancellationOf(
     billed: turnedRound(original.billed),
     signature: null,
     corrects,
+    // A cancellation gives back what the invoice asked for, it asks for
+    // nothing itself, and the due date of the invoice is not one of its own.
+    paymentTerm: null,
   }
 }

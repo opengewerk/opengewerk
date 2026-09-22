@@ -1,5 +1,6 @@
 import {
   currentContent,
+  defaultPaymentTermDays,
   type DocumentContent,
   documentContent,
   type DocumentId,
@@ -97,7 +98,8 @@ export async function issuerOf(tx: TenantTransaction, tenantId: TenantId): Promi
  *
  * Whether the business calculated its tax on the amounts received is read as
  * it stood on the document's date, like the small business claim that
- * proposed the treatment: an invoice of 2028 says what applied in 2028.
+ * proposed the treatment: an invoice of 2028 says what applied in 2028. The
+ * payment term the same way, unless the document states its own.
  */
 export async function contentOf(
   tx: TenantTransaction,
@@ -173,7 +175,28 @@ export async function contentOf(
     cashAccounting:
       (await parameterAt(tx, 'cash_accounting.permitted', document.documentDate))?.value === 1,
     deductions: await deductionsFor(tx, document),
+    paymentTermDays: await paymentTermDaysOf(tx, document),
   })
+}
+
+/**
+ * The payment term that applies to a document, in days: its own when it
+ * states one, else the business's setting on the document's date, else the
+ * default. Asked for every kind, and only the kinds that state a term print
+ * it; reading one parameter too many costs less than a second list of kinds
+ * to keep in step with `statesPaymentTerm`.
+ */
+export async function paymentTermDaysOf(
+  tx: TenantTransaction,
+  document: Pick<DocumentRow, 'paymentTermDays' | 'documentDate'>,
+): Promise<number> {
+  if (document.paymentTermDays !== null) {
+    return document.paymentTermDays
+  }
+
+  const setting = await parameterAt(tx, 'invoice.payment_term_days', document.documentDate)
+
+  return setting?.value ?? defaultPaymentTermDays
 }
 
 /**
