@@ -4,10 +4,12 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   Patch,
   Post,
   Put,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import type { RoleKey } from '@opengewerk/domain'
 
@@ -26,8 +28,10 @@ import {
   type StaffEntry,
 } from '../authentication/administration.js'
 import { Database } from '../database/database.js'
+import { notify } from '../notifications/notify.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields } from './body.js'
+import { MAIL, type MailSettings } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
@@ -51,7 +55,10 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
  */
 @Controller('staff')
 export class StaffController {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    @Inject(MAIL) private readonly mail: MailSettings | null,
+  ) {}
 
   @Get()
   @RequiresPermission('membership.read')
@@ -60,32 +67,65 @@ export class StaffController {
   }
 
   /**
-   * Invites somebody, and hands back the link once.
+   * Invites somebody, and hands back the link once, or sends it by mail.
    *
-   * The token is in the answer and nowhere else: what the database keeps is
-   * its hash. So this is the only moment it can be shown, and the screen says
-   * so rather than offering it again later.
+   * Passed on by the office, the token is in the answer and nowhere else:
+   * what the database keeps is its hash. So this is the only moment it can be
+   * shown, and the screen says so rather than offering it again later. The
+   * address the link starts with is not put together here, the browser that
+   * asked is looking at the instance already and knows it.
    *
-   * The address the link starts with is not put together here. The browser
-   * that asked is looking at the instance already and knows its address; the
-   * server would have to be told one, and a wrong one would produce links that
-   * lead nowhere on exactly the installations nobody tested.
+   * Sent by mail (`send: "mail"`), the answer carries no token at all. The job
+   * that sends the message makes one at that moment, and the link in the mail
+   * starts with the first trusted origin, like every link in a message. The
+   * office sees the message under the invitation, not the link.
    */
   @Post()
   @RequiresPermission('membership.write')
-  invite(
+  async invite(
     @CurrentIdentity() identity: RequestIdentity,
     @Body() body: unknown,
   ): Promise<IssuedInvitation> {
-    const values = pick(body, ['email', 'name', 'roles'] as const)
+    const values = pick(body, ['email', 'name', 'roles', 'send'] as const)
 
     requireFields(values, ['email', 'name'] as const)
 
-    return inviteStaff(this.database, identity, {
-      email: text(values.email, 'email'),
-      name: text(values.name, 'name'),
-      roles: rolesFrom(values.roles),
-    })
+    if (values.send !== undefined && values.send !== 'link' && values.send !== 'mail') {
+      throw new BadRequestException('send ist "link" oder "mail".')
+    }
+
+    const byMail = values.send === 'mail'
+
+    if (byMail && this.mail === null) {
+      throw new ServiceUnavailableException(
+        'Für diese Instanz ist kein Mailserver eingerichtet, die Einladung lässt sich deshalb ' +
+          'nicht per E-Mail schicken. Der Link zum Weitergeben geht trotzdem.',
+      )
+    }
+
+    const issued = await inviteStaff(
+      this.database,
+      identity,
+      {
+        email: text(values.email, 'email'),
+        name: text(values.name, 'name'),
+        roles: rolesFrom(values.roles),
+      },
+      { byMail },
+    )
+
+    // Sent by mail, the invitation is a cause like a due task: the message is
+    // written now and goes out with the job, which makes the link as it sends.
+    if (byMail && this.mail !== null) {
+      await notify(
+        this.database,
+        identity.tenantId,
+        { kind: 'invitation', invitationId: issued.id, requestedBy: identity.userId },
+        { origin: this.mail.origin },
+      )
+    }
+
+    return issued
   }
 
   /** The links of this business that can still be used. */

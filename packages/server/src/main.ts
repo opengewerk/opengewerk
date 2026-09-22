@@ -16,6 +16,7 @@ import { DocumentFiles } from './api/document-files.js'
 import { interfacePath, serveInterface } from './interface.js'
 import { documentAttachments } from './mail/attachments.js'
 import { checkMailServer } from './mail/check.js'
+import { invitationLinks } from './mail/invitation-link.js'
 import { readMailConfiguration } from './mail/configuration.js'
 import { smtpTransport } from './mail/transport.js'
 import { startMailWorker } from './mail/worker.js'
@@ -182,6 +183,7 @@ async function start(): Promise<void> {
       // The same store and renderer the routes use, so that the file a
       // message carries is the file the document keeps.
       attachments: documentAttachments(new DocumentFiles(database, output.files, output.renderer)),
+      invitationLinks: invitationLinks(database, origin),
     })
   }
 

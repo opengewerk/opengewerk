@@ -3,7 +3,9 @@ import { sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import { dueTasks, notify, signedReports } from '../notifications/notify.js'
+import { invitationLink } from '../notifications/templates.js'
 import type { AttachmentSource } from './attachments.js'
+import type { InvitationLinkSource } from './invitation-link.js'
 import { claimDue, markFailed, markSent, type OutboxRow } from './outbox.js'
 import {
   type MailAttachment,
@@ -26,6 +28,8 @@ export interface MailJob {
    * sends a document wants.
    */
   readonly attachments?: AttachmentSource
+  /** Where the link of an invitation comes from, made when its message goes out. */
+  readonly invitationLinks?: InvitationLinkSource
   readonly now?: () => Date
 }
 
@@ -69,6 +73,7 @@ async function everyTenant(database: Database): Promise<readonly TenantId[]> {
 function outgoing(
   row: OutboxRow,
   from: string,
+  text: string,
   attachments: readonly MailAttachment[],
 ): OutgoingMail {
   return {
@@ -76,9 +81,29 @@ function outgoing(
     replyTo: row.replyTo,
     to: { name: row.recipientName, address: row.recipientAddress },
     subject: row.subject,
-    text: row.body,
+    text,
     attachments,
   }
+}
+
+/**
+ * The text as it goes out. For an invitation the link is put in now, and
+ * made now; every other message goes out as it was written.
+ */
+async function textOf(job: MailJob, row: OutboxRow): Promise<string> {
+  if (row.kind !== 'invitation') {
+    return row.body
+  }
+
+  if (!job.invitationLinks) {
+    throw new MailDeliveryError(
+      'Für Einladungen ist in diesem Lauf nichts eingerichtet.',
+      'EINVITATION',
+      null,
+    )
+  }
+
+  return row.body.replace(invitationLink, await job.invitationLinks(row))
 }
 
 /** The files a message carries, made or read now. */
@@ -145,7 +170,9 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
 
         if (failure === null) {
           try {
-            await job.transport.send(outgoing(row, job.from, await attachmentsOf(job, row)))
+            await job.transport.send(
+              outgoing(row, job.from, await textOf(job, row), await attachmentsOf(job, row)),
+            )
             await job.database.forTenant(actor, (tx) => markSent(tx, row.id, clock()))
             report.sent += 1
 

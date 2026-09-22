@@ -1,5 +1,6 @@
 import {
   type DocumentId,
+  type InvitationId,
   type IsoDate,
   shippedRules,
   type TaskId,
@@ -7,13 +8,14 @@ import {
 } from '@opengewerk/domain'
 import { and, eq, gte, isNull, sql } from 'drizzle-orm'
 
-import { accountsOf } from '../authentication/administration.js'
+import { accountsOf, stillOpen } from '../authentication/administration.js'
 import type { Database } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import {
   customers,
   documents,
   documentSignatures,
+  invitations,
   jobs,
   mailOutbox,
   memberships,
@@ -24,6 +26,7 @@ import { contentOf, frozenContent, issuerOf } from '../documents/content.js'
 import {
   type DocumentAttachment,
   documentMessage,
+  invitationMessage,
   signedReportMessage,
   taskDueMessage,
 } from './templates.js'
@@ -70,6 +73,16 @@ export type Notification =
       readonly kind: 'report_signed'
       readonly documentId: DocumentId
     }
+  | {
+      /**
+       * Somebody invited to work in the business, with the link by mail
+       * instead of passed on by the office. A change of status again: the
+       * invitation exists and is to be delivered.
+       */
+      readonly kind: 'invitation'
+      readonly invitationId: InvitationId
+      readonly requestedBy: string
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -86,6 +99,8 @@ export function causeOf(notification: Notification): string {
       return `document:${notification.documentId}:${notification.request}`
     case 'report_signed':
       return `report_signed:${notification.documentId}`
+    case 'invitation':
+      return `invitation:${notification.invitationId}`
   }
 }
 
@@ -190,6 +205,8 @@ export async function notify(
       return documentToCustomer(database, tenantId, notification)
     case 'report_signed':
       return signedReport(database, tenantId, notification)
+    case 'invitation':
+      return invitationByMail(database, tenantId, notification)
   }
 }
 
@@ -495,4 +512,72 @@ async function signedReport(
 
     return written.map((row) => row.id)
   })
+}
+
+/**
+ * An invitation on its way to the person invited.
+ *
+ * Only an open one: called back, used or run out before the message is
+ * written, it gets none. The message holds a placeholder where the link goes;
+ * the job makes the token when it sends, see `mail/invitation-link.ts`.
+ */
+async function invitationByMail(
+  database: Database,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'invitation' }>,
+): Promise<readonly string[]> {
+  const actor = { tenantId, userId: notification.requestedBy, reason: 'notification' }
+
+  const found = await database.forTenant(actor, async (tx) => {
+    const [invitation] = await tx
+      .select({
+        id: invitations.id,
+        email: invitations.email,
+        name: invitations.name,
+        invitedBy: invitations.invitedBy,
+        expiresAt: invitations.expiresAt,
+      })
+      .from(invitations)
+      .where(and(eq(invitations.id, notification.invitationId), stillOpen()))
+
+    return invitation ? { invitation, issuer: await issuerOf(tx, tenantId) } : null
+  })
+
+  if (!found) {
+    return []
+  }
+
+  // The one who invited works here, the invitation says so; their name is
+  // looked up on the instance for exactly that identifier.
+  const inviter = (await accountsOf(database, [found.invitation.invitedBy], '')).get(
+    found.invitation.invitedBy,
+  )
+  const text = invitationMessage({
+    name: found.invitation.name,
+    inviter: inviter?.name ?? null,
+    expiresAt: found.invitation.expiresAt,
+    issuer: found.issuer,
+  })
+
+  const written = await database.forTenant(actor, (tx) =>
+    tx
+      .insert(mailOutbox)
+      .values({
+        tenantId,
+        kind: 'invitation',
+        cause: causeOf(notification),
+        invitationId: found.invitation.id,
+        requestedBy: notification.requestedBy,
+        senderName: found.issuer.name,
+        replyTo: found.issuer.email,
+        recipientAddress: found.invitation.email,
+        recipientName: found.invitation.name,
+        subject: text.subject,
+        body: text.body,
+      })
+      .onConflictDoNothing({ target: [mailOutbox.tenantId, mailOutbox.cause] })
+      .returning({ id: mailOutbox.id }),
+  )
+
+  return written.map((row) => row.id)
 }

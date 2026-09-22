@@ -44,7 +44,9 @@ export class MailDeliveryError extends Error {
     // `EDOCUMENT` is ours: the document a message is about has no file to
     // give, a draft or one that lacks what its e-invoice needs. Trying again
     // an hour later makes the same file out of the same frozen content.
-    if (this.code === 'EENVELOPE' || this.code === 'EDOCUMENT') {
+    // `EINVITATION` too: an invitation that was called back, used or has run
+    // out gives no link, and it does not become open again.
+    if (this.code === 'EENVELOPE' || this.code === 'EDOCUMENT' || this.code === 'EINVITATION') {
       return true
     }
 

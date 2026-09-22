@@ -169,6 +169,13 @@
       "when": 1790063270995,
       "tag": "0023_report_mail_on_signature",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790064307767,
+      "tag": "0024_invitation_mail",
+      "breakpoints": true
     }
   ]
 }

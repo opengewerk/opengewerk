@@ -1,11 +1,12 @@
 import { requiresSecondFactor, roleKeys } from '@opengewerk/domain'
 import type { RoleKey } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { Button, Cell, Column, Field, Table } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { roleLabel, rolesInWords } from '../../app/labels.js'
+import { mailStatus } from '../../session/mail.js'
 import { RequestRefused } from '../../sync/transport.js'
 import {
   invite,
@@ -17,7 +18,7 @@ import {
   staffDevices,
   withdrawInvitation,
 } from '../../session/session.js'
-import type { StaffEntry } from '../../session/session.js'
+import type { InvitationMail, StaffEntry } from '../../session/session.js'
 import { Nothing, Page, Section } from '../layout.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -38,7 +39,9 @@ function saidWhy(error: unknown, fallback: string): string {
  * The password is never here. A new colleague gets a link, the link is shown
  * once, and what they type into it nobody in the office sees. The issue put
  * the reason in one sentence: a password a colleague knows and that then stays
- * for three years is worse than one nobody knows.
+ * for three years is worse than one nobody knows. Where the instance can send
+ * mail, the link can go straight to the person instead, and then nobody in the
+ * office sees even that.
  *
  * Making somebody an owner is said before it is done, not after. The
  * requirement for a second factor hangs on the role and is checked on every
@@ -54,8 +57,10 @@ export function StaffScreen() {
   const queries = useQueryClient()
   const people = useQuery({ queryKey: ['staff'], queryFn: staff })
   const invitations = useQuery({ queryKey: ['invitations'], queryFn: openInvitations })
+  const mail = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
   const [trouble, setTrouble] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
+  const [mailedTo, setMailedTo] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
   const [devicesOf, setDevicesOf] = useState<string | null>(null)
 
@@ -100,6 +105,7 @@ export function StaffScreen() {
           onClick={() => {
             setTrouble(null)
             setLink(null)
+            setMailedTo(null)
             setInviting(true)
           }}
         >
@@ -116,9 +122,11 @@ export function StaffScreen() {
       {inviting ? (
         <Section title="Neuer Zugang">
           <InviteForm
+            byMail={mail.data?.configured === true}
             onDone={(made) => {
               setInviting(false)
-              setLink(made)
+              setLink(made.link)
+              setMailedTo(made.link === null ? made.email : null)
               refresh()
             }}
             onCancel={() => {
@@ -130,6 +138,7 @@ export function StaffScreen() {
       ) : null}
 
       {link ? <NewLink link={link} onDone={() => setLink(null)} /> : null}
+      {mailedTo ? <MailedInvitation email={mailedTo} onDone={() => setMailedTo(null)} /> : null}
 
       <Section title="Konten">
         {/*
@@ -250,6 +259,7 @@ export function StaffScreen() {
                 <Column>E-Mail</Column>
                 <Column>Rollen</Column>
                 <Column>Gilt bis</Column>
+                <Column>Weg</Column>
                 <Column>
                   <span className="sr-only">Zurückziehen</span>
                 </Column>
@@ -262,6 +272,7 @@ export function StaffScreen() {
                   <Cell>{entry.email}</Cell>
                   <Cell>{rolesInWords(entry.roles)}</Cell>
                   <Cell>{moment(entry.expiresAt)}</Cell>
+                  <Cell>{deliveryInWords(entry.mail)}</Cell>
                   <Cell>
                     <Button
                       tone="danger"
@@ -330,33 +341,94 @@ function NewLink({ link, onDone }: { readonly link: string; readonly onDone: () 
   )
 }
 
+/**
+ * How an open invitation travels: passed on by the office, or by mail and how
+ * far that got. A message that could not be delivered says why, because the
+ * office is the one who can do something about a mistyped address.
+ */
+function deliveryInWords(mail: InvitationMail | null): string {
+  if (mail === null) {
+    return 'Link weitergegeben'
+  }
+
+  switch (mail.status) {
+    case 'sent':
+      return mail.sentAt
+        ? `Per E-Mail verschickt am ${moment(mail.sentAt)}`
+        : 'Per E-Mail verschickt'
+    case 'pending':
+      return mail.lastError ? `E-Mail wartet: ${mail.lastError}` : 'E-Mail wird verschickt'
+    case 'failed':
+      return `E-Mail nicht zugestellt: ${mail.lastError ?? 'ohne Angabe'}`
+  }
+}
+
+/**
+ * The invitation that went by mail. Nothing to copy here, on purpose: the
+ * link exists in the message and nowhere else, this screen included.
+ */
+function MailedInvitation({
+  email,
+  onDone,
+}: {
+  readonly email: string
+  readonly onDone: () => void
+}) {
+  return (
+    <Section
+      title="Einladung per E-Mail"
+      actions={
+        <Button tone="secondary" onClick={onDone}>
+          Fertig
+        </Button>
+      }
+    >
+      <p role="status" className="text-body">
+        Die Einladung geht per E-Mail an {email}. Der Link darin gilt sieben Tage und funktioniert
+        genau einmal; im Büro sieht ihn niemand. Ob die E-Mail angekommen ist, steht unten bei den
+        offenen Einladungen.
+      </p>
+    </Section>
+  )
+}
+
 /** Name, address and roles. The password is deliberately not here. */
 function InviteForm({
+  byMail,
   onDone,
   onCancel,
   onTrouble,
 }: {
-  readonly onDone: (link: string) => void
+  /** Whether the instance can send mail, which offers the second way. */
+  readonly byMail: boolean
+  readonly onDone: (made: { link: string | null; email: string }) => void
   readonly onCancel: () => void
   readonly onTrouble: (sentence: string | null) => void
 }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [chosen, setChosen] = useState<readonly RoleKey[]>(['technician'])
-  const [working, setWorking] = useState(false)
+  // Which way is being worked on, for the button that says so.
+  const [working, setWorking] = useState<'link' | 'mail' | null>(null)
+  // Which of the two buttons submitted the form. A ref and not state: the
+  // click sets it and the submit that follows in the same moment reads it,
+  // before React would have rendered a new value.
+  const way = useRef<'link' | 'mail'>('link')
 
   async function submit() {
-    setWorking(true)
+    const send = way.current
+
+    setWorking(send)
     onTrouble(null)
 
     try {
-      const { link } = await invite({ name, email, roles: chosen })
+      const { link } = await invite({ name, email, roles: chosen, send })
 
-      onDone(link)
+      onDone({ link, email: email.trim() })
     } catch (error) {
       onTrouble(saidWhy(error, 'Der Zugang ließ sich nicht anlegen.'))
     } finally {
-      setWorking(false)
+      setWorking(null)
     }
   }
 
@@ -414,13 +486,37 @@ function InviteForm({
       </fieldset>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" tone="primary" disabled={working || chosen.length === 0}>
-          {working ? 'Einen Moment' : 'Link erzeugen'}
+        {byMail ? (
+          <Button
+            type="submit"
+            tone="primary"
+            disabled={working !== null || chosen.length === 0}
+            onClick={() => {
+              way.current = 'mail'
+            }}
+          >
+            {working === 'mail' ? 'Einen Moment' : 'Per E-Mail einladen'}
+          </Button>
+        ) : null}
+        <Button
+          type="submit"
+          tone={byMail ? 'secondary' : 'primary'}
+          disabled={working !== null || chosen.length === 0}
+          onClick={() => {
+            way.current = 'link'
+          }}
+        >
+          {working === 'link' ? 'Einen Moment' : 'Link erzeugen'}
         </Button>
         <Button type="button" tone="secondary" onClick={onCancel}>
           Abbrechen
         </Button>
       </div>
+      {byMail ? null : (
+        <p className="text-body text-ink-muted">
+          Per E-Mail einladen geht, sobald die Instanz einen Mailserver hat.
+        </p>
+      )}
     </form>
   )
 }
