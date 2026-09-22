@@ -168,7 +168,7 @@ Ein Rahmen für alle Belegarten: Briefkopf, Anschriftfeld, Informationsblock, Po
 
 **Der Beleg hält beim Festschreiben fest, was er sagt.** In derselben Transaktion, die die Nummer vergibt, entsteht eine Zeile in `document_snapshots` mit allem, was gedruckt wird: Briefkopf, Kunde, Objekt, Positionen, Summen und die Pflichthinweise. Gedruckt wird danach nur noch daraus. Zieht der Kunde um oder ändert der Betrieb seine Bankverbindung, bleibt die Rechnung vom letzten Monat, wie sie war. Die Anwendung darf diese Zeile nur einfügen und lesen, und ein Trigger lehnt Ändern und Löschen für jede Rolle ab, auch für einen Superuser.
 
-**Das PDF entsteht beim ersten Abruf und wird danach nur noch ausgeliefert.** `GET /documents/:id/pdf` druckt einen festgeschriebenen Beleg einmal aus seinem Stand, legt das Ergebnis im Dateispeicher ab und gibt ab dann genau diese Bytes zurück. Chromium setzt eine Seite nicht zweimal gleich, und ein Beleg, der bei jedem Öffnen ein wenig anders aussieht, ist nicht der Beleg, der verschickt wurde. Dass das PDF nicht schon beim Festschreiben entsteht, hat einen Grund: der Renderer ist ein Container, den eine Installation weglassen darf, und eine Rechnung festzuschreiben darf nicht daran scheitern, dass er gerade nicht läuft. Fehlt er, antwortet die Route mit 503 und nennt den Befehl, der ihn startet. Ein Entwurf wird bei jedem Abruf neu gesetzt, trägt quer über jede Seite "Entwurf" und wird nie gespeichert. Ein unterschriebener Regiebericht, der noch keine Nummer hat, wird ebenso bei jedem Abruf gesetzt, aber ohne diese Marke: an ihm ändert sich nichts mehr, und er ist, was der Kunde unterschrieben hat.
+**Das PDF entsteht beim ersten Abruf und wird danach nur noch ausgeliefert.** `GET /documents/:id/pdf` druckt einen festgeschriebenen Beleg einmal aus seinem Stand, legt das Ergebnis im Dateispeicher ab und gibt ab dann genau diese Bytes zurück. Chromium setzt eine Seite nicht zweimal gleich, und ein Beleg, der bei jedem Öffnen ein wenig anders aussieht, ist nicht der Beleg, der verschickt wurde. Dass das PDF nicht schon beim Festschreiben entsteht, hat einen Grund: der Renderer ist ein Container, den eine Installation weglassen darf, und eine Rechnung festzuschreiben darf nicht daran scheitern, dass er gerade nicht läuft. Fehlt er, antwortet die Route mit 503 und sagt, wie er startet und wo er abgeschaltet ist. Ein Entwurf wird bei jedem Abruf neu gesetzt, trägt quer über jede Seite "Entwurf" und wird nie gespeichert. Ein unterschriebener Regiebericht, der noch keine Nummer hat, wird ebenso bei jedem Abruf gesetzt, aber ohne diese Marke: an ihm ändert sich nichts mehr, und er ist, was der Kunde unterschrieben hat.
 
 **Der Dateispeicher ist inhaltsadressiert.** Eine Datei liegt unter dem SHA-256 ihres Inhalts, zwei Verzeichnisebenen tief (`ab/cd/abcd…`), wird vor dem Umbenennen auf die Platte geschrieben und beim Lesen gegen ihren Namen geprüft. Wem eine Datei gehört, weiß der Speicher nicht; das beantwortet die Tabelle `files` unter derselben Mandantentrennung wie alles andere. Wer den Hash der Rechnung eines anderen Betriebs kennt, hat eine Zeichenkette und keine Datei. Das ist das Fundament, auf dem die Dokumentenablage aufsetzt.
 
@@ -182,7 +182,7 @@ Ein PDF lokal ansehen geht mit demselben Renderer wie im Betrieb:
 docker run -d --rm --name renderer -p 127.0.0.1:3999:3000 -e TOKEN=probe ghcr.io/browserless/chromium:latest
 ```
 
-und dann `RENDERER_URL=http://127.0.0.1:3999` und `RENDERER_TOKEN=probe` für den Server. In der CI läuft kein Renderer, die Tests der Route arbeiten mit einem Ersatz, der feste Bytes zurückgibt.
+und dann `RENDERER_URL=http://127.0.0.1:3999` und `RENDERER_TOKEN=probe` für den Server. Die Tests der Route arbeiten mit einem Ersatz, der feste Bytes zurückgibt. Den echten Renderer fragen in der CI zwei Jobs: der zur E-Rechnung, der mit ihm Muster für Mustang druckt, und der Betrieb über Docker Compose, der aus dem Standardstapel ein PDF holt.
 
 ### Angebot und Auftragsbestätigung
 
@@ -413,9 +413,9 @@ das Skript.
 Mailserver und alles, was ein Betrieb sonst festlegt, stehen im Büro. In der
 `.env` bleibt nur, was gebraucht wird, bevor die Oberfläche läuft: die
 Passwörter der Datenbank, `SESSION_SECRET`, der Token des Renderers, die Adresse
-der Instanz, Port und Fassung für Docker Compose, der Schalter `CLOSED` und die
-Angaben der Sicherung, die auch dann laufen muss, wenn die Anwendung es nicht
-tut.
+der Instanz, Port, Fassung und mitstartende Dienste für Docker Compose, der
+Schalter `CLOSED` und die Angaben der Sicherung, die auch dann laufen muss, wenn
+die Anwendung es nicht tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
 `curl http://127.0.0.1:23700/health` antwortet mit `{"status":"bereit"}`. Im
@@ -558,16 +558,25 @@ unter 120 MiB, nachgemessen mit `mem_limit` von 1 GB und 768 MB.
 
 Der Renderer ist der Grund, warum er ein eigener Container ist. Er kostet
 allein mehr Speicher als der Rest zusammen und fast vier Gigabyte auf der
-Platte, und die meisten Installationen brauchen ihn selten. Er läuft deshalb
-nur, wenn er angefordert wird:
+Platte, und beim ersten Start lädt `start.sh` dieses Abbild mit, was je nach
+Leitung ein paar Minuten dauert. **Trotzdem startet er von Haus aus mit**, denn
+ohne ihn gibt es kein einziges PDF: kein Angebot, keine Rechnung, kein
+ZUGFeRD-PDF und keine Mail mit einem Beleg darin. Zusammen bleiben die drei
+Dienste im Leerlauf unter 600 MiB, auch ohne Limit für die Anwendung; das Ziel
+aus ADR 0002 sind zwei Gigabyte.
+
+Eingeschaltet ist er in `docker/.env` mit `COMPOSE_PROFILES=renderer`. Wer
+wirklich nie ein PDF braucht, lässt den Wert leer:
 
 ```bash
-docker compose -f docker/compose.yaml --profile renderer up -d
+COMPOSE_PROFILES=
 ```
 
-Ohne ihn läuft alles andere weiter, und ein Versuch, ein PDF zu erzeugen,
-bekommt eine Meldung, die den Befehl oben nennt. Das ist die Zusage aus
-ADR 0007.
+Die Zeile zu löschen hilft nicht: `setup.sh` trägt vor jedem Start jede Zeile
+der Vorlage nach, die in der `.env` fehlt, und damit auch diese. Ohne Renderer
+läuft alles andere weiter, und ein Versuch, ein PDF zu erzeugen, bekommt eine
+Meldung, die sagt, wie er startet und wo er abgeschaltet ist. Das ist die
+Zusage aus ADR 0007.
 
 > Das Abbild `ghcr.io/browserless/chromium` bringt eine fertige PDF-Schnittstelle
 > mit, ist mit 3,9 GB aber deutlich größer als die 300 MB, mit denen ADR 0007

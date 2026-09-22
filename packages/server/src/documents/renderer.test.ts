@@ -25,16 +25,22 @@ describe('the renderer', () => {
     expect(readRendererConfiguration({ RENDERER_URL: '  ' }).url).toBeUndefined()
   })
 
-  it('names the profile when no renderer is set up at all', async () => {
+  it('names the variables when no renderer is set up at all', async () => {
     await expect(
       renderPdf('<p>Rechnung</p>', { url: undefined, token: undefined }),
     ).rejects.toThrow(RendererUnavailableError)
     await expect(
       renderPdf('<p>Rechnung</p>', { url: undefined, token: undefined }),
-    ).rejects.toThrow(/--profile renderer/)
+    ).rejects.toThrow(/RENDERER_URL/)
   })
 
-  it('names the profile when the renderer is set up but does not answer', async () => {
+  /**
+   * Under Docker Compose the renderer starts with the instance, so a renderer
+   * that does not answer was stopped or switched off. The sentence names the
+   * command that starts it and the line that switches it off, and no longer a
+   * profile flag nobody needs any more.
+   */
+  it('names the start command and the switch when the renderer does not answer', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
@@ -42,7 +48,11 @@ describe('the renderer', () => {
       }),
     )
 
-    await expect(renderPdf('<p>Rechnung</p>', configured)).rejects.toThrow(RendererUnavailableError)
+    const failure = renderPdf('<p>Rechnung</p>', configured)
+
+    await expect(failure).rejects.toThrow(RendererUnavailableError)
+    await expect(failure).rejects.toThrow(/sh docker\/start\.sh/)
+    await expect(failure).rejects.toThrow(/COMPOSE_PROFILES/)
   })
 
   /**

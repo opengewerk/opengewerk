@@ -610,6 +610,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Der Renderer startet von Haus aus mit der Instanz. Bisher lief er nur mit
+  `--profile renderer`, und eine mit `sh docker/start.sh` eingerichtete Instanz gab kein
+  einziges PDF heraus: kein Angebot, keine Rechnung, keine Mail mit Beleg. Die Vorlage der
+  `.env` trägt dafür `COMPOSE_PROFILES=renderer`, und `setup.sh` ergänzt die Zeile bei
+  bestehenden Installationen vor dem nächsten Start. Abgeschaltet wird er mit einem leeren
+  Wert, `COMPOSE_PROFILES=`. Die Meldung bei fehlendem Renderer nennt jetzt
+  `sh docker/start.sh` und diese Zeile, und die CI holt aus dem Standardstapel ein PDF
+
 - Der Standardport ist 23700 statt 3000, für die Instanz, die Vorschau und den
   Entwicklungsproxy von Vite. Auf 3000 läuft auf den meisten Maschinen, an denen jemand
   entwickelt, schon etwas anderes, und 23700 liegt weit darüber und unter dem Bereich, den
