@@ -501,6 +501,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Pakete `invoice` und `e-invoice`, die Kommentare an `billedAfter` und
+  `eInvoiceDuty` und die README geben das Gesetz genauer wieder: § 14 Abs. 5 UStG setzt
+  in der Endrechnung die vereinnahmten Teilentgelte ab, nicht die gestellten, und ein
+  Übergang nach § 27 Abs. 38 UStG hängt an der Übermittlung. Kein Rechenergebnis ändert
+  sich; was eine Entscheidung braucht, steht im Protokoll der Vorprüfung in #31
+
 - Die Workflows nehmen die neuesten Hauptversionen der Actions: `actions/checkout` und
   `actions/setup-node` in v7, CodeQL in v4. Die alten Fassungen liefen noch auf Node 20,
   dessen Pflege im April 2026 endete, und CodeQL v3 wird im Dezember 2026 abgekündigt
@@ -607,6 +613,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Gewerke als Datenpakete
 
 ### Behoben
+
+- Die Karte "E-Rechnung" knüpft den Übergang nach § 27 Abs. 38 UStG an die Übermittlung
+  der Rechnung, wie das Gesetz, und nicht an ihre Ausstellung. Bei Kleinbetrag und
+  Kleinunternehmer sagt sie, dass ein PDF die Zustimmung des Kunden braucht; vorher hieß
+  es, eine solche Rechnung dürfe immer als PDF gehen, und das stimmt nur für Papier
 
 - Die PDF-Vorlage nimmt dieselben Zeichen heraus wie die E-Rechnung: Steuerzeichen außer
   Tabulator und Zeilenumbruch und was XML 1.0 sonst nicht tragen kann. Chromium zeichnete

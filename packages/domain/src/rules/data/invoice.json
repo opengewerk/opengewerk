@@ -1,6 +1,6 @@
 {
   "package": "invoice",
-  "note": "Was eine Rechnung mindestens tragen muss, soweit es an einer Zahl oder an einem Stichtag hängt. Die Liste der Angaben selbst steht in rules/mandatory-details.ts, weil sie aus Sätzen besteht und nicht aus Zahlen; hier stehen die Grenze der Kleinbetragsrechnung nach § 33 UStDV und der Tag, ab dem ein Kleinunternehmer nach § 34a UStDV eine vereinfachte Rechnung ausstellen darf. Das Paket beginnt 2007 wie das Umsatzsteuerpaket, weil davor kein Beleg aus dieser Software stammen kann. Ein Vorbehalt zum Stichtag 2007: die Anhebung auf 150 Euro galt für Leistungen, die nach dem 31.12.2006 ausgeführt wurden, diese Engine sucht aber nach dem Belegdatum. Die Werte sind am 21.09.2026 gegen § 33 und § 34a UStDV bei gesetze-im-internet.de und gegen die Änderungsgesetze geprüft.",
+  "note": "Was eine Rechnung mindestens tragen muss, soweit es an einer Zahl oder an einem Stichtag hängt. Die Liste der Angaben selbst steht in rules/mandatory-details.ts, weil sie aus Sätzen besteht und nicht aus Zahlen; hier stehen die Grenze der Kleinbetragsrechnung nach § 33 UStDV und der Tag, ab dem ein Kleinunternehmer nach § 34a UStDV eine vereinfachte Rechnung ausstellen darf. Das Paket beginnt 2007 wie das Umsatzsteuerpaket, weil davor kein Beleg aus dieser Software stammen kann. Zum Stichtag 2007: das Änderungsgesetz setzt die 150 Euro zum 01.01.2007 in Kraft (Art. 9 und 16 MEG I) und knüpft dabei nicht an den Tag der Leistung an, jedenfalls findet sich dort keine solche Regel; diese Engine sucht nach dem Belegdatum. Die Werte sind am 21.09.2026 gegen § 33 und § 34a UStDV bei gesetze-im-internet.de und gegen die Änderungsgesetze geprüft, am 22.09.2026 erneut, dazu die Änderungsgesetze mit ihrem Inkrafttreten bei buzer.de.",
   "records": [
     {
       "key": "invoice.small_amount_limit",
@@ -18,7 +18,7 @@
       "unit": "cents",
       "value": 25000,
       "source": "§ 33 UStDV, Zweites Bürokratieentlastungsgesetz",
-      "note": "Rückwirkend zum 01.01.2017 in Kraft gesetzt. Gemessen am Gesamtbetrag einschließlich Umsatzsteuer. Gilt nach § 33 Satz 3 UStDV nicht für Leistungen nach § 13b UStG."
+      "note": "Rückwirkend zum 01.01.2017 in Kraft gesetzt, Art. 9 Abs. 2 des Gesetzes vom 30.06.2017. Gemessen am Gesamtbetrag einschließlich Umsatzsteuer. Gilt nach § 33 Satz 3 UStDV nicht für Leistungen nach §§ 3c, 6a und 13b UStG; die ersten beiden kennt OpenGewerk nicht."
     },
     {
       "key": "invoice.small_business_simplified",

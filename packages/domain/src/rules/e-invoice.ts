@@ -54,7 +54,11 @@ function excepted(rules: RuleSet, key: string, on: IsoDate): boolean {
  * and so may anybody for an invoice of a small amount, section 33 sentence 4
  * UStDV; a reverse charge never counts as one, which `detailsRegime` already
  * knows. The concept turns "may" into "does" for both: a business that is
- * allowed a PDF gets one, rather than a file it did not ask for.
+ * allowed a PDF gets one, rather than a file it did not ask for. Allowed here
+ * means on paper, or as a PDF if the customer agrees, section 14 (1) sentence
+ * 5 UStG and the ministry's letter of 15 October 2025, margin number 22; the
+ * e-invoice would need no such consent. Whether to prefer it in these two
+ * cases is one of the questions in #31.
  *
  * Whether the e-invoice is also required, and not merely the format of
  * choice, is a second question with a second answer: see `eInvoiceDuty`. Until
@@ -118,7 +122,8 @@ export function formatFor(
     return {
       format: 'pdf',
       reason:
-        'Als Kleinunternehmer darf der Betrieb jede Rechnung als PDF stellen (§ 34a Satz 4 UStDV).',
+        'Als Kleinunternehmer darf der Betrieb jede Rechnung als PDF stellen, wenn der Kunde ' +
+        'zustimmt, sonst auf Papier (§ 34a Satz 4 UStDV, § 14 Abs. 1 Satz 5 UStG).',
     }
   }
 
@@ -130,7 +135,9 @@ export function formatFor(
 
     return {
       format: 'pdf',
-      reason: `Eine Rechnung bis ${wholeEuros(limit)} darf immer als PDF gehen (§ 33 Satz 4 UStDV).`,
+      reason:
+        `Eine Rechnung bis ${wholeEuros(limit)} darf immer als PDF gehen, wenn der Kunde ` +
+        'zustimmt, sonst auf Papier (§ 33 Satz 4 UStDV, § 14 Abs. 1 Satz 5 UStG).',
     }
   }
 
@@ -147,6 +154,12 @@ export function formatFor(
  * under: the end of the period of the work, its only day, or, where nobody
  * entered one, the date of the invoice. The transition of section 27 (38) UStG
  * speaks of a supply that was carried out, not of an invoice that was written.
+ *
+ * A progress invoice is written before the work is done, and the period on it
+ * is the one planned. The ministry counts the day such an invoice is issued
+ * instead (FAQ on the e-invoice, question 7b): one issued before the duty
+ * began needs no e-invoice, however late the work follows. Taking the planned
+ * period is the stricter of the two readings; which one stays is open in #31.
  */
 export function supplyDateOf(
   content: Pick<DocumentContent, 'documentDate' | 'serviceFrom' | 'serviceUntil'>,
@@ -173,11 +186,18 @@ export interface Duty {
  * was not above the limit. From 2028 on there is no way round it.
  *
  * Both halves of each transition count. It asks for the day of the supply and
- * for the invoice to be written within the same period, so work done in
+ * for the invoice to be sent by the end of the same period, so work done in
  * December 2026 and invoiced in January 2027 falls under neither and needs the
  * e-invoice. That is what the paragraph says, and it is the stricter reading
  * besides, which is the one that is never wrong: an e-invoice is allowed where
  * a PDF would have been.
+ *
+ * Sent, not written: the paragraph says "übermittelt". Which day an invoice
+ * leaves the house is not something this software knows while it does not
+ * send invoices itself, so the date of the invoice stands in for it. An invoice
+ * dated after the end of a period cannot have been sent within it, so that
+ * half is exact. One dated within the period and sent after it is the case
+ * this reading misses, noted in #31 for when the sending of #81 knows the day.
  *
  * The turnover is not a figure this software knows before the bookkeeping of
  * phase 3, so the business states it: `e_invoice.transition_claimed`, the
@@ -210,7 +230,8 @@ export function eInvoiceDuty(
         required: true,
         reason:
           `Pflicht: der Übergang für diese Leistung galt nur für eine Rechnung, die bis zum ` +
-          `${day(deadline)} ausgestellt wurde (${transition.source}).`,
+          `${day(deadline)} übermittelt wurde, und diese trägt ein späteres Datum ` +
+          `(${transition.source}).`,
       }
     }
 
@@ -220,7 +241,7 @@ export function eInvoiceDuty(
       return {
         required: false,
         reason:
-          `Noch keine Pflicht: eine Rechnung, die bis zum ${day(deadline)} ausgestellt wird, darf ` +
+          `Noch keine Pflicht: eine Rechnung, die bis zum ${day(deadline)} übermittelt wird, darf ` +
           `für diese Leistung auch als PDF gehen, wenn der Kunde zustimmt (${transition.source}).`,
       }
     }
@@ -230,7 +251,7 @@ export function eInvoiceDuty(
         required: false,
         reason:
           `Noch keine Pflicht: nach Angabe des Betriebs lag sein Gesamtumsatz im Vorjahr nicht ` +
-          `über ${wholeEuros(limit.value)}. Eine Rechnung, die bis zum ${day(deadline)} ausgestellt ` +
+          `über ${wholeEuros(limit.value)}. Eine Rechnung, die bis zum ${day(deadline)} übermittelt ` +
           `wird, darf dann auch als PDF gehen, wenn der Kunde zustimmt (${limit.source}).`,
       }
     }
