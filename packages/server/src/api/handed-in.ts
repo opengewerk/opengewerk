@@ -13,6 +13,10 @@
  * would say the two belong together when what they share is only this.
  */
 
+import type { MailConfiguration } from '../mail/configuration.js'
+import type { MailTransport } from '../mail/transport.js'
+import type { SecretKey } from '../secrets/key.js'
+
 /** The authentication handle, handed in only while the instance is open. */
 export const AUTHENTICATION = Symbol('Authentication')
 
@@ -33,15 +37,19 @@ export const FILE_STORE = Symbol('FileStore')
 export const RENDERER = Symbol('Renderer')
 
 /**
- * Whether this instance sends mail, and where it is reached for the links in
- * a message. Null when no mail server is set up: the route that sends a
- * document then says so instead of writing a message nobody will send.
+ * What the routes around mail need: where the instance is reached for the
+ * links in a message, the key a mail password is sealed with, and a way to
+ * try a connection. Null on a closed instance and in a test that sends
+ * nothing: every route that would send then says so. Whether a particular
+ * business sends mail is a question for its settings, not for this.
  */
 export const MAIL = Symbol('Mail')
 
-export interface MailSettings {
+export interface MailContext {
   /** The first trusted origin, the address a link in a message points to. */
   readonly origin: string
-  /** `MAIL_FROM`, the address every message leaves from. */
-  readonly from: string
+  /** The key the password of a mail server is sealed with, from `SESSION_SECRET`. */
+  readonly key: SecretKey
+  /** Opens a connection, for the check. `smtpTransport`, or a stand-in in a test. */
+  readonly connect: (configuration: MailConfiguration) => MailTransport
 }

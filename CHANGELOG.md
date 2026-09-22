@@ -9,6 +9,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- E-Mail-Einstellungen im Büro: jeder Betrieb richtet seinen eigenen Mailserver ein, mit
+  Server, Port, Verschlüsselung, Anmeldung und Absenderadresse, statt einen für die ganze
+  Instanz in der `.env`. Sehen und ändern dürfen das nur die neuen Rechte `mail.read` und
+  `mail.write`, anfangs nur der Inhaber. Speichern prüft die Verbindung und meldet, ob sie
+  funktioniert; eine neue Verbindung, die der Server ablehnt, wird nicht gespeichert
+  (Migration 0025)
+- Das Passwort des Mailservers wird mit AES-256-GCM versiegelt, unter einem Schlüssel aus
+  `SESSION_SECRET`, in der Tabelle `secrets`, die das Audit-Log nicht beobachtet. Keine
+  Route gibt es zurück
+- Eine eigene Signatur unter jeder E-Mail, mit den Platzhaltern `{benutzer}` für den
+  Namen dessen, der verschickt, und `{briefkopf}` für den Briefkopf. Bei automatischen
+  E-Mails fällt die Zeile mit `{benutzer}` weg
+
 - Ein neuer Zugang lässt sich unter "Zugänge" per E-Mail einladen, statt den Link selbst
   weiterzugeben. Das Token entsteht erst beim Versand und steht nur in der Mail, weder im
   Postausgang noch im Audit-Log; scheitert ein Versuch, gilt nur der Link aus dem nächsten.
@@ -16,9 +29,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 - Ein Regiebericht, den der Kunde auf der Baustelle unterschreibt, geht auf Wunsch gleich
   danach per E-Mail an diesen Kunden, als PDF mit der Unterschrift. Ein- und ausgeschaltet
-  wird das vom Inhaber auf dem neuen Bildschirm "E-Mail", ab heute und nie rückwirkend
-  (`report.mail_on_signature`, Migration 0023). Der Bildschirm sagt auch, ob die Instanz
-  einen Mailserver hat und von welcher Adresse sie verschickt (`GET /settings/mail`)
+  wird das vom Inhaber auf dem neuen Bildschirm "E-Mail-Einstellungen", ab heute und nie
+  rückwirkend (`report.mail_on_signature`, Migration 0023). Der Bildschirm sagt dem Büro
+  auch, ob der Betrieb einen Mailserver hat und von welcher Adresse er verschickt
+  (`GET /settings/mail`)
 - Ein unterschriebener Regiebericht lässt sich über die Karte "Per E-Mail" auch vor seiner
   Nummer verschicken, etwa wenn beim Kunden erst später eine Adresse dazukommt
 
@@ -32,10 +46,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   die Routen und für den Versand an einer Stelle (`DocumentFiles.issued`), damit Download
   und Mail dieselben Bytes tragen
 
-- Versand von E-Mails über SMTP, eingerichtet einmal je Instanz in der `.env`
-  (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`)
-  und beim Start geprüft. Eine falsche Angabe hält den Start an, ein Server, der gerade
-  nicht antwortet, nicht. Ohne `SMTP_HOST` verschickt die Instanz nichts
+- Versand von E-Mails über SMTP, über den Mailserver, den jeder Betrieb in seinen
+  E-Mail-Einstellungen einrichtet. Ein Betrieb ohne Mailserver verschickt nichts, und für
+  ihn wird auch nichts geschrieben
 - Ein Postausgang für E-Mails (`mail_outbox`, Migration 0021): jede Nachricht wird erst
   geschrieben und dann von einem Job verschickt, der jede Minute läuft. Antwortet der
   Mailserver nicht, wartet sie und wird zwanzigmal über gut zwei Tage erneut versucht,

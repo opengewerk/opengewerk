@@ -22,28 +22,15 @@ function germanDate(day: string): string {
 }
 
 /**
- * The business at the foot of a message, the way its letterhead has it.
+ * Every template ends with the signature of the business, handed in finished.
  *
- * Every template ends with it, which is what the issue means by the data of
- * the business at the head of every message: whoever reads a message from
- * OpenGewerk learns who sent it and how to answer, and not only that a piece
- * of software did.
+ * That is what the issue means by the data of the business at the head of
+ * every message: whoever reads a message from OpenGewerk learns who sent it
+ * and how to answer, and not only that a piece of software did. Which lines
+ * it has is the business's to write under "E-Mail", with the letterhead as the
+ * default; `renderSignature` in `domain` puts it together, so that the screen
+ * shows the same thing the customer gets.
  */
-export function signatureOf(issuer: IssuerContent): string {
-  const street = [issuer.street, issuer.houseNumber].filter(Boolean).join(' ')
-  const town = [issuer.postalCode, issuer.city].filter(Boolean).join(' ')
-
-  return [
-    issuer.name,
-    street || null,
-    town || null,
-    issuer.phone ? `Telefon ${issuer.phone}` : null,
-    issuer.email,
-    issuer.website,
-  ]
-    .filter((line): line is string => line !== null && line.length > 0)
-    .join('\n')
-}
 
 /** What a task due today is about, gathered by the caller. */
 export interface DueTask {
@@ -68,6 +55,7 @@ export function taskDueMessage(facts: {
   readonly issuer: IssuerContent
   /** Where the instance is reached, for the link to the list. */
   readonly origin: string
+  readonly signature: string
 }): MessageText {
   const { task } = facts
   const hangsOn = [
@@ -88,7 +76,7 @@ export function taskDueMessage(facts: {
     `Alle Aufgaben: ${facts.origin}/aufgaben`,
     '',
     '-- ',
-    signatureOf(facts.issuer),
+    facts.signature,
   ].join('\n')
 
   return { subject: `Heute fällig: ${task.title}`, body }
@@ -128,6 +116,7 @@ export function documentMessage(facts: {
   readonly content: DocumentContent
   readonly attachment: DocumentAttachment
   readonly issuer: IssuerContent
+  readonly signature: string
 }): MessageText {
   const { content } = facts
   const number = content.number ?? ''
@@ -159,7 +148,7 @@ export function documentMessage(facts: {
     'Mit freundlichen Grüßen',
     '',
     '-- ',
-    signatureOf(facts.issuer),
+    facts.signature,
   ].join('\n')
 
   return {
@@ -179,6 +168,7 @@ export function signedReportMessage(facts: {
   readonly content: DocumentContent
   readonly signedOn: string
   readonly issuer: IssuerContent
+  readonly signature: string
 }): MessageText {
   const { content } = facts
   const named = content.number
@@ -194,7 +184,7 @@ export function signedReportMessage(facts: {
     'Mit freundlichen Grüßen',
     '',
     '-- ',
-    signatureOf(facts.issuer),
+    facts.signature,
   ].join('\n')
 
   return { subject: `${named} von ${facts.issuer.name}`, body }
@@ -223,6 +213,7 @@ export function invitationMessage(facts: {
   readonly inviter: string | null
   readonly expiresAt: Date
   readonly issuer: IssuerContent
+  readonly signature: string
 }): MessageText {
   const until = new Intl.DateTimeFormat('de-DE', {
     timeZone: 'Europe/Berlin',
@@ -243,7 +234,7 @@ export function invitationMessage(facts: {
       'Einladung nichts anfangen können, ignorieren Sie sie einfach.',
     '',
     '-- ',
-    signatureOf(facts.issuer),
+    facts.signature,
   ].join('\n')
 
   return { subject: `Einladung zu OpenGewerk von ${facts.issuer.name}`, body }

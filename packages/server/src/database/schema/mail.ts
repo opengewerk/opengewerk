@@ -1,4 +1,14 @@
-import { index, integer, pgEnum, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { smtpSecurities } from '@opengewerk/domain'
+import {
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
 import { documents } from './documents.js'
@@ -79,5 +89,49 @@ export const mailOutbox = pgTable(
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),
     index('mail_outbox_document_idx').on(table.tenantId, table.documentId),
     index('mail_outbox_invitation_idx').on(table.tenantId, table.invitationId),
+  ],
+)
+
+/** How the connection to the mail server of a business is protected. */
+export const mailSecurity = pgEnum('mail_security', smtpSecurities)
+
+/**
+ * The mail server a business sends through, and the signature under what it
+ * sends. One row per business, which the unique index holds, and none for a
+ * business that sends no mail: then nothing is written for it and nothing
+ * sent, as if the feature were not there.
+ *
+ * Per business and not per instance. A message goes out from the business's
+ * own mailbox, with its own login, so that a customer sees the address they
+ * know and the provider of that mailbox vouches for it. On an instance with
+ * several businesses each one brings its own.
+ *
+ * The password is not here. It is sealed in `secrets`, which the audit log
+ * does not watch; this table carries the moment it was set, and the log sees
+ * that change like any other, with the person who made it.
+ *
+ * No sync columns: a device does not send mail and never sees this row.
+ */
+export const mailSettings = pgTable(
+  'mail_settings',
+  {
+    id: primaryId<'mail_settings'>(),
+    ...tenantColumn,
+    host: text('host').notNull(),
+    port: integer('port').notNull(),
+    security: mailSecurity('security').notNull(),
+    /** The login to the mailbox. Null for a relay that takes mail without one. */
+    username: text('username'),
+    /** The address every message of this business leaves from. */
+    fromAddress: text('from_address').notNull(),
+    /** The signature with its placeholders, as written. Null means the letterhead. */
+    signature: text('signature'),
+    /** When the password was last set, null while there is none. */
+    passwordSetAt: timestamp('password_set_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    uniqueIndex('mail_settings_tenant').on(table.tenantId),
   ],
 )

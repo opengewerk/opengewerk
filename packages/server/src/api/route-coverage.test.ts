@@ -254,6 +254,34 @@ describe('every route', () => {
    * not the same as deciding it, and the day the office role gets one of the
    * two it will be the reading one.
    */
+  /**
+   * The mail server of a business. Whether a business sends mail is a setting
+   * like the others and readable with them; the server, its login and the
+   * signature are behind rights of their own, because the login to a mailbox
+   * is a way of writing in the business's name to anybody.
+   */
+  it('of the mail server asks for a mail right and says which kind', () => {
+    const byName = new Map(routesOf(controllers).map((route) => [route.name, route]))
+    const server = routesOf(controllers).filter((route) =>
+      route.name.includes('/settings/mail/server'),
+    )
+
+    expect(byName.get('GET /settings/mail')?.permission).toBe('settings.read')
+    expect(server.map((route) => route.name).sort()).toEqual([
+      'DELETE /settings/mail/server',
+      'GET /settings/mail/server',
+      'POST /settings/mail/server/check',
+      'PUT /settings/mail/server',
+    ])
+
+    for (const route of server) {
+      expect([route.name, route.permission]).toEqual([
+        route.name,
+        route.writes ? 'mail.write' : 'mail.read',
+      ])
+    }
+  })
+
   it('of the user administration asks for a membership right and says which kind', () => {
     const staff = routesOf(controllers).filter((route) => route.name.includes('/staff'))
 

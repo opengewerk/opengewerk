@@ -180,7 +180,7 @@ describe('the staff screen', () => {
     expect(screen.getByText(/nur jetzt hier/)).toBeTruthy()
   })
 
-  it('sends the invitation by mail where the instance has a mail server', async () => {
+  it('sends the invitation by mail where the business has a mail server', async () => {
     serverSays('GET', '/settings/mail', { configured: true, from: 'buero@nord.example.de' })
     serverSays('POST', '/staff', {
       id: 'i-1',
@@ -213,7 +213,7 @@ describe('the staff screen', () => {
     expect(screen.queryByLabelText('Einmal-Link')).toBeNull()
   })
 
-  it('offers only the link on an instance without a mail server', async () => {
+  it('offers only the link to a business without a mail server', async () => {
     serverSays('GET', '/settings/mail', { configured: false, from: null })
 
     render(inQueries(<StaffScreen />))
@@ -223,7 +223,7 @@ describe('the staff screen', () => {
 
     expect(screen.getByRole('button', { name: 'Link erzeugen' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Per E-Mail einladen' })).toBeNull()
-    expect(screen.getByText(/sobald die Instanz einen Mailserver hat/)).toBeTruthy()
+    expect(screen.getByText(/sobald unter "E-Mail-Einstellungen" ein Mailserver/)).toBeTruthy()
   })
 
   it('says for each open invitation how it travels', async () => {

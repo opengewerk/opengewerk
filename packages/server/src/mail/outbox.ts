@@ -116,3 +116,16 @@ export async function markFailed(
 
   return givenUp ? 'failed' : 'retry'
 }
+
+/**
+ * Gives up on every message of this business that is still waiting, with the
+ * reason. For a business that removed its mail server: what was waiting would
+ * otherwise go out whenever a server is set up again, weeks later perhaps,
+ * about things long done.
+ */
+export async function giveUpPending(tx: TenantTransaction, reason: string, now: Date) {
+  await tx
+    .update(mailOutbox)
+    .set({ status: 'failed', lastError: reason, nextAttemptAt: now, updatedAt: now })
+    .where(eq(mailOutbox.status, 'pending'))
+}

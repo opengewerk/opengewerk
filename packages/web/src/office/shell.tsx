@@ -39,7 +39,7 @@ function Navigation() {
     },
     ...(readsSettings ? [{ to: '/briefkopf', label: 'Briefkopf' as ReactNode }] : []),
     ...(readsSettings ? [{ to: '/steuern', label: 'Steuern' as ReactNode }] : []),
-    ...(readsSettings ? [{ to: '/e-mail', label: 'E-Mail' as ReactNode }] : []),
+    ...(readsSettings ? [{ to: '/e-mail', label: 'E-Mail-Einstellungen' as ReactNode }] : []),
     ...(administers ? [{ to: '/zugaenge', label: 'Zugänge' as ReactNode }] : []),
     { to: '/konto', label: 'Konto' },
   ]

@@ -1,27 +1,27 @@
-import { ConfigurationError } from '../configuration.js'
 import type { MailConfiguration } from './configuration.js'
 import { MailDeliveryError, type MailTransport } from './transport.js'
 
-/** What the check at startup found, when it found no wrong setting. */
+/** What asking a mail server found. */
 export type MailServerCheck =
   | { readonly outcome: 'ready' }
-  /** Nobody answered. The instance starts anyway; messages wait in the outbox. */
+  /** A setting that is wrong, and trying again later will not make it right. */
+  | { readonly outcome: 'refused'; readonly reason: string }
+  /** Nobody answered. Messages wait in the outbox until somebody does. */
   | { readonly outcome: 'unreachable'; readonly reason: string }
 
 /**
- * Asks the mail server once at startup whether the settings are right.
+ * Asks a mail server whether the settings are right: connects, greets, signs
+ * in, and sends nothing. For the button "Verbindung prüfen" in the office, and
+ * before every save of the settings there.
  *
- * Two kinds of failure, and they get different answers. A wrong setting, a
- * host name that does not exist, a login the server refuses, a TLS connection
- * that cannot be made, stops the start: it will not fix itself, and found
- * here it costs a restart instead of the first invoice that never arrives. A
- * server that simply does not answer right now is the case the outbox is
- * for. The instance starts, says so in the log, and sends once the server is
- * back.
- *
- * A refused connection counts as not answering, although a wrong port looks
- * the same from here. The sentence in the log names both; stopping the start
- * over a mail server being restarted would be the worse mistake.
+ * Two kinds of failure, and they get different sentences. A host name that
+ * does not exist, a login the server refuses, a TLS connection that cannot be
+ * made, a certificate it does not accept: each of these names the field to
+ * look at. A server that simply does not answer right now may be restarting,
+ * and saying so is all there is to say; a wrong port looks the same from
+ * here, and the sentence names both. What happens to the messages meanwhile
+ * is not said here: the check runs before saving as well, when nothing waits
+ * yet.
  */
 export async function checkMailServer(
   transport: MailTransport,
@@ -39,41 +39,46 @@ export async function checkMailServer(
     switch (failure.code) {
       case 'EAUTH':
       case 'ENOAUTH':
-        throw new ConfigurationError(
-          `Der Mailserver ${server} lehnt die Anmeldung ab. Stimmen SMTP_USER und ` +
-            `SMTP_PASSWORD? Er antwortete: ${failure.message}`,
-        )
+        return {
+          outcome: 'refused',
+          reason:
+            `Der Mailserver ${server} lehnt die Anmeldung ab. Stimmen Benutzername und ` +
+            `Passwort? Er antwortete: ${failure.message}`,
+        }
       case 'EDNS':
-        throw new ConfigurationError(
-          `Den Mailserver "${configuration.host}" gibt es nicht, der Name lässt sich nicht ` +
-            'auflösen. Stimmt SMTP_HOST?',
-        )
+        return {
+          outcome: 'refused',
+          reason: `Den Mailserver "${configuration.host}" gibt es nicht, der Name lässt sich nicht auflösen.`,
+        }
       case 'ETLS':
       case 'EREQUIRETLS':
-        throw new ConfigurationError(
-          `Mit dem Mailserver ${server} kommt keine verschlüsselte Verbindung zustande: ` +
-            `${failure.message}. Passt SMTP_SECURITY zum Port, "starttls" für 587, "tls" für 465?`,
-        )
+        return {
+          outcome: 'refused',
+          reason:
+            `Mit dem Mailserver ${server} kommt keine verschlüsselte Verbindung zustande: ` +
+            `${failure.message}. Passt die Verschlüsselung zum Port, STARTTLS für 587, TLS für 465?`,
+        }
       case 'ECONFIG':
-        throw new ConfigurationError(
-          `Die Angaben zum Mailserver passen nicht zusammen: ${failure.message}`,
-        )
+        return {
+          outcome: 'refused',
+          reason: `Die Angaben zum Mailserver passen nicht zusammen: ${failure.message}`,
+        }
       default:
         // A certificate the connection refuses arrives as a plain socket error
         // on port 465, where TLS starts with the first byte. It is a setting
         // all the same, and waiting will not make it right.
         if (/certificate|self[- ]signed|CERT_/i.test(failure.message)) {
-          throw new ConfigurationError(
-            `Das Zertifikat des Mailservers ${server} wird nicht anerkannt: ${failure.message}`,
-          )
+          return {
+            outcome: 'refused',
+            reason: `Das Zertifikat des Mailservers ${server} wird nicht anerkannt: ${failure.message}`,
+          }
         }
 
         return {
           outcome: 'unreachable',
           reason:
-            `Der Mailserver ${server} antwortet gerade nicht (${failure.message}). OpenGewerk ` +
-            'startet trotzdem, und E-Mails warten im Postausgang, bis er wieder antwortet. ' +
-            'Bleibt es dabei, stimmen vielleicht SMTP_HOST oder SMTP_PORT nicht.',
+            `Der Mailserver ${server} antwortet nicht (${failure.message}). Vielleicht startet er ` +
+            'gerade neu, vielleicht stimmen Server oder Port nicht.',
         }
     }
   }

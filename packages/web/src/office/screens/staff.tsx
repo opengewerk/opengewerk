@@ -39,7 +39,7 @@ function saidWhy(error: unknown, fallback: string): string {
  * The password is never here. A new colleague gets a link, the link is shown
  * once, and what they type into it nobody in the office sees. The issue put
  * the reason in one sentence: a password a colleague knows and that then stays
- * for three years is worse than one nobody knows. Where the instance can send
+ * for three years is worse than one nobody knows. Where the business sends
  * mail, the link can go straight to the person instead, and then nobody in the
  * office sees even that.
  *
@@ -399,7 +399,7 @@ function InviteForm({
   onCancel,
   onTrouble,
 }: {
-  /** Whether the instance can send mail, which offers the second way. */
+  /** Whether the business sends mail, which offers the second way. */
   readonly byMail: boolean
   readonly onDone: (made: { link: string | null; email: string }) => void
   readonly onCancel: () => void
@@ -514,7 +514,8 @@ function InviteForm({
       </div>
       {byMail ? null : (
         <p className="text-body text-ink-muted">
-          Per E-Mail einladen geht, sobald die Instanz einen Mailserver hat.
+          Per E-Mail einladen geht, sobald unter "E-Mail-Einstellungen" ein Mailserver eingerichtet
+          ist.
         </p>
       )}
     </form>
