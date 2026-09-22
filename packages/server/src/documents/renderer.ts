@@ -38,6 +38,8 @@ export interface RendererOptions {
    */
   readonly footerHtml?: string
   readonly margin?: PageMargin
+  /** The sheet turned on its side, for a table that needs the width. */
+  readonly landscape?: boolean
 }
 
 export interface RendererConfiguration {
@@ -122,6 +124,7 @@ export async function renderPdf(
           printBackground: true,
           ...footer,
           ...(options.margin === undefined ? {} : { margin: options.margin }),
+          ...(options.landscape === true ? { landscape: true } : {}),
         },
       }),
       signal: timeout,
@@ -147,6 +150,7 @@ export interface PrintJob {
   readonly html: string
   readonly footerHtml?: string
   readonly margin?: PageMargin
+  readonly landscape?: boolean
 }
 
 /**
@@ -162,5 +166,6 @@ export function rendererFor(configuration: RendererConfiguration): Renderer {
     renderPdf(job.html, configuration, {
       ...(job.footerHtml === undefined ? {} : { footerHtml: job.footerHtml }),
       ...(job.margin === undefined ? {} : { margin: job.margin }),
+      ...(job.landscape === undefined ? {} : { landscape: job.landscape }),
     })
 }

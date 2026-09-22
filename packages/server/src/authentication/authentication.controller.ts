@@ -15,6 +15,7 @@ import { RequiresSession } from '../api/authorization.js'
 import { pick } from '../api/body.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { Database } from '../database/database.js'
+import { isUuid } from '../database/identifier.js'
 import { authSessions, memberships, tenants, tenantSessions } from '../database/schema/index.js'
 import { sessionLifetimes } from './authentication.js'
 
@@ -35,8 +36,6 @@ interface DeviceEntry {
   readonly expiresAt: Date
   readonly current: boolean
 }
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * The few routes that live between signing in and working.
@@ -106,7 +105,7 @@ export class AuthenticationController {
     const tenantId = typeof values.tenantId === 'string' ? values.tenantId : ''
     const deviceId = typeof values.deviceId === 'string' && values.deviceId ? values.deviceId : null
 
-    if (!uuidPattern.test(tenantId)) {
+    if (!isUuid(tenantId)) {
       throw new BadRequestException('tenantId fehlt oder ist keine gültige Kennung.')
     }
 

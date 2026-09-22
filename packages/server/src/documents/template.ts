@@ -56,7 +56,7 @@ const margin: PageMargin = { top: '15mm', right: '20mm', bottom: '32mm', left: '
  * XML of one invoice say the same thing. Line breaks stay: the texts rely on
  * them.
  */
-function text(value: string | null | undefined): string {
+export function text(value: string | null | undefined): string {
   return withoutUnwritable(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -65,7 +65,7 @@ function text(value: string | null | undefined): string {
     .replaceAll("'", '&#39;')
 }
 
-function present(value: string | null | undefined): value is string {
+export function present(value: string | null | undefined): value is string {
   return value !== null && value !== undefined && value.trim() !== ''
 }
 
@@ -161,7 +161,7 @@ let embeddedFaces: Map<number, string> | undefined
  * installation produces after an update, line breaks included. Read once and
  * kept, because they are the same for every document.
  */
-function fontFaces(weights: readonly number[]): string {
+export function fontFaces(weights: readonly number[]): string {
   embeddedFaces ??= new Map(
     faces.map((face, index) => {
       const file = require.resolve(
@@ -184,10 +184,10 @@ function fontFaces(weights: readonly number[]): string {
     .join('\n')
 }
 
-const typeface = `'Barlow', 'Liberation Sans', Arial, sans-serif`
+export const typeface = `'Barlow', 'Liberation Sans', Arial, sans-serif`
 
 /** An address as lines, the country only when it is not the sender's. */
-function addressLines(
+export function addressLines(
   address: {
     readonly street: string | null
     readonly houseNumber: string | null
@@ -705,7 +705,10 @@ function footer(content: DocumentContent): string {
  * number. It is what somebody looks at before issuing, and it must not be
  * mistaken for the invoice itself if it is printed and left on a desk.
  */
-export function printJob(content: DocumentContent, assets: PrintAssets): Required<PrintJob> {
+export function printJob(
+  content: DocumentContent,
+  assets: PrintAssets,
+): Required<Omit<PrintJob, 'landscape'>> {
   // Without a number a document is a draft, unless a customer signed it: a
   // signed report is final in what it says and waits only for its number, and
   // the copy the customer takes away must not call itself a draft.
@@ -792,7 +795,7 @@ export function instructionSheet(
   content: DocumentContent,
   index: number,
   assets: PrintAssets,
-): Required<PrintJob> {
+): Required<Omit<PrintJob, 'landscape'>> {
   const instruction = content.instructions[index]
 
   if (!instruction) {

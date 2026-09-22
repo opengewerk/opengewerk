@@ -9,6 +9,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Anlagenstruktur (#70): unter einer Anlage ihre Verteiler, darin Felder, Stromkreise
+  und Betriebsmittel. Im Büro werden sie angelegt, geordnet, geändert und gelöscht, auf der
+  Baustelle gelesen und ohne Netz ergänzt, etwa um den Stromkreis, der im Verteiler fehlt.
+  Je Stromkreis stehen Verbraucher, Schutzeinrichtung mit Art, Charakteristik und
+  Nennstrom, der RCD mit Typ und Bemessungsdifferenzstrom und die Leitung mit Typ,
+  Aderzahl, Querschnitt, Länge und Verlegeart; `circuitProblems` aus `domain` prüft sie im
+  Formular und im Abgleich mit denselben Sätzen. Die Tabellen gab es seit Phase 0, nur
+  füllen ließen sie sich nicht. Sie sind das Gerüst, in dem das Prüfprotokoll nach
+  VDE 0100-600 seine Messwerte je Stromkreis erfasst (Migration 0030)
+- Das Stromkreisverzeichnis als PDF für die Verteilertür, im Querformat, ein Verteiler je
+  Seite, mit dem Betrieb, der es führt, und dem Tag der letzten Änderung
+  (`GET /installations/:id/circuit-chart`, mit `?board=` für einen Verteiler). Gedruckt wird
+  bei jedem Abruf aus dem Stand des Servers, gespeichert wird es nicht, weil es anders als
+  ein Beleg keinen Vorgang festhält
+
 - Belehrungen an Belegen, zuerst die Widerrufsbelehrung nach § 312g BGB (#109). Mitgeliefert
   sind die Muster-Widerrufsbelehrung und das Muster-Widerrufsformular aus den Anlagen 1 und 2
   zu Art. 246a EGBGB, als Fassungen mit Gültigkeitszeitraum und Fundstelle wie ein
@@ -634,6 +649,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Eine Anlage, ein Verteiler, ein Feld oder ein Stromkreis, die als gelöscht markiert
+  werden, nehmen alles mit, was darunter hängt, in derselben Anweisung und mit Eintrag im
+  Audit-Log. Vorher blieben Stromkreise und Betriebsmittel unter einem gelöschten
+  Verteiler stehen, unsichtbar, und gingen weiter an jedes Gerät
+
 - Die Widerrufsbelehrung gehört zu jedem Angebot an einen Verbraucher zwingend, zusammen
   mit dem Formular und den neuen Hinweisen zum Erlöschen des Widerrufsrechts
   (Feature-Gliederung v2.13). Am Angebot lassen sich die drei nicht abschalten, unter
@@ -794,6 +814,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Gewerke als Datenpakete
 
 ### Behoben
+
+- Ein Betrieb konnte über den Abgleich einen Verteiler, ein Feld, einen Stromkreis oder ein
+  Betriebsmittel an den Datensatz eines anderen Betriebs hängen, wenn er dessen Kennung
+  kannte, denn PostgreSQL prüft einen Fremdschlüssel an der Row-Level Security vorbei. Die
+  Schlüssel der Anlagenstruktur laufen jetzt über Betrieb und Kennung zusammen, und der
+  Abgleich lehnt so einen Vorgang vorher als Konflikt ab, statt dass die Datenbank die ganze
+  Übertragung scheitern lässt. Für die übrigen Verweise des Datenmodells steht dasselbe
+  noch aus
+- Ein Feld mit Stromkreisen ließ sich nicht endgültig entfernen, und damit auch kein
+  Verteiler und keine Anlage darüber: der Schlüssel vom Stromkreis zum Feld leerte beim
+  Entfernen beide Spalten, den Verteiler eingeschlossen, und der ist Pflicht. Die Anwendung
+  entfernt nichts endgültig, darum fiel es nicht auf; jetzt wird nur das Feld geleert
 
 - Die Karte "E-Rechnung" knüpft den Übergang nach § 27 Abs. 38 UStG an die Übermittlung
   der Rechnung, wie das Gesetz, und nicht an ihre Ausstellung. Bei Kleinbetrag und

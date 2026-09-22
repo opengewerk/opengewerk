@@ -2,6 +2,8 @@ import type { TenantId } from '@opengewerk/domain'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { Pool, type PoolClient } from 'pg'
 
+import { isUuid } from './identifier.js'
+
 /** What a caller gets inside a tenant transaction. */
 export type TenantTransaction = NodePgDatabase
 
@@ -47,8 +49,6 @@ export interface Actor {
   readonly deviceId?: string
 }
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 /**
  * The way to the data, and there is no second one.
  *
@@ -89,7 +89,7 @@ export class Database {
   ): Promise<Result> {
     const { tenantId, userId, reason, deviceId } = actor
 
-    if (!uuidPattern.test(tenantId)) {
+    if (!isUuid(tenantId)) {
       // Refused before a connection is even taken. A caller that has no proper
       // tenant at hand has no business talking to the database, and failing
       // here says so plainly instead of returning an empty result that looks
@@ -224,7 +224,7 @@ export class Database {
       const result = await work({
         tx: drizzle(client),
         enter: async (tenantId: TenantId, userId: string) => {
-          if (!uuidPattern.test(tenantId)) {
+          if (!isUuid(tenantId)) {
             // The same refusal as in `forTenant`, and for the same reason: a
             // caller without a proper business at hand would otherwise write
             // rows that no policy matches and read an empty result as "this

@@ -241,6 +241,28 @@ describe('the structure below an installation', () => {
         }),
       ),
     ).toEqual({ code: foreignKeyViolation, constraint: 'circuits_section_belongs_to_board' })
+
+    // Removing the section for real leaves the circuit on its board, without
+    // a section. The key used to empty both of its columns, the board
+    // included, and `not null` refused that: a section with circuits could
+    // not be removed, and neither could anything above it.
+    await db.delete(schema.boardSections).where(eq(schema.boardSections.id, section.id))
+
+    const [kept] = await db
+      .select()
+      .from(schema.circuits)
+      .where(eq(schema.circuits.designation, 'F1 Steckdosen'))
+    expect(kept).toMatchObject({ distributionBoardId: boardOne.id, boardSectionId: null })
+
+    // And the installation goes with everything below it, the way the keys
+    // say, now that nothing in between refuses.
+    await db.delete(schema.installations).where(eq(schema.installations.id, installation.id))
+
+    const left = await db
+      .select()
+      .from(schema.circuits)
+      .where(eq(schema.circuits.tenantId, tenant.id))
+    expect(left).toEqual([])
   })
 
   it('makes a contact belong to a customer or a site, never both and never neither', async () => {

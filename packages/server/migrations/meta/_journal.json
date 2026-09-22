@@ -211,6 +211,13 @@
       "when": 1790081374988,
       "tag": "0029_instructions_for_quotes",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1790099121446,
+      "tag": "0030_circuit_details",
+      "breakpoints": true
     }
   ]
 }

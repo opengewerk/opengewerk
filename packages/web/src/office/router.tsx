@@ -3,6 +3,8 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { ConflictScreen } from '../app/conflicts.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
+import { BoardScreen } from './screens/boards.js'
+import { CircuitScreen } from './screens/circuits.js'
 import { CustomerList, CustomerScreen } from './screens/customers.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationScreen } from './screens/installations.js'
@@ -48,6 +50,12 @@ const routes = [
     getParentRoute: () => root,
     path: '/anlagen/$installationId',
     component: InstallationScreen,
+  }),
+  createRoute({ getParentRoute: () => root, path: '/verteiler/$boardId', component: BoardScreen }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/stromkreise/$circuitId',
+    component: CircuitScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),

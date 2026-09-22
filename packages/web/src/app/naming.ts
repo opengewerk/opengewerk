@@ -82,6 +82,21 @@ const fields: Readonly<Record<string, string>> = {
   deviceInfo: 'Gerät',
   path: 'Unterschrift',
   contentFingerprint: 'Unterschriebener Stand',
+  location: 'Ort',
+  distributionBoardId: 'Verteiler',
+  boardSectionId: 'Feld',
+  circuitId: 'Stromkreis',
+  consumer: 'Verbraucher',
+  overcurrentDevice: 'Schutzeinrichtung',
+  tripCharacteristic: 'Charakteristik',
+  ratedCurrentMilli: 'Nennstrom',
+  rcdType: 'RCD-Typ',
+  ratedResidualCurrentMilli: 'Bemessungsdifferenzstrom',
+  cableType: 'Leitungstyp',
+  cableCores: 'Aderzahl',
+  cableCrossSectionMilli: 'Querschnitt',
+  cableLengthMilli: 'Leitungslänge',
+  cableInstallationMethod: 'Verlegeart',
 }
 
 export function entityLabel(entity: string): string {

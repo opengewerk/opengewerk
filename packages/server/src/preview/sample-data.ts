@@ -82,8 +82,9 @@ const sampleSignature =
  * the order confirmation made out of it, a progress invoice out of the same
  * quote with the final invoice after it, a cost estimate in progress, a report
  * the customer has signed on site, a maintenance invoice to the property
- * management company, the snippets they are written from, and three tasks on
- * the jobs, one of them overdue and one done.
+ * management company, the snippets they are written from, three tasks on the
+ * jobs, one of them overdue and one done, and the two boards in the Bergs'
+ * cabinet with their circuits.
  *
  * The quote is issued and the confirmation is a draft on purpose. Together
  * they show both states of a document, the chain between them, and a document
@@ -492,5 +493,219 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   if (refused.length > 0) {
     throw new Error(`The sample tasks were not all taken: ${JSON.stringify(refused)}`)
+  }
+
+  await plantBoards(post, cabinet)
+}
+
+/**
+ * The boards in the Bergs' cabinet: a main distribution without sections and
+ * a sub distribution with two rows, their circuits, and the sockets on one of
+ * them. One circuit is only a designation and a consumer, the state a circuit
+ * is in when somebody has written it down in front of the board and not yet
+ * read off the breaker, so that the screens and the chart show that case too.
+ *
+ * Through the outbox, because there is no other way in: the office writes the
+ * structure the way a device does.
+ */
+async function plantBoards(
+  post: (path: string, body: unknown) => Promise<Answer>,
+  cabinet: string,
+): Promise<void> {
+  const main = newId<'distribution-board'>()
+  const sub = newId<'distribution-board'>()
+  const firstRow = newId<'board-section'>()
+  const secondRow = newId<'board-section'>()
+  const kitchen = newId<'circuit'>()
+
+  const socketCircuit = {
+    overcurrentDevice: 'circuit_breaker',
+    tripCharacteristic: 'b',
+    ratedCurrentMilli: 16_000,
+    rcdType: 'a',
+    ratedResidualCurrentMilli: 30,
+    cableType: 'NYM-J',
+    cableCores: 3,
+    cableCrossSectionMilli: 2_500,
+    cableInstallationMethod: 'c',
+  }
+  const parts: readonly [string, string, Record<string, unknown>][] = [
+    [
+      'distribution_boards',
+      main,
+      {
+        installationId: cabinet,
+        kind: 'main_distribution',
+        designation: 'HV',
+        location: 'Keller',
+        position: 0,
+      },
+    ],
+    [
+      'distribution_boards',
+      sub,
+      {
+        installationId: cabinet,
+        kind: 'sub_distribution',
+        designation: 'UV EG',
+        location: 'Flur Erdgeschoss',
+        position: 1,
+      },
+    ],
+    ['board_sections', firstRow, { distributionBoardId: sub, designation: 'Reihe 1', position: 0 }],
+    [
+      'board_sections',
+      secondRow,
+      { distributionBoardId: sub, designation: 'Reihe 2', position: 1 },
+    ],
+    [
+      'circuits',
+      newId<'circuit'>(),
+      {
+        distributionBoardId: main,
+        designation: 'Q1',
+        consumer: 'Zuleitung UV EG',
+        overcurrentDevice: 'fuse_nh',
+        tripCharacteristic: 'gg',
+        ratedCurrentMilli: 35_000,
+        cableType: 'NYY-J',
+        cableCores: 5,
+        cableCrossSectionMilli: 10_000,
+        cableLengthMilli: 12_000,
+        cableInstallationMethod: 'c',
+        position: 0,
+      },
+    ],
+    [
+      'circuits',
+      newId<'circuit'>(),
+      {
+        distributionBoardId: sub,
+        boardSectionId: firstRow,
+        designation: 'F1',
+        consumer: 'Licht Wohnzimmer',
+        ...socketCircuit,
+        ratedCurrentMilli: 10_000,
+        cableCrossSectionMilli: 1_500,
+        cableLengthMilli: 14_000,
+        position: 0,
+      },
+    ],
+    [
+      'circuits',
+      newId<'circuit'>(),
+      {
+        distributionBoardId: sub,
+        boardSectionId: firstRow,
+        designation: 'F2',
+        consumer: 'Steckdosen Wohnzimmer',
+        ...socketCircuit,
+        cableLengthMilli: 18_500,
+        position: 1,
+      },
+    ],
+    [
+      'circuits',
+      kitchen,
+      {
+        distributionBoardId: sub,
+        boardSectionId: firstRow,
+        designation: 'F3',
+        consumer: 'Steckdosen Küche',
+        ...socketCircuit,
+        cableLengthMilli: 9_000,
+        position: 2,
+      },
+    ],
+    [
+      'circuits',
+      newId<'circuit'>(),
+      {
+        distributionBoardId: sub,
+        boardSectionId: secondRow,
+        designation: 'F5',
+        consumer: 'Herd',
+        ...socketCircuit,
+        cableCores: 5,
+        cableLengthMilli: 7_000,
+        position: 0,
+      },
+    ],
+    [
+      'circuits',
+      newId<'circuit'>(),
+      {
+        distributionBoardId: sub,
+        boardSectionId: secondRow,
+        designation: 'F10',
+        consumer: 'Wallbox Garage',
+        overcurrentDevice: 'circuit_breaker',
+        tripCharacteristic: 'b',
+        ratedCurrentMilli: 32_000,
+        rcdType: 'a_ev',
+        ratedResidualCurrentMilli: 30,
+        cableType: 'NYM-J',
+        cableCores: 5,
+        cableCrossSectionMilli: 6_000,
+        cableLengthMilli: 25_000,
+        cableInstallationMethod: 'b2',
+        position: 1,
+      },
+    ],
+    [
+      'circuits',
+      newId<'circuit'>(),
+      {
+        distributionBoardId: sub,
+        boardSectionId: secondRow,
+        designation: 'F11',
+        consumer: 'Außensteckdose Terrasse',
+        position: 2,
+      },
+    ],
+    [
+      'equipment',
+      newId<'equipment'>(),
+      {
+        circuitId: kitchen,
+        designation: 'Steckdose Arbeitsplatte links',
+        kind: 'Steckdose',
+        manufacturer: 'Busch-Jaeger',
+        model: '20 EUC-914',
+        position: 0,
+      },
+    ],
+    [
+      'equipment',
+      newId<'equipment'>(),
+      {
+        circuitId: kitchen,
+        designation: 'Steckdose Arbeitsplatte rechts',
+        kind: 'Steckdose',
+        manufacturer: 'Busch-Jaeger',
+        model: '20 EUC-914',
+        position: 1,
+      },
+    ],
+  ]
+
+  const sent = await post('/sync', {
+    deviceId: 'vorschau-rechner',
+    operations: parts.map(([entity, recordId, values]) => ({
+      id: newId<'operation'>(),
+      entity,
+      recordId,
+      kind: 'create',
+      baseVersion: null,
+      patches: Object.entries(values).map(([field, to]) => ({ field, from: null, to })),
+      recordedAt: new Date().toISOString(),
+    })),
+  })
+  const refused = (
+    (sent['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+  ).filter((taken) => taken.outcome !== 'applied')
+
+  if (refused.length > 0) {
+    throw new Error(`The sample boards were not all taken: ${JSON.stringify(refused)}`)
   }
 }
