@@ -1,12 +1,20 @@
 import { index, integer, pgEnum, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { documents } from './documents.js'
 import { tenantIsolation } from './rls.js'
 import { tasks } from './tasks.js'
 import { tenantColumn } from './tenants.js'
 
 /** What a message is about. One kind per cause the notifications know. */
-export const mailKind = pgEnum('mail_kind', ['task_due'])
+export const mailKind = pgEnum('mail_kind', ['task_due', 'document'])
+
+/**
+ * The file a message about a document carries: the PDF, or one of the two
+ * forms of the e-invoice. Chosen when the message is written, made or read
+ * when it is sent, so that the file is the one the document keeps.
+ */
+export const mailAttachment = pgEnum('mail_attachment', ['pdf', 'zugferd', 'xrechnung'])
 
 /**
  * Where a message stands. `failed` is the end of trying, not the end of the
@@ -41,6 +49,12 @@ export const mailOutbox = pgTable(
     kind: mailKind('kind').notNull(),
     cause: text('cause').notNull(),
     taskId: reference<'task'>('task_id').references(() => tasks.id, { onDelete: 'restrict' }),
+    documentId: reference<'document'>('document_id').references(() => documents.id, {
+      onDelete: 'restrict',
+    }),
+    attachment: mailAttachment('attachment'),
+    /** Who asked for the message, for one somebody asked for. Null for a due task. */
+    requestedBy: text('requested_by'),
     senderName: text('sender_name').notNull(),
     replyTo: text('reply_to'),
     recipientAddress: text('recipient_address').notNull(),
@@ -59,5 +73,6 @@ export const mailOutbox = pgTable(
     unique('mail_outbox_once_per_cause').on(table.tenantId, table.cause),
     index('mail_outbox_due_idx').on(table.tenantId, table.status, table.nextAttemptAt),
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),
+    index('mail_outbox_document_idx').on(table.tenantId, table.documentId),
   ],
 )

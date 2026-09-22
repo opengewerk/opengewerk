@@ -1,17 +1,35 @@
 import {
   BadGatewayException,
+  ConflictException,
   Inject,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   ServiceUnavailableException,
+  UnprocessableEntityException,
 } from '@nestjs/common'
-import type { DocumentContent, DocumentFilePurpose, DocumentId } from '@opengewerk/domain'
-import { and, eq } from 'drizzle-orm'
+import {
+  type DocumentContent,
+  type DocumentFilePurpose,
+  type DocumentId,
+  type DocumentKind,
+  eInvoiceGaps,
+  type EInvoiceProfile,
+  formatFor,
+  missingDetails,
+  RuleError,
+  shippedRules,
+} from '@opengewerk/domain'
+import { and, eq, isNull } from 'drizzle-orm'
 
-import { Database, type TenantTransaction } from '../database/database.js'
-import { documentFiles, files } from '../database/schema/index.js'
+import { type Actor, Database, type TenantTransaction } from '../database/database.js'
+import { documentFiles, documents, files } from '../database/schema/index.js'
+import { ciiInvoice } from '../documents/cii.js'
+import { frozenContent } from '../documents/content.js'
+import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { printJob } from '../documents/template.js'
+import { zugferdPdf } from '../documents/zugferd.js'
 import {
   type FileStorage,
   StoredFileDamagedError,
@@ -19,7 +37,115 @@ import {
 } from '../storage/file-store.js'
 import { fileRowFor } from '../storage/files.js'
 import { FILE_STORE, RENDERER } from './handed-in.js'
-import type { RequestIdentity } from './identity.js'
+
+/** What the two forms are called in a sentence that says what one of them lacks. */
+const formNames: Readonly<Record<EInvoiceProfile, string>> = {
+  xrechnung: 'die XRechnung',
+  en16931: 'das ZUGFeRD-PDF',
+}
+
+/**
+ * Writes the e-invoice of a frozen content in a profile and holds it
+ * against the schema.
+ *
+ * Refused with the reason when it should not exist: a document that goes
+ * out as a PDF, or one that lacks what the profile asks for. The second is a
+ * list, like the missing details of an invoice, because each item is
+ * something somebody fixes in another place.
+ */
+export function eInvoiceXml(content: DocumentContent, profile: EInvoiceProfile): string {
+  try {
+    const choice = formatFor(shippedRules, content)
+
+    if (choice.format !== 'e_invoice') {
+      throw new ConflictException(`Dieser Beleg geht als PDF hinaus. ${choice.reason}`)
+    }
+
+    const missing = [...missingDetails(shippedRules, content), ...eInvoiceGaps(content, profile)]
+
+    if (missing.length > 0) {
+      throw new UnprocessableEntityException({
+        statusCode: 422,
+        error: 'Unprocessable Entity',
+        message:
+          `Für ${formNames[profile]} fehlen noch Angaben. ` +
+          missing.map((entry) => entry.message).join(' '),
+        missing,
+      })
+    }
+
+    return checkedCii(ciiInvoice(content, profile))
+  } catch (error) {
+    if (error instanceof RuleError) {
+      throw new UnprocessableEntityException(error.message)
+    }
+
+    // A file the schema refuses is a fault of the writer, not of anything a
+    // business entered: those are checked above. It is not stored and not
+    // handed out, and the message says what the schema found.
+    if (error instanceof SchemaCheckError) {
+      throw new InternalServerErrorException(error.message)
+    }
+
+    throw error
+  }
+}
+
+/** The files an issued document keeps, and the one each of them is. */
+export type IssuedPurpose = 'pdf' | 'xrechnung' | 'zugferd'
+
+/** A file of an issued document, with what it takes to name it. */
+export interface IssuedFile {
+  readonly bytes: Uint8Array
+  readonly kind: DocumentKind
+  readonly number: string
+}
+
+/**
+ * The frozen content of an issued document, or the refusal for one issued
+ * before 0013. Made out of the live rows it would carry today's customer on
+ * an old invoice.
+ */
+async function frozenOrRefused(
+  tx: TenantTransaction,
+  documentId: DocumentId,
+): Promise<DocumentContent> {
+  const content = await frozenContent(tx, documentId)
+
+  if (content === null) {
+    throw new ConflictException(
+      'Dieser Beleg wurde festgeschrieben, bevor OpenGewerk den Inhalt beim Festschreiben ' +
+        'festhielt. Eine E-Rechnung, die sicher dem damaligen Stand entspricht, lässt sich dazu ' +
+        'nicht erzeugen.',
+    )
+  }
+
+  return content
+}
+
+/** The document a file is asked for, which has to have its number by then. */
+async function numberedDocument(
+  tx: TenantTransaction,
+  documentId: string,
+): Promise<{ readonly id: DocumentId; readonly kind: DocumentKind; readonly number: string }> {
+  const [document] = await tx
+    .select({ id: documents.id, kind: documents.kind, number: documents.number })
+    .from(documents)
+    .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
+
+  if (!document) {
+    throw new NotFoundException()
+  }
+
+  if (document.number === null) {
+    throw new ConflictException(
+      'Eine E-Rechnung gibt es erst, wenn die Rechnung festgeschrieben ist: vorher hat sie ' +
+        'keine Nummer, und ohne Nummer bucht sie niemand.',
+    )
+  }
+
+  return { id: document.id, kind: document.kind, number: document.number }
+}
 
 /**
  * The files an issued document keeps: its PDF, its XRechnung and its ZUGFeRD
@@ -70,7 +196,7 @@ export class DocumentFiles {
    * at, which harms nobody.
    */
   async keep(
-    identity: RequestIdentity,
+    identity: Actor,
     documentId: DocumentId,
     purpose: DocumentFilePurpose,
     bytes: Uint8Array,
@@ -135,7 +261,7 @@ export class DocumentFiles {
    * `stored` found for it, read in the caller's transaction.
    */
   async issuedPdf(
-    identity: RequestIdentity,
+    identity: Actor,
     documentId: DocumentId,
     content: DocumentContent,
     sha256: string | null,
@@ -143,5 +269,68 @@ export class DocumentFiles {
     return sha256 !== null
       ? this.read(sha256)
       : this.keep(identity, documentId, 'pdf', await this.print(content), 'application/pdf')
+  }
+
+  /**
+   * A file of an issued document: the one it keeps, or the first time the one
+   * made out of its frozen content, kept from then on.
+   *
+   * The routes that hand the files out and the job that attaches them to a
+   * message both come through here, so that a customer who downloads an
+   * invoice and one who gets it by mail get the same bytes.
+   *
+   * For the ZUGFeRD PDF the XML is written and checked before anything is
+   * printed, so a document that goes out as a PDF or lacks a value is refused
+   * without a round trip to the renderer. The page inside is the PDF the
+   * document keeps, printed now and kept as its PDF if nobody asked for that
+   * before: a customer who got the PDF first and the ZUGFeRD PDF later sees
+   * the same page twice.
+   */
+  async issued(actor: Actor, documentId: string, purpose: IssuedPurpose): Promise<IssuedFile> {
+    const found = await this.database.forTenant(actor, async (tx) => {
+      const document = await numberedDocument(tx, documentId)
+      const stored = await this.stored(tx, document.id, purpose)
+
+      if (stored !== null) {
+        return { document, stored, content: null, pdf: null }
+      }
+
+      return {
+        document,
+        stored,
+        content: await frozenOrRefused(tx, document.id),
+        pdf: purpose === 'zugferd' ? await this.stored(tx, document.id, 'pdf') : null,
+      }
+    })
+
+    const { document } = found
+    let bytes: Uint8Array
+
+    if (found.content === null) {
+      bytes = await this.read(found.stored ?? '')
+    } else if (purpose === 'pdf') {
+      bytes = await this.issuedPdf(actor, document.id, found.content, null)
+    } else if (purpose === 'xrechnung') {
+      bytes = await this.keep(
+        actor,
+        document.id,
+        'xrechnung',
+        new TextEncoder().encode(eInvoiceXml(found.content, 'xrechnung')),
+        'application/xml',
+      )
+    } else {
+      const xml = eInvoiceXml(found.content, 'en16931')
+      const pdf = await this.issuedPdf(actor, document.id, found.content, found.pdf)
+
+      bytes = await this.keep(
+        actor,
+        document.id,
+        'zugferd',
+        await zugferdPdf(pdf, xml, new Date()),
+        'application/pdf',
+      )
+    }
+
+    return { bytes, kind: document.kind, number: document.number }
   }
 }

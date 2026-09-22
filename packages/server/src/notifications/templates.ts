@@ -1,4 +1,12 @@
-import type { IssuerContent } from '@opengewerk/domain'
+import {
+  type DocumentContent,
+  type DocumentKind,
+  type IssuerContent,
+  isInvoice,
+  showsPrices,
+} from '@opengewerk/domain'
+
+import { documentTitle } from '../documents/template.js'
 
 /** A message as it is written into the outbox: what it says, not how it travels. */
 export interface MessageText {
@@ -84,4 +92,78 @@ export function taskDueMessage(facts: {
   ].join('\n')
 
   return { subject: `Heute fällig: ${task.title}`, body }
+}
+
+/** A document as the object of a sentence: "erhalten Sie die Schlussrechnung". */
+const asObject: Readonly<Record<DocumentKind, string>> = {
+  cost_estimate: 'den Kostenvoranschlag',
+  quote: 'das Angebot',
+  order_confirmation: 'die Auftragsbestätigung',
+  delivery_note: 'den Lieferschein',
+  time_and_material_report: 'den Regiebericht',
+  progress_invoice: 'die Abschlagsrechnung',
+  partial_invoice: 'die Teilrechnung',
+  final_invoice: 'die Schlussrechnung',
+  credit_note: 'die Gutschrift',
+  cancellation_invoice: 'die Stornorechnung',
+  recurring_invoice: 'die Dauerrechnung',
+}
+
+const euros = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
+
+/** Which file goes along, as the office chose it when the message was written. */
+export type DocumentAttachment = 'pdf' | 'zugferd' | 'xrechnung'
+
+/**
+ * The message a document goes to its customer with.
+ *
+ * Short, because the document is the letter: which one it is, from when and
+ * over how much, and for an e-invoice one sentence on what the customer is
+ * holding. The amount is what the customer is asked to pay, the one at the
+ * bottom of the invoice after what earlier invoices took off; a report and a
+ * delivery note carry no prices, and a cancellation says in the document why
+ * its amount is negative, which a sentence here could only muddle.
+ */
+export function documentMessage(facts: {
+  readonly content: DocumentContent
+  readonly attachment: DocumentAttachment
+  readonly issuer: IssuerContent
+}): MessageText {
+  const { content } = facts
+  const number = content.number ?? ''
+  const amount =
+    showsPrices(content.kind) && content.kind !== 'cancellation_invoice'
+      ? ` über ${euros.format(
+          (isInvoice(content.kind) ? content.billed.grossCents : content.totals.grossCents) / 100,
+        )}`
+      : ''
+
+  const electronic =
+    facts.attachment === 'zugferd'
+      ? [
+          '',
+          'Sie ist eine E-Rechnung im Format ZUGFeRD: die Rechnungsdaten stecken als XML im PDF ' +
+            'und lassen sich ohne Abtippen übernehmen.',
+        ]
+      : facts.attachment === 'xrechnung'
+        ? ['', 'Sie ist eine E-Rechnung im Format XRechnung.']
+        : []
+
+  const body = [
+    'Guten Tag,',
+    '',
+    `im Anhang erhalten Sie ${asObject[content.kind]} ${number} vom ` +
+      `${germanDate(content.documentDate)}${amount}.`,
+    ...electronic,
+    '',
+    'Mit freundlichen Grüßen',
+    '',
+    '-- ',
+    signatureOf(facts.issuer),
+  ].join('\n')
+
+  return {
+    subject: `${documentTitle(content.kind)} ${number} von ${facts.issuer.name}`,
+    body,
+  }
 }

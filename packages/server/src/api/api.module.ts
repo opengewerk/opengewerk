@@ -19,6 +19,7 @@ import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
 import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
+import { DocumentMailController } from './document-mail.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { EInvoiceController } from './e-invoice.controller.js'
@@ -28,7 +29,14 @@ import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
 import { SettingsController } from './settings.controller.js'
-import { AUTHENTICATION, FILE_STORE, RENDERER, TRUSTED_ORIGINS } from './handed-in.js'
+import {
+  AUTHENTICATION,
+  FILE_STORE,
+  MAIL,
+  type MailSettings,
+  RENDERER,
+  TRUSTED_ORIGINS,
+} from './handed-in.js'
 import { InvitationController } from './invitation.controller.js'
 import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
@@ -65,6 +73,11 @@ export interface ApiOptions {
    * has none configured, and a request for a PDF gets the message saying so.
    */
   readonly renderer?: Renderer
+  /**
+   * Whether the instance sends mail. Left out, it does not, and the route
+   * that sends a document refuses with the sentence saying so.
+   */
+  readonly mail?: MailSettings | null
 }
 
 /**
@@ -105,6 +118,7 @@ export class ApiModule implements NestModule {
       trustedOrigins = [],
       files = noFileStorage,
       renderer = rendererFor({ url: undefined, token: undefined }),
+      mail = null,
     } = options
 
     return {
@@ -130,6 +144,7 @@ export class ApiModule implements NestModule {
         DocumentTotalsController,
         DocumentPdfController,
         EInvoiceController,
+        DocumentMailController,
         SyncController,
         SettingsController,
         LetterheadController,
@@ -138,6 +153,7 @@ export class ApiModule implements NestModule {
         { provide: Database, useValue: database },
         { provide: FILE_STORE, useValue: files },
         { provide: RENDERER, useValue: renderer },
+        { provide: MAIL, useValue: mail },
         DocumentFiles,
         ...(authentication
           ? [

@@ -31,3 +31,15 @@ export const FILE_STORE = Symbol('FileStore')
 
 /** What turns a print job into a PDF: the renderer service, or a stand-in. */
 export const RENDERER = Symbol('Renderer')
+
+/**
+ * Whether this instance sends mail, and where it is reached for the links in
+ * a message. Null when no mail server is set up: the route that sends a
+ * document then says so instead of writing a message nobody will send.
+ */
+export const MAIL = Symbol('Mail')
+
+export interface MailSettings {
+  /** The first trusted origin, the address a link in a message points to. */
+  readonly origin: string
+}

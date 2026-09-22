@@ -1,6 +1,8 @@
 import {
+  currentContent,
   type DocumentContent,
   documentContent,
+  type DocumentId,
   type IssuerContent,
   type LogoContent,
   type RuleSet,
@@ -17,6 +19,7 @@ import {
   documentLines,
   type documents,
   documentSignatures,
+  documentSnapshots,
   files,
   letterheads,
   sites,
@@ -171,4 +174,24 @@ export async function contentOf(
       (await parameterAt(tx, 'cash_accounting.permitted', document.documentDate))?.value === 1,
     deductions: await deductionsFor(tx, document),
   })
+}
+
+/**
+ * What an issued document froze when it got its number, in the shape of
+ * today, or null for one issued before 0013, which froze nothing.
+ *
+ * Null rather than an error, because the callers say different things about
+ * it: a route refuses with a sentence, a message about the document is not
+ * written at all.
+ */
+export async function frozenContent(
+  tx: TenantTransaction,
+  documentId: DocumentId,
+): Promise<DocumentContent | null> {
+  const [snapshot] = await tx
+    .select({ content: documentSnapshots.content })
+    .from(documentSnapshots)
+    .where(eq(documentSnapshots.documentId, documentId))
+
+  return snapshot ? currentContent(snapshot.content) : null
 }

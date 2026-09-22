@@ -1,11 +1,11 @@
-import type { IsoDate, TaskId, TenantId } from '@opengewerk/domain'
+import type { DocumentId, IsoDate, TaskId, TenantId } from '@opengewerk/domain'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import { accountsOf } from '../authentication/administration.js'
 import type { Database } from '../database/database.js'
 import { customers, jobs, mailOutbox, memberships, sites, tasks } from '../database/schema/index.js'
-import { issuerOf } from '../documents/content.js'
-import { taskDueMessage } from './templates.js'
+import { frozenContent, issuerOf } from '../documents/content.js'
+import { type DocumentAttachment, documentMessage, taskDueMessage } from './templates.js'
 
 /**
  * Something that happened and may be worth a message.
@@ -13,14 +13,33 @@ import { taskDueMessage } from './templates.js'
  * The notifications have exactly two sources, section 2 of the concept says:
  * a deadline that has come and a status that has changed. A module that wants
  * somebody told raises one of these; it never writes a message itself, and it
- * never talks to a mail server. Phase 1 knows one kind. The deadline engine of
- * phase 2 raises its own through the same door.
+ * never talks to a mail server. The deadline engine of phase 2 raises its own
+ * through the same door.
+ *
+ * A task that falls due is a deadline. A document the office sends to its
+ * customer is a change of status, the one from issued to on its way: the
+ * route that records the wish raises it, and what the message says, which
+ * file goes along and from whom it comes is decided here, as for any other.
  */
-export type Notification = {
-  readonly kind: 'task_due'
-  readonly taskId: TaskId
-  readonly dueOn: IsoDate
-}
+export type Notification =
+  | {
+      readonly kind: 'task_due'
+      readonly taskId: TaskId
+      readonly dueOn: IsoDate
+    }
+  | {
+      readonly kind: 'document'
+      readonly documentId: DocumentId
+      /**
+       * One per wish to send. Sending the same invoice again, because the
+       * customer lost it, is a new cause and a new message.
+       */
+      readonly request: string
+      readonly to: { readonly address: string; readonly name: string | null }
+      readonly attachment: DocumentAttachment
+      /** Who asked, for the audit log and for the screen of the document. */
+      readonly requestedBy: string
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -30,7 +49,9 @@ export interface NotifyContext {
 
 /** The cause a message is written once for. */
 export function causeOf(notification: Notification): string {
-  return `${notification.kind}:${notification.taskId}:${notification.dueOn}`
+  return notification.kind === 'task_due'
+    ? `task_due:${notification.taskId}:${notification.dueOn}`
+    : `document:${notification.documentId}:${notification.request}`
 }
 
 /** The day and the minute of the day in Berlin, where the businesses are. */
@@ -119,14 +140,25 @@ export async function dueTasks(
  * the row and writes nothing, so whoever raises notifications does not have to
  * remember what it raised.
  *
- * Returns how many messages it wrote.
+ * Returns the identifiers of the messages it wrote.
  */
 export async function notify(
   database: Database,
   tenantId: TenantId,
   notification: Notification,
   context: NotifyContext,
-): Promise<number> {
+): Promise<readonly string[]> {
+  return notification.kind === 'task_due'
+    ? taskDue(database, tenantId, notification, context)
+    : documentToCustomer(database, tenantId, notification)
+}
+
+async function taskDue(
+  database: Database,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'task_due' }>,
+  context: NotifyContext,
+): Promise<readonly string[]> {
   const actor = { tenantId, reason: 'notification' }
 
   const found = await database.forTenant(actor, async (tx) => {
@@ -171,7 +203,7 @@ export async function notify(
   })
 
   if (!found) {
-    return 0
+    return []
   }
 
   // The address lives with the account, on the instance. The one identifier
@@ -179,7 +211,7 @@ export async function notify(
   const account = (await accountsOf(database, [found.task.assignee], '')).get(found.task.assignee)
 
   if (!account) {
-    return 0
+    return []
   }
 
   const text = taskDueMessage({
@@ -208,5 +240,53 @@ export async function notify(
       .returning({ id: mailOutbox.id }),
   )
 
-  return written.length
+  return written.map((row) => row.id)
+}
+
+/**
+ * A document on its way to the customer.
+ *
+ * Only an issued one, read from what it froze: the message names the number,
+ * the date and the amount the customer was sent, never a draft's. The sender
+ * is the business as its letterhead stands today, because the message is
+ * written today; the document inside is the one it was.
+ */
+async function documentToCustomer(
+  database: Database,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'document' }>,
+): Promise<readonly string[]> {
+  const actor = { tenantId, userId: notification.requestedBy, reason: 'notification' }
+
+  return database.forTenant(actor, async (tx) => {
+    const content = await frozenContent(tx, notification.documentId)
+
+    if (content === null || content.number === null) {
+      return []
+    }
+
+    const issuer = await issuerOf(tx, tenantId)
+    const text = documentMessage({ content, attachment: notification.attachment, issuer })
+
+    const written = await tx
+      .insert(mailOutbox)
+      .values({
+        tenantId,
+        kind: 'document',
+        cause: causeOf(notification),
+        documentId: notification.documentId,
+        attachment: notification.attachment,
+        requestedBy: notification.requestedBy,
+        senderName: issuer.name,
+        replyTo: issuer.email,
+        recipientAddress: notification.to.address,
+        recipientName: notification.to.name,
+        subject: text.subject,
+        body: text.body,
+      })
+      .onConflictDoNothing({ target: [mailOutbox.tenantId, mailOutbox.cause] })
+      .returning({ id: mailOutbox.id })
+
+    return written.map((row) => row.id)
+  })
 }

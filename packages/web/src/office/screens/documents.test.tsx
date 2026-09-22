@@ -250,12 +250,21 @@ const outlined = [
 
 async function mount(
   path: string,
-  rows: { documents?: Row[]; document_lines?: Row[]; document_signatures?: Row[] } = {},
+  rows: {
+    documents?: Row[]
+    document_lines?: Row[]
+    document_signatures?: Row[]
+    customers?: Row[]
+  } = {},
   roles: RoleKey[] = ['office'],
 ) {
   signedInAs(...roles)
   server.put('customers', customer)
   server.put('jobs', job)
+
+  for (const row of rows.customers ?? []) {
+    server.put('customers', row)
+  }
 
   for (const row of rows.documents ?? [document()]) {
     server.put('documents', row)
@@ -1235,5 +1244,154 @@ describe('the text snippets', () => {
         text: 'Mit freundlichen Grüßen',
       })
     })
+  })
+})
+
+describe('sending by mail', () => {
+  const issuedQuote = document({ status: 'issued', number: 'AN-2026-0001' })
+  const reachable = { ...customer, email: 'berg@example.org' }
+
+  const waiting = {
+    id: 'm-1',
+    to: 'berg@example.org',
+    attachment: 'pdf',
+    status: 'pending',
+    attempts: 0,
+    lastError: null,
+    sentAt: null,
+    createdAt: '2026-09-22T08:00:00.000Z',
+    requestedBy: 'Britta Büro',
+  }
+
+  it('sends an issued document to the customer, and says the message waits', async () => {
+    let listed: unknown[] = []
+
+    serverSays('GET', '/documents/d-1/mail', () => ({ status: 200, body: listed }))
+    serverSays('POST', '/documents/d-1/mail', () => {
+      listed = [waiting]
+
+      return { status: 202, body: waiting }
+    })
+
+    await mount('/belege/d-1', { documents: [issuedQuote], customers: [reachable] })
+
+    const card = await screen.findByRole('region', { name: 'Per E-Mail' })
+
+    expect(
+      within(card).getByText('Dieser Beleg wurde noch nicht per E-Mail verschickt.'),
+    ).toBeTruthy()
+    expect(((await within(card).findByLabelText('An')) as HTMLInputElement).value).toBe(
+      'berg@example.org',
+    )
+
+    await userEvent.setup().click(within(card).getByRole('button', { name: 'Per E-Mail senden' }))
+
+    expect(
+      await within(card).findByText(
+        'An berg@example.org: wartet auf den Versand, mit PDF, geschickt von Britta Büro.',
+      ),
+    ).toBeTruthy()
+    expect(
+      calls.find((call) => call.method === 'POST' && call.path === '/documents/d-1/mail')?.body,
+    ).toEqual({})
+  })
+
+  it('takes another address, for this one message', async () => {
+    serverSays('GET', '/documents/d-1/mail', () => ({ status: 200, body: [] }))
+    serverSays('POST', '/documents/d-1/mail', () => ({
+      status: 202,
+      body: { ...waiting, to: 'kasse@example.org' },
+    }))
+
+    await mount('/belege/d-1', { documents: [issuedQuote], customers: [reachable] })
+
+    const card = await screen.findByRole('region', { name: 'Per E-Mail' })
+    const person = userEvent.setup()
+    const field = await within(card).findByLabelText('An')
+
+    await person.clear(field)
+    await person.type(field, 'kasse@example.org')
+    await person.click(within(card).getByRole('button', { name: 'Per E-Mail senden' }))
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'POST' && call.path === '/documents/d-1/mail')?.body,
+      ).toEqual({ to: 'kasse@example.org' })
+    })
+  })
+
+  it('lists what became of the messages before', async () => {
+    serverSays('GET', '/documents/d-1/mail', () => ({
+      status: 200,
+      body: [
+        {
+          ...waiting,
+          id: 'm-2',
+          to: 'alt@example.org',
+          status: 'failed',
+          lastError: 'EENVELOPE: 550 5.1.1 Recipient address rejected',
+        },
+        {
+          ...waiting,
+          attachment: 'zugferd',
+          status: 'sent',
+          sentAt: '2026-09-21T09:30:00.000Z',
+        },
+      ],
+    }))
+
+    await mount('/belege/d-1', { documents: [issuedQuote], customers: [reachable] })
+
+    const card = await screen.findByRole('region', { name: 'Per E-Mail' })
+
+    expect(
+      await within(card).findByText(/^An alt@example.org: nicht zugestellt, mit PDF/),
+    ).toBeTruthy()
+    expect(within(card).getByText(/Recipient address rejected/)).toBeTruthy()
+    expect(
+      within(card).getByText(
+        /^An berg@example.org: versendet am .+, mit ZUGFeRD-PDF, geschickt von Britta Büro\.$/,
+      ),
+    ).toBeTruthy()
+  })
+
+  it('shows a technician what went out, and nothing to send with', async () => {
+    serverSays('GET', '/documents/d-1/mail', () => ({ status: 200, body: [waiting] }))
+
+    await mount('/belege/d-1', { documents: [issuedQuote], customers: [reachable] }, ['technician'])
+
+    const card = await screen.findByRole('region', { name: 'Per E-Mail' })
+
+    expect(await within(card).findByText(/wartet auf den Versand/)).toBeTruthy()
+    expect(within(card).queryByRole('button')).toBeNull()
+  })
+
+  it('is not there on a draft, which has no number to send', async () => {
+    await mount('/belege/d-1', { documents: [document()] })
+
+    await screen.findByRole('heading', { level: 1 })
+
+    expect(screen.queryByRole('region', { name: 'Per E-Mail' })).toBeNull()
+  })
+
+  it('says what the server says when it will not send', async () => {
+    serverSays('GET', '/documents/d-1/mail', () => ({ status: 200, body: [] }))
+    serverSays('POST', '/documents/d-1/mail', () => ({
+      status: 503,
+      body: {
+        message:
+          'Für diese Instanz ist kein Mailserver eingerichtet, OpenGewerk verschickt deshalb keine E-Mails.',
+      },
+    }))
+
+    await mount('/belege/d-1', { documents: [issuedQuote], customers: [reachable] })
+
+    const card = await screen.findByRole('region', { name: 'Per E-Mail' })
+
+    await userEvent
+      .setup()
+      .click(await within(card).findByRole('button', { name: 'Per E-Mail senden' }))
+
+    expect((await within(card).findByRole('alert')).textContent).toContain('kein Mailserver')
   })
 })
