@@ -132,6 +132,7 @@ export function content(
     readonly recipient?: Partial<RecipientContent>
     readonly site?: SiteContent | null
     readonly deductions?: readonly DeductionContent[]
+    readonly cashAccounting?: boolean
   },
 ): DocumentContent {
   return documentContent(shippedRules, {
@@ -152,6 +153,7 @@ export function content(
     recipient: { ...recipient, ...parts.recipient },
     site: parts.site === undefined ? site : parts.site,
     signature: null,
+    cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
   })
 }
@@ -276,6 +278,24 @@ export const singleDay = content(
   },
 )
 
+/**
+ * An invoice of 2028 from a business that calculates its tax on what it
+ * receives. It carries the statement of section 14 (4) sentence 1 number 6a
+ * UStG among its notes, and the e-invoice writes it as a note like any other.
+ */
+export const cashAccounting = content(
+  {
+    number: 'RE-2028-0001',
+    documentDate: '2028-01-12',
+    serviceFrom: '2028-01-05',
+    serviceUntil: '2028-01-07',
+  },
+  {
+    lines: [item('Wallbox montieren und anschließen', 1000, 89000, { unit: 'flat_rate' })],
+    cashAccounting: true,
+  },
+)
+
 export const samples: readonly {
   readonly name: string
   readonly profile: EInvoiceProfile
@@ -290,4 +310,5 @@ export const samples: readonly {
   { name: 'cancellation-xrechnung', profile: 'xrechnung', content: cancellation },
   { name: 'cancellation-en16931', profile: 'en16931', content: cancellation },
   { name: 'single-day-plain-en16931', profile: 'en16931', content: singleDay },
+  { name: 'cash-accounting-xrechnung', profile: 'xrechnung', content: cashAccounting },
 ]

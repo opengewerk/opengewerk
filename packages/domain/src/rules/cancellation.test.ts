@@ -96,6 +96,7 @@ function invoice(
     },
     site: null,
     signature: null,
+    cashAccounting: false,
     deductions,
   })
 }

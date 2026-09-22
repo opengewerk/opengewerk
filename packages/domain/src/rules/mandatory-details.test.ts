@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { IssuerContent, LineContent, RecipientContent } from '../model/document-content.js'
-import { retentionNote, taxNotes } from '../model/document.js'
+import { cashAccountingNote, retentionNote, taxNotes } from '../model/document.js'
 import { type ContentSources, documentContent, printedNotes } from './document-content.js'
 import { detailsRegime, missingDetails } from './mandatory-details.js'
 import { shippedRules } from './shipped.js'
@@ -74,6 +74,7 @@ function invoice(
     readonly lines?: readonly LineContent[]
     readonly issuer?: Partial<IssuerContent>
     readonly recipient?: Partial<RecipientContent>
+    readonly cashAccounting?: boolean
   } = {},
 ) {
   return documentContent(rules, {
@@ -94,6 +95,7 @@ function invoice(
     recipient: { ...recipient, ...parts.recipient },
     site: null,
     signature: null,
+    cashAccounting: parts.cashAccounting ?? false,
     deductions: [],
   })
 }
@@ -320,19 +322,39 @@ describe('every message', () => {
 describe('the printed notes', () => {
   it('carry the reason there is no tax, on any kind of document', () => {
     expect(
-      printedNotes({ kind: 'quote', taxTreatment: 'small_business', recipientIsBusiness: false }),
+      printedNotes({
+        kind: 'quote',
+        taxTreatment: 'small_business',
+        recipientIsBusiness: false,
+        statesCashAccounting: false,
+      }),
     ).toEqual([taxNotes.small_business])
   })
 
   it('tell a private customer to keep an invoice, and nobody else', () => {
     expect(
-      printedNotes({ kind: 'final_invoice', taxTreatment: 'standard', recipientIsBusiness: false }),
+      printedNotes({
+        kind: 'final_invoice',
+        taxTreatment: 'standard',
+        recipientIsBusiness: false,
+        statesCashAccounting: false,
+      }),
     ).toEqual([retentionNote])
     expect(
-      printedNotes({ kind: 'final_invoice', taxTreatment: 'standard', recipientIsBusiness: true }),
+      printedNotes({
+        kind: 'final_invoice',
+        taxTreatment: 'standard',
+        recipientIsBusiness: true,
+        statesCashAccounting: false,
+      }),
     ).toEqual([])
     expect(
-      printedNotes({ kind: 'quote', taxTreatment: 'standard', recipientIsBusiness: false }),
+      printedNotes({
+        kind: 'quote',
+        taxTreatment: 'standard',
+        recipientIsBusiness: false,
+        statesCashAccounting: false,
+      }),
     ).toEqual([])
   })
 
@@ -342,8 +364,34 @@ describe('the printed notes', () => {
         kind: 'final_invoice',
         taxTreatment: 'small_business',
         recipientIsBusiness: false,
+        statesCashAccounting: false,
       }),
     ).toEqual([taxNotes.small_business])
+  })
+
+  it('say from 2028 that the business pays its tax on what it receives, before the retention', () => {
+    const permitted = { cashAccounting: true }
+
+    expect(invoice({ documentDate: '2028-01-03' }, permitted).notes).toEqual([
+      cashAccountingNote,
+      retentionNote,
+    ])
+    expect(invoice({ documentDate: '2027-12-31' }, permitted).notes).toEqual([retentionNote])
+    expect(invoice({ documentDate: '2028-01-03' }).notes).toEqual([retentionNote])
+  })
+
+  it('leave that statement off a document that shows no tax, or a quote', () => {
+    const permitted = { cashAccounting: true }
+
+    for (const taxTreatment of ['small_business', 'reverse_charge'] as const) {
+      expect(invoice({ documentDate: '2028-01-03', taxTreatment }, permitted).notes).not.toContain(
+        cashAccountingNote,
+      )
+    }
+
+    expect(invoice({ documentDate: '2028-01-03', kind: 'quote' }, permitted).notes).not.toContain(
+      cashAccountingNote,
+    )
   })
 })
 

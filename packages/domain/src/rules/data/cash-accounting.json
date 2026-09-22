@@ -1,0 +1,31 @@
+{
+  "package": "cash-accounting",
+  "note": "Die Umsatzgrenze, bis zu der das Finanzamt nach § 20 Satz 1 Nr. 1 UStG auf Antrag gestatten kann, die Steuer nach vereinnahmten statt nach vereinbarten Entgelten zu berechnen (Ist-Versteuerung). Gemessen wird der Gesamtumsatz nach § 19 Abs. 2 UStG im vorangegangenen Kalenderjahr, gültig ist ein Datensatz für das Jahr, dessen Vorjahr er misst. Die Grenze ist eine Voraussetzung, keine Entscheidung: gestatten muss es das Finanzamt, und ob es das getan hat, erklärt der Betrieb als Einstellung cash_accounting.permitted. Die anderen Wege des § 20 Satz 1 (Befreiung von der Buchführungspflicht nach § 148 AO, freie Berufe, juristische Personen des öffentlichen Rechts) hängen an keiner Zahl und stehen deshalb nicht hier. Das Paket beginnt 2012: davor galten 125.000 Euro, ab Juli 2006 250.000 Euro, und bis 2009 für Unternehmer mit einem Finanzamt in den neuen Ländern 500.000 Euro, von Juli 2009 bis 2011 über § 20 Abs. 2 bundesweit 500.000 Euro; eine Grenze, die vom Sitz des Finanzamts abhängt, lässt sich hier nicht ausdrücken, und aus dieser Zeit stammt kein Beleg dieser Software. Die Werte sind am 22.09.2026 gegen § 20 UStG bei gesetze-im-internet.de und gegen die datierten Fassungen samt Änderungsgesetzen bei buzer.de geprüft.",
+  "records": [
+    {
+      "key": "cash_accounting.previous_year_limit",
+      "validFrom": "2012-01-01",
+      "validUntil": "2019-12-31",
+      "unit": "cents",
+      "value": 50000000,
+      "source": "§ 20 Satz 1 Nr. 1 UStG, Drittes Gesetz zur Änderung des Umsatzsteuergesetzes vom 06.12.2011"
+    },
+    {
+      "key": "cash_accounting.previous_year_limit",
+      "validFrom": "2020-01-01",
+      "validUntil": "2023-12-31",
+      "unit": "cents",
+      "value": 60000000,
+      "source": "§ 20 Satz 1 Nr. 1 UStG, Gesetz zur Einführung einer Pflicht zur Mitteilung grenzüberschreitender Steuergestaltungen vom 21.12.2019"
+    },
+    {
+      "key": "cash_accounting.previous_year_limit",
+      "validFrom": "2024-01-01",
+      "validUntil": null,
+      "unit": "cents",
+      "value": 80000000,
+      "source": "§ 20 Satz 1 Nr. 1 UStG, Wachstumschancengesetz vom 27.03.2024",
+      "note": "Rückwirkend zum 01.01.2024 in Kraft, verkündet am 27.03.2024."
+    }
+  ]
+}

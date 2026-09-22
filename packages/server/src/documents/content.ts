@@ -10,6 +10,7 @@ import {
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
+import { parameterAt } from '../database/parameters.js'
 import { deductionsFor } from './deductions.js'
 import {
   customers,
@@ -90,6 +91,10 @@ export async function issuerOf(tx: TenantTransaction, tenantId: TenantId): Promi
  * A progress invoice and a final invoice take off what the progress invoices
  * before them in the chain billed, read from what those froze when they were
  * issued. Every other kind deducts nothing.
+ *
+ * Whether the business calculated its tax on the amounts received is read as
+ * it stood on the document's date, like the small business claim that
+ * proposed the treatment: an invoice of 2028 says what applied in 2028.
  */
 export async function contentOf(
   tx: TenantTransaction,
@@ -162,6 +167,8 @@ export async function contentOf(
           path: signature.path,
         }
       : null,
+    cashAccounting:
+      (await parameterAt(tx, 'cash_accounting.permitted', document.documentDate))?.value === 1,
     deductions: await deductionsFor(tx, document),
   })
 }

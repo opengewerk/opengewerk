@@ -1,6 +1,6 @@
 {
   "package": "invoice",
-  "note": "Was eine Rechnung mindestens tragen muss, soweit es an einer Zahl oder an einem Stichtag hängt. Die Liste der Angaben selbst steht in rules/mandatory-details.ts, weil sie aus Sätzen besteht und nicht aus Zahlen; hier stehen die Grenze der Kleinbetragsrechnung nach § 33 UStDV und der Tag, ab dem ein Kleinunternehmer nach § 34a UStDV eine vereinfachte Rechnung ausstellen darf. Das Paket beginnt 2007 wie das Umsatzsteuerpaket, weil davor kein Beleg aus dieser Software stammen kann. Zum Stichtag 2007: das Änderungsgesetz setzt die 150 Euro zum 01.01.2007 in Kraft (Art. 9 und 16 MEG I) und knüpft dabei nicht an den Tag der Leistung an, jedenfalls findet sich dort keine solche Regel; diese Engine sucht nach dem Belegdatum. Die Werte sind am 21.09.2026 gegen § 33 und § 34a UStDV bei gesetze-im-internet.de und gegen die Änderungsgesetze geprüft, am 22.09.2026 erneut, dazu die Änderungsgesetze mit ihrem Inkrafttreten bei buzer.de.",
+  "note": "Was eine Rechnung mindestens tragen muss, soweit es an einer Zahl oder an einem Stichtag hängt. Die Liste der Angaben selbst steht in rules/mandatory-details.ts, weil sie aus Sätzen besteht und nicht aus Zahlen; hier stehen die Grenze der Kleinbetragsrechnung nach § 33 UStDV, der Tag, ab dem ein Kleinunternehmer nach § 34a UStDV eine vereinfachte Rechnung ausstellen darf, und der Tag, ab dem eine Rechnung die Ist-Versteuerung nennen muss. Das Paket beginnt 2007 wie das Umsatzsteuerpaket, weil davor kein Beleg aus dieser Software stammen kann. Zum Stichtag 2007: das Änderungsgesetz setzt die 150 Euro zum 01.01.2007 in Kraft (Art. 9 und 16 MEG I) und knüpft dabei nicht an den Tag der Leistung an, jedenfalls findet sich dort keine solche Regel; diese Engine sucht nach dem Belegdatum. Die Werte sind am 21.09.2026 gegen § 33 und § 34a UStDV bei gesetze-im-internet.de und gegen die Änderungsgesetze geprüft, am 22.09.2026 erneut, dazu die Änderungsgesetze mit ihrem Inkrafttreten bei buzer.de.",
   "records": [
     {
       "key": "invoice.small_amount_limit",
@@ -37,6 +37,24 @@
       "value": 1,
       "source": "§ 34a UStDV, Jahressteuergesetz 2024",
       "note": "Seit 2025 genügen Name und Anschrift beider Seiten, Steuernummer oder Umsatzsteuer-Identifikationsnummer, das Ausstellungsdatum, Menge und Art der Leistung, das Entgelt und der Hinweis auf die Steuerbefreiung. Rechnungsnummer und Leistungszeitpunkt gehören nicht mehr dazu."
+    },
+    {
+      "key": "invoice.cash_accounting_statement",
+      "validFrom": "2007-01-01",
+      "validUntil": "2027-12-31",
+      "unit": "flag",
+      "value": 0,
+      "source": "§ 14 Abs. 4 UStG",
+      "note": "Bis Ende 2027 muss eine Rechnung nicht sagen, ob der Betrieb die Steuer nach vereinnahmten Entgelten berechnet."
+    },
+    {
+      "key": "invoice.cash_accounting_statement",
+      "validFrom": "2028-01-01",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 14 Abs. 4 Satz 1 Nr. 6a UStG, Art. 27 Jahressteuergesetz 2024, in Kraft ab 01.01.2028 nach Art. 56 Abs. 12",
+      "note": "Berechnet der Betrieb die Steuer nach § 20 UStG, trägt die Rechnung die Angabe „Versteuerung nach vereinnahmten Entgelten“. Hintergrund ist der Vorsteuerabzug des Kunden, der ab demselben Tag bei einem solchen Betrieb erst mit der Zahlung möglich ist (§ 15 Abs. 1 Satz 1 Nr. 1 Satz 2 Buchst. b UStG in der Fassung von Art. 27, nach § 27 Abs. 41 UStG für Rechnungen, die nach dem 31.12.2027 ausgestellt werden). Diese Engine sucht nach dem Belegdatum. OpenGewerk setzt die Angabe nur auf eine Rechnung mit ausgewiesener Steuer: bei § 19 wird keine Steuer berechnet, bei § 13b schuldet sie der Kunde, und sein Vorsteuerabzug hängt dort nicht an der Zahlung. Diese Lesart gehört zur fachkundigen Prüfung in #31."
     }
   ]
 }

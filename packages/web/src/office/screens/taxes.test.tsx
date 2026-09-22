@@ -1,16 +1,25 @@
 import { type IsoDate, type RoleKey, shippedRules } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { claimableTransitions, nextStart, TaxScreen } from './taxes.js'
+import {
+  cashAccountingStatementFrom,
+  claimableTransitions,
+  earliestFrom,
+  limitOn,
+  nextStart,
+  proposedFrom,
+  TaxScreen,
+} from './taxes.js'
 
 /**
- * The statement of the transition of 2027. The owner makes it, the office
- * reads it, and the engine judges every invoice for work of 2027 by it, so
- * the day it begins is as much the point as the statement itself.
+ * What a business states about its own taxation: the small business rule,
+ * cash accounting and the transition of 2027. The owner makes each statement,
+ * the office reads it, and the engine judges documents by it on their own
+ * dates, so the day a statement begins is as much the point as the statement.
  */
 
 interface Call {
@@ -38,6 +47,11 @@ function signedInAs(...roles: RoleKey[]) {
     session: { activeTenantId: 't-1' },
   })
   serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+}
+
+/** One section of the screen, by the heading it carries. */
+function region(name: string): HTMLElement {
+  return screen.getByRole('region', { name })
 }
 
 /** A day to stand on, so that the screen does not change with the calendar. */
@@ -226,7 +240,7 @@ describe('the tax screen for the owner', () => {
     expect(screen.getByText(/§ 27 Abs\. 38 Satz 1 Nr\. 2 UStG/)).toBeTruthy()
   })
 
-  it('leaves the other settings of the business out of this history', async () => {
+  it('keeps the history of each setting in its own section', async () => {
     signedInAs('owner')
     serverSays('GET', '/settings/parameters', [
       {
@@ -241,7 +255,12 @@ describe('the tax screen for the owner', () => {
     render(inQueries(<TaxScreen />))
 
     expect(await screen.findByText(/Nicht erklärt: für Leistungen aus 2027/)).toBeTruthy()
-    expect(screen.queryByText('Verlauf')).toBeNull()
+    expect(within(region('E-Rechnung für Leistungen aus 2027')).queryByText('Verlauf')).toBeNull()
+    expect(
+      within(region('Kleinunternehmerregelung')).getByText(
+        'Ab 01.01.2025: Kleinunternehmerregelung',
+      ),
+    ).toBeTruthy()
   })
 
   it('shows the reason the server gives when it refuses', async () => {
@@ -294,6 +313,241 @@ describe('the tax screen after the transition', () => {
     await waitFor(() => {
       expect(screen.queryByText('Erklären kann das nur der Inhaber.')).toBeNull()
     })
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(within(region('E-Rechnung für Leistungen aus 2027')).queryByRole('button')).toBeNull()
+  })
+})
+
+describe('the day a statement the business dates itself begins', () => {
+  it('is the day wanted, when nothing was stated before', () => {
+    expect(proposedFrom([], '2026-01-01' as IsoDate)).toBe('2026-01-01')
+    expect(earliestFrom([])).toBeNull()
+  })
+
+  it('is never on or before the start of the newest period', () => {
+    const periods = [{ validFrom: '2026-09-22' as IsoDate }]
+
+    expect(earliestFrom(periods)).toBe('2026-09-23')
+    expect(proposedFrom(periods, '2026-01-01' as IsoDate)).toBe('2026-09-23')
+    expect(proposedFrom(periods, '2027-01-01' as IsoDate)).toBe('2027-01-01')
+  })
+})
+
+describe('the figures the screen names', () => {
+  it('come out of the rule packages: the limits, and 2028 for the statement on the invoice', () => {
+    const on = '2026-09-22' as IsoDate
+
+    expect(limitOn(shippedRules, 'small_business.previous_year_limit', on)).toMatchObject({
+      cents: 2_500_000,
+    })
+    expect(limitOn(shippedRules, 'small_business.current_year_limit', on)).toMatchObject({
+      cents: 10_000_000,
+    })
+    expect(limitOn(shippedRules, 'cash_accounting.previous_year_limit', on)).toEqual({
+      cents: 80_000_000,
+      source: expect.stringContaining('§ 20 Satz 1 Nr. 1 UStG') as string,
+    })
+    expect(cashAccountingStatementFrom(shippedRules)).toBe('2028-01-01')
+  })
+})
+
+describe('the small business rule', () => {
+  it('is stated from the first day of the year, with what it rests on', async () => {
+    signedInAs('owner')
+    serverSays('POST', '/settings/parameters', {
+      id: 'p-3',
+      key: 'small_business.claimed',
+      validFrom: '2026-01-01',
+      validUntil: null,
+      value: 1,
+      note: 'Umsatz 2025: 19.400 Euro',
+    })
+    render(inQueries(<TaxScreen />))
+
+    const section = await screen.findByRole('region', { name: 'Kleinunternehmerregelung' })
+
+    expect(
+      within(section).getByText(
+        'Nicht erklärt: neue Belege werden mit Umsatzsteuer vorgeschlagen.',
+      ),
+    ).toBeTruthy()
+    expect(within(section).getByText(/nicht über 25\.000 Euro lag/)).toBeTruthy()
+    expect(within(section).getByText(/100\.000 Euro nicht überschreitet/)).toBeTruthy()
+
+    const start = await within(section).findByLabelText('Kleinunternehmerregelung ab')
+
+    expect((start as HTMLInputElement).value).toBe('2026-01-01')
+
+    const person = userEvent.setup()
+    await person.type(
+      within(section).getByLabelText('Grundlage zur Kleinunternehmerregelung'),
+      'Umsatz 2025: 19.400 Euro',
+    )
+    await person.click(
+      within(section).getByRole('button', { name: 'Kleinunternehmerregelung erklären' }),
+    )
+
+    expect(await within(section).findByText('Gespeichert.')).toBeTruthy()
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+      key: 'small_business.claimed',
+      from: '2026-01-01',
+      value: 1,
+      note: 'Umsatz 2025: 19.400 Euro',
+    })
+  })
+
+  it('ends today unless another day is picked, and says what binds a waiver', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/settings/parameters', [
+      {
+        id: 'p-3',
+        key: 'small_business.claimed',
+        validFrom: '2026-01-01',
+        validUntil: null,
+        value: 1,
+        note: null,
+      },
+    ])
+    serverSays('POST', '/settings/parameters', {})
+    render(inQueries(<TaxScreen />))
+
+    const section = await screen.findByRole('region', { name: 'Kleinunternehmerregelung' })
+
+    expect(
+      await within(section).findByText(
+        'Erklärt ab dem 01.01.2026: neue Belege werden ohne Umsatzsteuer vorgeschlagen.',
+      ),
+    ).toBeTruthy()
+
+    const end = await within(section).findByLabelText('Regelbesteuerung ab')
+
+    expect((end as HTMLInputElement).value).toBe('2026-09-22')
+    expect(
+      within(section).getByText(/bindet mindestens fünf Jahre \(§ 19 Abs\. 3 UStG\)/),
+    ).toBeTruthy()
+    expect(within(section).queryByLabelText('Grundlage zur Kleinunternehmerregelung')).toBeNull()
+
+    fireEvent.change(end, { target: { value: '2027-01-01' } })
+    await userEvent
+      .setup()
+      .click(within(section).getByRole('button', { name: 'Kleinunternehmerregelung beenden' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        key: 'small_business.claimed',
+        from: '2027-01-01',
+        value: 0,
+        note: null,
+      })
+    })
+  })
+
+  it('holds back a day the server would refuse, and says from when it may begin', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/settings/parameters', [
+      {
+        id: 'p-3',
+        key: 'small_business.claimed',
+        validFrom: '2026-01-01',
+        validUntil: null,
+        value: 1,
+        note: null,
+      },
+    ])
+    render(inQueries(<TaxScreen />))
+
+    const section = await screen.findByRole('region', { name: 'Kleinunternehmerregelung' })
+
+    fireEvent.change(await within(section).findByLabelText('Regelbesteuerung ab'), {
+      target: { value: '2026-01-01' },
+    })
+
+    expect(
+      within(section).getByText(
+        'Frühestens ab dem 02.01.2026, davor gilt, was zuletzt erklärt wurde.',
+      ),
+    ).toBeTruthy()
+
+    const button = within(section).getByRole('button', {
+      name: 'Kleinunternehmerregelung beenden',
+    })
+
+    expect((button as HTMLButtonElement).disabled).toBe(true)
+    expect(calls.some((call) => call.method === 'POST')).toBe(false)
+  })
+})
+
+describe('cash accounting', () => {
+  it('names the limit, the paragraph and the statement invoices carry from 2028', async () => {
+    signedInAs('owner')
+    render(inQueries(<TaxScreen />))
+
+    const section = await screen.findByRole('region', { name: 'Ist-Versteuerung' })
+
+    expect(
+      within(section).getByText(
+        'Nicht erklärt: der Betrieb versteuert nach vereinbarten Entgelten (Soll-Versteuerung).',
+      ),
+    ).toBeTruthy()
+    expect(within(section).getByText(/nicht über 800\.000 Euro lag/)).toBeTruthy()
+    expect(within(section).getByText(/§ 20 Satz 1 Nr\. 1 UStG/)).toBeTruthy()
+    expect(
+      within(section).getByText(
+        /ab dem 01\.01\.2028 die Angabe „Versteuerung nach vereinnahmten Entgelten“/,
+      ),
+    ).toBeTruthy()
+  })
+
+  it('is stated from the day the tax office names', async () => {
+    signedInAs('owner')
+    serverSays('POST', '/settings/parameters', {})
+    render(inQueries(<TaxScreen />))
+
+    const section = await screen.findByRole('region', { name: 'Ist-Versteuerung' })
+
+    fireEvent.change(await within(section).findByLabelText('Ist-Versteuerung ab'), {
+      target: { value: '2026-07-01' },
+    })
+    await userEvent
+      .setup()
+      .click(within(section).getByRole('button', { name: 'Ist-Versteuerung erklären' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        key: 'cash_accounting.permitted',
+        from: '2026-07-01',
+        value: 1,
+        note: null,
+      })
+    })
+  })
+
+  it('shows a statement to the office, and nothing to change it with', async () => {
+    signedInAs('office')
+    serverSays('GET', '/settings/parameters', [
+      {
+        id: 'p-4',
+        key: 'cash_accounting.permitted',
+        validFrom: '2026-01-01',
+        validUntil: null,
+        value: 1,
+        note: 'Bescheid vom 12.01.2026',
+      },
+    ])
+    render(inQueries(<TaxScreen />))
+
+    const section = await screen.findByRole('region', { name: 'Ist-Versteuerung' })
+
+    expect(
+      await within(section).findByText(
+        'Erklärt ab dem 01.01.2026: das Finanzamt hat die Ist-Versteuerung gestattet.',
+      ),
+    ).toBeTruthy()
+    expect(
+      within(section).getByText(
+        'Ab 01.01.2026: Ist-Versteuerung. Grundlage: Bescheid vom 12.01.2026',
+      ),
+    ).toBeTruthy()
+    expect(await screen.findByText('Erklären kann das nur der Inhaber.')).toBeTruthy()
+    expect(within(section).queryByRole('button')).toBeNull()
   })
 })
