@@ -10,6 +10,7 @@ import { checkedCii, SchemaCheckError } from './cii-schema.js'
 import {
   acrossTheChange,
   cancellation,
+  cashAccounting,
   content,
   finalInvoice,
   item,
@@ -218,6 +219,21 @@ describe('an e-invoice', () => {
     expect(
       read(xml, "//ram:BuyerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID='VA']"),
     ).toEqual(['DE111222333'])
+  })
+
+  it('says from 2028 that the tax is calculated on what is received, as a note of the invoice', () => {
+    const notes = read(
+      ciiInvoice(cashAccounting, 'xrechnung'),
+      '//rsm:ExchangedDocument/ram:IncludedNote/ram:Content',
+    )
+
+    expect(notes).toContain('Versteuerung nach vereinnahmten Entgelten.')
+    expect(
+      read(
+        ciiInvoice(finalInvoice, 'xrechnung'),
+        '//rsm:ExchangedDocument/ram:IncludedNote/ram:Content',
+      ),
+    ).not.toContain('Versteuerung nach vereinnahmten Entgelten.')
   })
 
   it('makes a cancellation a correction of the invoice it names, with the quantities turned round', () => {

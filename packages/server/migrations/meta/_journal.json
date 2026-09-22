@@ -141,6 +141,13 @@
       "when": 1790058027506,
       "tag": "0019_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790059984373,
+      "tag": "0020_cash_accounting",
+      "breakpoints": true
     }
   ]
 }

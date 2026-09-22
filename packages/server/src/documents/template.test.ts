@@ -61,6 +61,7 @@ function page(
     readonly country?: string
     readonly signature?: SignatureContent | null
     readonly deductions?: readonly DeductionContent[]
+    readonly cashAccounting?: boolean
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -92,6 +93,7 @@ function page(
     },
     site: null,
     signature: parts.signature ?? null,
+    cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
   })
 
@@ -129,7 +131,19 @@ describe('the page', () => {
     expect(html).not.toContain('Umsatzsteuer 19 %')
     expect(html).not.toContain('<th class="figure">USt.</th>')
     expect(html).toMatch(/Gesamtbetrag<\/td><td class="figure">1\.000,00\s€/)
-    expect(html).toContain('Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.')
+    expect(html).toContain(
+      'Für diese Leistungen gilt die Steuerbefreiung für Kleinunternehmer nach § 19 UStG.',
+    )
+  })
+
+  it('says from 2028 that the business pays its tax on what it receives, and not before', () => {
+    const statement = 'Versteuerung nach vereinnahmten Entgelten.'
+
+    expect(page({ documentDate: '2028-01-03' }, { cashAccounting: true }).html).toContain(statement)
+    expect(page({ documentDate: '2027-12-30' }, { cashAccounting: true }).html).not.toContain(
+      statement,
+    )
+    expect(page({ documentDate: '2028-01-03' }).html).not.toContain(statement)
   })
 
   it('writes the country of a foreign customer, in capitals, and not the home one', () => {
@@ -232,7 +246,7 @@ describe('titles and document texts', () => {
     const order = [
       html.indexOf('class="text intro"'),
       html.indexOf('<table class="lines">'),
-      html.indexOf('Gemäß § 19 UStG'),
+      html.indexOf('Steuerbefreiung für Kleinunternehmer'),
       html.indexOf('class="text closing"'),
     ]
 
@@ -300,6 +314,7 @@ describe('the footer', () => {
       },
       site: null,
       signature: null,
+      cashAccounting: false,
       deductions: [],
     })
 

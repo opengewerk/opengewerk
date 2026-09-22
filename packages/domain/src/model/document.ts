@@ -231,8 +231,11 @@ export type TaxTreatment = (typeof taxTreatments)[number]
  * The sentence a document has to carry when it shows no tax.
  *
  * German, because it is printed and read by a person, and required by law in
- * both cases: section 14 (4) number 8 UStG for the reverse charge, section 14
- * (4) UStG together with section 19 for the small business.
+ * both cases: section 14a (5) UStG for the reverse charge, and for the small
+ * business section 34a sentence 1 number 5 UStDV, which since 2025 asks for a
+ * note that the exemption for small businesses applies. The sentence uses the
+ * words of that provision; the one before it said no VAT was charged under
+ * section 19, which named the paragraph but not the exemption it now is.
  *
  * Not in a rule package, although they are legal wordings. The packages hold
  * numbers with a unit and a period of validity, and `RuleRecord.value` is a
@@ -242,7 +245,8 @@ export type TaxTreatment = (typeof taxTreatments)[number]
  */
 export const taxNotes: Readonly<Record<TaxTreatment, string | null>> = {
   standard: null,
-  small_business: 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.',
+  small_business:
+    'Für diese Leistungen gilt die Steuerbefreiung für Kleinunternehmer nach § 19 UStG.',
   reverse_charge: 'Steuerschuldnerschaft des Leistungsempfängers gemäß § 13b UStG.',
 }
 
@@ -260,6 +264,18 @@ export const taxNotes: Readonly<Record<TaxTreatment, string | null>> = {
 export const retentionNote =
   'Wer diese Leistung als Privatperson bezieht, ist gesetzlich verpflichtet, die Rechnung ' +
   'zwei Jahre lang aufzubewahren (§ 14b Abs. 1 Satz 5 UStG).'
+
+/**
+ * The statement an invoice carries from 2028 when the business calculates its
+ * VAT on the amounts it received, section 14 (4) sentence 1 number 6a UStG.
+ * The words are the ones the law puts in quotation marks. The customer needs
+ * them: from the same day, the input tax on such an invoice may only be
+ * deducted once it has been paid.
+ *
+ * From when it is required hangs on a date and lives in the rule package
+ * `invoice`; the wording lives here, for the reason given at `taxNotes`.
+ */
+export const cashAccountingNote = 'Versteuerung nach vereinnahmten Entgelten.'
 
 export interface Document extends Synced {
   readonly id: DocumentId

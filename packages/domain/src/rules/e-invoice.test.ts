@@ -95,6 +95,7 @@ function invoice(
     recipient: { ...business, ...parts.recipient },
     site: null,
     signature: null,
+    cashAccounting: false,
     deductions: [],
   })
 }

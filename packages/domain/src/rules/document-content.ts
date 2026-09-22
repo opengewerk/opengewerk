@@ -1,5 +1,11 @@
 import type { Document } from '../model/document.js'
-import { isInvoice, retentionNote, showsPrices, taxNotes } from '../model/document.js'
+import {
+  cashAccountingNote,
+  isInvoice,
+  retentionNote,
+  showsPrices,
+  taxNotes,
+} from '../model/document.js'
 import type {
   DeductionContent,
   DocumentContent,
@@ -39,6 +45,13 @@ export interface ContentSources {
   readonly site: SiteContent | null
   readonly signature: SignatureContent | null
   /**
+   * Whether the business calculated its VAT on the amounts it received, on the
+   * document's date: a tenant parameter, read by the caller like everything
+   * else here. Whether the document has to say so is decided below, from the
+   * rules of that date.
+   */
+  readonly cashAccounting: boolean
+  /**
    * The progress invoices of the chain this document takes off, oldest first,
    * as their snapshots state them. Gathered by the caller, because finding them
    * means walking the chain and reading what was frozen, and empty for every
@@ -55,6 +68,10 @@ export interface ContentSources {
  * is what makes it valid. On a quote it says the same thing for the same
  * reason, so it is not limited to invoices.
  *
+ * The statement on cash accounting right after it, when the caller has
+ * worked out that the invoice needs one: it says something about the tax as
+ * well, namely when the business pays it.
+ *
  * The note on keeping the invoice only where section 14 (4) number 9 UStG asks
  * for it: an invoice, taxed as usual, to somebody who is not a business. Under
  * section 19 there is no taxable supply for the obligation to hang on, and a
@@ -64,6 +81,7 @@ export function printedNotes(document: {
   readonly kind: Document['kind']
   readonly taxTreatment: Document['taxTreatment']
   readonly recipientIsBusiness: boolean
+  readonly statesCashAccounting: boolean
 }): readonly string[] {
   const notes: string[] = []
   const taxNote = taxNotes[document.taxTreatment]
@@ -72,6 +90,10 @@ export function printedNotes(document: {
   // that says no VAT is charged answers a question it never raised.
   if (taxNote && showsPrices(document.kind)) {
     notes.push(taxNote)
+  }
+
+  if (document.statesCashAccounting) {
+    notes.push(cashAccountingNote)
   }
 
   if (
@@ -118,6 +140,17 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
 
   const totals = totalsFor(rules, lines, document)
 
+  // From 2028 an invoice says that the business pays the tax it shows on what
+  // it receives, because the customer may only deduct it once it is paid.
+  // Only an invoice that shows tax: under section 19 there is none, and under
+  // section 13b the customer owes it and deducts it without waiting for a
+  // payment. The note of the rule record says so and sends it to #31.
+  const statesCashAccounting =
+    sources.cashAccounting &&
+    isInvoice(document.kind) &&
+    document.taxTreatment === 'standard' &&
+    rules.valueAt('invoice.cash_accounting_statement', 'flag', document.documentDate) === 1
+
   return {
     version: documentContentVersion,
     kind: document.kind,
@@ -138,6 +171,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       kind: document.kind,
       taxTreatment: document.taxTreatment,
       recipientIsBusiness: sources.recipient.isBusiness,
+      statesCashAccounting,
     }),
     signature: sources.signature,
     deductions: sources.deductions,

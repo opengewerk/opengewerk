@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.6
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.7
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -86,7 +86,7 @@ Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung
 
 Gesetzliche Parameter stehen **nicht im Code**, sondern in versionierten Regeldatensätzen mit Gültigkeitszeitraum (gültig ab / bis), Quelle (Paragraf, Fundstelle) und Mandantenbezug, wo nötig:
 
-- Umsatzsteuer: Steuersätze, Kleinunternehmergrenze §19, Kleinbetragsgrenze §33 UStDV, Ausstellungspflicht E-Rechnung (Umsatzschwelle, Stichtag), §13b-Regeln
+- Umsatzsteuer: Steuersätze, Kleinunternehmergrenze §19, Umsatzgrenze der Ist-Versteuerung §20, Kleinbetragsgrenze §33 UStDV, Ausstellungspflicht E-Rechnung (Umsatzschwelle, Stichtag), §13b-Regeln
 - Bau: Bauabzugsteuer-Satz, Sicherheitseinbehalt-Standards, Gewährleistungsfristen BGB/VOB
 - Arbeit: ArbZG-Höchstarbeitszeit, Pausenregeln, MiLoG-Aufbewahrung
 - Aufbewahrung: GoBD-Fristen je Belegart, DSGVO-Löschfristen
@@ -225,6 +225,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 **Steuerliche Logik ⚖**
 - E-Rechnung ausgehend: XRechnung/ZUGFeRD; automatische Formatwahl je Empfänger (B2B-Inland → E-Rechnung, Verbraucher → PDF); Umsatzgrenze 800.000 € (2027) und Vollpflicht ab 2028 als Mandanteneinstellung
 - Kleinbetragsrechnung bis 250 €, Kleinunternehmerregelung §19 UStG (Mandanteneinstellung, Pflichthinweis)
+- Besteuerung nach vereinnahmten Entgelten §20 UStG (Ist-Versteuerung, auf Antrag vom Finanzamt gestattet): Mandanteneinstellung mit Gültigkeitszeitraum; ab 2028 Pflichtangabe „Versteuerung nach vereinnahmten Entgelten“ auf der Rechnung (§14 Abs. 4 Satz 1 Nr. 6a UStG)
 - §13b UStG Reverse Charge für Bauleistungen an Bauunternehmer (Pflichthinweis, Nettoausweis, korrekte Verbuchung)
 - Bauabzugsteuer §48 EStG auf Eingangsseite (Einbehalt, Anmeldung vorbereiten)
 - Pflichtangaben-Prüfung nach §14 UStG vor Festschreibung
@@ -287,7 +288,7 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 - Bankanbindung FinTS/EBICS, automatischer Zahlungsabgleich (Bank, PayPal, Stripe) mit Vorschlagslogik
 - Kassenbuch (ohne TSE; Barzahlung mit Registrierkasse ist ausgeschlossen, siehe 12.)
 - Anlagenbuchhaltung: Anlagenverzeichnis, AfA-Läufe, GWG
-- EÜR, USt-Voranmeldung, BWA, Bilanz/GuV als Auswertungen über das Journal
+- EÜR, USt-Voranmeldung, BWA, Bilanz/GuV als Auswertungen über das Journal; die USt-Voranmeldung nach vereinbarten oder vereinnahmten Entgelten, je nach Mandanteneinstellung (§20 UStG)
 - Jahresabschluss-Unterstützung (Abgrenzungen, Rückstellungen, Saldovortrag)
 - Datenzugriff für Betriebsprüfung ⚖: Z1/Z2/Z3, GDPdU/IDEA-Export
 - **Absicherung des Finance-Moduls** (größtes fachliches Risiko des Projekts): Journal technisch append-only (kein UPDATE/DELETE auf Buchungszeilen, Storno als Gegenbuchung); Buchungslogik als reine Funktionen mit Property-based Tests (Summenprobe, Soll = Haben, Steuerverprobung); Referenzfälle aus Lehrbuch-/IHK-Buchungssätzen als Testdaten; **Parallelbetrieb**: der Pilotbetrieb führt mindestens ein Geschäftsjahr parallel in der bisherigen Buchhaltung und vergleicht monatlich; die Auswertungen EÜR/USt-VA/Bilanz tragen bis zur Prüfung durch einen Steuerberater das Label „Vorschau, nicht abgabefertig“
@@ -423,6 +424,7 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 | §13b UStG | Reverse Charge bei Bauleistungen an Bauunternehmer | Kundenattribut, Belegtext, Verbuchung |
 | §48 EStG | Bauabzugsteuer 15 % ohne Freistellung | Subunternehmer-Nachweise, Eingangsrechnungsprüfung |
 | §14 UStG | Pflichtangaben auf Rechnungen | Prüfung vor Festschreibung |
+| §20 UStG | Ist-Versteuerung auf Antrag bis 800.000 € Vorjahresumsatz; ab 2028 Angabe auf der Rechnung | Mandanteneinstellung mit Zeitraum, Rechnungsangabe aus der Regel-Engine, USt-VA nach vereinnahmten Entgelten |
 | §312g BGB | Widerruf bei Haustürgeschäften (Verbraucher) | Widerrufsbelehrung als Angebotsanhang |
 | §649 / §650i BGB | Kostenvoranschlag; Verbraucherbauvertrag mit Baubeschreibung | Getrennte Belegtypen, Vorlage Baubeschreibung |
 | §640 BGB / VOB/B §12 | Abnahme als Fristbeginn | Abnahmeprotokoll triggert Gewährleistung |
@@ -516,6 +518,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.6 → v2.7
+
+- Neu: Besteuerung nach vereinnahmten Entgelten (§20 UStG) in 1.7, 4.2, 4.8 und der Rechtsübersicht. Die Ist-Versteuerung ist eine Mandanteneinstellung mit Gültigkeitszeitraum wie die Kleinunternehmerregelung, die Umsatzgrenze steht in der Regel-Engine. Ab 2028 verlangt §14 Abs. 4 Satz 1 Nr. 6a UStG die Angabe „Versteuerung nach vereinnahmten Entgelten“ auf der Rechnung, weil der Kunde die Vorsteuer aus ihr erst nach der Zahlung abziehen darf; die USt-Voranmeldung der Buchhaltung rechnet je nach Einstellung nach vereinbarten oder vereinnahmten Entgelten
 
 ## Änderungsprotokoll v2.5 → v2.6
 

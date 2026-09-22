@@ -229,6 +229,18 @@ describe('the small business limits', () => {
   })
 })
 
+describe('the limit for cash accounting', () => {
+  it('is the one of the year the permission is for, measured on the year before', () => {
+    const limit = (on: string) =>
+      shippedRules.valueAt('cash_accounting.previous_year_limit', 'cents', on as IsoDate)
+
+    expect(limit('2019-12-31')).toBe(50_000_000)
+    expect(limit('2020-01-01')).toBe(60_000_000)
+    expect(limit('2023-12-31')).toBe(60_000_000)
+    expect(limit('2024-01-01')).toBe(80_000_000)
+  })
+})
+
 describe('an invoice that was not paid', () => {
   it('falls late by a number of days that is a rule, not a constant', () => {
     expect(lateFrom(shippedRules, '2024-03-01' as IsoDate)).toBe('2024-03-31')

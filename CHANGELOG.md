@@ -9,6 +9,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Auf dem Bildschirm "Steuern" erklärt der Inhaber jetzt auch die Kleinunternehmerregelung
+  nach § 19 UStG und die Ist-Versteuerung nach § 20 UStG, jeweils ab einem Tag, den er
+  selbst wählt, mit Verlauf und freiwilliger Grundlage. Die Kleinunternehmerregelung ließ
+  sich bisher nur über die Schnittstelle setzen, die Ist-Versteuerung gar nicht. Grenzen
+  und Fundstellen kommen aus den Regelpaketen
+- Ab 2028 trägt eine Rechnung mit ausgewiesener Umsatzsteuer die Angabe „Versteuerung nach
+  vereinnahmten Entgelten“, wenn der Betrieb an ihrem Datum die Ist-Versteuerung erklärt
+  hat, im PDF und in der E-Rechnung. § 14 Abs. 4 Satz 1 Nr. 6a UStG verlangt sie von da
+  an, weil der Kunde die Vorsteuer aus einer solchen Rechnung erst nach der Zahlung
+  abziehen darf
+- Das Regelpaket `cash-accounting` mit der Umsatzgrenze der Ist-Versteuerung seit 2012,
+  im Paket `invoice` der Stichtag der neuen Angabe und die Einstellung
+  `cash_accounting.permitted` (Migration 0020). Die Feature-Gliederung kennt die
+  Ist-Versteuerung seit v2.7
+
 - Aufgaben mit Fälligkeit, verantwortlicher Person und Status, auf Wunsch an einem Kunden,
   Objekt oder Auftrag. Sie stehen an dem Datensatz, an dem sie hängen, und in einer
   eigenen Liste unter "Aufgaben", weil eine Aufgabe nur am Kunden morgens niemand findet
@@ -526,6 +541,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - CI-Job "Schreibweise", der Gedankenstriche im gesamten Repository meldet
 
 ### Geändert
+
+- Der Hinweis auf Belegen eines Kleinunternehmers lautet jetzt "Für diese Leistungen gilt
+  die Steuerbefreiung für Kleinunternehmer nach § 19 UStG." Seit 2025 verlangt § 34a
+  Satz 1 Nr. 5 UStDV einen Hinweis auf die Steuerbefreiung, der alte Satz nannte nur den
+  Paragrafen. Festgeschriebene Belege behalten ihren Satz
 
 - Die Pakete `invoice` und `e-invoice`, die Kommentare an `billedAfter` und
   `eInvoiceDuty` und die README geben das Gesetz genauer wieder: § 14 Abs. 5 UStG setzt

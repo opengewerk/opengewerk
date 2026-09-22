@@ -129,10 +129,16 @@ describe('a signed document', () => {
         kind: 'time_and_material_report',
         taxTreatment: 'small_business',
         recipientIsBusiness: false,
+        statesCashAccounting: false,
       }),
     ).toEqual([])
     expect(
-      printedNotes({ kind: 'quote', taxTreatment: 'small_business', recipientIsBusiness: false }),
+      printedNotes({
+        kind: 'quote',
+        taxTreatment: 'small_business',
+        recipientIsBusiness: false,
+        statesCashAccounting: false,
+      }),
     ).toHaveLength(1)
   })
 })

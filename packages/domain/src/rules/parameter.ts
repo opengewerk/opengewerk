@@ -36,6 +36,20 @@ export const tenantParameterKeys = [
    * reading that is never wrong.
    */
   'e_invoice.transition_claimed',
+  /**
+   * Whether the tax office permitted the business to calculate its VAT on the
+   * amounts it received rather than on the amounts it agreed, section 20 UStG.
+   * Granted on application, and for a trade business mostly because the total
+   * turnover of the year before was not above the limit in the rule package
+   * `cash-accounting`. A statement about a decision of the tax office, which
+   * this software cannot know; not permitted means the tax is calculated on
+   * the agreed amounts, the rule of section 16 (1) sentence 1 UStG.
+   *
+   * An invoice is not told until 2028, when section 14 (4) sentence 1 number
+   * 6a UStG asks it to say so. The bookkeeping of phase 3 reads it for the day
+   * the tax arises, which is the difference the setting is really about.
+   */
+  'cash_accounting.permitted',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -44,6 +58,7 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'small_business.claimed': 'flag',
   'invoice.payment_term_days': 'days',
   'e_invoice.transition_claimed': 'flag',
+  'cash_accounting.permitted': 'flag',
 }
 
 /**
