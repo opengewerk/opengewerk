@@ -1,0 +1,62 @@
+{
+  "package": "instructions",
+  "note": "Die mitgelieferten Belehrungen. Widerrufsbelehrung und Widerrufsformular sind die Muster der Anlagen 1 und 2 zu Art. 246a EGBGB im Wortlaut, am 22.09.2026 gegen gesetze-im-internet.de und die Fassungsgeschichte bei buzer.de geprüft. Ausgefüllt sind die Gestaltungshinweise 1, 5 und 6 je nach Art des Vertrags. Hinweis 3 (Widerrufsfunktion nach § 356a BGB, Formular auf der Webseite) bleibt leer, weil über OpenGewerk bis zum Kundenportal in Phase 5 kein Vertrag online geschlossen wird; Hinweis 4 entfällt, weil die Fassung für Waren das Abholen anbietet. Der Vordruck für den Beginn vor Ablauf der Widerrufsfrist hat kein gesetzliches Muster, sein Wortlaut ist von OpenGewerk. Alle drei stehen zur fachkundigen Prüfung in #31. Vor dem 28.05.2022 galten andere Fassungen der Muster, sie sind nicht hinterlegt; für einen Beleg mit älterem Datum gibt es deshalb keine mitgelieferte Belehrung.",
+  "wordings": [
+    {
+      "template": "withdrawal",
+      "validFrom": "2022-05-28",
+      "validUntil": "2026-06-18",
+      "source": "Anlage 1 zu Art. 246a § 1 Abs. 2 Satz 2 EGBGB in der Fassung von Art. 2 des Gesetzes vom 10.08.2021 (BGBl. I S. 3483)",
+      "title": "Widerrufsbelehrung",
+      "text": "# Widerrufsrecht\n\nSie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.\n\nDie Widerrufsfrist beträgt vierzehn Tage ab dem Tag{fristbeginn}\n\nUm Ihr Widerrufsrecht auszuüben, müssen Sie uns ({name}, {anschrift}, Telefon {telefon}, E-Mail {email}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.\n\nZur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.\n\n# Folgen des Widerrufs\n\nWenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, einschließlich der Lieferkosten (mit Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass Sie eine andere Art der Lieferung als die von uns angebotene, günstigste Standardlieferung gewählt haben), unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden Ihnen wegen dieser Rückzahlung Entgelte berechnet.\n\n{folgen}",
+      "contract": {
+        "service": {
+          "fristbeginn": " des Vertragsabschlusses.",
+          "folgen": "Haben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen soll, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht."
+        },
+        "goods": {
+          "fristbeginn": ", an dem Sie oder ein von Ihnen benannter Dritter, der nicht der Beförderer ist, die Waren in Besitz genommen haben bzw. hat.",
+          "folgen": "Wir holen die Waren ab. Wir tragen die Kosten der Rücksendung der Waren.\n\nSie müssen für einen etwaigen Wertverlust der Waren nur aufkommen, wenn dieser Wertverlust auf einen zur Prüfung der Beschaffenheit, Eigenschaften und Funktionsweise der Waren nicht notwendigen Umgang mit ihnen zurückzuführen ist."
+        }
+      },
+      "note": "Für eine Dienstleistung Gestaltungshinweis 1 a und 6, bei 6 ist „oder Lieferung von Wasser/Gas/Strom/Fernwärme“ gestrichen, wie das Muster es verlangt; „beginnen soll“ steht so im Muster. Für eine Warenlieferung Hinweis 1 b und aus Hinweis 5 „Wir holen die Waren ab.“, „Wir tragen die Kosten der Rücksendung der Waren.“ und der Satz zum Wertverlust. Ob diese Wahl für eine Lieferung mit Montage die richtige ist, gehört zur Prüfung in #31."
+    },
+    {
+      "template": "withdrawal",
+      "validFrom": "2026-06-19",
+      "validUntil": null,
+      "source": "Anlage 1 zu Art. 246a § 1 Abs. 2 Satz 2 EGBGB in der Fassung von Art. 2 des Gesetzes vom 03.02.2026 (BGBl. 2026 I Nr. 28)",
+      "title": "Widerrufsbelehrung",
+      "text": "# Widerrufsrecht\n\nSie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.\n\nDie Widerrufsfrist beträgt vierzehn Tage ab dem Tag{fristbeginn}\n\nUm Ihr Widerrufsrecht auszuüben, müssen Sie uns ({name}, {anschrift}, Telefon {telefon}, E-Mail {email}) mittels einer eindeutigen Erklärung (z. B. ein mit der Post versandter Brief oder eine E-Mail) über Ihren Entschluss, diesen Vertrag zu widerrufen, informieren. Sie können dafür das beigefügte Muster-Widerrufsformular verwenden, das jedoch nicht vorgeschrieben ist.\n\nZur Wahrung der Widerrufsfrist reicht es aus, dass Sie die Mitteilung über die Ausübung des Widerrufsrechts vor Ablauf der Widerrufsfrist absenden.\n\n# Folgen des Widerrufs\n\nWenn Sie diesen Vertrag widerrufen, haben wir Ihnen alle Zahlungen, die wir von Ihnen erhalten haben, einschließlich der Lieferkosten (mit Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass Sie eine andere Art der Lieferung als die von uns angebotene, günstigste Standardlieferung gewählt haben), unverzüglich und spätestens binnen vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über Ihren Widerruf dieses Vertrags bei uns eingegangen ist. Für diese Rückzahlung verwenden wir dasselbe Zahlungsmittel, das Sie bei der ursprünglichen Transaktion eingesetzt haben, es sei denn, mit Ihnen wurde ausdrücklich etwas anderes vereinbart; in keinem Fall werden Ihnen wegen dieser Rückzahlung Entgelte berechnet.\n\n{folgen}",
+      "contract": {
+        "service": {
+          "fristbeginn": " des Vertragsabschlusses.",
+          "folgen": "Haben Sie verlangt, dass die Dienstleistungen während der Widerrufsfrist beginnen soll, so haben Sie uns einen angemessenen Betrag zu zahlen, der dem Anteil der bis zu dem Zeitpunkt, zu dem Sie uns von der Ausübung des Widerrufsrechts hinsichtlich dieses Vertrags unterrichten, bereits erbrachten Dienstleistungen im Vergleich zum Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht."
+        },
+        "goods": {
+          "fristbeginn": ", an dem Sie oder ein von Ihnen benannter Dritter, der nicht der Beförderer ist, die Waren in Besitz genommen haben bzw. hat.",
+          "folgen": "Wir holen die Waren ab. Wir tragen die Kosten der Rücksendung der Waren.\n\nSie müssen für einen etwaigen Wertverlust der Waren nur aufkommen, wenn dieser Wertverlust auf einen zur Prüfung der Beschaffenheit, Eigenschaften und Funktionsweise der Waren nicht notwendigen Umgang mit ihnen zurückzuführen ist."
+        }
+      },
+      "note": "Das Gesetz vom 03.02.2026 hat die Gestaltungshinweise 3 und 6 neu gefasst: Hinweis 3 nennt seitdem die Widerrufsfunktion nach § 356a BGB, Hinweis 6 ist nur umformuliert. Der Text, der hier gedruckt wird, ist derselbe wie in der Fassung davor."
+    },
+    {
+      "template": "withdrawal_form",
+      "validFrom": "2022-05-28",
+      "validUntil": null,
+      "source": "Anlage 2 zu Art. 246a § 1 Abs. 2 Satz 1 Nr. 1 und § 2 Abs. 2 Nr. 2 EGBGB in der Fassung von Art. 2 des Gesetzes vom 10.08.2021 (BGBl. I S. 3483)",
+      "title": "Muster-Widerrufsformular",
+      "text": "(Wenn Sie den Vertrag widerrufen wollen, dann füllen Sie bitte dieses Formular aus und senden Sie es zurück.)\n\n- An {name}, {anschrift}, E-Mail {email}:\n- Hiermit widerrufe(n) ich/wir (*) den von mir/uns (*) abgeschlossenen Vertrag über den Kauf der folgenden Waren (*)/die Erbringung der folgenden Dienstleistung (*)\n___\n___\n- Bestellt am (*)/erhalten am (*)\n___\n- Name des/der Verbraucher(s)\n___\n- Anschrift des/der Verbraucher(s)\n___\n___\n- Unterschrift des/der Verbraucher(s) (nur bei Mitteilung auf Papier)\n___\n- Datum\n___\n\n(*) Unzutreffendes streichen.",
+      "note": "Das Muster nennt den Unternehmer mit Namen, Anschrift und E-Mail-Adresse, ohne Telefonnummer. Die Striche vor den Angaben sind Aufzählungspunkte, die Schreiblinien darunter sind Platz zum Ausfüllen und kein Teil des Wortlauts."
+    },
+    {
+      "template": "early_start",
+      "validFrom": "2022-05-28",
+      "validUntil": null,
+      "source": "§ 356 Abs. 5 Nr. 2 BGB (bis 18.06.2026 Abs. 4 Nr. 2) und § 357a Abs. 2 BGB; kein gesetzliches Muster, der Wortlaut ist von OpenGewerk",
+      "title": "Beginn vor Ablauf der Widerrufsfrist",
+      "text": "Soll die Arbeit vor Ablauf der Widerrufsfrist von vierzehn Tagen beginnen, brauchen wir dafür Ihr ausdrückliches Verlangen. Bitte füllen Sie diesen Vordruck in diesem Fall aus und geben Sie ihn uns unterschrieben zurück, auf Papier oder per E-Mail an {email}.\n\n- Ich verlange ausdrücklich, dass Sie mit den vereinbarten Leistungen vor Ablauf der Widerrufsfrist beginnen.\n- Mir ist bekannt, dass ich im Fall eines Widerrufs einen angemessenen Betrag für die Leistungen zu zahlen habe, die Sie bis dahin erbracht haben.\n- Mir ist bekannt, dass mein Widerrufsrecht mit der vollständigen Erfüllung des Vertrags durch Sie erlischt.\n\nName\n___\nAnschrift\n___\nOrt, Datum\n___\nUnterschrift\n___",
+      "note": "Das Verlangen braucht bei einem Vertrag außerhalb von Geschäftsräumen einen dauerhaften Datenträger (§ 357a Abs. 2 Nr. 2 BGB), das unterschriebene Blatt ist einer. Damit das Widerrufsrecht mit der vollständigen Leistung erlischt, muss der Kunde außerdem bestätigen, dass er das weiß (§ 356 Abs. 5 Nr. 2 Buchst. c BGB); das ist der dritte Punkt. Die Paragrafen stehen nicht im Wortlaut, weil § 356 BGB am 19.06.2026 umnummeriert wurde und der Text für beide Fassungen gilt."
+    }
+  ]
+}

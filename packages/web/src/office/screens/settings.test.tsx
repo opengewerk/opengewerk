@@ -78,6 +78,7 @@ describe('the settings', () => {
       '/einstellungen/steuern',
       '/einstellungen/nummernkreise',
       '/einstellungen/zahlungsziel',
+      '/einstellungen/belehrungen',
       '/einstellungen/e-mail',
       '/einstellungen/zugaenge',
     ])

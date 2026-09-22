@@ -53,6 +53,7 @@ import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { eInvoiceRefusals } from './e-invoice.controller.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+import { todayInGermany } from './today.js'
 
 /** What stands between a draft and its number, whatever the list it comes from. */
 type Missing = MissingDetail | EInvoiceGap
@@ -89,16 +90,6 @@ async function contentForIssuing(
 
     throw error
   }
-}
-
-/**
- * Today as a date, in the time zone of the businesses this is written for.
- * Not the server's clock read as UTC: between midnight and two in the morning
- * that would still be yesterday, and a document dated yesterday is a
- * different document.
- */
-function todayInGermany(): IsoDate {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
 }
 
 /** The refusal for a document that lacks mandatory details, the same for every route. */

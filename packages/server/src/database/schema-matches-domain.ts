@@ -13,6 +13,7 @@ import type {
   DocumentSnapshot,
   Equipment,
   Installation,
+  Instruction,
   Inverter,
   Job,
   Letterhead,
@@ -48,6 +49,7 @@ import type {
   equipment,
   files,
   installations,
+  instructions,
   inverters,
   jobs,
   letterheads,
@@ -107,6 +109,7 @@ export type DocumentFileMatches = Assert<Exact<typeof documentFiles.$inferSelect
 export type StoredFileMatches = Assert<Exact<typeof files.$inferSelect, StoredFile>>
 export type LetterheadMatches = Assert<Exact<typeof letterheads.$inferSelect, Letterhead>>
 export type TextSnippetMatches = Assert<Exact<typeof textSnippets.$inferSelect, TextSnippet>>
+export type InstructionMatches = Assert<Exact<typeof instructions.$inferSelect, Instruction>>
 export type DocumentSignatureMatches = Assert<
   Exact<typeof documentSignatures.$inferSelect, DocumentSignature>
 >

@@ -26,6 +26,7 @@ import { EInvoiceController } from './e-invoice.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
+import { InstructionsController } from './instructions.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
 import { MailSettingsController } from './mail-settings.controller.js'
@@ -149,6 +150,7 @@ export class ApiModule implements NestModule {
         DocumentMailController,
         SyncController,
         SettingsController,
+        InstructionsController,
         MailSettingsController,
         NumberRangesController,
         LetterheadController,

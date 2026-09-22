@@ -6,6 +6,7 @@ import { AccountScreen } from './screens/account.js'
 import { CustomerList, CustomerScreen } from './screens/customers.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationScreen } from './screens/installations.js'
+import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
@@ -79,6 +80,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/einstellungen/zahlungsziel',
     component: PaymentTermScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/belehrungen',
+    component: InstructionsScreen,
   }),
   createRoute({
     getParentRoute: () => root,
