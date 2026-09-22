@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.13
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.14
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -130,7 +130,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 - Objekte mit Adresse, Zugang (Schlüssel, Codes, verschlüsselt gespeichert), Ansprechpartnern, Fotos
 - Anlagen mit Typ, Hersteller, Seriennummer, Inbetriebnahme, Gewährleistungsende, zugeordneten Prüfprotokollen, Wartungsverträgen, Serviceaufträgen
-- **Anlagenstruktur (Elektro) ★**: Anlage → Verteiler (NSHV, UV) → Feld → Stromkreis → Betriebsmittel. Je Stromkreis: Bezeichnung, Sicherung (Typ, Nennstrom, Charakteristik), RCD (Typ, IΔn), Leitung (Typ, Querschnitt, Länge, Verlegeart), Verbraucher; je Betriebsmittel: Typ, Hersteller, Seriennummer. Diese Struktur ist zugleich das Gerüst der Prüfprotokolle nach VDE 0100-600 / 0105-100 (Messwerte werden je Stromkreis erfasst) und das Stromkreisverzeichnis für den Verteilerausdruck. Für PV analog: Anlage → Wechselrichter → String → Module, plus Speicher, Zähler, Wallbox.
+- **Anlagenstruktur (Elektro) ★**: Anlage → Verteiler (NSHV, UV) → Feld → Stromkreis → Betriebsmittel. Je Stromkreis: Bezeichnung, Sicherung (Typ, Nennstrom, Charakteristik), RCD (Typ, IΔn), Leitung (Typ, Aderzahl, Querschnitt, Länge, Verlegeart), Verbraucher; je Betriebsmittel: Typ, Hersteller, Seriennummer. Diese Struktur ist zugleich das Gerüst der Prüfprotokolle nach VDE 0100-600 / 0105-100 (Messwerte werden je Stromkreis erfasst) und das Stromkreisverzeichnis für den Verteilerausdruck, ein Blatt je Verteiler für seine Tür. Für PV analog: Anlage → Wechselrichter → String → Module, plus Speicher, Zähler, Wallbox.
 - **QR-Etikett je Anlage ★**: Aufkleber im Zählerschrank/am Wechselrichter → Scan öffnet Anlagenakte (Techniker) oder eine loginfreie Kundenseite mit nächster Prüfung und Störungsmeldung mit Foto (Kunde)
 - Komplette Historie pro Anlage, auch für den nächsten Handwerker nachvollziehbar
 
@@ -533,6 +533,11 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.13 → v2.14
+
+- Präzisiert: Die Leitung eines Stromkreises nennt neben Typ, Querschnitt, Länge und Verlegeart die Aderzahl (3.2). Ohne sie steht im Stromkreisverzeichnis „NYM-J 2,5 mm²“, wo „NYM-J 3 × 2,5 mm²“ gemeint ist, und das Prüfprotokoll unterscheidet damit Wechsel- von Drehstromkreisen
+- Präzisiert: Das Stromkreisverzeichnis ist ein Blatt je Verteiler, denn jeder Verteiler hat seine eigene Tür (3.2, 5.1). Umgesetzt mit #70
 
 ## Änderungsprotokoll v2.12 → v2.13
 
