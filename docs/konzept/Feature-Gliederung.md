@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.11
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.12
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -232,7 +232,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - §13b UStG Reverse Charge für Bauleistungen an Bauunternehmer (Pflichthinweis, Nettoausweis, korrekte Verbuchung)
 - Bauabzugsteuer §48 EStG auf Eingangsseite (Einbehalt, Anmeldung vorbereiten)
 - Pflichtangaben-Prüfung nach §14 UStG vor Festschreibung
-- Belehrungen als Anhang eines Belegs: mitgeliefert die Muster-Widerrufsbelehrung mit Muster-Widerrufsformular für Verträge außerhalb von Geschäftsräumen und im Fernabsatz (§312g BGB, Anlagen 1 und 2 zu Art. 246a EGBGB), als Fassung mit Gültigkeitszeitraum und Fundstelle wie ein Regelpaket; dazu eigene Belehrungen des Betriebs. Vorhandene lassen sich ändern und erweitern, ein geändertes Muster verliert aber die Absicherung aus Art. 246a §1 Abs. 2 Satz 2 EGBGB, das sagt der Bildschirm, und der Originalwortlaut bleibt wiederherstellbar. Je Belehrung einstellbar, zu welchen Belegarten und Kunden sie gehört und ob sie mit der E-Mail des Belegs hinausgeht; eingefroren mit dem Beleg und später im Kundenportal abrufbar (3.6). Ein Vordruck für das ausdrückliche Verlangen des vorzeitigen Beginns (§356 Abs. 5 Nr. 2, §357a Abs. 2 BGB) gehört dazu
+- Belehrungen als Anhang eines Belegs: mitgeliefert die Muster-Widerrufsbelehrung mit Muster-Widerrufsformular für Verträge außerhalb von Geschäftsräumen und im Fernabsatz (§312g BGB, Anlagen 1 und 2 zu Art. 246a EGBGB), als Fassung mit Gültigkeitszeitraum und Fundstelle wie ein Regelpaket; dazu eigene Belehrungen des Betriebs. Vorhandene lassen sich ändern und erweitern, ein geändertes Muster verliert aber die Absicherung aus Art. 246a §1 Abs. 2 Satz 2 EGBGB, das sagt der Bildschirm, und der Originalwortlaut bleibt wiederherstellbar. Je Belehrung einstellbar, zu welchen Belegarten und Kunden sie gehört und ob sie mit dem Beleg hinausgeht, im PDF nach dem Beleg und damit in seiner E-Mail, oder als eigenes Blatt am Beleg bereitliegt; eingefroren mit dem Beleg und später im Kundenportal abrufbar (3.6). Ein Vordruck für das ausdrückliche Verlangen des vorzeitigen Beginns (§356 Abs. 5 Nr. 2, §357a Abs. 2 BGB) gehört dazu
 - Verbraucherbauvertrag §650i BGB mit Baubeschreibung und eigener Widerrufsbelehrung (§650l BGB, Art. 249 §3 EGBGB)
 
 **Zahlung**
@@ -533,6 +533,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.11 → v2.12
+
+- Präzisiert: Eine Belehrung, die mit dem Beleg hinausgeht, steht im PDF nach dem Beleg, jede auf einer eigenen Seite; das PDF ist dasselbe auf Papier, in der E-Mail und im Archiv, so kann keine vergessen werden. Eine, die nicht mit hinausgeht, liegt am Beleg als eigenes Blatt bereit. Das ist der Fall des Vordrucks für den Beginn vor Ablauf der Widerrufsfrist, der nur gebraucht wird, wenn der Kunde das will, und unterschrieben zurückkommt (4.2). Umgesetzt mit #109
 
 ## Änderungsprotokoll v2.10 → v2.11
 

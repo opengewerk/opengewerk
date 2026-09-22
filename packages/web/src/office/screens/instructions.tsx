@@ -328,11 +328,14 @@ function origin(instruction: InstructionView): string {
     return 'Eigene Belehrung'
   }
 
+  // The sheet for an early start ships like the models and is none: the law
+  // has no model for it, and the screen does not pretend otherwise.
+  const shipped = isStatutory(instruction.template)
+    ? 'Mitgeliefertes Muster'
+    : 'Mitgelieferter Vordruck'
   const since = instruction.model ? `, Fassung ab ${date(instruction.model.validFrom)}` : ''
 
-  return instruction.changed
-    ? `Mitgeliefertes Muster, vom Betrieb geändert${since}`
-    : `Mitgeliefertes Muster${since}`
+  return instruction.changed ? `${shipped}, vom Betrieb geändert${since}` : `${shipped}${since}`
 }
 
 function InstructionEntry({
