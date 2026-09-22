@@ -478,7 +478,10 @@ function EInvoiceCard({
         {duty ? <p className="text-body text-ink">{duty.reason}</p> : null}
         {duty && claimMatters && readsSettings ? (
           <p className="text-body text-ink">
-            <Link to="/steuern" className="text-copper-text underline underline-offset-2">
+            <Link
+              to="/einstellungen/steuern"
+              className="text-copper-text underline underline-offset-2"
+            >
               Erklärung zum Übergang unter „Steuern“
             </Link>
           </p>

@@ -304,7 +304,11 @@ async function mount(
     }),
     createRoute({ getParentRoute: () => root, path: '/auftraege', component: () => null }),
     createRoute({ getParentRoute: () => root, path: '/kunden/$customerId', component: () => null }),
-    createRoute({ getParentRoute: () => root, path: '/steuern', component: () => null }),
+    createRoute({
+      getParentRoute: () => root,
+      path: '/einstellungen/steuern',
+      component: () => null,
+    }),
   ])
   const router = createRouter({
     routeTree: tree,
@@ -1076,7 +1080,7 @@ describe('the e-invoice', () => {
     const card = within(await screen.findByRole('region', { name: 'E-Rechnung' }))
     const link = await card.findByRole('link', { name: /unter „Steuern“/ })
 
-    expect(link.getAttribute('href')).toBe('/steuern')
+    expect(link.getAttribute('href')).toBe('/einstellungen/steuern')
   })
 
   it('offers both forms once the invoice is issued and lacks nothing', async () => {

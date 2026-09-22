@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Nummernkreise im Büro: je Kreis das Muster und die nächste Nummer, mit einer Vorschau
+  des nächsten Belegs beim Tippen. Ein neues Muster gilt ab dem nächsten Beleg, die nächste
+  Nummer lässt sich nur erhöhen, etwa um die Zählung eines bisherigen Programms
+  fortzusetzen. Ändern darf der Inhaber. Das Muster lag schon je Betrieb in der Datenbank,
+  ließ sich aber nur per SQL ändern (`GET` und `PUT /settings/number-ranges`)
+- Ein Eintrag "Einstellungen" im Büro, der Briefkopf, Steuern, Nummernkreise,
+  E-Mail-Einstellungen und Zugänge an einer Stelle sammelt. Die Bildschirme liegen jetzt
+  unter `/einstellungen/...`
+
 - Ein Befehl zum Starten, beim ersten Mal wie bei jedem Update: `sh docker/start.sh`.
   Beim ersten Start legt er `docker/.env` an und erzeugt jedes Passwort und jeden
   Schlüssel darin selbst, in der Konsole stehen nur die Namen, nie die Werte; gefragt wird

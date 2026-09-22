@@ -16,13 +16,12 @@ import { useSyncStatus } from '../sync/provider.js'
  */
 function Navigation() {
   const { conflicts } = useSyncStatus()
-  // Only the owner administers accounts, so for everybody else the entry is
-  // not there. A courtesy and not the gate: the routes behind it ask the
-  // membership on every request, and typing the address reaches a screen whose
-  // every call is refused.
+  // One entry for everything a business sets for itself: letterhead, taxes,
+  // number ranges, mail and, for the owner, the access list. The office reads
+  // most of it, since it writes the documents it ends up on. A courtesy and
+  // not the gate: the routes behind every screen ask the membership on every
+  // request, and typing an address reaches a screen whose calls are refused.
   const administers = useMay('membership.read')
-  // The office reads the letterhead as well, since it writes the documents it
-  // ends up on. Changing it is the owner's, and the screen says so.
   const readsSettings = useMay('settings.read')
   // Whoever reads documents reads the texts they are written from.
   const readsDocuments = useMay('document.read')
@@ -37,10 +36,9 @@ function Navigation() {
       to: '/konflikte',
       label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',
     },
-    ...(readsSettings ? [{ to: '/briefkopf', label: 'Briefkopf' as ReactNode }] : []),
-    ...(readsSettings ? [{ to: '/steuern', label: 'Steuern' as ReactNode }] : []),
-    ...(readsSettings ? [{ to: '/e-mail', label: 'E-Mail-Einstellungen' as ReactNode }] : []),
-    ...(administers ? [{ to: '/zugaenge', label: 'Zugänge' as ReactNode }] : []),
+    ...(readsSettings || administers
+      ? [{ to: '/einstellungen', label: 'Einstellungen' as ReactNode }]
+      : []),
     { to: '/konto', label: 'Konto' },
   ]
 

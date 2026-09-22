@@ -29,6 +29,7 @@ import { InstallationsController } from './installations.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
 import { MailSettingsController } from './mail-settings.controller.js'
+import { NumberRangesController } from './number-ranges.controller.js'
 import { SettingsController } from './settings.controller.js'
 import {
   AUTHENTICATION,
@@ -149,6 +150,7 @@ export class ApiModule implements NestModule {
         SyncController,
         SettingsController,
         MailSettingsController,
+        NumberRangesController,
         LetterheadController,
       ],
       providers: [
