@@ -573,6 +573,45 @@ describe('issuing', () => {
     expect(screen.getByText('Der Leistungszeitraum fehlt (§ 14 Abs. 4 Nr. 6 UStG).')).toBeDefined()
   })
 
+  it('lists every instruction that lacks something, although they share their detail', async () => {
+    const warnings = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    serverSays('POST', '/documents/d-1/issue', () => ({
+      status: 422,
+      body: {
+        message: 'Der Beleg kann noch nicht festgeschrieben werden, es fehlen Pflichtangaben.',
+        missing: [
+          {
+            detail: 'instruction',
+            message: 'Für die Belehrung „Widerrufsbelehrung“ fehlt die Telefonnummer.',
+          },
+          {
+            detail: 'instruction',
+            message: 'Für die Belehrung „Muster-Widerrufsformular“ fehlt die E-Mail-Adresse.',
+          },
+        ],
+      },
+    }))
+
+    try {
+      await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+      const person = userEvent.setup()
+
+      await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+      await person.click(screen.getByRole('button', { name: 'Jetzt festschreiben' }))
+
+      expect(
+        await screen.findByText('Für die Belehrung „Widerrufsbelehrung“ fehlt die Telefonnummer.'),
+      ).toBeDefined()
+      expect(
+        screen.getByText('Für die Belehrung „Muster-Widerrufsformular“ fehlt die E-Mail-Adresse.'),
+      ).toBeDefined()
+      expect(warnings.mock.calls.some((call) => String(call[0]).includes('same key'))).toBe(false)
+    } finally {
+      warnings.mockRestore()
+    }
+  })
+
   it('fixes the document on the server and shows it fixed', async () => {
     serverSays('POST', '/documents/d-1/issue', () => {
       const issued = { ...server.row('documents', 'd-1'), status: 'issued', number: 'AN-2026-0001' }
