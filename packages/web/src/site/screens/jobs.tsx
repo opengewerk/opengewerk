@@ -18,6 +18,7 @@ import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
+import { InstallationBoards } from './boards.js'
 import { JobTasks, MyTasks } from './tasks.js'
 
 /**
@@ -308,6 +309,9 @@ export function SiteJobScreen() {
               </div>
             ) : null}
           </dl>
+          <div className="mt-4">
+            <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
+          </div>
         </Card>
       ) : null}
 

@@ -15,6 +15,7 @@ import { Database } from '../database/database.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { AuthorizationGuard } from './authorization.js'
+import { CircuitChartController } from './circuit-chart.controller.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
@@ -137,6 +138,7 @@ export class ApiModule implements NestModule {
         CustomersController,
         SitesController,
         InstallationsController,
+        CircuitChartController,
         JobsController,
         TasksController,
         // Before the documents, whose routes take an id in the same place.

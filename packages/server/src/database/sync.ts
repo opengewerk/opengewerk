@@ -21,6 +21,7 @@ import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
 import { signatureRefusal } from '../documents/signing.js'
 import { proposedTreatment } from '../documents/treatment.js'
+import { structureProblem, structureRefusal } from '../electrical/structure.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
 import * as schema from './schema/index.js'
@@ -366,6 +367,28 @@ async function applyOne(
         current,
       })
     }
+  }
+
+  // The structure below an installation. A figure out of bounds is a mistake
+  // in the client, refused with the sentence its form shows; a parent that is
+  // gone, or that belongs to another business, is a conflict about this one
+  // operation. The keys and checks in the database say the same, for the whole
+  // transmission at once.
+  const figures = structureProblem(operation.entity, values, current)
+
+  if (figures !== null) {
+    throw new UnknownFieldError(figures)
+  }
+
+  const misplaced = await structureRefusal(tx, operation, values, current)
+
+  if (misplaced) {
+    return await record(tx, tenantId, operation, {
+      outcome: 'conflict',
+      reason: misplaced.reason,
+      fields: misplaced.fields,
+      current,
+    })
   }
 
   // A cancellation invoice is made by the server out of the invoice it cancels

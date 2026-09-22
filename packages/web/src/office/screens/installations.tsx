@@ -8,17 +8,16 @@ import { RecordForm } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { BoardsSection } from './boards.js'
 import { JobLine, NewJobForm } from './jobs.js'
 import { asInstallation, installationFields } from './sites.js'
 
 /**
- * One system in a building.
+ * One system in a building, and the boards below it.
  *
- * What is below it, the distribution board with its sections and circuits or
- * the PV system with its inverters and strings, is not on this screen. That
- * structure exists in the data model and gets its own screens with its own
- * issue; putting a first draft of it here would be the kind of half thing the
- * issue explicitly keeps out.
+ * The boards are listed here and opened on a screen of their own, where the
+ * sections, circuits and equipment are. The PV structure below a PV system,
+ * inverters and strings, is not on this screen yet: it arrives with phase 2.
  */
 export function InstallationScreen() {
   const { installationId } = useParams({ strict: false }) as { installationId?: string }
@@ -110,6 +109,8 @@ export function InstallationScreen() {
           </Facts>
         </Card>
       )}
+
+      <BoardsSection installationId={installationId} />
 
       <Section
         title="Aufträge"

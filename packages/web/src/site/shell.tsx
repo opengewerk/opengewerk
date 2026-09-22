@@ -22,6 +22,23 @@ export function SiteShell() {
   const matchRoute = useMatchRoute()
   const onJob = matchRoute({ to: '/auftraege/$jobId' })
   const onReport = matchRoute({ to: '/auftraege/$jobId/berichte/$documentId' })
+  const onBoard = matchRoute({ to: '/auftraege/$jobId/verteiler/$boardId' })
+  const onCircuit = matchRoute({
+    to: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
+  })
+  const underJob = onReport || onBoard
+  // One step up from wherever this is: the circuit goes back to its board,
+  // everything else below a job back to the job, the job back to the list.
+  const back = onCircuit
+    ? {
+        to: `/auftraege/${onCircuit.jobId}/verteiler/${onCircuit.boardId}`,
+        label: 'Zurück zum Verteiler',
+      }
+    : underJob
+      ? { to: `/auftraege/${underJob.jobId}`, label: 'Zurück zum Auftrag' }
+      : onJob
+        ? { to: '/', label: 'Zurück zu den Aufträgen' }
+        : null
 
   return (
     <Shell entry="site">
@@ -43,13 +60,13 @@ export function SiteShell() {
           but a screen opened from a notification has no history to go back
           through, and then the gesture leaves the application.
         */}
-        {onJob || onReport ? (
+        {back ? (
           <nav aria-label="Zurück" className="px-4 py-2">
             <Link
-              to={onReport ? `/auftraege/${onReport.jobId}` : '/'}
+              to={back.to}
               className="inline-flex items-center h-control min-h-tap px-3 rounded-control text-body font-semibold text-copper-text"
             >
-              {onReport ? 'Zurück zum Auftrag' : 'Zurück zu den Aufträgen'}
+              {back.label}
             </Link>
           </nav>
         ) : null}

@@ -146,6 +146,8 @@ export interface SelectFieldProps {
   readonly options: readonly { readonly value: string; readonly label: string }[]
   readonly onChange: (value: string) => void
   readonly hint?: ReactNode
+  /** When set, the list is marked invalid and this is read out with it. */
+  readonly problem?: string
   readonly required?: boolean
   readonly disabled?: boolean
 }
@@ -164,11 +166,14 @@ export function SelectField({
   options,
   onChange,
   hint,
+  problem,
   required,
   disabled,
 }: SelectFieldProps) {
   const id = useId()
   const hintId = `${id}-hint`
+  const problemId = `${id}-problem`
+  const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
 
   return (
     <div className="flex flex-col gap-1">
@@ -180,11 +185,15 @@ export function SelectField({
         required={required}
         disabled={disabled}
         value={value}
-        aria-describedby={hint ? hintId : undefined}
+        aria-invalid={problem ? true : undefined}
+        aria-describedby={described.length > 0 ? described : undefined}
         onChange={(event) => {
           onChange(event.target.value)
         }}
-        className="h-control-lg min-h-tap px-3 rounded-control bg-surface text-ink text-body border border-line-strong"
+        className={clsx(
+          'h-control-lg min-h-tap px-3 rounded-control bg-surface text-ink text-body',
+          problem ? 'border-2 border-conflict' : 'border border-line-strong',
+        )}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -195,6 +204,11 @@ export function SelectField({
       {hint ? (
         <p id={hintId} className="text-table text-ink-muted">
           {hint}
+        </p>
+      ) : null}
+      {problem ? (
+        <p id={problemId} className="text-table font-semibold text-conflict">
+          {problem}
         </p>
       ) : null}
     </div>

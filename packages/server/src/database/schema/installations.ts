@@ -1,5 +1,5 @@
 import { installationKinds } from '@opengewerk/domain'
-import { date, index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import { date, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -11,6 +11,10 @@ export const installationKind = pgEnum('installation_kind', installationKinds)
 /**
  * A system in a building. Carries its warranty, and later its test records and
  * maintenance contract. The trade specific structure branches out below it.
+ *
+ * The unique key over tenant and id is what the boards below point at, so
+ * that a board can only hang on an installation of its own business; see
+ * `distributionBoards` for why a key on the id alone does not see to that.
  */
 export const installations = pgTable(
   'installations',
@@ -33,6 +37,7 @@ export const installations = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    unique('installations_tenant_id_key').on(table.tenantId, table.id),
     index('installations_site_idx').on(table.tenantId, table.siteId),
   ],
 )

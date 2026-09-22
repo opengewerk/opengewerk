@@ -1,12 +1,17 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
 import { ConflictScreen } from '../app/conflicts.js'
+import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteJobList, SiteJobScreen } from './screens/jobs.js'
 import { SiteReportScreen } from './screens/report.js'
 import { SiteShell } from './shell.js'
 
 /**
- * The routes of the site entry, four of them.
+ * The routes of the site entry.
+ *
+ * The boards and circuits hang below the job, although they belong to the
+ * installation: on site they are reached from the job somebody is working
+ * on, and the way back has to lead there.
  *
  * `basepath` is what makes this a second application at `/m` rather than a
  * section of the first. The two are separate documents with separate bundles,
@@ -26,6 +31,16 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/berichte/$documentId',
     component: SiteReportScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/verteiler/$boardId',
+    component: SiteBoardScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
+    component: SiteCircuitScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
 ]

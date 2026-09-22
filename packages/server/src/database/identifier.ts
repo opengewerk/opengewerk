@@ -14,3 +14,15 @@ import { uuidv7 } from 'uuidv7'
 export function newId<Entity extends string>(): Id<Entity> {
   return uuidv7() as Id<Entity>
 }
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Whether a value can be a key at all. Asked before a value from a request
+ * goes into a query: PostgreSQL refuses a malformed uuid with an error that
+ * aborts the transaction, and inside a sync run that is every other
+ * operation of the transmission as well.
+ */
+export function isUuid(value: unknown): value is string {
+  return typeof value === 'string' && uuidPattern.test(value)
+}
