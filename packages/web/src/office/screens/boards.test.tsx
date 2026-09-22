@@ -171,7 +171,7 @@ beforeEach(() => {
 
 describe('the boards of an installation', () => {
   it('are listed with what is on them, and a new one goes at the end', async () => {
-    const { client } = await mount('/anlagen/i-1')
+    await mount('/anlagen/i-1')
     const user = userEvent.setup()
 
     const boards = await screen.findByRole('region', { name: 'Verteiler' })
@@ -185,7 +185,12 @@ describe('the boards of an installation', () => {
     await user.click(within(boards).getByRole('button', { name: 'Verteiler anlegen' }))
     await user.type(within(boards).getByLabelText('Bezeichnung'), 'UV Küche')
     await user.click(within(boards).getByRole('button', { name: 'Anlegen' }))
-    await client.synchronise()
+    // Waited for rather than synchronised at once: the save reaches the
+    // outbox a step after the click, and a round started before it would
+    // find nothing to send.
+    await waitFor(() => {
+      expect(server.operations()).toHaveLength(1)
+    })
 
     const [created] = server.operations()
     expect(
@@ -229,7 +234,10 @@ describe('a board in the office', () => {
     await user.selectOptions(within(circuits).getByLabelText('Feld'), 'Feld 1')
     await user.click(within(circuits).getByRole('button', { name: 'Anlegen' }))
 
-    await user.click(within(circuits).getByRole('button', { name: 'Stromkreis anlegen' }))
+    // Found and not got: the form closes once the circuit is safe in the
+    // outbox, a step after the click, and on a slow machine the button still
+    // says "Abbrechen" at the moment the click has landed.
+    await user.click(await within(circuits).findByRole('button', { name: 'Stromkreis anlegen' }))
     expect(within(circuits).getByLabelText<HTMLSelectElement>('Feld').value).toBe('f-1')
 
     await client.synchronise()
@@ -281,7 +289,7 @@ describe('a board in the office', () => {
 
 describe('a circuit in the office', () => {
   it('lists the equipment on it and takes more', async () => {
-    const { client } = await mount('/stromkreise/k-2')
+    await mount('/stromkreise/k-2')
     const user = userEvent.setup()
 
     const facts = await screen.findByRole('region', { name: 'Stromkreis' })
@@ -294,7 +302,12 @@ describe('a circuit in the office', () => {
     await user.type(within(equipment).getByLabelText('Typ'), '20 EUC-914')
     await user.click(within(equipment).getByRole('button', { name: 'Anlegen' }))
 
-    await client.synchronise()
+    // Waited for rather than synchronised at once: the save reaches the
+    // outbox a step after the click, and a round started before it would
+    // find nothing to send.
+    await waitFor(() => {
+      expect(server.operations()).toHaveLength(1)
+    })
     expect(server.all('equipment')).toEqual([
       expect.objectContaining({
         circuitId: 'k-2',

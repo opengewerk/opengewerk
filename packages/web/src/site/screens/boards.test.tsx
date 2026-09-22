@@ -304,7 +304,7 @@ describe('a board on site', () => {
 
 describe('a circuit on site', () => {
   it('shows what is known and takes the rest, field by field', async () => {
-    const { client } = await mount('/auftraege/j-1/verteiler/b-1/stromkreise/k-2')
+    await mount('/auftraege/j-1/verteiler/b-1/stromkreise/k-2')
     const user = userEvent.setup()
 
     const known = await screen.findByRole('region', { name: 'Was bekannt ist' })
@@ -321,7 +321,12 @@ describe('a circuit on site', () => {
     )
     await user.click(within(form).getByRole('button', { name: 'Angaben sichern' }))
 
-    await client.synchronise()
+    // Waited for rather than synchronised at once: the save reaches the
+    // outbox a step after the click, and a round started before it would
+    // find nothing to send.
+    await waitFor(() => {
+      expect(server.operations()).toHaveLength(1)
+    })
 
     const [changed] = server.operations()
     // Only what changed travels, each with what the device saw in it, so
@@ -335,7 +340,7 @@ describe('a circuit on site', () => {
   })
 
   it('takes the equipment found on it', async () => {
-    const { client } = await mount('/auftraege/j-1/verteiler/b-1/stromkreise/k-2')
+    await mount('/auftraege/j-1/verteiler/b-1/stromkreise/k-2')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Betriebsmittel nachtragen' }))
@@ -343,7 +348,12 @@ describe('a circuit on site', () => {
     await user.type(screen.getByLabelText('Hersteller'), 'Busch-Jaeger')
     await user.click(screen.getByRole('button', { name: 'Betriebsmittel sichern' }))
 
-    await client.synchronise()
+    // Waited for rather than synchronised at once: the save reaches the
+    // outbox a step after the click, and a round started before it would
+    // find nothing to send.
+    await waitFor(() => {
+      expect(server.operations()).toHaveLength(1)
+    })
 
     const [created] = server.operations()
     expect(created?.entity).toBe('equipment')
