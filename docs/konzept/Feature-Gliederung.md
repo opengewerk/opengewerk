@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.10
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.11
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -164,6 +164,8 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Störung melden (mit Foto) → erzeugt Serviceauftrag
 - Eigene Anlagen mit nächsten Prüf-/Wartungsterminen sehen
 - Dokumente (Prüfprotokolle, Inbetriebnahmeprotokoll, Rechnungen) herunterladen
+- Belehrungen, die mit einem Beleg hinausgingen, am Beleg einsehen und herunterladen, im Wortlaut, in dem der Kunde sie bekommen hat
+- Widerrufsfunktion nach §356a BGB für Verträge, die im Portal geschlossen werden: eine ständig erreichbare Schaltfläche „Vertrag widerrufen“ mit Bestätigung und Eingangsbestätigung ⚖
 
 ### 3.7 Marketing & Bindung
 
@@ -230,7 +232,8 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - §13b UStG Reverse Charge für Bauleistungen an Bauunternehmer (Pflichthinweis, Nettoausweis, korrekte Verbuchung)
 - Bauabzugsteuer §48 EStG auf Eingangsseite (Einbehalt, Anmeldung vorbereiten)
 - Pflichtangaben-Prüfung nach §14 UStG vor Festschreibung
-- Widerrufsbelehrung bei Verträgen außerhalb von Geschäftsräumen (§312g BGB) als Angebotsanhang, Verbraucherbauvertrag §650i BGB mit Baubeschreibung
+- Belehrungen als Anhang eines Belegs: mitgeliefert die Muster-Widerrufsbelehrung mit Muster-Widerrufsformular für Verträge außerhalb von Geschäftsräumen und im Fernabsatz (§312g BGB, Anlagen 1 und 2 zu Art. 246a EGBGB), als Fassung mit Gültigkeitszeitraum und Fundstelle wie ein Regelpaket; dazu eigene Belehrungen des Betriebs. Vorhandene lassen sich ändern und erweitern, ein geändertes Muster verliert aber die Absicherung aus Art. 246a §1 Abs. 2 Satz 2 EGBGB, das sagt der Bildschirm, und der Originalwortlaut bleibt wiederherstellbar. Je Belehrung einstellbar, zu welchen Belegarten und Kunden sie gehört und ob sie mit der E-Mail des Belegs hinausgeht; eingefroren mit dem Beleg und später im Kundenportal abrufbar (3.6). Ein Vordruck für das ausdrückliche Verlangen des vorzeitigen Beginns (§356 Abs. 5 Nr. 2, §357a Abs. 2 BGB) gehört dazu
+- Verbraucherbauvertrag §650i BGB mit Baubeschreibung und eigener Widerrufsbelehrung (§650l BGB, Art. 249 §3 EGBGB)
 
 **Zahlung**
 - Zahlungsziel in Tagen als Einstellung des Betriebs mit Gültigkeitszeitraum, je Beleg überschreibbar; ein Folgebeleg übernimmt ein eigenes Zahlungsziel. Angebot, Kostenvoranschlag und Auftragsbestätigung nennen die Tage, die Rechnung das Fälligkeitsdatum, auch in der E-Rechnung; eingefroren mit dem Beleg
@@ -427,7 +430,8 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 | §48 EStG | Bauabzugsteuer 15 % ohne Freistellung | Subunternehmer-Nachweise, Eingangsrechnungsprüfung |
 | §14 UStG | Pflichtangaben auf Rechnungen | Prüfung vor Festschreibung |
 | §20 UStG | Ist-Versteuerung auf Antrag bis 800.000 € Vorjahresumsatz; ab 2028 Angabe auf der Rechnung | Mandanteneinstellung mit Zeitraum, Rechnungsangabe aus der Regel-Engine, USt-VA nach vereinnahmten Entgelten |
-| §312g BGB | Widerruf bei Haustürgeschäften (Verbraucher) | Widerrufsbelehrung als Angebotsanhang |
+| §312g BGB | Widerruf bei Verträgen außerhalb von Geschäftsräumen und im Fernabsatz (Verbraucher) | Belehrungen als Anhang, Muster nach Art. 246a EGBGB, Versand mit der E-Mail |
+| §356a BGB | Widerrufsfunktion bei Fernabsatzverträgen über eine Online-Oberfläche | Schaltfläche „Vertrag widerrufen“ im Kundenportal |
 | §649 / §650i BGB | Kostenvoranschlag; Verbraucherbauvertrag mit Baubeschreibung | Getrennte Belegtypen, Vorlage Baubeschreibung |
 | §640 BGB / VOB/B §12 | Abnahme als Fristbeginn | Abnahmeprotokoll triggert Gewährleistung |
 | Gewährleistung | BGB 5/2 Jahre, VOB/B 4 Jahre | Automatik + VOB-Kennzeichen am Auftrag |
@@ -478,7 +482,7 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 | Phase | Inhalt | Ergebnis |
 | --- | --- | --- |
 | 0: Fundament (schlank) | Tech-Stack-Entscheidungen (ADR 0002-0008), Datenmodell-Kern (Kunde → Objekt → Anlage → Auftrag → Beleg), Mandanten + Rechte, Nummernkreise/Festschreibung, Audit-Log, **Offline-Datenschicht** (IDs, Sync-Queue, Konfliktregeln, ohne Baustellen-UI), Regel-Engine (1.7) mit den Regeln für Phase 1, Docker-Compose, Backup/Restore, Update | Gerüst, auf dem Phase 1 ohne Umbau aufsetzt |
-| 1: MVP Pilotbetrieb | Kunden/Objekte/Anlagen (inkl. Anlagenstruktur Elektro), Angebot → AB → Regiebericht (mobil, Unterschrift) → Rechnung (Storno, Abschlag kumuliert), E-Rechnung ausgehend, Zeiterfassung (mobil, offline), Dokumentenablage, **ein** Prüfprotokoll (VDE 0100-600) über die Formular-Engine, Aufgaben, Benachrichtigung per E-Mail, Zahlungsziel, Widerrufsbelehrung ⚖ | Pilotbetrieb arbeitet produktiv damit; Parallelbetrieb der alten Buchhaltung beginnt |
+| 1: MVP Pilotbetrieb | Kunden/Objekte/Anlagen (inkl. Anlagenstruktur Elektro), Angebot → AB → Regiebericht (mobil, Unterschrift) → Rechnung (Storno, Abschlag kumuliert), E-Rechnung ausgehend, Zeiterfassung (mobil, offline), Dokumentenablage, **ein** Prüfprotokoll (VDE 0100-600) über die Formular-Engine, Aufgaben, Benachrichtigung per E-Mail, Zahlungsziel, Belehrungen mit Widerrufsbelehrung ⚖ | Pilotbetrieb arbeitet produktiv damit; Parallelbetrieb der alten Buchhaltung beginnt |
 | 1b: Messgeräte-PoC | Import einer echten Messdatei des Pilotbetriebs ins VDE-Protokoll | Go/No-Go für den Umfang des Messgeräte-Imports in Phase 2 |
 | 2: Elektro/PV-Kern | Alle Prüfprotokolle (E-Check, 0105-100, DGUV V3, VDE-AR-N 4105), Abnahme mit Gewährleistung und Mängeln ⚖, Messgeräte-Adapter laut PoC, PV-Dokumentation, Wartungsverträge, Fristen-Engine vollständig, QR-Etikett, Plantafel, Serviceaufträge/Dispatch, Material/Fahrzeuglager, Personal, DSGVO-Funktionen ⚖ | Alleinstellungsmerkmal; Betrieb mit mehreren Monteuren |
 | 3: Finance | E-Rechnungs-Empfang/Eingangsrechnungen, Journal, OP/Mahnwesen, Zahlungsbedingungen je Kunde und Skonto (4.2), Bank (FinTS), EÜR/USt-VA, DATEV-Export, Lohnexport, Verfahrensdokumentation und Datenzugriff für die Betriebsprüfung ⚖, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Read-Endpunkte, Zugriffslog); Absicherung laut 4.8 | Buchhaltung ersetzt sevdesk/Lexware nach bestandenem Parallelbetrieb; Kanzlei-Hub kann anbinden |
@@ -489,11 +493,11 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 
 **Zuordnung im Einzelnen.** Die Tabelle nennt die Schwerpunkte. Die übrigen Punkte der Abschnitte 1 bis 9 gehören so zu den Phasen; beides zusammen ist der Fahrplan, und aus beidem werden die Issues einer Phase geschnitten. Was in keiner Phase steht, steht in Abschnitt 12. Wer in 1 bis 9 einen Punkt einträgt, trägt seine Phase im selben Zug hier ein.
 
-- **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); die Widerrufsbelehrung nach §312g BGB als Anhang eines Angebots an einen Verbraucher (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt
+- **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); die Belehrungen als Anhang eines Belegs, mitgeliefert die Widerrufsbelehrung nach §312g BGB, dazu eigene des Betriebs, mit der E-Mail versendet und mit dem Beleg eingefroren (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt
 - **Phase 2:** das E-Check-Protokoll (5.1); das Abnahmeprotokoll nach §640 BGB über die Formular-Engine mit der Gewährleistungsfrist ab Abnahme, Mängel mobil mit Statusverfolgung und Mängelbericht (4.11) ⚖; Netzbetreiber-Anmeldung, Vorbereitung der MaStR-Meldung, Wallbox und Speicher mit Inbetriebnahme, Förderunterlagen und Prüfintervallen (5.1); der Zugang zum Objekt (Schlüssel, Codes), versiegelt gespeichert (3.2); Serviceaufträge mit Schnellerfassung und Sofortabrechnung vor Ort, Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (4.1, 4.3); zur Plantafel Serientermine, Urlaubs- und Krankheitsverwaltung, Terminbestätigung per Web-Push und CalDAV-Sync (2, 4.3, 6); Mitarbeiterakte und Qualifikationen mit Ablauffristen (4.9); Wartungsverträge mit Dauerrechnung (3.5, 4.2); Lieferantenverwaltung, Lieferschein und DATANORM-Import zum Material (4.2, 4.5); aus der Fristen-Engine Wiedervorlagen für Angebote und Wartungs- und Prüferinnerungen an Kunden (1.2, 3.3, 3.7); Leads und Vertriebspipeline, Kommunikationshistorie mit Notizen und Telefonprotokollen, Tags, Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für Mails (2, 3.1, 3.3, 3.4); die DSGVO-Funktionen mit Löschkonzept, Auskunft und Datenexport, Verarbeitungsverzeichnis und AV-Vertragsvorlage (2) ⚖; die Hilfe im Büro und auf der Baustelle mit kontextsensitiver Hilfe, Kurzanleitungen, Versionshinweisen und Administrator-Handbuch (8)
 - **Phase 3:** der Lohnexport aus der Zeiterfassung (DATEV Lodas und Lohn & Gehalt, CSV) mit Zuschlägen, Auslöse und Verpflegungsmehraufwand (4.4, 4.9); Gutschrift und Rechnungskorrektur (4.2); Kassenbuch und BWA (4.8); der Datenzugriff für die Betriebsprüfung Z1-Z3 mit GDPdU-Export und die generierte Verfahrensdokumentation (4.8, 4.10) ⚖; die Bank auch über EBICS, der Zahlungsabgleich mit PayPal und Stripe (4.8, 6); die Rolle Buchhaltung (2); Datenimport und -export mit Dubletten-Prüfung und die Importassistenten aus plancraft, HERO und sevdesk (2), weil hier der Wechsel des ganzen Betriebs stattfindet
 - **Phase 4:** Teilprojekte, Aufmaß mobil mit Übernahme in Kalkulation und Rechnung, Baubesprechungsprotokolle (4.1); Angebote mit Alternativ-, Eventual-, Bedarfs- und optionalen Positionen, GAEB-Import und -Export, der Mengenabgleich angeboten, geliefert, abgerechnet (1.4, 4.2); Kundenpreise, Rabattgruppen, Staffelpreise und Preislisten (3.1, 4.1); die Stundensätze der Mitarbeiter (4.9); Sicherheitseinbehalt und Bürgschaften, Mängelanzeige an Lieferanten und Subunternehmer (4.2, 4.11); der Verbraucherbauvertrag nach §650i BGB mit Baubeschreibung (4.2) ⚖; Einkauf mit IDS-Connect und UGL (4.5, 4.7, 6); die Wetter-API für Bautagebuch und Plantafel (6); die Rolle Bauleiter (2)
-- **Phase 5:** Abnahmeprotokolle digital unterschreiben, eigene Anlagen mit den nächsten Prüf- und Wartungsterminen, Dokumente zum Herunterladen, die loginfreie Kundenseite hinter dem QR-Etikett (3.2, 3.6); Zahlungsdienstleister für Kunden (6); der Kunde im Portal als Rolle (2)
+- **Phase 5:** Abnahmeprotokolle digital unterschreiben, eigene Anlagen mit den nächsten Prüf- und Wartungsterminen, Dokumente zum Herunterladen, die loginfreie Kundenseite hinter dem QR-Etikett, die Belehrungen zu den Belegen und die Widerrufsfunktion nach §356a BGB (3.2, 3.6) ⚖; Zahlungsdienstleister für Kunden (6); der Kunde im Portal als Rolle (2)
 - **Phase 6:** Dashboard, CRM-Auswertungen und lesender SQL-Zugang (3.8, 4.12); Jahresabschluss-Unterstützung (4.8); die globale Volltextsuche mit Volltextindex und OCR (2, 4.10); E-Mail-Verknüpfung über IMAP (3.4); Serienmails und Jubiläen (3.7); Fahrtroutenvorschlag (4.3); die offene REST-API mit Webhooks für Drittanbieter als eigener Vertrag (2, 6)
 
 ---
@@ -529,6 +533,12 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.10 → v2.11
+
+- Erweitert: Aus der Widerrufsbelehrung als Angebotsanhang werden Belehrungen, die der Betrieb pflegt (4.2). Mitgeliefert ist die Muster-Widerrufsbelehrung mit dem Muster-Widerrufsformular, als Fassung mit Gültigkeitszeitraum wie ein Regelpaket; eigene Belehrungen lassen sich anlegen und vorhandene ändern und erweitern, wobei ein geändertes Muster die gesetzliche Absicherung verliert. Je Belehrung ist einstellbar, ob sie mit der E-Mail des Belegs hinausgeht. Sie wird mit dem Beleg eingefroren und ist später im Kundenportal abrufbar (3.6)
+- Neu: Die Widerrufsfunktion nach §356a BGB für Verträge, die über eine Online-Oberfläche geschlossen werden, im Kundenportal (3.6), in der Rechtsübersicht (7) und in Phase 5. Die Vorschrift verlangt eine ständig erreichbare Schaltfläche „Vertrag widerrufen“; die Annahme eines Angebots im Portal ist genau so ein Vertrag
+- Präzisiert: Der Verbraucherbauvertrag hat ein eigenes Widerrufsrecht mit eigener Belehrung (§650l BGB, Art. 249 §3 EGBGB) und bleibt in Phase 4; die Zeile zu §312g in der Rechtsübersicht nennt jetzt auch den Fernabsatz
 
 ## Änderungsprotokoll v2.9 → v2.10
 
