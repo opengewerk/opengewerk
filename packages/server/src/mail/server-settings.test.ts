@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
 import { describe, expect, it } from 'vitest'
 
+import { isMailAddress } from './configuration.js'
 import { type MailServerInput, validMailServer } from './server-settings.js'
 
 /**
@@ -60,6 +61,23 @@ describe('a mail server', () => {
     expect(refusal({ fromAddress: 'Elektro Nord <rechnung@nord.example.de>' })).toContain(
       'keine E-Mail-Adresse',
     )
+    expect(refusal({ fromAddress: 'rechnung@nord' })).toContain('keine E-Mail-Adresse')
+    expect(
+      validMailServer({ ...base, fromAddress: 'r.echnung@mail.nord.example.de' }).fromAddress,
+    ).toBe('r.echnung@mail.nord.example.de')
+  })
+
+  /**
+   * The text CodeQL built to show the old check could be held up: a domain of
+   * endless dots with nothing valid at its end. Checked in far less than the
+   * blink it took before the labels lost their dots, and refused.
+   */
+  it('checks a text built to hold the check up in no time', () => {
+    const started = performance.now()
+
+    expect(isMailAddress(`!@!.${'!.'.repeat(100_000)}`)).toBe(false)
+    expect(isMailAddress(`a@${'b.'.repeat(100)}c`)).toBe(true)
+    expect(performance.now() - started).toBeLessThan(100)
   })
 
   it('wants a password only with a login, and never an empty one', () => {

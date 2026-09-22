@@ -457,7 +457,9 @@ describe('a business', () => {
    */
   it('whose password no longer opens keeps its messages waiting, untried', async () => {
     await aTask('susi', { title: 'Wartung Notbeleuchtung' })
-    await admin.query("update mail_settings set username = 'buero' where tenant_id = $1", [south])
+    await admin.query("update mail_settings set username = 'rechnung' where tenant_id = $1", [
+      south,
+    ])
     await admin.query(
       "insert into secrets (tenant_id, purpose, sealed) values ($1, 'smtp_password', $2)",
       [south, SecretKey.from('ein anderes Geheimnis').seal(`${south}:smtp_password`, 'geheim')],
