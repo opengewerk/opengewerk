@@ -1,0 +1,10 @@
+-- Nothing to take back.
+--
+-- 0032 brings the instructions of a business to what 0029 meant them to be,
+-- and the version before it gets along with them as they are: for a business
+-- set up today it writes exactly these values itself. Going back to how 0027
+-- left them is the job of the rollback of 0029.
+--
+-- That one changes rows, and like every rollback here it is run as the
+-- superuser: as the owner of the tables it would find no row under FORCE ROW
+-- LEVEL SECURITY, for the same reason 0029 found none.

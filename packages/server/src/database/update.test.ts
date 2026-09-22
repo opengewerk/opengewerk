@@ -355,6 +355,155 @@ describe('an update from an older release', () => {
   })
 })
 
+/**
+ * 0029 changed the shipped instructions of every business with four UPDATEs,
+ * and as the owner under FORCE ROW LEVEL SECURITY they found no row. 0032 says
+ * the same again with FORCE lifted. These are the rows 0027 wrote, planted as
+ * the superuser, and the way from there runs as an update does.
+ */
+describe('the instructions a business had before 0029', () => {
+  const release = (tag: string) => readMigrationIndex().findIndex((entry) => entry.tag === tag)
+
+  interface Instruction {
+    readonly template: string | null
+    readonly title: string
+    readonly kinds: string[]
+    readonly with_document: boolean
+    readonly position: number
+  }
+
+  /** The three rows 0027 wrote for a business, and one the business wrote itself. */
+  async function plantAsIn0027(): Promise<void> {
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into instructions (tenant_id, template, title, kinds, consumers_only, with_document, position)
+         values ($1, 'withdrawal', 'Widerrufsbelehrung', '{cost_estimate,quote}', true, false, 1),
+                ($1, 'withdrawal_form', 'Muster-Widerrufsformular', '{cost_estimate,quote}', true, false, 2),
+                ($1, 'early_start', 'Beginn vor Ablauf der Widerrufsfrist', '{cost_estimate,quote}', true, false, 3)`,
+      [tenant.id],
+    )
+    // Nothing here may touch it, whatever it carries: every statement names
+    // the shipped instruction it is for.
+    await admin.query(
+      `insert into instructions (tenant_id, title, body, kinds, with_document, position)
+         values ($1, 'Hinweise zur Baustelle', 'Bitte räumen Sie den Zählerplatz frei.',
+                 '{cost_estimate,quote}', false, 5)`,
+      [tenant.id],
+    )
+  }
+
+  async function standing(): Promise<Instruction[]> {
+    const { rows } = await admin.query<Instruction>(
+      `select template::text as template, title, kinds::text[] as kinds, with_document, position
+         from instructions order by position, title`,
+    )
+
+    return rows
+  }
+
+  const own: Instruction = {
+    template: null,
+    title: 'Hinweise zur Baustelle',
+    kinds: ['cost_estimate', 'quote'],
+    with_document: false,
+    position: 5,
+  }
+
+  it('carries what 0029 meant them to be after an update from before it', async () => {
+    const before = release('0029_instructions_for_quotes')
+    expect(before).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before))
+    await plantAsIn0027()
+
+    // One migration more behind 0032 in the same run, the way a later one
+    // will come. It fails if the reason 0032 gives the audit log were still
+    // set, so the reason ends with its statements and not with the run.
+    const reasonGone = releaseFolder(readMigrationIndex().length, {
+      tag: '9999_reason_is_gone',
+      sql: `DO $$ BEGIN
+              IF current_setting('app.reason', true) = 'migration' THEN
+                RAISE EXCEPTION 'The reason of 0032 is still set';
+              END IF;
+            END $$;`,
+    })
+    await runMigrations(ownerDatabaseUrl(), reasonGone)
+
+    expect(await standing()).toEqual([
+      {
+        template: 'withdrawal',
+        title: 'Widerrufsbelehrung',
+        kinds: ['quote'],
+        with_document: true,
+        position: 1,
+      },
+      {
+        template: 'withdrawal_form',
+        title: 'Muster-Widerrufsformular',
+        kinds: ['quote'],
+        with_document: true,
+        position: 3,
+      },
+      {
+        template: 'early_start',
+        title: 'Verlangen auf vorzeitigen Leistungsbeginn',
+        kinds: ['quote'],
+        with_document: false,
+        position: 4,
+      },
+      own,
+    ])
+
+    // FORCE is back on, which the next business on the instance depends on.
+    const { rows: forced } = await admin.query<{ forced: boolean }>(
+      "select relforcerowsecurity as forced from pg_class where oid = 'instructions'::regclass",
+    )
+    expect(forced).toEqual([{ forced: true }])
+
+    // Every change is in the log like any other, marked as the migration's,
+    // and the chain over it holds.
+    const { rows: logged } = await admin.query<{ reason: string | null; role: string }>(
+      `select reason, database_role as role from audit_entries
+        where table_name = 'instructions' and operation = 'update'`,
+    )
+    expect(logged.length).toBeGreaterThan(0)
+    expect(new Set(logged.map((entry) => `${entry.reason ?? ''} ${entry.role}`))).toEqual(
+      new Set(['migration opengewerk_owner']),
+    )
+    expect(await chainProblem()).toBeNull()
+  })
+
+  it('carries it as well where 0029 already ran and the notes came in since', async () => {
+    // The case of an installation updated on the day 0029 came out: the
+    // migration ran and did nothing, and the next time anybody looked at the
+    // instructions the server wrote the notes into second place, beside the
+    // form that should have moved.
+    const after = release('0029_instructions_for_quotes') + 1
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(after))
+    await plantAsIn0027()
+    await admin.query(
+      `insert into instructions (tenant_id, template, title, kinds, consumers_only, with_document, position)
+         values ($1, 'withdrawal_notes', 'Hinweise zum Erlöschen des Widerrufsrechts', '{quote}', true, true, 2)`,
+      [tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    expect(
+      (await standing()).map((row) => [row.template, row.position, row.kinds, row.with_document]),
+    ).toEqual([
+      ['withdrawal', 1, ['quote'], true],
+      ['withdrawal_notes', 2, ['quote'], true],
+      ['withdrawal_form', 3, ['quote'], true],
+      ['early_start', 4, ['quote'], false],
+      [null, 5, ['cost_estimate', 'quote'], false],
+    ])
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

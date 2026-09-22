@@ -225,6 +225,13 @@
       "when": 1790102736084,
       "tag": "0031_references_in_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790106199224,
+      "tag": "0032_instructions_for_quotes_on_existing_rows",
+      "breakpoints": true
     }
   ]
 }
