@@ -57,13 +57,21 @@ export function readRendererConfiguration(
   }
 }
 
+// Without RENDERER_URL there is no renderer at all, which under Docker Compose
+// cannot happen: the compose file always sets it. What is left is a server
+// started some other way, and that is who this sentence is for.
 const notConfigured =
   'Für diese Instanz ist kein Renderer eingerichtet, es kann deshalb kein PDF ' +
-  'erzeugt werden. Er wird mit "docker compose --profile renderer up -d" gestartet.'
+  'erzeugt werden. Mit Docker Compose läuft er von Haus aus mit, ohne Docker gehören ' +
+  'RENDERER_URL und RENDERER_TOKEN in die Umgebung.'
 
+// Set up and not answering: stopped, still starting, or switched off in the
+// .env. The sentence names the one command that starts it and the one line
+// that switches it off, because those are the two things to look at.
 const notReachable =
-  'Der Renderer antwortet nicht. Läuft der Dienst? Gestartet wird er mit ' +
-  '"docker compose --profile renderer up -d".'
+  'Der Renderer antwortet nicht, deshalb kann gerade kein PDF erzeugt werden. Gestartet ' +
+  'wird er mit "sh docker/start.sh". Steht in docker/.env "COMPOSE_PROFILES=" ohne ' +
+  '"renderer", ist er dort abgeschaltet.'
 
 /**
  * Renders a document. Throws `RendererUnavailableError` when there is no

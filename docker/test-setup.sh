@@ -23,7 +23,8 @@ printf '%s\n' "$out"
 test -f "$work/.env"
 ! grep -q 'bitte-ersetzen' "$work/.env"
 grep -q '^TRUSTED_ORIGINS=http://127.0.0.1:23700$' "$work/.env"
-check 'erster Lauf: keine Platzhalter, Adresse eingetragen'
+grep -qx 'COMPOSE_PROFILES=renderer' "$work/.env"
+check 'erster Lauf: keine Platzhalter, Adresse eingetragen, Renderer eingeschaltet'
 
 for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
   value=$(grep "^${name}=" "$work/.env" | cut -d= -f2-)
@@ -59,7 +60,16 @@ grep -Eq '^NEW_SECRET=[0-9a-f]{64}$' "$work/.env"
 printf '%s' "$out" | grep -q 'Aus der Vorlage übernommen: CLOSED NEW_SECRET'
 check 'neuere Vorlage: fehlende Variablen übernommen, neuer Schlüssel erzeugt'
 
-# 4. No address and nobody at the terminal: a sentence, and a failure.
+# 4. A renderer switched off stays off. An empty value is a value, and only a
+# line that is missing is taken from the template again.
+sed 's/^COMPOSE_PROFILES=.*/COMPOSE_PROFILES=/' "$work/.env" > "$work/.env.off"
+mv "$work/.env.off" "$work/.env"
+out=$(sh "$work/setup.sh" < /dev/null 2>&1)
+printf '%s\n' "$out"
+grep -qx 'COMPOSE_PROFILES=' "$work/.env"
+check 'abgeschalteter Renderer: bleibt abgeschaltet'
+
+# 5. No address and nobody at the terminal: a sentence, and a failure.
 rm "$work/.env"
 if out=$(sh "$work/setup.sh" < /dev/null 2>&1); then
   echo 'FEHLER: ohne Adresse lief das Skript durch'
@@ -69,7 +79,7 @@ printf '%s\n' "$out"
 printf '%s' "$out" | grep -q 'fehlt die Adresse'
 check 'ohne Adresse: abgelehnt'
 
-# 5. An address with a path.
+# 6. An address with a path.
 rm "$work/.env"
 if out=$(OPENGEWERK_ADDRESS=https://opengewerk.example.org/buero sh "$work/setup.sh" < /dev/null 2>&1); then
   echo 'FEHLER: eine Adresse mit Pfad lief durch'
@@ -78,7 +88,7 @@ fi
 printf '%s' "$out" | grep -q 'hat einen Pfad'
 check 'Adresse mit Pfad: abgelehnt'
 
-# 6. A trailing slash is taken off.
+# 7. A trailing slash is taken off.
 rm "$work/.env"
 OPENGEWERK_ADDRESS=https://opengewerk.example.org/ sh "$work/setup.sh" < /dev/null > /dev/null 2>&1
 grep -q '^TRUSTED_ORIGINS=https://opengewerk.example.org$' "$work/.env"

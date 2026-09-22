@@ -122,13 +122,16 @@ services:
   # not part of the application process. The reason is the memory target from
   # ADR 0002: Chromium in the same process would have broken it.
   #
-  # Only runs when asked for:
+  # Starts with the instance: the .env switches its profile on with
+  # COMPOSE_PROFILES=renderer, and the template ships it that way, because an
+  # installation without it cannot hand out a single PDF. Left empty there, it
+  # stays off:
   #
-  #   docker compose --profile renderer up -d
+  #   COMPOSE_PROFILES=
   #
   # Without it everything else keeps running, and an attempt at a PDF gets a
-  # readable message instead of a crash. Whoever never renders a document
-  # saves close to 4 GB of disk and around 340 MB of memory.
+  # readable message instead of a crash. Switched off, it saves close to 4 GB
+  # of disk and around 340 MB of memory.
   renderer:
     image: ghcr.io/browserless/chromium:latest
     restart: unless-stopped

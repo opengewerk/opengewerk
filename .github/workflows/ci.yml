@@ -494,6 +494,39 @@ jobs:
           echo "Tabellen ohne Row-Level Security: ${unprotected}"
           test "${unprotected}" = "0"
 
+      # The renderer belongs to the default stack: COMPOSE_PROFILES in the
+      # template switches it on. Asked from inside the application container,
+      # through the same function the application prints with, so address and
+      # token come from its environment and never appear in this log. Chromium
+      # takes a few seconds after the container is up, hence the retries.
+      - name: Der Renderer läuft von Haus aus und druckt ein PDF
+        working-directory: docker
+        run: |
+          set -eu
+          docker compose ps --status running --services | grep -qx renderer
+          docker compose exec -T app node --input-type=module -e '
+            const { readRendererConfiguration, rendererFor } = await import("./dist/documents/renderer.js")
+            const render = rendererFor(readRendererConfiguration())
+            let pdf = null
+            for (let attempt = 1; pdf === null; attempt++) {
+              try {
+                pdf = await render({ html: "<p>OpenGewerk</p>" })
+              } catch (error) {
+                if (attempt === 30) {
+                  console.error(`Der Renderer hat nach 30 Versuchen kein PDF geliefert: ${error.message}`)
+                  process.exit(1)
+                }
+                await new Promise((resolve) => setTimeout(resolve, 2000))
+              }
+            }
+            const head = new TextDecoder().decode(pdf.subarray(0, 5))
+            if (head !== "%PDF-") {
+              console.error(`Der Renderer hat kein PDF geliefert, die Antwort beginnt mit: ${head}`)
+              process.exit(1)
+            }
+            console.log(`PDF vom Renderer: ${pdf.byteLength} Bytes`)
+          '
+
       - name: Speicherbedarf im Leerlauf melden
         working-directory: docker
         run: docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}'

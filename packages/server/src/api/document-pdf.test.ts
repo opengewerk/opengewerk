@@ -54,8 +54,8 @@ let renderer: 'working' | 'missing' | 'slow' = 'working'
 const standIn: Renderer = async (job) => {
   if (renderer === 'missing') {
     throw new RendererUnavailableError(
-      'Der Renderer antwortet nicht. Läuft der Dienst? Gestartet wird er mit ' +
-        '"docker compose --profile renderer up -d".',
+      'Der Renderer antwortet nicht, deshalb kann gerade kein PDF erzeugt werden. Gestartet ' +
+        'wird er mit "sh docker/start.sh".',
     )
   }
 
@@ -259,7 +259,7 @@ describe('without a renderer', () => {
     const refused = await pdfOf(document).expect(503)
     const body = JSON.parse((refused.body as Buffer).toString()) as { message: string }
 
-    expect(body.message).toContain('--profile renderer')
+    expect(body.message).toContain('sh docker/start.sh')
 
     renderer = 'working'
     await pdfOf(document).expect(200)
