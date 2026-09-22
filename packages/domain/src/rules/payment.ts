@@ -1,4 +1,8 @@
+import type { DocumentKind } from '../model/document.js'
+import type { PaymentTermContent } from '../model/document-content.js'
 import type { IsoDate } from '../model/identifier.js'
+import { carriesDueDate, statesPaymentTerm } from '../model/payment-term.js'
+import type { BilledAmount } from './invoice.js'
 import { applyRate, type RuleSet, withoutNegativeZero } from './rule.js'
 
 /**
@@ -20,6 +24,36 @@ export function addDays(on: IsoDate, days: number): IsoDate {
   at.setUTCDate(at.getUTCDate() + days)
 
   return at.toISOString().slice(0, 10) as IsoDate
+}
+
+/**
+ * The payment term a document states, or null when it states none.
+ *
+ * `days` is the term that applies, found by the caller: the document's own,
+ * or the business's setting on the document's date, or the default. A quote
+ * states it as days, an invoice as the day payment is due, counted from the
+ * document date.
+ *
+ * An invoice that asks for nothing states no term at all. A final invoice
+ * whose progress invoices billed the whole of it comes to zero, and one that
+ * comes out below zero is money going back; a due date on either would ask
+ * the customer to pay what nobody asks for.
+ */
+export function paymentTermOf(
+  kind: DocumentKind,
+  days: number,
+  documentDate: IsoDate,
+  billed: Pick<BilledAmount, 'grossCents'>,
+): PaymentTermContent | null {
+  if (!statesPaymentTerm(kind)) {
+    return null
+  }
+
+  if (!carriesDueDate(kind)) {
+    return { days, dueOn: null }
+  }
+
+  return billed.grossCents > 0 ? { days, dueOn: addDays(documentDate, days) } : null
 }
 
 /**

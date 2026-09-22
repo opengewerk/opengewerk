@@ -45,6 +45,11 @@ export function SettingsScreen() {
             about: 'Wie Angebote, Rechnungen und die übrigen Belege nummeriert werden.',
           },
           {
+            to: '/einstellungen/zahlungsziel',
+            title: 'Zahlungsziel',
+            about: 'Wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben für jeden Beleg.',
+          },
+          {
             to: '/einstellungen/e-mail',
             title: 'E-Mail-Einstellungen',
             about: 'Der Mailserver des Betriebs, die Signatur und was von selbst verschickt wird.',

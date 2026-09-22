@@ -98,6 +98,7 @@ function invoice(
     signature: null,
     cashAccounting: false,
     deductions,
+    paymentTermDays: 14,
   })
 }
 
@@ -148,6 +149,11 @@ describe('a cancellation', () => {
     expect(storno.deductions[0]?.number).toBe('RE-2026-0041')
     expect(storno.deductions[0]?.billed.grossCents).toBe(-progress.billed.grossCents)
     expect(storno.billed.grossCents).toBe(-original.billed.grossCents)
+
+    // The invoice asked to be paid by a day. The cancellation asks for nothing,
+    // and it does not carry the invoice's due date along as if it did.
+    expect(original.paymentTerm).toEqual({ days: 14, dueOn: '2026-10-02' })
+    expect(storno.paymentTerm).toBeNull()
   })
 
   it('takes back exactly what was billed, whatever the invoice and its deductions', () => {

@@ -321,4 +321,16 @@ export interface Document extends Synced {
    * and the tenant's own parameters; this column is where that answer is kept.
    */
   readonly taxTreatment: TaxTreatment
+  /**
+   * The payment term of this one document, in days, when it differs from the
+   * business's setting. Null means the setting applies, as it stood on the
+   * document's date, and that is the common case: a column that copied the
+   * setting into every document would make a change to it apply to none of
+   * the drafts already written.
+   *
+   * Only kinds that state a term use it, see `statesPaymentTerm`. The
+   * documents made out of this one carry it along, because a term the
+   * customer agreed on in the quote is the term of the invoice as well.
+   */
+  readonly paymentTermDays: number | null
 }

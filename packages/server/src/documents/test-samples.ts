@@ -133,6 +133,8 @@ export function content(
     readonly site?: SiteContent | null
     readonly deductions?: readonly DeductionContent[]
     readonly cashAccounting?: boolean
+    /** The term that applies, fourteen days unless a sample says otherwise. */
+    readonly paymentTermDays?: number
   },
 ): DocumentContent {
   return documentContent(shippedRules, {
@@ -155,6 +157,7 @@ export function content(
     signature: null,
     cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
+    paymentTermDays: parts.paymentTermDays ?? 14,
   })
 }
 
@@ -259,6 +262,8 @@ export const reverseCharge = content(
       item('Kabelrinne 100x60', 48_000, 1890, { unit: 'metre' }),
     ],
     recipient: { name: 'Bau Hansa GmbH', vatId: 'DE 111 222 333' },
+    // Agreed with the general contractor, and longer than the setting.
+    paymentTermDays: 30,
   },
 )
 
@@ -275,6 +280,9 @@ export const singleDay = content(
     issuer: plainIssuer,
     recipient: { email: null, buyerReference: null, vatId: null },
     site: { ...site, postalCode: null },
+    // An hour of fault finding, payable at once: a due date on the day of
+    // the invoice.
+    paymentTermDays: 0,
   },
 )
 

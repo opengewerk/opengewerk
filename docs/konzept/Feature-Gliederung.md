@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.8
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.9
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -232,6 +232,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Widerrufsbelehrung bei Verträgen außerhalb von Geschäftsräumen (§312g BGB) als Angebotsanhang, Verbraucherbauvertrag §650i BGB mit Baubeschreibung
 
 **Zahlung**
+- Zahlungsziel in Tagen als Einstellung des Betriebs mit Gültigkeitszeitraum, je Beleg überschreibbar; ein Folgebeleg übernimmt ein eigenes Zahlungsziel. Angebot, Kostenvoranschlag und Auftragsbestätigung nennen die Tage, die Rechnung das Fälligkeitsdatum, auch in der E-Rechnung; eingefroren mit dem Beleg
 - Automatisierte Zahlungsbedingungen, Skonto, Zahlungsziele (Fristen-Engine)
 - GAEB-Import/Export (DA81-86, X83-X86) ohne Tarif-Beschränkung
 - **Mahnwesen** (einmalig hier definiert, Finance nutzt es): Mahnstufen, Mahngebühren, Verzugszinsen; manuell oder automatisch je Kunde
@@ -518,6 +519,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.8 → v2.9
+
+- Neu: Das Zahlungsziel in Abschnitt 4.2. Der Betrieb stellt es einmal ein, als Mandanteneinstellung mit Gültigkeitszeitraum wie die steuerlichen, und jeder Beleg liest das seines eigenen Datums; ein einzelner Beleg kann ein eigenes haben, und die Belege, die aus ihm entstehen, übernehmen es. Die Rechnung macht daraus ein Fälligkeitsdatum, das mit ihr eingefroren wird und das die Fristen-Engine und das Mahnwesen später lesen. Die Zahlungsbedingungen je Kunde aus 3.1 setzen sich künftig zwischen Betrieb und Beleg
 
 ## Änderungsprotokoll v2.7 → v2.8
 

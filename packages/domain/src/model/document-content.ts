@@ -28,9 +28,10 @@ import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from '
  * Version 2 added the titles among the lines and the two texts around them,
  * version 3 the signature, version 4 the progress invoices a document deducts
  * and the amount it bills after them, version 5 the invoice a cancellation
- * cancels, version 6 what an e-invoice needs to know about the recipient.
+ * cancels, version 6 what an e-invoice needs to know about the recipient,
+ * version 7 the payment term.
  */
-export const documentContentVersion = 6
+export const documentContentVersion = 7
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -135,6 +136,26 @@ export interface CorrectionContent {
   readonly documentDate: IsoDate
 }
 
+/**
+ * The payment term a document states, as it was printed.
+ *
+ * The days are the ones that applied: the document's own, or else the
+ * business's setting on the document's date. An invoice adds the day payment
+ * is due, counted from its date, and that day is what an e-invoice carries and
+ * what the dunning of phase 3 will read; worked out again later, it would move
+ * with every correction to the setting.
+ */
+export interface PaymentTermContent {
+  /** Days after the document date. Zero is payable at once. */
+  readonly days: number
+  /**
+   * The day the amount is due, on a document that asks for payment. Null on a
+   * quote, an estimate or an order confirmation, which state the term of an
+   * invoice that has no date yet.
+   */
+  readonly dueOn: IsoDate | null
+}
+
 export interface DocumentContent {
   readonly version: typeof documentContentVersion
   readonly kind: DocumentKind
@@ -177,10 +198,21 @@ export interface DocumentContent {
   readonly billed: BilledAmount
   /** The invoice this one cancels. Null for everything but a cancellation. */
   readonly corrects: CorrectionContent | null
+  /**
+   * When the customer has to pay. Null for every kind that states no term, see
+   * `statesPaymentTerm`, and for an invoice that asks for nothing because the
+   * progress invoices before it billed all of it.
+   */
+  readonly paymentTerm: PaymentTermContent | null
+}
+
+/** The sixth shape, from #75: the e-invoice details of the recipient, no payment term yet. */
+export interface DocumentContentV6 extends Omit<DocumentContent, 'version' | 'paymentTerm'> {
+  readonly version: 6
 }
 
 /** The fifth shape, from #74: the cancellation, and a recipient without e-invoice details. */
-export interface DocumentContentV5 extends Omit<DocumentContent, 'version' | 'recipient'> {
+export interface DocumentContentV5 extends Omit<DocumentContentV6, 'version' | 'recipient'> {
   readonly version: 5
   readonly recipient: Omit<RecipientContent, 'email' | 'vatId' | 'buyerReference'>
 }
@@ -219,6 +251,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV6
   | DocumentContentV5
   | DocumentContentV4
   | DocumentContentV3

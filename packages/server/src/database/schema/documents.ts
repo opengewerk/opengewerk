@@ -1,9 +1,15 @@
-import { documentKinds, documentStatuses, taxTreatments } from '@opengewerk/domain'
+import {
+  documentKinds,
+  documentStatuses,
+  longestPaymentTermDays,
+  taxTreatments,
+} from '@opengewerk/domain'
 import {
   type AnyPgColumn,
   check,
   date,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -79,6 +85,14 @@ export const documents = pgTable(
      * under section 19 has to go on saying so afterwards.
      */
     taxTreatment: taxTreatment('tax_treatment').notNull().default('standard'),
+    /**
+     * The payment term of this one document in days, when it is not the
+     * business's setting. Null means the setting of the document's date
+     * applies, which is the common case. The check holds the range
+     * `paymentTermProblem` allows for every way in that is not a route or the
+     * sync; both of those refuse a wrong value first, with the sentence.
+     */
+    paymentTermDays: integer('payment_term_days'),
     ...timestamps,
     ...syncColumns,
   },
@@ -98,6 +112,11 @@ export const documents = pgTable(
       'documents_service_period',
       sql`${table.serviceUntil} is null
         or (${table.serviceFrom} is not null and ${table.serviceUntil} >= ${table.serviceFrom})`,
+    ),
+    check(
+      'documents_payment_term_days',
+      sql`${table.paymentTermDays} is null
+        or ${table.paymentTermDays} between 0 and ${sql.raw(String(longestPaymentTermDays))}`,
     ),
   ],
 )

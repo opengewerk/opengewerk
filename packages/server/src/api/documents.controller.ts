@@ -28,6 +28,7 @@ import {
   type MissingDetail,
   missingDetails,
   numberRangeOf,
+  paymentTermProblem,
   RuleError,
   shippedRules,
   successorsOf,
@@ -136,7 +137,27 @@ const writableFields = [
   // trigger like every other field. The proposal above is right in the common
   // case and cannot be right in all of them.
   'taxTreatment',
+  // The document's own payment term, or null for the business's setting.
+  'paymentTermDays',
 ] as const
+
+/**
+ * Refuses a payment term no form of this system would send, with the sentence
+ * the form shows. Null is not refused: it hands the document back to the
+ * business's setting. The check in the database would refuse the rest too,
+ * with a sentence written for a developer.
+ */
+function checkPaymentTerm(values: Partial<Record<string, unknown>>): void {
+  if (values['paymentTermDays'] === undefined || values['paymentTermDays'] === null) {
+    return
+  }
+
+  const problem = paymentTermProblem(values['paymentTermDays'])
+
+  if (problem !== null) {
+    throw new BadRequestException(problem)
+  }
+}
 
 @Controller('documents')
 export class DocumentsController {
@@ -155,6 +176,7 @@ export class DocumentsController {
   async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFields(values, ['customerId', 'kind', 'documentDate'])
+    checkPaymentTerm(values)
 
     const [created] = await this.database.forTenant(identity, async (tx) =>
       tx
@@ -188,6 +210,7 @@ export class DocumentsController {
   ) {
     const values = pick(body, writableFields)
     requireSomething(values)
+    checkPaymentTerm(values)
 
     return this.database.forTenant(identity, async (tx) => {
       const [updated] = await tx
@@ -402,6 +425,10 @@ export class DocumentsController {
           documentDate,
           subject: predecessor.subject,
           taxTreatment: predecessor.taxTreatment,
+          // A term the quote stated for itself was agreed with the customer,
+          // and the invoice out of it asks for the same. Without one, the
+          // successor follows the setting on its own date, as it would anyway.
+          paymentTermDays: predecessor.paymentTermDays,
           serviceFrom:
             predecessor.serviceFrom ??
             (predecessor.kind === 'time_and_material_report' ? predecessor.documentDate : null),

@@ -9,6 +9,7 @@ import { InstallationScreen } from './screens/installations.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
+import { PaymentTermScreen } from './screens/payment-term.js'
 import { SettingsScreen } from './screens/settings.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
@@ -73,6 +74,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/einstellungen/nummernkreise',
     component: NumberRangesScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/zahlungsziel',
+    component: PaymentTermScreen,
   }),
   createRoute({
     getParentRoute: () => root,
