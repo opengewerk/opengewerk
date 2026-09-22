@@ -2,6 +2,7 @@ import {
   type ContentSources,
   type DeductionContent,
   documentContent,
+  type InstructionContent,
   type IssuerContent,
   type LineContent,
   type SignatureContent,
@@ -9,7 +10,7 @@ import {
 } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
-import { printJob } from './template.js'
+import { instructionSheet, printJob } from './template.js'
 
 /**
  * The template, without a renderer. What can be checked on the HTML is what
@@ -63,6 +64,7 @@ function page(
     readonly deductions?: readonly DeductionContent[]
     readonly cashAccounting?: boolean
     readonly paymentTermDays?: number
+    readonly instructions?: readonly InstructionContent[]
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -97,6 +99,7 @@ function page(
     cashAccounting: parts.cashAccounting ?? false,
     deductions: parts.deductions ?? [],
     paymentTermDays: parts.paymentTermDays ?? 14,
+    instructions: parts.instructions ?? [],
   })
 
   return printJob(content, { logo: null })
@@ -337,6 +340,7 @@ describe('the footer', () => {
       cashAccounting: false,
       deductions: [],
       paymentTermDays: 14,
+      instructions: [],
     })
 
     const { footerHtml } = printJob(content, { logo: null })
@@ -497,5 +501,85 @@ describe('an invoice that deducts progress invoices', () => {
     expect(html).not.toContain('abzüglich')
     expect(html).not.toContain('Rechnungsbetrag')
     expect(html).toMatch(/Gesamtbetrag<\/td><td class="figure">1\.190,00\s€/)
+  })
+})
+
+describe('the instructions of a document', () => {
+  const withdrawal: InstructionContent = {
+    title: 'Widerrufsbelehrung',
+    text: '# Widerrufsrecht\n\nSie haben das Recht.\n\n- An uns:\n___',
+    withDocument: true,
+    model: {
+      template: 'withdrawal',
+      validFrom: '2026-06-19',
+      source: 'Anlage 1 zu Art. 246a § 1 Abs. 2 Satz 2 EGBGB',
+      changed: false,
+    },
+    variant: 'service',
+  }
+  const sheet: InstructionContent = {
+    title: 'Beginn <vorzeitig>',
+    text: 'Ich verlange <b>ausdrücklich</b> den Beginn.',
+    withDocument: false,
+    model: null,
+    variant: 'service',
+  }
+
+  it('follow the document on pages of their own, the ones that go out with it', () => {
+    const { html } = page(
+      { kind: 'quote', number: 'AN-2026-0007' },
+      { instructions: [withdrawal, sheet] },
+    )
+
+    expect(html).toContain('<section class="instruction">')
+    expect(html).toContain('<p class="annex">Anlage zu Angebot AN-2026-0007 vom 21.09.2026</p>')
+    expect(html).toContain('<h2>Widerrufsbelehrung</h2>')
+    expect(html).toContain('<h3>Widerrufsrecht</h3>')
+    expect(html).toContain('<ul><li>An uns:</li></ul>')
+    expect(html).toContain('<div class="write-line"></div>')
+    expect(html).not.toContain('vorzeitig')
+  })
+
+  it('are printed as a sheet each, and what a person typed stays text', () => {
+    const content = documentContent(shippedRules, {
+      document: {
+        kind: 'quote',
+        number: null,
+        documentDate: '2026-09-21',
+        serviceFrom: null,
+        serviceUntil: null,
+        subject: null,
+        introText: null,
+        closingText: null,
+        taxTreatment: 'standard',
+      },
+      lines: [line(1, 100000)],
+      issuer,
+      recipient: {
+        name: 'Familie Berg',
+        street: 'Lindenweg',
+        houseNumber: '3',
+        postalCode: '22301',
+        city: 'Hamburg',
+        country: 'DE',
+        isBusiness: false,
+        email: null,
+        vatId: null,
+        buyerReference: null,
+      },
+      site: null,
+      signature: null,
+      cashAccounting: false,
+      deductions: [],
+      paymentTermDays: 14,
+      instructions: [withdrawal, sheet],
+    })
+    const { html } = instructionSheet(content, 1, { logo: null })
+
+    expect(html).toContain('<h1>Beginn &lt;vorzeitig&gt;</h1>')
+    expect(html).toContain('Ich verlange &lt;b&gt;ausdrücklich&lt;/b&gt; den Beginn.')
+    expect(html).toContain('<p class="annex">Zu Angebot vom 21.09.2026</p>')
+    expect(html).toContain('ENTWURF')
+    expect(() => instructionSheet(content, 2, { logo: null })).toThrow()
   })
 })

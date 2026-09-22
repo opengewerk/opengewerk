@@ -18,6 +18,7 @@ import { AuthorizationGuard } from './authorization.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
+import { DocumentInstructionsController } from './document-instructions.controller.js'
 import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
 import { DocumentMailController } from './document-mail.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
@@ -26,6 +27,7 @@ import { EInvoiceController } from './e-invoice.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
+import { InstructionsController } from './instructions.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
 import { MailSettingsController } from './mail-settings.controller.js'
@@ -147,8 +149,10 @@ export class ApiModule implements NestModule {
         DocumentPdfController,
         EInvoiceController,
         DocumentMailController,
+        DocumentInstructionsController,
         SyncController,
         SettingsController,
+        InstructionsController,
         MailSettingsController,
         NumberRangesController,
         LetterheadController,

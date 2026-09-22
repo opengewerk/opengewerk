@@ -165,6 +165,15 @@ function signedInAs(...roles: RoleKey[]) {
 
 const customer = { id: 'c-1', kind: 'private', name: 'Familie Berg', version: 1, deletedAt: null }
 
+/** What the server says about the instructions of a document that has none. */
+const noInstructions = {
+  fixed: false,
+  variant: 'service',
+  choices: [],
+  printed: [],
+  gaps: [],
+}
+
 const job = {
   id: 'j-1',
   customerId: 'c-1',
@@ -336,6 +345,15 @@ beforeEach(() => {
   // The head of a quote or an invoice reads the payment term of the business.
   // None set, so the default applies, unless a test says otherwise.
   serverSays('GET', '/settings/parameters', () => ({ status: 200, body: [] }))
+
+  // Every document asks the server for its instructions. None proposed and
+  // nothing chosen, unless a test says otherwise.
+  for (const id of ['d-1', 'd-2', 'd-9']) {
+    serverSays('GET', `/documents/${id}/instructions`, () => ({
+      status: 200,
+      body: noInstructions,
+    }))
+  }
 
   serverSays('GET', '/documents/text-snippets', () => ({
     status: 200,
@@ -553,6 +571,45 @@ describe('issuing', () => {
       await screen.findByText('Die Anschrift des Betriebs fehlt (§ 14 Abs. 4 Nr. 1 UStG).'),
     ).toBeDefined()
     expect(screen.getByText('Der Leistungszeitraum fehlt (§ 14 Abs. 4 Nr. 6 UStG).')).toBeDefined()
+  })
+
+  it('lists every instruction that lacks something, although they share their detail', async () => {
+    const warnings = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    serverSays('POST', '/documents/d-1/issue', () => ({
+      status: 422,
+      body: {
+        message: 'Der Beleg kann noch nicht festgeschrieben werden, es fehlen Pflichtangaben.',
+        missing: [
+          {
+            detail: 'instruction',
+            message: 'Für die Belehrung „Widerrufsbelehrung“ fehlt die Telefonnummer.',
+          },
+          {
+            detail: 'instruction',
+            message: 'Für die Belehrung „Muster-Widerrufsformular“ fehlt die E-Mail-Adresse.',
+          },
+        ],
+      },
+    }))
+
+    try {
+      await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+      const person = userEvent.setup()
+
+      await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+      await person.click(screen.getByRole('button', { name: 'Jetzt festschreiben' }))
+
+      expect(
+        await screen.findByText('Für die Belehrung „Widerrufsbelehrung“ fehlt die Telefonnummer.'),
+      ).toBeDefined()
+      expect(
+        screen.getByText('Für die Belehrung „Muster-Widerrufsformular“ fehlt die E-Mail-Adresse.'),
+      ).toBeDefined()
+      expect(warnings.mock.calls.some((call) => String(call[0]).includes('same key'))).toBe(false)
+    } finally {
+      warnings.mockRestore()
+    }
   })
 
   it('fixes the document on the server and shows it fixed', async () => {
@@ -1484,5 +1541,163 @@ describe('sending by mail', () => {
       .click(await within(card).findByRole('button', { name: 'Per E-Mail senden' }))
 
     expect((await within(card).findByRole('alert')).textContent).toContain('kein Mailserver')
+  })
+})
+
+describe('the instructions of a document', () => {
+  const proposed = {
+    fixed: false,
+    variant: 'service',
+    choices: [
+      {
+        id: 'i-1',
+        title: 'Widerrufsbelehrung',
+        template: 'withdrawal',
+        proposed: true,
+        included: true,
+        withDocument: true,
+        changed: false,
+      },
+      {
+        id: 'i-3',
+        title: 'Beginn vor Ablauf der Widerrufsfrist',
+        template: 'early_start',
+        proposed: true,
+        included: true,
+        withDocument: false,
+        changed: false,
+      },
+      {
+        id: 'i-4',
+        title: 'Hinweise zur Wartung',
+        template: null,
+        proposed: false,
+        included: false,
+        withDocument: true,
+        changed: false,
+      },
+    ],
+    printed: [
+      { index: 0, title: 'Widerrufsbelehrung', withDocument: true, changed: false, source: 'A 1' },
+      {
+        index: 1,
+        title: 'Beginn vor Ablauf der Widerrufsfrist',
+        withDocument: false,
+        changed: false,
+        source: 'kein Muster',
+      },
+    ],
+    gaps: [],
+  }
+
+  it('lists what is proposed for a draft, and switches one off at the server', async () => {
+    serverSays('GET', '/documents/d-1/instructions', () => ({ status: 200, body: proposed }))
+    serverSays('PUT', '/documents/d-1/instructions', () => ({
+      status: 200,
+      body: {
+        ...proposed,
+        choices: proposed.choices.map((choice) =>
+          choice.id === 'i-3' ? { ...choice, included: false } : choice,
+        ),
+        printed: proposed.printed.slice(0, 1),
+      },
+    }))
+    await mount('/belege/d-1')
+
+    const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
+    const early = section.getByRole('checkbox', { name: 'Beginn vor Ablauf der Widerrufsfrist' })
+
+    expect(
+      (section.getByRole('checkbox', { name: 'Widerrufsbelehrung' }) as HTMLInputElement).checked,
+    ).toBe(true)
+    expect(section.getByText(/Geht mit dem Beleg hinaus, im PDF nach dem Beleg/)).toBeTruthy()
+    expect(
+      section
+        .getByRole('link', {
+          name: 'Beginn vor Ablauf der Widerrufsfrist als eigenes Blatt öffnen',
+        })
+        .getAttribute('href'),
+    ).toBe('/documents/d-1/instructions/1/pdf')
+
+    await userEvent.setup().click(early)
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        instructionId: 'i-3',
+        included: false,
+      })
+    })
+    await waitFor(() => {
+      expect((early as HTMLInputElement).checked).toBe(false)
+    })
+  })
+
+  it('asks what the contract is about, and says what is missing before issuing', async () => {
+    serverSays('GET', '/documents/d-1/instructions', () => ({
+      status: 200,
+      body: {
+        ...proposed,
+        gaps: ['Für die Belehrung „Widerrufsbelehrung“ fehlt im Briefkopf die Telefonnummer.'],
+      },
+    }))
+    serverSays('PUT', '/documents/d-1/instructions', () => ({
+      status: 200,
+      body: { ...proposed, variant: 'goods' },
+    }))
+    await mount('/belege/d-1')
+
+    const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
+
+    expect(section.getByRole('note').textContent).toContain('fehlt im Briefkopf die Telefonnummer')
+
+    await userEvent.setup().selectOptions(section.getByLabelText('Der Vertrag betrifft'), 'goods')
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ variant: 'goods' })
+    })
+  })
+
+  it('offers the ones not proposed under a fold, to be taken along by hand', async () => {
+    serverSays('GET', '/documents/d-1/instructions', () => ({ status: 200, body: proposed }))
+    await mount('/belege/d-1')
+
+    const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
+
+    expect(section.getByText('Weitere Belehrungen')).toBeTruthy()
+    expect(section.getByRole('checkbox', { name: 'Hinweise zur Wartung' })).toBeTruthy()
+  })
+
+  it('shows what went out with an issued document, each as a sheet', async () => {
+    serverSays('GET', '/documents/d-1/instructions', () => ({
+      status: 200,
+      body: { ...proposed, fixed: true, choices: [] },
+    }))
+    await mount('/belege/d-1', {
+      documents: [document({ status: 'issued', number: 'AN-2026-0001' })],
+    })
+
+    const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
+
+    expect(section.queryByRole('checkbox')).toBeNull()
+    expect(section.getByText(/Ist mit dem Beleg hinausgegangen/)).toBeTruthy()
+    expect(
+      section
+        .getByRole('link', { name: 'Widerrufsbelehrung als eigenes Blatt öffnen' })
+        .getAttribute('href'),
+    ).toBe('/documents/d-1/instructions/0/pdf')
+  })
+
+  it('says nothing for an issued document that carried none', async () => {
+    serverSays('GET', '/documents/d-1/instructions', () => ({
+      status: 200,
+      body: { ...noInstructions, fixed: true },
+    }))
+    await mount('/belege/d-1', {
+      documents: [document({ status: 'issued', number: 'AN-2026-0001' })],
+    })
+
+    await screen.findByRole('region', { name: 'Positionen' })
+
+    expect(screen.queryByRole('region', { name: 'Belehrungen' })).toBeNull()
   })
 })

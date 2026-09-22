@@ -105,6 +105,10 @@ const letterhead = {
   houseNumber: '12',
   postalCode: '20457',
   city: 'Hamburg',
+  // Not for section 14: a quote to a consumer carries the instruction on
+  // withdrawal since #109, and its model names both.
+  phone: '040 123456',
+  email: 'info@nord.example.de',
   taxNumber: '22/815/08154',
 }
 

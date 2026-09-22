@@ -43,6 +43,7 @@ import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { HeaderSection } from './document-head.js'
+import { InstructionsSection } from './document-instructions.js'
 import { LinesSection } from './document-lines.js'
 import { claimableTransitions } from './taxes.js'
 
@@ -365,6 +366,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
 
       <HeaderSection document={document} editable={editable} />
       <LinesSection document={document} editable={editable} />
+      <InstructionsSection document={document} />
       <SignatureSection documentId={documentId} />
       <ChainSection kind={kind} predecessor={predecessor} successors={successors} />
     </Page>
@@ -742,8 +744,12 @@ function IssueCard({
             <p className="text-body font-semibold text-conflict">{trouble}</p>
             {missing.length > 0 ? (
               <ul className="list-disc pl-6 text-body text-ink">
-                {missing.map((entry) => (
-                  <li key={`${entry.detail}-${String(entry.position ?? '')}`}>{entry.message}</li>
+                {missing.map((entry, index) => (
+                  // The detail alone is not unique: every instruction that
+                  // lacks something reports as `instruction`, with no line.
+                  <li key={`${entry.detail}-${String(entry.position ?? '')}-${String(index)}`}>
+                    {entry.message}
+                  </li>
                 ))}
               </ul>
             ) : null}

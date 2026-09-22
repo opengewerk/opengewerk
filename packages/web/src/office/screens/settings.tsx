@@ -50,6 +50,11 @@ export function SettingsScreen() {
             about: 'Wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben für jeden Beleg.',
           },
           {
+            to: '/einstellungen/belehrungen',
+            title: 'Belehrungen',
+            about: 'Die Widerrufsbelehrung und eigene Belehrungen, die mit Belegen hinausgehen.',
+          },
+          {
             to: '/einstellungen/e-mail',
             title: 'E-Mail-Einstellungen',
             about: 'Der Mailserver des Betriebs, die Signatur und was von selbst verschickt wird.',

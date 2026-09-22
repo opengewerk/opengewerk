@@ -9,6 +9,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Belehrungen an Belegen, zuerst die Widerrufsbelehrung nach § 312g BGB (#109). Mitgeliefert
+  sind die Muster-Widerrufsbelehrung und das Muster-Widerrufsformular aus den Anlagen 1 und 2
+  zu Art. 246a EGBGB, als Fassungen mit Gültigkeitszeitraum und Fundstelle wie ein
+  Regelpaket, dazu ein Vordruck für den Beginn vor Ablauf der Widerrufsfrist. Der Inhaber
+  pflegt sie unter "Einstellungen", "Belehrungen": eigene anlegen, die mitgelieferten ändern
+  und das Original wiederherstellen; ein geändertes Muster ist gekennzeichnet, und der
+  Bildschirm sagt, dass die Absicherung aus Art. 246a § 1 Abs. 2 Satz 2 EGBGB damit entfällt.
+  Am Beleg werden sie nach Belegart und Kunde vorgeschlagen und je Beleg ein- und
+  ausgeschaltet, mit der Wahl zwischen Arbeiten und einer Lieferung mit Montage. Was mit dem
+  Beleg hinausgeht, steht im PDF nach dem Beleg und damit in der E-Mail, der Vordruck liegt
+  als eigenes Blatt bereit. Eingefroren wird der Wortlaut mit dem Beleg, in Fassung 8 des
+  eingefrorenen Stands, so wie das Kundenportal ihn später zeigt. Fehlt im Briefkopf eine
+  Angabe, die eine Belehrung nennt, etwa die Telefonnummer, wird der Beleg nicht
+  festgeschrieben: nur das zutreffend ausgefüllte Muster sichert die Widerrufsfrist
+  (Migrationen 0027 und 0028)
+
 - Das Zahlungsziel: der Inhaber stellt unter "Einstellungen" und dort "Zahlungsziel" ein,
   wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben sind 14, gültig ab einem Tag wie
   die übrigen Einstellungen. Jeder Beleg kann in seinem Kopf ein eigenes haben, und ein

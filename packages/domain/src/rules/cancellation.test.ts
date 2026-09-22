@@ -99,6 +99,7 @@ function invoice(
     cashAccounting: false,
     deductions,
     paymentTermDays: 14,
+    instructions: [],
   })
 }
 

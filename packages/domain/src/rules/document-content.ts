@@ -14,6 +14,8 @@ import type {
   DocumentContentV4,
   DocumentContentV5,
   DocumentContentV6,
+  DocumentContentV7,
+  InstructionContent,
   IssuerContent,
   LineContent,
   RecipientContent,
@@ -67,6 +69,13 @@ export interface ContentSources {
    * it, and as which day, is decided below.
    */
   readonly paymentTermDays: number
+  /**
+   * The instructions that go with the document, their words filled in. Put
+   * together by the caller with `documentInstructions`, which needs the
+   * business's instructions and what the office chose on the document, and
+   * which also says what is missing for them.
+   */
+  readonly instructions: readonly InstructionContent[]
 }
 
 /**
@@ -189,7 +198,13 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     // Only a cancellation cancels something, and it is not put together here
     // but mirrored out of its invoice: see `cancellationOf`.
     corrects: null,
-    paymentTerm: paymentTermOf(document.kind, sources.paymentTermDays, document.documentDate, billed),
+    paymentTerm: paymentTermOf(
+      document.kind,
+      sources.paymentTermDays,
+      document.documentDate,
+      billed,
+    ),
+    instructions: sources.instructions,
   }
 }
 
@@ -202,9 +217,10 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * are empty; a record from version 2 had no signature; a record from version 3
  * deducted nothing and billed its totals; a record from version 4 cancelled
  * nothing; a record from version 5 kept nothing of the recipient that only an
- * e-invoice needs; a record from version 6 stated no payment term. That is
- * exactly what each of them said when it was printed. The figures, the
- * addresses and the notes are carried over as they are.
+ * e-invoice needs; a record from version 6 stated no payment term; a record
+ * from version 7 carried no instructions. That is exactly what each of them
+ * said when it was printed. The figures, the addresses and the notes are
+ * carried over as they are.
  *
  * Version 5 is lifted with empty values and not with those of the customer
  * today. An e-invoice made out of such a record lacks them and says so, which
@@ -217,8 +233,13 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 6:
-      return { ...stored, version: documentContentVersion, paymentTerm: null }
+    case 7:
+      return { ...stored, version: documentContentVersion, instructions: [] }
+    case 6: {
+      const seventh: DocumentContentV7 = { ...stored, version: 7, paymentTerm: null }
+
+      return currentContent(seventh)
+    }
     case 5: {
       const sixth: DocumentContentV6 = {
         ...stored,
