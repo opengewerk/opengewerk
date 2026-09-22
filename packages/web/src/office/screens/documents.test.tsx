@@ -347,8 +347,11 @@ beforeEach(() => {
   serverSays('GET', '/settings/parameters', () => ({ status: 200, body: [] }))
 
   // Every document asks the server for its instructions. None proposed and
-  // nothing chosen, unless a test says otherwise.
-  for (const id of ['d-1', 'd-2', 'd-9']) {
+  // nothing chosen, unless a test says otherwise. `d-7` is the one the job
+  // screen creates: without it that screen got `{}` for its instructions and
+  // fell over on `choices.filter`, but only when the answer came in before
+  // the test had finished, which under the load of a full run it did.
+  for (const id of ['d-1', 'd-2', 'd-7', 'd-9']) {
     serverSays('GET', `/documents/${id}/instructions`, () => ({
       status: 200,
       body: noInstructions,
