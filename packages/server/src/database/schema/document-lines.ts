@@ -1,6 +1,6 @@
 import { lineKinds, lineUnits, quantityFactor, vatRates } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
-import { check, index, integer, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index, integer, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { documents } from './documents.js'
@@ -38,9 +38,7 @@ export const documentLines = pgTable(
   {
     id: primaryId<'document-line'>(),
     ...tenantColumn,
-    documentId: reference<'document'>('document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'cascade' }),
+    documentId: reference<'document'>('document_id').notNull(),
     /** A position, or the title of the section after it. Titles carry no amount. */
     kind: lineKind('kind').notNull().default('item'),
     /**
@@ -63,6 +61,11 @@ export const documentLines = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
+      name: 'document_lines_document_in_tenant',
+    }).onDelete('cascade'),
     index('document_lines_document_idx').on(table.tenantId, table.documentId, table.position),
     check('document_lines_position_positive', sql`${table.position} >= 1`),
     // A title is a heading and nothing else. With an amount on it, a total

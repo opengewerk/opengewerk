@@ -218,6 +218,13 @@
       "when": 1790099121446,
       "tag": "0030_circuit_details",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790102736084,
+      "tag": "0031_references_in_tenant",
+      "breakpoints": true
     }
   ]
 }

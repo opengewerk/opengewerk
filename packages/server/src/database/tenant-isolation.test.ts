@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto'
+
 import type { TenantId } from '@opengewerk/domain'
-import { sql } from 'drizzle-orm'
+import { type SQL, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -12,6 +14,7 @@ import {
   applicationRole,
   applyMigrations,
   connect,
+  foreignKeyViolation,
   insufficientPrivilege,
   refusedBy,
   resetSchema,
@@ -324,6 +327,443 @@ describe('without a tenant', () => {
     expect(setting).toBe(south.id)
   })
 })
+
+/** The key of the lines, which the trigger in front of it keeps from the list. */
+const lineKey = 'document_lines_document_in_tenant'
+
+/**
+ * Every key between two records of a business, with the write that tries it.
+ * An update where the application may change the row, an insert where it may
+ * only add one: snapshots, files and signatures are written once and never
+ * again.
+ */
+const crossings: readonly {
+  readonly key: string
+  readonly write: (own: Planted, other: Planted) => SQL
+}[] = [
+  {
+    key: 'contacts_customer_in_tenant',
+    write: (own, other) => repoint('contacts', 'customer_id', own.customerContact, other.customer),
+  },
+  {
+    key: 'contacts_site_in_tenant',
+    write: (own, other) => repoint('contacts', 'site_id', own.siteContact, other.site),
+  },
+  {
+    key: 'sites_customer_in_tenant',
+    write: (own, other) => repoint('sites', 'customer_id', own.site, other.customer),
+  },
+  {
+    key: 'installations_site_in_tenant',
+    write: (own, other) => repoint('installations', 'site_id', own.installation, other.site),
+  },
+  {
+    key: 'jobs_customer_in_tenant',
+    write: (own, other) => repoint('jobs', 'customer_id', own.job, other.customer),
+  },
+  {
+    key: 'jobs_site_in_tenant',
+    write: (own, other) => repoint('jobs', 'site_id', own.job, other.site),
+  },
+  {
+    key: 'jobs_installation_in_tenant',
+    write: (own, other) => repoint('jobs', 'installation_id', own.job, other.installation),
+  },
+  {
+    key: 'jobs_parent_in_tenant',
+    write: (own, other) => repoint('jobs', 'parent_job_id', own.job, other.job),
+  },
+  {
+    key: 'documents_customer_in_tenant',
+    write: (own, other) => repoint('documents', 'customer_id', own.document, other.customer),
+  },
+  {
+    key: 'documents_job_in_tenant',
+    write: (own, other) => repoint('documents', 'job_id', own.document, other.job),
+  },
+  {
+    key: 'documents_site_in_tenant',
+    write: (own, other) => repoint('documents', 'site_id', own.document, other.site),
+  },
+  {
+    key: 'documents_installation_in_tenant',
+    write: (own, other) =>
+      repoint('documents', 'installation_id', own.document, other.installation),
+  },
+  {
+    key: 'documents_predecessor_in_tenant',
+    write: (own, other) =>
+      repoint('documents', 'predecessor_document_id', own.document, other.document),
+  },
+  {
+    key: 'document_snapshots_document_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_snapshots (tenant_id, document_id, content)
+            values (${own.tenant}, ${other.document}, '{}'::jsonb)`,
+  },
+  {
+    key: 'document_files_document_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_files (tenant_id, document_id, purpose, file_id)
+            values (${own.tenant}, ${other.document}, 'pdf', ${own.file})`,
+  },
+  {
+    key: 'document_files_file_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_files (tenant_id, document_id, purpose, file_id)
+            values (${own.tenant}, ${own.document}, 'pdf', ${other.file})`,
+  },
+  {
+    // The signature signs its document in a trigger after the insert. The key
+    // is asked first, and it has to be: signed would be the document of the
+    // other business.
+    key: 'document_signatures_document_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_signatures
+            (tenant_id, document_id, signer_name, signed_at, path, content_fingerprint)
+            values (${own.tenant}, ${other.document}, 'Max Weber', now(), 'M10,10L20,20', 'probe')`,
+  },
+  {
+    // An insert although the choice may be changed: a document holds one, so
+    // the document of the other business must not have one yet, or its unique
+    // index answers before the key does.
+    key: 'document_instruction_choices_document_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_instruction_choices (tenant_id, document_id)
+            values (${own.tenant}, ${other.document})`,
+  },
+  {
+    key: 'letterheads_logo_in_tenant',
+    write: (own, other) => repoint('letterheads', 'logo_file_id', own.letterhead, other.file),
+  },
+  {
+    key: 'mail_outbox_task_in_tenant',
+    write: (own, other) => repoint('mail_outbox', 'task_id', own.mail, other.task),
+  },
+  {
+    key: 'mail_outbox_document_in_tenant',
+    write: (own, other) => repoint('mail_outbox', 'document_id', own.mail, other.document),
+  },
+  {
+    key: 'mail_outbox_invitation_in_tenant',
+    write: (own, other) => repoint('mail_outbox', 'invitation_id', own.mail, other.invitation),
+  },
+  {
+    key: 'tasks_customer_in_tenant',
+    write: (own, other) => repoint('tasks', 'customer_id', own.task, other.customer),
+  },
+  {
+    key: 'tasks_site_in_tenant',
+    write: (own, other) => repoint('tasks', 'site_id', own.task, other.site),
+  },
+  {
+    key: 'tasks_job_in_tenant',
+    write: (own, other) => repoint('tasks', 'job_id', own.task, other.job),
+  },
+  {
+    // Not a record but a person: the owner of the other business, who has no
+    // membership in this one.
+    key: 'tasks_assignee_works_here',
+    write: (own, other) => repoint('tasks', 'assignee_user_id', own.task, other.user),
+  },
+  {
+    key: 'inverters_installation_in_tenant',
+    write: (own, other) => repoint('inverters', 'installation_id', own.inverter, other.installation),
+  },
+  {
+    key: 'pv_strings_inverter_in_tenant',
+    write: (own, other) => repoint('pv_strings', 'inverter_id', own.pvString, other.inverter),
+  },
+  {
+    key: 'pv_modules_string_in_tenant',
+    write: (own, other) => repoint('pv_modules', 'pv_string_id', own.pvModule, other.pvString),
+  },
+  {
+    key: 'distribution_boards_installation_in_tenant',
+    write: (own, other) =>
+      repoint('distribution_boards', 'installation_id', own.board, other.installation),
+  },
+  {
+    key: 'board_sections_board_in_tenant',
+    write: (own, other) =>
+      repoint('board_sections', 'distribution_board_id', own.section, other.board),
+  },
+  {
+    key: 'circuits_board_in_tenant',
+    write: (own, other) =>
+      repoint('circuits', 'distribution_board_id', own.circuit, other.board),
+  },
+  {
+    // The exception from the catalogue, tried as well. Its own board stays,
+    // the section is one of the other business, and no section of that board
+    // has this id.
+    key: 'circuits_section_belongs_to_board',
+    write: (own, other) => repoint('circuits', 'board_section_id', own.circuit, other.section),
+  },
+  {
+    key: 'equipment_circuit_in_tenant',
+    write: (own, other) => repoint('equipment', 'circuit_id', own.equipment, other.circuit),
+  },
+]
+
+/**
+ * A foreign key is checked past row level security. The database looks the
+ * parent up as the owner of its table, so a key on the id alone finds the
+ * record of any business, and a record of this one could be hung on a customer
+ * of the next. Since 0030 and 0031 every reference between two records of a
+ * business runs over the tenant as well, and these are the tests that hold it:
+ * one record of each kind, pointed at a record of the other business through
+ * the role the application uses, and refused by the name of its key.
+ *
+ * The name matters as much as the refusal. A write refused for any other
+ * reason, a check or a trigger in front of the key, would say nothing about
+ * the key, and the one case where that is so has a test of its own below.
+ */
+describe('a reference to a record of another business', () => {
+  let own: Planted
+  let other: Planted
+
+  beforeAll(async () => {
+    own = await plant(north.id, 'nord')
+    other = await plant(south.id, 'sued')
+  })
+
+  it('is refused by every key between two records of a business', async () => {
+    // The catalogue asked rather than the list below: a key added by a later
+    // migration that forgets the tenant is exactly the key nobody writes a
+    // test for. Between two tables of a business the tenant comes first on
+    // both sides, which is how 0030 and 0031 build every one of them.
+    const { rows } = await admin.query<{ key: string; columns: string; target: string }>(
+      `select c.conname as key,
+              (select string_agg(a.attname, ',' order by k.ord)
+                 from unnest(c.conkey) with ordinality k(attnum, ord)
+                 join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum) as columns,
+              (select string_agg(a.attname, ',' order by k.ord)
+                 from unnest(c.confkey) with ordinality k(attnum, ord)
+                 join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum) as target
+         from pg_constraint c
+        where c.contype = 'f'
+          and c.connamespace = 'public'::regnamespace
+          and exists (select 1 from pg_attribute a
+                       where a.attrelid = c.conrelid and a.attname = 'tenant_id' and not a.attisdropped)
+          and exists (select 1 from pg_attribute a
+                       where a.attrelid = c.confrelid and a.attname = 'tenant_id' and not a.attisdropped)
+        order by c.conname`,
+    )
+
+    // A floor, so that a query which finds nothing cannot pass as "no key
+    // without the tenant". 35 is the count after 0031.
+    expect(rows.length).toBeGreaterThanOrEqual(35)
+
+    const withoutTheTenant = rows.filter(
+      (row) => !row.columns.startsWith('tenant_id,') || !row.target.startsWith('tenant_id,'),
+    )
+
+    // The one exception, and why it holds anyway: the key from a circuit to
+    // its section pairs the section with the board, and the board's own key
+    // runs over the tenant. The section belongs to that board, the board to
+    // the business of the circuit, so the section does as well.
+    expect(withoutTheTenant.map((row) => row.key)).toEqual(['circuits_section_belongs_to_board'])
+
+    // And every one of them has its case below, so that none is only claimed.
+    const tested = new Set([...crossings.map((crossing) => crossing.key), lineKey])
+    expect(rows.map((row) => row.key).filter((key) => !tested.has(key))).toEqual([])
+  })
+
+  it.each(crossings)('is refused by $key', async ({ key, write }) => {
+    const refused = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) => tx.execute(write(own, other))),
+    )
+
+    expect(refused).toEqual({ code: foreignKeyViolation, constraint: key })
+  })
+
+  it('is refused for a line before the key is even asked, and by the key behind that', async () => {
+    // Through the application the line never gets as far as its key. The
+    // trigger that keeps the lines of an issued document asks for the status
+    // of the document first, cannot see one of another business, and refuses
+    // as it would for a fixed one. That is a refusal, and the right one, but
+    // it is not the key.
+    const throughTheApplication = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx.execute(repoint('document_lines', 'document_id', own.line, other.document)),
+      ),
+    )
+    expect(throughTheApplication.code).toBe('OG001')
+
+    // The superuser sees every row, so the trigger finds a draft and lets the
+    // line through. What is left is the key, and it holds.
+    const pastEveryPolicy = await refusedBy(
+      admin.query('update document_lines set document_id = $1 where id = $2', [
+        other.document,
+        own.line,
+      ]),
+    )
+    expect(pastEveryPolicy).toEqual({ code: foreignKeyViolation, constraint: lineKey })
+  })
+})
+
+/** One record of each kind that points at another, all of one business. */
+interface Planted {
+  readonly tenant: TenantId
+  readonly user: string
+  readonly customer: string
+  readonly customerContact: string
+  readonly site: string
+  readonly siteContact: string
+  readonly installation: string
+  readonly job: string
+  readonly document: string
+  readonly line: string
+  readonly file: string
+  readonly letterhead: string
+  readonly invitation: string
+  readonly task: string
+  readonly mail: string
+  readonly inverter: string
+  readonly pvString: string
+  readonly pvModule: string
+  readonly board: string
+  readonly section: string
+  readonly circuit: string
+  readonly equipment: string
+}
+
+/**
+ * Planted as the superuser, the way the other fixtures here are: the point is
+ * what the application role may do with them afterwards, not how they came
+ * about. Every record stands alone where it can, a job without a site and a
+ * circuit without a section, so that a write refused below is refused for the
+ * one reference it changes and not for another it would drag along.
+ */
+async function plant(tenant: TenantId, slug: string): Promise<Planted> {
+  const one = async (statement: string, values: unknown[]): Promise<string> => {
+    const { rows } = await admin.query<{ id: string }>(`${statement} returning id`, values)
+    const id = rows[0]?.id
+
+    if (!id) {
+      throw new Error(`Nothing was planted by: ${statement}`)
+    }
+
+    return id
+  }
+  const hash = (text: string) => createHash('sha256').update(text).digest('hex')
+
+  const user = `${slug}-inhaber`
+  await admin.query('insert into auth_users (id, name, email) values ($1, $2, $3)', [
+    user,
+    'Inhaberin',
+    `inhaberin@${slug}.example`,
+  ])
+  await admin.query("insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{owner}')", [
+    tenant,
+    user,
+  ])
+
+  const customer = await one(
+    "insert into customers (tenant_id, kind, name) values ($1, 'business', 'Bauherr')",
+    [tenant],
+  )
+  const site = await one(
+    "insert into sites (tenant_id, customer_id, designation) values ($1, $2, 'Haus 1')",
+    [tenant, customer],
+  )
+  const installation = await one(
+    "insert into installations (tenant_id, site_id, kind, designation) values ($1, $2, 'pv_system', 'PV-Anlage')",
+    [tenant, site],
+  )
+  const job = await one(
+    "insert into jobs (tenant_id, customer_id, kind, designation) values ($1, $2, 'project', 'Neubau')",
+    [tenant, customer],
+  )
+  const document = await one(
+    "insert into documents (tenant_id, customer_id, kind, document_date) values ($1, $2, 'quote', '2026-09-22')",
+    [tenant, customer],
+  )
+  const file = await one(
+    "insert into files (tenant_id, sha256, size_bytes, media_type) values ($1, $2, 1, 'image/png')",
+    [tenant, hash(`logo-${slug}`)],
+  )
+  const invitation = await one(
+    `insert into invitations (tenant_id, email, name, roles, token_hash, invited_by, expires_at)
+       values ($1, $2, 'Max Monteur', '{technician}', $3, $4, now() + interval '1 day')`,
+    [tenant, `monteur@${slug}.example`, hash(`einladung-${slug}`), user],
+  )
+  const task = await one(
+    "insert into tasks (tenant_id, title, due_on, assignee_user_id) values ($1, 'Zählerschrank prüfen', '2026-09-30', $2)",
+    [tenant, user],
+  )
+  const inverter = await one(
+    "insert into inverters (tenant_id, installation_id, designation) values ($1, $2, 'WR 1')",
+    [tenant, installation],
+  )
+  const pvString = await one(
+    "insert into pv_strings (tenant_id, inverter_id, designation) values ($1, $2, 'String 1')",
+    [tenant, inverter],
+  )
+  const board = await one(
+    "insert into distribution_boards (tenant_id, installation_id, kind, designation) values ($1, $2, 'sub_distribution', 'AC-Verteiler')",
+    [tenant, installation],
+  )
+  const circuit = await one(
+    "insert into circuits (tenant_id, distribution_board_id, designation) values ($1, $2, 'F1')",
+    [tenant, board],
+  )
+
+  return {
+    tenant,
+    user,
+    customer,
+    customerContact: await one(
+      "insert into contacts (tenant_id, customer_id, family_name) values ($1, $2, 'Weber')",
+      [tenant, customer],
+    ),
+    site,
+    siteContact: await one(
+      "insert into contacts (tenant_id, site_id, family_name) values ($1, $2, 'Hausmeister')",
+      [tenant, site],
+    ),
+    installation,
+    job,
+    document,
+    line: await one(
+      `insert into document_lines
+         (tenant_id, document_id, position, designation, quantity_milli, unit, unit_price_cents, net_cents)
+         values ($1, $2, 1, 'Leitung verlegen', 1000, 'metre', 1000, 1000)`,
+      [tenant, document],
+    ),
+    file,
+    letterhead: await one('insert into letterheads (tenant_id) values ($1)', [tenant]),
+    invitation,
+    task,
+    mail: await one(
+      `insert into mail_outbox (tenant_id, kind, cause, sender_name, recipient_address, subject, body)
+         values ($1, 'task_due', $2, 'Elektro', 'kunde@example.com', 'Fällig', 'Heute fällig.')`,
+      [tenant, `task:${task}`],
+    ),
+    inverter,
+    pvString,
+    pvModule: await one('insert into pv_modules (tenant_id, pv_string_id) values ($1, $2)', [
+      tenant,
+      pvString,
+    ]),
+    board,
+    section: await one(
+      "insert into board_sections (tenant_id, distribution_board_id, designation) values ($1, $2, 'Feld 1')",
+      [tenant, board],
+    ),
+    circuit,
+    equipment: await one(
+      "insert into equipment (tenant_id, circuit_id, designation) values ($1, $2, 'Wallbox')",
+      [tenant, circuit],
+    ),
+  }
+}
+
+/** A record of this business made to point at another: one column, one row. */
+function repoint(table: string, column: string, row: string, target: string): SQL {
+  return sql`update ${sql.identifier(table)} set ${sql.identifier(column)} = ${target} where id = ${row}`
+}
 
 async function connectAsApplication() {
   const { Pool } = await import('pg')

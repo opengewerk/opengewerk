@@ -1,5 +1,6 @@
 import { smtpSecurities } from '@opengewerk/domain'
 import {
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -59,14 +60,10 @@ export const mailOutbox = pgTable(
     ...tenantColumn,
     kind: mailKind('kind').notNull(),
     cause: text('cause').notNull(),
-    taskId: reference<'task'>('task_id').references(() => tasks.id, { onDelete: 'restrict' }),
-    documentId: reference<'document'>('document_id').references(() => documents.id, {
-      onDelete: 'restrict',
-    }),
+    taskId: reference<'task'>('task_id'),
+    documentId: reference<'document'>('document_id'),
     attachment: mailAttachment('attachment'),
-    invitationId: reference<'invitation'>('invitation_id').references(() => invitations.id, {
-      onDelete: 'restrict',
-    }),
+    invitationId: reference<'invitation'>('invitation_id'),
     /** Who asked for the message, for one somebody asked for. Null for a due task. */
     requestedBy: text('requested_by'),
     senderName: text('sender_name').notNull(),
@@ -84,6 +81,21 @@ export const mailOutbox = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.taskId],
+      foreignColumns: [tasks.tenantId, tasks.id],
+      name: 'mail_outbox_task_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
+      name: 'mail_outbox_document_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.invitationId],
+      foreignColumns: [invitations.tenantId, invitations.id],
+      name: 'mail_outbox_invitation_in_tenant',
+    }).onDelete('restrict'),
     unique('mail_outbox_once_per_cause').on(table.tenantId, table.cause),
     index('mail_outbox_due_idx').on(table.tenantId, table.status, table.nextAttemptAt),
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),

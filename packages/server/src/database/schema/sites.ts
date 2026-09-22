@@ -1,4 +1,4 @@
-import { index, pgTable, text } from 'drizzle-orm/pg-core'
+import { foreignKey, index, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -15,9 +15,7 @@ export const sites = pgTable(
   {
     id: primaryId<'site'>(),
     ...tenantColumn,
-    customerId: reference<'customer'>('customer_id')
-      .notNull()
-      .references(() => customers.id, { onDelete: 'restrict' }),
+    customerId: reference<'customer'>('customer_id').notNull(),
     designation: text('designation').notNull(),
 
     street: text('street'),
@@ -32,6 +30,12 @@ export const sites = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    unique('sites_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+      name: 'sites_customer_in_tenant',
+    }).onDelete('restrict'),
     index('sites_customer_idx').on(table.tenantId, table.customerId),
   ],
 )

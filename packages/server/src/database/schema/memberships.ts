@@ -151,6 +151,7 @@ export const invitations = pgTable(
     unique('invitations_token').on(table.tokenHash),
     index('invitations_open_idx').on(table.tenantId, table.redeemedAt),
     tenantIsolation(table.tenantId),
+    unique('invitations_tenant_id_key').on(table.tenantId, table.id),
     readableByTheOwner(),
   ],
 )

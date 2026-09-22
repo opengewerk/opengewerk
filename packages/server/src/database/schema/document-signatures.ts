@@ -1,6 +1,6 @@
 import { longestSignaturePath } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
-import { check, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { check, foreignKey, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { documents } from './documents.js'
@@ -24,9 +24,7 @@ export const documentSignatures = pgTable(
   {
     id: primaryId<'document-signature'>(),
     ...tenantColumn,
-    documentId: reference<'document'>('document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'restrict' }),
+    documentId: reference<'document'>('document_id').notNull(),
     signerName: text('signer_name').notNull(),
     signedAt: timestamp('signed_at', { withTimezone: true }).notNull(),
     deviceInfo: text('device_info'),
@@ -37,6 +35,11 @@ export const documentSignatures = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
+      name: 'document_signatures_document_in_tenant',
+    }).onDelete('restrict'),
     uniqueIndex('document_signatures_document').on(table.documentId),
     check(
       'document_signatures_signer_named',

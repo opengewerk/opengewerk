@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   integer,
   pgEnum,
   pgTable,
@@ -99,9 +100,7 @@ export const documentInstructionChoices = pgTable(
   {
     id: primaryId<'document-instruction-choices'>(),
     ...tenantColumn,
-    documentId: reference<'document'>('document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'restrict' }),
+    documentId: reference<'document'>('document_id').notNull(),
     variant: withdrawalVariant('variant').notNull().default('service'),
     switchedOn: uuid('switched_on')
       .array()
@@ -117,6 +116,11 @@ export const documentInstructionChoices = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
+      name: 'document_instruction_choices_document_in_tenant',
+    }).onDelete('restrict'),
     uniqueIndex('document_instruction_choices_document').on(table.documentId),
   ],
 )
