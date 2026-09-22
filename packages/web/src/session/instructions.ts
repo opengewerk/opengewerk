@@ -35,6 +35,8 @@ export interface InstructionView {
   /** A version of the model newer than the one a changed wording came from. */
   readonly newerModel: ModelVersion | null
   readonly kinds: readonly DocumentKind[]
+  /** The kinds it always goes with, to a customer who is not a business. */
+  readonly requiredWith: readonly DocumentKind[]
   readonly consumersOnly: boolean
   readonly withDocument: boolean
   readonly position: number
@@ -86,6 +88,8 @@ export interface InstructionChoice {
   readonly template: InstructionTemplate | null
   readonly proposed: boolean
   readonly included: boolean
+  /** Goes with it whatever anybody chooses. */
+  readonly required: boolean
   readonly withDocument: boolean
   readonly changed: boolean
 }

@@ -165,7 +165,7 @@ afterAll(async () => {
 })
 
 describe('the instructions of a quote to a consumer', () => {
-  it('are proposed: the instruction on withdrawal and its form go out with it, the sheet stays', async () => {
+  it('are proposed: the instruction, its notes and its form go out with it, the sheet stays', async () => {
     const view = await instructionsOf(await quote())
 
     expect(view).toMatchObject({ fixed: false, variant: 'service', gaps: [] })
@@ -178,11 +178,13 @@ describe('the instructions of a quote to a consumer', () => {
       ]),
     ).toEqual([
       ['Widerrufsbelehrung', true, true, true],
+      ['Hinweise zum Erlöschen des Widerrufsrechts', true, true, true],
       ['Muster-Widerrufsformular', true, true, true],
-      ['Beginn vor Ablauf der Widerrufsfrist', true, true, false],
+      ['Verlangen auf vorzeitigen Leistungsbeginn', true, true, false],
     ])
-    expect(view.printed.map((entry) => entry.index)).toEqual([0, 1, 2])
+    expect(view.printed.map((entry) => entry.index)).toEqual([0, 1, 2, 3])
     expect(view.printed[0]?.source).toContain('Anlage 1 zu Art. 246a')
+    expect(view.printed[1]?.source).toContain('Art. 246a § 1 Abs. 3 EGBGB')
   })
 
   it('are not proposed for a customer who is a business', async () => {
@@ -201,9 +203,11 @@ describe('the instructions of a quote to a consumer', () => {
 
     expect(content.instructions.map((entry) => entry.title)).toEqual([
       'Widerrufsbelehrung',
+      'Hinweise zum Erlöschen des Widerrufsrechts',
       'Muster-Widerrufsformular',
-      'Beginn vor Ablauf der Widerrufsfrist',
+      'Verlangen auf vorzeitigen Leistungsbeginn',
     ])
+    expect(content.instructions[1]?.text).toContain('(§ 356 Abs. 5 Nr. 2 BGB)')
     expect(content.instructions[0]).toMatchObject({
       withDocument: true,
       variant: 'service',
@@ -253,14 +257,37 @@ describe('the instructions of a quote to a consumer', () => {
 })
 
 describe('the choice on a document', () => {
+  it('cannot take the instruction, its notes or its form off a quote to a consumer', async () => {
+    const id = await quote()
+    const view = await instructionsOf(id)
+
+    expect(view.choices.map((entry) => [entry.title, entry.required])).toEqual([
+      ['Widerrufsbelehrung', true],
+      ['Hinweise zum Erlöschen des Widerrufsrechts', true],
+      ['Muster-Widerrufsformular', true],
+      ['Verlangen auf vorzeitigen Leistungsbeginn', false],
+    ])
+
+    const refused = await choose(id, {
+      instructionId: await idOf(id, 'Widerrufsbelehrung'),
+      included: false,
+    }).expect(409)
+
+    expect((refused.body as { message: string }).message).toBe(
+      'Die Belehrung „Widerrufsbelehrung“ gehört zu jedem Angebot an einen Verbraucher und ' +
+        'lässt sich nicht abschalten.',
+    )
+  })
+
   it('switches a proposed instruction off, and keeps no choice once it matches the proposal', async () => {
     const id = await quote()
-    const early = await idOf(id, 'Beginn vor Ablauf der Widerrufsfrist')
+    const early = await idOf(id, 'Verlangen auf vorzeitigen Leistungsbeginn')
 
     const off = await choose(id, { instructionId: early, included: false }).expect(200)
 
     expect((off.body as DocumentInstructionsView).printed.map((entry) => entry.title)).toEqual([
       'Widerrufsbelehrung',
+      'Hinweise zum Erlöschen des Widerrufsrechts',
       'Muster-Widerrufsformular',
     ])
 
@@ -332,7 +359,7 @@ describe('the choice on a document', () => {
 })
 
 describe('a letterhead that lacks what an instruction names', () => {
-  it('shows on the draft and stops the issuing, until the instruction is switched off', async () => {
+  it('shows on the draft of a quote and stops its issuing until the letterhead has it', async () => {
     await admin.query('update letterheads set phone = null where tenant_id = $1', [north.id])
 
     try {
@@ -341,8 +368,8 @@ describe('a letterhead that lacks what an instruction names', () => {
 
       expect(view.gaps).toEqual([
         'Für die Belehrung „Widerrufsbelehrung“ fehlt im Briefkopf die Telefonnummer des ' +
-          'Betriebs. Eintragen lässt sich das unter „Einstellungen“, „Briefkopf“. Gehört die ' +
-          'Belehrung nicht zu diesem Beleg, lässt sie sich am Beleg unter „Belehrungen“ abschalten.',
+          'Betriebs. Eintragen lässt sich das unter „Einstellungen“, „Briefkopf“. Bei einem ' +
+          'Angebot an einen Verbraucher gehört sie zwingend dazu.',
       ])
 
       const refused = await issue(id).expect(422)
@@ -351,16 +378,30 @@ describe('a letterhead that lacks what an instruction names', () => {
         'Für die Belehrung „Widerrufsbelehrung“ fehlt im Briefkopf die Telefonnummer',
       )
 
-      await choose(id, {
-        instructionId: await idOf(id, 'Widerrufsbelehrung'),
-        included: false,
-      }).expect(200)
+      await admin.query("update letterheads set phone = '040 123456' where tenant_id = $1", [
+        north.id,
+      ])
+      await issue(id).expect(201)
+    } finally {
+      await admin.query("update letterheads set phone = '040 123456' where tenant_id = $1", [
+        north.id,
+      ])
+    }
+  })
+
+  it('does not stop an estimate, which carries none', async () => {
+    await admin.query('update letterheads set phone = null where tenant_id = $1', [north.id])
+
+    try {
+      const id = await quote(consumer, { kind: 'cost_estimate' })
+      const view = await instructionsOf(id)
+
+      expect(view.printed).toEqual([])
+      expect(view.choices.every((entry) => !entry.proposed && !entry.required)).toBe(true)
+
       await issue(id).expect(201)
 
-      expect((await snapshotOf(id)).instructions.map((entry) => entry.title)).toEqual([
-        'Muster-Widerrufsformular',
-        'Beginn vor Ablauf der Widerrufsfrist',
-      ])
+      expect((await snapshotOf(id)).instructions).toEqual([])
     } finally {
       await admin.query("update letterheads set phone = '040 123456' where tenant_id = $1", [
         north.id,
@@ -380,9 +421,13 @@ describe('the instructions on paper', () => {
     expect(html).toContain('<section class="instruction">')
     expect(html).toContain('Anlage zu Angebot vom 22.09.2026')
     expect(html).toContain('<h2>Widerrufsbelehrung</h2>')
+    expect(html).toContain('<h2>Hinweise zum Erlöschen des Widerrufsrechts</h2>')
     expect(html).toContain('<h2>Muster-Widerrufsformular</h2>')
     expect(html).toContain('<div class="write-line"></div>')
-    expect(html).not.toContain('Beginn vor Ablauf der Widerrufsfrist')
+    expect(html).not.toContain('Verlangen auf vorzeitigen Leistungsbeginn')
+    expect(html.indexOf('<h2>Hinweise zum Erlöschen')).toBeLessThan(
+      html.indexOf('<h2>Muster-Widerrufsformular</h2>'),
+    )
   })
 
   it('come one by one as a sheet, the one kept at the document first of all', async () => {
@@ -390,15 +435,16 @@ describe('the instructions on paper', () => {
 
     await issue(id).expect(201)
 
-    const sheet = await pdf(`/documents/${id}/instructions/2/pdf`).expect(200)
+    const sheet = await pdf(`/documents/${id}/instructions/3/pdf`).expect(200)
     const html = jobs.at(-1)?.html ?? ''
 
     expect(sheet.headers['content-disposition']).toContain(
-      encodeURIComponent('Beginn vor Ablauf der Widerrufsfrist zu Angebot'),
+      encodeURIComponent('Verlangen auf vorzeitigen Leistungsbeginn zu Angebot'),
     )
-    expect(html).toContain('<h1>Beginn vor Ablauf der Widerrufsfrist</h1>')
+    expect(html).toContain('<h1>Verlangen auf vorzeitigen Leistungsbeginn</h1>')
     expect(html).toMatch(/Zu Angebot AN-\S+ vom 22\.09\.2026/)
     expect(html).toContain('per E-Mail an info@nord.example.de')
+    expect(html).toContain('Ich verlange ausdrücklich, dass Elektro Nord GmbH mit der Ausführung')
     expect(html).not.toContain('ENTWURF')
 
     await pdf(`/documents/${id}/instructions/7/pdf`).expect(404)

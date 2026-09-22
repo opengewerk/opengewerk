@@ -55,7 +55,8 @@ const withdrawal: InstructionView = {
   changed: false,
   model,
   newerModel: null,
-  kinds: ['cost_estimate', 'quote'],
+  kinds: ['quote'],
+  requiredWith: ['quote'],
   consumersOnly: true,
   withDocument: true,
   position: 1,
@@ -75,9 +76,10 @@ const earlyStart: InstructionView = {
   ...withdrawal,
   id: 'i-3',
   template: 'early_start',
-  title: 'Beginn vor Ablauf der Widerrufsfrist',
+  title: 'Verlangen auf vorzeitigen Leistungsbeginn',
   body: 'Ich verlange ausdrücklich den Beginn.',
   model: { ...model, source: 'kein Muster', text: 'Ich verlange ausdrücklich den Beginn.' },
+  requiredWith: [],
   withDocument: false,
   position: 3,
 }
@@ -91,6 +93,7 @@ const own: InstructionView = {
   model: null,
   newerModel: null,
   kinds: ['final_invoice'],
+  requiredWith: [],
   consumersOnly: false,
   withDocument: true,
   position: 4,
@@ -143,17 +146,40 @@ describe('the instructions, as the owner keeps them', () => {
 
     expect(first.getByText('Mitgeliefertes Muster, Fassung ab 19.06.2026')).toBeTruthy()
     expect(
-      first.getByText(
-        /Vorgeschlagen für Kostenvoranschlag und Angebot, nur an Kunden, die kein Unternehmen sind\./,
-      ),
+      first.getByText(/Vorgeschlagen für Angebot, nur an Kunden, die kein Unternehmen sind\./),
     ).toBeTruthy()
     expect(first.getByText(/Geht mit dem Beleg hinaus/)).toBeTruthy()
     expect(
-      within(section('Beginn vor Ablauf der Widerrufsfrist')).getByText(
+      within(section('Verlangen auf vorzeitigen Leistungsbeginn')).getByText(
         /Liegt am Beleg als eigenes Blatt zum Ausdrucken bereit\./,
       ),
     ).toBeTruthy()
+    // The sheet is no model of the law, and the screen does not call it one.
+    expect(
+      within(section('Verlangen auf vorzeitigen Leistungsbeginn')).getByText(
+        'Rechtsgrundlage: kein Muster',
+      ),
+    ).toBeTruthy()
+    expect(first.getByText(/^Fundstelle des Musters: Anlage 1/)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Belehrung anlegen' })).toBeTruthy()
+  })
+
+  it('keeps the quote ticked for a model it belongs to, and keeps it going out', async () => {
+    signedInAs('owner')
+    render(inQueries(<InstructionsScreen />))
+
+    const first = within(await screen.findByRole('region', { name: 'Widerrufsbelehrung' }))
+
+    expect(first.getByText(/Pflicht an jedem Angebot an einen Verbraucher\./)).toBeTruthy()
+
+    await userEvent.setup().click(first.getByRole('button', { name: 'Bearbeiten' }))
+
+    const quote = first.getByLabelText('Angebot') as HTMLInputElement
+    const goesOut = first.getByLabelText('Geht mit dem Beleg hinaus') as HTMLInputElement
+
+    expect([quote.checked, quote.disabled]).toEqual([true, true])
+    expect([goesOut.checked, goesOut.disabled]).toEqual([true, true])
+    expect((first.getByLabelText('Auftragsbestätigung') as HTMLInputElement).disabled).toBe(false)
   })
 
   it('says what a changed model costs as soon as the words leave it, and saves them marked', async () => {
@@ -179,7 +205,7 @@ describe('the instructions, as the owner keeps them', () => {
         path: '/settings/instructions/i-1',
         method: 'PATCH',
         body: {
-          kinds: ['cost_estimate', 'quote'],
+          kinds: ['quote'],
           consumersOnly: true,
           withDocument: true,
           body: `${model.text} Ergänzt.`,
@@ -278,7 +304,7 @@ describe('the instructions, as the owner keeps them', () => {
     render(inQueries(<InstructionsScreen />))
 
     const third = within(
-      await screen.findByRole('region', { name: 'Beginn vor Ablauf der Widerrufsfrist' }),
+      await screen.findByRole('region', { name: 'Verlangen auf vorzeitigen Leistungsbeginn' }),
     )
     const user = userEvent.setup()
     await user.click(third.getByRole('button', { name: 'Bearbeiten' }))

@@ -7,11 +7,14 @@ import {
   instructionTemplates,
   noInstructionChoices,
   placeholdersIn,
+  requiredFor,
+  requiredKinds,
   withdrawalVariants,
 } from '../model/instruction.js'
 import {
   contractBlocksAt,
   documentInstructions,
+  includedIn,
   instructionWordingAt,
   latestWording,
   normalizedWording,
@@ -275,6 +278,15 @@ describe('the instructions of a document', () => {
   const shippedRows = [
     withdrawalRow,
     {
+      id: 'i-5',
+      template: 'withdrawal_notes' as const,
+      title: 'Hinweise zum Erlöschen des Widerrufsrechts',
+      body: null,
+      kinds: ['quote'] as const,
+      consumersOnly: true,
+      withDocument: true,
+    },
+    {
       id: 'i-2',
       template: 'withdrawal_form' as const,
       title: 'Muster-Widerrufsformular',
@@ -286,6 +298,8 @@ describe('the instructions of a document', () => {
     {
       id: 'i-3',
       template: 'early_start' as const,
+      // The heading the row was written with before the sheet got the words
+      // of msk-solutions.de; printed is the heading of the package.
       title: 'Beginn vor Ablauf der Widerrufsfrist',
       body: null,
       kinds: ['cost_estimate', 'quote'] as const,
@@ -306,6 +320,7 @@ describe('the instructions of a document', () => {
   const off =
     ' Gehört die Belehrung nicht zu diesem Beleg, lässt sie sich am Beleg unter „Belehrungen“ ' +
     'abschalten.'
+  const compulsory = ' Bei einem Angebot an einen Verbraucher gehört sie zwingend dazu.'
 
   it('go with a quote to a consumer as proposed, in the order of the business', () => {
     const { contents, gaps } = documentInstructions(
@@ -318,8 +333,9 @@ describe('the instructions of a document', () => {
     expect(gaps).toEqual([])
     expect(contents.map((entry) => [entry.title, entry.withDocument])).toEqual([
       ['Widerrufsbelehrung', true],
+      ['Hinweise zum Erlöschen des Widerrufsrechts', true],
       ['Muster-Widerrufsformular', true],
-      ['Beginn vor Ablauf der Widerrufsfrist', false],
+      ['Verlangen auf vorzeitigen Leistungsbeginn', false],
     ])
     expect(contents[0]?.text).toBe(serviceInstruction)
     expect(contents[0]?.model).toEqual({
@@ -328,7 +344,24 @@ describe('the instructions of a document', () => {
       source: wordingAt('withdrawal', '2026-09-22')?.source,
       changed: false,
     })
-    expect(contents[2]?.text).toContain('per E-Mail an info@elektro-kohm.de')
+    expect(contents[1]?.text).toContain('(§ 356 Abs. 5 Nr. 2 BGB)')
+    expect(contents[3]?.text).toContain('per E-Mail an info@elektro-kohm.de')
+    expect(contents[3]?.text).toContain(
+      'Ich verlange ausdrücklich, dass Elektro Kohm mit der Ausführung der beauftragten Leistung ' +
+        'bereits vor Ablauf der Widerrufsfrist beginnt.',
+    )
+  })
+
+  it('cite the paragraph on the early end in the numbering of their day', () => {
+    const before = documentInstructions(
+      shippedRows,
+      noInstructionChoices,
+      { ...quote, documentDate: '2026-06-18' },
+      issuer,
+    )
+
+    expect(before.contents[1]?.text).toContain('(§ 356 Abs. 4 Nr. 2 BGB)')
+    expect(before.contents[1]?.model?.validFrom).toBe('2022-05-28')
   })
 
   it('stay away from a customer who is a business, unless switched on', () => {
@@ -350,16 +383,18 @@ describe('the instructions of a document', () => {
   it('follow what the office switched off, and one of its own that it switched on', () => {
     const { contents } = documentInstructions(
       [...shippedRows, own],
-      { variant: 'service', switchedOn: ['i-4'], switchedOff: ['i-2', 'i-3'] },
+      { variant: 'service', switchedOn: ['i-4'], switchedOff: ['i-3'] },
       quote,
       issuer,
     )
 
     expect(contents.map((entry) => entry.title)).toEqual([
       'Widerrufsbelehrung',
+      'Hinweise zum Erlöschen des Widerrufsrechts',
+      'Muster-Widerrufsformular',
       'Hinweise zur Wartung',
     ])
-    expect(contents[1]).toMatchObject({
+    expect(contents[3]).toMatchObject({
       text: 'Bitte lassen Sie die Anlage jährlich prüfen, Elektro Kohm.',
       model: null,
     })
@@ -388,15 +423,15 @@ describe('the instructions of a document', () => {
       'Für die Belehrung „Widerrufsbelehrung“ fehlen im Briefkopf die Telefonnummer des ' +
         'Betriebs und die E-Mail-Adresse des Betriebs. Eintragen lässt sich das unter ' +
         '„Einstellungen“, „Briefkopf“.' +
-        off,
+        compulsory,
       'Für die Belehrung „Muster-Widerrufsformular“ fehlt im Briefkopf die E-Mail-Adresse des ' +
         'Betriebs. Eintragen lässt sich das unter „Einstellungen“, „Briefkopf“.' +
-        off,
-      'Für die Belehrung „Beginn vor Ablauf der Widerrufsfrist“ fehlt im Briefkopf die ' +
+        compulsory,
+      'Für die Belehrung „Verlangen auf vorzeitigen Leistungsbeginn“ fehlt im Briefkopf die ' +
         'E-Mail-Adresse des Betriebs. Eintragen lässt sich das unter „Einstellungen“, „Briefkopf“.' +
         off,
     ])
-    expect(contents).toHaveLength(3)
+    expect(contents).toHaveLength(4)
   })
 
   it('are none of the shipped ones on a day before their first version, and say so', () => {
@@ -414,7 +449,7 @@ describe('the instructions of a document', () => {
         message:
           'Die Belehrung „Widerrufsbelehrung“ ist für den 01.03.2021 nicht hinterlegt, die erste ' +
           'mitgelieferte Fassung gilt ab dem 28.05.2022.' +
-          off,
+          compulsory,
       },
     ])
   })
@@ -432,5 +467,57 @@ describe('the instructions of a document', () => {
       text: 'Geänderte Belehrung von Elektro Kohm.',
       model: { template: 'withdrawal', changed: true },
     })
+  })
+})
+
+describe('what a quote to a consumer has to carry', () => {
+  const withdrawal = {
+    id: 'i-1',
+    template: 'withdrawal' as const,
+    title: 'Widerrufsbelehrung',
+    body: null,
+    kinds: [] as const,
+    consumersOnly: true,
+    withDocument: true,
+  }
+  const toConsumer = { kind: 'quote' as const, recipientIsBusiness: false }
+
+  it('is the instruction on withdrawal, its notes and its form, not the sheet', () => {
+    expect(requiredFor({ template: 'withdrawal' }, toConsumer)).toBe(true)
+    expect(requiredFor({ template: 'withdrawal_notes' }, toConsumer)).toBe(true)
+    expect(requiredFor({ template: 'withdrawal_form' }, toConsumer)).toBe(true)
+    expect(requiredFor({ template: 'early_start' }, toConsumer)).toBe(false)
+    expect(requiredFor({ template: null }, toConsumer)).toBe(false)
+  })
+
+  it('is nothing for an estimate, and nothing for a business', () => {
+    expect(requiredFor({ template: 'withdrawal' }, { ...toConsumer, kind: 'cost_estimate' })).toBe(
+      false,
+    )
+    expect(
+      requiredFor({ template: 'withdrawal' }, { ...toConsumer, recipientIsBusiness: true }),
+    ).toBe(false)
+  })
+
+  it('goes with it whatever was switched, and whatever kinds the business left it', () => {
+    expect(
+      includedIn(withdrawal, { ...noInstructionChoices, switchedOff: ['i-1'] }, toConsumer),
+    ).toBe(true)
+    expect(
+      includedIn(
+        withdrawal,
+        { ...noInstructionChoices, switchedOff: ['i-1'] },
+        { ...toConsumer, recipientIsBusiness: true },
+      ),
+    ).toBe(false)
+  })
+
+  it('is proposed for the quote alone when a business starts out', () => {
+    for (const template of instructionTemplates) {
+      expect(shippedInstructionDefaults[template].kinds, template).toEqual(['quote'])
+    }
+
+    expect(requiredKinds('withdrawal')).toEqual(['quote'])
+    expect(requiredKinds('early_start')).toEqual([])
   })
 })
