@@ -13,6 +13,7 @@ import {
   migrationRole,
   readConfiguration,
 } from './configuration.js'
+import { readRendererConfiguration } from './documents/renderer.js'
 
 /**
  * The configuration is the only thing between a deployment and a running
@@ -168,6 +169,40 @@ describe('the configuration', () => {
         ConfigurationError,
       )
     }
+  })
+
+  /**
+   * A .env copied by hand and not finished. The instance would run, with a
+   * database password everybody who has read the template knows. The sentence
+   * points to the script that fills it in, and it never repeats the value: in
+   * a connection string the value is the password.
+   */
+  it('refuses a placeholder of the template, and says how to fill it in without repeating it', () => {
+    const cases: Environment[] = [
+      { ...valid, SESSION_SECRET: 'bitte-ersetzen-5' },
+      {
+        ...valid,
+        DATABASE_URL: `postgres://${applicationRole}:bitte-ersetzen-3@db:5432/opengewerk`,
+      },
+    ]
+
+    for (const environment of cases) {
+      let said = ''
+
+      try {
+        readConfiguration(environment, writable)
+      } catch (error) {
+        said = error instanceof ConfigurationError ? error.message : ''
+      }
+
+      expect(said).toContain('Platzhalter aus der Vorlage')
+      expect(said).toContain('sh docker/start.sh')
+      expect(said).not.toContain('bitte-ersetzen')
+    }
+
+    expect(() => readRendererConfiguration({ RENDERER_TOKEN: 'bitte-ersetzen-4' })).toThrow(
+      /RENDERER_TOKEN enthält noch einen Platzhalter/,
+    )
   })
 })
 

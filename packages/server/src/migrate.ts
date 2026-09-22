@@ -1,4 +1,9 @@
-import { ConfigurationError, migrationRole, parseConnectionString } from './configuration.js'
+import {
+  ConfigurationError,
+  migrationRole,
+  parseConnectionString,
+  refusePlaceholder,
+} from './configuration.js'
 import { MigrationHistoryError, runMigrations } from './database/migrations.js'
 
 /**
@@ -29,7 +34,10 @@ async function main(): Promise<void> {
 
   // Checked here and not only in the driver, because the driver's answer to a
   // broken address is a name lookup that failed for a host nobody meant.
-  parseConnectionString(connectionString, 'MIGRATION_DATABASE_URL')
+  parseConnectionString(
+    refusePlaceholder(connectionString, 'MIGRATION_DATABASE_URL'),
+    'MIGRATION_DATABASE_URL',
+  )
 
   await runMigrations(connectionString)
 

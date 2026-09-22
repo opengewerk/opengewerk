@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Befehl zum Starten, beim ersten Mal wie bei jedem Update: `sh docker/start.sh`.
+  Beim ersten Start legt er `docker/.env` an und erzeugt jedes Passwort und jeden
+  Schlüssel darin selbst, in der Konsole stehen nur die Namen, nie die Werte; gefragt wird
+  nur nach der Adresse der Instanz. Danach migriert er und startet in der Reihenfolge, die
+  ein Update braucht. `docker/setup.sh` richtet nur die Datei ein
+- Eine Instanz mit einem Platzhalter aus der Vorlage startet nicht mehr, sondern nennt die
+  Variable und verweist auf das Skript. Vorher lief sie mit einem Datenbankpasswort, das
+  jeder kennt, der die Vorlage gelesen hat
+
 - E-Mail-Einstellungen im Büro: jeder Betrieb richtet seinen eigenen Mailserver ein, mit
   Server, Port, Verschlüsselung, Anmeldung und Absenderadresse, statt einen für die ganze
   Instanz in der `.env`. Sehen und ändern dürfen das nur die neuen Rechte `mail.read` und

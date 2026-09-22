@@ -382,20 +382,36 @@ Was ausdrücklich noch fehlt und je ein eigenes Issue bekommt: Prüfprotokoll, Z
 
 ## Betrieb
 
-Betriebsfähigkeit gehört zum Produkt, nicht in eine Anleitung. Auf einer leeren
-Maschine mit Docker reichen drei Zeilen:
+Betriebsfähigkeit gehört zum Produkt, nicht in eine Anleitung. Auf einer
+Maschine mit Docker reicht ein Befehl, beim ersten Start wie bei jedem weiteren
+(unter Windows in Git Bash):
 
 ```bash
-cp docker/.env.example docker/.env
+sh docker/start.sh
 ```
 
-Dann die fünf Passwörter in `docker/.env` ersetzen, jedes einzeln erzeugt mit
-`openssl rand -hex 32`, dazu `TRUSTED_ORIGINS` auf die Adresse setzen, unter der
-die Instanz erreichbar sein wird. Danach starten:
+**Beim ersten Start füllt er die `.env` selbst aus.** Er legt `docker/.env` aus
+der Vorlage an und erzeugt jedes Passwort und jeden Schlüssel darin, 32
+Zufallsbytes als Hex, jeden für sich. In der Konsole stehen nur die Namen, nie
+die Werte, und die Datei ist danach nur für ihren Besitzer lesbar. Gefragt wird
+einzig nach der Adresse, unter der OpenGewerk im Browser geöffnet wird; ohne
+Terminal kommt sie aus `OPENGEWERK_ADDRESS`. Danach richtet er die Datenbank ein
+und startet die Instanz. Jeder weitere Aufruf lässt Gesetztes stehen, ergänzt
+nur, was eine neuere Vorlage mitbringt, und startet in der Reihenfolge, die ein
+Update braucht. `sh docker/setup.sh` richtet nur die Datei ein, ohne zu starten.
 
-```bash
-docker compose -f docker/compose.yaml up -d
-```
+Wer die `.env` lieber von Hand füllt, erzeugt jeden Schlüssel einzeln mit
+`openssl rand -hex 32`. Eine Instanz, die noch einen Platzhalter aus der Vorlage
+findet, startet nicht: sie nennt die Variable, nie ihren Wert, und verweist auf
+das Skript.
+
+**Eingestellt wird in der Oberfläche, nicht in der `.env`.** Briefkopf, Steuern,
+Mailserver und alles, was ein Betrieb sonst festlegt, stehen im Büro. In der
+`.env` bleibt nur, was gebraucht wird, bevor die Oberfläche läuft: die
+Passwörter der Datenbank, `SESSION_SECRET`, der Token des Renderers, die Adresse
+der Instanz, Port und Fassung für Docker Compose, der Schalter `CLOSED` und die
+Angaben der Sicherung, die auch dann laufen muss, wenn die Anwendung es nicht
+tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
 `curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Im
@@ -690,8 +706,10 @@ ernst meint, zeigt damit auf ein Verzeichnis auf einer anderen Maschine.
 ### Aktualisieren
 
 Ein Update ist das, was Leitentscheidung 6 verspricht: Abbild tauschen,
-Migration läuft, Dienst startet. Zwei Aufrufe, und ihre Reihenfolge ist der
-ganze Punkt:
+Migration läuft, Dienst startet. Nach dem Holen der neuen Fassung genügt
+derselbe Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die
+`.env` um das, was die neue Fassung braucht, und macht dann zwei Aufrufe, deren
+Reihenfolge der ganze Punkt ist:
 
 ```bash
 docker compose -f docker/compose.yaml run --rm --build migrate

@@ -64,6 +64,27 @@ export class ConfigurationError extends Error {}
 
 export type Environment = Record<string, string | undefined>
 
+/**
+ * Refuses a value that still carries a placeholder of `docker/.env.example`.
+ *
+ * `docker/setup.sh` replaces every one of them with a secret of its own, and
+ * `docker/start.sh` runs it before every start. A placeholder that reaches
+ * this point means the .env was copied by hand and not finished: the instance
+ * would run, with a database password everybody who has read the template
+ * knows. The sentence names the variable and never its value, because the
+ * value of a connection string carries the password.
+ */
+export function refusePlaceholder(value: string, name: string): string {
+  if (value.includes('bitte-ersetzen')) {
+    throw new ConfigurationError(
+      `${name} enthält noch einen Platzhalter aus der Vorlage. "sh docker/start.sh" trägt ` +
+        'alle Schlüssel in docker/.env selbst ein und startet danach.',
+    )
+  }
+
+  return value
+}
+
 function required(environment: Environment, name: string): string {
   const value = environment[name]?.trim()
 
@@ -73,7 +94,7 @@ function required(environment: Environment, name: string): string {
     )
   }
 
-  return value
+  return refusePlaceholder(value, name)
 }
 
 function port(environment: Environment, name: string, fallback: number): number {

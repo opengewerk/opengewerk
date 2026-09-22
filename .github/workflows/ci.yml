@@ -454,22 +454,23 @@ jobs:
       - name: Repository auschecken
         uses: actions/checkout@v7
 
-      - name: Zugangsdaten für den Lauf erzeugen
+      - name: Einrichtungsskript prüfen
         working-directory: docker
-        run: |
-          # Hex and not base64: a "/" in a password splits the connection
-          # string at the wrong place, and the failure that reaches the log is
-          # a name lookup for a host nobody meant.
-          cp .env.example .env
-          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
-            secret=$(openssl rand -hex 32)
-            sed -i "s|^${name}=.*|${name}=${secret}|" .env
-          done
-          ! grep -q "bitte-ersetzen" .env
+        run: sh test-setup.sh
 
+      # The way an installation starts, with the one command the README
+      # names: setup.sh makes every secret and prints only their names, then
+      # the migration runs on its own, then the containers start.
       - name: Stapel starten
         working-directory: docker
-        run: docker compose up -d --build --wait --wait-timeout 300
+        run: OPENGEWERK_ADDRESS=http://127.0.0.1:3000 sh start.sh
+
+      - name: Die .env ist ausgefüllt und nur für ihren Besitzer lesbar
+        working-directory: docker
+        run: |
+          set -eu
+          ! grep -q "bitte-ersetzen" .env
+          test "$(stat -c %a .env)" = "600"
 
       - name: Instanz antwortet mit migrierter Datenbank
         working-directory: docker
@@ -519,10 +520,7 @@ jobs:
         working-directory: docker
         run: |
           set -eu
-          cp .env.example .env
-          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
-            sed -i "s|^${name}=.*|${name}=$(openssl rand -hex 32)|" .env
-          done
+          OPENGEWERK_ADDRESS=http://127.0.0.1:3000 sh setup.sh
 
           # The archive is encrypted in this run too, because an untested
           # encryption path is the one that fails on the evening it is needed.
@@ -650,12 +648,7 @@ jobs:
 
       - name: Zugangsdaten für den Lauf erzeugen
         working-directory: docker
-        run: |
-          set -eu
-          cp .env.example .env
-          for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do
-            sed -i "s|^${name}=.*|${name}=$(openssl rand -hex 32)|" .env
-          done
+        run: OPENGEWERK_ADDRESS=http://127.0.0.1:3000 sh setup.sh
 
       - name: Auf den Stand einer älteren Fassung zurücknehmen
         run: |
