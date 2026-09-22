@@ -618,6 +618,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Aus der Widerrufsbelehrung als Angebotsanhang werden in der Feature-Gliederung
+  Belehrungen, die der Betrieb pflegt (v2.11): mitgeliefert das Muster nach Art. 246a
+  EGBGB, dazu eigene, vorhandene änderbar und erweiterbar, je Belehrung mit der E-Mail des
+  Belegs versendbar, mit dem Beleg eingefroren und später im Kundenportal abrufbar. Neu
+  im Kundenportal ist die Widerrufsfunktion nach §356a BGB, weil die Annahme eines
+  Angebots dort ein Vertrag über eine Online-Oberfläche ist
+
 - Der Fahrplan in Abschnitt 10 der Feature-Gliederung ordnet jetzt jeden Punkt der
   Abschnitte 1 bis 9 einer Phase zu (v2.10). Ein großer Teil stand in keiner Phase,
   darunter Widerrufsbelehrung, Abnahme und Gewährleistung, DSGVO-Funktionen,
