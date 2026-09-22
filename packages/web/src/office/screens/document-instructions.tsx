@@ -75,7 +75,7 @@ function Choice({
           type="checkbox"
           className="size-5"
           checked={choice.included}
-          disabled={!editable || working}
+          disabled={!editable || working || choice.required}
           onChange={(event) => {
             onSwitch(event.target.checked)
           }}
@@ -84,9 +84,12 @@ function Choice({
       </label>
       {choice.included ? (
         <p className="pl-7 text-table text-ink-muted">
+          {choice.required ? 'Pflicht an jedem Angebot an einen Verbraucher. ' : ''}
           {whereItGoes(choice.withDocument, false)}
-          {choice.proposed ? '' : ' Für diesen Beleg nicht vorgeschlagen, von Hand dazugenommen.'}
-          {choice.changed ? ' Der Betrieb hat den Wortlaut des Musters geändert.' : ''}
+          {choice.proposed || choice.required
+            ? ''
+            : ' Für diesen Beleg nicht vorgeschlagen, von Hand dazugenommen.'}
+          {choice.changed ? ' Der Betrieb hat den Wortlaut geändert.' : ''}
         </p>
       ) : null}
       {choice.included && printed && !printed.withDocument ? (

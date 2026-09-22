@@ -40,8 +40,9 @@ function inWords(parts: readonly string[]): string {
 
 /**
  * What a changed model costs, in the words the screen says it in. Only the two
- * that are the law's own words lose something; the sheet for an early start
- * is OpenGewerk's wording and gets a reminder of what it has to keep saying.
+ * that are the law's own words lose something; the notes on the early end and
+ * the sheet for an early start have no model in the law and get a reminder of
+ * what they have to keep saying.
  */
 const changedWarning: Readonly<Record<InstructionTemplate, string>> = {
   withdrawal:
@@ -53,6 +54,10 @@ const changedWarning: Readonly<Record<InstructionTemplate, string>> = {
     'Das Formular weicht vom gesetzlichen Muster ab. Der Kunde muss das Muster-Widerrufsformular ' +
     'der Anlage 2 bekommen (Art. 246a § 1 Abs. 2 Satz 1 Nr. 1 EGBGB), und ein geändertes ist ' +
     'dieses Muster nicht mehr.',
+  withdrawal_notes:
+    'Die Hinweise sind kein gesetzliches Muster, eine Änderung kostet keine Absicherung. Sie ' +
+    'sollten aber weiter sagen, wann kein Widerrufsrecht besteht und unter welchen Umständen es ' +
+    'vorzeitig erlischt (Art. 246a § 1 Abs. 3 EGBGB).',
   early_start:
     'Der Vordruck ist kein gesetzliches Muster, eine Änderung kostet keine Absicherung. Er sollte ' +
     'aber weiter sagen, dass der Kunde den Beginn vor Ablauf der Widerrufsfrist ausdrücklich ' +
@@ -60,9 +65,35 @@ const changedWarning: Readonly<Record<InstructionTemplate, string>> = {
     '(§ 356 Abs. 5 Nr. 2 und § 357a Abs. 2 BGB).',
 }
 
+/** What a shipped instruction is, in the words of the screen. */
+const shippedAs: Readonly<Record<InstructionTemplate, string>> = {
+  withdrawal: 'Mitgeliefertes Muster',
+  withdrawal_form: 'Mitgeliefertes Muster',
+  withdrawal_notes: 'Mitgelieferte Hinweise',
+  early_start: 'Mitgelieferter Vordruck',
+}
+
 /** Whether a template is the law's words, so that changing it costs the safe harbour. */
 function isStatutory(template: InstructionTemplate | null): boolean {
   return template === 'withdrawal' || template === 'withdrawal_form'
+}
+
+/** What the notice over a changed one is headed: a model, the notes or the sheet. */
+function changedHeading(template: InstructionTemplate): string {
+  return isStatutory(template)
+    ? 'Geändertes Muster'
+    : template === 'withdrawal_notes'
+      ? 'Geänderte Hinweise'
+      : 'Geänderter Vordruck'
+}
+
+/** Whose newer version the screen speaks of, in the genitive it needs. */
+function versionOf(template: InstructionTemplate | null): string {
+  return template === 'withdrawal_notes'
+    ? 'der Hinweise'
+    : template === 'early_start'
+      ? 'des Vordrucks'
+      : 'des Musters'
 }
 
 /**
@@ -115,6 +146,7 @@ function Summary({ instruction }: { readonly instruction: InstructionView }) {
       {instruction.withDocument
         ? 'Geht mit dem Beleg hinaus, im PDF nach dem Beleg und damit auch in der E-Mail.'
         : 'Liegt am Beleg als eigenes Blatt zum Ausdrucken bereit.'}
+      {instruction.requiredWith.length > 0 ? ' Pflicht an jedem Angebot an einen Verbraucher.' : ''}
     </p>
   )
 }
@@ -190,6 +222,8 @@ function InstructionForm({
   const [trouble, setTrouble] = useState<string | null>(null)
 
   const model = instruction?.model ?? null
+  // What always goes with a quote to a consumer stays ticked and goes out.
+  const required = instruction?.requiredWith ?? []
   const leavesModel =
     template !== null && model !== null && normalizedWording(body) !== normalizedWording(model.text)
 
@@ -198,7 +232,11 @@ function InstructionForm({
     setWorking(true)
     setTrouble(null)
 
-    const settings = { kinds, consumersOnly, withDocument }
+    const settings = {
+      kinds: documentKinds.filter((kind) => kinds.includes(kind) || required.includes(kind)),
+      consumersOnly,
+      withDocument: withDocument || required.length > 0,
+    }
 
     try {
       if (instruction) {
@@ -252,9 +290,7 @@ function InstructionForm({
 
       {leavesModel ? (
         <div role="note" className="rounded-control border border-conflict p-3 text-body">
-          <p className="font-semibold text-conflict">
-            {isStatutory(template) ? 'Geändertes Muster' : 'Geänderter Vordruck'}
-          </p>
+          <p className="font-semibold text-conflict">{changedHeading(template)}</p>
           <p className="mt-1">{changedWarning[template]}</p>
           <p className="mt-1 text-table text-ink-muted">
             Der ursprüngliche Wortlaut lässt sich jederzeit wiederherstellen.
@@ -269,7 +305,8 @@ function InstructionForm({
             <Check
               key={kind}
               label={documentKindLabel[kind]}
-              checked={kinds.includes(kind)}
+              checked={kinds.includes(kind) || required.includes(kind)}
+              disabled={required.includes(kind)}
               onChange={(checked) => {
                 setKinds(
                   checked
@@ -280,6 +317,12 @@ function InstructionForm({
             />
           ))}
         </div>
+        {required.length > 0 ? (
+          <p className="text-table text-ink-muted">
+            Pflicht an jedem Angebot an einen Verbraucher, deshalb bleiben „Angebot“ und „Geht mit
+            dem Beleg hinaus“ angehakt.
+          </p>
+        ) : null}
       </fieldset>
       <Check
         label="Nur für Kunden, die kein Unternehmen sind"
@@ -289,7 +332,8 @@ function InstructionForm({
       <div className="flex flex-col gap-1">
         <Check
           label="Geht mit dem Beleg hinaus"
-          checked={withDocument}
+          checked={withDocument || required.length > 0}
+          disabled={required.length > 0}
           onChange={setWithDocument}
         />
         <p className="text-table text-ink-muted">
@@ -328,11 +372,9 @@ function origin(instruction: InstructionView): string {
     return 'Eigene Belehrung'
   }
 
-  // The sheet for an early start ships like the models and is none: the law
-  // has no model for it, and the screen does not pretend otherwise.
-  const shipped = isStatutory(instruction.template)
-    ? 'Mitgeliefertes Muster'
-    : 'Mitgelieferter Vordruck'
+  // The notes and the sheet ship like the models and are none: the law has
+  // no model for them, and the screen does not pretend otherwise.
+  const shipped = shippedAs[instruction.template]
   const since = instruction.model ? `, Fassung ab ${date(instruction.model.validFrom)}` : ''
 
   return instruction.changed ? `${shipped}, vom Betrieb geändert${since}` : `${shipped}${since}`
@@ -427,18 +469,17 @@ function InstructionEntry({
 
         {instruction.changed && instruction.template !== null ? (
           <div role="note" className="rounded-control border border-conflict p-3 text-body">
-            <p className="font-semibold text-conflict">
-              {isStatutory(instruction.template) ? 'Geändertes Muster' : 'Geänderter Vordruck'}
-            </p>
+            <p className="font-semibold text-conflict">{changedHeading(instruction.template)}</p>
             <p className="mt-1">{changedWarning[instruction.template]}</p>
           </div>
         ) : null}
 
         {instruction.newerModel ? (
           <p role="note" className="text-body font-semibold">
-            Seit dieser Änderung ist eine neue Fassung des Musters erschienen, gültig ab{' '}
-            {date(instruction.newerModel.validFrom)}. Die geänderte Fassung wurde dabei nicht
-            angepasst; mit „Original wiederherstellen“ gilt wieder das Muster.
+            Seit dieser Änderung ist eine neue Fassung {versionOf(instruction.template)} erschienen,
+            gültig ab {date(instruction.newerModel.validFrom)}. Die geänderte Fassung wurde dabei
+            nicht angepasst; mit „Original wiederherstellen“ gilt wieder{' '}
+            {isStatutory(instruction.template) ? 'das Muster' : 'die mitgelieferte Fassung'}.
           </p>
         ) : null}
 
@@ -464,7 +505,10 @@ function InstructionEntry({
                 <InstructionText text={instruction.body} />
                 {instruction.model ? (
                   <p className="text-table text-ink-muted">
-                    Fundstelle des Musters: {instruction.model.source}
+                    {isStatutory(instruction.template)
+                      ? 'Fundstelle des Musters'
+                      : 'Rechtsgrundlage'}
+                    : {instruction.model.source}
                   </p>
                 ) : null}
               </div>
@@ -480,9 +524,11 @@ function InstructionEntry({
  * The instructions a business hands its customers with a document, #109.
  *
  * Shipped are the instruction on withdrawal and its form, the models of the
- * law, and a sheet for a customer who wants the work to begin before the
- * fourteen days are over. The business decides for which documents each is
- * proposed and whether it goes out with the document, and it writes its own.
+ * law, the notes on when there is no right of withdrawal or it ends early, and
+ * a sheet for a customer who wants the work to begin before the fourteen days
+ * are over. The business decides for which documents each is proposed and
+ * whether it goes out with the document, and it writes its own; the ones a
+ * quote to a consumer needs stay proposed for quotes and go out with them.
  *
  * Only the owner changes them; the office sees them with nothing to press,
  * like the letterhead.

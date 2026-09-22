@@ -115,27 +115,33 @@ describe('the shipped instructions', () => {
     const first = await list(office())
     const second = await list()
 
-    expect(first.map((entry) => entry.template)).toEqual([
-      'withdrawal',
-      'withdrawal_form',
-      'early_start',
+    expect(first.map((entry) => [entry.template, entry.title])).toEqual([
+      ['withdrawal', 'Widerrufsbelehrung'],
+      ['withdrawal_notes', 'Hinweise zum Erlöschen des Widerrufsrechts'],
+      ['withdrawal_form', 'Muster-Widerrufsformular'],
+      ['early_start', 'Verlangen auf vorzeitigen Leistungsbeginn'],
     ])
     expect(second.map((entry) => entry.id)).toEqual(first.map((entry) => entry.id))
     expect(first[0]).toMatchObject({
-      title: 'Widerrufsbelehrung',
       changed: false,
-      kinds: ['cost_estimate', 'quote'],
+      kinds: ['quote'],
+      requiredWith: ['quote'],
       consumersOnly: true,
       withDocument: true,
     })
-    expect(first[2]).toMatchObject({ template: 'early_start', withDocument: false })
+    expect(first[1]).toMatchObject({ requiredWith: ['quote'], withDocument: true })
+    expect(first[3]).toMatchObject({
+      kinds: ['quote'],
+      requiredWith: [],
+      withDocument: false,
+    })
 
     const { rows } = await admin.query<{ count: string }>(
       'select count(*) from instructions where tenant_id = $1',
       [north.id],
     )
 
-    expect(rows[0]?.count).toBe('3')
+    expect(rows[0]?.count).toBe('4')
   })
 
   it('show the model in force today, word for word, without keeping it in the row', async () => {
@@ -246,22 +252,43 @@ describe('an instruction changed', () => {
   })
 
   it('takes the kinds in the order of the list, each once, and refuses one that is none', async () => {
-    const form = await shipped('withdrawal_form')
+    const early = await shipped('early_start')
 
-    const changed = await change(form.id, {
+    const changed = await change(early.id, {
       kinds: ['order_confirmation', 'quote', 'quote'],
-      withDocument: false,
+      withDocument: true,
     }).expect(200)
 
     expect(changed.body).toMatchObject({
       kinds: ['quote', 'order_confirmation'],
-      withDocument: false,
+      withDocument: true,
     })
 
-    await change(form.id, { kinds: ['brief'] }).expect(400)
-    await change(form.id, { kinds: 'quote' }).expect(400)
-    await change(form.id, { consumersOnly: 'ja' }).expect(400)
-    await change(form.id, { kinds: ['cost_estimate', 'quote'], withDocument: true }).expect(200)
+    await change(early.id, { kinds: ['brief'] }).expect(400)
+    await change(early.id, { kinds: 'quote' }).expect(400)
+    await change(early.id, { consumersOnly: 'ja' }).expect(400)
+    await change(early.id, { kinds: ['quote'], withDocument: false }).expect(200)
+  })
+
+  it('keeps the quote for the two models, and keeps them going out with it', async () => {
+    const form = await shipped('withdrawal_form')
+
+    const unticked = await change(form.id, { kinds: ['order_confirmation'] }).expect(400)
+
+    expect((unticked.body as { message: string }).message).toBe(
+      'Die Belehrung „Muster-Widerrufsformular“ gehört zu jedem Angebot an einen Verbraucher, ' +
+        'deshalb lässt sich das Angebot hier nicht abwählen.',
+    )
+
+    const kept = await change(form.id, { withDocument: false }).expect(400)
+
+    expect((kept.body as { message: string }).message).toContain('zwingend mit dem Angebot')
+
+    const widened = await change(form.id, { kinds: ['quote', 'order_confirmation'] }).expect(200)
+
+    expect(widened.body).toMatchObject({ kinds: ['quote', 'order_confirmation'] })
+
+    await change(form.id, { kinds: ['quote'] }).expect(200)
   })
 })
 

@@ -1555,15 +1555,17 @@ describe('the instructions of a document', () => {
         template: 'withdrawal',
         proposed: true,
         included: true,
+        required: true,
         withDocument: true,
         changed: false,
       },
       {
         id: 'i-3',
-        title: 'Beginn vor Ablauf der Widerrufsfrist',
+        title: 'Verlangen auf vorzeitigen Leistungsbeginn',
         template: 'early_start',
         proposed: true,
         included: true,
+        required: false,
         withDocument: false,
         changed: false,
       },
@@ -1573,6 +1575,7 @@ describe('the instructions of a document', () => {
         template: null,
         proposed: false,
         included: false,
+        required: false,
         withDocument: true,
         changed: false,
       },
@@ -1581,7 +1584,7 @@ describe('the instructions of a document', () => {
       { index: 0, title: 'Widerrufsbelehrung', withDocument: true, changed: false, source: 'A 1' },
       {
         index: 1,
-        title: 'Beginn vor Ablauf der Widerrufsfrist',
+        title: 'Verlangen auf vorzeitigen Leistungsbeginn',
         withDocument: false,
         changed: false,
         source: 'kein Muster',
@@ -1605,7 +1608,9 @@ describe('the instructions of a document', () => {
     await mount('/belege/d-1')
 
     const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
-    const early = section.getByRole('checkbox', { name: 'Beginn vor Ablauf der Widerrufsfrist' })
+    const early = section.getByRole('checkbox', {
+      name: 'Verlangen auf vorzeitigen Leistungsbeginn',
+    })
 
     expect(
       (section.getByRole('checkbox', { name: 'Widerrufsbelehrung' }) as HTMLInputElement).checked,
@@ -1614,7 +1619,7 @@ describe('the instructions of a document', () => {
     expect(
       section
         .getByRole('link', {
-          name: 'Beginn vor Ablauf der Widerrufsfrist als eigenes Blatt öffnen',
+          name: 'Verlangen auf vorzeitigen Leistungsbeginn als eigenes Blatt öffnen',
         })
         .getAttribute('href'),
     ).toBe('/documents/d-1/instructions/1/pdf')
@@ -1630,6 +1635,26 @@ describe('the instructions of a document', () => {
     await waitFor(() => {
       expect((early as HTMLInputElement).checked).toBe(false)
     })
+  })
+
+  it('keeps the one a quote to a consumer cannot go without switched on', async () => {
+    serverSays('GET', '/documents/d-1/instructions', () => ({ status: 200, body: proposed }))
+    await mount('/belege/d-1')
+
+    const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
+    const compulsory = section.getByRole('checkbox', {
+      name: 'Widerrufsbelehrung',
+    }) as HTMLInputElement
+
+    expect([compulsory.checked, compulsory.disabled]).toEqual([true, true])
+    expect(section.getByText(/Pflicht an jedem Angebot an einen Verbraucher\./)).toBeTruthy()
+    expect(
+      (
+        section.getByRole('checkbox', {
+          name: 'Verlangen auf vorzeitigen Leistungsbeginn',
+        }) as HTMLInputElement
+      ).disabled,
+    ).toBe(false)
   })
 
   it('asks what the contract is about, and says what is missing before issuing', async () => {

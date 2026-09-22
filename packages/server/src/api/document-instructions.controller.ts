@@ -16,7 +16,9 @@ import {
   type InstructionChoices,
   type InstructionContent,
   type InstructionTemplate,
+  includedIn,
   proposedFor,
+  requiredFor,
   RuleError,
   shippedRules,
   whyFixed,
@@ -29,7 +31,12 @@ import type { Response } from 'express'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { customers, documentInstructionChoices, documents } from '../database/schema/index.js'
 import { contentOf, frozenContent, issuerOf } from '../documents/content.js'
-import { choicesOf, instructionsFor, instructionsOf } from '../documents/instructions.js'
+import {
+  choicesOf,
+  instructionsFor,
+  instructionsOf,
+  shownTitle,
+} from '../documents/instructions.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { pick } from './body.js'
@@ -47,6 +54,8 @@ export interface InstructionChoiceView {
   readonly proposed: boolean
   /** Goes with it: the proposal, or what the office chose instead. */
   readonly included: boolean
+  /** Goes with it whatever anybody chooses: a model on a quote to a consumer. */
+  readonly required: boolean
   readonly withDocument: boolean
   /** A shipped one whose words the business changed. */
   readonly changed: boolean
@@ -156,21 +165,17 @@ export class DocumentInstructionsController {
       variant: choices.variant,
       choices:
         document.status === 'draft'
-          ? (await instructionsOf(tx)).map((row) => {
-              const proposed = proposedFor(row, facts)
-
-              return {
-                id: row.id,
-                title: row.title,
-                template: row.template,
-                proposed,
-                included: choices.switchedOff.includes(row.id)
-                  ? false
-                  : choices.switchedOn.includes(row.id) || proposed,
-                withDocument: row.withDocument,
-                changed: row.template !== null && row.body !== null,
-              }
-            })
+          ? (await instructionsOf(tx)).map((row) => ({
+              id: row.id,
+              // The heading the document prints, the one of its own day.
+              title: shownTitle(row, document.documentDate),
+              template: row.template,
+              proposed: proposedFor(row, facts),
+              included: includedIn(row, choices, facts),
+              required: requiredFor(row, facts),
+              withDocument: row.withDocument,
+              changed: row.template !== null && row.body !== null,
+            }))
           : [],
       printed: printedFrom(contents),
       gaps: gaps.map((gap) => gap.message),
@@ -250,11 +255,19 @@ export class DocumentInstructionsController {
           throw new NotFoundException('Diese Belehrung gibt es in diesem Betrieb nicht.')
         }
 
-        const proposed = proposedFor(instruction, {
+        const facts = {
           kind: document.kind,
           recipientIsBusiness: await this.recipientIsBusiness(tx, document),
-        })
+        }
+        const proposed = proposedFor(instruction, facts)
         const included = values.included === true
+
+        if (!included && requiredFor(instruction, facts)) {
+          throw new ConflictException(
+            `Die Belehrung „${shownTitle(instruction, document.documentDate)}“ gehört zu jedem ` +
+              'Angebot an einen Verbraucher und lässt sich nicht abschalten.',
+          )
+        }
         const on = current.switchedOn.filter((id) => id !== instruction.id)
         const off = current.switchedOff.filter((id) => id !== instruction.id)
 

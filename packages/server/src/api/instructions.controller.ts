@@ -19,6 +19,7 @@ import {
   longestInstructionBody,
   longestInstructionTitle,
   normalizedWording,
+  requiredKinds,
   unknownInstructionPlaceholders,
   wordingAt,
 } from '@opengewerk/domain'
@@ -32,6 +33,7 @@ import {
   instructionsOf,
   type InstructionView,
   instructionView,
+  shownTitle,
 } from '../documents/instructions.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
@@ -265,6 +267,26 @@ export class InstructionsController {
         throw new BadRequestException(
           'Eine mitgelieferte Belehrung trägt die Überschrift ihres Musters. Wer eine andere ' +
             'möchte, legt eine eigene Belehrung an.',
+        )
+      }
+
+      // The two models a quote to a consumer has to carry keep that quote, and
+      // they go out with it: a sheet the office may forget to print is not an
+      // instruction the customer got.
+      const required = requiredKinds(row.template)
+      const kinds = settings.kinds
+
+      if (kinds && required.some((kind) => !kinds.includes(kind))) {
+        throw new BadRequestException(
+          `Die Belehrung „${shownTitle(row, today)}“ gehört zu jedem Angebot an einen ` +
+            'Verbraucher, deshalb lässt sich das Angebot hier nicht abwählen.',
+        )
+      }
+
+      if (settings.withDocument === false && required.length > 0) {
+        throw new BadRequestException(
+          `Die Belehrung „${shownTitle(row, today)}“ geht zwingend mit dem Angebot hinaus, ` +
+            'im PDF und damit in der E-Mail.',
         )
       }
 

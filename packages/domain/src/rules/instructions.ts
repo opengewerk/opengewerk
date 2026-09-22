@@ -10,6 +10,7 @@ import {
   type InstructionTemplate,
   placeholdersIn,
   proposedFor,
+  requiredFor,
   unfilledPlaceholders,
   type WithdrawalVariant,
 } from '../model/instruction.js'
@@ -109,12 +110,13 @@ export function contractBlocksAt(
 /**
  * How a shipped instruction starts out in a business that has not touched it.
  *
- * The instruction on withdrawal and its form are proposed for the quote and
- * the estimate to a customer who is not a business, because that is where a
- * trade business concludes a contract at the customer's home, and they go out
- * with the document: both have to reach the customer in text form. The sheet
- * for an early start is proposed with them and kept at the document, to be
- * printed when the customer wants the work to begin within the fourteen days.
+ * The instruction on withdrawal, the notes on when the right ends and the
+ * form belong to the quote to a customer who is not a business, where they
+ * are required anyway (see `requiredWith`), in that order and with the
+ * document: they have to reach the customer in text form. Not to the
+ * estimate, which is no offer the customer accepts. The sheet for an early
+ * start is proposed with them and kept at the document, to be printed when
+ * the customer wants the work to begin within the fourteen days.
  */
 export const shippedInstructionDefaults: Readonly<
   Record<
@@ -128,22 +130,28 @@ export const shippedInstructionDefaults: Readonly<
   >
 > = {
   withdrawal: {
-    kinds: ['cost_estimate', 'quote'],
+    kinds: ['quote'],
     consumersOnly: true,
     withDocument: true,
     position: 1,
   },
-  withdrawal_form: {
-    kinds: ['cost_estimate', 'quote'],
+  withdrawal_notes: {
+    kinds: ['quote'],
     consumersOnly: true,
     withDocument: true,
     position: 2,
   },
+  withdrawal_form: {
+    kinds: ['quote'],
+    consumersOnly: true,
+    withDocument: true,
+    position: 3,
+  },
   early_start: {
-    kinds: ['cost_estimate', 'quote'],
+    kinds: ['quote'],
     consumersOnly: true,
     withDocument: false,
-    position: 3,
+    position: 4,
   },
 }
 
@@ -199,8 +207,15 @@ export function instructionWordingAt(
 
   const wording = wordingAt(instruction.template, on, wordings)
 
+  // A shipped instruction is printed under the heading of its model, the
+  // one of the document's day, whatever heading its row was written with.
   if (instruction.body !== null) {
-    return { title: instruction.title, text: instruction.body, wording, changed: true }
+    return {
+      title: wording?.title ?? instruction.title,
+      text: instruction.body,
+      wording,
+      changed: true,
+    }
   }
 
   return wording ? { title: wording.title, text: wording.text, wording, changed: false } : null
@@ -218,12 +233,19 @@ function inWords(parts: readonly string[]): string {
     : `${parts.slice(0, -1).join(', ')} und ${parts.at(-1) ?? ''}`
 }
 
-/** Whether an instruction goes with a document: the office's choice, else the proposal. */
+/**
+ * Whether an instruction goes with a document: always where it is required,
+ * else the office's choice, else the proposal.
+ */
 export function includedIn(
-  instruction: Pick<InstructionForDocument, 'id' | 'kinds' | 'consumersOnly'>,
+  instruction: Pick<InstructionForDocument, 'id' | 'template' | 'kinds' | 'consumersOnly'>,
   choices: InstructionChoices,
   document: { readonly kind: DocumentKind; readonly recipientIsBusiness: boolean },
 ): boolean {
+  if (requiredFor(instruction, document)) {
+    return true
+  }
+
   if (choices.switchedOff.includes(instruction.id)) {
     return false
   }
@@ -238,6 +260,9 @@ export function includedIn(
 const switchOff =
   ' Gehört die Belehrung nicht zu diesem Beleg, lässt sie sich am Beleg unter „Belehrungen“ ' +
   'abschalten.'
+
+/** What a refusal says instead, for an instruction that cannot be switched off. */
+const compulsory = ' Bei einem Angebot an einen Verbraucher gehört sie zwingend dazu.'
 
 /** Something a document lacks before its instructions can go out, as a sentence. */
 export interface InstructionGap {
@@ -288,7 +313,9 @@ export function documentInstructions(
     }
 
     const words = instructionWordingAt(instruction, on, wordings)
-    const named = `Die Belehrung „${instruction.title}“`
+    // Named by the heading it is printed under, once there is one.
+    const named = `Die Belehrung „${words?.title ?? instruction.title}“`
+    const wayOut = requiredFor(instruction, document) ? compulsory : switchOff
 
     if (words === null) {
       const first = instruction.template
@@ -303,7 +330,7 @@ export function documentInstructions(
         message:
           `${named} ist für den ${day(on)} nicht hinterlegt` +
           (first ? `, die erste mitgelieferte Fassung gilt ab dem ${day(first)}.` : '.') +
-          switchOff,
+          wayOut,
       })
       continue
     }
@@ -318,7 +345,7 @@ export function documentInstructions(
         detail: 'instruction',
         message:
           `${named} hängt von der Art des Vertrags ab, und für den ${day(on)} ist dafür keine ` +
-          `Fassung des Musters hinterlegt.${switchOff}`,
+          `Fassung des Musters hinterlegt.${wayOut}`,
       })
       continue
     }
@@ -329,9 +356,9 @@ export function documentInstructions(
       gaps.push({
         detail: 'instruction',
         message:
-          `Für die Belehrung „${instruction.title}“ ${unfilled.length === 1 ? 'fehlt' : 'fehlen'} ` +
+          `Für die Belehrung „${words.title}“ ${unfilled.length === 1 ? 'fehlt' : 'fehlen'} ` +
           `im Briefkopf ${inWords(unfilled.map((entry) => entry.missing))}. Eintragen lässt sich ` +
-          `das unter „Einstellungen“, „Briefkopf“.${switchOff}`,
+          `das unter „Einstellungen“, „Briefkopf“.${wayOut}`,
       })
     }
 

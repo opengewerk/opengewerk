@@ -14,12 +14,20 @@ import type {
  *
  * `withdrawal` is the model instruction on withdrawal of annex 1 to
  * Art. 246a EGBGB, `withdrawal_form` the model withdrawal form of annex 2,
- * and `early_start` the sheet on which a consumer asks for the work to begin
- * before the fourteen days are over. The first two are the law's own words.
- * The third has no model in the law and is OpenGewerk's wording, which is why
- * it goes to #31 for review like a rule package.
+ * `early_start` the sheet on which a consumer asks for the work to begin
+ * before the fourteen days are over, and `withdrawal_notes` what
+ * Art. 246a § 1 (3) EGBGB asks for beyond the model: when there is no right
+ * of withdrawal, and when it ends early. The first two are the law's own
+ * words. The other two have no model in the law; their words are the ones
+ * Moritz uses on msk-solutions.de, and they go to #31 for review like a rule
+ * package.
  */
-export const instructionTemplates = ['withdrawal', 'withdrawal_form', 'early_start'] as const
+export const instructionTemplates = [
+  'withdrawal',
+  'withdrawal_form',
+  'early_start',
+  'withdrawal_notes',
+] as const
 
 export type InstructionTemplate = (typeof instructionTemplates)[number]
 
@@ -345,14 +353,55 @@ export function instructionBlocks(text: string): readonly InstructionBlock[] {
 }
 
 /**
+ * The kinds of document a shipped instruction always goes with when the
+ * customer is not a business, whatever anybody switched.
+ *
+ * The instruction on withdrawal, its form and the notes on when the right
+ * ends go with every quote to a consumer: a trade business writes its quotes
+ * for the customer's home or sends them by mail, and a quote without them
+ * lets the right of withdrawal run for a year and two weeks. An estimate does
+ * not need them, it is no offer the customer accepts. Decided by Moritz on
+ * 22.09.2026.
+ *
+ * Not the sheet for an early start. It is needed when a customer wants the
+ * work to begin within the fourteen days, and not otherwise.
+ */
+export const requiredWith: Readonly<Partial<Record<InstructionTemplate, readonly DocumentKind[]>>> =
+  {
+    withdrawal: ['quote'],
+    withdrawal_form: ['quote'],
+    withdrawal_notes: ['quote'],
+  }
+
+/** The kinds a shipped instruction always goes with, none for one the business wrote. */
+export function requiredKinds(template: InstructionTemplate | null): readonly DocumentKind[] {
+  return template === null ? [] : (requiredWith[template] ?? [])
+}
+
+/**
+ * Whether an instruction has to go with a document: a shipped one the law
+ * asks for, on a kind it is required with, to a customer who is not a
+ * business. A business has no right of withdrawal, so nothing is required
+ * for one.
+ */
+export function requiredFor(
+  instruction: Pick<Instruction, 'template'>,
+  document: { readonly kind: DocumentKind; readonly recipientIsBusiness: boolean },
+): boolean {
+  return (
+    !document.recipientIsBusiness && requiredKinds(instruction.template).includes(document.kind)
+  )
+}
+
+/**
  * Whether an instruction is proposed for a document: its kind is among the
  * instruction's, and a customer who is a business is left out where the
  * instruction is only for consumers.
  *
- * A proposal and nothing more. Whether a contract is concluded away from the
- * business premises or at a distance is something the software cannot know,
- * so the office switches each one on or off per document, and that choice
- * wins.
+ * A proposal, which the office switches on or off per document, because
+ * whether a contract is concluded away from the business premises or at a
+ * distance is something the software cannot know. The exception is what
+ * `requiredFor` names; that goes with the document either way.
  */
 export function proposedFor(
   instruction: Pick<Instruction, 'kinds' | 'consumersOnly'>,

@@ -11,6 +11,7 @@ import {
   type IssuerContent,
   latestWording,
   noInstructionChoices,
+  requiredKinds,
   shippedInstructionDefaults,
   type TenantId,
   wordingAt,
@@ -107,9 +108,24 @@ export interface InstructionView {
    */
   readonly newerModel: ModelView | null
   readonly kinds: readonly DocumentKind[]
+  /**
+   * The kinds it always goes with when the customer is not a business: the
+   * quote, for the two models. The screen keeps them ticked.
+   */
+  readonly requiredWith: readonly DocumentKind[]
   readonly consumersOnly: boolean
   readonly withDocument: boolean
   readonly position: number
+}
+
+/**
+ * The heading an instruction is shown under: its own for one the business
+ * wrote, the one of its model today for a shipped one. The heading in the
+ * row of a shipped one is the one it was written with, and a later version
+ * of the package may have renamed it; the document prints the package's.
+ */
+export function shownTitle(row: Pick<InstructionRow, 'template' | 'title'>, today: IsoDate) {
+  return row.template === null ? row.title : (wordingAt(row.template, today)?.title ?? row.title)
 }
 
 export function instructionView(row: InstructionRow, today: IsoDate): InstructionView {
@@ -120,7 +136,7 @@ export function instructionView(row: InstructionRow, today: IsoDate): Instructio
   return {
     id: row.id,
     template: row.template,
-    title: row.title,
+    title: shownTitle(row, today),
     body: row.body ?? model?.text ?? '',
     changed,
     model: model ? { validFrom: model.validFrom, source: model.source, text: model.text } : null,
@@ -129,6 +145,7 @@ export function instructionView(row: InstructionRow, today: IsoDate): Instructio
         ? { validFrom: latest.validFrom, source: latest.source }
         : null,
     kinds: row.kinds,
+    requiredWith: requiredKinds(row.template),
     consumersOnly: row.consumersOnly,
     withDocument: row.withDocument,
     position: row.position,
