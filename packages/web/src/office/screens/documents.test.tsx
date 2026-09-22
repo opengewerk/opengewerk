@@ -991,7 +991,7 @@ describe('the e-invoice', () => {
     duty: {
       required: false,
       reason:
-        'Noch keine Pflicht: eine Rechnung, die bis zum 31.12.2026 ausgestellt wird, darf für ' +
+        'Noch keine Pflicht: eine Rechnung, die bis zum 31.12.2026 übermittelt wird, darf für ' +
         'diese Leistung auch als PDF gehen, wenn der Kunde zustimmt (§ 27 Abs. 38 Satz 1 Nr. 1 UStG).',
     },
   }

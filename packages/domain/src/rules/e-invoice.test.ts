@@ -138,6 +138,9 @@ describe('the format of an invoice', () => {
 
     expect(choice).toMatchObject({ format: 'pdf' })
     expect(choice.reason).toContain('§ 34a Satz 4 UStDV')
+    // A PDF needs the customer's consent, paper does not; the letter of the
+    // ministry of 15 October 2025 says so at margin number 22.
+    expect(choice.reason).toContain('§ 14 Abs. 1 Satz 5 UStG')
   })
 
   it('is a PDF up to 250 euros, and an e-invoice from one cent more', () => {
@@ -146,7 +149,8 @@ describe('the format of an invoice', () => {
 
     expect(small.format).toBe('pdf')
     expect(small.reason).toBe(
-      'Eine Rechnung bis 250 Euro darf immer als PDF gehen (§ 33 Satz 4 UStDV).',
+      'Eine Rechnung bis 250 Euro darf immer als PDF gehen, wenn der Kunde zustimmt, sonst auf ' +
+        'Papier (§ 33 Satz 4 UStDV, § 14 Abs. 1 Satz 5 UStG).',
     )
     expect(formatFor(rules, invoice({}, { netCents: 21009 })).format).toBe('e_invoice')
   })

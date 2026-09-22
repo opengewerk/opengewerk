@@ -159,8 +159,16 @@ export function billedOf(totals: DocumentTotals): BilledAmount {
  * again. That is what makes the chain add up to the cent: every progress
  * invoice bills the difference between its own total and what the ones before
  * it said, so the final invoice ends exactly at the total of the work, however
- * each of them rounded. It is also what section 14 (5) UStG asks of a final
- * invoice: the partial amounts and the tax on them are deducted as invoiced.
+ * each of them rounded.
+ *
+ * Section 14 (5) UStG asks for something narrower of a final invoice: the
+ * partial amounts received before the work was done, and the tax on them.
+ * Billed and received are the same figure as long as every progress invoice
+ * was paid in full, and that is the assumption here until payments are
+ * matched in phase 3. A progress invoice that is still open, or paid in part,
+ * is taken off all the same, and the final invoice then asks for less than is
+ * owed. Section 4.2 of the concept names both, billed and paid; which of the
+ * two a final invoice deducts before phase 3 is open in #31.
  *
  * A rate is matched by its name and not by its figure. Should the rate change
  * between a progress invoice and the final one, the final invoice taxes the
