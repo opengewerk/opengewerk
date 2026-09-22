@@ -25,7 +25,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { accountsOf } from '../authentication/administration.js'
 import { Database } from '../database/database.js'
 import { customers, documents, memberships } from '../database/schema/index.js'
-import { frozenContent } from '../documents/content.js'
+import { contentOf, frozenContent } from '../documents/content.js'
 import { isMailAddress } from '../mail/configuration.js'
 import {
   type DocumentMailRow,
@@ -130,11 +130,7 @@ export class DocumentMailController {
 
     const wish = await this.database.forTenant(identity, async (tx) => {
       const [document] = await tx
-        .select({
-          id: documents.id,
-          number: documents.number,
-          customerId: documents.customerId,
-        })
+        .select()
         .from(documents)
         .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
 
@@ -142,14 +138,19 @@ export class DocumentMailController {
         throw new NotFoundException()
       }
 
-      if (document.number === null) {
+      // A signed report has no number yet and is fixed all the same: the
+      // customer's signature is on it, and nothing changes after that.
+      if (document.number === null && document.status !== 'signed') {
         throw new ConflictException(
           'Verschickt wird ein festgeschriebener Beleg. Ein Entwurf hat noch keine Nummer, und ' +
             'was der Kunde bekommt, soll sich danach nicht mehr ändern.',
         )
       }
 
-      const content = await frozenContent(tx, document.id)
+      const content =
+        document.number === null
+          ? await contentOf(tx, document, shippedRules)
+          : await frozenContent(tx, document.id)
 
       if (content === null) {
         throw new ConflictException(

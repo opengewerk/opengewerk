@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
+import { RuleError } from '@opengewerk/domain'
 
-import type { DocumentFiles, IssuedFile } from '../api/document-files.js'
+import type { DocumentFiles, MailedFile } from '../api/document-files.js'
 import { documentTitle } from '../documents/template.js'
 import type { OutboxRow } from './outbox.js'
 import { type MailAttachment, MailDeliveryError } from './transport.js'
@@ -13,7 +14,13 @@ function safe(number: string): string {
   return number.replaceAll(/[\\/:*?"<>|]+/g, '-')
 }
 
-function fileNameOf(file: IssuedFile, attachment: 'pdf' | 'zugferd' | 'xrechnung'): string {
+function fileNameOf(file: MailedFile, attachment: 'pdf' | 'zugferd' | 'xrechnung'): string {
+  if (file.number === null) {
+    // A report signed on site, before the office gave it a number. Named the
+    // way its PDF is named when somebody opens it.
+    return `${documentTitle(file.kind)} unterschrieben.pdf`
+  }
+
   return attachment === 'xrechnung'
     ? `XRechnung ${safe(file.number)}.xml`
     : `${documentTitle(file.kind)} ${safe(file.number)}.pdf`
@@ -46,7 +53,7 @@ export function documentAttachments(files: DocumentFiles): AttachmentSource {
     }
 
     try {
-      const file = await files.issued(
+      const file = await files.forMail(
         { tenantId: row.tenantId, reason: 'mail' },
         row.documentId,
         row.attachment,
@@ -63,7 +70,8 @@ export function documentAttachments(files: DocumentFiles): AttachmentSource {
       const final =
         error instanceof NotFoundException ||
         error instanceof ConflictException ||
-        error instanceof UnprocessableEntityException
+        error instanceof UnprocessableEntityException ||
+        error instanceof RuleError
 
       throw new MailDeliveryError(
         `Der Anhang ließ sich nicht erzeugen: ${error instanceof Error ? error.message : String(error)}`,

@@ -42,4 +42,6 @@ export const MAIL = Symbol('Mail')
 export interface MailSettings {
   /** The first trusted origin, the address a link in a message points to. */
   readonly origin: string
+  /** `MAIL_FROM`, the address every message leaves from. */
+  readonly from: string
 }

@@ -25,7 +25,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { type Actor, Database, type TenantTransaction } from '../database/database.js'
 import { documentFiles, documents, files } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
-import { frozenContent } from '../documents/content.js'
+import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { printJob } from '../documents/template.js'
@@ -99,6 +99,13 @@ export interface IssuedFile {
   readonly bytes: Uint8Array
   readonly kind: DocumentKind
   readonly number: string
+}
+
+/** A file a message carries: an issued document's, or a signed report's without a number. */
+export interface MailedFile {
+  readonly bytes: Uint8Array
+  readonly kind: DocumentKind
+  readonly number: string | null
 }
 
 /**
@@ -332,5 +339,38 @@ export class DocumentFiles {
     }
 
     return { bytes, kind: document.kind, number: document.number }
+  }
+
+  /**
+   * The file a message about a document carries.
+   *
+   * An issued document gives the file it keeps, as above. A report that the
+   * customer signed and the office has not issued yet has no number and so no
+   * snapshot; its PDF is printed from its rows, as it is on every request,
+   * and not kept. Nothing on it changes any more, the signature saw to that.
+   */
+  async forMail(actor: Actor, documentId: string, purpose: IssuedPurpose): Promise<MailedFile> {
+    if (purpose === 'pdf') {
+      const signed = await this.database.forTenant(actor, async (tx) => {
+        const [document] = await tx
+          .select()
+          .from(documents)
+          .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
+
+        if (!document) {
+          throw new NotFoundException()
+        }
+
+        return document.number === null && document.status === 'signed'
+          ? contentOf(tx, document, shippedRules)
+          : null
+      })
+
+      if (signed) {
+        return { bytes: await this.print(signed), kind: signed.kind, number: null }
+      }
+    }
+
+    return this.issued(actor, documentId, purpose)
   }
 }

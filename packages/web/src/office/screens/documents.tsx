@@ -356,7 +356,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         />
       ) : null}
 
-      {number !== null ? (
+      {number !== null || status === 'signed' ? (
         <MailCard
           documentId={documentId}
           customerEmail={customer ? maybeText(customer, 'email') : null}

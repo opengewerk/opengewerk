@@ -162,6 +162,13 @@
       "when": 1790062355948,
       "tag": "0022_mail_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790063270995,
+      "tag": "0023_report_mail_on_signature",
+      "breakpoints": true
     }
   ]
 }

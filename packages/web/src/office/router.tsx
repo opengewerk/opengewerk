@@ -11,6 +11,7 @@ import { LetterheadScreen } from './screens/letterhead.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
 import { TaskListScreen } from './screens/tasks.js'
+import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'
 import { TextSnippetScreen } from './screens/text-snippets.js'
 
@@ -58,6 +59,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/zugaenge', component: StaffScreen }),
   createRoute({ getParentRoute: () => root, path: '/briefkopf', component: LetterheadScreen }),
   createRoute({ getParentRoute: () => root, path: '/steuern', component: TaxScreen }),
+  createRoute({ getParentRoute: () => root, path: '/e-mail', component: MailSettingsScreen }),
 ]
 
 export const officeRouter = createRouter({

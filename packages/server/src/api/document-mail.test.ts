@@ -205,7 +205,7 @@ beforeAll(async () => {
       ApiModule.create(database, identities, {
         files: store,
         renderer: standIn,
-        mail: { origin: 'https://opengewerk.example.de' },
+        mail: { origin: 'https://opengewerk.example.de', from: 'rechnung@nord.example.de' },
       }),
     ],
   }).compile()
