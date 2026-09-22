@@ -18,11 +18,11 @@ check() {
 }
 
 # 1. The first run, with the address from the environment.
-out=$(OPENGEWERK_ADDRESS=http://127.0.0.1:3000 sh "$work/setup.sh" < /dev/null 2>&1)
+out=$(OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh "$work/setup.sh" < /dev/null 2>&1)
 printf '%s\n' "$out"
 test -f "$work/.env"
 ! grep -q 'bitte-ersetzen' "$work/.env"
-grep -q '^TRUSTED_ORIGINS=http://127.0.0.1:3000$' "$work/.env"
+grep -q '^TRUSTED_ORIGINS=http://127.0.0.1:23700$' "$work/.env"
 check 'erster Lauf: keine Platzhalter, Adresse eingetragen'
 
 for name in POSTGRES_PASSWORD OPENGEWERK_OWNER_PASSWORD OPENGEWERK_APP_PASSWORD RENDERER_TOKEN SESSION_SECRET; do

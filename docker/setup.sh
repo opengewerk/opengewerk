@@ -127,7 +127,7 @@ address=$(grep '^TRUSTED_ORIGINS=' "$env_file" | head -n 1 | cut -d= -f2-)
 
 if [ -z "$address" ] || [ "$address" = "$example_address" ]; then
   port=$(grep '^OPENGEWERK_PORT=' "$env_file" | head -n 1 | cut -d= -f2-)
-  port=${port:-3000}
+  port=${port:-23700}
   wanted=${OPENGEWERK_ADDRESS:-}
 
   if [ -z "$wanted" ] && [ -t 0 ]; then

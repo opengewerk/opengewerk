@@ -60,13 +60,13 @@ RUN mkdir -p /var/lib/opengewerk/storage && chown node:node /var/lib/opengewerk/
 # rights, and the application misses nothing: it writes nothing into the image.
 USER node
 
-EXPOSE 3000
+EXPOSE 23700
 
 # The container checks itself, so that an operator has nothing to set up.
 # busybox wget rather than node: a Node process every thirty seconds costs
 # more memory than the check is worth.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget --quiet --spider "http://127.0.0.1:${PORT:-3000}/health" || exit 1
+  CMD wget --quiet --spider "http://127.0.0.1:${PORT:-23700}/health" || exit 1
 
 # --enable-source-maps so a stack trace points at the line in the TypeScript
 # and not at the one in the generated JavaScript. The maps are only read when

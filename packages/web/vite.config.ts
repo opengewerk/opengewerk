@@ -70,7 +70,7 @@ export default defineConfig({
         '/staff',
         '/invitation',
         '/health',
-      ].map((path) => [path, { target: 'http://127.0.0.1:3000', changeOrigin: false }]),
+      ].map((path) => [path, { target: 'http://127.0.0.1:23700', changeOrigin: false }]),
     ),
   },
 

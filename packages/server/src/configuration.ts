@@ -6,7 +6,7 @@ import { accessSync, constants, statSync } from 'node:fs'
  *
  * Checked, rather than defaulted. A missing database url that turns into
  * `localhost` starts a server that looks fine and serves nothing; a missing
- * port that turns into 3000 hides a typo until somebody wonders why the proxy
+ * port that turns into 23700 hides a typo until somebody wonders why the proxy
  * gets nothing. Both are found in minutes here and in hours later.
  *
  * Nothing in here has a credential baked in. The values arrive from the
@@ -331,7 +331,9 @@ export function readConfiguration(
     sessionSecret: sessionSecret(environment),
     trustedOrigins: trustedOrigins(environment),
     closed: flag(environment, 'CLOSED'),
-    port: port(environment, 'PORT', 3000),
+    // Far above the 3000 that most machines that develop anything have taken
+    // already, and below the range Linux hands out for outgoing connections.
+    port: port(environment, 'PORT', 23700),
     // Every interface, because inside a container the loopback address means
     // "reachable by nobody". What limits access is the published port and the
     // proxy in front, not a binding the container cannot see past.

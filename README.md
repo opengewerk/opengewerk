@@ -58,7 +58,7 @@ pnpm run test
 
 Die drei Prüfungen laufen über Turborepo und damit über alle Pakete. Dieselben vier Schritte laufen in der CI. Warum die Werkzeuge so gewählt sind, steht in [ADR 0009](docs/adr/0009-werkzeuge-und-repo-struktur.md).
 
-An der Oberfläche arbeitet man mit zwei Prozessen nebeneinander: der Server auf Port 3000, und daneben
+An der Oberfläche arbeitet man mit zwei Prozessen nebeneinander: der Server auf Port 23700, und daneben
 
 ```bash
 pnpm --filter @opengewerk/web run dev
@@ -83,11 +83,11 @@ docker compose -f docker/compose.test.yaml up -d
 pnpm run preview
 ```
 
-Das baut die Oberfläche, legt in einer eigenen Datenbank `opengewerk_preview` einen Beispielbetrieb an und startet den Server unter `http://127.0.0.1:3000`. Dort läuft jede Anfrage ohne Anmeldung mit der Rolle Inhaber dieses Betriebs. Im Betrieb stehen zwei Kunden, ein Objekt mit Anlage, zwei Aufträge, ein festgeschriebenes Angebot mit der Auftragsbestätigung daraus, ein Kostenvoranschlag in Arbeit, ein vom Kunden unterschriebener Regiebericht und Textbausteine. Die Unterschrift kommt dabei über `/sync`, wie von einem Gerät, denn eine eigene Route für Unterschriften gibt es nicht. Angelegt wird das alles über die echten Routen, also mit Steuerfall, Nummernkreis und eingefrorenem Belegstand wie in einem echten Betrieb. Bei jedem Start entsteht der Betrieb neu; was in der Vorschau geändert wird, ist danach weg.
+Das baut die Oberfläche, legt in einer eigenen Datenbank `opengewerk_preview` einen Beispielbetrieb an und startet den Server unter `http://127.0.0.1:23700`. Dort läuft jede Anfrage ohne Anmeldung mit der Rolle Inhaber dieses Betriebs. Im Betrieb stehen zwei Kunden, ein Objekt mit Anlage, zwei Aufträge, ein festgeschriebenes Angebot mit der Auftragsbestätigung daraus, ein Kostenvoranschlag in Arbeit, ein vom Kunden unterschriebener Regiebericht und Textbausteine. Die Unterschrift kommt dabei über `/sync`, wie von einem Gerät, denn eine eigene Route für Unterschriften gibt es nicht. Angelegt wird das alles über die echten Routen, also mit Steuerfall, Nummernkreis und eingefrorenem Belegstand wie in einem echten Betrieb. Bei jedem Start entsteht der Betrieb neu; was in der Vorschau geändert wird, ist danach weg.
 
 **Die Vorschau lässt jede Anfrage durch und ist deshalb eingezäunt.** Sie liegt unter `packages/server/src/preview/` und wird nicht nach `dist` übersetzt, sondern nach `preview-build/`, und steht damit in keinem Abbild. Sie startet nicht mit `NODE_ENV=production`, lauscht nur auf 127.0.0.1 und nimmt nur eine Datenbank auf diesem Rechner, deren Name auf `_preview` endet; gelesen wird die Adresse aus `PREVIEW_DATABASE_URL` und nie aus `DATABASE_URL`. Hinter dem Wächter ist alles echt: Rechte, Mandantentrennung und Audit-Log. Ein Test lässt die Beispieldaten bei jedem Lauf gegen die echten Routen laufen, damit eine geänderte Route hier auffällt und nicht erst beim nächsten Start der Vorschau.
 
-Wer dabei an der Oberfläche baut, lässt die Vorschau laufen und startet daneben `pnpm --filter @opengewerk/web run dev`; Vite reicht die API an Port 3000 weiter. Ein PDF entsteht, wenn `RENDERER_URL` und `RENDERER_TOKEN` gesetzt sind, wie bei einer Instanz. Die Anmeldung selbst deckt die Vorschau nicht ab, die prüfen die Tests der Anmeldebildschirme.
+Wer dabei an der Oberfläche baut, lässt die Vorschau laufen und startet daneben `pnpm --filter @opengewerk/web run dev`; Vite reicht die API an Port 23700 weiter. Ein PDF entsteht, wenn `RENDERER_URL` und `RENDERER_TOKEN` gesetzt sind, wie bei einer Instanz. Die Anmeldung selbst deckt die Vorschau nicht ab, die prüfen die Tests der Anmeldebildschirme.
 
 ### Datenbank
 
@@ -413,8 +413,8 @@ der Instanz, Port und Fassung für Docker Compose, der Schalter `CLOSED` und die
 Angaben der Sicherung, die auch dann laufen muss, wenn die Anwendung es nicht
 tut.
 
-Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
-`curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Im
+Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
+`curl http://127.0.0.1:23700/health` antwortet mit `{"status":"bereit"}`. Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 
 ### Der erste Zugang

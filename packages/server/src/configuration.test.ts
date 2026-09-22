@@ -19,7 +19,7 @@ import { readRendererConfiguration } from './documents/renderer.js'
  * The configuration is the only thing between a deployment and a running
  * instance, and the mistakes it can make are the quiet kind: a wrong role
  * that works until two tenants notice each other, a port that silently
- * becomes 3000 while the proxy waits on 8080.
+ * becomes 23700 while the proxy waits on 8080.
  */
 
 const secret = 'a'.repeat(64)
@@ -61,8 +61,8 @@ describe('the configuration', () => {
     expect(readConfiguration(valid, writable).host).toBe('0.0.0.0')
   })
 
-  it('listens on 3000 when no port is given', () => {
-    expect(readConfiguration(valid, writable).port).toBe(3000)
+  it('listens on 23700 when no port is given, far from the 3000 everything else takes', () => {
+    expect(readConfiguration(valid, writable).port).toBe(23700)
   })
 
   it('refuses to start without a database', () => {
