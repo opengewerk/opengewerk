@@ -5,15 +5,16 @@ import {
   taxTreatments,
 } from '@opengewerk/domain'
 import {
-  type AnyPgColumn,
   check,
   date,
+  foreignKey,
   index,
   integer,
   pgEnum,
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
@@ -48,19 +49,11 @@ export const documents = pgTable(
   {
     id: primaryId<'document'>(),
     ...tenantColumn,
-    customerId: reference<'customer'>('customer_id')
-      .notNull()
-      .references(() => customers.id, { onDelete: 'restrict' }),
-    jobId: reference<'job'>('job_id').references(() => jobs.id, { onDelete: 'restrict' }),
-    siteId: reference<'site'>('site_id').references(() => sites.id, { onDelete: 'restrict' }),
-    installationId: reference<'installation'>('installation_id').references(
-      () => installations.id,
-      { onDelete: 'restrict' },
-    ),
-    predecessorDocumentId: reference<'document'>('predecessor_document_id').references(
-      (): AnyPgColumn => documents.id,
-      { onDelete: 'restrict' },
-    ),
+    customerId: reference<'customer'>('customer_id').notNull(),
+    jobId: reference<'job'>('job_id'),
+    siteId: reference<'site'>('site_id'),
+    installationId: reference<'installation'>('installation_id'),
+    predecessorDocumentId: reference<'document'>('predecessor_document_id'),
     kind: documentKind('kind').notNull(),
     status: documentStatus('status').notNull().default('draft'),
     number: text('number'),
@@ -98,6 +91,32 @@ export const documents = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    unique('documents_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+      name: 'documents_customer_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+      name: 'documents_job_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.siteId],
+      foreignColumns: [sites.tenantId, sites.id],
+      name: 'documents_site_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.installationId],
+      foreignColumns: [installations.tenantId, installations.id],
+      name: 'documents_installation_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.predecessorDocumentId],
+      foreignColumns: [table.tenantId, table.id],
+      name: 'documents_predecessor_in_tenant',
+    }).onDelete('restrict'),
     index('documents_customer_idx').on(table.tenantId, table.customerId),
     index('documents_job_idx').on(table.tenantId, table.jobId),
     index('documents_predecessor_idx').on(table.predecessorDocumentId),

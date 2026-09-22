@@ -210,6 +210,180 @@ describe('rights and tenants', () => {
   })
 })
 
+/**
+ * The key in the database refuses a record of another business since 0031,
+ * and a route that left it at that would answer with a 500 and a sentence
+ * about a constraint. It asks first, and names the field. A record marked as
+ * deleted the key would take, the row is still there; the route does not.
+ */
+describe('a reference in the body', () => {
+  const northOffice = () => as(north.id, 'office')
+  const southOffice = () => as(south.id, 'office')
+
+  async function created(who: string, path: string, body: object): Promise<string> {
+    const answer = await request(app.getHttpServer())
+      .post(path)
+      .set('x-test-identity', who)
+      .send(body)
+      .expect(201)
+
+    return answer.body.id as string
+  }
+
+  function refused(who: string, method: 'post' | 'patch', path: string, body: object) {
+    return request(app.getHttpServer())
+      [method](path)
+      .set('x-test-identity', who)
+      .send(body)
+      .expect(422)
+      .then((answer) => answer.body.message as string)
+  }
+
+  it('names a record of this business, on every route that takes one', async () => {
+    const northSite = await created(northOffice(), '/sites', {
+      customerId: northCustomer,
+      designation: 'Haus Nord',
+    })
+    const northInstallation = await created(northOffice(), '/installations', {
+      siteId: northSite,
+      kind: 'meter',
+      designation: 'Zähler Nord',
+    })
+    const northJob = await created(northOffice(), '/jobs', {
+      customerId: northCustomer,
+      kind: 'service',
+      designation: 'Wartung Nord',
+    })
+
+    const southCustomer = await created(southOffice(), '/customers', {
+      kind: 'business',
+      name: 'Bauherr Süd',
+    })
+    const southSite = await created(southOffice(), '/sites', {
+      customerId: southCustomer,
+      designation: 'Haus Süd',
+    })
+    const southJob = await created(southOffice(), '/jobs', {
+      customerId: southCustomer,
+      kind: 'project',
+      designation: 'Neubau Süd',
+    })
+    const southDocument = await created(southOffice(), '/documents', {
+      customerId: southCustomer,
+      kind: 'quote',
+      documentDate: '2026-09-22',
+    })
+
+    expect(
+      await refused(southOffice(), 'post', '/sites', {
+        customerId: northCustomer,
+        designation: 'Untergeschoben',
+      }),
+    ).toBe('Den Kunden aus customerId gibt es in diesem Betrieb nicht.')
+    expect(
+      await refused(southOffice(), 'post', '/installations', {
+        siteId: northSite,
+        kind: 'meter',
+        designation: 'Untergeschoben',
+      }),
+    ).toBe('Das Objekt aus siteId gibt es in diesem Betrieb nicht.')
+    expect(
+      await refused(southOffice(), 'post', '/jobs', {
+        customerId: southCustomer,
+        installationId: northInstallation,
+        kind: 'service',
+        designation: 'Untergeschoben',
+      }),
+    ).toBe('Die Anlage aus installationId gibt es in diesem Betrieb nicht.')
+    expect(
+      await refused(southOffice(), 'post', '/documents', {
+        customerId: northCustomer,
+        kind: 'quote',
+        documentDate: '2026-09-22',
+      }),
+    ).toBe('Den Kunden aus customerId gibt es in diesem Betrieb nicht.')
+
+    // A change is held to the same, for the reference it sets.
+    expect(
+      await refused(southOffice(), 'patch', `/sites/${southSite}`, { customerId: northCustomer }),
+    ).toBe('Den Kunden aus customerId gibt es in diesem Betrieb nicht.')
+    expect(
+      await refused(southOffice(), 'patch', `/jobs/${southJob}`, { parentJobId: northJob }),
+    ).toBe('Den Auftrag aus parentJobId gibt es in diesem Betrieb nicht.')
+    expect(
+      await refused(southOffice(), 'patch', `/documents/${southDocument}`, { jobId: northJob }),
+    ).toBe('Den Auftrag aus jobId gibt es in diesem Betrieb nicht.')
+
+    // Refused, not written and then rolled back somewhere else: the other
+    // business still has exactly what it made.
+    const southSites = await request(app.getHttpServer())
+      .get('/sites')
+      .set('x-test-identity', southOffice())
+      .expect(200)
+    expect((southSites.body as { id: string; customerId: string }[]).map((site) => site.id)).toEqual(
+      [southSite],
+    )
+  })
+
+  it('does not name a record that was deleted', async () => {
+    const site = await created(northOffice(), '/sites', {
+      customerId: northCustomer,
+      designation: 'Haus mit Zähler',
+    })
+    const installation = await created(northOffice(), '/installations', {
+      siteId: site,
+      kind: 'meter',
+      designation: 'Alter Zähler',
+    })
+
+    await request(app.getHttpServer())
+      .delete(`/installations/${installation}`)
+      .set('x-test-identity', northOffice())
+      .expect(200)
+
+    // The key would take it: the row is still there, only marked. A job on it
+    // would hang on something no list shows any more.
+    expect(
+      await refused(northOffice(), 'post', '/jobs', {
+        customerId: northCustomer,
+        installationId: installation,
+        kind: 'service',
+        designation: 'Zähler tauschen',
+      }),
+    ).toBe('Die Anlage aus installationId gibt es in diesem Betrieb nicht.')
+  })
+
+  it('is asked only for the references a change sets', async () => {
+    const customer = await created(northOffice(), '/customers', {
+      kind: 'private',
+      name: 'Familie Weber',
+    })
+    const site = await created(northOffice(), '/sites', {
+      customerId: customer,
+      designation: 'Haus Weber',
+    })
+
+    await request(app.getHttpServer())
+      .delete(`/customers/${customer}`)
+      .set('x-test-identity', northOffice())
+      .expect(200)
+
+    // Renaming the site does not touch its customer, so the customer being
+    // gone is no reason to refuse it. Held to every reference it carries, the
+    // site could not be corrected until somebody had cleared up something
+    // else first.
+    await request(app.getHttpServer())
+      .patch(`/sites/${site}`)
+      .set('x-test-identity', northOffice())
+      .send({ designation: 'Haus Weber, Hinterhaus' })
+      .expect(200)
+
+    expect(
+      await refused(northOffice(), 'patch', `/sites/${site}`, { customerId: customer }),
+    ).toBe('Den Kunden aus customerId gibt es in diesem Betrieb nicht.')
+  })
+})
+
 describe('without an identity', () => {
   it('nothing works, not even reading', async () => {
     await request(app.getHttpServer()).get('/customers').expect(401)

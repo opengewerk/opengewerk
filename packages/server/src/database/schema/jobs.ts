@@ -1,5 +1,5 @@
 import { jobKinds, jobStatuses } from '@opengewerk/domain'
-import { type AnyPgColumn, index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import { foreignKey, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -20,17 +20,10 @@ export const jobs = pgTable(
   {
     id: primaryId<'job'>(),
     ...tenantColumn,
-    customerId: reference<'customer'>('customer_id')
-      .notNull()
-      .references(() => customers.id, { onDelete: 'restrict' }),
-    siteId: reference<'site'>('site_id').references(() => sites.id, { onDelete: 'restrict' }),
-    installationId: reference<'installation'>('installation_id').references(
-      () => installations.id,
-      { onDelete: 'restrict' },
-    ),
-    parentJobId: reference<'job'>('parent_job_id').references((): AnyPgColumn => jobs.id, {
-      onDelete: 'restrict',
-    }),
+    customerId: reference<'customer'>('customer_id').notNull(),
+    siteId: reference<'site'>('site_id'),
+    installationId: reference<'installation'>('installation_id'),
+    parentJobId: reference<'job'>('parent_job_id'),
     kind: jobKind('kind').notNull(),
     status: jobStatus('status').notNull().default('draft'),
     number: text('number'),
@@ -41,6 +34,27 @@ export const jobs = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    unique('jobs_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+      name: 'jobs_customer_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.siteId],
+      foreignColumns: [sites.tenantId, sites.id],
+      name: 'jobs_site_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.installationId],
+      foreignColumns: [installations.tenantId, installations.id],
+      name: 'jobs_installation_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.parentJobId],
+      foreignColumns: [table.tenantId, table.id],
+      name: 'jobs_parent_in_tenant',
+    }).onDelete('restrict'),
     index('jobs_customer_idx').on(table.tenantId, table.customerId),
     index('jobs_site_idx').on(table.tenantId, table.siteId),
     index('jobs_parent_idx').on(table.parentJobId),

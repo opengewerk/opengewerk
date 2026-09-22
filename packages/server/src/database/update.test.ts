@@ -263,6 +263,96 @@ describe('an update from an older release', () => {
     const { rows } = await admin.query<{ kind: string }>('select kind from distribution_boards')
     expect(rows.map((row) => row.kind)).toEqual(['meter_cabinet'])
   })
+
+  it('refuses to tie a reference to its business while it points into another one', async () => {
+    // Up to 0031 a key on the id alone let a record of one business hang on
+    // a record of the next, and nothing in the database said no. 0031 builds
+    // the keys over the tenant, and a row that already crosses over would
+    // make that fail with a sentence about a constraint. Worse would be to
+    // repair it: which of the two businesses the site belongs to is not
+    // something a migration can know. So it counts first, names what it
+    // found, and stops.
+    const beforeTheChange = readMigrationIndex().findIndex(
+      (entry) => entry.tag === '0031_references_in_tenant',
+    )
+    expect(beforeTheChange).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(beforeTheChange))
+
+    const other = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
+    await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
+      tenant.id,
+      tenant.name,
+      other.id,
+      other.name,
+    ])
+
+    const planted = await admin.query<{ customer: string; site: string }>(
+      `with customer as (
+         insert into customers (tenant_id, kind, name) values ($1, 'business', 'Bauherr Süd')
+           returning id
+       )
+       insert into sites (tenant_id, customer_id, designation)
+         select $1, id, 'Haus Süd' from customer returning customer_id as customer, id as site`,
+      [other.id],
+    )
+    const foreign = planted.rows[0]
+    if (!foreign) {
+      throw new Error('The other business has no site to point at')
+    }
+
+    // One site of this business on a customer of the other, two installations
+    // on a site of the other: one of each count, so the sentence is tried in
+    // both forms.
+    await admin.query(
+      "insert into sites (tenant_id, customer_id, designation) values ($1, $2, 'Übergriff')",
+      [tenant.id, foreign.customer],
+    )
+    await admin.query(
+      `insert into installations (tenant_id, site_id, kind, designation)
+         values ($1, $2, 'meter', 'Zähler 1'), ($1, $2, 'meter', 'Zähler 2')`,
+      [tenant.id, foreign.site],
+    )
+
+    const failure = await runMigrations(ownerDatabaseUrl()).catch((error: unknown) => error)
+
+    expect(reasonOf(failure)).toContain('sites.customer_id mit 1 Zeile')
+    expect(reasonOf(failure)).toContain('installations.site_id mit 2 Zeilen')
+    expect(await appliedMigrationCount(admin)).toBe(beforeTheChange)
+
+    // Nothing bent into shape: the site still points where it did.
+    const { rows: crossing } = await admin.query<{ customer_id: string }>(
+      "select customer_id from sites where designation = 'Übergriff'",
+    )
+    expect(crossing.map((row) => row.customer_id)).toEqual([foreign.customer])
+
+    // The check lifts FORCE to see the rows at all, and the failed update has
+    // to leave it as it was. A table left without it would show its owner
+    // every business, and nothing would ever say so.
+    const { rows: unforced } = await admin.query<{ relname: string }>(
+      `select relname from pg_class
+        where relnamespace = 'public'::regnamespace and relkind = 'r'
+          and relrowsecurity and not relforcerowsecurity`,
+    )
+    expect(unforced).toEqual([])
+
+    // Put right, the same update goes through, which is what the sentence
+    // tells whoever reads it to do.
+    const own = await admin.query<{ id: string }>(
+      "insert into customers (tenant_id, kind, name) values ($1, 'business', 'Bauherr Nord') returning id",
+      [tenant.id],
+    )
+    await admin.query("update sites set customer_id = $1 where designation = 'Übergriff'", [
+      own.rows[0]?.id,
+    ])
+    await admin.query(
+      "update installations set site_id = (select id from sites where designation = 'Übergriff')",
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+    expect(await appliedMigrationCount(admin)).toBe(readMigrationIndex().length)
+  })
 })
 
 describe('the migration run', () => {

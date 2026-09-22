@@ -15,6 +15,7 @@ import { Database } from '../database/database.js'
 import { sites } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
+import { requireReferences } from './references.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = [
@@ -46,12 +47,14 @@ export class SitesController {
     const values = pick(body, writableFields)
     requireFields(values, ['customerId', 'designation'])
 
-    const [created] = await this.database.forTenant(identity, (tx) =>
-      tx
+    const [created] = await this.database.forTenant(identity, async (tx) => {
+      await requireReferences(tx, sites, values, true)
+
+      return tx
         .insert(sites)
         .values({ ...(values as typeof sites.$inferInsert), tenantId: identity.tenantId })
-        .returning(),
-    )
+        .returning()
+    })
 
     return created
   }
@@ -66,13 +69,15 @@ export class SitesController {
     const values = pick(body, writableFields)
     requireSomething(values)
 
-    const [updated] = await this.database.forTenant(identity, (tx) =>
-      tx
+    const [updated] = await this.database.forTenant(identity, async (tx) => {
+      await requireReferences(tx, sites, values, false)
+
+      return tx
         .update(sites)
         .set(values as Partial<typeof sites.$inferInsert>)
         .where(and(eq(sites.id, id as SiteId), isNull(sites.deletedAt)))
-        .returning(),
-    )
+        .returning()
+    })
 
     if (!updated) {
       // Either it does not exist or it belongs to somebody else. The answer is

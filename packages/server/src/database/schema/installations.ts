@@ -1,5 +1,5 @@
 import { installationKinds } from '@opengewerk/domain'
-import { date, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
+import { date, foreignKey, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -21,9 +21,7 @@ export const installations = pgTable(
   {
     id: primaryId<'installation'>(),
     ...tenantColumn,
-    siteId: reference<'site'>('site_id')
-      .notNull()
-      .references(() => sites.id, { onDelete: 'restrict' }),
+    siteId: reference<'site'>('site_id').notNull(),
     kind: installationKind('kind').notNull(),
     designation: text('designation').notNull(),
     manufacturer: text('manufacturer'),
@@ -37,6 +35,11 @@ export const installations = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.siteId],
+      foreignColumns: [sites.tenantId, sites.id],
+      name: 'installations_site_in_tenant',
+    }).onDelete('restrict'),
     unique('installations_tenant_id_key').on(table.tenantId, table.id),
     index('installations_site_idx').on(table.tenantId, table.siteId),
   ],

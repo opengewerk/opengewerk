@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { check, index, pgTable, text } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -17,10 +17,8 @@ export const contacts = pgTable(
   {
     id: primaryId<'contact'>(),
     ...tenantColumn,
-    customerId: reference<'customer'>('customer_id').references(() => customers.id, {
-      onDelete: 'cascade',
-    }),
-    siteId: reference<'site'>('site_id').references(() => sites.id, { onDelete: 'cascade' }),
+    customerId: reference<'customer'>('customer_id'),
+    siteId: reference<'site'>('site_id'),
     givenName: text('given_name'),
     familyName: text('family_name').notNull(),
     role: text('role'),
@@ -31,6 +29,16 @@ export const contacts = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+      name: 'contacts_customer_in_tenant',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.tenantId, table.siteId],
+      foreignColumns: [sites.tenantId, sites.id],
+      name: 'contacts_site_in_tenant',
+    }).onDelete('cascade'),
     check(
       'contacts_belong_to_customer_or_site',
       sql`(${table.customerId} is null) <> (${table.siteId} is null)`,

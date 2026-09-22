@@ -1,5 +1,5 @@
 import { taskStatuses } from '@opengewerk/domain'
-import { date, foreignKey, index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import { date, foreignKey, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { customers } from './customers.js'
@@ -35,17 +35,31 @@ export const tasks = pgTable(
     dueOn: date('due_on').notNull(),
     assigneeUserId: text('assignee_user_id').notNull(),
     status: taskStatus('status').notNull().default('open'),
-    customerId: reference<'customer'>('customer_id').references(() => customers.id, {
-      onDelete: 'restrict',
-    }),
-    siteId: reference<'site'>('site_id').references(() => sites.id, { onDelete: 'restrict' }),
-    jobId: reference<'job'>('job_id').references(() => jobs.id, { onDelete: 'restrict' }),
+    customerId: reference<'customer'>('customer_id'),
+    siteId: reference<'site'>('site_id'),
+    jobId: reference<'job'>('job_id'),
     createdBy: text('created_by'),
     ...timestamps,
     ...syncColumns,
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    unique('tasks_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+      name: 'tasks_customer_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.siteId],
+      foreignColumns: [sites.tenantId, sites.id],
+      name: 'tasks_site_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+      name: 'tasks_job_in_tenant',
+    }).onDelete('restrict'),
     foreignKey({
       columns: [table.tenantId, table.assigneeUserId],
       foreignColumns: [memberships.tenantId, memberships.userId],

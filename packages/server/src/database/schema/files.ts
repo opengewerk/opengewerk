@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { bigint, check, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
+import { bigint, check, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -35,6 +35,7 @@ export const files = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    unique('files_tenant_id_key').on(table.tenantId, table.id),
     uniqueIndex('files_content').on(table.tenantId, table.sha256),
     // The name in the store is the hash, so a malformed one is a file that
     // can never be found. Lower case only, because the store writes it that

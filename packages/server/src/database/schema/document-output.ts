@@ -1,5 +1,5 @@
 import { documentFilePurposes, type StoredDocumentContent } from '@opengewerk/domain'
-import { jsonb, pgEnum, pgTable, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { foreignKey, jsonb, pgEnum, pgTable, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference } from './columns.js'
 import { documents } from './documents.js'
@@ -30,9 +30,7 @@ export const documentSnapshots = pgTable(
   {
     id: primaryId<'document-snapshot'>(),
     ...tenantColumn,
-    documentId: reference<'document'>('document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'restrict' }),
+    documentId: reference<'document'>('document_id').notNull(),
     // Any shape a snapshot was ever written in. `currentContent` reads an older
     // one in the shape of today; the row itself is never rewritten.
     content: jsonb('content').$type<StoredDocumentContent>().notNull(),
@@ -40,6 +38,11 @@ export const documentSnapshots = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
+      name: 'document_snapshots_document_in_tenant',
+    }).onDelete('restrict'),
     // One per document. A second issuing is refused long before this, by the
     // status; the index is the lock behind the lock.
     uniqueIndex('document_snapshots_document').on(table.documentId),
@@ -64,17 +67,23 @@ export const documentFiles = pgTable(
   {
     id: primaryId<'document-file'>(),
     ...tenantColumn,
-    documentId: reference<'document'>('document_id')
-      .notNull()
-      .references(() => documents.id, { onDelete: 'restrict' }),
+    documentId: reference<'document'>('document_id').notNull(),
     purpose: documentFilePurpose('purpose').notNull(),
-    fileId: reference<'file'>('file_id')
-      .notNull()
-      .references(() => files.id, { onDelete: 'restrict' }),
+    fileId: reference<'file'>('file_id').notNull(),
     createdAt,
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
+      name: 'document_files_document_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.fileId],
+      foreignColumns: [files.tenantId, files.id],
+      name: 'document_files_file_in_tenant',
+    }).onDelete('restrict'),
     uniqueIndex('document_files_purpose').on(table.documentId, table.purpose),
   ],
 )

@@ -1,4 +1,4 @@
-import { pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
+import { foreignKey, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
 import { files } from './files.js'
@@ -46,13 +46,16 @@ export const letterheads = pgTable(
     registerNumber: text('register_number'),
     managingDirectors: text('managing_directors'),
 
-    logoFileId: reference<'file'>('logo_file_id').references(() => files.id, {
-      onDelete: 'restrict',
-    }),
+    logoFileId: reference<'file'>('logo_file_id'),
     ...timestamps,
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.logoFileId],
+      foreignColumns: [files.tenantId, files.id],
+      name: 'letterheads_logo_in_tenant',
+    }).onDelete('restrict'),
     uniqueIndex('letterheads_tenant').on(table.tenantId),
   ],
 )

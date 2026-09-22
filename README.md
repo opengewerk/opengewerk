@@ -114,14 +114,15 @@ Einmal gemergte Migrationen werden nicht mehr geändert. Sie sind auf fremden Da
 
 Mehrere Firmen teilen sich eine Instanz. Jede Tabelle trägt `tenant_id`, und PostgreSQL setzt die Trennung selbst durch: Row-Level Security mit einer Policy je Tabelle, die gegen `app.tenant_id` prüft. Gesetzt wird dieser Wert an genau einer Stelle, in `Database.forTenant()`, und zwar als `SET LOCAL` innerhalb der Transaktion. Danach ist er wieder weg, auch wenn die Verbindung in den Pool zurückgeht.
 
-Vier Dinge daran sind leicht zu übersehen:
+Fünf Dinge daran sind leicht zu übersehen:
 
 - **Ein Superuser umgeht jede Policy.** Die Anwendung verbindet sich deshalb als `opengewerk_app`, einer Rolle ohne Superuser-Rechte und ohne Eigentum an den Tabellen.
 - **Ein Tabelleneigentümer umgeht sie ebenfalls**, solange die Tabelle nicht `FORCE ROW LEVEL SECURITY` sagt. drizzle-kit erzeugt das nicht, es steht von Hand in der Migration.
 - **Ohne gesetzten Mandanten ist das Ergebnis leer, nicht vollständig.** Die Policy vergleicht dann gegen `null`, und das trifft keine Zeile. In diese Richtung muss ein Fehler laufen.
-- **Ein Fremdschlüssel wird an der Policy vorbei geprüft.** PostgreSQL sieht dabei jede Zeile, auch die eines anderen Betriebs, und ein Verweis nur auf die Kennung nimmt deshalb die eines fremden Datensatzes an, wenn jemand sie kennt. Die Anlagenstruktur verweist seit Migration 0030 über Betrieb und Kennung zusammen, auf einen eindeutigen Schlüssel über beide am Elternteil; so kann ein Verteiler nur an einer Anlage desselben Betriebs hängen. Für die übrigen Verweise des Datenmodells folgt das noch.
+- **Ein Fremdschlüssel wird an der Policy vorbei geprüft.** PostgreSQL sieht dabei jede Zeile, auch die eines anderen Betriebs, und ein Verweis nur auf die Kennung nimmt deshalb die eines fremden Datensatzes an, wenn jemand sie kennt. Seit Migration 0031 verweist jeder Datensatz eines Betriebs über Betrieb und Kennung zusammen, auf einen eindeutigen Schlüssel über beide am Elternteil; so hängt ein Objekt nur an einem Kunden desselben Betriebs und ein Verteiler nur an einer Anlage desselben Betriebs. Die Routen und der Abgleich fragen denselben Verweis vorher ab und lehnen einen fremden oder gelöschten Datensatz mit dem Feld ab, das auf ihn zeigt.
+- **Eine Migration sieht unter `FORCE` keine Zeile eines Betriebs.** Sie läuft als Eigentümer, und keine Policy nennt ihn. Eine Zählung findet deshalb nichts und ein `UPDATE` trifft nichts, beides ohne Fehler. Wer in einer Migration Daten liest oder ändert, schaltet `FORCE` für diese Tabellen innerhalb der Transaktion ab und danach wieder an, so wie die Vorprüfung in Migration 0031.
 
-Ein Test prüft für jede Tabelle, dass RLS aktiviert und erzwungen ist, dass eine Policy existiert und dass die Anwendungsrolle Rechte hat. Eine Tabelle, die in einer späteren Migration dazukommt und eines davon vergisst, fällt damit sofort auf, statt still für alle sichtbar zu sein.
+Ein Test prüft für jede Tabelle, dass RLS aktiviert und erzwungen ist, dass eine Policy existiert und dass die Anwendungsrolle Rechte hat. Eine Tabelle, die in einer späteren Migration dazukommt und eines davon vergisst, fällt damit sofort auf, statt still für alle sichtbar zu sein. Ein zweiter Test prüft jeden Fremdschlüssel zwischen zwei Tabellen eines Betriebs darauf, dass er über den Betrieb läuft, und versucht für jeden, über die Anwendungsrolle einen Datensatz des anderen Betriebs unterzuschieben.
 
 ### Rollen und Rechte
 

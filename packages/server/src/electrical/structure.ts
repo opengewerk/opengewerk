@@ -7,59 +7,15 @@ import {
   type RecordState,
 } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
-import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import type { TenantTransaction } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
-import {
-  boardSections,
-  circuits,
-  distributionBoards,
-  installations,
-} from '../database/schema/index.js'
+import { boardSections } from '../database/schema/index.js'
 
 /** Why a part of the structure may not land where it says, in the shape of a sync conflict. */
 export interface StructureRefusal {
   readonly reason: ConflictReason
   readonly fields: readonly string[]
-}
-
-/** The entities of the structure, each with the field that names its parent and where that is kept. */
-const parents: Readonly<
-  Record<
-    string,
-    {
-      readonly field: string
-      readonly table: PgTable
-      readonly id: PgColumn
-      readonly deletedAt: PgColumn
-    }
-  >
-> = {
-  distribution_boards: {
-    field: 'installationId',
-    table: installations,
-    id: installations.id,
-    deletedAt: installations.deletedAt,
-  },
-  board_sections: {
-    field: 'distributionBoardId',
-    table: distributionBoards,
-    id: distributionBoards.id,
-    deletedAt: distributionBoards.deletedAt,
-  },
-  circuits: {
-    field: 'distributionBoardId',
-    table: distributionBoards,
-    id: distributionBoards.id,
-    deletedAt: distributionBoards.deletedAt,
-  },
-  equipment: {
-    field: 'circuitId',
-    table: circuits,
-    id: circuits.id,
-    deletedAt: circuits.deletedAt,
-  },
 }
 
 /** The value a field has once the operation is through: what it sets, or what the row holds. */
@@ -109,76 +65,49 @@ export function structureProblem(
 }
 
 /**
- * Whether the parent a part names is there, in this business, and not marked
- * as deleted, and for a circuit whether its section belongs to its board.
+ * Whether the section a circuit names belongs to the board it hangs on.
  *
- * The keys in the database hold all of it as well, and would refuse inside
- * the transaction, taking every other operation of the transmission along: a
- * circuit written in a cellar under a board the office removed in the meantime
- * would hold up the report behind it. Refused here, it is a conflict about
- * this one operation.
+ * Whether the board and the section are there at all, in this business and not
+ * marked as deleted, is the question every reference of every entity gets, in
+ * `missingReference`. This is the one the structure adds: a section of the
+ * right business can still be a section of another board. The key over
+ * section and board refuses that too, but inside the transaction, where it
+ * would take every other operation of the transmission along; refused here,
+ * it is a conflict about this one circuit.
  *
- * The parent is looked up under row level security, so a parent of another
- * business is not there, which is the answer it deserves. A parent marked as
- * deleted is not there either: a key would accept it, the row exists, and the
- * circuit would hang on a board nobody sees any more.
- *
- * Asked when a part is created, and when an operation hangs it somewhere else.
+ * Asked when a circuit is created, and whenever an operation moves it to
+ * another section or another board, since the pair is what has to fit.
  */
-export async function structureRefusal(
+export async function sectionRefusal(
   tx: TenantTransaction,
   operation: Operation,
   values: Readonly<Record<string, unknown>>,
   current: RecordState | null,
 ): Promise<StructureRefusal | null> {
-  const parent = parents[operation.entity]
-
-  if (!parent || operation.kind === 'delete') {
+  if (
+    operation.entity !== 'circuits' ||
+    operation.kind === 'delete' ||
+    (operation.kind !== 'create' &&
+      !('boardSectionId' in values) &&
+      !('distributionBoardId' in values))
+  ) {
     return null
   }
 
-  const creating = operation.kind === 'create'
+  const section = after('boardSectionId', values, current)
 
-  if (creating || parent.field in values) {
-    const reference = after(parent.field, values, current)
-
-    if (!isUuid(reference) || !(await exists(tx, parent, reference))) {
-      return { reason: 'record_missing', fields: [parent.field] }
-    }
+  if (section === null) {
+    return null
   }
 
-  if (
-    operation.entity === 'circuits' &&
-    (creating || 'boardSectionId' in values || 'distributionBoardId' in values)
-  ) {
-    const section = after('boardSectionId', values, current)
+  const [found] = isUuid(section)
+    ? await tx
+        .select({ board: boardSections.distributionBoardId })
+        .from(boardSections)
+        .where(and(eq(boardSections.id, section as never), isNull(boardSections.deletedAt)))
+    : []
 
-    if (section !== null) {
-      const [found] = isUuid(section)
-        ? await tx
-            .select({ board: boardSections.distributionBoardId })
-            .from(boardSections)
-            .where(and(eq(boardSections.id, section as never), isNull(boardSections.deletedAt)))
-        : []
-
-      if (!found || found.board !== after('distributionBoardId', values, current)) {
-        return { reason: 'record_missing', fields: ['boardSectionId'] }
-      }
-    }
-  }
-
-  return null
-}
-
-async function exists(
-  tx: TenantTransaction,
-  parent: { readonly table: PgTable; readonly id: PgColumn; readonly deletedAt: PgColumn },
-  id: string,
-): Promise<boolean> {
-  const found = await tx
-    .select({ id: parent.id })
-    .from(parent.table)
-    .where(and(eq(parent.id, id), isNull(parent.deletedAt)))
-
-  return found.length > 0
+  return found && found.board === after('distributionBoardId', values, current)
+    ? null
+    : { reason: 'record_missing', fields: ['boardSectionId'] }
 }

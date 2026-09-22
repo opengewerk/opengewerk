@@ -55,6 +55,7 @@ import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
+import { requireReferences } from './references.js'
 import { eInvoiceRefusals } from './e-invoice.controller.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { todayInGermany } from './today.js'
@@ -177,8 +178,12 @@ export class DocumentsController {
     requireFields(values, ['customerId', 'kind', 'documentDate'])
     checkPaymentTerm(values)
 
-    const [created] = await this.database.forTenant(identity, async (tx) =>
-      tx
+    const [created] = await this.database.forTenant(identity, async (tx) => {
+      // Before the proposal, which reads the customer: one of another
+      // business would be proposed for as if it were none.
+      await requireReferences(tx, documents, values, true)
+
+      return tx
         .insert(documents)
         .values({
           ...(values as typeof documents.$inferInsert),
@@ -194,8 +199,8 @@ export class DocumentsController {
               values['documentDate'] as IsoDate,
             )),
         })
-        .returning(),
-    )
+        .returning()
+    })
 
     return created
   }
@@ -212,6 +217,8 @@ export class DocumentsController {
     checkPaymentTerm(values)
 
     return this.database.forTenant(identity, async (tx) => {
+      await requireReferences(tx, documents, values, false)
+
       const [updated] = await tx
         .update(documents)
         .set(values as Partial<typeof documents.$inferInsert>)
