@@ -58,7 +58,7 @@ pnpm run test
 
 Die drei Prüfungen laufen über Turborepo und damit über alle Pakete. Dieselben vier Schritte laufen in der CI. Warum die Werkzeuge so gewählt sind, steht in [ADR 0009](docs/adr/0009-werkzeuge-und-repo-struktur.md).
 
-An der Oberfläche arbeitet man mit zwei Prozessen nebeneinander: der Server auf Port 3000, und daneben
+An der Oberfläche arbeitet man mit zwei Prozessen nebeneinander: der Server auf Port 23700, und daneben
 
 ```bash
 pnpm --filter @opengewerk/web run dev
@@ -83,11 +83,11 @@ docker compose -f docker/compose.test.yaml up -d
 pnpm run preview
 ```
 
-Das baut die Oberfläche, legt in einer eigenen Datenbank `opengewerk_preview` einen Beispielbetrieb an und startet den Server unter `http://127.0.0.1:3000`. Dort läuft jede Anfrage ohne Anmeldung mit der Rolle Inhaber dieses Betriebs. Im Betrieb stehen zwei Kunden, ein Objekt mit Anlage, zwei Aufträge, ein festgeschriebenes Angebot mit der Auftragsbestätigung daraus, ein Kostenvoranschlag in Arbeit, ein vom Kunden unterschriebener Regiebericht und Textbausteine. Die Unterschrift kommt dabei über `/sync`, wie von einem Gerät, denn eine eigene Route für Unterschriften gibt es nicht. Angelegt wird das alles über die echten Routen, also mit Steuerfall, Nummernkreis und eingefrorenem Belegstand wie in einem echten Betrieb. Bei jedem Start entsteht der Betrieb neu; was in der Vorschau geändert wird, ist danach weg.
+Das baut die Oberfläche, legt in einer eigenen Datenbank `opengewerk_preview` einen Beispielbetrieb an und startet den Server unter `http://127.0.0.1:23700`. Dort läuft jede Anfrage ohne Anmeldung mit der Rolle Inhaber dieses Betriebs. Im Betrieb stehen zwei Kunden, ein Objekt mit Anlage, zwei Aufträge, ein festgeschriebenes Angebot mit der Auftragsbestätigung daraus, ein Kostenvoranschlag in Arbeit, ein vom Kunden unterschriebener Regiebericht und Textbausteine. Die Unterschrift kommt dabei über `/sync`, wie von einem Gerät, denn eine eigene Route für Unterschriften gibt es nicht. Angelegt wird das alles über die echten Routen, also mit Steuerfall, Nummernkreis und eingefrorenem Belegstand wie in einem echten Betrieb. Bei jedem Start entsteht der Betrieb neu; was in der Vorschau geändert wird, ist danach weg.
 
 **Die Vorschau lässt jede Anfrage durch und ist deshalb eingezäunt.** Sie liegt unter `packages/server/src/preview/` und wird nicht nach `dist` übersetzt, sondern nach `preview-build/`, und steht damit in keinem Abbild. Sie startet nicht mit `NODE_ENV=production`, lauscht nur auf 127.0.0.1 und nimmt nur eine Datenbank auf diesem Rechner, deren Name auf `_preview` endet; gelesen wird die Adresse aus `PREVIEW_DATABASE_URL` und nie aus `DATABASE_URL`. Hinter dem Wächter ist alles echt: Rechte, Mandantentrennung und Audit-Log. Ein Test lässt die Beispieldaten bei jedem Lauf gegen die echten Routen laufen, damit eine geänderte Route hier auffällt und nicht erst beim nächsten Start der Vorschau.
 
-Wer dabei an der Oberfläche baut, lässt die Vorschau laufen und startet daneben `pnpm --filter @opengewerk/web run dev`; Vite reicht die API an Port 3000 weiter. Ein PDF entsteht, wenn `RENDERER_URL` und `RENDERER_TOKEN` gesetzt sind, wie bei einer Instanz. Die Anmeldung selbst deckt die Vorschau nicht ab, die prüfen die Tests der Anmeldebildschirme.
+Wer dabei an der Oberfläche baut, lässt die Vorschau laufen und startet daneben `pnpm --filter @opengewerk/web run dev`; Vite reicht die API an Port 23700 weiter. Ein PDF entsteht, wenn `RENDERER_URL` und `RENDERER_TOKEN` gesetzt sind, wie bei einer Instanz. Die Anmeldung selbst deckt die Vorschau nicht ab, die prüfen die Tests der Anmeldebildschirme.
 
 ### Datenbank
 
@@ -382,23 +382,39 @@ Was ausdrücklich noch fehlt und je ein eigenes Issue bekommt: Prüfprotokoll, Z
 
 ## Betrieb
 
-Betriebsfähigkeit gehört zum Produkt, nicht in eine Anleitung. Auf einer leeren
-Maschine mit Docker reichen drei Zeilen:
+Betriebsfähigkeit gehört zum Produkt, nicht in eine Anleitung. Auf einer
+Maschine mit Docker reicht ein Befehl, beim ersten Start wie bei jedem weiteren
+(unter Windows in Git Bash):
 
 ```bash
-cp docker/.env.example docker/.env
+sh docker/start.sh
 ```
 
-Dann die fünf Passwörter in `docker/.env` ersetzen, jedes einzeln erzeugt mit
-`openssl rand -hex 32`, dazu `TRUSTED_ORIGINS` auf die Adresse setzen, unter der
-die Instanz erreichbar sein wird. Danach starten:
+**Beim ersten Start füllt er die `.env` selbst aus.** Er legt `docker/.env` aus
+der Vorlage an und erzeugt jedes Passwort und jeden Schlüssel darin, 32
+Zufallsbytes als Hex, jeden für sich. In der Konsole stehen nur die Namen, nie
+die Werte, und die Datei ist danach nur für ihren Besitzer lesbar. Gefragt wird
+einzig nach der Adresse, unter der OpenGewerk im Browser geöffnet wird; ohne
+Terminal kommt sie aus `OPENGEWERK_ADDRESS`. Danach richtet er die Datenbank ein
+und startet die Instanz. Jeder weitere Aufruf lässt Gesetztes stehen, ergänzt
+nur, was eine neuere Vorlage mitbringt, und startet in der Reihenfolge, die ein
+Update braucht. `sh docker/setup.sh` richtet nur die Datei ein, ohne zu starten.
 
-```bash
-docker compose -f docker/compose.yaml up -d
-```
+Wer die `.env` lieber von Hand füllt, erzeugt jeden Schlüssel einzeln mit
+`openssl rand -hex 32`. Eine Instanz, die noch einen Platzhalter aus der Vorlage
+findet, startet nicht: sie nennt die Variable, nie ihren Wert, und verweist auf
+das Skript.
 
-Danach läuft eine migrierte Instanz auf `127.0.0.1:3000`, und
-`curl http://127.0.0.1:3000/health` antwortet mit `{"status":"bereit"}`. Im
+**Eingestellt wird in der Oberfläche, nicht in der `.env`.** Briefkopf, Steuern,
+Mailserver und alles, was ein Betrieb sonst festlegt, stehen im Büro. In der
+`.env` bleibt nur, was gebraucht wird, bevor die Oberfläche läuft: die
+Passwörter der Datenbank, `SESSION_SECRET`, der Token des Renderers, die Adresse
+der Instanz, Port und Fassung für Docker Compose, der Schalter `CLOSED` und die
+Angaben der Sicherung, die auch dann laufen muss, wenn die Anwendung es nicht
+tut.
+
+Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
+`curl http://127.0.0.1:23700/health` antwortet mit `{"status":"bereit"}`. Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 
 ### Der erste Zugang
@@ -690,8 +706,10 @@ ernst meint, zeigt damit auf ein Verzeichnis auf einer anderen Maschine.
 ### Aktualisieren
 
 Ein Update ist das, was Leitentscheidung 6 verspricht: Abbild tauschen,
-Migration läuft, Dienst startet. Zwei Aufrufe, und ihre Reihenfolge ist der
-ganze Punkt:
+Migration läuft, Dienst startet. Nach dem Holen der neuen Fassung genügt
+derselbe Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die
+`.env` um das, was die neue Fassung braucht, und macht dann zwei Aufrufe, deren
+Reihenfolge der ganze Punkt ist:
 
 ```bash
 docker compose -f docker/compose.yaml run --rm --build migrate

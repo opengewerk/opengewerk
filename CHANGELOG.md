@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Befehl zum Starten, beim ersten Mal wie bei jedem Update: `sh docker/start.sh`.
+  Beim ersten Start legt er `docker/.env` an und erzeugt jedes Passwort und jeden
+  Schlüssel darin selbst, in der Konsole stehen nur die Namen, nie die Werte; gefragt wird
+  nur nach der Adresse der Instanz. Danach migriert er und startet in der Reihenfolge, die
+  ein Update braucht. `docker/setup.sh` richtet nur die Datei ein
+- Eine Instanz mit einem Platzhalter aus der Vorlage startet nicht mehr, sondern nennt die
+  Variable und verweist auf das Skript. Vorher lief sie mit einem Datenbankpasswort, das
+  jeder kennt, der die Vorlage gelesen hat
+
 - E-Mail-Einstellungen im Büro: jeder Betrieb richtet seinen eigenen Mailserver ein, mit
   Server, Port, Verschlüsselung, Anmeldung und Absenderadresse, statt einen für die ganze
   Instanz in der `.env`. Sehen und ändern dürfen das nur die neuen Rechte `mail.read` und
@@ -194,7 +203,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 - `pnpm run preview` startet eine Vorschau ohne Anmeldung: ein Beispielbetrieb in einer
   eigenen Datenbank `opengewerk_preview`, angelegt über die echten Routen, jede Anfrage
-  mit der Rolle Inhaber, der Server auf 127.0.0.1:3000. Damit lässt sich die Oberfläche
+  mit der Rolle Inhaber, der Server auf 127.0.0.1:23700. Damit lässt sich die Oberfläche
   ansehen und durchklicken, ohne ein Konto anzulegen
 - Die Vorschau steht in keinem Abbild, startet nicht mit `NODE_ENV=production`, lauscht
   nur auf 127.0.0.1 und nimmt nur eine lokale Datenbank, deren Name auf `_preview`
@@ -591,6 +600,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - CI-Job "Schreibweise", der Gedankenstriche im gesamten Repository meldet
 
 ### Geändert
+
+- Der Standardport ist 23700 statt 3000, für die Instanz, die Vorschau und den
+  Entwicklungsproxy von Vite. Auf 3000 läuft auf den meisten Maschinen, an denen jemand
+  entwickelt, schon etwas anderes, und 23700 liegt weit darüber und unter dem Bereich, den
+  Linux für ausgehende Verbindungen vergibt
 
 - Der Hinweis auf Belegen eines Kleinunternehmers lautet jetzt "Für diese Leistungen gilt
   die Steuerbefreiung für Kleinunternehmer nach § 19 UStG." Seit 2025 verlangt § 34a

@@ -13,6 +13,8 @@
  * a crash.
  */
 
+import { refusePlaceholder } from '../configuration.js'
+
 /** What a caller gets instead of a PDF, phrased for whoever reads the log. */
 export class RendererUnavailableError extends Error {}
 
@@ -47,9 +49,11 @@ export interface RendererConfiguration {
 export function readRendererConfiguration(
   environment: Record<string, string | undefined> = process.env,
 ): RendererConfiguration {
+  const token = environment['RENDERER_TOKEN']?.trim() || undefined
+
   return {
     url: environment['RENDERER_URL']?.trim() || undefined,
-    token: environment['RENDERER_TOKEN']?.trim() || undefined,
+    token: token === undefined ? undefined : refusePlaceholder(token, 'RENDERER_TOKEN'),
   }
 }
 

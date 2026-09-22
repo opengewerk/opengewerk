@@ -63,9 +63,9 @@ export function refuseProduction(environment: NodeJS.ProcessEnv = process.env): 
   }
 }
 
-/** The port, 3000 unless `PREVIEW_PORT` says otherwise: where vite's proxy looks. */
+/** The port, 23700 unless `PREVIEW_PORT` says otherwise: where vite's proxy looks. */
 export function previewPort(environment: NodeJS.ProcessEnv = process.env): number {
-  const port = Number(environment['PREVIEW_PORT'] ?? 3000)
+  const port = Number(environment['PREVIEW_PORT'] ?? 23700)
 
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new PreviewRefused(`PREVIEW_PORT muss eine Portnummer sein, nicht "${String(port)}".`)

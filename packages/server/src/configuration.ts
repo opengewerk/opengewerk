@@ -6,7 +6,7 @@ import { accessSync, constants, statSync } from 'node:fs'
  *
  * Checked, rather than defaulted. A missing database url that turns into
  * `localhost` starts a server that looks fine and serves nothing; a missing
- * port that turns into 3000 hides a typo until somebody wonders why the proxy
+ * port that turns into 23700 hides a typo until somebody wonders why the proxy
  * gets nothing. Both are found in minutes here and in hours later.
  *
  * Nothing in here has a credential baked in. The values arrive from the
@@ -64,6 +64,27 @@ export class ConfigurationError extends Error {}
 
 export type Environment = Record<string, string | undefined>
 
+/**
+ * Refuses a value that still carries a placeholder of `docker/.env.example`.
+ *
+ * `docker/setup.sh` replaces every one of them with a secret of its own, and
+ * `docker/start.sh` runs it before every start. A placeholder that reaches
+ * this point means the .env was copied by hand and not finished: the instance
+ * would run, with a database password everybody who has read the template
+ * knows. The sentence names the variable and never its value, because the
+ * value of a connection string carries the password.
+ */
+export function refusePlaceholder(value: string, name: string): string {
+  if (value.includes('bitte-ersetzen')) {
+    throw new ConfigurationError(
+      `${name} enthält noch einen Platzhalter aus der Vorlage. "sh docker/start.sh" trägt ` +
+        'alle Schlüssel in docker/.env selbst ein und startet danach.',
+    )
+  }
+
+  return value
+}
+
 function required(environment: Environment, name: string): string {
   const value = environment[name]?.trim()
 
@@ -73,7 +94,7 @@ function required(environment: Environment, name: string): string {
     )
   }
 
-  return value
+  return refusePlaceholder(value, name)
 }
 
 function port(environment: Environment, name: string, fallback: number): number {
@@ -310,7 +331,9 @@ export function readConfiguration(
     sessionSecret: sessionSecret(environment),
     trustedOrigins: trustedOrigins(environment),
     closed: flag(environment, 'CLOSED'),
-    port: port(environment, 'PORT', 3000),
+    // Far above the 3000 that most machines that develop anything have taken
+    // already, and below the range Linux hands out for outgoing connections.
+    port: port(environment, 'PORT', 23700),
     // Every interface, because inside a container the loopback address means
     // "reachable by nobody". What limits access is the published port and the
     // proxy in front, not a binding the container cannot see past.

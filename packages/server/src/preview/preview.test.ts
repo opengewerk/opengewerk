@@ -80,8 +80,8 @@ describe('the fences around the preview', () => {
     }).not.toThrow()
   })
 
-  it('listens on 3000 unless told otherwise, and only on a real port', () => {
-    expect(previewPort({})).toBe(3000)
+  it('listens on 23700 unless told otherwise, and only on a real port', () => {
+    expect(previewPort({})).toBe(23700)
     expect(previewPort({ PREVIEW_PORT: '3100' })).toBe(3100)
     expect(() => previewPort({ PREVIEW_PORT: 'irgendwo' })).toThrow(PreviewRefused)
     expect(() => previewPort({ PREVIEW_PORT: '70000' })).toThrow(PreviewRefused)

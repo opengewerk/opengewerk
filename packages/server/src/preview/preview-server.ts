@@ -14,7 +14,7 @@ import { interfacePath, serveInterface } from '../interface.js'
 import { smtpTransport } from '../mail/transport.js'
 import { SecretKey } from '../secrets/key.js'
 import { FileStore } from '../storage/file-store.js'
-import { previewUser } from './preview-database.js'
+import { previewPort, previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'
 
 /**
@@ -43,7 +43,7 @@ export async function openPreview(
       // preview runs no mail job. Its own key, because a preview database is
       // nobody's and has no SESSION_SECRET to keep.
       mail: {
-        origin: 'http://127.0.0.1:3000',
+        origin: `http://127.0.0.1:${String(previewPort())}`,
         key: SecretKey.from('opengewerk preview, sealed for this machine only'),
         connect: smtpTransport,
       },

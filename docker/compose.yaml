@@ -81,7 +81,7 @@ services:
       # row level security applies only through FORCE. The application refuses
       # an address carrying the wrong role at startup.
       DATABASE_URL: postgres://opengewerk_app:${OPENGEWERK_APP_PASSWORD}@postgres:5432/opengewerk
-      PORT: '3000'
+      PORT: '23700'
       # Where the renderer would listen. The address stands here even when the
       # profile is not active: nobody answers then, and an attempt at a PDF
       # gets the message that the service is not running rather than the one
@@ -116,7 +116,7 @@ services:
     # Loopback only. A reverse proxy terminating TLS belongs in front of it;
     # an application keeping invoices does not stand unencrypted on a network.
     ports:
-      - '127.0.0.1:${OPENGEWERK_PORT:-3000}:3000'
+      - '127.0.0.1:${OPENGEWERK_PORT:-23700}:23700'
 
   # Chromium for document rendering, per ADR 0007 a container of its own and
   # not part of the application process. The reason is the memory target from
