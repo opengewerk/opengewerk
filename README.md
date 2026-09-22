@@ -252,7 +252,7 @@ Was nicht dazugehört: die Gutschrift und die Rechnungskorrektur mit geänderten
 
 **Angebote nennen die Tage, Rechnungen den Tag.** Angebot, Kostenvoranschlag und Auftragsbestätigung drucken "Zahlungsbedingungen: zahlbar innerhalb von 14 Tagen nach Rechnungsstellung ohne Abzug.", eine Rechnung "Zahlbar ohne Abzug bis zum 06.10.2026.", beides unter den gesetzlichen Hinweisen, die die Summen darüber erklären. Das Zahlungsziel wird beim Festschreiben mit eingefroren, als Tage und bei einer Rechnung mit dem Fälligkeitsdatum (Fassung 7 von `DocumentContent`); eine spätere Änderung der Einstellung verschiebt keine Rechnung, die schon draußen ist. Kein Zahlungsziel tragen der Regiebericht, der keine Preise hat, Storno und Gutschrift, die zurückgeben statt zu fordern, und eine Schlussrechnung, nach deren Abzügen nichts mehr offen ist. Belege aus Fassung 1 bis 6 haben keins, und so wurden sie auch gedruckt.
 
-Was noch fehlt: Skonto und ein Zahlungsziel je Kunde, das die Feature-Gliederung in Abschnitt 3.1 vorsieht. Es säße zwischen dem des Betriebs und dem des Belegs.
+Was noch fehlt: Skonto und ein Zahlungsziel je Kunde, die Zahlungsbedingungen aus Abschnitt 3.1 der Feature-Gliederung. Beide gehören zu Phase 3, weil sie am Zahlungseingang hängen, und stehen dort im Fahrplan. Das Zahlungsziel je Kunde säße zwischen dem des Betriebs und dem des Belegs.
 
 ### E-Rechnung
 

@@ -1,6 +1,6 @@
 # OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.9
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -123,7 +123,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Kommunikationshistorie (Anrufe, Mails, Notizen) zentral am Kunden **und** am Objekt
 - Lead-Erfassung und Qualifizierung vor Kundenanlage
 - Segmentierung/Tags (Gewerk, Region, Kundentyp, Bestandskunde/Neukunde)
-- Kundenpreise, Rabattgruppen, Zahlungsbedingungen je Kunde
+- Kundenpreise, Rabattgruppen, Zahlungsbedingungen je Kunde (Zahlungsbedingungen mit Phase 3: sie setzen sich zwischen das Zahlungsziel des Betriebs und das eines Belegs, siehe 4.2)
 
 ### 3.2 Objekt- & Anlagenakte
 
@@ -233,7 +233,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 **Zahlung**
 - Zahlungsziel in Tagen als Einstellung des Betriebs mit Gültigkeitszeitraum, je Beleg überschreibbar; ein Folgebeleg übernimmt ein eigenes Zahlungsziel. Angebot, Kostenvoranschlag und Auftragsbestätigung nennen die Tage, die Rechnung das Fälligkeitsdatum, auch in der E-Rechnung; eingefroren mit dem Beleg
-- Automatisierte Zahlungsbedingungen, Skonto, Zahlungsziele (Fristen-Engine)
+- Mit Phase 3: automatisierte Zahlungsbedingungen, Skonto, Zahlungsziele (Fristen-Engine). Ein Zahlungsziel je Kunde (3.1) hat dann Vorrang vor dem des Betriebs, das eines Belegs Vorrang vor ihm; Skonto braucht den Zahlungseingang aus der Offene-Posten-Verwaltung, um zu wissen, ob rechtzeitig gezahlt wurde
 - GAEB-Import/Export (DA81-86, X83-X86) ohne Tarif-Beschränkung
 - **Mahnwesen** (einmalig hier definiert, Finance nutzt es): Mahnstufen, Mahngebühren, Verzugszinsen; manuell oder automatisch je Kunde
 
@@ -480,7 +480,7 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 | 1: MVP Pilotbetrieb | Kunden/Objekte/Anlagen (inkl. Anlagenstruktur Elektro), Angebot → AB → Regiebericht (mobil, Unterschrift) → Rechnung (Storno, Abschlag kumuliert), E-Rechnung ausgehend, Zeiterfassung (mobil, offline), Dokumentenablage, **ein** Prüfprotokoll (VDE 0100-600) über die Formular-Engine, Aufgaben, Benachrichtigung per E-Mail | Pilotbetrieb arbeitet produktiv damit; Parallelbetrieb der alten Buchhaltung beginnt |
 | 1b: Messgeräte-PoC | Import einer echten Messdatei des Pilotbetriebs ins VDE-Protokoll | Go/No-Go für den Umfang des Messgeräte-Imports in Phase 2 |
 | 2: Elektro/PV-Kern | Alle Prüfprotokolle (0105-100, DGUV V3, VDE-AR-N 4105), Messgeräte-Adapter laut PoC, PV-Dokumentation, Wartungsverträge, Fristen-Engine vollständig, QR-Etikett, Plantafel, Serviceaufträge/Dispatch, Material/Fahrzeuglager | Alleinstellungsmerkmal; Betrieb mit mehreren Monteuren |
-| 3: Finance | E-Rechnungs-Empfang/Eingangsrechnungen, Journal, OP/Mahnwesen, Bank (FinTS), EÜR/USt-VA, DATEV-Export, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Read-Endpunkte, Zugriffslog); Absicherung laut 4.8 | Buchhaltung ersetzt sevdesk/Lexware nach bestandenem Parallelbetrieb; Kanzlei-Hub kann anbinden |
+| 3: Finance | E-Rechnungs-Empfang/Eingangsrechnungen, Journal, OP/Mahnwesen, Zahlungsbedingungen je Kunde und Skonto (4.2), Bank (FinTS), EÜR/USt-VA, DATEV-Export, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Read-Endpunkte, Zugriffslog); Absicherung laut 4.8 | Buchhaltung ersetzt sevdesk/Lexware nach bestandenem Parallelbetrieb; Kanzlei-Hub kann anbinden |
 | 3b: Kanzlei-Zusammenarbeit | Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile | Monatsabschluss läuft ohne E-Mail/Telefon |
 | 4: Projekt-Tiefe | Bautagebuch, Kalkulation/Nachkalkulation, Stundenverrechnungssatz-Rechner, Nachträge, Subunternehmer, Einkauf, Fuhrpark/Werkzeug | Baustellenbetriebe |
 | 5: Kundenportal | Angebote, Rechnungen, Zahlung, Termine, Störungsmeldung, Hilfeseite | Selbstbedienung |
@@ -522,7 +522,8 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 
 ## Änderungsprotokoll v2.8 → v2.9
 
-- Neu: Das Zahlungsziel in Abschnitt 4.2. Der Betrieb stellt es einmal ein, als Mandanteneinstellung mit Gültigkeitszeitraum wie die steuerlichen, und jeder Beleg liest das seines eigenen Datums; ein einzelner Beleg kann ein eigenes haben, und die Belege, die aus ihm entstehen, übernehmen es. Die Rechnung macht daraus ein Fälligkeitsdatum, das mit ihr eingefroren wird und das die Fristen-Engine und das Mahnwesen später lesen. Die Zahlungsbedingungen je Kunde aus 3.1 setzen sich künftig zwischen Betrieb und Beleg
+- Neu: Das Zahlungsziel in Abschnitt 4.2. Der Betrieb stellt es einmal ein, als Mandanteneinstellung mit Gültigkeitszeitraum wie die steuerlichen, und jeder Beleg liest das seines eigenen Datums; ein einzelner Beleg kann ein eigenes haben, und die Belege, die aus ihm entstehen, übernehmen es. Die Rechnung macht daraus ein Fälligkeitsdatum, das mit ihr eingefroren wird und das die Fristen-Engine und das Mahnwesen später lesen
+- Präzisiert: Die Zahlungsbedingungen je Kunde aus 3.1 und das Skonto aus 4.2 standen bisher in keiner Phase des Fahrplans. Sie gehören zu Phase 3, weil beide am Zahlungseingang hängen, und stehen dort jetzt in Abschnitt 10; das Zahlungsziel je Kunde setzt sich dann zwischen das des Betriebs und das eines Belegs
 
 ## Änderungsprotokoll v2.7 → v2.8
 
