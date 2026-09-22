@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.7
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.8
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -102,7 +102,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Mandantenfähigkeit: mehrere Firmen auf einer Instanz, getrennte Nummernkreise, Kontenrahmen, Briefpapier
 - Audit-Log/Änderungsprotokoll über alle Module
 - **Aufgabenverwaltung** (aus CRM hierher verschoben): To-Dos mit Fälligkeit, Verantwortlichem, Status; optional an Kunde/Objekt/Auftrag gebunden; automatisch erzeugt durch Fristen-Engine
-- Benachrichtigungssystem: E-Mail/Push (Web-Push), gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen)
+- Benachrichtigungssystem: E-Mail/Push (Web-Push), gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen). E-Mails gehen über den Mailserver des Betriebs, eingerichtet in dessen E-Mail-Einstellungen hinter einem eigenen Recht; die Zugangsdaten liegen verschlüsselt, Speichern prüft die Verbindung, und eine Signatur mit Platzhaltern ({benutzer}, {briefkopf}) steht unter jeder Nachricht
 - Dubletten-Prüfung (Kunden, Objekte, Artikel) beim Anlegen und Importieren
 - Datenimport/-export (CSV/Excel); Importassistenten für Migration aus plancraft/HERO/sevdesk-Exporten
 - Globale Volltextsuche (Kunden, Objekte, Anlagen, Belege, Dokumente, Protokolle)
@@ -518,6 +518,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.7 → v2.8
+
+- Präzisiert: Das Benachrichtigungssystem in Abschnitt 2 verschickt über den Mailserver des Betriebs, nicht über einen der Instanz. Jeder Betrieb richtet ihn in seinen E-Mail-Einstellungen ein, mit eigenem Postfach und eigener Anmeldung; die Einstellungen stehen hinter einem eigenen Recht, weil die Anmeldung an einem Postfach das Schreiben im Namen des Betriebs erlaubt. Das Passwort liegt verschlüsselt und wird nie wieder angezeigt, Speichern prüft die Verbindung. Unter jeder Nachricht steht eine Signatur des Betriebs; der Platzhalter {benutzer} setzt den Namen dessen ein, der die Nachricht verschickt, und fällt bei automatischen Nachrichten weg
 
 ## Änderungsprotokoll v2.6 → v2.7
 

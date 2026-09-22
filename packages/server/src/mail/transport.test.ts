@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ConfigurationError } from '../configuration.js'
 import { checkMailServer } from './check.js'
 import type { MailConfiguration } from './configuration.js'
 import { closedPort, type FakeSmtpServer, fakeSmtpServer } from './test-smtp.js'
@@ -9,8 +8,8 @@ import { MailDeliveryError, type OutgoingMail, smtpTransport } from './transport
 /**
  * The one sender, against a mail server on this machine: what arrives, and
  * what a refusal, a silence and a closed port look like from this side. The
- * check at startup is held here as well, because it is the same conversation
- * cut short.
+ * check behind "Verbindung prüfen" is held here as well, because it is the
+ * same conversation cut short.
  */
 
 const short = { connection: 800, greeting: 800, socket: 2_000 }
@@ -132,7 +131,7 @@ describe('a message', () => {
   })
 })
 
-describe('the check at startup', () => {
+describe('the check of a mail server', () => {
   it('is satisfied by a server that greets and takes the login', async () => {
     server = await fakeSmtpServer({ credentials: { user: 'rechnung', password: 'richtig' } })
     const configuration = settings(server.port, { user: 'rechnung', password: 'richtig' })
@@ -142,32 +141,36 @@ describe('the check at startup', () => {
     ).resolves.toEqual({ outcome: 'ready' })
   })
 
-  it('stops the start over a login the server refuses', async () => {
+  it('names the login when the server refuses it', async () => {
     server = await fakeSmtpServer({ credentials: { user: 'rechnung', password: 'richtig' } })
     const configuration = settings(server.port, { user: 'rechnung', password: 'falsch' })
+    const check = await checkMailServer(smtpTransport(configuration, short), configuration)
 
-    await expect(
-      checkMailServer(smtpTransport(configuration, short), configuration),
-    ).rejects.toThrow(ConfigurationError)
+    expect(check.outcome).toBe('refused')
+    expect(check.outcome === 'refused' ? check.reason : '').toContain(
+      'Stimmen Benutzername und Passwort?',
+    )
   })
 
-  it('stops the start over a server name that does not exist', async () => {
+  it('names the server when its name does not exist', async () => {
     const configuration = settings(25, { host: 'kein-mailserver.invalid' })
+    const check = await checkMailServer(smtpTransport(configuration, short), configuration)
 
-    await expect(
-      checkMailServer(smtpTransport(configuration, short), configuration),
-    ).rejects.toThrow(/lässt sich nicht auflösen/)
+    expect(check.outcome).toBe('refused')
+    expect(check.outcome === 'refused' ? check.reason : '').toContain('lässt sich nicht auflösen')
   })
 
-  it('lets the start go on when nobody answers, and says why', async () => {
+  it('says that nobody answers, and that server or port may be wrong', async () => {
     const configuration = settings(await closedPort())
     const check = await checkMailServer(smtpTransport(configuration, short), configuration)
 
     expect(check.outcome).toBe('unreachable')
-    expect(check.outcome === 'unreachable' ? check.reason : '').toContain('Postausgang')
+    expect(check.outcome === 'unreachable' ? check.reason : '').toContain(
+      'vielleicht stimmen Server oder Port nicht',
+    )
   })
 
-  it('lets the start go on when the server hangs', async () => {
+  it('counts a server that hangs as one that does not answer', async () => {
     server = await fakeSmtpServer({ silent: true })
     const configuration = settings(server.port)
     const check = await checkMailServer(smtpTransport(configuration, short), configuration)

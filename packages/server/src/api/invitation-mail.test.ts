@@ -15,7 +15,13 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { invitationLinks } from '../mail/invitation-link.js'
-import { MailDeliveryError, type MailTransport, type OutgoingMail } from '../mail/transport.js'
+import { aMailServer, testKey } from '../mail/test-mail-server.js'
+import {
+  MailDeliveryError,
+  type MailTransport,
+  type OutgoingMail,
+  smtpTransport,
+} from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
@@ -72,8 +78,8 @@ function recording(options: { failFirst?: boolean } = {}) {
 function cycle(transport: MailTransport, aheadMs = 1_000) {
   return runMailCycle({
     database,
-    transport,
-    from: 'buero@nord.example.de',
+    connect: () => transport,
+    key: testKey,
     origin,
     invitationLinks: invitationLinks(database, origin),
     // A moment ahead, so that a message written by the test is due.
@@ -124,11 +130,15 @@ beforeAll(async () => {
     [north.id],
   )
 
+  await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
+
   database = Database.connect(applicationDatabaseUrl())
 
   const built = await Test.createTestingModule({
     imports: [
-      ApiModule.create(database, identities, { mail: { origin, from: 'buero@nord.example.de' } }),
+      ApiModule.create(database, identities, {
+        mail: { origin, key: testKey, connect: smtpTransport },
+      }),
     ],
   }).compile()
 
@@ -304,6 +314,34 @@ describe('an invitation by mail', () => {
   })
 })
 
+describe('the signature of an invitation', () => {
+  it('names the one who invited, in place of {benutzer}', async () => {
+    await aMailServer(admin, north.id, {
+      from: 'buero@nord.example.de',
+      signature: 'Viele Grüße\n{benutzer}\n\n{briefkopf}',
+    })
+
+    try {
+      await invite({
+        email: 'signatur@nord.example.de',
+        name: 'Sina Signatur',
+        roles: ['technician'],
+        send: 'mail',
+      }).expect(201)
+
+      const post = recording()
+
+      await cycle(post.transport)
+
+      expect(post.sent[0]?.text).toContain(
+        '-- \nViele Grüße\nChrista Chefin\n\nElektro Nord GmbH\nHafenstraße 12\n20457 Hamburg',
+      )
+    } finally {
+      await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
+    }
+  })
+})
+
 describe('an invitation passed on by the office', () => {
   it('still hands the token back once and writes no message', async () => {
     const invited = await invite({
@@ -329,6 +367,29 @@ describe('the way it is sent', () => {
     expect(refused.body.message).toContain('send')
   })
 
+  it('is refused by mail for a business without a mail server, before anything is written', async () => {
+    await admin.query('delete from mail_settings where tenant_id = $1', [north.id])
+
+    try {
+      const refused = await invite({
+        email: 'keinserver@nord.example.de',
+        name: 'Kai Kein',
+        roles: ['technician'],
+        send: 'mail',
+      }).expect(409)
+
+      expect(refused.body.message).toContain('kein Mailserver eingerichtet')
+
+      const { rows } = await admin.query('select id from invitations where email = $1', [
+        'keinserver@nord.example.de',
+      ])
+
+      expect(rows).toEqual([])
+    } finally {
+      await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
+    }
+  })
+
   it('is refused by mail on an instance without a mail server, before anything is written', async () => {
     const refused = await invite(
       {
@@ -340,7 +401,7 @@ describe('the way it is sent', () => {
       withoutMail,
     ).expect(503)
 
-    expect(refused.body.message).toContain('kein Mailserver')
+    expect(refused.body.message).toContain('verschickt keine E-Mails')
 
     const { rows } = await admin.query('select id from invitations where email = $1', [
       'ohne@nord.example.de',

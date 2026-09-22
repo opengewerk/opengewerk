@@ -195,6 +195,11 @@ describe('the tables', () => {
     // message is written by a cause on the server and sent from there. What a
     // device does raises causes, a task written on site for instance, and
     // those travel; the message about it never needs to.
+    //
+    // The mail server of a business and the sealed password to it are the
+    // clearest case of all. A device does not send mail, and a login to a
+    // mailbox in the storage of a phone that was left on a roof is exactly
+    // what sealing it on the server was for.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -208,7 +213,9 @@ describe('the tables', () => {
       name === 'document_files' ||
       name === 'files' ||
       name === 'text_snippets' ||
-      name === 'mail_outbox'
+      name === 'mail_outbox' ||
+      name === 'mail_settings' ||
+      name === 'secrets'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

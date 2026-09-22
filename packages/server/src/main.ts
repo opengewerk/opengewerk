@@ -15,11 +15,10 @@ import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
 import { interfacePath, serveInterface } from './interface.js'
 import { documentAttachments } from './mail/attachments.js'
-import { checkMailServer } from './mail/check.js'
 import { invitationLinks } from './mail/invitation-link.js'
-import { readMailConfiguration } from './mail/configuration.js'
 import { smtpTransport } from './mail/transport.js'
 import { startMailWorker } from './mail/worker.js'
+import { SecretKey } from './secrets/key.js'
 import { FileStore } from './storage/file-store.js'
 
 /**
@@ -65,25 +64,18 @@ async function start(): Promise<void> {
     ? new ClosedIdentitySource()
     : new SessionIdentitySource(authentication, database)
 
-  // The mail server is asked before anything listens, so that a wrong setting
-  // stops the start instead of the first message. A closed instance sends
-  // nothing: it is closed for a restore or a migration window, and a message
-  // out of a database that is being put back is a message about a state that
-  // may not survive the next hour.
-  const mail = configuration.closed ? null : readMailConfiguration()
-  const transport = mail ? smtpTransport(mail) : null
-
-  if (mail && transport) {
-    const check = await checkMailServer(transport, mail)
-
-    if (check.outcome === 'unreachable') {
-      console.warn(check.reason)
-    }
-  }
-
   // The first trusted origin is the address the instance is reached at, the
   // one a link in a message has to point to.
   const origin = configuration.trustedOrigins[0] ?? ''
+
+  // Each business sets up its own mail server in the office, so there is
+  // nothing to ask at startup: the key its password is sealed with is all the
+  // instance brings. A closed instance sends nothing. It is closed for a
+  // restore or a migration window, and a message out of a database that is
+  // being put back is a message about a state that may not survive the hour.
+  const mail = configuration.closed
+    ? null
+    : { origin, key: SecretKey.from(configuration.sessionSecret), connect: smtpTransport }
 
   // The file store and the renderer go in whether the instance is open or
   // closed. Closed, nothing reaches them, because every route that would is
@@ -106,7 +98,7 @@ async function start(): Promise<void> {
             ...output,
             authentication,
             trustedOrigins: configuration.trustedOrigins,
-            mail: mail ? { origin, from: mail.from } : null,
+            mail,
           },
     ),
     // The container log is the only log there is, so it carries warnings and
@@ -157,7 +149,6 @@ async function start(): Promise<void> {
       // message is not sent and then forgotten because the pool closed
       // before the row could say so.
       await mailWorker?.stop()
-      transport?.close()
       await application.close()
       await database.close()
     } catch (error) {
@@ -174,11 +165,11 @@ async function start(): Promise<void> {
 
   await application.listen(configuration.port, configuration.host)
 
-  if (mail && transport) {
+  if (mail) {
     mailWorker = startMailWorker({
       database,
-      transport,
-      from: mail.from,
+      connect: mail.connect,
+      key: mail.key,
       origin,
       // The same store and renderer the routes use, so that the file a
       // message carries is the file the document keeps.
@@ -204,11 +195,6 @@ async function start(): Promise<void> {
         ? ' Die Instanz ist über CLOSED geschlossen, jede Anfrage an die Daten wird ' +
           'abgelehnt, die Anmeldung und die Ersteinrichtung eingeschlossen.'
         : '') +
-      (mail
-        ? ` E-Mails gehen über ${mail.host}:${String(mail.port)} von ${mail.from}.`
-        : configuration.closed
-          ? ''
-          : ' Es ist kein Mailserver eingerichtet, OpenGewerk verschickt keine E-Mails.') +
       (empty
         ? ' Diese Instanz ist noch leer: im Browser steht die Ersteinrichtung, die den ' +
           'Betrieb und den ersten Zugang anlegt.'

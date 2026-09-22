@@ -102,6 +102,13 @@ describe('the tables', () => {
     // the foreign key rather than write a wrong one. What a business may see of
     // somebody signing in is `tenant_sessions`, which does have a tenant, does
     // carry the trigger, and is covered by this test like everything else.
+    //
+    // `secrets` is the one table of a business outside the log, named here by
+    // itself so that a second one is a decision as well. It holds the sealed
+    // password of a mailbox, and the log is written once and never touched
+    // again: a sealed password in it would stay there for good, open to
+    // anybody who later holds the log and the key together. The log learns
+    // when a password was set from `mail_settings`, which it does watch.
     const { rows } = await admin.query<{ table_name: string; triggers: string }>(
       `select c.relname as table_name,
               (select count(*) from pg_trigger t
@@ -113,6 +120,7 @@ describe('the tables', () => {
           and c.relname not like 'audit\\_%'
           and c.relname not like 'sync\\_%'
           and c.relname not like 'auth\\_%'
+          and c.relname <> 'secrets'
           and c.relname <> '__drizzle_migrations'
         order by c.relname`,
     )
@@ -128,7 +136,7 @@ describe('the tables', () => {
       `select count(*) from pg_trigger t
          join pg_class c on c.oid = t.tgrelid
         where (c.relname like 'audit\\_%' or c.relname like 'sync\\_%'
-               or c.relname like 'auth\\_%')
+               or c.relname like 'auth\\_%' or c.relname = 'secrets')
           and t.tgname = 'audit_changes'`,
     )
 

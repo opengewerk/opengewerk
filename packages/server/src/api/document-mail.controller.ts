@@ -27,6 +27,7 @@ import { Database } from '../database/database.js'
 import { customers, documents, memberships } from '../database/schema/index.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { isMailAddress } from '../mail/configuration.js'
+import { requireMailServer } from '../mail/server-settings.js'
 import {
   type DocumentMailRow,
   messagesAbout,
@@ -37,7 +38,7 @@ import type { DocumentAttachment } from '../notifications/templates.js'
 import { RequiresPermission } from './authorization.js'
 import { pick } from './body.js'
 import { dutyOf } from './e-invoice.controller.js'
-import { MAIL, type MailSettings } from './handed-in.js'
+import { MAIL, type MailContext } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** One message about a document, as the screen shows it. */
@@ -71,7 +72,7 @@ export interface DocumentMail {
 export class DocumentMailController {
   constructor(
     private readonly database: Database,
-    @Inject(MAIL) private readonly mail: MailSettings | null,
+    @Inject(MAIL) private readonly mail: MailContext | null,
   ) {}
 
   @Get()
@@ -117,10 +118,11 @@ export class DocumentMailController {
   ): Promise<DocumentMail> {
     if (this.mail === null) {
       throw new ServiceUnavailableException(
-        'Für diese Instanz ist kein Mailserver eingerichtet, OpenGewerk verschickt deshalb keine ' +
-          'E-Mails. Eingerichtet wird er in der .env mit SMTP_HOST und MAIL_FROM.',
+        'Diese Instanz verschickt keine E-Mails, sie ist geschlossen oder ohne Versand gestartet.',
       )
     }
+
+    await requireMailServer(this.database, identity)
 
     const { to } = pick(body ?? {}, ['to'])
 

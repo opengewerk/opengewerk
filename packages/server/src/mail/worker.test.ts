@@ -13,7 +13,10 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
+import { SecretKey } from '../secrets/key.js'
 import { maximumAttempts } from './outbox.js'
+import { saveMailServer } from './server-settings.js'
+import { aMailServer, testKey } from './test-mail-server.js'
 import { fakeSmtpServer } from './test-smtp.js'
 import {
   MailDeliveryError,
@@ -21,7 +24,7 @@ import {
   type OutgoingMail,
   smtpTransport,
 } from './transport.js'
-import { runMailCycle } from './worker.js'
+import { type MailJob, runMailCycle } from './worker.js'
 
 /**
  * The job that turns due tasks into messages and messages into mail, #81.
@@ -34,12 +37,15 @@ import { runMailCycle } from './worker.js'
 
 const north = newId<'tenant'>() as TenantId
 const south = newId<'tenant'>() as TenantId
+/** A business that has set up no mail server. */
+const west = newId<'tenant'>() as TenantId
 
 const people = {
   britta: { name: 'Britta Büro', tenant: north, roles: ['office'] },
   max: { name: 'Max Monteur', tenant: north, roles: ['technician'] },
   gerd: { name: 'Gerd Gesperrt', tenant: north, roles: ['technician'] },
   susi: { name: 'Susi Süd', tenant: south, roles: ['owner'] },
+  wera: { name: 'Wera West', tenant: west, roles: ['owner'] },
 } as const
 
 type Person = keyof typeof people
@@ -89,11 +95,11 @@ function recording() {
   }
 }
 
-function job(transport: MailTransport, now: Date) {
+function job(transport: MailTransport, now: Date): MailJob {
   return {
     database,
-    transport,
-    from: 'rechnung@nord.example.de',
+    connect: () => transport,
+    key: testKey,
     origin: 'https://opengewerk.example.de',
     now: () => now,
   }
@@ -129,12 +135,16 @@ beforeAll(async () => {
   await resetSchema(admin)
   await applyMigrations()
   await allowApplicationLogin(admin)
-  await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
+  await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4), ($5, $6)', [
     north,
     'Elektro Nord GmbH',
     south,
     'Elektro Süd GmbH',
+    west,
+    'Elektro West',
   ])
+  await aMailServer(admin, north, { from: 'rechnung@nord.example.de' })
+  await aMailServer(admin, south, { from: 'buero@sued.example.de' })
   await admin.query(
     'insert into letterheads (tenant_id, company_name, email) values ($1, $2, $3)',
     [north, 'Elektro Nord GmbH', 'buero@nord.example.de'],
@@ -373,30 +383,120 @@ describe('a message the server refuses for good', () => {
 })
 
 describe('the way out', () => {
-  it('is a real SMTP conversation, end to end', async () => {
+  /**
+   * The whole path of a login: saved in the office, sealed into `secrets`,
+   * opened by the job and handed to the server, which takes it or not.
+   */
+  it('is a real SMTP conversation with the login of the business, end to end', async () => {
     await aTask('britta')
-    const server = await fakeSmtpServer()
-    const transport = smtpTransport(
-      {
-        host: '127.0.0.1',
-        port: server.port,
-        security: 'none',
-        user: null,
-        password: null,
-        from: 'rechnung@nord.example.de',
-      },
-      { connection: 2_000, greeting: 2_000, socket: 5_000 },
-    )
+    const server = await fakeSmtpServer({ credentials: { user: 'rechnung', password: 'richtig' } })
+    const owner = { userId: 'britta', tenantId: north, roles: ['owner' as const] }
+
+    await saveMailServer(database, owner, testKey, {
+      host: '127.0.0.1',
+      port: server.port,
+      security: 'none',
+      username: 'rechnung',
+      password: 'richtig',
+      fromAddress: 'rechnung@nord.example.de',
+      signature: null,
+    })
+
+    const through: MailJob = {
+      ...job(recording().transport, morning),
+      connect: (configuration) =>
+        smtpTransport(configuration, { connection: 2_000, greeting: 2_000, socket: 5_000 }),
+    }
 
     try {
-      expect(await runMailCycle(job(transport, morning))).toMatchObject({ sent: 1 })
+      expect(await runMailCycle(through)).toMatchObject({ sent: 1 })
       expect(server.received.map((mail) => [mail.from, mail.to])).toEqual([
         ['rechnung@nord.example.de', ['britta@example.de']],
       ])
       expect(server.received[0]?.data).toContain('https://opengewerk.example.de/aufgaben')
     } finally {
-      transport.close()
       await server.close()
+      await admin.query("delete from secrets where purpose = 'smtp_password'")
+      await aMailServer(admin, north, { from: 'rechnung@nord.example.de' })
+    }
+  })
+})
+
+describe('a business', () => {
+  it('without a mail server is passed over, and nothing is written for it', async () => {
+    await aTask('wera', { title: 'Angebot für die Wallbox nachfassen' })
+    const post = recording()
+
+    await runMailCycle(job(post.transport, morning))
+
+    expect(await messages(west)).toEqual([])
+    expect(post.sent.map((mail) => mail.to.address)).not.toContain('wera@example.de')
+  })
+
+  it('goes out from its own address', async () => {
+    await aTask('britta')
+    await aTask('susi', { title: 'Wartung Notbeleuchtung' })
+    const post = recording()
+
+    await runMailCycle(job(post.transport, morning))
+
+    expect(
+      post.sent
+        .map((mail) => [mail.to.address, mail.from.address])
+        .sort((a, b) => (a[0] ?? '').localeCompare(b[0] ?? '')),
+    ).toEqual([
+      ['britta@example.de', 'rechnung@nord.example.de'],
+      ['susi@example.de', 'buero@sued.example.de'],
+    ])
+  })
+
+  /**
+   * SESSION_SECRET was changed, and the password sealed under the old one no
+   * longer opens. What is due is still written, and waits: every try would
+   * count against the message with an answer that cannot change.
+   */
+  it('whose password no longer opens keeps its messages waiting, untried', async () => {
+    await aTask('susi', { title: 'Wartung Notbeleuchtung' })
+    await admin.query("update mail_settings set username = 'buero' where tenant_id = $1", [south])
+    await admin.query(
+      "insert into secrets (tenant_id, purpose, sealed) values ($1, 'smtp_password', $2)",
+      [south, SecretKey.from('ein anderes Geheimnis').seal(`${south}:smtp_password`, 'geheim')],
+    )
+
+    const post = recording()
+
+    try {
+      await runMailCycle(job(post.transport, morning))
+
+      const [waiting] = await messages(south)
+
+      expect(waiting?.status).toBe('pending')
+      expect(waiting?.attempts).toBe(0)
+      expect(post.calls()).toBe(0)
+    } finally {
+      await admin.query('delete from secrets where tenant_id = $1', [south])
+      await aMailServer(admin, south, { from: 'buero@sued.example.de' })
+    }
+  })
+
+  it('signs a message nobody sent by hand without the line that names the sender', async () => {
+    await aMailServer(admin, north, {
+      from: 'rechnung@nord.example.de',
+      signature: 'Viele Grüße\n\nIhr Ansprechpartner: {benutzer}\n\n{briefkopf}',
+    })
+    await aTask('britta')
+    const post = recording()
+
+    try {
+      await runMailCycle(job(post.transport, morning))
+
+      const text = post.sent[0]?.text ?? ''
+
+      expect(text).toContain('-- \nViele Grüße\n\nElektro Nord GmbH\nbuero@nord.example.de')
+      expect(text).not.toContain('Ansprechpartner')
+      expect(text).not.toContain('{')
+    } finally {
+      await aMailServer(admin, north, { from: 'rechnung@nord.example.de' })
     }
   })
 })

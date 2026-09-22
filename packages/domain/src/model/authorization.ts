@@ -76,6 +76,20 @@ export const permissions = [
    */
   'membership.read',
   'membership.write',
+  /**
+   * The mail server a business sends through, and the signature under its
+   * messages. Rights of their own and not part of the settings, because the
+   * login to a mailbox is a way of writing in the business's name to anybody:
+   * the office reads what the business claims about its taxation, and it does
+   * not need to see which mailbox the business writes from, let alone change
+   * it.
+   *
+   * Only the owner has them, like the user administration. Reading and writing
+   * are apart all the same, so that the day somebody else should see the
+   * settings without changing them it is one line in one role.
+   */
+  'mail.read',
+  'mail.write',
 ] as const
 
 export type Permission = (typeof permissions)[number]

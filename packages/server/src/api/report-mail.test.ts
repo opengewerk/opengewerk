@@ -21,7 +21,8 @@ import {
 import type { Renderer } from '../documents/renderer.js'
 import { documentAttachments } from '../mail/attachments.js'
 import { berlinClock } from '../notifications/notify.js'
-import type { MailTransport, OutgoingMail } from '../mail/transport.js'
+import { aMailServer, testKey } from '../mail/test-mail-server.js'
+import { type MailTransport, type OutgoingMail, smtpTransport } from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { FileStore } from '../storage/file-store.js'
 import { ApiModule } from './api.module.js'
@@ -190,8 +191,8 @@ function recording() {
 function cycle(transport: MailTransport, now: Date = aMomentLater()) {
   return runMailCycle({
     database,
-    transport,
-    from: 'rechnung@nord.example.de',
+    connect: () => transport,
+    key: testKey,
     origin: 'https://opengewerk.example.de',
     attachments: documentAttachments(files),
     now: () => now,
@@ -222,6 +223,14 @@ beforeAll(async () => {
   await readyToInvoice(admin, north.id, south.id, west.id)
 
   storageRoot = mkdtempSync(join(tmpdir(), 'opengewerk-report-mail-'))
+  for (const [tenant, from] of [
+    [north, 'rechnung@nord.example.de'],
+    [south, 'buero@sued.example.de'],
+    [west, 'buero@west.example.de'],
+  ] as const) {
+    await aMailServer(admin, tenant.id, { from })
+  }
+
   database = Database.connect(applicationDatabaseUrl())
 
   const store = new FileStore(storageRoot)
@@ -233,7 +242,7 @@ beforeAll(async () => {
       ApiModule.create(database, identities, {
         files: store,
         renderer: standIn,
-        mail: { origin: 'https://opengewerk.example.de', from: 'rechnung@nord.example.de' },
+        mail: { origin: 'https://opengewerk.example.de', key: testKey, connect: smtpTransport },
       }),
     ],
   }).compile()

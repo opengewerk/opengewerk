@@ -9,6 +9,7 @@ import { mailStatus } from '../../session/mail.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Nothing, Page, Section } from '../layout.js'
+import { MailServerSection } from './mail-server.js'
 import { History, latestPeriod, proposedFrom } from './taxes.js'
 
 /** The setting this screen switches: a signed report goes to its customer at once. */
@@ -19,38 +20,27 @@ function saidWhy(error: unknown, fallback: string): string {
 }
 
 /**
- * How this instance sends mail, and what a business decides about it.
+ * How this business sends mail, and what it decides about it.
  *
- * The mail server itself is set up in the .env by whoever runs the instance,
- * and the screen only says whether there is one and from which address. What
- * the business decides is here: whether a report the customer signs on site
- * goes to that customer at once. Only the owner switches it; the office sees
- * the same screen with nothing to press, like the letterhead.
+ * The mail server is the business's own and set up here, behind `mail.read`
+ * and `mail.write`, which only the owner has: the login to a mailbox is a way
+ * of writing in the business's name to anybody. Everybody else who reads the
+ * settings learns whether the business sends mail and from where, and nothing
+ * about the server.
+ *
+ * What the business decides beyond that is here as well: whether a report the
+ * customer signs on site goes to that customer at once. Only the owner
+ * switches it; the office sees it with nothing to press, like the letterhead.
  */
 export function MailSettingsScreen() {
-  const status = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
   const history = useQuery({ queryKey: ['parameters'], queryFn: parameterHistory })
   const mayWrite = useMay('settings.write')
+  const readsServer = useMay('mail.read')
+  const writesServer = useMay('mail.write')
 
   return (
-    <Page title="E-Mail" meta="Wie OpenGewerk E-Mails verschickt.">
-      <Section title="Mailserver">
-        {status.isPending ? (
-          <Nothing>Wird geladen.</Nothing>
-        ) : status.isError ? (
-          <Nothing>{saidWhy(status.error, 'Die Angaben zum Versand kamen nicht an.')}</Nothing>
-        ) : status.data.configured ? (
-          <p className="text-body text-ink">
-            Eingerichtet. OpenGewerk verschickt von {status.data.from}; als Absender steht der Name
-            aus dem Briefkopf davor, und Antworten gehen an die E-Mail-Adresse aus dem Briefkopf.
-          </p>
-        ) : (
-          <p className="text-body text-ink">
-            Nicht eingerichtet, OpenGewerk verschickt deshalb keine E-Mails. Eingerichtet wird der
-            Mailserver von dem, der die Instanz betreibt, in der .env mit SMTP_HOST und MAIL_FROM.
-          </p>
-        )}
-      </Section>
+    <Page title="E-Mail-Einstellungen" meta="Wie dieser Betrieb E-Mails verschickt.">
+      {readsServer ? <MailServerSection mayWrite={writesServer} /> : <MailStatusSection />}
 
       {history.isPending ? null : history.isError ? (
         <Nothing>{saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}</Nothing>
@@ -61,6 +51,31 @@ export function MailSettingsScreen() {
         />
       )}
     </Page>
+  )
+}
+
+/** Whether the business sends mail, for whoever may not see the server itself. */
+function MailStatusSection() {
+  const status = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
+
+  return (
+    <Section title="Mailserver">
+      {status.isPending ? (
+        <Nothing>Wird geladen.</Nothing>
+      ) : status.isError ? (
+        <Nothing>{saidWhy(status.error, 'Die Angaben zum Versand kamen nicht an.')}</Nothing>
+      ) : status.data.configured ? (
+        <p className="text-body text-ink">
+          Eingerichtet. Dieser Betrieb verschickt von {status.data.from}; als Absender steht der
+          Name aus dem Briefkopf davor. Den Mailserver richtet der Inhaber hier ein.
+        </p>
+      ) : (
+        <p className="text-body text-ink">
+          Nicht eingerichtet, dieser Betrieb verschickt deshalb keine E-Mails. Den Mailserver
+          richtet der Inhaber hier ein.
+        </p>
+      )}
+    </Section>
   )
 }
 

@@ -20,7 +20,8 @@ import {
 } from '../database/test-database.js'
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { documentAttachments } from '../mail/attachments.js'
-import type { MailTransport, OutgoingMail } from '../mail/transport.js'
+import { aMailServer, testKey } from '../mail/test-mail-server.js'
+import { type MailTransport, type OutgoingMail, smtpTransport } from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { FileStore } from '../storage/file-store.js'
 import { ApiModule } from './api.module.js'
@@ -151,8 +152,8 @@ function recording() {
 function cycle(transport: MailTransport) {
   return runMailCycle({
     database,
-    transport,
-    from: 'rechnung@nord.example.de',
+    connect: () => transport,
+    key: testKey,
     origin: 'https://opengewerk.example.de',
     attachments: documentAttachments(files),
     // A moment ahead, so that a message written by the test is due.
@@ -178,6 +179,8 @@ beforeAll(async () => {
     [north.id],
   )
   await readyToInvoice(admin, south.id)
+  await aMailServer(admin, north.id, { from: 'rechnung@nord.example.de' })
+  await aMailServer(admin, south.id, { from: 'buero@sued.example.de' })
 
   // The name the screen shows for whoever asked, in the two tables it is read from.
   await admin.query(
@@ -205,7 +208,7 @@ beforeAll(async () => {
       ApiModule.create(database, identities, {
         files: store,
         renderer: standIn,
-        mail: { origin: 'https://opengewerk.example.de', from: 'rechnung@nord.example.de' },
+        mail: { origin: 'https://opengewerk.example.de', key: testKey, connect: smtpTransport },
       }),
     ],
   }).compile()
@@ -380,9 +383,26 @@ describe('what cannot be sent', () => {
         .send({})
         .expect(503)
 
-      expect((refused.body as { message: string }).message).toContain('kein Mailserver')
+      expect((refused.body as { message: string }).message).toContain('verschickt keine E-Mails')
     } finally {
       await silent.close()
+    }
+  })
+
+  it('is refused for a business that has set up no mail server, before anything is written', async () => {
+    const id = await issuedInvoice(await customer(person, south), south)
+
+    await admin.query('delete from mail_settings where tenant_id = $1', [south.id])
+
+    try {
+      const refused = await sending(id, {}, office(south)).expect(409)
+
+      expect((refused.body as { message: string }).message).toContain(
+        'kein Mailserver eingerichtet',
+      )
+      expect(await messagesOf(id, office(south))).toEqual([])
+    } finally {
+      await aMailServer(admin, south.id, { from: 'buero@sued.example.de' })
     }
   })
 })

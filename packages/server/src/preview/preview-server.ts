@@ -11,6 +11,8 @@ import { authenticationPath } from '../authentication/authentication.js'
 import type { Database } from '../database/database.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
 import { interfacePath, serveInterface } from '../interface.js'
+import { smtpTransport } from '../mail/transport.js'
+import { SecretKey } from '../secrets/key.js'
 import { FileStore } from '../storage/file-store.js'
 import { previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'
@@ -37,6 +39,14 @@ export async function openPreview(
       // RENDERER_URL and RENDERER_TOKEN as on an instance. Without them a PDF
       // gets the sentence that says which service is missing.
       renderer: rendererFor(readRendererConfiguration()),
+      // The mail settings can be set up and checked, and nothing is sent: the
+      // preview runs no mail job. Its own key, because a preview database is
+      // nobody's and has no SESSION_SECRET to keep.
+      mail: {
+        origin: 'http://127.0.0.1:3000',
+        key: SecretKey.from('opengewerk preview, sealed for this machine only'),
+        connect: smtpTransport,
+      },
     }),
     { logger: ['error', 'warn'] },
   )

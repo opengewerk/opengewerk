@@ -28,10 +28,11 @@ import {
   type StaffEntry,
 } from '../authentication/administration.js'
 import { Database } from '../database/database.js'
+import { requireMailServer } from '../mail/server-settings.js'
 import { notify } from '../notifications/notify.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields } from './body.js'
-import { MAIL, type MailSettings } from './handed-in.js'
+import { MAIL, type MailContext } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
@@ -57,7 +58,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 export class StaffController {
   constructor(
     private readonly database: Database,
-    @Inject(MAIL) private readonly mail: MailSettings | null,
+    @Inject(MAIL) private readonly mail: MailContext | null,
   ) {}
 
   @Get()
@@ -98,9 +99,13 @@ export class StaffController {
 
     if (byMail && this.mail === null) {
       throw new ServiceUnavailableException(
-        'Für diese Instanz ist kein Mailserver eingerichtet, die Einladung lässt sich deshalb ' +
-          'nicht per E-Mail schicken. Der Link zum Weitergeben geht trotzdem.',
+        'Diese Instanz verschickt keine E-Mails, die Einladung lässt sich deshalb nicht per ' +
+          'E-Mail schicken. Der Link zum Weitergeben geht trotzdem.',
       )
+    }
+
+    if (byMail) {
+      await requireMailServer(this.database, identity)
     }
 
     const issued = await inviteStaff(

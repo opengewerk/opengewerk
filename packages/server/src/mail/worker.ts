@@ -4,9 +4,12 @@ import { sql } from 'drizzle-orm'
 import type { Database } from '../database/database.js'
 import { dueTasks, notify, signedReports } from '../notifications/notify.js'
 import { invitationLink } from '../notifications/templates.js'
+import type { SecretKey } from '../secrets/key.js'
 import type { AttachmentSource } from './attachments.js'
+import type { MailConfiguration } from './configuration.js'
 import type { InvitationLinkSource } from './invitation-link.js'
 import { claimDue, markFailed, markSent, type OutboxRow } from './outbox.js'
+import { connectionOf } from './server-settings.js'
 import {
   type MailAttachment,
   MailDeliveryError,
@@ -17,9 +20,13 @@ import {
 /** What the job needs, handed in so that a test can run it with a clock of its own. */
 export interface MailJob {
   readonly database: Database
-  readonly transport: MailTransport
-  /** `MAIL_FROM`, the address every message leaves from. */
-  readonly from: string
+  /**
+   * Opens the connection to the mail server of one business: `smtpTransport`
+   * in a running instance, and in a test one that keeps what it is given.
+   */
+  readonly connect: (configuration: MailConfiguration) => MailTransport
+  /** The key the password of each business's mail server is sealed with. */
+  readonly key: SecretKey
   /** Where the instance is reached, for the links in a message. */
   readonly origin: string
   /**
@@ -130,11 +137,22 @@ function asFailure(error: unknown): MailDeliveryError {
 }
 
 /**
+ * The businesses whose password does not open, already said in the log. So
+ * that it is said once and not every minute; a business whose password opens
+ * again is taken off, and would be told again the next time.
+ */
+const unreadableSaid = new Set<TenantId>()
+
+/**
  * One pass over every business: first what has become due, then what is
- * waiting to be sent.
+ * waiting to be sent, each business through its own mail server.
  *
  * The order matters a little. A task that falls due in this minute is written
  * and then sent in the same pass, instead of a minute later.
+ *
+ * A business without a mail server is passed over whole. Nothing is written
+ * for it either: a message waiting for a server nobody set up would go out the
+ * day somebody does, about whatever was due back then.
  *
  * A business whose pass fails does not stop the others. What went wrong goes
  * to the log, and the next pass tries again, because nothing was lost: a
@@ -146,6 +164,12 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
 
   for (const tenantId of await everyTenant(job.database)) {
     try {
+      const connection = await connectionOf(job.database, tenantId, job.key)
+
+      if (connection === null) {
+        continue
+      }
+
       const now = clock()
 
       const raised = [
@@ -161,51 +185,86 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
         report.written += written.length
       }
 
+      // Set up, and the password does not open: SESSION_SECRET has changed
+      // since it was sealed. The messages are written and wait, like for a
+      // server that does not answer, and nothing is tried, because every try
+      // would count against them with an answer that cannot change.
+      if (connection.state === 'unreadable') {
+        if (!unreadableSaid.has(tenantId)) {
+          unreadableSaid.add(tenantId)
+          console.warn(
+            `Das Passwort zum Mailserver des Betriebs ${tenantId} lässt sich nicht mehr lesen, ` +
+              'SESSION_SECRET wurde seit dem Speichern getauscht. Die E-Mails warten, bis es ' +
+              'unter "E-Mail-Einstellungen" neu eingegeben ist.',
+          )
+        }
+
+        continue
+      }
+
+      unreadableSaid.delete(tenantId)
+
       const actor = { tenantId, reason: 'mail' }
       const claimed = await job.database.forTenant(actor, (tx) => claimDue(tx, now))
+
+      if (claimed.length === 0) {
+        continue
+      }
+
+      const { configuration } = connection
+      const transport = job.connect(configuration)
       let serverDown: MailDeliveryError | null = null
 
-      for (const row of claimed) {
-        let failure: MailDeliveryError | null = serverDown
+      try {
+        for (const row of claimed) {
+          let failure: MailDeliveryError | null = serverDown
 
-        if (failure === null) {
-          try {
-            await job.transport.send(
-              outgoing(row, job.from, await textOf(job, row), await attachmentsOf(job, row)),
-            )
-            await job.database.forTenant(actor, (tx) => markSent(tx, row.id, clock()))
-            report.sent += 1
+          if (failure === null) {
+            try {
+              await transport.send(
+                outgoing(
+                  row,
+                  configuration.from,
+                  await textOf(job, row),
+                  await attachmentsOf(job, row),
+                ),
+              )
+              await job.database.forTenant(actor, (tx) => markSent(tx, row.id, clock()))
+              report.sent += 1
 
-            continue
-          } catch (error) {
-            failure = asFailure(error)
+              continue
+            } catch (error) {
+              failure = asFailure(error)
 
-            if (failure.code !== null && serverWide.has(failure.code)) {
-              serverDown = failure
+              if (failure.code !== null && serverWide.has(failure.code)) {
+                serverDown = failure
+              }
             }
           }
-        }
 
-        const reported = failure
-        const outcome = await job.database.forTenant(actor, (tx) =>
-          markFailed(tx, row, reported, clock()),
-        )
-
-        if (outcome === 'failed') {
-          report.failed += 1
-          console.warn(
-            `Eine E-Mail an ${row.recipientAddress} ließ sich nicht zustellen und wird nicht ` +
-              `mehr versucht: ${reported.message}`,
+          const reported = failure
+          const outcome = await job.database.forTenant(actor, (tx) =>
+            markFailed(tx, row, reported, clock()),
           )
-        } else {
-          report.retried += 1
+
+          if (outcome === 'failed') {
+            report.failed += 1
+            console.warn(
+              `Eine E-Mail an ${row.recipientAddress} ließ sich nicht zustellen und wird nicht ` +
+                `mehr versucht: ${reported.message}`,
+            )
+          } else {
+            report.retried += 1
+          }
         }
+      } finally {
+        transport.close()
       }
 
       if (serverDown) {
         console.warn(
-          `Der Mailserver antwortet nicht (${serverDown.message}). Die E-Mails warten im ` +
-            'Postausgang und werden später noch einmal versucht.',
+          `Der Mailserver ${configuration.host} antwortet nicht (${serverDown.message}). Die ` +
+            'E-Mails warten im Postausgang und werden später noch einmal versucht.',
         )
       }
     } catch (error) {

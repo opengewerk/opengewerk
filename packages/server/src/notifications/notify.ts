@@ -1,7 +1,9 @@
 import {
   type DocumentId,
   type InvitationId,
+  type IssuerContent,
   type IsoDate,
+  renderSignature,
   shippedRules,
   type TaskId,
   type TenantId,
@@ -9,7 +11,7 @@ import {
 import { and, eq, gte, isNull, sql } from 'drizzle-orm'
 
 import { accountsOf, stillOpen } from '../authentication/administration.js'
-import type { Database } from '../database/database.js'
+import type { Database, TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import {
   customers,
@@ -18,6 +20,7 @@ import {
   invitations,
   jobs,
   mailOutbox,
+  mailSettings,
   memberships,
   sites,
   tasks,
@@ -88,6 +91,34 @@ export type Notification =
 export interface NotifyContext {
   /** The first trusted origin, for links back into the instance. */
   readonly origin: string
+}
+
+/**
+ * The signature under a message of this business, finished.
+ *
+ * Put together when the message is written, like the rest of it: the row is
+ * the record of what the business said, and a signature changed next week
+ * must not change what went out today. `sender` is the person a message goes
+ * out for, whose name takes the place of `{benutzer}`; a message nobody sent
+ * by hand has none, and the lines naming one are left out.
+ */
+async function signatureFor(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  issuer: IssuerContent,
+  sender: string | null,
+): Promise<string> {
+  const [settings] = await tx
+    .select({ signature: mailSettings.signature })
+    .from(mailSettings)
+    .where(eq(mailSettings.tenantId, tenantId))
+
+  return renderSignature(settings?.signature ?? null, { issuer, sender })
+}
+
+/** The name of the person a message is sent by, looked up for exactly that one identifier. */
+async function nameOf(database: Database, userId: string): Promise<string | null> {
+  return (await accountsOf(database, [userId], userId)).get(userId)?.name ?? null
 }
 
 /** The cause a message is written once for. */
@@ -256,7 +287,10 @@ async function taskDue(
       return null
     }
 
-    return { task, issuer: await issuerOf(tx, tenantId) }
+    const issuer = await issuerOf(tx, tenantId)
+
+    // A task that fell due was sent by nobody.
+    return { task, issuer, signature: await signatureFor(tx, tenantId, issuer, null) }
   })
 
   if (!found) {
@@ -276,6 +310,7 @@ async function taskDue(
     recipientName: account.name,
     issuer: found.issuer,
     origin: context.origin,
+    signature: found.signature,
   })
 
   const written = await database.forTenant(actor, (tx) =>
@@ -314,6 +349,9 @@ async function documentToCustomer(
   notification: Extract<Notification, { kind: 'document' }>,
 ): Promise<readonly string[]> {
   const actor = { tenantId, userId: notification.requestedBy, reason: 'notification' }
+  // Whoever asked for it sends it: the office asked from this business, and
+  // its name takes the place of `{benutzer}` in the signature.
+  const sender = await nameOf(database, notification.requestedBy)
 
   return database.forTenant(actor, async (tx) => {
     const [document] = await tx
@@ -326,24 +364,26 @@ async function documentToCustomer(
     }
 
     const issuer = await issuerOf(tx, tenantId)
+    const signature = await signatureFor(tx, tenantId, issuer, sender)
     let text: { readonly subject: string; readonly body: string }
 
     if (document.number === null) {
       // A report signed on site and not issued yet: read from its rows, which
       // the signature has fixed, and named by its day and the signature.
-      const [signature] = await tx
+      const [signed] = await tx
         .select({ signedAt: documentSignatures.signedAt })
         .from(documentSignatures)
         .where(eq(documentSignatures.documentId, document.id))
 
-      if (document.status !== 'signed' || !signature) {
+      if (document.status !== 'signed' || !signed) {
         return []
       }
 
       text = signedReportMessage({
         content: await contentOf(tx, document, shippedRules),
-        signedOn: berlinClock(signature.signedAt).day,
+        signedOn: berlinClock(signed.signedAt).day,
         issuer,
+        signature,
       })
     } else {
       const content = await frozenContent(tx, document.id)
@@ -352,7 +392,7 @@ async function documentToCustomer(
         return []
       }
 
-      text = documentMessage({ content, attachment: notification.attachment, issuer })
+      text = documentMessage({ content, attachment: notification.attachment, issuer, signature })
     }
 
     const written = await tx
@@ -485,10 +525,12 @@ async function signedReport(
     }
 
     const issuer = await issuerOf(tx, tenantId)
+    // Sent because the customer signed, and by nobody in the business.
     const text = signedReportMessage({
       content,
       signedOn: berlinClock(signature.signedAt).day,
       issuer,
+      signature: await signatureFor(tx, tenantId, issuer, null),
     })
 
     const written = await tx
@@ -557,6 +599,9 @@ async function invitationByMail(
     inviter: inviter?.name ?? null,
     expiresAt: found.invitation.expiresAt,
     issuer: found.issuer,
+    signature: await database.forTenant(actor, (tx) =>
+      signatureFor(tx, tenantId, found.issuer, inviter?.name ?? null),
+    ),
   })
 
   const written = await database.forTenant(actor, (tx) =>

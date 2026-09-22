@@ -34,7 +34,7 @@ import {
   AUTHENTICATION,
   FILE_STORE,
   MAIL,
-  type MailSettings,
+  type MailContext,
   RENDERER,
   TRUSTED_ORIGINS,
 } from './handed-in.js'
@@ -75,10 +75,10 @@ export interface ApiOptions {
    */
   readonly renderer?: Renderer
   /**
-   * Whether the instance sends mail. Left out, it does not, and the route
-   * that sends a document refuses with the sentence saying so.
+   * What the routes around mail need. Left out, the instance sends none, and
+   * every route that would refuses with the sentence saying so.
    */
-  readonly mail?: MailSettings | null
+  readonly mail?: MailContext | null
 }
 
 /**
