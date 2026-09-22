@@ -15,11 +15,11 @@ import {
   supplyDateOf,
   whyFixed,
 } from '@opengewerk/domain'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
-import { Button, Card, DocumentState } from '../../components/index.js'
+import { Button, Card, DocumentState, Field } from '../../components/index.js'
 import { date, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -27,11 +27,14 @@ import { SignaturePicture } from '../../app/signature.js'
 import {
   cancelDocument,
   createDocument,
+  type DocumentMail,
   eInvoiceOf,
   issueDocument,
+  mailsOf,
   makeSuccessor,
   missingFrom,
   pdfAddress,
+  sendDocument,
   xrechnungAddress,
   zugferdAddress,
 } from '../../session/documents.js'
@@ -353,6 +356,13 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         />
       ) : null}
 
+      {number !== null ? (
+        <MailCard
+          documentId={documentId}
+          customerEmail={customer ? maybeText(customer, 'email') : null}
+        />
+      ) : null}
+
       <HeaderSection document={document} editable={editable} />
       <LinesSection document={document} editable={editable} />
       <SignatureSection documentId={documentId} />
@@ -502,6 +512,136 @@ function EInvoiceCard({
             Die E-Rechnung gibt es, sobald die Rechnung festgeschrieben ist.
           </p>
         )}
+      </div>
+    </Card>
+  )
+}
+
+/** The file a message carried, in the words of the e-invoice card. */
+const attachmentLabel: Readonly<Record<NonNullable<DocumentMail['attachment']>, string>> = {
+  pdf: 'PDF',
+  zugferd: 'ZUGFeRD-PDF',
+  xrechnung: 'XRechnung',
+}
+
+/** Where one message stands, in a sentence. */
+function mailState(mail: DocumentMail): string {
+  const file = mail.attachment ? `, mit ${attachmentLabel[mail.attachment]}` : ''
+  const who = mail.requestedBy ? `, geschickt von ${mail.requestedBy}` : ''
+
+  switch (mail.status) {
+    case 'sent':
+      return `An ${mail.to}: versendet am ${moment(mail.sentAt)}${file}${who}.`
+    case 'failed':
+      return `An ${mail.to}: nicht zugestellt${file}${who}. ${mail.lastError ?? ''}`.trim()
+    case 'pending':
+      return mail.attempts > 0
+        ? `An ${mail.to}: noch nicht zugestellt, OpenGewerk versucht es weiter von selbst${file}.`
+        : `An ${mail.to}: wartet auf den Versand${file}${who}.`
+  }
+}
+
+/**
+ * Sending an issued document to its customer, and what became of it.
+ *
+ * The button asks the server and the answer comes at once: the message waits
+ * in the outbox and goes out a moment later, or once the mail server answers
+ * again. While one waits the list asks every ten seconds, so that "versendet"
+ * shows without a reload. The address is the customer's unless somebody types
+ * another, for this one message; which file goes along the server decides,
+ * the same way the e-invoice card above says.
+ */
+function MailCard({
+  documentId,
+  customerEmail,
+}: {
+  readonly documentId: string
+  readonly customerEmail: string | null
+}) {
+  const maySend = useMay('document.issue')
+  const queries = useQueryClient()
+  const mails = useQuery({
+    queryKey: ['document-mail', documentId],
+    queryFn: () => mailsOf(documentId),
+    refetchInterval: (query) =>
+      Array.isArray(query.state.data) && query.state.data.some((mail) => mail.status === 'pending')
+        ? 10_000
+        : false,
+  })
+  const [typed, setTyped] = useState<string | null>(null)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  const address = typed ?? customerEmail ?? ''
+  // An answer this screen does not understand shows nothing, like no answer.
+  const list = Array.isArray(mails.data) ? mails.data : []
+
+  const send = useMutation({
+    mutationFn: () => sendDocument(documentId, typed === null ? null : typed.trim()),
+    onSuccess: () => {
+      setTrouble(null)
+      setTyped(null)
+      void queries.invalidateQueries({ queryKey: ['document-mail', documentId] })
+    },
+    onError: (error) => {
+      setTrouble(
+        reasonOf(error, 'Keine Verbindung. Verschickt wird, sobald das Gerät wieder Netz hat.'),
+      )
+    },
+  })
+
+  return (
+    <Card label="Per E-Mail">
+      <div className="flex flex-col gap-3">
+        {list.length > 0 ? (
+          <ul className="flex flex-col gap-1 text-body text-ink">
+            {list.map((mail) => (
+              <li key={mail.id}>{mailState(mail)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-body text-ink-muted">
+            Dieser Beleg wurde noch nicht per E-Mail verschickt.
+          </p>
+        )}
+
+        {maySend ? (
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              send.mutate()
+            }}
+          >
+            <Field
+              label="An"
+              type="email"
+              value={address}
+              hint={
+                customerEmail
+                  ? 'Die Adresse des Kunden. Eine andere gilt nur für diese Nachricht.'
+                  : 'Beim Kunden ist keine Adresse hinterlegt.'
+              }
+              onChange={(event) => {
+                setTyped(event.target.value)
+              }}
+            />
+            <div>
+              <Button
+                type="submit"
+                tone="primary"
+                disabled={send.isPending || address.trim() === ''}
+              >
+                {send.isPending ? 'Einen Moment' : 'Per E-Mail senden'}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
       </div>
     </Card>
   )

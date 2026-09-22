@@ -118,6 +118,41 @@ export function zugferdAddress(id: string): string {
   return `/documents/${encodeURIComponent(id)}/zugferd`
 }
 
+/** One message with a document, as the server keeps it. */
+export interface DocumentMail {
+  readonly id: string
+  readonly to: string
+  readonly attachment: 'pdf' | 'zugferd' | 'xrechnung' | null
+  readonly status: 'pending' | 'sent' | 'failed'
+  readonly attempts: number
+  readonly lastError: string | null
+  readonly sentAt: string | null
+  readonly createdAt: string
+  readonly requestedBy: string | null
+}
+
+/**
+ * The messages a document went out with, newest first. Kept on the server,
+ * where the outbox is: a message is written and sent there and never travels
+ * to a device.
+ */
+export function mailsOf(id: string): Promise<readonly DocumentMail[]> {
+  return request<readonly DocumentMail[]>(`/documents/${encodeURIComponent(id)}/mail`)
+}
+
+/**
+ * Asks the server to send an issued document to its customer. The answer
+ * comes at once and says the message waits; the mail goes out a moment later,
+ * or once the mail server answers again. Without an address the customer's
+ * is used.
+ */
+export function sendDocument(id: string, to: string | null): Promise<DocumentMail> {
+  return request<DocumentMail>(`/documents/${encodeURIComponent(id)}/mail`, {
+    method: 'POST',
+    body: JSON.stringify(to === null ? {} : { to }),
+  })
+}
+
 export interface TextSnippet {
   readonly id: string
   readonly purpose: SnippetPurpose

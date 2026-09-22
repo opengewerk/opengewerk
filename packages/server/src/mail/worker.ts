@@ -3,8 +3,14 @@ import { sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import { dueTasks, notify } from '../notifications/notify.js'
+import type { AttachmentSource } from './attachments.js'
 import { claimDue, markFailed, markSent, type OutboxRow } from './outbox.js'
-import { MailDeliveryError, type MailTransport, type OutgoingMail } from './transport.js'
+import {
+  type MailAttachment,
+  MailDeliveryError,
+  type MailTransport,
+  type OutgoingMail,
+} from './transport.js'
 
 /** What the job needs, handed in so that a test can run it with a clock of its own. */
 export interface MailJob {
@@ -14,6 +20,12 @@ export interface MailJob {
   readonly from: string
   /** Where the instance is reached, for the links in a message. */
   readonly origin: string
+  /**
+   * Where the file a message about a document carries comes from. Left out,
+   * such a message cannot be sent and waits, which is what a test that never
+   * sends a document wants.
+   */
+  readonly attachments?: AttachmentSource
   readonly now?: () => Date
 }
 
@@ -54,15 +66,36 @@ async function everyTenant(database: Database): Promise<readonly TenantId[]> {
   return result.rows.map((row) => row['id'] as TenantId)
 }
 
-function outgoing(row: OutboxRow, from: string): OutgoingMail {
+function outgoing(
+  row: OutboxRow,
+  from: string,
+  attachments: readonly MailAttachment[],
+): OutgoingMail {
   return {
     from: { name: row.senderName, address: from },
     replyTo: row.replyTo,
     to: { name: row.recipientName, address: row.recipientAddress },
     subject: row.subject,
     text: row.body,
-    attachments: [],
+    attachments,
   }
+}
+
+/** The files a message carries, made or read now. */
+async function attachmentsOf(job: MailJob, row: OutboxRow): Promise<readonly MailAttachment[]> {
+  if (row.kind !== 'document') {
+    return []
+  }
+
+  if (!job.attachments) {
+    throw new MailDeliveryError(
+      'Für Anhänge ist in diesem Lauf nichts eingerichtet.',
+      'EATTACHMENT',
+      null,
+    )
+  }
+
+  return job.attachments(row)
 }
 
 function asFailure(error: unknown): MailDeliveryError {
@@ -91,9 +124,11 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
       const now = clock()
 
       for (const notification of await dueTasks(job.database, tenantId, now)) {
-        report.written += await notify(job.database, tenantId, notification, {
+        const written = await notify(job.database, tenantId, notification, {
           origin: job.origin,
         })
+
+        report.written += written.length
       }
 
       const actor = { tenantId, reason: 'mail' }
@@ -105,7 +140,7 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
 
         if (failure === null) {
           try {
-            await job.transport.send(outgoing(row, job.from))
+            await job.transport.send(outgoing(row, job.from, await attachmentsOf(job, row)))
             await job.database.forTenant(actor, (tx) => markSent(tx, row.id, clock()))
             report.sent += 1
 

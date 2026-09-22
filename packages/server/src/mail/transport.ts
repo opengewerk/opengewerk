@@ -41,7 +41,10 @@ export class MailDeliveryError extends Error {
    * by then, and giving up on it would lose a message over a passing fault.
    */
   get permanent(): boolean {
-    if (this.code === 'EENVELOPE') {
+    // `EDOCUMENT` is ours: the document a message is about has no file to
+    // give, a draft or one that lacks what its e-invoice needs. Trying again
+    // an hour later makes the same file out of the same frozen content.
+    if (this.code === 'EENVELOPE' || this.code === 'EDOCUMENT') {
       return true
     }
 

@@ -12,7 +12,9 @@ import { instanceIsEmpty } from './authentication/setup.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
+import { DocumentFiles } from './api/document-files.js'
 import { interfacePath, serveInterface } from './interface.js'
+import { documentAttachments } from './mail/attachments.js'
 import { checkMailServer } from './mail/check.js'
 import { readMailConfiguration } from './mail/configuration.js'
 import { smtpTransport } from './mail/transport.js'
@@ -78,6 +80,10 @@ async function start(): Promise<void> {
     }
   }
 
+  // The first trusted origin is the address the instance is reached at, the
+  // one a link in a message has to point to.
+  const origin = configuration.trustedOrigins[0] ?? ''
+
   // The file store and the renderer go in whether the instance is open or
   // closed. Closed, nothing reaches them, because every route that would is
   // behind the guard; open, they are what a PDF is printed with and kept in.
@@ -95,7 +101,12 @@ async function start(): Promise<void> {
       identities,
       configuration.closed
         ? output
-        : { ...output, authentication, trustedOrigins: configuration.trustedOrigins },
+        : {
+            ...output,
+            authentication,
+            trustedOrigins: configuration.trustedOrigins,
+            mail: mail ? { origin } : null,
+          },
     ),
     // The container log is the only log there is, so it carries warnings and
     // errors and not the route table of every start. At twenty routes that
@@ -167,9 +178,10 @@ async function start(): Promise<void> {
       database,
       transport,
       from: mail.from,
-      // The first trusted origin is the address the instance is reached at,
-      // the one a link in a message has to point to.
-      origin: configuration.trustedOrigins[0] ?? '',
+      origin,
+      // The same store and renderer the routes use, so that the file a
+      // message carries is the file the document keeps.
+      attachments: documentAttachments(new DocumentFiles(database, output.files, output.renderer)),
     })
   }
 

@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein festgeschriebener Beleg geht aus dem Büro per E-Mail an den Kunden, mit der Datei, die
+  zu ihm passt: ein Unternehmen im Inland bekommt das ZUGFeRD-PDF, alle anderen das PDF.
+  Die Karte "Per E-Mail" am Beleg zeigt, was verschickt wurde und ob es ankam, und nimmt
+  eine andere Adresse für eine einzelne Nachricht an. Verschicken darf, wer festschreiben
+  darf. Fehlt einer E-Rechnung, die schon Pflicht ist, etwas, lehnt der Versand mit der
+  Liste der Lücken ab (Migration 0022)
+- Die Dateien eines festgeschriebenen Belegs, PDF, XRechnung und ZUGFeRD-PDF, entstehen für
+  die Routen und für den Versand an einer Stelle (`DocumentFiles.issued`), damit Download
+  und Mail dieselben Bytes tragen
+
 - Versand von E-Mails über SMTP, eingerichtet einmal je Instanz in der `.env`
   (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`)
   und beim Start geprüft. Eine falsche Angabe hält den Start an, ein Server, der gerade

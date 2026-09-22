@@ -2,7 +2,6 @@ import {
   ConflictException,
   Controller,
   Get,
-  InternalServerErrorException,
   NotFoundException,
   Param,
   Res,
@@ -13,15 +12,12 @@ import {
   currentContent,
   type DocumentContent,
   type DocumentId,
-  type DocumentKind,
   type Duty,
   type EInvoiceGap,
-  type EInvoiceProfile,
   type EInvoiceStatus,
   eInvoiceDuty,
   eInvoiceGaps,
   formatFor,
-  missingDetails,
   RuleError,
   shippedRules,
   supplyDateOf,
@@ -32,11 +28,8 @@ import type { Response } from 'express'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import { documents, documentSnapshots } from '../database/schema/index.js'
-import { ciiInvoice } from '../documents/cii.js'
-import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { contentOf } from '../documents/content.js'
 import { documentTitle } from '../documents/template.js'
-import { zugferdPdf } from '../documents/zugferd.js'
 import { RequiresPermission } from './authorization.js'
 import { DocumentFiles } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -123,30 +116,6 @@ async function contentFor(
   return { document, content: currentContent(snapshot.content) }
 }
 
-/** The document an e-invoice is asked for, which has to have its number by then. */
-async function numberedDocument(
-  tx: TenantTransaction,
-  documentId: string,
-): Promise<{ readonly id: DocumentId; readonly kind: DocumentKind; readonly number: string }> {
-  const [document] = await tx
-    .select({ id: documents.id, kind: documents.kind, number: documents.number })
-    .from(documents)
-    .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
-
-  if (!document) {
-    throw new NotFoundException()
-  }
-
-  if (document.number === null) {
-    throw new ConflictException(
-      'Eine E-Rechnung gibt es erst, wenn die Rechnung festgeschrieben ist: vorher hat sie ' +
-        'keine Nummer, und ohne Nummer bucht sie niemand.',
-    )
-  }
-
-  return { id: document.id, kind: document.kind, number: document.number }
-}
-
 /** A number as it may stand in a file name. A number pattern may well contain a slash. */
 function safe(number: string): string {
   return number.replaceAll(/[\\/:*?"<>|]+/g, '-')
@@ -162,12 +131,6 @@ function disposition(name: string, plain: string): string {
     `attachment; filename="${plain.replaceAll(/[^\w.-]/g, '-')}"; ` +
     `filename*=UTF-8''${encodeURIComponent(name)}`
   )
-}
-
-/** What the two forms are called in a sentence that says what one of them lacks. */
-const formNames: Readonly<Record<EInvoiceProfile, string>> = {
-  xrechnung: 'die XRechnung',
-  en16931: 'das ZUGFeRD-PDF',
 }
 
 /**
@@ -231,50 +194,25 @@ export class EInvoiceController {
     @Param('documentId') documentId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const found = await this.database.forTenant(identity, async (tx) => {
-      const document = await numberedDocument(tx, documentId)
-      const stored = await this.files.stored(tx, document.id, 'xrechnung')
-
-      return {
-        document,
-        stored,
-        content: stored === null ? (await contentFor(tx, documentId)).content : null,
-      }
-    })
-
-    const bytes =
-      found.content === null
-        ? await this.files.read(found.stored ?? '')
-        : await this.files.keep(
-            identity,
-            found.document.id,
-            'xrechnung',
-            new TextEncoder().encode(this.make(found.content, 'xrechnung')),
-            'application/xml',
-          )
+    const file = await this.files.issued(identity, documentId, 'xrechnung')
 
     // Not for any cache on the way, like the PDF: an invoice is personal data.
     response.setHeader('Cache-Control', 'no-store')
 
-    return new StreamableFile(Buffer.from(bytes), {
+    return new StreamableFile(Buffer.from(file.bytes), {
       type: 'application/xml; charset=utf-8',
       disposition: disposition(
-        `XRechnung ${safe(found.document.number)}.xml`,
-        `XRechnung-${safe(found.document.number)}.xml`,
+        `XRechnung ${safe(file.number)}.xml`,
+        `XRechnung-${safe(file.number)}.xml`,
       ),
-      length: bytes.byteLength,
+      length: file.bytes.byteLength,
     })
   }
 
   /**
    * The ZUGFeRD PDF: the PDF of the invoice, the one the document keeps, with
-   * the e-invoice in the profile of the standard inside it.
-   *
-   * The XML is written and checked before anything is printed, so a document
-   * that goes out as a PDF or lacks a value is refused without a round trip
-   * to the renderer. The page is the PDF the document keeps, printed now and
-   * kept as its PDF if nobody asked for that before: a customer who got the
-   * PDF first and the ZUGFeRD PDF later sees the same page twice.
+   * the e-invoice in the profile of the standard inside it. Made the way
+   * `DocumentFiles.issued` describes, which the mail sends as well.
    */
   @Get('zugferd')
   @RequiresPermission('document.read')
@@ -283,95 +221,17 @@ export class EInvoiceController {
     @Param('documentId') documentId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const found = await this.database.forTenant(identity, async (tx) => {
-      const document = await numberedDocument(tx, documentId)
-      const stored = await this.files.stored(tx, document.id, 'zugferd')
-
-      if (stored !== null) {
-        return { document, stored, content: null, pdf: null }
-      }
-
-      return {
-        document,
-        stored,
-        content: (await contentFor(tx, documentId)).content,
-        pdf: await this.files.stored(tx, document.id, 'pdf'),
-      }
-    })
-
-    let bytes: Uint8Array
-
-    if (found.content === null) {
-      bytes = await this.files.read(found.stored ?? '')
-    } else {
-      const xml = this.make(found.content, 'en16931')
-      const pdf = await this.files.issuedPdf(identity, found.document.id, found.content, found.pdf)
-
-      bytes = await this.files.keep(
-        identity,
-        found.document.id,
-        'zugferd',
-        await zugferdPdf(pdf, xml, new Date()),
-        'application/pdf',
-      )
-    }
+    const file = await this.files.issued(identity, documentId, 'zugferd')
 
     response.setHeader('Cache-Control', 'no-store')
 
-    return new StreamableFile(Buffer.from(bytes), {
+    return new StreamableFile(Buffer.from(file.bytes), {
       type: 'application/pdf',
       disposition: disposition(
-        `${documentTitle(found.document.kind)} ${safe(found.document.number)} ZUGFeRD.pdf`,
-        `ZUGFeRD-${safe(found.document.number)}.pdf`,
+        `${documentTitle(file.kind)} ${safe(file.number)} ZUGFeRD.pdf`,
+        `ZUGFeRD-${safe(file.number)}.pdf`,
       ),
-      length: bytes.byteLength,
+      length: file.bytes.byteLength,
     })
-  }
-
-  /**
-   * Writes the e-invoice of a frozen content in a profile and holds it
-   * against the schema.
-   *
-   * Refused with the reason when it should not exist: a document that goes
-   * out as a PDF, or one that lacks what the profile asks for. The second is a
-   * list, like the missing details of an invoice, because each item is
-   * something somebody fixes in another place.
-   */
-  private make(content: DocumentContent, profile: EInvoiceProfile): string {
-    try {
-      const choice = formatFor(shippedRules, content)
-
-      if (choice.format !== 'e_invoice') {
-        throw new ConflictException(`Dieser Beleg geht als PDF hinaus. ${choice.reason}`)
-      }
-
-      const missing = [...missingDetails(shippedRules, content), ...eInvoiceGaps(content, profile)]
-
-      if (missing.length > 0) {
-        throw new UnprocessableEntityException({
-          statusCode: 422,
-          error: 'Unprocessable Entity',
-          message:
-            `Für ${formNames[profile]} fehlen noch Angaben. ` +
-            missing.map((entry) => entry.message).join(' '),
-          missing,
-        })
-      }
-
-      return checkedCii(ciiInvoice(content, profile))
-    } catch (error) {
-      if (error instanceof RuleError) {
-        throw new UnprocessableEntityException(error.message)
-      }
-
-      // A file the schema refuses is a fault of the writer, not of anything a
-      // business entered: those are checked above. It is not stored and not
-      // handed out, and the message says what the schema found.
-      if (error instanceof SchemaCheckError) {
-        throw new InternalServerErrorException(error.message)
-      }
-
-      throw error
-    }
   }
 }
