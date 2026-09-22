@@ -618,6 +618,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Der Fahrplan in Abschnitt 10 der Feature-Gliederung ordnet jetzt jeden Punkt der
+  Abschnitte 1 bis 9 einer Phase zu (v2.10). Ein großer Teil stand in keiner Phase,
+  darunter Widerrufsbelehrung, Abnahme und Gewährleistung, DSGVO-Funktionen,
+  Verfahrensdokumentation und Datenzugriff für die Betriebsprüfung, und die Zeile von
+  Phase 3 nannte Lohnexport und Verfahrensdokumentation nicht, obwohl die Issues der
+  Zeiterfassung und der Dokumentenablage sie dorthin verwiesen. Neu in Phase 1 ist die
+  Widerrufsbelehrung nach §312g BGB, weil der Pilotbetrieb Angebote an Verbraucher bei
+  ihnen zu Hause schreibt
+
 - Der Renderer startet von Haus aus mit der Instanz. Bisher lief er nur mit
   `--profile renderer`, und eine mit `sh docker/start.sh` eingerichtete Instanz gab kein
   einziges PDF heraus: kein Angebot, keine Rechnung, keine Mail mit Beleg. Die Vorlage der
