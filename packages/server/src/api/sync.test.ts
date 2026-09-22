@@ -19,6 +19,7 @@ import { ApiModule } from './api.module.js'
 import { permissionFor } from './sync.controller.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { invoiceable, issuableDraft, readyToInvoice } from './test-invoice.js'
+import { created, push as transmit } from './test-structure.js'
 
 /**
  * Two devices in a basement, one connection between them and the server, and
@@ -27,6 +28,8 @@ import { invoiceable, issuableDraft, readyToInvoice } from './test-invoice.js'
  */
 
 const north = { id: newId<'tenant'>(), name: 'Elektro Nord GmbH' }
+/** The business next door, for the records a device must not reach. */
+const south = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
 
 let admin: Pool
 let database: Database
@@ -92,7 +95,12 @@ beforeAll(async () => {
   await resetSchema(admin)
   await applyMigrations()
   await allowApplicationLogin(admin)
-  await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
+    north.id,
+    north.name,
+    south.id,
+    south.name,
+  ])
   await readyToInvoice(admin, north.id)
 
   database = Database.connect(applicationDatabaseUrl())
@@ -707,6 +715,211 @@ describe('a record that was deleted while the device was away', () => {
 
     const listed = await http().get('/installations').set('x-test-identity', office()).expect(200)
     expect((listed.body as { id: string }[]).some((entry) => entry.id === board.id)).toBe(true)
+  })
+
+  it('takes nothing new to hang on it either', async () => {
+    const building = await http()
+      .post('/sites')
+      .set('x-test-identity', office())
+      .send({ customerId, designation: 'Altbau, abgerissen' })
+      .expect(201)
+    const standing = await http()
+      .post('/installations')
+      .set('x-test-identity', office())
+      .send({ siteId: building.body.id, kind: 'meter', designation: 'Zähler im Altbau' })
+      .expect(201)
+
+    await http().delete(`/sites/${building.body.id}`).set('x-test-identity', office()).expect(200)
+
+    // The device was in the cellar when the office took the building out, and
+    // writes a new installation into it. The key would take that, the row is
+    // still there, and nobody would find the installation again: no list
+    // shows the site it hangs on.
+    const answer = await transmit(app, technician(), [
+      created('installations', newId<'installation'>(), {
+        siteId: building.body.id,
+        kind: 'meter',
+        designation: 'Neuer Zähler',
+      }),
+      // A change that leaves the site alone is not held to it. The reading
+      // was taken, and it belongs on the installation whatever happened to
+      // the building since.
+      change({
+        recordId: standing.body.id,
+        baseVersion: standing.body.version,
+        patches: [{ field: 'designation', from: 'Zähler im Altbau', to: 'Zähler, abgelesen' }],
+      }),
+    ])
+
+    expect(
+      answer.receipts.map(({ outcome, reason, fields }) => ({ outcome, reason, fields })),
+    ).toEqual([
+      { outcome: 'conflict', reason: 'record_missing', fields: ['siteId'] },
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+  })
+})
+
+/**
+ * Every operation of a transmission runs in one transaction, and since 0031
+ * the keys refuse a record of another business inside it. Left to them, one
+ * operation with a wrong id would take every other one along, and the device
+ * would send the same stack again the next time and the time after. Asked
+ * first, it is a conflict about the one operation that names it, with the
+ * field, and the rest of the queue goes through.
+ */
+describe('a reference to a record of another business', () => {
+  const southOffice = () => as(south.id, 'office')
+
+  async function southern(path: string, body: object): Promise<string> {
+    const answer = await http()
+      .post(path)
+      .set('x-test-identity', southOffice())
+      .send(body)
+      .expect(201)
+
+    return answer.body.id as string
+  }
+
+  it('is a conflict about that one operation, on every entity that points', async () => {
+    const southCustomer = await southern('/customers', { kind: 'business', name: 'Bauherr Süd' })
+    const southSite = await southern('/sites', { customerId: southCustomer, designation: 'Haus Süd' })
+    const southInstallation = await southern('/installations', {
+      siteId: southSite,
+      kind: 'pv_system',
+      designation: 'PV-Anlage Süd',
+    })
+    const southDocument = await southern('/documents', {
+      customerId: southCustomer,
+      kind: 'quote',
+      documentDate: '2026-09-22',
+    })
+    const southInverter = newId<'inverter'>()
+    const southString = newId<'pv-string'>()
+    await transmit(app, southOffice(), [
+      created('inverters', southInverter, {
+        installationId: southInstallation,
+        designation: 'WR Süd',
+      }),
+      created('pv_strings', southString, { inverterId: southInverter, designation: 'String Süd' }),
+    ])
+
+    // The ids of the other business are ones a device could know: somebody
+    // who works for both, or a list copied from one to the other.
+    const fine = newId<'site'>()
+    const answer = await transmit(app, office(), [
+      created('contacts', newId<'contact'>(), {
+        customerId: southCustomer,
+        familyName: 'Untergeschoben',
+      }),
+      created('sites', newId<'site'>(), {
+        customerId: southCustomer,
+        designation: 'Untergeschoben',
+      }),
+      created('installations', newId<'installation'>(), {
+        siteId: southSite,
+        kind: 'meter',
+        designation: 'Untergeschoben',
+      }),
+      created('jobs', newId<'job'>(), {
+        customerId,
+        installationId: southInstallation,
+        kind: 'service',
+        designation: 'Untergeschoben',
+      }),
+      created('documents', newId<'document'>(), {
+        customerId: southCustomer,
+        kind: 'quote',
+        documentDate: '2026-09-22',
+        subject: 'Untergeschoben',
+      }),
+      created('document_lines', newId<'document-line'>(), {
+        documentId: southDocument,
+        position: 1,
+        designation: 'Untergeschoben',
+        quantityMilli: 1000,
+        unit: 'piece',
+        unitPriceCents: 100,
+      }),
+      created('inverters', newId<'inverter'>(), {
+        installationId: southInstallation,
+        designation: 'Untergeschoben',
+      }),
+      created('pv_strings', newId<'pv-string'>(), {
+        inverterId: southInverter,
+        designation: 'Untergeschoben',
+      }),
+      created('pv_modules', newId<'pv-module'>(), {
+        pvStringId: southString,
+        manufacturer: 'Untergeschoben',
+      }),
+      created('sites', fine, { customerId, designation: 'Richtig verwiesen' }),
+    ])
+
+    const missing = [
+      'customerId',
+      'customerId',
+      'siteId',
+      'installationId',
+      'customerId',
+      'documentId',
+      'installationId',
+      'inverterId',
+      'pvStringId',
+    ]
+    expect(
+      answer.receipts.map(({ outcome, reason, fields }) => ({ outcome, reason, fields })),
+    ).toEqual([
+      ...missing.map((field) => ({ outcome: 'conflict', reason: 'record_missing', fields: [field] })),
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+
+    const { rows } = await admin.query<{ count: string }>(
+      `select (select count(*) from contacts where family_name = 'Untergeschoben')
+            + (select count(*) from sites where designation = 'Untergeschoben')
+            + (select count(*) from installations where designation = 'Untergeschoben')
+            + (select count(*) from jobs where designation = 'Untergeschoben')
+            + (select count(*) from documents where subject = 'Untergeschoben')
+            + (select count(*) from document_lines where designation = 'Untergeschoben')
+            + (select count(*) from inverters where designation = 'Untergeschoben')
+            + (select count(*) from pv_strings where designation = 'Untergeschoben')
+            + (select count(*) from pv_modules where manufacturer = 'Untergeschoben') as count`,
+    )
+    expect(Number(rows[0]?.count)).toBe(0)
+
+    const { rows: landed } = await admin.query<{ tenant_id: string }>(
+      'select tenant_id from sites where id = $1',
+      [fine],
+    )
+    expect(landed).toEqual([{ tenant_id: north.id }])
+  })
+
+  it('is asked on a change as well, for the reference it moves', async () => {
+    const southCustomer = await southern('/customers', { kind: 'private', name: 'Familie Süd' })
+    const job = await http()
+      .post('/jobs')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'service', designation: 'Wartung Wallbox' })
+      .expect(201)
+
+    const answer = await transmit(app, office(), [
+      change({
+        entity: 'jobs',
+        recordId: job.body.id,
+        baseVersion: job.body.version,
+        patches: [{ field: 'customerId', from: customerId, to: southCustomer }],
+      }),
+    ])
+
+    expect(
+      answer.receipts.map(({ outcome, reason, fields }) => ({ outcome, reason, fields })),
+    ).toEqual([{ outcome: 'conflict', reason: 'record_missing', fields: ['customerId'] }])
+
+    const { rows } = await admin.query<{ customer_id: string }>(
+      'select customer_id from jobs where id = $1',
+      [job.body.id],
+    )
+    expect(rows).toEqual([{ customer_id: customerId }])
   })
 })
 

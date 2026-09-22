@@ -291,6 +291,71 @@ describe('the person a task goes to', () => {
   })
 })
 
+describe('what a task hangs on', () => {
+  it('is a customer, site or job of this business, and one from next door is a conflict', async () => {
+    const sued = () => as('sued')
+    const southCustomer = await http()
+      .post('/customers')
+      .set('x-test-identity', sued())
+      .send({ kind: 'business', name: 'Hausverwaltung Südblick GmbH' })
+      .expect(201)
+    const southSite = await http()
+      .post('/sites')
+      .set('x-test-identity', sued())
+      .send({ customerId: southCustomer.body.id, designation: 'Lindenweg 4' })
+      .expect(201)
+    const southJob = await http()
+      .post('/jobs')
+      .set('x-test-identity', sued())
+      .send({ customerId: southCustomer.body.id, kind: 'service', designation: 'Zählerschrank' })
+      .expect(201)
+
+    const onCustomer = newId<'task'>()
+    const onSite = newId<'task'>()
+    const onJob = newId<'task'>()
+    const fine = newId<'task'>()
+    const { receipts } = await push([
+      creating(onCustomer, aTask({ customerId: southCustomer.body.id, jobId: null })),
+      creating(onSite, aTask({ siteId: southSite.body.id })),
+      creating(onJob, aTask({ jobId: southJob.body.id })),
+      creating(fine, aTask({ title: 'Angebot nachfassen' })),
+    ])
+
+    expect(receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields])).toEqual([
+      ['conflict', 'record_missing', ['customerId']],
+      ['conflict', 'record_missing', ['siteId']],
+      ['conflict', 'record_missing', ['jobId']],
+      ['applied', null, []],
+    ])
+
+    for (const refused of [onCustomer, onSite, onJob]) {
+      expect(await stored(refused)).toBeUndefined()
+    }
+    expect(await stored(fine)).toBeDefined()
+  })
+
+  it('is not a job that was deleted', async () => {
+    const job = await http()
+      .post('/jobs')
+      .set('x-test-identity', as('britta'))
+      .send({ customerId, kind: 'service', designation: 'Abgesagt' })
+      .expect(201)
+
+    await http()
+      .delete(`/jobs/${(job.body as { id: string }).id}`)
+      .set('x-test-identity', as('britta'))
+      .expect(200)
+
+    const { receipts } = await push([
+      creating(newId<'task'>(), aTask({ jobId: (job.body as { id: string }).id })),
+    ])
+
+    expect(receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields])).toEqual([
+      ['conflict', 'record_missing', ['jobId']],
+    ])
+  })
+})
+
 describe('a task nobody wrote', () => {
   it('can be written, the way the deadline engine will write one, and has no author', async () => {
     // A transaction that acts for no person: no user id, only a reason for the

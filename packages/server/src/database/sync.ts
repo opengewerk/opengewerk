@@ -21,9 +21,10 @@ import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
 import { signatureRefusal } from '../documents/signing.js'
 import { proposedTreatment } from '../documents/treatment.js'
-import { structureProblem, structureRefusal } from '../electrical/structure.js'
+import { sectionRefusal, structureProblem } from '../electrical/structure.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
+import { missingReference } from './references.js'
 import * as schema from './schema/index.js'
 import { syncConflicts, syncOperations } from './schema/index.js'
 
@@ -369,18 +370,27 @@ async function applyOne(
     }
   }
 
-  // The structure below an installation. A figure out of bounds is a mistake
-  // in the client, refused with the sentence its form shows; a parent that is
-  // gone, or that belongs to another business, is a conflict about this one
-  // operation. The keys and checks in the database say the same, for the whole
-  // transmission at once.
+  // A figure of the structure below an installation out of bounds is a
+  // mistake in the client, refused with the sentence its form shows. The
+  // check in the database says the same, for the whole transmission at once.
   const figures = structureProblem(operation.entity, values, current)
 
   if (figures !== null) {
     throw new UnknownFieldError(figures)
   }
 
-  const misplaced = await structureRefusal(tx, operation, values, current)
+  // A parent that is gone, or that belongs to another business, is a
+  // conflict about this one operation, for every entity: the key over tenant
+  // and id would refuse it too, but for the whole transmission, and a deleted
+  // parent it would take. Then the one pairing the keys cannot say alone,
+  // the section of a circuit on the circuit's board.
+  const missing =
+    operation.kind === 'delete'
+      ? null
+      : await missingReference(tx, table, values, operation.kind === 'create')
+  const misplaced = missing
+    ? { reason: 'record_missing' as const, fields: [missing.field] }
+    : await sectionRefusal(tx, operation, values, current)
 
   if (misplaced) {
     return await record(tx, tenantId, operation, {
