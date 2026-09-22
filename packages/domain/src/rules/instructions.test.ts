@@ -361,7 +361,32 @@ describe('the instructions of a document', () => {
     )
 
     expect(before.contents[1]?.text).toContain('(§ 356 Abs. 4 Nr. 2 BGB)')
+    expect(before.contents[1]?.text).toContain('(§ 356 Abs. 4 Nr. 3 BGB)')
     expect(before.contents[1]?.model?.validFrom).toBe('2022-05-28')
+
+    const since = documentInstructions(
+      shippedRows,
+      noInstructionChoices,
+      { ...quote, documentDate: '2026-06-19' },
+      issuer,
+    )
+
+    expect(since.contents[1]?.text).toContain('(§ 356 Abs. 5 Nr. 2 BGB)')
+    expect(since.contents[1]?.text).toContain('(§ 356 Abs. 5 Nr. 3 BGB)')
+    expect(since.contents[1]?.text).not.toContain('Abs. 4')
+  })
+
+  it('say what the law asks of the customer for the early end, not less', () => {
+    const text = documentInstructions(shippedRows, noInstructionChoices, quote, issuer).contents[1]
+      ?.text
+
+    // § 356 (5) no. 2 (c) BGB: the customer confirms knowing that the right
+    // ends, taking note is not enough. And § 312g (2) no. 11 BGB keeps both
+    // exceptions, the services nobody asked for and the goods that are no
+    // spare parts.
+    expect(text).toContain('und bestätigt haben, dass Ihnen bekannt ist')
+    expect(text).not.toContain('zur Kenntnis genommen')
+    expect(text).toContain('nicht unbedingt als Ersatzteile benötigt werden')
   })
 
   it('stay away from a customer who is a business, unless switched on', () => {

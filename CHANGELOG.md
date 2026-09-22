@@ -643,8 +643,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   sich weiter. Die Hinweise sagen, wann kein Widerrufsrecht besteht und wann es vorzeitig
   erlischt (Art. 246a § 1 Abs. 3 EGBGB); sie und der Vordruck, der jetzt "Verlangen auf
   vorzeitigen Leistungsbeginn" heißt, tragen den Wortlaut aus der Widerrufsbelehrung eines
-  Handwerksbetriebs, an der Nummerierung von § 356 BGB berichtigt, und gehen damit wie die
-  Muster in die Prüfung in #31 (Migration 0029)
+  Handwerksbetriebs. Berichtigt ist er dort, wo er vom Gesetz abwich: die Nummerierung von
+  § 356 BGB, die Bestätigung, die der Kunde für das Erlöschen abgeben muss, und der Fall der
+  Reparatur auf Anforderung des Kunden (§ 356 Abs. 5 Nr. 3 BGB), der fehlte. Beides geht wie
+  die Muster in die Prüfung in #31 (Migration 0029)
 
 - Aus der Widerrufsbelehrung als Angebotsanhang werden in der Feature-Gliederung
   Belehrungen, die der Betrieb pflegt (v2.11): mitgeliefert das Muster nach Art. 246a
