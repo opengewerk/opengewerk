@@ -1,0 +1,95 @@
+name: Regelpakete erneuern
+
+on:
+  schedule:
+    # Monday morning, like the CodeQL run, so a reminder is on the table at the
+    # start of the week and not found by the next push.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  remind:
+    name: Ende eines Regelpakets ankündigen
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+
+      - name: Pakete mit Enddatum prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYTHON'
+          import datetime
+          import glob
+          import json
+          import os
+          import subprocess
+
+          # A package that carries "renewal" ends because the next value is not
+          # known yet, not because its law ends; the base rate is the case, set
+          # anew every half year (#150). Thirty days before such an end an issue
+          # goes up, once: an open issue with the same title is left alone.
+          # TODAY and DRY_RUN are there to try the run out by hand.
+          WINDOW = datetime.timedelta(days=30)
+          today = datetime.date.fromisoformat(
+              os.environ.get("TODAY") or datetime.date.today().isoformat()
+          )
+
+          due = []
+          for path in sorted(glob.glob("packages/domain/src/rules/data/*.json")):
+              with open(path, encoding="utf-8") as handle:
+                  package = json.load(handle)
+              if not package.get("renewal"):
+                  continue
+              last = {}
+              for record in package["records"]:
+                  known = last.get(record["key"])
+                  if known is None or known["validFrom"] < record["validFrom"]:
+                      last[record["key"]] = record
+              for key, record in sorted(last.items()):
+                  if record["validUntil"] is None:
+                      continue
+                  end = datetime.date.fromisoformat(record["validUntil"])
+                  if end - today <= WINDOW:
+                      due.append((package, path, key, end))
+
+          for package, path, key, end in due:
+              title = f"Regelpaket {package['package']}: {key} endet am {end:%d.%m.%Y}"
+              existing = subprocess.run(
+                  ["gh", "issue", "list", "--state", "open", "--search", f'"{title}" in:title',
+                   "--json", "title", "--jq", ".[].title"],
+                  capture_output=True, text=True, check=True,
+              ).stdout.splitlines()
+              if title in existing:
+                  print(f"Schon offen: {title}")
+                  continue
+
+              body = (
+                  f"Das Regelpaket `{package['package']}` endet für `{key}` am {end:%d.%m.%Y}. "
+                  "Für einen späteren Tag gibt die Engine für diesen Wert keine Antwort, "
+                  "statt eine zu erfinden.\n\n"
+                  f"{package['renewal']}\n\n"
+                  "## Was zu tun ist\n\n"
+                  f"- Den neuen Wert mit Fundstelle in `{path}` eintragen.\n"
+                  "- In der Notiz des Pakets das Datum der letzten Prüfung nachziehen.\n"
+                  "- Prüfen, dass der Test \"leave no hole inside a run of one key\" grün bleibt.\n\n"
+                  "Angelegt vom Workflow \"Regelpakete erneuern\"."
+              )
+              if os.environ.get("DRY_RUN"):
+                  print(f"Würde anlegen: {title}\n{body}")
+                  continue
+              subprocess.run(
+                  ["gh", "issue", "create", "--title", title, "--body", body,
+                   "--label", "Recht/Compliance"],
+                  check=True,
+              )
+              print(f"Angelegt: {title}")
+
+          if not due:
+              print("Kein Regelpaket endet in den nächsten 30 Tagen.")
+          PYTHON

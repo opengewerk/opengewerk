@@ -150,6 +150,33 @@ describe('the packages that ship', () => {
     }
   })
 
+  /**
+   * A package that is renewed ends where the known values end, and the
+   * workflow "Regelpakete erneuern" reminds thirty days before (#150). That
+   * reminder reads the end off the last record of each key, so a renewed
+   * package whose keys all run open ended would never remind anybody.
+   */
+  it('that are renewed end somewhere, and say who renews them', () => {
+    const renewed = rulePackages.filter((entry) => entry.renewal !== undefined)
+
+    expect(renewed.map((entry) => entry.package)).toContain('base-rate')
+
+    for (const entry of renewed) {
+      const lastOfKey = new Map<string, RuleRecord>()
+
+      for (const record of entry.records) {
+        const known = lastOfKey.get(record.key)
+
+        if (!known || known.validFrom < record.validFrom) {
+          lastOfKey.set(record.key, record)
+        }
+      }
+
+      expect(entry.renewal?.trim().length).toBeGreaterThan(0)
+      expect([...lastOfKey.values()].every((record) => record.validUntil !== null)).toBe(true)
+    }
+  })
+
   it('say when somebody last held them against their source', () => {
     // What came out of the check on issue #31, kept where it cannot be
     // mislaid. These files are the one place in the repository where a value
