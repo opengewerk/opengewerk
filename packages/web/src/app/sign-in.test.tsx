@@ -1,9 +1,15 @@
+import 'fake-indexeddb/auto'
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AccountScreen } from '../office/screens/account.js'
+import { SyncClient } from '../sync/client.js'
+import { SyncProvider } from '../sync/provider.js'
+import { openLocalStore } from '../sync/store.js'
+import { TestServer } from '../sync/test-server.js'
 import { PasswordResetScreen } from './password-reset.js'
 import { SecondFactorScreen, SignInScreen } from './sign-in.js'
 
@@ -13,6 +19,32 @@ import { SecondFactorScreen, SignInScreen } from './sign-in.js'
  * "Konto". Before, the codes were shown at the setup and could be used
  * nowhere: the sign in only knew the code from the app.
  */
+
+let counter = 0
+
+/**
+ * "Konto" as the office has it, inside a business and its sync client: signing
+ * out there sends and clears what the device holds (#186).
+ */
+async function account() {
+  const server = new TestServer()
+  const client = await SyncClient.start({
+    store: await openLocalStore(`konto${String((counter += 1))}`),
+    transport: server,
+    writer: server,
+    deviceId: 'geraet',
+    entities: [],
+    onSignedOut: () => {},
+  })
+
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SyncProvider client={client}>
+        <AccountScreen />
+      </SyncProvider>
+    </QueryClientProvider>,
+  )
+}
 
 interface Call {
   readonly path: string
@@ -95,11 +127,7 @@ describe('the recovery codes under "Konto"', () => {
       backupCodes: ['aaaaa-11111', 'bbbbb-22222'],
     })
 
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <AccountScreen />
-      </QueryClientProvider>,
-    )
+    await account()
 
     expect(await screen.findByText(/Noch 3 Codes übrig/)).toBeTruthy()
 
@@ -173,11 +201,7 @@ describe('the password under "Konto"', () => {
     })
     answers.set('/auth/devices', [])
 
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <AccountScreen />
-      </QueryClientProvider>,
-    )
+    await account()
 
     await userEvent.type(await screen.findByLabelText('Bisheriges Passwort'), 'das-alte-passwort')
     await userEvent.type(screen.getByLabelText('Neues Passwort'), 'das-neue-lange-passwort')

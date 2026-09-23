@@ -169,6 +169,54 @@ function upgrade(database: IDBDatabase): void {
   }
 }
 
+/** What the name of every store of this application starts with. */
+const storePrefix = 'opengewerk.'
+
+/**
+ * The businesses whose store is on this device, by tenant, and the ones named.
+ * A browser that cannot list its databases gets only the named ones.
+ */
+export async function storesOnDevice(named: readonly string[] = []): Promise<string[]> {
+  const listed =
+    typeof indexedDB.databases === 'function'
+      ? (await indexedDB.databases())
+          .map((database) => database.name ?? '')
+          .filter((name) => name.startsWith(storePrefix))
+          .map((name) => name.slice(storePrefix.length))
+      : []
+
+  return [...new Set([...listed, ...named])]
+}
+
+/** How many changes wait in the store of a business and have not reached the server. */
+export async function waitingIn(tenantId: string): Promise<number> {
+  const store = await openLocalStore(tenantId)
+
+  try {
+    return (await store.readOutbox()).length + (await store.countWaitingFiles())
+  } finally {
+    store.close()
+  }
+}
+
+/**
+ * The store of a business, gone from this device (#186). Waits until every
+ * connection has let go; the stores of this application close theirs when
+ * asked, so that takes a moment and not until a tab is closed.
+ */
+export function deleteLocalStore(tenantId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(`${storePrefix}${tenantId}`)
+
+    request.onsuccess = () => {
+      resolve()
+    }
+    request.onerror = () => {
+      reject(request.error ?? new Error('Die lokale Ablage ließ sich nicht löschen.'))
+    }
+  })
+}
+
 /**
  * Opens the store for one business on this device.
  *
@@ -181,12 +229,18 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
     // Version 2 added the files (#77). `upgrade` adds whatever is missing, so a
     // device on version 1 keeps its records and gains the two new stores.
-    const request = indexedDB.open(`opengewerk.${tenantId}`, 2)
+    const request = indexedDB.open(`${storePrefix}${tenantId}`, 2)
 
     request.onupgradeneeded = () => {
       upgrade(request.result)
     }
     request.onsuccess = () => {
+      // Let go when another tab signs out and deletes this store (#186). A
+      // connection held open here would block the deletion until this tab
+      // closes, and the data would outlive the sign out.
+      request.result.onversionchange = () => {
+        request.result.close()
+      }
       resolve(request.result)
     }
     request.onerror = () => {

@@ -21,7 +21,6 @@ import {
   invitationToken,
   passwordResetToken,
   setupNeeded,
-  signOut,
 } from './../session/session.js'
 import type { Account } from './../session/session.js'
 
@@ -273,9 +272,7 @@ function ChooseTenant({
       deviceId={deviceId}
       tenants={tenants.data}
       onChosen={onDone}
-      onSignOut={() => {
-        void signOut().finally(onDone)
-      }}
+      onSignedOut={onDone}
     />
   )
 }

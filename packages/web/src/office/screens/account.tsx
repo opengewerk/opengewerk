@@ -6,6 +6,7 @@ import { Button, Card, Cell, Column, Field, Table } from '../../components/index
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
+import { SignOutButton } from '../../app/sign-out.js'
 import {
   changePassword,
   devices,
@@ -13,8 +14,8 @@ import {
   recoveryCodesLeft,
   revokeDevice,
   shortestPassword,
-  signOut,
 } from '../../session/session.js'
+import { useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Nothing, Page, Section } from '../layout.js'
 
@@ -29,6 +30,7 @@ import { Nothing, Page, Section } from '../layout.js'
  * phone left in a van that was broken into.
  */
 export function AccountScreen() {
+  const client = useSync()
   const queries = useQueryClient()
   const account = useQuery(accountQuery)
   const list = useQuery({ queryKey: ['devices'], queryFn: devices })
@@ -50,19 +52,15 @@ export function AccountScreen() {
       title="Konto"
       meta={account.data ? `${account.data.name}, ${account.data.email}` : 'Dieses Konto.'}
       actions={
-        <Button
-          tone="secondary"
-          onClick={() => {
-            // Reloading afterwards rather than routing: signing out has to end
-            // with the sync client stopped and the local store closed, and the
+        <SignOutButton
+          client={client}
+          onSignedOut={() => {
+            // Reloading afterwards rather than routing: signing out ends with
+            // the sync client stopped and the local store gone, and the
             // shortest honest way to be sure of that is to start again.
-            void signOut().finally(() => {
-              globalThis.location.assign('/')
-            })
+            globalThis.location.assign('/')
           }}
-        >
-          Abmelden
-        </Button>
+        />
       }
     >
       {trouble ? (
