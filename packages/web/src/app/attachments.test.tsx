@@ -203,7 +203,6 @@ describe('a file added in the office', () => {
     const client = await mount(inTheOffice())
 
     await userEvent.upload(await screen.findByLabelText('Datei hinzufügen'), plan)
-    await client.synchronise()
     await userEvent.click(await screen.findByRole('button', { name: 'Neue Fassung' }))
     await userEvent.upload(
       screen.getByLabelText('Neue Fassung wählen'),
@@ -226,9 +225,8 @@ describe('a file added in the office', () => {
     const client = await mount(inTheOffice())
 
     await userEvent.upload(await screen.findByLabelText('Datei hinzufügen'), plan)
-    // Settled first: between sending a new record and fetching it back, the
-    // list draws it anew, and a button found before that is gone after.
-    await client.synchronise()
+    // Pressed while the new file may still be on its way: since #181 it stays
+    // the same element between sending and the pull that brings it back.
     await userEvent.click(await screen.findByRole('button', { name: 'Schaltplan entfernen' }))
     await userEvent.click(screen.getByRole('button', { name: 'Entfernen' }))
     await client.synchronise()

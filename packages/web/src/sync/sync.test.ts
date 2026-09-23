@@ -7,7 +7,7 @@ import type {
   RecordState,
   SyncConflict,
 } from '@opengewerk/domain'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DirectWriter, SyncClient } from './client.js'
 import { SyncClient as Client } from './client.js'
@@ -549,6 +549,107 @@ describe('an exchange with the server', () => {
 
   beforeEach(() => {
     transport = new Recorded()
+  })
+
+  /**
+   * Between sending and fetching back (#181). The outbox lets go of an
+   * operation when the server answers, and the row arrives only with the pull
+   * after that; a pull held up here is a slow mobile network.
+   */
+  describe('between sending and the pull that brings the rows back', () => {
+    function holdThePull(): () => void {
+      let release: () => void = () => undefined
+      const held = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const pull = transport.pull.bind(transport)
+
+      transport.pull = async (since: number) => {
+        await held
+
+        return pull(since)
+      }
+
+      return release
+    }
+
+    it('keeps a record made here in view, and no longer as waiting', async () => {
+      const client = await start(transport)
+      const release = holdThePull()
+      const made = await client.create('customers', { name: 'Meyer', kind: 'private' })
+
+      if (made.outcome !== 'queued') {
+        throw new Error('The customer was refused on the device.')
+      }
+
+      // Answered and out of the outbox, with the pull still on its way.
+      await vi.waitFor(() => {
+        expect(client.status().pending).toBe(0)
+      })
+
+      expect(client.isPending('customers', made.id)).toBe(false)
+      expect(client.get('customers', made.id)?.['name']).toBe('Meyer')
+      expect(client.list('customers').map((record) => record['id'])).toEqual([made.id])
+
+      transport.pulls = [
+        {
+          changes: [
+            { entity: 'customers', rows: [row({ id: made.id, name: 'Meyer', kind: 'private' })] },
+          ],
+          cursor: 2,
+          hasMore: false,
+        },
+      ]
+      release()
+      await client.synchronise()
+
+      expect(client.list('customers').map((record) => record['name'])).toEqual(['Meyer'])
+    })
+
+    it('keeps a changed value, instead of showing the old one until the pull', async () => {
+      const client = await start(transport)
+
+      await holding(client, transport, {
+        entity: 'jobs',
+        rows: [row({ id: 'j-1', designation: 'Zählertausch' })],
+      })
+
+      holdThePull()
+      await client.update('jobs', 'j-1', { designation: 'Zählerwechsel' })
+
+      // Answered and out of the outbox, with the pull still on its way.
+      await vi.waitFor(() => {
+        expect(client.status().pending).toBe(0)
+      })
+
+      expect(client.get('jobs', 'j-1')?.['designation']).toBe('Zählerwechsel')
+    })
+
+    it('shows nothing of an operation the server did not apply', async () => {
+      const client = await start(transport)
+
+      await holding(client, transport, {
+        entity: 'jobs',
+        rows: [row({ id: 'j-1', designation: 'Zählertausch' })],
+      })
+
+      transport.receipts = (operations) =>
+        operations.map((operation) => ({
+          operationId: operation.id,
+          outcome: 'conflict' as const,
+          reason: 'changed_elsewhere' as const,
+          fields: ['designation'],
+        }))
+      holdThePull()
+      await client.update('jobs', 'j-1', { designation: 'Zählerwechsel' })
+
+      // Answered and out of the outbox, with the pull still on its way.
+      await vi.waitFor(() => {
+        expect(client.status().pending).toBe(0)
+      })
+
+      expect(client.get('jobs', 'j-1')?.['designation']).toBe('Zählertausch')
+    })
   })
 
   it('empties the outbox for every operation it got a receipt for', async () => {

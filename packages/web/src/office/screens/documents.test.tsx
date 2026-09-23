@@ -428,7 +428,14 @@ describe('a quote with titles', () => {
       quantityMilli: 0,
       unitPriceCents: 0,
     })
-    expect(await screen.findByRole('cell', { name: '1' })).toBeDefined()
+    // At the end of the list and without an amount. Until #181 this looked for
+    // a cell "1", and found one only because the new title briefly vanished
+    // between sending and the pull that brought it back: a position before the
+    // first title keeps its plain number, and the title is numbered 1 as well.
+    const last = (await screen.findAllByRole('row')).at(-1)
+
+    expect(last?.textContent).toMatch(/^1Außenbeleuchtung/)
+    expect(last?.textContent).not.toMatch(/€/)
   })
 
   it('reads a quantity and a price the way they are typed here', async () => {

@@ -909,6 +909,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein neuer oder geänderter Datensatz springt nach dem Senden nicht mehr kurz zurück (#181). Der
+  Postausgang ließ einen Vorgang los, sobald der Server ihn beantwortet hatte, und den Stand des
+  Servers brachte erst der Abruf danach: ein gerade angelegter Kunde verschwand für diese Zeit aus
+  seiner Liste, ein geänderter Wert zeigte den alten, und ein Knopf, den jemand gerade drückte,
+  ging ins Leere. Angewandte Vorgänge bleiben jetzt über dem Stand liegen, bis der Abruf fertig
+  ist, und zählen dabei nicht mehr als wartend. Aufgefallen beim Test der Dokumentenablage; ein
+  Test zu den Titeln eines Angebots bestand bis dahin nur wegen dieses Fehlers.
 - Eine Rechnung an ein Unternehmen geht nach dem Ende eines Übergangs zur E-Rechnung nicht mehr
   ohne Hinweis als PDF hinaus (#134). Der Übergang nach § 27 Abs. 38 UStG gilt nur für eine
   Rechnung, die bis zum Ende seines Zeitraums übermittelt wird, und OpenGewerk nahm dafür das
