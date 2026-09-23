@@ -793,6 +793,57 @@ describe('the rate limits', () => {
   })
 
   /**
+   * A recovery code is a second factor as much as the code from the app, and
+   * an account has ten of them (#125). better-auth's plugin limits its routes
+   * to three in ten seconds, which is eighteen guesses a minute; the rule of
+   * ours is five a minute, like the code from the app. So five guesses, then
+   * the window of the plugin is moved past, and the sixth still has to be
+   * refused: only the minute of our rule refuses it there.
+   */
+  it('stop somebody working through recovery codes, five a minute and not eighteen', async () => {
+    const limitedDatabase = Database.connect(applicationDatabaseUrl())
+    const limited = createAuthentication({
+      database: limitedDatabase,
+      secret: 'x'.repeat(64),
+      trustedOrigins: [origin],
+      rateLimited: true,
+    })
+
+    const built = await Test.createTestingModule({
+      imports: [
+        ApiModule.create(limitedDatabase, new SessionIdentitySource(limited, limitedDatabase)),
+      ],
+    }).compile()
+
+    const limitedApp = built.createNestApplication()
+    limitedApp.use(authenticationPath, toNodeHandler(limited))
+    await limitedApp.init()
+
+    const guess = () =>
+      request(limitedApp.getHttpServer())
+        .post(`${authenticationPath}/two-factor/verify-backup-code`)
+        .set('origin', origin)
+        .send({ code: 'abcde-fghij' })
+
+    try {
+      await admin.query("delete from auth_rate_limits where key like '%verify-backup-code%'")
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        expect((await guess()).status).not.toBe(429)
+      }
+
+      await admin.query(
+        "update auth_rate_limits set last_request = last_request - 11000 where key like '%verify-backup-code%'",
+      )
+
+      expect((await guess()).status).toBe(429)
+    } finally {
+      await limitedApp.close()
+      await limitedDatabase.close()
+    }
+  })
+
+  /**
    * The counter is in the database and not in memory, which is what makes the
    * limit survive a restart. Without it, anybody who can make the container
    * fall over gets a fresh allowance for free, and during an update that

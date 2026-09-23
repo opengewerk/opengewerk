@@ -445,6 +445,95 @@ describe('the second factor an owner cannot work without', () => {
   })
 
   /**
+   * The phone is gone (#125). The recovery codes shown when the factor was set
+   * up are the way in, each of them once, and the account learns how many are
+   * left and can make new ones. Before, the sign in only knew the code from
+   * the app, and an owner without a phone was locked out of the business.
+   */
+  it('lets the owner in with a recovery code, each once, and makes new ones', async () => {
+    await emptyInstance()
+
+    const created = await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    const tenantId = created.body.tenantId as string
+    const first = cookiesOf(
+      await http()
+        .post(`${authenticationPath}/sign-in/email`)
+        .set('origin', origin)
+        .send({ email: firstRun.email, password })
+        .expect(200),
+    )
+    const started = await http()
+      .post(`${authenticationPath}/two-factor/enable`)
+      .set('cookie', first)
+      .set('origin', origin)
+      .send({ password, method: 'totp' })
+      .expect(200)
+    const codes = started.body.backupCodes as string[]
+
+    await http()
+      .post(`${authenticationPath}/two-factor/verify-totp`)
+      .set('cookie', first)
+      .set('origin', origin)
+      .send({ code: await currentCode(started.body.totpURI as string) })
+      .expect(200)
+
+    /** A sign in that stops at the second factor, and its cookie for that step. */
+    async function passwordOnly(): Promise<string> {
+      const answer = await http()
+        .post(`${authenticationPath}/sign-in/email`)
+        .set('origin', origin)
+        .send({ email: firstRun.email, password })
+        .expect(200)
+
+      expect(answer.body.twoFactorRedirect).toBe(true)
+
+      return cookiesOf(answer)
+    }
+
+    const redeemed = await http()
+      .post(`${authenticationPath}/two-factor/verify-backup-code`)
+      .set('cookie', await passwordOnly())
+      .set('origin', origin)
+      .send({ code: codes[0] })
+      .expect(200)
+    const signedIn = cookiesOf(redeemed)
+
+    await http()
+      .post('/auth/tenant')
+      .set('cookie', signedIn)
+      .set('origin', origin)
+      .send({ tenantId })
+      .expect(201)
+    await http().get('/customers').set('cookie', signedIn).expect(200)
+
+    const left = await http().get('/auth/recovery-codes').set('cookie', signedIn).expect(200)
+
+    expect(left.body).toEqual({ left: codes.length - 1 })
+
+    // The same code a second time is no way in.
+    const again = await http()
+      .post(`${authenticationPath}/two-factor/verify-backup-code`)
+      .set('cookie', await passwordOnly())
+      .set('origin', origin)
+      .send({ code: codes[0] })
+
+    expect(again.status).toBeGreaterThanOrEqual(400)
+
+    const renewed = await http()
+      .post(`${authenticationPath}/two-factor/generate-backup-codes`)
+      .set('cookie', signedIn)
+      .set('origin', origin)
+      .send({ password })
+      .expect(200)
+
+    expect((renewed.body.backupCodes as string[]).length).toBe(codes.length)
+
+    const now = await http().get('/auth/recovery-codes').set('cookie', signedIn).expect(200)
+
+    expect(now.body).toEqual({ left: codes.length })
+  })
+
+  /**
    * The same thing from inside the application, which is where somebody whose
    * account already exists sets it up.
    *

@@ -862,6 +862,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Wiederherstellungscodes lassen sich einlösen (#125). Die Ersteinrichtung zeigte sie als
+  den Weg hinein, wenn das Telefon weg ist, die Anmeldung kannte aber nur den Code aus der
+  App; ein Inhaber ohne Telefon kam nur noch über SQL an seinen Betrieb. Der zweite Schritt
+  der Anmeldung nimmt jetzt auch einen Wiederherstellungscode und sagt danach, wie viele noch
+  übrig sind. Unter "Konto" steht die Zahl, und dort entstehen nach dem Passwort neue. Die
+  Ratenbegrenzung gilt für das Einlösen wie für den Code aus der App, fünf Versuche in der
+  Minute.
 - Ein Gerät bleibt angemeldet, solange es benutzt wird (#124). Das Cookie galt nur zwölf
   Stunden, die Laufzeit des Büros, und so war auch jedes Gerät auf der Baustelle nach zwölf
   Stunden abgemeldet, obwohl seine Sitzung dreißig Tage galt; verlängert wurde keine. Das

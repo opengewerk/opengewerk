@@ -202,6 +202,9 @@ export function createAuthentication({
         // limit above.
         '/sign-in/email': { window: 60, max: 5 },
         '/two-factor/verify-totp': { window: 60, max: 5 },
+        // A recovery code is a second factor as much as a code from the app,
+        // and ten of them are ten chances instead of one (#125).
+        '/two-factor/verify-backup-code': { window: 60, max: 5 },
       },
     },
     advanced: {

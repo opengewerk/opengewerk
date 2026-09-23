@@ -216,6 +216,41 @@ export async function verifySecondFactor(code: string): Promise<void> {
   })
 }
 
+/**
+ * The second step of a sign in with a recovery code instead of the code from
+ * the app, for somebody whose phone is gone (#125). Each code works once.
+ */
+export async function verifyRecoveryCode(code: string): Promise<void> {
+  await request(`${authentication}/two-factor/verify-backup-code`, {
+    method: 'POST',
+    // `trustDevice` is not sent here either, for the same reason as above.
+    body: JSON.stringify({ code: code.trim() }),
+  })
+}
+
+/** How many recovery codes this account has left; `null` without a second factor. */
+export async function recoveryCodesLeft(): Promise<number | null> {
+  const answer = await request<{ left?: unknown }>('/auth/recovery-codes')
+
+  return typeof answer.left === 'number' ? answer.left : null
+}
+
+/**
+ * A new set of recovery codes, which replaces the old one entirely. Asks for
+ * the password, because a session left open at a desk must not be enough to
+ * make a new way past the second factor.
+ */
+export async function newRecoveryCodes(password: string): Promise<readonly string[]> {
+  const answer = await request<{ backupCodes?: unknown }>(
+    `${authentication}/two-factor/generate-backup-codes`,
+    { method: 'POST', body: JSON.stringify({ password }) },
+  )
+
+  return Array.isArray(answer.backupCodes)
+    ? answer.backupCodes.filter((code): code is string => typeof code === 'string')
+    : []
+}
+
 export function availableTenants(): Promise<readonly TenantChoice[]> {
   return request<readonly TenantChoice[]>('/auth/tenants')
 }
