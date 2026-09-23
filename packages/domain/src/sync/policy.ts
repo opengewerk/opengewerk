@@ -104,10 +104,9 @@ const fieldWork: SyncPolicy = { create: true, change: 'merge' }
  * server can resolve them against its schema instead of keeping a second
  * mapping next to this one.
  *
- * Missing on purpose: the time entry, which ADR 0005 names for this phase.
- * Time recording is in phase 1 and the table does not exist; inventing it here
- * to satisfy a list would be worse than the gap. When it arrives it is
- * `fieldWork`, like everything else a technician fills in.
+ * The time entry, which ADR 0005 names for this phase, arrived with #76, and
+ * not as `fieldWork`: § 17 MiLoG wants the record kept unchanged, so it is
+ * written once and corrected by a new entry, like an issued document.
  */
 export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   customers: masterData,
@@ -222,6 +221,14 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * like the author of a task.
    */
   attachment_versions: { create: true, change: 'never', reserved: ['createdBy'] },
+  /**
+   * A stretch of somebody's working time (#76), recorded on site without a
+   * network and never changed afterwards: `change: 'never'` with no route
+   * behind it and a database that grants reading and inserting. A correction
+   * is a new entry that names the old one. Whose time it is, the server writes
+   * from the request, so `userId` is its own.
+   */
+  time_entries: { create: true, change: 'never', reserved: ['userId'] },
 }
 
 /**

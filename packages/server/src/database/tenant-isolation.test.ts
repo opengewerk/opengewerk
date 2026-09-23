@@ -574,6 +574,22 @@ const crossings: readonly {
                     ${other.fileHash})`,
   },
   {
+    // Inserts, since an entry is written once; the person comes from the
+    // request as it would for a device.
+    key: 'time_entries_job_in_tenant',
+    write: (own, other) =>
+      sql`insert into time_entries (tenant_id, kind, job_id, started_at, ended_at)
+            select ${own.tenant}, 'work', ${other.job}, now() - interval '1 hour', now()
+              from (select set_config('app.user_id', ${own.user}, true)) as acting`,
+  },
+  {
+    key: 'time_entries_correction_in_tenant',
+    write: (own, other) =>
+      sql`insert into time_entries (tenant_id, kind, started_at, ended_at, corrects_entry_id, note)
+            select ${own.tenant}, 'work', now() - interval '1 hour', now(), ${other.timeEntry}, 'falsch'
+              from (select set_config('app.user_id', ${own.user}, true)) as acting`,
+  },
+  {
     key: 'letterheads_logo_in_tenant',
     write: (own, other) => repoint('letterheads', 'logo_file_id', own.letterhead, other.file),
   },
@@ -760,6 +776,7 @@ interface Planted {
   /** The hash of that file, which a version of an attachment names it by. */
   readonly fileHash: string
   readonly attachment: string
+  readonly timeEntry: string
   readonly letterhead: string
   readonly invitation: string
   readonly task: string
@@ -882,6 +899,13 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     attachment: await one(
       "insert into attachments (tenant_id, customer_id, title) values ($1, $2, 'Schaltplan')",
       [tenant, customer],
+    ),
+    // Whose time it is comes from the request, so the planting says who acts.
+    timeEntry: await one(
+      `insert into time_entries (tenant_id, user_id, kind, started_at, ended_at)
+         select $1, $2, 'work', now() - interval '2 hours', now() - interval '1 hour'
+           from (select set_config('app.user_id', $2, false)) as acting`,
+      [tenant, user],
     ),
     letterhead: await one('insert into letterheads (tenant_id) values ($1)', [tenant]),
     invitation,

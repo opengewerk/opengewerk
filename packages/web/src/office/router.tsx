@@ -21,6 +21,7 @@ import { TaskListScreen } from './screens/tasks.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'
 import { TextSnippetScreen } from './screens/text-snippets.js'
+import { TimeScreen } from './screens/time.js'
 
 /**
  * The routes of the office, written out rather than generated from file names.
@@ -61,6 +62,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => root, path: '/aufgaben', component: TaskListScreen }),
+  createRoute({ getParentRoute: () => root, path: '/zeiten', component: TimeScreen }),
   createRoute({
     getParentRoute: () => root,
     path: '/belege/$documentId',

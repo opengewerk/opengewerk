@@ -9,6 +9,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Zeiterfassung (#76). Bis dahin führte ein Betrieb seine Stunden neben der Software, und eine
+  Tabelle erfüllt weder die Aufzeichnung nach § 17 MiLoG noch die Prüfung nach dem
+  Arbeitszeitgesetz. Auf der Baustelle startet die Arbeit am Auftrag, eine Fahrt dorthin ebenso, und
+  ein laufender Zeitnehmer steht über jedem Bildschirm mit Pause, Stopp und dem nächsten Schritt;
+  alles ohne Netz, ein Eintrag entsteht beim Stopp und geht durch den Postausgang. Ein Eintrag wird
+  nie geändert: korrigiert und gestrichen wird mit einem neuen Eintrag, der den alten nennt und einen
+  Grund hat, und die Datenbank lehnt Ändern und Löschen bis zum Ende der zwei Jahre Aufbewahrung ab.
+  Nachtragen geht, und nach sieben Tagen sagt das Formular, dass es spät ist. Das Arbeitszeitgesetz
+  warnt, auf dem Gerät und im Büro, und sperrt nichts; die Werte stehen im neuen Regelpaket
+  `working-time`. Im Büro zeigt "Zeiten" jede Person Woche für Woche mit den Hinweisen jedes Tages,
+  der Auftrag die Summe je Person. Die Zeit der anderen sieht nur, wer `time.read` hat, und auf das
+  Gerät eines Monteurs kommt nur seine eigene; ein Gerät, das die Person wechselt, holt neu ab. Einen
+  Standort gibt es nur mit Einwilligung, die jede Person selbst gibt und widerruft, und nur bei Start
+  und Stopp. Neu sind Migration 0036, die Rechte `time.read` und `time.write` und die Routen
+  `/time/consent` und `/time/people`.
 - Die Dokumentenablage (#77). Bis dahin gab es für Dateien ein Volume im Container und sonst
   nichts, und neben der Software lag weiter ein Ordner auf dem Dateiserver. Jetzt hängen Dateien
   an Kunde, Objekt, Anlage und Auftrag, im Büro unter "Dateien" und auf der Baustelle unter "Fotos
@@ -909,6 +924,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ohne Netz geöffnet, zeigt die Baustelle wieder Aufgaben, Dateien und Ansprechpartner (#184). Seit
+  #123 öffnete sie mit dem zuletzt angemeldeten Konto, die Rollen dazu kamen aber nur vom Server,
+  und ohne Antwort war jedes Recht verneint; die Daten lagen auf dem Gerät, nur die Bildschirme
+  blendeten sie aus. Die Rollen werden jetzt neben dem Konto gemerkt und beim Abmelden vergessen.
+  Sie erlauben nichts, jede Anfrage entscheidet der Server. Aufgefallen beim Bau der Zeiterfassung,
+  die sonst ohne Netz ebenso verschwunden wäre.
 - Ein neuer oder geänderter Datensatz springt nach dem Senden nicht mehr kurz zurück (#181). Der
   Postausgang ließ einen Vorgang los, sobald der Server ihn beantwortet hatte, und den Stand des
   Servers brachte erst der Abruf danach: ein gerade angelegter Kunde verschwand für diese Zeit aus

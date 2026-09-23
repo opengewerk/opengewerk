@@ -6,6 +6,7 @@ import {
   inOutboxOrder,
   type IsoDate,
   lineNetCents,
+  locationFields,
   isSetByServer,
   type Operation,
   type OperationId,
@@ -19,11 +20,12 @@ import {
   type TenantId,
   toSyncValue,
 } from '@opengewerk/domain'
-import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull, type SQL } from 'drizzle-orm'
 import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
 import { versionFileRefusal } from '../attachments/versions.js'
 import { signatureRefusal } from '../documents/signing.js'
+import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
@@ -448,6 +450,30 @@ async function applyOne(
     })
   }
 
+  // A time entry corrects somebody's own entry, and each one once (#76). Its
+  // place is kept only with the person's consent: without it the server drops
+  // the place and keeps the time, which is still the record the law wants.
+  if (operation.entity === 'time_entries' && operation.kind === 'create') {
+    const refusal = await correctionRefusal(tx, values)
+
+    if (refusal) {
+      return await record(tx, tenantId, operation, {
+        outcome: 'conflict',
+        reason: refusal.reason,
+        fields: refusal.fields,
+        current,
+      })
+    }
+
+    if (!(await consentGiven(tx))) {
+      for (const field of locationFields) {
+        if (field in values) {
+          values[field] = null
+        }
+      }
+    }
+  }
+
   // A version of an attachment names its file by business and hash, a key the
   // reference check below does not read. Its own question: is the file there,
   // uploaded ahead of the version, and is the size the one it has.
@@ -613,11 +639,17 @@ export interface ChangedRows {
  * says to come back. Rows above that number arrive a second time, which costs
  * a little and is the right way round: sending a row twice is nothing, losing
  * one is forever.
+ *
+ * `narrow` keeps rows of an entity away from a device that may not read them
+ * all (#76): the working time of the others, for somebody who may only record
+ * their own. The cursor is untouched by it; a row left out is simply not sent,
+ * and it will not be sent later either.
  */
 export async function changesSince(
   tx: TenantTransaction,
   since: number,
   limit = 500,
+  narrow: (entity: string) => SQL | undefined = () => undefined,
 ): Promise<{ changes: readonly ChangedRows[]; cursor: number; hasMore: boolean }> {
   const changes: ChangedRows[] = []
   let highest = since
@@ -634,7 +666,7 @@ export async function changesSince(
     const rows = await tx
       .select()
       .from(table)
-      .where(gt(sequence, since))
+      .where(and(gt(sequence, since), narrow(entity)))
       .orderBy(asc(sequence))
       .limit(limit)
 

@@ -57,6 +57,15 @@ export const permissions = [
   'attachment.read',
   'attachment.write',
   /**
+   * Working time (#76). Everybody records their own, which is `time.write`
+   * and which nobody may do for somebody else. `time.read` is reading the time
+   * of everybody in the business, the office's job under § 17 MiLoG: without
+   * it, a device gets its own person's entries and nobody else's, because
+   * working hours are personal data a colleague has no business reading.
+   */
+  'time.read',
+  'time.write',
+  /**
    * Sending an outbox and reading what came back. A right of its own because
    * it is a different way in, not a different thing to do: what an operation
    * may touch is still decided by the rights above, entity by entity.
@@ -135,6 +144,8 @@ const officePermissions: readonly Permission[] = [
   'task.write',
   'attachment.read',
   'attachment.write',
+  'time.read',
+  'time.write',
   'sync.read',
   'sync.write',
   // Reading, not setting. What a business claims about its own taxation is a
@@ -171,6 +182,8 @@ const technicianPermissions: readonly Permission[] = [
   // The photo of the type plate and the plan in the cabinet door.
   'attachment.read',
   'attachment.write',
+  // Their own working time, and only their own: no `time.read`.
+  'time.write',
   // The one who is actually in a basement without a network.
   'sync.read',
   'sync.write',

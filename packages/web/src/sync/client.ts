@@ -81,6 +81,9 @@ export type Draft = Readonly<Record<string, unknown>>
 
 const cursorKey = 'cursor'
 
+/** What the server last said it narrowed the rows to, as JSON. */
+const narrowedKey = 'narrowed'
+
 /**
  * The kinds of record the build knew that last moved the cursor, as a sorted
  * list with commas.
@@ -173,6 +176,13 @@ export class SyncClient {
    * straight to the outbox, as it did before there were files (#77).
    */
   private filesWaiting = 0
+  /**
+   * The stopwatch of #76 as it is stored, or null when none runs. The one
+   * piece of state that belongs to this device alone: a stretch of time is
+   * written as an entry only when it ends, and until then it is nobody's
+   * business but the phone's.
+   */
+  private held: string | null = null
   private snapshot: SyncSnapshot = {
     state: 'offline',
     pending: 0,
@@ -257,6 +267,10 @@ export class SyncClient {
 
     client.outbox = await store.readOutbox()
     client.filesWaiting = await store.countWaitingFiles()
+
+    const held = await store.readMeta(stopwatchKey)
+
+    client.held = typeof held === 'string' && held !== '' ? held : null
     client.regroup()
     client.snapshot = {
       ...client.snapshot,
@@ -763,6 +777,10 @@ export class SyncClient {
     for (;;) {
       const answer = await this.transport.pull(this.cursor)
 
+      if (await this.narrowedElsewhere(answer.narrowed)) {
+        continue
+      }
+
       for (const change of answer.changes) {
         const byId = this.records.get(change.entity)
 
@@ -793,6 +811,57 @@ export class SyncClient {
     }
   }
 
+  /**
+   * Whether the rows this device holds of an entity were narrowed for
+   * somebody else than the server narrows them for now (#76). The store
+   * belongs to the business and not to a person, and the working time of the
+   * others arrives only for whoever may read it. A tablet handed from the
+   * office to a technician would go on holding everybody's time; one handed
+   * the other way would miss what lies behind its cursor, and so would a
+   * technician who has just been given the office role.
+   *
+   * When it changes, what the device holds of that entity goes, the cursor
+   * starts again and the answer is asked for anew: a full pull costs one
+   * exchange, and the outbox is laid over what arrives as always. The first
+   * answer that says anything is simply kept; before it, nothing was narrowed.
+   */
+  private async narrowedElsewhere(
+    narrowed: Readonly<Record<string, string>> | undefined,
+  ): Promise<boolean> {
+    if (!narrowed) {
+      return false
+    }
+
+    const said = JSON.stringify(narrowed)
+    const kept = await this.store.readMeta(narrowedKey)
+
+    if (kept === said) {
+      return false
+    }
+
+    await this.store.writeMeta(narrowedKey, said)
+
+    if (typeof kept !== 'string') {
+      return false
+    }
+
+    const before = JSON.parse(kept) as Record<string, string>
+    const changed = [...new Set([...Object.keys(before), ...Object.keys(narrowed)])].filter(
+      (entity) => before[entity] !== narrowed[entity],
+    )
+
+    for (const entity of changed) {
+      await this.store.drop(entity)
+      this.records.get(entity)?.clear()
+    }
+
+    this.cursor = 0
+    await this.store.writeMeta(cursorKey, 0)
+    this.publish({})
+
+    return true
+  }
+
   private async refreshConflicts(): Promise<void> {
     const conflicts = await this.transport.conflicts()
 
@@ -800,11 +869,22 @@ export class SyncClient {
     this.publish({ conflicts })
   }
 
+  // The stopwatch
+
+  /** The running stopwatch as it was stored, for `app/time.ts` to read. Null when none runs. */
+  stopwatch = (): string | null => this.held
+
   /**
-   * Says that a conflict has been looked at. What the decision was is an
-   * ordinary change and goes through the outbox like any other; this only
-   * takes the entry off the list.
+   * Starts, replaces or stops the stopwatch. Kept in the local store of the
+   * business, so it survives the phone locking itself or the page being
+   * closed in a cellar. Whose it is, the value says (`app/time.ts`).
    */
+  async setStopwatch(value: string | null): Promise<void> {
+    await this.store.writeMeta(stopwatchKey, value ?? '')
+    this.held = value
+    this.publish({})
+  }
+
   // Files
 
   /**
@@ -880,6 +960,11 @@ export class SyncClient {
     this.filesWaiting = await this.store.countWaitingFiles()
   }
 
+  /**
+   * Says that a conflict has been looked at. What the decision was is an
+   * ordinary change and goes through the outbox like any other; this only
+   * takes the entry off the list.
+   */
   async resolveConflict(id: string): Promise<void> {
     await this.transport.resolve(id)
     await this.store.dropConflict(id)
@@ -964,6 +1049,9 @@ export class SyncClient {
     }
   }
 }
+
+/** Where the stopwatch is kept among the bookkeeping of the local store. */
+const stopwatchKey = 'stopwatch'
 
 /** SHA-256 in lower case hex, the name the server stores a file under. */
 async function sha256Of(bytes: ArrayBuffer): Promise<string> {

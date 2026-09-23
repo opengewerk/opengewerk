@@ -1,7 +1,15 @@
 import type { RoleKey, TenantId } from '@opengewerk/domain'
 
 import { request } from '../sync/transport.js'
-import { forgetAccount, rememberAccount, rememberedAccount, unreachable } from './remembered.js'
+import {
+  forgetAccount,
+  forgetSignIn,
+  rememberAccount,
+  rememberedAccount,
+  rememberedTenants,
+  rememberTenants,
+  unreachable,
+} from './remembered.js'
 
 /**
  * The three steps between opening the application and being able to work,
@@ -100,7 +108,7 @@ export async function currentAccount(): Promise<Account | null> {
 
   if (!user || typeof user.id !== 'string') {
     // The server said so, and it decides: nothing kept outlives that.
-    forgetAccount()
+    forgetSignIn()
 
     return null
   }
@@ -251,8 +259,28 @@ export async function newRecoveryCodes(password: string): Promise<readonly strin
     : []
 }
 
-export function availableTenants(): Promise<readonly TenantChoice[]> {
-  return request<readonly TenantChoice[]>('/auth/tenants')
+/**
+ * The businesses of this account and its roles in each. Without a network,
+ * the ones kept from the last answer (#184), so that a device opened in a
+ * basement shows the screens its roles allow; the server decides again at the
+ * first request that reaches it, as with the account.
+ */
+export async function availableTenants(): Promise<readonly TenantChoice[]> {
+  try {
+    const tenants = await request<readonly TenantChoice[]>('/auth/tenants')
+
+    rememberTenants(tenants)
+
+    return tenants
+  } catch (error) {
+    const kept = unreachable(error) ? rememberedTenants() : null
+
+    if (kept) {
+      return kept
+    }
+
+    throw error
+  }
 }
 
 /**
@@ -282,8 +310,8 @@ export async function revokeDevice(sessionId: string): Promise<void> {
 
 export async function signOut(): Promise<void> {
   // First, so that a sign out without a network still leaves nothing for the
-  // next start to open on its own (#123).
-  forgetAccount()
+  // next start to open on its own (#123), nor the roles of whoever it was (#184).
+  forgetSignIn()
   await request('/auth/sign-out', { method: 'POST' })
 }
 

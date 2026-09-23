@@ -22,6 +22,7 @@ import { InstallationBoards } from './boards.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
 import { JobTasks, MyTasks } from './tasks.js'
+import { JobTime, TodayTime } from './time.js'
 
 /**
  * The jobs this device is meant to work through.
@@ -82,6 +83,8 @@ export function SiteJobList() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <TodayTime />
+
       <MyTasks />
 
       <h1 className="text-title font-semibold">Offene Aufträge</h1>
@@ -196,8 +199,9 @@ function JobReports({ job }: { readonly job: RecordState }) {
  *
  * One main action per screen, and here it is finishing the job. Everything
  * else is reading: who, where, which system, what was agreed, and the reports
- * written for it, which open on a screen of their own. Recording hours is its
- * own issue and not part of this one.
+ * written for it, which open on a screen of their own. The working time of
+ * #76 starts here, under what was agreed, because here it is clear what the
+ * time belongs to.
  */
 export function SiteJobScreen() {
   const { jobId } = useParams({ strict: false }) as { jobId?: string }
@@ -324,6 +328,8 @@ export function SiteJobScreen() {
           <p className="text-body whitespace-pre-line">{text(job, 'description')}</p>
         </Card>
       ) : null}
+
+      <JobTime job={job} />
 
       <JobReports job={job} />
 

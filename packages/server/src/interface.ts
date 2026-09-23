@@ -70,6 +70,7 @@ const apiPrefixes = [
   'tasks',
   'files',
   'attachments',
+  'time',
   'documents',
   'sync',
   'settings',
