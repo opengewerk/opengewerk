@@ -135,6 +135,21 @@ describe('numbers issued at the same moment', () => {
   })
 })
 
+describe('the year in a number', () => {
+  it('is the year in Germany, not in the time zone of the container', async () => {
+    const draft = await createDraft()
+
+    // Half past midnight on the first of January in Germany, still the old year
+    // in UTC, which is what a container runs in unless somebody sets TZ (#146).
+    const issuedAt = new Date('2026-12-31T23:30:00Z')
+    const number = await database.forTenant({ tenantId: tenant.id }, (tx) =>
+      assignDocumentNumber(tx, tenant.id, draft.kind, issuedAt),
+    )
+
+    expect(number.split('-')[1]).toBe('2027')
+  })
+})
+
 describe('an issued document', () => {
   it('cannot be changed, and the refusal comes from the database', async () => {
     const draft = await createDraft()

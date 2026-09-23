@@ -58,7 +58,7 @@ import { pick, requireFields, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
 import { eInvoiceRefusals } from './e-invoice.controller.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
-import { todayInGermany } from './today.js'
+import { todayInGermany, yearInGermany } from '../today.js'
 
 /** What stands between a draft and its number, whatever the list it comes from. */
 type Missing = MissingDetail | EInvoiceGap | InstructionGap
@@ -759,7 +759,7 @@ export class DocumentsController {
       const counter = range?.nextValue ?? 1
 
       return {
-        preview: formatDocumentNumber(pattern, { counter, year: new Date().getFullYear() }),
+        preview: formatDocumentNumber(pattern, { counter, year: yearInGermany() }),
         pattern,
       }
     })

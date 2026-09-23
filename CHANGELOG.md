@@ -815,6 +815,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Rechnung, die am 1. Januar zwischen 0 und 1 Uhr festgeschrieben wurde, bekam das alte
+  Jahr in die Nummer (#146). Das Jahr kam aus der Zeitzone des Prozesses, und ein Container
+  läuft in UTC. Es kommt jetzt aus dem Tag in Deutschland, wie das Belegdatum; ebenso die
+  Vorschau der nächsten Nummer unter "Nummernkreise".
 - Ein Vorgang, den der Server ablehnte, hielt den Postausgang eines Geräts für immer fest
   (#120). Die 400 sagte nicht, welcher es war, das Gerät schickte bei jedem Abgleich
   denselben Stapel und bekam dieselbe Antwort, und weil es erst hochlädt und dann abholt,

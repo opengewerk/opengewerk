@@ -31,7 +31,7 @@ import { type ChartBoard, type CircuitChart, circuitChartJob } from '../electric
 import { RequiresPermission } from './authorization.js'
 import { RENDERER } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
-import { todayInGermany } from './today.js'
+import { todayInGermany } from '../today.js'
 
 /** A name as it may stand in a file name. A board called `UV 1/2` is one. */
 function safe(value: string): string {
