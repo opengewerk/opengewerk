@@ -3,6 +3,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { ConflictScreen } from '../app/conflicts.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
+import { BackupScreen } from './screens/backup.js'
 import { BoardScreen } from './screens/boards.js'
 import { CircuitScreen } from './screens/circuits.js'
 import { CustomerList, CustomerScreen } from './screens/customers.js'
@@ -98,6 +99,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/einstellungen/e-mail',
     component: MailSettingsScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/sicherung',
+    component: BackupScreen,
   }),
   createRoute({
     getParentRoute: () => root,

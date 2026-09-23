@@ -80,6 +80,7 @@ describe('the settings', () => {
       '/einstellungen/zahlungsziel',
       '/einstellungen/belehrungen',
       '/einstellungen/e-mail',
+      '/einstellungen/sicherung',
       '/einstellungen/zugaenge',
     ])
   })

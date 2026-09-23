@@ -610,13 +610,14 @@ In der `.env` steht dafür höchstens eine Zeile, und meist bleibt sie leer. Jed
 
 **Ein Mailserver im eigenen Netz braucht die Freigabe des Betreibers.** OpenGewerk verbindet sich nur mit Mailservern im Internet, und nur auf den Ports für E-Mail: 25, 465, 587 und die Ausweichports 2465, 2525 und 2587. Ein Server unter einer internen Adresse, also diese Maschine, das eigene Netz oder ein Dienst der Instanz wie die Datenbank, wird abgelehnt, bei "Verbindung prüfen" wie beim Versand. Der Name wird dafür einmal aufgelöst, und die Verbindung geht genau an die geprüfte Adresse; das Zertifikat wird weiter gegen den Namen geprüft. Wer einen Mailserver im eigenen Netz betreibt, trägt ihn in `MAIL_INTERNAL_HOSTS` ein, mit Namen oder Adresse, durch Komma getrennt, und für diese Server gilt dann jeder Port. Das steht in der `.env` und nicht im Büro, denn es ist eine Grenze der Instanz und keine Einstellung eines Betriebs: auf einer Instanz mit mehreren Betrieben öffnete sonst jeder Inhaber das Netz des Betreibers für sich. Eine Prüfung sagt, welche Art Fehler es war, und nennt die drei Ziffern einer SMTP-Antwort, nie den Text, den das Gegenüber geschickt hat; und ein Betrieb kann die Verbindung höchstens dreißigmal in zehn Minuten prüfen.
 
-### Drei Dienste, und was sie kosten
+### Vier Dienste, und was sie kosten
 
 | Dienst | Abbild | Speicher im Leerlauf |
 | --- | --- | --- |
 | Anwendung | 291 MB | 81 MiB unter einem Limit von 1 GB, 195 MiB ohne Limit |
 | PostgreSQL 18 | 433 MB | 33 MiB |
 | Renderer (abschaltbar) | 3,9 GB | 342 MiB |
+| Nächtliche Sicherung | 452 MB, davon 433 MB mit PostgreSQL geteilt | 1,8 MiB |
 
 Gemessen am 19.09.2026 mit `docker stats --no-stream` auf einer leeren
 Instanz. Die zwei Zahlen bei der Anwendung sind die wichtigste Angabe hier:
@@ -697,6 +698,9 @@ alles zurückgekommen ist.
 docker compose -f docker/compose.yaml --profile backup run --rm backup backup.sh
 ```
 
+Das ist die Sicherung von Hand, etwa vor einem Update. Jede Nacht sichert die
+Instanz ohnehin von selbst, siehe unten.
+
 Das Ergebnis ist ein Archiv mit drei Teilen und einem Manifest:
 
 | Teil | Inhalt |
@@ -718,6 +722,37 @@ Tabellen. Row-Level Security ist auf jeder Tabelle mit `FORCE` gesetzt und gilt
 damit auch für den Eigentümer; ein Dump unter dieser Rolle käme entweder mit
 einer Fehlermeldung zurück oder, schlimmer, leer. Eine Sicherung, die weniger
 sehen darf als alles, ist keine.
+
+### Jede Nacht, ohne dass jemand daran denkt
+
+Eine Sicherung, an die jemand denken muss, fehlt genau an dem Tag, an dem sie
+gebraucht wird (#130). Der Dienst `backup-schedule` startet mit der Instanz und
+sichert jede Nacht um 02:30 Uhr deutscher Zeit, mit demselben `backup.sh` und
+denselben Einstellungen wie die Sicherung von Hand. War der Rechner um diese
+Zeit aus, holt er die Sicherung nach, sobald er wieder läuft, und zwar genau
+einmal: fällig ist sie, wenn die letzte vor dem letzten 02:30 fertig wurde. Ein
+Neustart am Nachmittag sichert deshalb nicht noch einmal.
+
+**Die Uhrzeit ist fest.** Eine Einstellung dafür gehörte in die Oberfläche, und
+eine Instanz kann mehrere Betriebe tragen; welcher von ihnen stellte die Stunde
+für alle? Bis das eine Antwort hat, ist die Nacht die Antwort.
+
+**Eine Instanz ohne Betrieb sichert der Zeitplan nicht.** Nach einem
+Plattenverlust kommt sie leer zurück, und eine Sicherung davon wäre die neueste,
+die `restore.sh latest` nimmt; vierzehn Nächte später wäre die letzte mit Daten
+entfernt. Von Hand lässt sie sich weiterhin sichern.
+
+**Das Büro sieht, wann zuletzt gesichert wurde.** Jede Sicherung hält danach in
+einem eigenen kleinen Volume fest, wann sie fertig wurde. Die Anwendung liest
+nur diesen Eintrag, und zwar lesend, nicht die Archive, denn die enthalten alle
+Betriebe der Instanz. Unter "Einstellungen", "Sicherung" stehen Zeitpunkt,
+Archiv und ob es verschlüsselt ist; ist die letzte Sicherung älter als zwei
+Tage, steht oben im Büro eine Warnung, für den Inhaber und das Büro. Warum
+eine ausblieb, zeigt:
+
+```bash
+docker compose -f docker/compose.yaml logs backup-schedule
+```
 
 ### Zurückspielen
 
@@ -790,10 +825,27 @@ Ohne gesetzten Empfänger läuft die Sicherung trotzdem, gibt aber eine Warnung
 aus. Sie enthält Kundendaten, Belege und das Audit-Log.
 
 `BACKUP_KEEP` legt fest, wie viele Generationen bleiben (Vorgabe 14). Ältere
-werden nach jedem Lauf entfernt. `BACKUP_TARGET` bestimmt, wohin die Archive
-gehen; die Vorgabe ist ein Docker-Volume, und das überlebt ein
-`docker compose down`, aber keinen Plattendefekt. Eine Installation, die es
-ernst meint, zeigt damit auf ein Verzeichnis auf einer anderen Maschine.
+werden nach jedem Lauf entfernt.
+
+**`BACKUP_TARGET` gehört auf eine andere Maschine.** Das ist der Regelfall und
+keine Möglichkeit. Die Vorgabe ist ein Docker-Volume auf derselben Platte wie
+die Daten: es überlebt ein `docker compose down` und einen Bedienfehler, aber
+keinen Plattendefekt, keinen Brand und keinen Diebstahl des Rechners. Ein
+Verzeichnis, das von einer anderen Maschine eingehängt ist, etwa von einem NAS
+über NFS oder SMB, kommt als absoluter Pfad in die `.env`:
+
+```bash
+BACKUP_TARGET=/mnt/sicherung/opengewerk
+```
+
+Eingehängt wird es auf dem Server selbst, und zwar so, dass es einen Neustart
+übersteht, also über `/etc/fstab` oder eine systemd-Einheit und nicht von Hand.
+Ist es beim Start nicht da, schreibt die Sicherung in das leere Verzeichnis
+darunter, auf dieselbe Platte, und das Büro merkt davon nichts; wer ein NAS
+nimmt, prüft deshalb nach dem ersten Neustart, dass die Archive dort ankommen.
+Wandert eine Kopie zusätzlich außer Haus, ist auch ein Brand im Büro
+überstanden. Verschlüsselt sollte ein Archiv, das die Maschine verlässt, in
+jedem Fall sein.
 
 ### Aktualisieren
 

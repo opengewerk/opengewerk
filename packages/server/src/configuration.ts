@@ -51,6 +51,14 @@ export interface Configuration {
    */
   readonly trustedOrigins: readonly string[]
   /**
+   * Where the backups record when they last finished (#130), or null.
+   *
+   * Set by the Compose file, which mounts that one record read-only into the
+   * application and nothing else of the backups. Not a setting anybody makes:
+   * without it, outside Compose, the office is told nothing about backups.
+   */
+  readonly backupStatusPath: string | null
+  /**
    * Whether the instance recognises nobody at all.
    *
    * Off in normal operation. An operator switches it on to keep an instance
@@ -363,6 +371,7 @@ export function readConfiguration(
     storagePath: storagePath(environment, checkAccess),
     sessionSecret: sessionSecret(environment),
     trustedOrigins: trustedOrigins(environment),
+    backupStatusPath: environment['BACKUP_STATUS_PATH']?.trim() || null,
     closed: flag(environment, 'CLOSED'),
     mailInternalHosts: mailInternalHosts(environment),
     // Far above the 3000 that most machines that develop anything have taken

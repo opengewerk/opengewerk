@@ -594,6 +594,27 @@ jobs:
         working-directory: docker
         run: docker compose up -d --build --wait --wait-timeout 300
 
+      - name: Eine leere Instanz sichert der Zeitplan nicht
+        working-directory: docker
+        run: |
+          set -eu
+          # The schedule checks at once when it starts, and the instance has no
+          # business yet. After a lost disk that is exactly the state it comes
+          # back in, and a backup of it would become the newest archive, the
+          # one a restore takes, so the schedule skips it (#130).
+          for attempt in $(seq 1 30); do
+            if docker compose logs backup-schedule | grep -q 'übersprungen'; then
+              archives=$(docker compose exec -T backup-schedule sh -c 'find /var/lib/opengewerk/backups -maxdepth 1 -name "opengewerk-*" | wc -l' | tr -d '\r ')
+              echo "Übersprungen, Archive: ${archives}"
+              test "${archives}" = "0"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs backup-schedule
+          echo "Der Zeitplan hat die leere Instanz nicht übersprungen." >&2
+          exit 1
+
       - name: Daten und Dateien anlegen
         working-directory: docker
         run: |
@@ -622,6 +643,16 @@ jobs:
       - name: Sicherung erstellen
         working-directory: docker
         run: docker compose --profile backup run --rm backup backup.sh
+
+      - name: Die Anwendung liest, wann die Sicherung fertig wurde
+        working-directory: docker
+        run: |
+          set -eu
+          # The record every backup leaves, read from inside the application,
+          # which sees it read-only and nothing else of the backups (#130).
+          docker compose exec -T app cat /var/lib/opengewerk/backup-status/last.json | tee /tmp/last.json
+          grep -q '"finishedEpoch"' /tmp/last.json
+          grep -q '"encrypted": true' /tmp/last.json
 
       - name: Datenplatte verlieren, Sicherung behalten
         working-directory: docker
@@ -686,6 +717,37 @@ jobs:
           fi
 
           echo "Die beschädigte Sicherung wurde abgelehnt."
+
+      - name: Die nächtliche Sicherung holt nach
+        working-directory: docker
+        run: |
+          set -eu
+          # A backup is due whenever the last one finished before the most
+          # recent 02:30, which is what a machine that was off at night looks
+          # like. Taking the record away makes the instance look like that, and
+          # the schedule has to catch up on its own, now that the restored
+          # instance has businesses in it (#130).
+          count() {
+            docker compose exec -T backup-schedule sh -c 'find /var/lib/opengewerk/backups -maxdepth 1 -name "opengewerk-*" | wc -l' | tr -d '\r '
+          }
+          before=$(count)
+          docker compose exec -T backup-schedule rm -f /var/lib/opengewerk/backup-status/last.json
+          docker compose restart backup-schedule
+
+          for attempt in $(seq 1 60); do
+            if docker compose exec -T backup-schedule test -f /var/lib/opengewerk/backup-status/last.json; then
+              after=$(count)
+              echo "Archive vorher: ${before}, nachher: ${after}"
+              test "${after}" -gt "${before}"
+              docker compose logs backup-schedule | tail -n 15
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose logs backup-schedule
+          echo "Der Zeitplan hat die fehlende Sicherung nicht nachgeholt." >&2
+          exit 1
 
       - name: Protokolle bei einem Fehlschlag
         if: failure()

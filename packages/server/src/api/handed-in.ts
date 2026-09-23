@@ -38,6 +38,12 @@ export const FILE_STORE = Symbol('FileStore')
 export const RENDERER = Symbol('Renderer')
 
 /**
+ * The directory the backups record their last run in (#130), or null where
+ * the instance does not know one: a development machine, the preview, a test.
+ */
+export const BACKUP_STATUS = Symbol('BackupStatus')
+
+/**
  * What the routes around mail need: where the instance is reached for the
  * links in a message, the key a mail password is sealed with, and a way to
  * try a connection. Null on a closed instance and in a test that sends
