@@ -1,5 +1,11 @@
 import type { RecordState } from '@opengewerk/domain'
-import { isInvoice, paymentTermLabel, statesPaymentTerm, taxTreatments } from '@opengewerk/domain'
+import {
+  isInvoice,
+  paymentTermLabel,
+  servicePeriodProblem,
+  statesPaymentTerm,
+  taxTreatments,
+} from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
@@ -170,14 +176,22 @@ function HeaderForm({
   // Empty is not a mistake here, it hands the document back to the setting.
   const termRead = term.trim() === '' ? null : daysFrom(term)
   const termProblem = termRead !== null && 'problem' in termRead ? termRead.problem : null
+  // The period as it is sent: a last day without a first is dropped below,
+  // so it is no mistake here either.
+  const periodProblem = invoice
+    ? servicePeriodProblem(serviceFrom, serviceFrom.trim() === '' ? null : serviceUntil)
+    : null
 
   async function save(event: FormEvent) {
     event.preventDefault()
 
-    // The server would refuse it with the same sentence; said here, it never
-    // reaches the outbox, where a refusal would hold up everything behind it.
-    if (termProblem !== null) {
-      setTrouble(termProblem)
+    // The server would refuse either with the same sentence; said here, it
+    // never reaches the outbox, where a refusal would hold up everything
+    // behind it. A service period that ended before it began did, until #118.
+    const problem = periodProblem ?? termProblem
+
+    if (problem !== null) {
+      setTrouble(problem)
 
       return
     }
@@ -258,6 +272,7 @@ function HeaderForm({
               onChange={(event) => {
                 setServiceUntil(event.target.value)
               }}
+              {...(periodProblem === null ? {} : { problem: periodProblem })}
             />
           </>
         ) : null}

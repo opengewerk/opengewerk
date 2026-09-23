@@ -869,6 +869,25 @@ describe('invoices in the chain', () => {
     expect(await screen.findByText('01.09.2026 bis 15.09.2026')).toBeDefined()
   })
 
+  it('refuse a time of the work that ends before it begins, before anything is queued', async () => {
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice' })],
+      document_lines: [line('l-1', 1)],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
+    await person.type(screen.getByLabelText('Leistung von'), '2026-09-15')
+    await person.type(screen.getByLabelText('Leistung bis'), '2026-09-01')
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    // Left to the server, it held up everything queued behind it (#118).
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Der letzte Tag der Leistung liegt vor dem ersten.',
+    )
+    expect(server.operationsOn('documents')).toHaveLength(0)
+  })
+
   it('leave the time of the work off a quote, which states none', async () => {
     await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
 
