@@ -182,7 +182,7 @@ Was diese Vorlage bewusst noch nicht kann: Skonto, Reverse Charge mit den Angabe
 Ein PDF lokal ansehen geht mit demselben Renderer wie im Betrieb:
 
 ```bash
-docker run -d --rm --name renderer -p 127.0.0.1:3999:3000 -e TOKEN=probe ghcr.io/browserless/chromium:latest
+docker run -d --rm --name renderer -p 127.0.0.1:3999:3000 -e TOKEN=probe ghcr.io/browserless/chromium:v2.56.7@sha256:b1ba7b054af2891a8199f884d4bd249cf8c3bd2fa8a97b339077e40f92803ba8
 ```
 
 und dann `RENDERER_URL=http://127.0.0.1:3999` und `RENDERER_TOKEN=probe` für den Server. Die Tests der Route arbeiten mit einem Ersatz, der feste Bytes zurückgibt. Den echten Renderer fragen in der CI zwei Jobs: der zur E-Rechnung, der mit ihm Muster für Mustang druckt, und der Betrieb über Docker Compose, der aus dem Standardstapel ein PDF holt.
@@ -629,6 +629,15 @@ Zusage aus ADR 0007.
 > entschieden, nur leichter zu entscheiden: die Naht dafür ist `Renderer` in
 > `packages/server/src/documents/renderer.ts`, und ein Wechsel ändert keine
 > Vorlage.
+>
+> Das Abbild steht seit #153 auf einer festen Fassung mit Digest, in
+> `docker/compose.yaml` und im Job "E-Rechnung gegen KoSIT und Mustang" derselben;
+> ein Schritt dort prüft, dass beide übereinstimmen. Ein Update ist ein Pull
+> Request, der beide Stellen ändert, und die CI druckt damit, bevor es eine
+> Installation tut. `chromium` ist schon das schlankste Abbild von browserless,
+> die übrigen bringen Firefox und WebKit mit. Kleiner ginge es nur mit einem
+> eigenen Dienst um Chromium herum statt der fertigen Schnittstelle, und das lohnt
+> sich erst, wenn Platz oder Speicher wirklich knapp werden.
 
 ### Zwei Rollen, nicht eine
 
