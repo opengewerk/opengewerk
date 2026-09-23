@@ -227,9 +227,14 @@ services:
       - files:/var/lib/opengewerk/storage:ro
       - ${BACKUP_TARGET:-backups}:/var/lib/opengewerk/backups
       - backup-status:/var/lib/opengewerk/backup-status
+    # After the migration, like the application: the schedule checks at once
+    # when it starts, and before the migration there is not even a table of
+    # businesses to ask.
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   database:

@@ -56,8 +56,16 @@ if [ ! -d "$STORAGE_PATH" ]; then
 fi
 
 if [ "$scheduled" = true ]; then
-	businesses=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
-		--tuples-only --no-align --quiet --command "select count(*) from tenants")
+	# A database that is not migrated yet has no table of businesses at all,
+	# and nothing in it to back up either.
+	migrated=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
+		--tuples-only --no-align --quiet --command "select to_regclass('public.tenants') is not null")
+	businesses=0
+
+	if [ "$migrated" = "t" ]; then
+		businesses=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
+			--tuples-only --no-align --quiet --command "select count(*) from tenants")
+	fi
 
 	if [ "$businesses" = "0" ]; then
 		echo "Keine Betriebe in der Datenbank. Die geplante Sicherung wird übersprungen, damit"
