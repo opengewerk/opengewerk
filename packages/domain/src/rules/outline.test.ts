@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { DocumentContentV1, LineContent } from '../model/document-content.js'
 import { deducts, documentKinds, successorsOf } from '../model/document.js'
 import { currentContent } from './document-content.js'
-import { outlineRows } from './outline.js'
+import { movedInOutline, outlineRows } from './outline.js'
 
 /**
  * The outline is what a quote reads like: numbered, sectioned, with a sum
@@ -76,6 +76,105 @@ describe('the outline of a document', () => {
     expect(
       shape(outlineRows([item('Anfahrt', 4500), title('Keller'), item('Leitung', 100)])),
     ).toEqual(['1 Anfahrt', '1 Keller', '1.1 Leitung', 'Summe 1: 100'])
+  })
+})
+
+describe('moving a line', () => {
+  const quote = [
+    item('Anfahrt', 4500),
+    title('Erdgeschoss'),
+    item('Unterverteilung', 124000),
+    item('Steckdosen', 18000),
+    title('Obergeschoss'),
+    item('Leitungen', 32000),
+  ]
+
+  function moved(designation: string, step: -1 | 1) {
+    const index = quote.findIndex((line) => line.designation === designation)
+    const order = movedInOutline(quote, index, step)
+
+    return order && order.map((line) => line.designation)
+  }
+
+  it('takes a title down with its positions, over the whole section below', () => {
+    expect(moved('Erdgeschoss', 1)).toEqual([
+      'Anfahrt',
+      'Obergeschoss',
+      'Leitungen',
+      'Erdgeschoss',
+      'Unterverteilung',
+      'Steckdosen',
+    ])
+  })
+
+  it('takes a title up with its positions, over the whole section above', () => {
+    const order = movedInOutline(quote, 4, -1)
+
+    expect(order && shape(outlineRows(order))).toEqual([
+      '1 Anfahrt',
+      '1 Obergeschoss',
+      '1.1 Leitungen',
+      'Summe 1: 32000',
+      '2 Erdgeschoss',
+      '2.1 Unterverteilung',
+      '2.2 Steckdosen',
+      'Summe 2: 142000',
+    ])
+  })
+
+  it('moves a title without positions like any other section', () => {
+    const lines = [title('Reserve'), title('Keller'), item('Leitung', 100)]
+
+    expect(movedInOutline(lines, 0, 1)?.map((line) => line.designation)).toEqual([
+      'Keller',
+      'Leitung',
+      'Reserve',
+    ])
+  })
+
+  it('does not take the first title above the positions before it, which would join them', () => {
+    expect(moved('Erdgeschoss', -1)).toBeNull()
+    expect(moved('Obergeschoss', 1)).toBeNull()
+  })
+
+  it('moves a position one line, across a title into the next section', () => {
+    expect(moved('Steckdosen', 1)).toEqual([
+      'Anfahrt',
+      'Erdgeschoss',
+      'Unterverteilung',
+      'Obergeschoss',
+      'Steckdosen',
+      'Leitungen',
+    ])
+    expect(moved('Unterverteilung', -1)).toEqual([
+      'Anfahrt',
+      'Unterverteilung',
+      'Erdgeschoss',
+      'Steckdosen',
+      'Obergeschoss',
+      'Leitungen',
+    ])
+  })
+
+  it('does not move the first line up or the last one down', () => {
+    expect(moved('Anfahrt', -1)).toBeNull()
+    expect(moved('Leitungen', 1)).toBeNull()
+  })
+
+  it('keeps every line exactly once, whatever moves where', () => {
+    for (const [index] of quote.entries()) {
+      for (const step of [-1, 1] as const) {
+        const order = movedInOutline(quote, index, step)
+
+        if (order) {
+          expect(
+            [...order].sort((left, right) => left.designation.localeCompare(right.designation)),
+          ).toEqual(
+            [...quote].sort((left, right) => left.designation.localeCompare(right.designation)),
+          )
+        }
+      }
+    }
   })
 })
 

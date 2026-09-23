@@ -513,6 +513,40 @@ describe('a quote with titles', () => {
     )
   })
 
+  it('moves a title with its positions, over the whole section below it (#152)', async () => {
+    await mount('/belege/d-1', { document_lines: outlined })
+
+    // The first title cannot go up and the last one cannot go down: there is
+    // no section on that side to jump over.
+    expect(await screen.findByRole('button', { name: '1 nach oben' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    expect(screen.getByRole('button', { name: '2 nach unten' })).toHaveProperty('disabled', true)
+
+    await userEvent.setup().click(screen.getByRole('button', { name: '1 nach unten' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(5)
+    })
+
+    const moved = new Map(
+      server
+        .operationsOn('document_lines')
+        .map((operation) => [operation.recordId, valuesOf(operation)['position']]),
+    )
+
+    expect(moved).toEqual(
+      new Map([
+        ['l-4', 1],
+        ['l-5', 2],
+        ['l-1', 3],
+        ['l-2', 4],
+        ['l-3', 5],
+      ]),
+    )
+  })
+
   it('takes the text above the lines from a snippet and sends it with the head', async () => {
     await mount('/belege/d-1')
     const person = userEvent.setup()
