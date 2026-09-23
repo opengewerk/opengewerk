@@ -6,7 +6,14 @@ import { describe, expect, it } from 'vitest'
 import { SyncClient } from '../sync/client.js'
 import { openLocalStore } from '../sync/store.js'
 import { TestServer } from '../sync/test-server.js'
-import { entriesOf, instantOf, parseStopwatch, recordEntry } from './time.js'
+import {
+  entriesOf,
+  instantOf,
+  parseStopwatch,
+  recordEntry,
+  startStopwatch,
+  stopStopwatch,
+} from './time.js'
 
 describe('a clock time typed on site', () => {
   it('is read as the time on a wall in Germany, summer and winter', () => {
@@ -90,6 +97,40 @@ describe('an entry typed by hand', () => {
     expect(client.status().pending).toBe(0)
     expect(await recordEntry(client, entry)).toMatchObject({ outcome: 'queued' })
     expect(client.status().pending).toBe(1)
+
+    client.stop()
+  })
+})
+
+describe('a stopwatch that stops', () => {
+  it('records whole minutes, so that the list and the duration agree', async () => {
+    const server = new TestServer()
+    const client = await SyncClient.start({
+      store: await openLocalStore('zeiten-minuten'),
+      transport: server,
+      writer: server,
+      deviceId: 'geraet',
+      entities: ['time_entries'],
+      onSignedOut: () => {},
+    })
+    const timing = { client, me: 'u-1', consent: false }
+
+    await startStopwatch(
+      { ...timing, now: new Date('2026-09-21T05:00:40.000Z') },
+      { kind: 'work', jobId: null },
+    )
+    await stopStopwatch({ ...timing, now: new Date('2026-09-21T06:00:10.000Z') })
+    await client.synchronise()
+
+    expect(
+      server
+        .operations()
+        .map((operation) =>
+          Object.fromEntries(operation.patches.map((patch) => [patch.field, patch.to])),
+        ),
+    ).toEqual([
+      { kind: 'work', startedAt: '2026-09-21T05:00:00.000Z', endedAt: '2026-09-21T06:00:00.000Z' },
+    ])
 
     client.stop()
   })

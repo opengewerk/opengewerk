@@ -198,6 +198,16 @@ export interface Timing {
 const shortest = 60_000
 
 /**
+ * An instant on its whole minute. A record of working time is read to the
+ * minute, and one that kept the seconds would show "16:39 bis 16:40" beside a
+ * duration of two minutes. Both ends fall to their minute, so what is shown is
+ * what is stored; after at least a minute the end still lies after the start.
+ */
+function onTheMinute(at: Date): string {
+  return new Date(Math.floor(at.getTime() / 60_000) * 60_000).toISOString()
+}
+
+/**
  * Stops the stopwatch and writes what it timed as an entry, through the
  * outbox. The sentence to show, or null when it is done.
  *
@@ -226,8 +236,8 @@ export async function stopStopwatch({
   const values = {
     kind: running.kind,
     jobId: running.jobId,
-    startedAt: running.startedAt,
-    endedAt: now.toISOString(),
+    startedAt: onTheMinute(new Date(running.startedAt)),
+    endedAt: onTheMinute(now),
   }
   const problem = timeEntryProblem(values)
 

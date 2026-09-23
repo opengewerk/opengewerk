@@ -185,9 +185,15 @@ export function TimeScreen() {
             {days.map((day) => (
               <tr key={day.on}>
                 <Cell>{`${day.name}, ${date(day.on)}`}</Cell>
-                <Cell numeric>{hoursText(day.work)}</Cell>
-                <Cell numeric>{hoursText(day.travel)}</Cell>
-                <Cell numeric>{hoursText(day.pause)}</Cell>
+                <Cell numeric className="whitespace-nowrap">
+                  {hoursText(day.work)}
+                </Cell>
+                <Cell numeric className="whitespace-nowrap">
+                  {hoursText(day.travel)}
+                </Cell>
+                <Cell numeric className="whitespace-nowrap">
+                  {hoursText(day.pause)}
+                </Cell>
                 <Cell>
                   {day.warnings.length === 0 ? (
                     <span className="text-ink-muted">keine Hinweise</span>
@@ -284,9 +290,9 @@ function EntryTable({
 
           return (
             <tr key={id} className={counting.has(id) ? undefined : 'text-ink-muted'}>
-              <Cell>{date(berlinDay(start))}</Cell>
-              <Cell>{clockOf(start)}</Cell>
-              <Cell>{clockOf(end)}</Cell>
+              <Cell className="whitespace-nowrap">{date(berlinDay(start))}</Cell>
+              <Cell className="whitespace-nowrap">{clockOf(start)}</Cell>
+              <Cell className="whitespace-nowrap">{clockOf(end)}</Cell>
               <Cell>{timeEntryKindLabel[timeEntryKindOf(entry)]}</Cell>
               <Cell>
                 {job ? (
@@ -300,7 +306,9 @@ function EntryTable({
                   <span className="text-ink-faint">keinem</span>
                 )}
               </Cell>
-              <Cell numeric>{hoursText(minutesBetween(start, end))}</Cell>
+              <Cell numeric className="whitespace-nowrap">
+                {hoursText(minutesBetween(start, end))}
+              </Cell>
               <Cell>{state}</Cell>
             </tr>
           )
@@ -356,8 +364,12 @@ export function JobTimeSection({ jobId }: { readonly jobId: string }) {
             {byPerson.map((row) => (
               <tr key={row.userId}>
                 <Cell>{nameOf(row.userId, people)}</Cell>
-                <Cell numeric>{hoursText(row.work)}</Cell>
-                <Cell numeric>{hoursText(row.travel)}</Cell>
+                <Cell numeric className="whitespace-nowrap">
+                  {hoursText(row.work)}
+                </Cell>
+                <Cell numeric className="whitespace-nowrap">
+                  {hoursText(row.travel)}
+                </Cell>
               </tr>
             ))}
           </tbody>
