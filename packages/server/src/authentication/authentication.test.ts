@@ -369,6 +369,42 @@ describe('the second factor', () => {
 
     const refused = await http().get('/customers').set('cookie', withCookies(cookies)).expect(403)
     expect(refused.body.message).toContain('zweiter Faktor')
+    // The way that exists, and no other: a passkey cannot be set up here.
+    expect(refused.body.message).toContain('Authenticator-App')
+    expect(refused.body.message).not.toContain('Passkey')
+  })
+
+  /**
+   * Passkeys are off until they can be listed and revoked (GHSA-jghx-6wmh-mpcj).
+   * With the plugin on, a session could register one without confirming
+   * anything, and signing in with it skipped the second factor. So the routes
+   * are not there at all, the one that registers and the one that signs in.
+   */
+  it('cannot be gone round with a passkey, because there are no passkey routes', async () => {
+    const cookies = await signIn(office.email)
+
+    // The routes of better-auth's passkey plugin 1.7, each with its method.
+    // With the plugin on, the first answers with options, the list with an
+    // empty array and the sign in with a refusal of its body, none with 404.
+    for (const path of [
+      '/passkey/generate-register-options',
+      '/passkey/generate-authenticate-options',
+      '/passkey/list-user-passkeys',
+    ]) {
+      await http()
+        .get(`${authenticationPath}${path}`)
+        .set('cookie', withCookies(cookies))
+        .expect(404)
+    }
+
+    for (const path of ['/passkey/verify-registration', '/passkey/verify-authentication']) {
+      await http()
+        .post(`${authenticationPath}${path}`)
+        .set('cookie', withCookies(cookies))
+        .set('origin', origin)
+        .send({})
+        .expect(404)
+    }
   })
 
   it('is not required of the office, who works as usual', async () => {

@@ -1,5 +1,4 @@
 import { hash, verify } from '@node-rs/argon2'
-import { passkey } from '@better-auth/passkey'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { twoFactor } from 'better-auth/plugins'
@@ -7,7 +6,6 @@ import { twoFactor } from 'better-auth/plugins'
 import type { Database } from '../database/database.js'
 import {
   authAccounts,
-  authPasskeys,
   authRateLimits,
   authSessions,
   authTwoFactors,
@@ -82,8 +80,9 @@ export interface AuthenticationOptions {
 export type Authentication = ReturnType<typeof createAuthentication>
 
 /**
- * The authentication, as ADR 0006 cut it: better-auth's core with sessions,
- * passkeys and TOTP, and nothing else.
+ * The authentication, as ADR 0006 cut it: better-auth's core with sessions and
+ * TOTP, and nothing else. Passkeys are part of the cut as well and switched off
+ * until they can be listed and revoked, see the plugins below.
  *
  * What is deliberately absent is as much the decision as what is here. No
  * magic link, because that is the way into the customer portal and it is the
@@ -114,7 +113,6 @@ export function createAuthentication({
         account: authAccounts,
         verification: authVerifications,
         twoFactor: authTwoFactors,
-        passkey: authPasskeys,
         rateLimit: authRateLimits,
       },
     }),
@@ -182,9 +180,12 @@ export function createAuthentication({
       twoFactor({
         issuer: 'OpenGewerk',
       }),
-      passkey({
-        rpName: 'OpenGewerk',
-      }),
+      // No passkeys for now (GHSA-jghx-6wmh-mpcj). With the plugin on, any
+      // session could register one without confirming anything, signing in
+      // with it skipped the second factor, and nobody could see or revoke the
+      // passkeys an account had. They come back with a screen that lists and
+      // revokes them, a confirmation before registering one and an answer to
+      // whether a passkey counts as the second factor (ADR 0006).
     ],
   })
 }

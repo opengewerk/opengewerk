@@ -2,8 +2,9 @@ import type { Identity, Permission } from '@opengewerk/domain'
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common'
 
 /**
- * Where an identity comes from. Sessions, passkeys and the rest arrive with
- * the authentication work; this is the seam they plug into.
+ * Where an identity comes from: the session of better-auth on an instance, a
+ * header in the tests, the one fixed person in the preview. This is the seam
+ * they plug into.
  *
  * There is deliberately no default implementation. A server without one does
  * not start, because Nest cannot resolve the provider, and that is the right

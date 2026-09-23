@@ -161,6 +161,11 @@ export const authTwoFactors = pgTable(
  * A passkey. The better option of the two second factors on a building site:
  * it needs no phone in a pocket under a jacket, and it cannot be read out over
  * the shoulder.
+ *
+ * Nothing writes this table while passkeys are switched off
+ * (GHSA-jghx-6wmh-mpcj). It stays, empty, for the day they come back with a
+ * screen to list and revoke them; dropping it now and creating it again then
+ * would be two migrations for nothing.
  */
 export const authPasskeys = pgTable(
   'auth_passkeys',
