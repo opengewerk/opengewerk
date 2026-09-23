@@ -239,3 +239,35 @@ export function invitationMessage(facts: {
 
   return { subject: `Einladung zu OpenGewerk von ${facts.issuer.name}`, body }
 }
+
+/**
+ * The mail with the link to a new password (#126).
+ *
+ * What was asked for, the link, and the three things that come with it: it
+ * works once and for an hour, every device is signed out afterwards, and
+ * somebody who asked for nothing has nothing to do. The last one matters most,
+ * because anybody can type an address into the form.
+ */
+export function passwordResetMessage(facts: {
+  readonly name: string
+  readonly link: string
+  readonly business: string
+}): MessageText {
+  const body = [
+    facts.name ? `Hallo ${facts.name},` : 'Hallo,',
+    '',
+    'für Ihren Zugang zu OpenGewerk wurde ein neues Passwort angefordert. Über diesen Link ' +
+      'wählen Sie es:',
+    '',
+    facts.link,
+    '',
+    'Der Link gilt eine Stunde und funktioniert genau einmal. Danach sind alle Geräte ' +
+      'abgemeldet, auf denen Sie angemeldet waren. Wenn Sie kein neues Passwort angefordert ' +
+      'haben, müssen Sie nichts tun: das alte gilt weiter.',
+    '',
+    '-- ',
+    facts.business,
+  ].join('\n')
+
+  return { subject: 'Ein neues Passwort für OpenGewerk', body }
+}

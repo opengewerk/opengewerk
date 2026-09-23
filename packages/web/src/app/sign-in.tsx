@@ -9,6 +9,7 @@ import { roleLabel } from './labels.js'
 import {
   chooseTenant,
   recoveryCodesLeft,
+  requestPasswordReset,
   signIn,
   verifyRecoveryCode,
   verifySecondFactor,
@@ -58,6 +59,35 @@ export function SignInScreen({
   const [password, setPassword] = useState('')
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+
+  const [asked, setAsked] = useState(false)
+
+  /**
+   * A link to a new password for the address in the field (#126). The answer
+   * says the same whether there is an account or not, like the sign in.
+   */
+  async function forgotten() {
+    setTrouble(null)
+
+    if (!email.includes('@')) {
+      setTrouble(
+        'Zuerst oben die E-Mail-Adresse eintragen, für die ein neues Passwort kommen soll.',
+      )
+
+      return
+    }
+
+    setWorking(true)
+
+    try {
+      await requestPasswordReset(email)
+      setAsked(true)
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Der Link ließ sich gerade nicht anfordern.'))
+    } finally {
+      setWorking(false)
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -122,6 +152,25 @@ export function SignInScreen({
         <Button type="submit" tone="primary" wide disabled={working}>
           {working ? 'Einen Moment' : 'Anmelden'}
         </Button>
+
+        {asked ? (
+          <p role="status" className="text-body">
+            Wenn es zu dieser Adresse einen Zugang gibt und ein Betrieb, in dem er arbeitet, E-Mails
+            verschickt, ist ein Link zu einem neuen Passwort unterwegs. Er gilt eine Stunde. Kommt
+            keiner an, hilft der Inhaber des Betriebs weiter.
+          </p>
+        ) : (
+          <Button
+            tone="quiet"
+            wide
+            disabled={working}
+            onClick={() => {
+              void forgotten()
+            }}
+          >
+            Passwort vergessen?
+          </Button>
+        )}
       </form>
     </Gate>
   )

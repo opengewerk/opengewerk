@@ -533,21 +533,38 @@ Maschine ohne Browser.
 docker compose -f docker/compose.yaml exec app node dist/add-staff.js <betriebs-id> monteur@betrieb.de "Max Beispiel" technician
 ```
 
-**Ohne Passwort im Aufruf, und das ist der Normalfall.** Fehlt
-`OPENGEWERK_PASSWORD`, erzeugt der Befehl eines und gibt es einmal aus, in fünf
-Fünfergruppen aus einem Alphabet ohne `i`, `l`, `o` und `u`, damit es niemand
-falsch abliest. Es steht dann auf dem Terminal dessen, der den Befehl abgesetzt
-hat, und nirgends sonst: nicht im Protokoll des Containers, das jemand
-weitergibt, wenn er um Hilfe bittet, nicht in der Prozessliste und nicht in der
-Umgebung. Beim ersten Anmelden gehört es ersetzt.
+**Das Passwort fragt der Befehl verdeckt ab**, zweimal, wie `passwd`. Es
+erscheint weder auf dem Bildschirm noch in der Prozessliste oder im Verlauf der
+Shell. Hat es jemand anderes gewählt als die Person selbst, gehört es beim
+ersten Anmelden ersetzt, unter "Konto" im Büro. Aus einem Skript heraus, ohne
+Terminal, kommt es aus `OPENGEWERK_PASSWORD`, mit derselben Untergrenze von
+zwölf Zeichen; ein Skript, das eine Instanz aufsetzt, erzeugt es also selbst,
+etwa mit `openssl rand -hex 16`. Als Argument geht es nicht und soll es nicht:
+ein Argument steht in der Prozessliste und im Verlauf der Shell, wo es
+monatelang liegen bleibt.
 
-Wer eines vorgeben will, setzt `OPENGEWERK_PASSWORD`, und dann gilt weiter die
-Untergrenze von zwölf Zeichen. Als Argument geht es nicht und soll es nicht: ein
-Argument steht in der Prozessliste und im Verlauf der Shell, wo es monatelang
-liegen bleibt.
+Ein Passwort erzeugen und ausgeben tut der Befehl nicht. Ein ausgegebenes
+Passwort steht im Verlauf des Terminals und gilt, bis jemand es ersetzt.
 
-Gab es das Konto schon, sagt der Befehl das und rührt das Passwort nicht an. Nur
-die Rollen im genannten Betrieb ändern sich.
+Gab es das Konto schon, fragt der Befehl nach keinem Passwort und rührt das
+bisherige nicht an. Nur die Rollen im genannten Betrieb ändern sich.
+
+**Ein Passwort ändern und zurückholen.** Unter "Konto" ändert jeder sein
+Passwort mit dem bisherigen als Bestätigung; alle anderen Geräte des Zugangs
+sind danach abgemeldet. Wer es vergessen hat, fordert auf der Anmeldung mit
+"Passwort vergessen?" einen Link an. Er kommt über den Mailserver eines Betriebs,
+in dem der Zugang arbeitet, gilt eine Stunde und einmal, und danach ist jedes
+Gerät abgemeldet. Die Antwort ist dieselbe, ob es zu der Adresse einen Zugang
+gibt oder nicht. Ein eingerichteter zweiter Faktor gilt danach weiter. Verschickt
+kein Betrieb des Zugangs E-Mails, bleibt die Kommandozeile:
+
+```bash
+docker compose -f docker/compose.yaml exec app node dist/reset-password.js monteur@betrieb.de
+```
+
+Wie `add-staff` fragt der Befehl das neue Passwort verdeckt ab, und aus einem
+Skript heraus kommt es aus `OPENGEWERK_PASSWORD`. Alle Geräte des Zugangs sind
+danach abgemeldet.
 
 Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschirm
 "Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst

@@ -2,25 +2,26 @@ import type { RoleKey, TenantId } from '@opengewerk/domain'
 import { roleKeys } from '@opengewerk/domain'
 
 import { createAuthentication } from './authentication/authentication.js'
-import { generatePassword, shortestPassword } from './authentication/password.js'
-import { addStaffMember } from './authentication/staff.js'
+import { readNewPassword } from './authentication/password.js'
+import { accountExists, addStaffMember } from './authentication/staff.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
 
 /**
- * Puts a person into a business from the command line, and the only way an
- * account comes into being at all.
+ * Puts a person into a business from the command line.
  *
- * Signing up is switched off, so without this a freshly installed instance
- * would start, migrate, answer its health check and have no way in. There is
- * no screen for staff yet; when there is, this stays, because the first owner
- * of an instance has to be created before anybody can log in to create one.
+ * Signing up is switched off. The first owner of an instance comes from the
+ * first run setup in the browser (#62), everybody after them from a link the
+ * office sends (#63). This stays next to both as the way back when somebody
+ * has shut themselves out, and as the only way on a machine without a browser.
  *
- * The password is read from `OPENGEWERK_PASSWORD` rather than taken as an
- * argument. An argument stands in the process list and in the shell history,
- * where it is read by anybody on the machine and kept for months.
+ * The password is asked for on the terminal and not shown, or comes from
+ * `OPENGEWERK_PASSWORD` in a script, and never as an argument: an argument
+ * stands in the process list and in the shell history, where it is read by
+ * anybody on the machine and kept for months. Nothing is made up and printed
+ * (`readNewPassword`).
  *
- *     OPENGEWERK_PASSWORD='...' pnpm --filter @opengewerk/server exec \
+ *     docker compose -f docker/compose.yaml exec app \
  *       node dist/add-staff.js <tenant-id> <email> <name> owner
  */
 async function main(): Promise<void> {
@@ -30,9 +31,9 @@ async function main(): Promise<void> {
     throw new ConfigurationError(
       'Aufruf: add-staff <betriebs-id> <e-mail> "<name>" <rolle> [<rolle> ...]\n' +
         `Mögliche Rollen: ${roleKeys.join(', ')}\n` +
-        'Das Passwort wird aus der Umgebungsvariable OPENGEWERK_PASSWORD gelesen, nicht ' +
-        'als Argument übergeben: ein Argument steht in der Prozessliste und im Verlauf der ' +
-        'Shell.',
+        'Das Passwort fragt der Befehl verdeckt ab; aus einem Skript heraus liest er es aus ' +
+        'der Umgebungsvariable OPENGEWERK_PASSWORD, nie aus einem Argument: ein Argument ' +
+        'steht in der Prozessliste und im Verlauf der Shell.',
     )
   }
 
@@ -43,21 +44,6 @@ async function main(): Promise<void> {
       `Unbekannte Rolle: ${unknown.join(', ')}. Möglich sind: ${roleKeys.join(', ')}`,
     )
   }
-
-  const given = process.env['OPENGEWERK_PASSWORD']?.trim()
-
-  if (given !== undefined && given.length < shortestPassword) {
-    // Only when one was given. A password that is there and too short is a
-    // mistake worth stopping for; none at all is the case below.
-    throw new ConfigurationError(
-      `OPENGEWERK_PASSWORD ist kürzer als ${String(shortestPassword)} Zeichen. Kurze ` +
-        'Passwörter sind genau bei der ' +
-        'Anmeldung die teure Stelle, weil sie einmal gesetzt und jahrelang benutzt werden. ' +
-        'Wer keines zur Hand hat, lässt die Variable weg: dann wird eines erzeugt.',
-    )
-  }
-
-  const password = given ?? generatePassword()
 
   const configuration = readConfiguration()
   const database = Database.connect(configuration.databaseUrl)
@@ -70,6 +56,16 @@ async function main(): Promise<void> {
       )
     }
 
+    // An account that is already there keeps its password, so there is
+    // nothing to ask for. Asking anyway would have somebody type a password
+    // the command then throws away.
+    const password = (await accountExists(database, email))
+      ? null
+      : await readNewPassword(process.env['OPENGEWERK_PASSWORD'], {
+          input: process.stdin,
+          output: process.stdout,
+        })
+
     const authentication = createAuthentication({
       database,
       secret: configuration.sessionSecret,
@@ -79,7 +75,10 @@ async function main(): Promise<void> {
     const { created } = await addStaffMember(authentication, database, {
       email,
       name,
-      password,
+      // Ignored for an account that is already there, as with a redeemed
+      // invitation: `createAccount` returns before the empty string reaches
+      // a hasher, and an account is never deleted.
+      password: password ?? '',
       tenantId: tenantId as TenantId,
       roles: roles as RoleKey[],
     })
@@ -90,18 +89,6 @@ async function main(): Promise<void> {
         : `${email} gab es schon auf dieser Instanz. Die Rollen im Betrieb ${tenantId} ` +
             `stehen jetzt auf: ${roles.join(', ')}. Das Passwort ist unverändert.`,
     )
-
-    if (created && given === undefined) {
-      // Once, on standard output, and nowhere else. This command runs under
-      // `docker compose exec`, so what it prints goes to the terminal of
-      // whoever ran it and not into the log of the container, and the log is
-      // what somebody hands over when they ask for help.
-      console.info(`Erzeugtes Passwort: ${password}`)
-      console.info(
-        'Es steht nur hier und nirgends sonst. Beim ersten Anmelden gehört es ersetzt, ' +
-          'denn bis dahin kennt es jeder, der diese Zeile gesehen hat.',
-      )
-    }
 
     if (roles.includes('owner')) {
       console.info(

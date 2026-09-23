@@ -18,6 +18,7 @@ import { readJsonBodiesOnly } from './api/origin.js'
 import { interfacePath, serveInterface } from './interface.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
+import { passwordResetMails } from './mail/password-reset.js'
 import { reachableOnly } from './mail/reach.js'
 import { smtpTransport } from './mail/transport.js'
 import { startMailWorker } from './mail/worker.js'
@@ -57,16 +58,6 @@ async function start(): Promise<void> {
     )
   }
 
-  const authentication = createAuthentication({
-    database,
-    secret: configuration.sessionSecret,
-    trustedOrigins: configuration.trustedOrigins,
-  })
-
-  const identities = configuration.closed
-    ? new ClosedIdentitySource()
-    : new SessionIdentitySource(authentication, database)
-
   // The first trusted origin is the address the instance is reached at, the
   // one a link in a message has to point to.
   const origin = configuration.trustedOrigins[0] ?? ''
@@ -89,6 +80,19 @@ async function start(): Promise<void> {
           internalHosts: configuration.mailInternalHosts,
         }),
       }
+
+  // After the mail, because the link to a new password goes out through the
+  // mail server of a business (#126). A closed instance sends none.
+  const authentication = createAuthentication({
+    database,
+    secret: configuration.sessionSecret,
+    trustedOrigins: configuration.trustedOrigins,
+    passwordResetMail: mail ? passwordResetMails(database, mail) : undefined,
+  })
+
+  const identities = configuration.closed
+    ? new ClosedIdentitySource()
+    : new SessionIdentitySource(authentication, database)
 
   // The file store and the renderer go in whether the instance is open or
   // closed. Closed, nothing reaches them, because every route that would is

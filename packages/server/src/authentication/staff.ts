@@ -1,9 +1,9 @@
 import type { RoleKey, TenantId } from '@opengewerk/domain'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 
 import type { Database, StraddlingTransaction, TenantTransaction } from '../database/database.js'
-import { authAccounts, authUsers, memberships } from '../database/schema/index.js'
+import { authAccounts, authSessions, authUsers, memberships } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
 
 /** What better-auth hands out once it has read its own configuration. */
@@ -144,4 +144,79 @@ export async function addStaffMember(
       return { userId, created }
     },
   )
+}
+
+/**
+ * Whether the instance has an account for this address. `reset-password` asks
+ * before the question for a new password, not after it has been typed.
+ */
+export async function accountExists(database: Database, email: string): Promise<boolean> {
+  const address = email.trim().toLowerCase()
+
+  return database.forInstance(async (tx) => {
+    const [user] = await tx
+      .select({ id: authUsers.id })
+      .from(authUsers)
+      .where(eq(authUsers.email, address))
+      .limit(1)
+
+    return user !== undefined
+  })
+}
+
+/**
+ * A new password for an account that exists, from the command line (#126).
+ *
+ * The way back without a mail: for somebody whose business sends none, and
+ * for the owner who has forgotten theirs and is the only one who could have
+ * sent a link. Hashed by better-auth's hasher like every other password, and
+ * every session of the account is ended, because whoever knew the old
+ * password must not stay signed in with it. The second factor stays as it
+ * was: an owner still needs it after this, and so does anybody who set one up.
+ *
+ * Says whether there was such an account, and does nothing when there was not.
+ */
+export async function replacePassword(
+  authentication: Authentication,
+  database: Database,
+  person: { readonly email: string; readonly password: string },
+): Promise<boolean> {
+  const context = await authentication.$context
+  const email = person.email.trim().toLowerCase()
+  const hashed = await context.password.hash(person.password)
+
+  return database.forInstance(async (tx) => {
+    const [user] = await tx
+      .select({ id: authUsers.id })
+      .from(authUsers)
+      .where(eq(authUsers.email, email))
+      .limit(1)
+
+    if (!user) {
+      return false
+    }
+
+    const changed = await tx
+      .update(authAccounts)
+      .set({ password: hashed, updatedAt: new Date() })
+      .where(and(eq(authAccounts.userId, user.id), eq(authAccounts.providerId, 'credential')))
+      .returning({ id: authAccounts.id })
+
+    if (changed.length === 0) {
+      // An account without a password of its own, which OpenGewerk does not
+      // make. One is added rather than leaving the command to report success
+      // that changes nothing.
+      await tx.insert(authAccounts).values({
+        id: uuidv7(),
+        userId: user.id,
+        providerId: 'credential',
+        accountId: user.id,
+        password: hashed,
+      })
+    }
+
+    await tx.delete(authSessions).where(eq(authSessions.userId, user.id))
+
+    return true
+  })
 }

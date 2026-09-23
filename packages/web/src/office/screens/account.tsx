@@ -7,10 +7,12 @@ import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
 import {
+  changePassword,
   devices,
   newRecoveryCodes,
   recoveryCodesLeft,
   revokeDevice,
+  shortestPassword,
   signOut,
 } from '../../session/session.js'
 import { RequestRefused } from '../../sync/transport.js'
@@ -110,6 +112,15 @@ export function AccountScreen() {
             </div>
           </div>
         )}
+      </Section>
+
+      <Section title="Passwort">
+        <PasswordChange
+          onChanged={() => {
+            // The other devices are signed out, so the list is a step behind.
+            void queries.invalidateQueries({ queryKey: ['devices'] })
+          }}
+        />
       </Section>
 
       <Section title="Angemeldete Geräte">
@@ -283,5 +294,112 @@ function RecoveryCodes() {
         )}
       </div>
     </Card>
+  )
+}
+
+/**
+ * A new password with the old one as confirmation (#126). A password that
+ * somebody else chose on the command line, or one somebody else has seen, is
+ * replaced here; every other device of the account is signed out with it.
+ */
+function PasswordChange({ onChanged }: { readonly onChanged: () => void }) {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [repeated, setRepeated] = useState('')
+  const [working, setWorking] = useState(false)
+  const [said, setSaid] = useState<{ readonly ok: boolean; readonly text: string } | null>(null)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setSaid(null)
+
+    if (next.length < shortestPassword) {
+      setSaid({
+        ok: false,
+        text: `Das neue Passwort braucht mindestens ${String(shortestPassword)} Zeichen.`,
+      })
+
+      return
+    }
+
+    if (next !== repeated) {
+      setSaid({ ok: false, text: 'Die beiden neuen Passwörter sind nicht gleich.' })
+
+      return
+    }
+
+    setWorking(true)
+
+    try {
+      await changePassword(current, next)
+      setCurrent('')
+      setNext('')
+      setRepeated('')
+      setSaid({ ok: true, text: 'Geändert. Alle anderen Geräte dieses Zugangs sind abgemeldet.' })
+      onChanged()
+    } catch (error) {
+      setSaid({
+        ok: false,
+        text:
+          error instanceof RequestRefused
+            ? 'Das Passwort wurde nicht geändert. Stimmt das bisherige?'
+            : 'Die Änderung kam nicht an. Bitte gleich noch einmal.',
+      })
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <form
+      className="flex max-w-md flex-col gap-3"
+      onSubmit={(event) => {
+        void submit(event)
+      }}
+    >
+      <Field
+        label="Bisheriges Passwort"
+        type="password"
+        autoComplete="current-password"
+        required
+        value={current}
+        onChange={(event) => {
+          setCurrent(event.target.value)
+        }}
+      />
+      <Field
+        label="Neues Passwort"
+        type="password"
+        autoComplete="new-password"
+        required
+        value={next}
+        onChange={(event) => {
+          setNext(event.target.value)
+        }}
+      />
+      <Field
+        label="Neues Passwort wiederholen"
+        type="password"
+        autoComplete="new-password"
+        required
+        value={repeated}
+        onChange={(event) => {
+          setRepeated(event.target.value)
+        }}
+      />
+      {said ? (
+        <p
+          role={said.ok ? 'status' : 'alert'}
+          className={said.ok ? 'text-body' : 'text-body font-semibold text-conflict'}
+        >
+          {said.text}
+        </p>
+      ) : null}
+      <div>
+        <Button type="submit" tone="primary" disabled={working}>
+          {working ? 'Wird geändert' : 'Passwort ändern'}
+        </Button>
+      </div>
+    </form>
   )
 }
