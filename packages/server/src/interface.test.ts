@@ -8,6 +8,7 @@ import request from 'supertest'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { interfacePath, serveInterface } from './interface.js'
+import { sendSecurityHeaders, shellPolicy } from './security-headers.js'
 
 /**
  * A built interface, as small as one can be and still have two shells.
@@ -167,5 +168,59 @@ describe('the interface the server hands out', () => {
       expect(answer.text).not.toContain('opengewerk')
       expect(answer.text).not.toContain('dependencies')
     }
+  })
+})
+
+describe('the security headers (#131)', () => {
+  /**
+   * The shells are the documents script runs in, so they carry the policy,
+   * both on the fallback that answers a navigation and on the file the
+   * service worker keeps: offline, a navigation is answered from what it
+   * kept, headers and all.
+   */
+  it('put the policy on both shells, however they are asked for', async () => {
+    for (const path of [
+      '/',
+      '/auftraege/1',
+      '/m',
+      '/m/auftraege/1',
+      '/index.html',
+      '/m/index.html',
+    ]) {
+      const answer = await request(application).get(path).expect(200)
+
+      expect([path, answer.headers['content-security-policy']]).toEqual([path, shellPolicy])
+    }
+  })
+
+  it('allow nothing from elsewhere, no framing, no plugins and no inline script', () => {
+    expect(shellPolicy).toContain("script-src 'self'")
+    expect(shellPolicy).not.toContain('unsafe-inline')
+    expect(shellPolicy).not.toContain('unsafe-eval')
+    expect(shellPolicy).toContain("frame-ancestors 'none'")
+    expect(shellPolicy).toContain("object-src 'none'")
+    expect(shellPolicy).toContain("connect-src 'self'")
+  })
+
+  it('go on every answer, the API included, set in one place', async () => {
+    const guarded = express()
+
+    sendSecurityHeaders(guarded)
+    guarded.get('/health', (_request, response) => {
+      response.json({ status: 'ok' })
+    })
+
+    const answer = await request(guarded).get('/health').expect(200)
+
+    expect(answer.headers).toMatchObject({
+      'x-content-type-options': 'nosniff',
+      'referrer-policy': 'no-referrer',
+      'x-frame-options': 'DENY',
+      'strict-transport-security': 'max-age=31536000',
+      'cross-origin-opener-policy': 'same-origin',
+      'cross-origin-resource-policy': 'same-origin',
+    })
+    // A policy for script is the shells' business, not an answer's with JSON.
+    expect(answer.headers['content-security-policy']).toBeUndefined()
   })
 })

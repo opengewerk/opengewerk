@@ -859,6 +859,18 @@ wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
 - **Vor die Anwendung gehört ein Reverse Proxy mit TLS.** Sie lauscht
   absichtlich nur auf `127.0.0.1`. Eine Anwendung, die Rechnungen führt, steht
   nicht unverschlüsselt im Netz.
+- **Die Sicherheits-Header setzt die Anwendung selbst, der Proxy setzt sie kein
+  zweites Mal.** Jede Antwort trägt `X-Content-Type-Options`, `Referrer-Policy`,
+  `X-Frame-Options`, `Strict-Transport-Security` und die beiden
+  `Cross-Origin`-Header, die Hüllen dazu die `Content-Security-Policy`
+  (`packages/server/src/security-headers.ts`). Doppelt gilt nicht einfach der
+  strengere Wert: von zwei HSTS-Headern liest ein Browser nur den ersten, von
+  zwei Referrer-Policies die letzte, und eine zweite Content-Security-Policy aus
+  dem Proxy kann nur noch verbieten, was die Anwendung braucht. Setzt der Proxy
+  von sich aus Sicherheits-Header, etwa über eine globale Vorgabe, nimmt er sie
+  für diese Instanz heraus. Soll HSTS länger gelten oder Subdomains
+  einschließen, ersetzt er den Wert, statt einen zweiten Header zu schicken. Ob
+  jeder genau einmal ankommt, zeigt `curl -sI https://<adresse>/`.
 - **Die `.env` ist die einzige Datei mit Zugangsdaten.** `chmod 600`, und sie
   bleibt draußen aus dem Repository.
 

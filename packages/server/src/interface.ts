@@ -4,6 +4,8 @@ import { join, resolve } from 'node:path'
 import express from 'express'
 import type { Express, Request, Response } from 'express'
 
+import { shellPolicy } from './security-headers.js'
+
 /**
  * Serves the built interface from the same process that serves the API.
  *
@@ -113,6 +115,13 @@ export function serveInterface(application: Express, directory: string): void {
           'Cache-Control',
           pointsAtTheRest ? 'no-cache' : 'public, max-age=31536000, immutable',
         )
+
+        // The service worker keeps the shells as they come from here, headers
+        // and all, and answers a navigation with them without a network. So
+        // the policy has to be on this answer too, not only on the fallback.
+        if (path.endsWith('index.html')) {
+          response.setHeader('Content-Security-Policy', shellPolicy)
+        }
       },
       // The fallback below does this, per shell. Leaving it on here would
       // answer `/m/auftraege/…` with the office shell, because that is the
@@ -134,6 +143,7 @@ export function serveInterface(application: Express, directory: string): void {
     }
 
     response.setHeader('Cache-Control', 'no-cache')
+    response.setHeader('Content-Security-Policy', shellPolicy)
     response.type('html').send(request.path.startsWith('/m') ? siteShell : officeShell)
   })
 }

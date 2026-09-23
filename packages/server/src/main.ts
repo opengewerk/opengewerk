@@ -16,6 +16,7 @@ import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
 import { readJsonBodiesOnly } from './api/origin.js'
 import { interfacePath, serveInterface } from './interface.js'
+import { sendSecurityHeaders } from './security-headers.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
 import { passwordResetMails } from './mail/password-reset.js'
@@ -124,6 +125,9 @@ async function start(): Promise<void> {
       bodyParser: false,
     },
   )
+
+  // First of all, so that every answer carries them, better-auth's included.
+  sendSecurityHeaders(application.getHttpAdapter().getInstance())
 
   // Before the body parser, and that order is not a preference. Express reads
   // the stream once; a parser in front would leave better-auth with an empty

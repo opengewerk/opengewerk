@@ -867,6 +867,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Anwendung setzt die Sicherheits-Header, die ADR 0006 verlangt (#131). Die beiden Hüllen
+  tragen eine strikte Content-Security-Policy, nur eigene Herkunft und nichts inline, jede
+  Antwort dazu `nosniff`, `no-referrer`, `X-Frame-Options`, HSTS und die beiden
+  `Cross-Origin`-Header. Bis dahin setzte der Server außer `Cache-Control` keinen einzigen, und
+  die CSP als zweite Linie gegen eingeschleustes Skript fehlte. Die README sagt, dass ein Proxy
+  davor sie nicht ein zweites Mal setzt.
 - Ein Passwort lässt sich ändern und zurückholen (#126). Unter "Konto" mit dem bisherigen als
   Bestätigung, danach sind die anderen Geräte abgemeldet; über "Passwort vergessen?" auf der
   Anmeldung mit einem Link per Mail, eine Stunde und einmal gültig, verschickt über den
