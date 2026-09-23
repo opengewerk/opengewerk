@@ -13,6 +13,7 @@ import {
   deducts,
   lineNetCents,
   lineUnits,
+  movedInOutline,
   outlineRows,
   RuleError,
   shippedRules,
@@ -368,21 +369,22 @@ export function LinesSection({
   const [trouble, setTrouble] = useState<string | null>(null)
 
   /**
-   * Moves a line one step and numbers the whole list afresh. Afresh rather
-   * than by swapping two numbers: after a deletion the numbers have gaps, and
-   * two lines appended on two devices can share one, and a swap of two equal
-   * numbers moves nothing.
+   * Moves a line one step, a title with its section (`movedInOutline`), and
+   * numbers the whole list afresh. Afresh rather than by swapping two numbers:
+   * after a deletion the numbers have gaps, and two lines appended on two
+   * devices can share one, and a swap of two equal numbers moves nothing.
    */
   async function move(id: string, step: -1 | 1) {
-    const order = [...lines]
-    const from = order.findIndex((line) => line.id === id)
-    const [moved] = order.splice(from, 1)
+    const order = movedInOutline(
+      lines,
+      lines.findIndex((line) => line.id === id),
+      step,
+    )
 
-    if (!moved) {
+    if (!order) {
       return
     }
 
-    order.splice(from + step, 0, moved)
     setTrouble(null)
 
     for (const [index, line] of order.entries()) {
@@ -538,16 +540,16 @@ export function LinesSection({
                             <span className="inline-flex flex-wrap gap-1">
                               <IconButton
                                 label={`${row.number} nach oben`}
-                                title="Nach oben"
-                                disabled={index === 0}
+                                title={title ? 'Mit den Positionen nach oben' : 'Nach oben'}
+                                disabled={!movedInOutline(lines, index, -1)}
                                 onClick={() => void move(line.id, -1)}
                               >
                                 ↑
                               </IconButton>
                               <IconButton
                                 label={`${row.number} nach unten`}
-                                title="Nach unten"
-                                disabled={index === lines.length - 1}
+                                title={title ? 'Mit den Positionen nach unten' : 'Nach unten'}
+                                disabled={!movedInOutline(lines, index, 1)}
                                 onClick={() => void move(line.id, 1)}
                               >
                                 ↓

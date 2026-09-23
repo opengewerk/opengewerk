@@ -654,6 +654,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Ein Titel nimmt beim Verschieben seine Positionen mit und springt über den ganzen Abschnitt
+  daneben (#152); eine Position springt weiter über eine Zeile und wechselt so den Abschnitt.
+  Bisher wanderte der Titel allein und stand danach über fremden Positionen oder mitten in
+  einem Abschnitt. Die Regel steht als `movedInOutline` in `domain` neben `outlineRows`, und
+  die Pfeile fragen dieselbe Funktion, ob sie etwas tun können.
 - Sechs Abweichungen zwischen Code und ADRs haben jetzt ihren Nachtrag (#138): Push vor Pull
   und IndexedDB ohne Dexie (ADR 0005), Abgleichspalten und markiertes Löschen nur an den
   Tabellen, die zum Gerät reisen (ADR 0005), keine OpenAPI-Datei aus dem Code und der
