@@ -7,7 +7,9 @@ import type { Express, NextFunction, Request, Response } from 'express'
  * carry no inline script and no inline style, so neither needs a hash or a
  * nonce; React sets the one style it does set through the CSSOM, which the
  * policy does not govern. The service worker, the manifest, the fonts and the
- * icons all come from here as well.
+ * icons all come from here as well. Pictures may also come from `blob:`: the
+ * previews of the files in the records are drawn from the device's own store
+ * (#77), the photo taken in a cellar that no server has seen yet included.
  *
  * On the shells and not on every answer. The shells are the documents script
  * runs in; an answer from the API is JSON or a PDF, and a policy on a PDF only
@@ -17,7 +19,7 @@ export const shellPolicy = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self'",
-  "img-src 'self'",
+  "img-src 'self' blob:",
   "font-src 'self'",
   "connect-src 'self'",
   "worker-src 'self'",

@@ -203,6 +203,25 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * name or pass it off as one the deadline engine made.
    */
   tasks: { create: true, change: 'merge', reserved: ['createdBy'] },
+  /**
+   * A file in the records and where it hangs (#77), written on site as much
+   * as in the office and so without a network: a photo of a type plate taken
+   * in a cellar is the case this is built for. Its places and its name may be
+   * changed like any field work; the file itself is in its versions.
+   */
+  attachments: fieldWork,
+  /**
+   * One version of a file, made once and never changed, like a signature:
+   * `change: 'never'` with no route behind it and a database that grants
+   * reading and inserting. A new version is a new row.
+   *
+   * The bytes travel ahead of the row. A device uploads what a version names
+   * before it sends the version, and the server finds the file by business and
+   * hash; a version whose file never arrived is a conflict about that one
+   * version, not a refusal of the transmission. `createdBy` is the server's,
+   * like the author of a task.
+   */
+  attachment_versions: { create: true, change: 'never', reserved: ['createdBy'] },
 }
 
 /**

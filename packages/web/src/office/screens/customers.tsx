@@ -12,6 +12,7 @@ import type { FormField } from '../../app/record-form.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { AttachmentsSection } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { JobLine, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
@@ -355,6 +356,13 @@ export function CustomerScreen() {
           </ul>
         )}
       </Section>
+
+      <AttachmentsSection
+        field="customerId"
+        id={customerId}
+        home={{ customerId }}
+        empty="Noch keine Datei beim Kunden. Was an einem Objekt oder Auftrag abgelegt wird, steht auch hier."
+      />
 
       <TasksSection
         field="customerId"

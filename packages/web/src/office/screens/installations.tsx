@@ -8,6 +8,7 @@ import { RecordForm } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { AttachmentsSection } from './attachments.js'
 import { BoardsSection } from './boards.js'
 import { JobLine, NewJobForm } from './jobs.js'
 import { asInstallation, installationFields } from './sites.js'
@@ -150,6 +151,17 @@ export function InstallationScreen() {
           </ul>
         )}
       </Section>
+
+      <AttachmentsSection
+        field="installationId"
+        id={installationId}
+        home={{
+          customerId: customer ? String(customer['id']) : null,
+          siteId: site ? String(site['id']) : null,
+          installationId,
+        }}
+        empty="Noch keine Datei an der Anlage, etwa ein Schaltplan oder das Foto des Typenschilds."
+      />
     </Page>
   )
 }

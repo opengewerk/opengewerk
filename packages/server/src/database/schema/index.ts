@@ -1,3 +1,4 @@
+export * from './attachments.js'
 export * from './audit.js'
 export * from './authentication.js'
 export * from './columns.js'

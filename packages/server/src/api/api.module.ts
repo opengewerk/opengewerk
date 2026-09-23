@@ -6,7 +6,7 @@ import {
   RequestMethod,
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
-import { largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
+import { largestAttachmentBytes, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
 import { raw } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
@@ -15,6 +15,7 @@ import { RecoveryCodesController } from '../authentication/recovery-codes.contro
 import { Database } from '../database/database.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
+import { AttachmentsController } from './attachments.controller.js'
 import { AuthorizationGuard } from './authorization.js'
 import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
@@ -28,6 +29,7 @@ import { DocumentMailController } from './document-mail.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { EInvoiceController } from './e-invoice.controller.js'
+import { FilesController, fileUploadType } from './files.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
@@ -111,17 +113,21 @@ export interface ApiOptions {
 @Module({})
 export class ApiModule implements NestModule {
   /**
-   * The one route that takes a body that is not JSON: the logo, as the image
-   * itself. Read as raw bytes there and nowhere else, so that no other route
-   * can be sent a megabyte of something it does not expect.
+   * The two routes that take a body that is not JSON: the logo, as the image
+   * itself, and the bytes of a file for the records (#77). Read as raw bytes
+   * there and nowhere else, so that no other route can be sent megabytes of
+   * something it does not expect.
    *
-   * The limit sits above the one the controller enforces, so that a logo
-   * just over it gets the controller's sentence and not the parser's.
+   * The limits sit above the ones the controllers enforce, so that a file
+   * just over one gets the controller's sentence and not the parser's.
    */
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(raw({ type: [...logoMediaTypes], limit: largestLogoBytes * 2 }))
       .forRoutes({ path: 'settings/letterhead/logo', method: RequestMethod.PUT })
+    consumer
+      .apply(raw({ type: [fileUploadType], limit: largestAttachmentBytes * 2 }))
+      .forRoutes({ path: 'files/:sha256', method: RequestMethod.PUT })
   }
 
   static create(
@@ -155,6 +161,8 @@ export class ApiModule implements NestModule {
         CircuitChartController,
         JobsController,
         TasksController,
+        FilesController,
+        AttachmentsController,
         // Before the documents, whose routes take an id in the same place.
         // None of them clashes with this path today, and this order keeps it
         // that way when one is added that would.

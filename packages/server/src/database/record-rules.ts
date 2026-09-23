@@ -1,5 +1,9 @@
 import {
+  attachmentHomeProblem,
+  attachmentMediaTypeProblem,
+  attachmentSizeProblem,
   deviceInfoProblem,
+  fileHashProblem,
   linePositionProblem,
   type Operation,
   type RecordState,
@@ -30,6 +34,11 @@ interface RecordRule {
  * The other checks are asked where they belong: a contact's parent, the
  * figures of a circuit, the payment term and the path of a signature, and the
  * net amount of a line, which the server works out itself.
+ *
+ * The versions of an attachment have no check in the database for type, size
+ * and hash, and are here all the same (#77). Their key onto `files` holds the
+ * hash and the size of what it finds, and a version that breaks one of these
+ * is a mistake of the client that should say so, not reach the key.
  */
 const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   documents: [
@@ -53,6 +62,38 @@ const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   document_signatures: [
     { fields: ['signerName'], problem: (at) => signerNameProblem(at('signerName')) },
     { fields: ['deviceInfo'], problem: (at) => deviceInfoProblem(at('deviceInfo')) },
+  ],
+  attachments: [
+    {
+      fields: ['customerId', 'siteId', 'installationId', 'jobId'],
+      problem: (at) =>
+        attachmentHomeProblem({
+          customerId: at('customerId'),
+          siteId: at('siteId'),
+          installationId: at('installationId'),
+          jobId: at('jobId'),
+        }),
+    },
+  ],
+  attachment_versions: [
+    { fields: ['sha256'], problem: (at) => fileHashProblem(at('sha256')) },
+    {
+      fields: ['previewSha256'],
+      problem: (at) => {
+        const preview = at('previewSha256')
+
+        return preview === null || preview === undefined ? null : fileHashProblem(preview)
+      },
+    },
+    { fields: ['mediaType'], problem: (at) => attachmentMediaTypeProblem(at('mediaType')) },
+    {
+      fields: ['sizeBytes'],
+      problem: (at) => {
+        const size = at('sizeBytes')
+
+        return attachmentSizeProblem(typeof size === 'number' ? size : Number.NaN)
+      },
+    },
   ],
 }
 

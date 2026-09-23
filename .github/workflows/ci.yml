@@ -632,11 +632,27 @@ jobs:
           # way would make it fail for the wrong reason.
           docker compose exec -T app sh -c 'for text in eins zwei drei; do hash=$(printf "%s" "$text" | sha256sum | cut -d" " -f1); printf "%s" "$text" > "/var/lib/opengewerk/storage/$hash"; done'
 
+          # A file in the records (#77), where the store keeps it: two levels
+          # of directories from the first four characters of its hash. With
+          # the rows that make it one: the file of the business, an attachment
+          # at its customer, and the version that names the file.
+          hash=$(printf "%s" "Aufmass Keller" | sha256sum | cut -d" " -f1)
+          dir="/var/lib/opengewerk/storage/$(echo "$hash" | cut -c1-2)/$(echo "$hash" | cut -c3-4)"
+          docker compose exec -T app sh -c "mkdir -p '$dir' && printf '%s' 'Aufmass Keller' > '$dir/$hash'"
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
+            insert into files (tenant_id, sha256, size_bytes, media_type) values
+              ('01931c00-0000-7000-8000-000000000001', '$hash', 14, 'text/plain');
+            insert into attachments (id, tenant_id, customer_id, title)
+              select '01931c00-0000-7000-8000-0000000000a1', tenant_id, id, 'Aufmass'
+                from customers where name = 'Bauherr Nord';
+            insert into attachment_versions (tenant_id, attachment_id, sha256, file_name, media_type, size_bytes) values
+              ('01931c00-0000-7000-8000-000000000001', '01931c00-0000-7000-8000-0000000000a1', '$hash', 'Aufmass.txt', 'text/plain', 14);"
+
       - name: Stand vor der Sicherung festhalten
         working-directory: docker
         run: |
           set -eu
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from audit_entries" > /tmp/before.txt
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from attachment_versions; select count(*) from audit_entries" > /tmp/before.txt
           docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-before.txt
           cat /tmp/before.txt /tmp/chains-before.txt
 
@@ -676,7 +692,7 @@ jobs:
         run: |
           set -eu
           docker compose restart app
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from audit_entries" > /tmp/after.txt
+          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from attachment_versions; select count(*) from audit_entries" > /tmp/after.txt
           docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-after.txt
 
           diff /tmp/before.txt /tmp/after.txt
@@ -685,9 +701,17 @@ jobs:
           diff /tmp/chains-before.txt /tmp/chains-after.txt
           echo "Datenbestand und Audit-Ketten stimmen mit der Sicherung überein."
 
-          files=$(docker compose exec -T app sh -c "ls -1 /var/lib/opengewerk/storage | wc -l" | tr -d "\r")
+          files=$(docker compose exec -T app sh -c "find /var/lib/opengewerk/storage -type f | wc -l" | tr -d "\r")
           echo "Dateien im Speicher: ${files}"
-          test "${files}" = "3"
+          test "${files}" = "4"
+
+          # The file the records name is back where the store looks for it,
+          # with the contents its name promises (#77).
+          hash=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select sha256 from attachment_versions" | tr -d "\r")
+          path="/var/lib/opengewerk/storage/$(echo "$hash" | cut -c1-2)/$(echo "$hash" | cut -c3-4)/$hash"
+          found=$(docker compose exec -T app sha256sum "$path" | cut -d" " -f1)
+          test "${found}" = "${hash}"
+          echo "Die abgelegte Datei ist mit ihrer Fassung zurück."
 
           # The instance has to come back up on the restored data, not merely
           # hold it. That is the part of the issue saying "and the application

@@ -532,6 +532,48 @@ const crossings: readonly {
             values (${own.tenant}, ${other.document})`,
   },
   {
+    key: 'attachments_customer_in_tenant',
+    write: (own, other) => repoint('attachments', 'customer_id', own.attachment, other.customer),
+  },
+  {
+    key: 'attachments_site_in_tenant',
+    write: (own, other) => repoint('attachments', 'site_id', own.attachment, other.site),
+  },
+  {
+    key: 'attachments_installation_in_tenant',
+    write: (own, other) =>
+      repoint('attachments', 'installation_id', own.attachment, other.installation),
+  },
+  {
+    key: 'attachments_job_in_tenant',
+    write: (own, other) => repoint('attachments', 'job_id', own.attachment, other.job),
+  },
+  {
+    // Inserts, since a version is written once: the attachment of the other
+    // business, a file of the other business named by its hash, and the same
+    // for the preview.
+    key: 'attachment_versions_attachment_in_tenant',
+    write: (own, other) =>
+      sql`insert into attachment_versions
+            (tenant_id, attachment_id, sha256, file_name, media_type, size_bytes)
+            values (${own.tenant}, ${other.attachment}, ${own.fileHash}, 'Plan.png', 'image/png', 1)`,
+  },
+  {
+    key: 'attachment_versions_file_in_tenant',
+    write: (own, other) =>
+      sql`insert into attachment_versions
+            (tenant_id, attachment_id, sha256, file_name, media_type, size_bytes)
+            values (${own.tenant}, ${own.attachment}, ${other.fileHash}, 'Plan.png', 'image/png', 1)`,
+  },
+  {
+    key: 'attachment_versions_preview_in_tenant',
+    write: (own, other) =>
+      sql`insert into attachment_versions
+            (tenant_id, attachment_id, sha256, file_name, media_type, size_bytes, preview_sha256)
+            values (${own.tenant}, ${own.attachment}, ${own.fileHash}, 'Plan.png', 'image/png', 1,
+                    ${other.fileHash})`,
+  },
+  {
     key: 'letterheads_logo_in_tenant',
     write: (own, other) => repoint('letterheads', 'logo_file_id', own.letterhead, other.file),
   },
@@ -715,6 +757,9 @@ interface Planted {
   readonly document: string
   readonly line: string
   readonly file: string
+  /** The hash of that file, which a version of an attachment names it by. */
+  readonly fileHash: string
+  readonly attachment: string
   readonly letterhead: string
   readonly invitation: string
   readonly task: string
@@ -779,9 +824,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     "insert into documents (tenant_id, customer_id, kind, document_date) values ($1, $2, 'quote', '2026-09-22')",
     [tenant, customer],
   )
+  const fileHash = hash(`logo-${slug}`)
   const file = await one(
     "insert into files (tenant_id, sha256, size_bytes, media_type) values ($1, $2, 1, 'image/png')",
-    [tenant, hash(`logo-${slug}`)],
+    [tenant, fileHash],
   )
   const invitation = await one(
     `insert into invitations (tenant_id, email, name, roles, token_hash, invited_by, expires_at)
@@ -832,6 +878,11 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       [tenant, document],
     ),
     file,
+    fileHash,
+    attachment: await one(
+      "insert into attachments (tenant_id, customer_id, title) values ($1, $2, 'Schaltplan')",
+      [tenant, customer],
+    ),
     letterhead: await one('insert into letterheads (tenant_id) values ($1)', [tenant]),
     invitation,
     task,

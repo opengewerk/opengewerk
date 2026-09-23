@@ -20,6 +20,7 @@ import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { InstallationBoards } from './boards.js'
 import { JobContacts } from './contacts.js'
+import { JobFiles } from './files.js'
 import { JobTasks, MyTasks } from './tasks.js'
 
 /**
@@ -325,6 +326,8 @@ export function SiteJobScreen() {
       ) : null}
 
       <JobReports job={job} />
+
+      <JobFiles job={job} />
 
       <JobTasks job={job} />
 

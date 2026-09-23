@@ -17,6 +17,12 @@ type Row = Record<string, unknown>
  */
 export class TestServer implements SyncTransport, DirectWriter {
   readonly sent: Operation[][] = []
+  /** The files that came up, by hash, in the order they came (#77). */
+  readonly uploaded = new Map<string, { readonly bytes: ArrayBuffer; readonly mediaType: string }>()
+  /** What happened, uploads and transmissions, in order. */
+  readonly log: string[] = []
+  /** Set to answer every upload with this refusal instead of taking it. */
+  refuseUploads: Error | null = null
   offline = false
   private readonly tables = new Map<string, Map<string, Row>>()
   private changed = new Map<string, Set<string>>()
@@ -63,6 +69,7 @@ export class TestServer implements SyncTransport, DirectWriter {
     }
 
     this.sent.push([...operations])
+    this.log.push(`push ${operations.map((operation) => operation.entity).join(',')}`)
 
     for (const operation of operations) {
       this.apply(operation)
@@ -99,6 +106,21 @@ export class TestServer implements SyncTransport, DirectWriter {
   }
 
   resolve() {
+    return Promise.resolve()
+  }
+
+  upload(sha256: string, bytes: ArrayBuffer, mediaType: string) {
+    if (this.offline) {
+      return Promise.reject(new TypeError('Failed to fetch'))
+    }
+
+    if (this.refuseUploads) {
+      return Promise.reject(this.refuseUploads)
+    }
+
+    this.uploaded.set(sha256, { bytes, mediaType })
+    this.log.push(`upload ${sha256.slice(0, 8)}`)
+
     return Promise.resolve()
   }
 

@@ -49,6 +49,14 @@ export const permissions = [
   'task.read',
   'task.write',
   /**
+   * The files in the business's records (#77), one right to read and one to
+   * add and remove. Not narrowed to one subject: a photo taken on site belongs
+   * to the job, the installation and the customer at once, and whoever may
+   * look at any of them needs to see it.
+   */
+  'attachment.read',
+  'attachment.write',
+  /**
    * Sending an outbox and reading what came back. A right of its own because
    * it is a different way in, not a different thing to do: what an operation
    * may touch is still decided by the rights above, entity by entity.
@@ -125,6 +133,8 @@ const officePermissions: readonly Permission[] = [
   'document.issue',
   'task.read',
   'task.write',
+  'attachment.read',
+  'attachment.write',
   'sync.read',
   'sync.write',
   // Reading, not setting. What a business claims about its own taxation is a
@@ -158,6 +168,9 @@ const technicianPermissions: readonly Permission[] = [
   // handed on to be done there.
   'task.read',
   'task.write',
+  // The photo of the type plate and the plan in the cabinet door.
+  'attachment.read',
+  'attachment.write',
   // The one who is actually in a basement without a network.
   'sync.read',
   'sync.write',

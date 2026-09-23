@@ -29,6 +29,8 @@ const entities: Readonly<Record<string, string>> = {
   document_lines: 'Belegposition',
   document_signatures: 'Unterschrift',
   tasks: 'Aufgabe',
+  attachments: 'Datei',
+  attachment_versions: 'Fassung einer Datei',
 }
 
 const fields: Readonly<Record<string, string>> = {
@@ -100,6 +102,13 @@ const fields: Readonly<Record<string, string>> = {
   cableCrossSectionMilli: 'Querschnitt',
   cableLengthMilli: 'Leitungslänge',
   cableInstallationMethod: 'Verlegeart',
+  attachmentId: 'Datei',
+  fileName: 'Dateiname',
+  mediaType: 'Dateityp',
+  sizeBytes: 'Größe',
+  sha256: 'Prüfsumme',
+  previewSha256: 'Vorschau',
+  createdBy: 'Angelegt von',
 }
 
 export function entityLabel(entity: string): string {
@@ -125,6 +134,7 @@ export function titleOf(entity: string, record: RecordState | null): string {
     maybeText(record, 'title') ??
     maybeText(record, 'number') ??
     maybeText(record, 'signerName') ??
+    maybeText(record, 'fileName') ??
     personName(record)
 
   return named ?? `${entityLabel(entity)} ohne Bezeichnung`

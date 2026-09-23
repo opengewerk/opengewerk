@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { centsAsInput, parseEuros, parseQuantity, percent, today } from './format.js'
+import { centsAsInput, fileSize, parseEuros, parseQuantity, percent, today } from './format.js'
 
 /**
  * Reading a number the way it is typed in Germany. The cases are the ones a
@@ -62,5 +62,14 @@ describe('the rest of the formatting', () => {
   it('knows the day in Germany, not in UTC', () => {
     // Half past midnight in Berlin is still the evening before in UTC.
     expect(today(new Date('2026-09-20T22:30:00Z'))).toBe('2026-09-21')
+  })
+})
+
+describe('the size of a file', () => {
+  it('is in bytes, kilobytes or megabytes, written the German way', () => {
+    expect(fileSize(512)).toBe('512 Byte')
+    expect(fileSize(340_400)).toBe('340 kB')
+    expect(fileSize(1_234_567)).toBe('1,2 MB')
+    expect(fileSize(25_000_000)).toBe('25 MB')
   })
 })

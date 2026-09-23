@@ -1,4 +1,6 @@
 import type {
+  Attachment,
+  AttachmentVersion,
   AuditChain,
   AuditEntry,
   BoardSection,
@@ -35,6 +37,8 @@ import type {
 } from '@opengewerk/domain'
 
 import type {
+  attachments,
+  attachmentVersions,
   auditChains,
   auditEntries,
   boardSections,
@@ -90,6 +94,10 @@ export type TenantParameterMatches = Assert<
 >
 export type CustomerMatches = Assert<Exact<typeof customers.$inferSelect, Customer>>
 export type ContactMatches = Assert<Exact<typeof contacts.$inferSelect, Contact>>
+export type AttachmentMatches = Assert<Exact<typeof attachments.$inferSelect, Attachment>>
+export type AttachmentVersionMatches = Assert<
+  Exact<typeof attachmentVersions.$inferSelect, AttachmentVersion>
+>
 export type SiteMatches = Assert<Exact<typeof sites.$inferSelect, Site>>
 export type InstallationMatches = Assert<Exact<typeof installations.$inferSelect, Installation>>
 export type DistributionBoardMatches = Assert<
