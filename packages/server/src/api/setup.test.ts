@@ -372,7 +372,7 @@ describe('the first run', () => {
       .post('/setup')
       .type('form')
       .send({ ...firstRun })
-      .expect(400)
+      .expect(415)
 
     expect(refused.body.message).toContain('JSON')
     expect(await instanceIsEmpty(database)).toBe(true)

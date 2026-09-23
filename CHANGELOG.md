@@ -857,6 +857,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Jede Route, die etwas ändert, prüft jetzt die Herkunft der Anfrage und nimmt nur JSON an
+  (GHSA-r7rq-234g-3jx8). Bisher taten das nur die Anmeldung, die Ersteinrichtung und die
+  Einladung; der Rest verließ sich auf `SameSite=Lax`, und das hält eine Seite auf einer
+  anderen Subdomain derselben Domain nicht ab. Der Parser für Formulare ist aus, das Logo
+  nennt seine Bildtypen selbst. Wer die Oberfläche mit Vite gegen einen eigenen Server
+  entwickelt, trägt die Adresse von Vite in `TRUSTED_ORIGINS` ein.
 - Eine Rechnung, die am 1. Januar zwischen 0 und 1 Uhr festgeschrieben wurde, bekam das alte
   Jahr in die Nummer (#146). Das Jahr kam aus der Zeitzone des Prozesses, und ein Container
   läuft in UTC. Es kommt jetzt aus dem Tag in Deutschland, wie das Belegdatum; ebenso die

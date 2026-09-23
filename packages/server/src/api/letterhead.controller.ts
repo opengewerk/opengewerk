@@ -18,6 +18,7 @@ import {
   largestLogoBytes,
   type LetterheadField,
   letterheadFields,
+  logoMediaTypes,
   type LogoMediaType,
   type TenantId,
 } from '@opengewerk/domain'
@@ -31,6 +32,7 @@ import { fileRowFor } from '../storage/files.js'
 import { RequiresPermission } from './authorization.js'
 import { FILE_STORE } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+import { AcceptsBody } from './origin.js'
 
 /** The longest a single field may be. A letterhead line, not a letter. */
 const longestField = 300
@@ -207,10 +209,15 @@ export class LetterheadController {
   /**
    * Replaces the logo. The body is the image itself, sent with its media
    * type; `api.module.ts` reads bodies of these two types as raw bytes on this
-   * route and on no other.
+   * route and on no other, and it is the one route that takes a body other
+   * than JSON (`AcceptsBody`).
    */
   @Put('logo')
   @RequiresPermission('settings.write')
+  @AcceptsBody(
+    logoMediaTypes,
+    'Das Logo wird als Bild geschickt, als PNG oder JPEG, mit dem passenden Content-Type.',
+  )
   async uploadLogo(@CurrentIdentity() identity: RequestIdentity, @Req() request: Request) {
     const body: unknown = request.body
 

@@ -552,13 +552,17 @@ Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschir
 danach, für alle anderen ist er eine Empfehlung.
 
 `TRUSTED_ORIGINS` ist die Liste der Adressen, von denen aus ein Browser eine
-angemeldete Anfrage schicken darf, und damit der Schutz davor, dass ein Formular
-auf einer fremden Seite hier etwas auslöst. Nur Herkunft, also Schema, Host und
-notfalls Port: ein Pfad oder ein Schrägstrich am Ende passt nie zu dem, was ein
-Browser sendet, und die Sperre sähe konfiguriert aus, ohne etwas zu tun. Seit es
-eine Oberfläche gibt, ist das die erste Zeile, die eine Installation anfassen
-muss: steht dort nicht die Adresse, unter der die Anwendung erreichbar ist,
-scheitert die Anmeldung im Browser, während `curl` durchgeht.
+Anfrage schicken darf, die etwas ändert, und damit der Schutz davor, dass ein
+Formular auf einer fremden Seite hier etwas auslöst. Das gilt für die Anmeldung
+und für jede Route der Anwendung; dazu nimmt jede davon nur JSON an, außer dem
+Logo, das als Bild kommt. Nur Herkunft, also Schema, Host und notfalls Port: ein
+Pfad oder ein Schrägstrich am Ende passt nie zu dem, was ein Browser sendet, und
+die Sperre sähe konfiguriert aus, ohne etwas zu tun. Seit es eine Oberfläche
+gibt, ist das die erste Zeile, die eine Installation anfassen muss: steht dort
+nicht die Adresse, unter der die Anwendung erreichbar ist, scheitern im Browser
+die Anmeldung und jede Änderung, während `curl` durchgeht. Wer die Oberfläche mit
+Vite gegen einen eigenen Server entwickelt, trägt die Adresse von Vite dazu ein,
+etwa `http://localhost:5173`; die Vorschau kennt sie von selbst.
 
 `SESSION_SECRET` gehört in die Sicherung der Installation. Wird es getauscht,
 sind alle abgemeldet und jeder schon eingerichtete zweite Faktor ist nicht mehr

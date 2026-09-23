@@ -6,7 +6,6 @@ import {
   Get,
   Inject,
   Post,
-  Req,
 } from '@nestjs/common'
 import type { TenantId } from '@opengewerk/domain'
 
@@ -14,8 +13,7 @@ import type { Authentication } from '../authentication/authentication.js'
 import { shortestPassword } from '../authentication/password.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
 import { PublicRoute } from './authorization.js'
-import { AUTHENTICATION, TRUSTED_ORIGINS } from './handed-in.js'
-import { refuseAForeignForm } from './origin.js'
+import { AUTHENTICATION } from './handed-in.js'
 import { pick, requireFields } from './body.js'
 import { Database } from '../database/database.js'
 
@@ -62,7 +60,6 @@ export class SetupController {
   constructor(
     private readonly database: Database,
     @Inject(AUTHENTICATION) private readonly authentication: Authentication,
-    @Inject(TRUSTED_ORIGINS) private readonly trustedOrigins: readonly string[],
   ) {}
 
   /**
@@ -89,9 +86,7 @@ export class SetupController {
    */
   @Post()
   @PublicRoute()
-  async run(@Req() request: unknown, @Body() body: unknown): Promise<{ tenantId: TenantId }> {
-    refuseAForeignForm(request, this.trustedOrigins, 'Die Ersteinrichtung')
-
+  async run(@Body() body: unknown): Promise<{ tenantId: TenantId }> {
     const values = pick(body, ['company', 'name', 'email', 'password'] as const)
 
     requireFields(values, ['company', 'name', 'email', 'password'] as const)

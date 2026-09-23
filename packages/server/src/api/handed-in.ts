@@ -21,8 +21,9 @@ import type { SecretKey } from '../secrets/key.js'
 export const AUTHENTICATION = Symbol('Authentication')
 
 /**
- * The addresses a browser may send one of the two public writing routes from.
- * The same list better-auth gets, because the check is the same check.
+ * The addresses a browser may send a request that changes something from,
+ * read by `SameOriginGuard`. The same list better-auth gets, because the check
+ * is the same check.
  */
 export const TRUSTED_ORIGINS = Symbol('TrustedOrigins')
 
