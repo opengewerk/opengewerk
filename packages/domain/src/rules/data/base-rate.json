@@ -1,6 +1,7 @@
 {
   "package": "base-rate",
   "note": "Basiszinssatz nach § 247 BGB. Die Deutsche Bundesbank setzt ihn zum 1. Januar und zum 1. Juli neu fest und veröffentlicht ihn im Bundesanzeiger. Genau dafür ist diese Engine da: ein neuer Satz ist ein Eintrag in dieser Datei, kein Release. Das Paket endet bewusst dort, wo die hier eingetragenen Werte belegt sind, zuletzt am 31.12.2026. Für einen späteren Tag gibt die Engine keine Antwort, statt eine zu erfinden. Die Werte sind am 19.09.2026 gegen die Tabelle der Bundesbank geprüft, einzusehen unter bundesbank.de/de/bundesbank/organisation/agb-und-regelungen/basiszinssatz-607820.",
+  "renewal": "Die Deutsche Bundesbank setzt den Basiszinssatz zum 1. Januar und zum 1. Juli neu fest und gibt ihn im Bundesanzeiger bekannt (§ 247 BGB). Der neue Wert kommt als Eintrag mit Fundstelle in dieses Paket, danach steht das Ende des Pakets ein halbes Jahr später.",
   "records": [
     {
       "key": "base_rate.value",

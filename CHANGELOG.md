@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Erinnerung für Regelpakete, die ablaufen (#150). Der Basiszinssatz endet am
+  31.12.2026, weil der nächste Wert erst zum Jahreswechsel feststeht, und danach rechnet die
+  Engine keine Verzugszinsen mehr. Ein Paket, das so erneuert wird, sagt es jetzt selbst
+  (`renewal`), und der Workflow "Regelpakete erneuern" öffnet jeden Montag, dreißig Tage vor
+  einem solchen Ende, ein Issue mit dem, was zu tun ist; einmal, nicht jede Woche.
 - Die Anlagenstruktur (#70): unter einer Anlage ihre Verteiler, darin Felder, Stromkreise
   und Betriebsmittel. Im Büro werden sie angelegt, geordnet, geändert und gelöscht, auf der
   Baustelle gelesen und ohne Netz ergänzt, etwa um den Stromkreis, der im Verteiler fehlt.

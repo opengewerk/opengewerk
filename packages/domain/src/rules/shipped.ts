@@ -17,6 +17,15 @@ import vat from './data/vat.json' with { type: 'json' }
 export interface RulePackage {
   readonly package: string
   readonly note: string
+  /**
+   * Who renews the package and when, for the packages that end because the
+   * next value is not known yet rather than because the rule ends. The base
+   * rate is one: it is set anew every half year, and until somebody enters the
+   * next value the engine has no answer past the end. The workflow "Regelpakete
+   * erneuern" opens an issue thirty days before such an end (#150); a package
+   * without this field ends when its law does, and nobody is reminded.
+   */
+  readonly renewal?: string
   readonly records: readonly RuleRecord[]
 }
 
