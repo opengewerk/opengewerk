@@ -50,10 +50,21 @@ class Recorded implements SyncTransport {
   /** The cursor of every pull, in order. */
   readonly asked: number[] = []
   refuse: Error | null = null
+  /**
+   * Refuses a push alone, the way the server refuses a transmission over one
+   * operation in it, while pulling goes on as usual.
+   */
+  refusing: ((operations: readonly Operation[]) => Error | null) | null = null
 
   push(_deviceId: string, operations: readonly Operation[]) {
     if (this.refuse) {
       return Promise.reject(this.refuse)
+    }
+
+    const refusal = this.refusing?.(operations) ?? null
+
+    if (refusal) {
+      return Promise.reject(refusal)
     }
 
     this.sent.push([...operations])
@@ -685,5 +696,135 @@ describe('an exchange with the server', () => {
     expect(transport.resolved).toEqual(['k-1'])
     expect(client.status().conflicts).toEqual([])
     expect(client.status().state).toBe('synced')
+  })
+})
+
+/**
+ * An operation the server refuses outright, over which it refuses the whole
+ * transmission and names it (#120). Before, the device sent the same stack
+ * again at every exchange, got the same answer and pulled nothing, and there
+ * was no way to let the one entry go.
+ */
+describe('an operation the server refuses outright', () => {
+  let transport: Recorded
+
+  beforeEach(() => {
+    transport = new Recorded()
+  })
+
+  /** The answer the server gives, naming the first operation that writes this. */
+  function refusingWhat(field: string, value: string) {
+    return (operations: readonly Operation[]) => {
+      const named = operations.find((operation) =>
+        operation.patches.some((patch) => patch.field === field && patch.to === value),
+      )
+
+      return named
+        ? new RequestRefused(400, 'Unbekanntes Feld: quatsch', {
+            statusCode: 400,
+            message: 'Unbekanntes Feld: quatsch',
+            operationId: named.id,
+          })
+        : null
+    }
+  }
+
+  it('is held with its sentence, and the device goes on pulling', async () => {
+    const client = await start(transport)
+
+    transport.refusing = refusingWhat('name', 'Kaputt')
+    transport.pulls = [
+      {
+        changes: [{ entity: 'jobs', rows: [row({ id: 'j-1', designation: 'Zählerwechsel' })] }],
+        cursor: 5,
+        hasMore: false,
+      },
+    ]
+
+    await client.create('customers', { name: 'Kaputt', kind: 'private' })
+    await client.create('customers', { name: 'Meyer', kind: 'private' })
+    await client.synchronise()
+
+    const { refused } = client.status()
+
+    expect(client.status().state).toBe('refused')
+    expect(refused?.message).toBe('Unbekanntes Feld: quatsch')
+    expect(refused?.operation.patches).toContainEqual({ field: 'name', from: null, to: 'Kaputt' })
+
+    // Nothing behind it got out, and nothing was lost: both entries wait.
+    expect(transport.sent).toEqual([])
+    expect(client.status().pending).toBe(2)
+
+    // The jobs of the next day still arrive. Before, a refused push ended the
+    // exchange, and the pull behind it never ran.
+    expect(client.get('jobs', 'j-1')?.['designation']).toBe('Zählerwechsel')
+  })
+
+  it('lets a person let it go, and then sends what waited behind it', async () => {
+    const client = await start(transport)
+
+    transport.refusing = refusingWhat('name', 'Kaputt')
+
+    await client.create('customers', { name: 'Kaputt', kind: 'private' })
+    await client.create('customers', { name: 'Meyer', kind: 'private' })
+    await client.synchronise()
+
+    const refused = client.status().refused
+
+    expect(refused).not.toBeNull()
+
+    await client.discard(refused?.operation.id ?? operationId('none'))
+
+    expect(transport.sent).toHaveLength(1)
+    expect(transport.sent[0]?.map((operation) => operation.patches)).toEqual([
+      [
+        { field: 'name', from: null, to: 'Meyer' },
+        { field: 'kind', from: null, to: 'private' },
+      ],
+    ])
+    expect(client.status().state).toBe('synced')
+    expect(client.status().refused).toBeNull()
+    expect(client.status().pending).toBe(0)
+  })
+
+  it('takes the later changes of a record with it when it let go of its create', async () => {
+    const client = await start(transport)
+
+    transport.refusing = refusingWhat('designation', 'Zähler')
+
+    const made = await client.create('installations', { designation: 'Zähler' })
+
+    expect(made.outcome).toBe('queued')
+
+    await client.update('installations', made.outcome === 'queued' ? made.id : '', {
+      designation: 'Zählerschrank',
+    })
+    await client.create('installations', { designation: 'Wallbox' })
+    await client.synchronise()
+
+    await client.discard(client.status().refused?.operation.id ?? operationId('none'))
+
+    // The change to a record that never reached the server can land nowhere.
+    // Sent, it would only have come back as a conflict about nothing.
+    expect(transport.sent.flat().map((operation) => operation.patches[0]?.to)).toEqual([
+      'Wallbox',
+    ])
+    expect(client.status().pending).toBe(0)
+  })
+
+  it('keeps an answer that names nothing this device holds as trouble, as before', async () => {
+    const client = await start(transport)
+
+    transport.refusing = () =>
+      new RequestRefused(400, 'Die Liste der Vorgänge fehlt.', { statusCode: 400 })
+
+    await client.create('customers', { name: 'Meyer', kind: 'private' })
+    await client.synchronise()
+
+    // A refusal without a name comes from a client speaking the wrong protocol,
+    // which the next build fixes. There is no entry to let go of.
+    expect(client.status().refused).toBeNull()
+    expect(client.status().trouble).toBe('Die Liste der Vorgänge fehlt.')
+    expect(client.status().state).toBe('offline')
   })
 })

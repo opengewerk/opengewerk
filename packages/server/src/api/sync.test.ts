@@ -1463,3 +1463,51 @@ describe('the rights the queue asks for', () => {
     }
   })
 })
+
+/**
+ * A transmission refused as a whole still says which operation it was refused
+ * over (#120). An entry already queued on a device cannot be corrected there,
+ * and without the name the device could only send the same stack again, for
+ * ever, and pulled nothing in the meantime.
+ */
+describe('a transmission refused over one operation', () => {
+  it('names it for a mistake of the client, and still lands nothing', async () => {
+    const waiting = created('sites', newId<'site'>(), { customerId, designation: 'Wartet mit' })
+    const doubled = created('contacts', newId<'contact'>(), {
+      customerId,
+      siteId,
+      familyName: 'Doppelt',
+    })
+
+    const refused = await transmit(app, office(), [waiting, doubled], 400)
+
+    expect(refused.message).toBe(contactParentText.both)
+    expect(refused.operationId).toBe(doubled.id)
+
+    // Refused as a whole, as before: the site in front of it waits with it
+    // and goes out once the device has let the contact go.
+    const { rows } = await admin.query('select id from sites where id = $1', [waiting.recordId])
+    expect(rows).toEqual([])
+  })
+
+  it('names it for a right the person no longer has', async () => {
+    const site = created('sites', newId<'site'>(), { customerId, designation: 'Ohne Recht' })
+
+    const refused = await transmit(app, technician(), [site], 400)
+
+    expect(refused.message).toBe('Fehlendes Recht für sites: site.write')
+    expect(refused.operationId).toBe(site.id)
+  })
+
+  it('names it for a check in the database that nothing asked before', async () => {
+    // A contact without a family name. The column is `not null`, and nothing in
+    // `applyOne` asks, like every column a form cannot leave empty. Should one
+    // ever get through, the device can at least let it go.
+    const nameless = created('contacts', newId<'contact'>(), { customerId, role: 'Hausmeister' })
+
+    const refused = await transmit(app, office(), [nameless], 400)
+
+    expect(refused.message).toBe('Die Angaben passen nicht zum Datenmodell.')
+    expect(refused.operationId).toBe(nameless.id)
+  })
+})

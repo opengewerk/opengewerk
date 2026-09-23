@@ -815,6 +815,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Vorgang, den der Server ablehnte, hielt den Postausgang eines Geräts für immer fest
+  (#120). Die 400 sagte nicht, welcher es war, das Gerät schickte bei jedem Abgleich
+  denselben Stapel und bekam dieselbe Antwort, und weil es erst hochlädt und dann abholt,
+  kamen auch keine neuen Aufträge mehr an. Die Antwort nennt den Vorgang jetzt, bei einem
+  Fehler des Clients, bei einem fehlenden Recht und bei einer Prüfung der Datenbank, die
+  vorher niemand gefragt hat. Das Gerät holt trotzdem ab, die Leiste sagt, dass eine
+  Änderung nicht angenommen wird, und der Konfliktbildschirm zeigt sie mit dem Satz des
+  Servers: verwerfen, dann geht der Rest hinaus, oder erneut senden, wenn der Grund
+  inzwischen behoben ist. Ein verworfenes Anlegen nimmt die späteren Änderungen an
+  demselben Eintrag mit, weil keine davon ohne es landen kann
 - Ein Leistungszeitraum, dessen letzter Tag vor dem ersten lag, ließ im Büro die ganze
   Übertragung scheitern und mit ihr alles, was danach in den Postausgang kam (#118); ein
   Name über 200 Zeichen tat dasselbe mit einer Unterschrift auf der Baustelle. Beide

@@ -23,6 +23,7 @@ import { text } from '../sync/fields.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import type { PullResult, SyncTransport } from '../sync/transport.js'
+import { RequestRefused } from '../sync/transport.js'
 
 /** A server that says yes and remembers what it was asked. */
 class Quiet implements SyncTransport, DirectWriter {
@@ -235,6 +236,44 @@ describe('the conflict screen', () => {
     expect(server.resolved).toEqual(['k-1'])
   })
 
+  /**
+   * Not a conflict, but decided on the same screen: the server refused the
+   * entry outright and named it, and until somebody lets it go nothing behind
+   * it leaves the device (#120).
+   */
+  it('shows an entry the server refused with what it wanted, and lets it go', async () => {
+    const client = await withClient(server)
+
+    server.push = (_deviceId, operations) =>
+      Promise.reject(
+        new RequestRefused(400, 'Unbekanntes Feld: quatsch', {
+          statusCode: 400,
+          message: 'Unbekanntes Feld: quatsch',
+          operationId: operations[0]?.id,
+        }),
+      )
+
+    await client.create('customers', { name: 'Meyer', kind: 'private' })
+    await client.synchronise()
+
+    render(
+      <SyncProvider client={client}>
+        <ConflictScreen />
+      </SyncProvider>,
+    )
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Meyer' })).toBeDefined()
+    expect(screen.getByText('Unbekanntes Feld: quatsch')).toBeDefined()
+    expect(within(screen.getByRole('row', { name: /Name/ })).getByText('Meyer')).toBeDefined()
+    expect(screen.queryByText(/Nichts zu entscheiden/)).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eintrag verwerfen' }))
+
+    expect(client.status().pending).toBe(0)
+    expect(client.list('customers')).toEqual([])
+    expect(await screen.findByText(/Nichts zu entscheiden/)).toBeDefined()
+  })
+
   it('says so plainly when there is nothing to decide', async () => {
     const client = await withClient(server)
 
@@ -265,6 +304,39 @@ describe('the bar above every screen', () => {
     // `alert` is announced at once. Using it for the quiet states as well
     // would train people to ignore it, which is the opposite of the point.
     expect(screen.getByRole('alert').textContent).toContain('Ein Konflikt wartet')
+  })
+
+  it('stops for an entry the server refused, ahead of any conflict', async () => {
+    const server = new Quiet()
+
+    server.open = [conflict()]
+
+    const client = await withClient(server)
+
+    server.push = (_deviceId, operations) =>
+      Promise.reject(
+        new RequestRefused(400, 'Unbekanntes Feld: quatsch', {
+          statusCode: 400,
+          message: 'Unbekanntes Feld: quatsch',
+          operationId: operations[0]?.id,
+        }),
+      )
+
+    await client.create('customers', { name: 'Meyer', kind: 'private' })
+    await client.synchronise()
+
+    render(
+      <SyncProvider client={client}>
+        <SyncStatusBar />
+      </SyncProvider>,
+    )
+
+    // Ahead of the conflict, because deciding the conflict would not get out
+    // either: a decision leaves through the same outbox.
+    const bar = screen.getByRole('alert')
+
+    expect(bar.textContent).toContain('Der Server nimmt eine Änderung nicht an')
+    expect(bar.textContent).not.toContain('Konflikt')
   })
 
   it('says everything arrived when the outbox is empty', async () => {

@@ -8,6 +8,7 @@ import {
   lineNetCents,
   isSetByServer,
   type Operation,
+  type OperationId,
   type OperationOutcome,
   type OperationReceipt,
   paymentTermProblem,
@@ -182,6 +183,26 @@ async function withProposedTreatment(
 export class UnknownFieldError extends Error {}
 
 /**
+ * The operation a transmission was refused over, with whatever refused it as
+ * the cause.
+ *
+ * The transmission is still refused as a whole: it runs in one transaction,
+ * and what went before this operation is rolled back with it. What this adds
+ * is the name. Without it a device could only send the same stack again and
+ * get the same answer, for ever, and pulled nothing in the meantime (#120).
+ * With it, the device can show the one entry and let a person throw it away.
+ */
+export class OperationRefused extends Error {
+  constructor(
+    readonly operationId: OperationId,
+    cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause })
+    this.name = 'OperationRefused'
+  }
+}
+
+/**
  * The columns an operation may write, refusing the ones it may not.
  *
  * The second guard against a reserved field, after `decideMerge`. Not
@@ -234,7 +255,13 @@ export async function applyOperations(
   const receipts: OperationReceipt[] = []
 
   for (const operation of inOutboxOrder(operations)) {
-    receipts.push(await applyOne(tx, tenantId, operation))
+    try {
+      receipts.push(await applyOne(tx, tenantId, operation))
+    } catch (error) {
+      // Whatever stops one operation still stops the transmission. Which one
+      // it was travels with it, so that the answer can say.
+      throw new OperationRefused(operation.id, error)
+    }
   }
 
   return receipts

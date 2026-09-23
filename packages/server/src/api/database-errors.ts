@@ -54,6 +54,21 @@ function databaseCode(error: unknown): string | undefined {
   return undefined
 }
 
+/** The sentence the database raised, or the one that stands in for it. */
+function databaseMessage(error: unknown, fallback: string): string {
+  const candidates = [error, (error as { cause?: unknown }).cause]
+
+  for (const candidate of candidates) {
+    const message = (candidate as { message?: unknown } | undefined)?.message
+
+    if (typeof message === 'string' && !message.startsWith('Failed query')) {
+      return message
+    }
+  }
+
+  return fallback
+}
+
 /**
  * Turns database errors into answers a caller can act on. Without this a
  * missing field comes back as a 500, which tells the caller that we broke
@@ -62,59 +77,48 @@ function databaseCode(error: unknown): string | undefined {
  * A policy violation becomes a 403 and says nothing else. Whether the row
  * exists in another tenant is not the caller's business, and an error message
  * that distinguished the two would answer exactly that question.
+ *
+ * A function beside the filter and not only inside it, for the one caller that
+ * has to add to the answer before it goes: the sync, which names the operation
+ * a transmission was refused over.
  */
+export function answerFor(error: unknown): HttpException {
+  if (error instanceof HttpException) {
+    return error
+  }
+
+  // Not the database, but it lands here as well: the body parser refusing a
+  // body over its limit, which since the logo upload is a thing a person
+  // can do by picking the wrong file. Without this it would read as a 500.
+  if ((error as { type?: unknown } | undefined)?.type === 'entity.too.large') {
+    return new PayloadTooLargeException('Die Anfrage ist zu groß.')
+  }
+
+  const code = databaseCode(error)
+
+  if (code === rowLevelSecurity) {
+    return new ForbiddenException('Kein Zugriff auf diesen Datensatz.')
+  }
+
+  const conflict = code === undefined ? undefined : ourConflicts.get(code)
+
+  if (conflict !== undefined) {
+    return new ConflictException(databaseMessage(error, conflict))
+  }
+
+  if (code && badRequestCodes.has(code)) {
+    return new BadRequestException('Die Angaben passen nicht zum Datenmodell.')
+  }
+
+  return new InternalServerErrorException()
+}
+
 @Catch()
 export class DatabaseExceptionFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>()
-    const translated = this.translate(error)
+    const translated = answerFor(error)
 
     response.status(translated.getStatus()).json(translated.getResponse())
-  }
-
-  private translate(error: unknown): HttpException {
-    if (error instanceof HttpException) {
-      return error
-    }
-
-    // Not the database, but it lands here as well: the body parser refusing a
-    // body over its limit, which since the logo upload is a thing a person
-    // can do by picking the wrong file. Without this it would read as a 500.
-    if ((error as { type?: unknown } | undefined)?.type === 'entity.too.large') {
-      return new PayloadTooLargeException('Die Anfrage ist zu groß.')
-    }
-
-    const code = databaseCode(error)
-
-    if (code === rowLevelSecurity) {
-      return new ForbiddenException('Kein Zugriff auf diesen Datensatz.')
-    }
-
-    const conflict = code === undefined ? undefined : ourConflicts.get(code)
-
-    if (conflict !== undefined) {
-      return new ConflictException(this.databaseMessage(error, conflict))
-    }
-
-    if (code && badRequestCodes.has(code)) {
-      return new BadRequestException('Die Angaben passen nicht zum Datenmodell.')
-    }
-
-    return new InternalServerErrorException()
-  }
-
-  /** The sentence the database raised, or the one that stands in for it. */
-  private databaseMessage(error: unknown, fallback: string): string {
-    const candidates = [error, (error as { cause?: unknown }).cause]
-
-    for (const candidate of candidates) {
-      const message = (candidate as { message?: unknown } | undefined)?.message
-
-      if (typeof message === 'string' && !message.startsWith('Failed query')) {
-        return message
-      }
-    }
-
-    return fallback
   }
 }

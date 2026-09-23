@@ -76,7 +76,7 @@ export async function push(
     .send({ deviceId: 'geraet-im-keller', operations })
     .expect(expected)
 
-  return answer.body as { receipts: Receipt[]; message?: string }
+  return answer.body as { receipts: Receipt[]; message?: string; operationId?: string }
 }
 
 /** A customer, a site and an installation, the way the office creates them. */
