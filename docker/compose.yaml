@@ -132,8 +132,15 @@ services:
   # Without it everything else keeps running, and an attempt at a PDF gets a
   # readable message instead of a crash. Switched off, it saves close to 4 GB
   # of disk and around 340 MB of memory.
+  # Pinned to a release and its digest, like everything else here. With
+  # `latest` every installation pulled whatever Chromium was current that day,
+  # one the CI had never printed with, and a document could change overnight.
+  # An update is a pull request that changes this line and the renderer of the
+  # e-invoice job in .github/workflows/ci.yml; a step there checks that both
+  # name the same image. `chromium` is already the slimmest image browserless
+  # publishes, the others carry Firefox and WebKit as well.
   renderer:
-    image: ghcr.io/browserless/chromium:latest
+    image: ghcr.io/browserless/chromium:v2.56.7@sha256:b1ba7b054af2891a8199f884d4bd249cf8c3bd2fa8a97b339077e40f92803ba8
     restart: unless-stopped
     profiles: ['renderer']
     environment:

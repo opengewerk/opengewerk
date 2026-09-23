@@ -323,7 +323,7 @@ jobs:
     # change.
     services:
       renderer:
-        image: ghcr.io/browserless/chromium:latest
+        image: ghcr.io/browserless/chromium:v2.56.7@sha256:b1ba7b054af2891a8199f884d4bd249cf8c3bd2fa8a97b339077e40f92803ba8
         env:
           TOKEN: probe
         ports:
@@ -338,6 +338,32 @@ jobs:
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v7
+
+      - name: Renderer wie im Betrieb
+        run: |
+          python3 - <<'PYTHON'
+          import re
+          import sys
+
+          # The samples are printed by the service above, and what they prove
+          # only holds for the renderer an installation runs. Both name the
+          # image by hand, so this is the check that they name the same one.
+          def renderer(path, indent):
+              text = open(path, encoding="utf-8").read()
+              found = re.search(r"^" + indent + r"renderer:\n\s+image: (\S+)$", text, re.M)
+              return found.group(1) if found else None
+
+          workflow = renderer(".github/workflows/ci.yml", "      ")
+          compose = renderer("docker/compose.yaml", "  ")
+
+          if not workflow or workflow != compose:
+              print("Der Renderer dieses Jobs ist nicht der aus docker/compose.yaml:")
+              print(f"  ci.yml:       {workflow}")
+              print(f"  compose.yaml: {compose}")
+              sys.exit(1)
+
+          print(f"Renderer wie im Betrieb: {compose}")
+          PYTHON
 
       - name: pnpm über Corepack bereitstellen
         run: corepack enable

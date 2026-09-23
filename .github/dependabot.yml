@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # The images in docker/compose.yaml, the renderer above all. A pull request
+  # that moves the renderer also has to move the renderer of the e-invoice job
+  # in ci.yml; the step "Renderer wie im Betrieb" stays red until it does.
+  - package-ecosystem: docker-compose
+    directory: /docker
+    schedule:
+      interval: weekly
