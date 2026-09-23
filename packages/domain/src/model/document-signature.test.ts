@@ -5,10 +5,14 @@ import { decideMerge } from '../sync/merge.js'
 import type { Operation, OperationId } from '../sync/operation.js'
 import { showsPrices, whyFixed } from './document.js'
 import {
+  deviceInfoProblem,
+  longestDeviceInfo,
   longestSignaturePath,
+  longestSignerName,
   type SignedContent,
   signedContentFingerprint,
   signaturePathIsValid,
+  signerNameProblem,
 } from './document-signature.js'
 
 /**
@@ -196,5 +200,30 @@ describe('a signature arriving from a device', () => {
         { id: 'd-1', status: 'signed' },
       ).outcome,
     ).toBe('conflict')
+  })
+})
+
+describe('the name under a signature', () => {
+  it('is something besides spaces, and no more than the table keeps', () => {
+    expect(signerNameProblem('Erika Berg')).toBeNull()
+    expect(signerNameProblem(`  ${'E'.repeat(longestSignerName)}  `)).toBeNull()
+
+    for (const nobody of ['', '   ', null, undefined]) {
+      expect(signerNameProblem(nobody)).toBe('Der Name dessen, der unterschreibt.')
+    }
+
+    expect(signerNameProblem('E'.repeat(longestSignerName + 1))).toBe(
+      'Der Name dessen, der unterschreibt, hat höchstens 200 Zeichen.',
+    )
+  })
+})
+
+describe('the device information of a signature', () => {
+  it('is kept up to the length of the table, and refused beyond it', () => {
+    expect(deviceInfoProblem(null)).toBeNull()
+    expect(deviceInfoProblem('x'.repeat(longestDeviceInfo))).toBeNull()
+    expect(deviceInfoProblem('x'.repeat(longestDeviceInfo + 1))).toBe(
+      'Die Angabe zum Gerät hat höchstens 500 Zeichen.',
+    )
   })
 })

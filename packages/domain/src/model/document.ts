@@ -334,3 +334,32 @@ export interface Document extends Synced {
    */
   readonly paymentTermDays: number | null
 }
+
+/**
+ * What is wrong with a service period, as a sentence, or null when nothing is.
+ *
+ * The rule the check `documents_service_period` holds in the database: a last
+ * day needs a first, and does not come before it. One function for the form,
+ * which asks before anything is queued, and for the sync, which judges the
+ * document as it would stand afterwards. Empty means not entered, the way a
+ * date field hands over nothing; a day is compared by its first ten
+ * characters, so a timestamp and a date for the same day are the same day.
+ */
+export function servicePeriodProblem(from: unknown, until: unknown): string | null {
+  const first = asDay(from)
+  const last = asDay(until)
+
+  if (last === null) {
+    return null
+  }
+
+  if (first === null) {
+    return 'Ein letzter Tag der Leistung braucht einen ersten.'
+  }
+
+  return last < first ? 'Der letzte Tag der Leistung liegt vor dem ersten.' : null
+}
+
+function asDay(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value.slice(0, 10) : null
+}
