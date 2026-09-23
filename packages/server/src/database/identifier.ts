@@ -7,9 +7,15 @@ import { uuidv7 } from 'uuidv7'
  * device syncs hours later (ADR 0003).
  *
  * The database mints its own for rows written server side. This is the other
- * half, for rows that arrive with an id already on them. The version the
- * browser uses comes with the offline data layer, and that is where the shared
- * home for this gets decided.
+ * half, for rows that arrive with an id already on them. The browser mints its
+ * own in the sync client, with the same library in the same version, and a
+ * test in `identifier.test.ts` holds the two versions together.
+ *
+ * There is deliberately no shared home in `domain` (#151). Minting a key is
+ * drawing randomness, an effect like reading the clock, and `domain` answers
+ * the same question with the same answer every time; that is what lets the
+ * device and the server work out a decision identically. The key is made at
+ * the edge, and `domain` only knows its type.
  */
 export function newId<Entity extends string>(): Id<Entity> {
   return uuidv7() as Id<Entity>
