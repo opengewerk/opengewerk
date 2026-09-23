@@ -909,6 +909,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ohne Netz geöffnet, zeigt die Baustelle wieder Aufgaben, Dateien und Ansprechpartner (#184). Seit
+  #123 öffnete sie mit dem zuletzt angemeldeten Konto, die Rollen dazu kamen aber nur vom Server,
+  und ohne Antwort war jedes Recht verneint; die Daten lagen auf dem Gerät, nur die Bildschirme
+  blendeten sie aus. Die Rollen werden jetzt neben dem Konto gemerkt und beim Abmelden vergessen.
+  Sie erlauben nichts, jede Anfrage entscheidet der Server. Aufgefallen beim Bau der Zeiterfassung,
+  die sonst ohne Netz ebenso verschwunden wäre.
 - Ein neuer oder geänderter Datensatz springt nach dem Senden nicht mehr kurz zurück (#181). Der
   Postausgang ließ einen Vorgang los, sobald der Server ihn beantwortet hatte, und den Stand des
   Servers brachte erst der Abruf danach: ein gerade angelegter Kunde verschwand für diese Zeit aus

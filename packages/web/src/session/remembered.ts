@@ -1,7 +1,7 @@
 import type { TenantId } from '@opengewerk/domain'
 
 import { RequestRefused } from '../sync/transport.js'
-import type { Account } from './session.js'
+import type { Account, TenantChoice } from './session.js'
 
 /**
  * Who was last signed in on this device, and in which business.
@@ -66,6 +66,74 @@ export function rememberedAccount(): Account | null {
 export function forgetAccount(): void {
   try {
     globalThis.localStorage.removeItem(key)
+  } catch {
+    // Nothing kept, nothing to forget.
+  }
+}
+
+/**
+ * The businesses of whoever is signed in here, with their roles in each (#184).
+ *
+ * Kept beside the account for the same reason. The screens ask the roles what
+ * to show, and a device opened in a basement got no answer and showed no task,
+ * no photo and no working time, with all of them on the device. What is kept
+ * allows nothing: every request that reaches the server is decided there, by
+ * the roles it holds now.
+ *
+ * Forgotten with the person and not with the business: choosing another
+ * business of the same account changes nothing in the list.
+ */
+const tenantsKey = 'opengewerk.tenants'
+
+export function rememberTenants(tenants: readonly TenantChoice[]): void {
+  try {
+    globalThis.localStorage.setItem(tenantsKey, JSON.stringify(tenants))
+  } catch {
+    // Not remembered. Offline the screens then show what needs no right.
+  }
+}
+
+/**
+ * The kept list, and only while an account is kept whose business is in it.
+ * A list without the account it belongs to is a list of somebody else's.
+ */
+export function rememberedTenants(): readonly TenantChoice[] | null {
+  const account = rememberedAccount()
+
+  if (!account) {
+    return null
+  }
+
+  try {
+    const raw = globalThis.localStorage.getItem(tenantsKey)
+    const kept: unknown = raw ? JSON.parse(raw) : null
+
+    if (!Array.isArray(kept)) {
+      return null
+    }
+
+    const tenants = kept.filter(
+      (tenant: unknown): tenant is TenantChoice =>
+        typeof tenant === 'object' &&
+        tenant !== null &&
+        typeof (tenant as TenantChoice).id === 'string' &&
+        typeof (tenant as TenantChoice).name === 'string' &&
+        Array.isArray((tenant as TenantChoice).roles) &&
+        (tenant as TenantChoice).roles.every((role) => typeof role === 'string'),
+    )
+
+    return tenants.some((tenant) => tenant.id === account.tenantId) ? tenants : null
+  } catch {
+    return null
+  }
+}
+
+/** When the person changes: on signing out, and when the server says nobody is signed in. */
+export function forgetSignIn(): void {
+  forgetAccount()
+
+  try {
+    globalThis.localStorage.removeItem(tenantsKey)
   } catch {
     // Nothing kept, nothing to forget.
   }

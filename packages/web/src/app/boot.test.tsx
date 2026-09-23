@@ -5,13 +5,20 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { forgetAccount, rememberAccount, rememberedAccount } from '../session/remembered.js'
+import {
+  forgetSignIn,
+  rememberAccount,
+  rememberedAccount,
+  rememberedTenants,
+  rememberTenants,
+} from '../session/remembered.js'
 import { currentAccount } from '../session/session.js'
 import { SyncClient } from '../sync/client.js'
 import { text } from '../sync/fields.js'
 import { useRecords } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { Boot } from './boot.js'
+import { useMay } from './queries.js'
 
 /**
  * The start of the application without a network (#123).
@@ -82,13 +89,19 @@ function Jobs() {
   // tasks once did: its retry put the question back to "not answered yet",
   // and the gate took the screen away again.
   useQuery({ queryKey: ['account'], queryFn: currentAccount, retry: 1 })
+  // And one asking what the roles allow, as the tasks, the photos and the
+  // working time on a job do (#184).
+  const readsTasks = useMay('task.read')
 
   return (
-    <ul>
-      {jobs.map((job) => (
-        <li key={String(job['id'])}>{text(job, 'designation')}</li>
-      ))}
-    </ul>
+    <>
+      <ul>
+        {jobs.map((job) => (
+          <li key={String(job['id'])}>{text(job, 'designation')}</li>
+        ))}
+      </ul>
+      <p>{readsTasks ? 'Aufgaben sichtbar' : 'Aufgaben verborgen'}</p>
+    </>
   )
 }
 
@@ -108,7 +121,7 @@ function noNetwork() {
 }
 
 beforeEach(() => {
-  forgetAccount()
+  forgetSignIn()
 })
 
 afterEach(() => {
@@ -132,6 +145,30 @@ describe('starting without a network', () => {
     expect(screen.queryByRole('heading', { name: 'Einen Moment' })).toBeNull()
   })
 
+  it('shows what the roles kept from the last start allow', async () => {
+    const tenantId = await businessOnTheDevice()
+
+    rememberAccount({ ...account, tenantId })
+    rememberTenants([{ id: tenantId, name: 'Elektro Nord', roles: ['technician'] }])
+    noNetwork()
+    start()
+
+    expect(await screen.findByText('Zählerschrank im Keller')).toBeTruthy()
+    expect(await screen.findByText('Aufgaben sichtbar')).toBeTruthy()
+  })
+
+  it('shows nothing that needs a right, when no roles were kept for this business', async () => {
+    const tenantId = await businessOnTheDevice()
+
+    rememberAccount({ ...account, tenantId })
+    rememberTenants([{ id: 'elsewhere' as TenantId, name: 'Anderswo', roles: ['owner'] }])
+    noNetwork()
+    start()
+
+    expect(await screen.findByText('Zählerschrank im Keller')).toBeTruthy()
+    expect(screen.getByText('Aufgaben verborgen')).toBeTruthy()
+  })
+
   it('says it needs a network once, when nobody was ever signed in on this device', async () => {
     noNetwork()
     start()
@@ -144,6 +181,7 @@ describe('starting without a network', () => {
 describe('starting with a network', () => {
   it('asks for a sign in when the server says nobody is, and forgets what it kept', async () => {
     rememberAccount({ ...account, tenantId: 'somewhere' as TenantId })
+    rememberTenants([{ id: 'somewhere' as TenantId, name: 'Irgendwo', roles: ['owner'] }])
     vi.stubGlobal('fetch', (path: string) =>
       Promise.resolve(
         new Response(JSON.stringify(path === '/setup' ? { needed: false } : null), {
@@ -158,9 +196,11 @@ describe('starting with a network', () => {
     await waitFor(() => {
       expect(rememberedAccount()).toBeNull()
     })
+    // The roles went with the person, not only with the business.
+    expect(globalThis.localStorage.getItem('opengewerk.tenants')).toBeNull()
   })
 
-  it('keeps who is signed in and where, for the next start without one', async () => {
+  it('keeps who is signed in, where and with which roles, for the next start without one', async () => {
     const tenantId = await businessOnTheDevice()
 
     vi.stubGlobal('fetch', (path: string) => {
@@ -169,7 +209,9 @@ describe('starting with a network', () => {
             user: { id: account.userId, email: account.email, name: account.name },
             session: { activeTenantId: tenantId },
           }
-        : { changes: [], cursor: 1, hasMore: false }
+        : path === '/auth/tenants'
+          ? [{ id: tenantId, name: 'Elektro Nord', roles: ['technician'] }]
+          : { changes: [], cursor: 1, hasMore: false }
 
       return Promise.resolve(
         new Response(JSON.stringify(path.startsWith('/sync/conflicts') ? [] : answer), {
@@ -183,6 +225,11 @@ describe('starting with a network', () => {
     expect(await screen.findByText('Zählerschrank im Keller')).toBeTruthy()
     await waitFor(() => {
       expect(rememberedAccount()).toMatchObject({ userId: account.userId, tenantId })
+    })
+    await waitFor(() => {
+      expect(rememberedTenants()).toEqual([
+        { id: tenantId, name: 'Elektro Nord', roles: ['technician'] },
+      ])
     })
   })
 })
