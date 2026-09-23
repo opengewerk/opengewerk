@@ -649,6 +649,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die CI prüft jetzt die Formatierung (#147), als Schritt "Formatierung" im Job
+  "Typprüfung, Lint und Tests". ADR 0009 legt Prettier fest, geprüft wurde es bisher
+  nirgends, und neun Dateien waren auseinandergelaufen; sie sind in diesem Pull Request
+  formatiert, ohne andere Änderung an ihnen.
 - Eine Anlage, ein Verteiler, ein Feld oder ein Stromkreis, die als gelöscht markiert
   werden, nehmen alles mit, was darunter hängt, in derselben Anweisung und mit Eintrag im
   Audit-Log. Vorher blieben Stromkreise und Betriebsmittel unter einem gelöschten

@@ -53,10 +53,11 @@ Vorausgesetzt werden Node 24 und ein aktiviertes Corepack (`corepack enable`). C
 pnpm install
 pnpm run typecheck
 pnpm run lint
+pnpm run format:check
 pnpm run test
 ```
 
-Die drei Prüfungen laufen über Turborepo und damit über alle Pakete. Dieselben vier Schritte laufen in der CI. Warum die Werkzeuge so gewählt sind, steht in [ADR 0009](docs/adr/0009-werkzeuge-und-repo-struktur.md).
+Typprüfung, Lint und Tests laufen über Turborepo und damit über alle Pakete, die Formatierung prüft Prettier über das ganze Repository; `pnpm run format` bringt sie in Ordnung. Dieselben Schritte laufen in der CI. Warum die Werkzeuge so gewählt sind, steht in [ADR 0009](docs/adr/0009-werkzeuge-und-repo-struktur.md).
 
 An der Oberfläche arbeitet man mit zwei Prozessen nebeneinander: der Server auf Port 23700, und daneben
 

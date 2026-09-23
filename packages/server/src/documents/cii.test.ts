@@ -300,13 +300,14 @@ describe('an e-invoice', () => {
     expect(read(progress, `${terms}/ram:Description`)).toEqual([
       'Zahlbar ohne Abzug bis zum 17.08.2026.',
     ])
-    expect(read(progress, `${terms}/ram:DueDateDateTime/udt:DateTimeString`)).toEqual([
-      '20260817',
-    ])
+    expect(read(progress, `${terms}/ram:DueDateDateTime/udt:DateTimeString`)).toEqual(['20260817'])
     // Thirty days agreed with the general contractor, and an hour of fault
     // finding payable at once.
     expect(
-      read(ciiInvoice(reverseCharge, 'xrechnung'), `${terms}/ram:DueDateDateTime/udt:DateTimeString`),
+      read(
+        ciiInvoice(reverseCharge, 'xrechnung'),
+        `${terms}/ram:DueDateDateTime/udt:DateTimeString`,
+      ),
     ).toEqual(['20261021'])
     expect(read(ciiInvoice(singleDay, 'en16931'), `${terms}/ram:Description`)).toEqual([
       'Zahlbar sofort ohne Abzug.',
