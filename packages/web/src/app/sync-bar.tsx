@@ -19,6 +19,17 @@ export function SyncStatusBar({ conflictsLink }: { readonly conflictsLink?: Reac
   const client = useSync()
   const status = useSyncStatus()
 
+  // Louder than a conflict, and ahead of one: until the refused entry is
+  // decided, nothing queued behind it leaves the device, a decision on a
+  // conflict included.
+  if (status.state === 'refused') {
+    return (
+      <SyncBar state="conflict" action={conflictsLink}>
+        Der Server nimmt eine Änderung nicht an. Bis sie entschieden ist, geht nichts hinaus.
+      </SyncBar>
+    )
+  }
+
   if (status.state === 'conflict') {
     const count = status.conflicts.length
 

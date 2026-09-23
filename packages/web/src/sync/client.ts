@@ -7,6 +7,7 @@ import {
   type Operation,
   type OperationId,
   type OperationKind,
+  type OperationReceipt,
   policyFor,
   type RecordState,
   type SyncConflict,
@@ -30,7 +31,21 @@ export interface DirectWriter {
 }
 
 /** What the bar at the top of every screen says. */
-export type SyncState = 'synced' | 'offline' | 'conflict'
+export type SyncState = 'synced' | 'offline' | 'conflict' | 'refused'
+
+/**
+ * An operation the server refused outright, with the sentence it gave.
+ *
+ * Not a conflict: nobody else changed anything. The operation is wrong in
+ * itself, which only a faulty client sends (ADR 0005), or it needs a right the
+ * person no longer has. The server refuses the whole transmission over it and
+ * names it, and until a person lets it go, nothing queued behind it gets out
+ * (#120).
+ */
+export interface RefusedOperation {
+  readonly operation: Operation
+  readonly message: string
+}
 
 export interface SyncSnapshot {
   readonly state: SyncState
@@ -49,6 +64,8 @@ export interface SyncSnapshot {
   readonly online: boolean
   /** The last thing that went wrong, for the bar to say out loud. */
   readonly trouble: string | null
+  /** The operation the outbox is stuck on, until somebody lets it go. */
+  readonly refused: RefusedOperation | null
 }
 
 export type EditResult =
@@ -144,6 +161,7 @@ export class SyncClient {
     exchanging: false,
     online: true,
     trouble: null,
+    refused: null,
   }
 
   /** Bumped on every change, so React has one number to watch. */
@@ -597,11 +615,16 @@ export class SyncClient {
     this.publish({ exchanging: true, trouble: null })
 
     try {
-      await this.pushOutbox()
+      // A push refused over one operation does not stop the pull. What comes
+      // down only overwrites rows by their id, and the outbox is laid over it
+      // as over anything else. Stopping here left a device without the jobs of
+      // the next day for as long as the one entry stayed (#120).
+      const refused = await this.pushOutbox()
+
       await this.pullChanges()
       await this.refreshConflicts()
 
-      this.publish({ lastSyncedAt: new Date(), exchanging: false, trouble: null })
+      this.publish({ lastSyncedAt: new Date(), exchanging: false, trouble: null, refused })
     } catch (error) {
       if (isUnauthenticated(error)) {
         this.publish({ exchanging: false, trouble: 'Die Anmeldung ist abgelaufen.' })
@@ -627,13 +650,30 @@ export class SyncClient {
     }
   }
 
-  private async pushOutbox(): Promise<void> {
+  /**
+   * Sends the outbox. Answers with the operation it was refused over, when the
+   * server named one this device still holds, and with null otherwise.
+   */
+  private async pushOutbox(): Promise<RefusedOperation | null> {
     if (this.outbox.length === 0) {
-      return
+      return null
     }
 
     const sent = inOutboxOrder(this.outbox)
-    const receipts = await this.transport.push(this.deviceId, sent)
+    let receipts: readonly OperationReceipt[]
+
+    try {
+      receipts = await this.transport.push(this.deviceId, sent)
+    } catch (error) {
+      const refused = this.refusedOver(error)
+
+      if (refused) {
+        return refused
+      }
+
+      throw error
+    }
+
     const done = new Set<OperationId>()
 
     for (const receipt of receipts) {
@@ -648,6 +688,27 @@ export class SyncClient {
     this.outbox = this.outbox.filter((operation) => !done.has(operation.id))
     this.pending = byRecord(this.outbox)
     this.publish({ pending: this.outbox.length })
+
+    return null
+  }
+
+  /**
+   * The operation a refusal names, when it is one this device still holds.
+   *
+   * Anything else is nothing a person here could let go of. A refusal without
+   * a name comes from a client speaking the wrong protocol, which the next
+   * build fixes, since the wire form is made at sending and not stored; a lost
+   * connection is no refusal at all.
+   */
+  private refusedOver(error: unknown): RefusedOperation | null {
+    if (!(error instanceof RequestRefused)) {
+      return null
+    }
+
+    const named = (error.body as { operationId?: unknown } | null)?.operationId
+    const operation = this.outbox.find((entry) => entry.id === named)
+
+    return operation ? { operation, message: error.message } : null
   }
 
   private async pullChanges(): Promise<void> {
@@ -704,6 +765,42 @@ export class SyncClient {
     this.publish({ conflicts: this.snapshot.conflicts.filter((entry) => entry.id !== id) })
   }
 
+  /**
+   * Lets go of an operation the server refused outright, on this device.
+   *
+   * A create takes the later changes to the same record with it: none of them
+   * can land without it, and each would come back as a conflict about a
+   * record that is not there. Records that point at it are left alone. The
+   * server answers for them as for any missing parent, with a conflict
+   * somebody sees, and that is better than losing them without a word.
+   */
+  async discard(operationId: OperationId): Promise<void> {
+    const refused = this.outbox.find((operation) => operation.id === operationId)
+
+    if (!refused) {
+      return
+    }
+
+    const going = new Set(
+      this.outbox
+        .filter(
+          (operation) =>
+            operation.id === refused.id ||
+            (refused.kind === 'create' &&
+              operation.entity === refused.entity &&
+              operation.recordId === refused.recordId),
+        )
+        .map((operation) => operation.id),
+    )
+
+    await this.store.dequeue([...going])
+    this.outbox = this.outbox.filter((operation) => !going.has(operation.id))
+    this.pending = byRecord(this.outbox)
+    this.publish({ pending: this.outbox.length, refused: null })
+
+    await this.synchronise()
+  }
+
   /** Everything this device holds of this business, gone. Signing out. */
   async forget(): Promise<void> {
     await this.store.clear()
@@ -712,6 +809,12 @@ export class SyncClient {
   // Bookkeeping
 
   private decideState(): SyncState {
+    // Ahead of the conflicts. While the outbox is stuck, a decision on one of
+    // them does not get out either, because a decision leaves through it.
+    if (this.snapshot.refused) {
+      return 'refused'
+    }
+
     if (this.snapshot.conflicts.length > 0) {
       return 'conflict'
     }

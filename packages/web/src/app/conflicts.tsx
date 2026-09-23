@@ -2,7 +2,7 @@ import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain
 import { useState } from 'react'
 
 import { Button, Card, Cell, Column, FieldLabel, Table } from '../components/index.js'
-import { refusalText } from '../sync/client.js'
+import { type RefusedOperation, refusalText } from '../sync/client.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { moment } from './format.js'
 import { entityLabel, fieldLabel, titleOf } from './naming.js'
@@ -187,17 +187,119 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
 }
 
 /**
+ * An operation the server refused outright, and the decision it leaves.
+ *
+ * Nothing to weigh against anything: nobody else changed the record, the
+ * operation is wrong in itself, and the server has said why. What a person
+ * can do is let it go on this device, so that the rest of the outbox gets out,
+ * or send it again when the reason is gone, a right that was missing and has
+ * been given since. Correcting it is not on offer: an entry already queued
+ * cannot be changed, only followed by another one (#120).
+ */
+function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
+  const client = useSync()
+  const [working, setWorking] = useState(false)
+  const { operation, message } = refused
+  const title = titleOf(operation.entity, client.get(operation.entity, operation.recordId))
+  const creating = operation.kind === 'create'
+
+  async function act(work: () => Promise<void>) {
+    setWorking(true)
+
+    try {
+      await work()
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Card
+      label={`Abgelehnte Änderung an ${title}`}
+      heading={
+        <div className="flex flex-col gap-1">
+          <FieldLabel>{entityLabel(operation.entity)}</FieldLabel>
+          <h2 className="text-title font-semibold">{title}</h2>
+          <p className="text-body text-ink-muted">{message}</p>
+        </div>
+      }
+    >
+      <p className="text-body text-ink">
+        {creating
+          ? 'Der Server nimmt diesen Eintrag nicht an, und bis er entschieden ist, geht nichts ' +
+            'hinaus, was danach auf diesem Gerät erfasst wurde. Verwerfen nimmt ihn samt den ' +
+            'späteren Änderungen an ihm von diesem Gerät; im System war er nie.'
+          : 'Der Server nimmt diese Änderung nicht an, und bis sie entschieden ist, geht nichts ' +
+            'hinaus, was danach auf diesem Gerät erfasst wurde. Verwerfen nimmt sie von diesem ' +
+            'Gerät; im System bleibt der Eintrag, wie er ist.'}
+      </p>
+
+      {operation.kind === 'delete' ? (
+        <p className="mt-3 text-body text-ink">Das Gerät wollte den Eintrag löschen.</p>
+      ) : (
+        <Table caption={`Was das Gerät an ${title} schreiben wollte`}>
+          <thead>
+            <tr>
+              <Column>Feld</Column>
+              <Column>Auf dem Gerät</Column>
+            </tr>
+          </thead>
+          <tbody>
+            {operation.patches.map((patch) => (
+              <tr key={patch.field}>
+                <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
+                  {fieldLabel(patch.field)}
+                </th>
+                <Cell>{shown(patch.to)}</Cell>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
+      <p className="mt-3 text-table text-ink-muted">
+        {`Erfasst ${moment(operation.recordedAt)} auf diesem Gerät. Erneut senden hilft nur, ` +
+          'wenn der Grund inzwischen behoben ist, etwa ein Recht, das gefehlt hat.'}
+      </p>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button
+          tone="primary"
+          disabled={working}
+          onClick={() => {
+            void act(() => client.discard(operation.id))
+          }}
+        >
+          {creating ? 'Eintrag verwerfen' : 'Änderung verwerfen'}
+        </Button>
+        <Button
+          tone="secondary"
+          disabled={working}
+          onClick={() => {
+            void act(() => client.synchronise())
+          }}
+        >
+          Erneut senden
+        </Button>
+      </div>
+    </Card>
+  )
+}
+
+/**
  * The list somebody has to work through, and the only screen in the
  * application that is allowed to be empty and still worth opening.
  */
 export function ConflictScreen() {
-  const { conflicts } = useSyncStatus()
+  const { conflicts, refused } = useSyncStatus()
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-title font-semibold">Konflikte</h1>
 
-      {conflicts.length === 0 ? (
+      {refused ? <RefusedCard key={refused.operation.id} refused={refused} /> : null}
+
+      {conflicts.length === 0 && !refused ? (
         <Card label="Keine Konflikte" tone="sunken">
           <p className="text-body">
             Nichts zu entscheiden. Änderungen von zwei Geräten sind hier gelandet, wenn beide

@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpException,
   NotFoundException,
   Param,
   Post,
@@ -23,11 +24,41 @@ import {
   applyOperations,
   changesSince,
   closeConflict,
+  OperationRefused,
   openConflicts,
   UnknownFieldError,
 } from '../database/sync.js'
 import { RequiresPermission } from './authorization.js'
+import { answerFor } from './database-errors.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+
+/**
+ * The answer to a transmission refused over one operation in it, with that
+ * operation named (#120).
+ *
+ * Named only where the answer is about what the operation carried: a bad
+ * request, or a conflict the database raised. A device can then show the one
+ * entry and throw it away, instead of sending the same stack for ever. A 500
+ * is the server's own failure and no reason to lose an entry over, and a 403
+ * says nothing else on purpose.
+ */
+function naming(operationId: OperationId, answer: HttpException): HttpException {
+  const status = answer.getStatus()
+
+  if (status !== 400 && status !== 409) {
+    return answer
+  }
+
+  const body = answer.getResponse()
+
+  return new HttpException(
+    {
+      ...(typeof body === 'string' ? { statusCode: status, message: body } : body),
+      operationId,
+    },
+    status,
+  )
+}
 
 function asRecord(value: unknown, what: string): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -200,13 +231,21 @@ export class SyncController {
       const needed = permissionFor(operation.entity, operation.kind)
 
       if (!needed) {
-        throw new BadRequestException(
-          `Diese Art von Datensatz wird nicht abgeglichen: ${operation.entity}`,
+        throw naming(
+          operation.id,
+          new BadRequestException(
+            `Diese Art von Datensatz wird nicht abgeglichen: ${operation.entity}`,
+          ),
         )
       }
 
+      // Named as well: a right taken away while a device still holds changes
+      // that needed it would otherwise hold its outbox for good.
       if (!isAllowed(identity, needed)) {
-        throw new BadRequestException(`Fehlendes Recht für ${operation.entity}: ${needed}`)
+        throw naming(
+          operation.id,
+          new BadRequestException(`Fehlendes Recht für ${operation.entity}: ${needed}`),
+        )
       }
     }
 
@@ -215,8 +254,13 @@ export class SyncController {
         receipts: await applyOperations(tx, identity.tenantId, operations),
       }))
     } catch (error) {
-      if (error instanceof UnknownFieldError) {
-        throw new BadRequestException(error.message)
+      if (error instanceof OperationRefused) {
+        throw naming(
+          error.operationId,
+          error.cause instanceof UnknownFieldError
+            ? new BadRequestException(error.cause.message)
+            : answerFor(error.cause),
+        )
       }
 
       throw error
