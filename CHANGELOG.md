@@ -862,6 +862,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Gerät bleibt angemeldet, solange es benutzt wird (#124). Das Cookie galt nur zwölf
+  Stunden, die Laufzeit des Büros, und so war auch jedes Gerät auf der Baustelle nach zwölf
+  Stunden abgemeldet, obwohl seine Sitzung dreißig Tage galt; verlängert wurde keine. Das
+  Cookie lebt jetzt dreißig Tage, die Sitzung in der Datenbank entscheidet, und eine
+  benutzte Sitzung bekommt ihre volle Laufzeit ab der letzten Benutzung, zwölf Stunden im
+  Büro, dreißig Tage auf einem Gerät.
+- Die Baustelle öffnet ohne Netz den Betrieb, in dem zuletzt jemand angemeldet war, mit den
+  Aufträgen auf dem Gerät (#123). Bisher blieb sie beim Start ohne Verbindung beim Warten
+  stehen oder zeigte die Anmeldung. Das Gerät merkt sich dafür, wer zuletzt wo angemeldet war,
+  keinen Schlüssel; der Server entscheidet wieder, sobald er antwortet.
 - Passkeys sind vorerst abgeschaltet (GHSA-jghx-6wmh-mpcj). Das Plugin war eingeschaltet,
   ohne dass es eine Oberfläche dafür gab: jede Sitzung konnte ohne Bestätigung einen Passkey
   registrieren, die Anmeldung damit umging den zweiten Faktor, und niemand konnte die

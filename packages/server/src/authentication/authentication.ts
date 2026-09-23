@@ -1,6 +1,7 @@
 import { hash, verify } from '@node-rs/argon2'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { twoFactor } from 'better-auth/plugins'
 
 import type { Database } from '../database/database.js'
@@ -12,23 +13,9 @@ import {
   authUsers,
   authVerifications,
 } from '../database/schema/index.js'
+import { renewSession, sessionLifetimes } from './session-lifetime.js'
 
-/**
- * How long a session lives.
- *
- * Two lengths, because ADR 0006 describes two places of work. In the office a
- * screen is left unlocked and a short session is the cheap protection; on a
- * roof or in a basement a sign in that expires means a technician stands in
- * front of a login form with no network, which is the one moment the whole
- * offline layer exists to avoid.
- *
- * The long one is not unlimited. A device that has not been seen for a month
- * is a device that may have been lost a month ago.
- */
-export const sessionLifetimes = {
-  office: 60 * 60 * 12,
-  registeredDevice: 60 * 60 * 24 * 30,
-} as const
+export { sessionLifetimes } from './session-lifetime.js'
 
 /**
  * The Argon2id parameters.
@@ -128,11 +115,17 @@ export function createAuthentication({
       },
     },
     session: {
-      expiresIn: sessionLifetimes.office,
-      // How much of the remaining life may pass before the expiry is pushed
-      // out again. A day means a session in daily use never expires under
-      // somebody, and one that is not used does.
-      updateAge: 60 * 60 * 24,
+      // The cookie lives as long as the longest session, and the row decides
+      // (#124). better-auth writes this lifetime into the cookie, and a
+      // shorter one there would log a device out while its row still has
+      // weeks: the office lifetime did exactly that to every device after
+      // twelve hours. A new row starts as an office session, see
+      // `databaseHooks`, and `chooseTenant` makes it a device's.
+      expiresIn: sessionLifetimes.registeredDevice,
+      // Renewing is ours, `renewSession`: better-auth renews every session to
+      // the one lifetime above, which would turn an office session into a
+      // month.
+      disableSessionRefresh: true,
       /**
        * The three columns a session of ours has beyond better-auth's.
        *
@@ -149,6 +142,52 @@ export function createAuthentication({
         deviceId: { type: 'string', required: false, input: false },
         longLived: { type: 'boolean', required: false, input: false, defaultValue: false },
       },
+    },
+    databaseHooks: {
+      session: {
+        create: {
+          // Every session starts short. Only a device registered in
+          // `chooseTenant` gets the long lifetime, and a session that has not
+          // chosen a business yet is not one.
+          before: async (session) => ({
+            data: {
+              ...session,
+              expiresAt: new Date(Date.now() + sessionLifetimes.office * 1000),
+            },
+          }),
+        },
+      },
+    },
+    hooks: {
+      /**
+       * Renews a session whenever the interface asks after it, and the cookie
+       * with it. The interface asks at every start and whenever it comes back
+       * into view, so a device that is used keeps a cookie a month ahead of
+       * its last use; the requests in between renew only the row
+       * (`SessionIdentitySource`).
+       */
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/get-session') {
+          return
+        }
+
+        const found = await getSessionFromCtx(ctx)
+
+        if (!found) {
+          return
+        }
+
+        await renewSession(database, found.session, found.user.id)
+        await ctx.setSignedCookie(
+          ctx.context.authCookies.sessionToken.name,
+          found.session.token,
+          ctx.context.secret,
+          {
+            ...ctx.context.authCookies.sessionToken.attributes,
+            maxAge: sessionLifetimes.registeredDevice,
+          },
+        )
+      }),
     },
     rateLimit: {
       enabled: rateLimited,

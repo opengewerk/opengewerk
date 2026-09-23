@@ -17,7 +17,7 @@ import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { Database } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
 import { authSessions, memberships, tenants, tenantSessions } from '../database/schema/index.js'
-import { sessionLifetimes } from './authentication.js'
+import { sessionLifetimes } from './session-lifetime.js'
 
 /** One of the businesses somebody may work in. */
 interface TenantChoice {
@@ -138,8 +138,9 @@ export class AuthenticationController {
     }
 
     // A registered device gets the long session, the office the short one
-    // (ADR 0006). The expiry moves with it, otherwise the flag would say one
-    // thing and the cookie another.
+    // (ADR 0006). The expiry moves with the flag, because the row is what
+    // decides: the cookie lives as long as the longest session either way
+    // (`session-lifetime.ts`).
     const expiresAt = new Date(
       Date.now() + (deviceId ? sessionLifetimes.registeredDevice : sessionLifetimes.office) * 1000,
     )

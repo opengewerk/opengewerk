@@ -11,6 +11,7 @@ import { useState } from 'react'
 
 import { Button, Field, SelectField, TextArea } from '../../components/index.js'
 import { moment } from '../../app/format.js'
+import { accountQuery } from '../../app/queries.js'
 import { letterhead, type LetterheadView } from '../../session/letterhead.js'
 import {
   checkMailServer,
@@ -22,7 +23,6 @@ import {
   type SavedMailServer,
   saveMailServer,
 } from '../../session/mail.js'
-import { currentAccount } from '../../session/session.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Nothing, Section } from '../layout.js'
 
@@ -162,7 +162,7 @@ function MailServerForm({
   readonly onSaid: (said: Said | null) => void
 }) {
   const queries = useQueryClient()
-  const account = useQuery({ queryKey: ['account'], queryFn: currentAccount })
+  const account = useQuery(accountQuery)
   const head = useQuery({ queryKey: ['letterhead'], queryFn: letterhead })
 
   const [host, setHost] = useState(stored?.host ?? '')

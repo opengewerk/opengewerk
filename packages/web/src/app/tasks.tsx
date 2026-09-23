@@ -4,14 +4,13 @@ import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { Button } from '../components/index.js'
-import { currentAccount } from '../session/session.js'
 import { type Assignee, assignees } from '../session/tasks.js'
 import { refusalText } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useRecord, useSync } from '../sync/provider.js'
 import { date, today } from './format.js'
 import { taskStatusOf } from './labels.js'
-import { useMay } from './queries.js'
+import { accountQuery, useMay } from './queries.js'
 import { RecordForm, asTextOrNull } from './record-form.js'
 
 /**
@@ -23,7 +22,7 @@ import { RecordForm, asTextOrNull } from './record-form.js'
  * name is a courtesy.
  */
 export function usePeople(): { readonly me: string | null; readonly people: readonly Assignee[] } {
-  const account = useQuery({ queryKey: ['account'], queryFn: currentAccount })
+  const account = useQuery(accountQuery)
   const people = useQuery({
     queryKey: ['assignees'],
     queryFn: assignees,

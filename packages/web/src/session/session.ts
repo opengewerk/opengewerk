@@ -1,6 +1,7 @@
 import type { RoleKey, TenantId } from '@opengewerk/domain'
 
 import { request } from '../sync/transport.js'
+import { forgetAccount, rememberAccount, rememberedAccount, unreachable } from './remembered.js'
 
 /**
  * The three steps between opening the application and being able to work,
@@ -76,22 +77,46 @@ interface SessionAnswer {
 
 /** Who is signed in on this browser, or nobody. */
 export async function currentAccount(): Promise<Account | null> {
-  const answer = await request<SessionAnswer | null>(`${authentication}/get-session`)
+  let answer: SessionAnswer | null
+
+  try {
+    answer = await request<SessionAnswer | null>(`${authentication}/get-session`)
+  } catch (error) {
+    // Nobody answered, which is not the same as "nobody is signed in". The
+    // device then works with who was signed in here last, so that the site
+    // opens the day's jobs in a basement (#123); the server decides again at
+    // the first request that reaches it. With nobody kept, the failure stays
+    // a failure and the gate says the device needs a network once.
+    const kept = unreachable(error) ? rememberedAccount() : null
+
+    if (kept) {
+      return kept
+    }
+
+    throw error
+  }
+
   const user = answer?.user
 
   if (!user || typeof user.id !== 'string') {
+    // The server said so, and it decides: nothing kept outlives that.
+    forgetAccount()
+
     return null
   }
 
-  const tenantId = answer.session?.activeTenantId
-
-  return {
+  const tenantId = answer?.session?.activeTenantId
+  const account: Account = {
     userId: user.id,
     email: typeof user.email === 'string' ? user.email : '',
     name: typeof user.name === 'string' ? user.name : '',
     tenantId: typeof tenantId === 'string' ? (tenantId as TenantId) : null,
     twoFactorEnabled: user.twoFactorEnabled === true,
   }
+
+  rememberAccount(account)
+
+  return account
 }
 
 /**
@@ -203,6 +228,9 @@ export function availableTenants(): Promise<readonly TenantChoice[]> {
  * device, twelve hours at a desk somebody walks away from.
  */
 export async function chooseTenant(tenantId: TenantId, deviceId?: string): Promise<void> {
+  // The business this device opens without a network changes with it; until
+  // the new one has been opened, it opens none (#123).
+  forgetAccount()
   await request('/auth/tenant', {
     method: 'POST',
     body: JSON.stringify({ tenantId, deviceId }),
@@ -218,6 +246,9 @@ export async function revokeDevice(sessionId: string): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
+  // First, so that a sign out without a network still leaves nothing for the
+  // next start to open on its own (#123).
+  forgetAccount()
   await request('/auth/sign-out', { method: 'POST' })
 }
 

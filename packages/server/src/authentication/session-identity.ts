@@ -11,6 +11,7 @@ import type { IdentitySource, SignedInUser } from '../api/identity.js'
 import type { Database } from '../database/database.js'
 import { memberships } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
+import { renewSession } from './session-lifetime.js'
 
 /** What a request has to carry for a session to be found in it. */
 interface RequestWithHeaders {
@@ -51,10 +52,21 @@ export class SessionIdentitySource implements IdentitySource {
     return found ? { userId: found.user.id, sessionId: found.session.id } : null
   }
 
+  /**
+   * The session on a request, renewed when it is due. Only the row: the
+   * cookie is renewed when the interface asks after the session, which it
+   * does at every start and whenever it comes back into view, and until then
+   * it lives a month anyway (`session-lifetime.ts`).
+   */
   private async session(request: unknown) {
     const headers = toHeaders((request as RequestWithHeaders).headers)
+    const found = await this.authentication.api.getSession({ headers })
 
-    return this.authentication.api.getSession({ headers })
+    if (found) {
+      await renewSession(this.database, found.session, found.user.id)
+    }
+
+    return found
   }
 
   async identify(request: unknown): Promise<Identity | null> {
