@@ -90,7 +90,7 @@ async function withClient(server: Quiet, rows: Record<string, RecordState[]> = {
     transport: server,
     writer: server,
     deviceId: 'device',
-    entities: ['customers', 'jobs'],
+    entities: ['customers', 'jobs', 'documents', 'document_lines'],
     onSignedOut: () => {},
   })
 
@@ -272,6 +272,239 @@ describe('the conflict screen', () => {
     expect(client.status().pending).toBe(0)
     expect(client.list('customers')).toEqual([])
     expect(await screen.findByText(/Nichts zu entscheiden/)).toBeDefined()
+  })
+
+  /** A report the office issued while a device was still writing on it. */
+  const issuedReport: Record<string, RecordState[]> = {
+    documents: [
+      {
+        id: 'd-1',
+        kind: 'time_and_material_report',
+        status: 'issued',
+        number: 'RB-2026-0001',
+        customerId: 'c-1',
+        jobId: 'j-1',
+        subject: 'Zählerschrank',
+        documentDate: '2026-09-21',
+        version: 3,
+        deletedAt: null,
+      },
+    ],
+    document_lines: [
+      {
+        id: 'l-1',
+        documentId: 'd-1',
+        kind: 'item',
+        position: 1,
+        designation: 'Arbeitszeit',
+        quantityMilli: 2000,
+        unit: 'hour',
+        unitPriceCents: 6500,
+        vatRate: 'standard',
+        netCents: 13000,
+        version: 1,
+        deletedAt: null,
+      },
+      {
+        id: 'l-2',
+        documentId: 'd-1',
+        kind: 'item',
+        position: 2,
+        designation: 'Anfahrt',
+        quantityMilli: 1000,
+        unit: 'flat_rate',
+        unitPriceCents: 3500,
+        vatRate: 'standard',
+        netCents: 3500,
+        version: 1,
+        deletedAt: null,
+      },
+    ],
+  }
+
+  function fixed(part: Partial<Omit<SyncConflict, 'id'>> & { readonly id?: string }): SyncConflict {
+    return conflict({
+      reason: 'record_is_fixed',
+      // What the server names at an issued document: the field of the document
+      // that stops the change, not one the device wrote.
+      fields: ['status'],
+      seen: {},
+      found: {},
+      ...part,
+    } as Partial<SyncConflict>)
+  }
+
+  function created(entity: string) {
+    return server.sent
+      .flat()
+      .filter((operation) => operation.kind === 'create' && operation.entity === entity)
+      .map((operation) => ({
+        id: operation.recordId,
+        values: Object.fromEntries(operation.patches.map((patch) => [patch.field, patch.to])),
+      }))
+  }
+
+  /**
+   * The report written on in a cellar after the office issued it (#139).
+   * "Fassung vom Gerät übernehmen" would be refused a second time, and "Stand
+   * im System behalten" throws the work away. The new lines become a
+   * supplement, and only they: copying the issued lines along would bill them
+   * twice.
+   */
+  it('turns lines added to an issued report into a supplement', async () => {
+    server.open = [
+      fixed({
+        entity: 'document_lines',
+        recordId: 'l-9',
+        // In the order PostgreSQL hands back the keys of a jsonb column:
+        // shortest first, then by bytes.
+        wanted: {
+          kind: 'item',
+          unit: 'hour',
+          vatRate: 'standard',
+          position: 3,
+          documentId: 'd-1',
+          designation: 'Kabel nachgezogen',
+          quantityMilli: 1500,
+          unitPriceCents: 6500,
+        },
+      }),
+    ]
+
+    const client = await withClient(server, issuedReport)
+
+    render(
+      <SyncProvider client={client}>
+        <ConflictScreen />
+      </SyncProvider>,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeNull()
+    expect(screen.getByText(/Der Beleg ist inzwischen festgeschrieben/)).toBeDefined()
+
+    // What the device wrote, as the document screen would show it. Not the
+    // status of the document, which is the field the server names as the
+    // obstacle and no row anybody could decide on.
+    expect(within(screen.getByRole('row', { name: /Menge/ })).getByText('1,5')).toBeDefined()
+    expect(
+      within(screen.getByRole('row', { name: /Einzelpreis/ })).getByText(/65,00/),
+    ).toBeDefined()
+    expect(within(screen.getByRole('row', { name: /Einheit/ })).getByText('Stunden')).toBeDefined()
+    expect(screen.queryByRole('row', { name: /Status/ })).toBeNull()
+    expect(screen.getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual([
+      'Bezeichnung',
+      'Menge',
+      'Einheit',
+      'Einzelpreis',
+      'Steuersatz',
+    ])
+
+    await userEvent.click(screen.getByRole('button', { name: 'Als neuen Entwurf anlegen' }))
+
+    expect(
+      await screen.findByText(
+        /Entwurf angelegt: Nachtrag zu Regiebericht RB-2026-0001: Zählerschrank\./,
+      ),
+    ).toBeDefined()
+
+    await client.synchronise()
+
+    const [head, ...others] = created('documents')
+
+    expect(others).toEqual([])
+    expect(head?.values).toMatchObject({
+      kind: 'time_and_material_report',
+      customerId: 'c-1',
+      jobId: 'j-1',
+      subject: 'Nachtrag zu Regiebericht RB-2026-0001: Zählerschrank',
+    })
+    // A new draft, and one the server sets about by itself: the link to the
+    // issued report is in the subject, not in the chain (#129).
+    expect(head?.values).not.toHaveProperty('predecessorDocumentId')
+    expect(head?.values).not.toHaveProperty('status')
+    expect(created('document_lines').map((line) => line.values)).toEqual([
+      {
+        documentId: head?.id,
+        kind: 'item',
+        position: 1,
+        designation: 'Kabel nachgezogen',
+        quantityMilli: 1500,
+        unit: 'hour',
+        unitPriceCents: 6500,
+        vatRate: 'standard',
+      },
+    ])
+    expect(server.resolved).toEqual(['k-1'])
+  })
+
+  /**
+   * A change to what the issued document says, the head or a line it has, is
+   * a different document and not a supplement. The draft is the whole of it
+   * as the device wanted it, the line the device deleted left out, and every
+   * conflict about the document goes into that one draft.
+   */
+  it('makes one draft of the whole document when the device changed it', async () => {
+    server.open = [
+      fixed({
+        id: 'k-1',
+        entity: 'documents',
+        recordId: 'd-1',
+        wanted: { introText: 'Wie am Telefon besprochen.' },
+        seen: { introText: null },
+        found: { introText: null },
+      }),
+      fixed({
+        id: 'k-2',
+        entity: 'document_lines',
+        recordId: 'l-1',
+        wanted: { quantityMilli: 3000 },
+        seen: { quantityMilli: 2000 },
+        found: { quantityMilli: 2000 },
+      }),
+      fixed({ id: 'k-3', entity: 'document_lines', recordId: 'l-2', wanted: {} }),
+    ]
+
+    const client = await withClient(server, issuedReport)
+
+    render(
+      <SyncProvider client={client}>
+        <ConflictScreen />
+      </SyncProvider>,
+    )
+
+    const offered = screen.getAllByRole('button', { name: 'Als neuen Entwurf anlegen' })
+
+    expect(offered).toHaveLength(3)
+
+    await userEvent.click(offered[1] as HTMLElement)
+
+    expect(await screen.findByText(/Nichts zu entscheiden/)).toBeDefined()
+    expect(
+      screen.getByText(/Entwurf angelegt: Geänderte Fassung von Regiebericht RB-2026-0001/),
+    ).toBeDefined()
+
+    await client.synchronise()
+
+    const [head, ...others] = created('documents')
+
+    expect(others).toEqual([])
+    expect(head?.values).toMatchObject({
+      introText: 'Wie am Telefon besprochen.',
+      subject: 'Geänderte Fassung von Regiebericht RB-2026-0001: Zählerschrank',
+    })
+    expect(created('document_lines').map((line) => line.values)).toEqual([
+      {
+        documentId: head?.id,
+        kind: 'item',
+        position: 1,
+        designation: 'Arbeitszeit',
+        quantityMilli: 3000,
+        unit: 'hour',
+        unitPriceCents: 6500,
+        vatRate: 'standard',
+      },
+    ])
+    expect([...server.resolved].sort()).toEqual(['k-1', 'k-2', 'k-3'])
   })
 
   it('says so plainly when there is nothing to decide', async () => {

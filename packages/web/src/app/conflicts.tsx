@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { Button, Card, Cell, Column, FieldLabel, Table } from '../components/index.js'
 import { type RefusedOperation, refusalText } from '../sync/client.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
-import { moment } from './format.js'
+import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'
+import { amount, euros, moment } from './format.js'
+import { lineUnitLabel, vatRateLabel } from './labels.js'
 import { entityLabel, fieldLabel, titleOf } from './naming.js'
 
 /**
@@ -34,7 +36,12 @@ const settledOnSite: Readonly<Record<string, string>> = {
     'wurde. Der Bericht ist wieder offen; bitte ansehen und noch einmal unterschreiben lassen.',
 }
 
-function shown(value: SyncValue | undefined): string {
+/**
+ * A value the way the document screen shows it: a line reads "2" and
+ * "48,50 €", not 2000 and 4850. What this build does not know stays raw,
+ * which is visibly a gap and better than an empty cell (see `naming.ts`).
+ */
+function shown(field: string, value: SyncValue | undefined): string {
   if (value === null || value === undefined) {
     return 'leer'
   }
@@ -43,7 +50,62 @@ function shown(value: SyncValue | undefined): string {
     return value ? 'ja' : 'nein'
   }
 
+  if (typeof value === 'number' && field === 'quantityMilli') {
+    return amount(value)
+  }
+
+  if (typeof value === 'number' && field === 'unitPriceCents') {
+    return euros(value)
+  }
+
+  if (typeof value === 'string' && field === 'unit' && Object.hasOwn(lineUnitLabel, value)) {
+    return lineUnitLabel[value as keyof typeof lineUnitLabel]
+  }
+
+  if (typeof value === 'string' && field === 'vatRate' && Object.hasOwn(vatRateLabel, value)) {
+    return vatRateLabel[value as keyof typeof vatRateLabel]
+  }
+
   return String(value)
+}
+
+/**
+ * Fields of a line that say where it hangs and where it sits, not what it
+ * says. On the card for an issued document they would be rows nobody can do
+ * anything with, and the new draft sets all three itself.
+ */
+const placement = new Set(['documentId', 'position', 'kind'])
+
+/**
+ * The order of the document screen, head first and a line as it reads.
+ *
+ * What the device wanted arrives as `jsonb`, and PostgreSQL hands its keys back
+ * shortest first: a line would read unit, rate, designation. Fields not in the
+ * list keep their order behind the rest.
+ */
+const documentOrder = [
+  'subject',
+  'introText',
+  'closingText',
+  'serviceFrom',
+  'serviceUntil',
+  'paymentTermDays',
+  'designation',
+  'description',
+  'quantityMilli',
+  'unit',
+  'unitPriceCents',
+  'vatRate',
+]
+
+function inDocumentOrder(fields: readonly string[]): string[] {
+  const rank = (field: string) => {
+    const at = documentOrder.indexOf(field)
+
+    return at === -1 ? documentOrder.length : at
+  }
+
+  return [...fields].sort((left, right) => rank(left) - rank(right))
 }
 
 /**
@@ -61,17 +123,43 @@ function shown(value: SyncValue | undefined): string {
  * through the outbox like any other, so it is subject to the same rules and
  * lands in the same audit log. Nothing about deciding a conflict is a back
  * door.
+ *
+ * A change to a document that was issued in the meantime cannot win: the
+ * document is not changed any more, and taking the device's version is
+ * refused again. There the choice is a new draft or the state in the system
+ * (#139, ADR 0005 point 4), and the new draft takes every such change to the
+ * same document at once, see `draftFromFixed`.
  */
-function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
+function ConflictCard({
+  conflict,
+  onDrafted,
+}: {
+  readonly conflict: SyncConflict
+  readonly onDrafted: (subject: string) => void
+}) {
   const client = useSync()
+  const { conflicts } = useSyncStatus()
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const fixedDocument = fixedDocumentOf(client, conflict)
 
   // A record the server refused to create is on neither side, and then what
   // the device wanted is the only thing that can name it.
-  const record = client.get(conflict.entity, conflict.recordId) ?? conflict.wanted
-  const involved = conflict.fields.length > 0 ? conflict.fields : Object.keys(conflict.wanted)
+  const known = client.get(conflict.entity, conflict.recordId)
+  const record = known ?? conflict.wanted
   const settled = settledOnSite[conflict.entity]
+
+  // At an issued document the server names the field that stops the change,
+  // the status of the document, and that is no row anybody can decide on.
+  // What the device wrote is: a new line with its values, a changed one with
+  // the values beside what the system holds.
+  const involved = fixedDocument
+    ? inDocumentOrder(Object.keys(conflict.wanted).filter((field) => !placement.has(field)))
+    : conflict.fields.length > 0
+      ? conflict.fields
+      : Object.keys(conflict.wanted)
+  const onlyOnDevice = fixedDocument !== null && known === null
+  const deleting = fixedDocument !== null && Object.keys(conflict.wanted).length === 0
 
   async function decide(takeMine: boolean) {
     setWorking(true)
@@ -100,6 +188,41 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
     }
   }
 
+  async function asDraft(documentId: string) {
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      const result = await draftFromFixed(client, conflicts, documentId)
+
+      if (result.outcome === 'refused') {
+        setTrouble(result.message)
+
+        return
+      }
+
+      onDrafted(result.subject)
+
+      // Closed only after the draft exists, and each conflict of the document
+      // with it. Without a connection they stay open, and closing them later
+      // with "Stand im System behalten" makes no second draft.
+      try {
+        for (const entry of conflicts) {
+          if (fixedDocumentOf(client, entry) === documentId) {
+            await client.resolveConflict(entry.id)
+          }
+        }
+      } catch {
+        setTrouble(
+          'Der Entwurf ist angelegt. Die Konflikte lassen sich erst mit Verbindung schließen, ' +
+            'dann mit "Stand im System behalten".',
+        )
+      }
+    } finally {
+      setWorking(false)
+    }
+  }
+
   return (
     <Card
       label={`Konflikt an ${entityLabel(conflict.entity)} ${titleOf(conflict.entity, record)}`}
@@ -113,6 +236,27 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
     >
       {settled ? (
         <p className="text-body text-ink">{settled}</p>
+      ) : deleting ? (
+        <p className="text-body text-ink">Das Gerät wollte den Eintrag löschen.</p>
+      ) : onlyOnDevice ? (
+        <Table caption={`Was das Gerät an ${titleOf(conflict.entity, record)} schreiben wollte`}>
+          <thead>
+            <tr>
+              <Column>Feld</Column>
+              <Column>Auf dem Gerät</Column>
+            </tr>
+          </thead>
+          <tbody>
+            {involved.map((field) => (
+              <tr key={field}>
+                <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
+                  {fieldLabel(field)}
+                </th>
+                <Cell>{shown(field, conflict.wanted[field])}</Cell>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       ) : (
         <Table caption={`Die beiden Stände von ${titleOf(conflict.entity, record)}`}>
           <thead>
@@ -129,14 +273,23 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
                 <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
                   {fieldLabel(field)}
                 </th>
-                <Cell>{shown(conflict.wanted[field])}</Cell>
-                <Cell>{shown(conflict.found[field])}</Cell>
-                <Cell className="text-ink-muted">{shown(conflict.seen[field])}</Cell>
+                <Cell>{shown(field, conflict.wanted[field])}</Cell>
+                <Cell>{shown(field, conflict.found[field])}</Cell>
+                <Cell className="text-ink-muted">{shown(field, conflict.seen[field])}</Cell>
               </tr>
             ))}
           </tbody>
         </Table>
       )}
+
+      {fixedDocument ? (
+        <p className="mt-3 text-body text-ink">
+          Der Beleg ist inzwischen festgeschrieben und wird nicht mehr geändert. Was auf diesem
+          Gerät dazukam oder geändert wurde, lässt sich als neuer Entwurf für denselben Kunden und
+          Auftrag anlegen; sein Betreff nennt den festgeschriebenen Beleg. Sonst bleibt es beim
+          Stand im System.
+        </p>
+      ) : null}
 
       <p className="mt-3 text-table text-ink-muted">
         {`Erfasst ${moment(conflict.recordedAt)} auf Gerät ${conflict.deviceId}.`}
@@ -161,15 +314,27 @@ function ConflictCard({ conflict }: { readonly conflict: SyncConflict }) {
           </Button>
         ) : (
           <>
-            <Button
-              tone="primary"
-              disabled={working}
-              onClick={() => {
-                void decide(true)
-              }}
-            >
-              Fassung vom Gerät übernehmen
-            </Button>
+            {fixedDocument ? (
+              <Button
+                tone="primary"
+                disabled={working}
+                onClick={() => {
+                  void asDraft(fixedDocument)
+                }}
+              >
+                Als neuen Entwurf anlegen
+              </Button>
+            ) : (
+              <Button
+                tone="primary"
+                disabled={working}
+                onClick={() => {
+                  void decide(true)
+                }}
+              >
+                Fassung vom Gerät übernehmen
+              </Button>
+            )}
             <Button
               tone="secondary"
               disabled={working}
@@ -250,7 +415,7 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
                 <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
                   {fieldLabel(patch.field)}
                 </th>
-                <Cell>{shown(patch.to)}</Cell>
+                <Cell>{shown(patch.field, patch.to)}</Cell>
               </tr>
             ))}
           </tbody>
@@ -292,10 +457,27 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
  */
 export function ConflictScreen() {
   const { conflicts, refused } = useSyncStatus()
+  // The drafts made here, said once they exist: the conflict that led to one
+  // is gone from the list, and without this the draft would appear somewhere
+  // else with nobody told where.
+  const [drafted, setDrafted] = useState<readonly string[]>([])
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <h1 className="text-title font-semibold">Konflikte</h1>
+
+      {drafted.length > 0 ? (
+        <Card label="Als neuer Entwurf angelegt" tone="sunken">
+          <ul role="status" className="flex flex-col gap-1 text-body">
+            {drafted.map((subject) => (
+              <li key={subject}>
+                {`Entwurf angelegt: ${subject}. Er gehört zum selben Kunden und Auftrag wie der ` +
+                  'festgeschriebene Beleg.'}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       {refused ? <RefusedCard key={refused.operation.id} refused={refused} /> : null}
 
@@ -307,7 +489,15 @@ export function ConflictScreen() {
           </p>
         </Card>
       ) : (
-        conflicts.map((conflict) => <ConflictCard key={conflict.id} conflict={conflict} />)
+        conflicts.map((conflict) => (
+          <ConflictCard
+            key={conflict.id}
+            conflict={conflict}
+            onDrafted={(subject) => {
+              setDrafted((before) => [...before, subject])
+            }}
+          />
+        ))
       )}
     </div>
   )

@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Konflikt an einem inzwischen festgeschriebenen Beleg lässt sich als neuer Entwurf anlegen
+  (#139). Bis dahin blieben "Fassung vom Gerät übernehmen", was am festgeschriebenen Beleg ein
+  zweites Mal scheitert, und "Stand im System behalten", und wer ohne Netz an einem Regiebericht
+  weitergeschrieben hatte, den das Büro inzwischen festgeschrieben hatte, verlor seine Arbeit.
+  Jetzt entsteht für denselben Kunden und Auftrag ein Entwurf, dessen Betreff den
+  festgeschriebenen Beleg nennt: ein Nachtrag mit den neuen Positionen, wenn das Gerät nur
+  welche angelegt hat, sonst der ganze Beleg, wie das Gerät ihn wollte. Alle Konflikte eines
+  Belegs landen in einem Entwurf, so wie ADR 0005 es in Punkt 4 vorsieht.
 - Die Instanz sichert sich jede Nacht selbst, und das Büro sieht, wann zuletzt (#130). Der neue
   Dienst `backup-schedule` startet mit ihr, sichert um 02:30 Uhr und holt eine versäumte Nacht
   nach, sobald der Rechner wieder läuft; eine Instanz ohne Betrieb sichert er nicht, damit sie
