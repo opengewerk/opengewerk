@@ -806,9 +806,7 @@ describe('an operation the server refuses outright', () => {
 
     // The change to a record that never reached the server can land nowhere.
     // Sent, it would only have come back as a conflict about nothing.
-    expect(transport.sent.flat().map((operation) => operation.patches[0]?.to)).toEqual([
-      'Wallbox',
-    ])
+    expect(transport.sent.flat().map((operation) => operation.patches[0]?.to)).toEqual(['Wallbox'])
     expect(client.status().pending).toBe(0)
   })
 

@@ -86,9 +86,7 @@ export function HeaderSection({
     queryFn: parameterHistory,
     enabled: statesTerm && readsSettings,
   })
-  const setting = history.data
-    ? paymentTermOn(history.data, text(document, 'documentDate'))
-    : null
+  const setting = history.data ? paymentTermOn(history.data, text(document, 'documentDate')) : null
 
   return (
     <Section

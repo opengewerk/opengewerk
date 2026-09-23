@@ -29,7 +29,9 @@ describe('the amount on a title', () => {
   })
 
   it('is nothing to a position, which may carry any', () => {
-    expect(titleAmountProblem({ kind: 'item', quantityMilli: 2000, unitPriceCents: 5000 })).toBeNull()
+    expect(
+      titleAmountProblem({ kind: 'item', quantityMilli: 2000, unitPriceCents: 5000 }),
+    ).toBeNull()
     expect(titleAmountProblem({ quantityMilli: 2000, unitPriceCents: 5000 })).toBeNull()
   })
 })

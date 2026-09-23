@@ -783,7 +783,10 @@ describe('a reference to a record of another business', () => {
 
   it('is a conflict about that one operation, on every entity that points', async () => {
     const southCustomer = await southern('/customers', { kind: 'business', name: 'Bauherr Süd' })
-    const southSite = await southern('/sites', { customerId: southCustomer, designation: 'Haus Süd' })
+    const southSite = await southern('/sites', {
+      customerId: southCustomer,
+      designation: 'Haus Süd',
+    })
     const southInstallation = await southern('/installations', {
       siteId: southSite,
       kind: 'pv_system',
@@ -870,7 +873,11 @@ describe('a reference to a record of another business', () => {
     expect(
       answer.receipts.map(({ outcome, reason, fields }) => ({ outcome, reason, fields })),
     ).toEqual([
-      ...missing.map((field) => ({ outcome: 'conflict', reason: 'record_missing', fields: [field] })),
+      ...missing.map((field) => ({
+        outcome: 'conflict',
+        reason: 'record_missing',
+        fields: [field],
+      })),
       { outcome: 'applied', reason: null, fields: [] },
     ])
 

@@ -320,9 +320,9 @@ describe('a reference in the body', () => {
       .get('/sites')
       .set('x-test-identity', southOffice())
       .expect(200)
-    expect((southSites.body as { id: string; customerId: string }[]).map((site) => site.id)).toEqual(
-      [southSite],
-    )
+    expect(
+      (southSites.body as { id: string; customerId: string }[]).map((site) => site.id),
+    ).toEqual([southSite])
   })
 
   it('does not name a record that was deleted', async () => {
@@ -378,9 +378,9 @@ describe('a reference in the body', () => {
       .send({ designation: 'Haus Weber, Hinterhaus' })
       .expect(200)
 
-    expect(
-      await refused(northOffice(), 'patch', `/sites/${site}`, { customerId: customer }),
-    ).toBe('Den Kunden aus customerId gibt es in diesem Betrieb nicht.')
+    expect(await refused(northOffice(), 'patch', `/sites/${site}`, { customerId: customer })).toBe(
+      'Den Kunden aus customerId gibt es in diesem Betrieb nicht.',
+    )
   })
 })
 

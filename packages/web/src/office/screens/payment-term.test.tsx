@@ -137,9 +137,9 @@ describe('the payment term, as the owner sets it', () => {
     expect(
       screen.getByText('Das Zahlungsziel liegt zwischen 0 und 365 Tagen, 0 heißt sofort zahlbar.'),
     ).toBeTruthy()
-    expect(
-      (screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
     expect(calls.some((call) => call.method === 'POST')).toBe(false)
   })
 

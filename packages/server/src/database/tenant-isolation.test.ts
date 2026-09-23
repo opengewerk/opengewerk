@@ -468,7 +468,8 @@ const crossings: readonly {
   },
   {
     key: 'inverters_installation_in_tenant',
-    write: (own, other) => repoint('inverters', 'installation_id', own.inverter, other.installation),
+    write: (own, other) =>
+      repoint('inverters', 'installation_id', own.inverter, other.installation),
   },
   {
     key: 'pv_strings_inverter_in_tenant',
@@ -490,8 +491,7 @@ const crossings: readonly {
   },
   {
     key: 'circuits_board_in_tenant',
-    write: (own, other) =>
-      repoint('circuits', 'distribution_board_id', own.circuit, other.board),
+    write: (own, other) => repoint('circuits', 'distribution_board_id', own.circuit, other.board),
   },
   {
     // The exception from the catalogue, tried as well. Its own board stays,
@@ -655,10 +655,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     'Inhaberin',
     `inhaberin@${slug}.example`,
   ])
-  await admin.query("insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{owner}')", [
-    tenant,
-    user,
-  ])
+  await admin.query(
+    "insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{owner}')",
+    [tenant, user],
+  )
 
   const customer = await one(
     "insert into customers (tenant_id, kind, name) values ($1, 'business', 'Bauherr')",

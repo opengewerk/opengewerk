@@ -408,7 +408,9 @@ describe('the signature', () => {
         operations: [signing(report, { signerName: 'E'.repeat(longestSignerName + 1) })],
       })
       .expect(400)
-    expect(named.body.message).toBe('Der Name dessen, der unterschreibt, hat höchstens 200 Zeichen.')
+    expect(named.body.message).toBe(
+      'Der Name dessen, der unterschreibt, hat höchstens 200 Zeichen.',
+    )
 
     const described = await http()
       .post('/sync')
