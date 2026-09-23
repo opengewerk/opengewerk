@@ -130,6 +130,17 @@ describe('the page', () => {
     expect(html).toMatch(/Umsatzsteuer 19 % auf 800,00\s€<\/td><td class="figure">152,00\s€/)
   })
 
+  it('names the paragraph of the zero rate for photovoltaics, under which no tax is due', () => {
+    // #127: a rate and not an exemption, so its group is shown like any other,
+    // with the paragraph that makes it nothing.
+    const { html } = page({}, { lines: [line(1, 80000), line(2, 1_200_000, { vatRate: 'zero' })] })
+
+    expect(html).toMatch(
+      /Umsatzsteuer 0 % nach § 12 Abs\. 3 UStG auf 12\.000,00\s€<\/td><td class="figure">0,00\s€/,
+    )
+    expect(html).toMatch(/Umsatzsteuer 19 % auf 800,00\s€<\/td><td class="figure">152,00\s€/)
+  })
+
   it('shows no tax at all under section 19, and says why', () => {
     const { html } = page({ taxTreatment: 'small_business' })
 

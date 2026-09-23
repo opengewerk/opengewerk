@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Nullsteuersatz für Photovoltaik nach § 12 Abs. 3 UStG (#127). Seit dem 01.01.2023 gilt
+  0 % auf Solarmodule, wesentliche Komponenten und Speicher samt Installation an den Betreiber
+  einer Anlage auf oder bei Wohnungen; OpenGewerk kannte nur 19 und 7 %, und jede Rechnung über
+  eine PV-Anlage an einen privaten Haushalt wäre mit 19 % entstanden. Der Satz steht als
+  `vat.zero` ab 2023 im Regelpaket, ist je Position wählbar und nennt beim Wählen die
+  Voraussetzungen, bildet eine eigene Steuergruppe mit der Fundstelle auf dem Beleg und geht als
+  Kategorie `Z` in XRechnung und ZUGFeRD. Der neue Wert im Enum `vat_rate` kommt mit
+  Migration 0034; ihre Rücknahme bricht ab, solange eine Position ihn trägt.
 - Eine Erinnerung für Regelpakete, die ablaufen (#150). Der Basiszinssatz endet am
   31.12.2026, weil der nächste Wert erst zum Jahreswechsel feststeht, und danach rechnet die
   Engine keine Verzugszinsen mehr. Ein Paket, das so erneuert wird, sagt es jetzt selbst

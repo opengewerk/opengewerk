@@ -412,8 +412,12 @@ function totals(content: DocumentContent): string {
       sums.byRate
         .map(
           (entry) =>
-            `<tr><td>Umsatzsteuer ${percent(entry.basisPoints)} auf ${euros(entry.netCents)}</td>` +
-            `${figure(entry.taxCents)}</tr>`,
+            `<tr><td>Umsatzsteuer ${percent(entry.basisPoints)}` +
+            // Said where it comes from, so that a customer who reads no tax
+            // on the invoice sees why (#127). A rate, not an exemption, and
+            // required by nobody, but the question comes otherwise.
+            `${entry.rate === 'zero' ? ' nach § 12 Abs. 3 UStG' : ''}` +
+            ` auf ${euros(entry.netCents)}</td>${figure(entry.taxCents)}</tr>`,
         )
         .join('') +
       `<tr class="${deducting ? 'whole' : 'grand'}"><td>${whole}</td>${figure(sums.grossCents)}</tr>`

@@ -1,4 +1,4 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.15
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.16
 
 2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
@@ -87,7 +87,7 @@ Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung
 
 Gesetzliche Parameter stehen **nicht im Code**, sondern in versionierten Regeldatensätzen mit Gültigkeitszeitraum (gültig ab / bis), Quelle (Paragraf, Fundstelle) und Mandantenbezug, wo nötig:
 
-- Umsatzsteuer: Steuersätze, Kleinunternehmergrenze §19, Umsatzgrenze der Ist-Versteuerung §20, Kleinbetragsgrenze §33 UStDV, Ausstellungspflicht E-Rechnung (Umsatzschwelle, Stichtag), §13b-Regeln
+- Umsatzsteuer: Steuersätze einschließlich des Nullsteuersatzes für Photovoltaik nach §12 Abs. 3, Kleinunternehmergrenze §19, Umsatzgrenze der Ist-Versteuerung §20, Kleinbetragsgrenze §33 UStDV, Ausstellungspflicht E-Rechnung (Umsatzschwelle, Stichtag), §13b-Regeln
 - Bau: Bauabzugsteuer-Satz, Sicherheitseinbehalt-Standards, Gewährleistungsfristen BGB/VOB
 - Arbeit: ArbZG-Höchstarbeitszeit, Pausenregeln, MiLoG-Aufbewahrung
 - Aufbewahrung: GoBD-Fristen je Belegart, DSGVO-Löschfristen
@@ -229,6 +229,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - E-Rechnung ausgehend: XRechnung/ZUGFeRD; automatische Formatwahl je Empfänger (B2B-Inland → E-Rechnung, Verbraucher → PDF); Umsatzgrenze 800.000 € (2027) und Vollpflicht ab 2028 als Mandanteneinstellung
 - Kleinbetragsrechnung bis 250 €, Kleinunternehmerregelung §19 UStG (Mandanteneinstellung, Pflichthinweis)
 - Besteuerung nach vereinnahmten Entgelten §20 UStG (Ist-Versteuerung, auf Antrag vom Finanzamt gestattet): Mandanteneinstellung mit Gültigkeitszeitraum; ab 2028 Pflichtangabe „Versteuerung nach vereinnahmten Entgelten“ auf der Rechnung (§14 Abs. 4 Satz 1 Nr. 6a UStG)
+- Nullsteuersatz für Photovoltaik nach §12 Abs. 3 UStG seit 1.1.2023: 0 % auf die Lieferung und Installation von Solarmodulen, der für den Betrieb wesentlichen Komponenten und der Speicher an den Betreiber einer Anlage auf oder bei Wohnungen und Gebäuden, die dem Gemeinwohl dienen; bis 30 kWp laut Marktstammdatenregister gelten die Voraussetzungen als erfüllt. Je Position wählbar wie der ermäßigte Satz, eine eigene Steuergruppe mit Fundstelle auf dem Beleg, in der E-Rechnung Kategorie Z. Ob die Voraussetzungen vorliegen, entscheidet der Betrieb, das Formular nennt sie
 - §13b UStG Reverse Charge für Bauleistungen an Bauunternehmer (Pflichthinweis, Nettoausweis, korrekte Verbuchung)
 - Bauabzugsteuer §48 EStG auf Eingangsseite (Einbehalt, Anmeldung vorbereiten)
 - Pflichtangaben-Prüfung nach §14 UStG vor Festschreibung
@@ -427,6 +428,7 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 | GoBD | Unveränderbarkeit, Nummernkreise, Verfahrensdoku, Datenzugriff | Festschreibung, Storno statt Löschen, Audit-Log, Z1-Z3-Export, generierte Verfahrensdoku |
 | Aufbewahrung | Buchungsbelege 8 Jahre (seit 2025), Handelsbücher 10 Jahre | Fristen im Löschkonzept getrennt hinterlegt |
 | §13b UStG | Reverse Charge bei Bauleistungen an Bauunternehmer | Kundenattribut, Belegtext, Verbuchung |
+| §12 Abs. 3 UStG | Nullsteuersatz seit 1.1.2023 für Lieferung und Installation von Photovoltaikanlagen und Speichern an den Betreiber | Steuersatz je Position aus der Regel-Engine, eigene Steuergruppe, E-Rechnung Kategorie Z |
 | §48 EStG | Bauabzugsteuer 15 % ohne Freistellung | Subunternehmer-Nachweise, Eingangsrechnungsprüfung |
 | §14 UStG | Pflichtangaben auf Rechnungen | Prüfung vor Festschreibung |
 | §20 UStG | Ist-Versteuerung auf Antrag bis 800.000 € Vorjahresumsatz; ab 2028 Angabe auf der Rechnung | Mandanteneinstellung mit Zeitraum, Rechnungsangabe aus der Regel-Engine, USt-VA nach vereinnahmten Entgelten |
@@ -493,7 +495,7 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 
 **Zuordnung im Einzelnen.** Die Tabelle nennt die Schwerpunkte. Die übrigen Punkte der Abschnitte 1 bis 9 gehören so zu den Phasen; beides zusammen ist der Fahrplan, und aus beidem werden die Issues einer Phase geschnitten. Was in keiner Phase steht, steht in Abschnitt 12. Wer in 1 bis 9 einen Punkt einträgt, trägt seine Phase im selben Zug hier ein.
 
-- **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); die Belehrungen als Anhang eines Belegs, mitgeliefert die Widerrufsbelehrung nach §312g BGB, an jedem Angebot an einen Verbraucher Pflicht, dazu eigene des Betriebs, mit der E-Mail versendet und mit dem Beleg eingefroren (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt
+- **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); der Nullsteuersatz für Photovoltaik nach §12 Abs. 3 UStG je Position (1.7, 4.2) ⚖, weil der Pilotbetrieb PV-Anlagen an private Haushalte baut; die Belehrungen als Anhang eines Belegs, mitgeliefert die Widerrufsbelehrung nach §312g BGB, an jedem Angebot an einen Verbraucher Pflicht, dazu eigene des Betriebs, mit der E-Mail versendet und mit dem Beleg eingefroren (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt
 - **Phase 2:** das E-Check-Protokoll (5.1); das Abnahmeprotokoll nach §640 BGB über die Formular-Engine mit der Gewährleistungsfrist ab Abnahme, Mängel mobil mit Statusverfolgung und Mängelbericht (4.11) ⚖; Netzbetreiber-Anmeldung, Vorbereitung der MaStR-Meldung, Wallbox und Speicher mit Inbetriebnahme, Förderunterlagen und Prüfintervallen (5.1); der Zugang zum Objekt (Schlüssel, Codes), versiegelt gespeichert (3.2); Serviceaufträge mit Schnellerfassung und Sofortabrechnung vor Ort, Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (4.1, 4.3); zur Plantafel Serientermine, Urlaubs- und Krankheitsverwaltung, Terminbestätigung per Web-Push und CalDAV-Sync (2, 4.3, 6); Mitarbeiterakte und Qualifikationen mit Ablauffristen (4.9); Wartungsverträge mit Dauerrechnung (3.5, 4.2); Lieferantenverwaltung, Lieferschein und DATANORM-Import zum Material (4.2, 4.5); aus der Fristen-Engine Wiedervorlagen für Angebote und Wartungs- und Prüferinnerungen an Kunden (1.2, 3.3, 3.7); Leads und Vertriebspipeline, Kommunikationshistorie mit Notizen und Telefonprotokollen, Tags, Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für Mails (2, 3.1, 3.3, 3.4); die DSGVO-Funktionen mit Löschkonzept, Auskunft und Datenexport, Verarbeitungsverzeichnis und AV-Vertragsvorlage (2) ⚖; die Hilfe im Büro und auf der Baustelle mit kontextsensitiver Hilfe, Kurzanleitungen, Versionshinweisen und Administrator-Handbuch (8)
 - **Phase 3:** der Lohnexport aus der Zeiterfassung (DATEV Lodas und Lohn & Gehalt, CSV) mit Zuschlägen, Auslöse und Verpflegungsmehraufwand (4.4, 4.9); Gutschrift und Rechnungskorrektur (4.2); Kassenbuch und BWA (4.8); der Datenzugriff für die Betriebsprüfung Z1-Z3 mit GDPdU-Export und die generierte Verfahrensdokumentation (4.8, 4.10) ⚖; die Bank auch über EBICS, der Zahlungsabgleich mit PayPal und Stripe (4.8, 6); die Rolle Buchhaltung (2); Datenimport und -export mit Dubletten-Prüfung und die Importassistenten aus plancraft, HERO und sevdesk (2), weil hier der Wechsel des ganzen Betriebs stattfindet
 - **Phase 4:** Teilprojekte, Aufmaß mobil mit Übernahme in Kalkulation und Rechnung, Baubesprechungsprotokolle (4.1); Angebote mit Alternativ-, Eventual-, Bedarfs- und optionalen Positionen, GAEB-Import und -Export, der Mengenabgleich angeboten, geliefert, abgerechnet (1.4, 4.2); Kundenpreise, Rabattgruppen, Staffelpreise und Preislisten (3.1, 4.1); die Stundensätze der Mitarbeiter (4.9); Sicherheitseinbehalt und Bürgschaften, Mängelanzeige an Lieferanten und Subunternehmer (4.2, 4.11); der Verbraucherbauvertrag nach §650i BGB mit Baubeschreibung (4.2) ⚖; Einkauf mit IDS-Connect und UGL (4.5, 4.7, 6); die Wetter-API für Bautagebuch und Plantafel (6); die Rolle Bauleiter (2)
@@ -533,6 +535,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.15 → v2.16
+
+- Neu: Der Nullsteuersatz für Photovoltaik nach §12 Abs. 3 UStG in 1.7, 4.2, der Rechtsübersicht (7) und in Phase 1 (10). Seit dem 01.01.2023 gilt 0 % für die Lieferung und Installation von Solarmodulen, wesentlichen Komponenten und Speichern an den Betreiber einer Anlage auf oder bei Wohnungen. Die Gliederung kannte nur 19 und 7 %, und der Pilotbetrieb baut PV-Anlagen: jede solche Rechnung an einen privaten Haushalt wäre mit 19 % entstanden. Umgesetzt mit #127
 
 ## Änderungsprotokoll v2.14 → v2.15
 
