@@ -38,7 +38,7 @@ import {
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
-import { todayInGermany } from './today.js'
+import { todayInGermany } from '../today.js'
 
 const writableFields = ['title', 'body', 'kinds', 'consumersOnly', 'withDocument'] as const
 

@@ -16,7 +16,7 @@ import {
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
-import { todayInGermany } from './today.js'
+import { todayInGermany } from '../today.js'
 
 /**
  * The instructions a business hands its customers with a document, #109: the

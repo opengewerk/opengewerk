@@ -10,6 +10,7 @@ import {
 } from '@opengewerk/domain'
 import { and, eq, sql } from 'drizzle-orm'
 
+import { yearInGermany } from '../today.js'
 import type { TenantTransaction } from './database.js'
 import { numberRanges } from './schema/index.js'
 
@@ -57,7 +58,7 @@ export async function assignDocumentNumber(
   // `returning` gives the new value, so the one just handed out is one less.
   return formatDocumentNumber(range.pattern, {
     counter: range.nextValue - 1,
-    year: issuedAt.getFullYear(),
+    year: yearInGermany(issuedAt),
   })
 }
 
@@ -76,7 +77,7 @@ function viewOf(key: NumberRangeKey, pattern: string, nextValue: number, now: Da
     key,
     pattern,
     nextValue,
-    next: formatDocumentNumber(pattern, { counter: nextValue, year: now.getFullYear() }),
+    next: formatDocumentNumber(pattern, { counter: nextValue, year: yearInGermany(now) }),
   }
 }
 
