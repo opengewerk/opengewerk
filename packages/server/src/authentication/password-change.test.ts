@@ -21,7 +21,7 @@ import { aMailServer, testKey } from '../mail/test-mail-server.js'
 import type { OutgoingMail } from '../mail/transport.js'
 import { authenticationPath, createAuthentication } from './authentication.js'
 import { SessionIdentitySource } from './session-identity.js'
-import { addStaffMember, replacePassword } from './staff.js'
+import { accountExists, addStaffMember, replacePassword } from './staff.js'
 
 /**
  * A password somebody can change, get back through a link in a mail, and, as
@@ -286,6 +286,10 @@ describe('the mail with the link', () => {
 describe('the way back on the command line', () => {
   it('replaces the password, ends every session, and says when there is no such account', async () => {
     await person('konsole@nord.example.de')
+
+    // Asked before the question for the new password.
+    expect(await accountExists(database, ' Konsole@nord.example.de ')).toBe(true)
+    expect(await accountExists(database, 'gibt-es-nicht@nord.example.de')).toBe(false)
 
     const open = await signIn('konsole@nord.example.de', first)
 

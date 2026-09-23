@@ -147,6 +147,24 @@ export async function addStaffMember(
 }
 
 /**
+ * Whether the instance has an account for this address. `reset-password` asks
+ * before the question for a new password, not after it has been typed.
+ */
+export async function accountExists(database: Database, email: string): Promise<boolean> {
+  const address = email.trim().toLowerCase()
+
+  return database.forInstance(async (tx) => {
+    const [user] = await tx
+      .select({ id: authUsers.id })
+      .from(authUsers)
+      .where(eq(authUsers.email, address))
+      .limit(1)
+
+    return user !== undefined
+  })
+}
+
+/**
  * A new password for an account that exists, from the command line (#126).
  *
  * The way back without a mail: for somebody whose business sends none, and

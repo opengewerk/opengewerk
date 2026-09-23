@@ -1,69 +1,104 @@
+import { PassThrough, Writable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 
-import { generatePassword } from './password.js'
+import { ConfigurationError } from '../configuration.js'
+import { readNewPassword } from './password.js'
 
 /**
- * The password an unattended installation gets when nobody thought of one.
- *
- * Every check here is about a way of getting this wrong that leaves something
- * that still looks like a password: an alphabet with a character nobody can
- * read back, a draw that never reaches the end of the alphabet, or a length
- * that the command it is made for would refuse.
+ * The password for `add-staff` and `reset-password`, typed on the terminal and
+ * never shown. `add-staff` used to make one up when none was given (#64) and
+ * print it, and a printed password stays in the scrollback of the terminal
+ * until somebody replaces it.
  */
 
-/** What the command insists on for a password somebody chose. */
-const shortestPassword = 12
+const password = 'ein-langes-passwort'
 
-describe('a generated password', () => {
-  it('comes in five groups of five, so it can be read across a room', () => {
-    expect(generatePassword()).toMatch(/^[0-9a-z]{5}(-[0-9a-z]{5}){4}$/)
+/**
+ * A terminal with somebody at it, who types the next of `keys` whenever a
+ * question appears, and a record of everything the screen showed.
+ */
+function somebodyTyping(keys: string[], isTTY = true) {
+  const input = Object.assign(new PassThrough(), { isTTY })
+  let screen = ''
+  const output = new Writable({
+    write(chunk: Buffer, _encoding, done) {
+      const text = chunk.toString()
+
+      screen += text
+
+      const next = text.endsWith(': ') ? keys.shift() : undefined
+
+      if (next !== undefined) {
+        // Once the question is out, as a person would.
+        setImmediate(() => {
+          input.write(next)
+        })
+      }
+
+      done()
+    },
   })
 
-  it('is longer than the floor the command keeps for a chosen one', () => {
-    expect(generatePassword().length).toBeGreaterThan(shortestPassword)
+  return { terminal: { input, output }, screen: () => screen }
+}
+
+async function refusalOf(answer: Promise<string>): Promise<ConfigurationError> {
+  const refusal: unknown = await answer.then(
+    () => null,
+    (error: unknown) => error,
+  )
+
+  expect(refusal).toBeInstanceOf(ConfigurationError)
+
+  return refusal as ConfigurationError
+}
+
+describe('a password on the command line', () => {
+  it('is asked for twice and never shown', async () => {
+    const { terminal, screen } = somebodyTyping([`${password}\r`, `${password}\r`])
+
+    expect(await readNewPassword(undefined, terminal)).toBe(password)
+    expect(screen()).toBe('Passwort: \nNoch einmal: \n')
   })
 
-  /**
-   * The four characters that are missing on purpose. Each of them has a twin
-   * in most terminal faces, and this password is read off a terminal and typed
-   * into a browser by hand: `i` and `l` against `1`, `o` against `0`, `u`
-   * against `v`.
-   */
-  it('leaves out every character that could be mistaken for another', () => {
-    const drawn = new Set(
-      Array.from({ length: 200 }, () => generatePassword())
-        .join('')
-        .replaceAll('-', ''),
+  it('is not taken when the two entries differ or the first is too short', async () => {
+    const differing = somebodyTyping([`${password}\r`, 'ein-anderes-passwort\r'])
+
+    expect((await refusalOf(readNewPassword(undefined, differing.terminal))).message).toContain(
+      'nicht gleich',
     )
 
-    for (const ambiguous of ['i', 'l', 'o', 'u']) {
-      expect(drawn.has(ambiguous)).toBe(false)
+    const short = somebodyTyping(['kurz\r'])
+
+    expect((await refusalOf(readNewPassword(undefined, short.terminal))).message).toContain(
+      'mindestens 12 Zeichen',
+    )
+    // Not asked a second time for a password that could not be taken.
+    expect(short.screen()).toBe('Passwort: \n')
+  })
+
+  it('stops on Ctrl+C and on Ctrl+D instead of waiting for good', async () => {
+    for (const key of ['\u0003', '\u0004']) {
+      const { terminal } = somebodyTyping([key])
+
+      expect((await refusalOf(readNewPassword(undefined, terminal))).message).toContain(
+        'Abgebrochen',
+      )
     }
   })
 
-  /**
-   * The check that catches a remainder where a mask belongs.
-   *
-   * Thirty two characters and a byte masked with 31 gives every one of them
-   * the same chance. `% 31` would look just as right, would produce passwords
-   * that pass every other test here, and would never once draw the last
-   * character while drawing the first one twice as often. Two hundred
-   * passwords are five thousand characters, so a character that can be drawn
-   * is drawn.
-   */
-  it('reaches every character of its alphabet', () => {
-    const drawn = new Set(
-      Array.from({ length: 200 }, () => generatePassword())
-        .join('')
-        .replaceAll('-', ''),
+  it('comes from OPENGEWERK_PASSWORD in a script, and only there', async () => {
+    const script = somebodyTyping([], false)
+
+    expect(await readNewPassword(` ${password} `, script.terminal)).toBe(password)
+    expect(script.screen()).toBe('')
+    expect((await refusalOf(readNewPassword('kurz', script.terminal))).message).toContain(
+      'OPENGEWERK_PASSWORD',
     )
-
-    expect([...drawn].sort().join('')).toBe('0123456789abcdefghjkmnpqrstvwxyz')
-  })
-
-  it('is a different one every time', () => {
-    const drawn = new Set(Array.from({ length: 50 }, () => generatePassword()))
-
-    expect(drawn.size).toBe(50)
+    // Without a terminal and without the variable there is nobody to ask,
+    // and nothing is made up instead.
+    expect((await refusalOf(readNewPassword(undefined, script.terminal))).message).toContain(
+      'OPENGEWERK_PASSWORD',
+    )
   })
 })

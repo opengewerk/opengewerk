@@ -1,21 +1,8 @@
-import { randomBytes } from 'node:crypto'
+import { createInterface } from 'node:readline/promises'
+import { Writable } from 'node:stream'
+import type { Readable } from 'node:stream'
 
-/**
- * The alphabet a generated password is built from.
- *
- * Thirty two characters, lower case, and four of them missing on purpose: `i`
- * and `l` are the same shape as `1`, `o` is the same shape as `0`, and `u` is
- * the same shape as `v` in most terminal faces. This password is read off a
- * terminal and typed into a browser by hand, once, and a character somebody
- * has to guess at costs more than the bit it carries.
- *
- * That it is exactly thirty two characters is what makes the draw fair: 256 is
- * a multiple of 32, so masking a random byte with 31 gives every character the
- * same chance. An alphabet of any other size would need the bytes outside the
- * last whole multiple thrown away, and code that forgets that is code with a
- * bias nobody sees.
- */
-const alphabet = '0123456789abcdefghjkmnpqrstvwxyz'
+import { ConfigurationError } from '../configuration.js'
 
 /**
  * The shortest password anybody may choose for themselves.
@@ -32,38 +19,105 @@ const alphabet = '0123456789abcdefghjkmnpqrstvwxyz'
  */
 export const shortestPassword = 12
 
-/** Five groups of five, which is what makes it readable across a room. */
-const groups = 5
-const perGroup = 5
+/** Where a command asks its questions: what is typed, and the screen. */
+export interface Terminal {
+  readonly input: Readable & { readonly isTTY?: boolean }
+  readonly output: Writable
+}
 
 /**
- * A password for an account created without anybody choosing one.
+ * The password for `add-staff` and `reset-password`, asked for twice and never
+ * shown, like `passwd`.
  *
- * Twenty five characters out of thirty two possibilities is 125 bits, which is
- * far past anything a rule about capitals and punctuation would add. The
- * hyphens are part of it and have to be typed; they buy nothing against
- * guessing and everything against mistyping.
- *
- * It never becomes an argument and never an environment variable. It is
- * created here, handed to the account, printed once on standard output, and
- * forgotten.
+ * It appears nowhere: not on the screen, not in the process list, not in the
+ * history of the shell. From a script, without a terminal, it comes from
+ * `OPENGEWERK_PASSWORD` instead. Nothing is made up here. `add-staff` used to
+ * make one up when none was given and print it once (#64), and a printed
+ * password stays in the scrollback of whoever ran the command, valid until
+ * somebody replaces it; code scanning rightly called that clear-text logging.
  */
-export function generatePassword(): string {
-  const parts: string[] = []
-  let part = ''
+export async function readNewPassword(
+  given: string | undefined,
+  terminal: Terminal,
+): Promise<string> {
+  if (given !== undefined) {
+    const password = given.trim()
 
-  for (const byte of randomBytes(groups * perGroup)) {
-    // The mask, not a remainder: see the note on the alphabet above. `charAt`
-    // rather than an index so that nothing here needs a fallback for a case
-    // that cannot happen; a fallback would be a quiet bias towards whichever
-    // character it named.
-    part += alphabet.charAt(byte & 31)
-
-    if (part.length === perGroup) {
-      parts.push(part)
-      part = ''
+    if (password.length < shortestPassword) {
+      throw new ConfigurationError(
+        `OPENGEWERK_PASSWORD ist kürzer als ${String(shortestPassword)} Zeichen. Kurze ` +
+          'Passwörter sind bei der Anmeldung die teure Stelle, weil sie einmal gesetzt und ' +
+          'jahrelang benutzt werden.',
+      )
     }
+
+    return password
   }
 
-  return parts.join('-')
+  if (!terminal.input.isTTY) {
+    throw new ConfigurationError(
+      'Kein Terminal, das nach dem Passwort fragen könnte. Aus einem Skript heraus kommt es ' +
+        'aus der Umgebungsvariable OPENGEWERK_PASSWORD.',
+    )
+  }
+
+  const reader = hiddenReader(terminal)
+
+  try {
+    const password = await reader.ask('Passwort: ')
+
+    if (password.length < shortestPassword) {
+      // Not asked a second time: it could not be taken anyway.
+      throw new ConfigurationError(
+        `Das Passwort braucht mindestens ${String(shortestPassword)} Zeichen.`,
+      )
+    }
+
+    if ((await reader.ask('Noch einmal: ')) !== password) {
+      throw new ConfigurationError('Die beiden Eingaben sind nicht gleich.')
+    }
+
+    return password
+  } finally {
+    reader.close()
+  }
+}
+
+/**
+ * Questions whose answers are not shown. Whatever readline would echo goes
+ * nowhere, and the terminal does not echo either, because readline switches
+ * it to raw mode for as long as it reads.
+ */
+function hiddenReader(terminal: Terminal) {
+  const nowhere = new Writable({
+    write(_chunk, _encoding, done) {
+      done()
+    },
+  })
+  const reader = createInterface({
+    input: terminal.input,
+    output: nowhere,
+    terminal: true,
+    historySize: 0,
+  })
+
+  return {
+    async ask(question: string): Promise<string> {
+      terminal.output.write(question)
+
+      try {
+        return await reader.question('')
+      } catch {
+        // Ctrl+C, and Ctrl+D on an empty line, close the reader, and a
+        // question still open is refused rather than left waiting.
+        throw new ConfigurationError('Abgebrochen.')
+      } finally {
+        // The Enter that ended the answer was not shown either.
+        terminal.output.write('\n')
+      }
+    },
+    close() {
+      reader.close()
+    },
+  }
 }

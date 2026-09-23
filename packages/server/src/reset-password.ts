@@ -1,6 +1,6 @@
 import { createAuthentication } from './authentication/authentication.js'
-import { generatePassword, shortestPassword } from './authentication/password.js'
-import { replacePassword } from './authentication/staff.js'
+import { readNewPassword } from './authentication/password.js'
+import { accountExists, replacePassword } from './authentication/staff.js'
 import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
 
@@ -11,9 +11,10 @@ import { Database } from './database/database.js'
  * one who forgot is the owner who would have had to set it up. Every session
  * of the account ends, the second factor stays.
  *
- * The password comes from `OPENGEWERK_PASSWORD`, or is made here and printed
- * once, like with `add-staff`, and never as an argument: an argument stands in
- * the process list and in the shell history.
+ * The password is asked for on the terminal and not shown, or comes from
+ * `OPENGEWERK_PASSWORD` in a script, and never as an argument: an argument
+ * stands in the process list and in the shell history. Nothing is printed
+ * that would let somebody sign in (`readNewPassword`).
  *
  *     docker compose -f docker/compose.yaml exec app node dist/reset-password.js <email>
  */
@@ -23,21 +24,11 @@ async function main(): Promise<void> {
   if (!email) {
     throw new ConfigurationError(
       'Aufruf: reset-password <e-mail>\n' +
-        'Das neue Passwort wird aus der Umgebungsvariable OPENGEWERK_PASSWORD gelesen oder ' +
-        'erzeugt und einmal ausgegeben, nie als Argument übergeben.',
+        'Das neue Passwort fragt der Befehl verdeckt ab; aus einem Skript heraus liest er es ' +
+        'aus der Umgebungsvariable OPENGEWERK_PASSWORD, nie aus einem Argument.',
     )
   }
 
-  const given = process.env['OPENGEWERK_PASSWORD']?.trim()
-
-  if (given !== undefined && given.length < shortestPassword) {
-    throw new ConfigurationError(
-      `OPENGEWERK_PASSWORD ist kürzer als ${String(shortestPassword)} Zeichen. Wer keines zur ` +
-        'Hand hat, lässt die Variable weg: dann wird eines erzeugt.',
-    )
-  }
-
-  const password = given ?? generatePassword()
   const configuration = readConfiguration()
   const database = Database.connect(configuration.databaseUrl)
 
@@ -49,6 +40,16 @@ async function main(): Promise<void> {
       )
     }
 
+    // Before the question, so that nobody types a password for an address
+    // without an account behind it.
+    if (!(await accountExists(database, email))) {
+      throw new ConfigurationError(`Auf dieser Instanz gibt es keinen Zugang für ${email}.`)
+    }
+
+    const password = await readNewPassword(process.env['OPENGEWERK_PASSWORD'], {
+      input: process.stdin,
+      output: process.stdout,
+    })
     const authentication = createAuthentication({
       database,
       secret: configuration.sessionSecret,
@@ -63,15 +64,6 @@ async function main(): Promise<void> {
       `Das Passwort von ${email} ist ersetzt, und alle Geräte dieses Zugangs sind abgemeldet. ` +
         'Ein eingerichteter zweiter Faktor gilt weiter.',
     )
-
-    if (given === undefined) {
-      // Once, on standard output, and nowhere else, like `add-staff`.
-      console.info(`Neues Passwort: ${password}`)
-      console.info(
-        'Es steht nur hier. Nach dem Anmelden gehört es unter "Konto" ersetzt, denn bis dahin ' +
-          'kennt es jeder, der diese Zeile gesehen hat.',
-      )
-    }
   } finally {
     await database.close()
   }

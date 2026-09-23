@@ -654,6 +654,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- `add-staff` fragt das Passwort verdeckt ab, zweimal, wie `passwd`, und erzeugt keines mehr.
+  Aus einem Skript heraus kommt es wie bisher aus `OPENGEWERK_PASSWORD`. Ein erzeugtes Passwort
+  musste ausgegeben werden und stand danach im Verlauf des Terminals, bis es jemand ersetzte;
+  das Code Scanning hat das zu Recht als Passwort im Klartext gemeldet. Für ein Konto, das es
+  schon gibt, fragt der Befehl gar nicht erst.
 - Die Vorlage für einen Fehlerbericht beginnt nicht mehr mit einem Projekt in der
   Planungsphase ohne lauffähigen Code, sondern fragt, was bei einer laufenden Anwendung
   hilft: Büro oder Baustelle, mit oder ohne Netz, und bei einer eigenen Installation den
@@ -866,8 +871,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Bestätigung, danach sind die anderen Geräte abgemeldet; über "Passwort vergessen?" auf der
   Anmeldung mit einem Link per Mail, eine Stunde und einmal gültig, verschickt über den
   Mailserver eines Betriebs des Zugangs; und ohne Mail mit `reset-password` auf der
-  Kommandozeile. Bisher blieb ein von `add-staff` erzeugtes Passwort für immer gültig, und ein
-  vergessenes hieß SQL. better-auth verlangt jetzt dieselben zwölf Zeichen wie der Rest.
+  Kommandozeile, wo der Befehl das neue Passwort verdeckt abfragt. Bisher blieb ein von
+  `add-staff` erzeugtes Passwort für immer gültig, und ein vergessenes hieß SQL. better-auth
+  verlangt jetzt dieselben zwölf Zeichen wie der Rest.
 - Die Wiederherstellungscodes lassen sich einlösen (#125). Die Ersteinrichtung zeigte sie als
   den Weg hinein, wenn das Telefon weg ist, die Anmeldung kannte aber nur den Code aus der
   App; ein Inhaber ohne Telefon kam nur noch über SQL an seinen Betrieb. Der zweite Schritt

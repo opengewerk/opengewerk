@@ -299,8 +299,8 @@ function RecoveryCodes() {
 
 /**
  * A new password with the old one as confirmation (#126). A password that
- * `add-staff` made, or one somebody else has seen, is replaced here; every
- * other device of the account is signed out with it.
+ * somebody else chose on the command line, or one somebody else has seen, is
+ * replaced here; every other device of the account is signed out with it.
  */
 function PasswordChange({ onChanged }: { readonly onChanged: () => void }) {
   const [current, setCurrent] = useState('')
