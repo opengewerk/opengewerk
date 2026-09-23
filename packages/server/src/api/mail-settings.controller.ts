@@ -5,6 +5,8 @@ import {
   Delete,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
   Inject,
   Post,
   Put,
@@ -76,6 +78,16 @@ function inputFrom(body: unknown): MailServerInput {
   }
 }
 
+/**
+ * How often a business may try a mail server within ten minutes, saving
+ * included. Plenty for somebody going through the settings of a provider
+ * field by field; too few to try one password after the other against
+ * somebody else's mail server, with this instance doing the connecting
+ * (GHSA-5664-h6fc-v729).
+ */
+const triesAllowed = 30
+const triesWithinMs = 10 * 60_000
+
 /** What saving answers: the settings as kept, and what the mail server said to them. */
 export interface SavedMailServer {
   readonly server: MailServerView
@@ -97,10 +109,43 @@ export interface SavedMailServer {
  */
 @Controller('settings/mail')
 export class MailSettingsController {
+  /**
+   * When each business last tried a mail server, the last ten minutes of it.
+   * In memory: a restart hands back a fresh allowance, which is not worth a
+   * table for a limit that only has to slow somebody down.
+   */
+  private readonly tries = new Map<string, number[]>()
+
   constructor(
     private readonly database: Database,
     @Inject(MAIL) private readonly mail: MailContext | null,
   ) {}
+
+  /** Counts one try at a mail server for the business, or refuses it. */
+  private tryAllowed(identity: RequestIdentity): void {
+    const now = Date.now()
+    const recent = (this.tries.get(identity.tenantId) ?? []).filter(
+      (at) => now - at < triesWithinMs,
+    )
+
+    if (recent.length >= triesAllowed) {
+      // With a body shaped like Nest's own exceptions, so that the office
+      // reads the sentence from `message` as it does everywhere else.
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message:
+            `Der Mailserver wurde in den letzten zehn Minuten ${String(triesAllowed)}-mal ` +
+            'geprüft. In ein paar Minuten geht es wieder.',
+          error: 'Too Many Requests',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
+
+    recent.push(now)
+    this.tries.set(identity.tenantId, recent)
+  }
 
   private context(): MailContext {
     if (this.mail === null) {
@@ -148,6 +193,9 @@ export class MailSettingsController {
     const context = this.context()
     const input = inputFrom(body)
     const configuration = await configurationToTry(this.database, identity, context.key, input)
+
+    this.tryAllowed(identity)
+
     const check = await this.tryConnection(context, configuration)
 
     if (
@@ -188,6 +236,8 @@ export class MailSettingsController {
       context.key,
       inputFrom(body),
     )
+
+    this.tryAllowed(identity)
 
     return this.tryConnection(context, configuration)
   }

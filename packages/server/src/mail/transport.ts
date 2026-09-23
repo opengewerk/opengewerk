@@ -46,7 +46,15 @@ export class MailDeliveryError extends Error {
     // an hour later makes the same file out of the same frozen content.
     // `EINVITATION` too: an invitation that was called back, used or has run
     // out gives no link, and it does not become open again.
-    if (this.code === 'EENVELOPE' || this.code === 'EDOCUMENT' || this.code === 'EINVITATION') {
+    // `EDESTINATION` as well: a mail server in an internal network or on a
+    // port that is not for mail stays where it is until somebody changes the
+    // settings.
+    if (
+      this.code === 'EENVELOPE' ||
+      this.code === 'EDOCUMENT' ||
+      this.code === 'EINVITATION' ||
+      this.code === 'EDESTINATION'
+    ) {
       return true
     }
 
@@ -114,6 +122,9 @@ export function smtpTransport(
 ): MailTransport {
   const transport = createTransport({
     host: configuration.host,
+    // The name behind an address, for TLS. The connection goes to the address
+    // that was checked and the certificate is still held against the name.
+    servername: configuration.servername,
     port: configuration.port,
     secure: configuration.security === 'tls',
     requireTLS: configuration.security === 'starttls',

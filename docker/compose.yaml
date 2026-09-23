@@ -106,6 +106,9 @@ services:
       # or a migration window, when the instance should be up and reachable and
       # hand out nothing.
       CLOSED: ${CLOSED:-false}
+      # Mail servers in the own network a business may use. Empty, only mail
+      # servers on the internet are reached, on the ports for mail.
+      MAIL_INTERNAL_HOSTS: ${MAIL_INTERNAL_HOSTS:-}
     volumes:
       - files:/var/lib/opengewerk/storage
     depends_on:

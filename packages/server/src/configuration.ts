@@ -1,5 +1,7 @@
 import { accessSync, constants, statSync } from 'node:fs'
 
+import { isHostName } from './mail/configuration.js'
+
 /**
  * What an instance needs to know, read from the environment once and checked
  * before anything connects.
@@ -57,6 +59,18 @@ export interface Configuration {
    * including the sign in. See `ClosedIdentitySource`.
    */
   readonly closed: boolean
+  /**
+   * Mail servers in the instance's own network that a business may use,
+   * by name or address, and on any port. Empty unless the operator says so:
+   * a business reaches mail servers on the internet, and nothing in the
+   * network the instance runs in (`reachableOnly`).
+   *
+   * In the environment and not in the office, although the rule is that
+   * settings belong there. This one is a boundary of the instance and not a
+   * setting of a business: on an instance with several of them, the owner of
+   * one business could otherwise open the network of the operator for it.
+   */
+  readonly mailInternalHosts: readonly string[]
 }
 
 /** What went wrong, phrased for whoever is looking at the container log. */
@@ -304,6 +318,25 @@ function trustedOrigins(environment: Environment): readonly string[] {
   return entries
 }
 
+/** The mail servers in the instance's own network its operator allows. */
+export function mailInternalHosts(environment: Environment): readonly string[] {
+  const entries = (environment['MAIL_INTERNAL_HOSTS'] ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
+
+  for (const entry of entries) {
+    if (!isHostName(entry)) {
+      throw new ConfigurationError(
+        `MAIL_INTERNAL_HOSTS enthält keinen Servernamen und keine Adresse: "${entry}". ` +
+          'Erwartet wird etwa mail.intern.example oder 192.168.1.20, ohne Port.',
+      )
+    }
+  }
+
+  return entries
+}
+
 /** A flag that is on only for the exact word, so a typo does not open an instance. */
 function flag(environment: Environment, name: string): boolean {
   const raw = environment[name]?.trim().toLowerCase()
@@ -331,6 +364,7 @@ export function readConfiguration(
     sessionSecret: sessionSecret(environment),
     trustedOrigins: trustedOrigins(environment),
     closed: flag(environment, 'CLOSED'),
+    mailInternalHosts: mailInternalHosts(environment),
     // Far above the 3000 that most machines that develop anything have taken
     // already, and below the range Linux hands out for outgoing connections.
     port: port(environment, 'PORT', 23700),

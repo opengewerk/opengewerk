@@ -14,6 +14,11 @@ export interface MailConfiguration {
   readonly user: string | null
   readonly password: string | null
   readonly from: string
+  /**
+   * The name to verify the certificate against, when `host` is the address a
+   * name was resolved to (`reachableOnly`). Left out, it is `host` itself.
+   */
+  readonly servername?: string | undefined
 }
 
 /**

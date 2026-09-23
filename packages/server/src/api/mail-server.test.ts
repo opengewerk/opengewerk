@@ -343,6 +343,34 @@ describe('checking the connection', () => {
     expect((checked.body as { reason: string }).reason).toContain('Benutzername und Passwort')
     expect(await serverOf()).toBeNull()
   })
+
+  /**
+   * Every check is a connection this instance opens to a server somebody
+   * named, with a login somebody typed. Unlimited, it would be a way to try
+   * one password after the other against somebody else's mailbox, with the
+   * instance doing the connecting (GHSA-5664-h6fc-v729).
+   */
+  it('is refused after thirty tries in ten minutes, for this business alone', async () => {
+    const east = { id: newId<'tenant'>(), name: 'Elektro Ost' }
+
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [east.id, east.name])
+
+    const check = (tenant: { id: string; name: string }) =>
+      http()
+        .post('/settings/mail/server/check')
+        .set('x-test-identity', owner(tenant as typeof north))
+        .send(settings)
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await check(east).expect(200)
+    }
+
+    const refused = await check(east).expect(429)
+
+    expect((refused.body as { message: string }).message).toContain('zehn Minuten')
+    // Another business is not held up by it.
+    await check(south).expect(200)
+  })
 })
 
 describe('removing the mail server', () => {
