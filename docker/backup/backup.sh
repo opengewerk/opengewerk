@@ -24,8 +24,19 @@
 #    because the rewritten chain fits again. A head kept outside the database
 #    pins everything written before it. That is what turns the chain into
 #    evidence, and it costs one small file.
+#
+# Called with --scheduled by the nightly schedule (schedule.sh), it skips an
+# instance that has no business: after a lost disk the empty instance would
+# otherwise become the newest archive. After every backup it records when it
+# finished in BACKUP_STATUS_PATH, which the office reads (#130).
 
 set -eu
+
+scheduled=false
+
+if [ "${1:-}" = "--scheduled" ]; then
+	scheduled=true
+fi
 
 : "${POSTGRES_HOST:=postgres}"
 : "${POSTGRES_DB:=opengewerk}"
@@ -42,6 +53,25 @@ fi
 if [ ! -d "$STORAGE_PATH" ]; then
 	echo "Der Dateispeicher unter $STORAGE_PATH fehlt. Ist das Volume eingehängt?" >&2
 	exit 1
+fi
+
+if [ "$scheduled" = true ]; then
+	# A database that is not migrated yet has no table of businesses at all,
+	# and nothing in it to back up either.
+	migrated=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
+		--tuples-only --no-align --quiet --command "select to_regclass('public.tenants') is not null")
+	businesses=0
+
+	if [ "$migrated" = "t" ]; then
+		businesses=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
+			--tuples-only --no-align --quiet --command "select count(*) from tenants")
+	fi
+
+	if [ "$businesses" = "0" ]; then
+		echo "Keine Betriebe in der Datenbank. Die geplante Sicherung wird übersprungen, damit"
+		echo "eine leere Instanz keine ältere Sicherung mit Daten verdrängt. Von Hand geht sie weiter."
+		exit 0
+	fi
 fi
 
 mkdir -p "$BACKUP_PATH"
@@ -145,6 +175,31 @@ if [ "$BACKUP_KEEP" -gt 0 ]; then
 				echo "    entfernt: $(basename "$old")"
 			done
 	fi
+fi
+
+# --- 7. The record the office reads ---------------------------------------
+# Written last, after the archive is complete, and moved into place, so that
+# the office never reads a record of a backup that is not there.
+if [ -n "${BACKUP_STATUS_PATH:-}" ]; then
+	mkdir -p "$BACKUP_STATUS_PATH"
+	encrypted=false
+
+	if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
+		encrypted=true
+	fi
+
+	cat >"${BACKUP_STATUS_PATH}/.last.json" <<JSON
+{
+  "finished": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "finishedEpoch": $(date +%s),
+  "archive": "$(basename "$archive")",
+  "bytes": $(stat -c %s "$archive"),
+  "encrypted": ${encrypted},
+  "storageFiles": ${storage_files},
+  "auditChains": ${chains}
+}
+JSON
+	mv "${BACKUP_STATUS_PATH}/.last.json" "${BACKUP_STATUS_PATH}/last.json"
 fi
 
 size=$(du -h "$archive" | cut -f1)

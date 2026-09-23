@@ -16,6 +16,7 @@ import { Database } from '../database/database.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { AuthorizationGuard } from './authorization.js'
+import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
@@ -37,6 +38,7 @@ import { NumberRangesController } from './number-ranges.controller.js'
 import { SettingsController } from './settings.controller.js'
 import {
   AUTHENTICATION,
+  BACKUP_STATUS,
   FILE_STORE,
   MAIL,
   type MailContext,
@@ -85,6 +87,12 @@ export interface ApiOptions {
    * every route that would refuses with the sentence saying so.
    */
   readonly mail?: MailContext | null
+  /**
+   * Where the backups record their last run. Left out, the office is told
+   * that nothing is known about backups, which is the truth on a machine
+   * that makes none, and is not warned.
+   */
+  readonly backupStatus?: string | null
 }
 
 /**
@@ -126,6 +134,7 @@ export class ApiModule implements NestModule {
       files = noFileStorage,
       renderer = rendererFor({ url: undefined, token: undefined }),
       mail = null,
+      backupStatus = null,
     } = options
 
     return {
@@ -161,12 +170,14 @@ export class ApiModule implements NestModule {
         MailSettingsController,
         NumberRangesController,
         LetterheadController,
+        BackupStatusController,
       ],
       providers: [
         { provide: Database, useValue: database },
         { provide: FILE_STORE, useValue: files },
         { provide: RENDERER, useValue: renderer },
         { provide: MAIL, useValue: mail },
+        { provide: BACKUP_STATUS, useValue: backupStatus },
         DocumentFiles,
         ...(authentication ? [{ provide: AUTHENTICATION, useValue: authentication }] : []),
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },

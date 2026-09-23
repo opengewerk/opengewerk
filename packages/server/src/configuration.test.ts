@@ -51,11 +51,29 @@ describe('the configuration', () => {
       storagePath: '/var/lib/opengewerk/storage',
       sessionSecret: secret,
       trustedOrigins: ['https://opengewerk.example.de'],
+      backupStatusPath: null,
       closed: false,
       mailInternalHosts: [],
       port: 8080,
       host: '127.0.0.1',
     })
+  })
+
+  /**
+   * Set by the Compose file, which mounts the record of the last backup there
+   * (#130). Without it the office is told nothing about backups, which is the
+   * truth on a machine that makes none.
+   */
+  it('reads where the backups record their last run, and nothing when it is not given', () => {
+    expect(
+      readConfiguration(
+        { ...valid, BACKUP_STATUS_PATH: ' /var/lib/opengewerk/backup-status ' },
+        writable,
+      ).backupStatusPath,
+    ).toBe('/var/lib/opengewerk/backup-status')
+    expect(
+      readConfiguration({ ...valid, BACKUP_STATUS_PATH: '  ' }, writable).backupStatusPath,
+    ).toBe(null)
   })
 
   /**

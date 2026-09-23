@@ -99,11 +99,13 @@ async function start(): Promise<void> {
   // closed. Closed, nothing reaches them, because every route that would is
   // behind the guard; open, they are what a PDF is printed with and kept in.
   // The trusted origins too: they open nothing, they only say which pages a
-  // request that changes something may come from.
+  // request that changes something may come from. And the record of the last
+  // backup, which says when one ran and nothing else (#130).
   const output = {
     files: new FileStore(configuration.storagePath),
     renderer: rendererFor(readRendererConfiguration()),
     trustedOrigins: configuration.trustedOrigins,
+    backupStatus: configuration.backupStatusPath,
   }
 
   const application = await NestFactory.create<NestExpressApplication>(

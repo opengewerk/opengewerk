@@ -6,6 +6,7 @@ import { useMay } from '../app/queries.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { useSyncStatus } from '../sync/provider.js'
+import { BackupBar } from './screens/backup.js'
 
 /**
  * The navigation of the office, and it is a real `<nav>` with real links.
@@ -103,6 +104,7 @@ export function OfficeShell() {
           </Link>
         }
       />
+      <BackupBar />
       <Navigation />
 
       <main id="inhalt" className="mx-auto w-full max-w-6xl">

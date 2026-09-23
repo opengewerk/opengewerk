@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Instanz sichert sich jede Nacht selbst, und das Büro sieht, wann zuletzt (#130). Der neue
+  Dienst `backup-schedule` startet mit ihr, sichert um 02:30 Uhr und holt eine versäumte Nacht
+  nach, sobald der Rechner wieder läuft; eine Instanz ohne Betrieb sichert er nicht, damit sie
+  nach einem Plattenverlust keine Sicherung mit Daten verdrängt. Jede Sicherung hält fest, wann
+  sie fertig wurde, und die Anwendung liest nur diesen Eintrag: unter "Einstellungen",
+  "Sicherung" und als Warnung oben im Büro, wenn die letzte älter als zwei Tage ist. Bis dahin
+  lief eine Sicherung nur, wenn jemand daran dachte. Die README beschreibt `BACKUP_TARGET` auf
+  einer anderen Maschine als Regelfall.
 - Der Nullsteuersatz für Photovoltaik nach § 12 Abs. 3 UStG (#127). Seit dem 01.01.2023 gilt
   0 % auf Solarmodule, wesentliche Komponenten und Speicher samt Installation an den Betreiber
   einer Anlage auf oder bei Wohnungen; OpenGewerk kannte nur 19 und 7 %, und jede Rechnung über

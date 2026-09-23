@@ -59,6 +59,11 @@ export function SettingsScreen() {
             title: 'E-Mail-Einstellungen',
             about: 'Der Mailserver des Betriebs, die Signatur und was von selbst verschickt wird.',
           },
+          {
+            to: '/einstellungen/sicherung',
+            title: 'Sicherung',
+            about: 'Wann die Instanz zuletzt gesichert wurde. Das geschieht jede Nacht von selbst.',
+          },
         ]
       : []),
     ...(administers

@@ -4,7 +4,7 @@
 #   cp .env.example .env    (and replace the four passwords in it)
 #   docker compose up -d
 #
-# Four services, two of which run at all times. The order is not a
+# Five services, three of which run at all times. The order is not a
 # convenience: the database has to answer before anything migrates, and the
 # migration has to be through before the application starts. Otherwise the
 # application looks for tables on its first start that do not exist yet.
@@ -109,8 +109,14 @@ services:
       # Mail servers in the own network a business may use. Empty, only mail
       # servers on the internet are reached, on the ports for mail.
       MAIL_INTERNAL_HOSTS: ${MAIL_INTERNAL_HOSTS:-}
+      # When the last backup finished, which the office shows and warns about
+      # after two days (#130). Only this record, read-only: the archives
+      # themselves hold every business and stay out of reach of the
+      # application.
+      BACKUP_STATUS_PATH: /var/lib/opengewerk/backup-status
     volumes:
       - files:/var/lib/opengewerk/storage
+      - backup-status:/var/lib/opengewerk/backup-status:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -158,8 +164,8 @@ services:
     # No published port either. It is reachable from the docker network only,
     # which means from the application.
 
-  # Backup and restore. Runs on demand, never in the background, because a
-  # backup that nobody ever watched is the one that turns out to be empty:
+  # Backup and restore by hand. The nightly backup is the next service; this
+  # one is for the backup before an update and for the restore:
   #
   #   docker compose --profile backup run --rm backup backup.sh
   #   docker compose --profile backup run --rm backup restore.sh latest
@@ -173,12 +179,14 @@ services:
       context: ./backup
     image: opengewerk/backup:${OPENGEWERK_VERSION:-latest}
     profiles: ['backup']
-    environment:
+    environment: &backup-environment
       POSTGRES_HOST: postgres
       POSTGRES_DB: opengewerk
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
       STORAGE_PATH: /var/lib/opengewerk/storage
       BACKUP_PATH: /var/lib/opengewerk/backups
+      # Where each backup records when it finished, for the office (#130).
+      BACKUP_STATUS_PATH: /var/lib/opengewerk/backup-status
       # How many generations to keep. 14 daily runs is a fortnight, which is
       # long enough to notice that something went wrong before the last good
       # copy is gone.
@@ -193,9 +201,40 @@ services:
     volumes:
       - files:/var/lib/opengewerk/storage
       - ${BACKUP_TARGET:-backups}:/var/lib/opengewerk/backups
+      - backup-status:/var/lib/opengewerk/backup-status
     depends_on:
       postgres:
         condition: service_healthy
+
+  # The backup every night at 02:30, without anybody having to remember it
+  # (#130). Runs with the instance and not in a profile: a backup that has to
+  # be switched on is missing on the day it is needed. The office shows when
+  # the last one finished and warns after two days, which answers the old
+  # worry about a backup nobody watches. Why the hour is fixed, why it catches
+  # up and why it skips an instance without a business stands in schedule.sh.
+  backup-schedule:
+    build:
+      context: ./backup
+    image: opengewerk/backup:${OPENGEWERK_VERSION:-latest}
+    restart: unless-stopped
+    command: ['schedule.sh']
+    environment:
+      <<: *backup-environment
+      # The night of the businesses, not of UTC.
+      TZ: Europe/Berlin
+    volumes:
+      # Read-only: a backup reads the files and never writes them.
+      - files:/var/lib/opengewerk/storage:ro
+      - ${BACKUP_TARGET:-backups}:/var/lib/opengewerk/backups
+      - backup-status:/var/lib/opengewerk/backup-status
+    # After the migration, like the application: the schedule checks at once
+    # when it starts, and before the migration there is not even a table of
+    # businesses to ask.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   database:
@@ -204,3 +243,6 @@ volumes:
   # BACKUP_TARGET at a path on another machine, because a backup on the same
   # disk as the data survives a mistake and not a disk.
   backups:
+  # The record of the last backup, written by the backup services and read by
+  # the application. A few hundred bytes.
+  backup-status:

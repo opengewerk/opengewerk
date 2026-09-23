@@ -1,4 +1,4 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.16
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.17
 
 2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
@@ -110,7 +110,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Offene REST-API + Webhooks; OpenAPI-Spezifikation
 - Textbausteine/Vorlagen (Positionen, Mails, Belegtexte, Rechtstexte)
 - DSGVO-Funktionen ⚖: Löschkonzept mit Aufbewahrungsfristen, Auskunft/Datenexport, Verarbeitungsverzeichnis (Art. 30) als generiertes Dokument, AV-Vertragsvorlage für Hoster/Zahlungsdienstleister
-- Betrieb: Backup/Restore (inkl. Dokumentenspeicher), Update-Mechanismus mit DB-Migrationen, Health-Check, Docker-Compose-Referenzinstallation
+- Betrieb: Backup/Restore (inkl. Dokumentenspeicher, jede Nacht ohne Zutun, der Zeitpunkt der letzten Sicherung im Büro sichtbar), Update-Mechanismus mit DB-Migrationen, Health-Check, Docker-Compose-Referenzinstallation
 
 ---
 
@@ -535,6 +535,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.16 → v2.17
+
+- Präzisiert: Die Sicherung läuft jede Nacht ohne Zutun, und das Büro sieht, wann die letzte fertig wurde, mit einer Warnung nach zwei Tagen (2). Leitentscheidung 6 macht Backup/Restore zum Teil des Produkts; eine Sicherung, die nur auf Zuruf läuft, fehlt genau an dem Tag, an dem sie gebraucht wird. Umgesetzt mit #130
 
 ## Änderungsprotokoll v2.15 → v2.16
 
