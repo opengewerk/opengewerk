@@ -12,6 +12,7 @@ import type { FormField } from '../../app/record-form.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { ContactsSection } from './contacts.js'
 import { JobLine, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
 
@@ -245,6 +246,11 @@ export function CustomerScreen() {
           </Facts>
         </Card>
       )}
+
+      <ContactsSection
+        parent={{ customerId }}
+        empty="Noch kein Ansprechpartner. Bei einer Hausverwaltung etwa die Bauleitung oder die Buchhaltung."
+      />
 
       <Section
         title="Objekte"

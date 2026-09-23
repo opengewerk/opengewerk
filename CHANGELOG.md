@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ansprechpartner an Kunde und Objekt (#121). Die Tabelle stand seit dem Datenmodell-Kern im
+  Abgleich, eine Oberfläche dafür gab es nicht, und beim Schneiden von Phase 1 war für sie kein
+  Issue entstanden. Im Büro stehen sie an der Kundenakte und am Objekt, lassen sich anlegen,
+  ändern und entfernen; auf der Baustelle zeigt der Auftrag die des Kunden und die des Objekts
+  getrennt, Telefon und E-Mail zum Antippen, und anlegen geht dort auch ohne Netz. Ändern und
+  Entfernen laufen über die neue Route `/contacts`, die Verweise und die Regel "genau ein
+  Elternteil" prüft wie der Abgleich. Auf dem Konfliktbildschirm heißt ein Ansprechpartner jetzt
+  mit Vor- und Nachnamen statt "Ansprechpartner ohne Bezeichnung".
 - Ein Konflikt an einem inzwischen festgeschriebenen Beleg lässt sich als neuer Entwurf anlegen
   (#139). Bis dahin blieben "Fassung vom Gerät übernehmen", was am festgeschriebenen Beleg ein
   zweites Mal scheitert, und "Stand im System behalten", und wer ohne Netz an einem Regiebericht

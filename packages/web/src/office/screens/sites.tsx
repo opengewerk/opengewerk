@@ -10,6 +10,7 @@ import type { FormField } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { ContactsSection } from './contacts.js'
 import { JobLine, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
 
@@ -154,6 +155,11 @@ export function SiteScreen() {
           </Facts>
         </Card>
       )}
+
+      <ContactsSection
+        parent={{ siteId }}
+        empty="Noch kein Ansprechpartner am Objekt. Etwa ein Mieter oder der Hausmeister."
+      />
 
       <Section
         title="Anlagen"

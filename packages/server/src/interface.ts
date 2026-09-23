@@ -63,6 +63,7 @@ const apiPrefixes = [
   'api',
   'auth',
   'customers',
+  'contacts',
   'sites',
   'installations',
   'jobs',
