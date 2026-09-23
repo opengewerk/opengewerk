@@ -255,6 +255,28 @@ describe('a document', () => {
     })
   })
 
+  it('cannot name its predecessor, which only the route that makes a successor does', () => {
+    // A device that could name a predecessor could branch the chain (#129): a
+    // final invoice next to a progress invoice deducts nothing of it.
+    const result = decideMerge(
+      operation({
+        entity: 'documents',
+        kind: 'create',
+        patches: [
+          patch('kind', null, 'final_invoice'),
+          patch('predecessorDocumentId', null, 'd-quote'),
+        ],
+      }),
+      null,
+    )
+
+    expect(result).toEqual({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+      fields: ['predecessorDocumentId'],
+    })
+  })
+
   it('is created as a draft when the device leaves those fields alone', () => {
     const result = decideMerge(
       operation({

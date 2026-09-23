@@ -232,6 +232,13 @@
       "when": 1790106199224,
       "tag": "0032_instructions_for_quotes_on_existing_rows",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790163475868,
+      "tag": "0033_one_successor",
+      "breakpoints": true
     }
   ]
 }

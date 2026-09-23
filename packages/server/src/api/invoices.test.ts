@@ -465,3 +465,101 @@ describe('cumulative progress invoices', () => {
     expect(await deductionsOf(quote.id)).toEqual([])
   })
 })
+
+/**
+ * #129: the next successor comes out of the last link and nowhere else. Until
+ * then a final invoice could be made out of the confirmation next to the
+ * progress invoice made out of it, deduct nothing of it, because the
+ * deductions follow a document's own chain upwards, and bill the whole work a
+ * second time.
+ */
+describe('a chain that does not branch', () => {
+  it('refuses a second successor next to one that counts, and names it', async () => {
+    const confirmation = await confirmedOrder()
+    const progress = await successor(confirmation.id, 'progress_invoice')
+
+    expect((await successor(confirmation.id, 'final_invoice', 409)).message).toContain(
+      'schon eine Abschlagsrechnung entstanden, noch als Entwurf',
+    )
+    expect((await successor(confirmation.id, 'progress_invoice', 409)).message).toContain(
+      'noch als Entwurf',
+    )
+
+    const issued = await issue(progress.id)
+
+    expect((await successor(confirmation.id, 'final_invoice', 409)).message).toContain(
+      `schon die Abschlagsrechnung ${String(issued.number)} entstanden`,
+    )
+
+    // The way on is at the last link.
+    expect(await successor(progress.id, 'final_invoice')).toMatchObject({
+      predecessorDocumentId: progress.id,
+    })
+  })
+
+  it('frees the predecessor once its successor is cancelled, or deleted as a draft', async () => {
+    const confirmation = await confirmedOrder()
+    const progress = await successor(confirmation.id, 'progress_invoice')
+
+    await issue(progress.id)
+    await http()
+      .post(`/documents/${progress.id}/cancellation`)
+      .set('x-test-identity', office())
+      .expect(201)
+
+    // The cancellation names the invoice it cancels and is no link after the
+    // confirmation, so the replacement comes out of the confirmation again.
+    const replacement = await successor(confirmation.id, 'progress_invoice')
+
+    await http().delete(`/documents/${replacement.id}`).set('x-test-identity', office()).expect(200)
+
+    expect(await successor(confirmation.id, 'final_invoice')).toMatchObject({
+      predecessorDocumentId: confirmation.id,
+    })
+  })
+
+  it('lets one of two successors made at the same moment through, and not both', async () => {
+    const confirmation = await confirmedOrder()
+    const answers = await Promise.all(
+      ['progress_invoice', 'final_invoice'].map((kind) =>
+        http()
+          .post(`/documents/${confirmation.id}/successors`)
+          .set('x-test-identity', office())
+          .send({ kind, documentDate: '2026-09-21' }),
+      ),
+    )
+
+    expect(answers.map((answer) => answer.status).sort()).toEqual([201, 409])
+  })
+
+  it('takes no predecessor through the general routes, only through its own', async () => {
+    const confirmation = await confirmedOrder()
+    const other = await draft('final_invoice', { predecessorDocumentId: confirmation.id })
+
+    expect(other.predecessorDocumentId).toBeNull()
+
+    const changed = await http()
+      .patch(`/documents/${other.id}`)
+      .set('x-test-identity', office())
+      .send({ predecessorDocumentId: confirmation.id, subject: 'Werkstatt, Rest' })
+      .expect(200)
+
+    expect(changed.body).toMatchObject({ subject: 'Werkstatt, Rest', predecessorDocumentId: null })
+  })
+
+  it('is held by the database as well, for every other way in', async () => {
+    const confirmation = await confirmedOrder()
+
+    await successor(confirmation.id, 'progress_invoice')
+
+    const refusal: unknown = await admin
+      .query(
+        `insert into documents (tenant_id, customer_id, kind, document_date, predecessor_document_id)
+           values ($1, $2, 'final_invoice', '2026-09-21', $3)`,
+        [north.id, customerId, confirmation.id],
+      )
+      .catch((error: unknown) => error)
+
+    expect(refusal).toMatchObject({ code: '23505', constraint: 'documents_one_successor' })
+  })
+})

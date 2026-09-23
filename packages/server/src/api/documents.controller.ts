@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common'
 import {
   cancellationOf,
+  continuesChain,
   currentContent,
   type CustomerId,
   defaultPatterns,
@@ -115,6 +116,38 @@ function lacking(missing: readonly Missing[]): UnprocessableEntityException {
   })
 }
 
+/**
+ * The refusal for a second successor out of the same document (#129), naming
+ * the one the chain goes on at. Every kind a successor can be is a feminine
+ * noun, Auftragsbestätigung, Abschlagsrechnung and Schlussrechnung, which the
+ * articles here rely on.
+ */
+function branchRefusal(successor: {
+  readonly kind: DocumentKind
+  readonly status: DocumentStatus
+  readonly number: string | null
+}): string {
+  const title = documentTitle(successor.kind)
+
+  if (successor.status === 'draft' || successor.number === null) {
+    return (
+      `Aus diesem Beleg ist schon eine ${title} entstanden, noch als Entwurf. Die Kette geht ` +
+      'bei ihr weiter und verzweigt sich nicht; soll es ein anderer Folgebeleg sein, zuerst ' +
+      'den Entwurf löschen.'
+    )
+  }
+
+  return (
+    `Aus diesem Beleg ist schon die ${title} ${successor.number} entstanden. Die Kette geht bei ` +
+    'ihr weiter und verzweigt sich nicht, damit keine Rechnung ein zweites Mal stellt, was eine ' +
+    'andere schon gestellt hat.' +
+    (isCancellable(successor.kind)
+      ? ' Soll sie ersetzt werden, wird sie storniert; danach entsteht der neue Folgebeleg ' +
+        'wieder aus diesem.'
+      : '')
+  )
+}
+
 /** The states a document is issued from: a draft, or a report the customer signed. */
 const issuable: readonly DocumentStatus[] = ['draft', 'signed']
 
@@ -123,7 +156,9 @@ const writableFields = [
   'jobId',
   'siteId',
   'installationId',
-  'predecessorDocumentId',
+  // Not `predecessorDocumentId`. The link back is made by the route that makes
+  // a successor, out of the last link of the chain and nowhere else (#129); a
+  // document that could name any predecessor could branch the chain.
   'kind',
   'documentDate',
   // When the work was done. Required on most invoices, see `missingDetails`,
@@ -357,6 +392,11 @@ export class DocumentsController {
    * that went out, not a draft that may still change after the confirmation
    * has been written against it.
    *
+   * And only out of the last link (#129). A document that already has a
+   * successor that counts gets no second one: a final invoice made out of the
+   * quote next to a progress invoice made out of it would deduct nothing of
+   * it, because the deductions follow a chain upwards and never sideways.
+   *
    * The lines are copied and not referenced. The confirmation is a document of
    * its own: it may drop a position the customer did not order, and it is
    * frozen on its own when it is issued. The link back is the predecessor
@@ -393,10 +433,13 @@ export class DocumentsController {
     const documentDate = (values.documentDate as IsoDate | undefined) ?? todayInGermany()
 
     return this.database.forTenant(identity, async (tx) => {
+      // Locked, so that two successors made at the same moment wait for each
+      // other, and the second finds the first in the check below.
       const [predecessor] = await tx
         .select()
         .from(documents)
         .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+        .for('update')
 
       if (!predecessor) {
         throw new NotFoundException()
@@ -416,6 +459,22 @@ export class DocumentsController {
                 'Entwurf. Erst festschreiben, dann den Folgebeleg anlegen.'
             : 'Aus einem stornierten Beleg entsteht kein Folgebeleg.',
         )
+      }
+
+      // One successor that counts, so that the chain does not branch (#129).
+      // The unique index `documents_one_successor` holds the same rule behind
+      // this for every other way in.
+      const [later] = (
+        await tx
+          .select({ kind: documents.kind, status: documents.status, number: documents.number })
+          .from(documents)
+          .where(
+            and(eq(documents.predecessorDocumentId, predecessor.id), isNull(documents.deletedAt)),
+          )
+      ).filter(continuesChain)
+
+      if (later) {
+        throw new ConflictException(branchRefusal(later))
       }
 
       const [created] = await tx

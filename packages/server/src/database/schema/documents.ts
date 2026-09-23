@@ -127,6 +127,18 @@ export const documents = pgTable(
     uniqueIndex('documents_number_unique')
       .on(table.tenantId, table.number)
       .where(sql`${table.number} is not null`),
+    // A chain does not branch (#129): a document has at most one successor
+    // that continues it, and the next is made out of the last link. A deleted
+    // draft, a cancelled invoice and the two corrections do not count, as in
+    // `continuesChain` in `domain`, which the route asks before it gets here.
+    uniqueIndex('documents_one_successor')
+      .on(table.tenantId, table.predecessorDocumentId)
+      .where(
+        sql`${table.predecessorDocumentId} is not null
+          and ${table.deletedAt} is null
+          and ${table.status} <> 'cancelled'
+          and ${table.kind} not in ('cancellation_invoice', 'credit_note')`,
+      ),
     check(
       'documents_service_period',
       sql`${table.serviceUntil} is null

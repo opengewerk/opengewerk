@@ -7,6 +7,7 @@ import type {
   RecordState,
 } from '@opengewerk/domain'
 import {
+  continuesChain,
   invoiceFormats,
   isCancellable,
   isInvoice,
@@ -218,7 +219,13 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   // A signed report is fixed and still waits for its number. Issuing it is
   // the office's step, and the only one left: nothing on it changes on the way.
   const issuable = status === 'draft' || status === 'signed'
-  const next = status === 'issued' && mayWrite ? successorsOf(kind) : []
+  // The chain does not branch (#129). Once a successor that counts has been
+  // made out of this document, the next one is made out of that one, and the
+  // head of the page leads there instead of offering a second one here.
+  const continuing = successors.find((successor) =>
+    continuesChain({ kind: documentKindOf(successor), status: documentStatusOf(successor) }),
+  )
+  const next = status === 'issued' && mayWrite && !continuing ? successorsOf(kind) : []
   // Cancelling is issuing the other way round, so it takes the same right: a
   // cancellation goes into the books like the invoice did.
   const cancellable = status === 'issued' && isCancellable(kind) && mayIssue
@@ -312,6 +319,11 @@ function DocumentView({ document }: { readonly document: RecordState }) {
               {`${documentKindLabel[successor]} erstellen`}
             </Button>
           ))}
+          {continuing && status === 'issued' && successorsOf(kind).length > 0 ? (
+            <Link to={`/belege/${String(continuing['id'])}`} className={downloadLink}>
+              {`Weiter bei ${documentName(continuing)}`}
+            </Link>
+          ) : null}
         </>
       }
     >
@@ -371,6 +383,14 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       <ChainSection kind={kind} predecessor={predecessor} successors={successors} />
     </Page>
   )
+}
+
+/** A document as a sentence names it: its kind and number, or that it is still a draft. */
+function documentName(document: RecordState): string {
+  const number = maybeText(document, 'number')
+  const label = documentKindLabel[documentKindOf(document)]
+
+  return number ? `${label} ${number}` : `${label}, Entwurf`
 }
 
 /** A download that looks like the other buttons in the head of the page. */

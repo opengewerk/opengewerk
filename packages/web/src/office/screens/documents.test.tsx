@@ -826,6 +826,66 @@ describe('invoices in the chain', () => {
     })
   })
 
+  /**
+   * The chain does not branch (#129): a final invoice made out of the order
+   * confirmation next to its progress invoice would deduct nothing of it.
+   * Once one successor counts, the page leads to it instead.
+   */
+  it('are not offered a second time next to one that counts, only at the last link', async () => {
+    const confirmation = document({
+      kind: 'order_confirmation',
+      status: 'issued',
+      number: 'AB-2026-0001',
+    })
+    const progress = document({
+      id: 'd-2',
+      kind: 'progress_invoice',
+      status: 'issued',
+      number: 'RE-2026-0004',
+      predecessorDocumentId: 'd-1',
+    })
+
+    await mount('/belege/d-1', {
+      documents: [confirmation, progress],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const onwards = await screen.findByRole('link', {
+      name: 'Weiter bei Abschlagsrechnung RE-2026-0004',
+    })
+
+    expect(onwards.getAttribute('href')).toBe('/belege/d-2')
+    expect(screen.queryByRole('button', { name: 'Schlussrechnung erstellen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeNull()
+  })
+
+  it('are offered again once the successor is cancelled, to replace it', async () => {
+    await mount('/belege/d-1', {
+      documents: [
+        document({ kind: 'order_confirmation', status: 'issued', number: 'AB-2026-0001' }),
+        document({
+          id: 'd-2',
+          kind: 'progress_invoice',
+          status: 'cancelled',
+          number: 'RE-2026-0004',
+          predecessorDocumentId: 'd-1',
+        }),
+        // The cancellation names the invoice and is no link after the confirmation.
+        document({
+          id: 'd-3',
+          kind: 'cancellation_invoice',
+          status: 'issued',
+          number: 'RE-2026-0005',
+          predecessorDocumentId: 'd-2',
+        }),
+      ],
+      document_lines: [line('l-1', 1)],
+    })
+
+    expect(await screen.findByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeDefined()
+    expect(screen.queryByRole('link', { name: /^Weiter bei/ })).toBeNull()
+  })
+
   it('offer only the final invoice on an issued report, which records work that is done', async () => {
     await mount('/belege/d-1', {
       documents: [

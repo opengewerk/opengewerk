@@ -272,12 +272,21 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   )
 
   await post(`/documents/${quote}/issue`, {})
-  await post(`/documents/${quote}/successors`, { kind: 'order_confirmation' })
+
+  // The chain runs on from its last link and does not branch (#129): the
+  // confirmation out of the quote, issued, and the invoices out of it.
+  const confirmation = idOf(
+    await post(`/documents/${quote}/successors`, { kind: 'order_confirmation' }),
+  )
+
+  await post(`/documents/${confirmation}/issue`, {})
 
   // The cabinet is done and the lighting is not: a cumulative progress invoice
   // for the first part, issued, and the final invoice after it with the rest
   // added back, still a draft.
-  const progress = idOf(await post(`/documents/${quote}/successors`, { kind: 'progress_invoice' }))
+  const progress = idOf(
+    await post(`/documents/${confirmation}/successors`, { kind: 'progress_invoice' }),
+  )
   const lineOf = (line: Answer) => `/documents/${progress}/lines/${String(line['id'])}`
   const outstanding = ['Außenbeleuchtung', 'Wandleuchte montieren', 'NYM-J 3x1,5 mm²']
 

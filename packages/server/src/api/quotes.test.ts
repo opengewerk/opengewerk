@@ -467,14 +467,17 @@ describe('an order confirmation out of a quote', () => {
   })
 
   it('is dated today unless a date is given', async () => {
-    const quote = await issuedQuote()
     const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(new Date())
 
-    const dated = await successor(quote.id, {
+    // Two quotes, because one quote has one confirmation: a chain does not
+    // branch (#129).
+    const dated = await successor((await issuedQuote()).id, {
       kind: 'order_confirmation',
       documentDate: '2026-10-01',
     }).expect(201)
-    const undated = await successor(quote.id, { kind: 'order_confirmation' }).expect(201)
+    const undated = await successor((await issuedQuote()).id, {
+      kind: 'order_confirmation',
+    }).expect(201)
 
     expect((dated.body as DocumentRow).documentDate).toBe('2026-10-01')
     expect((undated.body as DocumentRow).documentDate).toBe(today)
