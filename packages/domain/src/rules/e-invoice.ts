@@ -192,12 +192,13 @@ export interface Duty {
  * besides, which is the one that is never wrong: an e-invoice is allowed where
  * a PDF would have been.
  *
- * Sent, not written: the paragraph says "übermittelt". Which day an invoice
- * leaves the house is not something this software knows while it does not
- * send invoices itself, so the date of the invoice stands in for it. An invoice
- * dated after the end of a period cannot have been sent within it, so that
- * half is exact. One dated within the period and sent after it is the case
- * this reading misses, noted in #31 for when the sending of #81 knows the day.
+ * Sent, not written: the paragraph says "übermittelt". The day it goes out is
+ * `sentOn`, and an invoice cannot go out before its own date, so the later of
+ * the two counts. The server passes today (#134): the day a message is asked
+ * for, and for the screen and the issuing the earliest day the invoice can
+ * still leave. An invoice dated 30 December and sent on 4 January falls out of
+ * the transition, however early the work was done; before #134 the date of the
+ * invoice stood in for the day it was sent, and that case slipped through.
  *
  * The turnover is not a figure this software knows before the bookkeeping of
  * phase 3, so the business states it: `e_invoice.transition_claimed`, the
@@ -208,6 +209,7 @@ export function eInvoiceDuty(
   rules: RuleSet,
   content: Pick<DocumentContent, 'documentDate' | 'serviceFrom' | 'serviceUntil'>,
   transitionClaimed: boolean,
+  sentOn: IsoDate = content.documentDate,
 ): Duty {
   const supplied = supplyDateOf(content)
 
@@ -231,6 +233,17 @@ export function eInvoiceDuty(
         reason:
           `Pflicht: der Übergang für diese Leistung galt nur für eine Rechnung, die bis zum ` +
           `${day(deadline)} übermittelt wurde, und diese trägt ein späteres Datum ` +
+          `(${transition.source}).`,
+      }
+    }
+
+    if (sentOn > deadline) {
+      return {
+        required: true,
+        reason:
+          `Pflicht ab jetzt: der Übergang für diese Leistung galt nur für eine Rechnung, die bis ` +
+          `zum ${day(deadline)} übermittelt wurde, und heute ist der ${day(sentOn)}. Was vorher ` +
+          `als PDF hinausging, bleibt gültig; jetzt geht sie nur noch als E-Rechnung ` +
           `(${transition.source}).`,
       }
     }

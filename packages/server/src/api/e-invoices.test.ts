@@ -9,7 +9,7 @@ import type { DocumentContent, EInvoiceStatus } from '@opengewerk/domain'
 import { XmlDocument } from 'libxml2-wasm'
 import type { Pool } from 'pg'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
@@ -206,6 +206,13 @@ function read(xml: string, xpath: string): string[] {
 }
 
 beforeAll(async () => {
+  // Today stands still at a day in the first transition. Whether an invoice
+  // of 2026 may still go out as a PDF depends on the day it is sent (#134),
+  // and the server takes today for that; without this, every expectation
+  // below about 2026 would turn on the first of January 2027. Only the clock
+  // the application reads: timers, the pool and the database keep their own.
+  vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-23T10:00:00+02:00') })
+
   admin = await connect()
   await resetSchema(admin)
   await applyMigrations()
@@ -250,6 +257,7 @@ afterAll(async () => {
   await database.close()
   await admin.end()
   rmSync(storageRoot, { recursive: true, force: true })
+  vi.useRealTimers()
 })
 
 describe('the format of an invoice', () => {

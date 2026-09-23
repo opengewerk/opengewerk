@@ -14,6 +14,7 @@ import {
   type DocumentId,
   type Duty,
   type EInvoiceGap,
+  type IsoDate,
   type EInvoiceStatus,
   eInvoiceDuty,
   eInvoiceGaps,
@@ -33,19 +34,29 @@ import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { DocumentFiles } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+import { todayInGermany } from '../today.js'
 
 /**
  * Whether the e-invoice is required for a document that goes out as one.
  *
  * Read with the claim the business had made for the day of the work, because
  * that is the day the transition of section 27 (38) UStG asks about. A shared
- * function, since the issuing refuses on it and the screen shows it, and the
- * two must never give different answers.
+ * function, since the issuing refuses on it, the sending by mail refuses on
+ * it and the screen shows it, and none of them may give a different answer.
+ *
+ * Asked as of today (#134). The transition also asks for the day an invoice
+ * is sent, and today is the day a message is asked for and the earliest day
+ * anything still leaves; an invoice that was written in December and goes out
+ * in January is required as an e-invoice, whatever its date says.
  */
-export async function dutyOf(tx: TenantTransaction, content: DocumentContent): Promise<Duty> {
+export async function dutyOf(
+  tx: TenantTransaction,
+  content: DocumentContent,
+  sentOn: IsoDate = todayInGermany(),
+): Promise<Duty> {
   const claim = await parameterAt(tx, 'e_invoice.transition_claimed', supplyDateOf(content))
 
-  return eInvoiceDuty(shippedRules, content, claim?.value === 1)
+  return eInvoiceDuty(shippedRules, content, claim?.value === 1, sentOn)
 }
 
 /**

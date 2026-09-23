@@ -199,6 +199,40 @@ describe('the duty', () => {
     expect(duty('2026-12-15', '2027-01-10').reason).toContain('31.12.2026')
   })
 
+  /**
+   * #134: the transition asks for the day the invoice is sent, and an invoice
+   * dated within the period can still go out after it. Written on the 30th
+   * and sent on the 4th, it falls under neither transition.
+   */
+  it('counts the day the invoice goes out, which can be later than its date', () => {
+    const work = {
+      documentDate: '2026-12-30' as IsoDate,
+      serviceFrom: null,
+      serviceUntil: '2026-12-15' as IsoDate,
+    }
+    const sent = (on: IsoDate, claimed = false) => eInvoiceDuty(rules, work, claimed, on)
+
+    expect(sent('2026-12-31' as IsoDate).required).toBe(false)
+    expect(sent('2027-01-04' as IsoDate).required).toBe(true)
+    // The claim of 2027 belongs to the work of 2027 and does not reach back.
+    expect(sent('2027-01-04' as IsoDate, true).required).toBe(true)
+    expect(sent('2027-01-04' as IsoDate).reason).toContain('31.12.2026')
+    expect(sent('2027-01-04' as IsoDate).reason).toContain('heute ist der 04.01.2027')
+    // Without a day, the date of the invoice stands in, as before.
+    expect(eInvoiceDuty(rules, work, false).required).toBe(false)
+  })
+
+  it('lets the second transition end the same way, for a business that claims it', () => {
+    const work = {
+      documentDate: '2027-12-29' as IsoDate,
+      serviceFrom: null,
+      serviceUntil: '2027-12-20' as IsoDate,
+    }
+
+    expect(eInvoiceDuty(rules, work, true, '2027-12-31' as IsoDate).required).toBe(false)
+    expect(eInvoiceDuty(rules, work, true, '2028-01-02' as IsoDate).required).toBe(true)
+  })
+
   it('waits in 2027 only for a business that claims to have stayed under the limit', () => {
     expect(duty('2027-03-10', '2027-03-15', true)).toMatchObject({ required: false })
     expect(duty('2027-03-10', '2027-03-15', true).reason).toContain('800.000 Euro')

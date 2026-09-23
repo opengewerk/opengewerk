@@ -875,6 +875,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Rechnung an ein Unternehmen geht nach dem Ende eines Übergangs zur E-Rechnung nicht mehr
+  ohne Hinweis als PDF hinaus (#134). Der Übergang nach § 27 Abs. 38 UStG gilt nur für eine
+  Rechnung, die bis zum Ende seines Zeitraums übermittelt wird, und OpenGewerk nahm dafür das
+  Belegdatum: eine Rechnung vom 30.12.2026, die am 04.01.2027 per E-Mail hinausging, fiel durch.
+  Jetzt zählt der Tag, an dem der Versand angefordert wird; fehlt der E-Rechnung dann etwas, wird
+  er mit dem Grund und der Liste der Lücken abgelehnt. Die Karte "E-Rechnung" und das
+  Festschreiben urteilen nach demselben Tag.
 - Eine Belegkette verzweigt sich nicht mehr (#129). Aus einem festgeschriebenen Beleg ließen
   sich beliebig viele Folgebelege anlegen, und eine Schlussrechnung aus dem Angebot neben einer
   Abschlagsrechnung aus demselben Angebot zog nichts von ihr ab und stellte den ganzen Betrag
