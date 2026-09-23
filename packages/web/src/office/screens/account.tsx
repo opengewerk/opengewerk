@@ -3,8 +3,9 @@ import { useState } from 'react'
 
 import { Button, Cell, Column, Table } from '../../components/index.js'
 import { moment } from '../../app/format.js'
+import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
-import { currentAccount, devices, revokeDevice, signOut } from '../../session/session.js'
+import { devices, revokeDevice, signOut } from '../../session/session.js'
 import { Nothing, Page, Section } from '../layout.js'
 
 /**
@@ -19,7 +20,7 @@ import { Nothing, Page, Section } from '../layout.js'
  */
 export function AccountScreen() {
   const queries = useQueryClient()
-  const account = useQuery({ queryKey: ['account'], queryFn: currentAccount })
+  const account = useQuery(accountQuery)
   const list = useQuery({ queryKey: ['devices'], queryFn: devices })
   const [trouble, setTrouble] = useState<string | null>(null)
   const [setting, setSetting] = useState(false)

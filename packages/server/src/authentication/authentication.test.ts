@@ -497,6 +497,140 @@ describe('devices', () => {
   })
 })
 
+describe('how long a session lasts', () => {
+  const hour = 60 * 60 * 1000
+  const day = 24 * hour
+
+  /** The session cookie among what a response set, attributes and all. */
+  function sessionCookie(cookies: readonly string[]): string {
+    const found = cookies.find((cookie) => cookie.includes('session_token='))
+
+    if (!found) {
+      throw new Error('no session cookie in the answer')
+    }
+
+    return found
+  }
+
+  /** The row behind a cookie: its value is the token, a dot and a signature. */
+  function tokenOf(cookies: readonly string[]): string {
+    const value = sessionCookie(cookies).split(';')[0]?.split('=')[1] ?? ''
+
+    return decodeURIComponent(value).split('.')[0] ?? ''
+  }
+
+  async function rowOf(cookies: readonly string[]) {
+    const { rows } = await admin.query<{ expires_at: Date; long_lived: boolean }>(
+      'select expires_at, long_lived from auth_sessions where token = $1',
+      [tokenOf(cookies)],
+    )
+    const [row] = rows
+
+    if (!row) {
+      throw new Error('no session row for the cookie')
+    }
+
+    return { ...row, left: row.expires_at.getTime() - Date.now() }
+  }
+
+  async function expiresIn(cookies: readonly string[], left: number): Promise<void> {
+    await admin.query('update auth_sessions set expires_at = $2 where token = $1', [
+      tokenOf(cookies),
+      new Date(Date.now() + left),
+    ])
+  }
+
+  async function inBusiness(email: string, deviceId?: string): Promise<string[]> {
+    const cookies = await signIn(email)
+
+    await http()
+      .post('/auth/tenant')
+      .set('cookie', withCookies(cookies))
+      .set('origin', origin)
+      .send({ tenantId: north.id, ...(deviceId ? { deviceId } : {}) })
+      .expect(201)
+
+    return cookies
+  }
+
+  /**
+   * The cookie is the long lifetime whatever the session is, and the row is
+   * what decides (#124). With the office lifetime in the cookie, as before,
+   * every registered device was signed out after twelve hours although its
+   * row said thirty days.
+   */
+  it('keeps the cookie a month, and a new session short until a device is registered', async () => {
+    const cookies = await signIn(office.email)
+
+    expect(sessionCookie(cookies)).toContain('Max-Age=2592000')
+
+    const fresh = await rowOf(cookies)
+
+    expect(fresh.left).toBeGreaterThan(12 * hour - 5 * 60_000)
+    expect(fresh.left).toBeLessThanOrEqual(12 * hour)
+  })
+
+  it('gives a registered device thirty days, and the office twelve hours', async () => {
+    const device = await rowOf(await inBusiness(office.email, newId<'device'>()))
+    const desk = await rowOf(await inBusiness(office.email))
+
+    expect(device.long_lived).toBe(true)
+    expect(device.left).toBeGreaterThan(30 * day - hour)
+    expect(desk.long_lived).toBe(false)
+    expect(desk.left).toBeLessThanOrEqual(12 * hour)
+  })
+
+  it('renews a session in use to a full lifetime from now, by its kind', async () => {
+    const desk = await inBusiness(office.email)
+    const device = await inBusiness(office.email, newId<'device'>())
+
+    // Last renewed two hours and two days ago.
+    await expiresIn(desk, 10 * hour)
+    await expiresIn(device, 28 * day)
+
+    await http().get('/customers').set('cookie', withCookies(desk)).expect(200)
+    await http().get('/customers').set('cookie', withCookies(device)).expect(200)
+
+    expect((await rowOf(desk)).left).toBeGreaterThan(12 * hour - 5 * 60_000)
+    expect((await rowOf(device)).left).toBeGreaterThan(30 * day - hour)
+    expect((await rowOf(device)).long_lived).toBe(true)
+  })
+
+  it('leaves a session alone that was renewed a moment ago', async () => {
+    const desk = await inBusiness(office.email)
+
+    await expiresIn(desk, 11 * hour + 50 * 60_000)
+    await http().get('/customers').set('cookie', withCookies(desk)).expect(200)
+
+    expect((await rowOf(desk)).left).toBeLessThan(11 * hour + 51 * 60_000)
+  })
+
+  /**
+   * The interface asks after the session at every start and whenever it
+   * comes back into view. That answer carries the cookie again, a month from
+   * now, so a device in use never reaches the end of it.
+   */
+  it('hands the cookie out again for a month when the interface asks after the session', async () => {
+    const device = await inBusiness(office.email, newId<'device'>())
+    const answer = await http()
+      .get(`${authenticationPath}/get-session`)
+      .set('cookie', withCookies(device))
+      .expect(200)
+    const renewed = answer.headers['set-cookie']
+
+    expect(sessionCookie(Array.isArray(renewed) ? renewed : [String(renewed)])).toContain(
+      'Max-Age=2592000',
+    )
+  })
+
+  it('refuses a session whose row has run out, however long the cookie would last', async () => {
+    const desk = await inBusiness(office.email)
+
+    await expiresIn(desk, -60_000)
+    await http().get('/customers').set('cookie', withCookies(desk)).expect(401)
+  })
+})
+
 describe('signing out', () => {
   it('ends the session, and the cookie stops working', async () => {
     const cookies = await signIn(office.email)

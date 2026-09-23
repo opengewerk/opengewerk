@@ -9,17 +9,13 @@ import { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { directWrite, httpTransport } from '../sync/transport.js'
+import { unreachable } from '../session/remembered.js'
 import { deviceIdentity } from './device.js'
 import { InvitationScreen } from './invitation.js'
+import { accountQuery } from './queries.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { Gate, SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
-import {
-  availableTenants,
-  currentAccount,
-  invitationToken,
-  setupNeeded,
-  signOut,
-} from './../session/session.js'
+import { availableTenants, invitationToken, setupNeeded, signOut } from './../session/session.js'
 import type { Account } from './../session/session.js'
 
 /**
@@ -60,15 +56,10 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   // would be read during render, which is what a ref is not for.
   const [deviceId] = useState(deviceIdentity)
 
-  const account = useQuery({
-    queryKey: ['account'],
-    queryFn: currentAccount,
-    // An expired session has to be noticed, and the answer is cheap. Asking
-    // again on every focus is what turns "nothing works any more" into a sign
-    // in screen.
-    staleTime: 30_000,
-    retry: false,
-  })
+  // Without a network this answers with who was signed in here last, and the
+  // device opens what it keeps (#123); see `currentAccount`.
+  const account = useQuery(accountQuery)
+  const cutOff = account.isError && unreachable(account.error)
 
   /**
    * Whether this instance has never been used.
@@ -80,7 +71,7 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   const setup = useQuery({
     queryKey: ['setup'],
     queryFn: setupNeeded,
-    enabled: !account.isPending && !account.data,
+    enabled: !account.isPending && !account.data && !cutOff,
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   })
@@ -153,6 +144,27 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   }
 
   if (!account.data) {
+    if (cutOff) {
+      return (
+        <Gate title="Keine Verbindung">
+          <p className="text-body">
+            Der Server antwortet nicht, und auf diesem Gerät war noch niemand angemeldet. Zum ersten
+            Anmelden braucht es eine Verbindung; danach öffnet das Gerät seine Daten auch ohne.
+          </p>
+          <Button
+            className="mt-4"
+            tone="secondary"
+            wide
+            onClick={() => {
+              void account.refetch()
+            }}
+          >
+            Erneut versuchen
+          </Button>
+        </Gate>
+      )
+    }
+
     if (setup.data === undefined && !setup.isError) {
       return <Gate title="Einen Moment">Die Anwendung sieht nach, ob sie schon läuft.</Gate>
     }
