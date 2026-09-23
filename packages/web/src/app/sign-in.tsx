@@ -6,7 +6,13 @@ import { Button, Card, Field, FieldLabel } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import type { Entry } from '../entry/entry.js'
 import { roleLabel } from './labels.js'
-import { chooseTenant, signIn, verifySecondFactor } from './../session/session.js'
+import {
+  chooseTenant,
+  recoveryCodesLeft,
+  signIn,
+  verifyRecoveryCode,
+  verifySecondFactor,
+} from './../session/session.js'
 import type { TenantChoice } from './../session/session.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -121,11 +127,20 @@ export function SignInScreen({
   )
 }
 
-/** The second factor, for the accounts that have to have one. */
+/**
+ * The second factor, for the accounts that have to have one.
+ *
+ * With the code from the app, or with one of the recovery codes shown when the
+ * factor was set up, for somebody whose phone is gone (#125). Afterwards the
+ * screen says how many recovery codes are left, before it goes on: ten that
+ * quietly became one are a way in that is about to close.
+ */
 export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => void }) {
   const [code, setCode] = useState('')
+  const [recovery, setRecovery] = useState(false)
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const [left, setLeft] = useState<number | null | undefined>(undefined)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -133,13 +148,31 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
     setTrouble(null)
 
     try {
-      await verifySecondFactor(code)
-      onVerified()
+      if (recovery) {
+        await verifyRecoveryCode(code)
+        // Signed in by now, so the count can be asked for. A count that does
+        // not arrive is no reason to keep somebody out.
+        setLeft(await recoveryCodesLeft().catch(() => null))
+      } else {
+        await verifySecondFactor(code)
+        onVerified()
+      }
     } catch (error) {
       setTrouble(saidWhy(error, 'Der Code stimmt nicht.'))
     } finally {
       setWorking(false)
     }
+  }
+
+  if (left !== undefined) {
+    return (
+      <Gate title="Wiederherstellungscode eingelöst">
+        <p className="text-body">{codesLeftSentence(left)}</p>
+        <Button className="mt-4" tone="primary" wide onClick={onVerified}>
+          Weiter
+        </Button>
+      </Gate>
+    )
   }
 
   return (
@@ -150,20 +183,38 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
           void submit(event)
         }}
       >
-        <Field
-          label="Code aus der App"
-          numeric
-          inputMode="numeric"
-          // `one-time-code` is what lets a phone offer the code from the
-          // keyboard instead of making somebody switch apps and come back.
-          autoComplete="one-time-code"
-          maxLength={8}
-          required
-          value={code}
-          onChange={(event) => {
-            setCode(event.target.value)
-          }}
-        />
+        {recovery ? (
+          <Field
+            label="Wiederherstellungscode"
+            // Ten letters and digits with a hyphen in the middle, the way the
+            // setup printed them. Room for the spaces a copied code brings
+            // along, which are trimmed before it is sent.
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            maxLength={20}
+            required
+            value={code}
+            onChange={(event) => {
+              setCode(event.target.value)
+            }}
+          />
+        ) : (
+          <Field
+            label="Code aus der App"
+            numeric
+            inputMode="numeric"
+            // `one-time-code` is what lets a phone offer the code from the
+            // keyboard instead of making somebody switch apps and come back.
+            autoComplete="one-time-code"
+            maxLength={8}
+            required
+            value={code}
+            onChange={(event) => {
+              setCode(event.target.value)
+            }}
+          />
+        )}
 
         {trouble ? (
           <p role="alert" className="text-body font-semibold text-conflict">
@@ -174,8 +225,37 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
         <Button type="submit" tone="primary" wide disabled={working}>
           {working ? 'Wird geprüft' : 'Weiter'}
         </Button>
+
+        <Button
+          tone="quiet"
+          wide
+          onClick={() => {
+            setRecovery(!recovery)
+            setCode('')
+            setTrouble(null)
+          }}
+        >
+          {recovery
+            ? 'Code aus der App verwenden'
+            : 'Telefon nicht zur Hand? Wiederherstellungscode'}
+        </Button>
       </form>
     </Gate>
+  )
+}
+
+/** What is left after a recovery code, and where to get new ones. */
+function codesLeftSentence(left: number | null): string {
+  const counted =
+    left === null
+      ? 'Der Code ist eingelöst und gilt kein zweites Mal.'
+      : left === 1
+        ? 'Der Code ist eingelöst. Es ist noch ein Wiederherstellungscode übrig.'
+        : 'Der Code ist eingelöst. Es sind noch ' + String(left) + ' Wiederherstellungscodes übrig.'
+
+  return (
+    counted +
+    ' Unter "Konto" im Büro lassen sich neue erzeugen und der zweite Faktor auf einem neuen Telefon einrichten.'
   )
 }
 

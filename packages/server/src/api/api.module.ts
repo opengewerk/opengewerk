@@ -11,6 +11,7 @@ import { raw } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { AuthenticationController } from '../authentication/authentication.controller.js'
+import { RecoveryCodesController } from '../authentication/recovery-codes.controller.js'
 import { Database } from '../database/database.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
@@ -131,9 +132,10 @@ export class ApiModule implements NestModule {
       module: ApiModule,
       controllers: [
         HealthController,
-        // Both of these answer without an identity and both are left out on a
+        // All three need the authentication handed in and are left out on a
         // closed instance, which is what leaving the authentication out does.
-        ...(authentication ? [SetupController, InvitationController] : []),
+        // The first two answer without an identity.
+        ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
         AuthenticationController,
         StaffController,
         CustomersController,

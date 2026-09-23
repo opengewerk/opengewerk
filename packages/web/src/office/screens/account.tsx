@@ -1,11 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import type { FormEvent } from 'react'
 
-import { Button, Cell, Column, Table } from '../../components/index.js'
+import { Button, Card, Cell, Column, Field, Table } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
-import { devices, revokeDevice, signOut } from '../../session/session.js'
+import {
+  devices,
+  newRecoveryCodes,
+  recoveryCodesLeft,
+  revokeDevice,
+  signOut,
+} from '../../session/session.js'
+import { RequestRefused } from '../../sync/transport.js'
 import { Nothing, Page, Section } from '../layout.js'
 
 /**
@@ -63,9 +71,13 @@ export function AccountScreen() {
 
       <Section title="Zweiter Faktor">
         {account.data?.twoFactorEnabled ? (
-          <p className="text-body">
-            Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der App.
-          </p>
+          <div className="flex flex-col gap-4">
+            <p className="text-body">
+              Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der
+              App.
+            </p>
+            <RecoveryCodes />
+          </div>
         ) : setting ? (
           <SecondFactorSetup
             onDone={() => {
@@ -151,5 +163,125 @@ export function AccountScreen() {
         )}
       </Section>
     </Page>
+  )
+}
+
+/**
+ * The recovery codes of this account: how many are left, and a new set (#125).
+ *
+ * The count and not the codes. They were shown once, when they were made, and
+ * a screen that showed them again would turn a session left open at a desk
+ * into a way past the second factor for good. A new set asks for the password
+ * for the same reason, and replaces the old one entirely.
+ */
+function RecoveryCodes() {
+  const queries = useQueryClient()
+  const left = useQuery({ queryKey: ['recovery-codes'], queryFn: recoveryCodesLeft })
+  const [asking, setAsking] = useState(false)
+  const [password, setPassword] = useState('')
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const [fresh, setFresh] = useState<readonly string[] | null>(null)
+
+  async function make(event: FormEvent) {
+    event.preventDefault()
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      setFresh(await newRecoveryCodes(password))
+      setAsking(false)
+      setPassword('')
+      void queries.invalidateQueries({ queryKey: ['recovery-codes'] })
+    } catch (error) {
+      setTrouble(
+        error instanceof RequestRefused ? error.message : 'Es kamen keine neuen Codes zurück.',
+      )
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Card label="Wiederherstellungscodes" tone="sunken">
+      <div className="flex flex-col gap-3">
+        <p className="text-body">
+          {left.data === undefined || left.data === null
+            ? 'Die Codes sind der Weg hinein, wenn das Telefon weg ist. Jeder gilt einmal.'
+            : left.data === 1
+              ? 'Noch ein Code übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'
+              : 'Noch ' +
+                String(left.data) +
+                ' Codes übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'}
+        </p>
+
+        {fresh ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-body font-semibold">
+              Die neuen Codes. Jetzt ausdrucken oder aufschreiben, danach sind sie nicht mehr zu
+              sehen; die alten gelten nicht mehr.
+            </p>
+            <ul className="grid grid-cols-2 gap-2">
+              {fresh.map((code) => (
+                <li key={code} className="text-body font-condensed tracking-wider numeric">
+                  {code}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {asking ? (
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              void make(event)
+            }}
+          >
+            <Field
+              label="Passwort zur Bestätigung"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value)
+              }}
+            />
+            {trouble ? (
+              <p role="alert" className="text-body font-semibold text-conflict">
+                {trouble}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" tone="primary" disabled={working}>
+                {working ? 'Wird erzeugt' : 'Neue Codes erzeugen'}
+              </Button>
+              <Button
+                tone="quiet"
+                onClick={() => {
+                  setAsking(false)
+                  setPassword('')
+                  setTrouble(null)
+                }}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div>
+            <Button
+              tone="secondary"
+              onClick={() => {
+                setAsking(true)
+              }}
+            >
+              Neue Wiederherstellungscodes
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
   )
 }
