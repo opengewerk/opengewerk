@@ -121,8 +121,14 @@ beforeAll(async () => {
     roles: ['owner'],
   })
 
+  // The same list better-auth has, as on an instance: every request below
+  // names the address it comes from, the way a browser does.
   const built = await Test.createTestingModule({
-    imports: [ApiModule.create(database, new SessionIdentitySource(authentication, database))],
+    imports: [
+      ApiModule.create(database, new SessionIdentitySource(authentication, database), {
+        trustedOrigins: [origin],
+      }),
+    ],
   }).compile()
 
   app = built.createNestApplication()
