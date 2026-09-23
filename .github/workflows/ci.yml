@@ -244,10 +244,10 @@ jobs:
     name: Typprüfung, Lint und Tests
     runs-on: ubuntu-latest
 
-    # Die Tests des Datenmodells laufen gegen eine echte PostgreSQL, nicht
-    # gegen eine Nachbildung: geprüft werden Fremdschlüssel, Check-Constraints
-    # und uuidv7(), und genau das ist der Teil, den eine Nachbildung anders
-    # macht als der Ernstfall.
+    # The tests of the data model run against a real PostgreSQL, not an
+    # imitation: what they check are foreign keys, check constraints and
+    # uuidv7(), and that is exactly the part an imitation does differently
+    # from the real thing.
     services:
       postgres:
         image: postgres:18-alpine
@@ -296,10 +296,10 @@ jobs:
         env:
           DATABASE_URL: postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test
 
-      # ADR 0004 verlangt ein Bündelbudget je Einstieg und nennt eine Zahl:
-      # unter 300 kB gzip beim ersten Laden auf der Baustelle. Gemessen wird,
-      # was der Browser holt, bevor die Anwendung läuft, aus den gebauten
-      # HTML-Dateien und nicht aus einer Liste, die jemand pflegen müsste.
+      # ADR 0004 asks for a bundle budget per entry and names a number: under
+      # 300 kB gzip on the first load on site. What is measured is what the
+      # browser fetches before the application runs, taken from the built HTML
+      # files and not from a list somebody would have to maintain.
       - name: Bündelbudget je Einstieg
         run: pnpm --filter @opengewerk/web run budget
 
@@ -307,20 +307,20 @@ jobs:
     name: E-Rechnung gegen KoSIT und Mustang
     runs-on: ubuntu-latest
 
-    # Das Schema prüft die Anwendung selbst, bei jeder E-Rechnung, bevor sie
-    # gespeichert wird. Die Geschäftsregeln von EN 16931 und XRechnung sind
-    # Schematron und brauchen XSLT 2, also Java; sie laufen hier, mit dem
-    # Validator der KoSIT, gegen die Musterrechnungen aus
+    # The application checks the schema itself, on every e-invoice before it
+    # is stored. The business rules of EN 16931 and XRechnung are Schematron
+    # and need XSLT 2, so Java; they run here, with the validator of the KoSIT,
+    # against the sample invoices from
     # packages/server/src/documents/test-samples.ts.
     #
-    # Das ZUGFeRD-PDF prüft Mustang: PDF/A-3 über veraPDF, dazu das XML darin
-    # gegen die Regeln von Factur-X. Gedruckt werden die Muster dafür vom
-    # echten Renderer, demselben Abbild wie in docker/compose.yaml, denn ob
-    # ein PDF als PDF/A-3 durchgeht, hängt an dem, was Chromium schreibt.
+    # Mustang checks the ZUGFeRD PDF: PDF/A-3 through veraPDF, and the XML
+    # inside against the rules of Factur-X. The samples for it are printed by
+    # the real renderer, the same image as in docker/compose.yaml, because
+    # whether a PDF passes as PDF/A-3 depends on what Chromium writes.
     #
-    # Validator, Konfiguration und Mustang sind auf eine Fassung festgenagelt
-    # und werden per SHA-256 geprüft, damit ein neuer Regelstand eine bewusste
-    # Änderung bleibt.
+    # Validator, configuration and Mustang are pinned to one version and
+    # checked by SHA-256, so that a new state of the rules stays a deliberate
+    # change.
     services:
       renderer:
         image: ghcr.io/browserless/chromium:latest

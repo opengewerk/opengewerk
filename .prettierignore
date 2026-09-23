@@ -4,17 +4,16 @@ preview-build
 .turbo
 pnpm-lock.yaml
 
-# Die Dokumentation wird von Hand gesetzt. Prettier würde Tabellen neu
-# ausrichten und Absätze umbrechen, was jede inhaltliche Änderung hinter
-# Formatierungsrauschen verstecken würde.
+# The documentation is laid out by hand. Prettier would realign tables and
+# rewrap paragraphs, which would hide every change of content behind
+# formatting noise.
 *.md
 
-# Dasselbe gilt für die Workflows und Vorlagen: dort stehen Prüfskripte in
-# Blockskalaren, und das Gerüst drumherum umzuschreiben bringt nichts außer
-# unlesbaren Diffs an genau den Stellen, die man lesen können muss.
+# The same goes for the workflows and templates: they hold check scripts in
+# block scalars, and rewriting the scaffolding around them brings nothing but
+# unreadable diffs at exactly the places that have to be readable.
 .github/
 
-# Die Migrationen erzeugt drizzle-kit, den Ordner meta schreibt es bei jedem
-# Lauf neu. Wer ihn formatiert, bekommt ihn beim nächsten generate wieder
-# umformatiert zurück.
+# drizzle-kit generates the migrations and rewrites the meta folder on every
+# run. Formatting it only gets it back reformatted at the next generate.
 packages/server/migrations/

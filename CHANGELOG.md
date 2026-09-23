@@ -649,6 +649,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Kommentare in Konfigurationsdateien und einigen Tests sind jetzt englisch (#154):
+  `pnpm-workspace.yaml`, `.prettierignore`, `.gitignore`, drei Blöcke in der CI, dazu Tests
+  der Rechnung, der Regelpakete, der Belegpositionen und des Abgleichs und die Steuerfälle
+  in `document.ts`. Seit dem 18.09.2026 ist Code englisch, Kommentare eingeschlossen; was
+  ein Mensch in einer Oberfläche liest, bleibt deutsch.
 - Die CI prüft jetzt die Formatierung (#147), als Schritt "Formatierung" im Job
   "Typprüfung, Lint und Tests". ADR 0009 legt Prettier fest, geprüft wurde es bisher
   nirgends, und neun Dateien waren auseinandergelaufen; sie sind in diesem Pull Request

@@ -17,24 +17,24 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-# Editoren
+# Editors
 .vscode/
 .idea/
 *.iml
 
-# Umgebung und Geheimnisse
+# Environment and secrets
 .env
 .env.*
 !.env.example
 
-# Bauartefakte und Protokolle
+# Build output and logs
 dist/
 preview-build/
 build/
 *.log
 .turbo/
 
-# Betriebssystem
+# Operating system
 .DS_Store
 Thumbs.db
 

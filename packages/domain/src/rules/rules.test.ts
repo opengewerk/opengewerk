@@ -271,14 +271,14 @@ describe('an invoice that was not paid', () => {
   })
 
   /**
-   * Der Teiler, festgenagelt. Bis zum 20.09.2026 stand dort 360, entschieden
-   * war nichts, und kein Test hätte den Unterschied bemerkt: die Prüfungen
-   * ringsum vergleichen nur zwei Ergebnisse miteinander und wären mit beiden
-   * Werten grün gewesen.
+   * The divisor, pinned down. Until 20.09.2026 it said 360, nothing had been
+   * decided, and no test would have noticed the difference: the checks around
+   * it only compare two results with each other and would have been green
+   * with either value.
    *
-   * Zehntausend Euro, neunzig Tage, Satz des ersten Halbjahres 2024. Über 365
-   * sind das 311,18 Euro, über 360 wären es 315,50. Ein Teiler, der sich
-   * unbemerkt ändern kann, ist bei einer Mahnung bares Geld.
+   * Ten thousand euros, ninety days, the rate of the first half of 2024. Over
+   * 365 that is 311.18 euros, over 360 it would be 315.50. A divisor that can
+   * change unnoticed is real money on a reminder.
    */
   it('divides the year into the days the decision of 20.09.2026 settled on', () => {
     const owed = { principalCents: 1_000_000, days: 90, debtor: 'business' as const }
@@ -289,9 +289,9 @@ describe('an invoice that was not paid', () => {
   })
 
   /**
-   * Die Gegenprobe dazu: ein volles Jahr trägt genau den Jahreszins, weder
-   * mehr noch weniger. Mit einem Teiler von 360 wären es rund anderthalb
-   * Prozent zu viel, und das fiele an keiner anderen Stelle auf.
+   * The counter check: a full year carries exactly the annual interest, no
+   * more and no less. With a divisor of 360 it would be about one and a half
+   * percent too much, and that would show up nowhere else.
    */
   it('charges exactly one year of interest for a year', () => {
     const owed = { principalCents: 1_000_000, days: daysInYear, debtor: 'business' as const }
