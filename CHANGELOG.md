@@ -857,6 +857,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Passkeys sind vorerst abgeschaltet (GHSA-jghx-6wmh-mpcj). Das Plugin war eingeschaltet,
+  ohne dass es eine Oberfläche dafür gab: jede Sitzung konnte ohne Bestätigung einen Passkey
+  registrieren, die Anmeldung damit umging den zweiten Faktor, und niemand konnte die
+  Passkeys eines Kontos sehen oder widerrufen. Das Paket ist entfernt, die Pflicht zum
+  zweiten Faktor nennt nur noch die Authenticator-App. Wie sie zurückkommen, steht in #167.
 - Der Mailserver eines Betriebs muss im Internet liegen und auf einem Port für E-Mail
   antworten (GHSA-5664-h6fc-v729). Bisher verband sich die Instanz mit jedem Ziel aus den
   E-Mail-Einstellungen, auch mit sich selbst und der eigenen Datenbank, und die Prüfung gab

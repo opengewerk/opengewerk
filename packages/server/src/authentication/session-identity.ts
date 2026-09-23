@@ -116,8 +116,8 @@ export class SessionIdentitySource implements IdentitySource {
       // stopped at the next request, without anybody having to remember to
       // re-check them.
       throw new ForbiddenException(
-        'Für diese Rolle ist ein zweiter Faktor Pflicht. Bitte zuerst einen Passkey ' +
-          'oder eine Authenticator-App einrichten.',
+        'Für diese Rolle ist ein zweiter Faktor Pflicht. Bitte zuerst eine ' +
+          'Authenticator-App einrichten.',
       )
     }
 
