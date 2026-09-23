@@ -13,6 +13,7 @@ import { authenticationPath } from '../authentication/authentication.js'
 import type { Database } from '../database/database.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
 import { interfacePath, serveInterface } from '../interface.js'
+import { sendSecurityHeaders } from '../security-headers.js'
 import { mailInternalHosts } from '../configuration.js'
 import { reachableOnly } from '../mail/reach.js'
 import { smtpTransport } from '../mail/transport.js'
@@ -70,6 +71,7 @@ export async function openPreview(
     { logger: ['error', 'warn'], bodyParser: false },
   )
 
+  sendSecurityHeaders(application.getHttpAdapter().getInstance())
   application.use(authenticationPath, previewSession(identity, previewUser))
   readJsonBodiesOnly(application)
   application.getHttpAdapter().getInstance().disable('x-powered-by')
