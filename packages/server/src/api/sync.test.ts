@@ -192,8 +192,9 @@ describe('the tables', () => {
     // The four from #71 stay here for plainer reasons. The letterhead is a
     // setting like the parameters. A snapshot is written by the issuing and a
     // document file by the first print, both on the server by definition. And
-    // `files` holds nothing a device writes yet; the photo taken on a roof
-    // arrives with its own issue, and with it the question how a file travels.
+    // `files` is written by an upload of its own since #77, not through the
+    // outbox: the photo taken on a roof travels as bytes, and what the outbox
+    // carries is the attachment that names it.
     //
     // The text snippets from #72 are picked from at a desk, and inserting one
     // copies its text into the document, which does travel. A device that
@@ -213,6 +214,12 @@ describe('the tables', () => {
     // what went with a document is copied into its snapshot. What the office
     // chose on a draft is chosen before issuing, which needs a connection, and a
     // device has no instructions to choose from.
+    //
+    // Consent to recording one's place from #76 is read live for the same
+    // reason as a membership. It is withdrawn the moment somebody says so, and
+    // a device holding a copy would go on recording places until it next came
+    // online; the server drops a place from an entry by the latest answer it
+    // holds, whatever the device thought.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -230,7 +237,8 @@ describe('the tables', () => {
       name === 'document_instruction_choices' ||
       name === 'mail_outbox' ||
       name === 'mail_settings' ||
-      name === 'secrets'
+      name === 'secrets' ||
+      name === 'location_consents'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

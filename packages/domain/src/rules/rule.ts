@@ -9,8 +9,11 @@ import type { IsoDate } from '../model/identifier.js'
  * euros. Basis points and cents keep the arithmetic exact until the one place
  * where rounding is a decision somebody made on purpose, and a flag is a zero
  * or a one for the same reason: one kind of value in a column, and it adds up.
+ * Minutes and years came with the working time rules (#76): a break of 30
+ * minutes and a retention of two years are what the law says, and neither is
+ * a whole number of days.
  */
-export const ruleUnits = ['basis_points', 'cents', 'days', 'flag'] as const
+export const ruleUnits = ['basis_points', 'cents', 'days', 'flag', 'minutes', 'years'] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]
 

@@ -30,6 +30,7 @@ export * from './model/payment-term.js'
 export * from './model/photovoltaic.js'
 export * from './model/site.js'
 export * from './model/task.js'
+export * from './model/time-entry.js'
 export * from './model/tenant.js'
 export * from './model/text-snippet.js'
 
@@ -48,6 +49,7 @@ export * from './rules/payment.js'
 export * from './rules/rule.js'
 export * from './rules/shipped.js'
 export * from './rules/tax.js'
+export * from './rules/working-time.js'
 
 // The offline data layer. Rules, not storage: how an operation from a device
 // is merged and when that is a conflict. Where the outbox physically sits is

@@ -21,6 +21,7 @@ import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { AttachmentsSection } from './attachments.js'
 import { JobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'
+import { JobTimeSection } from './time.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
 const statusOptions = jobStatuses.map((status) => ({
@@ -245,6 +246,8 @@ export function JobScreen() {
         }}
         empty="Zu diesem Auftrag gibt es noch keine Datei. Fotos von der Baustelle landen hier."
       />
+
+      <JobTimeSection jobId={jobId} />
 
       <TasksSection
         field="jobId"

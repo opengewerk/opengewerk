@@ -19,7 +19,10 @@ import {
   type SyncValue,
 } from '@opengewerk/domain'
 
+import { eq } from 'drizzle-orm'
+
 import { Database } from '../database/database.js'
+import { timeEntries } from '../database/schema/index.js'
 import {
   applyOperations,
   changesSince,
@@ -209,6 +212,9 @@ export function permissionFor(entity: string, kind: OperationKind): Permission |
     // photo on site is adding it, and a new version is the same act again.
     attachments: 'attachment.write',
     attachment_versions: 'attachment.write',
+    // Everybody's own working time, and nobody else's: the owner of an entry
+    // is written by the database from the request.
+    time_entries: 'time.write',
   }
 
   return subject[entity] ?? null
@@ -286,7 +292,26 @@ export class SyncController {
       throw new BadRequestException('Der Stand muss eine Zahl ab null sein.')
     }
 
-    return this.database.forTenant(identity, (tx) => changesSince(tx, from))
+    // The working time of the others only for whoever may read it (#76).
+    const ownTimeOnly = !isAllowed(identity, 'time.read')
+    const answer = await this.database.forTenant(identity, (tx) =>
+      changesSince(tx, from, undefined, (entity) =>
+        entity === 'time_entries' && ownTimeOnly
+          ? eq(timeEntries.userId, identity.userId)
+          : undefined,
+      ),
+    )
+
+    // What the answer was narrowed to, per entity whose rows depend on who
+    // asks. The store on a device belongs to the business, not to a person,
+    // and a device handed from the office to a technician would otherwise go
+    // on holding everybody's time, or one handed the other way would miss
+    // what lies behind its cursor. A device that finds a different value than
+    // last time drops what it holds of that entity and asks from the start.
+    return {
+      ...answer,
+      narrowed: { time_entries: ownTimeOnly ? `user:${identity.userId}` : 'all' },
+    }
   }
 
   /** The list somebody has to work through. */

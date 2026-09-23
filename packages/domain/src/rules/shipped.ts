@@ -6,6 +6,7 @@ import payment from './data/payment.json' with { type: 'json' }
 import { type RuleRecord, ruleSet, type RuleSet } from './rule.js'
 import smallBusiness from './data/small-business.json' with { type: 'json' }
 import vat from './data/vat.json' with { type: 'json' }
+import workingTime from './data/working-time.json' with { type: 'json' }
 
 /**
  * One package as it sits in the repository.
@@ -46,6 +47,7 @@ export const rulePackages: readonly RulePackage[] = [
   eInvoice as RulePackage,
   payment as RulePackage,
   baseRate as RulePackage,
+  workingTime as RulePackage,
 ]
 
 /**

@@ -1,0 +1,101 @@
+{
+  "package": "working-time",
+  "note": "Arbeitszeit nach ArbZG und ihre Aufzeichnung nach MiLoG, für die Warnungen der Zeiterfassung (#76). Die Werte sind am 23.09.2026 gegen den Gesetzestext bei gesetze-im-internet.de geprüft. Das ArbZG gilt seit dem 01.07.1994 in dieser Form; eine Ausnahme nach §§ 7, 12 ArbZG durch einen Tarifvertrag kennt die Engine nicht, sie warnt nach dem Gesetz. Welche Zeit als Arbeitszeit zählt, ist eine Lesart und steht in #31: Fahrten zählen mit, und eine Lücke von mindestens 15 Minuten zwischen zwei Einträgen zählt als Pause.",
+  "records": [
+    {
+      "key": "working_time.daily_regular",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 480,
+      "source": "§ 3 Satz 1 ArbZG",
+      "note": "Acht Stunden je Werktag. Darüber hinaus bis zehn Stunden nur, wenn der Durchschnitt von sechs Monaten oder 24 Wochen acht Stunden nicht übersteigt; den Durchschnitt rechnet die Engine noch nicht, sie warnt erst ab zehn Stunden."
+    },
+    {
+      "key": "working_time.daily_maximum",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 600,
+      "source": "§ 3 Satz 2 ArbZG"
+    },
+    {
+      "key": "working_time.break_after",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 360,
+      "source": "§ 4 Satz 1 ArbZG",
+      "note": "Mehr als sechs Stunden Arbeit am Tag verlangen eine Pause."
+    },
+    {
+      "key": "working_time.break",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 30,
+      "source": "§ 4 Satz 1 ArbZG"
+    },
+    {
+      "key": "working_time.long_break_after",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 540,
+      "source": "§ 4 Satz 1 ArbZG",
+      "note": "Mehr als neun Stunden Arbeit am Tag verlangen die längere Pause."
+    },
+    {
+      "key": "working_time.long_break",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 45,
+      "source": "§ 4 Satz 1 ArbZG"
+    },
+    {
+      "key": "working_time.break_block",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 15,
+      "source": "§ 4 Satz 2 ArbZG",
+      "note": "Eine Pause darf aufgeteilt werden, aber nur in Abschnitte von mindestens dieser Länge; ein kürzerer zählt nicht."
+    },
+    {
+      "key": "working_time.without_break",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 360,
+      "source": "§ 4 Satz 3 ArbZG"
+    },
+    {
+      "key": "working_time.rest",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "minutes",
+      "value": 660,
+      "source": "§ 5 Abs. 1 ArbZG",
+      "note": "Elf Stunden ununterbrochene Ruhezeit nach dem Ende der täglichen Arbeitszeit. Die Verkürzungen nach Abs. 2 und 3 gelten für Branchen, zu denen ein Handwerksbetrieb nicht gehört."
+    },
+    {
+      "key": "minimum_wage.record_within",
+      "validFrom": "2015-01-01",
+      "validUntil": null,
+      "unit": "days",
+      "value": 7,
+      "source": "§ 17 Abs. 1 Satz 1 MiLoG",
+      "note": "Aufzuzeichnen spätestens bis zum Ablauf des siebten Kalendertags nach dem Tag der Arbeit. Die Pflicht trifft Arbeitgeber von Minijobbern und in den Branchen nach § 2a SchwarzArbG, darunter das Baugewerbe; OpenGewerk zeichnet für alle auf, ob ein Betrieb darunterfällt, steht in #31."
+    },
+    {
+      "key": "minimum_wage.record_retention",
+      "validFrom": "2015-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 2,
+      "source": "§ 17 Abs. 1 Satz 1 MiLoG",
+      "note": "Mindestens zwei Jahre ab dem für die Aufzeichnung maßgeblichen Zeitpunkt. Gezählt wird ab dem Ende der Frist, bis zu der aufzuzeichnen war, also sieben Tage nach dem Tag der Arbeit; das ist die späteste Lesart dieses Zeitpunkts und damit die sichere."
+    }
+  ]
+}

@@ -32,6 +32,12 @@ export interface PullResult {
   readonly cursor: number
   /** The server stopped at a limit. Ask again from the new cursor. */
   readonly hasMore: boolean
+  /**
+   * What the rows of an entity were narrowed to, for the entities whose rows
+   * depend on who asks: the working time of #76. Absent from a server that
+   * narrows nothing.
+   */
+  readonly narrowed?: Readonly<Record<string, string>>
 }
 
 /**

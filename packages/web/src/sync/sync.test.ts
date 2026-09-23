@@ -544,6 +544,96 @@ describe('a new build on a device that already has data', () => {
   })
 })
 
+describe('a device handed to somebody who sees less, or more', () => {
+  let transport: Recorded
+
+  beforeEach(() => {
+    transport = new Recorded()
+  })
+
+  async function startOn(name: string) {
+    return await Client.start({
+      store: await openLocalStore(name),
+      transport,
+      writer: new Writing(),
+      deviceId: 'tablet',
+      entities: ['customers', 'time_entries'],
+      onSignedOut: () => {},
+    })
+  }
+
+  const theirs = row({ id: 'e-1', userId: 'u-office' })
+  const mine = row({ id: 'e-2', userId: 'u-technician' })
+
+  it('lets go of the working time of the others, and asks again from the start', async () => {
+    // The office pulled first, and with it everybody's time (#76).
+    const office = await startOn('shared-tablet')
+
+    transport.pulls = [
+      {
+        changes: [
+          { entity: 'customers', rows: [row({ id: 'c-1', name: 'Meyer', kind: 'private' })] },
+          { entity: 'time_entries', rows: [theirs, mine] },
+        ],
+        cursor: 9,
+        hasMore: false,
+        narrowed: { time_entries: 'all' },
+      },
+    ]
+    await office.synchronise()
+    office.stop()
+
+    // Then a technician on the same tablet and in the same business.
+    const technician = await startOn('shared-tablet')
+
+    transport.pulls = [
+      { changes: [], cursor: 9, hasMore: false, narrowed: { time_entries: 'user:u-technician' } },
+      {
+        changes: [
+          { entity: 'customers', rows: [row({ id: 'c-1', name: 'Meyer', kind: 'private' })] },
+          { entity: 'time_entries', rows: [mine] },
+        ],
+        cursor: 9,
+        hasMore: false,
+        narrowed: { time_entries: 'user:u-technician' },
+      },
+    ]
+    await technician.synchronise()
+
+    expect(transport.asked).toEqual([0, 9, 0])
+    expect(technician.list('time_entries').map((entry) => entry['id'])).toEqual(['e-2'])
+    expect(technician.list('customers').map((entry) => entry['id'])).toEqual(['c-1'])
+
+    // What the store holds went too, not only what is in memory.
+    technician.stop()
+
+    const again = await startOn('shared-tablet')
+
+    expect(again.list('time_entries').map((entry) => entry['id'])).toEqual(['e-2'])
+  })
+
+  it('keeps everything while the server narrows the same way, or says nothing', async () => {
+    const first = await startOn('same-person')
+
+    transport.pulls = [
+      {
+        changes: [{ entity: 'time_entries', rows: [mine] }],
+        cursor: 4,
+        hasMore: false,
+        narrowed: { time_entries: 'user:u-technician' },
+      },
+      { changes: [], cursor: 4, hasMore: false, narrowed: { time_entries: 'user:u-technician' } },
+      { changes: [], cursor: 4, hasMore: false },
+    ]
+    await first.synchronise()
+    await first.synchronise()
+    await first.synchronise()
+
+    expect(transport.asked).toEqual([0, 4, 4])
+    expect(first.list('time_entries')).toHaveLength(1)
+  })
+})
+
 describe('an exchange with the server', () => {
   let transport: Recorded
 

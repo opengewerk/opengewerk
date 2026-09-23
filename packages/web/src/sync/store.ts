@@ -47,6 +47,8 @@ export interface LocalStore {
   /** Everything of one kind, deleted rows included. Filtering is the caller's. */
   readAll(entity: string): Promise<readonly StoredRecord[]>
   write(entity: string, records: readonly StoredRecord[]): Promise<void>
+  /** Every row of one kind, gone; the outbox keeps what it holds of it. */
+  drop(entity: string): Promise<void>
 
   readOutbox(): Promise<readonly Operation[]>
   queue(operation: Operation): Promise<void>
@@ -214,6 +216,18 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
         const id = String(values['id'])
 
         store.put({ key: keyOf(entity, id), entity, id, values } satisfies RecordRow)
+      }
+
+      await finished(transaction)
+    },
+
+    async drop(entity) {
+      const transaction = transact([recordStore], 'readwrite')
+      const store = transaction.objectStore(recordStore)
+      const keys = await promised<IDBValidKey[]>(store.index('entity').getAllKeys(entity))
+
+      for (const key of keys) {
+        store.delete(key)
       }
 
       await finished(transaction)

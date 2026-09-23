@@ -1,4 +1,7 @@
 import {
+  correctionProblem,
+  locationProblem,
+  timeEntryProblem,
   attachmentHomeProblem,
   attachmentMediaTypeProblem,
   attachmentSizeProblem,
@@ -62,6 +65,36 @@ const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   document_signatures: [
     { fields: ['signerName'], problem: (at) => signerNameProblem(at('signerName')) },
     { fields: ['deviceInfo'], problem: (at) => deviceInfoProblem(at('deviceInfo')) },
+  ],
+  time_entries: [
+    {
+      fields: ['startedAt', 'endedAt'],
+      problem: (at) => timeEntryProblem({ startedAt: at('startedAt'), endedAt: at('endedAt') }),
+    },
+    {
+      fields: ['correctsEntryId', 'note', 'withdrawn'],
+      problem: (at) =>
+        correctionProblem({
+          correctsEntryId: at('correctsEntryId'),
+          note: at('note'),
+          withdrawn: at('withdrawn'),
+        }),
+    },
+    {
+      fields: [
+        'startLatitudeMicro',
+        'startLongitudeMicro',
+        'endLatitudeMicro',
+        'endLongitudeMicro',
+      ],
+      problem: (at) =>
+        locationProblem({
+          startLatitudeMicro: at('startLatitudeMicro'),
+          startLongitudeMicro: at('startLongitudeMicro'),
+          endLatitudeMicro: at('endLatitudeMicro'),
+          endLongitudeMicro: at('endLongitudeMicro'),
+        }),
+    },
   ],
   attachments: [
     {

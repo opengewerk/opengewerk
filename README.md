@@ -325,6 +325,24 @@ Die Dateien eines Betriebs hängen dort, worum es in ihnen geht (Feature-Glieder
 
 Was nicht dazugehört: Volltextsuche und OCR (Phase 6) und die generierte Verfahrensdokumentation (Phase 3).
 
+### Zeiterfassung
+
+Die Arbeitszeit aus Abschnitt 4.4 der Feature-Gliederung: auf der Baustelle, ohne Netz, und mit den zwei Punkten, die Recht sind und keine Bequemlichkeit, der Aufzeichnung nach § 17 MiLoG und der Prüfung nach dem Arbeitszeitgesetz.
+
+**Gestartet wird am Auftrag.** Jeder Auftrag hat auf der Baustelle die Karte "Deine Zeit hier" mit "Arbeit hier beginnen" und "Fahrt hierher beginnen", der Startbildschirm die Karte "Deine Zeit heute". Ein laufender Zeitnehmer steht über jedem Bildschirm, mit "Stopp" und dem nächsten Schritt: bei der Arbeit "Pause", nach der Fahrt "Angekommen, Arbeit beginnen", nach der Pause "Weiter arbeiten" am selben Auftrag. Der Zeitnehmer lebt auf dem Gerät und nennt die Person, die ihn gestartet hat, damit auf einem geteilten Tablet niemand die laufende Zeit eines Kollegen stoppt. Ein Eintrag entsteht erst beim Stopp und geht durch den Postausgang wie alles andere; unter einer Minute entsteht keiner. Fahrt und Pause sind eigene Arten, weil sie anders gezählt werden.
+
+**Ein Eintrag wird nie geändert.** Er ist die Aufzeichnung, die das Gesetz zwei Jahre lang unverändert verlangt. Wer sich vertan hat, korrigiert ihn unter "Zeiten" mit einem neuen Eintrag, der den alten nennt und einen Grund braucht, und wer ihn gar nicht hätte schreiben sollen, streicht ihn auf dieselbe Art. Der alte bleibt lesbar, und die Übersicht im Büro zeigt, was er war und was ihn ersetzt hat. Jeder Eintrag lässt sich einmal korrigieren; ein zweites Gerät, das es gleichzeitig versucht, bekommt einen Konflikt. Die Datenbank lehnt jedes `UPDATE` ab und ein `DELETE` bis zum Ende der Aufbewahrung, auch für den Superuser. Das Ende rechnen `retentionEndsOn` in `domain` und der Trigger aus Migration 0036 gleich: zwei Jahre ab dem siebten Tag nach der Arbeit.
+
+**Nachtragen geht, und es wird gesagt.** "Zeit nachtragen" nimmt Tag, Beginn und Ende; ein Ende vor dem Beginn ist der nächste Morgen, so entsteht eine Nachtschicht ohne zweites Datumsfeld. Liegt der Tag mehr als sieben Tage zurück, sagt das Formular, dass § 17 MiLoG die Aufzeichnung bis dahin verlangt, und speichert trotzdem. Die Uhrzeit gilt immer in Deutschland, auch auf einem Telefon, das auf eine andere Zeitzone gestellt ist.
+
+**Das Arbeitszeitgesetz warnt, es sperrt nicht.** Höchstens zehn Stunden am Tag, 30 Minuten Pause ab sechs Stunden und 45 ab neun, in Abschnitten von mindestens 15 Minuten, nicht länger als sechs Stunden am Stück, elf Stunden Ruhe (§§ 3 bis 5 ArbZG). Die Werte stehen mit Fundstelle im Regelpaket `working-time` und nicht im Code, und `workingTimeWarnings` in `domain` rechnet auf dem Gerät und im Büro dasselbe. Eine Lücke von mindestens 15 Minuten zwischen zwei Arbeitsstrecken zählt als Pause, auch wenn niemand sie als Pause erfasst hat, und Fahrt zählt als Arbeitszeit. Beides sind Lesarten und stehen auf der Liste für #31.
+
+**Die Zeit der anderen sieht nur, wer sie lesen darf.** Die eigene Zeit erfassen alle drei Rollen (`time.write`), und niemand erfasst für jemand anderen: wem ein Eintrag gehört, schreibt die Datenbank aus der Anfrage. Die Zeit aller sehen Inhaber und Büro (`time.read`), im Büro unter "Zeiten" je Person und Woche mit den Hinweisen jedes Tages und am Auftrag als Summe je Person; die Namen kommen über `GET /time/people`. Auf das Gerät eines Monteurs kommt nur seine eigene Zeit. Der Abruf sagt dazu, worauf er eingeschränkt hat, und ein Gerät, das von einer Person zur anderen geht, lässt fallen, was es an Zeiten hielt, und holt neu ab.
+
+**Ein Standort nur mit Einwilligung und nur bei Start und Stopp.** Die Einwilligung gibt und widerruft jede Person unter "Zeiten" für sich selbst (`GET` und `PUT /time/consent`), und jede Antwort ist eine neue Zeile, sodass feststeht, wann sie galt. Ohne sie fragt das Gerät gar nicht erst nach dem Standort, und der Server lässt einen mitgeschickten Standort fallen, wenn die letzte Antwort nein ist; der Eintrag selbst kommt trotzdem an.
+
+Was nicht dazugehört: Zuschläge, Auslöse, Verpflegungsmehraufwand und der Lohnexport kommen in Phase 3, die SOKA-BAU-Meldung später. Überstunden brauchen eine vereinbarte Arbeitszeit je Person, die es noch nicht gibt; in welche Phase sie gehören, ist in #141 gefragt.
+
 ### Steuern
 
 Was ein Betrieb über seine eigene Besteuerung erklärt, steht im Büro unter "Steuern", und ändern kann es nur der Inhaber. Es sind drei Erklärungen: die Kleinunternehmerregelung nach § 19 UStG, die Ist-Versteuerung nach § 20 UStG und der Übergang von 2027 für die E-Rechnung. Alle drei hängen an einem Umsatz, den OpenGewerk vor der Buchhaltung aus Phase 3 nicht kennt, und die Ist-Versteuerung obendrein an einer Entscheidung des Finanzamts. Deshalb erklärt der Betrieb sie, statt dass die Anwendung sie schätzt.
@@ -443,7 +461,7 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Die Einstellungen stehen an einer Stelle.** Im Büro führt ein Eintrag "Einstellungen" zu Briefkopf, Steuern, Nummernkreisen, Zahlungsziel, Belehrungen, E-Mail-Einstellungen und, für den Inhaber, den Zugängen, jeweils mit einem Satz, wofür sie da sind. Die Bildschirme liegen unter `/einstellungen/...`, damit der Eintrag auf jedem von ihnen hervorgehoben bleibt. Einstellungen gehören in die Oberfläche und nicht in die `.env`: wer einen Betrieb einrichtet, soll keine Datei bearbeiten müssen.
 
-**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 21.09.2026 nach dem ZUGFeRD-PDF aus #75 gemessen: **Baustelle 140 kB, Büro 165 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
+**Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 23.09.2026 nach der Zeiterfassung aus #76 gemessen: **Baustelle 167 kB, Büro 211 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
 
 **Vor der Anmeldung stehen drei Bildschirme, die es nur gibt, solange sie gebraucht werden.** Eine leere Instanz zeigt die Ersteinrichtung statt der Anmeldung. Ein Konto, dessen Rolle einen zweiten Faktor verlangt, richtet ihn ein, bevor es einen Betrieb wählt. Und wer einen Einladungslink bekommen hat, löst ihn dort ein und wählt dabei sein Passwort selbst. Alle drei sitzen im Tor und nicht hinter der Navigation, denn wer dort steht, erreicht keinen einzigen Bildschirm dahinter. Nachträglich geht der zweite Faktor über "Konto" im Büro, wo auch die eigene Geräteliste steht. Ist das Telefon weg, nimmt der zweite Schritt der Anmeldung einen der Wiederherstellungscodes, die beim Einrichten angezeigt wurden, jeden einmal; wie viele noch übrig sind, steht danach und unter "Konto", wo nach dem Passwort auch ein neuer Satz entsteht.
 
@@ -451,7 +469,7 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Die gebaute Oberfläche liefert derselbe Prozess aus, der auch die API bedient.** Ein zweiter Container davor wäre eine weitere Sache, die eine Installation einrichten und aktualisieren muss. Zwei Hüllen gibt es trotzdem: alles unter `/m` kommt mit der Baustellen-Hülle zurück, alles andere mit der des Büros. Ein tiefer Link in die Baustelle, der mit der Bürohülle beantwortet wird, öffnet auf einem Telefon eine Oberfläche für Maus und Tastatur.
 
-Was ausdrücklich noch fehlt und je ein eigenes Issue hat: Zeiterfassung (#76), Formular-Engine und Prüfprotokoll (#78, #79). Die Plantafel steht im Fahrplan bei Phase 2. Den Aufbau unterhalb der Anlage gibt es seit #70, siehe "Anlagenstruktur und Stromkreisverzeichnis".
+Was ausdrücklich noch fehlt und je ein eigenes Issue hat: Formular-Engine und Prüfprotokoll (#78, #79). Die Plantafel steht im Fahrplan bei Phase 2. Den Aufbau unterhalb der Anlage gibt es seit #70, siehe "Anlagenstruktur und Stromkreisverzeichnis".
 
 ## Betrieb
 

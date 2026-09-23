@@ -4,6 +4,7 @@ import { Shell } from '../components/index.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { useSyncStatus } from '../sync/provider.js'
+import { StopwatchBar } from './screens/time.js'
 
 /**
  * What every screen on site sits in.
@@ -15,7 +16,9 @@ import { useSyncStatus } from '../sync/provider.js'
  *
  * Navigation is two things and sits at the bottom, where a thumb is. Anything
  * more than two would be a menu, and a menu on a roof is a thing people get
- * wrong once and then stop using.
+ * wrong once and then stop using. The working time of #76 is not a third: it
+ * starts at a job, its day is a card on the start screen, and a stopwatch that
+ * runs sits across the top of every screen until it stops.
  */
 export function SiteShell() {
   const { conflicts } = useSyncStatus()
@@ -26,6 +29,7 @@ export function SiteShell() {
   const onCircuit = matchRoute({
     to: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
   })
+  const onTime = matchRoute({ to: '/zeiten' })
   const underJob = onReport || onBoard
   // One step up from wherever this is: the circuit goes back to its board,
   // everything else below a job back to the job, the job back to the list.
@@ -36,7 +40,7 @@ export function SiteShell() {
       }
     : underJob
       ? { to: `/auftraege/${underJob.jobId}`, label: 'Zurück zum Auftrag' }
-      : onJob
+      : onJob || onTime
         ? { to: '/', label: 'Zurück zu den Aufträgen' }
         : null
 
@@ -44,6 +48,7 @@ export function SiteShell() {
     <Shell entry="site">
       <div className="min-h-dvh flex flex-col">
         <UpdateBar />
+        <StopwatchBar />
         <SyncStatusBar
           conflictsLink={
             <Link

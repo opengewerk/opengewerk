@@ -253,6 +253,13 @@
       "when": 1790169774300,
       "tag": "0035_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790172247272,
+      "tag": "0036_time_entries",
+      "breakpoints": true
     }
   ]
 }

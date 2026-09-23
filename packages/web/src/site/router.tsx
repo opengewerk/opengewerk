@@ -4,6 +4,7 @@ import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteJobList, SiteJobScreen } from './screens/jobs.js'
 import { SiteReportScreen } from './screens/report.js'
+import { SiteTimeScreen } from './screens/time.js'
 import { SiteShell } from './shell.js'
 
 /**
@@ -42,6 +43,7 @@ const routes = [
     path: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
     component: SiteCircuitScreen,
   }),
+  createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
 ]
 

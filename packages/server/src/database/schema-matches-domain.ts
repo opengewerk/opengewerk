@@ -34,6 +34,8 @@ import type {
   TenantParameter,
   TenantSession,
   TextSnippet,
+  TimeEntry,
+  LocationConsent,
 } from '@opengewerk/domain'
 
 import type {
@@ -72,6 +74,8 @@ import type {
   tenants,
   tenantSessions,
   textSnippets,
+  timeEntries,
+  locationConsents,
 } from './schema/index.js'
 
 /**
@@ -119,6 +123,10 @@ export type DocumentFileMatches = Assert<Exact<typeof documentFiles.$inferSelect
 export type StoredFileMatches = Assert<Exact<typeof files.$inferSelect, StoredFile>>
 export type LetterheadMatches = Assert<Exact<typeof letterheads.$inferSelect, Letterhead>>
 export type TextSnippetMatches = Assert<Exact<typeof textSnippets.$inferSelect, TextSnippet>>
+export type TimeEntryMatches = Assert<Exact<typeof timeEntries.$inferSelect, TimeEntry>>
+export type LocationConsentMatches = Assert<
+  Exact<typeof locationConsents.$inferSelect, LocationConsent>
+>
 export type InstructionMatches = Assert<Exact<typeof instructions.$inferSelect, Instruction>>
 export type DocumentInstructionChoicesMatches = Assert<
   Exact<typeof documentInstructionChoices.$inferSelect, DocumentInstructionChoices>
