@@ -6,9 +6,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Danke, dass du dir die Zeit nimmst. Das Projekt ist in der Planungsphase,
-        es gibt noch keinen lauffähigen Code. Fehlerberichte betreffen daher
-        aktuell vor allem die Dokumente und die Spezifikation.
+        Danke, dass du dir die Zeit nimmst. Die Anwendung läuft und steht vor dem
+        ersten Pilotbetrieb. Hilfreich ist, was du getan hast, was passiert ist und
+        ob es im Büro oder auf der Baustelle war, mit oder ohne Netz.
 
   - type: textarea
     id: beschreibung
@@ -49,7 +49,7 @@ body:
     id: umgebung
     attributes:
       label: Umgebung
-      description: Nur ausfüllen, wenn es um Code oder Werkzeuge geht (Betriebssystem, Browser, Versionen).
+      description: Gerät und Browser, bei einer eigenen Installation der Stand (Commit auf main) und ob sie über Docker Compose läuft.
     validations:
       required: false
 

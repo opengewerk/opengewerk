@@ -654,6 +654,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Vorlage für einen Fehlerbericht beginnt nicht mehr mit einem Projekt in der
+  Planungsphase ohne lauffähigen Code, sondern fragt, was bei einer laufenden Anwendung
+  hilft: Büro oder Baustelle, mit oder ohne Netz, und bei einer eigenen Installation den
+  Stand. Die Prüfung "Schreibweise" kennt keine Ausnahme mehr für die zwei Schlüssel der
+  Konventionen im API-Vertrag, der sie seit opengewerk-api-spec#19 englisch benennt.
 - Ein Titel nimmt beim Verschieben seine Positionen mit und springt über den ganzen Abschnitt
   daneben (#152); eine Position springt weiter über eine Zeile und wechselt so den Abschnitt.
   Bisher wanderte der Titel allein und stand danach über fremden Positionen oder mitten in
