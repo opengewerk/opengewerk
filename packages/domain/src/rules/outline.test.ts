@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { DocumentContentV1, LineContent } from '../model/document-content.js'
-import { deducts, documentKinds, successorsOf } from '../model/document.js'
+import { continuesChain, deducts, documentKinds, successorsOf } from '../model/document.js'
 import { currentContent } from './document-content.js'
 import { movedInOutline, outlineRows } from './outline.js'
 
@@ -290,5 +290,22 @@ describe('the chain of documents', () => {
     for (const kind of documentKinds) {
       expect(successorsOf(kind)).not.toContain('cancellation_invoice')
     }
+  })
+
+  /**
+   * One successor that counts, so that the next is made out of the last link
+   * (#129). A progress invoice and a final invoice both made out of the quote
+   * would each deduct nothing of the other.
+   */
+  it('does not branch, and counts only a successor that is still in it', () => {
+    for (const status of ['draft', 'signed', 'issued'] as const) {
+      expect(continuesChain({ kind: 'progress_invoice', status })).toBe(true)
+    }
+
+    // A cancelled invoice frees its predecessor for the one that replaces it.
+    expect(continuesChain({ kind: 'final_invoice', status: 'cancelled' })).toBe(false)
+    // The corrections name the invoice they correct and are no link after it.
+    expect(continuesChain({ kind: 'cancellation_invoice', status: 'issued' })).toBe(false)
+    expect(continuesChain({ kind: 'credit_note', status: 'issued' })).toBe(false)
   })
 })

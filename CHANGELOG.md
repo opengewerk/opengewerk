@@ -867,6 +867,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Belegkette verzweigt sich nicht mehr (#129). Aus einem festgeschriebenen Beleg ließen
+  sich beliebig viele Folgebelege anlegen, und eine Schlussrechnung aus dem Angebot neben einer
+  Abschlagsrechnung aus demselben Angebot zog nichts von ihr ab und stellte den ganzen Betrag
+  ein zweites Mal. Jetzt entsteht der nächste Folgebeleg aus dem letzten Glied: die Route lehnt
+  einen zweiten ab und nennt den ersten, das Büro zeigt "Weiter bei …", und die Datenbank hält
+  dieselbe Regel mit einem eindeutigen Index. Den Vorgänger setzt nur noch der Server. Die
+  Vorschau legt ihre Kette entsprechend an: Angebot, Auftragsbestätigung, Abschlagsrechnung,
+  Schlussrechnung.
 - Die Anwendung setzt die Sicherheits-Header, die ADR 0006 verlangt (#131). Die beiden Hüllen
   tragen eine strikte Content-Security-Policy, nur eigene Herkunft und nichts inline, jede
   Antwort dazu `nosniff`, `no-referrer`, `X-Frame-Options`, HSTS und die beiden

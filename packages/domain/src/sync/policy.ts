@@ -143,12 +143,17 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * counter. `status` carries its default, so a device that leaves it alone
    * still gets a draft, and `createdAs` tells the device so before the server
    * has.
+   *
+   * `predecessorDocumentId` is the server's as well. A successor is made by the
+   * route that makes it, out of the last link of the chain (#129); a device
+   * that could name a predecessor could branch the chain, and a final invoice
+   * next to a progress invoice deducts nothing of it.
    */
   documents: {
     create: true,
     change: 'merge',
     onlyWhile: { field: 'status', values: ['draft'] },
-    reserved: ['status', 'number', 'issuedAt'],
+    reserved: ['status', 'number', 'issuedAt', 'predecessorDocumentId'],
     createdAs: { status: 'draft' },
   },
   /**

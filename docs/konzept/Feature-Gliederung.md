@@ -1,4 +1,4 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.14
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.15
 
 2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
@@ -67,7 +67,7 @@ Aktionen: Erinnerung (Push/E-Mail), Aufgabe anlegen, Serviceauftrag anlegen, Sta
 
 ### 1.4 Dokumentenkette
 
-Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung → Lieferschein / Regiebericht → (Abschlags-/Teil-)Rechnung → Schlussrechnung → Storno/Gutschrift**. Jeder Beleg kennt seinen Vorgänger; Mengenabgleich (angeboten, geliefert, abgerechnet) ist jederzeit sichtbar.
+Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung → Lieferschein / Regiebericht → (Abschlags-/Teil-)Rechnung → Schlussrechnung → Storno/Gutschrift**. Jeder Beleg kennt seinen Vorgänger; Mengenabgleich (angeboten, geliefert, abgerechnet) ist jederzeit sichtbar. Die Kette verzweigt sich nicht: ein Beleg hat höchstens einen Folgebeleg, der gilt, und der nächste entsteht aus dem letzten Glied, damit jede Rechnung abzieht, was vor ihr gestellt wurde. Ein stornierter Folgebeleg zählt nicht mehr, sein Vorgänger ist danach frei für den, der ihn ersetzt; Storno und Gutschrift korrigieren ein Glied, statt eines zu sein.
 
 ### 1.5 Nummernkreise & Festschreibung ⚖
 
@@ -533,6 +533,10 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.14 → v2.15
+
+- Präzisiert: Die Dokumentenkette verzweigt sich nicht (1.4). Aus einem Beleg ließen sich beliebig viele Folgebelege anlegen, und eine Schlussrechnung aus dem Angebot neben einer Abschlagsrechnung aus demselben Angebot zog nichts von ihr ab, weil die Abzüge nur der eigenen Kette nach oben folgen. Ein Beleg hat jetzt höchstens einen Folgebeleg, der gilt, und der nächste entsteht aus dem letzten Glied. Umgesetzt mit #129
 
 ## Änderungsprotokoll v2.13 → v2.14
 

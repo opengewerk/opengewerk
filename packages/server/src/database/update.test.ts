@@ -353,6 +353,65 @@ describe('an update from an older release', () => {
     await runMigrations(ownerDatabaseUrl())
     expect(await appliedMigrationCount(admin)).toBe(readMigrationIndex().length)
   })
+
+  it('refuses to keep a chain from branching while a document already has two successors', async () => {
+    // Up to 0033 any number of successors could be made out of one document,
+    // and a final invoice next to a progress invoice deducted nothing of it.
+    // 0033 allows one that counts. Which of two stays is a person's decision,
+    // so the migration counts first, names the number, and stops.
+    const beforeTheChange = readMigrationIndex().findIndex(
+      (entry) => entry.tag === '0033_one_successor',
+    )
+    expect(beforeTheChange).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(beforeTheChange))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const planted = await admin.query<{ id: string; customer_id: string }>(
+      `with customer as (
+         insert into customers (tenant_id, kind, name) values ($1, 'business', 'Bauherr Nord')
+           returning id
+       )
+       insert into documents (tenant_id, customer_id, kind, document_date)
+         select $1, id, 'quote', '2026-09-01' from customer returning id, customer_id`,
+      [tenant.id],
+    )
+    const quote = planted.rows[0]
+    if (!quote) {
+      throw new Error('There is no quote to make successors out of')
+    }
+
+    const side = await admin.query<{ id: string; kind: string }>(
+      `insert into documents (tenant_id, customer_id, kind, document_date, predecessor_document_id)
+         values ($1, $2, 'progress_invoice', '2026-09-02', $3),
+                ($1, $2, 'final_invoice', '2026-09-02', $3)
+         returning id, kind`,
+      [tenant.id, quote.customer_id, quote.id],
+    )
+
+    const failure = await runMigrations(ownerDatabaseUrl()).catch((error: unknown) => error)
+
+    expect(reasonOf(failure)).toContain('Aus einem Beleg ist schon mehr als ein Folgebeleg')
+    expect(await appliedMigrationCount(admin)).toBe(beforeTheChange)
+
+    // The count lifts FORCE to see the rows, and a failed update leaves it on.
+    const { rows: unforced } = await admin.query<{ relname: string }>(
+      `select relname from pg_class
+        where relnamespace = 'public'::regnamespace and relkind = 'r'
+          and relrowsecurity and not relforcerowsecurity`,
+    )
+    expect(unforced).toEqual([])
+
+    // A deleted draft does not count, so deleting the second one is the way
+    // on the sentence names, and the same update goes through.
+    await admin.query('update documents set deleted_at = now() where id = $1', [
+      side.rows.find((row) => row.kind === 'final_invoice')?.id,
+    ])
+
+    await runMigrations(ownerDatabaseUrl())
+    expect(await appliedMigrationCount(admin)).toBe(readMigrationIndex().length)
+  })
 })
 
 /**

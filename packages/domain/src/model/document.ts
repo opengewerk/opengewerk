@@ -92,6 +92,34 @@ export function successorsOf(kind: DocumentKind): readonly DocumentKind[] {
 }
 
 /**
+ * Whether a document that names another as its predecessor continues that
+ * document's chain (#129).
+ *
+ * A chain does not branch. A document has at most one successor that counts,
+ * and the next one is made out of the last link. Otherwise a final invoice
+ * made out of the quote would bill again what a progress invoice made out of
+ * the same quote had billed already, because the deductions follow a
+ * document's own chain upwards and never sideways; and one quote could have
+ * two order confirmations.
+ *
+ * What has left the chain does not count. A cancelled invoice frees its
+ * predecessor for the invoice that replaces it, and a cancellation or a
+ * credit note names the invoice it corrects without being a link after it. A
+ * deleted draft does not count either; that is left to whoever reads the
+ * rows, because a deleted record is not in front of the office at all.
+ */
+export function continuesChain(successor: {
+  readonly kind: DocumentKind
+  readonly status: DocumentStatus
+}): boolean {
+  return (
+    successor.kind !== 'cancellation_invoice' &&
+    successor.kind !== 'credit_note' &&
+    successor.status !== 'cancelled'
+  )
+}
+
+/**
  * The kinds that take off what the progress invoices before them in the chain
  * billed: the next progress invoice and the final invoice.
  *
