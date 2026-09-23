@@ -173,8 +173,9 @@ export function createAuthentication({
       // behind TLS and a cookie that would travel without it is a cookie that
       // can be taken off the wire.
       useSecureCookies: true,
-      // The proxy in front terminates TLS, so the request that arrives here
-      // says http. Without this the secure flag above would be dropped.
+      // better-auth's own check of the origin on its routes, written out so
+      // that nobody turns it off by accident. The routes of ours have theirs
+      // in `SameOriginGuard`, against the same list.
       disableCSRFCheck: false,
     },
     plugins: [

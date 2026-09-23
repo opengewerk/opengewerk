@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 
 import { NestFactory } from '@nestjs/core'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 
 import { toNodeHandler } from 'better-auth/node'
 
@@ -13,6 +14,7 @@ import { ConfigurationError, readConfiguration } from './configuration.js'
 import { Database } from './database/database.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
+import { readJsonBodiesOnly } from './api/origin.js'
 import { interfacePath, serveInterface } from './interface.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
@@ -80,39 +82,42 @@ async function start(): Promise<void> {
   // The file store and the renderer go in whether the instance is open or
   // closed. Closed, nothing reaches them, because every route that would is
   // behind the guard; open, they are what a PDF is printed with and kept in.
+  // The trusted origins too: they open nothing, they only say which pages a
+  // request that changes something may come from.
   const output = {
     files: new FileStore(configuration.storagePath),
     renderer: rendererFor(readRendererConfiguration()),
+    trustedOrigins: configuration.trustedOrigins,
   }
 
-  const application = await NestFactory.create(
+  const application = await NestFactory.create<NestExpressApplication>(
     // The authentication goes in only when the instance is open, and that is
     // what puts the first run setup on the routing table at all. Closed, the
     // controller is not registered and its two routes are simply not there.
     ApiModule.create(
       database,
       identities,
-      configuration.closed
-        ? output
-        : {
-            ...output,
-            authentication,
-            trustedOrigins: configuration.trustedOrigins,
-            mail,
-          },
+      configuration.closed ? output : { ...output, authentication, mail },
     ),
-    // The container log is the only log there is, so it carries warnings and
-    // errors and not the route table of every start. At twenty routes that
-    // table is noise; at two hundred it buries the line that matters.
-    { logger: ['error', 'warn'] },
+    {
+      // The container log is the only log there is, so it carries warnings
+      // and errors and not the route table of every start. At twenty routes
+      // that table is noise; at two hundred it buries the line that matters.
+      logger: ['error', 'warn'],
+      // No parser of Nest's own: `readJsonBodiesOnly` below sets the one that
+      // is wanted, after better-auth.
+      bodyParser: false,
+    },
   )
 
-  // Before Nest's own body parser, and that order is not a preference. Express
-  // reads the stream once; a parser in front would leave better-auth with an
-  // empty body on every sign in, and the failure looks like a wrong password.
+  // Before the body parser, and that order is not a preference. Express reads
+  // the stream once; a parser in front would leave better-auth with an empty
+  // body on every sign in, and the failure looks like a wrong password.
   if (!configuration.closed) {
     application.use(authenticationPath, toNodeHandler(authentication))
   }
+
+  readJsonBodiesOnly(application)
 
   // Nothing is gained by telling every caller which framework serves them,
   // and a scanner looking for a known weakness is told where to look.

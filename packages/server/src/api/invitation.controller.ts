@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Req } from '@nestjs/common'
+import { Body, Controller, Get, Inject, NotFoundException, Param, Post } from '@nestjs/common'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { looksLikeAToken } from '../authentication/invitation.js'
@@ -10,9 +10,8 @@ import {
 } from '../authentication/redemption.js'
 import { Database } from '../database/database.js'
 import { PublicRoute } from './authorization.js'
-import { AUTHENTICATION, TRUSTED_ORIGINS } from './handed-in.js'
+import { AUTHENTICATION } from './handed-in.js'
 import { pick } from './body.js'
-import { refuseAForeignForm } from './origin.js'
 
 /**
  * The far end of a one time link.
@@ -41,7 +40,6 @@ export class InvitationController {
   constructor(
     private readonly database: Database,
     @Inject(AUTHENTICATION) private readonly authentication: Authentication,
-    @Inject(TRUSTED_ORIGINS) private readonly trustedOrigins: readonly string[],
   ) {}
 
   /**
@@ -82,13 +80,7 @@ export class InvitationController {
    */
   @Post(':token')
   @PublicRoute()
-  async redeem(
-    @Req() request: unknown,
-    @Param('token') token: string,
-    @Body() body: unknown,
-  ): Promise<Redeemed> {
-    refuseAForeignForm(request, this.trustedOrigins, 'Ein Einladungslink')
-
+  async redeem(@Param('token') token: string, @Body() body: unknown): Promise<Redeemed> {
     if (!looksLikeAToken(token)) {
       throw new NotFoundException('Diesen Link gibt es nicht.')
     }

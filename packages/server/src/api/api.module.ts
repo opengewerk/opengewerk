@@ -43,6 +43,7 @@ import {
   TRUSTED_ORIGINS,
 } from './handed-in.js'
 import { InvitationController } from './invitation.controller.js'
+import { SameOriginGuard } from './origin.js'
 import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
 import { SitesController } from './sites.controller.js'
@@ -63,9 +64,9 @@ import { TextSnippetsController } from './text-snippets.controller.js'
 export interface ApiOptions {
   readonly authentication?: Authentication
   /**
-   * The addresses a browser may send a first run or a redeemed invitation
-   * from. Only read when the authentication is there, because the routes that
-   * need it only exist then.
+   * The addresses a browser may send a request that changes something from,
+   * the same list better-auth gets. Left out, no browser may: a request with
+   * an `Origin` is refused, one without passes, as from `curl` or a test.
    */
   readonly trustedOrigins?: readonly string[]
   /**
@@ -165,13 +166,12 @@ export class ApiModule implements NestModule {
         { provide: RENDERER, useValue: renderer },
         { provide: MAIL, useValue: mail },
         DocumentFiles,
-        ...(authentication
-          ? [
-              { provide: AUTHENTICATION, useValue: authentication },
-              { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
-            ]
-          : []),
+        ...(authentication ? [{ provide: AUTHENTICATION, useValue: authentication }] : []),
+        { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
+        // In this order, which is the order Nest runs them in: a form from a
+        // foreign page is refused before anybody asks whose session it carries.
+        { provide: APP_GUARD, useClass: SameOriginGuard },
         { provide: APP_GUARD, useClass: AuthorizationGuard },
         { provide: APP_FILTER, useClass: DatabaseExceptionFilter },
       ],

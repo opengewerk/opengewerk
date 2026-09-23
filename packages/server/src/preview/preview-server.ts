@@ -4,9 +4,11 @@ import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Identity } from '@opengewerk/domain'
 
 import { ApiModule } from '../api/api.module.js'
+import { readJsonBodiesOnly } from '../api/origin.js'
 import { authenticationPath } from '../authentication/authentication.js'
 import type { Database } from '../database/database.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
@@ -33,8 +35,19 @@ export async function openPreview(
   database: Database,
   identity: Identity,
 ): Promise<INestApplication> {
-  const application = await NestFactory.create(
+  const address = `http://127.0.0.1:${String(previewPort())}`
+  const application = await NestFactory.create<NestExpressApplication>(
     ApiModule.create(database, new PreviewIdentitySource(identity), {
+      // The address the preview is opened at, the same port under its other
+      // name, and vite's, which passes the page's own origin on when it serves
+      // the interface next to the preview. Anything else sending a change is
+      // taken for a form from somewhere else, as on an instance.
+      trustedOrigins: [
+        address,
+        `http://localhost:${String(previewPort())}`,
+        'http://127.0.0.1:5173',
+        'http://localhost:5173',
+      ],
       files: new FileStore(mkdtempSync(join(tmpdir(), 'opengewerk-vorschau-'))),
       // RENDERER_URL and RENDERER_TOKEN as on an instance. Without them a PDF
       // gets the sentence that says which service is missing.
@@ -43,15 +56,16 @@ export async function openPreview(
       // preview runs no mail job. Its own key, because a preview database is
       // nobody's and has no SESSION_SECRET to keep.
       mail: {
-        origin: `http://127.0.0.1:${String(previewPort())}`,
+        origin: address,
         key: SecretKey.from('opengewerk preview, sealed for this machine only'),
         connect: smtpTransport,
       },
     }),
-    { logger: ['error', 'warn'] },
+    { logger: ['error', 'warn'], bodyParser: false },
   )
 
   application.use(authenticationPath, previewSession(identity, previewUser))
+  readJsonBodiesOnly(application)
   application.getHttpAdapter().getInstance().disable('x-powered-by')
 
   const built = interfacePath()
