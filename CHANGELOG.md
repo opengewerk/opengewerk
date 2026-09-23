@@ -649,6 +649,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Sechs Abweichungen zwischen Code und ADRs haben jetzt ihren Nachtrag (#138): Push vor Pull
+  und IndexedDB ohne Dexie (ADR 0005), Abgleichspalten und markiertes Löschen nur an den
+  Tabellen, die zum Gerät reisen (ADR 0005), keine OpenAPI-Datei aus dem Code und der
+  Renderer, der dauerhaft läuft (ADR 0002), eigene Komponenten ohne Radix und ohne Icons
+  (ADR 0004). Radix und Lucide standen seit #52 in `packages/web/package.json`, benutzt
+  wurden sie nie; die beiden Pakete sind entfernt.
 - Entschieden, wo Kennungen entstehen (#151): am Rand, im Server und im Abgleich-Client, mit
   derselben Bibliothek `uuidv7` in derselben Fassung, die ein Test zusammenhält; `domain`
   kennt nur den Typ, weil es frei von Zufall bleibt. Ein Kommentar hatte die Entscheidung
