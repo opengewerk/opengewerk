@@ -1,4 +1,6 @@
 import {
+  contactParentProblem,
+  contactParentText,
   type CustomerId,
   decideMerge,
   inOutboxOrder,
@@ -379,10 +381,32 @@ async function applyOne(
     throw new UnknownFieldError(figures)
   }
 
+  // A contact hangs on one customer or on one site, which the check in the
+  // database holds as well, judged as it would stand afterwards: what the
+  // operation sets, over the row it lands on. The two ways to miss that are
+  // not the same kind of mistake. On both, it is one only the client can
+  // make: a form makes a contact on the screen of what it belongs to and has
+  // no way to name the other as well, so the answer is the sentence of the
+  // rule, the way a circuit is refused whose curve does not go with its
+  // device. On neither, it is a record without the parent it must have, and
+  // that is the question of the references below, which gets their answer.
+  const standing = (field: string) => (field in values ? values[field] : current?.[field])
+  const parent =
+    operation.entity === 'contacts' && operation.kind !== 'delete'
+      ? contactParentProblem({ customerId: standing('customerId'), siteId: standing('siteId') })
+      : null
+
+  if (parent === 'both') {
+    throw new UnknownFieldError(contactParentText.both)
+  }
+
   // A parent that is gone, or that belongs to another business, is a
   // conflict about this one operation, for every entity: the key over tenant
   // and id would refuse it too, but for the whole transmission, and a deleted
-  // parent it would take. Then the one pairing the keys cannot say alone,
+  // parent it would take. A contact that names none at all is missing the
+  // one it must have, like any record created without it, and a conflict as
+  // well, with both fields; left to the check in the database, it took the
+  // whole transmission along. Then the one pairing the keys cannot say alone,
   // the section of a circuit on the circuit's board.
   const missing =
     operation.kind === 'delete'
@@ -390,7 +414,9 @@ async function applyOne(
       : await missingReference(tx, table, values, operation.kind === 'create')
   const misplaced = missing
     ? { reason: 'record_missing' as const, fields: [missing.field] }
-    : await sectionRefusal(tx, operation, values, current)
+    : parent === 'none'
+      ? { reason: 'record_missing' as const, fields: ['customerId', 'siteId'] }
+      : await sectionRefusal(tx, operation, values, current)
 
   if (misplaced) {
     return await record(tx, tenantId, operation, {

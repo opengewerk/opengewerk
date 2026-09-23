@@ -815,6 +815,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Kontakt, den ein Gerät ohne Kunde und ohne Objekt anlegte, ließ die ganze Übertragung
+  scheitern (#116): die Datenbank lehnte ihn mit "Die Angaben passen nicht zum Datenmodell."
+  ab und mit ihm alles, was im selben Stapel stand, und beim nächsten Abgleich kam derselbe
+  Stapel wieder. Der Abgleich fragt die Regel jetzt vorher (`contactParentProblem` in
+  `domain`). Ohne Kunde und Objekt ist es ein Konflikt für diesen einen Vorgang, wie bei
+  jedem Datensatz ohne den Elternteil, den er haben muss; mit beidem lehnt er die Übertragung
+  mit einem Satz ab, der sagt, was falsch ist, weil so etwas nur ein fehlerhafter Client
+  schickt. Eine Oberfläche, die Kontakte anlegt, gibt es noch nicht
 - Die Korrekturen aus Migration 0029 an den mitgelieferten Belehrungen sind auf keiner
   Installation angekommen, die ihre Belehrungen schon vorher hatte. Widerrufsbelehrung,
   Formular und Vordruck blieben dort auch dem Kostenvoranschlag vorgeschlagen, und das

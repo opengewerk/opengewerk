@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { syncEntities } from '@opengewerk/domain'
+import { contactParentText, syncEntities } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -920,6 +920,86 @@ describe('a reference to a record of another business', () => {
       [job.body.id],
     )
     expect(rows).toEqual([{ customer_id: customerId }])
+  })
+})
+
+/**
+ * A contact hangs on one customer or on one site, and the check in the
+ * database says so for the whole transmission: it refused a contact on
+ * neither with "Die Angaben passen nicht zum Datenmodell.", and everything
+ * the device had sent with it, so the next exchange sent the same stack
+ * again. The sync asks first now (#116).
+ */
+describe('a contact from a device', () => {
+  const answered = (answer: Awaited<ReturnType<typeof transmit>>) =>
+    answer.receipts.map(({ outcome, reason, fields }) => ({ outcome, reason, fields }))
+
+  it('lands on a customer, and on a site', async () => {
+    const answer = await transmit(app, office(), [
+      created('contacts', newId<'contact'>(), {
+        customerId,
+        familyName: 'Weber',
+        role: 'Bauleitung',
+      }),
+      created('contacts', newId<'contact'>(), {
+        siteId,
+        familyName: 'Krause',
+        role: 'Hausmeister',
+      }),
+    ])
+
+    expect(answered(answer)).toEqual([
+      { outcome: 'applied', reason: null, fields: [] },
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+  })
+
+  it('on neither is a conflict about that one operation, and the rest of the transmission lands', async () => {
+    const stray = newId<'contact'>()
+    const fine = newId<'site'>()
+
+    const answer = await transmit(app, office(), [
+      created('contacts', stray, { familyName: 'Ohne Zuordnung' }),
+      created('sites', fine, { customerId, designation: 'Landet trotzdem' }),
+    ])
+
+    expect(answered(answer)).toEqual([
+      { outcome: 'conflict', reason: 'record_missing', fields: ['customerId', 'siteId'] },
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+
+    const { rows: contacts } = await admin.query('select id from contacts where id = $1', [stray])
+    expect(contacts).toEqual([])
+    const { rows: sites } = await admin.query('select designation from sites where id = $1', [fine])
+    expect(sites).toEqual([{ designation: 'Landet trotzdem' }])
+
+    // And it waits on the list for a person, like every other conflict.
+    const conflicts = await http()
+      .get('/sync/conflicts')
+      .set('x-test-identity', office())
+      .expect(200)
+    expect(
+      (conflicts.body as { recordId: string }[]).some((entry) => entry.recordId === stray),
+    ).toBe(true)
+  })
+
+  it('on both is refused as a mistake of the client, in the words of the rule', async () => {
+    const doubled = newId<'contact'>()
+
+    const refused = await transmit(
+      app,
+      office(),
+      [created('contacts', doubled, { customerId, siteId, familyName: 'Doppelt' })],
+      400,
+    )
+
+    // No form can make one: a contact is made on the screen of what it
+    // belongs to. So this is a client that needs fixing, and the sentence
+    // says what to fix, where the database only said that something is wrong.
+    expect(refused.message).toBe(contactParentText.both)
+
+    const { rows } = await admin.query('select id from contacts where id = $1', [doubled])
+    expect(rows).toEqual([])
   })
 })
 
