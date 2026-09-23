@@ -33,12 +33,12 @@ const standard = { documentDate: '2026-09-20', taxTreatment: 'standard' } as con
 
 describe('a line total', () => {
   it('is quantity times price, in whole cents', () => {
-    // 2,5 Stunden zu 58,00 Euro.
+    // 2.5 hours at 58.00 euros.
     expect(lineNetCents({ quantityMilli: 2500, unitPriceCents: 5800 })).toBe(14500)
   })
 
   it('rounds half away from zero, the same way the tax does', () => {
-    // 0,005 mal 100 Cent ist genau ein halber Cent.
+    // 0.005 times 100 cents is exactly half a cent.
     expect(lineNetCents({ quantityMilli: 5, unitPriceCents: 100 })).toBe(1)
     expect(lineNetCents({ quantityMilli: -5, unitPriceCents: 100 })).toBe(-1)
   })
@@ -50,14 +50,14 @@ describe('a line total', () => {
 
 describe('the totals of a document', () => {
   it('add the lines up and tax the sum, not each line', () => {
-    // Drei Zeilen, die einzeln besteuert einen Cent mehr ergäben. Das ist der
-    // Fall, für den die Reihenfolge im Gesetz steht.
+    // Three lines that would come to one cent more if each were taxed on its
+    // own. This is the case the order in the law exists for.
     const totals = totalsFor(rules, [line(1003), line(1003), line(1003)], standard)
 
     expect(totals.netCents).toBe(3009)
-    // 19 Prozent auf 3009 sind 571,71, kaufmännisch 572.
+    // 19 percent of 3009 is 571.71, rounded commercially 572.
     expect(totals.taxCents).toBe(572)
-    // Einzeln besteuert wären es dreimal 191 gleich 573.
+    // Taxed line by line it would be three times 191, which is 573.
     expect(totals.taxCents).not.toBe(573)
     expect(totals.grossCents).toBe(3581)
   })
@@ -174,8 +174,8 @@ describe('a quantity comparison', () => {
   it('only compares the same unit, and never a lump sum with itself', () => {
     expect(comparableQuantities('hour', 'hour')).toBe(true)
     expect(comparableQuantities('hour', 'piece')).toBe(false)
-    // Zwei Pauschalen sind dieselbe Einheit und trotzdem nicht vergleichbar:
-    // dass beide "1" sind, sagt nichts darüber, ob dasselbe geleistet wurde.
+    // Two lump sums are the same unit and still not comparable: that both are
+    // "1" says nothing about whether the same work was done.
     expect(comparableQuantities('flat_rate', 'flat_rate')).toBe(false)
   })
 })
@@ -387,11 +387,11 @@ describe('whatever the lines are', () => {
           standard,
         )
 
-        // Das Negieren im Test erzeugt selbst die minus Null, die der Code
-        // inzwischen nicht mehr erzeugt: aus 0 wird -0, und `toBe` vergleicht
-        // mit `Object.is`. Die Erwartung wird deshalb genauso normalisiert wie
-        // das Ergebnis, sonst prüfte der Test das Vorzeichen der Null statt
-        // der Spiegelung.
+        // Negating in the test itself produces the minus zero the code no
+        // longer produces: 0 becomes -0, and `toBe` compares with `Object.is`.
+        // The expectation is therefore normalised the same way as the result,
+        // otherwise the test would check the sign of zero instead of the
+        // mirroring.
         const negated = (value: number) => (value === 0 ? 0 : -value)
 
         expect(mirrored.netCents).toBe(negated(totals.netCents))
@@ -402,9 +402,9 @@ describe('whatever the lines are', () => {
   })
 
   /**
-   * Die Gegenprobe zur Normalisierung: ein Betrag von nichts trägt nie ein
-   * Vorzeichen. `-0` vergleicht sich mit `===` gleich und mit `Object.is`
-   * ungleich, fällt also genau dort auf, wo es teuer ist, und nirgends sonst.
+   * The counter check to the normalisation: an amount of nothing never carries
+   * a sign. `-0` is equal under `===` and unequal under `Object.is`, so it
+   * shows up exactly where it is expensive and nowhere else.
    */
   it('a total of nothing never carries a sign', () => {
     const empty = totalsFor(rules, [line(0), line(0, 'reduced')], standard)

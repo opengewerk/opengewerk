@@ -1375,7 +1375,7 @@ describe('a document line from a device', () => {
 
     expect(answer.receipts[0]?.outcome).toBe('applied')
 
-    // Und der Server hat die Summe selbst gerechnet: 2 Stunden zu 50,00 Euro.
+    // And the server worked the total out itself: 2 hours at 50.00 euros.
     const lines = await http()
       .get(`/documents/${document.id}/lines`)
       .set('x-test-identity', office())

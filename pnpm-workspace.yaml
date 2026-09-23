@@ -1,21 +1,21 @@
 packages:
   - packages/*
-  # Gewerke sind eigene Pakete nach ADR 0008. Der Ordner entsteht mit dem
-  # ersten Gewerk; bis dahin trifft dieses Muster nichts und stört nicht.
+  # Trades are packages of their own under ADR 0008. The folder comes with the
+  # first trade; until then this pattern matches nothing and does no harm.
   - packages/gewerke/*
 
-# pnpm hält frisch veröffentlichte Versionen zurück, bis sie eine Weile
-# draußen sind. Das ist der Schutz gegen ein übernommenes npm-Konto, bei dem
-# die bösartige Fassung meist innerhalb von Stunden auffliegt und
-# zurückgezogen wird. Wer eine Version braucht, die noch in dieser Frist
-# liegt, trägt sie unter minimumReleaseAgeExclude ein. Bisher war das nie
-# nötig: die Regel "neuestmögliche Version" kostet dadurch höchstens einen
-# Tag, und dafür hebelt man keine Sperre aus.
+# pnpm holds back freshly published versions until they have been out for a
+# while. That is the protection against a hijacked npm account, where the
+# malicious version is usually found out and withdrawn within hours. Whoever
+# needs a version still inside that window enters it under
+# minimumReleaseAgeExclude. So far that was never necessary: the rule "newest
+# possible version" costs at most a day because of it, and that is no reason
+# to switch the protection off.
 
-# pnpm führt Installationsskripte fremder Pakete nicht von sich aus aus. Das
-# ist der Schutz gegen ein Paket, das beim Installieren etwas anderes tut als
-# installieren. esbuild kommt über drizzle-kit herein und braucht sein Skript
-# nicht: seine Binary liegt in einem optionalen Paket je Plattform, und
-# drizzle-kit erzeugt Migrationen auch ohne. Gegengeprüft am 18.09.2026.
+# pnpm does not run the install scripts of other packages by itself. That is
+# the protection against a package that does something other than installing
+# while it installs. esbuild comes in through drizzle-kit and does not need
+# its script: its binary sits in an optional package per platform, and
+# drizzle-kit generates migrations without it. Checked on 18.09.2026.
 allowBuilds:
   esbuild: false

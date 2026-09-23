@@ -22,7 +22,7 @@ import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { invoiceable, readyToInvoice } from './test-invoice.js'
 
-/** Der Fehlercode, mit dem die Trigger einen festgeschriebenen Beleg abweisen. */
+/** The error code the triggers refuse an issued document with. */
 const documentIsFixed = 'OG001'
 
 /**
@@ -152,7 +152,7 @@ describe('a position', () => {
 
   it('has its total worked out by the server, not taken from the request', async () => {
     const document = await draft()
-    // 2,5 Stunden zu 58,00 Euro sind 145,00 Euro.
+    // 2.5 hours at 58.00 euros is 145.00 euros.
     const line = await addLine(document.id)
 
     expect(line.netCents).toBe(14500)
@@ -274,7 +274,7 @@ describe('a document without tax', () => {
     expect(totals.taxCents).toBe(0)
     expect(totals.taxNote).toContain('§ 19')
 
-    // Und wieder zurück, damit die folgenden Tests den Normalfall sehen.
+    // And back again, so that the following tests see the ordinary case.
     await http()
       .post('/settings/parameters')
       .set('x-test-identity', as(north.id, 'owner'))
@@ -288,9 +288,9 @@ describe('a document without tax', () => {
    * construction firm writes the section 19 sentence.
    */
   it('prefers section 19 over section 13b, because there is nothing to reverse', async () => {
-    // Vorwärts und nicht zurück: ein Parameter lässt sich nicht hinter seinen
-    // letzten Stand datieren, und das ist richtig so. Was voriges Jahr galt,
-    // gilt für voriges Jahr, und ein Beleg von damals liest sich unverändert.
+    // Forwards and not back: a parameter cannot be dated before its latest
+    // state, and that is right. What applied last year applies to last year,
+    // and a document from then reads the same as it did.
     await http()
       .post('/settings/parameters')
       .set('x-test-identity', as(north.id, 'owner'))
@@ -306,9 +306,10 @@ describe('a document without tax', () => {
   })
 
   /**
-   * Die Gegenprobe zum Satz darüber: derselbe Kunde, ein Beleg aus der Zeit
-   * davor. Die Steuerbehandlung folgt dem Belegdatum und nicht dem heutigen
-   * Stand, sonst schriebe jede Änderung an den Stammdaten alte Rechnungen um.
+   * The counter check to the sentence above: the same customer, a document
+   * from the time before. The tax treatment follows the document date and not
+   * today's state, otherwise every change to the master data would rewrite old
+   * invoices.
    */
   it('reads the parameter as it stood on the document date', async () => {
     const earlier = await draft({
@@ -458,7 +459,7 @@ describe('the stored line total', () => {
   it('agrees with the domain on half a cent', async () => {
     const document = await draft()
 
-    // 0,005 mal 1,00 Euro ist genau ein halber Cent, kaufmännisch also einer.
+    // 0.005 times 1.00 euro is exactly half a cent, commercially rounded one.
     const line = await addLine(document.id, {
       designation: 'Halber Cent',
       quantityMilli: 5,

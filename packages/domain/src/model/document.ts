@@ -217,11 +217,11 @@ export function whyFixed(document: {
  * a statement about the law that somebody is answerable for.
  */
 export const taxTreatments = [
-  /** Umsatzsteuer wird ausgewiesen. */
+  /** VAT is shown on the document. */
   'standard',
-  /** Kleinunternehmer nach § 19 UStG, keine Umsatzsteuer. */
+  /** Small business under section 19 UStG, no VAT. */
   'small_business',
-  /** Bauleistung nach § 13b UStG, der Empfänger schuldet die Steuer. */
+  /** Construction work under section 13b UStG, the recipient owes the tax. */
   'reverse_charge',
 ] as const
 
