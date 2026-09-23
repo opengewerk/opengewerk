@@ -147,7 +147,21 @@ export const refusalText: Readonly<Record<ConflictReason, string>> = {
 export class SyncClient {
   private readonly records = new Map<string, Map<string, RecordState>>()
   private outbox: readonly Operation[] = []
+  /** The outbox by record, which is what "not sent yet" asks. */
   private pending: ReadonlyMap<string, Operation[]> = new Map()
+  /**
+   * Operations the server applied that no pull has brought back yet (#181).
+   *
+   * The outbox lets go of an operation as soon as the server answers, and the
+   * row it made arrives only with the pull after that. Laid over nothing in
+   * between, a customer just entered vanished from its list for a round trip
+   * and came back as a new element, and a changed value showed its old one.
+   * These stay laid over the server's rows until the next pull has finished;
+   * they no longer count as waiting, which they are not.
+   */
+  private settling: readonly Operation[] = []
+  /** What is laid over the server's rows: what settles, then what waits. */
+  private laid: ReadonlyMap<string, Operation[]> = new Map()
   private readonly listeners = new Set<() => void>()
   private readonly lists = new Map<string, readonly RecordState[]>()
   private readonly projected = new Map<string, RecordState | null>()
@@ -243,7 +257,7 @@ export class SyncClient {
 
     client.outbox = await store.readOutbox()
     client.filesWaiting = await store.countWaitingFiles()
-    client.pending = byRecord(client.outbox)
+    client.regroup()
     client.snapshot = {
       ...client.snapshot,
       pending: client.outbox.length,
@@ -330,8 +344,9 @@ export class SyncClient {
 
     // Records this device made and has not sent yet exist only in the outbox.
     // Leaving them out would mean a customer entered in a cellar disappears
-    // from the list the moment the form closes.
-    for (const operation of this.outbox) {
+    // from the list the moment the form closes. The same for one the server
+    // has taken and no pull has brought back yet.
+    for (const operation of [...this.settling, ...this.outbox]) {
       if (operation.entity !== entity || seen.has(operation.recordId)) {
         continue
       }
@@ -366,7 +381,7 @@ export class SyncClient {
     }
 
     const server = this.records.get(entity)?.get(id) ?? null
-    const laid = project(server, this.pending.get(key) ?? [], id)
+    const laid = project(server, this.laid.get(key) ?? [], id)
 
     // A row marked deleted is kept in the store, because a repeated create has
     // to find it. It is not a row any screen shows.
@@ -510,7 +525,7 @@ export class SyncClient {
 
     await this.store.queue(operation)
     this.outbox = [...this.outbox, operation]
-    this.pending = byRecord(this.outbox)
+    this.regroup()
     this.publish({ pending: this.outbox.length })
 
     // Deliberately not awaited. A form must close when the entry is safe on
@@ -635,6 +650,12 @@ export class SyncClient {
       const refused = await this.pushOutbox()
 
       await this.pullChanges()
+
+      // Everything that settled is in the rows now, as the server holds it.
+      if (this.settling.length > 0) {
+        this.settling = []
+        this.regroup()
+      }
       await this.refreshConflicts()
 
       this.publish({ lastSyncedAt: new Date(), exchanging: false, trouble: null, refused })
@@ -688,6 +709,7 @@ export class SyncClient {
     }
 
     const done = new Set<OperationId>()
+    const applied = new Set<OperationId>()
 
     for (const receipt of receipts) {
       // Every outcome empties the slot, a conflict included. The server has
@@ -695,11 +717,22 @@ export class SyncClient {
       // person decides it. An operation kept in the outbox for it would be
       // sent again on every exchange and produce the same conflict for ever.
       done.add(receipt.operationId)
+
+      if (receipt.outcome === 'applied') {
+        applied.add(receipt.operationId)
+      }
     }
 
     await this.store.dequeue([...done])
+    // What landed stays laid over the rows until the pull brings them. What
+    // did not land is not shown at all: a conflict is on its own list, and a
+    // skipped operation changed nothing.
+    this.settling = [
+      ...this.settling,
+      ...this.outbox.filter((operation) => applied.has(operation.id)),
+    ]
     this.outbox = this.outbox.filter((operation) => !done.has(operation.id))
-    this.pending = byRecord(this.outbox)
+    this.regroup()
     this.publish({ pending: this.outbox.length })
 
     return null
@@ -883,7 +916,7 @@ export class SyncClient {
 
     await this.store.dequeue([...going])
     this.outbox = this.outbox.filter((operation) => !going.has(operation.id))
-    this.pending = byRecord(this.outbox)
+    this.regroup()
     this.publish({ pending: this.outbox.length, refused: null })
 
     await this.synchronise()
@@ -895,6 +928,12 @@ export class SyncClient {
   }
 
   // Bookkeeping
+
+  /** The two views of the queue, after it changed. */
+  private regroup(): void {
+    this.pending = byRecord(this.outbox)
+    this.laid = byRecord([...this.settling, ...this.outbox])
+  }
 
   private decideState(): SyncState {
     // Ahead of the conflicts. While the outbox is stuck, a decision on one of
