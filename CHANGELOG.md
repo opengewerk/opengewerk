@@ -815,6 +815,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Korrekturen aus Migration 0029 an den mitgelieferten Belehrungen sind auf keiner
+  Installation angekommen, die ihre Belehrungen schon vorher hatte. Widerrufsbelehrung,
+  Formular und Vordruck blieben dort auch dem Kostenvoranschlag vorgeschlagen, und das
+  Formular stand vor den neuen Hinweisen zum Erlöschen statt dahinter. Migrationen laufen
+  als Eigentümer der Tabellen und sehen unter `FORCE ROW LEVEL SECURITY` keine Zeile eines
+  Betriebs, die vier `UPDATE`s liefen also ins Leere und meldeten trotzdem Erfolg.
+  Migration 0032 wiederholt sie mit aufgehobenem `FORCE` und nennt im Audit-Log
+  `migration` als Grund
 - Auch außerhalb der Anlagenstruktur ließ sich ein Datensatz an den eines anderen Betriebs
   hängen, wenn dessen Kennung bekannt war: ein Objekt an einen fremden Kunden, ein Auftrag
   an eine fremde Anlage, eine Aufgabe an einen fremden Auftrag, insgesamt 29 Verweise
