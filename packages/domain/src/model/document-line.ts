@@ -93,3 +93,37 @@ export interface DocumentLine extends Synced {
   /** Quantity times unit price, rounded. Held by a check constraint. */
   readonly netCents: number
 }
+
+/**
+ * What is wrong with the place of a line, or null when nothing is. Lines are
+ * counted from one, which the check `document_lines_position_positive` holds.
+ */
+export function linePositionProblem(position: unknown): string | null {
+  return typeof position === 'number' && Number.isInteger(position) && position >= 1
+    ? null
+    : 'Positionen zählen ab 1.'
+}
+
+/**
+ * What is wrong with the amount on a title, or null when nothing is. A title
+ * carries neither a quantity nor a price, which the check
+ * `document_lines_title_has_no_amount` holds; a position may carry anything.
+ * Left out counts as nothing, the way a form for a title sends no amount.
+ */
+export function titleAmountProblem(line: {
+  readonly kind?: unknown
+  readonly quantityMilli?: unknown
+  readonly unitPriceCents?: unknown
+}): string | null {
+  if (line.kind !== 'title') {
+    return null
+  }
+
+  return carriesAmount(line.quantityMilli) || carriesAmount(line.unitPriceCents)
+    ? 'Ein Titel trägt weder Menge noch Preis.'
+    : null
+}
+
+function carriesAmount(value: unknown): boolean {
+  return typeof value === 'number' && value !== 0
+}

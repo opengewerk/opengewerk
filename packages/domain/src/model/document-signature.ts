@@ -12,6 +12,40 @@ export const signatureBox = { width: 1000, height: 400 } as const
 /** Long enough for a signature drawn slowly, short enough for one transmission. */
 export const longestSignaturePath = 40_000
 
+/** The name of whoever signs, as the check `document_signatures_signer_named` holds it. */
+export const longestSignerName = 200
+
+/** What a browser says about itself, as much as `document_signatures_device_info_short` keeps. */
+export const longestDeviceInfo = 500
+
+/**
+ * What is wrong with the name typed in under a signature, or null when
+ * nothing is: something besides spaces, and no more than the table keeps. The
+ * form asks before the signature is queued, the sync again before it lands.
+ */
+export function signerNameProblem(name: unknown): string | null {
+  const trimmed = typeof name === 'string' ? name.trim() : ''
+
+  if (trimmed === '') {
+    return 'Der Name dessen, der unterschreibt.'
+  }
+
+  return trimmed.length > longestSignerName
+    ? `Der Name dessen, der unterschreibt, hat höchstens ${String(longestSignerName)} Zeichen.`
+    : null
+}
+
+/**
+ * What is wrong with the device information of a signature, or null when
+ * nothing is. The form cuts what the browser says to the length the table
+ * keeps, so only a client that does not ever meets this.
+ */
+export function deviceInfoProblem(info: unknown): string | null {
+  return typeof info === 'string' && info.length > longestDeviceInfo
+    ? `Die Angabe zum Gerät hat höchstens ${String(longestDeviceInfo)} Zeichen.`
+    : null
+}
+
 /**
  * Moves and lines in whole units: `M12,40L15,41L19,43M300,80L...`. Every group
  * starts with its own letter, so the pattern cannot backtrack its way into

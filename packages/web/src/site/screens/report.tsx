@@ -1,5 +1,11 @@
 import type { DocumentStatus, LineUnit, RecordState } from '@opengewerk/domain'
-import { lineUnits, signedContentFingerprint, whyFixed } from '@opengewerk/domain'
+import {
+  lineUnits,
+  longestDeviceInfo,
+  signedContentFingerprint,
+  signerNameProblem,
+  whyFixed,
+} from '@opengewerk/domain'
 import { useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -595,8 +601,13 @@ function SigningStep({
   async function sign(event: FormEvent) {
     event.preventDefault()
 
-    if (signerName.trim() === '') {
-      setProblem('Der Name dessen, der unterschreibt.')
+    // Empty, or longer than the table keeps. The server would refuse the
+    // second as well, and with the signature everything queued behind it
+    // (#118); said here, it never leaves the device.
+    const nameProblem = signerNameProblem(signerName)
+
+    if (nameProblem !== null) {
+      setProblem(nameProblem)
 
       return
     }
@@ -616,9 +627,9 @@ function SigningStep({
         documentId: String(report['id']),
         signerName: signerName.trim(),
         signedAt: new Date().toISOString(),
-        // The "device information" of section 4.10. The table holds 500
-        // characters, and no browser that says more says anything more useful.
-        deviceInfo: globalThis.navigator.userAgent.slice(0, 500),
+        // The "device information" of section 4.10, as much as the table
+        // keeps: no browser that says more says anything more useful.
+        deviceInfo: globalThis.navigator.userAgent.slice(0, longestDeviceInfo),
         path,
         contentFingerprint: fingerprint,
       })

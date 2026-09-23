@@ -1003,6 +1003,150 @@ describe('a contact from a device', () => {
   })
 })
 
+/**
+ * The other checks on the tables of the sync, each asked before the write
+ * (#118). Whose mistake a broken one is follows from what the operation set:
+ * every field of the rule, and the break is in its own values, which its form
+ * asked about; only some, and the break came from a value somebody else
+ * changed in the meantime.
+ */
+describe('a rule over the fields of one record', () => {
+  const answered = (answer: Awaited<ReturnType<typeof transmit>>) =>
+    answer.receipts.map(({ outcome, reason, fields }) => ({ outcome, reason, fields }))
+
+  async function invoice(serviceFrom: string, serviceUntil: string) {
+    const made = await http()
+      .post('/documents')
+      .set('x-test-identity', office())
+      .send({
+        customerId,
+        kind: 'final_invoice',
+        documentDate: '2026-09-22',
+        serviceFrom,
+        serviceUntil,
+      })
+      .expect(201)
+
+    return made.body as { id: string; version: number }
+  }
+
+  async function period(id: string) {
+    const { rows } = await admin.query<{ from: string; until: string }>(
+      `select to_char(service_from, 'YYYY-MM-DD') as from, to_char(service_until, 'YYYY-MM-DD') as until
+         from documents where id = $1`,
+      [id],
+    )
+
+    return rows[0]
+  }
+
+  it('turns a service period sent backwards in one piece away, in its words', async () => {
+    const document = await invoice('2026-09-01', '2026-09-05')
+
+    const refused = await transmit(
+      app,
+      office(),
+      [
+        change({
+          entity: 'documents',
+          recordId: document.id,
+          baseVersion: document.version,
+          patches: [
+            { field: 'serviceFrom', from: '2026-09-01', to: '2026-09-10' },
+            { field: 'serviceUntil', from: '2026-09-05', to: '2026-09-08' },
+          ],
+        }),
+      ],
+      400,
+    )
+
+    // Both days came from the device, and the form asks the same rule of
+    // them before it queues anything: a client that sends this needs fixing.
+    expect(refused.message).toBe('Der letzte Tag der Leistung liegt vor dem ersten.')
+    expect(await period(document.id)).toEqual({ from: '2026-09-01', until: '2026-09-05' })
+  })
+
+  it('makes a conflict of two changes that each fit and do not fit together, and the rest lands', async () => {
+    const document = await invoice('2026-09-01', '2026-09-05')
+
+    // The office moves the first day on by two. Fine with the last day as it
+    // stands.
+    const first = await transmit(app, office(), [
+      change({
+        entity: 'documents',
+        recordId: document.id,
+        baseVersion: document.version,
+        patches: [{ field: 'serviceFrom', from: '2026-09-01', to: '2026-09-03' }],
+      }),
+    ])
+    expect(answered(first)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+
+    // A device that still saw the first of September moves the last day to
+    // the second. Fine with what it saw, and the field it sets nobody else
+    // touched, so the merge alone lets it through; together with the first
+    // day as it now is, it ends before it begins.
+    const fine = newId<'site'>()
+    const second = await transmit(app, office(), [
+      change({
+        entity: 'documents',
+        recordId: document.id,
+        baseVersion: document.version,
+        patches: [{ field: 'serviceUntil', from: '2026-09-05', to: '2026-09-02' }],
+      }),
+      created('sites', fine, { customerId, designation: 'Landet neben dem Beleg' }),
+    ])
+
+    expect(answered(second)).toEqual([
+      {
+        outcome: 'conflict',
+        reason: 'changed_elsewhere',
+        fields: ['serviceFrom', 'serviceUntil'],
+      },
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+    expect(await period(document.id)).toEqual({ from: '2026-09-03', until: '2026-09-05' })
+
+    const { rows } = await admin.query('select designation from sites where id = $1', [fine])
+    expect(rows).toEqual([{ designation: 'Landet neben dem Beleg' }])
+  })
+
+  it('turns a title with an amount and a line before the first place away, in their words', async () => {
+    const quote = await http()
+      .post('/documents')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'quote', documentDate: '2026-09-22' })
+      .expect(201)
+    const line = (fields: Record<string, string | number>) =>
+      created('document_lines', newId<'document-line'>(), {
+        documentId: quote.body.id,
+        designation: 'Elektroinstallation',
+        unit: 'piece',
+        ...fields,
+      })
+
+    const title = await transmit(
+      app,
+      office(),
+      [line({ kind: 'title', position: 1, quantityMilli: 1000, unitPriceCents: 5000 })],
+      400,
+    )
+    expect(title.message).toBe('Ein Titel trägt weder Menge noch Preis.')
+
+    const placed = await transmit(
+      app,
+      office(),
+      [line({ kind: 'item', position: 0, quantityMilli: 1000, unitPriceCents: 5000 })],
+      400,
+    )
+    expect(placed.message).toBe('Positionen zählen ab 1.')
+
+    const { rows } = await admin.query('select id from document_lines where document_id = $1', [
+      quote.body.id,
+    ])
+    expect(rows).toEqual([])
+  })
+})
+
 describe('what a device gets back', () => {
   it('sees a record that was deleted, which is why it is only marked', async () => {
     const board = await installation('Wird gelöscht')

@@ -402,6 +402,41 @@ describe('a report on site', () => {
     expect(server.operations()).toEqual([])
   })
 
+  it('asks for a name no longer than the server keeps, before anything is signed', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [
+        {
+          id: 'd-1',
+          customerId: 'c-1',
+          jobId: 'j-1',
+          kind: 'time_and_material_report',
+          status: 'draft',
+          number: null,
+          documentDate: '2026-09-21',
+          introText: 'Zählerschrank geprüft.',
+          version: 1,
+          deletedAt: null,
+        },
+      ],
+    })
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Vom Kunden unterschreiben lassen' }),
+    )
+    await user.click(screen.getByLabelText('Name'))
+    await user.paste('E'.repeat(201))
+    await user.click(screen.getByRole('button', { name: 'Unterschreiben' }))
+
+    // Sent anyway, the server refuses it, and with the signature everything
+    // queued behind it (#118).
+    expect(
+      screen.getByText('Der Name dessen, der unterschreibt, hat höchstens 200 Zeichen.'),
+    ).toBeTruthy()
+    expect(server.operations()).toEqual([])
+  })
+
   it('cannot be sent to be signed while it says nothing', async () => {
     await mount('/auftraege/j-1/berichte/d-1', {
       documents: [

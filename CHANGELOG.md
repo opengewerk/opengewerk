@@ -815,6 +815,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Leistungszeitraum, dessen letzter Tag vor dem ersten lag, ließ im Büro die ganze
+  Übertragung scheitern und mit ihr alles, was danach in den Postausgang kam (#118); ein
+  Name über 200 Zeichen tat dasselbe mit einer Unterschrift auf der Baustelle. Beide
+  Formulare fragen die Regel jetzt vor dem Einreihen, mit dem Satz, der sagt, was falsch
+  ist. Der Abgleich fragt sie ebenfalls, zusammen mit den übrigen Checks an seinen Tabellen,
+  die er bisher der Datenbank überließ: Position ab 1, ein Titel ohne Menge und Preis, die
+  Angabe zum Gerät. Ändern zwei Leute je einen Tag des Leistungszeitraums so, dass jede
+  Änderung für sich passt und beide zusammen nicht, wird die zweite ein Konflikt für diesen
+  einen Vorgang, und der Rest der Übertragung landet
 - Ein Kontakt, den ein Gerät ohne Kunde und ohne Objekt anlegte, ließ die ganze Übertragung
   scheitern (#116): die Datenbank lehnte ihn mit "Die Angaben passen nicht zum Datenmodell."
   ab und mit ihm alles, was im selben Stapel stand, und beim nächsten Abgleich kam derselbe
