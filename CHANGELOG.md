@@ -857,6 +857,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Mailserver eines Betriebs muss im Internet liegen und auf einem Port für E-Mail
+  antworten (GHSA-5664-h6fc-v729). Bisher verband sich die Instanz mit jedem Ziel aus den
+  E-Mail-Einstellungen, auch mit sich selbst und der eigenen Datenbank, und die Prüfung gab
+  die Antwort des Gegenübers wörtlich zurück. Der Name wird einmal aufgelöst, die Verbindung
+  geht an die geprüfte Adresse, beim Prüfen wie beim Versand. Ein Mailserver im eigenen Netz
+  braucht die neue Variable `MAIL_INTERNAL_HOSTS`; die Prüfung nennt nur noch die Art des
+  Fehlers und ist auf dreißig Versuche in zehn Minuten je Betrieb begrenzt.
 - Jede Route, die etwas ändert, prüft jetzt die Herkunft der Anfrage und nimmt nur JSON an
   (GHSA-r7rq-234g-3jx8). Bisher taten das nur die Anmeldung, die Ersteinrichtung und die
   Einladung; der Rest verließ sich auf `SameSite=Lax`, und das hält eine Seite auf einer

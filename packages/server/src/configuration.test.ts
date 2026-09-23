@@ -52,9 +52,24 @@ describe('the configuration', () => {
       sessionSecret: secret,
       trustedOrigins: ['https://opengewerk.example.de'],
       closed: false,
+      mailInternalHosts: [],
       port: 8080,
       host: '127.0.0.1',
     })
+  })
+
+  /**
+   * Empty unless the operator says so: a business reaches mail servers on the
+   * internet and nothing in the network the instance runs in.
+   */
+  it('reads the mail servers of the own network an operator allows, and nothing else', () => {
+    expect(
+      readConfiguration({ ...valid, MAIL_INTERNAL_HOSTS: ' mail.lan , 192.168.1.20 ' }, writable)
+        .mailInternalHosts,
+    ).toEqual(['mail.lan', '192.168.1.20'])
+    expect(() =>
+      readConfiguration({ ...valid, MAIL_INTERNAL_HOSTS: 'smtp://mail.lan:25' }, writable),
+    ).toThrow(/MAIL_INTERNAL_HOSTS/)
   })
 
   it('binds every interface unless told otherwise, because a container has to', () => {

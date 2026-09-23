@@ -13,6 +13,8 @@ import { authenticationPath } from '../authentication/authentication.js'
 import type { Database } from '../database/database.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
 import { interfacePath, serveInterface } from '../interface.js'
+import { mailInternalHosts } from '../configuration.js'
+import { reachableOnly } from '../mail/reach.js'
 import { smtpTransport } from '../mail/transport.js'
 import { SecretKey } from '../secrets/key.js'
 import { FileStore } from '../storage/file-store.js'
@@ -58,7 +60,11 @@ export async function openPreview(
       mail: {
         origin: address,
         key: SecretKey.from('opengewerk preview, sealed for this machine only'),
-        connect: smtpTransport,
+        // Held to the same rule as an instance. A mail server on this machine,
+        // for trying things out, goes into MAIL_INTERNAL_HOSTS.
+        connect: reachableOnly(smtpTransport, {
+          internalHosts: mailInternalHosts(process.env),
+        }),
       },
     }),
     { logger: ['error', 'warn'], bodyParser: false },

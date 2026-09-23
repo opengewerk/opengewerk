@@ -18,6 +18,7 @@ import { readJsonBodiesOnly } from './api/origin.js'
 import { interfacePath, serveInterface } from './interface.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
+import { reachableOnly } from './mail/reach.js'
 import { smtpTransport } from './mail/transport.js'
 import { startMailWorker } from './mail/worker.js'
 import { SecretKey } from './secrets/key.js'
@@ -75,9 +76,19 @@ async function start(): Promise<void> {
   // instance brings. A closed instance sends nothing. It is closed for a
   // restore or a migration window, and a message out of a database that is
   // being put back is a message about a state that may not survive the hour.
+  //
+  // The connection reaches mail servers on the internet and the ones the
+  // operator allows in MAIL_INTERNAL_HOSTS, nothing else in the network the
+  // instance runs in; the check in the office and the job that sends alike.
   const mail = configuration.closed
     ? null
-    : { origin, key: SecretKey.from(configuration.sessionSecret), connect: smtpTransport }
+    : {
+        origin,
+        key: SecretKey.from(configuration.sessionSecret),
+        connect: reachableOnly(smtpTransport, {
+          internalHosts: configuration.mailInternalHosts,
+        }),
+      }
 
   // The file store and the renderer go in whether the instance is open or
   // closed. Closed, nothing reaches them, because every route that would is
