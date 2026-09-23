@@ -82,7 +82,7 @@ async function totalsOf(documentId: string) {
     netCents: number
     taxCents: number
     grossCents: number
-    byRate: { rate: string; taxCents: number }[]
+    byRate: { rate: string; basisPoints: number; taxCents: number }[]
     taxNote: string | null
   }
 }
@@ -218,6 +218,27 @@ describe('the totals of a document', () => {
 
     expect(totals.byRate).toHaveLength(2)
     expect(totals.taxCents).toBe(2250)
+  })
+
+  it('take the zero rate for photovoltaics as a group of its own, at nothing', async () => {
+    // #127, section 12 (3) UStG since 2023. Stored in the database under the
+    // value 0034 added to the enum, and worked out from the package `vat`.
+    const document = await draft()
+    await addLine(document.id, { quantityMilli: 1000, unitPriceCents: 10000 })
+    await addLine(document.id, {
+      designation: 'Solarmodule liefern und montieren',
+      quantityMilli: 1000,
+      unitPriceCents: 1_200_000,
+      vatRate: 'zero',
+    })
+
+    const totals = await totalsOf(document.id)
+
+    expect(totals.byRate.map((entry) => [entry.rate, entry.basisPoints, entry.taxCents])).toEqual([
+      ['standard', 1900, 1900],
+      ['zero', 0, 0],
+    ])
+    expect(totals.grossCents).toBe(1_211_900)
   })
 
   it('leave out a deleted line', async () => {

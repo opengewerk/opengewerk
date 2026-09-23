@@ -456,6 +456,34 @@ describe('a quote with titles', () => {
     expect(await screen.findAllByText(/3\.086,40\s€/)).not.toHaveLength(0)
   })
 
+  it('offers the zero rate for photovoltaics, and names its conditions when it is chosen', async () => {
+    // #127, section 12 (3) UStG. Whether a line meets the conditions is the
+    // business's to judge, so the form says what they are.
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByLabelText('Bezeichnung'), 'Solarmodule 9,8 kWp')
+    await person.type(screen.getByLabelText('Einzelpreis in Euro'), '12.400')
+
+    expect(screen.queryByText(/§ 12 Abs\. 3 UStG/)).toBeNull()
+
+    await person.selectOptions(screen.getByLabelText('Steuersatz'), 'zero')
+
+    expect(screen.getByText(/30 kWp laut Marktstammdatenregister/)).toBeDefined()
+
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      unitPriceCents: 1_240_000,
+      vatRate: 'zero',
+    })
+  })
+
   it('refuses a price it cannot read, and says what it expects', async () => {
     await mount('/belege/d-1', { document_lines: [] })
     const person = userEvent.setup()

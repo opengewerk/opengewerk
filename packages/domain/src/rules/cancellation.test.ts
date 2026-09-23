@@ -13,7 +13,7 @@ import { documentContent } from './document-content.js'
 import { missingDetails } from './mandatory-details.js'
 import { RuleError } from './rule.js'
 import { shippedRules } from './shipped.js'
-import type { VatRate } from './tax.js'
+import { type VatRate, vatRates } from './tax.js'
 
 /**
  * The cancellation of #74. What has to hold is that it takes back exactly what
@@ -159,7 +159,7 @@ describe('a cancellation', () => {
 
   it('takes back exactly what was billed, whatever the invoice and its deductions', () => {
     const amount = fc.integer({ min: -2_000_000, max: 20_000_000 })
-    const rate: fc.Arbitrary<VatRate> = fc.constantFrom('standard', 'reduced')
+    const rate: fc.Arbitrary<VatRate> = fc.constantFrom(...vatRates)
     const lines = fc.array(fc.tuple(amount, rate), { minLength: 1, maxLength: 8 })
 
     fc.assert(

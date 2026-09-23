@@ -152,6 +152,7 @@ export const lineUnitShort: Readonly<Record<LineUnit, string>> = {
 export const vatRateLabel: Readonly<Record<VatRate, string>> = {
   standard: 'Regelsatz',
   reduced: 'Ermäßigt',
+  zero: 'Nullsatz, Photovoltaik',
 }
 
 export const snippetPurposeLabel: Readonly<Record<SnippetPurpose, string>> = {

@@ -305,6 +305,29 @@ export const cashAccounting = content(
   },
 )
 
+/**
+ * A photovoltaic installation with its storage, delivered and installed at
+ * the zero rate of section 12 (3) UStG (#127), and a wallbox at the standard
+ * rate next to it, which is no component of the installation. The e-invoice
+ * carries both categories: `S` at nineteen and `Z` at zero, the latter with
+ * no reason for an exemption, because it is a rate.
+ */
+export const photovoltaics = content(
+  { number: 'RE-2026-0012', subject: 'Photovoltaikanlage Mühlenkamp 8' },
+  {
+    lines: [
+      item('Solarmodule 9,8 kWp liefern und montieren', 1000, 1_240_000, {
+        unit: 'flat_rate',
+        vatRate: 'zero',
+      }),
+      item('Batteriespeicher 10 kWh liefern und anschließen', 1000, 690_000, {
+        vatRate: 'zero',
+      }),
+      item('Wallbox montieren und anschließen', 1000, 89000, { unit: 'flat_rate' }),
+    ],
+  },
+)
+
 export const samples: readonly {
   readonly name: string
   readonly profile: EInvoiceProfile
@@ -320,4 +343,6 @@ export const samples: readonly {
   { name: 'cancellation-en16931', profile: 'en16931', content: cancellation },
   { name: 'single-day-plain-en16931', profile: 'en16931', content: singleDay },
   { name: 'cash-accounting-xrechnung', profile: 'xrechnung', content: cashAccounting },
+  { name: 'photovoltaics-xrechnung', profile: 'xrechnung', content: photovoltaics },
+  { name: 'photovoltaics-en16931', profile: 'en16931', content: photovoltaics },
 ]

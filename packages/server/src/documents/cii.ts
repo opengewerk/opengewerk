@@ -166,7 +166,7 @@ function day(on: IsoDate): string {
 
 /** A VAT category, and the rate that goes with it. */
 interface Category {
-  readonly code: 'S' | 'AE'
+  readonly code: 'S' | 'Z' | 'AE'
   readonly basisPoints: number
 }
 
@@ -174,11 +174,17 @@ interface Category {
  * The category of the whole document. Standard rated with the rate of the
  * line, or reverse charge at zero; section 19 never gets here, see
  * `formatFor`, and is refused rather than written in a way nobody checked.
+ *
+ * A line taxed at nothing under the standard treatment is zero rated, `Z`:
+ * the rate for photovoltaics of section 12 (3) UStG (#127). EN 16931 wants a
+ * standard rated line above zero (BR-S-05) and a zero rated one at zero with
+ * no reason for an exemption (BR-Z-05, BR-Z-10), because it is a rate and not
+ * an exemption.
  */
 function categoryOf(treatment: TaxTreatment, basisPoints: number): Category {
   switch (treatment) {
     case 'standard':
-      return { code: 'S', basisPoints }
+      return basisPoints === 0 ? { code: 'Z', basisPoints: 0 } : { code: 'S', basisPoints }
     case 'reverse_charge':
       return { code: 'AE', basisPoints: 0 }
     case 'small_business':

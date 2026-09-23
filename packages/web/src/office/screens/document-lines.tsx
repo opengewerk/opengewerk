@@ -297,6 +297,18 @@ function LineForm({
         </div>
       ) : null}
 
+      {item && priced && taxed && rate === 'zero' ? (
+        // The conditions of section 12 (3) UStG, because whether a line meets
+        // them is the business's to judge and nothing here can check it (#127).
+        <p className="text-body text-ink-muted">
+          0 % nach § 12 Abs. 3 UStG, seit 2023: für Solarmodule, die für den Betrieb wesentlichen
+          Komponenten und Speicher samt ihrer Installation, geliefert an den Betreiber einer Anlage
+          auf oder bei Wohnungen oder Gebäuden, die dem Gemeinwohl dienen. Bei höchstens 30 kWp laut
+          Marktstammdatenregister gelten die Voraussetzungen als erfüllt. Ob sie vorliegen,
+          entscheidet der Betrieb.
+        </p>
+      ) : null}
+
       {trouble ? (
         <p role="alert" className="text-body font-semibold text-conflict">
           {trouble}

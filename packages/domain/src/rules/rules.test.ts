@@ -47,6 +47,22 @@ describe('the same document under two states of the law', () => {
   })
 })
 
+describe('the zero rate for photovoltaics', () => {
+  /**
+   * Section 12 (3) UStG since 1 January 2023 (#127). A document from before
+   * gets no answer for it rather than an invented one, like any rate on a
+   * day no record covers.
+   */
+  it('takes nothing from 2023 on, and does not exist before', () => {
+    expect(
+      vatOn(shippedRules, { netCents: 1_200_000, rate: 'zero' }, '2023-01-01' as IsoDate),
+    ).toMatchObject({ basisPoints: 0, taxCents: 0, grossCents: 1_200_000 })
+    expect(() =>
+      vatOn(shippedRules, { netCents: 1_200_000, rate: 'zero' }, '2022-12-31' as IsoDate),
+    ).toThrow()
+  })
+})
+
 describe('a new rate', () => {
   it('is a record and not a release', () => {
     // The other acceptance test. Nothing below touches a line of logic: the

@@ -13,7 +13,7 @@ import {
   treatmentFor,
 } from './invoice.js'
 import { RuleError } from './rule.js'
-import type { VatRate } from './tax.js'
+import { type VatRate, vatRates } from './tax.js'
 import { shippedRules } from './shipped.js'
 
 /**
@@ -309,7 +309,7 @@ describe('a cumulative invoice', () => {
    */
   it('a chain of any length ends exactly on its last total, always', () => {
     const amount = fc.integer({ min: -5_000_000, max: 50_000_000 })
-    const rate: fc.Arbitrary<VatRate> = fc.constantFrom('standard', 'reduced')
+    const rate: fc.Arbitrary<VatRate> = fc.constantFrom(...vatRates)
     const state = fc.array(fc.record({ netCents: amount, vatRate: rate }), { maxLength: 8 })
 
     fc.assert(
@@ -323,7 +323,7 @@ describe('a cumulative invoice', () => {
         expect(sum((one) => one.taxCents)).toBe(last.taxCents)
         expect(sum((one) => one.grossCents)).toBe(last.grossCents)
 
-        for (const which of ['standard', 'reduced'] as const) {
+        for (const which of vatRates) {
           const perRate = (entries: readonly { rate: VatRate; taxCents: number }[]) =>
             entries.find((entry) => entry.rate === which)?.taxCents ?? 0
 
@@ -336,7 +336,7 @@ describe('a cumulative invoice', () => {
 
 describe('whatever the lines are', () => {
   const amount = fc.integer({ min: -1_000_000_00, max: 1_000_000_00 })
-  const rate: fc.Arbitrary<VatRate> = fc.constantFrom('standard', 'reduced')
+  const rate: fc.Arbitrary<VatRate> = fc.constantFrom(...vatRates)
   const lines = fc.array(fc.record({ netCents: amount, vatRate: rate }), { maxLength: 40 })
 
   it('the net is the sum of the lines, always', () => {

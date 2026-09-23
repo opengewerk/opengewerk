@@ -14,6 +14,7 @@ import {
   content,
   finalInvoice,
   item,
+  photovoltaics,
   reverseCharge,
   samples,
   secondProgress,
@@ -219,6 +220,26 @@ describe('an e-invoice', () => {
     expect(
       read(xml, "//ram:BuyerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID='VA']"),
     ).toEqual(['DE111222333'])
+  })
+
+  /**
+   * The zero rate for photovoltaics of section 12 (3) UStG (#127). A rate
+   * and not an exemption: `Z` at zero, with no reason for an exemption
+   * (BR-Z-10), next to the standard rated wallbox. As `S` at zero it would
+   * break BR-S-05, which wants a standard rate above nothing.
+   */
+  it('writes the zero rate for photovoltaics as zero rated, next to the standard rate', () => {
+    const xml = ciiInvoice(photovoltaics, 'xrechnung')
+    const group = `${settlement}/ram:ApplicableTradeTax`
+    const lineTax = '//ram:SpecifiedLineTradeSettlement/ram:ApplicableTradeTax'
+
+    expect(read(xml, `${lineTax}/ram:CategoryCode`)).toEqual(['Z', 'Z', 'S'])
+    expect(read(xml, `${lineTax}/ram:RateApplicablePercent`)).toEqual(['0', '0', '19'])
+    expect(read(xml, `${group}/ram:CategoryCode`)).toEqual(['S', 'Z'])
+    expect(read(xml, `${group}/ram:BasisAmount`)).toEqual(['890.00', '19300.00'])
+    expect(read(xml, `${group}/ram:CalculatedAmount`)).toEqual(['169.10', '0.00'])
+    expect(read(xml, `${group}/ram:ExemptionReason`)).toEqual([])
+    expect(read(xml, `${group}/ram:ExemptionReasonCode`)).toEqual([])
   })
 
   it('says from 2028 that the tax is calculated on what is received, as a note of the invoice', () => {

@@ -1,7 +1,18 @@
 import type { IsoDate } from '../model/identifier.js'
 import { applyRate, type RuleSet } from './rule.js'
 
-export const vatRates = ['standard', 'reduced'] as const
+/**
+ * The rates a line can be taxed at, by name. The figure behind each comes
+ * from the package `vat` on the day of the document.
+ *
+ * `zero` is the rate of section 12 (3) UStG since 1 January 2023: 0 percent
+ * on solar modules, the components essential for running the installation
+ * and the storage for its power, delivered to the operator of an installation
+ * on or near homes and buildings used for the common good, and on installing
+ * them (#127). Whether a line meets that is the business's to judge, like
+ * whether a line takes the reduced rate; the form names the conditions.
+ */
+export const vatRates = ['standard', 'reduced', 'zero'] as const
 
 export type VatRate = (typeof vatRates)[number]
 
