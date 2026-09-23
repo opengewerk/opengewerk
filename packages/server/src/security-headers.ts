@@ -40,8 +40,10 @@ export const shellPolicy = [
  * - No framing, as `X-Frame-Options` for the browsers that do not read
  *   `frame-ancestors`.
  * - HSTS for a year. A browser honours it only over TLS, which is how an
- *   instance runs; the proxy in front may lengthen it or add
- *   `includeSubDomains`, which is the operator's to decide for their domain.
+ *   instance runs. Whether it should last longer or cover the subdomains is
+ *   the operator's to decide for their domain, and the proxy then replaces
+ *   the value rather than sending a second header: a browser reads only the
+ *   first.
  * - The window and the resources to this origin (`COOP`, `CORP`).
  *
  * Set here and not in the proxy, so that an instance behind any proxy has
