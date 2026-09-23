@@ -26,6 +26,7 @@ import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
+import { ruleRefusal } from './record-rules.js'
 import { missingReference } from './references.js'
 import * as schema from './schema/index.js'
 import { syncConflicts, syncOperations } from './schema/index.js'
@@ -398,6 +399,25 @@ async function applyOne(
 
   if (parent === 'both') {
     throw new UnknownFieldError(contactParentText.both)
+  }
+
+  // The checks on the fields of one record that nothing above asks: the
+  // service period of a document, the place and amount of a line, the name
+  // and device of a signature. Each as the rule the forms ask as well, and
+  // whose mistake a broken one is `ruleRefusal` explains.
+  const broken = ruleRefusal(operation, values, current)
+
+  if (broken?.kind === 'client') {
+    throw new UnknownFieldError(broken.message)
+  }
+
+  if (broken) {
+    return await record(tx, tenantId, operation, {
+      outcome: 'conflict',
+      reason: broken.reason,
+      fields: broken.fields,
+      current,
+    })
   }
 
   // A parent that is gone, or that belongs to another business, is a

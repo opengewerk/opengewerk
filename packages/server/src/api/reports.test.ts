@@ -7,6 +7,8 @@ import { Test } from '@nestjs/testing'
 import {
   type DocumentContent,
   documentContentVersion,
+  longestDeviceInfo,
+  longestSignerName,
   policyFor,
   roles,
   signedContentFingerprint,
@@ -388,6 +390,36 @@ describe('the signature', () => {
     const report = await writeReport()
 
     await push([signing(report, { path: 'M100,300L2000,120' })], technician(), 400)
+    expect((await documentRow(report.id)).status).toBe('draft')
+  })
+
+  it('is refused the same way for a name or device information longer than the table keeps', async () => {
+    // Left to the database, either took the signature and everything behind
+    // it in the outbox along with a sentence nobody on site could act on
+    // (#118). The form keeps both within bounds before the signature is
+    // queued, so only a client that does not ever sends one.
+    const report = await writeReport()
+
+    const named = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: device,
+        operations: [signing(report, { signerName: 'E'.repeat(longestSignerName + 1) })],
+      })
+      .expect(400)
+    expect(named.body.message).toBe('Der Name dessen, der unterschreibt, hat höchstens 200 Zeichen.')
+
+    const described = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: device,
+        operations: [signing(report, { deviceInfo: 'x'.repeat(longestDeviceInfo + 1) })],
+      })
+      .expect(400)
+    expect(described.body.message).toBe('Die Angabe zum Gerät hat höchstens 500 Zeichen.')
+
     expect((await documentRow(report.id)).status).toBe('draft')
   })
 
