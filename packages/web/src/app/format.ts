@@ -32,6 +32,8 @@ const dayAndTime = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeS
 
 const percentages = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
 
+const sizes = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 })
+
 /** A rate in basis points the way the printed document writes it: "19 %". */
 export function percent(basisPoints: number): string {
   return `${percentages.format(basisPoints / 100)} %`
@@ -40,6 +42,20 @@ export function percent(basisPoints: number): string {
 /** Cents into euros. The storage is integral, the display is not. */
 export function euros(cents: number): string {
   return money.format(cents / 100)
+}
+
+/**
+ * The size of a file the way somebody reads it: "340 kB", "1,2 MB". In
+ * thousands and not in powers of two, like the limit it is measured against.
+ */
+export function fileSize(bytes: number): string {
+  if (bytes < 1_000) {
+    return `${String(bytes)} Byte`
+  }
+
+  return bytes < 1_000_000
+    ? `${sizes.format(Math.round(bytes / 1_000))} kB`
+    : `${sizes.format(bytes / 1_000_000)} MB`
 }
 
 /** Thousandths into a countable amount, as `quantityMilli` holds them. */

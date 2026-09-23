@@ -22,6 +22,7 @@ import {
 import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull } from 'drizzle-orm'
 import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
+import { versionFileRefusal } from '../attachments/versions.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
@@ -445,6 +446,26 @@ async function applyOne(
       fields: broken.fields,
       current,
     })
+  }
+
+  // A version of an attachment names its file by business and hash, a key the
+  // reference check below does not read. Its own question: is the file there,
+  // uploaded ahead of the version, and is the size the one it has.
+  if (operation.entity === 'attachment_versions' && operation.kind === 'create') {
+    const refusal = await versionFileRefusal(tx, tenantId, values)
+
+    if (refusal?.kind === 'client') {
+      throw new UnknownFieldError(refusal.message)
+    }
+
+    if (refusal) {
+      return await record(tx, tenantId, operation, {
+        outcome: 'conflict',
+        reason: refusal.reason,
+        fields: refusal.fields,
+        current,
+      })
+    }
   }
 
   // A parent that is gone, or that belongs to another business, is a

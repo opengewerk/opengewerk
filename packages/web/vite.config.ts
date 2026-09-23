@@ -64,6 +64,8 @@ export default defineConfig({
         '/installations',
         '/jobs',
         '/tasks',
+        '/files',
+        '/attachments',
         '/documents',
         '/sync',
         '/settings',

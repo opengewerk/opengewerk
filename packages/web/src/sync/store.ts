@@ -30,6 +30,19 @@ interface MetaRow {
   readonly value: string | number
 }
 
+/**
+ * The bytes of a file, under their SHA-256 (#77).
+ *
+ * An `ArrayBuffer` and not a `Blob`: both survive IndexedDB in a browser, but
+ * only the buffer survives every structured clone a test runs in, and the
+ * difference is one call when a screen needs a `Blob` for an address.
+ */
+export interface StoredFile {
+  readonly sha256: string
+  readonly bytes: ArrayBuffer
+  readonly mediaType: string
+}
+
 export interface LocalStore {
   /** Everything of one kind, deleted rows included. Filtering is the caller's. */
   readAll(entity: string): Promise<readonly StoredRecord[]>
@@ -46,6 +59,20 @@ export interface LocalStore {
   readMeta(key: string): Promise<string | number | null>
   writeMeta(key: string, value: string | number): Promise<void>
 
+  /**
+   * A file kept on this device. `waiting` puts it on the list of uploads as
+   * well, for a file made here that the server does not have yet; a preview
+   * fetched from the server is kept without it.
+   */
+  keepFile(file: StoredFile, waiting: boolean): Promise<void>
+  readFile(sha256: string): Promise<StoredFile | null>
+  /** The files made here that still have to go up, oldest first. */
+  waitingFiles(): Promise<readonly StoredFile[]>
+  /** How many that is, without reading a single byte of them. */
+  countWaitingFiles(): Promise<number>
+  /** Off the list of uploads. The bytes stay, for the screens that show them. */
+  fileSent(sha256: string): Promise<void>
+
   /** Everything of this tenant, gone. What signing out has to do. */
   clear(): Promise<void>
   close(): void
@@ -55,6 +82,8 @@ const recordStore = 'records'
 const outboxStore = 'outbox'
 const conflictStore = 'conflicts'
 const metaStore = 'meta'
+const fileStore = 'files'
+const uploadStore = 'uploads'
 
 function keyOf(entity: string, id: string): string {
   // A separator that cannot appear in either half, so that two different
@@ -125,6 +154,17 @@ function upgrade(database: IDBDatabase): void {
   if (!database.objectStoreNames.contains(metaStore)) {
     database.createObjectStore(metaStore, { keyPath: 'key' })
   }
+
+  // Since version 2 (#77). The bytes in one store and the list of what still
+  // has to go up in another, so that finding the waiting uploads does not read
+  // every photo on the device to look at a flag.
+  if (!database.objectStoreNames.contains(fileStore)) {
+    database.createObjectStore(fileStore, { keyPath: 'sha256' })
+  }
+
+  if (!database.objectStoreNames.contains(uploadStore)) {
+    database.createObjectStore(uploadStore, { keyPath: 'sha256' })
+  }
 }
 
 /**
@@ -137,7 +177,9 @@ function upgrade(database: IDBDatabase): void {
  */
 export async function openLocalStore(tenantId: string): Promise<LocalStore> {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(`opengewerk.${tenantId}`, 1)
+    // Version 2 added the files (#77). `upgrade` adds whatever is missing, so a
+    // device on version 1 keeps its records and gains the two new stores.
+    const request = indexedDB.open(`opengewerk.${tenantId}`, 2)
 
     request.onupgradeneeded = () => {
       upgrade(request.result)
@@ -249,8 +291,62 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
       await finished(transaction)
     },
 
+    async keepFile(file, waiting) {
+      const transaction = transact([fileStore, uploadStore], 'readwrite')
+
+      transaction.objectStore(fileStore).put(file)
+
+      if (waiting) {
+        transaction.objectStore(uploadStore).put({ sha256: file.sha256, since: Date.now() })
+      }
+
+      await finished(transaction)
+    },
+
+    async readFile(sha256) {
+      const transaction = transact([fileStore], 'readonly')
+      const found = await promised<StoredFile | undefined>(
+        transaction.objectStore(fileStore).get(sha256),
+      )
+
+      return found ?? null
+    },
+
+    async waitingFiles() {
+      const listed = transact([uploadStore], 'readonly')
+      const waiting = await promised<{ sha256: string; since: number }[]>(
+        listed.objectStore(uploadStore).getAll(),
+      )
+
+      // A second transaction with every request made at once. A request made
+      // after an `await` may find its transaction already committed.
+      const reading = transact([fileStore], 'readonly')
+      const store = reading.objectStore(fileStore)
+      const found = await Promise.all(
+        [...waiting]
+          .sort((left, right) => left.since - right.since)
+          .map(({ sha256 }) => promised<StoredFile | undefined>(store.get(sha256))),
+      )
+
+      return found.filter((file): file is StoredFile => file !== undefined)
+    },
+
+    async countWaitingFiles() {
+      const transaction = transact([uploadStore], 'readonly')
+
+      return await promised<number>(transaction.objectStore(uploadStore).count())
+    },
+
+    async fileSent(sha256) {
+      const transaction = transact([uploadStore], 'readwrite')
+
+      transaction.objectStore(uploadStore).delete(sha256)
+
+      await finished(transaction)
+    },
+
     async clear() {
-      const names = [recordStore, outboxStore, conflictStore, metaStore]
+      const names = [recordStore, outboxStore, conflictStore, metaStore, fileStore, uploadStore]
       const transaction = transact(names, 'readwrite')
 
       for (const name of names) {

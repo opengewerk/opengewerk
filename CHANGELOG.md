@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Dokumentenablage (#77). Bis dahin gab es für Dateien ein Volume im Container und sonst
+  nichts, und neben der Software lag weiter ein Ordner auf dem Dateiserver. Jetzt hängen Dateien
+  an Kunde, Objekt, Anlage und Auftrag, im Büro unter "Dateien" und auf der Baustelle unter "Fotos
+  und Dateien" mit "Foto aufnehmen"; eine neue Fassung legt sich über die alte, ohne sie zu
+  verdrängen. Fotos werden auf dem Gerät auf 2048 Pixel verkleinert und bekommen eine Vorschau, das
+  Original auf Wunsch; ohne Netz warten sie auf dem Gerät und gehen beim nächsten Abgleich hoch, die
+  Datei vor der Fassung. Hochgeladen wird nach Hash (`PUT /files/:sha256`), ausgeliefert nur nach der
+  Fassung und nur an den eigenen Betrieb, angezeigt nur, was an seinen ersten Bytes als Bild oder PDF
+  erkannt ist. Neu sind Migration 0035, die Rechte `attachment.read` und `attachment.write` für alle
+  Rollen, Version 2 der lokalen Ablage und `blob:` für Bilder in der Content-Security-Policy.
 - Ansprechpartner an Kunde und Objekt (#121). Die Tabelle stand seit dem Datenmodell-Kern im
   Abgleich, eine Oberfläche dafür gab es nicht, und beim Schneiden von Phase 1 war für sie kein
   Issue entstanden. Im Büro stehen sie an der Kundenakte und am Objekt, lassen sich anlegen,

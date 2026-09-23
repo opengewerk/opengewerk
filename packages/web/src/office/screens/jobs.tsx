@@ -18,6 +18,7 @@ import type { FormField } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { AttachmentsSection } from './attachments.js'
 import { JobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'
 
@@ -232,6 +233,18 @@ export function JobScreen() {
       )}
 
       <JobDocuments job={job} />
+
+      <AttachmentsSection
+        field="jobId"
+        id={jobId}
+        home={{
+          customerId: String(job['customerId']),
+          siteId: maybeText(job, 'siteId'),
+          installationId: maybeText(job, 'installationId'),
+          jobId,
+        }}
+        empty="Zu diesem Auftrag gibt es noch keine Datei. Fotos von der Baustelle landen hier."
+      />
 
       <TasksSection
         field="jobId"

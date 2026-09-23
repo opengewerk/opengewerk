@@ -27,12 +27,14 @@ const known = new Map<PgTable, readonly Reference[]>()
  * would agree with the schema until the next table, and forgetting it there
  * would look exactly like a reference nobody needed to check.
  *
- * Two keys fall outside on purpose. The person of a task points at the
+ * Three keys fall outside on purpose. The person of a task points at the
  * membership by user and not by id, and `assigneeRefusal` asks the question
  * that goes with it, whether that person may still be given work. The key
  * from a circuit to its section pairs the section with the board and carries
  * no tenant; the board's own key holds the business, and the section's check
- * lives with the structure.
+ * lives with the structure. A version of an attachment names its file by hash,
+ * which a device knows before any row exists, and `versionFileRefusal` asks
+ * whether the upload arrived.
  */
 export function referencesOf(table: PgTable): readonly Reference[] {
   const cached = known.get(table)
@@ -142,6 +144,7 @@ const called: Readonly<Record<string, string>> = {
   jobs: 'Den Auftrag',
   documents: 'Den Beleg',
   files: 'Die Datei',
+  attachments: 'Die Datei',
   invitations: 'Die Einladung',
   tasks: 'Die Aufgabe',
   inverters: 'Den Wechselrichter',

@@ -18,7 +18,7 @@ import {
 import { uuidv7 } from 'uuidv7'
 
 import { byRecord, project, recordKey } from './projection.js'
-import type { LocalStore } from './store.js'
+import type { LocalStore, StoredFile } from './store.js'
 import { isUnauthenticated, RequestRefused, type SyncTransport } from './transport.js'
 
 /**
@@ -153,6 +153,12 @@ export class SyncClient {
   private readonly projected = new Map<string, RecordState | null>()
 
   private cursor = 0
+  /**
+   * How many files made here wait for their upload. Counted and not asked of
+   * the store on every exchange: without a file waiting, an exchange goes
+   * straight to the outbox, as it did before there were files (#77).
+   */
+  private filesWaiting = 0
   private snapshot: SyncSnapshot = {
     state: 'offline',
     pending: 0,
@@ -236,6 +242,7 @@ export class SyncClient {
     }
 
     client.outbox = await store.readOutbox()
+    client.filesWaiting = await store.countWaitingFiles()
     client.pending = byRecord(client.outbox)
     client.snapshot = {
       ...client.snapshot,
@@ -619,6 +626,12 @@ export class SyncClient {
       // down only overwrites rows by their id, and the outbox is laid over it
       // as over anything else. Stopping here left a device without the jobs of
       // the next day for as long as the one entry stayed (#120).
+      // The files first: a version names its file by hash, and the server
+      // finds the file only if it arrived before the version did (#77).
+      if (this.filesWaiting > 0) {
+        await this.uploadFiles()
+      }
+
       const refused = await this.pushOutbox()
 
       await this.pullChanges()
@@ -759,6 +772,81 @@ export class SyncClient {
    * ordinary change and goes through the outbox like any other; this only
    * takes the entry off the list.
    */
+  // Files
+
+  /**
+   * Keeps the bytes of a file made on this device, until the server has them
+   * and for the screens that show them after, and says what a version names
+   * them by (#77). The upload comes with the next exchange, ahead of the
+   * version, so a photo taken without a network goes up when the network is
+   * back, like everything else made in the cellar.
+   */
+  async keepFile(
+    bytes: ArrayBuffer,
+    mediaType: string,
+  ): Promise<{ readonly sha256: string; readonly sizeBytes: number }> {
+    const sha256 = await sha256Of(bytes)
+
+    await this.store.keepFile({ sha256, bytes, mediaType }, true)
+    this.filesWaiting += 1
+
+    return { sha256, sizeBytes: bytes.byteLength }
+  }
+
+  /** A file this device holds, made here or fetched before; null for any other. */
+  readFile(sha256: string): Promise<StoredFile | null> {
+    return this.store.readFile(sha256)
+  }
+
+  /**
+   * Keeps a file fetched from the server, a preview first of all, so that it
+   * shows without a network the next time. Nothing to upload: the server is
+   * where it came from.
+   */
+  rememberFile(sha256: string, bytes: ArrayBuffer, mediaType: string): Promise<void> {
+    return this.store.keepFile({ sha256, bytes, mediaType }, false)
+  }
+
+  /**
+   * Sends the files made here that the server does not have yet, oldest
+   * first.
+   *
+   * A lost connection stops the exchange, and the files wait with the outbox.
+   * A refusal of one file does not: too large or damaged on the device, it
+   * would get the same answer every time. It comes off the list, and the
+   * version that names it comes back as a conflict about that version, which
+   * is where a person sees it and can let it go.
+   */
+  private async uploadFiles(): Promise<void> {
+    const waiting = await this.store.waitingFiles()
+
+    if (waiting.length === 0) {
+      this.filesWaiting = 0
+
+      return
+    }
+
+    if (!this.transport.upload) {
+      throw new Error('Dieser Abgleich kann keine Dateien hochladen.')
+    }
+
+    for (const file of waiting) {
+      try {
+        await this.transport.upload(file.sha256, file.bytes, file.mediaType)
+      } catch (error) {
+        if (!(error instanceof RequestRefused) || isUnauthenticated(error)) {
+          throw error
+        }
+      }
+
+      await this.store.fileSent(file.sha256)
+    }
+
+    // Counted again rather than set to nothing: a photo taken while this ran
+    // is on the list and was not in the batch.
+    this.filesWaiting = await this.store.countWaitingFiles()
+  }
+
   async resolveConflict(id: string): Promise<void> {
     await this.transport.resolve(id)
     await this.store.dropConflict(id)
@@ -836,4 +924,11 @@ export class SyncClient {
       listener()
     }
   }
+}
+
+/** SHA-256 in lower case hex, the name the server stores a file under. */
+async function sha256Of(bytes: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }

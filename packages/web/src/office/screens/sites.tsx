@@ -10,6 +10,7 @@ import type { FormField } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { AttachmentsSection } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { JobLine, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
@@ -257,6 +258,13 @@ export function SiteScreen() {
           </ul>
         )}
       </Section>
+
+      <AttachmentsSection
+        field="siteId"
+        id={siteId}
+        home={{ customerId, siteId }}
+        empty="Noch keine Datei am Objekt."
+      />
 
       <TasksSection
         field="siteId"

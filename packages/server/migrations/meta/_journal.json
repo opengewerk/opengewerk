@@ -246,6 +246,13 @@
       "when": 1790164474926,
       "tag": "0034_zero_rate",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790169774300,
+      "tag": "0035_attachments",
+      "breakpoints": true
     }
   ]
 }

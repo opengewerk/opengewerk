@@ -205,6 +205,10 @@ export function permissionFor(entity: string, kind: OperationKind): Permission |
     // one who hands the device to the customer.
     document_signatures: 'document.write',
     tasks: 'task.write',
+    // A file and its versions are one thing to whoever adds them: taking a
+    // photo on site is adding it, and a new version is the same act again.
+    attachments: 'attachment.write',
+    attachment_versions: 'attachment.write',
   }
 
   return subject[entity] ?? null

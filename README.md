@@ -311,6 +311,20 @@ Ein Kunde hat mehrere Ansprechpartner, ein Objekt eigene (Feature-Gliederung 1.1
 
 **Genau ein Elternteil.** Ein Ansprechpartner gehört zu einem Kunden oder zu einem Objekt, nie zu beiden und nie zu keinem. Das Formular nimmt den Elternteil von dem Bildschirm, auf dem es steht, und bietet nie beide an; auf der Baustelle hat deshalb jede der beiden Listen ihren eigenen Knopf. Vor dem Postausgang fragt es `contactParentProblem` aus `domain`, die Route lehnt einen Verstoß mit demselben Satz ab, und dahinter hält die Datenbank dieselbe Regel.
 
+### Dokumentenablage
+
+Die Dateien eines Betriebs hängen dort, worum es in ihnen geht (Feature-Gliederung 4.10): an einem Kunden, einem Objekt, einer Anlage oder einem Auftrag, an mehreren davon zugleich. Ein Foto, das am Auftrag entsteht, hängt auch an dessen Anlage, Objekt und Kunde und steht deshalb auf allen vier Bildschirmen. Im Büro hat jeder dieser Bildschirme den Abschnitt "Dateien", auf der Baustelle der Auftrag die Karte "Fotos und Dateien" mit "Foto aufnehmen" als erstem Knopf.
+
+**Eine neue Fassung legt sich über die alte.** Die frühere bleibt lesbar, aus demselben Grund wie beim Storno: was einmal Grundlage einer Entscheidung war, verschwindet nicht. Eine Fassung wird weder geändert noch gelöscht, die Datenbank lehnt beides ab. Entfernen nimmt eine Datei aus der Ablage, markiert sie und vernichtet nichts.
+
+**Fotos werden auf dem Gerät kleiner, bevor sie irgendwohin gehen.** Auf 2048 Pixel an der langen Kante und JPEG, meist unter einem Megabyte, dazu eine Vorschau mit 320 Pixeln für die Listen. Wer das Original braucht, setzt "Fotos in voller Größe behalten". Jede Datei darf bis zu 25 MB groß sein; das wissen Gerät und Server aus derselben Zahl in `domain`, eine zu große Datei wird also schon beim Auswählen genannt.
+
+**Ohne Netz geht es genauso.** Das Foto aus dem Keller liegt auf dem Gerät, steht schon in der Liste und geht beim nächsten Abgleich hoch, die Datei vor der Fassung, die sie nennt. Vorschaubilder behält das Gerät, die großen Dateien holt es erst, wenn jemand eine öffnet.
+
+**Eine Datei ist kein Sonderfall der Mandantentrennung.** Hochgeladen wird nach Hash über `PUT /files/:sha256`, ausgeliefert nur nach der Kennung der Fassung (`GET /attachments/versions/:id/content` und `/preview`) und nur, wenn die Ablage dem Betrieb gehört und nicht entfernt ist. Ein fremder Betrieb bekommt eine Datei weder über die Kennung noch über den Hash. Ob eine Datei im Browser angezeigt oder heruntergeladen wird, entscheiden ihre ersten Bytes und nicht ihr Name: angezeigt werden nur erkannte Bilder und PDF. Die Rechte sind `attachment.read` und `attachment.write`, beide für alle Rollen. Die Sicherung nimmt die Dateien mit, der CI-Job "Sicherung und Rückspielen" prüft das an einer abgelegten Datei samt Fassung.
+
+Was nicht dazugehört: Volltextsuche und OCR (Phase 6) und die generierte Verfahrensdokumentation (Phase 3).
+
 ### Steuern
 
 Was ein Betrieb über seine eigene Besteuerung erklärt, steht im Büro unter "Steuern", und ändern kann es nur der Inhaber. Es sind drei Erklärungen: die Kleinunternehmerregelung nach § 19 UStG, die Ist-Versteuerung nach § 20 UStG und der Übergang von 2027 für die E-Rechnung. Alle drei hängen an einem Umsatz, den OpenGewerk vor der Buchhaltung aus Phase 3 nicht kennt, und die Ist-Versteuerung obendrein an einer Entscheidung des Finanzamts. Deshalb erklärt der Betrieb sie, statt dass die Anwendung sie schätzt.
@@ -437,7 +451,7 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Die gebaute Oberfläche liefert derselbe Prozess aus, der auch die API bedient.** Ein zweiter Container davor wäre eine weitere Sache, die eine Installation einrichten und aktualisieren muss. Zwei Hüllen gibt es trotzdem: alles unter `/m` kommt mit der Baustellen-Hülle zurück, alles andere mit der des Büros. Ein tiefer Link in die Baustelle, der mit der Bürohülle beantwortet wird, öffnet auf einem Telefon eine Oberfläche für Maus und Tastatur.
 
-Was ausdrücklich noch fehlt und je ein eigenes Issue hat: Zeiterfassung (#76), Dokumentenablage (#77), Formular-Engine und Prüfprotokoll (#78, #79). Die Plantafel steht im Fahrplan bei Phase 2. Den Aufbau unterhalb der Anlage gibt es seit #70, siehe "Anlagenstruktur und Stromkreisverzeichnis".
+Was ausdrücklich noch fehlt und je ein eigenes Issue hat: Zeiterfassung (#76), Formular-Engine und Prüfprotokoll (#78, #79). Die Plantafel steht im Fahrplan bei Phase 2. Den Aufbau unterhalb der Anlage gibt es seit #70, siehe "Anlagenstruktur und Stromkreisverzeichnis".
 
 ## Betrieb
 

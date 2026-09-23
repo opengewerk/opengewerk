@@ -13,6 +13,13 @@ export interface SyncTransport {
   pull(since: number): Promise<PullResult>
   conflicts(): Promise<readonly SyncConflict[]>
   resolve(id: string): Promise<void>
+  /**
+   * The bytes of a file made on this device, sent ahead of the version that
+   * names them (#77). Optional, because most of what a test stands in for
+   * never touches a file; a client that has one waiting and no way to send it
+   * says so rather than sending the version without it.
+   */
+  upload?(sha256: string, bytes: ArrayBuffer, mediaType: string): Promise<void>
 }
 
 export interface ChangedRows {
@@ -167,5 +174,24 @@ export const httpTransport: SyncTransport = {
 
   async resolve(id) {
     await request(`/sync/conflicts/${encodeURIComponent(id)}/resolve`, { method: 'POST' })
+  },
+
+  async upload(sha256, bytes, mediaType) {
+    // As bytes, a type no form can send, and the file's own type beside it.
+    // `request` would name the body JSON; this body is not.
+    const response = await fetch(`/files/${encodeURIComponent(sha256)}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/octet-stream',
+        'X-Media-Type': mediaType,
+      },
+      body: bytes,
+    })
+
+    if (!response.ok) {
+      throw await refusal(response)
+    }
   },
 }
