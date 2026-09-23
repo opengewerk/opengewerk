@@ -924,6 +924,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Abmelden löscht, was das Gerät vom Betrieb hält (#186). Bis dahin vergaß der Browser nur Konto und
+  Rollen, die lokale Ablage mit Kunden, Belegen, Fotos und Arbeitszeiten blieb liegen, auch auf
+  einem Gerät, das danach weitergegeben oder verloren wird. Jetzt sendet das Abmelden zuerst, was
+  noch im Postausgang liegt, und löscht dann die Ablage jedes Betriebs auf dem Gerät; geht das
+  Senden nicht, sagt der Bildschirm, wie viele Änderungen verloren gingen, und fragt.
 - Ohne Netz geöffnet, zeigt die Baustelle wieder Aufgaben, Dateien und Ansprechpartner (#184). Seit
   #123 öffnete sie mit dem zuletzt angemeldeten Konto, die Rollen dazu kamen aber nur vom Server,
   und ohne Antwort war jedes Recht verneint; die Daten lagen auf dem Gerät, nur die Bildschirme

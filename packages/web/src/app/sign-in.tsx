@@ -6,6 +6,7 @@ import { Button, Card, Field, FieldLabel } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import type { Entry } from '../entry/entry.js'
 import { roleLabel } from './labels.js'
+import { SignOutButton } from './sign-out.js'
 import {
   chooseTenant,
   recoveryCodesLeft,
@@ -325,13 +326,13 @@ export function TenantScreen({
   deviceId,
   tenants,
   onChosen,
-  onSignOut,
+  onSignedOut,
 }: {
   readonly entry: Entry
   readonly deviceId: string
   readonly tenants: readonly TenantChoice[]
   readonly onChosen: () => void
-  readonly onSignOut: () => void
+  readonly onSignedOut: () => void
 }) {
   const [working, setWorking] = useState<TenantId | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -356,9 +357,9 @@ export function TenantScreen({
           Dieses Konto gehört zu keinem Betrieb. Wer die Instanz betreibt, legt die Zugehörigkeit
           an.
         </p>
-        <Button className="mt-4" tone="secondary" wide onClick={onSignOut}>
-          Abmelden
-        </Button>
+        <div className="mt-4">
+          <SignOutButton client={null} onSignedOut={onSignedOut} wide />
+        </div>
       </Gate>
     )
   }
