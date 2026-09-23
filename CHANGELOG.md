@@ -649,6 +649,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Servertests haben 30 Sekunden je Test statt 5. Der Migrationstest, der alle Migrationen
+  hoch und wieder zurück fährt, lief in der CI über die Grenze, obwohl er lokal in zweieinhalb
+  Sekunden durch ist; ein Test gegen die echte Datenbank richtet sich nach dem langsamsten
+  Rechner, auf dem er läuft.
 - Der Katalogtest der Mandantentrennung prüft jetzt, was eine Policy sagt, nicht nur, dass es
   eine gibt (#148). Jede Policy, unter die die Anwendung fällt, muss den Mandanten der Zeile
   mit dem der Transaktion vergleichen, oder eine restriktive Policy deckt die Tabelle; drei
