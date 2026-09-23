@@ -413,6 +413,55 @@ export interface InvitationOffer {
   readonly knownAccount: boolean
 }
 
+/**
+ * A new password with the old one as confirmation (#126). Every other device
+ * of the account is signed out, this one stays.
+ */
+export async function changePassword(current: string, next: string): Promise<void> {
+  await request(`${authentication}/change-password`, {
+    method: 'POST',
+    body: JSON.stringify({
+      currentPassword: current,
+      newPassword: next,
+      revokeOtherSessions: true,
+    }),
+  })
+}
+
+/**
+ * Asks for a link to a new password. The answer is the same whether the
+ * address has an account or not, and whether a mail goes out depends on
+ * whether a business it works in sends mail at all.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await request(`${authentication}/request-password-reset`, {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim() }),
+  })
+}
+
+/** The new password behind the link, which works once. */
+export async function resetPassword(token: string, password: string): Promise<void> {
+  await request(`${authentication}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword: password }),
+  })
+}
+
+/** Where the link in the mail points: this path and the token after it. */
+export const passwordResetPath = '/passwort'
+
+/** The token of a link to a new password out of the address bar, or nothing. */
+export function passwordResetToken(path: string): string | null {
+  if (!path.startsWith(`${passwordResetPath}/`)) {
+    return null
+  }
+
+  const token = path.slice(passwordResetPath.length + 1).split('/')[0] ?? ''
+
+  return /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : null
+}
+
 /** The token out of the address bar, or nothing. */
 export function invitationToken(path: string): string | null {
   if (!path.startsWith(`${invitationPath}/`)) {

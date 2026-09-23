@@ -13,6 +13,9 @@ import {
   authUsers,
   authVerifications,
 } from '../database/schema/index.js'
+import type { PasswordResetMail } from '../mail/password-reset.js'
+import { passwordResetLifetime } from '../mail/password-reset.js'
+import { shortestPassword } from './password.js'
 import { renewSession, sessionLifetimes } from './session-lifetime.js'
 
 export { sessionLifetimes } from './session-lifetime.js'
@@ -62,6 +65,13 @@ export interface AuthenticationOptions {
    * There is a test that leaves them on and shows that they bite.
    */
   readonly rateLimited?: boolean
+  /**
+   * Sends the link to a new password (#126), through the mail server of a
+   * business the account works in. Left out, as on a closed instance or in
+   * the preview, a request for one is answered all the same and nothing is
+   * sent.
+   */
+  readonly passwordResetMail?: PasswordResetMail
 }
 
 export type Authentication = ReturnType<typeof createAuthentication>
@@ -84,6 +94,7 @@ export function createAuthentication({
   secret,
   trustedOrigins,
   rateLimited = true,
+  passwordResetMail,
 }: AuthenticationOptions) {
   return betterAuth({
     appName: 'OpenGewerk',
@@ -112,6 +123,23 @@ export function createAuthentication({
       password: {
         hash: (password) => hash(password, argon2Parameters),
         verify: ({ hash: stored, password }) => verify(stored, password),
+      },
+      // The same twelve as everywhere a password is chosen; better-auth's own
+      // floor is eight, and it applies to changing and resetting one (#126).
+      minPasswordLength: shortestPassword,
+      // A new password through a link in a mail (#126). The link works for an
+      // hour and once, and afterwards every session of the account is over:
+      // whoever had the old password is out.
+      resetPasswordTokenExpiresIn: passwordResetLifetime,
+      revokeSessionsOnPasswordReset: true,
+      sendResetPassword: async ({ user, token }) => {
+        // Not awaited, see `passwordResetMails`: an address with an account
+        // would answer as slowly as a mail server, one without at once.
+        void passwordResetMail?.({ id: user.id, email: user.email, name: user.name }, token).catch(
+          (error: unknown) => {
+            console.error('Die Mail zum Zurücksetzen des Passworts ging nicht hinaus.', error)
+          },
+        )
       },
     },
     session: {
@@ -205,6 +233,11 @@ export function createAuthentication({
         // A recovery code is a second factor as much as a code from the app,
         // and ten of them are ten chances instead of one (#125).
         '/two-factor/verify-backup-code': { window: 60, max: 5 },
+        // A link to a new password is a mail to somebody's inbox, and a form
+        // that sends them without limit is a way to fill it (#126).
+        '/request-password-reset': { window: 60 * 60, max: 5 },
+        '/reset-password': { window: 60, max: 5 },
+        '/change-password': { window: 60, max: 5 },
       },
     },
     advanced: {

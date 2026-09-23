@@ -12,10 +12,17 @@ import { directWrite, httpTransport } from '../sync/transport.js'
 import { unreachable } from '../session/remembered.js'
 import { deviceIdentity } from './device.js'
 import { InvitationScreen } from './invitation.js'
+import { PasswordResetScreen } from './password-reset.js'
 import { accountQuery } from './queries.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { Gate, SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
-import { availableTenants, invitationToken, setupNeeded, signOut } from './../session/session.js'
+import {
+  availableTenants,
+  invitationToken,
+  passwordResetToken,
+  setupNeeded,
+  signOut,
+} from './../session/session.js'
 import type { Account } from './../session/session.js'
 
 /**
@@ -50,6 +57,9 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   // leads to leaves the address behind when it is done, so this never has to
   // notice a change.
   const [token] = useState(() => invitationToken(globalThis.location.pathname))
+  // The link to a new password, recognised the same way and for the same
+  // reason: whoever holds it cannot sign in (#126).
+  const [resetToken] = useState(() => passwordResetToken(globalThis.location.pathname))
   const [step, setStep] = useState<Step>('asking')
   const [client, setClient] = useState<SyncClient | null>(null)
   // Worked out once and then constant. A ref would say the same thing and
@@ -126,6 +136,10 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
 
   if (token) {
     return <InvitationScreen token={token} />
+  }
+
+  if (resetToken) {
+    return <PasswordResetScreen token={resetToken} />
   }
 
   if (account.isPending) {

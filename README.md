@@ -539,7 +539,7 @@ Fünfergruppen aus einem Alphabet ohne `i`, `l`, `o` und `u`, damit es niemand
 falsch abliest. Es steht dann auf dem Terminal dessen, der den Befehl abgesetzt
 hat, und nirgends sonst: nicht im Protokoll des Containers, das jemand
 weitergibt, wenn er um Hilfe bittet, nicht in der Prozessliste und nicht in der
-Umgebung. Beim ersten Anmelden gehört es ersetzt.
+Umgebung. Beim ersten Anmelden gehört es ersetzt, unter "Konto" im Büro.
 
 Wer eines vorgeben will, setzt `OPENGEWERK_PASSWORD`, und dann gilt weiter die
 Untergrenze von zwölf Zeichen. Als Argument geht es nicht und soll es nicht: ein
@@ -548,6 +548,22 @@ liegen bleibt.
 
 Gab es das Konto schon, sagt der Befehl das und rührt das Passwort nicht an. Nur
 die Rollen im genannten Betrieb ändern sich.
+
+**Ein Passwort ändern und zurückholen.** Unter "Konto" ändert jeder sein
+Passwort mit dem bisherigen als Bestätigung; alle anderen Geräte des Zugangs
+sind danach abgemeldet. Wer es vergessen hat, fordert auf der Anmeldung mit
+"Passwort vergessen?" einen Link an. Er kommt über den Mailserver eines Betriebs,
+in dem der Zugang arbeitet, gilt eine Stunde und einmal, und danach ist jedes
+Gerät abgemeldet. Die Antwort ist dieselbe, ob es zu der Adresse einen Zugang
+gibt oder nicht. Ein eingerichteter zweiter Faktor gilt danach weiter. Verschickt
+kein Betrieb des Zugangs E-Mails, bleibt die Kommandozeile:
+
+```bash
+docker compose -f docker/compose.yaml exec app node dist/reset-password.js monteur@betrieb.de
+```
+
+Wie bei `add-staff` kommt das neue Passwort aus `OPENGEWERK_PASSWORD` oder wird
+erzeugt und einmal ausgegeben; alle Geräte des Zugangs sind danach abgemeldet.
 
 Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschirm
 "Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst

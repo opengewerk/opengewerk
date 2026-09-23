@@ -862,6 +862,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Passwort lässt sich ändern und zurückholen (#126). Unter "Konto" mit dem bisherigen als
+  Bestätigung, danach sind die anderen Geräte abgemeldet; über "Passwort vergessen?" auf der
+  Anmeldung mit einem Link per Mail, eine Stunde und einmal gültig, verschickt über den
+  Mailserver eines Betriebs des Zugangs; und ohne Mail mit `reset-password` auf der
+  Kommandozeile. Bisher blieb ein von `add-staff` erzeugtes Passwort für immer gültig, und ein
+  vergessenes hieß SQL. better-auth verlangt jetzt dieselben zwölf Zeichen wie der Rest.
 - Die Wiederherstellungscodes lassen sich einlösen (#125). Die Ersteinrichtung zeigte sie als
   den Weg hinein, wenn das Telefon weg ist, die Anmeldung kannte aber nur den Code aus der
   App; ein Inhaber ohne Telefon kam nur noch über SQL an seinen Betrieb. Der zweite Schritt
