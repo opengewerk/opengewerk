@@ -649,6 +649,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Entschieden, wo Kennungen entstehen (#151): am Rand, im Server und im Abgleich-Client, mit
+  derselben Bibliothek `uuidv7` in derselben Fassung, die ein Test zusammenhält; `domain`
+  kennt nur den Typ, weil es frei von Zufall bleibt. Ein Kommentar hatte die Entscheidung
+  seit Phase 0 angekündigt.
 - Die Servertests haben 30 Sekunden je Test statt 5. Der Migrationstest, der alle Migrationen
   hoch und wieder zurück fährt, lief in der CI über die Grenze, obwohl er lokal in zweieinhalb
   Sekunden durch ist; ein Test gegen die echte Datenbank richtet sich nach dem langsamsten
