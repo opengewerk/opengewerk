@@ -165,15 +165,12 @@ jobs:
           STEMS = [transliterate(word) for word in GERMAN_WORDS]
 
           # Where ASCII is right and stays right, and where none of the rules below
-          # already covers it. A list on purpose, so that a fourth entry is a decision in
+          # already covers it. A list on purpose, so that a second entry is a decision in
           # a diff and not a line nobody looked at twice. A word in here is accepted
           # everywhere, this file included.
           ALLOWED = {
               # The id field of the issue templates, an identifier and not prose.
               "pruefung",
-              # Keys under x-konventionen in the API contract, identifiers as well.
-              "betraege",
-              "steuerschluessel",
           }
 
           EXEMPT = {"LICENSE"}
