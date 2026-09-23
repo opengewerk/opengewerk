@@ -110,6 +110,105 @@ describe('the tables', () => {
     )
     expect(unprotected).toEqual([])
   })
+
+  /**
+   * The test above asks whether a table has a policy, not what the policy
+   * says. A later one with `using (true)`, or one that compares against the
+   * wrong setting, would have passed it and opened the table to every
+   * business (#148). So this reads the expression of every policy the
+   * application falls under and holds it against the one comparison that is
+   * allowed: the tenant of the row against the tenant of the transaction.
+   *
+   * A restrictive policy with that comparison covers a table on its own,
+   * because it is ANDed with whatever else there is; that is how the audit log
+   * and the change sequence let their trigger write while nobody else can.
+   * Anything else that opens a table outside a business is listed below with
+   * its reason, and the list is checked against the catalogue as well, so an
+   * entry cannot outlive its policy.
+   */
+  it('let the application reach a row only through the tenant of the transaction', async () => {
+    const outsideABusiness: Readonly<Record<string, string>> = {
+      'memberships.own_membership_outside_tenant':
+        'the chooser after a sign in reads its own memberships, outside any business',
+      'tenants.own_tenants_outside_tenant':
+        'the chooser reads the names of the businesses somebody belongs to',
+      'tenants.created_by_setup':
+        'the first run setup; no_application_insert keeps the application out of it',
+    }
+
+    const { rows } = await admin.query<{
+      table_name: string
+      policy: string
+      permissive: boolean
+      command: string
+      applies: boolean
+      using: string | null
+      checking: string | null
+      has_tenant: boolean
+    }>(
+      `select c.relname as table_name,
+              p.polname as policy,
+              p.polpermissive as permissive,
+              p.polcmd as command,
+              (p.polroles = '{0}' or $1::regrole = any(p.polroles)) as applies,
+              pg_get_expr(p.polqual, p.polrelid) as using,
+              pg_get_expr(p.polwithcheck, p.polrelid) as checking,
+              exists (
+                select 1 from pg_attribute a
+                 where a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
+              ) as has_tenant
+         from pg_policy p
+         join pg_class c on c.oid = p.polrelid
+         join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public'`,
+      [applicationRole],
+    )
+
+    const comparison = (column: string) =>
+      `(${column} = (NULLIF(current_setting('app.tenant_id'::text, true), ''::text))::uuid)`
+    const tables = new Set(
+      rows
+        .filter((row) => row.has_tenant || row.table_name === 'tenants')
+        .map((row) => row.table_name),
+    )
+    const violations: string[] = []
+
+    for (const table of tables) {
+      const expected = comparison(table === 'tenants' ? 'id' : 'tenant_id')
+      const policies = rows.filter((row) => row.table_name === table && row.applies)
+      const restrictive = policies.filter((row) => !row.permissive)
+      const reads = (command: string) => ['*', 'r', 'w', 'd'].includes(command)
+      const writes = (command: string) => ['*', 'a', 'w'].includes(command)
+      const readsFenced = restrictive.some((row) => row.command === '*' && row.using === expected)
+      const writesFenced = restrictive.some(
+        (row) =>
+          (row.command === '*' || row.command === 'a') &&
+          (row.checking === expected || row.checking === 'false'),
+      )
+
+      for (const row of policies.filter((policy) => policy.permissive)) {
+        if (`${table}.${row.policy}` in outsideABusiness) {
+          continue
+        }
+
+        if (reads(row.command) && !readsFenced && row.using !== expected) {
+          violations.push(`${table}.${row.policy} reads: ${String(row.using)}`)
+        }
+
+        if (writes(row.command) && !writesFenced && row.checking !== expected) {
+          violations.push(`${table}.${row.policy} writes: ${String(row.checking)}`)
+        }
+      }
+    }
+
+    // Floor, for the same reason as above: 37 tables carried a tenant on
+    // 23.09.2026, and a query that finds none must not pass as "all fenced".
+    expect(tables.size).toBeGreaterThanOrEqual(37)
+    expect(violations).toEqual([])
+
+    const listed = new Set(rows.map((row) => `${row.table_name}.${row.policy}`))
+    expect(Object.keys(outsideABusiness).filter((entry) => !listed.has(entry))).toEqual([])
+  })
 })
 
 describe('a tenant', () => {

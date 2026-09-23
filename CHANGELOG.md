@@ -649,6 +649,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Der Katalogtest der Mandantentrennung prüft jetzt, was eine Policy sagt, nicht nur, dass es
+  eine gibt (#148). Jede Policy, unter die die Anwendung fällt, muss den Mandanten der Zeile
+  mit dem der Transaktion vergleichen, oder eine restriktive Policy deckt die Tabelle; drei
+  Ausnahmen für die Auswahl nach der Anmeldung und die Ersteinrichtung stehen mit Grund im
+  Test. Eine spätere Policy mit `using (true)` wäre bisher durchgegangen.
 - Der Renderer läuft auf einer festen Fassung mit Digest statt auf `latest` (#153), in
   `docker/compose.yaml` und in der CI dieselbe, und ein Schritt in der CI prüft das. Mit
   `latest` zog jede Installation das Chromium des Tages, mit dem die CI nie gedruckt hatte.
