@@ -231,7 +231,9 @@ export class DocumentMailController {
  * a business whose software reads the data and one that prints the mail
  * alike. An e-invoice that lacks a value goes out as its PDF while the law
  * does not require it yet; once it does, sending it without is refused with
- * what is missing, because a PDF would then not be a proper invoice.
+ * what is missing, because a PDF would then not be a proper invoice. "Once it
+ * does" is judged on the day the message is asked for (#134): the transition
+ * ends for the invoice on the day it is sent, not on the day it is dated.
  */
 async function attachmentFor(
   tx: Parameters<typeof dutyOf>[0],
@@ -248,12 +250,14 @@ async function attachmentFor(
       return 'zugferd'
     }
 
-    if ((await dutyOf(tx, content)).required) {
+    const duty = await dutyOf(tx, content)
+
+    if (duty.required) {
       throw new UnprocessableEntityException({
         statusCode: 422,
         error: 'Unprocessable Entity',
         message:
-          'Diese Rechnung muss als E-Rechnung hinaus, und dafür fehlt noch etwas. ' +
+          `Diese Rechnung muss als E-Rechnung hinaus, und dafür fehlt noch etwas. ${duty.reason} ` +
           gaps.map((gap) => gap.message).join(' '),
         missing: gaps,
       })

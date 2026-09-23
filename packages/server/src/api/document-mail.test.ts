@@ -7,7 +7,7 @@ import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { Pool } from 'pg'
 import request from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
@@ -90,17 +90,15 @@ async function customer(fields: Record<string, unknown>, tenant = north): Promis
 }
 
 /** A final invoice of 1.240 euros net, issued. Returns its id. */
-async function issuedInvoice(customerId: string, tenant = north): Promise<string> {
+async function issuedInvoice(
+  customerId: string,
+  tenant = north,
+  dates = { documentDate: '2026-09-18', serviceFrom: '2026-09-01', serviceUntil: '2026-09-15' },
+): Promise<string> {
   const created = await http()
     .post('/documents')
     .set('x-test-identity', office(tenant))
-    .send({
-      customerId,
-      kind: 'final_invoice',
-      documentDate: '2026-09-18',
-      serviceFrom: '2026-09-01',
-      serviceUntil: '2026-09-15',
-    })
+    .send({ customerId, kind: 'final_invoice', ...dates })
     .expect(201)
   const id = (created.body as { id: string }).id
 
@@ -336,6 +334,49 @@ describe('an issued invoice', () => {
 
     expect(await cycle(post.transport)).toMatchObject({ sent: 1 })
     expect(post.sent).toHaveLength(1)
+  })
+})
+
+/**
+ * #134. The transition of section 27 (38) UStG lets a PDF go to a business
+ * only if the invoice is sent by the end of the period, and the day it is sent
+ * is the day the office asks for the message. Both invoices here are written
+ * and issued in December for work of December; the e-invoice of each lacks
+ * something, a VAT identification number without its country.
+ */
+describe('an invoice to a business after the transition has ended', () => {
+  const lacking = { ...business, vatId: '987654321' }
+  const december = {
+    documentDate: '2026-12-30',
+    serviceFrom: '2026-12-01',
+    serviceUntil: '2026-12-15',
+  }
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('goes as a PDF on the last day of it, and is refused the first day after', async () => {
+    // Only the clock the application reads for today: timers, the pool and
+    // the database keep their own.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-12-31T10:00:00+01:00') })
+
+    const early = await issuedInvoice(await customer(lacking), north, december)
+    const late = await issuedInvoice(await customer(lacking), north, december)
+
+    const sent = await sending(early).expect(202)
+
+    expect((sent.body as DocumentMail).attachment).toBe('pdf')
+
+    vi.setSystemTime(new Date('2027-01-04T09:00:00+01:00'))
+
+    const refused = await sending(late).expect(422)
+    const body = refused.body as { message: string; missing: { detail: string }[] }
+
+    expect(body.message).toContain('Pflicht ab jetzt')
+    expect(body.message).toContain('31.12.2026')
+    expect(body.missing.map((gap) => gap.detail)).toEqual(['recipient_vat_id_format'])
+    expect(await messagesOf(late)).toEqual([])
   })
 })
 
