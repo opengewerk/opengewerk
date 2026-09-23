@@ -18,6 +18,7 @@ import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { AuthorizationGuard } from './authorization.js'
 import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
+import { ContactsController } from './contacts.controller.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
@@ -148,6 +149,7 @@ export class ApiModule implements NestModule {
         AuthenticationController,
         StaffController,
         CustomersController,
+        ContactsController,
         SitesController,
         InstallationsController,
         CircuitChartController,

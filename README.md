@@ -303,6 +303,14 @@ Eine Aufgabe ist etwas, das eine Person bis zu einem bestimmten Tag erledigen so
 
 Was nicht dazugehört: automatisch erzeugte Aufgaben, die mit den Fristen in Phase 2 kommen, eine Zuweisung über Betriebsgrenzen und Kanban oder Plantafel. Die Benachrichtigung der verantwortlichen Person per E-Mail kommt mit #81.
 
+### Ansprechpartner
+
+Ein Kunde hat mehrere Ansprechpartner, ein Objekt eigene (Feature-Gliederung 1.1 und 3.1): bei einer Hausverwaltung etwa Bauleitung und Buchhaltung, an einem ihrer Häuser ein Mieter und der Hausmeister. Im Büro stehen sie an der Kundenakte und am Objekt, mit Rolle, Telefon und E-Mail. Auf der Baustelle zeigt der Auftrag beide Listen getrennt, Telefon und E-Mail zum Antippen.
+
+**Anlegen geht überall, auch ohne Netz, korrigieren nur mit Verbindung.** Ein neuer Ansprechpartner reist durch den Postausgang wie ein neuer Kunde, denn wer im Keller steht, soll aufschreiben können, wer ihm aufgemacht hat. Ändern und Entfernen gehen im Büro über `PATCH` und `DELETE` auf `/contacts/:id`, wie bei allen Stammdaten. Die Rechte sind die des Kunden: `customer.create` zum Anlegen, das auch ein Monteur hat, `customer.write` zum Korrigieren.
+
+**Genau ein Elternteil.** Ein Ansprechpartner gehört zu einem Kunden oder zu einem Objekt, nie zu beiden und nie zu keinem. Das Formular nimmt den Elternteil von dem Bildschirm, auf dem es steht, und bietet nie beide an; auf der Baustelle hat deshalb jede der beiden Listen ihren eigenen Knopf. Vor dem Postausgang fragt es `contactParentProblem` aus `domain`, die Route lehnt einen Verstoß mit demselben Satz ab, und dahinter hält die Datenbank dieselbe Regel.
+
 ### Steuern
 
 Was ein Betrieb über seine eigene Besteuerung erklärt, steht im Büro unter "Steuern", und ändern kann es nur der Inhaber. Es sind drei Erklärungen: die Kleinunternehmerregelung nach § 19 UStG, die Ist-Versteuerung nach § 20 UStG und der Übergang von 2027 für die E-Rechnung. Alle drei hängen an einem Umsatz, den OpenGewerk vor der Buchhaltung aus Phase 3 nicht kennt, und die Ist-Versteuerung obendrein an einer Entscheidung des Finanzamts. Deshalb erklärt der Betrieb sie, statt dass die Anwendung sie schätzt.
@@ -415,7 +423,7 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Der Abgleich ist immer sichtbar, als Leiste und nie als Hinweis, der verschwindet.** Sie sagt, ob alles angekommen ist, wie viel noch auf dem Gerät liegt und warum. Ein Konflikt bekommt einen eigenen Bildschirm mit drei Spalten: was das Gerät wollte, was inzwischen im System steht, und was das Gerät vorfand, als jemand es geändert hat. Die dritte Spalte ist die, die die beiden anderen erklärt. Entschieden wird auf dem Gerät, und die Entscheidung geht als gewöhnliche Änderung durch denselben Postausgang, damit sie dieselben Regeln passiert und im selben Audit-Log landet.
 
-**Gelesen wird lokal, geschrieben auf zwei Wegen.** Alles, was ein Gerät anzeigt, kommt aus IndexedDB, mit dem Postausgang darübergelegt. Was ohne Verbindung entstehen darf, geht in die Warteschlange; was eine Verbindung braucht, geht direkt an die Route, der der Datensatz gehört. Stammdaten sind der zweite Fall: ein Monteur darf einen Kunden anlegen, den es noch nicht gibt, und die Anschrift eines bestehenden korrigiert das Büro, das eine Verbindung hat.
+**Gelesen wird lokal, geschrieben auf zwei Wegen.** Alles, was ein Gerät anzeigt, kommt aus IndexedDB, mit dem Postausgang darübergelegt. Was ohne Verbindung entstehen darf, geht in die Warteschlange; was eine Verbindung braucht, geht direkt an die Route, der der Datensatz gehört. Stammdaten sind der zweite Fall: ein Monteur darf einen Kunden oder einen Ansprechpartner anlegen, den es noch nicht gibt, und die Anschrift eines bestehenden korrigiert das Büro, das eine Verbindung hat.
 
 **Der Postausgang wird über den Serverstand gelegt, nicht in ihn hineingeschrieben.** Das ist die Entscheidung, an der die Schicht hängt. Lehnt der Server einen Vorgang ab, ändert sich an dem Datensatz dort nichts, der nächste Abgleich bringt also nichts mit, und eine in die lokale Kopie geschriebene Änderung stünde für immer auf dem Bildschirm, ohne irgendwo sonst zu existieren. Übereinandergelegt heilt es sich von selbst: der Vorgang fällt aus der Warteschlange, und übrig bleibt, was der Server wirklich hält.
 
@@ -429,7 +437,7 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Die gebaute Oberfläche liefert derselbe Prozess aus, der auch die API bedient.** Ein zweiter Container davor wäre eine weitere Sache, die eine Installation einrichten und aktualisieren muss. Zwei Hüllen gibt es trotzdem: alles unter `/m` kommt mit der Baustellen-Hülle zurück, alles andere mit der des Büros. Ein tiefer Link in die Baustelle, der mit der Bürohülle beantwortet wird, öffnet auf einem Telefon eine Oberfläche für Maus und Tastatur.
 
-Was ausdrücklich noch fehlt und je ein eigenes Issue bekommt: Prüfprotokoll, Zeiterfassung, der Aufbau unterhalb der Anlage (Verteiler, Feld, Stromkreis) und die Plantafel.
+Was ausdrücklich noch fehlt und je ein eigenes Issue hat: Zeiterfassung (#76), Dokumentenablage (#77), Formular-Engine und Prüfprotokoll (#78, #79). Die Plantafel steht im Fahrplan bei Phase 2. Den Aufbau unterhalb der Anlage gibt es seit #70, siehe "Anlagenstruktur und Stromkreisverzeichnis".
 
 ## Betrieb
 

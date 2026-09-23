@@ -40,6 +40,9 @@ const fields: Readonly<Record<string, string>> = {
   notes: 'Notizen',
   email: 'E-Mail',
   phone: 'Telefon',
+  givenName: 'Vorname',
+  familyName: 'Nachname',
+  role: 'Rolle',
   street: 'Straße',
   houseNumber: 'Hausnummer',
   postalCode: 'PLZ',
@@ -111,9 +114,9 @@ export function fieldLabel(field: string): string {
  * The name a record goes by on a screen, for the places that only have an id.
  *
  * A customer has a `name`, most things a `designation`, a task a `title`, a
- * document a number and a signature the person who gave it. Nothing falls through to an
- * empty string: a row with no name at all still has to be clickable, so it
- * says what it is.
+ * document a number, a signature the person who gave it and a contact a given
+ * and a family name. Nothing falls through to an empty string: a row with no
+ * name at all still has to be clickable, so it says what it is.
  */
 export function titleOf(entity: string, record: RecordState | null): string {
   const named =
@@ -121,7 +124,17 @@ export function titleOf(entity: string, record: RecordState | null): string {
     maybeText(record, 'designation') ??
     maybeText(record, 'title') ??
     maybeText(record, 'number') ??
-    maybeText(record, 'signerName')
+    maybeText(record, 'signerName') ??
+    personName(record)
 
   return named ?? `${entityLabel(entity)} ohne Bezeichnung`
+}
+
+/** Given and family name as one, or null when a record has neither. */
+export function personName(record: RecordState | null): string | null {
+  const parts = [maybeText(record, 'givenName'), maybeText(record, 'familyName')].filter(
+    (part): part is string => part !== null,
+  )
+
+  return parts.length > 0 ? parts.join(' ') : null
 }

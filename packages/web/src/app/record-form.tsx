@@ -80,6 +80,7 @@ export function RecordForm({
   onCancel,
   disabled,
   disabledReason,
+  check,
 }: {
   readonly fields: readonly FormField[]
   readonly record?: RecordState | null
@@ -89,6 +90,13 @@ export function RecordForm({
   /** Set when the rules say this cannot be written at all right now. */
   readonly disabled?: boolean
   readonly disabledReason?: string
+  /**
+   * A rule from `domain` the values have to pass before anything is sent, as
+   * the sentence the form shows, or null when they pass. Asked here and not
+   * after the fact, because the server refuses the same thing for the whole
+   * transmission, and a form is the one place that can still say which field.
+   */
+  readonly check?: (values: Record<string, string>) => string | null
 }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(fields.map((field) => [field.name, held(record, field)])),
@@ -99,9 +107,18 @@ export function RecordForm({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    setWorking(true)
     setTrouble(null)
     setWrongFields([])
+
+    const problem = check?.(values) ?? null
+
+    if (problem !== null) {
+      setTrouble(problem)
+
+      return
+    }
+
+    setWorking(true)
 
     try {
       const result = await onSubmit(values)

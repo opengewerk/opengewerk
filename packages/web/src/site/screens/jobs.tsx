@@ -19,6 +19,7 @@ import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { InstallationBoards } from './boards.js'
+import { JobContacts } from './contacts.js'
 import { JobTasks, MyTasks } from './tasks.js'
 
 /**
@@ -282,6 +283,8 @@ export function SiteJobScreen() {
           ) : null}
         </dl>
       </Card>
+
+      <JobContacts job={job} />
 
       {installation ? (
         <Card label="Anlage">
