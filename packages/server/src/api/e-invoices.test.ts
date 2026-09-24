@@ -460,7 +460,7 @@ describe('the ZUGFeRD PDF', () => {
 
     expect(answer.headers['content-type']).toBe('application/pdf')
     expect(answer.headers['content-disposition']).toContain(
-      encodeURIComponent(`Schlussrechnung ${invoice.number ?? ''} ZUGFeRD.pdf`),
+      encodeURIComponent(`Rechnung ${invoice.number ?? ''} ZUGFeRD.pdf`),
     )
     expect(answer.headers['cache-control']).toBe('no-store')
 

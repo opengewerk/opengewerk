@@ -1,4 +1,5 @@
 import {
+  cancellationOf,
   type ContentSources,
   type DeductionContent,
   documentContent,
@@ -55,7 +56,12 @@ function line(position: number, netCents: number, over: Partial<LineContent> = {
   }
 }
 
-function page(
+function page(...args: Parameters<typeof invoice>) {
+  return printJob(invoice(...args), { logo: null })
+}
+
+/** The content of an invoice, or with `document` of another kind, as it is frozen. */
+function invoice(
   document: Partial<ContentSources['document']> = {},
   parts: {
     readonly lines?: readonly LineContent[]
@@ -102,14 +108,14 @@ function page(
     instructions: parts.instructions ?? [],
   })
 
-  return printJob(content, { logo: null })
+  return content
 }
 
 describe('the page', () => {
   it('carries the number, the dates and the totals of an ordinary invoice', () => {
     const { html } = page()
 
-    expect(html).toContain('<h1>Schlussrechnung RE-2026-0042</h1>')
+    expect(html).toContain('<h1>Rechnung RE-2026-0042</h1>')
     expect(html).toContain('<th>Rechnungsnummer</th><td>RE-2026-0042</td>')
     expect(html).toContain('<th>Datum</th><td>21.09.2026</td>')
     expect(html).toContain('<th>Leistungszeitraum</th><td>01.09.2026 bis 15.09.2026</td>')
@@ -300,7 +306,7 @@ describe('a draft', () => {
   it('says so, has no number yet, and carries the mark across the page', () => {
     const { html } = page({ number: null })
 
-    expect(html).toContain('<h1>Schlussrechnung (Entwurf)</h1>')
+    expect(html).toContain('<h1>Rechnung (Entwurf)</h1>')
     expect(html).toContain('<th>Rechnungsnummer</th><td>folgt beim Festschreiben</td>')
     expect(html).toContain('<div class="draft">ENTWURF</div>')
   })
@@ -512,6 +518,35 @@ describe('an invoice that deducts progress invoices', () => {
     expect(html).not.toContain('abzüglich')
     expect(html).not.toContain('Rechnungsbetrag')
     expect(html).toMatch(/Gesamtbetrag<\/td><td class="figure">1\.190,00\s€/)
+  })
+
+  it('is the one kind of invoice called a Schlussrechnung (#132)', () => {
+    const closing = { lines: [line(1, 100000)], deductions: [earlier] }
+
+    expect(page({}, closing).html).toContain('<h1>Schlussrechnung RE-2026-0042</h1>')
+    expect(page({ number: null }, closing).html).toContain('<h1>Schlussrechnung (Entwurf)</h1>')
+    expect(page({ kind: 'progress_invoice' }, closing).html).toContain(
+      '<h1>Abschlagsrechnung RE-2026-0042</h1>',
+    )
+    // And without a progress invoice before it, the plain invoice it is.
+    expect(page().html).toContain('<h1>Rechnung RE-2026-0042</h1>')
+  })
+
+  it('stays a Schlussrechnung in the cancellation that takes it back', () => {
+    const facts = { number: 'RE-2026-0050', documentDate: '2026-09-25', issuer } as const
+    const closing = cancellationOf(
+      invoice({}, { lines: [line(1, 100000)], deductions: [earlier] }),
+      facts,
+    )
+    const plain = cancellationOf(invoice(), facts)
+
+    expect(printJob(closing, { logo: null }).html).toContain(
+      'Hiermit stornieren wir die Schlussrechnung RE-2026-0042 vom 21.09.2026 in voller Höhe.',
+    )
+    expect(printJob(plain, { logo: null }).html).toContain(
+      'Hiermit stornieren wir die Rechnung RE-2026-0042 vom 21.09.2026 in voller Höhe.',
+    )
+    expect(printJob(closing, { logo: null }).html).toContain('<h1>Stornorechnung RE-2026-0050</h1>')
   })
 })
 

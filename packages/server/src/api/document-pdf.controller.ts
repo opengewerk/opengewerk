@@ -22,9 +22,9 @@ import type { Response } from 'express'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { documents, documentSnapshots } from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
-import { documentTitle } from '../documents/template.js'
+import { headingOf } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
-import { DocumentFiles } from './document-files.js'
+import { DocumentFiles, issuedHeading } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** What the first transaction found out about the document. */
@@ -35,14 +35,16 @@ type Found =
       readonly sha256: string
       readonly kind: DocumentKind
       readonly number: string | null
+      readonly heading: string
     }
   | { readonly state: 'unprinted'; readonly content: DocumentContent }
 
 /** The PDF of a stored file, the bytes of which have been read already. */
 interface Printed {
   readonly bytes: Uint8Array
-  readonly kind: DocumentKind
   readonly number: string | null
+  /** What the document calls itself on its page, and so what its file is called (#132). */
+  readonly heading: string
   /** Signed and not yet issued: no number, and no draft either. */
   readonly signed: boolean
 }
@@ -56,10 +58,10 @@ function disposition(printed: Printed): string {
   const safe = (value: string) => value.replaceAll(/[\\/:*?"<>|]+/g, '-')
   const name =
     printed.number !== null
-      ? `${documentTitle(printed.kind)} ${safe(printed.number)}.pdf`
+      ? `${printed.heading} ${safe(printed.number)}.pdf`
       : printed.signed
-        ? `${documentTitle(printed.kind)} unterschrieben.pdf`
-        : `Entwurf ${documentTitle(printed.kind)}.pdf`
+        ? `${printed.heading} unterschrieben.pdf`
+        : `Entwurf ${printed.heading}.pdf`
   const plain =
     printed.number !== null
       ? `Beleg-${safe(printed.number).replaceAll(/[^\w.-]/g, '-')}.pdf`
@@ -114,22 +116,22 @@ export class DocumentPdfController {
     if (found.state === 'stored') {
       printed = {
         bytes: await this.files.read(found.sha256),
-        kind: found.kind,
         number: found.number,
+        heading: found.heading,
         signed: false,
       }
     } else if (found.state === 'live') {
       printed = {
         bytes: await this.files.print(found.content),
-        kind: found.content.kind,
         number: null,
+        heading: headingOf(found.content),
         signed: found.content.signature !== null,
       }
     } else {
       printed = {
         bytes: await this.files.issuedPdf(identity, documentId as DocumentId, found.content, null),
-        kind: found.content.kind,
         number: found.content.number,
+        heading: headingOf(found.content),
         signed: false,
       }
     }
@@ -173,7 +175,13 @@ export class DocumentPdfController {
     const stored = await this.files.stored(tx, document.id, 'pdf')
 
     if (stored !== null) {
-      return { state: 'stored', sha256: stored, kind: document.kind, number: document.number }
+      return {
+        state: 'stored',
+        sha256: stored,
+        kind: document.kind,
+        number: document.number,
+        heading: await issuedHeading(tx, document),
+      }
     }
 
     const [snapshot] = await tx

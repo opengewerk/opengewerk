@@ -28,7 +28,13 @@ import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
-import { instructionSheet, type PrintAssets, printJob } from '../documents/template.js'
+import {
+  documentTitle,
+  headingOf,
+  instructionSheet,
+  type PrintAssets,
+  printJob,
+} from '../documents/template.js'
 import { zugferdPdf } from '../documents/zugferd.js'
 import {
   type FileStorage,
@@ -99,6 +105,8 @@ export interface IssuedFile {
   readonly bytes: Uint8Array
   readonly kind: DocumentKind
   readonly number: string
+  /** What the document calls itself on its page, which is what its file is named after. */
+  readonly heading: string
 }
 
 /** A file a message carries: an issued document's, or a signed report's without a number. */
@@ -106,6 +114,26 @@ export interface MailedFile {
   readonly bytes: Uint8Array
   readonly kind: DocumentKind
   readonly number: string | null
+  readonly heading: string
+}
+
+/**
+ * What an issued document is called, read from what it froze (#132). Only a
+ * final invoice needs its frozen state for that; every other kind is called
+ * what it is, and a final invoice issued before 0013 froze nothing and stays
+ * a "Rechnung".
+ */
+export async function issuedHeading(
+  tx: TenantTransaction,
+  document: { readonly id: DocumentId; readonly kind: DocumentKind },
+): Promise<string> {
+  if (document.kind !== 'final_invoice') {
+    return documentTitle(document.kind)
+  }
+
+  const content = await frozenContent(tx, document.id)
+
+  return content ? headingOf(content) : documentTitle(document.kind)
 }
 
 /**
@@ -315,14 +343,23 @@ export class DocumentFiles {
       const stored = await this.stored(tx, document.id, purpose)
 
       if (stored !== null) {
-        return { document, stored, content: null, pdf: null }
+        return {
+          document,
+          stored,
+          content: null,
+          pdf: null,
+          heading: await issuedHeading(tx, document),
+        }
       }
+
+      const content = await frozenOrRefused(tx, document.id)
 
       return {
         document,
         stored,
-        content: await frozenOrRefused(tx, document.id),
+        content,
         pdf: purpose === 'zugferd' ? await this.stored(tx, document.id, 'pdf') : null,
+        heading: headingOf(content),
       }
     })
 
@@ -354,7 +391,7 @@ export class DocumentFiles {
       )
     }
 
-    return { bytes, kind: document.kind, number: document.number }
+    return { bytes, kind: document.kind, number: document.number, heading: found.heading }
   }
 
   /**
@@ -383,7 +420,12 @@ export class DocumentFiles {
       })
 
       if (signed) {
-        return { bytes: await this.print(signed), kind: signed.kind, number: null }
+        return {
+          bytes: await this.print(signed),
+          kind: signed.kind,
+          number: null,
+          heading: headingOf(signed),
+        }
       }
     }
 

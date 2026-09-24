@@ -37,7 +37,7 @@ import {
   instructionsOf,
   shownTitle,
 } from '../documents/instructions.js'
-import { documentTitle } from '../documents/template.js'
+import { headingOf } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { pick } from './body.js'
 import { DocumentFiles } from './document-files.js'
@@ -350,7 +350,7 @@ export class DocumentInstructionsController {
     }
 
     const bytes = await this.files.printSheet(content, position)
-    const document = `${documentTitle(content.kind)}${content.number === null ? '' : ` ${content.number}`}`
+    const document = `${headingOf(content)}${content.number === null ? '' : ` ${content.number}`}`
     const name = safe(`${instruction.title} zu ${document}.pdf`)
 
     response.setHeader('Cache-Control', 'no-store')

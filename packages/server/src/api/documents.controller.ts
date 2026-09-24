@@ -119,7 +119,7 @@ function lacking(missing: readonly Missing[]): UnprocessableEntityException {
 /**
  * The refusal for a second successor out of the same document (#129), naming
  * the one the chain goes on at. Every kind a successor can be is a feminine
- * noun, Auftragsbestätigung, Abschlagsrechnung and Schlussrechnung, which the
+ * noun, Auftragsbestätigung, Abschlagsrechnung and Rechnung, which the
  * articles here rely on.
  */
 function branchRefusal(successor: {
@@ -663,8 +663,12 @@ export class DocumentsController {
         .limit(1)
 
       if (later) {
+        // A final invoice that builds on this one takes it off, which is what
+        // makes it a Schlussrechnung (#132).
+        const title = later.kind === 'final_invoice' ? 'Schlussrechnung' : documentTitle(later.kind)
+
         throw new ConflictException(
-          `Auf diese Rechnung baut die ${documentTitle(later.kind)} ${later.number ?? ''} auf. ` +
+          `Auf diese Rechnung baut die ${title} ${later.number ?? ''} auf. ` +
             'Erst jene stornieren, dann diese.',
         )
       }

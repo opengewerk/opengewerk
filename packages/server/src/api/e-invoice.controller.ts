@@ -30,7 +30,6 @@ import { Database, type TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import { documents, documentSnapshots } from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
-import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { DocumentFiles } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -239,7 +238,7 @@ export class EInvoiceController {
     return new StreamableFile(Buffer.from(file.bytes), {
       type: 'application/pdf',
       disposition: disposition(
-        `${documentTitle(file.kind)} ${safe(file.number)} ZUGFeRD.pdf`,
+        `${file.heading} ${safe(file.number)} ZUGFeRD.pdf`,
         `ZUGFeRD-${safe(file.number)}.pdf`,
       ),
       length: file.bytes.byteLength,

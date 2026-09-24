@@ -144,7 +144,7 @@ describe('an issued invoice', () => {
 
     expect(answer.headers['content-type']).toBe('application/pdf')
     expect(answer.headers['cache-control']).toBe('no-store')
-    expect(answer.headers['content-disposition']).toContain("filename*=UTF-8''Schlussrechnung")
+    expect(answer.headers['content-disposition']).toContain("filename*=UTF-8''Rechnung")
 
     const job = jobs.at(-1)
 
@@ -234,7 +234,7 @@ describe('a draft', () => {
     const draft = await issuableDraft(app, office(), customerId)
 
     await pdfOf(draft).expect(200)
-    expect(jobs.at(-1)?.html).toContain('Schlussrechnung (Entwurf)')
+    expect(jobs.at(-1)?.html).toContain('Rechnung (Entwurf)')
     expect(jobs.at(-1)?.html).toContain('<div class="draft">ENTWURF</div>')
 
     const printed = jobs.length
@@ -369,7 +369,7 @@ describe('a document issued before titles and document texts existed', () => {
 
     const html = jobs.at(-1)?.html ?? ''
 
-    expect(html).toContain('<h1>Schlussrechnung RE-ALT-0001</h1>')
+    expect(html).toContain('<h1>Rechnung RE-ALT-0001</h1>')
     expect(html).toMatch(/<td class="position">1<\/td>\s*<td>Unterverteilung erneuert/)
     expect(html).not.toContain('Summe Titel')
     expect(html).not.toContain('class="text intro"')

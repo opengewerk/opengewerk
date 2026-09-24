@@ -2,7 +2,6 @@ import { ConflictException, NotFoundException, UnprocessableEntityException } fr
 import { RuleError } from '@opengewerk/domain'
 
 import type { DocumentFiles, MailedFile } from '../api/document-files.js'
-import { documentTitle } from '../documents/template.js'
 import type { OutboxRow } from './outbox.js'
 import { type MailAttachment, MailDeliveryError } from './transport.js'
 
@@ -18,12 +17,12 @@ function fileNameOf(file: MailedFile, attachment: 'pdf' | 'zugferd' | 'xrechnung
   if (file.number === null) {
     // A report signed on site, before the office gave it a number. Named the
     // way its PDF is named when somebody opens it.
-    return `${documentTitle(file.kind)} unterschrieben.pdf`
+    return `${file.heading} unterschrieben.pdf`
   }
 
   return attachment === 'xrechnung'
     ? `XRechnung ${safe(file.number)}.xml`
-    : `${documentTitle(file.kind)} ${safe(file.number)}.pdf`
+    : `${file.heading} ${safe(file.number)}.pdf`
 }
 
 /**

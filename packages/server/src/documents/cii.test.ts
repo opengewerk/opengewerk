@@ -287,7 +287,7 @@ describe('an e-invoice', () => {
     expect(read(xml, `${returned}//ram:BilledQuantity`)).toEqual(['1'])
     expect(read(xml, `${returned}//ram:LineTotalAmount`)).toEqual(['5000.00'])
     expect(read(xml, '//rsm:ExchangedDocument/ram:IncludedNote/ram:Content')).toContain(
-      'Hiermit stornieren wir die Schlussrechnung RE-2026-0003 vom 21.09.2026 in voller Höhe. ' +
+      'Hiermit stornieren wir die Rechnung RE-2026-0003 vom 21.09.2026 in voller Höhe. ' +
         'Die Beträge sind die dieser Rechnung mit umgekehrtem Vorzeichen.',
     )
   })

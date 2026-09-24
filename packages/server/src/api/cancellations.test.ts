@@ -382,7 +382,7 @@ describe('cancelling an invoice', () => {
 
     expect(html).toContain(`<h1>Stornorechnung ${storno.number ?? ''}</h1>`)
     expect(html).toContain(
-      `Hiermit stornieren wir die Schlussrechnung ${invoice.number ?? ''} vom 18.09.2026 in voller Höhe.`,
+      `Hiermit stornieren wir die Rechnung ${invoice.number ?? ''} vom 18.09.2026 in voller Höhe.`,
     )
     expect(html).toContain(`<th>Zur Rechnung</th><td>${invoice.number ?? ''} vom 18.09.2026</td>`)
     // 1.240,00 € and 6,5 hours at 78,00 € come to 1.747,00 € net, 2.078,93 €

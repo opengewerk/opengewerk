@@ -1,4 +1,5 @@
 import {
+  closesProgressInvoices,
   type DocumentContent,
   type DocumentKind,
   type IssuerContent,
@@ -6,7 +7,7 @@ import {
   showsPrices,
 } from '@opengewerk/domain'
 
-import { documentTitle } from '../documents/template.js'
+import { documentTitle, headingOf } from '../documents/template.js'
 
 /** A message as it is written into the outbox: what it says, not how it travels. */
 export interface MessageText {
@@ -82,7 +83,11 @@ export function taskDueMessage(facts: {
   return { subject: `Heute fällig: ${task.title}`, body }
 }
 
-/** A document as the object of a sentence: "erhalten Sie die Schlussrechnung". */
+/**
+ * A document as the object of a sentence: "erhalten Sie die Rechnung". A final
+ * invoice that closes a row of progress invoices is "die Schlussrechnung",
+ * as its page calls it (#132); `objectOf` asks.
+ */
 const asObject: Readonly<Record<DocumentKind, string>> = {
   cost_estimate: 'den Kostenvoranschlag',
   quote: 'das Angebot',
@@ -91,10 +96,14 @@ const asObject: Readonly<Record<DocumentKind, string>> = {
   time_and_material_report: 'den Regiebericht',
   progress_invoice: 'die Abschlagsrechnung',
   partial_invoice: 'die Teilrechnung',
-  final_invoice: 'die Schlussrechnung',
+  final_invoice: 'die Rechnung',
   credit_note: 'die Gutschrift',
   cancellation_invoice: 'die Stornorechnung',
   recurring_invoice: 'die Dauerrechnung',
+}
+
+function objectOf(content: Pick<DocumentContent, 'kind' | 'deductions'>): string {
+  return closesProgressInvoices(content) ? 'die Schlussrechnung' : asObject[content.kind]
 }
 
 const euros = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
@@ -141,7 +150,7 @@ export function documentMessage(facts: {
   const body = [
     'Guten Tag,',
     '',
-    `im Anhang erhalten Sie ${asObject[content.kind]} ${number} vom ` +
+    `im Anhang erhalten Sie ${objectOf(content)} ${number} vom ` +
       `${germanDate(content.documentDate)}${amount}.`,
     ...electronic,
     '',
@@ -152,7 +161,7 @@ export function documentMessage(facts: {
   ].join('\n')
 
   return {
-    subject: `${documentTitle(content.kind)} ${number} von ${facts.issuer.name}`,
+    subject: `${headingOf(content)} ${number} von ${facts.issuer.name}`,
     body,
   }
 }

@@ -251,11 +251,11 @@ describe('an issued invoice', () => {
     expect(mail?.to).toEqual({ name: 'Familie Berg', address: 'berg@example.org' })
     expect(mail?.from.name).toBe('Elektro Nord GmbH')
     expect(mail?.replyTo).toBe('rechnung@elektro-nord.example')
-    expect(mail?.subject).toMatch(/^Schlussrechnung .+ von Elektro Nord GmbH$/)
-    expect(mail?.text).toContain('im Anhang erhalten Sie die Schlussrechnung')
+    expect(mail?.subject).toMatch(/^Rechnung .+ von Elektro Nord GmbH$/)
+    expect(mail?.text).toContain('im Anhang erhalten Sie die Rechnung')
     expect(mail?.text).toContain('1.475,60')
     expect(mail?.attachments.map((file) => [file.filename, file.contentType])).toEqual([
-      [expect.stringMatching(/^Schlussrechnung .+\.pdf$/) as unknown, 'application/pdf'],
+      [expect.stringMatching(/^Rechnung .+\.pdf$/) as unknown, 'application/pdf'],
     ])
     expect(Buffer.from(mail?.attachments[0]?.content ?? []).equals(Buffer.from(page))).toBe(true)
 

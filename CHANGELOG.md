@@ -711,6 +711,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Eine Rechnung heißt nur noch "Schlussrechnung", wenn sie Abschläge abzieht (#132), sonst
+  "Rechnung": im PDF, auf dem Bildschirm, im Dateinamen, in der E-Mail und in der Stornorechnung.
+  Bis dahin trug jede Rechnung die Überschrift "Schlussrechnung" und sah für den Kunden aus wie das
+  Ende einer Reihe von Abschlägen, die es nie gab. Entschieden wird am eingefrorenen Stand, eine
+  festgeschriebene Rechnung behält also ihre Überschrift, und dieselbe Frage wählt in der
+  E-Rechnung zwischen den Typcodes 877 und 380.
 - Feature-Gliederung v2.18 mit den Entscheidungen vom 24.09.2026 auf die offenen Fragen aus der
   Prüfung von Phase 0: der Regiebericht bleibt ein Beleg und bekommt über die Formular-Engine
   eigene Felder (#137), Elektro/PV bleibt im Kern und bringt Formulare und Grenzwerte im

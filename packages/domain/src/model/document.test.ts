@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { servicePeriodProblem } from './document.js'
+import { closesProgressInvoices, servicePeriodProblem } from './document.js'
 
 describe('a service period', () => {
   it('is a single day, a period in order, or nothing yet', () => {
@@ -28,5 +28,23 @@ describe('a service period', () => {
 
   it('reads a timestamp and a date for the same day as the same day', () => {
     expect(servicePeriodProblem('2026-09-10T00:00:00.000Z', '2026-09-10')).toBeNull()
+  })
+})
+
+describe('an invoice that closes a row of progress invoices', () => {
+  const deduction = { number: 'RE-2026-0001' }
+
+  it('is a final invoice with a progress invoice among its deductions', () => {
+    expect(closesProgressInvoices({ kind: 'final_invoice', deductions: [deduction] })).toBe(true)
+  })
+
+  it('is not a final invoice without one, which is a plain invoice', () => {
+    expect(closesProgressInvoices({ kind: 'final_invoice', deductions: [] })).toBe(false)
+  })
+
+  it('is not a progress invoice, whatever it takes off', () => {
+    expect(closesProgressInvoices({ kind: 'progress_invoice', deductions: [deduction] })).toBe(
+      false,
+    )
   })
 })
