@@ -415,6 +415,54 @@ describe('an update from an older release', () => {
 })
 
 /**
+ * 0042 gives every job that is closed already the day it was closed (#140),
+ * with the day of its last change standing in for it, so that the closed jobs
+ * stay their thirty days on a technician's device from there instead of all
+ * leaving at once. Planted as the superuser before 0042, updated as an
+ * installation is.
+ */
+describe('the jobs closed before 0042', () => {
+  it('get the day of their last change as the day they were closed', async () => {
+    const before = readMigrationIndex().findIndex((entry) => entry.tag === '0042_device_scope')
+    expect(before).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const customer = newId<'customer'>()
+    const done = newId<'job'>()
+    const running = newId<'job'>()
+
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Berg')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      `insert into jobs (id, tenant_id, customer_id, kind, status, designation)
+         values ($1, $3, $4, 'service', 'completed', 'Zählerschrank'),
+                ($2, $3, $4, 'service', 'active', 'Wallbox')`,
+      [done, running, tenant.id, customer],
+    )
+
+    const { rows: stamped } = await admin.query<{ updated_at: Date }>(
+      'select updated_at from jobs where id = $1',
+      [done],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ id: string; closed_at: Date | null }>(
+      'select id, closed_at from jobs',
+    )
+    const closedAt = (id: string) => rows.find((row) => row.id === id)?.closed_at ?? null
+
+    expect(closedAt(done)?.getTime()).toBe(stamped[0]?.updated_at.getTime())
+    expect(closedAt(running)).toBeNull()
+  })
+})
+
+/**
  * 0029 changed the shipped instructions of every business with four UPDATEs,
  * and as the owner under FORCE ROW LEVEL SECURITY they found no row. 0032 says
  * the same again with FORCE lifted. These are the rows 0027 wrote, planted as

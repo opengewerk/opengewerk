@@ -19,6 +19,7 @@ import type {
   Instruction,
   Inverter,
   Job,
+  JobAssignment,
   Letterhead,
   Membership,
   NumberRange,
@@ -59,6 +60,7 @@ import type {
   installations,
   instructions,
   inverters,
+  jobAssignments,
   jobs,
   letterheads,
   memberships,
@@ -114,6 +116,7 @@ export type InverterMatches = Assert<Exact<typeof inverters.$inferSelect, Invert
 export type PvStringMatches = Assert<Exact<typeof pvStrings.$inferSelect, PvString>>
 export type PvModuleMatches = Assert<Exact<typeof pvModules.$inferSelect, PvModule>>
 export type JobMatches = Assert<Exact<typeof jobs.$inferSelect, Job>>
+export type JobAssignmentMatches = Assert<Exact<typeof jobAssignments.$inferSelect, JobAssignment>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>
 export type DocumentSnapshotMatches = Assert<

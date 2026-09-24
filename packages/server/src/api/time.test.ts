@@ -379,8 +379,10 @@ describe('the time of the others', () => {
         }
       ).narrowed
 
-    expect(await narrowed('max')).toEqual({ time_entries: 'user:max' })
-    expect(await narrowed('britta')).toEqual({ time_entries: 'all' })
+    // Next to the part of the business each device holds since #140, which
+    // its own tests look at.
+    expect((await narrowed('max'))['time_entries']).toBe('user:max')
+    expect((await narrowed('britta'))['time_entries']).toBe('all')
   })
 
   it('is shown with names to whoever may read it, and to nobody else', async () => {

@@ -127,7 +127,7 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * from the job number range when the job is created, and a device that set
    * one could hand out a number the range never gave, or another job's.
    */
-  jobs: { ...fieldWork, reserved: ['number'] },
+  jobs: { ...fieldWork, reserved: ['number', 'closedAt'] },
   /**
    * A document may be written offline while it is a draft, and not one moment
    * longer. Issuing is not in this list at all: it hands out a number and
@@ -245,6 +245,14 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * where the chain of one that is not goes on.
    */
   document_sources: { create: false, change: 'never' },
+  /**
+   * Who is on which job (#140). Set in the office at the route, which checks
+   * that each person works in the business, and removed there by marking the
+   * row deleted; a device reads them and writes none. They decide what the
+   * device of a technician holds, so a device that could write one could
+   * widen its own share of the business.
+   */
+  job_assignments: { create: false, change: 'never' },
 }
 
 /**

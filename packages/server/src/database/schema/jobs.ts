@@ -1,6 +1,15 @@
 import { jobKinds, jobStatuses } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
+import {
+  check,
+  foreignKey,
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -36,6 +45,9 @@ export const jobs = pgTable(
     number: text('number'),
     designation: text('designation').notNull(),
     description: text('description'),
+    // When the job was completed or cancelled (#140), kept by a trigger of
+    // migration 0042; a technician's device keeps a closed job thirty days.
+    closedAt: timestamp('closed_at', { withTimezone: true }),
     ...timestamps,
     ...syncColumns,
   },

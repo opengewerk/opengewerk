@@ -43,6 +43,18 @@ export const permissions = [
    * office is the same report as a finished job from the site.
    */
   'job.progress',
+  /**
+   * The whole business on every device of whoever has it (#140). Without it
+   * a device holds the jobs its person is assigned to in the office, with
+   * what hangs on them, and what that person created: a lost telephone then
+   * carries a handful of customers and not the whole customer base. A job
+   * that is closed stays thirty days after it was, `closedJobsStayDays`.
+   *
+   * About devices and nothing else. The routes answer whoever may read a job
+   * the same way, because the office screens ask them while online and a
+   * technician in the office reads what the office reads.
+   */
+  'job.read.all',
   'document.read',
   'document.write',
   /**
@@ -159,6 +171,7 @@ const officePermissions: readonly Permission[] = [
   'job.read',
   'job.write',
   'job.progress',
+  'job.read.all',
   'document.read',
   'document.write',
   'document.issue',
@@ -182,10 +195,10 @@ const officePermissions: readonly Permission[] = [
  * signs. Writing a document is part of that. Issuing one is not, and that is
  * the whole point of keeping the two rights apart.
  *
- * ADR 0006 also mentions a right narrowed to one's own jobs. It is not in the
- * list, because the assignment of a person to a job does not exist yet and a
- * right that grants everything while sounding narrow is worse than no right at
- * all. It arrives with that assignment.
+ * ADR 0006 also mentions a right narrowed to one's own jobs. It came as the
+ * other way round with the assignment of people to jobs (#140): everybody may
+ * read a job, and `job.read.all`, which a technician lacks, decides whether a
+ * device holds the whole business or only that person's part of it.
  */
 const technicianPermissions: readonly Permission[] = [
   'customer.read',

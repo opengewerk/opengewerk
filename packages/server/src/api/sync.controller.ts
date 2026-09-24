@@ -23,6 +23,7 @@ import {
 import { eq } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
+import { deviceScope, narrowedTo, scopedEntities } from '../database/device-scope.js'
 import { timeEntries } from '../database/schema/index.js'
 import {
   applyOperations,
@@ -227,6 +228,8 @@ export function permissionFor(
     // answers any attempt with `online_only`. Named here so that the answer
     // is that conflict about the one operation and not a refused transmission.
     document_sources: 'document.write',
+    // The same for who is on a job (#140), which the office sets at a route.
+    job_assignments: 'job.write',
     tasks: 'task.write',
     // A file and its versions are one thing to whoever adds them: taking a
     // photo on site is adding it, and a new version is the same act again.
@@ -312,25 +315,39 @@ export class SyncController {
       throw new BadRequestException('Der Stand muss eine Zahl ab null sein.')
     }
 
-    // The working time of the others only for whoever may read it (#76).
+    // The working time of the others only for whoever may read it (#76), and
+    // only their part of the business for whoever may not hold all of it
+    // (#140): the jobs they are on, with what hangs on them.
     const ownTimeOnly = !isAllowed(identity, 'time.read')
-    const answer = await this.database.forTenant(identity, (tx) =>
-      changesSince(tx, from, undefined, (entity) =>
+    const wholeBusiness = isAllowed(identity, 'job.read.all')
+    const { answer, scope } = await this.database.forTenant(identity, async (tx) => {
+      const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
+      const answer = await changesSince(tx, from, undefined, (entity) =>
         entity === 'time_entries' && ownTimeOnly
           ? eq(timeEntries.userId, identity.userId)
-          : undefined,
-      ),
-    )
+          : scope
+            ? narrowedTo(scope, entity)
+            : undefined,
+      )
+
+      return { answer, scope }
+    })
 
     // What the answer was narrowed to, per entity whose rows depend on who
     // asks. The store on a device belongs to the business, not to a person,
     // and a device handed from the office to a technician would otherwise go
     // on holding everybody's time, or one handed the other way would miss
     // what lies behind its cursor. A device that finds a different value than
-    // last time drops what it holds of that entity and asks from the start.
+    // last time drops what it holds of that entity and asks from the start;
+    // for the part of the business that is every change of the jobs in it.
     return {
       ...answer,
-      narrowed: { time_entries: ownTimeOnly ? `user:${identity.userId}` : 'all' },
+      narrowed: {
+        time_entries: ownTimeOnly ? `user:${identity.userId}` : 'all',
+        ...Object.fromEntries(
+          scopedEntities.map((entity) => [entity, scope ? scope.value : 'all']),
+        ),
+      },
     }
   }
 
