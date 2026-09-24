@@ -1,7 +1,13 @@
 import 'fake-indexeddb/auto'
 
-import type { Operation, OperationReceipt, RecordState, RoleKey } from '@opengewerk/domain'
-import { lineNetCents } from '@opengewerk/domain'
+import type {
+  BilledAmount,
+  Operation,
+  OperationReceipt,
+  RecordState,
+  RoleKey,
+} from '@opengewerk/domain'
+import { lineNetCents, receivedShare } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -1895,5 +1901,297 @@ describe('the instructions of a document', () => {
     await screen.findByRole('region', { name: 'Positionen' })
 
     expect(screen.queryByRole('region', { name: 'Belehrungen' })).toBeNull()
+  })
+})
+
+/** What a progress invoice billed, at nineteen percent. */
+function amountOf(netCents: number) {
+  const taxCents = Math.round(netCents * 0.19)
+
+  return {
+    netCents,
+    taxCents,
+    grossCents: netCents + taxCents,
+    byRate: [
+      {
+        rate: 'standard',
+        basisPoints: 1900,
+        netCents,
+        taxCents,
+        grossCents: netCents + taxCents,
+      },
+    ],
+  }
+}
+
+/** A deduction as the server answers it since #189, with what came in. */
+function deduction(number: string, billedNet: number, received: number, receivedOn: string | null) {
+  const billed = amountOf(billedNet)
+
+  return {
+    number,
+    documentDate: '2026-09-01',
+    taxTreatment: 'standard',
+    billed,
+    received: receivedShare(billed as BilledAmount, received),
+    receivedOn,
+  }
+}
+
+describe('what came in on an invoice (#189)', () => {
+  const progress = document({
+    kind: 'progress_invoice',
+    status: 'issued',
+    number: 'RE-2026-0001',
+    issuedAt: '2026-09-01T08:00:00.000Z',
+  })
+
+  function paymentsAre(receivedCents: number) {
+    serverSays('GET', '/documents/d-1/payments', () => ({
+      status: 200,
+      body: {
+        payments:
+          receivedCents === 0
+            ? []
+            : [
+                {
+                  id: 'p-1',
+                  documentId: 'd-1',
+                  amountCents: receivedCents,
+                  receivedOn: '2026-09-12',
+                },
+              ],
+        billedCents: 57_120,
+        receivedCents,
+      },
+    }))
+  }
+
+  it('is listed on an issued progress invoice, with what is still open', async () => {
+    paymentsAre(30_000)
+
+    await mount('/belege/d-1', { documents: [progress], document_lines: [line('l-1', 1)] })
+
+    const card = within(await screen.findByRole('region', { name: 'Zahlungseingänge' }))
+
+    expect(card.getByText(/bis zu ihrem Festschreiben eingegangen ist/)).toBeDefined()
+    expect(card.getByText('Gefordert').closest('div')?.textContent).toMatch(/571,20\s€/)
+    expect(card.getByText('Eingegangen').closest('div')?.textContent).toMatch(/300,00\s€/)
+    expect(card.getByText('Offen').closest('div')?.textContent).toMatch(/271,20\s€/)
+    expect(card.getByText(/12\.09\.2026: 300,00\s€/)).toBeDefined()
+  })
+
+  it('is recorded in euros and cents, on the day it came in', async () => {
+    paymentsAre(30_000)
+    serverSays('POST', '/documents/d-1/payments', (body) => ({
+      status: 201,
+      body: { id: 'p-2', documentId: 'd-1', ...(body as object) },
+    }))
+
+    await mount('/belege/d-1', { documents: [progress], document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+    const card = within(await screen.findByRole('region', { name: 'Zahlungseingänge' }))
+
+    await person.type(card.getByLabelText('Betrag in Euro'), '100,50')
+    await person.clear(card.getByLabelText('Eingegangen am'))
+    await person.type(card.getByLabelText('Eingegangen am'), '2026-09-15')
+    await person.click(card.getByRole('button', { name: 'Eingang erfassen' }))
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'POST' && call.path === '/documents/d-1/payments')
+          ?.body,
+      ).toEqual({ amountCents: 10_050, receivedOn: '2026-09-15' })
+    })
+  })
+
+  it('is refused above what is open before the server is asked', async () => {
+    paymentsAre(30_000)
+
+    await mount('/belege/d-1', { documents: [progress], document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+    const card = within(await screen.findByRole('region', { name: 'Zahlungseingänge' }))
+
+    await person.type(card.getByLabelText('Betrag in Euro'), '300')
+    await person.click(card.getByRole('button', { name: 'Eingang erfassen' }))
+
+    expect(
+      await card.findByText(/So viel fordert die Rechnung nicht\. Offen ist noch 271,20\s€\./),
+    ).toBeDefined()
+    expect(calls.some((call) => call.method === 'POST' && call.path.endsWith('/payments'))).toBe(
+      false,
+    )
+  })
+
+  it('is removed with the button beside it', async () => {
+    paymentsAre(30_000)
+    serverSays('DELETE', '/documents/d-1/payments/p-1', () => ({ status: 204, body: null }))
+
+    await mount('/belege/d-1', { documents: [progress], document_lines: [line('l-1', 1)] })
+    const person = userEvent.setup()
+
+    await person.click(
+      await screen.findByRole('button', {
+        name: /Eingang vom 12\.09\.2026 über 300,00\s€ entfernen/,
+      }),
+    )
+
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === 'DELETE')).toBe(true)
+    })
+  })
+
+  it('is not shown to a technician', async () => {
+    paymentsAre(30_000)
+
+    await mount('/belege/d-1', { documents: [progress], document_lines: [line('l-1', 1)] }, [
+      'technician',
+    ])
+
+    await screen.findByRole('heading', { level: 1, name: 'Abschlagsrechnung RE-2026-0001' })
+
+    expect(screen.queryByRole('region', { name: 'Zahlungseingänge' })).toBeNull()
+    expect(calls.some((call) => call.path.endsWith('/payments'))).toBe(false)
+  })
+
+  it('is what a final invoice takes off, with what the progress invoice billed beside it', async () => {
+    serverSays('GET', '/documents/d-1/deductions', () => ({
+      status: 200,
+      body: [
+        deduction('RE-2026-0001', 48_000, 30_000, '2026-09-12'),
+        deduction('RE-2026-0002', 72_000, 0, null),
+      ],
+    }))
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice', predecessorDocumentId: 'd-0' })],
+      document_lines: [line('l-1', 1, { quantityMilli: 1000, unitPriceCents: 360_000 })],
+    })
+
+    expect(
+      await screen.findByText(
+        /gestellt 571,20\s€, eingegangen bis 12\.09\.2026, netto 252,10\s€, Umsatzsteuer 47,90\s€/,
+      ),
+    ).toBeDefined()
+    expect(screen.getByText(/gestellt 856,80\s€, nichts eingegangen/)).toBeDefined()
+    // 4.284,00 € for the work, less the 300,00 € that came in.
+    expect(screen.getByText('Rechnungsbetrag').nextElementSibling?.textContent).toMatch(
+      /3\.984,00\s€/,
+    )
+  })
+
+  it('is confirmed for each progress invoice before a final invoice is issued', async () => {
+    serverSays('GET', '/documents/d-1/deductions', () => ({
+      status: 200,
+      body: [
+        deduction('RE-2026-0001', 48_000, 57_120, '2026-09-12'),
+        deduction('RE-2026-0002', 72_000, 0, null),
+      ],
+    }))
+    serverSays('POST', '/documents/d-1/issue', () => {
+      const issued = { ...server.row('documents', 'd-1'), status: 'issued', number: 'RE-2026-0003' }
+
+      server.put('documents', issued)
+
+      return { status: 201, body: issued }
+    })
+
+    await mount('/belege/d-1', {
+      documents: [
+        document({
+          kind: 'final_invoice',
+          predecessorDocumentId: 'd-0',
+          serviceFrom: '2026-09-01',
+          serviceUntil: '2026-09-19',
+        }),
+      ],
+      document_lines: [line('l-1', 1, { quantityMilli: 1000, unitPriceCents: 360_000 })],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+
+    const issuing = within(screen.getByRole('region', { name: 'Festschreiben' }))
+    const now = issuing.getByRole('button', { name: 'Jetzt festschreiben' })
+
+    expect(now.hasAttribute('disabled')).toBe(true)
+
+    await person.click(
+      issuing.getByRole('checkbox', {
+        name: /RE-2026-0001 vom 01\.09\.2026: gestellt 571,20\s€, voll eingegangen bis 12\.09\.2026/,
+      }),
+    )
+
+    expect(now.hasAttribute('disabled')).toBe(true)
+
+    await person.click(
+      issuing.getByRole('checkbox', {
+        name: /RE-2026-0002 vom 01\.09\.2026: gestellt 856,80\s€, nichts eingegangen/,
+      }),
+    )
+    await person.click(now)
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Schlussrechnung RE-2026-0003' }),
+    ).toBeDefined()
+    expect(
+      calls.find((call) => call.method === 'POST' && call.path === '/documents/d-1/issue')?.body,
+    ).toEqual({ received: { 'RE-2026-0001': 57_120, 'RE-2026-0002': 0 } })
+  })
+
+  it('asks again for a progress invoice whose payments changed in the meantime', async () => {
+    let second = deduction('RE-2026-0002', 72_000, 0, null)
+
+    serverSays('GET', '/documents/d-1/deductions', () => ({
+      status: 200,
+      body: [deduction('RE-2026-0001', 48_000, 57_120, '2026-09-12'), second],
+    }))
+    serverSays('POST', '/documents/d-1/issue', () => {
+      // Somebody recorded a payment on the second while the box was ticked.
+      second = deduction('RE-2026-0002', 72_000, 20_000, '2026-09-20')
+
+      return {
+        status: 409,
+        body: {
+          message:
+            'Die Schlussrechnung zieht ab, was auf die Abschlagsrechnungen eingegangen ist. Noch ' +
+            'nicht bestätigt ist der Eingang auf RE-2026-0002.',
+          confirm: 'payments',
+          unconfirmed: ['RE-2026-0002'],
+        },
+      }
+    })
+
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'final_invoice', predecessorDocumentId: 'd-0' })],
+      document_lines: [line('l-1', 1, { quantityMilli: 1000, unitPriceCents: 360_000 })],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Festschreiben' }))
+
+    const issuing = within(screen.getByRole('region', { name: 'Festschreiben' }))
+
+    for (const box of issuing.getAllByRole('checkbox')) {
+      await person.click(box)
+    }
+
+    await person.click(issuing.getByRole('button', { name: 'Jetzt festschreiben' }))
+
+    expect(
+      await issuing.findByText(/Noch nicht bestätigt ist der Eingang auf RE-2026-0002\./),
+    ).toBeDefined()
+
+    const changed = await issuing.findByRole('checkbox', {
+      name: /RE-2026-0002 vom 01\.09\.2026: gestellt 856,80\s€, eingegangen 200,00\s€ bis 20\.09\.2026/,
+    })
+
+    expect((changed as HTMLInputElement).checked).toBe(false)
+    expect(
+      (issuing.getByRole('checkbox', { name: /RE-2026-0001/ }) as HTMLInputElement).checked,
+    ).toBe(true)
+    expect(
+      issuing.getByRole('button', { name: 'Jetzt festschreiben' }).hasAttribute('disabled'),
+    ).toBe(true)
   })
 })

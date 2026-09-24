@@ -10,6 +10,7 @@ import type {
 } from '@opengewerk/domain'
 import {
   billedAfter,
+  deductedPart,
   deducts,
   lineNetCents,
   lineUnits,
@@ -689,6 +690,37 @@ function billedOrRefusal(
 }
 
 /**
+ * The small print under a deduction, in the words of the PDF. Since #189 a
+ * final invoice takes off what came in on a progress invoice, and says so
+ * with the day of the last payment, and says what was billed where that was
+ * more; then net and tax of what is taken off, unless that is nothing.
+ */
+function deductionDetail(deduction: DeductionContent, taxed: boolean): string {
+  const part = deductedPart(deduction)
+  // A deduction from before #189 has no `received` at all.
+  const received = deduction.received ?? null
+  const came =
+    received === null
+      ? []
+      : received.grossCents === 0
+        ? [`gestellt ${euros(deduction.billed.grossCents)}, nichts eingegangen`]
+        : [
+            ...(received.grossCents === deduction.billed.grossCents
+              ? []
+              : [`gestellt ${euros(deduction.billed.grossCents)}`]),
+            deduction.receivedOn === null
+              ? 'eingegangen'
+              : `eingegangen bis ${date(deduction.receivedOn)}`,
+          ]
+  const figures =
+    taxed && part.grossCents !== 0
+      ? [`netto ${euros(part.netCents)}`, `Umsatzsteuer ${euros(part.taxCents)}`]
+      : []
+
+  return [...came, ...figures].join(', ')
+}
+
+/**
  * The figures under the lines, in the order the printed document has them:
  * the net sum, the tax per rate with the amount it is on, the total. Without
  * tax only the total, and the sentence that says why.
@@ -760,19 +792,22 @@ function Totals({
         ) : null}
         <dt className="font-semibold">{whole}</dt>
         <dd className="numeric text-right font-semibold">{euros(totals.grossCents)}</dd>
-        {deductions.map((deduction) => (
-          <Fragment key={deduction.number}>
-            <dt className="text-ink-muted">
-              {`${deducted} ${deduction.number} vom ${date(deduction.documentDate)}`}
-              {taxed ? (
-                <span className="block text-table">
-                  {`netto ${euros(deduction.billed.netCents)}, Umsatzsteuer ${euros(deduction.billed.taxCents)}`}
-                </span>
-              ) : null}
-            </dt>
-            <dd className="numeric text-right">{euros(-deduction.billed.grossCents)}</dd>
-          </Fragment>
-        ))}
+        {deductions.map((deduction) => {
+          const part = deductedPart(deduction)
+          const detail = deductionDetail(deduction, taxed)
+
+          return (
+            <Fragment key={deduction.number}>
+              <dt className="text-ink-muted">
+                {`${deducted} ${deduction.number} vom ${date(deduction.documentDate)}`}
+                {detail === '' ? null : <span className="block text-table">{detail}</span>}
+              </dt>
+              <dd className="numeric text-right">
+                {euros(part.grossCents === 0 ? 0 : -part.grossCents)}
+              </dd>
+            </Fragment>
+          )
+        })}
         {billed !== null && typeof billed !== 'string' ? (
           <>
             {taxed

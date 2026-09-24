@@ -84,6 +84,7 @@ export function cancellationOf(
     deductions: original.deductions.map((deduction) => ({
       ...deduction,
       billed: turnedRound(deduction.billed),
+      received: deduction.received === null ? null : turnedRound(deduction.received),
     })),
     billed: turnedRound(original.billed),
     signature: null,

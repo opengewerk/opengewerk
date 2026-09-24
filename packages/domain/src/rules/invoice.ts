@@ -139,6 +139,82 @@ export interface Deducted {
   readonly number: string
   readonly taxTreatment: TaxTreatment
   readonly billed: BilledAmount
+  /**
+   * What came in on it, when that is what is taken off (#189): the final
+   * invoice deducts the amounts received, section 14 (5) UStG. Null where the
+   * billed amount is taken off, which a progress invoice does with the ones
+   * before it, and every final invoice issued before payments were recorded.
+   */
+  readonly received?: BilledAmount | null
+}
+
+/** What a deduction takes off: the amount received where it is known, else the one billed. */
+export function deductedPart(deduction: Deducted): BilledAmount {
+  return deduction.received ?? deduction.billed
+}
+
+/**
+ * The part of an invoice that a payment of this many cents covers, split the
+ * way the invoice is (#189).
+ *
+ * Section 14 (5) UStG takes off the partial amounts received and the tax on
+ * them, so a payment is a gross amount that has to be divided into net and
+ * tax, rate by rate. Shared out in the proportion of the gross amounts per
+ * rate, and within a rate in the proportion of its net to its gross, each
+ * rounded to the cent; the last rate takes what rounding left over, so the
+ * parts add up to the payment exactly. A payment of the whole amount gives
+ * back the invoice's own figures to the cent, and one of nothing gives zero.
+ */
+export function receivedShare(billed: BilledAmount, receivedGrossCents: number): BilledAmount {
+  if (receivedGrossCents === billed.grossCents) {
+    return billed
+  }
+
+  if (billed.byRate.length === 0 || billed.grossCents === 0) {
+    // Nothing to divide by rate: under section 19 there is no tax, and the
+    // whole payment is the net amount.
+    const share = billed.grossCents === 0 ? 0 : receivedGrossCents / billed.grossCents
+    const netCents = withoutNegativeZero(Math.round(billed.netCents * share))
+
+    return {
+      netCents,
+      taxCents: withoutNegativeZero(receivedGrossCents - netCents),
+      grossCents: receivedGrossCents,
+      byRate: [],
+    }
+  }
+
+  let left = receivedGrossCents
+  const byRate = billed.byRate.map((entry, index) => {
+    const last = index === billed.byRate.length - 1
+    const grossCents = last
+      ? left
+      : Math.round((receivedGrossCents * entry.grossCents) / billed.grossCents)
+
+    left -= grossCents
+
+    const netCents =
+      entry.grossCents === 0
+        ? grossCents
+        : Math.round((grossCents * entry.netCents) / entry.grossCents)
+
+    return {
+      ...entry,
+      netCents: withoutNegativeZero(netCents),
+      taxCents: withoutNegativeZero(grossCents - netCents),
+      grossCents: withoutNegativeZero(grossCents),
+    }
+  })
+
+  const netCents = byRate.reduce((sum, entry) => sum + entry.netCents, 0)
+  const taxCents = byRate.reduce((sum, entry) => sum + entry.taxCents, 0)
+
+  return {
+    netCents: withoutNegativeZero(netCents),
+    taxCents: withoutNegativeZero(taxCents),
+    grossCents: receivedGrossCents,
+    byRate,
+  }
 }
 
 /** The totals of a document that deducts nothing, as the amount it bills. */
@@ -163,12 +239,12 @@ export function billedOf(totals: DocumentTotals): BilledAmount {
  *
  * Section 14 (5) UStG asks for something narrower of a final invoice: the
  * partial amounts received before the work was done, and the tax on them.
- * Billed and received are the same figure as long as every progress invoice
- * was paid in full, and that is the assumption here until payments are
- * matched in phase 3. A progress invoice that is still open, or paid in part,
- * is taken off all the same, and the final invoice then asks for less than is
- * owed. Section 4.2 of the concept names both, billed and paid; which of the
- * two a final invoice deducts before phase 3 is open in #31.
+ * Since #189 a final invoice takes off what came in on each progress invoice,
+ * `received`, as the office recorded it; a progress invoice still open is then
+ * part of what the final invoice asks for, which is where it belongs, because
+ * after the final invoice it cannot be claimed on its own. A progress invoice
+ * takes off what the ones before it billed, as section 4.2 of the concept
+ * writes the cumulative progress invoice.
  *
  * A rate is matched by its name and not by its figure. Should the rate change
  * between a progress invoice and the final one, the final invoice taxes the
@@ -210,7 +286,7 @@ export function billedAfter(
   }
 
   for (const deduction of deductions) {
-    for (const entry of deduction.billed.byRate) {
+    for (const entry of deductedPart(deduction).byRate) {
       const current = perRate.get(entry.rate) ?? {
         basisPoints: entry.basisPoints,
         netCents: 0,
@@ -238,10 +314,16 @@ export function billedAfter(
   })
 
   const netCents = withoutNegativeZero(
-    deductions.reduce((rest, deduction) => rest - deduction.billed.netCents, totals.netCents),
+    deductions.reduce(
+      (rest, deduction) => rest - deductedPart(deduction).netCents,
+      totals.netCents,
+    ),
   )
   const taxCents = withoutNegativeZero(
-    deductions.reduce((rest, deduction) => rest - deduction.billed.taxCents, totals.taxCents),
+    deductions.reduce(
+      (rest, deduction) => rest - deductedPart(deduction).taxCents,
+      totals.taxCents,
+    ),
   )
 
   return { netCents, taxCents, grossCents: withoutNegativeZero(netCents + taxCents), byRate }

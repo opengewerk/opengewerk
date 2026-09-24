@@ -1,4 +1,5 @@
 import type {
+  DeductionContent,
   DocumentKind,
   DocumentStatus,
   EInvoiceGap,
@@ -12,6 +13,7 @@ import {
   invoiceFormats,
   isCancellable,
   isInvoice,
+  receivesPayments,
   shippedRules,
   successorsOf,
   supplyDateOf,
@@ -38,6 +40,7 @@ import {
   missingFrom,
   pdfAddress,
   sendDocument,
+  unconfirmedFrom,
   xrechnungAddress,
   zugferdAddress,
 } from '../../session/documents.js'
@@ -48,6 +51,7 @@ import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { HeaderSection } from './document-head.js'
 import { InstructionsSection } from './document-instructions.js'
 import { LinesSection } from './document-lines.js'
+import { confirmationKey, PaymentConfirmation, PaymentsCard } from './document-payments.js'
 import { claimableTransitions } from './taxes.js'
 
 /** What went wrong with a call to the server, in a sentence somebody can act on. */
@@ -225,12 +229,9 @@ function DocumentView({ document }: { readonly document: RecordState }) {
     queryFn: () => deductionsOf(documentId),
     enabled: kind === 'final_invoice',
   })
-  const heading = closesProgressInvoices({
-    kind,
-    deductions: Array.isArray(deductions.data) ? deductions.data : [],
-  })
-    ? 'Schlussrechnung'
-    : documentKindLabel[kind]
+  const deductionList = Array.isArray(deductions.data) ? deductions.data : []
+  const closing = closesProgressInvoices({ kind, deductions: deductionList })
+  const heading = closing ? 'Schlussrechnung' : documentKindLabel[kind]
   const fixed = whyFixed({ kind, status })
   const editable = fixed === null && mayWrite
   // A signed report is fixed and still waits for its number. Issuing it is
@@ -363,6 +364,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       {issuing && issuable ? (
         <IssueCard
           documentId={documentId}
+          deductions={closing ? deductionList : []}
           onDone={() => {
             setIssuing(false)
           }}
@@ -384,6 +386,10 @@ function DocumentView({ document }: { readonly document: RecordState }) {
           status={status}
           claimMatters={hangsOnClaim(document)}
         />
+      ) : null}
+
+      {status === 'issued' && receivesPayments(kind) ? (
+        <PaymentsCard documentId={documentId} kind={kind} />
       ) : null}
 
       {number !== null || status === 'signed' ? (
@@ -715,18 +721,31 @@ function EstimateNotice() {
 /**
  * The second step of issuing. Two steps because the first cannot be undone:
  * the number is handed out, and the document is what it is from then on.
+ *
+ * A final invoice that takes off progress invoices asks one more thing on the
+ * way (#189): for each of them, whether what came in is right. The server
+ * issues it only with that answer, and names the progress invoices whose
+ * payments changed in the meantime; their boxes are empty again then, and the
+ * list shows what the payments add up to now.
  */
 function IssueCard({
   documentId,
+  deductions,
   onDone,
 }: {
   readonly documentId: string
+  /** The progress invoices a final invoice takes off, and nothing for any other document. */
+  readonly deductions: readonly DeductionContent[]
   readonly onDone: () => void
 }) {
   const client = useSync()
+  const queries = useQueryClient()
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [missing, setMissing] = useState<readonly MissingDetail[]>([])
+  const [confirmed, setConfirmed] = useState<ReadonlySet<string>>(new Set())
+
+  const unconfirmed = deductions.filter((deduction) => !confirmed.has(confirmationKey(deduction)))
 
   async function issue() {
     setWorking(true)
@@ -748,11 +767,30 @@ function IssueCard({
         return
       }
 
-      await issueDocument(documentId)
+      await issueDocument(
+        documentId,
+        deductions.length === 0
+          ? undefined
+          : Object.fromEntries(
+              deductions.map((deduction) => [
+                deduction.number,
+                deduction.received?.grossCents ?? 0,
+              ]),
+            ),
+      )
       await client.synchronise()
       onDone()
     } catch (error) {
       const lacking = missingFrom(error)
+      const changed = unconfirmedFrom(error)
+
+      if (changed.length > 0) {
+        setConfirmed(
+          (before) =>
+            new Set([...before].filter((key) => !changed.some((one) => key.startsWith(`${one}:`)))),
+        )
+        void queries.invalidateQueries({ queryKey: ['deductions', documentId] })
+      }
 
       setMissing(lacking)
       setTrouble(
@@ -776,6 +814,25 @@ function IssueCard({
           Festschreiben vergibt die nächste Nummer. Danach lässt sich der Beleg nicht mehr ändern;
           soll sich etwas ändern, entsteht dafür ein neuer Beleg.
         </p>
+        {deductions.length > 0 ? (
+          <PaymentConfirmation
+            deductions={deductions}
+            confirmed={confirmed}
+            onChange={(key, checked) => {
+              setConfirmed((before) => {
+                const next = new Set(before)
+
+                if (checked) {
+                  next.add(key)
+                } else {
+                  next.delete(key)
+                }
+
+                return next
+              })
+            }}
+          />
+        ) : null}
         {trouble ? (
           <div role="alert" className="flex flex-col gap-1">
             <p className="text-body font-semibold text-conflict">{trouble}</p>
@@ -793,7 +850,11 @@ function IssueCard({
           </div>
         ) : null}
         <div className="flex flex-wrap gap-3">
-          <Button tone="primary" disabled={working} onClick={() => void issue()}>
+          <Button
+            tone="primary"
+            disabled={working || unconfirmed.length > 0}
+            onClick={() => void issue()}
+          >
             {working ? 'Wird festgeschrieben' : 'Jetzt festschreiben'}
           </Button>
           <Button tone="quiet" disabled={working} onClick={onDone}>

@@ -110,6 +110,8 @@ function billedBy(progress: DocumentContent, number: string): DeductionContent {
     documentDate: progress.documentDate,
     taxTreatment: progress.taxTreatment,
     billed: progress.billed,
+    received: null,
+    receivedOn: null,
   }
 }
 

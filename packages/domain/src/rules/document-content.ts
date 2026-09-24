@@ -16,6 +16,7 @@ import type {
   DocumentContentV6,
   DocumentContentV7,
   DocumentContentV8,
+  DocumentContentV9,
   InstructionContent,
   IssuerContent,
   LineContent,
@@ -226,7 +227,8 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * nothing; a record from version 5 kept nothing of the recipient that only an
  * e-invoice needs; a record from version 6 stated no payment term; a record
  * from version 7 carried no instructions; a record from version 8 named no
- * job number. That is exactly what each of them
+ * job number; a record from version 9 took off what its progress invoices
+ * billed. That is exactly what each of them
  * said when it was printed. The figures, the addresses and the notes are
  * carried over as they are.
  *
@@ -241,8 +243,21 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 8:
-      return { ...stored, version: documentContentVersion, jobNumber: null }
+    case 9:
+      return {
+        ...stored,
+        version: documentContentVersion,
+        deductions: stored.deductions.map((deduction) => ({
+          ...deduction,
+          received: null,
+          receivedOn: null,
+        })),
+      }
+    case 8: {
+      const ninth: DocumentContentV9 = { ...stored, version: 9, jobNumber: null }
+
+      return currentContent(ninth)
+    }
     case 7: {
       const eighth: DocumentContentV8 = { ...stored, version: 8, instructions: [] }
 

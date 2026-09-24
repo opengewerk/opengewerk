@@ -9,6 +9,7 @@ import {
   billedOf,
   comparableQuantities,
   lineNetCents,
+  receivedShare,
   totalsFor,
   treatmentFor,
 } from './invoice.js'
@@ -329,6 +330,80 @@ describe('a cumulative invoice', () => {
 
           expect(sum((one) => perRate(one.byRate))).toBe(perRate(last.byRate))
         }
+      }),
+    )
+  })
+})
+
+/**
+ * What came in on a progress invoice, and what a final invoice takes off
+ * (#189). Section 14 (5) UStG deducts the partial amounts received and the tax
+ * on them, not the ones billed.
+ */
+describe('a payment on a progress invoice', () => {
+  const progress = billedOf(totalsFor(rules, [line(400_000)], standard))
+  const mixed = billedOf(totalsFor(rules, [line(300_000), line(100_000, 'reduced')], standard))
+
+  it('is the whole invoice when the whole amount came in, and nothing when nothing did', () => {
+    expect(receivedShare(progress, progress.grossCents)).toEqual(progress)
+
+    const nothing = receivedShare(progress, 0)
+
+    expect([nothing.netCents, nothing.taxCents, nothing.grossCents]).toEqual([0, 0, 0])
+  })
+
+  it('splits a part into net and tax the way the invoice is split', () => {
+    const half = receivedShare(progress, 238_000)
+
+    expect([half.netCents, half.taxCents, half.grossCents]).toEqual([200_000, 38_000, 238_000])
+  })
+
+  it('shares a part out over the rates and adds up to the payment to the cent', () => {
+    const part = receivedShare(mixed, 100_001)
+
+    expect(part.grossCents).toBe(100_001)
+    expect(part.byRate.reduce((sum, entry) => sum + entry.grossCents, 0)).toBe(100_001)
+    expect(part.netCents + part.taxCents).toBe(100_001)
+    // Three quarters of the gross is at the standard rate, a quarter reduced.
+    expect(part.byRate.map((entry) => entry.rate)).toEqual(mixed.byRate.map((entry) => entry.rate))
+  })
+
+  it('is what a final invoice takes off in place of what was billed', () => {
+    const totals = totalsFor(rules, [line(1_000_000)], standard)
+    const billedOnly: Deducted = {
+      number: 'RE-2026-0001',
+      taxTreatment: 'standard',
+      billed: progress,
+    }
+    const halfPaid: Deducted = { ...billedOnly, received: receivedShare(progress, 238_000) }
+    const unpaid: Deducted = { ...billedOnly, received: receivedShare(progress, 0) }
+
+    expect(billedAfter(totals, [billedOnly], 'standard').grossCents).toBe(
+      totals.grossCents - progress.grossCents,
+    )
+    expect(billedAfter(totals, [halfPaid], 'standard').grossCents).toBe(totals.grossCents - 238_000)
+    expect(billedAfter(totals, [unpaid], 'standard')).toEqual(billedOf(totals))
+  })
+
+  it('works under section 19 as well, where the whole payment is the net amount', () => {
+    const noTax = billedOf(
+      totalsFor(rules, [line(60_000)], { ...standard, taxTreatment: 'small_business' }),
+    )
+    const part = receivedShare(noTax, 25_000)
+
+    expect([part.netCents, part.taxCents, part.byRate]).toEqual([25_000, 0, []])
+  })
+
+  it('never divides a payment into parts that do not add up to it', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: mixed.grossCents }), (paid) => {
+        const part = receivedShare(mixed, paid)
+
+        return (
+          part.grossCents === paid &&
+          part.netCents + part.taxCents === paid &&
+          part.byRate.reduce((sum, entry) => sum + entry.grossCents, 0) === paid
+        )
       }),
     )
   })

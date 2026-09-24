@@ -724,6 +724,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Schlussrechnung zieht ab, was auf die Abschlagsrechnungen eingegangen ist, und nicht mehr,
+  was sie gestellt haben (#189). § 14 Abs. 5 UStG verlangt die vereinnahmten Teilentgelte, und war
+  ein Abschlag offen, war die Schlussrechnung um genau diesen Betrag zu niedrig, der sich danach
+  nicht mehr fordern lässt. Das Büro erfasst dafür an jeder festgeschriebenen Rechnung, was mit
+  welchem Tag eingegangen ist (Tabelle `payments`, Rechte `payment.read` und `payment.write`), und
+  bestätigt vor dem Festschreiben je Abschlagsrechnung, dass es stimmt. Abgezogen wird der Eingang
+  nach den Steuergruppen der Abschlagsrechnung, im PDF mit dem, was sie gestellt hat, und in der
+  E-Rechnung; eingefroren in Fassung 10 von `DocumentContent`. Eine Rechnung mit Eingängen wird
+  erst storniert, wenn sie entfernt sind, weil eine stornierte Rechnung nirgends mehr mitzählt.
 - Eine Rechnung heißt nur noch "Schlussrechnung", wenn sie Abschläge abzieht (#132), sonst
   "Rechnung": im PDF, auf dem Bildschirm, im Dateinamen, in der E-Mail und in der Stornorechnung.
   Bis dahin trug jede Rechnung die Überschrift "Schlussrechnung" und sah für den Kunden aus wie das

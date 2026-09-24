@@ -191,6 +191,18 @@ describe('the sample data', () => {
       predecessorDocumentId: byKind.get('progress_invoice')?.id,
     })
     expect(byKind.get('recurring_invoice')).toMatchObject({ status: 'issued' })
+
+    // Half of the progress invoice has come in, and the final invoice shows
+    // that half as what it will take off (#189).
+    const paid = await read<{ billedCents: number; receivedCents: number }>(
+      `/documents/${byKind.get('progress_invoice')?.id ?? ''}/payments`,
+    )
+    const [deduction] = await read<{ received: { grossCents: number } | null }[]>(
+      `/documents/${byKind.get('final_invoice')?.id ?? ''}/deductions`,
+    )
+
+    expect(paid.receivedCents).toBe(Math.floor(paid.billedCents / 2))
+    expect(deduction?.received?.grossCents).toBe(paid.receivedCents)
   })
 
   it('has an invoice to a business whose XRechnung can be fetched', async () => {

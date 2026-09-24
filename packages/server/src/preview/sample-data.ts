@@ -304,6 +304,17 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await post(`/documents/${progress}/issue`, {})
 
+  // Half of it has come in so far. The final invoice takes off that half, and
+  // not what the progress invoice billed (#189).
+  const owed = await send(base, 'GET', `/documents/${progress}/payments`)
+  const paidOn = new Date(`${today}T12:00:00Z`)
+
+  paidOn.setUTCDate(paidOn.getUTCDate() - 3)
+  await post(`/documents/${progress}/payments`, {
+    amountCents: Math.floor(Number(owed['billedCents']) / 2),
+    receivedOn: paidOn.toISOString().slice(0, 10),
+  })
+
   const final = idOf(await post(`/documents/${progress}/successors`, { kind: 'final_invoice' }))
   const started = new Date(`${today}T12:00:00Z`)
 

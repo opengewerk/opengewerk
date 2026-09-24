@@ -31,9 +31,10 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * and the amount it bills after them, version 5 the invoice a cancellation
  * cancels, version 6 what an e-invoice needs to know about the recipient,
  * version 7 the payment term, version 8 the instructions that went with it,
- * version 9 the number of the job it belongs to.
+ * version 9 the number of the job it belongs to, version 10 what came in on
+ * the progress invoices it takes off.
  */
-export const documentContentVersion = 9
+export const documentContentVersion = 10
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -124,7 +125,19 @@ export interface DeductionContent {
   readonly documentDate: IsoDate
   readonly taxTreatment: TaxTreatment
   readonly billed: BilledAmount
+  /**
+   * What came in on the progress invoice by the time the final invoice was
+   * issued, split into net and tax like the invoice (#189), and taken off in
+   * place of `billed`. Null on a progress invoice, which takes off what the
+   * ones before it billed, and on every final invoice issued before version 10.
+   */
+  readonly received: BilledAmount | null
+  /** The day the last payment came in; null when nothing did, or `received` is null. */
+  readonly receivedOn: IsoDate | null
 }
+
+/** A deduction as versions 4 to 9 froze it: what was billed, and nothing of what came in. */
+export type DeductionContentV9 = Omit<DeductionContent, 'received' | 'receivedOn'>
 
 /**
  * The invoice a cancellation cancels, as far as the cancellation names it:
@@ -261,8 +274,14 @@ export interface DocumentContent {
   readonly jobNumber: string | null
 }
 
+/** The ninth shape, from #145: the job number, and deductions of what was billed only. */
+export interface DocumentContentV9 extends Omit<DocumentContent, 'version' | 'deductions'> {
+  readonly version: 9
+  readonly deductions: readonly DeductionContentV9[]
+}
+
 /** The eighth shape, from #110: the instructions, and no job number yet. */
-export interface DocumentContentV8 extends Omit<DocumentContent, 'version' | 'jobNumber'> {
+export interface DocumentContentV8 extends Omit<DocumentContentV9, 'version' | 'jobNumber'> {
   readonly version: 8
 }
 
@@ -316,6 +335,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV9
   | DocumentContentV8
   | DocumentContentV7
   | DocumentContentV6

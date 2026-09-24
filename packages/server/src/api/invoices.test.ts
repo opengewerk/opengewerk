@@ -116,13 +116,37 @@ async function linesOf(documentId: string) {
   return answer.body as LineRow[]
 }
 
-async function issue(documentId: string, expected = 201) {
+async function issue(documentId: string, expected = 201, body: Record<string, unknown> = {}) {
   const answer = await http()
     .post(`/documents/${documentId}/issue`)
     .set('x-test-identity', office())
+    .send(body)
     .expect(expected)
 
-  return answer.body as DocumentRow & { message?: string }
+  return answer.body as DocumentRow & { message?: string; unconfirmed?: string[] }
+}
+
+/** A payment recorded on an issued invoice, #189. */
+async function pay(documentId: string, amountCents: number, receivedOn = '2026-09-10') {
+  const answer = await http()
+    .post(`/documents/${documentId}/payments`)
+    .set('x-test-identity', office())
+    .send({ amountCents, receivedOn })
+    .expect(201)
+
+  return answer.body as { id: string }
+}
+
+/**
+ * What the office confirms before a final invoice is issued: what came in on
+ * each progress invoice, as the screen shows it, keyed by number.
+ */
+async function confirmed(documentId: string) {
+  return {
+    received: Object.fromEntries(
+      (await deductionsOf(documentId)).map((one) => [one.number, one.received?.grossCents ?? 0]),
+    ),
+  }
 }
 
 async function successor(documentId: string, kind: string, expected = 201) {
@@ -311,43 +335,43 @@ describe('a final invoice out of a report', () => {
   })
 })
 
+/**
+ * Forty metres, then all hundred, then the board as well. Each progress
+ * invoice copies the one before it and raises the quantities to where the
+ * work stands; the final invoice does the same once more.
+ */
+async function chainToTheEnd() {
+  const confirmation = await confirmedOrder()
+
+  const first = await successor(confirmation.id, 'progress_invoice')
+
+  await change(first.id, (await lineCalled(first.id, cable.designation)).id, {
+    quantityMilli: 40_000,
+  })
+  await http()
+    .delete(`/documents/${first.id}/lines/${(await lineCalled(first.id, board.designation)).id}`)
+    .set('x-test-identity', office())
+    .expect(200)
+
+  const firstIssued = await issue(first.id)
+
+  const second = await successor(first.id, 'progress_invoice')
+
+  expect(second.predecessorDocumentId).toBe(first.id)
+
+  await change(second.id, (await lineCalled(second.id, cable.designation)).id, {
+    quantityMilli: 100_000,
+  })
+
+  const secondIssued = await issue(second.id)
+  const final = await successor(second.id, 'final_invoice')
+
+  await add(final.id, { ...board, quantityMilli: 1000 })
+
+  return { confirmation, first: firstIssued, second: secondIssued, final }
+}
+
 describe('cumulative progress invoices', () => {
-  /**
-   * Forty metres, then all hundred, then the board as well. Each progress
-   * invoice copies the one before it and raises the quantities to where the
-   * work stands; the final invoice does the same once more.
-   */
-  async function chainToTheEnd() {
-    const confirmation = await confirmedOrder()
-
-    const first = await successor(confirmation.id, 'progress_invoice')
-
-    await change(first.id, (await lineCalled(first.id, cable.designation)).id, {
-      quantityMilli: 40_000,
-    })
-    await http()
-      .delete(`/documents/${first.id}/lines/${(await lineCalled(first.id, board.designation)).id}`)
-      .set('x-test-identity', office())
-      .expect(200)
-
-    const firstIssued = await issue(first.id)
-
-    const second = await successor(first.id, 'progress_invoice')
-
-    expect(second.predecessorDocumentId).toBe(first.id)
-
-    await change(second.id, (await lineCalled(second.id, cable.designation)).id, {
-      quantityMilli: 100_000,
-    })
-
-    const secondIssued = await issue(second.id)
-    const final = await successor(second.id, 'final_invoice')
-
-    await add(final.id, { ...board, quantityMilli: 1000 })
-
-    return { confirmation, first: firstIssued, second: secondIssued, final }
-  }
-
   it('each bill the progress less what the ones before them billed', async () => {
     const { first, second } = await chainToTheEnd()
 
@@ -389,7 +413,11 @@ describe('cumulative progress invoices', () => {
       .send({ serviceFrom: '2026-09-01', serviceUntil: '2026-09-19' })
       .expect(200)
 
-    await issue(final.id)
+    // Both progress invoices were paid in full, so what came in is what they
+    // billed, and the three invoices end on the whole of the work.
+    await pay(first.id, 57_120)
+    await pay(second.id, 85_680, '2026-09-18')
+    await issue(final.id, 201, await confirmed(final.id))
 
     const content = await snapshotOf(final.id)
     const billedBefore = [await snapshotOf(first.id), await snapshotOf(second.id)].map(
@@ -397,9 +425,16 @@ describe('cumulative progress invoices', () => {
     )
 
     expect(content?.totals).toMatchObject({ netCents: 360_000, grossCents: 428_400 })
-    expect(content?.deductions.map((one) => [one.number, one.billed.grossCents])).toEqual([
-      [first.number, 57_120],
-      [second.number, 85_680],
+    expect(
+      content?.deductions.map((one) => [
+        one.number,
+        one.billed.grossCents,
+        one.received?.grossCents,
+        one.receivedOn,
+      ]),
+    ).toEqual([
+      [first.number, 57_120, 57_120, '2026-09-10'],
+      [second.number, 85_680, 85_680, '2026-09-18'],
     ])
     expect(content?.billed).toMatchObject({
       netCents: 240_000,
@@ -416,6 +451,8 @@ describe('cumulative progress invoices', () => {
   it('print what they take off and what they ask for', async () => {
     const { first, second, final } = await chainToTheEnd()
 
+    await pay(first.id, 57_120)
+    await pay(second.id, 85_680, '2026-09-18')
     await http()
       .get(`/documents/${final.id}/pdf`)
       .set('x-test-identity', office())
@@ -428,6 +465,7 @@ describe('cumulative progress invoices', () => {
     expect(html).toContain('Gesamtleistung')
     expect(html).toContain(`abzüglich Abschlagsrechnung ${first.number ?? ''} vom 21.09.2026`)
     expect(html).toContain(`abzüglich Abschlagsrechnung ${second.number ?? ''} vom 21.09.2026`)
+    expect(html).toContain('eingegangen bis 18.09.2026')
     expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">2\.856,00\s€/)
   })
 
@@ -463,6 +501,300 @@ describe('cumulative progress invoices', () => {
     const quote = await draft('quote')
 
     expect(await deductionsOf(quote.id)).toEqual([])
+  })
+})
+
+/**
+ * #189: a final invoice takes off what came in on each progress invoice,
+ * section 14 (5) UStG, and not what they billed. The office records the
+ * payments on the progress invoices and confirms them before the final
+ * invoice gets its number.
+ */
+describe('a final invoice after progress invoices', () => {
+  /** The chain to the end, with the time of the work the final invoice needs. */
+  async function readyChain() {
+    const chain = await chainToTheEnd()
+
+    await http()
+      .patch(`/documents/${chain.final.id}`)
+      .set('x-test-identity', office())
+      .send({ serviceFrom: '2026-09-01', serviceUntil: '2026-09-19' })
+      .expect(200)
+
+    return chain
+  }
+
+  it('is not issued before the office confirmed what came in on each of them', async () => {
+    const { first, second, final } = await readyChain()
+
+    const unconfirmed = await issue(final.id, 409)
+
+    expect(unconfirmed.unconfirmed).toEqual([first.number, second.number])
+    expect(unconfirmed.message).toContain(`${first.number ?? ''} und ${second.number ?? ''}`)
+
+    // One confirmed, the other not: the refusal names the one that is missing.
+    const half = await issue(final.id, 409, { received: { [first.number ?? '']: 0 } })
+
+    expect(half.unconfirmed).toEqual([second.number])
+
+    // The screen showed nothing received, and somebody recorded a payment in
+    // between: what would go out is not what was checked.
+    const seen = await confirmed(final.id)
+
+    await pay(second.id, 20_000)
+
+    expect((await issue(final.id, 409, seen)).unconfirmed).toEqual([second.number])
+
+    await issue(final.id, 201, await confirmed(final.id))
+  })
+
+  it('takes off a part payment, split by the rates of the progress invoice', async () => {
+    const { first, second, final } = await readyChain()
+
+    await pay(first.id, 57_120)
+    await pay(second.id, 30_000, '2026-09-12')
+    await pay(second.id, 20_000, '2026-09-18')
+
+    // A draft shows it already, out of the payments as they stand.
+    expect(
+      (await deductionsOf(final.id)).map((one) => [one.number, one.received?.grossCents]),
+    ).toEqual([
+      [first.number, 57_120],
+      [second.number, 50_000],
+    ])
+
+    await issue(final.id, 201, await confirmed(final.id))
+
+    const content = await snapshotOf(final.id)
+
+    expect(content?.deductions[1]).toMatchObject({
+      number: second.number,
+      billed: { netCents: 72_000, taxCents: 13_680, grossCents: 85_680 },
+      received: { netCents: 42_017, taxCents: 7_983, grossCents: 50_000 },
+      receivedOn: '2026-09-18',
+    })
+    expect(content?.billed).toMatchObject({
+      netCents: 360_000 - 48_000 - 42_017,
+      taxCents: 68_400 - 9_120 - 7_983,
+      grossCents: 428_400 - 57_120 - 50_000,
+    })
+
+    await http()
+      .get(`/documents/${final.id}/pdf`)
+      .set('x-test-identity', office())
+      .buffer(true)
+      .parse(binary)
+      .expect(200)
+
+    const html = jobs.at(-1)?.html ?? ''
+
+    expect(html).toMatch(/gestellt 856,80\s€, eingegangen bis 18\.09\.2026/)
+    expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">3\.212,80\s€/)
+  })
+
+  it('takes off nothing for a progress invoice nothing came in on', async () => {
+    const { first, final } = await readyChain()
+
+    await issue(final.id, 201, await confirmed(final.id))
+
+    const content = await snapshotOf(final.id)
+
+    expect(content?.deductions[0]).toMatchObject({
+      number: first.number,
+      received: { grossCents: 0 },
+      receivedOn: null,
+    })
+    expect(content?.billed.grossCents).toBe(428_400)
+
+    await http()
+      .get(`/documents/${final.id}/pdf`)
+      .set('x-test-identity', office())
+      .buffer(true)
+      .parse(binary)
+      .expect(200)
+
+    expect(jobs.at(-1)?.html ?? '').toMatch(/gestellt 571,20\s€, nichts eingegangen/)
+  })
+
+  it('keeps what it took off when a payment is removed afterwards', async () => {
+    const { first, final } = await readyChain()
+    const payment = await pay(first.id, 57_120)
+
+    await issue(final.id, 201, await confirmed(final.id))
+    await http()
+      .delete(`/documents/${first.id}/payments/${payment.id}`)
+      .set('x-test-identity', office())
+      .expect(204)
+
+    expect((await deductionsOf(final.id))[0]?.received?.grossCents).toBe(57_120)
+    expect((await snapshotOf(final.id))?.deductions[0]?.received?.grossCents).toBe(57_120)
+  })
+
+  it('leaves a progress invoice taking off what the ones before it billed', async () => {
+    const confirmation = await confirmedOrder()
+    const first = await successor(confirmation.id, 'progress_invoice')
+
+    await change(first.id, (await lineCalled(first.id, cable.designation)).id, {
+      quantityMilli: 40_000,
+    })
+
+    const firstIssued = await issue(first.id)
+
+    // Only part of it came in; the cumulative invoice deducts what it billed
+    // all the same, section 4.2 of the concept.
+    await pay(first.id, 10_000)
+
+    const second = await successor(first.id, 'progress_invoice')
+    const [deduction] = await deductionsOf(second.id)
+
+    expect(deduction).toMatchObject({ number: firstIssued.number, received: null })
+
+    await issue(second.id)
+
+    expect((await snapshotOf(second.id))?.deductions[0]?.received).toBeNull()
+  })
+})
+
+describe('payments on an invoice', () => {
+  /** An issued final invoice of its own, which takes off nothing. */
+  async function issuedInvoice() {
+    const invoice = await draft('final_invoice', {
+      serviceFrom: '2026-09-01',
+      serviceUntil: '2026-09-19',
+    })
+
+    await add(invoice.id, { ...cable, quantityMilli: 10_000 })
+
+    return issue(invoice.id)
+  }
+
+  async function record(documentId: string, body: Record<string, unknown>, expected: number) {
+    const answer = await http()
+      .post(`/documents/${documentId}/payments`)
+      .set('x-test-identity', office())
+      .send(body)
+      .expect(expected)
+
+    return answer.body as { message?: string }
+  }
+
+  it('are listed oldest first, with what the invoice asks for and what came in', async () => {
+    const invoice = await issuedInvoice()
+
+    await pay(invoice.id, 4_000, '2026-09-15')
+    await pay(invoice.id, 6_000, '2026-09-12')
+
+    const answer = await http()
+      .get(`/documents/${invoice.id}/payments`)
+      .set('x-test-identity', office())
+      .expect(200)
+    const listed = answer.body as {
+      payments: { amountCents: number; receivedOn: string }[]
+      billedCents: number
+      receivedCents: number
+    }
+
+    expect(listed.payments.map((one) => [one.receivedOn, one.amountCents])).toEqual([
+      ['2026-09-12', 6_000],
+      ['2026-09-15', 4_000],
+    ])
+    expect(listed).toMatchObject({ billedCents: 14_280, receivedCents: 10_000 })
+  })
+
+  it('are refused above what the invoice asks for, naming what is still open', async () => {
+    const invoice = await issuedInvoice()
+
+    await pay(invoice.id, 14_000)
+
+    const refused = await record(invoice.id, { amountCents: 281, receivedOn: '2026-09-20' }, 422)
+
+    expect(refused.message).toMatch(/So viel fordert die Rechnung nicht\. Offen ist noch 2,80\s€\./)
+
+    await pay(invoice.id, 280)
+  })
+
+  it('are checked as the form checks them', async () => {
+    const invoice = await issuedInvoice()
+
+    for (const [body, message] of [
+      [{ amountCents: 0, receivedOn: '2026-09-20' }, 'Der Betrag ist ein Betrag'],
+      [{ amountCents: 12.5, receivedOn: '2026-09-20' }, 'Der Betrag ist ein Betrag'],
+      [{ amountCents: 100, receivedOn: '2026-02-30' }, 'Der Tag des Eingangs ist kein Datum.'],
+      [{ amountCents: 100, receivedOn: '2999-12-31' }, 'Ein Eingang liegt nicht in der Zukunft.'],
+    ] as const) {
+      expect((await record(invoice.id, body, 422)).message).toContain(message)
+    }
+  })
+
+  it('are only for an issued invoice that asks for money', async () => {
+    const drafted = await draft('final_invoice')
+    const confirmation = await confirmedOrder()
+
+    expect(
+      (await record(drafted.id, { amountCents: 100, receivedOn: '2026-09-20' }, 422)).message,
+    ).toBe('Ein Eingang wird erst zu einer festgeschriebenen Rechnung erfasst.')
+    expect(
+      (await record(confirmation.id, { amountCents: 100, receivedOn: '2026-09-20' }, 422)).message,
+    ).toBe('Ein Eingang wird nur zu einer Rechnung erfasst, die etwas fordert.')
+
+    await http()
+      .get(`/documents/${drafted.id}/payments`)
+      .set('x-test-identity', office())
+      .expect(404)
+  })
+
+  it('are removed one by one, and a removed one is gone', async () => {
+    const invoice = await issuedInvoice()
+    const payment = await pay(invoice.id, 1_000)
+
+    await http()
+      .delete(`/documents/${invoice.id}/payments/${payment.id}`)
+      .set('x-test-identity', office())
+      .expect(204)
+    await http()
+      .delete(`/documents/${invoice.id}/payments/${payment.id}`)
+      .set('x-test-identity', office())
+      .expect(404)
+  })
+
+  it('belong to the office: a technician neither reads nor records them', async () => {
+    const invoice = await issuedInvoice()
+
+    await http()
+      .get(`/documents/${invoice.id}/payments`)
+      .set('x-test-identity', as(north.id, 'technician'))
+      .expect(403)
+    await http()
+      .post(`/documents/${invoice.id}/payments`)
+      .set('x-test-identity', as(north.id, 'technician'))
+      .send({ amountCents: 100, receivedOn: '2026-09-20' })
+      .expect(403)
+  })
+
+  it('keep an invoice from being cancelled until they are moved', async () => {
+    const invoice = await issuedInvoice()
+    const payment = await pay(invoice.id, 1_000)
+
+    const refused = await http()
+      .post(`/documents/${invoice.id}/cancellation`)
+      .set('x-test-identity', office())
+      .expect(409)
+
+    expect((refused.body as { message: string }).message).toContain('Zahlungseingänge')
+
+    await http()
+      .delete(`/documents/${invoice.id}/payments/${payment.id}`)
+      .set('x-test-identity', office())
+      .expect(204)
+    await http()
+      .post(`/documents/${invoice.id}/cancellation`)
+      .set('x-test-identity', office())
+      .expect(201)
+
+    // A cancelled invoice takes no more.
+    expect(
+      (await record(invoice.id, { amountCents: 100, receivedOn: '2026-09-20' }, 422)).message,
+    ).toBe('Die Rechnung ist storniert, auf sie geht nichts mehr ein.')
   })
 })
 

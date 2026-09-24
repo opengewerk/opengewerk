@@ -13,9 +13,11 @@ import {
 } from '@nestjs/common'
 import {
   cancellationOf,
+  closesProgressInvoices,
   continuesChain,
   currentContent,
   type CustomerId,
+  type DeductionContent,
   defaultPatterns,
   type DocumentContent,
   type DocumentId,
@@ -48,6 +50,7 @@ import {
   documents,
   documentSnapshots,
   numberRanges,
+  payments,
 } from '../database/schema/index.js'
 import { contentAndGapsOf, issuerOf } from '../documents/content.js'
 import { deductionsFor } from '../documents/deductions.js'
@@ -100,6 +103,41 @@ async function contentForIssuing(
 
     throw error
   }
+}
+
+/**
+ * The progress invoices a final invoice takes off whose payments the office
+ * has not confirmed (#189), by number.
+ *
+ * The body of an issuing carries, under `received`, what the screen showed as
+ * received on each progress invoice, keyed by its number. A progress invoice
+ * missing there is not confirmed, and neither is one whose amount differs from
+ * what the payments add up to now: somebody recorded or removed a payment
+ * after the screen was drawn, and what goes out would not be what was checked.
+ */
+function unconfirmedPayments(
+  deductions: readonly DeductionContent[],
+  body: unknown,
+): readonly string[] {
+  const received =
+    typeof body === 'object' && body !== null
+      ? (body as Record<string, unknown>)['received']
+      : undefined
+  const confirmed =
+    typeof received === 'object' && received !== null && !Array.isArray(received)
+      ? (received as Record<string, unknown>)
+      : {}
+
+  return deductions
+    .filter((deduction) => confirmed[deduction.number] !== (deduction.received?.grossCents ?? 0))
+    .map((deduction) => deduction.number)
+}
+
+/** The numbers of the progress invoices named in a sentence: "A", "A und B", "A, B und C". */
+function listed(numbers: readonly string[]): string {
+  return numbers.length < 2
+    ? numbers.join('')
+    : `${numbers.slice(0, -1).join(', ')} und ${numbers.at(-1) ?? ''}`
 }
 
 /** The refusal for a document that lacks mandatory details, the same for every route. */
@@ -318,10 +356,21 @@ export class DocumentsController {
    * A signed report is issued the same way. The customer's signature froze
    * what it says; issuing adds the number and the moment, and the trigger on
    * the table lets exactly that through and nothing more.
+   *
+   * A final invoice that takes off progress invoices is issued only once the
+   * office has confirmed, for each of them, what came in (#189). It takes off
+   * exactly the payments recorded, and a payment nobody recorded is money the
+   * invoice asks for again; this step is where somebody looks at the list
+   * before it goes out. Refused with 409 and `confirm: 'payments'`, and the
+   * numbers still to confirm under `unconfirmed`.
    */
   @Post(':id/issue')
   @RequiresPermission('document.issue')
-  async issue(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+  async issue(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
     return this.database.forTenant(identity, async (tx) => {
       const [existing] = await tx
         .select()
@@ -340,6 +389,20 @@ export class DocumentsController {
 
       if (missing.length > 0) {
         throw lacking(missing)
+      }
+
+      const unconfirmed = closesProgressInvoices(content)
+        ? unconfirmedPayments(content.deductions, body)
+        : []
+
+      if (unconfirmed.length > 0) {
+        throw new ConflictException({
+          message:
+            'Die Schlussrechnung zieht ab, was auf die Abschlagsrechnungen eingegangen ist. Noch ' +
+            `nicht bestätigt ist der Eingang auf ${listed(unconfirmed)}.`,
+          confirm: 'payments',
+          unconfirmed,
+        })
       }
 
       const issuedAt = new Date()
@@ -670,6 +733,24 @@ export class DocumentsController {
         throw new ConflictException(
           `Auf diese Rechnung baut die ${title} ${later.number ?? ''} auf. ` +
             'Erst jene stornieren, dann diese.',
+        )
+      }
+
+      const [paid] = await tx
+        .select({ id: payments.id })
+        .from(payments)
+        .where(eq(payments.documentId, original.id))
+        .limit(1)
+
+      if (paid) {
+        // Money that came in on a cancelled invoice would count nowhere: a
+        // final invoice passes a cancelled progress invoice over (#189). It
+        // belongs to the invoice that replaces this one, and somebody who
+        // knows moves it there, rather than the cancellation guessing.
+        throw new ConflictException(
+          'Auf diese Rechnung sind Zahlungseingänge erfasst. Eine stornierte Rechnung zählt ' +
+            'nirgends mehr mit, deshalb die Eingänge vor dem Stornieren entfernen und an der ' +
+            'Rechnung erfassen, die diese ersetzt.',
         )
       }
 
