@@ -929,6 +929,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ihr `next_attempt_at` bekommt, und neun Tests fanden nichts mehr zu verschicken, auf jedem Pull
   Request. Die Uhr eines Tests, der Zeilen der Datenbank für fällig halten soll, muss ihr sicher
   vorauslaufen; ein Datum, das beim Schreiben zwei Tage in der Zukunft lag, tut das nur zwei Tage.
+  Im selben Zug wartet der Test der Pause auf die Zeile des Zeitnehmers statt auf das erste
+  „Pause“ auf dem Bildschirm: bis die Pause begonnen hat, ist das der Knopf, und der Test scheiterte
+  je nachdem, wie schnell die Oberfläche war.
 - Abmelden löscht, was das Gerät vom Betrieb hält (#186). Bis dahin vergaß der Browser nur Konto und
   Rollen, die lokale Ablage mit Kunden, Belegen, Fotos und Arbeitszeiten blieb liegen, auch auf
   einem Gerät, das danach weitergegeben oder verloren wird. Jetzt sendet das Abmelden zuerst, was
