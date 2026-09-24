@@ -50,11 +50,20 @@ const people = {
 
 type Person = keyof typeof people
 
-/** Thursday the 24th, half past six in Berlin, which is half past four in UTC. */
-const morning = new Date('2026-09-24T04:30:00Z')
-const before6 = new Date('2026-09-24T03:30:00Z')
-const today = '2026-09-24'
-const tomorrow = '2026-09-25'
+/**
+ * Thursday the 24th, half past six in Berlin, which is half past four in UTC.
+ *
+ * Years ahead on purpose. The job runs on this clock, but a message in the
+ * outbox gets `next_attempt_at` from the database, which runs on the real
+ * one, so the job only finds a message due while its clock is ahead of the
+ * database's. Until #191 the date was 2026-09-24, two days out when it was
+ * written: on that very morning the job fell behind, and nine tests found
+ * nothing to send.
+ */
+const morning = new Date('2037-09-24T04:30:00Z')
+const before6 = new Date('2037-09-24T03:30:00Z')
+const today = '2037-09-24'
+const tomorrow = '2037-09-25'
 
 function minutesLater(from: Date, minutes: number): Date {
   return new Date(from.getTime() + minutes * 60_000)
@@ -206,14 +215,14 @@ describe('a task due today', () => {
     expect(mail?.from).toEqual({ name: 'Elektro Nord GmbH', address: 'rechnung@nord.example.de' })
     expect(mail?.replyTo).toBe('buero@nord.example.de')
     expect(mail?.subject).toBe('Heute fällig: Material für den Zählerschrank bestellen')
-    expect(mail?.text).toContain('heute, am 24.09.2026, ist diese Aufgabe fällig:')
+    expect(mail?.text).toContain('heute, am 24.09.2037, ist diese Aufgabe fällig:')
     expect(mail?.text).toContain('https://opengewerk.example.de/aufgaben')
 
     const [row] = await messages()
 
     expect(row?.status).toBe('sent')
     expect(row?.sentAt?.toISOString()).toBe(morning.toISOString())
-    expect(row?.cause).toMatch(/^task_due:.+:2026-09-24$/)
+    expect(row?.cause).toMatch(/^task_due:.+:2037-09-24$/)
   })
 
   it('is written once, however often the job comes by', async () => {
@@ -259,7 +268,7 @@ describe('a task due today', () => {
       written: 1,
       sent: 1,
     })
-    expect(post.sent.map((mail) => mail.text.includes('25.09.2026'))).toEqual([false, true])
+    expect(post.sent.map((mail) => mail.text.includes('25.09.2037'))).toEqual([false, true])
   })
 
   it('stays in its own business', async () => {

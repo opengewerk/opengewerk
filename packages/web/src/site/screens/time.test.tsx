@@ -219,9 +219,13 @@ describe('the stopwatch', () => {
     vi.setSystemTime(at('09:00'))
     await user.click(await screen.findByRole('button', { name: 'Pause' }))
 
-    expect((await screen.findByText(/^Pause$/)).closest('p')?.textContent).toContain(
-      'Pause seit 09:00',
-    )
+    // Asked of the bar and not of the first "Pause" on the screen: until the
+    // break has started, that is the button that was just pressed.
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: 'Zeitnehmer' }).textContent).toContain(
+        'Pause seit 09:00',
+      )
+    })
 
     vi.setSystemTime(at('09:30'))
     await user.click(screen.getByRole('button', { name: 'Weiter arbeiten' }))
