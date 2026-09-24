@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Releases mit fertigen, signierten Abbildern (#155). Ein Tag `v0.x.y` auf `main` baut Anwendung
+  und Sicherung für x86_64 und ARM64, legt sie unter der Fassung in `ghcr.io/opengewerk` ab,
+  signiert sie ohne Schlüssel über Sigstore und schreibt die Release-Seite aus dem CHANGELOG, mit
+  einem Paket `opengewerk-<fassung>.tar.gz`, das den Ordner `docker` enthält und die Fassung in
+  dessen `compose.yaml` nennt. Eine Installation aus dem Paket holt mit `sh docker/start.sh` die
+  Abbilder statt zu bauen, jeder `docker compose`-Befehl in dem Ordner nimmt dieselbe Fassung, und
+  ein Update ist das nächste Paket an derselben Stelle. Bis dahin verlangte jedes Update den
+  Quelltext, Git und einen Build von Minuten, und es gab keinen Stand, zu dem man zurückkehren
+  konnte. Ein Checkout baut weiter aus dem Quelltext, eine Fassung in `OPENGEWERK_VERSION` holt
+  auch dort die veröffentlichten Abbilder; `latest`, die alte Vorgabe, stellt `setup.sh` auf leer.
 - Felder, die der Betrieb seinen Regieberichten gibt (#78, zweiter Teil), etwa Wetter, Anfahrt oder
   Besonderheiten der Baustelle: unter "Einstellungen", "Felder des Regieberichts" bis zu zwölf als
   Text, Zahl mit Einheit, Auswahl oder Ja/Nein, jede Änderung als neue Fassung in
@@ -1003,6 +1013,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- In einem Checkout baut `sh docker/start.sh` bei jedem Start auch das Abbild der Sicherung neu
+  (#155). Bis dahin baute es nur das der Anwendung, und der Dienst, der jede Nacht sichert, lief
+  nach einem Update mit den Skripten vom ersten Start weiter.
+- Die Prüfung, dass nach der Einrichtung kein Platzhalter in der `.env` steht, kann scheitern
+  (#155). Als `! grep` geschrieben, nimmt `set -e` sie aus, in `docker/test-setup.sh` wie im Job
+  "Betrieb über Docker Compose"; wirksam gemacht, hätte sie am Kommentar oben in der Vorlage
+  angeschlagen, der das Wort nennt. Sie fragt jetzt nach einem Wert.
 - Die Tests der Dokumentenablage warten, bis eine Fassung eingereiht ist, bevor sie abgleichen
   (#206). Das Hochladen liest die Datei, verkleinert ein Foto und bildet den Hash, bevor die Fassung
   in den Postausgang kommt; unter Last ging der Abgleich ohne sie hinaus, und ein Test zählte eine

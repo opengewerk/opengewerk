@@ -57,11 +57,18 @@ services:
   #
   # Its own service, because it signs in as opengewerk_owner. The application
   # is never to see those credentials.
+  #
+  # The image is the one a release publishes (#155), under its version. In a
+  # release kit the release workflow has put the version in place of "source"
+  # below, here and at the other three images, so start.sh and every docker
+  # compose command pull that release; a checkout builds the same name under
+  # the tag "source". OPENGEWERK_VERSION in the .env wins over both. The build
+  # section is for the checkout, a kit never uses it.
   migrate:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: opengewerk/opengewerk:${OPENGEWERK_VERSION:-latest}
+    image: ghcr.io/opengewerk/opengewerk:${OPENGEWERK_VERSION:-source}
     command: ['node', '--enable-source-maps', 'dist/migrate.js']
     environment:
       MIGRATION_DATABASE_URL: postgres://opengewerk_owner:${OPENGEWERK_OWNER_PASSWORD}@postgres:5432/opengewerk
@@ -74,7 +81,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: opengewerk/opengewerk:${OPENGEWERK_VERSION:-latest}
+    image: ghcr.io/opengewerk/opengewerk:${OPENGEWERK_VERSION:-source}
     restart: unless-stopped
     environment:
       # opengewerk_app, never opengewerk_owner: for the owner of the tables
@@ -177,7 +184,7 @@ services:
   backup:
     build:
       context: ./backup
-    image: opengewerk/backup:${OPENGEWERK_VERSION:-latest}
+    image: ghcr.io/opengewerk/backup:${OPENGEWERK_VERSION:-source}
     profiles: ['backup']
     environment: &backup-environment
       POSTGRES_HOST: postgres
@@ -215,7 +222,7 @@ services:
   backup-schedule:
     build:
       context: ./backup
-    image: opengewerk/backup:${OPENGEWERK_VERSION:-latest}
+    image: ghcr.io/opengewerk/backup:${OPENGEWERK_VERSION:-source}
     restart: unless-stopped
     command: ['schedule.sh']
     environment:

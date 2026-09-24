@@ -89,6 +89,17 @@ if [ -n "$added" ]; then
   say "Aus der Vorlage übernommen:$added"
 fi
 
+# "latest" was the value of OPENGEWERK_VERSION in the template until #155 and
+# never named a version. Kept, it would make a release kit build, and a kit
+# has no source to build from; empty runs what the kit or the checkout brings.
+if grep -q '^OPENGEWERK_VERSION=latest[[:space:]]*$' "$env_file"; then
+  draft=$(mktemp "$here/.env.XXXXXX")
+  trap 'rm -f "$draft"' EXIT
+  sed 's/^OPENGEWERK_VERSION=latest[[:space:]]*$/OPENGEWERK_VERSION=/' "$env_file" > "$draft"
+  replace_env "$draft"
+  say 'OPENGEWERK_VERSION stand auf latest, der früheren Vorgabe, und ist jetzt leer: ein Paket läuft damit in seiner Fassung, ein Checkout baut aus dem Quelltext.'
+fi
+
 # Every placeholder becomes a secret of its own. The loop reads from a file
 # and writes to one, with no pipe in between: behind a pipe it would run in a
 # subshell, and the list of names would be empty afterwards.

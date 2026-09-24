@@ -1,0 +1,204 @@
+name: Release
+
+# A release is a tag v<major>.<minor>.<patch> on a commit of main (#155). It
+# builds the two images an installation runs, for x86_64 and ARM64, pushes
+# them to ghcr.io/opengewerk under the version, signs them without a key
+# through Sigstore, and writes the release page with the section of
+# CHANGELOG.md for that version and the installation kit: the folder docker/
+# with the version in its compose.yaml, so that "sh docker/start.sh" and every
+# docker compose command in it pull this release instead of building.
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Abbilder veröffentlichen und Release schreiben
+    runs-on: ubuntu-latest
+    permissions:
+      # The release page and its kit.
+      contents: write
+      # The two images in ghcr.io.
+      packages: write
+      # The identity Sigstore signs with, instead of a key someone keeps.
+      id-token: write
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fassung aus dem Tag lesen
+        id: version
+        run: |
+          set -eu
+          version="${GITHUB_REF_NAME#v}"
+
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Der Tag $GITHUB_REF_NAME hat nicht die Form v1.2.3." >&2
+            exit 1
+          fi
+
+          # A release is what main holds, not a branch somebody tagged.
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Der Tag $GITHUB_REF_NAME steht nicht auf einem Stand von main." >&2
+            exit 1
+          fi
+
+          # The release page is written from the changelog; without a section
+          # for the version there is nothing to say what it brings.
+          if ! grep -Fq "## [$version]" CHANGELOG.md; then
+            echo "CHANGELOG.md hat keinen Abschnitt [$version]." >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # ARM64 through emulation. Measured on 24.09.2026: the application
+      # builds for arm64 under QEMU in about a minute and a half, and a
+      # Raspberry Pi or an ARM NAS can then pull a release like any other
+      # machine. The database and the renderer come for both already.
+      - name: QEMU für ARM64 einrichten
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Buildx einrichten
+        uses: docker/setup-buildx-action@v4
+
+      - name: In ghcr.io anmelden
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Anwendung bauen und veröffentlichen
+        id: app
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/opengewerk/opengewerk:${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/opengewerk/opengewerk
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.licenses=AGPL-3.0-only
+
+      - name: Sicherung bauen und veröffentlichen
+        id: backup
+        uses: docker/build-push-action@v7
+        with:
+          context: docker/backup
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/opengewerk/backup:${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/opengewerk/opengewerk
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.licenses=AGPL-3.0-only
+
+      - name: Cosign bereitstellen
+        uses: sigstore/cosign-installer@v4
+
+      # Signed by digest and not by tag: a tag names whatever was pushed last,
+      # a digest names these bytes. --recursive signs the image of each
+      # platform as well as the list that names them.
+      - name: Abbilder signieren
+        env:
+          APP: ghcr.io/opengewerk/opengewerk@${{ steps.app.outputs.digest }}
+          BACKUP: ghcr.io/opengewerk/backup@${{ steps.backup.outputs.digest }}
+        run: |
+          set -eu
+          cosign sign --yes --recursive "$APP"
+          cosign sign --yes --recursive "$BACKUP"
+
+      - name: Installationspaket packen
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          # The folder as committed, without its tests, no .env and nothing
+          # built, under a root without the version: the next kit unpacks over
+          # this one and the .env stays where it is.
+          mkdir opengewerk
+          git archive HEAD -- docker LICENSE \
+            ':(exclude)docker/test-*.sh' ':(exclude)docker/compose.test.yaml' |
+            tar -x -C opengewerk
+
+          # The version in place of "source" at every image of this project,
+          # so that start.sh pulls it and so does every docker compose
+          # command the README names. A version in the .env still wins.
+          compose=opengewerk/docker/compose.yaml
+          sed -i "s/OPENGEWERK_VERSION:-source}/OPENGEWERK_VERSION:-$VERSION}/" "$compose"
+          if grep -q 'OPENGEWERK_VERSION:-source}' "$compose" ||
+            ! grep -Fq "OPENGEWERK_VERSION:-$VERSION}" "$compose"; then
+            echo "compose.yaml im Paket nennt nicht überall die Fassung $VERSION." >&2
+            exit 1
+          fi
+
+          tar -czf "opengewerk-$VERSION.tar.gz" opengewerk
+          sha256sum "opengewerk-$VERSION.tar.gz" > "opengewerk-$VERSION.tar.gz.sha256"
+
+      - name: Release schreiben
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          APP_DIGEST: ${{ steps.app.outputs.digest }}
+          BACKUP_DIGEST: ${{ steps.backup.outputs.digest }}
+        run: |
+          set -eu
+          python3 - <<'PYTHON'
+          import os
+          import re
+
+          version = os.environ["VERSION"]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          start = text.index(f"## [{version}]")
+          following = re.search(r"^## \[", text[start + 4 :], re.MULTILINE)
+          section = text[start : start + 4 + following.start()] if following else text[start:]
+          body = section.split("\n", 1)[1].strip()
+
+          # GitHub takes at most 125000 characters for a release page, and the
+          # first release carries everything since the start: 96000 on
+          # 24.09.2026, more with every day. Past the limit the page points at
+          # the changelog of the tag instead of failing.
+          if len(body) > 110_000:
+              body = (
+                  "Was diese Fassung bringt, ist für eine Release-Seite zu lang und steht im "
+                  f"[CHANGELOG](https://github.com/opengewerk/opengewerk/blob/v{version}/CHANGELOG.md)."
+              )
+
+          notes = f"""{body}
+
+          ## Installieren und aktualisieren
+
+          Das Paket `opengewerk-{version}.tar.gz` enthält den Ordner `opengewerk/docker`. Zum Installieren entpacken und im Ordner `opengewerk` `sh docker/start.sh` aufrufen. Für ein Update das neue Paket an dieselbe Stelle entpacken, die `.env` bleibt, und derselbe Befehl. Gebaut wird dabei nichts, geholt werden die Abbilder dieser Fassung, für x86_64 und ARM64:
+
+          - `ghcr.io/opengewerk/opengewerk:{version}` (`{os.environ["APP_DIGEST"]}`)
+          - `ghcr.io/opengewerk/backup:{version}` (`{os.environ["BACKUP_DIGEST"]}`)
+
+          Gebraucht werden Docker und Docker Compose ab 2.22. Beide Abbilder sind ohne Schlüssel über Sigstore signiert. Prüfen:
+
+          ```bash
+          cosign verify ghcr.io/opengewerk/opengewerk:{version} \\
+            --certificate-identity-regexp '^https://github\\.com/opengewerk/opengewerk/\\.github/workflows/release\\.yml@refs/tags/v' \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          ```
+          """
+          open("notes.md", "w", encoding="utf-8").write(notes)
+          PYTHON
+
+          gh release create "v$VERSION" \
+            --verify-tag \
+            --title "OpenGewerk $VERSION" \
+            --notes-file notes.md \
+            "opengewerk-$VERSION.tar.gz" \
+            "opengewerk-$VERSION.tar.gz.sha256"

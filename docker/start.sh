@@ -5,6 +5,10 @@
 # and the address asked for, later only what a newer version brought is
 # added. No value is printed, only names.
 #
+# Then the images (#155). In a release kit the version stands in compose.yaml,
+# and the signed images of that release are pulled; a checkout of the source
+# has "source" there and builds them. A version in the .env wins over both.
+#
 # Then the migration on its own, and only after it the containers. That is the
 # order the README explains under "Aktualisieren": `docker compose up -d`
 # alone replaces the running application before the migration has even
@@ -36,8 +40,32 @@ compose() {
   docker compose -f "$here/compose.yaml" "$@"
 }
 
+# The version that runs, read the way Docker Compose reads it: from the
+# environment, else from the .env, else the default in compose.yaml. A value
+# edited by hand may carry a comment, quotes or, from Windows, a carriage
+# return, none of which belongs to a version.
+pinned=${OPENGEWERK_VERSION:-$(sed -n 's/^OPENGEWERK_VERSION=//p' "$here/.env" | head -n 1 | sed 's/[[:space:]]#.*//' | tr -d "\r\"' ")}
+shipped=$(sed -n 's/.*OPENGEWERK_VERSION:-\([^}]*\)}.*/\1/p' "$here/compose.yaml" | head -n 1)
+version=${pinned:-$shipped}
+
+case "$version" in
+  '' | latest | source)
+    say 'Die Abbilder werden aus dem Quelltext gebaut.'
+    # The backup along with the application: the service that backs up every
+    # night would otherwise keep the image of the first start.
+    compose build migrate backup-schedule ||
+      fail 'Die Abbilder ließen sich nicht bauen, der Grund steht darüber. Eine laufende Instanz arbeitet unverändert weiter.'
+    ;;
+  *)
+    export OPENGEWERK_VERSION="$version"
+    say "Fassung $version: die signierten Abbilder werden geholt."
+    compose pull --policy missing ||
+      fail "Die Abbilder der Fassung $version ließen sich nicht holen, der Grund steht darüber. Gebraucht werden eine Verbindung zu ghcr.io und Docker Compose ab 2.22. Eine laufende Instanz arbeitet unverändert weiter."
+    ;;
+esac
+
 say 'Die Datenbank wird eingerichtet oder auf den neuen Stand gebracht.'
-compose run --rm --build migrate ||
+compose run --rm migrate ||
   fail 'Die Migration ist gescheitert, der Grund steht darüber. Eine laufende Instanz arbeitet unverändert weiter, die Datenbank steht auf dem Stand davor.'
 
 say 'OpenGewerk startet.'
