@@ -9,6 +9,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Kunde und Objekt haben ein Feld "Land", Vorgabe Deutschland (#144). Das Formular schrieb bis dahin
+  fest `DE` in jeden Kunden, obwohl das Land mit entscheidet, ob ein Kunde eine E-Rechnung bekommt.
+  Gewählt wird aus einer Liste, gespeichert der Ländercode, geprüft im Abgleich und in der Datenbank;
+  in der Anschrift steht das Land, wenn es nicht Deutschland ist.
 - Der Belegkopf weist bei einem Zahlungsziel von mehr als 60 Tagen gegenüber einem Unternehmen
   darauf hin, dass es ausdrücklich vereinbart sein sollte, damit es trägt (§ 271a Abs. 1 BGB, #149).
   Das Regelpaket führte die 60 Tage seit dem Fundament, gefragt hat den Wert nichts. Gesperrt wird

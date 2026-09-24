@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { Button, Card } from '../../components/index.js'
 import { DataTable } from '../../app/data-table.js'
 import type { ListColumns } from '../../app/data-table.js'
-import { addressLine } from '../../app/format.js'
+import { addressLine, countryOptions } from '../../app/format.js'
 import { customerKindLabel, customerKindOf } from '../../app/labels.js'
 import { RecordForm, asBoolean, asTextOrNull, yesOrNo } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
@@ -40,6 +40,12 @@ const customerFields: readonly FormField[] = [
   { name: 'houseNumber', label: 'Hausnummer' },
   { name: 'postalCode', label: 'PLZ', numeric: true },
   { name: 'city', label: 'Ort' },
+  {
+    name: 'country',
+    label: 'Land',
+    options: countryOptions,
+    hint: 'Ein Kunde im Ausland bekommt seine Rechnung als PDF, nicht als E-Rechnung.',
+  },
   { name: 'vatId', label: 'USt-IdNr.', hint: 'Zum Beispiel DE123456789.' },
   {
     name: 'buyerReference',
@@ -72,6 +78,7 @@ function asCustomer(values: Record<string, string>) {
     houseNumber: asTextOrNull(values['houseNumber']),
     postalCode: asTextOrNull(values['postalCode']),
     city: asTextOrNull(values['city']),
+    country: values['country'] ?? 'DE',
     vatId: asTextOrNull(values['vatId']),
     buyerReference: asTextOrNull(values['buyerReference']),
     isBusiness: asBoolean(values['isBusiness']),
@@ -132,10 +139,7 @@ export function CustomerList() {
               setAdding(false)
             }}
             onSubmit={async (values) => {
-              const made = await client.create('customers', {
-                ...asCustomer(values),
-                country: 'DE',
-              })
+              const made = await client.create('customers', asCustomer(values))
 
               if (made.outcome === 'queued') {
                 setAdding(false)
@@ -275,6 +279,7 @@ export function CustomerScreen() {
                 { name: 'houseNumber', label: 'Hausnummer' },
                 { name: 'postalCode', label: 'PLZ', numeric: true },
                 { name: 'city', label: 'Ort' },
+                { name: 'country', label: 'Land', options: countryOptions },
                 { name: 'notes', label: 'Notizen' },
               ]}
               submitLabel="Anlegen"
@@ -289,7 +294,7 @@ export function CustomerScreen() {
                   houseNumber: asTextOrNull(values['houseNumber']),
                   postalCode: asTextOrNull(values['postalCode']),
                   city: asTextOrNull(values['city']),
-                  country: 'DE',
+                  country: values['country'] ?? 'DE',
                   notes: asTextOrNull(values['notes']),
                 })
 

@@ -1,4 +1,5 @@
-import { foreignKey, index, pgTable, text, unique } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { check, foreignKey, index, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
@@ -37,5 +38,7 @@ export const sites = pgTable(
       name: 'sites_customer_in_tenant',
     }).onDelete('restrict'),
     index('sites_customer_idx').on(table.tenantId, table.customerId),
+    // The same code as a customer's (#144).
+    check('sites_country_code', sql`${table.country} ~ '^[A-Z]{2}$'`),
   ],
 )
