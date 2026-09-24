@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Rechnung über alle offenen Regieberichte eines Auftrags (#135). Regiearbeit über mehrere
+  Tage hat je Tag einen Bericht, und abgerechnet wird sie mit einer Rechnung; bis dahin entstand aus
+  jedem Bericht eine eigene. Am Auftrag steht ab zwei offenen Berichten der Knopf dafür, die
+  Positionen kommen unter einem Titel je Bericht, der Leistungszeitraum reicht vom ersten bis zum
+  letzten Tag. Welche Berichte sie abrechnet, steht in der neuen Entität `document_sources`
+  (Migration 0041), die Geräte lesen und nicht schreiben; jeder Bericht hat die Rechnung als seinen
+  einen Folgebeleg, und storniert oder gelöscht gibt sie die Berichte wieder frei.
 - Folgeaufträge (#170). Am abgeschlossenen Auftrag legt das Büro einen Folgeauftrag an, für denselben
   Kunden, mit Art, Objekt und Anlage vorbelegt; Vorgänger und Folgeaufträge sind im Büro und auf der
   Baustelle verlinkt, ein Auftrag kann mehrere haben. Ein Folgeauftrag ist ein Auftrag mit eigenem

@@ -236,6 +236,15 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * from the request, so `userId` is its own.
    */
   time_entries: { create: true, change: 'never', reserved: ['userId'] },
+  /**
+   * Which reports a collective invoice was made out of (#135), one row each.
+   * Made by the route that makes the invoice, in the same transaction, and
+   * released by the database when the invoice is cancelled or its draft is
+   * deleted; a device reads them and writes none. They travel so that every
+   * screen knows, without asking the server, which report is still open and
+   * where the chain of one that is not goes on.
+   */
+  document_sources: { create: false, change: 'never' },
 }
 
 /**

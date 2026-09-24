@@ -180,7 +180,14 @@ describe('the sample data', () => {
       predecessorDocumentId: byKind.get('quote')?.id,
     })
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
-    expect(byKind.get('time_and_material_report')).toMatchObject({ status: 'signed', number: null })
+    // The report signed on site and waiting in the office, and the two days of
+    // work in the stairwell that one invoice can bill (#135).
+    const reports = documents.filter((document) => document.kind === 'time_and_material_report')
+
+    expect(
+      reports.filter((report) => report.status === 'signed' && report.number === null),
+    ).toHaveLength(1)
+    expect(reports.filter((report) => report.status === 'issued')).toHaveLength(2)
     // One chain that does not branch (#129): the invoices out of the confirmation.
     expect(byKind.get('progress_invoice')).toMatchObject({
       status: 'issued',

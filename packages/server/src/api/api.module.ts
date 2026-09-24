@@ -19,6 +19,7 @@ import { AttachmentsController } from './attachments.controller.js'
 import { AuthorizationGuard } from './authorization.js'
 import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
+import { CollectiveInvoicesController } from './collective-invoices.controller.js'
 import { ContactsController } from './contacts.controller.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
@@ -162,6 +163,7 @@ export class ApiModule implements NestModule {
         InstallationsController,
         CircuitChartController,
         JobsController,
+        CollectiveInvoicesController,
         TasksController,
         FilesController,
         AttachmentsController,

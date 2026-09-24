@@ -102,6 +102,19 @@ export function makeSuccessor(id: string, kind: DocumentKind): Promise<RecordSta
 }
 
 /**
+ * Makes one invoice over every open report of a job (#135), a report for each
+ * day of work. Which reports are open is the server's question, asked under a
+ * lock; the answer is the invoice, a draft, and the next exchange brings it
+ * down with its lines and the rows naming its reports.
+ */
+export function makeCollectiveInvoice(jobId: string): Promise<RecordState> {
+  return request<RecordState>(`/jobs/${encodeURIComponent(jobId)}/collective-invoice`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
+}
+
+/**
  * Cancels an issued invoice. The answer is the cancellation invoice, already
  * issued with its number; the invoice itself is `cancelled` from then on, and
  * the next exchange brings both down.

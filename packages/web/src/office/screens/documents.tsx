@@ -36,6 +36,7 @@ import {
   eInvoiceOf,
   issueDocument,
   mailsOf,
+  makeCollectiveInvoice,
   makeSuccessor,
   missingFrom,
   pdfAddress,
@@ -45,7 +46,7 @@ import {
   zugferdAddress,
 } from '../../session/documents.js'
 import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRelated, useSync } from '../../sync/provider.js'
+import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { HeaderSection } from './document-head.js'
@@ -65,6 +66,45 @@ function byDate(left: RecordState, right: RecordState): number {
     text(left, 'documentDate').localeCompare(text(right, 'documentDate')) ||
     String(left['id']).localeCompare(String(right['id']))
   )
+}
+
+/**
+ * Whether a row naming a report as a source of a collective invoice still
+ * counts (#135): not once the invoice was cancelled or its draft deleted,
+ * which the database stamps as `releasedAt`.
+ */
+function counts(source: RecordState): boolean {
+  return source['releasedAt'] === null || source['releasedAt'] === undefined
+}
+
+/**
+ * The reports of a job that no invoice has billed yet: issued, and neither
+ * continued by a successor that counts nor collected in an invoice that
+ * counts. Read the way the server reads them before it makes a collective
+ * invoice, so that the button is there exactly when there is something to do.
+ */
+function openReports(
+  documents: readonly RecordState[],
+  sources: readonly RecordState[],
+): readonly RecordState[] {
+  return documents.filter((document) => {
+    if (
+      documentKindOf(document) !== 'time_and_material_report' ||
+      documentStatusOf(document) !== 'issued'
+    ) {
+      return false
+    }
+
+    const id = String(document['id'])
+    const continued = documents.some(
+      (other) =>
+        other['predecessorDocumentId'] === id &&
+        continuesChain({ kind: documentKindOf(other), status: documentStatusOf(other) }),
+    )
+    const collected = sources.some((source) => source['sourceDocumentId'] === id && counts(source))
+
+    return !continued && !collected
+  })
 }
 
 /** A document in a list: what it is, where it stands, when it was written. */
@@ -102,9 +142,35 @@ export function JobDocuments({ job }: { readonly job: RecordState }) {
   const navigate = useNavigate()
   const mayWrite = useMay('document.write')
   const documents = useRelated('documents', 'jobId', jobId)
+  const sources = useRecords('document_sources')
   const sorted = useMemo(() => [...documents].sort(byDate), [documents])
+  const open = useMemo(() => openReports(documents, sources), [documents, sources])
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+
+  // One invoice over the reports of several days of work (#135). Offered from
+  // two open reports on: a single one has its own button, on the report.
+  async function collect() {
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      const created = await makeCollectiveInvoice(jobId)
+
+      await client.synchronise()
+      await navigate({ to: `/belege/${String(created['id'])}` })
+    } catch (error) {
+      setTrouble(
+        reasonOf(
+          error,
+          'Keine Verbindung. Die Rechnung über die Regieberichte entsteht mit Verbindung, in ' +
+            'einem Schritt mit allen ihren Positionen.',
+        ),
+      )
+    } finally {
+      setWorking(false)
+    }
+  }
 
   async function start(kind: 'quote' | 'cost_estimate') {
     setWorking(true)
@@ -150,6 +216,11 @@ export function JobDocuments({ job }: { readonly job: RecordState }) {
             <Button disabled={working} onClick={() => void start('cost_estimate')}>
               Kostenvoranschlag anlegen
             </Button>
+            {open.length > 1 ? (
+              <Button disabled={working} onClick={() => void collect()}>
+                {`Rechnung über ${String(open.length)} Regieberichte`}
+              </Button>
+            ) : null}
           </div>
         ) : null
       }
@@ -210,6 +281,24 @@ function DocumentView({ document }: { readonly document: RecordState }) {
     maybeText(document, 'predecessorDocumentId') ?? undefined,
   )
   const successors = useRelated('documents', 'predecessorDocumentId', documentId)
+  const allDocuments = useRecords('documents')
+  const sources = useRecords('document_sources')
+  // A collective invoice names its reports here and not as its predecessor,
+  // and a report in one has it as its successor (#135).
+  const collectedFrom = useMemo(
+    () =>
+      sources
+        .filter((source) => source['documentId'] === documentId)
+        .sort((left, right) => Number(left['position']) - Number(right['position']))
+        .map((source) => allDocuments.find((other) => other['id'] === source['sourceDocumentId']))
+        .filter((report): report is RecordState => report !== undefined),
+    [sources, allDocuments, documentId],
+  )
+  const collectedIn = useMemo(() => {
+    const source = sources.find((row) => row['sourceDocumentId'] === documentId && counts(row))
+
+    return source ? allDocuments.find((other) => other['id'] === source['documentId']) : undefined
+  }, [sources, allDocuments, documentId])
   const mayWrite = useMay('document.write')
   const mayIssue = useMay('document.issue')
   const [issuing, setIssuing] = useState(false)
@@ -240,9 +329,10 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   // The chain does not branch (#129). Once a successor that counts has been
   // made out of this document, the next one is made out of that one, and the
   // head of the page leads there instead of offering a second one here.
-  const continuing = successors.find((successor) =>
-    continuesChain({ kind: documentKindOf(successor), status: documentStatusOf(successor) }),
-  )
+  const continuing =
+    successors.find((successor) =>
+      continuesChain({ kind: documentKindOf(successor), status: documentStatusOf(successor) }),
+    ) ?? collectedIn
   const next = status === 'issued' && mayWrite && !continuing ? successorsOf(kind) : []
   // Cancelling is issuing the other way round, so it takes the same right: a
   // cancellation goes into the books like the invoice did.
@@ -403,7 +493,11 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       <LinesSection document={document} editable={editable} />
       <InstructionsSection document={document} />
       <SignatureSection documentId={documentId} />
-      <ChainSection kind={kind} predecessor={predecessor} successors={successors} />
+      <ChainSection
+        kind={kind}
+        predecessors={predecessor ? [predecessor] : collectedFrom}
+        successors={collectedIn ? [...successors, collectedIn] : successors}
+      />
     </Page>
   )
 }
@@ -972,24 +1066,27 @@ function SignatureSection({ documentId }: { readonly documentId: string }) {
  */
 function ChainSection({
   kind,
-  predecessor,
+  predecessors,
   successors,
 }: {
   readonly kind: DocumentKind
-  readonly predecessor: RecordState | null
+  /** One, or the reports of a collective invoice (#135), in its order. */
+  readonly predecessors: readonly RecordState[]
   readonly successors: readonly RecordState[]
 }) {
-  if (!predecessor && successors.length === 0) {
+  if (predecessors.length === 0 && successors.length === 0) {
     return null
   }
 
   return (
     <Section title="Belegkette">
       <Facts>
-        {predecessor ? (
+        {predecessors.length > 0 ? (
           <Fact label={kind === 'cancellation_invoice' ? 'Storno zu' : 'Entstanden aus'}>
-            <ul>
-              <DocumentEntry document={predecessor} />
+            <ul className="flex flex-col gap-2">
+              {predecessors.map((predecessor) => (
+                <DocumentEntry key={String(predecessor['id'])} document={predecessor} />
+              ))}
             </ul>
           </Fact>
         ) : null}

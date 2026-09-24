@@ -49,6 +49,7 @@ import {
   documentLines,
   documents,
   documentSnapshots,
+  documentSources,
   numberRanges,
   payments,
 } from '../database/schema/index.js'
@@ -538,6 +539,25 @@ export class DocumentsController {
 
       if (later) {
         throw new ConflictException(branchRefusal(later))
+      }
+
+      // A report in a collective invoice that counts has that invoice as its
+      // one successor (#135). The trigger of migration 0041 says the same for
+      // every other way in.
+      const [collected] = await tx
+        .select({ kind: documents.kind, status: documents.status, number: documents.number })
+        .from(documentSources)
+        .innerJoin(documents, eq(documents.id, documentSources.documentId))
+        .where(
+          and(
+            eq(documentSources.sourceDocumentId, predecessor.id),
+            isNull(documentSources.releasedAt),
+          ),
+        )
+        .limit(1)
+
+      if (collected) {
+        throw new ConflictException(branchRefusal(collected))
       }
 
       const [created] = await tx

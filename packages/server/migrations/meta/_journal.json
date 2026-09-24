@@ -288,6 +288,13 @@
       "when": 1790252202735,
       "tag": "0040_follow_up_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790253611205,
+      "tag": "0041_collective_invoices",
+      "breakpoints": true
     }
   ]
 }

@@ -269,6 +269,7 @@ async function mount(
     documents?: Row[]
     document_lines?: Row[]
     document_signatures?: Row[]
+    document_sources?: Row[]
     customers?: Row[]
   } = {},
   roles: RoleKey[] = ['office'],
@@ -293,12 +294,23 @@ async function mount(
     server.put('document_signatures', row)
   }
 
+  for (const row of rows.document_sources ?? []) {
+    server.put('document_sources', row)
+  }
+
   const client = await SyncClient.start({
     store: await openLocalStore(`documents${String((counter += 1))}`),
     transport: server,
     writer: server,
     deviceId: 'device',
-    entities: ['customers', 'jobs', 'documents', 'document_lines', 'document_signatures'],
+    entities: [
+      'customers',
+      'jobs',
+      'documents',
+      'document_lines',
+      'document_signatures',
+      'document_sources',
+    ],
     onSignedOut: () => {},
   })
 
@@ -2193,5 +2205,131 @@ describe('what came in on an invoice (#189)', () => {
     expect(
       issuing.getByRole('button', { name: 'Jetzt festschreiben' }).hasAttribute('disabled'),
     ).toBe(true)
+  })
+})
+
+/**
+ * #135: one invoice over the reports of a job, one for each day of work. The
+ * reports are its sources and it is their one successor.
+ */
+describe('the collective invoice', () => {
+  /** An issued report of the job, of one day. */
+  function report(id: string, day: string, over: Row = {}): Row {
+    return document({
+      id,
+      kind: 'time_and_material_report',
+      status: 'issued',
+      number: `RB-2026-000${id.slice(2)}`,
+      documentDate: day,
+      subject: null,
+      ...over,
+    })
+  }
+
+  function source(id: string, documentId: string, sourceDocumentId: string, over: Row = {}): Row {
+    return {
+      id,
+      documentId,
+      sourceDocumentId,
+      position: 1,
+      releasedAt: null,
+      version: 1,
+      deletedAt: null,
+      ...over,
+    }
+  }
+
+  it('is offered at the job from two open reports on, and made there', async () => {
+    serverSays('POST', '/jobs/j-1/collective-invoice', () => {
+      const made = document({
+        id: 'd-7',
+        kind: 'final_invoice',
+        subject: 'Zählerschrank Lindenweg',
+      })
+
+      server.put('documents', made)
+
+      return { status: 201, body: made }
+    })
+
+    await mount('/auftraege/j-1', {
+      documents: [
+        report('d-1', '2026-09-14'),
+        report('d-2', '2026-09-15'),
+        // Billed on its own already, so not open any more.
+        report('d-3', '2026-09-16'),
+        document({ id: 'd-4', kind: 'final_invoice', predecessorDocumentId: 'd-3' }),
+      ],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Rechnung über 2 Regieberichte' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rechnung' })).toBeDefined()
+    expect(
+      calls.some((call) => call.method === 'POST' && call.path === '/jobs/j-1/collective-invoice'),
+    ).toBe(true)
+  })
+
+  it('is not offered for a report that one collects already', async () => {
+    await mount('/auftraege/j-1', {
+      documents: [
+        report('d-1', '2026-09-14'),
+        report('d-2', '2026-09-15'),
+        document({ id: 'd-9', kind: 'final_invoice' }),
+      ],
+      document_sources: [source('s-1', 'd-9', 'd-1')],
+    })
+
+    await screen.findByRole('button', { name: 'Angebot anlegen' })
+
+    expect(screen.queryByRole('button', { name: /^Rechnung über/ })).toBeNull()
+  })
+
+  it('counts a report again once the invoice that collected it was cancelled', async () => {
+    await mount('/auftraege/j-1', {
+      documents: [
+        report('d-1', '2026-09-14'),
+        report('d-2', '2026-09-15'),
+        document({ id: 'd-9', kind: 'final_invoice', status: 'cancelled', number: 'RE-2026-0009' }),
+      ],
+      document_sources: [
+        source('s-1', 'd-9', 'd-1', { releasedAt: '2026-09-20T08:00:00.000Z' }),
+        source('s-2', 'd-9', 'd-2', { position: 2, releasedAt: '2026-09-20T08:00:00.000Z' }),
+      ],
+    })
+
+    expect(
+      await screen.findByRole('button', { name: 'Rechnung über 2 Regieberichte' }),
+    ).toBeDefined()
+  })
+
+  it('names its reports as where it came from, in its order', async () => {
+    await mount('/belege/d-9', {
+      documents: [
+        report('d-1', '2026-09-14'),
+        report('d-2', '2026-09-15'),
+        document({ id: 'd-9', kind: 'final_invoice' }),
+      ],
+      document_sources: [
+        source('s-2', 'd-9', 'd-2', { position: 2 }),
+        source('s-1', 'd-9', 'd-1', { position: 1 }),
+      ],
+    })
+
+    const chain = within(await screen.findByRole('region', { name: 'Belegkette' }))
+    const reports = chain.getAllByRole('link', { name: 'Regiebericht' })
+
+    expect(reports.map((link) => link.getAttribute('href'))).toEqual(['/belege/d-1', '/belege/d-2'])
+  })
+
+  it('is where the chain of a collected report goes on, instead of a second invoice', async () => {
+    await mount('/belege/d-1', {
+      documents: [report('d-1', '2026-09-14'), document({ id: 'd-9', kind: 'final_invoice' })],
+      document_sources: [source('s-1', 'd-9', 'd-1')],
+    })
+
+    expect(await screen.findByRole('link', { name: 'Weiter bei Rechnung, Entwurf' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Rechnung erstellen' })).toBeNull()
   })
 })

@@ -186,6 +186,33 @@ describe('master data', () => {
   })
 })
 
+describe('what only the server makes', () => {
+  it('is not made on a device, whatever it sends (#135)', () => {
+    const result = decideMerge(
+      operation({
+        entity: 'document_sources',
+        kind: 'create',
+        patches: [
+          patch('documentId', null, 'invoice-1'),
+          patch('sourceDocumentId', null, 'report-1'),
+        ],
+      }),
+      null,
+    )
+
+    expect(result).toEqual({ outcome: 'conflict', reason: 'online_only', fields: [] })
+  })
+
+  it('is not changed on a device either', () => {
+    const result = decideMerge(
+      operation({ entity: 'document_sources', patches: [patch('position', '1', '2')] }),
+      { version: 1, position: '1' },
+    )
+
+    expect(result).toEqual({ outcome: 'conflict', reason: 'online_only', fields: [] })
+  })
+})
+
 describe('a document', () => {
   it('can be written while it is a draft', () => {
     const result = decideMerge(
