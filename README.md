@@ -950,10 +950,11 @@ jedem Fall sein.
 
 Ein Update ist das, was Leitentscheidung 6 verspricht: Abbild tauschen,
 Migration läuft, Dienst startet. Aus einem Release heißt das: das Paket der
-neuen Fassung an dieselbe Stelle entpacken, die `.env` bleibt, und derselbe
-Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die `.env` um
-das, was die neue Fassung braucht, holt ihre Abbilder und macht dann zwei
-Aufrufe, deren Reihenfolge der ganze Punkt ist:
+neuen Fassung an dieselbe Stelle entpacken, mit
+`tar --no-same-owner -xzf opengewerk-<fassung>.tar.gz`, die `.env` bleibt, und
+derselbe Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die
+`.env` um das, was die neue Fassung braucht, holt ihre Abbilder und macht dann
+zwei Aufrufe, deren Reihenfolge der ganze Punkt ist:
 
 ```bash
 docker compose -f docker/compose.yaml run --rm migrate
@@ -1060,6 +1061,12 @@ Organisation.
   jeder genau einmal ankommt, zeigt `curl -sI https://<adresse>/`.
 - **Die `.env` ist die einzige Datei mit Zugangsdaten.** `chmod 600`, und sie
   bleibt draußen aus dem Repository.
+- **Ein Paket entpackt root mit `tar --no-same-owner`.** Ohne die Option
+  übernimmt tar als root die Kennung aus dem Paket, für jede Datei und jeden
+  Ordner, beim Update auch für die, die schon da sind; im Paket von 0.1.0 war das
+  die des Rechners, der es gebaut hat (#214). Seitdem gehört im Paket jeder
+  Eintrag root, und der Workflow "Release" prüft das, bevor er das Paket
+  hochlädt. Die Option schadet trotzdem nie.
 
 ## Roadmap
 
