@@ -1,0 +1,67 @@
+{
+  "package": "elektro.vde-0100-600",
+  "note": "Grenzwerte der Erstprüfung nach DIN VDE 0100-600, für das Prüfprotokoll (#79). Vorprüfung am 24.09.2026 anhand der genannten Normen; die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31, und bis dahin ist jeder Wert eine Hilfe beim Ablesen und keine Freigabe. Alle gelten ab dem 01.06.2017, dem Ausgabedatum von DIN VDE 0100-600:2017-06, nach der das Protokoll aufgebaut ist; ein früheres Prüfdatum bekommt keinen Grenzwert statt eines erfundenen.",
+  "records": [
+    {
+      "key": "elektro.insulation.minimum_up_to_500v",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 1000,
+      "source": "DIN VDE 0100-600 (VDE 0100-600):2017-06, Tabelle 6.1",
+      "note": "Stromkreise mit einer Nennspannung bis 500 V außer SELV und PELV: Prüfspannung 500 V Gleichspannung, Isolationswiderstand mindestens 1,0 MΩ."
+    },
+    {
+      "key": "elektro.rcd.trip_time_maximum",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "milliseconds",
+      "value": 300,
+      "source": "DIN EN 61008-1 (VDE 0664-10) und DIN EN 61009-1 (VDE 0664-20), Höchstwert der Abschaltzeit bei IΔn",
+      "note": "Für Fehlerstromschutzeinrichtungen ohne Verzögerung. Eine selektive (S) darf länger brauchen; das Protokoll unterscheidet sie in dieser Fassung noch nicht."
+    },
+    {
+      "key": "elektro.rcd.trip_current_maximum",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "basis_points",
+      "value": 10000,
+      "source": "DIN EN 61008-1 (VDE 0664-10), Auslösung zwischen 0,5 IΔn und IΔn",
+      "note": "Höchstens der Bemessungsdifferenzstrom, den das Stromkreisverzeichnis für den Stromkreis nennt."
+    },
+    {
+      "key": "elektro.loop.nominal_voltage",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "volts",
+      "value": 230,
+      "source": "DIN VDE 0100-410 (VDE 0100-410):2018-10, 411.4.4, Zs × Ia ≤ U0 mit U0 = 230 V nach DIN EN 60038",
+      "note": "Die Schleifenimpedanz, bei der der Leitungsschutzschalter noch unverzögert auslöst, aus der Nennspannung gegen Erde und dem Auslösestrom Ia."
+    },
+    {
+      "key": "elektro.loop.factor_b",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "factor",
+      "value": 5,
+      "source": "DIN EN 60898-1 (VDE 0641-11), unverzögerte Auslösung Typ B über 3 bis 5 In",
+      "note": "Ia ist das obere Ende des Bereichs, das der Schalter erreichen muss."
+    },
+    {
+      "key": "elektro.loop.factor_c",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "factor",
+      "value": 10,
+      "source": "DIN EN 60898-1 (VDE 0641-11), unverzögerte Auslösung Typ C über 5 bis 10 In"
+    },
+    {
+      "key": "elektro.loop.factor_d",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "factor",
+      "value": 20,
+      "source": "DIN EN 60898-1 (VDE 0641-11), unverzögerte Auslösung Typ D über 10 bis 20 In"
+    }
+  ]
+}

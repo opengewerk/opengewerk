@@ -11,14 +11,17 @@ import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { AttachmentsSection } from './attachments.js'
 import { BoardsSection } from './boards.js'
 import { JobLine, NewJobForm } from './jobs.js'
+import { ProtocolsSection } from './protocols.js'
 import { asInstallation, installationFields } from './sites.js'
 
 /**
  * One system in a building, and the boards below it.
  *
  * The boards are listed here and opened on a screen of their own, where the
- * sections, circuits and equipment are. The PV structure below a PV system,
- * inverters and strings, is not on this screen yet: it arrives with phase 2.
+ * sections, circuits and equipment are. The test protocols follow the boards,
+ * since they are measured on their circuits (#79). The PV structure below a
+ * PV system, inverters and strings, is not on this screen yet: it arrives
+ * with phase 2.
  */
 export function InstallationScreen() {
   const { installationId } = useParams({ strict: false }) as { installationId?: string }
@@ -112,6 +115,8 @@ export function InstallationScreen() {
       )}
 
       <BoardsSection installationId={installationId} />
+
+      <ProtocolsSection installationId={installationId} />
 
       <Section
         title="Aufträge"

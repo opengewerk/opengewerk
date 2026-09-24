@@ -32,6 +32,7 @@ import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { EInvoiceController } from './e-invoice.controller.js'
 import { FilesController, fileUploadType } from './files.controller.js'
+import { FormRecordsController } from './form-records.controller.js'
 import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
@@ -162,6 +163,7 @@ export class ApiModule implements NestModule {
         SitesController,
         InstallationsController,
         CircuitChartController,
+        FormRecordsController,
         JobsController,
         CollectiveInvoicesController,
         TasksController,

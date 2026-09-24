@@ -230,6 +230,9 @@ export function permissionFor(
     document_sources: 'document.write',
     // The same for who is on a job (#140), which the office sets at a route.
     job_assignments: 'job.write',
+    // A test protocol is measured at an installation and belongs to it (#79):
+    // whoever may record its structure may record its test.
+    form_records: 'installation.write',
     tasks: 'task.write',
     // A file and its versions are one thing to whoever adds them: taking a
     // photo on site is adding it, and a new version is the same act again.

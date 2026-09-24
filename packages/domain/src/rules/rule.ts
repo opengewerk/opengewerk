@@ -11,9 +11,23 @@ import type { IsoDate } from '../model/identifier.js'
  * or a one for the same reason: one kind of value in a column, and it adds up.
  * Minutes and years came with the working time rules (#76): a break of 30
  * minutes and a retention of two years are what the law says, and neither is
- * a whole number of days.
+ * a whole number of days. Kiloohms, milliseconds, volts and plain factors came
+ * with the limits of the test protocol (#79): an insulation resistance of at
+ * least one megaohm is a thousand kiloohms, a tripping time of at most 300
+ * milliseconds is 300, and a breaker B trips at five times its rating.
  */
-export const ruleUnits = ['basis_points', 'cents', 'days', 'flag', 'minutes', 'years'] as const
+export const ruleUnits = [
+  'basis_points',
+  'cents',
+  'days',
+  'flag',
+  'minutes',
+  'years',
+  'kiloohms',
+  'milliseconds',
+  'volts',
+  'factor',
+] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]
 

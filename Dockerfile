@@ -15,6 +15,7 @@ RUN corepack enable
 # second build and a three minute one.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json tsconfig.base.json ./
 COPY packages/domain/package.json packages/domain/
+COPY packages/gewerke/elektro/package.json packages/gewerke/elektro/
 COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
 RUN pnpm install --frozen-lockfile

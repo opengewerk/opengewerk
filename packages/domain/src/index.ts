@@ -35,6 +35,13 @@ export * from './model/time-entry.js'
 export * from './model/tenant.js'
 export * from './model/text-snippet.js'
 
+// The form engine of section 1.3 (#78). The definitions come from the trade
+// packages under `packages/gewerke/`; this is what reads and checks them.
+export * from './forms/definition.js'
+export * from './forms/limits.js'
+export * from './forms/record.js'
+export * from './forms/values.js'
+
 // The legal parameters. Not in the code: they sit in data packages with a
 // period of validity and the paragraph they come from, and every question to
 // them needs a date, so that a document is judged by the rules of its own time.

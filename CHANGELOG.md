@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Prüfprotokoll der Erstprüfung nach DIN VDE 0100-600 (#79), gebaut auf der Formular-Engine aus
+  #78. Auf der Baustelle entsteht es am Auftrag ohne Netz, mit einem Messblock je Stromkreis aus dem
+  Stromkreisverzeichnis; jeder Messwert steht mit seinem Grenzwert und dessen Fundstelle da und wird
+  auch außerhalb der Grenze aufgeschrieben. Der Prüfer unterschreibt auf dem Gerät, danach ist es
+  festgeschrieben. Im Büro steht es an der Anlage und kommt als PDF heraus, und das letzte Protokoll
+  ist die Vorlage des nächsten, ohne dessen Ergebnis. Die Definition liegt als JSON im ersten
+  Gewerkepaket `packages/gewerke/elektro/`, die Grenzwerte als Regeln mit Fundstelle daneben; neu
+  sind `form_records` (Migration 0043) und `GET /form-records/:id/pdf`. Bis dahin endete die Anlage
+  bei ihrer Struktur, und gemessen wurde auf Papier.
 - Monteure werden im Büro einem Auftrag zugeordnet, und das Gerät eines Monteurs hält nur noch seinen
   Teil des Betriebs (#140): die Aufträge, auf denen er ist, mit allem, was an ihnen hängt, dazu was er
   selbst angelegt hat; ein abgeschlossener Auftrag bleibt 30 Tage. Bis dahin lag auf jedem Telefon
