@@ -68,6 +68,12 @@ function JobCard({ job }: { readonly job: RecordState }) {
         </span>
         {site ? <span className="text-body text-ink-muted">{addressLine(site)}</span> : null}
         <span className="text-body">
+          {maybeText(job, 'number') ? (
+            <>
+              <span className="numeric">{text(job, 'number')}</span>
+              {', '}
+            </>
+          ) : null}
           {jobKindLabel[jobKindOf(job)]}
           {', '}
           {jobStatusLabel[jobStatusOf(job)]}
@@ -242,7 +248,17 @@ export function SiteJobScreen() {
       <div className="flex flex-col gap-1">
         <FieldLabel>{jobKindLabel[jobKindOf(job)]}</FieldLabel>
         <h1 className="text-title font-semibold">{text(job, 'designation')}</h1>
-        <p className="text-body text-ink-muted">{jobStatusLabel[status]}</p>
+        <p className="text-body text-ink-muted">
+          {maybeText(job, 'number') ? (
+            <>
+              <span className="numeric">{text(job, 'number')}</span>
+              {', '}
+            </>
+          ) : client.isPending('jobs', jobId) ? (
+            'Nummer folgt beim Abgleich, '
+          ) : null}
+          {jobStatusLabel[status]}
+        </p>
       </div>
 
       <Card label="Wo und für wen">

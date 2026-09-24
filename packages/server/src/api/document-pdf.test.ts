@@ -287,6 +287,27 @@ describe('a logo on the letterhead', () => {
   })
 })
 
+describe('the number of the job', () => {
+  it('stands on the paper of a document that belongs to a job (#145)', async () => {
+    const job = await http()
+      .post('/jobs')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'project', designation: 'Zählerschrank erneuern' })
+      .expect(201)
+    const { id: jobId, number } = job.body as { id: string; number: string }
+
+    await pdfOf(await issued({ jobId })).expect(200)
+
+    expect(jobs.at(-1)?.html).toContain(`<tr><th>Auftragsnummer</th><td>${number}</td></tr>`)
+  })
+
+  it('is left out on a document without a job', async () => {
+    await pdfOf(await issued()).expect(200)
+
+    expect(jobs.at(-1)?.html).not.toContain('Auftragsnummer')
+  })
+})
+
 describe('a quote', () => {
   it('is printed with its titles, the sums under them and the texts around the lines', async () => {
     const created = await http()

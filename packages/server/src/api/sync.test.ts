@@ -1661,3 +1661,95 @@ describe('a transmission refused over one operation', () => {
     expect(refused.operationId).toBe(nameless.id)
   })
 })
+
+/**
+ * The number of a job (#145). Drawn from the job number range when the job is
+ * created, the same way whichever way it arrives: over the route from the
+ * office or out of an outbox, with or without a network.
+ */
+describe('the number of a job', () => {
+  function counterOf(number: string | null): number {
+    const match = /^AU-\d{4}-(\d{4})$/.exec(number ?? '')
+
+    if (!match?.[1]) {
+      throw new Error(`No job number: ${String(number)}`)
+    }
+
+    return Number(match[1])
+  }
+
+  async function numberOf(id: string) {
+    const { rows } = await admin.query<{ number: string | null }>(
+      'select number from jobs where id = $1',
+      [id],
+    )
+
+    return rows[0]?.number ?? null
+  }
+
+  it('is drawn when a job is created, over the route and out of an outbox, one after the other', async () => {
+    const routed = await http()
+      .post('/jobs')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'service', designation: 'Wallbox setzen' })
+      .expect(201)
+    const queued = newId<'job'>()
+
+    const answer = await push(office(), 'rechner-buero', [
+      change({
+        entity: 'jobs',
+        recordId: queued,
+        kind: 'create',
+        patches: [
+          { field: 'customerId', from: null, to: customerId },
+          { field: 'kind', from: null, to: 'project' },
+          { field: 'designation', from: null, to: 'Photovoltaik auf dem Carport' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+
+    const first = counterOf((routed.body as { number: string | null }).number)
+
+    expect(counterOf(await numberOf(queued))).toBe(first + 1)
+  })
+
+  it('is not taken from a device, which could hand out one the range never gave', async () => {
+    const queued = newId<'job'>()
+
+    const answer = await push(office(), 'rechner-buero', [
+      change({
+        entity: 'jobs',
+        recordId: queued,
+        kind: 'create',
+        patches: [
+          { field: 'customerId', from: null, to: customerId },
+          { field: 'kind', from: null, to: 'service' },
+          { field: 'designation', from: null, to: 'Nummer vom Gerät' },
+          { field: 'number', from: null, to: 'AU-1999-0001' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'set_by_server' })
+    expect(await numberOf(queued)).toBeNull()
+  })
+
+  it('is not changed over the route either', async () => {
+    const created = await http()
+      .post('/jobs')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'service', designation: 'Zähler tauschen' })
+      .expect(201)
+    const { id, number } = created.body as { id: string; number: string }
+
+    await http()
+      .patch(`/jobs/${id}`)
+      .set('x-test-identity', office())
+      .send({ number: 'AU-1999-0001', designation: 'Zähler tauschen, zwei Stück' })
+      .expect(200)
+
+    expect(await numberOf(id)).toBe(number)
+  })
+})

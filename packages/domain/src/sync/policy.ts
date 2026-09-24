@@ -120,7 +120,14 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   inverters: fieldWork,
   pv_strings: fieldWork,
   pv_modules: fieldWork,
-  jobs: fieldWork,
+  /**
+   * A job is field work like the installation it is for: the office creates
+   * it through the outbox, the site reports how it goes (#128), and changes
+   * are merged field by field. Its number is the server's (#145). It is drawn
+   * from the job number range when the job is created, and a device that set
+   * one could hand out a number the range never gave, or another job's.
+   */
+  jobs: { ...fieldWork, reserved: ['number'] },
   /**
    * A document may be written offline while it is a draft, and not one moment
    * longer. Issuing is not in this list at all: it hands out a number and

@@ -30,9 +30,10 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * version 3 the signature, version 4 the progress invoices a document deducts
  * and the amount it bills after them, version 5 the invoice a cancellation
  * cancels, version 6 what an e-invoice needs to know about the recipient,
- * version 7 the payment term, version 8 the instructions that went with it.
+ * version 7 the payment term, version 8 the instructions that went with it,
+ * version 9 the number of the job it belongs to.
  */
-export const documentContentVersion = 8
+export const documentContentVersion = 9
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -251,10 +252,22 @@ export interface DocumentContent {
    * document issued before version 8.
    */
   readonly instructions: readonly InstructionContent[]
+  /**
+   * The number of the job the document belongs to (#145), the one the
+   * customer names on the phone. Null for a document without a job, for one
+   * whose job was created before jobs had numbers, and for every document
+   * issued before version 9.
+   */
+  readonly jobNumber: string | null
+}
+
+/** The eighth shape, from #110: the instructions, and no job number yet. */
+export interface DocumentContentV8 extends Omit<DocumentContent, 'version' | 'jobNumber'> {
+  readonly version: 8
 }
 
 /** The seventh shape, from #106: the payment term, and no instructions yet. */
-export interface DocumentContentV7 extends Omit<DocumentContent, 'version' | 'instructions'> {
+export interface DocumentContentV7 extends Omit<DocumentContentV8, 'version' | 'instructions'> {
   readonly version: 7
 }
 
@@ -303,6 +316,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV8
   | DocumentContentV7
   | DocumentContentV6
   | DocumentContentV5

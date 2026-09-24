@@ -15,6 +15,7 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
+import { yearInGermany } from '../today.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
 
@@ -28,7 +29,9 @@ import { as, testIdentities as identities } from './test-identity.js'
 const north = { id: newId<'tenant'>() as TenantId, name: 'Elektro Nord GmbH' }
 const south = { id: newId<'tenant'>() as TenantId, name: 'Elektro Süd' }
 
-const year = new Date().getFullYear()
+// The year the server numbers with, which is the one in Germany: on the last
+// evening of a year the machine running this may already be in the next.
+const year = yearInGermany()
 
 let admin: Pool
 let database: Database
@@ -94,6 +97,12 @@ afterAll(async () => {
 describe('the number ranges of a business', () => {
   it('are all shown, with the defaults for the ones nothing has drawn from yet', async () => {
     expect(await ranges(office())).toEqual([
+      {
+        key: 'job',
+        pattern: 'AU-{year}-{number:4}',
+        nextValue: 1,
+        next: `AU-${String(year)}-0001`,
+      },
       {
         key: 'quote',
         pattern: 'AN-{year}-{number:4}',

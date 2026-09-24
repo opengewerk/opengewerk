@@ -15,8 +15,8 @@ import type { TenantTransaction } from './database.js'
 import { numberRanges } from './schema/index.js'
 
 /**
- * Hands out the next number for a kind of document, inside the transaction
- * that issues it.
+ * Hands out the next number of a sequence, inside the transaction that needs
+ * it: the one that issues a document, or the one that creates a job (#145).
  *
  * The counter sits in a row, not in a sequence, and the `update` takes a lock
  * on that row until the transaction ends. Two requests arriving together are
@@ -26,18 +26,16 @@ import { numberRanges } from './schema/index.js'
  * cannot do: a sequence hands out its value outside the transaction and keeps
  * it when the transaction rolls back.
  *
- * The year comes from the moment of issuing, not from the document date. The
- * numbers then run in the order the documents were issued, which is the order
- * a tax audit walks them in.
+ * The year comes from the moment the number is drawn, not from a date the
+ * record carries. The numbers then run in the order they were handed out,
+ * which is the order a tax audit walks the invoices in.
  */
-export async function assignDocumentNumber(
+export async function assignNumber(
   tx: TenantTransaction,
   tenantId: TenantId,
-  kind: DocumentKind,
-  issuedAt: Date,
+  key: NumberRangeKey,
+  at: Date,
 ): Promise<string> {
-  const key = numberRangeOf(kind)
-
   // The range is created on first use. Doing it when a tenant is created would
   // mean every new range needs a migration over existing tenants.
   await tx
@@ -58,8 +56,18 @@ export async function assignDocumentNumber(
   // `returning` gives the new value, so the one just handed out is one less.
   return formatDocumentNumber(range.pattern, {
     counter: range.nextValue - 1,
-    year: yearInGermany(issuedAt),
+    year: yearInGermany(at),
   })
+}
+
+/** The next number for a kind of document, from the sequence it belongs to. */
+export function assignDocumentNumber(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  kind: DocumentKind,
+  issuedAt: Date,
+): Promise<string> {
+  return assignNumber(tx, tenantId, numberRangeOf(kind), issuedAt)
 }
 
 /** One sequence as the settings show it. */

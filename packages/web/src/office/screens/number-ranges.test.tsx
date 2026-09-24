@@ -48,6 +48,8 @@ const invoices = {
 
 const quotes = { key: 'quote', pattern: 'AN-{year}-{number:4}', nextValue: 1, next: 'AN-2026-0001' }
 
+const jobs = { key: 'job', pattern: 'AU-{year}-{number:4}', nextValue: 3, next: 'AU-2026-0003' }
+
 function section(name: string): HTMLElement {
   return screen.getByRole('region', { name })
 }
@@ -57,7 +59,7 @@ beforeEach(() => {
   answers = new Map()
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-22T10:00:00Z') })
 
-  serverSays('GET', '/settings/number-ranges', [quotes, invoices])
+  serverSays('GET', '/settings/number-ranges', [jobs, quotes, invoices])
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
@@ -85,6 +87,16 @@ afterEach(() => {
 })
 
 describe('the number ranges', () => {
+  it('count the jobs as well, which get their number when they are created (#145)', async () => {
+    signedInAs('office')
+    render(inQueries(<NumberRangesScreen />))
+
+    const jobSection = await screen.findByRole('region', { name: 'Aufträge' })
+
+    expect(jobSection.textContent).toContain('der nächste Auftrag heißt AU-2026-0003')
+    expect(jobSection.textContent).toContain('beim Anlegen')
+  })
+
   it('show the office each pattern and the next number, with nothing to change', async () => {
     signedInAs('office')
     render(inQueries(<NumberRangesScreen />))

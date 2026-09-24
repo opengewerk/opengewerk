@@ -161,6 +161,11 @@ export function JobScreen() {
               <span aria-hidden="true"> · </span>
               <span className="numeric">{text(job, 'number')}</span>
             </>
+          ) : client.isPending('jobs', String(job['id'])) ? (
+            <>
+              <span aria-hidden="true"> · </span>
+              Nummer folgt beim Abgleich
+            </>
           ) : null}
         </>
       }

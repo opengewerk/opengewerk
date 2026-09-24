@@ -305,6 +305,9 @@ function EntryTable({
                 ) : (
                   <span className="text-ink-faint">keinem</span>
                 )}
+                {job && maybeText(job, 'number') ? (
+                  <span className="numeric text-ink-muted"> {text(job, 'number')}</span>
+                ) : null}
               </Cell>
               <Cell numeric className="whitespace-nowrap">
                 {hoursText(minutesBetween(start, end))}

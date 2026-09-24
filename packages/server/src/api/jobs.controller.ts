@@ -12,12 +12,17 @@ import type { JobId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
+import { assignNumber } from '../database/number-ranges.js'
 import { jobs } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
+/**
+ * What a caller may set. Not the number: it is drawn from the job number
+ * range when the job is created (#145) and stays what it was drawn as.
+ */
 const writableFields = [
   'customerId',
   'siteId',
@@ -52,7 +57,11 @@ export class JobsController {
 
       return tx
         .insert(jobs)
-        .values({ ...(values as typeof jobs.$inferInsert), tenantId: identity.tenantId })
+        .values({
+          ...(values as typeof jobs.$inferInsert),
+          tenantId: identity.tenantId,
+          number: await assignNumber(tx, identity.tenantId, 'job', new Date()),
+        })
         .returning()
     })
 

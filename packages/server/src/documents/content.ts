@@ -24,6 +24,7 @@ import {
   documentSignatures,
   documentSnapshots,
   files,
+  jobs,
   letterheads,
   sites,
   tenants,
@@ -156,6 +157,11 @@ export async function contentAndGapsOf(
 
   const issuer = await issuerOf(tx, document.tenantId)
   const instructions = await instructionsFor(tx, document, issuer, customer.isBusiness)
+  // The number of the job, which the customer names on the phone (#145). A
+  // deleted job still has it: the document was written for that job.
+  const [job] = document.jobId
+    ? await tx.select({ number: jobs.number }).from(jobs).where(eq(jobs.id, document.jobId))
+    : []
 
   const content = documentContent(rules, {
     document,
@@ -186,6 +192,7 @@ export async function contentAndGapsOf(
     deductions: await deductionsFor(tx, document),
     paymentTermDays: await paymentTermDaysOf(tx, document),
     instructions: instructions.contents,
+    jobNumber: job?.number ?? null,
   })
 
   return { content, gaps: instructions.gaps }
