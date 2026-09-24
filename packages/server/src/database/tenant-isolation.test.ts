@@ -473,6 +473,20 @@ const crossings: readonly {
     write: (own, other) => repoint('jobs', 'parent_job_id', own.job, other.job),
   },
   {
+    // Who is on a job (#140). Inserts, because the application may only mark
+    // an assignment deleted and never move one.
+    key: 'job_assignments_job_in_tenant',
+    write: (own, other) =>
+      sql`insert into job_assignments (tenant_id, job_id, user_id)
+            values (${own.tenant}, ${other.job}, ${own.user})`,
+  },
+  {
+    key: 'job_assignments_person_works_here',
+    write: (own, other) =>
+      sql`insert into job_assignments (tenant_id, job_id, user_id)
+            values (${own.tenant}, ${own.job}, ${other.user})`,
+  },
+  {
     // An insert and not a repoint: a follow-up names the job before it when it
     // is made (#170), and the trigger refuses any later change before the key
     // is asked. On an insert the trigger finds no job of another business and

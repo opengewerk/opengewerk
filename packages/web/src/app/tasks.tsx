@@ -30,7 +30,11 @@ export function usePeople(): { readonly me: string | null; readonly people: read
     retry: false,
   })
 
-  return { me: account.data?.userId ?? null, people: people.data ?? [] }
+  // An answer this screen does not understand is no list of people either.
+  return {
+    me: account.data?.userId ?? null,
+    people: Array.isArray(people.data) ? people.data : [],
+  }
 }
 
 /** Who a task is for, as the person looking at it reads it. */

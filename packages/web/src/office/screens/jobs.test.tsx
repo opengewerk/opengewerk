@@ -26,6 +26,7 @@ import { JobScreen } from './jobs.js'
 
 let server: TestServer
 let answers: Map<string, unknown>
+let calls: { method: string; path: string; body: unknown }[]
 let counter = 0
 
 function job(id: string, over: Partial<RecordState> = {}): RecordState {
@@ -65,8 +66,12 @@ function signedInAs(...roles: RoleKey[]) {
   answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
 }
 
-async function mount(jobs: RecordState[], at = '/auftraege/j-1') {
-  for (const [entity, list] of Object.entries({ ...base, jobs })) {
+async function mount(
+  jobs: RecordState[],
+  at = '/auftraege/j-1',
+  more: Readonly<Record<string, RecordState[]>> = {},
+) {
+  for (const [entity, list] of Object.entries({ ...base, jobs, ...more })) {
     for (const row of list) {
       server.put(entity, row)
     }
@@ -77,7 +82,15 @@ async function mount(jobs: RecordState[], at = '/auftraege/j-1') {
     transport: server,
     writer: server,
     deviceId: 'office-computer',
-    entities: ['customers', 'sites', 'installations', 'jobs', 'documents', 'tasks'],
+    entities: [
+      'customers',
+      'sites',
+      'installations',
+      'jobs',
+      'job_assignments',
+      'documents',
+      'tasks',
+    ],
     onSignedOut: () => {},
   })
 
@@ -118,16 +131,23 @@ async function mount(jobs: RecordState[], at = '/auftraege/j-1') {
 beforeEach(() => {
   server = new TestServer()
   answers = new Map()
+  calls = []
   answers.set('/tasks/assignees', [])
 
-  vi.stubGlobal('fetch', (path: string) =>
-    Promise.resolve(
+  vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
+    calls.push({
+      method: init?.method ?? 'GET',
+      path,
+      body: typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : null,
+    })
+
+    return Promise.resolve(
       new Response(JSON.stringify(answers.get(path) ?? {}), {
         status: answers.has(path) ? 200 : 404,
         headers: { 'Content-Type': 'application/json' },
       }),
-    ),
-  )
+    )
+  })
 })
 
 afterEach(() => {
@@ -258,5 +278,73 @@ describe('a follow-up job', () => {
     expect(followers.getByRole('link', { name: 'Wallbox setzen' }).getAttribute('href')).toBe(
       '/auftraege/j-2',
     )
+  })
+})
+
+describe('who is on a job (#140)', () => {
+  const staff = [
+    { userId: 'u-max', name: 'Max Monteur', active: true },
+    { userId: 'u-toni', name: 'Toni Techniker', active: true },
+    { userId: 'u-gerd', name: 'Gerd Gesperrt', active: false },
+  ]
+
+  function assignment(id: string, userId: string): RecordState {
+    return { id, jobId: 'j-1', userId }
+  }
+
+  it('is listed by name, and a job nobody is on says what that means', async () => {
+    signedInAs('office')
+    answers.set('/tasks/assignees', staff)
+    await mount([job('j-1', { status: 'active' })], '/auftraege/j-1', {
+      job_assignments: [assignment('a-1', 'u-toni')],
+    })
+
+    const people = within(await screen.findByRole('region', { name: 'Monteure' }))
+
+    expect(await people.findByText('Toni Techniker')).toBeDefined()
+
+    await mount([job('j-2', { status: 'active' })], '/auftraege/j-2')
+
+    expect(
+      await screen.findByText(/Ein Monteur hat auf seinem Gerät nur die Aufträge/),
+    ).toBeDefined()
+  })
+
+  it('is chosen in the office from the people of the business, as a whole list', async () => {
+    signedInAs('office')
+    answers.set('/tasks/assignees', staff)
+    answers.set('/jobs/j-1/assignees', { userIds: ['u-max'] })
+    await mount([job('j-1', { status: 'active' })], '/auftraege/j-1', {
+      job_assignments: [assignment('a-1', 'u-toni')],
+    })
+    const user = userEvent.setup()
+    const people = within(await screen.findByRole('region', { name: 'Monteure' }))
+
+    await user.click(await people.findByRole('button', { name: 'Zuordnen' }))
+
+    // Whoever is shut out is not offered.
+    expect(people.queryByLabelText('Gerd Gesperrt')).toBeNull()
+    expect((people.getByLabelText('Toni Techniker') as HTMLInputElement).checked).toBe(true)
+
+    await user.click(people.getByLabelText('Toni Techniker'))
+    await user.click(people.getByLabelText('Max Monteur'))
+    await user.click(people.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')).toMatchObject({
+        path: '/jobs/j-1/assignees',
+        body: { userIds: ['u-max'] },
+      })
+    })
+  })
+
+  it('is not changed by a technician', async () => {
+    signedInAs('technician')
+    answers.set('/tasks/assignees', staff)
+    await mount([job('j-1', { status: 'active' })])
+
+    await screen.findByRole('region', { name: 'Aufgaben' })
+
+    expect(screen.queryByRole('button', { name: 'Zuordnen' })).toBeNull()
   })
 })

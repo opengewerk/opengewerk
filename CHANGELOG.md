@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Monteure werden im Büro einem Auftrag zugeordnet, und das Gerät eines Monteurs hält nur noch seinen
+  Teil des Betriebs (#140): die Aufträge, auf denen er ist, mit allem, was an ihnen hängt, dazu was er
+  selbst angelegt hat; ein abgeschlossener Auftrag bleibt 30 Tage. Bis dahin lag auf jedem Telefon
+  der ganze Kundenstamm, und die DSGVO verlangt Datenminimierung. Inhaber und Büro behalten mit dem
+  neuen Recht `job.read.all` den ganzen Betrieb. Neu sind `job_assignments` und `jobs.closed_at`
+  (Migration 0042); bestehende abgeschlossene Aufträge bekommen den Tag ihrer letzten Änderung.
 - Eine Rechnung über alle offenen Regieberichte eines Auftrags (#135). Regiearbeit über mehrere
   Tage hat je Tag einen Bericht, und abgerechnet wird sie mit einer Rechnung; bis dahin entstand aus
   jedem Bericht eine eigene. Am Auftrag steht ab zwei offenen Berichten der Knopf dafür, die

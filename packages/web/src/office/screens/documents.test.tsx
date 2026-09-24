@@ -364,6 +364,9 @@ beforeEach(() => {
   // None set, so the default applies, unless a test says otherwise.
   serverSays('GET', '/settings/parameters', () => ({ status: 200, body: [] }))
 
+  // The job screen names the people of the business, for who is on it (#140).
+  serverSays('GET', '/tasks/assignees', () => ({ status: 200, body: [] }))
+
   // Every document asks the server for its instructions. None proposed and
   // nothing chosen, unless a test says otherwise. `d-7` is the one the job
   // screen creates: without it that screen got `{}` for its instructions and

@@ -51,6 +51,14 @@ describe('who reports the progress of a job', () => {
   })
 })
 
+describe('who holds the whole business on a device (#140)', () => {
+  it('is the owner and the office, and not a technician', () => {
+    expect(rolesAllow(['owner'], 'job.read.all')).toBe(true)
+    expect(rolesAllow(['office'], 'job.read.all')).toBe(true)
+    expect(rolesAllow(['technician'], 'job.read.all')).toBe(false)
+  })
+})
+
 describe('a follow-up job (#170)', () => {
   const finished = { id: 'j-1', customerId: 'c-1', status: 'completed' } as const
 

@@ -17,8 +17,11 @@ import {
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
+import { usePeople } from '../../app/tasks.js'
+import { assignToJob } from '../../session/jobs.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
+import { RequestRefused } from '../../sync/transport.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
 import { AttachmentsSection } from './attachments.js'
@@ -285,6 +288,8 @@ export function JobScreen() {
         </Card>
       )}
 
+      <JobPeople jobId={jobId} />
+
       <JobDocuments job={job} />
 
       <AttachmentsSection
@@ -332,6 +337,135 @@ export function JobScreen() {
         </Section>
       ) : null}
     </Page>
+  )
+}
+
+/**
+ * Who is on the job (#140), set in the office.
+ *
+ * For a technician it decides what their device holds: the jobs they are on,
+ * with what hangs on them, and a closed one thirty days longer. Said under
+ * the list, because a job nobody is on is a job no technician's device knows.
+ * Chosen as a whole list and sent to the route in one step; the names come
+ * from the server, the people behind them never travel to a device.
+ */
+function JobPeople({ jobId }: { readonly jobId: string }) {
+  const client = useSync()
+  const mayWrite = useMay('job.write')
+  const { people } = usePeople()
+  const assignments = useRelated('job_assignments', 'jobId', jobId)
+  const on = useMemo(() => assignments.map((row) => text(row, 'userId')).sort(), [assignments])
+  const [chosen, setChosen] = useState<ReadonlySet<string> | null>(null)
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  const nameOf = (userId: string) =>
+    people.find((person) => person.userId === userId)?.name ?? 'jemand, dessen Name fehlt'
+  // Whoever may be put on a job, and whoever is on it already even if they
+  // may not be any more: taking somebody off must stay possible.
+  const choices = people.filter((person) => person.active || on.includes(person.userId))
+
+  async function save(userIds: readonly string[]) {
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      await assignToJob(jobId, userIds)
+      await client.synchronise()
+      setChosen(null)
+    } catch (error) {
+      setTrouble(
+        error instanceof RequestRefused
+          ? error.message
+          : 'Keine Verbindung. Wer auf einem Auftrag ist, wird mit Verbindung festgelegt.',
+      )
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Section
+      title="Monteure"
+      actions={
+        mayWrite && chosen === null ? (
+          <Button
+            onClick={() => {
+              setChosen(new Set(on))
+            }}
+          >
+            Zuordnen
+          </Button>
+        ) : null
+      }
+    >
+      {chosen !== null ? (
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void save([...chosen])
+          }}
+        >
+          <ul className="flex flex-col gap-2">
+            {choices.map((person) => (
+              <li key={person.userId}>
+                <label className="flex items-center gap-2 text-body">
+                  <input
+                    type="checkbox"
+                    className="size-5"
+                    checked={chosen.has(person.userId)}
+                    onChange={(event) => {
+                      const next = new Set(chosen)
+
+                      if (event.target.checked) {
+                        next.add(person.userId)
+                      } else {
+                        next.delete(person.userId)
+                      }
+
+                      setChosen(next)
+                    }}
+                  />
+                  {person.name}
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" tone="primary" disabled={working}>
+              {working ? 'Einen Moment' : 'Speichern'}
+            </Button>
+            <Button
+              tone="quiet"
+              disabled={working}
+              onClick={() => {
+                setChosen(null)
+                setTrouble(null)
+              }}
+            >
+              Abbrechen
+            </Button>
+          </div>
+        </form>
+      ) : on.length > 0 ? (
+        <ul className="flex flex-col gap-1 text-body text-ink">
+          {on.map((userId) => (
+            <li key={userId}>{nameOf(userId)}</li>
+          ))}
+        </ul>
+      ) : (
+        <Nothing>
+          Noch niemand ist diesem Auftrag zugeordnet. Ein Monteur hat auf seinem Gerät nur die
+          Aufträge, denen er zugeordnet ist.
+        </Nothing>
+      )}
+      {trouble ? (
+        <p role="alert" className="mt-3 text-body font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+    </Section>
   )
 }
 

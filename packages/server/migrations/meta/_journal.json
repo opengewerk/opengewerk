@@ -295,6 +295,13 @@
       "when": 1790253611205,
       "tag": "0041_collective_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790254552950,
+      "tag": "0042_device_scope",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import type { CustomerId, InstallationId, JobId, SiteId, Synced } from './identifier.js'
+import type { CustomerId, Id, InstallationId, JobId, SiteId, Synced } from './identifier.js'
 
 /**
  * A job is either a project or a service call. The concept keeps them apart
@@ -40,6 +40,33 @@ export interface Job extends Synced {
   readonly number: string | null
   readonly designation: string
   readonly description: string | null
+  /**
+   * When the job was completed or cancelled (#140), written by the database
+   * when the status goes there and emptied when it is taken up again. A
+   * device of a technician keeps a closed job for `closedJobsStayDays` after
+   * it, then lets it go.
+   */
+  readonly closedAt: Date | null
+}
+
+/**
+ * How long a closed job stays on the device of a technician assigned to it
+ * (#140): long enough to look something up after the handover, not so long
+ * that a lost telephone carries every job of the year.
+ */
+export const closedJobsStayDays = 30
+
+/**
+ * A person on a job (#140), assigned in the office. What the device of that
+ * person holds follows from these rows, unless the person may see the whole
+ * business (`job.read.all`). Made and removed on the server; a device reads
+ * them and writes none. Removed means marked deleted, so that every device
+ * learns it.
+ */
+export interface JobAssignment extends Synced {
+  readonly id: Id<'job-assignment'>
+  readonly jobId: JobId
+  readonly userId: string
 }
 
 /**

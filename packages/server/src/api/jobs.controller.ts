@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,14 +8,15 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UnprocessableEntityException,
 } from '@nestjs/common'
 import type { JobId } from '@opengewerk/domain'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { assignNumber } from '../database/number-ranges.js'
-import { jobs } from '../database/schema/index.js'
+import { jobAssignments, jobs, memberships } from '../database/schema/index.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
@@ -128,6 +130,99 @@ export class JobsController {
     }
 
     return updated
+  }
+
+  /**
+   * Who is on the job (#140), as the whole list: whoever is in it and was not
+   * is added, whoever was and is not any more is removed, marked deleted so
+   * that every device learns it. A person added has to work in the business
+   * and not be shut out of it, the question a task asks of its assignee; the
+   * key onto the memberships holds the first half behind this.
+   *
+   * What it decides is what the device of each of them holds, for a person
+   * without `job.read.all`: at their next exchange the device finds its part
+   * of the business changed, drops it and fetches it anew.
+   */
+  @Put(':id/assignees')
+  @RequiresPermission('job.write')
+  async assign(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const { userIds } = pick(body, ['userIds'] as const)
+
+    if (
+      !Array.isArray(userIds) ||
+      !userIds.every((userId) => typeof userId === 'string' && userId.length > 0)
+    ) {
+      throw new BadRequestException('userIds ist die Liste der Personen auf dem Auftrag.')
+    }
+
+    const wanted = [...new Set(userIds as string[])].sort()
+
+    return this.database.forTenant(identity, async (tx) => {
+      const [job] = await tx
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.id, id as JobId), isNull(jobs.deletedAt)))
+
+      if (!job) {
+        throw new NotFoundException()
+      }
+
+      const current = await tx
+        .select({ id: jobAssignments.id, userId: jobAssignments.userId })
+        .from(jobAssignments)
+        .where(and(eq(jobAssignments.jobId, job.id), isNull(jobAssignments.deletedAt)))
+      const held = new Set(current.map((row) => row.userId))
+      const adding = wanted.filter((userId) => !held.has(userId))
+
+      if (adding.length > 0) {
+        const able = new Set(
+          (
+            await tx
+              .select({ userId: memberships.userId, blockedAt: memberships.blockedAt })
+              .from(memberships)
+              .where(
+                and(
+                  eq(memberships.tenantId, identity.tenantId),
+                  inArray(memberships.userId, adding),
+                ),
+              )
+          )
+            .filter((member) => member.blockedAt === null)
+            .map((member) => member.userId),
+        )
+
+        if (adding.some((userId) => !able.has(userId))) {
+          throw new UnprocessableEntityException(
+            'Einem Auftrag wird nur zugeordnet, wer in diesem Betrieb arbeitet und nicht ' +
+              'gesperrt ist.',
+          )
+        }
+
+        await tx
+          .insert(jobAssignments)
+          .values(adding.map((userId) => ({ tenantId: identity.tenantId, jobId: job.id, userId })))
+      }
+
+      const removing = current.filter((row) => !wanted.includes(row.userId))
+
+      if (removing.length > 0) {
+        await tx
+          .update(jobAssignments)
+          .set({ deletedAt: new Date() })
+          .where(
+            inArray(
+              jobAssignments.id,
+              removing.map((row) => row.id),
+            ),
+          )
+      }
+
+      return { userIds: wanted }
+    })
   }
 
   /**
