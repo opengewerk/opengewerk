@@ -41,6 +41,7 @@ import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
 import { MailSettingsController } from './mail-settings.controller.js'
 import { NumberRangesController } from './number-ranges.controller.js'
+import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
 import {
   AUTHENTICATION,
@@ -184,6 +185,7 @@ export class ApiModule implements NestModule {
         PaymentsController,
         SyncController,
         SettingsController,
+        ReportFieldsController,
         InstructionsController,
         MailSettingsController,
         NumberRangesController,

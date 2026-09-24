@@ -576,6 +576,9 @@ const pageStyle = `
   .notes p { margin: 0 0 2mm; }
   .text { white-space: pre-line; }
   .intro { margin: 0 0 4mm; }
+  .report-fields { border-collapse: collapse; margin: 0 0 4mm; }
+  .report-fields th { text-align: left; font-weight: 400; color: #5b6573; padding: 0.6mm 6mm 0.6mm 0; vertical-align: top; }
+  .report-fields td { padding: 0.6mm 0; white-space: pre-line; }
   .closing { margin-top: 8mm; break-inside: avoid; }
   .instruction { break-before: page; }
   .annex { font-size: 8.5pt; color: #5b6573; margin: 0 0 2mm; }
@@ -801,6 +804,13 @@ export function printJob(
   const closing = present(content.closingText)
     ? `<div class="text closing">${text(content.closingText)}</div>`
     : ''
+  // The fields the business gives its reports (#78), below what was done and
+  // above the lines, as the customer read them before signing.
+  const fields = content.reportFields.length
+    ? `<table class="report-fields">${content.reportFields
+        .map((field) => `<tr><th>${text(field.label)}</th><td>${text(field.text)}</td></tr>`)
+        .join('')}</table>`
+    : ''
 
   const html = `<!doctype html>
 <html lang="de">
@@ -820,6 +830,7 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
   ${subject}
   ${cancels}
   ${intro}
+  ${fields}
   ${lines(content)}
   ${totals(content)}
   ${notes}

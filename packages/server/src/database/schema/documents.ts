@@ -1,6 +1,7 @@
 import {
   documentKinds,
   documentStatuses,
+  longestFormValues,
   longestPaymentTermDays,
   taxTreatments,
 } from '@opengewerk/domain'
@@ -86,6 +87,16 @@ export const documents = pgTable(
      * sync; both of those refuse a wrong value first, with the sentence.
      */
     paymentTermDays: integer('payment_term_days'),
+    /**
+     * The fields the business gives its reports (#78): the version of its
+     * definition the report was started with, and the values as JSON text.
+     * Text and not `jsonb` for the same reason as the values of a protocol:
+     * the sync compares a field by the text a device saw in it. The sync asks
+     * the values of the definition before they land; the checks hold the
+     * bounds for every other way in.
+     */
+    fieldsVersion: integer('fields_version'),
+    fieldValues: text('field_values'),
     ...timestamps,
     ...syncColumns,
   },
@@ -148,6 +159,12 @@ export const documents = pgTable(
       'documents_payment_term_days',
       sql`${table.paymentTermDays} is null
         or ${table.paymentTermDays} between 0 and ${sql.raw(String(longestPaymentTermDays))}`,
+    ),
+    check(
+      'documents_field_values',
+      sql`${table.fieldValues} is null
+        or (${table.fieldsVersion} > 0
+          and char_length(${table.fieldValues}) <= ${sql.raw(String(longestFormValues))})`,
     ),
   ],
 )

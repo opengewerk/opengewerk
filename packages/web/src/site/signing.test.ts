@@ -147,7 +147,11 @@ describe('what the customer signs', () => {
   it('reads a report without a text as one whose text is empty, as the server does', () => {
     const blank = signedContentOf({ id: 'd-2' }, [])
 
-    expect(blank).toEqual({ introText: null, lines: [] })
+    // And without fields of the business, which leaves the fingerprint as it was (#78).
+    expect(blank).toEqual({ introText: null, fields: null, lines: [] })
+    expect(signedContentFingerprint(blank)).toBe(
+      signedContentFingerprint({ introText: null, lines: [] }),
+    )
   })
 
   it('changes with every line the customer did not see', () => {

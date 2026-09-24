@@ -265,6 +265,13 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
     change: 'merge',
     onlyWhile: { field: 'status', values: ['draft'] },
   },
+  /**
+   * The versions of the forms a business writes itself, the fields of its
+   * reports first (#78). Saved in the office at the route, a new version for
+   * every change and none ever changed; a device reads them, because it fills
+   * the fields in without a network, and writes none.
+   */
+  form_definitions: { create: false, change: 'never' },
 }
 
 /**

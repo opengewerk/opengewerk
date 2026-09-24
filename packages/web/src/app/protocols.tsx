@@ -482,8 +482,12 @@ function FigureInput({
 
 const unanswered = { value: '', label: 'nicht angegeben' } as const
 
-/** One field of a section or a block, as an input. */
-function FieldInput({
+/**
+ * One field of a section or a block, as an input. Also the input of the
+ * fields a business gives its reports (#78), which are text, numbers,
+ * choices and yes or no and so never ask for a circuit or a photo.
+ */
+export function FieldInput({
   field,
   value,
   circuit,

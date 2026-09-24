@@ -25,7 +25,7 @@ import {
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { addressLines, present } from '../documents/template.js'
 import { protocolPrintJob, type PrintedProtocol } from '../forms/protocol-print.js'
-import { formDefinitions, tradeRules } from '../forms/registry.js'
+import { tradeForms, tradeRules } from '../forms/registry.js'
 import { RequiresPermission } from './authorization.js'
 import { RENDERER } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -63,7 +63,7 @@ export class FormRecordsController {
           .from(formRecords)
           .where(and(eq(formRecords.id, id as never), isNull(formRecords.deletedAt)))
         const definition = record
-          ? formDefinitions.definitionFor(record.definitionKey, record.definitionVersion)
+          ? tradeForms.definitionFor(record.definitionKey, record.definitionVersion)
           : null
 
         if (!record || !definition) {

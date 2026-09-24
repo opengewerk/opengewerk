@@ -55,6 +55,11 @@ export function SettingsScreen() {
             about: 'Die Widerrufsbelehrung und eigene Belehrungen, die mit Belegen hinausgehen.',
           },
           {
+            to: '/einstellungen/regiebericht',
+            title: 'Felder des Regieberichts',
+            about: 'Was jeder Bericht neben Arbeitszeit und Material festhält, etwa das Wetter.',
+          },
+          {
             to: '/einstellungen/e-mail',
             title: 'E-Mail-Einstellungen',
             about: 'Der Mailserver des Betriebs, die Signatur und was von selbst verschickt wird.',

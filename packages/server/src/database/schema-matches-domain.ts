@@ -15,6 +15,7 @@ import type {
   DocumentSignature,
   DocumentSnapshot,
   Equipment,
+  FormDefinitionRecord,
   FormRecord,
   Installation,
   Instruction,
@@ -61,6 +62,7 @@ import type {
   installations,
   instructions,
   inverters,
+  formDefinitions,
   formRecords,
   jobAssignments,
   jobs,
@@ -119,6 +121,9 @@ export type PvStringMatches = Assert<Exact<typeof pvStrings.$inferSelect, PvStri
 export type PvModuleMatches = Assert<Exact<typeof pvModules.$inferSelect, PvModule>>
 export type JobMatches = Assert<Exact<typeof jobs.$inferSelect, Job>>
 export type FormRecordMatches = Assert<Exact<typeof formRecords.$inferSelect, FormRecord>>
+export type FormDefinitionMatches = Assert<
+  Exact<typeof formDefinitions.$inferSelect, FormDefinitionRecord>
+>
 export type JobAssignmentMatches = Assert<Exact<typeof jobAssignments.$inferSelect, JobAssignment>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>

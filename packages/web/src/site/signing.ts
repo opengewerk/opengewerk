@@ -94,9 +94,12 @@ export function pathOf(strokes: readonly (readonly Point[])[]): string {
  */
 export function signedContentOf(report: RecordState, lines: readonly RecordState[]): SignedContent {
   const introText = report['introText']
+  const fields = report['fieldValues']
 
   return {
     introText: typeof introText === 'string' ? introText : null,
+    // The fields of the business (#78), as the text the report carries.
+    fields: typeof fields === 'string' ? fields : null,
     lines: lines.map((line) => {
       const designation = line['designation']
       const description = line['description']

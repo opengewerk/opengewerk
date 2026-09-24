@@ -17,10 +17,12 @@ import type {
   DocumentContentV7,
   DocumentContentV8,
   DocumentContentV9,
+  DocumentContentV10,
   InstructionContent,
   IssuerContent,
   LineContent,
   RecipientContent,
+  ReportFieldContent,
   SignatureContent,
   SiteContent,
   StoredDocumentContent,
@@ -83,6 +85,11 @@ export interface ContentSources {
    * Left out, it is none: most callers put together a document without a job.
    */
   readonly jobNumber?: string | null
+  /**
+   * The fields of a report as `reportFieldLines` writes them (#78). Left out,
+   * there are none, as for every kind but a report.
+   */
+  readonly reportFields?: readonly ReportFieldContent[]
 }
 
 /**
@@ -213,6 +220,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     ),
     instructions: sources.instructions,
     jobNumber: sources.jobNumber ?? null,
+    reportFields: sources.reportFields ?? [],
   }
 }
 
@@ -228,7 +236,8 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * e-invoice needs; a record from version 6 stated no payment term; a record
  * from version 7 carried no instructions; a record from version 8 named no
  * job number; a record from version 9 took off what its progress invoices
- * billed. That is exactly what each of them
+ * billed; a report from version 10 had no fields of the business. That is
+ * exactly what each of them
  * said when it was printed. The figures, the addresses and the notes are
  * carried over as they are.
  *
@@ -243,16 +252,21 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 9:
-      return {
+    case 10:
+      return { ...stored, version: documentContentVersion, reportFields: [] }
+    case 9: {
+      const tenth: DocumentContentV10 = {
         ...stored,
-        version: documentContentVersion,
+        version: 10,
         deductions: stored.deductions.map((deduction) => ({
           ...deduction,
           received: null,
           receivedOn: null,
         })),
       }
+
+      return currentContent(tenth)
+    }
     case 8: {
       const ninth: DocumentContentV9 = { ...stored, version: 9, jobNumber: null }
 

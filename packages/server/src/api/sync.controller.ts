@@ -233,6 +233,10 @@ export function permissionFor(
     // A test protocol is measured at an installation and belongs to it (#79):
     // whoever may record its structure may record its test.
     form_records: 'installation.write',
+    // The fields of the reports are written in the settings (#78), and a
+    // device only reads them. The owner, who may write them, gets
+    // `online_only` for one sent anyway; anybody else the missing right.
+    form_definitions: 'settings.write',
     tasks: 'task.write',
     // A file and its versions are one thing to whoever adds them: taking a
     // photo on site is adding it, and a new version is the same act again.

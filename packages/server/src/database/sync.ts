@@ -29,7 +29,8 @@ import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
-import { formDefinitions } from '../forms/registry.js'
+import { tradeForms } from '../forms/registry.js'
+import { reportFieldsProblem } from '../forms/report-fields.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
@@ -430,11 +431,30 @@ async function applyOne(
   // signed that lacks what signing needs, are a mistake of the client.
   if (operation.entity === 'form_records' && operation.kind !== 'delete') {
     const standing = (field: string) => (field in values ? values[field] : current?.[field])
-    const problem = formRecordProblem(formDefinitions, {
+    const problem = formRecordProblem(tradeForms, {
       definitionKey: standing('definitionKey'),
       definitionVersion: standing('definitionVersion'),
       status: standing('status') ?? 'draft',
       values: standing('values') ?? '{}',
+    })
+
+    if (problem !== null) {
+      throw new UnknownFieldError(problem)
+    }
+  }
+
+  // The fields a business gives its reports (#78), asked of the version the
+  // report names, as the form on site asks them before it saves.
+  if (
+    operation.entity === 'documents' &&
+    operation.kind !== 'delete' &&
+    ('fieldsVersion' in values || 'fieldValues' in values)
+  ) {
+    const standing = (field: string) => (field in values ? values[field] : current?.[field])
+    const problem = await reportFieldsProblem(tx, {
+      kind: standing('kind'),
+      fieldsVersion: standing('fieldsVersion'),
+      fieldValues: standing('fieldValues'),
     })
 
     if (problem !== null) {

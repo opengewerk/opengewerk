@@ -110,6 +110,13 @@ export interface DocumentSignature extends Synced {
 /** What a customer sees on the device before signing, and so what a signature is about. */
 export interface SignedContent {
   readonly introText: string | null
+  /**
+   * The values of the fields the business gives its reports (#78), as the
+   * JSON text the report carries. Absent or empty on a report without them,
+   * and then left out of the fingerprint, so that a report signed before
+   * there were fields keeps the fingerprint it was signed with.
+   */
+  readonly fields?: string | null
   readonly lines: readonly {
     readonly id: string
     readonly position: number
@@ -141,7 +148,10 @@ export function signedContentFingerprint(content: SignedContent): string {
   const lines = [...content.lines]
     .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
     .map((line) => [line.kind, line.designation, line.description, line.quantityMilli, line.unit])
-  const text = JSON.stringify([content.introText, lines])
+  const fields = content.fields === '{}' ? null : (content.fields ?? null)
+  const text = JSON.stringify(
+    fields === null ? [content.introText, lines] : [content.introText, lines, fields],
+  )
 
   // FNV-1a over UTF-16 code units. `Math.imul` keeps the multiplication in
   // thirty-two bits, which is what makes the result the same in every engine.
