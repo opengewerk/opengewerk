@@ -924,6 +924,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Tests des Mail-Jobs stellen ihre Uhr auf den 24.09.2037 statt auf den 24.09.2026 (#191). An
+  genau diesem Morgen fiel die Uhr des Jobs hinter die der Datenbank zurück, aus der eine Nachricht
+  ihr `next_attempt_at` bekommt, und neun Tests fanden nichts mehr zu verschicken, auf jedem Pull
+  Request. Die Uhr eines Tests, der Zeilen der Datenbank für fällig halten soll, muss ihr sicher
+  vorauslaufen; ein Datum, das beim Schreiben zwei Tage in der Zukunft lag, tut das nur zwei Tage.
 - Abmelden löscht, was das Gerät vom Betrieb hält (#186). Bis dahin vergaß der Browser nur Konto und
   Rollen, die lokale Ablage mit Kunden, Belegen, Fotos und Arbeitszeiten blieb liegen, auch auf
   einem Gerät, das danach weitergegeben oder verloren wird. Jetzt sendet das Abmelden zuerst, was
