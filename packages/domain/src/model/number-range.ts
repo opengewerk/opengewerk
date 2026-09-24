@@ -10,8 +10,14 @@ import type { NumberRangeId, TenantOwned } from './identifier.js'
  *
  * Quotes and estimates share a sequence for the opposite reason: nothing legal
  * hangs on them, and a business that sends both does not want two counters.
+ *
+ * Jobs have one of their own (#145), although a job is no document: it is the
+ * number the office, the site and the customer on the phone name a job by.
+ * Nothing legal hangs on it either, and it is drawn the same way all the same,
+ * inside the transaction that creates the job, so that it has no holes.
  */
 export const numberRangeKeys = [
+  'job',
   'quote',
   'order_confirmation',
   'delivery_note',
@@ -49,6 +55,7 @@ export interface NumberRange extends TenantOwned {
 }
 
 export const defaultPatterns: Readonly<Record<NumberRangeKey, string>> = {
+  job: 'AU-{year}-{number:4}',
   quote: 'AN-{year}-{number:4}',
   order_confirmation: 'AB-{year}-{number:4}',
   delivery_note: 'LS-{year}-{number:4}',

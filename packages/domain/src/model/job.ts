@@ -23,7 +23,12 @@ export interface Job extends Synced {
   readonly parentJobId: JobId | null
   readonly kind: JobKind
   readonly status: JobStatus
-  /** Assigned by the number range when the job is created; see its own issue. */
+  /**
+   * Drawn from the job number range when the job is created (#145), on the
+   * server and only there: a job created without a network gets it with the
+   * next sync and has none until then. Null as well for a job created before
+   * the numbering existed.
+   */
   readonly number: string | null
   readonly designation: string
   readonly description: string | null

@@ -269,6 +269,12 @@ function information(content: DocumentContent): string {
     ])
   }
 
+  // What the customer names the job by on the phone (#145), as it was when
+  // the document was issued.
+  if (content.jobNumber !== null) {
+    rows.push(['Auftragsnummer', text(content.jobNumber)])
+  }
+
   if (content.serviceFrom !== null) {
     const until = content.serviceUntil
     const single = until === null || until === content.serviceFrom

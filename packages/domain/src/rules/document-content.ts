@@ -15,6 +15,7 @@ import type {
   DocumentContentV5,
   DocumentContentV6,
   DocumentContentV7,
+  DocumentContentV8,
   InstructionContent,
   IssuerContent,
   LineContent,
@@ -76,6 +77,11 @@ export interface ContentSources {
    * which also says what is missing for them.
    */
   readonly instructions: readonly InstructionContent[]
+  /**
+   * The number of the document's job, when it has one with a number (#145).
+   * Left out, it is none: most callers put together a document without a job.
+   */
+  readonly jobNumber?: string | null
 }
 
 /**
@@ -205,6 +211,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       billed,
     ),
     instructions: sources.instructions,
+    jobNumber: sources.jobNumber ?? null,
   }
 }
 
@@ -218,7 +225,8 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * deducted nothing and billed its totals; a record from version 4 cancelled
  * nothing; a record from version 5 kept nothing of the recipient that only an
  * e-invoice needs; a record from version 6 stated no payment term; a record
- * from version 7 carried no instructions. That is exactly what each of them
+ * from version 7 carried no instructions; a record from version 8 named no
+ * job number. That is exactly what each of them
  * said when it was printed. The figures, the addresses and the notes are
  * carried over as they are.
  *
@@ -233,8 +241,13 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 7:
-      return { ...stored, version: documentContentVersion, instructions: [] }
+    case 8:
+      return { ...stored, version: documentContentVersion, jobNumber: null }
+    case 7: {
+      const eighth: DocumentContentV8 = { ...stored, version: 8, instructions: [] }
+
+      return currentContent(eighth)
+    }
     case 6: {
       const seventh: DocumentContentV7 = { ...stored, version: 7, paymentTerm: null }
 

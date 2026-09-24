@@ -16,23 +16,37 @@ function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
 
-/** What each sequence numbers, in the words of the office. */
-const about: Readonly<Record<NumberRangeKey, { readonly title: string; readonly covers: string }>> =
-  {
-    quote: {
-      title: 'Angebote',
-      covers: 'Angebote und Kostenvoranschläge zählen gemeinsam.',
-    },
-    order_confirmation: { title: 'Auftragsbestätigungen', covers: '' },
-    delivery_note: { title: 'Lieferscheine', covers: '' },
-    report: { title: 'Regieberichte', covers: '' },
-    invoice: {
-      title: 'Rechnungen',
-      covers:
-        'Alle Rechnungen, Gutschriften und Stornos zählen gemeinsam und lückenlos, wie § 14 ' +
-        'UStG es verlangt.',
-    },
-  }
+/** What each sequence numbers, in the words of the office, and what it numbers one of. */
+const about: Readonly<
+  Record<NumberRangeKey, { readonly title: string; readonly covers: string; readonly next: string }>
+> = {
+  job: {
+    title: 'Aufträge',
+    covers:
+      'Jeder neue Auftrag bekommt beim Anlegen die nächste Nummer, einer ohne Netz, sobald er ' +
+      'übertragen ist.',
+    next: 'Auftrag',
+  },
+  quote: {
+    title: 'Angebote',
+    covers: 'Angebote und Kostenvoranschläge zählen gemeinsam.',
+    next: 'Beleg',
+  },
+  order_confirmation: {
+    title: 'Auftragsbestätigungen',
+    covers: '',
+    next: 'Beleg',
+  },
+  delivery_note: { title: 'Lieferscheine', covers: '', next: 'Beleg' },
+  report: { title: 'Regieberichte', covers: '', next: 'Beleg' },
+  invoice: {
+    title: 'Rechnungen',
+    covers:
+      'Alle Rechnungen, Gutschriften und Stornos zählen gemeinsam und lückenlos, wie § 14 ' +
+      'UStG es verlangt.',
+    next: 'Beleg',
+  },
+}
 
 /** A sentence about one sequence, after something was done to it. */
 interface Said {
@@ -60,11 +74,12 @@ export function NumberRangesScreen() {
   const [said, setSaid] = useState<Said | null>(null)
 
   return (
-    <Page title="Nummernkreise" meta="Wie die Belege dieses Betriebs nummeriert werden.">
+    <Page title="Nummernkreise" meta="Wie Aufträge und Belege dieses Betriebs nummeriert werden.">
       <p className="text-body text-ink">
-        Im Muster steht {'{year}'} für das Jahr, in dem der Beleg ausgestellt wird, und {'{number}'}{' '}
-        für die laufende Nummer; {'{number:4}'} füllt sie mit Nullen auf vier Stellen auf. Ein neues
-        Muster gilt ab dem nächsten Beleg, ausgestellte Nummern bleiben, wie sie sind.
+        Im Muster steht {'{year}'} für das Jahr, in dem der Beleg ausgestellt oder der Auftrag
+        angelegt wird, und {'{number}'} für die laufende Nummer; {'{number:4}'} füllt sie mit Nullen
+        auf vier Stellen auf. Ein neues Muster gilt ab der nächsten Nummer, vergebene bleiben, wie
+        sie sind.
       </p>
 
       {loaded.isPending ? (
@@ -126,7 +141,7 @@ function NumberRangeSection({
       onSaid({
         key: range.key,
         tone: 'status',
-        text: `Gespeichert. Der nächste Beleg heißt ${saved.next}.`,
+        text: `Gespeichert. Der nächste ${about[range.key].next} heißt ${saved.next}.`,
       })
       void queries.invalidateQueries({ queryKey: ['number-ranges'] })
     },
@@ -182,7 +197,7 @@ function NumberRangeSection({
               />
             </div>
             <p className="text-body text-ink">
-              Der nächste Beleg heißt <strong>{preview ?? range.next}</strong>.
+              Der nächste {about[range.key].next} heißt <strong>{preview ?? range.next}</strong>.
             </p>
             <div>
               <Button
@@ -196,7 +211,7 @@ function NumberRangeSection({
           </form>
         ) : (
           <p className="text-body text-ink">
-            Muster <strong>{range.pattern}</strong>, der nächste Beleg heißt{' '}
+            Muster <strong>{range.pattern}</strong>, der nächste {about[range.key].next} heißt{' '}
             <strong>{range.next}</strong>.
           </p>
         )}

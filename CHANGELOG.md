@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Aufträge bekommen eine Nummer aus einem eigenen Nummernkreis (#145), Vorgabe `AU-{year}-{number:4}`,
+  einstellbar unter "Einstellungen", "Nummernkreise". Vergeben wird sie beim Anlegen, über die Route
+  wie aus dem Postausgang, und ein Gerät kann keine setzen; sie steht am Auftrag, an seinen Zeiten und
+  auf seinen Belegen (Fassung 9 von `DocumentContent`). Die Spalte gab es seit dem Fundament, vergeben
+  wurde nie eine, und über den Abgleich hätte ein Gerät eine beliebige hineinschreiben können.
 - Die Zeiterfassung (#76). Bis dahin führte ein Betrieb seine Stunden neben der Software, und eine
   Tabelle erfüllt weder die Aufzeichnung nach § 17 MiLoG noch die Prüfung nach dem
   Arbeitszeitgesetz. Auf der Baustelle startet die Arbeit am Auftrag, eine Fahrt dorthin ebenso, und

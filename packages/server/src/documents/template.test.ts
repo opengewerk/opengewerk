@@ -71,6 +71,7 @@ function invoice(
     readonly cashAccounting?: boolean
     readonly paymentTermDays?: number
     readonly instructions?: readonly InstructionContent[]
+    readonly jobNumber?: string | null
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -106,6 +107,7 @@ function invoice(
     deductions: parts.deductions ?? [],
     paymentTermDays: parts.paymentTermDays ?? 14,
     instructions: parts.instructions ?? [],
+    jobNumber: parts.jobNumber ?? null,
   })
 
   return content
@@ -121,6 +123,13 @@ describe('the page', () => {
     expect(html).toContain('<th>Leistungszeitraum</th><td>01.09.2026 bis 15.09.2026</td>')
     expect(html).toMatch(/Umsatzsteuer 19 % auf 1\.000,00\s€<\/td><td class="figure">190,00\s€/)
     expect(html).toMatch(/Gesamtbetrag<\/td><td class="figure">1\.190,00\s€/)
+  })
+
+  it('names the job it belongs to, by the number the customer calls about (#145)', () => {
+    expect(page({}, { jobNumber: 'AU-2026-0007' }).html).toContain(
+      '<tr><th>Auftragsnummer</th><td>AU-2026-0007</td></tr>',
+    )
+    expect(page().html).not.toContain('Auftragsnummer')
   })
 
   it('names a single day as a date of service rather than a period', () => {

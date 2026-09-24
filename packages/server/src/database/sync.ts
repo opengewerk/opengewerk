@@ -30,6 +30,7 @@ import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
+import { assignNumber } from './number-ranges.js'
 import { ruleRefusal } from './record-rules.js'
 import { missingReference } from './references.js'
 import * as schema from './schema/index.js'
@@ -181,6 +182,24 @@ async function withProposedTreatment(
       values['documentDate'] as IsoDate,
     ),
   }
+}
+
+/**
+ * The number of a job created on a device, drawn here as the route draws it
+ * for one created over it (#145). In the same transaction as the insert, so
+ * that a transmission refused afterwards takes the number back with it.
+ */
+async function withJobNumber(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  operation: Operation,
+  values: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  if (operation.kind !== 'create' || operation.entity !== 'jobs') {
+    return values
+  }
+
+  return { ...values, number: await assignNumber(tx, tenantId, 'job', new Date()) }
 }
 
 export class UnknownFieldError extends Error {}
@@ -537,10 +556,11 @@ async function applyOne(
   // The line total is worked out here and not taken from the device. It is
   // reserved in the policy, so a device that sends one is refused outright;
   // this is the other half, the figure the server puts in its place.
-  const complete = await withProposedTreatment(
+  const complete = await withJobNumber(
     tx,
+    tenantId,
     operation,
-    withLineTotal(operation.entity, values, current),
+    await withProposedTreatment(tx, operation, withLineTotal(operation.entity, values, current)),
   )
 
   if (operation.kind === 'create') {

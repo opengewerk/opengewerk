@@ -228,7 +228,7 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(8)
+    expect(read.version).toBe(9)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
@@ -238,11 +238,12 @@ describe('a snapshot written in the first shape', () => {
     // Nothing was deducted before version 4, so it billed what it totalled,
     // nothing was cancelled before version 5, before version 6 nothing was
     // kept of the recipient that only an e-invoice needs, before version 7
-    // no payment term was printed, and before version 8 no instruction went
-    // with a document.
+    // no payment term was printed, before version 8 no instruction went with
+    // a document, and before version 9 no document named its job.
     expect(read.corrects).toBeNull()
     expect(read.paymentTerm).toBeNull()
     expect(read.instructions).toEqual([])
+    expect(read.jobNumber).toBeNull()
     expect(read.recipient).toEqual({
       ...first.recipient,
       email: null,
