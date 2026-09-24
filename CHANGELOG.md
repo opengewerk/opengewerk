@@ -711,6 +711,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Feature-Gliederung v2.18 mit den Entscheidungen vom 24.09.2026 auf die offenen Fragen aus der
+  Prüfung von Phase 0: der Regiebericht bleibt ein Beleg und bekommt über die Formular-Engine
+  eigene Felder (#137), Elektro/PV bleibt im Kern und bringt Formulare und Grenzwerte im
+  Paketformat mit (#136, Nachtrag in ADR 0008), und jeder Punkt aus den ADRs hat jetzt eine
+  Phase (#141). Neu in Phase 1 sind Sammelrechnung, Abzug der eingegangenen Abschläge, Folgeauftrag,
+  Auftragsnummer, Auswahl je Gerät, das Land an Kunde und Objekt und Releases; der Bereich für den
+  Betreiber und ein weiterer Betrieb kommen in Phase 2 (Nachtrag in ADR 0006). Was nur in einem
+  ADR stand, hatte keine Phase und wäre beim Schneiden der Issues übersehen worden.
 - `add-staff` fragt das Passwort verdeckt ab, zweimal, wie `passwd`, und erzeugt keines mehr.
   Aus einem Skript heraus kommt es wie bisher aus `OPENGEWERK_PASSWORD`. Ein erzeugtes Passwort
   musste ausgegeben werden und stand danach im Verlauf des Terminals, bis es jemand ersetzte;

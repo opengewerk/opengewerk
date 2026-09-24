@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.17
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.18
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler; v2.15 (23.09.2026) lässt die Dokumentenkette sich nicht mehr verzweigen; v2.16 (23.09.2026) ergänzt den Nullsteuersatz für Photovoltaik; v2.17 (23.09.2026) lässt die Sicherung jede Nacht ohne Zutun laufen; v2.18 (24.09.2026) trägt die Entscheidungen vom 24.09.2026 ein: Regiebericht als Beleg mit eigenen Feldern, Abzug der vereinnahmten Abschläge, Sammelrechnung, Folgeauftrag, Auftragsnummer, Auswahl je Gerät, Bereich für den Betreiber und die Phasen der Punkte, die noch keine hatten (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -59,25 +59,27 @@ Aktionen: Erinnerung (Push/E-Mail), Aufgabe anlegen, Serviceauftrag anlegen, Sta
 
 ### 1.3 Formular-/Protokoll-Engine ★
 
-- Prüfprotokolle, Abnahmeprotokolle, Regieberichte, Checklisten sind **datengetriebene Formulare** (JSON-Schema-Definition), nicht hartkodiert
+- Prüfprotokolle, Abnahmeprotokolle und Checklisten sind **datengetriebene Formulare** (JSON-Schema-Definition), nicht hartkodiert
+- Der Regiebericht ist kein Formular, sondern ein Beleg (4.2): er trägt Positionen, wird unterschrieben, festgeschrieben und abgerechnet und steht in der Dokumentenkette. Über die Engine bekommt er Felder, die der Betrieb ihm gibt, etwa Wetter, Anfahrt oder Besonderheiten der Baustelle
 - Felder: Text, Zahl mit Einheit, Messwert mit Grenzwert-Prüfung, Foto, Unterschrift, Auswahl, Wiederholgruppe (z. B. Stromkreise)
 - Versionierung der Formulardefinitionen (altes Protokoll bleibt mit alter Definition lesbar)
 - PDF-Rendering mit Vorlage, Signatur eingebettet
-- Community kann Gewerke-Formulare per Pull Request beisteuern
+- Community kann Gewerke-Formulare per Pull Request beisteuern, im Paketformat nach ADR 0008 unter `packages/gewerke/<name>/`; die Formulare und Grenzwerte von Elektro/PV liegen von Anfang an so, die Anlagenstruktur (3.2) gehört zum Datenmodell-Kern
 
 ### 1.4 Dokumentenkette
 
-Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung → Lieferschein / Regiebericht → (Abschlags-/Teil-)Rechnung → Schlussrechnung → Storno/Gutschrift**. Jeder Beleg kennt seinen Vorgänger; Mengenabgleich (angeboten, geliefert, abgerechnet) ist jederzeit sichtbar. Die Kette verzweigt sich nicht: ein Beleg hat höchstens einen Folgebeleg, der gilt, und der nächste entsteht aus dem letzten Glied, damit jede Rechnung abzieht, was vor ihr gestellt wurde. Ein stornierter Folgebeleg zählt nicht mehr, sein Vorgänger ist danach frei für den, der ihn ersetzt; Storno und Gutschrift korrigieren ein Glied, statt eines zu sein.
+Eine Positionsliste läuft durch alle Belege: **Angebot → Auftragsbestätigung → Lieferschein / Regiebericht → (Abschlags-/Teil-)Rechnung → Schlussrechnung → Storno/Gutschrift**. Jeder Beleg kennt seinen Vorgänger; Mengenabgleich (angeboten, geliefert, abgerechnet) ist jederzeit sichtbar. Die Kette verzweigt sich nicht: ein Beleg hat höchstens einen Folgebeleg, der gilt, und der nächste entsteht aus dem letzten Glied, damit jede Rechnung abzieht, was vor ihr gestellt wurde. Ein stornierter Folgebeleg zählt nicht mehr, sein Vorgänger ist danach frei für den, der ihn ersetzt; Storno und Gutschrift korrigieren ein Glied, statt eines zu sein. Die eine Stelle, an der Glieder zusammenlaufen, ist die Sammelrechnung: eine Rechnung fasst die Regieberichte eines Auftrags zusammen, etwa einen je Arbeitstag, und jeder davon hat damit seinen einen Folgebeleg.
 
 ### 1.5 Nummernkreise & Festschreibung ⚖
 
-- Lückenlose, mandantenbezogene Nummernkreise je Belegtyp (konfigurierbares Muster)
+- Lückenlose, mandantenbezogene Nummernkreise je Belegtyp (konfigurierbares Muster), dazu einer für Aufträge; eine Nummer vergibt der Server, ein ohne Netz angelegter Datensatz bekommt sie beim Abgleich
 - Festschreibung mit Zeitstempel beim Versand/Buchung; danach nur Storno oder Korrekturbeleg
 - Audit-Log auf Feldebene
 
 ### 1.6 Offline-Sync ★
 
 - Lokale Datenbank im Client (IndexedDB), Schreibqueue, Service Worker
+- Auswahl je Gerät: ein Monteur hält nur, was zu seinen Aufträgen gehört, also die Aufträge, denen er zugeordnet ist, mit Kunde, Objekt, Anlage, Belegen, Aufgaben, Dateien und Ansprechpartnern, dazu was er selbst angelegt hat; ein abgeschlossener Auftrag bleibt 30 Tage nach dem Abschluss. Inhaber und Büro halten den ganzen Betrieb. Beim Abmelden wird die lokale Datenbank gelöscht ⚖
 - Sichtbares Sync-Status-Panel: unsynchronisierte Einträge, Konflikte, Entscheidung durch Nutzer
 - Fotos werden komprimiert lokal gehalten und nachgeladen
 
@@ -100,8 +102,10 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 ## 2. Querschnittsfunktionen (systemweit)
 
 - Benutzer- und Rechteverwaltung: rollenbasiert (Buchhaltung, Techniker, Bauleiter, Büro, Admin, **Steuerberater read-only** ★, Kunde im Portal)
-- Mandantenfähigkeit: mehrere Firmen auf einer Instanz, getrennte Nummernkreise, Kontenrahmen, Briefpapier
-- Audit-Log/Änderungsprotokoll über alle Module
+- Anmeldung mit Passwort und zweitem Faktor (TOTP, für Inhaber Pflicht); Passkeys mit Liste, Widerruf und Bestätigung vor der Registrierung, ein Passkey mit Nutzerbestätigung zählt als zweiter Faktor; Anmeldung über einen eigenen Identitätsanbieter (OIDC) für Betriebe, die einen haben
+- Mandantenfähigkeit: mehrere Firmen auf einer Instanz, getrennte Nummernkreise, Kontenrahmen, Briefpapier. Einen weiteren Betrieb legt ein Inhaber im Büro für sich an, der Betreiber der Instanz auf der Kommandozeile für andere
+- Bereich für den Betreiber der Instanz: was nicht einem Betrieb gehört, sondern der Instanz, etwa ein Mailserver im eigenen Netz, die Uhrzeit der Sicherung und die Betriebe auf ihr. Betreiber ist das Konto aus der Ersteinrichtung, mit Pflicht zum zweiten Faktor; weitere lassen sich dort benennen
+- Audit-Log/Änderungsprotokoll über alle Module, für den Inhaber im Büro einsehbar
 - **Aufgabenverwaltung** (aus CRM hierher verschoben): To-Dos mit Fälligkeit, Verantwortlichem, Status; optional an Kunde/Objekt/Auftrag gebunden; automatisch erzeugt durch Fristen-Engine
 - Benachrichtigungssystem: E-Mail/Push (Web-Push), gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen). E-Mails gehen über den Mailserver des Betriebs, eingerichtet in dessen E-Mail-Einstellungen hinter einem eigenen Recht; die Zugangsdaten liegen verschlüsselt, Speichern prüft die Verbindung, und eine Signatur mit Platzhaltern ({benutzer}, {briefkopf}) steht unter jeder Nachricht
 - Dubletten-Prüfung (Kunden, Objekte, Artikel) beim Anlegen und Importieren
@@ -110,7 +114,9 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Offene REST-API + Webhooks; OpenAPI-Spezifikation
 - Textbausteine/Vorlagen (Positionen, Mails, Belegtexte, Rechtstexte)
 - DSGVO-Funktionen ⚖: Löschkonzept mit Aufbewahrungsfristen, Auskunft/Datenexport, Verarbeitungsverzeichnis (Art. 30) als generiertes Dokument, AV-Vertragsvorlage für Hoster/Zahlungsdienstleister
-- Betrieb: Backup/Restore (inkl. Dokumentenspeicher, jede Nacht ohne Zutun, der Zeitpunkt der letzten Sicherung im Büro sichtbar), Update-Mechanismus mit DB-Migrationen, Health-Check, Docker-Compose-Referenzinstallation
+- Betrieb: Backup/Restore (inkl. Dokumentenspeicher, jede Nacht ohne Zutun, der Zeitpunkt der letzten Sicherung im Büro sichtbar), Update-Mechanismus mit DB-Migrationen, Health-Check, Docker-Compose-Referenzinstallation, Dateispeicher im Dateisystem oder über S3
+- Releases mit Versionsnummer und fertigen, signierten Abbildern: ein Update zieht die neue Fassung, statt sie aus dem Quelltext zu bauen, und jede frühere bleibt erreichbar
+- Externe Sicherheitsprüfung vor dem ersten Release mit Kanzlei-Connector oder Kundenportal
 
 ---
 
@@ -118,7 +124,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 ### 3.1 Stammdaten & Kontakte
 
-- Kunden (Privat/Gewerbe/Hausverwaltung/GU) mit vollständigen Adress- und Kontaktdaten
+- Kunden (Privat/Gewerbe/Hausverwaltung/GU) mit vollständigen Adress- und Kontaktdaten, das Land eingeschlossen (Vorgabe Deutschland; es entscheidet mit über das Format der E-Rechnung). Was ein Kunde im Ausland darüber hinaus braucht, etwa Lieferungen in die EU, die Prüfung der USt-IdNr. oder eine Ausfuhr, kommt mit der Buchhaltung
 - Steuerliche Attribute ⚖: USt-ID, Kunde ist Unternehmer (→ E-Rechnungspflicht), Bauleistungsempfänger (→ §13b), Freistellungsbescheinigung §48 EStG mit Ablaufdatum (→ Fristen-Engine)
 - Mehrere Ansprechpartner pro Kunde; Ansprechpartner pro Objekt (Mieter, Hausmeister)
 - Kommunikationshistorie (Anrufe, Mails, Notizen) zentral am Kunden **und** am Objekt
@@ -128,7 +134,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 ### 3.2 Objekt- & Anlagenakte
 
-- Objekte mit Adresse, Zugang (Schlüssel, Codes, verschlüsselt gespeichert), Ansprechpartnern, Fotos
+- Objekte mit Adresse samt Land, Zugang (Schlüssel, Codes, verschlüsselt gespeichert), Ansprechpartnern, Fotos
 - Anlagen mit Typ, Hersteller, Seriennummer, Inbetriebnahme, Gewährleistungsende, zugeordneten Prüfprotokollen, Wartungsverträgen, Serviceaufträgen
 - **Anlagenstruktur (Elektro) ★**: Anlage → Verteiler (NSHV, UV) → Feld → Stromkreis → Betriebsmittel. Je Stromkreis: Bezeichnung, Sicherung (Typ, Nennstrom, Charakteristik), RCD (Typ, IΔn), Leitung (Typ, Aderzahl, Querschnitt, Länge, Verlegeart), Verbraucher; je Betriebsmittel: Typ, Hersteller, Seriennummer. Diese Struktur ist zugleich das Gerüst der Prüfprotokolle nach VDE 0100-600 / 0105-100 (Messwerte werden je Stromkreis erfasst) und das Stromkreisverzeichnis für den Verteilerausdruck, ein Blatt je Verteiler für seine Tür. Für PV analog: Anlage → Wechselrichter → String → Module, plus Speicher, Zähler, Wallbox.
 - **QR-Etikett je Anlage ★**: Aufkleber im Zählerschrank/am Wechselrichter → Scan öffnet Anlagenakte (Techniker) oder eine loginfreie Kundenseite mit nächster Prüfung und Störungsmeldung mit Foto (Kunde)
@@ -186,7 +192,9 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 ### 4.1 Auftrags- & Projektmanagement
 
 **Projekte**
-- Auftragsmappe: Status, Historie, alle verknüpften Belege/Dokumente/Protokolle an einem Ort
+- Auftragsmappe: Auftragsnummer (1.5), Status, Historie, alle verknüpften Belege/Dokumente/Protokolle an einem Ort
+- Zuordnung der Monteure zu einem Auftrag im Büro; sie entscheidet, was auf ihren Geräten liegt (1.6). Auf der Baustelle schließt ein Monteur seinen Auftrag ab und schreibt Notizen daran, Kunde, Objekt und Bezeichnung ändert das Büro
+- Folgeauftrag zu einem abgeschlossenen Auftrag, etwa die Wallbox nach dem Zählerschrank oder eine Nacharbeit: derselbe Kunde, im Büro angelegt und mit Objekt, Anlage und Art vorbelegt, verknüpft in beide Richtungen; ein Auftrag kann mehrere haben. Eine Erweiterung während der Arbeit ist ein Nachtrag, kein Folgeauftrag
 - Aufteilung großer Baustellen in Teilprojekte/Gewerke
 - **Bautagebuch**: tägliches Protokoll mit Wetter, anwesenden Mitarbeitern/Subunternehmern, Geräten, Ereignissen, Fotos, rechtssicher archiviert
 - Aufmaß mobil erfassen (mit Foto), automatische Übernahme in Kalkulation und Rechnung
@@ -220,7 +228,9 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Auftragsbestätigung
 - Lieferschein
 - Regiebericht / Stundenlohnzettel mit Kundenunterschrift (mobil)
-- Abschlagsrechnung **kumuliert** (Leistungsstand gesamt, abzüglich bisher gestellt und bisher gezahlt), Teilrechnung, Schlussrechnung
+- Abschlagsrechnung **kumuliert** (Leistungsstand gesamt, abzüglich bisher gestellt und bisher gezahlt), Teilrechnung für getrennt abgenommene Bauabschnitte, Schlussrechnung
+- Die Schlussrechnung zieht die vereinnahmten Abschläge ab, nicht die gestellten (§14 Abs. 5 UStG) ⚖: vor dem Festschreiben wird je Abschlagsrechnung eingetragen, was eingegangen ist, voll, zum Teil mit Betrag oder nichts, bis die Offene-Posten-Verwaltung das weiß. Sie heißt „Schlussrechnung“, sobald sie Abschläge abzieht, sonst „Rechnung“
+- Sammelrechnung über die Regieberichte eines Auftrags, wenn Regiearbeit über mehrere Tage geht (1.4)
 - Sicherheitseinbehalt (VOB/B §17, prozentual, Auszahlungsdatum über Fristen-Engine)
 - Stornorechnung und Gutschrift (Rechnungskorrektur), nie Löschung ⚖
 - Dauerrechnung (Wartungsverträge)
@@ -237,7 +247,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Verbraucherbauvertrag §650i BGB mit Baubeschreibung und eigener Widerrufsbelehrung (§650l BGB, Art. 249 §3 EGBGB)
 
 **Zahlung**
-- Zahlungsziel in Tagen als Einstellung des Betriebs mit Gültigkeitszeitraum, je Beleg überschreibbar; ein Folgebeleg übernimmt ein eigenes Zahlungsziel. Angebot, Kostenvoranschlag und Auftragsbestätigung nennen die Tage, die Rechnung das Fälligkeitsdatum, auch in der E-Rechnung; eingefroren mit dem Beleg
+- Zahlungsziel in Tagen als Einstellung des Betriebs mit Gültigkeitszeitraum, je Beleg überschreibbar; ein Folgebeleg übernimmt ein eigenes Zahlungsziel. Angebot, Kostenvoranschlag und Auftragsbestätigung nennen die Tage, die Rechnung das Fälligkeitsdatum, auch in der E-Rechnung; eingefroren mit dem Beleg. Liegt das Ziel gegenüber einem Unternehmen über 60 Tagen, weist der Belegkopf darauf hin, dass es ausdrücklich vereinbart sein muss, damit es trägt (§271a BGB) ⚖
 - Mit Phase 3: automatisierte Zahlungsbedingungen, Skonto, Zahlungsziele (Fristen-Engine). Ein Zahlungsziel je Kunde (3.1) hat dann Vorrang vor dem des Betriebs, das eines Belegs Vorrang vor ihm; Skonto braucht den Zahlungseingang aus der Offene-Posten-Verwaltung, um zu wissen, ob rechtzeitig gezahlt wurde
 - GAEB-Import/Export (DA81-86, X83-X86) ohne Tarif-Beschränkung
 - **Mahnwesen** (einmalig hier definiert, Finance nutzt es): Mahnstufen, Mahngebühren, Verzugszinsen; manuell oder automatisch je Kunde
@@ -304,7 +314,7 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 
 ### 4.9 Personal / HR
 
-- Mitarbeiterakte inkl. Stundensätze (Kosten- und Verrechnungssatz)
+- Mitarbeiterakte inkl. Stundensätze (Kosten- und Verrechnungssatz) und vereinbarter Arbeitszeit, aus der die Überstunden der Zeiterfassung folgen (4.4); die acht Stunden aus §3 ArbZG sind eine Grenze und kein Maßstab dafür
 - Qualifikationen/Zertifikate mit Ablauffristen (Elektrofachkraft, PV-Zertifizierung, Höhenarbeit, Führerschein) → Fristen-Engine
 - Urlaubsverwaltung (Datenquelle; Plantafel zeigt an)
 - Lohn-Vorbereitung / Export an externe Lohnbuchhaltung
@@ -313,6 +323,7 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 ### 4.10 Dokumentenmanagement
 
 - Zentrale, GoBD-konforme Belegablage, verknüpft mit Kunde/Objekt/Anlage/Projekt
+- Virenscan für Dateien, die von außen kommen, aus dem E-Mail-Import und dem Kundenportal
 - E-Signatur (einfache elektronische Signatur mit Zeitstempel und Geräteinfo) für Angebote, Abnahmen, Regieberichte, Protokolle
 - Verfahrensdokumentation als Pflichtbestandteil, **automatisch generiert ★** aus Rollen, Einstellungen, Belegflüssen und Aufbewahrungsregeln
 - Versionierung, Volltextindex (inkl. OCR auf PDFs)
@@ -495,12 +506,12 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 
 **Zuordnung im Einzelnen.** Die Tabelle nennt die Schwerpunkte. Die übrigen Punkte der Abschnitte 1 bis 9 gehören so zu den Phasen; beides zusammen ist der Fahrplan, und aus beidem werden die Issues einer Phase geschnitten. Was in keiner Phase steht, steht in Abschnitt 12. Wer in 1 bis 9 einen Punkt einträgt, trägt seine Phase im selben Zug hier ein.
 
-- **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); der Nullsteuersatz für Photovoltaik nach §12 Abs. 3 UStG je Position (1.7, 4.2) ⚖, weil der Pilotbetrieb PV-Anlagen an private Haushalte baut; die Belehrungen als Anhang eines Belegs, mitgeliefert die Widerrufsbelehrung nach §312g BGB, an jedem Angebot an einen Verbraucher Pflicht, dazu eigene des Betriebs, mit der E-Mail versendet und mit dem Beleg eingefroren (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt
-- **Phase 2:** das E-Check-Protokoll (5.1); das Abnahmeprotokoll nach §640 BGB über die Formular-Engine mit der Gewährleistungsfrist ab Abnahme, Mängel mobil mit Statusverfolgung und Mängelbericht (4.11) ⚖; Netzbetreiber-Anmeldung, Vorbereitung der MaStR-Meldung, Wallbox und Speicher mit Inbetriebnahme, Förderunterlagen und Prüfintervallen (5.1); der Zugang zum Objekt (Schlüssel, Codes), versiegelt gespeichert (3.2); Serviceaufträge mit Schnellerfassung und Sofortabrechnung vor Ort, Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (4.1, 4.3); zur Plantafel Serientermine, Urlaubs- und Krankheitsverwaltung, Terminbestätigung per Web-Push und CalDAV-Sync (2, 4.3, 6); Mitarbeiterakte und Qualifikationen mit Ablauffristen (4.9); Wartungsverträge mit Dauerrechnung (3.5, 4.2); Lieferantenverwaltung, Lieferschein und DATANORM-Import zum Material (4.2, 4.5); aus der Fristen-Engine Wiedervorlagen für Angebote und Wartungs- und Prüferinnerungen an Kunden (1.2, 3.3, 3.7); Leads und Vertriebspipeline, Kommunikationshistorie mit Notizen und Telefonprotokollen, Tags, Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für Mails (2, 3.1, 3.3, 3.4); die DSGVO-Funktionen mit Löschkonzept, Auskunft und Datenexport, Verarbeitungsverzeichnis und AV-Vertragsvorlage (2) ⚖; die Hilfe im Büro und auf der Baustelle mit kontextsensitiver Hilfe, Kurzanleitungen, Versionshinweisen und Administrator-Handbuch (8)
-- **Phase 3:** der Lohnexport aus der Zeiterfassung (DATEV Lodas und Lohn & Gehalt, CSV) mit Zuschlägen, Auslöse und Verpflegungsmehraufwand (4.4, 4.9); Gutschrift und Rechnungskorrektur (4.2); Kassenbuch und BWA (4.8); der Datenzugriff für die Betriebsprüfung Z1-Z3 mit GDPdU-Export und die generierte Verfahrensdokumentation (4.8, 4.10) ⚖; die Bank auch über EBICS, der Zahlungsabgleich mit PayPal und Stripe (4.8, 6); die Rolle Buchhaltung (2); Datenimport und -export mit Dubletten-Prüfung und die Importassistenten aus plancraft, HERO und sevdesk (2), weil hier der Wechsel des ganzen Betriebs stattfindet
-- **Phase 4:** Teilprojekte, Aufmaß mobil mit Übernahme in Kalkulation und Rechnung, Baubesprechungsprotokolle (4.1); Angebote mit Alternativ-, Eventual-, Bedarfs- und optionalen Positionen, GAEB-Import und -Export, der Mengenabgleich angeboten, geliefert, abgerechnet (1.4, 4.2); Kundenpreise, Rabattgruppen, Staffelpreise und Preislisten (3.1, 4.1); die Stundensätze der Mitarbeiter (4.9); Sicherheitseinbehalt und Bürgschaften, Mängelanzeige an Lieferanten und Subunternehmer (4.2, 4.11); der Verbraucherbauvertrag nach §650i BGB mit Baubeschreibung (4.2) ⚖; Einkauf mit IDS-Connect und UGL (4.5, 4.7, 6); die Wetter-API für Bautagebuch und Plantafel (6); die Rolle Bauleiter (2)
+- **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); der Nullsteuersatz für Photovoltaik nach §12 Abs. 3 UStG je Position (1.7, 4.2) ⚖, weil der Pilotbetrieb PV-Anlagen an private Haushalte baut; die Belehrungen als Anhang eines Belegs, mitgeliefert die Widerrufsbelehrung nach §312g BGB, an jedem Angebot an einen Verbraucher Pflicht, dazu eigene des Betriebs, mit der E-Mail versendet und mit dem Beleg eingefroren (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt; eigene Felder des Betriebs am Regiebericht über die Formular-Engine (1.3); die Auftragsnummer, die Zuordnung der Monteure mit der Auswahl je Gerät und der Folgeauftrag (1.5, 1.6, 4.1), weil ein verlorenes Telefon sonst den ganzen Kundenstamm trägt ⚖; die Sammelrechnung über Regieberichte, der Abzug der vereinnahmten Abschläge und die Überschrift „Rechnung“ oder „Schlussrechnung“ (1.4, 4.2) ⚖, weil der Pilotbetrieb Regiearbeit über mehrere Tage mit einer Rechnung abrechnet; der Hinweis nach §271a BGB (4.2) ⚖; das Land an Kunde und Objekt (3.1, 3.2); Releases mit fertigen Abbildern (2), damit der Pilotbetrieb einen Stand hat, zu dem er zurückkehren kann
+- **Phase 2:** das E-Check-Protokoll (5.1); das Abnahmeprotokoll nach §640 BGB über die Formular-Engine mit der Gewährleistungsfrist ab Abnahme, Mängel mobil mit Statusverfolgung und Mängelbericht (4.11) ⚖; Netzbetreiber-Anmeldung, Vorbereitung der MaStR-Meldung, Wallbox und Speicher mit Inbetriebnahme, Förderunterlagen und Prüfintervallen (5.1); der Zugang zum Objekt (Schlüssel, Codes), versiegelt gespeichert (3.2); Serviceaufträge mit Schnellerfassung und Sofortabrechnung vor Ort, Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (4.1, 4.3); zur Plantafel Serientermine, Urlaubs- und Krankheitsverwaltung, Terminbestätigung per Web-Push und CalDAV-Sync (2, 4.3, 6); Mitarbeiterakte und Qualifikationen mit Ablauffristen (4.9); Wartungsverträge mit Dauerrechnung (3.5, 4.2); Lieferantenverwaltung, Lieferschein und DATANORM-Import zum Material (4.2, 4.5); aus der Fristen-Engine Wiedervorlagen für Angebote und Wartungs- und Prüferinnerungen an Kunden (1.2, 3.3, 3.7); Leads und Vertriebspipeline, Kommunikationshistorie mit Notizen und Telefonprotokollen, Tags, Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für Mails (2, 3.1, 3.3, 3.4); die DSGVO-Funktionen mit Löschkonzept, Auskunft und Datenexport, Verarbeitungsverzeichnis und AV-Vertragsvorlage (2) ⚖; die Hilfe im Büro und auf der Baustelle mit kontextsensitiver Hilfe, Kurzanleitungen, Versionshinweisen und Administrator-Handbuch (8); Passkeys als Anmeldung und zweiter Faktor (2); ein weiterer Betrieb, vom Inhaber im Büro angelegt, und der Bereich für den Betreiber der Instanz (2); die Einsicht ins Audit-Log im Büro (2); die vereinbarte Arbeitszeit in der Mitarbeiterakte und die Überstunden daraus, angezeigt als Zeitkonto (4.4, 4.9)
+- **Phase 3:** der Lohnexport aus der Zeiterfassung (DATEV Lodas und Lohn & Gehalt, CSV) mit Zuschlägen, Auslöse und Verpflegungsmehraufwand (4.4, 4.9); Gutschrift und Rechnungskorrektur (4.2); Kassenbuch und BWA (4.8); der Datenzugriff für die Betriebsprüfung Z1-Z3 mit GDPdU-Export und die generierte Verfahrensdokumentation (4.8, 4.10) ⚖; die Bank auch über EBICS, der Zahlungsabgleich mit PayPal und Stripe (4.8, 6); die Rolle Buchhaltung (2); Datenimport und -export mit Dubletten-Prüfung und die Importassistenten aus plancraft, HERO und sevdesk (2), weil hier der Wechsel des ganzen Betriebs stattfindet; Überstunden ausgezahlt oder übertragen, mit dem Lohnexport (4.4); der Virenscan für Dateien von außen, weil mit dem Empfang von E-Rechnungen der E-Mail-Import kommt (4.10); die externe Sicherheitsprüfung vor dem ersten Release mit Kanzlei-Connector (2); Kunden im Ausland mit Lieferungen in die EU, Prüfung der USt-IdNr. und Ausfuhr (3.1)
+- **Phase 4:** Teilprojekte, Aufmaß mobil mit Übernahme in Kalkulation und Rechnung, Baubesprechungsprotokolle (4.1); Angebote mit Alternativ-, Eventual-, Bedarfs- und optionalen Positionen, GAEB-Import und -Export, der Mengenabgleich angeboten, geliefert, abgerechnet (1.4, 4.2); Kundenpreise, Rabattgruppen, Staffelpreise und Preislisten (3.1, 4.1); die Stundensätze der Mitarbeiter (4.9); Sicherheitseinbehalt und Bürgschaften, Mängelanzeige an Lieferanten und Subunternehmer (4.2, 4.11); der Verbraucherbauvertrag nach §650i BGB mit Baubeschreibung (4.2) ⚖; Einkauf mit IDS-Connect und UGL (4.5, 4.7, 6); die Wetter-API für Bautagebuch und Plantafel (6); die Rolle Bauleiter (2); die Teilrechnung für getrennt abgenommene Bauabschnitte (4.2)
 - **Phase 5:** Abnahmeprotokolle digital unterschreiben, eigene Anlagen mit den nächsten Prüf- und Wartungsterminen, Dokumente zum Herunterladen, die loginfreie Kundenseite hinter dem QR-Etikett, die Belehrungen zu den Belegen und die Widerrufsfunktion nach §356a BGB (3.2, 3.6) ⚖; Zahlungsdienstleister für Kunden (6); der Kunde im Portal als Rolle (2)
-- **Phase 6:** Dashboard, CRM-Auswertungen und lesender SQL-Zugang (3.8, 4.12); Jahresabschluss-Unterstützung (4.8); die globale Volltextsuche mit Volltextindex und OCR (2, 4.10); E-Mail-Verknüpfung über IMAP (3.4); Serienmails und Jubiläen (3.7); Fahrtroutenvorschlag (4.3); die offene REST-API mit Webhooks für Drittanbieter als eigener Vertrag (2, 6)
+- **Phase 6:** Dashboard, CRM-Auswertungen und lesender SQL-Zugang (3.8, 4.12); Jahresabschluss-Unterstützung (4.8); die globale Volltextsuche mit Volltextindex und OCR (2, 4.10); E-Mail-Verknüpfung über IMAP (3.4); Serienmails und Jubiläen (3.7); Fahrtroutenvorschlag (4.3); die offene REST-API mit Webhooks für Drittanbieter als eigener Vertrag (2, 6); die Anmeldung über einen eigenen Identitätsanbieter (OIDC) und S3 als Dateispeicher (2); Gewerke-Pakete, die beim Start registriert und je Betrieb aktiviert werden (5.2, ADR 0008)
 
 ---
 
@@ -531,10 +542,27 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Wero als Händlerzahlung**: bis zur allgemeinen Verfügbarkeit
 - **MaStR-Direktmeldung**: nur Vorbereitung
 - **SOKA-BAU-Meldungen**: nur bei Bedarf des Bauhauptgewerbes
-- **Mehrsprachigkeit**: Deutsch zuerst; i18n-Struktur von Anfang an, Übersetzungen später
+- **Mehrsprachigkeit**: Deutsch zuerst; Übersetzungen und die i18n-Struktur dafür erst, wenn eine zweite Sprache gebraucht wird. Oberfläche, Belege, Belehrungen und Rechtstexte gelten ohnehin nur für Deutschland, und eine Struktur ohne zweite Sprache pflegt niemand
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.17 → v2.18
+
+Alle Punkte dieser Fassung hat Moritz am 24.09.2026 entschieden, auf offene Fragen aus der Prüfung von Phase 0.
+
+- Präzisiert: Der Regiebericht ist ein Beleg und kein Formular (1.3, 4.2). Gebaut war er so seit #73, mit Positionen, Unterschrift, Festschreibung und der Rechnung daraus, und 1.3 zählte ihn weiter zu den Formularen, die #78 bauen sollte. Über die Formular-Engine bekommt er Felder, die der Betrieb ihm gibt (#137)
+- Präzisiert: Formulare und Grenzwerte von Elektro/PV liegen im Paketformat nach ADR 0008, die Anlagenstruktur bleibt Datenmodell-Kern (1.3); Nachtrag in ADR 0008 (#136)
+- Neu: Die Schlussrechnung zieht die vereinnahmten Abschläge ab (4.2). Sie zog ab, was gestellt wurde; ist ein Abschlag offen, war sie um genau diesen Betrag zu niedrig, und nach der Schlussrechnung lässt er sich nicht mehr gesondert fordern. Bis die Offene-Posten-Verwaltung in Phase 3 die Zahlungen kennt, wird je Abschlagsrechnung eingetragen, was eingegangen ist (#31, Befund 1 der Vorprüfung vom 22.09.2026; umgesetzt mit #189). Dazu heißt sie nur noch „Schlussrechnung“, wenn sie Abschläge abzieht (#132)
+- Neu: Die Sammelrechnung über die Regieberichte eines Auftrags in Phase 1 (1.4, 4.2), weil der Pilotbetrieb Regiearbeit über mehrere Tage mit einer Rechnung abrechnet; die Teilrechnung für getrennt abgenommene Bauabschnitte in Phase 4 (#135)
+- Neu: Der Folgeauftrag zu einem abgeschlossenen Auftrag (4.1, Phase 1, #170), die Auftragsnummer aus einem eigenen Nummernkreis (1.5, 4.1, Phase 1, #145) und das Land an Kunde und Objekt (3.1, 3.2, Phase 1, #144)
+- Neu: Die Zuordnung der Monteure zu Aufträgen und die Auswahl je Gerät (1.6, 4.1, Phase 1). ADR 0005 sah von Anfang an nur die Daten des Geräts vor, gebaut war der ganze Betrieb auf jedem Telefon (#140). Auf der Baustelle schließt der Monteur seinen Auftrag ab und schreibt Notizen daran, ohne Kunde, Objekt und Bezeichnung ändern zu können (#128)
+- Neu: Der Hinweis nach §271a BGB bei einem Zahlungsziel über 60 Tagen gegenüber einem Unternehmen (4.2, Phase 1, #149)
+- Neu: Releases mit fertigen, signierten Abbildern (2, Phase 1, #155); bis dahin baut ein Update aus dem Quelltext
+- Neu in Abschnitt 2, weil sie bisher nur in ADRs standen und damit in keiner Phase (#141): Passkeys, die als zweiter Faktor zählen (Phase 2, #167), die Anmeldung über OIDC und S3 als Dateispeicher (Phase 6), die externe Sicherheitsprüfung (Phase 3), der Virenscan in 4.10 (Phase 3) und die Einsicht ins Audit-Log im Büro (Phase 2)
+- Neu: Der Bereich für den Betreiber der Instanz und ein weiterer Betrieb, vom Inhaber im Büro angelegt (2, Phase 2, #142, #188). Ein Mailserver im eigenen Netz und die Uhrzeit der Sicherung sind Einstellungen der Instanz und keines Betriebs; bis dahin bleiben sie in der `.env` und fest auf 02:30
+- Neu: Die vereinbarte Arbeitszeit in der Mitarbeiterakte und die Überstunden daraus als Zeitkonto in Phase 2 (4.9); ausgezahlt oder übertragen werden sie mit dem Lohnexport in Phase 3 (#141)
+- Präzisiert: Die i18n-Struktur kommt erst mit einer zweiten Sprache, nicht „von Anfang an“ (12, #143)
 
 ## Änderungsprotokoll v2.16 → v2.17
 
