@@ -209,6 +209,16 @@ importers:
         specifier: 5.0.1
         version: 5.0.1(@types/node@24.13.5)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
 
+  packages/gewerke/elektro:
+    dependencies:
+      '@opengewerk/domain':
+        specifier: workspace:*
+        version: link:../../domain
+    devDependencies:
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@24.13.5)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
+
   packages/server:
     dependencies:
       '@cantoo/pdf-lib':
@@ -232,6 +242,9 @@ importers:
       '@opengewerk/domain':
         specifier: workspace:*
         version: link:../domain
+      '@opengewerk/gewerk-elektro':
+        specifier: workspace:*
+        version: link:../gewerke/elektro
       better-auth:
         specifier: 1.7.5
         version: 1.7.5(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.0))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1(@types/node@24.13.5)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13)))
@@ -299,6 +312,9 @@ importers:
       '@opengewerk/domain':
         specifier: workspace:*
         version: link:../domain
+      '@opengewerk/gewerk-elektro':
+        specifier: workspace:*
+        version: link:../gewerke/elektro
       '@tanstack/react-query':
         specifier: 5.103.1
         version: 5.103.1(react@19.3.0)

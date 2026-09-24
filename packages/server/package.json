@@ -28,6 +28,7 @@
     "@nestjs/platform-express": "12.0.3",
     "@node-rs/argon2": "2.2.1",
     "@opengewerk/domain": "workspace:*",
+    "@opengewerk/gewerk-elektro": "workspace:*",
     "better-auth": "1.7.5",
     "drizzle-orm": "0.45.2",
     "express": "5.2.1",

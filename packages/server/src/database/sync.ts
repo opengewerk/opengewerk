@@ -3,6 +3,7 @@ import {
   contactParentText,
   type CustomerId,
   decideMerge,
+  formRecordProblem,
   inOutboxOrder,
   type IsoDate,
   lineNetCents,
@@ -28,6 +29,7 @@ import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
+import { formDefinitions } from '../forms/registry.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
@@ -420,6 +422,23 @@ async function applyOne(
         fields: refusal.fields,
         current,
       })
+    }
+  }
+
+  // A filled form is asked of its definition (#78), as the form asked it
+  // before anything was queued: values that do not fit, or a form marked
+  // signed that lacks what signing needs, are a mistake of the client.
+  if (operation.entity === 'form_records' && operation.kind !== 'delete') {
+    const standing = (field: string) => (field in values ? values[field] : current?.[field])
+    const problem = formRecordProblem(formDefinitions, {
+      definitionKey: standing('definitionKey'),
+      definitionVersion: standing('definitionVersion'),
+      status: standing('status') ?? 'draft',
+      values: standing('values') ?? '{}',
+    })
+
+    if (problem !== null) {
+      throw new UnknownFieldError(problem)
     }
   }
 

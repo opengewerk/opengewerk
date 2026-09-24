@@ -66,6 +66,7 @@ export default defineConfig({
         '/tasks',
         '/files',
         '/attachments',
+        '/form-records',
         '/time',
         '/documents',
         '/sync',

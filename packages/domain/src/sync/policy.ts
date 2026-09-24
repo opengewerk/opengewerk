@@ -253,6 +253,18 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * widen its own share of the business.
    */
   job_assignments: { create: false, change: 'never' },
+  /**
+   * A filled form (#78), a test protocol first: written on site without a
+   * network while it is a draft, field work like a report. Signing is a change
+   * of the device's own, the sealing signature and `status` in one operation,
+   * and after it nothing lands any more, so the gate is the status as it
+   * stood. The server asks the definition of every change, as the form does.
+   */
+  form_records: {
+    create: true,
+    change: 'merge',
+    onlyWhile: { field: 'status', values: ['draft'] },
+  },
 }
 
 /**

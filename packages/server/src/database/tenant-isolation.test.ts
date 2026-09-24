@@ -635,6 +635,20 @@ const crossings: readonly {
               from (select set_config('app.user_id', ${own.user}, true)) as acting`,
   },
   {
+    // Inserts, which is how a protocol comes about (#79): at an installation
+    // of the other business, and for a job of the other business.
+    key: 'form_records_installation_in_tenant',
+    write: (own, other) =>
+      sql`insert into form_records (tenant_id, definition_key, definition_version, installation_id, performed_on)
+            values (${own.tenant}, 'vde-0100-600', 1, ${other.installation}, current_date)`,
+  },
+  {
+    key: 'form_records_job_in_tenant',
+    write: (own, other) =>
+      sql`insert into form_records (tenant_id, definition_key, definition_version, installation_id, job_id, performed_on)
+            values (${own.tenant}, 'vde-0100-600', 1, ${own.installation}, ${other.job}, current_date)`,
+  },
+  {
     key: 'letterheads_logo_in_tenant',
     write: (own, other) => repoint('letterheads', 'logo_file_id', own.letterhead, other.file),
   },

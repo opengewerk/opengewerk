@@ -71,6 +71,7 @@ export const scopedEntities: readonly string[] = [
   'tasks',
   'attachments',
   'attachment_versions',
+  'form_records',
 ]
 
 /**
@@ -139,6 +140,8 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
       or ${column('created_by')} = ${scope.userId})`,
     attachments: sql`${column('id')} in ${attachments}`,
     attachment_versions: sql`${column('attachment_id')} in ${attachments}`,
+    form_records: sql`(${column('installation_id')} in ${installations}
+      or ${column('job_id')} in ${jobs})`,
   }
 
   const condition = own[entity]

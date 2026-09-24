@@ -22,6 +22,7 @@ import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.
 import { InstallationBoards } from './boards.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
+import { InstallationProtocols } from './protocol.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 
@@ -403,6 +404,9 @@ export function SiteJobScreen() {
           </dl>
           <div className="mt-4">
             <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
+          </div>
+          <div className="mt-4">
+            <InstallationProtocols jobId={jobId} installationId={String(installation['id'])} />
           </div>
         </Card>
       ) : null}

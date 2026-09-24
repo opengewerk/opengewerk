@@ -14,6 +14,7 @@ import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
 import { PaymentTermScreen } from './screens/payment-term.js'
+import { ProtocolScreen } from './screens/protocols.js'
 import { SettingsScreen } from './screens/settings.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
@@ -58,6 +59,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/stromkreise/$circuitId',
     component: CircuitScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/pruefprotokolle/$recordId',
+    component: ProtocolScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
