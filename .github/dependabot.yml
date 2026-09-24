@@ -7,3 +7,11 @@ updates:
     directory: /docker
     schedule:
       interval: weekly
+
+  # The actions in the workflows. Those from outside GitHub are pinned to a
+  # commit in release.yml (#155); a pin that nobody moves keeps its version
+  # forever, and Dependabot moves the commit and the comment with the version.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
