@@ -31,17 +31,15 @@ function builtInterface(): string {
 }
 
 let application: Express
-let served: string
 
 beforeAll(() => {
   application = express()
-  served = builtInterface()
 
   application.get('/customers', (_request, response) => {
     response.json([{ name: 'Meyer' }])
   })
 
-  serveInterface(application, served)
+  serveInterface(application, builtInterface())
 })
 
 describe('where the server looks for a built interface', () => {
@@ -107,6 +105,67 @@ describe('the interface the server hands out', () => {
     expect((await request(application).get('/m')).text).toContain('Baustelle')
   })
 
+  it('answers an office path that merely starts with an m with the office shell', async () => {
+    // The site entry is `/m` and what lies under it, the same line the
+    // service worker draws. A prefix of one letter would hand the phone
+    // interface to every office route beginning with it, `/material` the
+    // first of them.
+    for (const path of ['/material', '/mitarbeiter/018f-abc', '/m-irgendwas']) {
+      const answer = await request(application).get(path)
+
+      expect([path, answer.text]).toEqual([path, expect.stringContaining('Büro')])
+    }
+  })
+
+  it('answers a file that is not there with a 404 and not with a shell', async () => {
+    // A name with an extension is a file, and no route of either entry ends
+    // in one. Answered with a shell and a 200, a missing icon looks like one
+    // that is there: the browser takes the HTML for the image and says
+    // nothing. That is how the image of 0.1.0 shipped without its brand files
+    // and nothing noticed (#213).
+    for (const path of [
+      '/brand/favicon.ico',
+      '/brand/opengewerk-app-icon-192.png',
+      '/manifest.webmanifest',
+      '/m/manifest.webmanifest',
+      '/assets/office-000000.js',
+    ]) {
+      const answer = await request(application).get(path)
+
+      expect([path, answer.status]).toEqual([path, 404])
+      expect(answer.text).not.toContain('Büro')
+      expect(answer.text).not.toContain('Baustelle')
+    }
+  })
+
+  it('still answers every path without an extension with the shell of its entry', async () => {
+    // What a person opens is a screen: a route, a deep link, the link out of
+    // an invitation or a password reset. Their last segment carries no dot,
+    // and a dot further up does not make the path a file.
+    const token = 'Ab3-dE_5'.repeat(5) + 'xyz'
+
+    for (const [path, shell] of [
+      ['/kunden/018f-abc', 'Büro'],
+      ['/einstellungen/e-mail', 'Büro'],
+      [`/einladung/${token}`, 'Büro'],
+      [`/passwort/${token}`, 'Büro'],
+      ['/v1.2/kunden', 'Büro'],
+      ['/m/', 'Baustelle'],
+      ['/m/auftraege/018f-abc/berichte/018f-def', 'Baustelle'],
+    ] as const) {
+      const answer = await request(application).get(path)
+
+      expect([path, answer.status]).toEqual([path, 200])
+      expect([path, answer.text]).toEqual([path, expect.stringContaining(shell)])
+    }
+  })
+
+  it('still hands out a file that is there', async () => {
+    const asset = await request(application).get('/assets/office-abc123.js').expect(200)
+
+    expect(asset.text).toBe('console.log(1)')
+  })
+
   it('never hands a shell to something the API owns', async () => {
     // Without this a mistyped API path comes back as HTML, and the failure
     // reads to a client like the server returning a document for JSON.
@@ -146,11 +205,20 @@ describe('the interface the server hands out', () => {
     // reached for the disk would turn a flood of requests for nonsense paths
     // into disk work, which is what CodeQL calls an unrated file system
     // access and what an operator would call a bad afternoon.
-    const first = await request(application).get('/')
+    //
+    // On an interface of its own, because this takes a shell away from under
+    // the server: every other test here asks for a complete build, and
+    // `/index.html` would otherwise be a file that is not there.
+    const own = express()
+    const directory = builtInterface()
 
-    rmSync(join(served, 'index.html'))
+    serveInterface(own, directory)
 
-    const afterwards = await request(application).get('/kunden/018f-abc')
+    const first = await request(own).get('/')
+
+    rmSync(join(directory, 'index.html'))
+
+    const afterwards = await request(own).get('/kunden/018f-abc')
 
     expect(first.text).toContain('Büro')
     expect(afterwards.text).toBe(first.text)
@@ -160,11 +228,12 @@ describe('the interface the server hands out', () => {
     // Both spellings, because they take different paths through the stack:
     // the plain one is normalised away before anything sees it, the encoded
     // one reaches the static middleware as a name and has to be refused
-    // there. Either way what comes back is the shell, never a file from the
+    // there. Either way what comes back is a 404, never a file from the
     // machine the server runs on.
     for (const path of ['/../package.json', '/..%2f..%2fpackage.json']) {
       const answer = await request(application).get(path)
 
+      expect([path, answer.status]).toEqual([path, 404])
       expect(answer.text).not.toContain('opengewerk')
       expect(answer.text).not.toContain('dependencies')
     }

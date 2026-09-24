@@ -19,8 +19,15 @@ dist/
 
 # None of this is built or shipped.
 docs/
-assets/
 docker/
 README.md
 CHANGELOG.md
 LICENSE
+
+# assets/ is shipped: it is the public folder of the interface build
+# (publicDir in packages/web/vite.config.ts), which copies what is in it into
+# the interface, so assets/brand is what the image serves under /brand. Left
+# out of the context, the image of 0.1.0 had no favicon and no icon at all,
+# and nothing failed (#213). Only the README next to the brand files stays
+# out; it is written for people, not for browsers.
+assets/brand/README.md

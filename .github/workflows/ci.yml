@@ -533,6 +533,94 @@ jobs:
           echo "Tabellen ohne Row-Level Security: ${unprotected}"
           test "${unprotected}" = "0"
 
+      # The icons of both entries, fetched the way a browser and an installed
+      # app fetch them (#213): what the two shells link and what their
+      # manifests name, read from them rather than listed here, so that a new
+      # icon is checked the day it is linked. The image of 0.1.0 had none of
+      # these files, and the fallback answered each one with a shell and a
+      # 200, so nothing failed. A file that is not there is a 404 since then,
+      # and that is asked too.
+      - name: Favicon und Icons beider Einstiege kommen als Bild
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import sys
+          import urllib.error
+          import urllib.request
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin
+
+          BASE = "http://127.0.0.1:23700/"
+
+
+          def fetch(url):
+              try:
+                  with urllib.request.urlopen(url, timeout=10) as answer:
+                      return answer.status, answer.headers.get("Content-Type", ""), answer.read()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.headers.get("Content-Type", ""), error.read()
+
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.icons = []
+                  self.manifests = []
+
+              def handle_starttag(self, tag, attrs):
+                  attributes = dict(attrs)
+                  rel = (attributes.get("rel") or "").split()
+                  if tag != "link" or not attributes.get("href"):
+                      return
+                  if "icon" in rel or "apple-touch-icon" in rel:
+                      self.icons.append(attributes["href"])
+                  if "manifest" in rel:
+                      self.manifests.append(attributes["href"])
+
+
+          problems = []
+          icons = {urljoin(BASE, "/brand/favicon.ico")}
+
+          for shell in ("/", "/m/"):
+              page = urljoin(BASE, shell)
+              status, kind, body = fetch(page)
+              links = Links()
+              links.feed(body.decode("utf-8"))
+              icons.update(urljoin(page, href) for href in links.icons)
+              if status != 200 or len(links.manifests) != 1:
+                  problems.append(f"{shell}: {status} {kind}, {len(links.manifests)} Manifeste statt einem")
+
+              for href in links.manifests:
+                  manifest = urljoin(page, href)
+                  status, kind, body = fetch(manifest)
+                  try:
+                      named = [icon["src"] for icon in json.loads(body)["icons"]]
+                  except (ValueError, KeyError, TypeError):
+                      named = []
+                  print(f"{manifest}: {status} {kind}, {len(named)} Icons")
+                  if status != 200 or not named:
+                      problems.append(f"{manifest}: {status} {kind}, kein Manifest mit Icons")
+                  icons.update(urljoin(manifest, src) for src in named)
+
+          for icon in sorted(icons):
+              status, kind, body = fetch(icon)
+              print(f"{icon}: {status} {kind}, {len(body)} Bytes")
+              if status != 200 or not kind.startswith("image/"):
+                  problems.append(f"{icon}: {status} {kind}")
+
+          missing = urljoin(BASE, "/brand/gibt-es-nicht.png")
+          status, kind, body = fetch(missing)
+          print(f"{missing}: {status} {kind}")
+          if status != 404:
+              problems.append(f"{missing}: {status} {kind} statt 404")
+
+          if problems:
+              print("Nicht in Ordnung:")
+              for line in problems:
+                  print(f"  {line}")
+              sys.exit(1)
+          PYTHON
+
       # The renderer belongs to the default stack: COMPOSE_PROFILES in the
       # template switches it on. Asked from inside the application container,
       # through the same function the application prints with, so address and

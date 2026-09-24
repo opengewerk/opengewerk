@@ -7,6 +7,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Behoben
+
+- Die installierte App hat wieder ein Symbol, und im Tab steht das Favicon (#213). `.dockerignore`
+  nahm `assets/` aus dem Build-Kontext, und genau das ist der Ordner, aus dem der Build der
+  Oberfläche `/brand` füllt; im Abbild von 0.1.0 fehlten deshalb Favicon, Apple-Touch-Icon und alle
+  Icons der beiden Manifeste. Aufgefallen ist es nicht, weil der Server jede fehlende Datei mit der
+  Hülle und 200 beantwortete. Jetzt kommt `assets/` mit ins Abbild, ohne die README daneben, eine
+  Adresse mit Dateiendung, zu der es keine Datei gibt, bekommt 404 statt der Hülle, und der Job
+  "Betrieb über Docker Compose" holt Favicon und jedes Icon, das Hüllen und Manifeste nennen, und
+  verlangt ein Bild.
+- Eine Adresse des Büros, die nur mit einem m beginnt, etwa `/material`, bekommt die Hülle des Büros
+  und nicht die der Baustelle (aufgefallen bei #213). Der Server nahm dafür jeden Pfad, der mit
+  `/m` anfing, der Service Worker zog die Grenze schon immer bei `/m` und dem, was darunter liegt.
+  Mit dem Material aus Phase 2 hätte ein tiefer Link ins Büro sonst die Baustelle geöffnet.
+
 ### Sicherheit
 
 - Im Installationspaket gehört jeder Eintrag root (#214, GHSA-4h36-cpv3-jf5q). Das Paket von 0.1.0
