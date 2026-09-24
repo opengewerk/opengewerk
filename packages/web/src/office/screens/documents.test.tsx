@@ -853,9 +853,9 @@ describe('invoices in the chain', () => {
 
     expect(await screen.findByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeDefined()
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Schlussrechnung erstellen' }))
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Rechnung erstellen' }))
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Schlussrechnung' })).toBeDefined()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rechnung' })).toBeDefined()
     expect(calls.find((call) => call.path === '/documents/d-1/successors')?.body).toEqual({
       kind: 'final_invoice',
     })
@@ -890,7 +890,7 @@ describe('invoices in the chain', () => {
     })
 
     expect(onwards.getAttribute('href')).toBe('/belege/d-2')
-    expect(screen.queryByRole('button', { name: 'Schlussrechnung erstellen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rechnung erstellen' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeNull()
   })
 
@@ -929,7 +929,7 @@ describe('invoices in the chain', () => {
       document_lines: [line('l-1', 1, { unitPriceCents: 0 })],
     })
 
-    expect(await screen.findByRole('button', { name: 'Schlussrechnung erstellen' })).toBeDefined()
+    expect(await screen.findByRole('button', { name: 'Rechnung erstellen' })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Abschlagsrechnung erstellen' })).toBeNull()
   })
 
@@ -965,6 +965,8 @@ describe('invoices in the chain', () => {
     })
 
     expect(await screen.findByText('Gesamtleistung')).toBeDefined()
+    // Taking off a progress invoice is what makes it a Schlussrechnung (#132).
+    expect(screen.getByRole('heading', { level: 1, name: 'Schlussrechnung' })).toBeDefined()
     expect(
       screen.getByText(/abzüglich Abschlagsrechnung RE-2026-0001 vom 01\.09\.2026/),
     ).toBeDefined()
@@ -1142,7 +1144,7 @@ describe('cancelling an invoice', () => {
       'technician',
     ])
 
-    await screen.findByRole('heading', { level: 1, name: 'Schlussrechnung RE-2026-0001' })
+    await screen.findByRole('heading', { level: 1, name: 'Rechnung RE-2026-0001' })
 
     expect(screen.queryByRole('button', { name: 'Stornieren' })).toBeNull()
   })
@@ -1186,7 +1188,7 @@ describe('cancelling an invoice', () => {
     const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
 
     expect(chain.getByText('Storno zu')).toBeDefined()
-    expect(chain.getByRole('link', { name: 'Schlussrechnung' })).toBeDefined()
+    expect(chain.getByRole('link', { name: 'Rechnung' })).toBeDefined()
   })
 
   it('says why it refuses, and stays on the invoice', async () => {
@@ -1206,9 +1208,7 @@ describe('cancelling an invoice', () => {
     await person.click(screen.getByRole('button', { name: 'Jetzt stornieren' }))
 
     expect(await screen.findByText(/Erst jene stornieren, dann diese/)).toBeDefined()
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Schlussrechnung RE-2026-0001' }),
-    ).toBeDefined()
+    expect(screen.getByRole('heading', { level: 1, name: 'Rechnung RE-2026-0001' })).toBeDefined()
   })
 
   it('leaves the invoice in the books as cancelled, with nothing more to do on it', async () => {

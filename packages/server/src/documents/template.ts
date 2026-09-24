@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
 import {
+  closesProgressInvoices,
   type DocumentContent,
   type DocumentKind,
   instructionBlocks,
@@ -101,15 +102,30 @@ const titles: Readonly<Record<DocumentKind, string>> = {
   time_and_material_report: 'Regiebericht',
   progress_invoice: 'Abschlagsrechnung',
   partial_invoice: 'Teilrechnung',
-  final_invoice: 'Schlussrechnung',
+  final_invoice: 'Rechnung',
   credit_note: 'Gutschrift',
   cancellation_invoice: 'Stornorechnung',
   recurring_invoice: 'Dauerrechnung',
 }
 
-/** What a kind of document is called at the top of the page. */
+/**
+ * What a kind of document is called, where only the kind is known: in a
+ * refusal about kinds, or for a document whose frozen state is not at hand.
+ * A final invoice is a "Rechnung" here, because what makes it a
+ * "Schlussrechnung" is in the document and not in its kind (#132).
+ */
 export function documentTitle(kind: DocumentKind): string {
   return titles[kind]
+}
+
+/**
+ * What a document is called at the top of its page, and after that on its
+ * files, in the message it goes out with and in the cancellation that takes
+ * it back (#132). The kind's title, except for a final invoice that closes a
+ * row of progress invoices, which is the "Schlussrechnung".
+ */
+export function headingOf(content: Pick<DocumentContent, 'kind' | 'deductions'>): string {
+  return closesProgressInvoices(content) ? 'Schlussrechnung' : titles[content.kind]
 }
 
 /** The unit as it is printed next to a quantity. Short, because the column is. */
@@ -584,7 +600,7 @@ function signatureOf(content: DocumentContent): string {
 function reference(content: DocumentContent): string {
   const number = content.number === null ? '' : ` ${content.number}`
 
-  return `${titles[content.kind]}${number} vom ${day(content.documentDate)}`
+  return `${headingOf(content)}${number} vom ${day(content.documentDate)}`
 }
 
 /**
@@ -718,12 +734,13 @@ export function printJob(
   // the copy the customer takes away must not call itself a draft.
   const signed = content.signature !== null
   const draft = content.number === null && !signed
+  const heading = headingOf(content)
   const title =
     content.number !== null
-      ? `${titles[content.kind]} ${content.number}`
+      ? `${heading} ${content.number}`
       : signed
-        ? titles[content.kind]
-        : `${titles[content.kind]} (Entwurf)`
+        ? heading
+        : `${heading} (Entwurf)`
 
   const subject = present(content.subject) ? `<p class="subject">${text(content.subject)}</p>` : ''
   // Under the totals the sentences the law requires, the tax note first
@@ -743,9 +760,13 @@ export function printJob(
     : ''
   // A cancellation says in its first sentence which invoice it takes back, and
   // that it takes all of it back: every figure below is that invoice's, turned
-  // round.
+  // round. The deductions are that invoice's too, so they say whether it was
+  // a Schlussrechnung.
   const cancels = content.corrects
-    ? `<div class="text intro">Hiermit stornieren wir die ${titles[content.corrects.kind]} ` +
+    ? `<div class="text intro">Hiermit stornieren wir die ${headingOf({
+        kind: content.corrects.kind,
+        deductions: content.deductions,
+      })} ` +
       `${text(content.corrects.number)} vom ${day(content.corrects.documentDate)} in voller Höhe. ` +
       'Die Beträge sind die dieser Rechnung mit umgekehrtem Vorzeichen.</div>'
     : ''

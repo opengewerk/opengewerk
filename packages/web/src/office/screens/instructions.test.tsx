@@ -258,7 +258,7 @@ describe('the instructions, as the owner keeps them', () => {
     const card = within(section('Neue Belehrung'))
     await user.type(card.getByLabelText('Überschrift'), 'Hinweise zur Wartung')
     await user.type(card.getByLabelText('Wortlaut'), 'Bitte jährlich prüfen lassen.')
-    await user.click(card.getByLabelText('Schlussrechnung'))
+    await user.click(card.getByLabelText('Rechnung'))
     await user.click(card.getByRole('button', { name: 'Belehrung anlegen' }))
 
     await waitFor(() => {

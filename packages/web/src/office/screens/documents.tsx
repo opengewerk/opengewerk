@@ -7,6 +7,7 @@ import type {
   RecordState,
 } from '@opengewerk/domain'
 import {
+  closesProgressInvoices,
   continuesChain,
   invoiceFormats,
   isCancellable,
@@ -28,6 +29,7 @@ import { SignaturePicture } from '../../app/signature.js'
 import {
   cancelDocument,
   createDocument,
+  deductionsOf,
   type DocumentMail,
   eInvoiceOf,
   issueDocument,
@@ -214,6 +216,21 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   const kind = documentKindOf(document)
   const status = documentStatusOf(document)
   const number = maybeText(document, 'number')
+  // A final invoice is a Schlussrechnung only when it takes off progress
+  // invoices (#132). Which ones only the server knows, from the frozen state
+  // once the invoice is issued; the lines below ask the same question, and
+  // the cache answers both.
+  const deductions = useQuery({
+    queryKey: ['deductions', documentId],
+    queryFn: () => deductionsOf(documentId),
+    enabled: kind === 'final_invoice',
+  })
+  const heading = closesProgressInvoices({
+    kind,
+    deductions: Array.isArray(deductions.data) ? deductions.data : [],
+  })
+    ? 'Schlussrechnung'
+    : documentKindLabel[kind]
   const fixed = whyFixed({ kind, status })
   const editable = fixed === null && mayWrite
   // A signed report is fixed and still waits for its number. Issuing it is
@@ -264,7 +281,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
           <Crumb to={`/kunden/${String(customer['id'])}`}>{text(customer, 'name')}</Crumb>
         ) : null
       }
-      title={number ? `${documentKindLabel[kind]} ${number}` : documentKindLabel[kind]}
+      title={number ? `${heading} ${number}` : heading}
       meta={
         <span className="inline-flex flex-wrap items-center gap-2">
           <DocumentState status={status} number={number} />

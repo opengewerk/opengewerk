@@ -98,7 +98,8 @@ export const documentKindLabel: Readonly<Record<DocumentKind, string>> = {
   time_and_material_report: 'Regiebericht',
   progress_invoice: 'Abschlagsrechnung',
   partial_invoice: 'Teilrechnung',
-  final_invoice: 'Schlussrechnung',
+  // What makes one a Schlussrechnung is in the document, not in its kind (#132).
+  final_invoice: 'Rechnung',
   credit_note: 'Gutschrift',
   cancellation_invoice: 'Stornorechnung',
   recurring_invoice: 'Dauerrechnung',

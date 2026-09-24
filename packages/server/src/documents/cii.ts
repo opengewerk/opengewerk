@@ -1,4 +1,5 @@
 import {
+  closesProgressInvoices,
   compactVatId,
   type DeductionContent,
   type DocumentContent,
@@ -84,7 +85,8 @@ const unitOne = 'C62'
  * A progress invoice and the final invoice after it are the two codes for
  * building work, 875 and 877: the concept writes progress invoices
  * cumulatively, which is what the KoSIT asks of invoices for construction. A
- * final invoice that followed no progress invoice is an ordinary invoice.
+ * final invoice that followed no progress invoice is an ordinary invoice,
+ * which is also what its page calls it (#132): the same question decides both.
  *
  * A cancellation is a correction of the invoice it names, 384, and not a
  * credit note: the KoSIT keeps 381 for a credit given independently of any
@@ -95,7 +97,7 @@ function typeCode(content: DocumentContent): string {
   const codes: Readonly<Partial<Record<DocumentKind, string>>> = {
     progress_invoice: '875',
     partial_invoice: '326',
-    final_invoice: content.deductions.length > 0 ? '877' : '380',
+    final_invoice: closesProgressInvoices(content) ? '877' : '380',
     recurring_invoice: '380',
     cancellation_invoice: '384',
   }

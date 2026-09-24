@@ -135,6 +135,24 @@ export function deducts(kind: DocumentKind): boolean {
 }
 
 /**
+ * Whether a document closes a row of progress invoices (#132): a final
+ * invoice with at least one of them among its deductions. Only such an
+ * invoice is a "Schlussrechnung". Without a progress invoice before it, it is
+ * simply a "Rechnung"; printing "Schlussrechnung" on every one made each look
+ * like the end of a row of progress invoices the customer never got.
+ *
+ * Asked of the deductions, which an issued invoice keeps in its frozen state,
+ * so that it keeps its heading however its chain goes on. A progress invoice
+ * nothing came in for still counts: the invoice closes the row all the same.
+ */
+export function closesProgressInvoices(document: {
+  readonly kind: DocumentKind
+  readonly deductions: readonly unknown[]
+}): boolean {
+  return document.kind === 'final_invoice' && document.deductions.length > 0
+}
+
+/**
  * The invoices a cancellation can be made out of. Not the two correcting
  * kinds: a cancellation of a cancellation would bring back an invoice that is
  * in the books as cancelled, and whoever wants to bill that work again writes
