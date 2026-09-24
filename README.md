@@ -43,7 +43,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 **Phase 0**, das Fundament, ist gebaut: Datenmodell, Mandantentrennung über Row-Level Security, Rollen und Rechte, Nummernkreise mit Festschreibung, Audit-Log mit Hashkette, Offline-Datenschicht, Regel-Engine und der Betrieb über Docker Compose mit Sicherung, Rückspielen und Update-Pfad.
 
-An **Phase 1**, dem MVP für den Pilotbetrieb, wird gearbeitet. Eine Installation startet mit `sh docker/start.sh`, aus einem Release-Paket mit signierten Abbildern oder aus dem Quelltext, wird im Browser eingerichtet und sichert sich jede Nacht selbst. Stand 24.09.2026 gibt es:
+An **Phase 1**, dem MVP für den Pilotbetrieb, wird gearbeitet. Eine Installation startet mit `sh docker/start.sh`, bis zum ersten Release aus dem Quelltext und danach aus einem Paket mit signierten Abbildern, wird im Browser eingerichtet und sichert sich jede Nacht selbst. Stand 24.09.2026 gibt es:
 
 - **Büro und Baustelle aus einer Anwendung**, die Baustelle ohne Netz: Anmeldung mit zweitem Faktor und Wiederherstellungscodes, weitere Zugänge per Einladungslink, die Rollen Inhaber, Büro und Monteur. Das Gerät eines Monteurs hält nur die Aufträge, auf denen er eingeteilt ist, und was auf ihm entsteht, geht beim nächsten Abgleich hinaus, auch nach einem ganzen Tag ohne Netz.
 - **Kunden, Objekte, Anlagen und Aufträge**: Kunden mit Land und Ansprechpartnern, Aufträge mit eigener Nummer und Folgeaufträgen, Aufgaben mit Erinnerung per E-Mail, eine Dokumentenablage mit Fotos von der Baustelle.
@@ -1005,10 +1005,11 @@ Zwei Fälle lehnt der Lauf ab, statt sie stillschweigend zu übergehen:
 Vor ein Update gehört eine Sicherung, siehe oben. Sie ist auch der Weg zurück,
 wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
 
-**Releases** (#155). Eine Fassung erscheint mit einem Tag `v0.x.y` auf `main`.
-Der Workflow "Release" baut dann Anwendung und Sicherung für x86_64 und ARM64,
-legt beide unter dieser Fassung in `ghcr.io/opengewerk/opengewerk` und
-`ghcr.io/opengewerk/backup` ab, signiert sie ohne Schlüssel über Sigstore und
+**Releases** (#155). Eine Fassung erscheint mit einem Tag `v0.x.y` auf `main`;
+das erste Release steht noch aus. Der Workflow "Release" baut dann Anwendung
+und Sicherung für x86_64 und ARM64, legt beide unter dieser Fassung in
+`ghcr.io/opengewerk/opengewerk` und `ghcr.io/opengewerk/backup` ab, signiert
+sie ohne Schlüssel über Sigstore und
 schreibt die Release-Seite aus dem Abschnitt des CHANGELOG, mit dem Paket und
 seiner Prüfsumme. Im Paket steht die Fassung in `docker/compose.yaml` an der
 Stelle von `source`; ist der Abschnitt länger, als eine Release-Seite fasst,
