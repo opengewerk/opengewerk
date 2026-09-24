@@ -491,6 +491,36 @@ jobs:
         working-directory: docker
         run: sh test-start.sh
 
+      # Every service with a limit on its logs (#211), those in a profile
+      # included, so that a service added later cannot go without one: nothing
+      # else would show it before a full disk does. Read from the
+      # configuration Compose builds out of the file, anchors resolved, and
+      # without interpolation, which needs no .env and puts no value from one
+      # into the output.
+      - name: Jeder Dienst begrenzt seine Protokolle
+        working-directory: docker
+        run: |
+          set -eu
+          docker compose --profile '*' config --no-interpolate --format json > "$RUNNER_TEMP/compose.json"
+          python3 - "$RUNNER_TEMP/compose.json" <<'PYTHON'
+          import json
+          import sys
+
+          services = json.load(open(sys.argv[1], encoding="utf-8"))["services"]
+          unbounded = []
+
+          for name, service in sorted(services.items()):
+              logging = service.get("logging") or {}
+              limit = (logging.get("options") or {}).get("max-size")
+              print(f"{name}: {logging.get('driver', 'kein Treiber')}, je Datei {limit or 'unbegrenzt'}")
+              if not logging.get("driver") or not limit:
+                  unbounded.append(name)
+
+          if not services or unbounded:
+              print("Ohne Grenze für die Protokolle: " + (", ".join(unbounded) or "kein Dienst gefunden"))
+              sys.exit(1)
+          PYTHON
+
       # The way an installation starts, with the one command the README
       # names: setup.sh makes every secret and prints only their names, then
       # the migration runs on its own, then the containers start.
