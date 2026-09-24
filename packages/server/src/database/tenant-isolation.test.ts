@@ -501,6 +501,12 @@ const crossings: readonly {
             values (${own.tenant}, ${other.document}, '{}'::jsonb)`,
   },
   {
+    key: 'payments_document_in_tenant',
+    write: (own, other) =>
+      sql`insert into payments (tenant_id, document_id, amount_cents, received_on)
+            values (${own.tenant}, ${other.document}, 100, '2026-09-01')`,
+  },
+  {
     key: 'document_files_document_in_tenant',
     write: (own, other) =>
       sql`insert into document_files (tenant_id, document_id, purpose, file_id)

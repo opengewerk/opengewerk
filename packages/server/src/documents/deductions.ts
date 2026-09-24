@@ -3,12 +3,14 @@ import {
   type DeductionContent,
   type DocumentId,
   deducts,
+  receivedShare,
   RuleError,
 } from '@opengewerk/domain'
 import { eq } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
 import { documents, documentSnapshots } from '../database/schema/index.js'
+import { receivedOn } from '../payments/payments.js'
 
 type DocumentRow = typeof documents.$inferSelect
 
@@ -27,6 +29,13 @@ type DocumentRow = typeof documents.$inferSelect
  * its cancellation took back what it billed. A link that points back into the
  * part already walked ends the walk: the field can be set by hand on a draft,
  * and a loop in it must not hang the request.
+ *
+ * A final invoice also learns what came in on each of them (#189), from the
+ * payments the office recorded, and takes that off instead of what was
+ * billed: section 14 (5) UStG deducts the partial amounts received. Nothing
+ * recorded is nothing received, and the office confirms that before the final
+ * invoice is issued. A progress invoice keeps taking off what the ones before
+ * it billed, which is what the cumulative progress invoice of section 4.2 does.
  */
 export async function deductionsFor(
   tx: TenantTransaction,
@@ -36,7 +45,7 @@ export async function deductionsFor(
     return []
   }
 
-  const found: DeductionContent[] = []
+  const found: (DeductionContent & { readonly id: DocumentId })[] = []
   const walked = new Set<string>([document.id])
   let next: DocumentId | null = document.predecessorDocumentId
 
@@ -77,10 +86,13 @@ export async function deductionsFor(
       const content = currentContent(snapshot.content)
 
       found.push({
+        id: row.id,
         number: content.number ?? row.number ?? '',
         documentDate: content.documentDate,
         taxTreatment: content.taxTreatment,
         billed: content.billed,
+        received: null,
+        receivedOn: null,
       })
     }
 
@@ -88,5 +100,31 @@ export async function deductionsFor(
   }
 
   // Walked from the newest back, printed from the oldest on.
-  return found.reverse()
+  const oldestFirst = found.reverse()
+  const came =
+    document.kind === 'final_invoice'
+      ? await receivedOn(
+          tx,
+          oldestFirst.map((entry) => entry.id),
+        )
+      : null
+
+  return oldestFirst.map(({ id, ...deduction }) => {
+    if (came === null) {
+      return deduction
+    }
+
+    const paid = came.get(id)
+
+    return {
+      ...deduction,
+      // Never more than it billed: an overpayment is for the open items of
+      // phase 3 to settle, and recording one is refused before it gets here.
+      received: receivedShare(
+        deduction.billed,
+        Math.min(paid?.cents ?? 0, Math.max(deduction.billed.grossCents, 0)),
+      ),
+      receivedOn: paid?.lastOn ?? null,
+    }
+  })
 }

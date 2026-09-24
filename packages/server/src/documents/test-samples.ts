@@ -6,7 +6,9 @@ import {
   documentContent,
   type EInvoiceProfile,
   type IssuerContent,
+  type IsoDate,
   type LineContent,
+  receivedShare,
   type RecipientContent,
   shippedRules,
   type SiteContent,
@@ -173,6 +175,8 @@ function deducted(invoice: DocumentContent): DeductionContent {
     documentDate: invoice.documentDate,
     taxTreatment: invoice.taxTreatment,
     billed: invoice.billed,
+    received: null,
+    receivedOn: null,
   }
 }
 
@@ -223,6 +227,32 @@ export const finalInvoice = content(
       item('Nachlass Stammkunde', 1000, -5000, { unit: 'flat_rate' }),
     ],
     deductions: [deducted(firstProgress), deducted(secondProgress)],
+  },
+)
+
+/** What an issued progress invoice deducts once some or all of it came in, #189. */
+function paid(invoice: DocumentContent, grossCents: number, on: IsoDate | null): DeductionContent {
+  return {
+    ...deducted(invoice),
+    received: receivedShare(invoice.billed, grossCents),
+    receivedOn: on,
+  }
+}
+
+/**
+ * The same work once less came in than was billed (#189): part of the first
+ * progress invoice and nothing of the second. The final invoice takes off
+ * what came in, and the second has no line of its own, because nothing is
+ * taken off it.
+ */
+export const partlyPaid = content(
+  {
+    number: 'RE-2026-0005',
+    subject: 'Elektroinstallation Mühlenkamp 8',
+  },
+  {
+    lines: finalInvoice.lines,
+    deductions: [paid(firstProgress, 400_000, '2026-07-20'), paid(secondProgress, 0, null)],
   },
 )
 
@@ -335,6 +365,8 @@ export const samples: readonly {
 }[] = [
   { name: 'final-invoice-xrechnung', profile: 'xrechnung', content: finalInvoice },
   { name: 'final-invoice-en16931', profile: 'en16931', content: finalInvoice },
+  { name: 'partly-paid-xrechnung', profile: 'xrechnung', content: partlyPaid },
+  { name: 'partly-paid-en16931', profile: 'en16931', content: partlyPaid },
   { name: 'progress-invoice-xrechnung', profile: 'xrechnung', content: secondProgress },
   { name: 'first-progress-invoice-en16931', profile: 'en16931', content: firstProgress },
   { name: 'rate-change-xrechnung', profile: 'xrechnung', content: acrossTheChange },

@@ -450,16 +450,38 @@ function totals(content: DocumentContent): string {
   }
 
   const deductions = content.deductions
-    .map(
-      (deduction) =>
+    .map((deduction) => {
+      // What is taken off: since #189 on a final invoice what came in on the
+      // progress invoice, with the day of the last payment, and what it billed
+      // beside it when that was more. Before, and on a progress invoice, what
+      // it billed.
+      const part = deduction.received ?? deduction.billed
+      const figures = taxed
+        ? [`netto ${euros(part.netCents)}`, `Umsatzsteuer ${euros(part.taxCents)}`]
+        : []
+      const came =
+        deduction.received === null
+          ? []
+          : deduction.received.grossCents === 0
+            ? [`gestellt ${euros(deduction.billed.grossCents)}, nichts eingegangen`]
+            : [
+                ...(deduction.received.grossCents === deduction.billed.grossCents
+                  ? []
+                  : [`gestellt ${euros(deduction.billed.grossCents)}`]),
+                deduction.receivedOn === null
+                  ? 'eingegangen'
+                  : `eingegangen bis ${day(deduction.receivedOn)}`,
+              ]
+      const detail = [...came, ...(part.grossCents === 0 ? [] : figures)]
+
+      return (
         `<tr class="deduction"><td>${deducted} ${text(deduction.number)} ` +
         `vom ${day(deduction.documentDate)}` +
-        (taxed
-          ? `<div class="detail">netto ${euros(deduction.billed.netCents)}, ` +
-            `Umsatzsteuer ${euros(deduction.billed.taxCents)}</div>`
-          : '') +
-        `</td>${figure(-deduction.billed.grossCents)}</tr>`,
-    )
+        (detail.length > 0 ? `<div class="detail">${detail.join(', ')}</div>` : '') +
+        // Nothing taken off is 0,00 and not -0,00.
+        `</td>${figure(part.grossCents === 0 ? 0 : -part.grossCents)}</tr>`
+      )
+    })
     .join('')
 
   const single = billed.byRate.length === 1

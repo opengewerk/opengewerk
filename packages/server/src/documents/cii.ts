@@ -282,6 +282,11 @@ function positions(content: DocumentContent, rates: ReadonlyMap<string, number>)
  * stays the tax that was stated.
  *
  * On a cancellation the deductions are given back, so the line is plus one.
+ *
+ * Since #189 a final invoice takes off what came in on each progress invoice,
+ * `received`, and the line carries that amount and says so in its name; a
+ * progress invoice nothing came in on has no line at all, a line of nothing
+ * would only be noise to whoever books it.
  */
 function deductionLines(content: DocumentContent): Line[] {
   const returning = content.kind === 'cancellation_invoice'
@@ -291,14 +296,19 @@ function deductionLines(content: DocumentContent): Line[] {
 
   return content.deductions
     .flatMap((deduction: DeductionContent) => {
-      const name = `${label} ${deduction.number} vom ${day(deduction.documentDate)}`
+      const part = deduction.received ?? deduction.billed
+      const name =
+        `${label} ${deduction.number} vom ${day(deduction.documentDate)}` +
+        (deduction.received !== null && deduction.receivedOn !== null
+          ? `, eingegangen bis ${day(deduction.receivedOn)}`
+          : '')
       const parts =
         content.taxTreatment === 'standard'
-          ? deduction.billed.byRate.map((entry) => ({
+          ? part.byRate.map((entry) => ({
               netCents: entry.netCents,
               basisPoints: entry.basisPoints,
             }))
-          : [{ netCents: deduction.billed.netCents, basisPoints: 0 }]
+          : [{ netCents: part.netCents, basisPoints: 0 }]
 
       return parts
         .filter((part) => part.netCents !== 0)
@@ -346,8 +356,10 @@ function breakdown(content: DocumentContent): Breakdown[] {
       add(categoryOf('standard', entry.basisPoints), entry.netCents, entry.taxCents)
     }
 
+    // What a deduction takes off, which since #189 on a final invoice is
+    // what came in, and the lines above take off the same.
     for (const deduction of content.deductions) {
-      for (const entry of deduction.billed.byRate) {
+      for (const entry of (deduction.received ?? deduction.billed).byRate) {
         add(categoryOf('standard', entry.basisPoints), -entry.netCents, -entry.taxCents)
       }
     }
@@ -357,7 +369,7 @@ function breakdown(content: DocumentContent): Breakdown[] {
     add(category, content.totals.netCents, 0)
 
     for (const deduction of content.deductions) {
-      add(category, -deduction.billed.netCents, 0)
+      add(category, -(deduction.received ?? deduction.billed).netCents, 0)
     }
   }
 

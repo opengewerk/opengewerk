@@ -466,6 +466,8 @@ describe('an invoice that deducts progress invoices', () => {
         { rate: 'standard', basisPoints: 1900, netCents: 40000, taxCents: 7600, grossCents: 47600 },
       ],
     },
+    received: null,
+    receivedOn: null,
   }
 
   it('prints the whole work, each invoice it takes off, and what it asks for', () => {
@@ -478,6 +480,60 @@ describe('an invoice that deducts progress invoices', () => {
     expect(html).toMatch(/Rechnungsbetrag netto<\/td><td class="figure">600,00\s€/)
     expect(html).toMatch(/Umsatzsteuer<\/td><td class="figure">114,00\s€/)
     expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">714,00\s€/)
+  })
+
+  it('prints what came in on a progress invoice, and what it billed when that was more (#189)', () => {
+    const part: DeductionContent = {
+      ...earlier,
+      received: {
+        netCents: 20000,
+        taxCents: 3800,
+        grossCents: 23800,
+        byRate: [
+          {
+            rate: 'standard',
+            basisPoints: 1900,
+            netCents: 20000,
+            taxCents: 3800,
+            grossCents: 23800,
+          },
+        ],
+      },
+      receivedOn: '2026-09-12',
+    }
+    const { html } = page({}, { lines: [line(1, 100000)], deductions: [part] })
+
+    expect(html).toMatch(
+      /gestellt 476,00\s€, eingegangen bis 12\.09\.2026, netto 200,00\s€, Umsatzsteuer 38,00\s€/,
+    )
+    expect(html).toMatch(/<td class="figure">[-−]238,00\s€<\/td>/)
+    expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">952,00\s€/)
+
+    // Paid in full, the amount billed would only say the same twice.
+    const whole = page(
+      {},
+      {
+        lines: [line(1, 100000)],
+        deductions: [{ ...earlier, received: earlier.billed, receivedOn: '2026-09-12' }],
+      },
+    ).html
+
+    expect(whole).toMatch(/eingegangen bis 12\.09\.2026, netto 400,00\s€/)
+    expect(whole).not.toContain('gestellt')
+  })
+
+  it('takes off nothing for a progress invoice nothing came in on, and says so', () => {
+    const nothing: DeductionContent = {
+      ...earlier,
+      received: { netCents: 0, taxCents: 0, grossCents: 0, byRate: [] },
+      receivedOn: null,
+    }
+    const { html } = page({}, { lines: [line(1, 100000)], deductions: [nothing] })
+
+    expect(html).toMatch(
+      /gestellt 476,00\s€, nichts eingegangen<\/div><\/td><td class="figure">0,00\s€/,
+    )
+    expect(html).toMatch(/Rechnungsbetrag<\/td><td class="figure">1\.190,00\s€/)
   })
 
   it('calls the whole the progress so far on a progress invoice', () => {

@@ -24,6 +24,7 @@ import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
 import { DocumentInstructionsController } from './document-instructions.controller.js'
+import { PaymentsController } from './payments.controller.js'
 import { DocumentLinesController, DocumentTotalsController } from './document-lines.controller.js'
 import { DocumentMailController } from './document-mail.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
@@ -176,6 +177,7 @@ export class ApiModule implements NestModule {
         EInvoiceController,
         DocumentMailController,
         DocumentInstructionsController,
+        PaymentsController,
         SyncController,
         SettingsController,
         InstructionsController,

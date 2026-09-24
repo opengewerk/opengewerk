@@ -4,6 +4,7 @@ import type {
   EInvoiceStatus,
   IsoDate,
   MissingDetail,
+  Payment,
   RecordState,
   SnippetPurpose,
 } from '@opengewerk/domain'
@@ -21,8 +22,10 @@ import { RequestRefused, request } from '../sync/transport.js'
  * a number from a counter. A successor is a head and every line of its
  * predecessor in one transaction, and a cancellation is the same and issued in
  * that transaction too. The deductions of an invoice are read out of what
- * earlier invoices froze, which never travels to a device. And the PDF is
- * printed on the server, where the renderer is.
+ * earlier invoices froze, which never travels to a device. The payments on
+ * an invoice are recorded at a desk with a connection, and read where the
+ * final invoice that takes them off is issued. And the PDF is printed on the
+ * server, where the renderer is.
  *
  * Everything else about a document, its fields and its lines, goes through
  * the outbox like any other record, and the screen shows it from there.
@@ -42,8 +45,38 @@ export function createDocument(values: NewDocument): Promise<RecordState> {
   return request<RecordState>('/documents', { method: 'POST', body: JSON.stringify(values) })
 }
 
-export function issueDocument(id: string): Promise<RecordState> {
-  return request<RecordState>(`/documents/${encodeURIComponent(id)}/issue`, { method: 'POST' })
+/**
+ * Issues a document. A final invoice that takes off progress invoices goes
+ * with what the office confirmed as received on each of them (#189), in cents
+ * and keyed by the number of the progress invoice; the server issues it only
+ * when that is what the payments add up to.
+ */
+export function issueDocument(
+  id: string,
+  received?: Readonly<Record<string, number>>,
+): Promise<RecordState> {
+  return request<RecordState>(`/documents/${encodeURIComponent(id)}/issue`, {
+    method: 'POST',
+    ...(received === undefined ? {} : { body: JSON.stringify({ received }) }),
+  })
+}
+
+/**
+ * The progress invoices whose payments an issuing refusal says are not
+ * confirmed, by number, or nothing when the refusal was about something else.
+ * Somebody recorded or removed a payment after the screen was drawn, and the
+ * screen asks again for exactly those.
+ */
+export function unconfirmedFrom(error: unknown): readonly string[] {
+  if (!(error instanceof RequestRefused) || error.status !== 409) {
+    return []
+  }
+
+  const body = error.body as { confirm?: unknown; unconfirmed?: unknown } | null
+
+  return body?.confirm === 'payments' && Array.isArray(body.unconfirmed)
+    ? body.unconfirmed.filter((number): number is string => typeof number === 'string')
+    : []
 }
 
 /**
@@ -87,6 +120,39 @@ export function cancelDocument(id: string): Promise<RecordState> {
  */
 export function deductionsOf(id: string): Promise<readonly DeductionContent[]> {
   return request<readonly DeductionContent[]>(`/documents/${encodeURIComponent(id)}/deductions`)
+}
+
+/** What came in on an invoice, and what the invoice asks for, as the server holds it. */
+export interface PaymentsOf {
+  readonly payments: readonly Payment[]
+  readonly billedCents: number
+  readonly receivedCents: number
+}
+
+/**
+ * The payments recorded on an issued invoice, oldest first (#189). On the
+ * server only: they are recorded in the office with a connection, and the
+ * final invoice that takes them off is issued there too.
+ */
+export function paymentsOf(id: string): Promise<PaymentsOf> {
+  return request<PaymentsOf>(`/documents/${encodeURIComponent(id)}/payments`)
+}
+
+export function recordPayment(
+  id: string,
+  payment: { readonly amountCents: number; readonly receivedOn: IsoDate },
+): Promise<Payment> {
+  return request<Payment>(`/documents/${encodeURIComponent(id)}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(payment),
+  })
+}
+
+/** Removes a payment recorded by mistake; a wrong one is removed and recorded again. */
+export function removePayment(id: string, paymentId: string): Promise<unknown> {
+  return request(`/documents/${encodeURIComponent(id)}/payments/${encodeURIComponent(paymentId)}`, {
+    method: 'DELETE',
+  })
 }
 
 /**

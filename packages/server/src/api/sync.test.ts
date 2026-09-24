@@ -220,6 +220,10 @@ describe('the tables', () => {
     // a device holding a copy would go on recording places until it next came
     // online; the server drops a place from an entry by the latest answer it
     // holds, whatever the device thought.
+    //
+    // The payments from #189 are recorded in the office with a connection, and
+    // nothing on site reads them; the final invoice learns them on the server,
+    // where it is issued.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -238,7 +242,8 @@ describe('the tables', () => {
       name === 'mail_outbox' ||
       name === 'mail_settings' ||
       name === 'secrets' ||
-      name === 'location_consents'
+      name === 'location_consents' ||
+      name === 'payments'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

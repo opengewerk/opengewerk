@@ -48,6 +48,8 @@ const earlier: DeductionContent = {
       { rate: 'standard', basisPoints: 1900, netCents: 40000, taxCents: 7600, grossCents: 47600 },
     ],
   },
+  received: null,
+  receivedOn: null,
 }
 
 function message(kind: DocumentKind, deductions: readonly DeductionContent[] = []) {

@@ -53,6 +53,15 @@ export const permissions = [
    */
   'document.issue',
   /**
+   * What came in on an invoice (#189): recorded by hand until the bank is
+   * matched in phase 3, and read by the final invoice that takes it off.
+   * Reading and writing apart, as the rights of the finance module will be.
+   * The owner and the office have both; the site has neither, a payment is
+   * not something a technician on a roof finds out about.
+   */
+  'payment.read',
+  'payment.write',
+  /**
    * Tasks, one right to read and one to write, and writing includes marking
    * one done. Not narrowed to one's own: a task is written by whoever notices
    * that something has to happen, for whoever has to do it, and the office
@@ -153,6 +162,8 @@ const officePermissions: readonly Permission[] = [
   'document.read',
   'document.write',
   'document.issue',
+  'payment.read',
+  'payment.write',
   'task.read',
   'task.write',
   'attachment.read',
