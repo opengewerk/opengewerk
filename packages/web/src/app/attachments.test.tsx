@@ -99,6 +99,17 @@ function inTheOffice() {
   )
 }
 
+/**
+ * Waits until the device has queued this many versions. A file is read,
+ * shrunk and hashed before its version goes into the outbox, and an exchange
+ * asked for before that goes out without it (#206).
+ */
+async function queued(client: SyncClient, versions: number) {
+  await waitFor(() => {
+    expect(client.list('attachment_versions')).toHaveLength(versions)
+  })
+}
+
 function created(entity: string) {
   return server
     .operations()
@@ -130,6 +141,7 @@ describe('a file added in the office', () => {
     const client = await mount(inTheOffice())
 
     await userEvent.upload(await screen.findByLabelText('Datei hinzufügen'), plan)
+    await queued(client, 1)
     await client.synchronise()
 
     const bytes = await plan.arrayBuffer()
@@ -163,6 +175,7 @@ describe('a file added in the office', () => {
     const client = await mount(inTheOffice())
 
     await userEvent.upload(await screen.findByLabelText('Datei hinzufügen'), photo)
+    await queued(client, 1)
     await client.synchronise()
 
     const smaller = new Uint8Array(1000).fill(7)
@@ -179,6 +192,7 @@ describe('a file added in the office', () => {
 
     await userEvent.click(screen.getByLabelText('Fotos in voller Größe behalten'))
     await userEvent.upload(screen.getByLabelText('Datei hinzufügen'), photo)
+    await queued(client, 2)
     await client.synchronise()
 
     expect(created('attachment_versions')[1]).toMatchObject({ sizeBytes: 5000 })
@@ -192,6 +206,7 @@ describe('a file added in the office', () => {
     })
 
     await userEvent.upload(await screen.findByLabelText('Datei hinzufügen'), [huge, plan])
+    await queued(client, 1)
     await client.synchronise()
 
     expect((await screen.findByRole('alert')).textContent).toMatch(/^Scan\.pdf: .*größer als 25 MB/)
@@ -210,15 +225,14 @@ describe('a file added in the office', () => {
         type: 'application/pdf',
       }),
     )
-    // Shown only once it is queued: the file is read and hashed first, and an
-    // exchange asked for before that goes out without it (#206).
-    expect(await screen.findByText(/Schaltplan neu\.pdf, .*Fassung 2/)).toBeDefined()
+    await queued(client, 2)
     await client.synchronise()
 
     const versions = created('attachment_versions')
 
     expect(versions).toHaveLength(2)
     expect(versions[1]?.['attachmentId']).toBe(versions[0]?.['attachmentId'])
+    expect(await screen.findByText(/Schaltplan neu\.pdf, .*Fassung 2/)).toBeDefined()
     expect(screen.getByText('Eine frühere Fassung')).toBeDefined()
   })
 

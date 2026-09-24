@@ -1003,9 +1003,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
-- Der Test der neuen Fassung einer Datei wartet, bis die Fassung eingereiht ist, bevor er abgleicht
-  (#206). Das Hochladen liest die Datei und bildet ihren Hash, bevor die Fassung in den Postausgang
-  kommt; unter Last ging der Abgleich ohne sie hinaus, und der Test zählte eine statt zwei.
+- Die Tests der Dokumentenablage warten, bis eine Fassung eingereiht ist, bevor sie abgleichen
+  (#206). Das Hochladen liest die Datei, verkleinert ein Foto und bildet den Hash, bevor die Fassung
+  in den Postausgang kommt; unter Last ging der Abgleich ohne sie hinaus, und ein Test zählte eine
+  Fassung zu wenig. Gefallen sind zwei verschiedene Tests derselben Datei, einer lokal, einer in
+  der CI.
 - Ein Postausgang über 100 kB geht hinaus, statt für immer hängen zu bleiben (#202). Der Client
   schickte ihn in einer Übertragung, und der Server las jede Route mit den 100 kB, die Express ohne
   Angabe zugesteht; darüber kam eine 413, die keinen Vorgang nannte, und damit gab es nichts zu
