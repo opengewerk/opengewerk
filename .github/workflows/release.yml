@@ -171,6 +171,19 @@ jobs:
           section = text[start : start + 4 + following.start()] if following else text[start:]
           body = section.split("\n", 1)[1].strip()
 
+          # A version that closes a vulnerability starts its page with a hint,
+          # so that nobody has to read to the end of the changelog to learn
+          # that the update matters. The section "Sicherheit" in the changelog
+          # marks it; SECURITY.md of the organisation promises the hint.
+          hint = ""
+          if re.search(r"^### Sicherheit\s*$", body, re.MULTILINE):
+              hint = (
+                  "> **Diese Fassung enthält eine Sicherheitskorrektur.** Was betroffen war, "
+                  "steht im Abschnitt „Sicherheit“ und im "
+                  "[Advisory](https://github.com/opengewerk/opengewerk/security/advisories). "
+                  "Wer OpenGewerk betreibt, aktualisiert bitte bald.\n\n"
+              )
+
           # GitHub takes at most 125000 characters for a release page, and the
           # first release carries everything since the start: 96000 on
           # 24.09.2026, more with every day. Past the limit the page points at
@@ -181,7 +194,7 @@ jobs:
                   f"[CHANGELOG](https://github.com/opengewerk/opengewerk/blob/v{version}/CHANGELOG.md)."
               )
 
-          notes = f"""{body}
+          notes = f"""{hint}{body}
 
           ## Installieren und aktualisieren
 
