@@ -752,6 +752,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Der Abschnitt "Status" der README sagt, was aus Phase 1 steht, nach Bereichen geordnet statt
+  als Chronik, die beim 21.09.2026 stehen geblieben war; Aufgaben, E-Mail, Zeiterfassung,
+  Dokumentenablage, Elektro-Struktur und Prüfprotokoll fehlten darin. Nachgezogen sind auch vier
+  Stellen, die noch "noch nicht" oder "kommt mit" zu erledigten Issues sagten, und das
+  Bündelbudget. Die README wird seitdem mit jedem größeren Schritt mitgezogen, gewünscht von
+  Moritz am 24.09.2026.
 - Die Schlussrechnung zieht ab, was auf die Abschlagsrechnungen eingegangen ist, und nicht mehr,
   was sie gestellt haben (#189). § 14 Abs. 5 UStG verlangt die vereinnahmten Teilentgelte, und war
   ein Abschlag offen, war die Schlussrechnung um genau diesen Betrag zu niedrig, der sich danach
