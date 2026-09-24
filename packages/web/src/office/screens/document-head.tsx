@@ -1,8 +1,10 @@
-import type { RecordState } from '@opengewerk/domain'
+import type { IsoDate, RecordState } from '@opengewerk/domain'
 import {
   isInvoice,
+  longPaymentTermNotice,
   paymentTermLabel,
   servicePeriodProblem,
+  shippedRules,
   statesPaymentTerm,
   taxTreatments,
 } from '@opengewerk/domain'
@@ -18,7 +20,7 @@ import { asTextOrNull } from '../../app/record-form.js'
 import { parameterHistory } from '../../session/parameters.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
-import { useSync } from '../../sync/provider.js'
+import { useRecord, useSync } from '../../sync/provider.js'
 import { Fact, Facts, Section } from '../layout.js'
 import { daysFrom, paymentTermOn } from './payment-term.js'
 import { SnippetPicker, withSnippet } from './snippet-picker.js'
@@ -44,6 +46,27 @@ function termFact(own: number | null, setting: number | null): string {
   return setting === null
     ? 'aus den Einstellungen'
     : `${paymentTermLabel(setting)}, aus den Einstellungen`
+}
+
+/**
+ * The notice of section 271a BGB for a term of this many days on this
+ * document (#149), or null. Asked of the customer the document is for: the
+ * paragraph covers a business and not a consumer.
+ */
+function termNotice(
+  document: RecordState,
+  customer: RecordState | null,
+  days: number | null,
+): string | null {
+  if (days === null) {
+    return null
+  }
+
+  return longPaymentTermNotice(shippedRules, {
+    days,
+    on: text(document, 'documentDate') as IsoDate,
+    recipientIsBusiness: customer?.['isBusiness'] === true,
+  })
 }
 
 /**
@@ -87,6 +110,8 @@ export function HeaderSection({
     enabled: statesTerm && readsSettings,
   })
   const setting = history.data ? paymentTermOn(history.data, text(document, 'documentDate')) : null
+  const customer = useRecord('customers', String(document['customerId']))
+  const notice = statesTerm ? termNotice(document, customer, ownTerm(document) ?? setting) : null
 
   return (
     <Section
@@ -106,6 +131,7 @@ export function HeaderSection({
       {editing && editable ? (
         <HeaderForm
           document={document}
+          customer={customer}
           setting={setting}
           onDone={() => {
             setEditing(false)
@@ -120,7 +146,14 @@ export function HeaderSection({
           ) : null}
           <Fact label="Umsatzsteuer">{taxTreatmentLabel[taxTreatmentOf(document)]}</Fact>
           {statesTerm ? (
-            <Fact label="Zahlungsziel">{termFact(ownTerm(document), setting)}</Fact>
+            <Fact label="Zahlungsziel">
+              {termFact(ownTerm(document), setting)}
+              {notice ? (
+                <span role="note" className="block text-body font-semibold">
+                  {notice}
+                </span>
+              ) : null}
+            </Fact>
           ) : null}
           <Fact label="Text über den Positionen">
             {maybeText(document, 'introText') ? (
@@ -145,10 +178,13 @@ const treatmentOptions = taxTreatments.map((treatment) => ({
 
 function HeaderForm({
   document,
+  customer,
   setting,
   onDone,
 }: {
   readonly document: RecordState
+  /** The customer the document is for, whose kind decides the notice of #149. */
+  readonly customer: RecordState | null
   /** The business's payment term on the document's date, when it can be read. */
   readonly setting: number | null
   readonly onDone: () => void
@@ -174,6 +210,10 @@ function HeaderForm({
   // Empty is not a mistake here, it hands the document back to the setting.
   const termRead = term.trim() === '' ? null : daysFrom(term)
   const termProblem = termRead !== null && 'problem' in termRead ? termRead.problem : null
+  const termAsTyped = termRead === null ? setting : 'days' in termRead ? termRead.days : null
+  const notice = statesTerm
+    ? termNotice({ ...document, documentDate }, customer, termAsTyped)
+    : null
   // The period as it is sent: a last day without a first is dropped below,
   // so it is no mistake here either.
   const periodProblem = invoice
@@ -293,10 +333,10 @@ function HeaderForm({
             }}
             {...(termProblem === null ? {} : { problem: termProblem })}
             hint={
-              setting === null
+              (setting === null
                 ? 'Leer lassen für das Zahlungsziel aus den Einstellungen. 0 heißt sofort zahlbar.'
                 : `Leer lassen für das Zahlungsziel aus den Einstellungen, ${paymentTermLabel(setting)}. ` +
-                  '0 heißt sofort zahlbar.'
+                  '0 heißt sofort zahlbar.') + (notice === null ? '' : ` ${notice}`)
             }
           />
         ) : null}

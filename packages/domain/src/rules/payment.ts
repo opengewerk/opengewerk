@@ -57,6 +57,46 @@ export function paymentTermOf(
 }
 
 /**
+ * What to say about a payment term longer than section 271a (1) BGB lets
+ * stand without more (#149), or null when there is nothing to say.
+ *
+ * The paragraph protects the creditor, which is the business itself: a
+ * business customer who has a term of more than sixty days written into the
+ * contract gets it only if it was agreed expressly and is not grossly unfair
+ * to the business. A term the business puts on its own document is not
+ * forbidden by it, so nothing is refused; the office is told, in the head of
+ * the document, that such a term should have been agreed in so many words.
+ * Towards a consumer the rule does not apply at all (paragraph 5 number 2),
+ * and the stricter limits towards public contracting authorities of
+ * paragraph 2 wait for the review in #31.
+ *
+ * The sixty days come from the rule package and not from here, so that a
+ * change in the law is a record and not a release.
+ */
+export function longPaymentTermNotice(
+  rules: RuleSet,
+  term: { readonly days: number; readonly on: IsoDate; readonly recipientIsBusiness: boolean },
+): string | null {
+  if (
+    !term.recipientIsBusiness ||
+    rules.at('payment.maximum_term_days_business', term.on) === null
+  ) {
+    return null
+  }
+
+  const limit = rules.valueAt('payment.maximum_term_days_business', 'days', term.on)
+
+  if (term.days <= limit) {
+    return null
+  }
+
+  return (
+    `Mehr als ${String(limit)} Tage gegenüber einem Unternehmen: so ein Zahlungsziel sollte ` +
+    'ausdrücklich vereinbart sein, damit es trägt (§ 271a Abs. 1 BGB).'
+  )
+}
+
+/**
  * The day from which an unpaid invoice is late, even without a reminder.
  *
  * Counted from the invoice date here, which is the simple case. Section 286

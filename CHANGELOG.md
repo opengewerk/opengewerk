@@ -9,6 +9,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Belegkopf weist bei einem Zahlungsziel von mehr als 60 Tagen gegenüber einem Unternehmen
+  darauf hin, dass es ausdrücklich vereinbart sein sollte, damit es trägt (§ 271a Abs. 1 BGB, #149).
+  Das Regelpaket führte die 60 Tage seit dem Fundament, gefragt hat den Wert nichts. Gesperrt wird
+  nichts, und gegenüber Verbrauchern gilt der Paragraf nicht.
 - Aufträge bekommen eine Nummer aus einem eigenen Nummernkreis (#145), Vorgabe `AU-{year}-{number:4}`,
   einstellbar unter "Einstellungen", "Nummernkreise". Vergeben wird sie beim Anlegen, über die Route
   wie aus dem Postausgang, und ein Gerät kann keine setzen; sie steht am Auftrag, an seinen Zeiten und

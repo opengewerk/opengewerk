@@ -1045,6 +1045,26 @@ describe('the payment term', () => {
     },
   ]
 
+  it('points out a term over sixty days towards a business (#149)', async () => {
+    await mount('/belege/d-1', {
+      documents: [document({ paymentTermDays: 90 })],
+      customers: [{ ...customer, kind: 'business', name: 'Bau Nord GmbH', isBusiness: true }],
+    })
+
+    expect(await screen.findByText('90 Tage, nur für diesen Beleg')).toBeDefined()
+    expect(screen.getByRole('note').textContent).toBe(
+      'Mehr als 60 Tage gegenüber einem Unternehmen: so ein Zahlungsziel sollte ausdrücklich ' +
+        'vereinbart sein, damit es trägt (§ 271a Abs. 1 BGB).',
+    )
+  })
+
+  it('says nothing of it towards a consumer, whom the paragraph does not cover', async () => {
+    await mount('/belege/d-1', { documents: [document({ paymentTermDays: 90 })] })
+
+    expect(await screen.findByText('90 Tage, nur für diesen Beleg')).toBeDefined()
+    expect(screen.queryByText(/§ 271a/)).toBeNull()
+  })
+
   it('is the setting of the date of the quote, and says so', async () => {
     serverSays('GET', '/settings/parameters', () => ({ status: 200, body: thirtyFromSeptember }))
     await mount('/belege/d-1')
