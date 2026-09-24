@@ -27,6 +27,7 @@ import { Button, Card, DocumentState, Field } from '../../components/index.js'
 import { date, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
+import { ReportFieldList, useReportFieldLines } from '../../app/report-fields.js'
 import { SignaturePicture } from '../../app/signature.js'
 import {
   cancelDocument,
@@ -490,6 +491,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       ) : null}
 
       <HeaderSection document={document} editable={editable} />
+      <ReportFieldsSection document={document} />
       <LinesSection document={document} editable={editable} />
       <InstructionsSection document={document} />
       <SignatureSection documentId={documentId} />
@@ -1027,6 +1029,21 @@ function CancelCard({
         </div>
       </div>
     </Card>
+  )
+}
+
+/**
+ * The fields the business gives its reports (#78), as they were filled in on
+ * site and as the customer signed them. Read here and not changed: they are
+ * part of the page under the signature.
+ */
+function ReportFieldsSection({ document }: { readonly document: RecordState }) {
+  const lines = useReportFieldLines(document)
+
+  return lines.length === 0 ? null : (
+    <Section title="Angaben">
+      <ReportFieldList lines={lines} />
+    </Section>
   )
 }
 

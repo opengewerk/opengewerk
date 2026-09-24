@@ -40,6 +40,7 @@ export * from './model/text-snippet.js'
 export * from './forms/definition.js'
 export * from './forms/limits.js'
 export * from './forms/record.js'
+export * from './forms/report-fields.js'
 export * from './forms/values.js'
 
 // The legal parameters. Not in the code: they sit in data packages with a

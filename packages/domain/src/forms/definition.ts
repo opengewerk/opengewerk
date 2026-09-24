@@ -15,8 +15,26 @@
  * it was written with.
  */
 
-/** What a measured value is counted in. Stored as whole thousandths of it. */
-export const measurementUnits = ['ohm', 'megaohm', 'milliampere', 'millisecond', 'volt'] as const
+/**
+ * What a figure is counted in. Stored as whole thousandths of it. The first
+ * five are what a test protocol measures; the others are for the fields a
+ * business gives its report (#78), a distance driven or the temperature on
+ * site.
+ */
+export const measurementUnits = [
+  'ohm',
+  'megaohm',
+  'milliampere',
+  'millisecond',
+  'volt',
+  'kilometre',
+  'metre',
+  'hour',
+  'minute',
+  'degree_celsius',
+  'piece',
+  'percent',
+] as const
 
 export type MeasurementUnit = (typeof measurementUnits)[number]
 
@@ -27,6 +45,13 @@ export const measurementUnitSign: Readonly<Record<MeasurementUnit, string>> = {
   milliampere: 'mA',
   millisecond: 'ms',
   volt: 'V',
+  kilometre: 'km',
+  metre: 'm',
+  hour: 'Std.',
+  minute: 'min',
+  degree_celsius: '°C',
+  piece: 'Stk.',
+  percent: '%',
 }
 
 /**
@@ -140,8 +165,11 @@ export interface FormDefinition {
   /** Counts up with every change; a filled form keeps the one it was filled in. */
   readonly version: number
   readonly title: string
-  /** What a filled form hangs on. An installation, for a test protocol. */
-  readonly attachesTo: 'installation'
+  /**
+   * What a filled form hangs on: an installation, for a test protocol; a
+   * document, for the fields a business gives its report.
+   */
+  readonly attachesTo: 'installation' | 'document'
   readonly sections: readonly FormSection[]
 }
 
@@ -193,6 +221,23 @@ export function definitionProblems(definition: FormDefinition): readonly string[
       problems.push(
         `${definition.key}: die Auswahl ${field.key} hat weniger als zwei Möglichkeiten.`,
       )
+    }
+
+    if (
+      field.kind === 'choice' &&
+      (field.options.some((option) => option.value === '' || option.label.trim() === '') ||
+        new Set(field.options.map((option) => option.value)).size !== field.options.length)
+    ) {
+      problems.push(
+        `${definition.key}: jede Möglichkeit der Auswahl ${field.key} braucht einen eigenen Wert und eine Beschriftung.`,
+      )
+    }
+
+    if (
+      (field.kind === 'number' || field.kind === 'measurement') &&
+      !measurementUnits.includes(field.unit)
+    ) {
+      problems.push(`${definition.key}: ${field.key} nennt eine Einheit, die es nicht gibt.`)
     }
 
     if (

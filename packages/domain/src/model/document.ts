@@ -379,6 +379,14 @@ export interface Document extends Synced {
    * customer agreed on in the quote is the term of the invoice as well.
    */
   readonly paymentTermDays: number | null
+  /**
+   * The fields the business gives its reports (#78), filled in on site: the
+   * version of the business's definition the report was started with, and
+   * the values as JSON text, read with `readFormValues`. Both null on every
+   * other kind and on a report started while the business had no fields.
+   */
+  readonly fieldsVersion: number | null
+  readonly fieldValues: string | null
 }
 
 /**

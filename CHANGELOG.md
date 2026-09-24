@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Felder, die der Betrieb seinen Regieberichten gibt (#78, zweiter Teil), etwa Wetter, Anfahrt oder
+  Besonderheiten der Baustelle: unter "Einstellungen", "Felder des Regieberichts" bis zu zwölf als
+  Text, Zahl mit Einheit, Auswahl oder Ja/Nein, jede Änderung als neue Fassung in
+  `form_definitions`, die sich nie ändert (Migration 0044). Auf der Baustelle werden sie ohne Netz
+  ausgefüllt, der Kunde liest sie vor dem Unterschreiben, und der Fingerabdruck der Unterschrift
+  deckt sie ab; festgeschrieben stehen sie im eingefrorenen Stand (Fassung 11 von
+  `DocumentContent`) und im PDF. Ein Bericht behält die Fassung, mit der er ausgefüllt wurde. So
+  entschieden mit #137: der Regiebericht bleibt ein Beleg und bekommt nur die Felder aus der
+  Formular-Engine.
 - Das Prüfprotokoll der Erstprüfung nach DIN VDE 0100-600 (#79), gebaut auf der Formular-Engine aus
   #78. Auf der Baustelle entsteht es am Auftrag ohne Netz, mit einem Messblock je Stromkreis aus dem
   Stromkreisverzeichnis; jeder Messwert steht mit seinem Grenzwert und dessen Fundstelle da und wird
@@ -994,6 +1003,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Test der neuen Fassung einer Datei wartet, bis die Fassung eingereiht ist, bevor er abgleicht
+  (#206). Das Hochladen liest die Datei und bildet ihren Hash, bevor die Fassung in den Postausgang
+  kommt; unter Last ging der Abgleich ohne sie hinaus, und der Test zählte eine statt zwei.
 - Ein Postausgang über 100 kB geht hinaus, statt für immer hängen zu bleiben (#202). Der Client
   schickte ihn in einer Übertragung, und der Server las jede Route mit den 100 kB, die Express ohne
   Angabe zugesteht; darüber kam eine 413, die keinen Vorgang nannte, und damit gab es nichts zu

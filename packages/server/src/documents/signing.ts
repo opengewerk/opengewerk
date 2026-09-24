@@ -32,7 +32,11 @@ export async function signatureRefusal(
   const documentId = String(values['documentId'] ?? '') as DocumentId
 
   const [document] = await tx
-    .select({ introText: documents.introText, deletedAt: documents.deletedAt })
+    .select({
+      introText: documents.introText,
+      fieldValues: documents.fieldValues,
+      deletedAt: documents.deletedAt,
+    })
     .from(documents)
     .where(eq(documents.id, documentId))
 
@@ -53,7 +57,12 @@ export async function signatureRefusal(
     .from(documentLines)
     .where(and(eq(documentLines.documentId, documentId), isNull(documentLines.deletedAt)))
 
-  const held = signedContentFingerprint({ introText: document.introText, lines })
+  // The fields of the business (#78) are part of the page the customer read.
+  const held = signedContentFingerprint({
+    introText: document.introText,
+    lines,
+    fields: document.fieldValues,
+  })
 
   return values['contentFingerprint'] === held
     ? null

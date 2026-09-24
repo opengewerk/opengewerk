@@ -15,6 +15,7 @@ import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
 import { PaymentTermScreen } from './screens/payment-term.js'
 import { ProtocolScreen } from './screens/protocols.js'
+import { ReportFieldsScreen } from './screens/report-fields.js'
 import { SettingsScreen } from './screens/settings.js'
 import { SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
@@ -102,6 +103,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/einstellungen/belehrungen',
     component: InstructionsScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/regiebericht',
+    component: ReportFieldsScreen,
   }),
   createRoute({
     getParentRoute: () => root,

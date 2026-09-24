@@ -15,6 +15,7 @@ import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
+import { reportFieldContent } from '../forms/report-fields.js'
 import { deductionsFor } from './deductions.js'
 import { instructionsFor } from './instructions.js'
 import {
@@ -193,6 +194,9 @@ export async function contentAndGapsOf(
     paymentTermDays: await paymentTermDaysOf(tx, document),
     instructions: instructions.contents,
     jobNumber: job?.number ?? null,
+    // The fields the business gives its reports (#78), in the version the
+    // report was filled in, as the customer read them before signing.
+    reportFields: await reportFieldContent(tx, document),
   })
 
   return { content, gaps: instructions.gaps }

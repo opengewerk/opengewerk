@@ -32,9 +32,10 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * cancels, version 6 what an e-invoice needs to know about the recipient,
  * version 7 the payment term, version 8 the instructions that went with it,
  * version 9 the number of the job it belongs to, version 10 what came in on
- * the progress invoices it takes off.
+ * the progress invoices it takes off, version 11 the fields a business gives
+ * its reports.
  */
-export const documentContentVersion = 10
+export const documentContentVersion = 11
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -272,10 +273,28 @@ export interface DocumentContent {
    * issued before version 9.
    */
   readonly jobNumber: string | null
+  /**
+   * The fields the business gives its reports (#78), as the customer read and
+   * signed them: the label and the value as text, the empty ones left out.
+   * Empty for every other kind, for a report without fields and for every
+   * document issued before version 11.
+   */
+  readonly reportFields: readonly ReportFieldContent[]
+}
+
+/** One field of a report as it is printed: "Anfahrt", "25 km". */
+export interface ReportFieldContent {
+  readonly label: string
+  readonly text: string
+}
+
+/** The tenth shape, from #189: what came in on the progress invoices, and no report fields yet. */
+export interface DocumentContentV10 extends Omit<DocumentContent, 'version' | 'reportFields'> {
+  readonly version: 10
 }
 
 /** The ninth shape, from #145: the job number, and deductions of what was billed only. */
-export interface DocumentContentV9 extends Omit<DocumentContent, 'version' | 'deductions'> {
+export interface DocumentContentV9 extends Omit<DocumentContentV10, 'version' | 'deductions'> {
   readonly version: 9
   readonly deductions: readonly DeductionContentV9[]
 }
@@ -335,6 +354,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV10
   | DocumentContentV9
   | DocumentContentV8
   | DocumentContentV7

@@ -210,13 +210,15 @@ describe('a file added in the office', () => {
         type: 'application/pdf',
       }),
     )
+    // Shown only once it is queued: the file is read and hashed first, and an
+    // exchange asked for before that goes out without it (#206).
+    expect(await screen.findByText(/Schaltplan neu\.pdf, .*Fassung 2/)).toBeDefined()
     await client.synchronise()
 
     const versions = created('attachment_versions')
 
     expect(versions).toHaveLength(2)
     expect(versions[1]?.['attachmentId']).toBe(versions[0]?.['attachmentId'])
-    expect(await screen.findByText(/Schaltplan neu\.pdf, .*Fassung 2/)).toBeDefined()
     expect(screen.getByText('Eine frühere Fassung')).toBeDefined()
   })
 

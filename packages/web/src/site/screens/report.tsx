@@ -19,6 +19,7 @@ import {
   SelectField,
   TextArea,
 } from '../../components/index.js'
+import { ReportFieldsForm, ReportFieldsText } from '../../app/report-fields.js'
 import { amount, date, moment, parseQuantity } from '../../app/format.js'
 import {
   documentKindOf,
@@ -321,6 +322,8 @@ function WritingStep({
           </div>
         )}
       </Card>
+
+      <ReportFieldsForm report={report} />
 
       <Card label="Arbeitszeit und Material">
         <div className="flex flex-col gap-3">
@@ -657,6 +660,8 @@ function SigningStep({
         <WorkDone report={report} />
       </Card>
 
+      <ReportFieldsText report={report} />
+
       <Card label="Arbeitszeit und Material">
         <LineList lines={lines} />
       </Card>
@@ -722,6 +727,8 @@ function SignedReport({
       <Card label="Was gemacht wurde">
         <WorkDone report={report} />
       </Card>
+
+      <ReportFieldsText report={report} />
 
       <Card label="Arbeitszeit und Material">
         <LineList lines={lines} />

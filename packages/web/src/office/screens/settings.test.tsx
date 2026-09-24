@@ -79,6 +79,7 @@ describe('the settings', () => {
       '/einstellungen/nummernkreise',
       '/einstellungen/zahlungsziel',
       '/einstellungen/belehrungen',
+      '/einstellungen/regiebericht',
       '/einstellungen/e-mail',
       '/einstellungen/sicherung',
       '/einstellungen/zugaenge',
