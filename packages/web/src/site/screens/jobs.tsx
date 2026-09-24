@@ -14,6 +14,7 @@ import {
   jobStatusLabel,
   jobStatusOf,
 } from '../../app/labels.js'
+import { useMay } from '../../app/queries.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
@@ -202,6 +203,11 @@ function JobReports({ job }: { readonly job: RecordState }) {
  * written for it, which open on a screen of their own. The working time of
  * #76 starts here, under what was agreed, because here it is clear what the
  * time belongs to.
+ *
+ * Finishing and the note are the progress of a job (`job.progress`, #128),
+ * and both buttons ask for that right before they show: a button that leads
+ * to an operation the server refuses was what this screen offered every
+ * technician until then.
  */
 export function SiteJobScreen() {
   const { jobId } = useParams({ strict: false }) as { jobId?: string }
@@ -215,6 +221,7 @@ export function SiteJobScreen() {
   )
   const [noting, setNoting] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const reports = useMay('job.progress')
 
   if (!job || !jobId) {
     return (
@@ -337,7 +344,7 @@ export function SiteJobScreen() {
 
       <JobTasks job={job} />
 
-      {noting ? (
+      {reports && noting ? (
         <Card label="Notiz zum Auftrag">
           <RecordForm
             fields={[{ name: 'description', label: 'Was passiert ist' }]}
@@ -370,7 +377,7 @@ export function SiteJobScreen() {
       <div className="flex flex-col gap-3">
         {status === 'completed' ? (
           <p className="text-body text-ink-muted">Dieser Auftrag ist abgeschlossen.</p>
-        ) : (
+        ) : reports ? (
           <Button
             tone="primary"
             wide
@@ -386,17 +393,19 @@ export function SiteJobScreen() {
           >
             Auftrag abschließen
           </Button>
-        )}
+        ) : null}
 
-        <Button
-          tone="secondary"
-          wide
-          onClick={() => {
-            setNoting((open) => !open)
-          }}
-        >
-          {noting ? 'Notiz schließen' : 'Notiz schreiben'}
-        </Button>
+        {reports ? (
+          <Button
+            tone="secondary"
+            wide
+            onClick={() => {
+              setNoting((open) => !open)
+            }}
+          >
+            {noting ? 'Notiz schließen' : 'Notiz schreiben'}
+          </Button>
+        ) : null}
       </div>
     </div>
   )

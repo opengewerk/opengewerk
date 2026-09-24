@@ -932,6 +932,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Monteur schließt auf der Baustelle einen Auftrag ab und schreibt eine Notiz dazu (#128). Beide
+  Knöpfe gab es von Anfang an, und beides verlangte `job.write`, das der Monteur nicht hat: der Server
+  lehnte die ganze Übertragung ab. Jetzt deckt das neue Recht `job.progress` genau Status und Notiz,
+  der Abgleich fragt dafür die Felder eines Vorgangs ab, und die Baustellen-App zeigt die Knöpfe nur
+  mit dem Recht. Aufträge anlegen, umbenennen und stornieren bleibt beim Büro.
 - Die Tests des Mail-Jobs stellen ihre Uhr auf den 24.09.2037 statt auf den 24.09.2026 (#191). An
   genau diesem Morgen fiel die Uhr des Jobs hinter die der Datenbank zurück, aus der eine Nachricht
   ihr `next_attempt_at` bekommt, und neun Tests fanden nichts mehr zu verschicken, auf jedem Pull

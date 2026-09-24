@@ -31,6 +31,18 @@ export const permissions = [
   'installation.write',
   'job.read',
   'job.write',
+  /**
+   * Reporting how a job goes (#128): taking it up, finishing it and writing
+   * down what happened, which are the status and the note and nothing else
+   * (`isJobProgress`). The one right on a job a technician has. Who the job is
+   * for, where it is and what it is called stay with `job.write`, and so does
+   * creating a job at all: the office takes an order, the site reports on it.
+   *
+   * Everybody with `job.write` has this one too, because an operation is
+   * asked for the narrowest right that covers it and a finished job from the
+   * office is the same report as a finished job from the site.
+   */
+  'job.progress',
   'document.read',
   'document.write',
   /**
@@ -137,6 +149,7 @@ const officePermissions: readonly Permission[] = [
   'installation.write',
   'job.read',
   'job.write',
+  'job.progress',
   'document.read',
   'document.write',
   'document.issue',
@@ -173,6 +186,8 @@ const technicianPermissions: readonly Permission[] = [
   'installation.read',
   'installation.write',
   'job.read',
+  // Finishing the job and writing down what happened, not what it is.
+  'job.progress',
   'document.read',
   'document.write',
   // What turns up on site and has to be done later, and what the office

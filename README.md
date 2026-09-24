@@ -127,7 +127,7 @@ Ein Test prüft für jede Tabelle, dass RLS aktiviert und erzwungen ist, dass ei
 
 ### Rollen und Rechte
 
-Drei Rollen zum Start: Inhaber, Büro, Monteur. Die Rechte sind entlang der Aktion geschnitten, nicht entlang der Oberfläche, und heißen `subject.verb`. Der wichtigste Schnitt liegt zwischen `document.write` und `document.issue`: ein Monteur schreibt den Regiebericht auf der Baustelle, festschreiben darf ihn das Büro. Ab der Festschreibung ist der Beleg fix und wird nur noch storniert, nie geändert.
+Drei Rollen zum Start: Inhaber, Büro, Monteur. Die Rechte sind entlang der Aktion geschnitten, nicht entlang der Oberfläche, und heißen `subject.verb`. Der wichtigste Schnitt liegt zwischen `document.write` und `document.issue`: ein Monteur schreibt den Regiebericht auf der Baustelle, festschreiben darf ihn das Büro. Ab der Festschreibung ist der Beleg fix und wird nur noch storniert, nie geändert. Am Auftrag liegt ein zweiter Schnitt: `job.progress` meldet, wie er vorangeht, also Status und Notiz, und das darf auch der Monteur auf der Baustelle; was der Auftrag ist, für wen und wo, ändert und anlegt nur, wer `job.write` hat, das Büro. Der Abgleich fragt dafür die Felder eines Vorgangs ab, nicht nur seine Entität.
 
 Geprüft wird serverseitig an jeder Route, über einen global registrierten Guard. Global und nicht je Controller, weil das den Unterschied macht: eine Route, die kein Recht deklariert, wird abgelehnt statt durchgewunken. Ein Test zählt alle registrierten Routen auf und meldet jede ohne Rechteangabe; die Liste der Controller kommt aus dem Modul selbst, ein neuer Controller ist also automatisch dabei.
 
