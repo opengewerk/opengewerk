@@ -1020,6 +1020,13 @@ bricht er ab. Ob ein Abbild wirklich aus diesem Repository stammt, zeigt
 nie neu vergeben: eine Fassung ist, was unter ihrem Tag steht, und dafür steht
 ihre Signatur.
 
+Eine Fassung, die eine Sicherheitslücke schließt, trägt in ihrem Abschnitt des
+CHANGELOG den Unterabschnitt `### Sicherheit`, und ihre Release-Seite beginnt
+dann mit einem Hinweis darauf. Welche Fassungen eine Korrektur bekommen, nämlich
+nur die jeweils neueste, und wie sie ausgeliefert wird, steht in der
+[SECURITY.md](https://github.com/opengewerk/.github/blob/main/SECURITY.md) der
+Organisation.
+
 ### Was beim Aufsetzen sonst noch Zeit kostet
 
 - **Das Volume gehört auf `/var/lib/postgresql`, nicht auf `.../data`.** Die

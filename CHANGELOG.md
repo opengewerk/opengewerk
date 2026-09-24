@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Release-Seite einer Fassung mit Sicherheitskorrektur beginnt mit einem Hinweis darauf
+  (opengewerk/.github#19). Erkannt wird sie am Unterabschnitt `### Sicherheit` in ihrem Abschnitt
+  des CHANGELOG, auch wenn die Seite wegen der Länge nur auf den CHANGELOG verweist. So verspricht
+  es die SECURITY.md der Organisation, die seitdem festlegt, dass nur die jeweils neueste Fassung
+  eine Korrektur bekommt und diese sofort als neues Release von `main` erscheint.
 - Releases mit fertigen, signierten Abbildern (#155). Ein Tag `v0.x.y` auf `main` baut Anwendung
   und Sicherung für x86_64 und ARM64, legt sie unter der Fassung in `ghcr.io/opengewerk` ab,
   signiert sie ohne Schlüssel über Sigstore und schreibt die Release-Seite aus dem CHANGELOG, mit
