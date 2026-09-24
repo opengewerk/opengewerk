@@ -7,6 +7,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Im Installationspaket gehört jeder Eintrag root (#214, GHSA-4h36-cpv3-jf5q). Das Paket von 0.1.0
+  trug an jeder Datei die Benutzerkennung des Rechners, auf dem es gebaut wurde, und tar übernimmt
+  sie, wenn root entpackt: der Ordner `opengewerk` gehört danach dem lokalen Konto mit derselben
+  Kennung, nach einem Update auch jeder Ordner darin, der schon da war. Der Workflow "Release" packt
+  jetzt mit root als Eigentümer und bricht ab, wenn im Paket eine andere Kennung steht. Wer das
+  Paket von 0.1.0 als root entpackt hat, macht zwei Dinge: gibt den Ordner einmal root zurück, mit
+  `chown -R root:root opengewerk` im Verzeichnis darüber, und entpackt jedes weitere Paket mit
+  `tar --no-same-owner -xzf`, wie es die README unter "Aktualisieren" jetzt sagt. Wer als eigener
+  Benutzer entpackt hat, ist nicht betroffen.
+
 ## [0.1.0] - 2026-09-24
 
 Die erste Fassung, gebaut für den Pilotbetrieb eines Elektro- und PV-Betriebs. Sie enthält, was

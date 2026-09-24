@@ -149,8 +149,25 @@ jobs:
             exit 1
           fi
 
-          tar -czf "opengewerk-$VERSION.tar.gz" opengewerk
-          sha256sum "opengewerk-$VERSION.tar.gz" > "opengewerk-$VERSION.tar.gz.sha256"
+          # Every entry belongs to root, by number and without a name. tar
+          # otherwise writes down the account that packs, the runner's, and
+          # whoever unpacks as root gets exactly that: every file and folder
+          # handed to the local account with the same id, on an update the
+          # folders already there as well (#214).
+          kit="opengewerk-$VERSION.tar.gz"
+          tar --owner=0 --group=0 --numeric-owner -czf "$kit" opengewerk
+
+          # Read back from the archive rather than trusted to the options. An
+          # empty listing has no foreign owner in it either, so it fails too.
+          listing=$(tar --numeric-owner -tvzf "$kit")
+          foreign=$(printf '%s\n' "$listing" | awk '$2 != "0/0"')
+          if [ -z "$listing" ] || [ -n "$foreign" ]; then
+            echo "Im Paket gehört nicht jeder Eintrag root (0/0):" >&2
+            printf '%s\n' "$foreign" >&2
+            exit 1
+          fi
+
+          sha256sum "$kit" > "$kit.sha256"
 
       - name: Release schreiben
         env:
@@ -236,7 +253,7 @@ jobs:
 
           ## Installieren und aktualisieren
 
-          Das Paket `opengewerk-{version}.tar.gz` enthält den Ordner `opengewerk/docker`. Zum Installieren entpacken und im Ordner `opengewerk` `sh docker/start.sh` aufrufen. Für ein Update das neue Paket an dieselbe Stelle entpacken, die `.env` bleibt, und derselbe Befehl. Gebaut wird dabei nichts, geholt werden die Abbilder dieser Fassung, für x86_64 und ARM64:
+          Das Paket `opengewerk-{version}.tar.gz` enthält den Ordner `opengewerk/docker`. Zum Installieren entpacken, mit `tar --no-same-owner -xzf opengewerk-{version}.tar.gz`, und im Ordner `opengewerk` `sh docker/start.sh` aufrufen. Für ein Update das neue Paket genauso an dieselbe Stelle entpacken, die `.env` bleibt, und derselbe Befehl. Gebaut wird dabei nichts, geholt werden die Abbilder dieser Fassung, für x86_64 und ARM64:
 
           - `ghcr.io/opengewerk/opengewerk:{version}` (`{os.environ["APP_DIGEST"]}`)
           - `ghcr.io/opengewerk/backup:{version}` (`{os.environ["BACKUP_DIGEST"]}`)
