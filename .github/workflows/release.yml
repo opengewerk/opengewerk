@@ -249,6 +249,13 @@ jobs:
                   f"[CHANGELOG](https://github.com/opengewerk/opengewerk/blob/v{version}/CHANGELOG.md)."
               )
 
+          # The signature is checked against the exact identity of the run for
+          # this tag, not against a pattern (#212). Git Bash rewrites the
+          # arguments of a Windows program before they arrive, backslashes
+          # included, and the pattern that stood here, with "\." in it, then
+          # matched no signature at all. The exact identity has no backslash
+          # and is stricter too: it takes the signature of this tag and no
+          # other.
           notes = f"""{hint}{body}
 
           ## Installieren und aktualisieren
@@ -262,7 +269,7 @@ jobs:
 
           ```bash
           cosign verify ghcr.io/opengewerk/opengewerk:{version} \\
-            --certificate-identity-regexp '^https://github\\.com/opengewerk/opengewerk/\\.github/workflows/release\\.yml@refs/tags/v' \\
+            --certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           ```
           """
