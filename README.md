@@ -43,7 +43,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 **Phase 0**, das Fundament, ist gebaut: Datenmodell, Mandantentrennung über Row-Level Security, Rollen und Rechte, Nummernkreise mit Festschreibung, Audit-Log mit Hashkette, Offline-Datenschicht, Regel-Engine und der Betrieb über Docker Compose mit Sicherung, Rückspielen und Update-Pfad.
 
-An **Phase 1**, dem MVP für den Pilotbetrieb, wird gearbeitet. Eine Installation startet mit `sh docker/start.sh`, bis zum ersten Release aus dem Quelltext und danach aus einem Paket mit signierten Abbildern, wird im Browser eingerichtet und sichert sich jede Nacht selbst. Stand 24.09.2026 gibt es:
+**Phase 1**, das MVP für den Pilotbetrieb, ist gebaut; die erste Fassung ist [0.1.0](https://github.com/opengewerk/opengewerk/releases). Vor dem produktiven Einsatz stehen noch die fachliche Abnahme der Regelpakete und Grenzwerte (#31) und ein Praxistest der E-Rechnung bei einem echten Empfänger (#133). Eine Installation startet mit `sh docker/start.sh`, aus einem Release-Paket mit signierten Abbildern oder aus dem Quelltext, wird im Browser eingerichtet und sichert sich jede Nacht selbst. Stand 24.09.2026 gibt es:
 
 - **Büro und Baustelle aus einer Anwendung**, die Baustelle ohne Netz: Anmeldung mit zweitem Faktor und Wiederherstellungscodes, weitere Zugänge per Einladungslink, die Rollen Inhaber, Büro und Monteur. Das Gerät eines Monteurs hält nur die Aufträge, auf denen er eingeteilt ist, und was auf ihm entsteht, geht beim nächsten Abgleich hinaus, auch nach einem ganzen Tag ohne Netz.
 - **Kunden, Objekte, Anlagen und Aufträge**: Kunden mit Land und Ansprechpartnern, Aufträge mit eigener Nummer und Folgeaufträgen, Aufgaben mit Erinnerung per E-Mail, eine Dokumentenablage mit Fotos von der Baustelle.
@@ -529,7 +529,8 @@ sh docker/start.sh
 
 **Aus einem Release oder aus dem Quelltext** (#155). Ein Release bringt ein
 Paket `opengewerk-<fassung>.tar.gz` mit dem Ordner `opengewerk/docker` und
-veröffentlichte, signierte Abbilder für x86_64 und ARM64. Entpackt und mit
+veröffentlichte, signierte Abbilder für x86_64 und ARM64; die Pakete stehen
+unter [Releases](https://github.com/opengewerk/opengewerk/releases). Entpackt und mit
 demselben Befehl gestartet, baut eine solche Installation nichts, sondern holt
 die Abbilder ihrer Fassung aus `ghcr.io/opengewerk`. Die Fassung steht in
 `docker/compose.yaml` an jedem Abbild, und so nimmt jeder `docker
@@ -1006,7 +1007,7 @@ Vor ein Update gehört eine Sicherung, siehe oben. Sie ist auch der Weg zurück,
 wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
 
 **Releases** (#155). Eine Fassung erscheint mit einem Tag `v0.x.y` auf `main`;
-das erste Release steht noch aus. Der Workflow "Release" baut dann Anwendung
+die erste war 0.1.0 am 24.09.2026. Der Workflow "Release" baut dann Anwendung
 und Sicherung für x86_64 und ARM64, legt beide unter dieser Fassung in
 `ghcr.io/opengewerk/opengewerk` und `ghcr.io/opengewerk/backup` ab, signiert
 sie ohne Schlüssel über Sigstore und

@@ -171,6 +171,44 @@ jobs:
           section = text[start : start + 4 + following.start()] if following else text[start:]
           body = section.split("\n", 1)[1].strip()
 
+          # The changelog is wrapped for an editor, and GitHub shows every line
+          # end on a release page as a break, in the middle of a sentence. A
+          # line that continues a paragraph or a list item is joined to it;
+          # headings, new items, quotes, tables and code blocks stay as they are.
+          # The patterns follow Markdown: "#78." is no heading, a heading needs
+          # a space after its hashes, and only "1." can start a numbered list
+          # in the middle of a paragraph, so "503. Ein Server" stays text.
+          # Inside a numbered list every number starts the next item.
+          block = re.compile(r"\s*(#{1,6}(\s|$)|[-*+]\s|>|\||1[.)]\s)")
+          numbered = re.compile(r"\s*\d+[.)]\s")
+          stays_alone = re.compile(r"\s*(#{1,6}(\s|$)|\|)")
+
+          def unwrapped(markdown):
+              lines = []
+              fenced = False
+              for line in markdown.split("\n"):
+                  if line.lstrip().startswith("```"):
+                      fenced = not fenced
+                      lines.append(line)
+                      continue
+                  previous = lines[-1] if lines else ""
+                  next_item = numbered.match(line) and numbered.match(previous)
+                  if (
+                      not fenced
+                      and line.strip()
+                      and not block.match(line)
+                      and not next_item
+                      and previous.strip()
+                      and not previous.lstrip().startswith("```")
+                      and not stays_alone.match(previous)
+                  ):
+                      lines[-1] = previous.rstrip() + " " + line.strip()
+                  else:
+                      lines.append(line)
+              return "\n".join(lines)
+
+          body = unwrapped(body)
+
           # A version that closes a vulnerability starts its page with a hint,
           # so that nobody has to read to the end of the changelog to learn
           # that the update matters. The section "Sicherheit" in the changelog

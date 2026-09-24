@@ -7,13 +7,29 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-24
+
+Die erste Fassung, gebaut für den Pilotbetrieb eines Elektro- und PV-Betriebs. Sie enthält, was
+der Fahrplan für Phase 1 nennt: Kunden, Objekte und Anlagen bis zum Stromkreis, Aufträge im Büro
+und auf der Baustelle, dort auch ohne Netz, Angebot, Kostenvoranschlag und Auftragsbestätigung mit
+Belehrungen, den Regiebericht mit Unterschrift, Rechnungen mit Abschlägen und Storno, die
+E-Rechnung als XRechnung und ZUGFeRD-PDF, Zeiterfassung, Dokumentenablage, Aufgaben, den Versand
+per E-Mail und das Prüfprotokoll nach DIN VDE 0100-600. Installiert wird sie mit dem Paket von der
+Release-Seite und `sh docker/start.sh`.
+
+Vor dem produktiven Einsatz fehlen noch zwei Dinge: die Regelpakete und die Grenzwerte des
+Prüfprotokolls sind nicht fachlich abgenommen (#31), und die E-Rechnung ist noch bei keinem echten
+Empfänger geprüft (#133). Wer mit dieser Fassung Rechnungen stellt, prüft sie bis dahin selbst.
+
 ### Hinzugefügt
 
 - Die Release-Seite einer Fassung mit Sicherheitskorrektur beginnt mit einem Hinweis darauf
   (opengewerk/.github#19). Erkannt wird sie am Unterabschnitt `### Sicherheit` in ihrem Abschnitt
   des CHANGELOG, auch wenn die Seite wegen der Länge nur auf den CHANGELOG verweist. So verspricht
   es die SECURITY.md der Organisation, die seitdem festlegt, dass nur die jeweils neueste Fassung
-  eine Korrektur bekommt und diese sofort als neues Release von `main` erscheint.
+  eine Korrektur bekommt und diese sofort als neues Release von `main` erscheint. Die Zeilen des
+  CHANGELOG fügt die Seite zu Absätzen zusammen, denn GitHub zeigt auf einer Release-Seite jeden
+  Zeilenumbruch an, und der CHANGELOG ist für den Editor umbrochen.
 - Releases mit fertigen, signierten Abbildern (#155). Ein Tag `v0.x.y` auf `main` baut Anwendung
   und Sicherung für x86_64 und ARM64, legt sie unter der Fassung in `ghcr.io/opengewerk` ab,
   signiert sie ohne Schlüssel über Sigstore und schreibt die Release-Seite aus dem CHANGELOG, mit
