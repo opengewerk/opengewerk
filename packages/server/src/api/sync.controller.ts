@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common'
 import {
   isAllowed,
+  isJobProgress,
   type Operation,
   type OperationId,
   type OperationKind,
@@ -180,10 +181,25 @@ function parseOperation(entry: unknown, index: number, deviceId: string): Operat
  * The customer is the only subject where the two differ. A contact counts as
  * part of it: writing down who opened the door is the same act as writing down
  * whose door it was.
+ *
+ * The job is the one subject where the fields decide (#128). Finishing a job
+ * and writing down what happened is what a technician does on site, and asks
+ * for `job.progress`; a change that also says who the job is for, where it is
+ * or what it is called asks for `job.write`, however small the rest of it is.
+ * The operation is asked for the narrowest right that covers it, and whoever
+ * holds `job.write` holds `job.progress` as well.
  */
-export function permissionFor(entity: string, kind: OperationKind): Permission | null {
+export function permissionFor(
+  entity: string,
+  kind: OperationKind,
+  patches: Operation['patches'] = [],
+): Permission | null {
   if ((entity === 'customers' || entity === 'contacts') && kind === 'create') {
     return 'customer.create'
+  }
+
+  if (entity === 'jobs' && kind === 'update' && isJobProgress(patches)) {
+    return 'job.progress'
   }
 
   const subject: Record<string, Permission> = {
@@ -238,7 +254,7 @@ export class SyncController {
     const { deviceId, operations } = parseOperations(body)
 
     for (const operation of operations) {
-      const needed = permissionFor(operation.entity, operation.kind)
+      const needed = permissionFor(operation.entity, operation.kind, operation.patches)
 
       if (!needed) {
         throw naming(

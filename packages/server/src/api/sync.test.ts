@@ -1477,6 +1477,141 @@ describe('the rights the queue asks for', () => {
       expect(permissionFor(entity, 'update')).toMatch(/\.(write|create)$/)
     }
   })
+
+  it('ask a change to a job for the narrowest right that covers it (#128)', () => {
+    const finished = [{ field: 'status', from: 'active', to: 'completed' }]
+    const renamed = [{ field: 'designation', from: 'Zählerschrank', to: 'Wallbox' }]
+
+    expect(permissionFor('jobs', 'update', finished)).toBe('job.progress')
+    expect(permissionFor('jobs', 'update', [...finished, ...renamed])).toBe('job.write')
+    expect(permissionFor('jobs', 'create', finished)).toBe('job.write')
+    expect(permissionFor('jobs', 'delete')).toBe('job.write')
+  })
+})
+
+/**
+ * What the site reports about a job (#128). The site app offered "Auftrag
+ * abschließen" and "Notiz schreiben" from the start, and a technician's
+ * device had both refused, because either one needed `job.write`. Since then
+ * a technician may report and still may not decide what the job is.
+ */
+describe('the progress of a job from the site', () => {
+  async function aJob() {
+    const job = await http()
+      .post('/jobs')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'service', designation: 'Zählerschrank tauschen' })
+      .expect(201)
+
+    return job.body as { id: string; version: number; status: string }
+  }
+
+  async function row(id: string) {
+    const { rows } = await admin.query<{
+      status: string
+      description: string | null
+      designation: string
+    }>('select status, description, designation from jobs where id = $1', [id])
+
+    return rows[0]
+  }
+
+  it('is a finished job and a note about it, sent by a technician', async () => {
+    const job = await aJob()
+
+    const answer = await push(technician(), 'telefon-anna', [
+      change({
+        entity: 'jobs',
+        recordId: job.id,
+        baseVersion: job.version,
+        patches: [
+          { field: 'status', from: job.status, to: 'completed' },
+          { field: 'description', from: null, to: 'Zählerschrank getauscht, alles geprüft.' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+    expect(await row(job.id)).toMatchObject({
+      status: 'completed',
+      description: 'Zählerschrank getauscht, alles geprüft.',
+    })
+  })
+
+  it('does not rename a job, not even alongside finishing it', async () => {
+    const job = await aJob()
+
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          change({
+            entity: 'jobs',
+            recordId: job.id,
+            baseVersion: job.version,
+            patches: [
+              { field: 'status', from: job.status, to: 'completed' },
+              { field: 'designation', from: 'Zählerschrank tauschen', to: 'Wallbox' },
+            ],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toMatch(/job\.write/)
+    expect(await row(job.id)).toMatchObject({
+      status: job.status,
+      designation: 'Zählerschrank tauschen',
+    })
+  })
+
+  it('does not cancel a job, which is a decision about the order', async () => {
+    const job = await aJob()
+
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          change({
+            entity: 'jobs',
+            recordId: job.id,
+            baseVersion: job.version,
+            patches: [{ field: 'status', from: job.status, to: 'cancelled' }],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toMatch(/job\.write/)
+  })
+
+  it('does not create a job either; the office takes the order', async () => {
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          change({
+            entity: 'jobs',
+            recordId: newId<'job'>(),
+            kind: 'create',
+            patches: [
+              { field: 'customerId', from: null, to: customerId },
+              { field: 'kind', from: null, to: 'service' },
+              { field: 'designation', from: null, to: 'Notdienst' },
+            ],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toMatch(/job\.write/)
+  })
 })
 
 /**
