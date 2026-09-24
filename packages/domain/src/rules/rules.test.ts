@@ -2,7 +2,7 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
 import type { IsoDate } from '../model/identifier.js'
-import { addDays, daysInYear, lateFrom, lateInterestOn } from './payment.js'
+import { addDays, daysInYear, lateFrom, lateInterestOn, longPaymentTermNotice } from './payment.js'
 import { applyRate, RuleError, type RuleRecord, ruleSet } from './rule.js'
 import { tenantParameterKeys, tenantParameterUnits } from './parameter.js'
 import { rulePackages, shippedRules } from './shipped.js'
@@ -390,5 +390,41 @@ describe('what a business sets and what the law sets', () => {
     for (const key of tenantParameterKeys) {
       expect(tenantParameterUnits[key]).toBeDefined()
     }
+  })
+})
+
+describe('a payment term longer than sixty days (#149)', () => {
+  const on = '2026-09-24' as IsoDate
+
+  it('is pointed out towards a business, from the rule package', () => {
+    expect(longPaymentTermNotice(shippedRules, { days: 61, on, recipientIsBusiness: true })).toBe(
+      'Mehr als 60 Tage gegenüber einem Unternehmen: so ein Zahlungsziel sollte ausdrücklich ' +
+        'vereinbart sein, damit es trägt (§ 271a Abs. 1 BGB).',
+    )
+  })
+
+  it('is not pointed out at sixty days or less', () => {
+    expect(
+      longPaymentTermNotice(shippedRules, { days: 60, on, recipientIsBusiness: true }),
+    ).toBeNull()
+    expect(
+      longPaymentTermNotice(shippedRules, { days: 14, on, recipientIsBusiness: true }),
+    ).toBeNull()
+  })
+
+  it('is nothing towards a consumer, whom the paragraph does not cover', () => {
+    expect(
+      longPaymentTermNotice(shippedRules, { days: 90, on, recipientIsBusiness: false }),
+    ).toBeNull()
+  })
+
+  it('is nothing on a day the package has no limit for, rather than a guess', () => {
+    expect(
+      longPaymentTermNotice(shippedRules, {
+        days: 90,
+        on: '2014-07-28' as IsoDate,
+        recipientIsBusiness: true,
+      }),
+    ).toBeNull()
   })
 })
