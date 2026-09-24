@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Folgeaufträge (#170). Am abgeschlossenen Auftrag legt das Büro einen Folgeauftrag an, für denselben
+  Kunden, mit Art, Objekt und Anlage vorbelegt; Vorgänger und Folgeaufträge sind im Büro und auf der
+  Baustelle verlinkt, ein Auftrag kann mehrere haben. Ein Folgeauftrag ist ein Auftrag mit eigenem
+  Status und eigenen Belegen und hängt deshalb an einem eigenen Verweis (`predecessor_job_id`,
+  Migration 0040) und nicht an dem der Teilaufträge. Bis dahin ließ sich die Wallbox nach dem
+  Zählerschrank nur als neuer Auftrag ohne Verbindung zum ersten anlegen.
 - Kunde und Objekt haben ein Feld "Land", Vorgabe Deutschland (#144). Das Formular schrieb bis dahin
   fest `DE` in jeden Kunden, obwohl das Land mit entscheidet, ob ein Kunde eine E-Rechnung bekommt.
   Gewählt wird aus einer Liste, gespeichert der Ländercode, geprüft im Abgleich und in der Datenbank;

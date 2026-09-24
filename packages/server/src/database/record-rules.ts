@@ -26,25 +26,6 @@ interface RecordRule {
 }
 
 /**
- * The checks on the tables of the sync that nothing else in `applyOne` asks,
- * each put as the rule from `domain` the forms ask as well.
- *
- * Left to the database, every one of them refused the whole transmission with
- * "Die Angaben passen nicht zum Datenmodell.", everything the device had sent
- * with it included, and the device sent the same stack again at the next
- * exchange. A service period that ended before it began was enough, typed in
- * the head of an invoice in the office (#118).
- *
- * The other checks are asked where they belong: a contact's parent, the
- * figures of a circuit, the payment term and the path of a signature, and the
- * net amount of a line, which the server works out itself.
- *
- * The versions of an attachment have no check in the database for type, size
- * and hash, and are here all the same (#77). Their key onto `files` holds the
- * hash and the size of what it finds, and a version that breaks one of these
- * is a mistake of the client that should say so, not reach the key.
- */
-/**
  * The country of an address (#144), the same for a customer and a site. Left
  * out, the database writes Germany, and a device that never sent a country,
  * the site app among them, is not refused for it.
@@ -58,6 +39,26 @@ const country: RecordRule = {
   },
 }
 
+/**
+ * The checks on the tables of the sync that nothing else in `applyOne` asks,
+ * each put as the rule from `domain` the forms ask as well.
+ *
+ * Left to the database, every one of them refused the whole transmission with
+ * "Die Angaben passen nicht zum Datenmodell.", everything the device had sent
+ * with it included, and the device sent the same stack again at the next
+ * exchange. A service period that ended before it began was enough, typed in
+ * the head of an invoice in the office (#118).
+ *
+ * The other checks are asked where they belong: a contact's parent, the
+ * figures of a circuit, the payment term and the path of a signature, the
+ * net amount of a line, which the server works out itself, and the job a
+ * follow-up follows, which is a question about another record (#170).
+ *
+ * The versions of an attachment have no check in the database for type, size
+ * and hash, and are here all the same (#77). Their key onto `files` holds the
+ * hash and the size of what it finds, and a version that breaks one of these
+ * is a mistake of the client that should say so, not reach the key.
+ */
 const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   customers: [country],
   sites: [country],

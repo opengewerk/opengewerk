@@ -205,6 +205,19 @@ describe('the sample data', () => {
     expect(deduction?.received?.grossCents).toBe(paid.receivedCents)
   })
 
+  it('has a finished job with a follow-up after it', async () => {
+    const jobs =
+      await read<
+        { id: string; designation: string; status: string; predecessorJobId: string | null }[]
+      >('/jobs')
+    const before = jobs.find((job) => job.designation === 'Unterverteilung Keller nachrüsten')
+
+    expect(before?.status).toBe('completed')
+    expect(jobs.find((job) => job.predecessorJobId === before?.id)?.designation).toBe(
+      'Wallbox in der Garage',
+    )
+  })
+
   it('has an invoice to a business whose XRechnung can be fetched', async () => {
     const documents = await read<{ id: string; kind: string }[]>('/documents')
     const maintenance = documents.find((document) => document.kind === 'recurring_invoice')

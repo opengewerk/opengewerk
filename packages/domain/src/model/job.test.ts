@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { rolesAllow } from './authorization.js'
-import { isJobProgress } from './job.js'
+import { followUpProblem, isJobProgress } from './job.js'
 
 describe('the progress of a job', () => {
   it('is finishing it, taking it up and writing down what happened', () => {
@@ -48,5 +48,33 @@ describe('who reports the progress of a job', () => {
 
   it('is not the technician deciding what the job is', () => {
     expect(rolesAllow(['technician'], 'job.write')).toBe(false)
+  })
+})
+
+describe('a follow-up job (#170)', () => {
+  const finished = { id: 'j-1', customerId: 'c-1', status: 'completed' } as const
+
+  it('comes after a finished job of the same customer', () => {
+    expect(followUpProblem({ id: 'j-2', customerId: 'c-1' }, finished)).toBeNull()
+  })
+
+  it('does not follow a job that is still open, or one that was called off', () => {
+    for (const status of ['draft', 'active', 'cancelled'] as const) {
+      expect(followUpProblem({ id: 'j-2', customerId: 'c-1' }, { ...finished, status })).toBe(
+        'Ein Folgeauftrag schließt an einen abgeschlossenen Auftrag an.',
+      )
+    }
+  })
+
+  it('is for the customer of the job before it', () => {
+    expect(followUpProblem({ id: 'j-2', customerId: 'c-2' }, finished)).toBe(
+      'Ein Folgeauftrag ist für denselben Kunden wie der Auftrag davor.',
+    )
+  })
+
+  it('never follows itself', () => {
+    expect(followUpProblem({ id: 'j-1', customerId: 'c-1' }, finished)).toBe(
+      'Ein Auftrag ist nicht sein eigener Vorgänger.',
+    )
   })
 })

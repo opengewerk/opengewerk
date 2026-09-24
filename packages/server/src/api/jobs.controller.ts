@@ -7,13 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  UnprocessableEntityException,
 } from '@nestjs/common'
 import type { JobId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
+import { Database, type TenantTransaction } from '../database/database.js'
 import { assignNumber } from '../database/number-ranges.js'
 import { jobs } from '../database/schema/index.js'
+import { followUpRefusal } from '../jobs/follow-up.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
@@ -21,18 +23,38 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
  * What a caller may set. Not the number: it is drawn from the job number
- * range when the job is created (#145) and stays what it was drawn as.
+ * range when the job is created (#145) and stays what it was drawn as. The
+ * predecessor of a follow-up is set with the job and refused afterwards (#170).
  */
 const writableFields = [
   'customerId',
   'siteId',
   'installationId',
   'parentJobId',
+  'predecessorJobId',
   'kind',
   'status',
   'designation',
   'description',
 ] as const
+
+/**
+ * Refuses a write that would break a job's place among follow-ups (#170), with
+ * the sentence of `followUpProblem`. A 422 for both kinds of refusal the sync
+ * tells apart: a route answers the person who is looking at the form.
+ */
+async function requireFollowUp(
+  tx: TenantTransaction,
+  id: string | null,
+  values: Readonly<Record<string, unknown>>,
+  current: Readonly<Record<string, unknown>> | null,
+): Promise<void> {
+  const refusal = await followUpRefusal(tx, id, values, current)
+
+  if (refusal) {
+    throw new UnprocessableEntityException(refusal.message)
+  }
+}
 
 @Controller('jobs')
 export class JobsController {
@@ -54,6 +76,7 @@ export class JobsController {
 
     const [created] = await this.database.forTenant(identity, async (tx) => {
       await requireReferences(tx, jobs, values, true)
+      await requireFollowUp(tx, null, values, null)
 
       return tx
         .insert(jobs)
@@ -80,6 +103,15 @@ export class JobsController {
 
     const [updated] = await this.database.forTenant(identity, async (tx) => {
       await requireReferences(tx, jobs, values, false)
+
+      const [current] = await tx
+        .select()
+        .from(jobs)
+        .where(and(eq(jobs.id, id as JobId), isNull(jobs.deletedAt)))
+
+      if (current) {
+        await requireFollowUp(tx, id, values, current)
+      }
 
       return tx
         .update(jobs)

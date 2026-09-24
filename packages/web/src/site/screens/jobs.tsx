@@ -202,6 +202,65 @@ function JobReports({ job }: { readonly job: RecordState }) {
 }
 
 /**
+ * Which job this one follows, and which follow it (#170). On site that is
+ * where to look up what was done before: the meter cabinet the wallbox hangs
+ * on, the handover a repair comes after. Only what this device holds; a job
+ * it does not have is left out rather than named as missing.
+ */
+function JobLineage({ job }: { readonly job: RecordState }) {
+  const before = useRecord('jobs', maybeText(job, 'predecessorJobId') ?? undefined)
+  const after = useRelated('jobs', 'predecessorJobId', String(job['id']))
+
+  if (!before && after.length === 0) {
+    return null
+  }
+
+  const linked = (other: RecordState) => (
+    <Link
+      to={`/auftraege/${String(other['id'])}`}
+      className="text-copper-text font-semibold underline underline-offset-2"
+    >
+      {text(other, 'designation')}
+    </Link>
+  )
+
+  return (
+    <Card label="Vorher und danach">
+      <dl className="flex flex-col gap-3">
+        {before ? (
+          <div>
+            <dt>
+              <FieldLabel>Folgt auf</FieldLabel>
+            </dt>
+            <dd className="text-body">
+              {linked(before)}
+              {`, ${jobStatusLabel[jobStatusOf(before)]}`}
+            </dd>
+          </div>
+        ) : null}
+        {after.length > 0 ? (
+          <div>
+            <dt>
+              <FieldLabel>Folgeaufträge</FieldLabel>
+            </dt>
+            <dd>
+              <ul className="flex flex-col gap-1 text-body">
+                {after.map((follower) => (
+                  <li key={String(follower['id'])}>
+                    {linked(follower)}
+                    {`, ${jobStatusLabel[jobStatusOf(follower)]}`}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
+    </Card>
+  )
+}
+
+/**
  * One job on site.
  *
  * One main action per screen, and here it is finishing the job. Everything
@@ -313,6 +372,8 @@ export function SiteJobScreen() {
       </Card>
 
       <JobContacts job={job} />
+
+      <JobLineage job={job} />
 
       {installation ? (
         <Card label="Anlage">

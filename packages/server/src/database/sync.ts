@@ -28,6 +28,7 @@ import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { sectionRefusal, structureProblem } from '../electrical/structure.js'
+import { followUpRefusal } from '../jobs/follow-up.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
 import { assignNumber } from './number-ranges.js'
@@ -538,6 +539,32 @@ async function applyOne(
       fields: misplaced.fields,
       current,
     })
+  }
+
+  // A follow-up after a finished job of the same customer, which it names when
+  // it is made and never again (#170). The trigger in the database holds the
+  // same, for the whole transmission; asked here, a job that was taken up
+  // again meanwhile is a conflict about this one operation.
+  if (operation.entity === 'jobs' && operation.kind !== 'delete') {
+    const refusal = await followUpRefusal(
+      tx,
+      operation.recordId,
+      values,
+      operation.kind === 'create' ? null : current,
+    )
+
+    if (refusal?.kind === 'client') {
+      throw new UnknownFieldError(refusal.message)
+    }
+
+    if (refusal) {
+      return await record(tx, tenantId, operation, {
+        outcome: 'conflict',
+        reason: refusal.reason,
+        fields: refusal.fields,
+        current,
+      })
+    }
   }
 
   // A cancellation invoice is made by the server out of the invoice it cancels

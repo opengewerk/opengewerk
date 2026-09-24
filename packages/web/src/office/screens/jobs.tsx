@@ -1,9 +1,10 @@
-import type { RecordState } from '@opengewerk/domain'
-import { jobKinds, jobStatuses } from '@opengewerk/domain'
+import type { JobKind, RecordState } from '@opengewerk/domain'
+import { followUpProblem, jobKinds, jobStatuses } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 
-import { Button, Card } from '../../components/index.js'
+import { Button, Card, Field, SelectField, TextArea } from '../../components/index.js'
 import { DataTable } from '../../app/data-table.js'
 import type { ListColumns } from '../../app/data-table.js'
 import {
@@ -13,8 +14,10 @@ import {
   jobStatusOf,
   jobStatusTone,
 } from '../../app/labels.js'
+import { useMay } from '../../app/queries.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
+import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
@@ -126,7 +129,14 @@ export function JobScreen() {
     job?.['installationId'] ? String(job['installationId']) : undefined,
   )
   const children = useRelated('jobs', 'parentJobId', jobId)
+  const predecessor = useRecord(
+    'jobs',
+    job ? (maybeText(job, 'predecessorJobId') ?? undefined) : undefined,
+  )
+  const followers = useRelated('jobs', 'predecessorJobId', jobId)
+  const mayWrite = useMay('job.write')
   const [editing, setEditing] = useState(false)
+  const [following, setFollowing] = useState(false)
 
   if (!job || !jobId) {
     return (
@@ -170,16 +180,40 @@ export function JobScreen() {
         </>
       }
       actions={
-        <Button
-          tone="secondary"
-          onClick={() => {
-            setEditing((open) => !open)
-          }}
-        >
-          {editing ? 'Bearbeiten beenden' : 'Bearbeiten'}
-        </Button>
+        <>
+          <Button
+            tone="secondary"
+            onClick={() => {
+              setEditing((open) => !open)
+            }}
+          >
+            {editing ? 'Bearbeiten beenden' : 'Bearbeiten'}
+          </Button>
+          {status === 'completed' && mayWrite ? (
+            <Button
+              tone="secondary"
+              disabled={following}
+              onClick={() => {
+                setFollowing(true)
+              }}
+            >
+              Folgeauftrag anlegen
+            </Button>
+          ) : null}
+        </>
       }
     >
+      {following ? (
+        <Card label="Folgeauftrag">
+          <FollowUpForm
+            predecessor={job}
+            onDone={() => {
+              setFollowing(false)
+            }}
+          />
+        </Card>
+      ) : null}
+
       {editing ? (
         <Card label="Auftrag bearbeiten">
           <RecordForm
@@ -234,6 +268,19 @@ export function JobScreen() {
               ) : null}
             </Fact>
             <Fact label="Beschreibung">{maybeText(job, 'description')}</Fact>
+            {predecessor ? (
+              <Fact label="Folgt auf">
+                <Link
+                  to={`/auftraege/${String(predecessor['id'])}`}
+                  className="text-copper-text underline underline-offset-2"
+                >
+                  {text(predecessor, 'designation')}
+                </Link>
+                {maybeText(predecessor, 'number') ? (
+                  <span className="numeric text-ink-muted">{` ${text(predecessor, 'number')}`}</span>
+                ) : null}
+              </Fact>
+            ) : null}
           </Facts>
         </Card>
       )}
@@ -274,7 +321,169 @@ export function JobScreen() {
           </ul>
         </Section>
       ) : null}
+
+      {followers.length > 0 ? (
+        <Section title="Folgeaufträge">
+          <ul className="flex flex-col gap-2">
+            {followers.map((follower) => (
+              <JobLine key={String(follower['id'])} job={follower} />
+            ))}
+          </ul>
+        </Section>
+      ) : null}
     </Page>
+  )
+}
+
+/**
+ * A follow-up of a finished job (#170), made from the job before it.
+ *
+ * The kind, the site and the installation are taken over and can be changed:
+ * the wallbox after the meter cabinet is at the same house, a repair after the
+ * handover at the same system, and sometimes neither. The customer cannot be
+ * changed, a follow-up is for the same one; the form does not offer the field.
+ * It asks the rule of `domain` before anything is queued, the one the server
+ * asks when the job arrives, and says what is wrong the way the server would.
+ */
+function FollowUpForm({
+  predecessor,
+  onDone,
+}: {
+  readonly predecessor: RecordState
+  readonly onDone: () => void
+}) {
+  const client = useSync()
+  const navigate = useNavigate()
+  const customerId = String(predecessor['customerId'])
+  const sites = useRelated('sites', 'customerId', customerId)
+  const [designation, setDesignation] = useState('')
+  const [kind, setKind] = useState<JobKind>(jobKindOf(predecessor))
+  const [siteId, setSiteId] = useState(maybeText(predecessor, 'siteId') ?? '')
+  const [installationId, setInstallationId] = useState(
+    maybeText(predecessor, 'installationId') ?? '',
+  )
+  const installations = useRelated('installations', 'siteId', siteId === '' ? undefined : siteId)
+  const [description, setDescription] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setTrouble(null)
+
+    if (designation.trim() === '') {
+      setProblem('Ein Auftrag braucht eine Bezeichnung.')
+
+      return
+    }
+
+    const refused = followUpProblem(
+      { id: '', customerId },
+      { id: String(predecessor['id']), customerId, status: jobStatusOf(predecessor) },
+    )
+
+    if (refused !== null) {
+      setTrouble(refused)
+
+      return
+    }
+
+    const made = await client.create('jobs', {
+      designation: designation.trim(),
+      kind,
+      status: 'draft',
+      description: asTextOrNull(description),
+      customerId,
+      siteId: siteId === '' ? null : siteId,
+      installationId: installationId === '' ? null : installationId,
+      parentJobId: null,
+      predecessorJobId: String(predecessor['id']),
+    })
+
+    if (made.outcome === 'queued') {
+      onDone()
+      await navigate({ to: `/auftraege/${made.id}` })
+
+      return
+    }
+
+    setTrouble(refusalText[made.reason])
+  }
+
+  return (
+    <form className="flex flex-col gap-4" onSubmit={(event) => void submit(event)} noValidate>
+      <p className="text-body text-ink">
+        {`Ein neuer Auftrag für denselben Kunden, nach „${text(predecessor, 'designation')}“. ` +
+          'Art, Objekt und Anlage sind übernommen und lassen sich ändern.'}
+      </p>
+      <Field
+        label="Bezeichnung"
+        value={designation}
+        required
+        {...(problem === null ? {} : { problem })}
+        onChange={(event) => {
+          setDesignation(event.target.value)
+          setProblem(null)
+        }}
+      />
+      <SelectField
+        label="Art"
+        value={kind}
+        options={kindOptions}
+        onChange={(value) => {
+          setKind(value as JobKind)
+        }}
+      />
+      <SelectField
+        label="Objekt"
+        value={siteId}
+        options={[
+          { value: '', label: 'Kein Objekt' },
+          ...sites.map((site) => ({ value: String(site['id']), label: text(site, 'designation') })),
+        ]}
+        onChange={(value) => {
+          setSiteId(value)
+          // An installation belongs to its site and is not at another one.
+          setInstallationId('')
+        }}
+      />
+      <SelectField
+        label="Anlage"
+        value={installationId}
+        disabled={siteId === ''}
+        options={[
+          { value: '', label: 'Keine Anlage' },
+          ...installations.map((installation) => ({
+            value: String(installation['id']),
+            label: text(installation, 'designation'),
+          })),
+        ]}
+        onChange={(value) => {
+          setInstallationId(value)
+        }}
+      />
+      <TextArea
+        label="Beschreibung"
+        value={description}
+        rows={3}
+        onChange={(event) => {
+          setDescription(event.target.value)
+        }}
+      />
+      {trouble ? (
+        <p role="alert" className="text-body font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" tone="primary">
+          Folgeauftrag anlegen
+        </Button>
+        <Button tone="quiet" onClick={onDone}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
   )
 }
 

@@ -473,6 +473,16 @@ const crossings: readonly {
     write: (own, other) => repoint('jobs', 'parent_job_id', own.job, other.job),
   },
   {
+    // An insert and not a repoint: a follow-up names the job before it when it
+    // is made (#170), and the trigger refuses any later change before the key
+    // is asked. On an insert the trigger finds no job of another business and
+    // leaves the answer to the key.
+    key: 'jobs_predecessor_in_tenant',
+    write: (own, other) =>
+      sql`insert into jobs (tenant_id, customer_id, kind, designation, predecessor_job_id)
+            values (${own.tenant}, ${own.customer}, 'service', 'Wallbox', ${other.job})`,
+  },
+  {
     key: 'documents_customer_in_tenant',
     write: (own, other) => repoint('documents', 'customer_id', own.document, other.customer),
   },
