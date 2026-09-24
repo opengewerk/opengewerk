@@ -979,6 +979,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Postausgang über 100 kB geht hinaus, statt für immer hängen zu bleiben (#202). Der Client
+  schickte ihn in einer Übertragung, und der Server las jede Route mit den 100 kB, die Express ohne
+  Angabe zugesteht; darüber kam eine 413, die keinen Vorgang nannte, und damit gab es nichts zu
+  verwerfen, nichts wurde mehr abgeholt, und beim nächsten Abgleich ging derselbe Stapel wieder
+  hinaus. Zwei Unterschriften aus dem Keller reichten dafür. Jetzt schneidet der Client den
+  Postausgang in Übertragungen von höchstens einer Million Zeichen, in unveränderter Reihenfolge,
+  und `POST /sync` liest bis zu 8 MB; jede andere Route bleibt bei 100 kB.
 - Der Monteur schließt auf der Baustelle einen Auftrag ab und schreibt eine Notiz dazu (#128). Beide
   Knöpfe gab es von Anfang an, und beides verlangte `job.write`, das der Monteur nicht hat: der Server
   lehnte die ganze Übertragung ab. Jetzt deckt das neue Recht `job.progress` genau Status und Notiz,

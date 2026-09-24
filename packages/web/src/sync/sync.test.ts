@@ -10,7 +10,7 @@ import type {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DirectWriter, SyncClient } from './client.js'
-import { SyncClient as Client } from './client.js'
+import { SyncClient as Client, inTransmissions } from './client.js'
 import { byRecord, project } from './projection.js'
 import { openLocalStore } from './store.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
@@ -896,6 +896,95 @@ describe('an exchange with the server', () => {
  * again at every exchange, got the same answer and pulled nothing, and there
  * was no way to let the one entry go.
  */
+describe('a large outbox (#202)', () => {
+  let transport: Recorded
+
+  beforeEach(() => {
+    transport = new Recorded()
+  })
+
+  /** Four hundred thousand characters: two fit in a transmission, three do not. */
+  const long = 'x'.repeat(400_000)
+
+  function operation(name: string, recordedAt: string): Operation {
+    return {
+      id: operationId(`op-${name}`),
+      entity: 'customers',
+      recordId: `c-${name}`,
+      kind: 'create',
+      baseVersion: null,
+      patches: [{ field: 'name', from: null, to: name }],
+      recordedAt: new Date(recordedAt),
+      deviceId: 'device' as Operation['deviceId'],
+    }
+  }
+
+  /** Three new customers written without a network, each longer than most transmissions. */
+  async function writtenInTheCellar(client: SyncClient): Promise<void> {
+    transport.refuse = new TypeError('Failed to fetch')
+
+    for (const name of ['Erste', 'Zweite', 'Dritte']) {
+      await client.create('customers', { name: `${name} ${long}`, kind: 'private' })
+    }
+
+    // Until the round the last entry started has failed, without a network.
+    // A failed round asks for no other, so an exchange asked for while it
+    // runs would end with it.
+    await client.synchronise()
+    transport.refuse = null
+  }
+
+  it('is cut where the next operation would not fit, and never reordered', () => {
+    const first = operation('a', '2026-09-24T08:00:00Z')
+    const second = operation('b', '2026-09-24T08:01:00Z')
+    const third = operation('c', '2026-09-24T08:02:00Z')
+    const size = JSON.stringify(first).length
+
+    expect(inTransmissions([first, second, third], size * 2)).toEqual([[first, second], [third]])
+    // One larger than a part goes alone rather than not at all.
+    expect(inTransmissions([first, second], size - 1)).toEqual([[first], [second]])
+    expect(inTransmissions([])).toEqual([])
+  })
+
+  it('goes out in parts, in the order it was written', async () => {
+    const client = await start(transport)
+
+    await writtenInTheCellar(client)
+    await client.synchronise()
+
+    expect(transport.sent.map((part) => part.length)).toEqual([2, 1])
+    expect(transport.sent.flat().map((sent) => String(sent.patches[0]?.to).split(' ')[0])).toEqual([
+      'Erste',
+      'Zweite',
+      'Dritte',
+    ])
+    expect(client.status().pending).toBe(0)
+  })
+
+  it('keeps what a part brought in when a later part is refused over one operation', async () => {
+    const client = await start(transport)
+
+    await writtenInTheCellar(client)
+    transport.refusing = (operations) => {
+      const named = operations.find((sent) => String(sent.patches[0]?.to).startsWith('Dritte'))
+
+      return named
+        ? new RequestRefused(400, 'Unbekanntes Feld: quatsch', {
+            statusCode: 400,
+            message: 'Unbekanntes Feld: quatsch',
+            operationId: named.id,
+          })
+        : null
+    }
+    await client.synchronise()
+
+    // The first part is in and out of the outbox; the third waits with its sentence.
+    expect(transport.sent.map((part) => part.length)).toEqual([2])
+    expect(client.status().pending).toBe(1)
+    expect(String(client.status().refused?.operation.patches[0]?.to)).toMatch(/^Dritte /)
+  })
+})
+
 describe('an operation the server refuses outright', () => {
   let transport: Recorded
 
