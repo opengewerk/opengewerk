@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, posix, resolve } from 'node:path'
 
 import express from 'express'
 import type { Express, Request, Response } from 'express'
@@ -87,15 +87,32 @@ function belongsToTheApi(path: string): boolean {
   return apiPrefixes.includes(first)
 }
 
+/**
+ * Whether a path names a file rather than a screen.
+ *
+ * No route of either entry ends in a name with an extension: they end in a
+ * word, an identifier or a token, and none of those carries a dot. A path
+ * whose last segment has one, `/brand/favicon.ico` or `/assets/office-abc.js`,
+ * asks for a file, and when the static middleware did not answer it, the file
+ * is not there. The shell with a 200 would hide exactly that: a browser takes
+ * the HTML for an icon and says nothing. That is how the image of 0.1.0
+ * shipped without a single brand file and no check noticed (#213).
+ */
+function namesAFile(path: string): boolean {
+  const last = path.slice(path.lastIndexOf('/') + 1)
+
+  return posix.extname(last).length > 1
+}
+
 export function serveInterface(application: Express, directory: string): void {
   /**
    * Both shells, read once and kept.
    *
    * Not read per request, and that is not only about speed. The fallback below
-   * answers every address that is not the API's, so a handler that touched the
-   * disk would turn any flood of requests for nonsense paths into disk work.
-   * There is nothing to re-read: the files come out of a build, and a new
-   * build is a new container.
+   * answers every address that is neither the API's nor a file's, so a handler
+   * that touched the disk would turn any flood of requests for nonsense paths
+   * into disk work. There is nothing to re-read: the files come out of a
+   * build, and a new build is a new container.
    */
   const officeShell = readFileSync(join(directory, 'index.html'), 'utf8')
   const siteShell = readFileSync(join(directory, 'm', 'index.html'), 'utf8')
@@ -141,7 +158,9 @@ export function serveInterface(application: Express, directory: string): void {
   )
 
   application.get(/.*/, (request: Request, response: Response, next: () => void) => {
-    if (request.method !== 'GET' || belongsToTheApi(request.path)) {
+    // A file the static middleware did not find goes on to whatever answers
+    // after this, and that is a 404, like a path of the API nobody serves.
+    if (request.method !== 'GET' || belongsToTheApi(request.path) || namesAFile(request.path)) {
       next()
 
       return
