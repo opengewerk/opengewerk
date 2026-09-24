@@ -1695,7 +1695,7 @@ describe('the number of a job', () => {
       .expect(201)
     const queued = newId<'job'>()
 
-    const answer = await push(office(), 'rechner-buero', [
+    const answer = await push(office(), 'office-computer', [
       change({
         entity: 'jobs',
         recordId: queued,
@@ -1718,7 +1718,7 @@ describe('the number of a job', () => {
   it('is not taken from a device, which could hand out one the range never gave', async () => {
     const queued = newId<'job'>()
 
-    const answer = await push(office(), 'rechner-buero', [
+    const answer = await push(office(), 'office-computer', [
       change({
         entity: 'jobs',
         recordId: queued,
