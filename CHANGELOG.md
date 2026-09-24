@@ -754,7 +754,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 - Der Abschnitt "Status" der README sagt, was aus Phase 1 steht, nach Bereichen geordnet statt
   als Chronik, die beim 21.09.2026 stehen geblieben war; Aufgaben, E-Mail, Zeiterfassung,
-  Dokumentenablage, Elektro-Struktur und Prüfprotokoll fehlten darin. Nachgezogen sind auch vier
+  Dokumentenablage, Elektro-Struktur und Prüfprotokoll fehlten darin. Nachgezogen sind auch drei
   Stellen, die noch "noch nicht" oder "kommt mit" zu erledigten Issues sagten, und das
   Bündelbudget. Die README wird seitdem mit jedem größeren Schritt mitgezogen, gewünscht von
   Moritz am 24.09.2026.
