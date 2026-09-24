@@ -484,6 +484,13 @@ jobs:
         working-directory: docker
         run: sh test-setup.sh
 
+      # Whether start.sh builds or pulls (#155), with a docker that only
+      # writes down what it is asked. The pull itself needs a published
+      # release; the step below starts from the source.
+      - name: Startskript prüfen
+        working-directory: docker
+        run: sh test-start.sh
+
       # The way an installation starts, with the one command the README
       # names: setup.sh makes every secret and prints only their names, then
       # the migration runs on its own, then the containers start.
@@ -495,7 +502,13 @@ jobs:
         working-directory: docker
         run: |
           set -eu
-          ! grep -q "bitte-ersetzen" .env
+          # An if and not "! grep": set -e leaves out a negated command, so
+          # that line could never fail the step. A value and not the word,
+          # which the comment at the top of the template names too.
+          if grep -q "^[A-Z_]*=bitte-ersetzen" .env; then
+            echo "In der .env steht noch ein Platzhalter." >&2
+            exit 1
+          fi
           test "$(stat -c %a .env)" = "600"
 
       - name: Instanz antwortet mit migrierter Datenbank
@@ -583,8 +596,10 @@ jobs:
 
           # The archive is encrypted in this run too, because an untested
           # encryption path is the one that fails on the evening it is needed.
-          docker build --tag opengewerk/backup:latest ./backup
-          docker run --rm opengewerk/backup:latest age-keygen > key.txt 2> keygen.txt
+          # The key pair comes from the command the README names, through the
+          # image the installation has (#155).
+          docker compose --profile backup build backup
+          docker compose --profile backup run --rm --no-deps -T backup age-keygen > key.txt 2> keygen.txt
           grep -o 'AGE-SECRET-KEY-[A-Z0-9]*' key.txt > identity.txt
           recipient=$(grep -o 'age1[a-z0-9]*' keygen.txt | head -1)
           sed -i "s|^BACKUP_AGE_RECIPIENT=.*|BACKUP_AGE_RECIPIENT=${recipient}|" .env

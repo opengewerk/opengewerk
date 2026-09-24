@@ -21,7 +21,13 @@ check() {
 out=$(OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh "$work/setup.sh" < /dev/null 2>&1)
 printf '%s\n' "$out"
 test -f "$work/.env"
-! grep -q 'bitte-ersetzen' "$work/.env"
+# An if and not "! grep": set -e leaves out a negated command, so that line
+# could never fail. A value and not the word, which the comment at the top of
+# the template names too.
+if grep -q '^[A-Z_]*=bitte-ersetzen' "$work/.env"; then
+  echo 'FEHLER: in der .env steht noch ein Platzhalter'
+  exit 1
+fi
 grep -q '^TRUSTED_ORIGINS=http://127.0.0.1:23700$' "$work/.env"
 grep -qx 'COMPOSE_PROFILES=renderer' "$work/.env"
 check 'erster Lauf: keine Platzhalter, Adresse eingetragen, Renderer eingeschaltet'
@@ -69,7 +75,21 @@ printf '%s\n' "$out"
 grep -qx 'COMPOSE_PROFILES=' "$work/.env"
 check 'abgeschalteter Renderer: bleibt abgeschaltet'
 
-# 5. No address and nobody at the terminal: a sentence, and a failure.
+# 5. An .env from before #155 still says "latest", which never named a
+# version. It becomes empty, and a version somebody chose stays.
+sed 's/^OPENGEWERK_VERSION=.*/OPENGEWERK_VERSION=latest/' "$work/.env" > "$work/.env.old"
+mv "$work/.env.old" "$work/.env"
+out=$(sh "$work/setup.sh" < /dev/null 2>&1)
+printf '%s\n' "$out"
+grep -qx 'OPENGEWERK_VERSION=' "$work/.env"
+printf '%s' "$out" | grep -q 'stand auf latest'
+sed 's/^OPENGEWERK_VERSION=.*/OPENGEWERK_VERSION=0.2.0/' "$work/.env" > "$work/.env.pinned"
+mv "$work/.env.pinned" "$work/.env"
+sh "$work/setup.sh" < /dev/null > /dev/null 2>&1
+grep -qx 'OPENGEWERK_VERSION=0.2.0' "$work/.env"
+check 'latest aus einer alten .env: jetzt leer, eine gewählte Fassung bleibt'
+
+# 6. No address and nobody at the terminal: a sentence, and a failure.
 rm "$work/.env"
 if out=$(sh "$work/setup.sh" < /dev/null 2>&1); then
   echo 'FEHLER: ohne Adresse lief das Skript durch'
@@ -79,7 +99,7 @@ printf '%s\n' "$out"
 printf '%s' "$out" | grep -q 'fehlt die Adresse'
 check 'ohne Adresse: abgelehnt'
 
-# 6. An address with a path.
+# 7. An address with a path.
 rm "$work/.env"
 if out=$(OPENGEWERK_ADDRESS=https://opengewerk.example.org/buero sh "$work/setup.sh" < /dev/null 2>&1); then
   echo 'FEHLER: eine Adresse mit Pfad lief durch'
@@ -88,7 +108,7 @@ fi
 printf '%s' "$out" | grep -q 'hat einen Pfad'
 check 'Adresse mit Pfad: abgelehnt'
 
-# 7. A trailing slash is taken off.
+# 8. A trailing slash is taken off.
 rm "$work/.env"
 OPENGEWERK_ADDRESS=https://opengewerk.example.org/ sh "$work/setup.sh" < /dev/null > /dev/null 2>&1
 grep -q '^TRUSTED_ORIGINS=https://opengewerk.example.org$' "$work/.env"

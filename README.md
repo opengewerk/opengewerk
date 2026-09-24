@@ -43,7 +43,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 **Phase 0**, das Fundament, ist gebaut: Datenmodell, Mandantentrennung über Row-Level Security, Rollen und Rechte, Nummernkreise mit Festschreibung, Audit-Log mit Hashkette, Offline-Datenschicht, Regel-Engine und der Betrieb über Docker Compose mit Sicherung, Rückspielen und Update-Pfad.
 
-An **Phase 1**, dem MVP für den Pilotbetrieb, wird gearbeitet. Eine Installation startet mit `sh docker/start.sh`, wird im Browser eingerichtet und sichert sich jede Nacht selbst. Stand 24.09.2026 gibt es:
+An **Phase 1**, dem MVP für den Pilotbetrieb, wird gearbeitet. Eine Installation startet mit `sh docker/start.sh`, bis zum ersten Release aus dem Quelltext und danach aus einem Paket mit signierten Abbildern, wird im Browser eingerichtet und sichert sich jede Nacht selbst. Stand 24.09.2026 gibt es:
 
 - **Büro und Baustelle aus einer Anwendung**, die Baustelle ohne Netz: Anmeldung mit zweitem Faktor und Wiederherstellungscodes, weitere Zugänge per Einladungslink, die Rollen Inhaber, Büro und Monteur. Das Gerät eines Monteurs hält nur die Aufträge, auf denen er eingeteilt ist, und was auf ihm entsteht, geht beim nächsten Abgleich hinaus, auch nach einem ganzen Tag ohne Netz.
 - **Kunden, Objekte, Anlagen und Aufträge**: Kunden mit Land und Ansprechpartnern, Aufträge mit eigener Nummer und Folgeaufträgen, Aufgaben mit Erinnerung per E-Mail, eine Dokumentenablage mit Fotos von der Baustelle.
@@ -527,6 +527,18 @@ Maschine mit Docker reicht ein Befehl, beim ersten Start wie bei jedem weiteren
 sh docker/start.sh
 ```
 
+**Aus einem Release oder aus dem Quelltext** (#155). Ein Release bringt ein
+Paket `opengewerk-<fassung>.tar.gz` mit dem Ordner `opengewerk/docker` und
+veröffentlichte, signierte Abbilder für x86_64 und ARM64. Entpackt und mit
+demselben Befehl gestartet, baut eine solche Installation nichts, sondern holt
+die Abbilder ihrer Fassung aus `ghcr.io/opengewerk`. Die Fassung steht in
+`docker/compose.yaml` an jedem Abbild, und so nimmt jeder `docker
+compose`-Befehl weiter unten dieselbe. Gebraucht werden Docker und Docker
+Compose ab 2.22. Ein Checkout des Repositorys hat an derselben Stelle `source`
+und baut die Abbilder aus dem Quelltext, für Entwicklung und Vorschau. Wer im
+Checkout lieber eine veröffentlichte Fassung betreibt, trägt sie in der `.env`
+als `OPENGEWERK_VERSION` ein.
+
 **Beim ersten Start füllt er die `.env` selbst aus.** Er legt `docker/.env` aus
 der Vorlage an und erzeugt jedes Passwort und jeden Schlüssel darin, 32
 Zufallsbytes als Hex, jeden für sich. In der Konsole stehen nur die Namen, nie
@@ -898,7 +910,7 @@ eigenen älteren Sicherungen nicht lesen. Wer den Server übernimmt, bekommt das
 Archiv nicht mit dazu.
 
 ```bash
-docker run --rm opengewerk/backup:latest age-keygen
+docker compose -f docker/compose.yaml --profile backup run --rm --no-deps backup age-keygen
 ```
 
 Die Zeile mit `age1…` ist der öffentliche Schlüssel und gehört als
@@ -936,15 +948,20 @@ jedem Fall sein.
 ### Aktualisieren
 
 Ein Update ist das, was Leitentscheidung 6 verspricht: Abbild tauschen,
-Migration läuft, Dienst startet. Nach dem Holen der neuen Fassung genügt
-derselbe Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die
-`.env` um das, was die neue Fassung braucht, und macht dann zwei Aufrufe, deren
-Reihenfolge der ganze Punkt ist:
+Migration läuft, Dienst startet. Aus einem Release heißt das: das Paket der
+neuen Fassung an dieselbe Stelle entpacken, die `.env` bleibt, und derselbe
+Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die `.env` um
+das, was die neue Fassung braucht, holt ihre Abbilder und macht dann zwei
+Aufrufe, deren Reihenfolge der ganze Punkt ist:
 
 ```bash
-docker compose -f docker/compose.yaml run --rm --build migrate
+docker compose -f docker/compose.yaml run --rm migrate
 docker compose -f docker/compose.yaml up -d
 ```
+
+In einem Checkout kommt die neue Fassung mit `git pull`, und statt zu holen
+baut der Befehl vorher Anwendung und Sicherung aus dem Quelltext
+(`docker compose -f docker/compose.yaml build migrate backup-schedule`).
 
 Läuft die Migration durch, tauscht der zweite Aufruf die Container, und nach
 wenigen Sekunden antwortet die Instanz wieder. Schlägt sie fehl, bricht der
@@ -987,6 +1004,21 @@ Zwei Fälle lehnt der Lauf ab, statt sie stillschweigend zu übergehen:
 
 Vor ein Update gehört eine Sicherung, siehe oben. Sie ist auch der Weg zurück,
 wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
+
+**Releases** (#155). Eine Fassung erscheint mit einem Tag `v0.x.y` auf `main`;
+das erste Release steht noch aus. Der Workflow "Release" baut dann Anwendung
+und Sicherung für x86_64 und ARM64, legt beide unter dieser Fassung in
+`ghcr.io/opengewerk/opengewerk` und `ghcr.io/opengewerk/backup` ab, signiert
+sie ohne Schlüssel über Sigstore und
+schreibt die Release-Seite aus dem Abschnitt des CHANGELOG, mit dem Paket und
+seiner Prüfsumme. Im Paket steht die Fassung in `docker/compose.yaml` an der
+Stelle von `source`; ist der Abschnitt länger, als eine Release-Seite fasst,
+verweist sie auf den CHANGELOG des Tags. Ohne einen Abschnitt `## [0.x.y]` im
+CHANGELOG oder für einen Tag, der nicht auf einem Stand von `main` steht,
+bricht er ab. Ob ein Abbild wirklich aus diesem Repository stammt, zeigt
+`cosign verify` mit dem Befehl aus den Hinweisen jedes Releases. Ein Tag wird
+nie neu vergeben: eine Fassung ist, was unter ihrem Tag steht, und dafür steht
+ihre Signatur.
 
 ### Was beim Aufsetzen sonst noch Zeit kostet
 
