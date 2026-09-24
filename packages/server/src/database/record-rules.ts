@@ -1,4 +1,5 @@
 import {
+  countryProblem,
   correctionProblem,
   locationProblem,
   timeEntryProblem,
@@ -43,7 +44,23 @@ interface RecordRule {
  * hash and the size of what it finds, and a version that breaks one of these
  * is a mistake of the client that should say so, not reach the key.
  */
+/**
+ * The country of an address (#144), the same for a customer and a site. Left
+ * out, the database writes Germany, and a device that never sent a country,
+ * the site app among them, is not refused for it.
+ */
+const country: RecordRule = {
+  fields: ['country'],
+  problem: (at) => {
+    const value = at('country')
+
+    return value === undefined ? null : countryProblem(value)
+  },
+}
+
 const rules: Readonly<Record<string, readonly RecordRule[]>> = {
+  customers: [country],
+  sites: [country],
   documents: [
     {
       fields: ['serviceFrom', 'serviceUntil'],

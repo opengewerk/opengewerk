@@ -3,7 +3,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { Button, Card } from '../../components/index.js'
-import { addressLine } from '../../app/format.js'
+import { addressLine, countryOptions } from '../../app/format.js'
 import { installationKindLabel, installationKindOf } from '../../app/labels.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
@@ -26,6 +26,7 @@ const siteFields: readonly FormField[] = [
   { name: 'houseNumber', label: 'Hausnummer' },
   { name: 'postalCode', label: 'PLZ', numeric: true },
   { name: 'city', label: 'Ort' },
+  { name: 'country', label: 'Land', options: countryOptions },
   { name: 'notes', label: 'Notizen' },
 ]
 
@@ -127,6 +128,7 @@ export function SiteScreen() {
                 houseNumber: asTextOrNull(values['houseNumber']),
                 postalCode: asTextOrNull(values['postalCode']),
                 city: asTextOrNull(values['city']),
+                country: values['country'] ?? 'DE',
                 notes: asTextOrNull(values['notes']),
               })
 

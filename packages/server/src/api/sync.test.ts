@@ -1753,3 +1753,93 @@ describe('the number of a job', () => {
     expect(await numberOf(id)).toBe(number)
   })
 })
+
+/**
+ * The country of an address from a device (#144). A customer and a site may
+ * be created without a network, so the country is asked here and not only in
+ * the database, where a wrong one would take the whole transmission down.
+ */
+describe('the country of an address from a device', () => {
+  async function countryOf(id: string) {
+    const { rows } = await admin.query<{ country: string }>(
+      'select country from customers where id = $1',
+      [id],
+    )
+
+    return rows[0]?.country
+  }
+
+  it('is a code of two capital letters, and Germany when the device sends none', async () => {
+    const abroad = newId<'customer'>()
+    const home = newId<'customer'>()
+
+    const answer = await push(office(), 'office-computer', [
+      change({
+        entity: 'customers',
+        recordId: abroad,
+        kind: 'create',
+        patches: [
+          { field: 'kind', from: null, to: 'private' },
+          { field: 'name', from: null, to: 'Familie Gruber' },
+          { field: 'country', from: null, to: 'AT' },
+        ],
+      }),
+      change({
+        entity: 'customers',
+        recordId: home,
+        kind: 'create',
+        patches: [
+          { field: 'kind', from: null, to: 'private' },
+          { field: 'name', from: null, to: 'Familie Berg' },
+        ],
+      }),
+    ])
+
+    expect(answer.receipts.map((receipt) => receipt.outcome)).toEqual(['applied', 'applied'])
+    expect(await countryOf(abroad)).toBe('AT')
+    expect(await countryOf(home)).toBe('DE')
+  })
+
+  it('is refused in any other shape, with the sentence the form would say', async () => {
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', office())
+      .send({
+        deviceId: 'office-computer',
+        operations: [
+          change({
+            entity: 'customers',
+            recordId: newId<'customer'>(),
+            kind: 'create',
+            patches: [
+              { field: 'kind', from: null, to: 'private' },
+              { field: 'name', from: null, to: 'Familie Huber' },
+              { field: 'country', from: null, to: 'Österreich' },
+            ],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toBe(
+      'Das Land steht als Ländercode aus zwei Großbuchstaben da, etwa DE.',
+    )
+  })
+
+  it('is held to that by the database for every other way in', async () => {
+    const refused = await http()
+      .patch(`/customers/${customerId}`)
+      .set('x-test-identity', office())
+      .send({ country: 'at' })
+      .expect(400)
+
+    expect(refused.body.message).toBe('Die Angaben passen nicht zum Datenmodell.')
+    expect(await countryOf(customerId)).toBe('DE')
+
+    await http()
+      .patch(`/sites/${siteId}`)
+      .set('x-test-identity', office())
+      .send({ country: 'Deutschland' })
+      .expect(400)
+  })
+})
