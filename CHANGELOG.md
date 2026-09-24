@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Protokolle der Container wachsen nicht mehr ohne Grenze (#211). `docker/compose.yaml` setzte
+  für keinen Dienst eine, und ohne eigene Vorgabe in der Docker-Konfiguration der Maschine schrieb
+  Docker jede Zeile von Anwendung, Datenbank, Renderer und Sicherung ohne Rotation weg, bis die
+  Platte voll war; auf einem kleinen Gerät steht dann als Erstes die Datenbank. Jetzt schreibt
+  jeder Dienst mit dem Treiber `local` und behält höchstens fünf Dateien zu 10 MB, etwa 50 MB je
+  Container. Der Job "Betrieb über Docker Compose" prüft, dass kein Dienst ohne Grenze ist, auch
+  keiner, der später dazukommt.
 - Die installierte App hat wieder ein Symbol, und im Tab steht das Favicon (#213). `.dockerignore`
   nahm `assets/` aus dem Build-Kontext, und genau das ist der Ordner, aus dem der Build der
   Oberfläche `/brand` füllt; im Abbild von 0.1.0 fehlten deshalb Favicon, Apple-Touch-Icon und alle
