@@ -319,6 +319,14 @@ Ein Kunde hat mehrere Ansprechpartner, ein Objekt eigene (Feature-Gliederung 1.1
 
 **Genau ein Elternteil.** Ein Ansprechpartner gehört zu einem Kunden oder zu einem Objekt, nie zu beiden und nie zu keinem. Das Formular nimmt den Elternteil von dem Bildschirm, auf dem es steht, und bietet nie beide an; auf der Baustelle hat deshalb jede der beiden Listen ihren eigenen Knopf. Vor dem Postausgang fragt es `contactParentProblem` aus `domain`, die Route lehnt einen Verstoß mit demselben Satz ab, und dahinter hält die Datenbank dieselbe Regel.
 
+### Folgeauftrag
+
+Ein Auftrag kann auf einen abgeschlossenen Auftrag desselben Kunden folgen (#170, Feature-Gliederung 4.1): die Wallbox nach dem Zählerschrank, eine Nacharbeit nach der Abnahme. Im Büro steht dafür am abgeschlossenen Auftrag "Folgeauftrag anlegen", hinter `job.write`; Art, Objekt und Anlage sind übernommen und lassen sich ändern, der Kunde nicht. Am Vorgänger stehen seine Folgeaufträge, am Folgeauftrag sein Vorgänger, im Büro wie auf der Baustelle, jeweils verlinkt. Ein Auftrag kann mehrere Folgeaufträge haben.
+
+**Ein eigener Verweis, nicht der auf das Projekt.** `jobs.parent_job_id` bleibt den Teilaufträgen eines Projekts, die mit ihm laufen. Ein Folgeauftrag ist ein Auftrag mit eigenem Status, eigenen Belegen und eigener Nummer und nennt seinen Vorgänger in `predecessor_job_id` (Migration 0040, zusammengesetzter Schlüssel über `tenant_id` wie jeder Verweis seit 0031).
+
+**Die Regeln stehen an drei Stellen und sagen dasselbe.** `followUpProblem` in `domain`: der Vorgänger ist abgeschlossen, gehört demselben Kunden, und kein Auftrag folgt sich selbst. Das Formular fragt sie vor dem Postausgang, Abgleich und Routen fragen sie wieder (`followUpRefusal` im Server), und ein Trigger in der Datenbank hält sie für jeden anderen Weg. Welcher Auftrag der Vorgänger ist, steht mit dem Anlegen fest, und ein Auftrag mit Folgeaufträgen behält seinen Kunden; so kann keine Kette im Kreis laufen. Wurde der Vorgänger inzwischen wieder aufgenommen, ist das im Abgleich ein Konflikt für genau diesen Vorgang, der Rest der Übertragung kommt an. Eine Erweiterung während der laufenden Arbeit ist kein Folgeauftrag, sondern ein Nachtrag, und der gehört zu Phase 4.
+
 ### Dokumentenablage
 
 Die Dateien eines Betriebs hängen dort, worum es in ihnen geht (Feature-Gliederung 4.10): an einem Kunden, einem Objekt, einer Anlage oder einem Auftrag, an mehreren davon zugleich. Ein Foto, das am Auftrag entsteht, hängt auch an dessen Anlage, Objekt und Kunde und steht deshalb auf allen vier Bildschirmen. Im Büro hat jeder dieser Bildschirme den Abschnitt "Dateien", auf der Baustelle der Auftrag die Karte "Fotos und Dateien" mit "Foto aufnehmen" als erstem Knopf.
@@ -349,7 +357,7 @@ Die Arbeitszeit aus Abschnitt 4.4 der Feature-Gliederung: auf der Baustelle, ohn
 
 **Ein Standort nur mit Einwilligung und nur bei Start und Stopp.** Die Einwilligung gibt und widerruft jede Person unter "Zeiten" für sich selbst (`GET` und `PUT /time/consent`), und jede Antwort ist eine neue Zeile, sodass feststeht, wann sie galt. Ohne sie fragt das Gerät gar nicht erst nach dem Standort, und der Server lässt einen mitgeschickten Standort fallen, wenn die letzte Antwort nein ist; der Eintrag selbst kommt trotzdem an.
 
-Was nicht dazugehört: Zuschläge, Auslöse, Verpflegungsmehraufwand und der Lohnexport kommen in Phase 3, die SOKA-BAU-Meldung später. Überstunden brauchen eine vereinbarte Arbeitszeit je Person, die es noch nicht gibt; in welche Phase sie gehören, ist in #141 gefragt.
+Was nicht dazugehört: Zuschläge, Auslöse, Verpflegungsmehraufwand und der Lohnexport kommen in Phase 3, die SOKA-BAU-Meldung später. Überstunden brauchen eine vereinbarte Arbeitszeit je Person, die es noch nicht gibt; sie kommen mit ihr in Phase 2, ausgezahlt oder übertragen mit dem Lohnexport in Phase 3 (#141).
 
 ### Steuern
 

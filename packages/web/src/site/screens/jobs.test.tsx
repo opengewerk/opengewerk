@@ -57,11 +57,16 @@ function signedInAs(...roles: RoleKey[]) {
   answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
 }
 
-async function mount() {
+async function mount(more: readonly RecordState[] = []) {
   for (const [entity, list] of Object.entries(rows)) {
     for (const row of list) {
       server.put(entity, row)
     }
+  }
+
+  // Jobs beyond the one on the screen, or that one with more to it.
+  for (const row of more) {
+    server.put('jobs', { ...rows['jobs']?.[0], ...row })
   }
 
   const client = await SyncClient.start({
@@ -175,5 +180,33 @@ describe('a job on site, for somebody who may not report on it', () => {
     })
     expect(screen.queryByRole('button', { name: 'Auftrag abschließen' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Notiz schreiben' })).toBeNull()
+  })
+})
+
+describe('a job on site, between the jobs before and after it (#170)', () => {
+  it('names the job it follows and the ones that follow it, each a way there', async () => {
+    signedInAs('technician')
+    await mount([
+      { id: 'j-1', predecessorJobId: 'j-0' },
+      { id: 'j-0', designation: 'Zählerschrank erneuern', status: 'completed' },
+      { id: 'j-2', designation: 'Wallbox prüfen', status: 'draft', predecessorJobId: 'j-1' },
+    ])
+
+    const card = await screen.findByRole('region', { name: 'Vorher und danach' })
+
+    expect(card.textContent).toContain('Folgt auf')
+    expect(screen.getByRole('link', { name: 'Zählerschrank erneuern' }).getAttribute('href')).toBe(
+      '/auftraege/j-0',
+    )
+    expect(screen.getByRole('link', { name: 'Wallbox prüfen' }).getAttribute('href')).toBe(
+      '/auftraege/j-2',
+    )
+  })
+
+  it('says nothing about it for a job on its own', async () => {
+    signedInAs('technician')
+    await mount()
+
+    expect(screen.queryByRole('region', { name: 'Vorher und danach' })).toBeNull()
   })
 })

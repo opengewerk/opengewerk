@@ -194,6 +194,26 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     }),
   )
 
+  // A job that is done, and the follow-up the customer asked for after it (#170).
+  const basement = idOf(
+    await post('/jobs', {
+      customerId: berg,
+      siteId: house,
+      kind: 'service',
+      status: 'completed',
+      designation: 'Unterverteilung Keller nachrüsten',
+    }),
+  )
+
+  await post('/jobs', {
+    customerId: berg,
+    siteId: house,
+    kind: 'service',
+    status: 'draft',
+    designation: 'Wallbox in der Garage',
+    predecessorJobId: basement,
+  })
+
   for (const snippet of [
     {
       purpose: 'intro',

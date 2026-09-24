@@ -21,6 +21,14 @@ export interface Job extends Synced {
   readonly installationId: InstallationId | null
   /** A large site is split into sub jobs, one per trade or section. */
   readonly parentJobId: JobId | null
+  /**
+   * The finished job this one follows up (#170): the wallbox after the meter
+   * cabinet, a repair after the handover. Not the parent: a sub job belongs to
+   * its project and runs with it, a follow-up is a job of its own with its own
+   * documents, and one column for both would turn every follow-up into a part
+   * of the job before it. Set when the job is created and fixed from then on.
+   */
+  readonly predecessorJobId: JobId | null
   readonly kind: JobKind
   readonly status: JobStatus
   /**
@@ -67,4 +75,38 @@ export function isJobProgress(changes: readonly FieldChange[]): boolean {
         (change.field === 'status' && jobProgressStatuses.some((status) => status === change.to)),
     )
   )
+}
+
+/** A job as a follow-up is judged against it: whose it is and where it stands. */
+export interface PredecessorFacts {
+  readonly customerId: string
+  readonly status: JobStatus
+}
+
+/**
+ * What is wrong with following up this job, as a sentence, or null (#170).
+ *
+ * A follow-up comes after a job that is finished, for the same customer, and
+ * no job follows itself. Work that is added while a job is still running is
+ * not a follow-up but a change to the order, which is for phase 4. One
+ * function for the form in the office, the sync on the server and its routes,
+ * so all three refuse the same thing with the same words.
+ */
+export function followUpProblem(
+  job: { readonly id: string; readonly customerId: string },
+  predecessor: PredecessorFacts & { readonly id: string },
+): string | null {
+  if (predecessor.id === job.id) {
+    return 'Ein Auftrag ist nicht sein eigener Vorgänger.'
+  }
+
+  if (predecessor.status !== 'completed') {
+    return 'Ein Folgeauftrag schließt an einen abgeschlossenen Auftrag an.'
+  }
+
+  if (predecessor.customerId !== job.customerId) {
+    return 'Ein Folgeauftrag ist für denselben Kunden wie der Auftrag davor.'
+  }
+
+  return null
 }
