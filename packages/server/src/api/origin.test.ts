@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing'
-import type { INestApplication } from '@nestjs/common'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import { logoMediaTypes } from '@opengewerk/domain'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -15,8 +15,9 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { refusalOf } from './origin.js'
+import { readJsonBodiesOnly, refusalOf } from './origin.js'
 import { as, testIdentities } from './test-identity.js'
+import { created } from './test-structure.js'
 
 /**
  * The defence against a form on somebody else's page (GHSA-r7rq-234g-3jx8).
@@ -121,7 +122,7 @@ describe('the routes of the application', () => {
 
   let admin: Pool
   let database: Database
-  let app: INestApplication
+  let app: NestExpressApplication
 
   function http() {
     return request(app.getHttpServer())
@@ -146,7 +147,10 @@ describe('the routes of the application', () => {
       imports: [ApiModule.create(database, testIdentities, { trustedOrigins: [instance] })],
     }).compile()
 
-    app = built.createNestApplication()
+    // Read the way an instance reads, with the parsers of `main.ts` and not
+    // with the ones Nest brings, so that a limit of the parser is the real one.
+    app = built.createNestApplication<NestExpressApplication>({ bodyParser: false })
+    readJsonBodiesOnly(app)
     await app.init()
   })
 
@@ -207,5 +211,34 @@ describe('the routes of the application', () => {
       .expect(201)
 
     expect(await customers()).toBe(1)
+  })
+
+  /**
+   * A day's work from a cellar (#202). Six hundred new customers stand in for
+   * it: well over the 100 kB every route reads, and a transmission the outbox
+   * really sends, not a body made up for the parser.
+   */
+  it('take an outbox well over 100 kB in one transmission', async () => {
+    const operations = Array.from({ length: 600 }, (_, index) =>
+      created('customers', newId<'customer'>(), {
+        kind: 'private',
+        name: `Familie Nummer ${String(index + 1)} aus dem Keller`,
+      }),
+    )
+    const body = { deviceId: 'geraet-im-keller', operations }
+
+    expect(JSON.stringify(body).length).toBeGreaterThan(100 * 1024)
+
+    await http().post('/sync').set('x-test-identity', as(north, 'office')).send(body).expect(201)
+
+    expect(await customers()).toBe(601)
+  })
+
+  it('read no more than 100 kB at any other route', async () => {
+    await http()
+      .post('/customers')
+      .set('x-test-identity', as(north, 'office'))
+      .send({ kind: 'private', name: 'Familie Berg', notes: 'x'.repeat(200 * 1024) })
+      .expect(413)
   })
 })

@@ -118,6 +118,49 @@ function cursorStands(known: string | number | null, entities: readonly string[]
 }
 
 /**
+ * The most one transmission of the outbox carries, as characters of JSON
+ * (#202). A device that spent a day without a network sends a day's work,
+ * and a change to a test protocol carries its values twice, as `from` and
+ * `to`; in parts of this size an outbox of any length gets out. The server
+ * reads eight times as much at `POST /sync`, so that a part that is one large
+ * operation on its own, in umlauts that take two bytes, still fits.
+ */
+export const largestTransmission = 1_000_000
+
+/**
+ * The outbox, in the order it is sent, cut into transmissions of at most
+ * `largest` characters. Never reordered: a part ends where the next operation
+ * would not fit, and an operation that is larger on its own goes alone.
+ */
+export function inTransmissions(
+  operations: readonly Operation[],
+  largest = largestTransmission,
+): readonly (readonly Operation[])[] {
+  const parts: Operation[][] = []
+  let part: Operation[] = []
+  let size = 0
+
+  for (const operation of operations) {
+    const length = JSON.stringify(operation).length
+
+    if (part.length > 0 && size + length > largest) {
+      parts.push(part)
+      part = []
+      size = 0
+    }
+
+    part.push(operation)
+    size += length
+  }
+
+  if (part.length > 0) {
+    parts.push(part)
+  }
+
+  return parts
+}
+
+/**
  * The reason a refusal reads the way it does, in words a person can act on.
  *
  * Deliberately not a mapping from the reason to a technical phrase. Each of
@@ -699,15 +742,25 @@ export class SyncClient {
   }
 
   /**
-   * Sends the outbox. Answers with the operation it was refused over, when the
-   * server named one this device still holds, and with null otherwise.
+   * Sends the outbox, in as many transmissions as its size takes (#202).
+   * Answers with the operation it was refused over, when the server named one
+   * this device still holds, and with null otherwise; what the parts before
+   * it brought in stays in, since every part is answered on its own.
    */
   private async pushOutbox(): Promise<RefusedOperation | null> {
-    if (this.outbox.length === 0) {
-      return null
+    for (const sent of inTransmissions(inOutboxOrder(this.outbox))) {
+      const refused = await this.pushPart(sent)
+
+      if (refused) {
+        return refused
+      }
     }
 
-    const sent = inOutboxOrder(this.outbox)
+    return null
+  }
+
+  /** One transmission, and what its receipts take off the outbox. */
+  private async pushPart(sent: readonly Operation[]): Promise<RefusedOperation | null> {
     let receipts: readonly OperationReceipt[]
 
     try {

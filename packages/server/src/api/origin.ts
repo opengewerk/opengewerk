@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
+import { json as readJson, type NextFunction, type Request, type Response } from 'express'
 
 import { TRUSTED_ORIGINS } from './handed-in.js'
 
@@ -143,6 +144,18 @@ export class SameOriginGuard implements CanActivate {
 }
 
 /**
+ * The most a transmission of the outbox may be, in bytes (#202).
+ *
+ * A device sends what it holds in parts of a megabyte of text
+ * (`largestTransmission` in the web client); this leaves room for a part that
+ * is one large operation on its own, a test protocol with its values twice,
+ * as `from` and `to`, and in umlauts. Every other route reads the 100 kB
+ * Express reads by default: none of them takes more than a form's worth, and
+ * a body is read before anybody knows who sent it.
+ */
+export const largestTransmissionBytes = 8 * 1024 * 1024
+
+/**
  * Reads JSON bodies and nothing else.
  *
  * Nest reads JSON and form bodies unless it is told otherwise. A form body is
@@ -151,10 +164,24 @@ export class SameOriginGuard implements CanActivate {
  * with a parser less. The logo reads its raw bytes through a middleware of its
  * own, on its route alone. For an application created with `bodyParser: false`.
  *
+ * The outbox at `POST /sync` is read first, with a limit of its own; a body
+ * read there counts as read, and the parser for everything else passes it by.
+ * Until #202 it had the 100 kB of every route, and a device over that was
+ * refused with an answer that named no operation, so its outbox hung for good.
+ *
  * Called after better-auth is mounted, never before: Express reads a body
  * once, and a parser in front would leave the sign in with an empty one, which
  * looks exactly like a wrong password.
  */
 export function readJsonBodiesOnly(application: NestExpressApplication): void {
+  const outbox = readJson({ limit: largestTransmissionBytes })
+
+  application.use((request: Request, response: Response, next: NextFunction) => {
+    if (request.method === 'POST' && request.path === '/sync') {
+      outbox(request, response, next)
+    } else {
+      next()
+    }
+  })
   application.useBodyParser('json')
 }

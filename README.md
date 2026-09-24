@@ -973,6 +973,13 @@ wenn eine Migration zwar durchläuft, das Ergebnis aber nicht stimmt.
 - **Vor die Anwendung gehört ein Reverse Proxy mit TLS.** Sie lauscht
   absichtlich nur auf `127.0.0.1`. Eine Anwendung, die Rechnungen führt, steht
   nicht unverschlüsselt im Netz.
+- **Der Proxy lässt Anfragen bis 50 MB durch.** Eine Datei für die Ablage darf
+  25 MB haben und eine Übertragung des Postausgangs an `POST /sync` 8 MB; die
+  Grenzen, die für einen Betrieb gelten, setzt die Anwendung selbst, mit einem
+  Satz dazu. nginx nimmt ohne Angabe nur 1 MB an (`client_max_body_size 50m;`),
+  Apache und Caddy haben keine Grenze, die hier stört. Was der Proxy ablehnt,
+  kommt als 413 ohne Satz an, und ein Postausgang, der daran scheitert, bleibt
+  hängen, bis der Proxy es durchlässt.
 - **Die Sicherheits-Header setzt die Anwendung selbst, der Proxy setzt sie kein
   zweites Mal.** Jede Antwort trägt `X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options`, `Strict-Transport-Security` und die beiden
