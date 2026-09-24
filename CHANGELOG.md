@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Signaturprüfung aus den Hinweisen der Release-Seite geht auch in Git Bash durch (#212). Der
+  Befehl nannte die Identität des Workflows als regulären Ausdruck, und Git Bash schreibt die
+  Argumente eines Windows-Programms um, bevor sie ankommen: aus `github\.com` wurde `github/.com`,
+  und cosign meldete bei einem richtig signierten Abbild, die Signatur passe nicht. Die Hinweise
+  nennen jetzt die genaue Identität des Laufs für den Tag der Fassung; sie kommt ohne Backslash aus
+  und ist strenger, denn sie nimmt nur die Signatur genau dieses Tags an. Die Seite von 0.1.0
+  bleibt, wie sie ist; wer deren Abbilder in Git Bash prüft, setzt statt des Musters
+  `--certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v0.1.0`
+  ein.
 - Die Protokolle der Container wachsen nicht mehr ohne Grenze (#211). `docker/compose.yaml` setzte
   für keinen Dienst eine, und ohne eigene Vorgabe in der Docker-Konfiguration der Maschine schrieb
   Docker jede Zeile von Anwendung, Datenbank, Renderer und Sicherung ohne Rotation weg, bis die
