@@ -17,6 +17,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Adresse mit Dateiendung, zu der es keine Datei gibt, bekommt 404 statt der Hülle, und der Job
   "Betrieb über Docker Compose" holt Favicon und jedes Icon, das Hüllen und Manifeste nennen, und
   verlangt ein Bild.
+- Eine Adresse des Büros, die nur mit einem m beginnt, etwa `/material`, bekommt die Hülle des Büros
+  und nicht die der Baustelle (aufgefallen bei #213). Der Server nahm dafür jeden Pfad, der mit
+  `/m` anfing, der Service Worker zog die Grenze schon immer bei `/m` und dem, was darunter liegt.
+  Mit dem Material aus Phase 2 hätte ein tiefer Link ins Büro sonst die Baustelle geöffnet.
 
 ### Sicherheit
 

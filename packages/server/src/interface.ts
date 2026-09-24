@@ -166,8 +166,13 @@ export function serveInterface(application: Express, directory: string): void {
       return
     }
 
+    // `/m` and what lies under it, and nothing else that happens to start
+    // with the letter: a deep link to `/material` belongs to the office. The
+    // service worker draws the same line, with /^\/m(\/|$)/.
+    const site = request.path === '/m' || request.path.startsWith('/m/')
+
     response.setHeader('Cache-Control', 'no-cache')
     response.setHeader('Content-Security-Policy', shellPolicy)
-    response.type('html').send(request.path.startsWith('/m') ? siteShell : officeShell)
+    response.type('html').send(site ? siteShell : officeShell)
   })
 }

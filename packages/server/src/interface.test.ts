@@ -105,6 +105,18 @@ describe('the interface the server hands out', () => {
     expect((await request(application).get('/m')).text).toContain('Baustelle')
   })
 
+  it('answers an office path that merely starts with an m with the office shell', async () => {
+    // The site entry is `/m` and what lies under it, the same line the
+    // service worker draws. A prefix of one letter would hand the phone
+    // interface to every office route beginning with it, `/material` the
+    // first of them.
+    for (const path of ['/material', '/mitarbeiter/018f-abc', '/m-irgendwas']) {
+      const answer = await request(application).get(path)
+
+      expect([path, answer.text]).toEqual([path, expect.stringContaining('Büro')])
+    }
+  })
+
   it('answers a file that is not there with a 404 and not with a shell', async () => {
     // A name with an extension is a file, and no route of either entry ends
     // in one. Answered with a shell and a 200, a missing icon looks like one
