@@ -567,6 +567,12 @@ Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
 `curl http://127.0.0.1:23700/health` antwortet mit `{"status":"bereit"}`. Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 
+Die Protokolle der Container zeigt `docker compose -f docker/compose.yaml logs`.
+Docker legt sie unter `/var/lib/docker/containers/` ab, mit dem Treiber `local`
+rotiert und komprimiert, und jeder Container behält höchstens fünf Dateien zu
+10 MB, also etwa 50 MB (#211). Die Grenze steht in `docker/compose.yaml`; an der
+Docker-Konfiguration der Maschine muss dafür niemand etwas ändern.
+
 ### Der erste Zugang
 
 Im Browser, und sonst nirgends nötig. Eine Instanz, auf der es weder einen

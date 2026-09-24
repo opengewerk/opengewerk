@@ -11,10 +11,26 @@
 
 name: opengewerk
 
+# Where every service below logs to. Without a limit Docker writes json-file
+# without rotation, and every line of application, database, renderer and
+# backup stays under /var/lib/docker/containers until the disk is full; on a
+# small device the database is the first to stop (#211). The limit sits here
+# and not in the daemon.json of the machine, which would apply to every other
+# container there too and take a restart of the daemon. `local` rotates and
+# compresses by itself, and "docker compose logs" reads it as it reads
+# json-file: five files of 10 MB, so about 50 MB per container at most. A new
+# service takes the same line, and the CI checks that none is without it.
+x-logging: &logging
+  driver: local
+  options:
+    max-size: 10m
+    max-file: '5'
+
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
@@ -69,6 +85,7 @@ services:
       context: ..
       dockerfile: Dockerfile
     image: ghcr.io/opengewerk/opengewerk:${OPENGEWERK_VERSION:-source}
+    logging: *logging
     command: ['node', '--enable-source-maps', 'dist/migrate.js']
     environment:
       MIGRATION_DATABASE_URL: postgres://opengewerk_owner:${OPENGEWERK_OWNER_PASSWORD}@postgres:5432/opengewerk
@@ -83,6 +100,7 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/opengewerk/opengewerk:${OPENGEWERK_VERSION:-source}
     restart: unless-stopped
+    logging: *logging
     environment:
       # opengewerk_app, never opengewerk_owner: for the owner of the tables
       # row level security applies only through FORCE. The application refuses
@@ -159,6 +177,7 @@ services:
     image: ghcr.io/browserless/chromium:v2.56.7@sha256:b1ba7b054af2891a8199f884d4bd249cf8c3bd2fa8a97b339077e40f92803ba8
     restart: unless-stopped
     profiles: ['renderer']
+    logging: *logging
     environment:
       # The service wants a token, even on its own network. It sits in the
       # .env file and reaches the application as RENDERER_TOKEN.
@@ -186,6 +205,7 @@ services:
       context: ./backup
     image: ghcr.io/opengewerk/backup:${OPENGEWERK_VERSION:-source}
     profiles: ['backup']
+    logging: *logging
     environment: &backup-environment
       POSTGRES_HOST: postgres
       POSTGRES_DB: opengewerk
@@ -224,6 +244,7 @@ services:
       context: ./backup
     image: ghcr.io/opengewerk/backup:${OPENGEWERK_VERSION:-source}
     restart: unless-stopped
+    logging: *logging
     command: ['schedule.sh']
     environment:
       <<: *backup-environment
