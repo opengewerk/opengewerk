@@ -511,6 +511,21 @@ const crossings: readonly {
             values (${own.tenant}, ${other.document}, '{}'::jsonb)`,
   },
   {
+    // The sources of a collective invoice (#135). Its trigger asks for both
+    // documents under the policy, finds the one of another business nowhere
+    // and leaves the answer to the key.
+    key: 'document_sources_document_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_sources (tenant_id, document_id, source_document_id, position)
+            values (${own.tenant}, ${other.document}, ${own.document}, 1)`,
+  },
+  {
+    key: 'document_sources_source_in_tenant',
+    write: (own, other) =>
+      sql`insert into document_sources (tenant_id, document_id, source_document_id, position)
+            values (${own.tenant}, ${own.document}, ${other.document}, 1)`,
+  },
+  {
     key: 'payments_document_in_tenant',
     write: (own, other) =>
       sql`insert into payments (tenant_id, document_id, amount_cents, received_on)

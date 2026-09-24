@@ -102,6 +102,12 @@ export function decideMerge(
   }
 
   if (operation.kind === 'create') {
+    // An entity a device only reads, such as the sources of a collective
+    // invoice (#135): what the server makes, a device cannot make as well.
+    if (!policy.create) {
+      return { outcome: 'conflict', reason: 'online_only', fields: [] }
+    }
+
     // The id came from the device before there was a network, so a record that
     // is already there under that id is this very operation, arriving twice.
     // The recorded operation ids catch the ordinary repeat; this catches the

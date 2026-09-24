@@ -223,6 +223,10 @@ export function permissionFor(
     // The same for a signature. The technician who wrote the report is the
     // one who hands the device to the customer.
     document_signatures: 'document.write',
+    // No device writes the sources of a collective invoice (#135); the policy
+    // answers any attempt with `online_only`. Named here so that the answer
+    // is that conflict about the one operation and not a refused transmission.
+    document_sources: 'document.write',
     tasks: 'task.write',
     // A file and its versions are one thing to whoever adds them: taking a
     // photo on site is adding it, and a new version is the same act again.

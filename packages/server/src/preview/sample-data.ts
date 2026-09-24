@@ -411,6 +411,34 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await post(`/documents/${maintenance.id}/issue`, {})
 
+  // Two days of work in the stairwell, a report for each, issued and not
+  // billed yet: the job offers one invoice over both (#135).
+  for (const [daysAgo, minutes] of [
+    [6, 7000],
+    [5, 4500],
+  ] as const) {
+    const worked = new Date(`${today}T12:00:00Z`)
+
+    worked.setUTCDate(worked.getUTCDate() - daysAgo)
+
+    const daily = await document(
+      {
+        customerId: nordblick,
+        jobId: stairwell,
+        siteId: estate,
+        kind: 'time_and_material_report',
+        documentDate: worked.toISOString().slice(0, 10),
+        subject: 'Treppenhausbeleuchtung auf LED umrüsten',
+      },
+      [
+        item('Arbeitszeit Elektriker', minutes, 'hour', 0),
+        item('LED-Leuchte Treppenhaus', 6000, 'piece', 0),
+      ],
+    )
+
+    await post(`/documents/${daily.id}/issue`, {})
+  }
+
   const workDone =
     'Alten Zählerschrank abgebaut, neuen gesetzt und angeschlossen. Anlage geprüft und ' +
     'wieder in Betrieb genommen.'
