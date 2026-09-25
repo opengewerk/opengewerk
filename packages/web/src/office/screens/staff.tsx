@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 
 import { Button, Cell, Column, Confirm, Field, Table } from '../../components/index.js'
+import { deviceName } from '../../app/devices.js'
 import { moment } from '../../app/format.js'
 import { roleLabel, rolesInWords } from '../../app/labels.js'
 import { mailStatus } from '../../session/mail.js'
@@ -703,7 +704,7 @@ function Devices({
           <tbody>
             {list.data.map((entry) => (
               <tr key={entry.sessionId}>
-                <Cell>{entry.userAgent ?? 'Unbekanntes Gerät'}</Cell>
+                <Cell>{deviceName(entry.userAgent)}</Cell>
                 <Cell>{moment(entry.signedInAt)}</Cell>
                 <Cell>{moment(entry.expiresAt)}</Cell>
                 <Cell>{entry.longLived ? 'Baustelle, 30 Tage' : 'Büro, 12 Stunden'}</Cell>
@@ -715,7 +716,7 @@ function Devices({
                       onTrouble(null)
                       setSigningOut({
                         sessionId: entry.sessionId,
-                        label: entry.userAgent ?? 'Das Gerät',
+                        label: deviceName(entry.userAgent),
                       })
                     }}
                   >

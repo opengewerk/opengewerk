@@ -74,7 +74,15 @@ async function mount(more: readonly RecordState[] = []) {
     transport: server,
     writer: server,
     deviceId: 'telefon-max',
-    entities: ['customers', 'sites', 'installations', 'jobs', 'documents', 'tasks'],
+    entities: [
+      'customers',
+      'sites',
+      'installations',
+      'jobs',
+      'documents',
+      'document_signatures',
+      'tasks',
+    ],
     onSignedOut: () => {},
   })
 
@@ -123,6 +131,28 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('the reports of a job on site', () => {
+  it('show one signed on the device as signed, while the server still says draft (#223)', async () => {
+    signedInAs('technician')
+    server.put('documents', {
+      id: 'd-1',
+      kind: 'time_and_material_report',
+      status: 'draft',
+      jobId: 'j-1',
+      customerId: 'c-1',
+      documentDate: '2026-09-24',
+      number: null,
+    })
+    server.put('document_signatures', { id: 's-1', documentId: 'd-1', signerName: 'Frau Berg' })
+    await mount()
+
+    const card = await screen.findByRole('region', { name: 'Regieberichte' })
+
+    expect(await within(card).findByText('Unterschrieben')).toBeTruthy()
+    expect(within(card).queryByText('Entwurf')).toBeNull()
+  })
 })
 
 describe('a job on site, for a technician', () => {

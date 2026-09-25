@@ -43,6 +43,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Kleinere Befunde aus der Bestandsaufnahme der Oberfläche (#223): eine Liste mit einem Eintrag
+  sagt "1 Eintrag"; findet ihre Suche nichts, sagt sie das, statt den Satz einer leeren Liste zu
+  zeigen; auf der Baustelle steht ein auf dem Gerät unterschriebener, noch nicht übertragener
+  Regiebericht auch in der Liste als unterschrieben; "Konto" zeigt beim Laden nicht mehr kurz
+  "Noch nicht eingerichtet" und sagt ohne übrige Codes, was das heißt, statt "Noch 0 Codes übrig";
+  die Gerätelisten nennen "Chrome auf Windows" statt des User-Agents; im Briefkopf ist "Land" die
+  Auswahl wie am Kunden; und der Pfad am Stromkreis im Büro nennt Kunde und Objekt.
 - Was sich nicht einfach zurücknehmen lässt, fragt vorher nach (#222): Logo entfernen, Mailserver
   entfernen, einen Zugang sperren, eine Einladung zurückziehen, ein Gerät abmelden, ein Feld des
   Regieberichts entfernen und auf der Baustelle einen Auftrag abschließen. Bisher wirkten diese

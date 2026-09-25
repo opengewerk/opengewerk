@@ -7,7 +7,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Confirm, Field } from '../../components/index.js'
+import { Button, Confirm, Field, SelectField } from '../../components/index.js'
+import { countryOptions } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
   type LetterheadView,
@@ -55,7 +56,7 @@ const groups: readonly Group[] = [
       { field: 'houseNumber' },
       { field: 'postalCode', autoComplete: 'postal-code' },
       { field: 'city', autoComplete: 'address-level2' },
-      { field: 'country', hint: 'Als Kürzel, etwa DE oder AT.' },
+      { field: 'country' },
     ],
   },
   {
@@ -195,23 +196,44 @@ function LetterheadForm({
       {groups.map((group) => (
         <Section key={group.title} title={group.title}>
           <div className="grid gap-4 sm:grid-cols-2">
-            {group.fields.map(({ field, hint, type, autoComplete }) => (
-              <Field
-                key={field}
-                label={letterheadFieldLabels[field]}
-                name={field}
-                type={type ?? 'text'}
-                autoComplete={autoComplete ?? 'off'}
-                readOnly={!mayWrite}
-                value={values[field]}
-                placeholder={field === 'companyName' ? view.setUpAs : undefined}
-                hint={hint}
-                onChange={(event) => {
-                  onSaved(false)
-                  setValues({ ...values, [field]: event.target.value })
-                }}
-              />
-            ))}
+            {group.fields.map(({ field, hint, type, autoComplete }) =>
+              field === 'country' ? (
+                // The same list as at a customer and a site, by name and not
+                // as a code to type (#223). A stored code the list does not
+                // know stays choosable, so a save does not change it.
+                <SelectField
+                  key={field}
+                  label={letterheadFieldLabels[field]}
+                  value={values[field] || 'DE'}
+                  options={
+                    countryOptions.some((option) => option.value === (values[field] || 'DE'))
+                      ? countryOptions
+                      : [...countryOptions, { value: values[field], label: values[field] }]
+                  }
+                  disabled={!mayWrite}
+                  onChange={(value) => {
+                    onSaved(false)
+                    setValues({ ...values, [field]: value })
+                  }}
+                />
+              ) : (
+                <Field
+                  key={field}
+                  label={letterheadFieldLabels[field]}
+                  name={field}
+                  type={type ?? 'text'}
+                  autoComplete={autoComplete ?? 'off'}
+                  readOnly={!mayWrite}
+                  value={values[field]}
+                  placeholder={field === 'companyName' ? view.setUpAs : undefined}
+                  hint={hint}
+                  onChange={(event) => {
+                    onSaved(false)
+                    setValues({ ...values, [field]: event.target.value })
+                  }}
+                />
+              ),
+            )}
           </div>
         </Section>
       ))}

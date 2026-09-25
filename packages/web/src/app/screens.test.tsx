@@ -707,6 +707,30 @@ describe('a list in the office', () => {
     expect(screen.queryByText('Meyer')).toBeNull()
   })
 
+  it('counts one entry in the singular, and says so when a search finds nothing (#223)', async () => {
+    render(
+      inARouter(
+        <DataTable
+          caption="Kunden"
+          rows={rows.slice(0, 1)}
+          columns={columns}
+          searchLabel="Kunden suchen"
+          hrefFor={(row) => `/kunden/${String(row['id'])}`}
+          empty="Noch kein Kunde angelegt."
+        />,
+      ),
+    )
+
+    expect(await screen.findByText('1 Eintrag')).toBeDefined()
+
+    await userEvent.type(screen.getByLabelText('Kunden suchen'), 'Zwickau')
+
+    // Not the sentence of an empty list: the customer is there, the search
+    // just does not find it.
+    expect(await screen.findByText('Für „Zwickau“ gibt es keinen Treffer.')).toBeDefined()
+    expect(screen.queryByText('Noch kein Kunde angelegt.')).toBeNull()
+  })
+
   it('sends the slash key to the search box, the way every list does', async () => {
     render(
       inARouter(
