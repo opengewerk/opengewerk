@@ -54,7 +54,7 @@ import {
   withdrawEntry,
 } from '../../app/time.js'
 import { answerLocationConsent } from '../../session/time.js'
-import { refusalText, type EditResult } from '../../sync/client.js'
+import { refusalFor, type EditResult } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteActionBar } from '../action-bar.js'
@@ -71,7 +71,7 @@ function outcomeText(result: EditResult | string | null): string | null {
     return result
   }
 
-  return result.outcome === 'refused' ? refusalText[result.reason] : null
+  return result.outcome === 'refused' ? refusalFor(result) : null
 }
 
 /** "Arbeit, Zählerschrank im Keller" or "Fahrt", as a running stopwatch names itself. */

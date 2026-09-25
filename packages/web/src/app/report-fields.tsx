@@ -16,7 +16,7 @@ import {
 import { useMemo, useState } from 'react'
 
 import { Panel } from '../components/index.js'
-import { refusalText } from '../sync/client.js'
+import { refusalFor } from '../sync/client.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { FieldInput } from './protocols.js'
 
@@ -165,7 +165,7 @@ export function ReportFieldsForm({ report }: { readonly report: RecordState }) {
     })
 
     if (result.outcome === 'refused') {
-      setTrouble(refusalText[result.reason])
+      setTrouble(refusalFor(result))
     }
   }
 

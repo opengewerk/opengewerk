@@ -13,7 +13,7 @@ import {
   versionLine,
 } from '../../app/attachments.js'
 import { useMay } from '../../app/queries.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRelated, useSync } from '../../sync/provider.js'
 import { fileSize } from '../../app/format.js'
@@ -120,7 +120,7 @@ export function FilesPanel({
 
     const result = await client.remove('attachments', attachmentId)
 
-    setProblems(result.outcome === 'refused' ? [refusalText[result.reason]] : [])
+    setProblems(result.outcome === 'refused' ? [refusalFor(result)] : [])
   }
 
   return (

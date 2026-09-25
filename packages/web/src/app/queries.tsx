@@ -3,7 +3,7 @@ import { rolesAllow } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider, queryOptions, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
-import { isUnauthenticated } from '../sync/transport.js'
+import { isForbidden, isUnauthenticated } from '../sync/transport.js'
 import { availableTenants, currentAccount } from '../session/session.js'
 
 /**
@@ -24,7 +24,7 @@ export const queries = new QueryClient({
     queries: {
       // Once. The office is not on a train, and a question that fails twice
       // usually fails for a reason that a third attempt will not change.
-      retry: (attempt, error) => attempt < 1 && !isUnauthenticated(error),
+      retry: (attempt, error) => attempt < 1 && !isUnauthenticated(error) && !isForbidden(error),
       // An expired session has to be noticed, and these answers are small.
       refetchOnWindowFocus: true,
       staleTime: 30_000,

@@ -33,7 +33,7 @@ import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { Button, Field, FieldLabel, SelectField, useEntry } from '../components/index.js'
-import { refusalText } from '../sync/client.js'
+import { refusalFor } from '../sync/client.js'
 import type { Draft, EditResult, SyncClient } from '../sync/client.js'
 import { count, maybeText, oneOf, text } from '../sync/fields.js'
 import { useRelated } from '../sync/provider.js'
@@ -439,7 +439,7 @@ export function CircuitForm({
       const result = await onSubmit(values)
 
       if (result.outcome === 'refused') {
-        setTrouble(refusalText[result.reason])
+        setTrouble(refusalFor(result))
       }
     } finally {
       setWorking(false)

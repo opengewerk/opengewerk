@@ -10,7 +10,7 @@ import type {
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DirectWriter, SyncClient } from './client.js'
-import { SyncClient as Client, inTransmissions } from './client.js'
+import { SyncClient as Client, inTransmissions, refusalFor, refusalText } from './client.js'
 import { byRecord, project } from './projection.js'
 import { openLocalStore } from './store.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
@@ -860,6 +860,71 @@ describe('an exchange with the server', () => {
 
     expect(client.status().trouble).toBe('Unbekanntes Feld: quatsch')
     expect(client.status().state).toBe('offline')
+  })
+
+  describe('refused with a session that is still good (#254)', () => {
+    const untrusted =
+      'Diese Anfrage kommt von einer fremden Adresse. Sie wird nur von der Adresse ' +
+      'angenommen, unter der die Instanz erreichbar ist (TRUSTED_ORIGINS).'
+
+    async function watched() {
+      const signedOut = vi.fn()
+      const client = await Client.start({
+        store: await openLocalStore(`t${String((counter += 1))}`),
+        transport,
+        writer,
+        deviceId: 'device',
+        entities,
+        onSignedOut: signedOut,
+      })
+
+      return { client, signedOut }
+    }
+
+    it('stays open over a 403 and shows the sentence it came with', async () => {
+      const { client, signedOut } = await watched()
+
+      transport.refuse = new RequestRefused(403, untrusted)
+      await client.synchronise()
+
+      expect(signedOut).not.toHaveBeenCalled()
+      expect(client.status().trouble).toBe(untrusted)
+    })
+
+    it('takes a 401 for the end of the session', async () => {
+      const { client, signedOut } = await watched()
+
+      transport.refuse = new RequestRefused(401, 'Keine gültige Anmeldung.')
+      await client.synchronise()
+
+      expect(signedOut).toHaveBeenCalledOnce()
+      expect(client.status().trouble).toBe('Die Anmeldung ist abgelaufen.')
+    })
+
+    it('gives a refused direct write the reason the server gave, not a missing network', async () => {
+      const { client, signedOut } = await watched()
+
+      await holding(client, transport, {
+        entity: 'customers',
+        rows: [row({ id: 'c-1', name: 'Meyer', kind: 'private' })],
+      })
+      writer.refuse = new RequestRefused(403, 'Fehlendes Recht: customer.write')
+
+      const tried = await client.update('customers', 'c-1', { name: 'Meyer GmbH' })
+
+      expect(signedOut).not.toHaveBeenCalled()
+      expect(tried.outcome === 'refused' ? refusalFor(tried) : null).toBe(
+        'Fehlendes Recht: customer.write',
+      )
+
+      writer.refuse = new TypeError('Failed to fetch')
+
+      const offline = await client.update('customers', 'c-1', { name: 'Meyer GmbH' })
+
+      expect(offline.outcome === 'refused' ? refusalFor(offline) : null).toBe(
+        refusalText.online_only,
+      )
+    })
   })
 
   it('hides a record the server has marked as deleted', async () => {

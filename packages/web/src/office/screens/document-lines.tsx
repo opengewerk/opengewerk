@@ -61,7 +61,7 @@ import {
 } from '../../app/labels.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { deductionsOf } from '../../session/documents.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import type { EditResult } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
@@ -318,7 +318,7 @@ function LineForm({
       })
 
       if (result.outcome === 'refused') {
-        setTrouble(refusalText[result.reason])
+        setTrouble(refusalFor(result))
       }
     } finally {
       setWorking(false)
@@ -506,7 +506,7 @@ export function LinesPanel({
         const result = await client.update('document_lines', line.id, { position: index + 1 })
 
         if (result.outcome === 'refused') {
-          setTrouble(refusalText[result.reason])
+          setTrouble(refusalFor(result))
 
           return
         }
@@ -519,7 +519,7 @@ export function LinesPanel({
 
     const result = await client.remove('document_lines', id)
 
-    setTrouble(result.outcome === 'refused' ? refusalText[result.reason] : null)
+    setTrouble(result.outcome === 'refused' ? refusalFor(result) : null)
   }
 
   const nextPosition =

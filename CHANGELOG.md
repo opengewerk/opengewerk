@@ -219,6 +219,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - Der Server beantwortet `HEAD` auf eine Seite der Oberfläche wie `GET` (#218). Bisher kam 404
   zurück, und ein Monitor, der mit `HEAD` fragt, hätte eine laufende Installation als ausgefallen
   gemeldet. Aufgefallen ist es beim Bau der Prüfung der Breiten.
+- Ein 403 beim Abgleich meldet das Gerät nicht mehr ab (#254). Bisher galt jede 403 als
+  abgelaufene Anmeldung: das Gerät fragte die Anmeldung neu, bekam sie unverändert zurück und
+  stand danach auf "Einen Moment", bis jemand die Seite neu lud. So ging es etwa jeder Instanz,
+  die unter einer Adresse außerhalb von `TRUSTED_ORIGINS` geöffnet wird. Jetzt zeigt die Leiste den
+  Satz des Servers, und die Daten auf dem Gerät bleiben offen. Nur eine 401 heißt abgemeldet;
+  kommt die Anmeldung danach trotzdem unverändert zurück, sagt das Tor "Abgleich unterbrochen" und
+  bietet "Erneut versuchen" an. Eine abgelehnte direkte Änderung an Stammdaten nennt den Grund des
+  Servers statt "Das geht nur mit Verbindung", und eine Datei, deren Hochladen mit 403 abgelehnt
+  wird, bleibt auf dem Gerät.
 
 ## [0.2.0] - 2026-09-25
 

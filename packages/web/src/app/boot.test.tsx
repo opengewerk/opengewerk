@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto'
 import type { Operation, OperationReceipt, TenantId } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -15,7 +16,7 @@ import {
 import { currentAccount } from '../session/session.js'
 import { SyncClient } from '../sync/client.js'
 import { text } from '../sync/fields.js'
-import { useRecords } from '../sync/provider.js'
+import { useRecords, useSyncStatus } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { Boot } from './boot.js'
 import { useMay } from './queries.js'
@@ -92,6 +93,8 @@ function Jobs() {
   // And one asking what the roles allow, as the tasks, the photos and the
   // working time on a job do (#184).
   const readsTasks = useMay('task.read')
+  // What the strip over every screen would say.
+  const { trouble } = useSyncStatus()
 
   return (
     <>
@@ -101,6 +104,7 @@ function Jobs() {
         ))}
       </ul>
       <p>{readsTasks ? 'Aufgaben sichtbar' : 'Aufgaben verborgen'}</p>
+      {trouble ? <p>{trouble}</p> : null}
     </>
   )
 }
@@ -231,5 +235,81 @@ describe('starting with a network', () => {
         { id: tenantId, name: 'Elektro Nord', roles: ['technician'] },
       ])
     })
+  })
+})
+
+describe('refused with a session that is still good (#254)', () => {
+  interface Answer {
+    readonly status: number
+    readonly body: unknown
+  }
+
+  /**
+   * An instance where the account says the same thing every time, and the
+   * routes of the exchange answer with whatever `sync` returns.
+   */
+  function instance(tenantId: TenantId, sync: (path: string) => Answer) {
+    vi.stubGlobal('fetch', (path: string) => {
+      const answer: Answer = path.endsWith('/get-session')
+        ? {
+            status: 200,
+            body: {
+              user: { id: account.userId, email: account.email, name: account.name },
+              session: { activeTenantId: tenantId },
+            },
+          }
+        : path === '/auth/tenants'
+          ? { status: 200, body: [{ id: tenantId, name: 'Elektro Nord', roles: ['technician'] }] }
+          : sync(path)
+
+      return Promise.resolve(
+        new Response(JSON.stringify(answer.body), {
+          status: answer.status,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+    })
+  }
+
+  function accepted(path: string): Answer {
+    return path.startsWith('/sync/conflicts')
+      ? { status: 200, body: [] }
+      : { status: 200, body: { changes: [], cursor: 1, hasMore: false } }
+  }
+
+  it('stays open over a 403 and says why, instead of waiting for a sign in', async () => {
+    const tenantId = await businessOnTheDevice()
+
+    instance(tenantId, () => ({
+      status: 403,
+      body: { statusCode: 403, message: 'Kein Zugang zu diesem Betrieb.' },
+    }))
+    start()
+
+    expect(await screen.findByText('Kein Zugang zu diesem Betrieb.')).toBeTruthy()
+    expect(screen.getByText('Zählerschrank im Keller')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Einen Moment' })).toBeNull()
+  })
+
+  it('says so when a 401 leaves the account as it was, and starts again when asked', async () => {
+    const tenantId = await businessOnTheDevice()
+    let refusing = true
+
+    instance(tenantId, (path) =>
+      refusing
+        ? { status: 401, body: { statusCode: 401, message: 'Keine gültige Anmeldung.' } }
+        : accepted(path),
+    )
+    start()
+
+    // Not "Einen Moment" for ever: the account came back with the business
+    // it had, and nothing would have started the device again.
+    expect(await screen.findByRole('heading', { name: 'Abgleich unterbrochen' })).toBeTruthy()
+
+    refusing = false
+    await userEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
+
+    expect(await screen.findByText('Zählerschrank im Keller')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Abgleich unterbrochen' })).toBeNull()
   })
 })

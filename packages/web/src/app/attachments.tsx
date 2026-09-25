@@ -15,7 +15,7 @@ import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button, Confirm, type SiteHeight } from '../components/index.js'
-import { refusalText, type SyncClient } from '../sync/client.js'
+import { refusalFor, type SyncClient } from '../sync/client.js'
 import { count, maybeText, text } from '../sync/fields.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { fileSize, moment } from './format.js'
@@ -120,7 +120,7 @@ export async function addAttachment(
   })
 
   if (made.outcome === 'refused') {
-    return refusalText[made.reason]
+    return refusalFor(made)
   }
 
   const version = await client.create('attachment_versions', {
@@ -128,7 +128,7 @@ export async function addAttachment(
     ...prepared,
   })
 
-  return version.outcome === 'refused' ? refusalText[version.reason] : null
+  return version.outcome === 'refused' ? refusalFor(version) : null
 }
 
 /** A new version of a file, laid over the ones before it. */
@@ -146,7 +146,7 @@ export async function addVersion(
 
   const version = await client.create('attachment_versions', { attachmentId, ...prepared })
 
-  return version.outcome === 'refused' ? refusalText[version.reason] : null
+  return version.outcome === 'refused' ? refusalFor(version) : null
 }
 
 /**
@@ -361,7 +361,7 @@ export function AttachmentList({
 
     const result = await client.remove('attachments', id)
 
-    setTrouble(result.outcome === 'refused' ? refusalText[result.reason] : null)
+    setTrouble(result.outcome === 'refused' ? refusalFor(result) : null)
   }
 
   async function replace(files: FileList | null) {

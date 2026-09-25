@@ -7,7 +7,7 @@ import type { FormEvent } from 'react'
 import { Button, Panel, TextArea } from '../../components/index.js'
 import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { useMay } from '../../app/queries.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { text } from '../../sync/fields.js'
 import { useRecord, useSync } from '../../sync/provider.js'
 import { SiteActionBar } from '../action-bar.js'
@@ -116,7 +116,7 @@ export function SiteNoteScreen() {
       })
 
       if (made.outcome === 'refused') {
-        setTrouble(refusalText[made.reason])
+        setTrouble(refusalFor(made))
 
         return
       }
