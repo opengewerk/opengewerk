@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { Check, TriangleAlert, WifiOff } from 'lucide-react'
 import type { DocumentStatus } from '@opengewerk/domain'
 import type { ReactNode } from 'react'
 
@@ -73,7 +74,11 @@ export interface SyncBarProps {
   readonly action?: ReactNode
 }
 
+const syncIcons = { synced: Check, offline: WifiOff, conflict: TriangleAlert } as const
+
 export function SyncBar({ state, children, action }: SyncBarProps) {
+  const Icon = syncIcons[state]
+
   return (
     <div
       // A conflict interrupts, the other two do not. `alert` is announced at
@@ -81,11 +86,12 @@ export function SyncBar({ state, children, action }: SyncBarProps) {
       // quiet states would train people to ignore it.
       role={state === 'conflict' ? 'alert' : 'status'}
       className={clsx(
-        'flex items-center gap-3 px-4 py-2 min-h-tap',
-        'text-body font-medium',
+        'flex items-center gap-2.5 px-4 py-1.5 min-h-tap lg:px-5',
+        'text-body font-semibold',
         syncClasses[state],
       )}
     >
+      <Icon size={17} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
       <span className="grow">{children}</span>
       {action}
     </div>

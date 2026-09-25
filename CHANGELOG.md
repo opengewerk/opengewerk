@@ -15,6 +15,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Konto, denn das Tablet im Keller will oft etwas anderes als der Schreibtisch, und sie gilt schon vor
   der Anmeldung. Die dunklen Farben stehen nur noch einmal in `tokens.css`, und die Symbole im
   Umschalter kommen aus Lucide.
+- Das Büro hat die Hülle aus dem Canvas (#217): oben die Kopfzeile in Schiefer mit Marke, Betrieb
+  und der Person, darunter ab 1024 Pixel Breite die Navigation neben dem Bildschirm, in den Gruppen
+  Stammdaten und Arbeit, und am Fuß Abgleich und Einstellungen. Schmaler steckt sie hinter "Menü"
+  in der Kopfzeile und öffnet sich als Schublade mit großen Zeilen für den Daumen. Hinter der Person
+  liegen hell oder dunkel, das Konto und das Abmelden. Die Leisten über dem Bildschirm erscheinen nur
+  noch, wenn etwas zu tun ist; dass alles abgeglichen ist, steht leise unter "Abgleich", denn die
+  grüne Leiste auf jedem Bildschirm sagte meistens nichts und nahm den Platz einer Tabellenzeile.
+  Neben "Aufgaben" steht, wie viele offene Aufgaben auf die angemeldete Person warten.
 
 ### Behoben
 

@@ -26,7 +26,7 @@ export function Page({
   readonly children: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4 lg:px-[22px] lg:py-[18px]">
       {crumbs ? (
         <nav aria-label="Pfad" className="text-table text-ink-muted">
           {crumbs}

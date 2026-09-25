@@ -1,117 +1,73 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { useCallback, useState } from 'react'
 
 import { Shell } from '../components/index.js'
-import { useMay } from '../app/queries.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
-import { useSyncStatus } from '../sync/provider.js'
+import { Drawer, Sidebar } from './navigation.js'
 import { BackupBar } from './screens/backup.js'
+import { TopBar } from './top-bar.js'
 
 /**
- * The navigation of the office, and it is a real `<nav>` with real links.
+ * What every office screen sits in, as drawn on the canvas: the header in
+ * slate, under it whatever strip has something to say, then the navigation
+ * beside the screen. Below 1024 px the navigation moves into a drawer behind
+ * "Menü" in the header.
  *
- * `activeProps` rather than a class worked out from the current path: the
- * router already knows which one is active, and it also sets `aria-current`,
- * which is what a screen reader uses to say "you are here".
- */
-function Navigation() {
-  const { conflicts } = useSyncStatus()
-  // One entry for everything a business sets for itself: letterhead, taxes,
-  // number ranges, mail and, for the owner, the access list. The office reads
-  // most of it, since it writes the documents it ends up on. A courtesy and
-  // not the gate: the routes behind every screen ask the membership on every
-  // request, and typing an address reaches a screen whose calls are refused.
-  const administers = useMay('membership.read')
-  const readsSettings = useMay('settings.read')
-  // Whoever reads documents reads the texts they are written from.
-  const readsDocuments = useMay('document.read')
-  const readsTasks = useMay('task.read')
-  const readsTime = useMay('time.read')
-
-  const items: readonly { readonly to: string; readonly label: ReactNode }[] = [
-    { to: '/', label: 'Kunden' },
-    { to: '/auftraege', label: 'Aufträge' },
-    ...(readsTasks ? [{ to: '/aufgaben', label: 'Aufgaben' as ReactNode }] : []),
-    ...(readsTime ? [{ to: '/zeiten', label: 'Zeiten' as ReactNode }] : []),
-    ...(readsDocuments ? [{ to: '/textbausteine', label: 'Textbausteine' as ReactNode }] : []),
-    {
-      to: '/konflikte',
-      label: conflicts.length > 0 ? `Konflikte (${String(conflicts.length)})` : 'Konflikte',
-    },
-    ...(readsSettings || administers
-      ? [{ to: '/einstellungen', label: 'Einstellungen' as ReactNode }]
-      : []),
-    { to: '/konto', label: 'Konto' },
-  ]
-
-  return (
-    <nav aria-label="Hauptbereiche" className="border-b border-line bg-surface-sunken">
-      <ul className="flex flex-wrap items-center gap-1 px-4 py-2">
-        {items.map((item) => (
-          <li key={item.to}>
-            <Link
-              to={item.to}
-              // `exact` on the root, or every path would light it up as well:
-              // the customer list lives at `/`, and `/auftraege` starts with it.
-              activeOptions={item.to === '/' ? { exact: true } : undefined}
-              activeProps={{
-                className:
-                  'inline-flex items-center h-control min-h-tap px-3 rounded-control text-body font-semibold bg-surface text-ink border border-line-strong',
-              }}
-              inactiveProps={{
-                className:
-                  'inline-flex items-center h-control min-h-tap px-3 rounded-control text-body font-medium text-ink-muted border border-transparent',
-              }}
-            >
-              {item.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  )
-}
-
-/**
- * What every office screen sits in.
- *
- * The bars come before the navigation and before the content, in that order,
- * and none of them can be dismissed. A conflict has to be visible from
- * whichever screen somebody happens to be on, because the screen they are on
- * is the one where they would otherwise keep working on stale data.
+ * The strips come before the navigation and the content, in that order, and
+ * none of them can be dismissed. They only appear when there is something to
+ * do: a conflict, a refused entry, no connection, a new version, a backup that
+ * is overdue. That everything arrived is said quietly in the navigation under
+ * "Abgleich" instead; a green bar over every screen said nothing most of the
+ * time and took the space of a table row (#217).
  */
 export function OfficeShell() {
+  const [drawer, setDrawer] = useState(false)
+  const openDrawer = useCallback(() => {
+    setDrawer(true)
+  }, [])
+  const closeDrawer = useCallback(() => {
+    setDrawer(false)
+  }, [])
+
   return (
     <Shell entry="office">
-      <a
-        href="#inhalt"
-        // The first thing Tab reaches, and invisible until it is reached. A
-        // keyboard user otherwise walks through the whole navigation on every
-        // screen to get to the table they came for.
-        className="sr-only focus:not-sr-only focus:absolute focus:m-2 focus:p-2 focus:bg-surface focus:border focus:border-line-strong focus:rounded-control"
-      >
-        Zum Inhalt springen
-      </a>
+      <div className="flex min-h-dvh flex-col">
+        <a
+          href="#inhalt"
+          // The first thing Tab reaches, and invisible until it is reached. A
+          // keyboard user otherwise walks through the whole navigation on every
+          // screen to get to the table they came for.
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:p-2 focus:bg-surface focus:border focus:border-line-strong focus:rounded-control"
+        >
+          Zum Inhalt springen
+        </a>
 
-      <EntrySuggestion here="office" />
-      <UpdateBar />
-      <SyncStatusBar
-        conflictsLink={
-          <Link
-            to="/konflikte"
-            className="inline-flex items-center h-control min-h-tap px-3 rounded-control bg-surface text-ink font-semibold"
-          >
-            Ansehen
-          </Link>
-        }
-      />
-      <BackupBar />
-      <Navigation />
+        <TopBar menuOpen={drawer} onMenu={openDrawer} />
 
-      <main id="inhalt" className="mx-auto w-full max-w-6xl">
-        <Outlet />
-      </main>
+        <EntrySuggestion here="office" />
+        <UpdateBar />
+        <SyncStatusBar
+          conflictsLink={
+            <Link
+              to="/konflikte"
+              className="inline-flex h-7 items-center rounded-control bg-surface px-3 text-[13px] font-semibold text-ink no-underline"
+            >
+              Ansehen
+            </Link>
+          }
+        />
+        <BackupBar />
+
+        <div className="flex flex-1 items-start">
+          <Sidebar />
+          <main id="inhalt" className="min-w-0 flex-1">
+            <Outlet />
+          </main>
+        </div>
+
+        <Drawer open={drawer} onClose={closeDrawer} />
+      </div>
     </Shell>
   )
 }
