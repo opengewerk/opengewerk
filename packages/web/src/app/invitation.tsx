@@ -3,7 +3,7 @@ import { useState } from 'react'
 
 import { Button, Field } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
-import { Gate } from './sign-in.js'
+import { Gate, GateText, GateWaiting } from './gate.js'
 import {
   invitationOffer,
   redeemInvitation,
@@ -38,17 +38,17 @@ export function InvitationScreen({ token }: { readonly token: string }) {
   })
 
   if (offer.isPending) {
-    return <Gate title="Einen Moment">Die Einladung wird geprüft.</Gate>
+    return <GateWaiting>Die Einladung wird geprüft.</GateWaiting>
   }
 
   if (offer.isError) {
     return (
       <Gate title="Dieser Link führt nirgendwohin">
-        <p className="text-body">
+        <GateText muted={false}>
           {saidWhy(offer.error, 'Diesen Link gibt es nicht.')} Wer Ihnen den Link geschickt hat,
           kann einen neuen erzeugen.
-        </p>
-        <Button className="mt-4" tone="secondary" wide onClick={startOver}>
+        </GateText>
+        <Button tone="secondary" wide onClick={startOver}>
           Zur Anmeldung
         </Button>
       </Gate>
@@ -58,8 +58,8 @@ export function InvitationScreen({ token }: { readonly token: string }) {
   if (offer.data.state !== 'open') {
     return (
       <Gate title="Dieser Link gilt nicht mehr">
-        <p className="text-body">{spent[offer.data.state]}</p>
-        <Button className="mt-4" tone="secondary" wide onClick={startOver}>
+        <GateText muted={false}>{spent[offer.data.state]}</GateText>
+        <Button tone="secondary" wide onClick={startOver}>
           Zur Anmeldung
         </Button>
       </Gate>
@@ -133,19 +133,21 @@ function Accept({
   if (offer.knownAccount) {
     return (
       <Gate title={`Beitreten zu ${offer.company}`}>
-        <p className="text-body">
+        <GateText muted={false}>
           Für <strong>{offer.email}</strong> gibt es auf dieser Instanz schon ein Konto. Sie
           behalten Ihr Passwort; der Betrieb kommt einfach dazu.
-        </p>
+        </GateText>
 
         {trouble ? (
-          <p role="alert" className="mt-4 text-body font-semibold text-conflict">
+          <p
+            role="alert"
+            className="text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]"
+          >
             {trouble}
           </p>
         ) : null}
 
         <Button
-          className="mt-4"
           tone="primary"
           wide
           disabled={working}
@@ -161,14 +163,14 @@ function Accept({
 
   return (
     <Gate title={`Willkommen bei ${offer.company}`}>
-      <p className="text-body text-ink-muted">
-        Der Betrieb hat einen Zugang für <strong>{offer.name}</strong> angelegt, mit der Adresse{' '}
-        <strong>{offer.email}</strong>. Fehlt nur noch ein Passwort, und das wählen Sie selbst:
-        niemand im Betrieb bekommt es zu sehen.
-      </p>
+      <GateText>
+        Der Betrieb hat einen Zugang für <strong className="text-ink">{offer.name}</strong>{' '}
+        angelegt, mit der Adresse <strong className="text-ink">{offer.email}</strong>. Fehlt nur
+        noch ein Passwort, und das wählen Sie selbst: niemand im Betrieb bekommt es zu sehen.
+      </GateText>
 
       <form
-        className="mt-4 flex flex-col gap-4"
+        className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
           event.preventDefault()
           void submit()
@@ -201,7 +203,10 @@ function Accept({
         />
 
         {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
+          <p
+            role="alert"
+            className="text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]"
+          >
             {trouble}
           </p>
         ) : null}

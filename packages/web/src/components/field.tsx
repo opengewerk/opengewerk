@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { useId } from 'react'
 import type { InputHTMLAttributes, ReactNode, Ref, TextareaHTMLAttributes } from 'react'
 
+import { useInGate } from './gate.js'
 import type { Entry } from './surface.js'
 import { useEntry } from './surface.js'
 
@@ -16,6 +17,7 @@ const look = {
   office: {
     frame: 'gap-1',
     label: 'text-[13px] font-medium text-ink',
+    height: 'h-control-lg min-h-tap',
     control: 'px-2.5 rounded-control text-body',
     note: 'text-[13px] leading-[1.4] text-ink-faint',
     unit: 'text-[13px] text-ink-muted',
@@ -23,11 +25,29 @@ const look = {
   site: {
     frame: 'gap-1.5',
     label: 'text-[15px] font-semibold text-ink',
+    height: 'h-control-lg min-h-tap',
     control: 'px-3 rounded-[5px] text-[17px]',
     note: 'text-[14px] leading-[1.4] text-ink-muted',
     unit: 'text-[17px] text-ink-muted',
   },
-} as const satisfies Record<Entry, Record<string, string>>
+  // Before sign in, `gate_field()` of the boards: 52 pixels on a phone, 42 at
+  // a desk, where the gate is a form on a page rather than a screen of work.
+  gate: {
+    frame: 'gap-[5px]',
+    label: 'text-[15px] lg:text-[14px] font-medium text-ink',
+    height: 'h-13 lg:h-[42px]',
+    control: 'px-3 rounded-[4px] text-[17px] lg:text-[15px]',
+    note: 'text-[13px] leading-[1.45] text-ink-muted',
+    unit: 'text-[15px] text-ink-muted',
+  },
+} as const satisfies Record<Entry | 'gate', Record<string, string>>
+
+/** The look of a field where it stands: in the gate, or in the office or on site. */
+function useLook(): keyof typeof look {
+  const entry = useEntry()
+
+  return useInGate() ? 'gate' : entry
+}
 
 /** The edge of a control, which a problem turns red and thicker. */
 function edge(problem: string | undefined): string {
@@ -36,13 +56,13 @@ function edge(problem: string | undefined): string {
 
 /** The line under a field, and the problem under that, both wired to it. */
 function Notes({
-  entry,
+  kind,
   hint,
   hintId,
   problem,
   problemId,
 }: {
-  readonly entry: Entry
+  readonly kind: keyof typeof look
   readonly hint?: ReactNode
   readonly hintId: string
   readonly problem?: string | undefined
@@ -51,12 +71,12 @@ function Notes({
   return (
     <>
       {hint ? (
-        <p id={hintId} className={look[entry].note}>
+        <p id={hintId} className={look[kind].note}>
           {hint}
         </p>
       ) : null}
       {problem ? (
-        <p id={problemId} className={clsx(look[entry].note, 'font-semibold text-conflict!')}>
+        <p id={problemId} className={clsx(look[kind].note, 'font-semibold text-conflict!')}>
           {problem}
         </p>
       ) : null}
@@ -84,6 +104,11 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
    * outside the box, so a thumb does not type into it.
    */
   readonly unit?: string
+  /**
+   * Beside the label at the right, as "Passwort vergessen?" stands beside
+   * "Passwort" on the board "Tor-Anmelden".
+   */
+  readonly aside?: ReactNode
 }
 
 /**
@@ -100,12 +125,13 @@ export function Field({
   problem,
   numeric = false,
   unit,
+  aside,
   className,
   ref,
   ...rest
 }: FieldProps) {
   const id = useId()
-  const entry = useEntry()
+  const kind = useLook()
   const hintId = `${id}-hint`
   const problemId = `${id}-problem`
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
@@ -117,8 +143,9 @@ export function Field({
       aria-invalid={problem ? true : undefined}
       aria-describedby={described.length > 0 ? described : undefined}
       className={clsx(
-        'h-control-lg min-h-tap w-full min-w-0 bg-input text-ink',
-        look[entry].control,
+        'w-full min-w-0 bg-input text-ink',
+        look[kind].height,
+        look[kind].control,
         edge(problem),
         numeric && 'numeric',
         className,
@@ -128,21 +155,30 @@ export function Field({
   )
 
   return (
-    <div className={clsx('flex min-w-0 flex-col', look[entry].frame)}>
-      <label htmlFor={id} className={look[entry].label}>
-        {label}
-      </label>
+    <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
+      {aside ? (
+        <div className="flex items-baseline gap-2">
+          <label htmlFor={id} className={clsx('grow', look[kind].label)}>
+            {label}
+          </label>
+          {aside}
+        </div>
+      ) : (
+        <label htmlFor={id} className={look[kind].label}>
+          {label}
+        </label>
+      )}
       {unit ? (
         <div className="flex items-center gap-2.5">
           {input}
-          <span aria-hidden="true" className={clsx('shrink-0', look[entry].unit)}>
+          <span aria-hidden="true" className={clsx('shrink-0', look[kind].unit)}>
             {unit}
           </span>
         </div>
       ) : (
         input
       )}
-      <Notes entry={entry} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
+      <Notes kind={kind} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
     </div>
   )
 }
@@ -175,14 +211,14 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
  */
 export function TextArea({ label, hint, problem, rows = 4, className, ...rest }: TextAreaProps) {
   const id = useId()
-  const entry = useEntry()
+  const kind = useLook()
   const hintId = `${id}-hint`
   const problemId = `${id}-problem`
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
 
   return (
-    <div className={clsx('flex min-w-0 flex-col', look[entry].frame)}>
-      <label htmlFor={id} className={look[entry].label}>
+    <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
+      <label htmlFor={id} className={look[kind].label}>
         {label}
       </label>
       <textarea
@@ -192,13 +228,13 @@ export function TextArea({ label, hint, problem, rows = 4, className, ...rest }:
         aria-describedby={described.length > 0 ? described : undefined}
         className={clsx(
           'min-h-tap w-full min-w-0 py-2 leading-[1.45] bg-input text-ink',
-          look[entry].control,
+          look[kind].control,
           edge(problem),
           className,
         )}
         {...rest}
       />
-      <Notes entry={entry} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
+      <Notes kind={kind} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
     </div>
   )
 }
@@ -235,13 +271,14 @@ export function SelectField({
 }: SelectFieldProps) {
   const id = useId()
   const entry = useEntry()
+  const kind = useLook()
   const hintId = `${id}-hint`
   const problemId = `${id}-problem`
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
 
   return (
-    <div className={clsx('flex min-w-0 flex-col', look[entry].frame)}>
-      <label htmlFor={id} className={look[entry].label}>
+    <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
+      <label htmlFor={id} className={look[kind].label}>
         {label}
       </label>
       {/* The native list, with the arrow of the canvas instead of the
@@ -259,7 +296,7 @@ export function SelectField({
           }}
           className={clsx(
             'h-control-lg min-h-tap w-full min-w-0 cursor-pointer appearance-none bg-input text-ink',
-            look[entry].control,
+            look[kind].control,
             entry === 'site' ? 'pr-10' : 'pr-[30px]',
             edge(problem),
           )}
@@ -280,7 +317,7 @@ export function SelectField({
           )}
         />
       </div>
-      <Notes entry={entry} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
+      <Notes kind={kind} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
     </div>
   )
 }

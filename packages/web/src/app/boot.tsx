@@ -1,5 +1,6 @@
 import { requiresSecondFactor, syncEntities } from '@opengewerk/domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { RefreshCw, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -11,11 +12,12 @@ import { openLocalStore } from '../sync/store.js'
 import { directWrite, httpTransport } from '../sync/transport.js'
 import { unreachable } from '../session/remembered.js'
 import { deviceIdentity } from './device.js'
+import { Gate, GateText, GateWaiting } from './gate.js'
 import { InvitationScreen } from './invitation.js'
 import { PasswordResetScreen } from './password-reset.js'
 import { accountQuery } from './queries.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
-import { Gate, SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
+import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
 import {
   availableTenants,
   invitationToken,
@@ -142,7 +144,7 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   }
 
   if (account.isPending) {
-    return <Gate title="Einen Moment">Die Anwendung fragt, wer angemeldet ist.</Gate>
+    return <GateWaiting>Die Anwendung fragt, wer angemeldet ist.</GateWaiting>
   }
 
   if (step === 'second-factor') {
@@ -160,14 +162,23 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
     if (cutOff) {
       return (
         <Gate title="Keine Verbindung">
-          <p className="text-body">
-            Der Server antwortet nicht, und auf diesem Gerät war noch niemand angemeldet. Zum ersten
-            Anmelden braucht es eine Verbindung; danach öffnet das Gerät seine Daten auch ohne.
-          </p>
+          <div className="flex items-start gap-3">
+            <WifiOff
+              size={24}
+              strokeWidth={2.1}
+              aria-hidden="true"
+              className="mt-0.5 shrink-0 text-waiting"
+            />
+            <p className="text-[16px] leading-[1.5] text-ink lg:text-[15px]">
+              Der Server antwortet nicht, und auf diesem Gerät war noch niemand angemeldet. Zum
+              ersten Anmelden braucht es eine Verbindung; danach öffnet das Gerät seine Daten auch
+              ohne.
+            </p>
+          </div>
           <Button
-            className="mt-4"
             tone="secondary"
             wide
+            icon={RefreshCw}
             onClick={() => {
               void account.refetch()
             }}
@@ -179,7 +190,7 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
     }
 
     if (setup.data === undefined && !setup.isError) {
-      return <Gate title="Einen Moment">Die Anwendung sieht nach, ob sie schon läuft.</Gate>
+      return <GateWaiting>Die Anwendung sieht nach, ob sie schon läuft.</GateWaiting>
     }
 
     if (setup.data === true) {
@@ -210,7 +221,7 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   }
 
   if (!client) {
-    return <Gate title="Einen Moment">Die Daten dieses Geräts werden geöffnet.</Gate>
+    return <GateWaiting>Die Daten dieses Geräts werden geöffnet.</GateWaiting>
   }
 
   return <SyncProvider client={client}>{children}</SyncProvider>
@@ -230,17 +241,17 @@ function ChooseTenant({
   const tenants = useQuery({ queryKey: ['tenants'], queryFn: availableTenants, retry: false })
 
   if (tenants.isPending) {
-    return <Gate title="Einen Moment">Die Betriebe werden geladen.</Gate>
+    return <GateWaiting>Die Betriebe werden geladen.</GateWaiting>
   }
 
   if (tenants.isError) {
     return (
       <Gate title="Das ging nicht">
-        <p className="text-body">Die Liste der Betriebe kam nicht an.</p>
+        <GateText muted={false}>Die Liste der Betriebe kam nicht an.</GateText>
         <Button
-          className="mt-4"
           tone="secondary"
           wide
+          icon={RefreshCw}
           onClick={() => {
             void tenants.refetch()
           }}
