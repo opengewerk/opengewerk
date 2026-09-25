@@ -196,6 +196,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   gezeichnet, mit mindestens 44 Pixeln und auf dem Telefon mit größerer Schrift. Bisher waren die
   Knöpfe auch am Schreibtisch 44 Pixel hoch, weil die Mindesthöhe für Finger für jede Breite galt.
   Die Umbruchpunkte sind die der Tafel: 600, 1024, 1600 und 2400 Pixel.
+- Die alte Tabelle der Listen (`app/data-table.tsx`) und mit ihr `@tanstack/react-table` sind
+  entfernt (#246). Seit die Listen ihren Tafeln folgen, benutzte sie kein Bildschirm mehr; die
+  Listen stehen auf einem eigenen Baustein, der jede Stufe der Tafel "Breiten und Auflösungen"
+  anders zeigt. Nachtrag in ADR 0004.
 
 ### Behoben
 

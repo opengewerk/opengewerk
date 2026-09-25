@@ -1,26 +1,17 @@
 import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState, SyncConflict } from '@opengewerk/domain'
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  RouterProvider,
-} from '@tanstack/react-router'
 import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { ConflictScreen } from './conflicts.js'
-import { DataTable } from './data-table.js'
-import type { ListColumns } from './data-table.js'
 import { EntrySuggestion } from './suggestion.js'
 import { SyncStatusBar } from './sync-bar.js'
 import { entryChoiceKey } from '../entry/entry.js'
 import { SyncScreen } from '../office/screens/sync.js'
 import type { DirectWriter } from '../sync/client.js'
 import { SyncClient } from '../sync/client.js'
-import { text } from '../sync/fields.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import type { PullResult, SyncTransport } from '../sync/transport.js'
@@ -688,99 +679,5 @@ describe('the suggestion to switch entry', () => {
     render(<EntrySuggestion here="office" />)
 
     expect(screen.queryByRole('link', { name: 'Zur Baustellenansicht' })).toBeNull()
-  })
-})
-
-describe('a list in the office', () => {
-  const columns: ListColumns = [
-    { id: 'name', accessorFn: (row) => text(row, 'name'), header: 'Name' },
-    { id: 'city', accessorFn: (row) => text(row, 'city'), header: 'Ort' },
-  ]
-
-  const rows: RecordState[] = [
-    { id: 'c-1', name: 'Meyer', city: 'Edingen' },
-    { id: 'c-2', name: 'Schulz', city: 'Mannheim' },
-  ]
-
-  /**
-   * A router around the list, because every row is a link and a link needs one.
-   * A memory history rather than the address bar: the test is about the search
-   * box, not about where a row leads.
-   */
-  function inARouter(element: React.ReactNode) {
-    const root = createRootRoute({ component: () => element })
-
-    return (
-      <RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory() })} />
-    )
-  }
-
-  it('narrows to what somebody typed, and says how many are left', async () => {
-    render(
-      inARouter(
-        <DataTable
-          caption="Kunden"
-          rows={rows}
-          columns={columns}
-          searchLabel="Kunden suchen"
-          hrefFor={(row) => `/kunden/${String(row['id'])}`}
-          empty="Nichts da."
-        />,
-      ),
-    )
-
-    expect(await screen.findByText('2 Einträge')).toBeDefined()
-
-    await userEvent.type(screen.getByLabelText('Kunden suchen'), 'Mannheim')
-
-    expect(await screen.findByText('1 von 2 Einträgen')).toBeDefined()
-    expect(screen.queryByText('Meyer')).toBeNull()
-  })
-
-  it('counts one entry in the singular, and says so when a search finds nothing (#223)', async () => {
-    render(
-      inARouter(
-        <DataTable
-          caption="Kunden"
-          rows={rows.slice(0, 1)}
-          columns={columns}
-          searchLabel="Kunden suchen"
-          hrefFor={(row) => `/kunden/${String(row['id'])}`}
-          empty="Noch kein Kunde angelegt."
-        />,
-      ),
-    )
-
-    expect(await screen.findByText('1 Eintrag')).toBeDefined()
-
-    await userEvent.type(screen.getByLabelText('Kunden suchen'), 'Zwickau')
-
-    // Not the sentence of an empty list: the customer is there, the search
-    // just does not find it.
-    expect(await screen.findByText('Für „Zwickau“ gibt es keinen Treffer.')).toBeDefined()
-    expect(screen.queryByText('Noch kein Kunde angelegt.')).toBeNull()
-  })
-
-  it('sends the slash key to the search box, the way every list does', async () => {
-    render(
-      inARouter(
-        <DataTable
-          caption="Kunden"
-          rows={rows}
-          columns={columns}
-          searchLabel="Kunden suchen"
-          hrefFor={(row) => `/kunden/${String(row['id'])}`}
-          empty="Nichts da."
-        />,
-      ),
-    )
-
-    const search = await screen.findByLabelText('Kunden suchen')
-
-    expect(document.activeElement).not.toBe(search)
-
-    await userEvent.keyboard('/')
-
-    expect(document.activeElement).toBe(search)
   })
 })
