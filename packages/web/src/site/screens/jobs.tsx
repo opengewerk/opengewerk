@@ -1,10 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { Link, Outlet, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Check, MapPin, Pencil, Signature, Smartphone, Zap } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
 
-import { Button, Confirm, DocumentState, Panel } from '../../components/index.js'
+import { Button, Confirm, DocumentState, Panel, useBand } from '../../components/index.js'
 import { addressLine, date, today } from '../../app/format.js'
 import {
   documentKindOf,
@@ -104,8 +104,10 @@ function JobCard({ job }: { readonly job: RecordState }) {
         // The whole card is the target, with a thumb in a glove in mind. A
         // link and not a handler, so the keyboard and the screen reader get
         // the same thing the thumb does.
+        // The job open beside the list on a tablet is ringed in slate, as on
+        // the board "Tablet quer"; the router marks its link as the page.
         className={clsx(
-          'block rounded-[6px] border border-l-4 border-line bg-surface py-[13px] pr-3.5 pl-4 text-ink no-underline',
+          'block rounded-[6px] border border-l-4 border-line bg-surface py-[13px] pr-3.5 pl-4 text-ink no-underline aria-[current=page]:ring-2 aria-[current=page]:ring-ink',
           working ? 'border-l-copper' : 'border-l-control',
         )}
       >
@@ -191,6 +193,49 @@ export function SiteJobList() {
 
       <MyTasks />
     </SiteScreen>
+  )
+}
+
+/** Whether a job stands in the pane beside the list, as on a tablet held across. */
+const BesideList = createContext(false)
+
+/**
+ * The list and a job side by side from 1024 pixels on, the board "Tablet
+ * quer, Liste und Auftrag": the list in a column of its own, the job chosen in
+ * it beside it, and each of the two scrolls for itself. Below that the list
+ * and a job are one screen each, as on the phone.
+ *
+ * Only the list and the job itself: what opens from a job, a report or a
+ * board, takes the whole width again, with the way back in its header.
+ */
+export function SiteJobsLayout() {
+  const band = useBand()
+  const path = useRouterState({ select: (state) => state.location.pathname })
+
+  if (band === 'S' || band === 'M') {
+    return <Outlet />
+  }
+
+  return (
+    <div className="flex h-full min-h-0">
+      <div className="w-[404px] shrink-0 overflow-y-auto">
+        <SiteJobList />
+      </div>
+      <div className="min-w-0 grow overflow-y-auto border-l border-line">
+        <BesideList.Provider value={true}>
+          {path === '/' ? <NoJobChosen /> : <Outlet />}
+        </BesideList.Provider>
+      </div>
+    </div>
+  )
+}
+
+/** The pane beside the list before a job is chosen. */
+function NoJobChosen() {
+  return (
+    <div className="flex h-full items-center justify-center px-5 py-4">
+      <SiteText muted>Einen Auftrag in der Liste wählen, er steht dann hier.</SiteText>
+    </div>
   )
 }
 
@@ -360,6 +405,7 @@ export function SiteJobScreen() {
   // Closing a job asks first (#222): it leaves the list, and after 30 days the devices.
   const [closing, setClosing] = useState(false)
   const reports = useMay('job.progress')
+  const beside = useContext(BesideList)
 
   if (!job || !jobId) {
     return (
@@ -375,6 +421,223 @@ export function SiteJobScreen() {
   const status = jobStatusOf(job)
   const address = addressLine(site)
   const phone = customer ? maybeText(customer, 'phone') : null
+  const numberLine = maybeText(job, 'number') ? (
+    <>
+      <span className="numeric">{text(job, 'number')}</span>
+      {', '}
+    </>
+  ) : client.isPending('jobs', jobId) ? (
+    'Nummer folgt beim Abgleich, '
+  ) : null
+
+  const where = (
+    <Panel title="Wo und für wen">
+      <SiteFacts
+        facts={[
+          { label: 'Kunde', value: customer ? text(customer, 'name') : 'nicht angegeben' },
+          { label: 'Objekt', value: site ? text(site, 'designation') : 'nicht angegeben' },
+          ...(address
+            ? [
+                {
+                  label: 'Anschrift',
+                  // A link into the phone's map app: the one thing a
+                  // technician standing next to a van wants from an address.
+                  value: (
+                    <SiteAnchor href={`geo:0,0?q=${encodeURIComponent(address)}`} icon={MapPin}>
+                      {address}
+                    </SiteAnchor>
+                  ),
+                },
+              ]
+            : []),
+          ...(phone
+            ? [
+                {
+                  label: 'Telefon',
+                  value: (
+                    <SiteAnchor href={`tel:${phone}`} icon={Smartphone}>
+                      {phone}
+                    </SiteAnchor>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
+    </Panel>
+  )
+
+  const plant = installation ? (
+    <Panel title="Anlage">
+      <div className="flex flex-col gap-2.5">
+        <SiteFacts
+          facts={[
+            {
+              label: installationKindLabel[installationKindOf(installation)],
+              value: <b className="font-semibold">{text(installation, 'designation')}</b>,
+            },
+            ...(maybeText(installation, 'serialNumber')
+              ? [
+                  {
+                    label: 'Seriennummer',
+                    value: <span className="numeric">{text(installation, 'serialNumber')}</span>,
+                  },
+                ]
+              : []),
+            ...(maybeText(installation, 'commissionedOn')
+              ? [{ label: 'In Betrieb seit', value: date(installation['commissionedOn']) }]
+              : []),
+          ]}
+        />
+        <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
+        <InstallationProtocols jobId={jobId} installationId={String(installation['id'])} />
+      </div>
+    </Panel>
+  ) : null
+
+  const todo = maybeText(job, 'description') ? (
+    <Panel title="Was zu tun ist">
+      <p className="text-[17px] leading-[1.45] whitespace-pre-line [overflow-wrap:anywhere]">
+        {text(job, 'description')}
+      </p>
+    </Panel>
+  ) : null
+
+  const note =
+    reports && noting ? (
+      <Panel title="Notiz zum Auftrag">
+        <RecordForm
+          fields={[{ name: 'description', label: 'Was passiert ist' }]}
+          record={job}
+          submitLabel="Notiz sichern"
+          onCancel={() => {
+            setNoting(false)
+          }}
+          onSubmit={async (values) => {
+            const saved = await client.update('jobs', jobId, {
+              description: asTextOrNull(values['description']),
+            })
+
+            if (saved.outcome === 'queued') {
+              setNoting(false)
+            }
+
+            return saved
+          }}
+        />
+      </Panel>
+    ) : null
+
+  const end = (
+    <div className="flex flex-col gap-2">
+      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+
+      {status === 'completed' ? (
+        <SiteText muted>Dieser Auftrag ist abgeschlossen.</SiteText>
+      ) : reports ? (
+        // Slate, as the board has it: finishing is going somewhere, not
+        // the thing this screen is for.
+        <Button
+          tone="dark"
+          wide
+          height={52}
+          icon={Check}
+          onClick={() => {
+            setTrouble(null)
+            setClosing(true)
+          }}
+        >
+          Auftrag abschließen
+        </Button>
+      ) : null}
+
+      <Confirm
+        open={closing}
+        title="Auftrag abschließen?"
+        confirm="Abschließen"
+        tone="primary"
+        onConfirm={() => {
+          setClosing(false)
+
+          void client.update('jobs', jobId, { status: 'completed' }).then((saved) => {
+            if (saved.outcome === 'refused') {
+              setTrouble('Das ging nicht. Der Auftrag bleibt offen.')
+            }
+          })
+        }}
+        onCancel={() => {
+          setClosing(false)
+        }}
+      >
+        {`„${text(job, 'designation')}“ gilt danach als abgeschlossen. Auf den Geräten der Monteure bleibt er noch 30 Tage zu sehen.`}
+      </Confirm>
+
+      {reports ? (
+        <Button
+          wide
+          height={48}
+          icon={Pencil}
+          onClick={() => {
+            setNoting((open) => !open)
+          }}
+        >
+          {noting ? 'Notiz schließen' : 'Notiz schreiben'}
+        </Button>
+      ) : null}
+    </div>
+  )
+
+  const contacts = <JobContacts job={job} />
+  const lineage = <JobLineage job={job} />
+  const time = <JobTime job={job} />
+  const writing = <JobReports job={job} />
+  const files = <JobFiles job={job} />
+  const tasks = <JobTasks job={job} />
+
+  // Beside the list two columns as on the board "Tablet quer": where and for
+  // whom over the installation on the left, what to do over the reports on
+  // the right, the rest under them. Two stacks rather than one grid, because
+  // the installation with its boards and protocols is far taller than a card
+  // beside it and would leave a hole in every row; a reader and the tab key
+  // go down the left column, then down the right. The two columns need 640
+  // pixels of the pane, which a tablet of 1180 has; a narrower one, a window
+  // of 1024, sets the stacks under each other, or buttons in a card of half
+  // that width would run over its edge.
+  if (beside) {
+    return (
+      <div className="@container flex min-w-0 flex-col gap-3 px-5 py-4">
+        <div>
+          <p className="font-condensed text-[14px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+            {jobKindLabel[jobKindOf(job)]}
+          </p>
+          <h1 className="mt-0.5 text-[27px] leading-[1.2] font-bold [overflow-wrap:anywhere]">
+            {text(job, 'designation')}
+          </h1>
+          <p className="mt-0.5 text-[16px] text-ink-muted">
+            {numberLine}
+            {jobStatusLabel[status]}
+          </p>
+        </div>
+        <div className="grid grid-cols-1 items-start gap-3 @min-[40rem]:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-3">
+            {where}
+            {plant}
+            {contacts}
+            {lineage}
+          </div>
+          <div className="flex min-w-0 flex-col gap-3">
+            {todo}
+            {writing}
+            {time}
+            {files}
+            {tasks}
+            {note}
+            {end}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <SiteScreen>
@@ -383,184 +646,23 @@ export function SiteJobScreen() {
         sub={
           <>
             {`${jobKindLabel[jobKindOf(job)]}, `}
-            {maybeText(job, 'number') ? (
-              <>
-                <span className="numeric">{text(job, 'number')}</span>
-                {', '}
-              </>
-            ) : client.isPending('jobs', jobId) ? (
-              'Nummer folgt beim Abgleich, '
-            ) : null}
+            {numberLine}
             {jobStatusLabel[status]}
           </>
         }
       />
 
-      <Panel title="Wo und für wen">
-        <SiteFacts
-          facts={[
-            { label: 'Kunde', value: customer ? text(customer, 'name') : 'nicht angegeben' },
-            { label: 'Objekt', value: site ? text(site, 'designation') : 'nicht angegeben' },
-            ...(address
-              ? [
-                  {
-                    label: 'Anschrift',
-                    // A link into the phone's map app: the one thing a
-                    // technician standing next to a van wants from an address.
-                    value: (
-                      <SiteAnchor href={`geo:0,0?q=${encodeURIComponent(address)}`} icon={MapPin}>
-                        {address}
-                      </SiteAnchor>
-                    ),
-                  },
-                ]
-              : []),
-            ...(phone
-              ? [
-                  {
-                    label: 'Telefon',
-                    value: (
-                      <SiteAnchor href={`tel:${phone}`} icon={Smartphone}>
-                        {phone}
-                      </SiteAnchor>
-                    ),
-                  },
-                ]
-              : []),
-          ]}
-        />
-      </Panel>
-
-      <JobContacts job={job} />
-
-      <JobLineage job={job} />
-
-      {installation ? (
-        <Panel title="Anlage">
-          <div className="flex flex-col gap-2.5">
-            <SiteFacts
-              facts={[
-                {
-                  label: installationKindLabel[installationKindOf(installation)],
-                  value: <b className="font-semibold">{text(installation, 'designation')}</b>,
-                },
-                ...(maybeText(installation, 'serialNumber')
-                  ? [
-                      {
-                        label: 'Seriennummer',
-                        value: (
-                          <span className="numeric">{text(installation, 'serialNumber')}</span>
-                        ),
-                      },
-                    ]
-                  : []),
-                ...(maybeText(installation, 'commissionedOn')
-                  ? [{ label: 'In Betrieb seit', value: date(installation['commissionedOn']) }]
-                  : []),
-              ]}
-            />
-            <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
-            <InstallationProtocols jobId={jobId} installationId={String(installation['id'])} />
-          </div>
-        </Panel>
-      ) : null}
-
-      {maybeText(job, 'description') ? (
-        <Panel title="Was zu tun ist">
-          <p className="text-[17px] leading-[1.45] whitespace-pre-line [overflow-wrap:anywhere]">
-            {text(job, 'description')}
-          </p>
-        </Panel>
-      ) : null}
-
-      <JobTime job={job} />
-
-      <JobReports job={job} />
-
-      <JobFiles job={job} />
-
-      <JobTasks job={job} />
-
-      {reports && noting ? (
-        <Panel title="Notiz zum Auftrag">
-          <RecordForm
-            fields={[{ name: 'description', label: 'Was passiert ist' }]}
-            record={job}
-            submitLabel="Notiz sichern"
-            onCancel={() => {
-              setNoting(false)
-            }}
-            onSubmit={async (values) => {
-              const saved = await client.update('jobs', jobId, {
-                description: asTextOrNull(values['description']),
-              })
-
-              if (saved.outcome === 'queued') {
-                setNoting(false)
-              }
-
-              return saved
-            }}
-          />
-        </Panel>
-      ) : null}
-
-      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
-
-      <div className="flex flex-col gap-2">
-        {status === 'completed' ? (
-          <SiteText muted>Dieser Auftrag ist abgeschlossen.</SiteText>
-        ) : reports ? (
-          // Slate, as the board has it: finishing is going somewhere, not
-          // the thing this screen is for.
-          <Button
-            tone="dark"
-            wide
-            height={52}
-            icon={Check}
-            onClick={() => {
-              setTrouble(null)
-              setClosing(true)
-            }}
-          >
-            Auftrag abschließen
-          </Button>
-        ) : null}
-
-        <Confirm
-          open={closing}
-          title="Auftrag abschließen?"
-          confirm="Abschließen"
-          tone="primary"
-          onConfirm={() => {
-            setClosing(false)
-
-            void client.update('jobs', jobId, { status: 'completed' }).then((saved) => {
-              if (saved.outcome === 'refused') {
-                setTrouble('Das ging nicht. Der Auftrag bleibt offen.')
-              }
-            })
-          }}
-          onCancel={() => {
-            setClosing(false)
-          }}
-        >
-          {`„${text(job, 'designation')}“ gilt danach als abgeschlossen. Auf den Geräten der Monteure bleibt er noch 30 Tage zu sehen.`}
-        </Confirm>
-
-        {reports ? (
-          <Button
-            wide
-            height={48}
-            icon={Pencil}
-            onClick={() => {
-              setNoting((open) => !open)
-            }}
-          >
-            {noting ? 'Notiz schließen' : 'Notiz schreiben'}
-          </Button>
-        ) : null}
-      </div>
+      {where}
+      {contacts}
+      {lineage}
+      {plant}
+      {todo}
+      {time}
+      {writing}
+      {files}
+      {tasks}
+      {note}
+      {end}
     </SiteScreen>
   )
 }

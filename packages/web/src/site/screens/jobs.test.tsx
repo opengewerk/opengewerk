@@ -17,7 +17,7 @@ import { SyncClient } from '../../sync/client.js'
 import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './jobs.js'
 
 /**
  * A job on site, seen by the technician who works on it (#128).
@@ -57,7 +57,10 @@ function signedInAs(...roles: RoleKey[]) {
   answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
 }
 
-async function mount(more: readonly RecordState[] = []) {
+async function mount(
+  more: readonly RecordState[] = [],
+  { path = '/auftraege/j-1', layout = false }: { path?: string; layout?: boolean } = {},
+) {
   for (const [entity, list] of Object.entries(rows)) {
     for (const row of list) {
       server.put(entity, row)
@@ -82,6 +85,7 @@ async function mount(more: readonly RecordState[] = []) {
       'documents',
       'document_signatures',
       'tasks',
+      'time_entries',
     ],
     onSignedOut: () => {},
   })
@@ -89,15 +93,29 @@ async function mount(more: readonly RecordState[] = []) {
   await client.synchronise()
 
   const root = createRootRoute()
+  // With `layout` the routes as the site has them, the list and a job under
+  // the layout that sets them side by side on a tablet.
+  const jobs = createRoute({ getParentRoute: () => root, id: 'jobs', component: SiteJobsLayout })
   const router = createRouter({
-    routeTree: root.addChildren([
-      createRoute({
-        getParentRoute: () => root,
-        path: '/auftraege/$jobId',
-        component: SiteJobScreen,
-      }),
-    ]),
-    history: createMemoryHistory({ initialEntries: ['/auftraege/j-1'] }),
+    routeTree: layout
+      ? root.addChildren([
+          jobs.addChildren([
+            createRoute({ getParentRoute: () => jobs, path: '/', component: SiteJobList }),
+            createRoute({
+              getParentRoute: () => jobs,
+              path: '/auftraege/$jobId',
+              component: SiteJobScreen,
+            }),
+          ]),
+        ])
+      : root.addChildren([
+          createRoute({
+            getParentRoute: () => root,
+            path: '/auftraege/$jobId',
+            component: SiteJobScreen,
+          }),
+        ]),
+    history: createMemoryHistory({ initialEntries: [path] }),
   })
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
@@ -109,9 +127,21 @@ async function mount(more: readonly RecordState[] = []) {
     </QueryClientProvider>,
   )
 
-  await screen.findByRole('heading', { name: 'Steckdose ohne Strom' })
+  if (path === '/auftraege/j-1') {
+    await screen.findByRole('heading', { name: 'Steckdose ohne Strom' })
+  }
 
   return { client, queries }
+}
+
+/** The window as wide as a tablet held across, 1180 pixels, or as a phone. */
+function wide(tablet: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: tablet && (query === '(min-width: 64rem)' || query === '(min-width: 37.5rem)'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
 }
 
 beforeEach(() => {
@@ -243,5 +273,54 @@ describe('a job on site, between the jobs before and after it (#170)', () => {
     await mount()
 
     expect(screen.queryByRole('region', { name: 'Vorher und danach' })).toBeNull()
+  })
+})
+
+describe('the list and a job on a tablet held across (#219)', () => {
+  const other = { id: 'j-2', designation: 'Wallbox in der Garage', status: 'draft' }
+
+  it('stand side by side, the job chosen ringed in the list and without a header of its own', async () => {
+    wide(true)
+    signedInAs('technician')
+    await mount([other], { layout: true })
+    const user = userEvent.setup()
+
+    const list = screen.getByRole('list', { name: 'Offene Aufträge' })
+    const chosen = within(list).getByRole('link', { name: /Steckdose ohne Strom/ })
+
+    expect(chosen.getAttribute('aria-current')).toBe('page')
+    expect(
+      within(list)
+        .getByRole('link', { name: /Wallbox in der Garage/ })
+        .getAttribute('aria-current'),
+    ).toBeNull()
+    // The list is beside it, so there is no way back to it above the job.
+    expect(screen.queryByRole('link', { name: 'Zurück zu den Aufträgen' })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1, name: 'Steckdose ohne Strom' })).toBeTruthy()
+
+    // Another job opens beside the same list.
+    await user.click(within(list).getByRole('link', { name: /Wallbox in der Garage/ }))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Wallbox in der Garage' }),
+    ).toBeTruthy()
+    expect(screen.getByRole('list', { name: 'Offene Aufträge' })).toBe(list)
+  })
+
+  it('say what goes beside the list before a job is chosen', async () => {
+    wide(true)
+    signedInAs('technician')
+    await mount([other], { layout: true, path: '/' })
+
+    expect(await screen.findByRole('list', { name: 'Offene Aufträge' })).toBeTruthy()
+    expect(screen.getByText('Einen Auftrag in der Liste wählen, er steht dann hier.')).toBeTruthy()
+  })
+
+  it('are one screen each on a phone, the job with the way back', async () => {
+    wide(false)
+    signedInAs('technician')
+    await mount([other], { layout: true })
+
+    expect(screen.queryByRole('list', { name: 'Offene Aufträge' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Zurück zu den Aufträgen' })).toBeTruthy()
   })
 })

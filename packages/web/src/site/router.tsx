@@ -3,7 +3,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteFilesScreen } from './screens/files.js'
-import { SiteJobList, SiteJobScreen } from './screens/jobs.js'
+import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteReportScreen } from './screens/report.js'
 import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
@@ -27,9 +27,21 @@ import { SiteShell } from './shell.js'
  */
 const root = createRootRoute({ component: SiteShell })
 
+/**
+ * The list and a job, which stand side by side on a tablet held across
+ * (`SiteJobsLayout`), and one after the other on a phone.
+ */
+const jobs = createRoute({ getParentRoute: () => root, id: 'jobs', component: SiteJobsLayout })
+
 const routes = [
-  createRoute({ getParentRoute: () => root, path: '/', component: SiteJobList }),
-  createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: SiteJobScreen }),
+  jobs.addChildren([
+    createRoute({ getParentRoute: () => jobs, path: '/', component: SiteJobList }),
+    createRoute({
+      getParentRoute: () => jobs,
+      path: '/auftraege/$jobId',
+      component: SiteJobScreen,
+    }),
+  ]),
   createRoute({
     getParentRoute: () => root,
     path: '/auftraege/$jobId/berichte/$documentId',

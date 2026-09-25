@@ -127,6 +127,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   haben die Höhen der Tafeln, 44 bis 60 Pixel. Je Bildschirm ein Knopf in Kupfer (#223): am
   Auftrag ist es "Regiebericht schreiben", "Foto aufnehmen" ist dort ein normaler Knopf und nur auf
   dem Bildschirm der Dateien in Kupfer.
+- Auf einem Tablet quer stehen die Aufträge und der gewählte Auftrag nebeneinander, wie auf der
+  Tafel "Tablet quer" (#219): links die Liste, in der der offene Auftrag schieferfarben umrandet
+  ist, rechts der Auftrag mit Art, Titel, Nummer und Zustand als Kopf statt der Schieferleiste und
+  mit seinen Karten in zwei Spalten. Beide Seiten rollen für sich. Bisher stand die Liste ab 1024
+  Pixeln über die ganze Breite, und ein Auftrag ersetzte sie. Die zwei Spalten brauchen 640 Pixel
+  neben der Liste, schmaler stehen die Karten untereinander; was von einem Auftrag aus geöffnet
+  wird, ein Bericht oder ein Verteiler, nimmt die ganze Breite. "Foto aufnehmen" und "Datei
+  hinzufügen" stehen untereinander, wo die halbe Breite für ihre Beschriftung nicht reicht, statt
+  über den Rand der Karte zu laufen.
 - Der Regiebericht auf der Baustelle folgt seinen Tafeln (#219). Die Arbeitszeit hat einen Zähler
   mit Minus und Plus, eine Viertelstunde je Tipp, jede gleich auf dem Gerät gesichert; Material
   steht als Zeile mit Menge und Kreuz, das vor dem Entfernen fragt. Material und weitere
