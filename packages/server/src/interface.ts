@@ -73,6 +73,7 @@ const apiPrefixes = [
   'form-records',
   'time',
   'documents',
+  'payments',
   'sync',
   'settings',
   'setup',

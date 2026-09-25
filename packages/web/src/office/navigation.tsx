@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import {
   Calendar,
   Clock,
+  File,
   House,
   RefreshCw,
   Settings,
@@ -18,7 +19,7 @@ import { Fragment, useEffect, useMemo, useReducer, useRef } from 'react'
 
 import { BrandMark, ThemeSwitch } from '../components/index.js'
 import { sinceThen } from '../app/format.js'
-import { taskStatusOf } from '../app/labels.js'
+import { documentStatusOf, taskStatusOf } from '../app/labels.js'
 import { accountQuery, useMay } from '../app/queries.js'
 import { useTheme } from '../app/theme.js'
 import { text } from '../sync/fields.js'
@@ -62,9 +63,7 @@ interface Group {
  * rather than worked in.
  *
  * An entry that somebody may not use is left out. A courtesy and not the gate:
- * the routes behind every screen ask the membership on every request. Objekte,
- * Anlagen and Belege are drawn on the canvas as lists of their own; they join
- * here once those lists exist (#219), until then the customer leads to them.
+ * the routes behind every screen ask the membership on every request.
  */
 function useEntries(): { readonly groups: readonly Group[]; readonly foot: readonly Entry[] } {
   const { conflicts } = useSyncStatus()
@@ -75,6 +74,9 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
   const readsTasks = useMay('task.read')
   const readsTime = useMay('time.read')
   const mine = useOpenTasksOfMine()
+  const drafts = useRecords('documents').filter(
+    (document) => documentStatusOf(document) === 'draft',
+  ).length
 
   const groups: Group[] = [
     {
@@ -97,6 +99,26 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
       title: 'Arbeit',
       entries: [
         { to: '/auftraege', label: 'Aufträge', icon: Calendar },
+        ...(readsDocuments
+          ? [
+              {
+                to: '/belege',
+                label: 'Belege',
+                icon: File,
+                // The drafts, what is written and not yet out, as the canvas
+                // counts beside "Belege" in the colour of what waits.
+                ...(drafts > 0
+                  ? {
+                      badge: {
+                        value: drafts,
+                        tone: 'waiting' as const,
+                        spoken: drafts === 1 ? 'ein Entwurf' : `${String(drafts)} Entwürfe`,
+                      },
+                    }
+                  : {}),
+              },
+            ]
+          : []),
         ...(readsTasks
           ? [
               {
