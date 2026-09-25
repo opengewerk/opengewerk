@@ -246,6 +246,18 @@ describe('the sample data', () => {
     )
   })
 
+  it('has the protocols of the cabinet, one signed and a draft with a value outside its limit', async () => {
+    const { rows } = await admin.query<{ status: string; performed_on: string; values: string }>(
+      'select status, performed_on::text, values from form_records order by performed_on',
+    )
+
+    expect(rows.map((row) => row.status)).toEqual(['signed', 'draft'])
+    expect(rows[1]?.performed_on).toBe('2026-09-21')
+    // F3 in the kitchen, 3,41 Ω behind a B 16 A: the one value the board
+    // "Prüfprotokoll im Büro" shows in red (#219).
+    expect(rows[1]?.values).toContain('"loop_impedance":3410')
+  })
+
   it('is written down in the audit log under the preview person', async () => {
     const { rows } = await admin.query<{ count: string }>(
       "select count(*) from audit_entries where tenant_id = $1 and user_id = 'preview'",

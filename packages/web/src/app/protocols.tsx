@@ -29,7 +29,7 @@ import {
 import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Copy, Plus } from 'lucide-react'
+import { Copy, Eye, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
@@ -336,7 +336,9 @@ export function ProtocolsList({
           </p>
         ) : (
           <ul>
-            {protocols.map((protocol) => {
+            {/* In the order they were done, as the card lists them, so that the
+                newest stands right above the way to the next. */}
+            {[...protocols].reverse().map((protocol) => {
               const id = String(protocol['id'])
 
               return (
@@ -504,7 +506,7 @@ export function ProtocolsList({
 }
 
 /** How a limit reads under a value, with the place it comes from. */
-function Verdict({
+export function Verdict({
   field,
   value,
   circuit,
@@ -677,7 +679,7 @@ export function FieldInput({
 }
 
 /** A value as it is read, for a protocol that is signed. */
-function shownValue(
+export function shownValue(
   field: BlockField,
   value: FieldValue | undefined,
   photos: readonly { readonly value: string; readonly label: string }[],
@@ -701,7 +703,7 @@ function shownValue(
   }
 }
 
-function FieldText({
+export function FieldText({
   field,
   value,
   circuit,
@@ -727,12 +729,24 @@ function FieldText({
   )
 }
 
-function blocksOf(value: FormValue | undefined): readonly GroupBlock[] {
+export function blocksOf(value: FormValue | undefined): readonly GroupBlock[] {
   return Array.isArray(value) ? (value as readonly GroupBlock[]) : []
 }
 
+/** The name of a block: its circuit and what hangs on it, or its place among free ones. */
+export function blockHeading(block: GroupBlock, index: number): string {
+  return block.circuit
+    ? [block.circuit.designation, block.circuit.consumer].filter(Boolean).join(' ')
+    : `Block ${String(index + 1)}`
+}
+
+/** How many fields of a block are filled in. */
+export function filledIn(field: GroupField, block: GroupBlock): number {
+  return field.fields.filter((nested) => block.values[nested.key] !== undefined).length
+}
+
 /** How many measured values of a block lie outside their limits. */
-function outsideIn(field: GroupField, block: GroupBlock, performedOn: string): number {
+export function outsideIn(field: GroupField, block: GroupBlock, performedOn: string): number {
   return field.fields.filter((nested) => {
     const value = block.values[nested.key]
 
@@ -768,11 +782,9 @@ function BlockCard({
   readonly onChange: (block: GroupBlock) => void
   readonly onRemove: (() => void) | null
 }) {
-  const heading = block.circuit
-    ? [block.circuit.designation, block.circuit.consumer].filter(Boolean).join(' ')
-    : `Block ${String(index + 1)}`
+  const heading = blockHeading(block, index)
   const protection = block.circuit ? circuitProtection(block.circuit) : null
-  const filled = field.fields.filter((nested) => block.values[nested.key] !== undefined).length
+  const filled = filledIn(field, block)
   const outside = outsideIn(field, block, performedOn)
 
   return (
@@ -965,21 +977,31 @@ function usePhotos(
   )
 }
 
+/** What a screen needs of a protocol to show it and to save what is typed into it. */
+export interface ProtocolDraft {
+  readonly definition: FormDefinition | null
+  readonly circuits: readonly (BlockCircuit & { readonly id: string })[]
+  readonly photos: readonly { readonly value: string; readonly label: string }[]
+  readonly editable: boolean
+  readonly draft: FormValues
+  readonly set: (key: string, value: FormValue | undefined) => void
+  readonly performedOn: string
+  readonly setPerformedOn: (value: string) => void
+  readonly unsaved: boolean
+  /** How often the draft was replaced from elsewhere: inputs keyed on it start afresh. */
+  readonly generation: number
+  readonly trouble: string | null
+  readonly working: boolean
+  readonly save: () => Promise<void>
+}
+
 /**
- * A protocol on screen: as a form while it is a draft, as text once it is
- * signed. What is typed stays in a draft of the screen until somebody saves,
- * and a save asks the same question the server will, so a protocol it would
- * refuse never reaches the outbox.
- *
- * `children` is what the entry puts under the form: the signature on site.
+ * A protocol as a screen holds it, on site and in the office alike. What is
+ * typed stays in a draft of the screen until somebody saves, and a save asks
+ * the same question the server will, so a protocol it would refuse never
+ * reaches the outbox.
  */
-export function ProtocolSheet({
-  record,
-  children,
-}: {
-  readonly record: RecordState
-  readonly children?: (state: { readonly unsaved: boolean }) => ReactNode
-}) {
+export function useProtocolDraft(record: RecordState): ProtocolDraft {
   const client = useSync()
   const definition = definitionOf(record)
   const installationId = text(record, 'installationId')
@@ -1010,15 +1032,6 @@ export function ProtocolSheet({
     setGeneration((count) => count + 1)
   }
 
-  if (!definition) {
-    return (
-      <p className="text-body">
-        Dieses Formular ist in einer Fassung ausgefüllt, die diese Fassung von OpenGewerk nicht
-        kennt. Nach einem Update ist es wieder lesbar.
-      </p>
-    )
-  }
-
   function set(key: string, value: FormValue | undefined) {
     setDraft((current) => {
       const next: Record<string, FormValue> = { ...current }
@@ -1033,8 +1046,12 @@ export function ProtocolSheet({
     })
   }
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
+  async function save() {
+    // Nothing typed, nothing to send: the button stays where it is drawn,
+    // and a click on it writes no second copy of the same values.
+    if (!unsaved) {
+      return
+    }
 
     const values = formValuesText(draft)
     const problem = formRecordProblem(protocolRegistry, {
@@ -1069,11 +1086,62 @@ export function ProtocolSheet({
     }
   }
 
+  return {
+    definition,
+    circuits,
+    photos,
+    editable,
+    draft,
+    set,
+    performedOn,
+    setPerformedOn,
+    unsaved,
+    generation,
+    trouble,
+    working,
+    save,
+  }
+}
+
+/**
+ * A protocol on screen: as a form while it is a draft, as text once it is
+ * signed.
+ *
+ * `children` is what the entry puts under the form: the signature on site.
+ */
+export function ProtocolSheet({
+  record,
+  children,
+}: {
+  readonly record: RecordState
+  readonly children?: (state: { readonly unsaved: boolean }) => ReactNode
+}) {
+  const {
+    definition,
+    circuits,
+    photos,
+    editable,
+    draft,
+    set,
+    performedOn,
+    setPerformedOn,
+    unsaved,
+    generation,
+    trouble,
+    working,
+    save,
+  } = useProtocolDraft(record)
+
+  if (!definition) {
+    return <UnknownVersion />
+  }
+
   return (
     <form
       className="flex flex-col gap-4"
-      onSubmit={(event) => {
-        void save(event)
+      onSubmit={(event: FormEvent) => {
+        event.preventDefault()
+        void save()
       }}
     >
       {editable ? (
@@ -1170,6 +1238,16 @@ export function ProtocolSheet({
   )
 }
 
+/** A protocol filled in on a version of OpenGewerk newer than this one. */
+export function UnknownVersion() {
+  return (
+    <p className="text-body">
+      Dieses Formular ist in einer Fassung ausgefüllt, die diese Fassung von OpenGewerk nicht kennt.
+      Nach einem Update ist es wieder lesbar.
+    </p>
+  )
+}
+
 /**
  * What is still missing before the tester signs, the signature itself left
  * out: the sentences to show, empty when it can be signed.
@@ -1193,12 +1271,34 @@ export function protocolPdfAddress(recordId: string): string {
  */
 export function ProtocolPdfLink({ recordId }: { readonly recordId: string }) {
   const client = useSync()
+  const entry = useEntry()
   const { online } = useSyncStatus()
   const reason = !online
     ? 'Das PDF druckt der Server, dafür braucht es Verbindung.'
     : client.isPending('form_records', recordId)
       ? 'Das PDF gibt es, sobald das Protokoll übertragen ist.'
       : null
+
+  // In the office a button of the head with an eye, as the board draws it;
+  // the reason it cannot help is in its title there, a line under it would
+  // push the head apart.
+  if (entry === 'office') {
+    return reason ? (
+      <Button icon={Eye} disabled title={reason}>
+        Als PDF
+      </Button>
+    ) : (
+      <a
+        href={protocolPdfAddress(recordId)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex h-control min-h-tap items-center justify-center gap-[7px] rounded-control border border-control bg-surface px-[14px] text-body text-ink no-underline lg:whitespace-nowrap"
+      >
+        <Eye size={15} strokeWidth={2.3} aria-hidden="true" />
+        Als PDF
+      </a>
+    )
+  }
 
   if (reason) {
     return (

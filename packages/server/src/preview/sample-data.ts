@@ -563,7 +563,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     throw new Error(`The sample tasks were not all taken: ${JSON.stringify(refused)}`)
   }
 
-  await plantBoards(post, cabinet)
+  await plantBoards(post, cabinet, today)
 }
 
 /**
@@ -573,18 +573,30 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
  * is in when somebody has written it down in front of the board and not yet
  * read off the breaker, so that the screens and the chart show that case too.
  *
+ * Then two test protocols of the cabinet (#79): the initial test half a year
+ * ago, signed, and today's after an extension, a draft with the loop
+ * impedance of the kitchen outside its limit, as the board "Prüfprotokoll im
+ * Büro" draws it.
+ *
  * Through the outbox, because there is no other way in: the office writes the
  * structure the way a device does.
  */
 async function plantBoards(
   post: (path: string, body: unknown) => Promise<Answer>,
   cabinet: string,
+  today: IsoDate,
 ): Promise<void> {
   const main = newId<'distribution-board'>()
   const sub = newId<'distribution-board'>()
   const firstRow = newId<'board-section'>()
   const secondRow = newId<'board-section'>()
+  const feed = newId<'circuit'>()
+  const light = newId<'circuit'>()
+  const living = newId<'circuit'>()
   const kitchen = newId<'circuit'>()
+  const cooker = newId<'circuit'>()
+  const wallbox = newId<'circuit'>()
+  const terrace = newId<'circuit'>()
 
   const socketCircuit = {
     overcurrentDevice: 'circuit_breaker',
@@ -628,7 +640,7 @@ async function plantBoards(
     ],
     [
       'circuits',
-      newId<'circuit'>(),
+      feed,
       {
         distributionBoardId: main,
         designation: 'Q1',
@@ -646,7 +658,7 @@ async function plantBoards(
     ],
     [
       'circuits',
-      newId<'circuit'>(),
+      light,
       {
         distributionBoardId: sub,
         boardSectionId: firstRow,
@@ -661,7 +673,7 @@ async function plantBoards(
     ],
     [
       'circuits',
-      newId<'circuit'>(),
+      living,
       {
         distributionBoardId: sub,
         boardSectionId: firstRow,
@@ -687,7 +699,7 @@ async function plantBoards(
     ],
     [
       'circuits',
-      newId<'circuit'>(),
+      cooker,
       {
         distributionBoardId: sub,
         boardSectionId: secondRow,
@@ -701,7 +713,7 @@ async function plantBoards(
     ],
     [
       'circuits',
-      newId<'circuit'>(),
+      wallbox,
       {
         distributionBoardId: sub,
         boardSectionId: secondRow,
@@ -722,7 +734,7 @@ async function plantBoards(
     ],
     [
       'circuits',
-      newId<'circuit'>(),
+      terrace,
       {
         distributionBoardId: sub,
         boardSectionId: secondRow,
@@ -755,6 +767,15 @@ async function plantBoards(
         position: 1,
       },
     ],
+    ...sampleProtocols(cabinet, today, {
+      feed,
+      light,
+      living,
+      kitchen,
+      cooker,
+      wallbox,
+      terrace,
+    }),
   ]
 
   const sent = await post('/sync', {
@@ -776,4 +797,133 @@ async function plantBoards(
   if (refused.length > 0) {
     throw new Error(`The sample boards were not all taken: ${JSON.stringify(refused)}`)
   }
+}
+
+/**
+ * The two protocols of the cabinet, as a device writes them. The circuits in
+ * their blocks are what the chart says of them, named with their board because
+ * the cabinet has two, and in the order the chart prints them: a block the
+ * chart no longer matches would have the office ask to take the circuits over.
+ * Figures in thousandths of their unit, as the form keeps them.
+ */
+function sampleProtocols(
+  cabinet: string,
+  today: IsoDate,
+  circuits: Readonly<
+    Record<'feed' | 'light' | 'living' | 'kitchen' | 'cooker' | 'wallbox' | 'terrace', string>
+  >,
+): [string, string, Record<string, unknown>][] {
+  const onChart = [
+    [circuits.feed, 'HV Q1', 'Zuleitung UV EG', 'gg', 35_000, null],
+    [circuits.light, 'UV EG F1', 'Licht Wohnzimmer', 'b', 10_000, 30],
+    [circuits.living, 'UV EG F2', 'Steckdosen Wohnzimmer', 'b', 16_000, 30],
+    [circuits.kitchen, 'UV EG F3', 'Steckdosen Küche', 'b', 16_000, 30],
+    [circuits.cooker, 'UV EG F5', 'Herd', 'b', 16_000, 30],
+    [circuits.wallbox, 'UV EG F10', 'Wallbox Garage', 'b', 32_000, 30],
+    [circuits.terrace, 'UV EG F11', 'Außensteckdose Terrasse', null, null, null],
+  ] as const
+  const measured = (
+    protectiveConductor: number,
+    insulation: number,
+    loop: number,
+    tripCurrent: number,
+    tripTime: number,
+    rotation: 'clockwise' | 'not_applicable',
+  ) => ({
+    protective_conductor: protectiveConductor,
+    insulation_resistance: insulation,
+    loop_impedance: loop,
+    rcd_trip_current: tripCurrent,
+    rcd_trip_time: tripTime,
+    phase_sequence: rotation,
+  })
+  const blocks = (values: Readonly<Record<string, Record<string, unknown>>>) =>
+    onChart.map(([id, designation, consumer, trip, rated, residual]) => ({
+      circuitId: id,
+      circuit: {
+        designation,
+        consumer,
+        tripCharacteristic: trip,
+        ratedCurrentMilli: rated,
+        ratedResidualCurrentMilli: residual,
+      },
+      values: values[id] ?? {},
+    }))
+  const general = {
+    tester: 'Anna Weber',
+    instrument: 'Fluke 1664 FC, 48213377',
+    earthing_system: 'tn_c_s',
+    nominal_voltage: 230_000,
+  }
+  const inspected = (identification: 'ok' | 'defect') => ({
+    basic_protection: 'ok',
+    protective_devices: 'ok',
+    conductors: 'ok',
+    identification,
+    fire_protection: 'ok',
+    documentation: 'ok',
+    rcd_test_button: 'ok',
+    switchgear: 'ok',
+    motor_rotation: 'not_applicable',
+  })
+  const initial = new Date(`${today}T12:00:00Z`)
+
+  initial.setUTCDate(initial.getUTCDate() - 196)
+
+  const initialOn = initial.toISOString().slice(0, 10)
+  const record = (performedOn: string, status: 'draft' | 'signed', values: object) => ({
+    definitionKey: 'vde-0100-600',
+    definitionVersion: 1,
+    installationId: cabinet,
+    jobId: null,
+    performedOn,
+    status,
+    values: JSON.stringify(values),
+  })
+
+  return [
+    [
+      'form_records',
+      newId<'form-record'>(),
+      record(initialOn, 'signed', {
+        ...general,
+        occasion: 'new',
+        ...inspected('ok'),
+        circuits: blocks({
+          [circuits.feed]: { insulation_resistance: 999_000, phase_sequence: 'clockwise' },
+          [circuits.light]: measured(190, 520_000, 520, 20_000, 21_000, 'not_applicable'),
+          [circuits.living]: measured(300, 560_000, 700, 19_000, 23_000, 'not_applicable'),
+          [circuits.kitchen]: measured(290, 540_000, 680, 21_000, 25_000, 'not_applicable'),
+          [circuits.cooker]: measured(260, 610_000, 590, 22_000, 19_000, 'clockwise'),
+          [circuits.terrace]: { remark: 'Noch nicht angeschlossen.' },
+        }),
+        verdict: 'passed',
+        tester_signature: {
+          name: 'Anna Weber',
+          path: sampleSignature,
+          signedAt: `${initialOn}T15:40:00.000Z`,
+        },
+      }),
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      record(today, 'draft', {
+        ...general,
+        occasion: 'extension',
+        ...inspected('defect'),
+        circuits: blocks({
+          [circuits.light]: measured(210, 480_000, 540, 21_000, 22_000, 'not_applicable'),
+          [circuits.living]: measured(320, 550_000, 720, 19_000, 24_000, 'not_applicable'),
+          [circuits.kitchen]: measured(440, 510_000, 3_410, 21_000, 26_000, 'not_applicable'),
+          [circuits.cooker]: measured(280, 620_000, 610, 22_000, 18_000, 'clockwise'),
+          [circuits.wallbox]: measured(350, 700_000, 390, 24_000, 31_000, 'clockwise'),
+        }),
+        verdict: 'defects',
+        defects:
+          'F3: Schleifenimpedanz zu hoch, Klemmstelle in der Küche prüfen. Kennzeichnung der ' +
+          'Stromkreise unvollständig.',
+      }),
+    ],
+  ]
 }

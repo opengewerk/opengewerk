@@ -46,6 +46,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Betriebsmittel stand auf fünf Zeilen verteilt. Auf Telefon und Tablet springt die
   Anlagenstruktur nach einem Tipp in den Baum zu dem, was gewählt ist, denn es steht dort unter
   dem Baum.
+- Das Prüfprotokoll im Büro folgt der Tafel "Prüfprotokoll im Büro" (#219): die Prüfung mit dem
+  Tag und den Angaben zur Anlage in einer Karte, "Besichtigen" und "Erproben" nebeneinander als
+  Prüfpunkte mit den Knöpfen "in Ordnung", "Mangel" und "entfällt", "Messen" als Tabelle mit
+  einer Zeile je Stromkreis, einer Spalte je Messwert und dem Stand, darunter jeder Wert außerhalb
+  seines Grenzwerts in einem Satz mit Quelle, zuletzt das Ergebnis mit der Unterschrift daneben.
+  Bisher stand das Protokoll als eine Folge von Feldern untereinander, und ein Messwert war erst
+  nach dem Aufklappen seines Stromkreises zu sehen. Die Anordnung folgt aus den Arten der Felder
+  der Definition, nicht aus ihren Namen, so dass ein weiteres Formular eines Gewerks ohne neuen
+  Bildschirm gezeichnet wird. Die Anlagenakte führt ihre Protokolle wie die Tafel in der Folge,
+  in der geprüft wurde. Die Vorschau hat dafür an der Anlage der Familie Berg zwei Protokolle,
+  eines unterschrieben und einen Entwurf mit einer Schleifenimpedanz außerhalb des Grenzwerts.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
@@ -77,6 +88,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Tag wie der Tag einer Prüfung oder das Datum eines Belegs steht auf jedem Gerät so da, wie
+  er gespeichert ist. Bisher wurde "2026-09-25" als Mitternacht in UTC gelesen und in der Zeitzone
+  des Geräts gezeigt, westlich von Greenwich also als der 24.; im Kopf des Prüfprotokolls stand
+  dadurch ein anderer Tag als in seinem Feld (#219). Ein Zeitpunkt zeigt jetzt den Tag, der er in
+  Deutschland war, wie `today()` ihn zählt.
 - Der Server beantwortet `HEAD` auf eine Seite der Oberfläche wie `GET` (#218). Bisher kam 404
   zurück, und ein Monitor, der mit `HEAD` fragt, hätte eine laufende Installation als ausgefallen
   gemeldet. Aufgefallen ist es beim Bau der Prüfung der Breiten.

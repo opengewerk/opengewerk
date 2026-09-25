@@ -56,8 +56,11 @@ function thousandthsOf(unit: MeasurementUnit, record: RuleRecord): number {
 
 const numberFormats = new Map<number, Intl.NumberFormat>()
 
-/** A value in thousandths, as it is written: `0,85 Ω`. */
-export function formatMeasured(milli: number, unit: MeasurementUnit, decimals: number): string {
+/**
+ * A value in thousandths as a number without its unit, `0,85`: in a column
+ * whose head names the unit once.
+ */
+export function measuredNumber(milli: number, decimals: number): string {
   const format =
     numberFormats.get(decimals) ??
     new Intl.NumberFormat('de-DE', {
@@ -67,7 +70,12 @@ export function formatMeasured(milli: number, unit: MeasurementUnit, decimals: n
 
   numberFormats.set(decimals, format)
 
-  return `${format.format(milli / 1000)} ${measurementUnitSign[unit]}`
+  return format.format(milli / 1000)
+}
+
+/** A value in thousandths, as it is written: `0,85 Ω`. */
+export function formatMeasured(milli: number, unit: MeasurementUnit, decimals: number): string {
+  return `${measuredNumber(milli, decimals)} ${measurementUnitSign[unit]}`
 }
 
 /**

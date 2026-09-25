@@ -5,6 +5,7 @@ import {
   centsAsInput,
   countryName,
   countryOptions,
+  date,
   fileSize,
   parseEuros,
   parseQuantity,
@@ -72,6 +73,16 @@ describe('the rest of the formatting', () => {
   it('knows the day in Germany, not in UTC', () => {
     // Half past midnight in Berlin is still the evening before in UTC.
     expect(today(new Date('2026-09-20T22:30:00Z'))).toBe('2026-09-21')
+  })
+
+  it('writes a day as it is written and a moment as the day it was in Germany', () => {
+    // A day of a record goes through no time zone, on no device.
+    expect(date('2026-09-25')).toBe('25.09.2026')
+    expect(date('2026-01-01')).toBe('01.01.2026')
+    // The same half past midnight as above, the 21st and not the 20th.
+    expect(date('2026-09-20T22:30:00Z')).toBe('21.09.2026')
+    expect(date('')).toBe('')
+    expect(date('kein Datum')).toBe('')
   })
 })
 
