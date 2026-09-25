@@ -26,7 +26,7 @@ import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
 import { usePeople } from '../../app/tasks.js'
 import { assignToJob } from '../../session/jobs.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
@@ -825,7 +825,7 @@ function FollowUpForm({
       return
     }
 
-    setTrouble(refusalText[made.reason])
+    setTrouble(refusalFor(made))
   }
 
   return (

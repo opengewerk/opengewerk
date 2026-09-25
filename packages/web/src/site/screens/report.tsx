@@ -35,7 +35,7 @@ import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { SignaturePicture } from '../../app/signature.js'
 import type { EditResult } from '../../sync/client.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { SiteActionBar, SiteNoTabs } from '../action-bar.js'
@@ -414,7 +414,7 @@ function WritingStep({
     const result = await client.remove('document_lines', id)
 
     if (result.outcome === 'refused') {
-      setTrouble(refusalText[result.reason])
+      setTrouble(refusalFor(result))
     }
   }
 
@@ -430,7 +430,7 @@ function WritingStep({
         : await addLine({ designation: 'Arbeitszeit', quantityMilli, unit: 'hour' })
 
       if (result.outcome === 'refused') {
-        setTrouble(refusalText[result.reason])
+        setTrouble(refusalFor(result))
       }
     } finally {
       setWorking(false)
@@ -653,7 +653,7 @@ function WorkDoneForm({
       if (saved.outcome === 'queued') {
         onDone()
       } else {
-        setTrouble(refusalText[saved.reason])
+        setTrouble(refusalFor(saved))
       }
     } finally {
       setWorking(false)
@@ -747,7 +747,7 @@ function LineForm({
       })
 
       if (saved.outcome === 'refused') {
-        setTrouble(refusalText[saved.reason])
+        setTrouble(refusalFor(saved))
       }
     } finally {
       setWorking(false)
@@ -876,7 +876,7 @@ function SigningStep({
       })
 
       if (made.outcome === 'refused') {
-        setTrouble(refusalText[made.reason])
+        setTrouble(refusalFor(made))
       }
     } finally {
       setWorking(false)

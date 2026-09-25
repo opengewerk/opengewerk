@@ -66,9 +66,22 @@ export class RequestRefused extends Error {
   }
 }
 
-/** Nobody is signed in, or the session has run out. */
+/**
+ * Nobody is signed in, or the session has run out.
+ *
+ * Only a 401 says that. A 403 comes with a session that is still good and a
+ * reason: a right that is missing, a business the account no longer belongs
+ * to, a request from an address the instance does not trust. Taken for the
+ * end of a session, it sent the device back to a sign in that came back as it
+ * was, and the gate then waited for ever (#254).
+ */
 export function isUnauthenticated(error: unknown): boolean {
-  return error instanceof RequestRefused && (error.status === 401 || error.status === 403)
+  return error instanceof RequestRefused && error.status === 401
+}
+
+/** Signed in, and refused all the same. The refusal says why. */
+export function isForbidden(error: unknown): boolean {
+  return error instanceof RequestRefused && error.status === 403
 }
 
 async function refusal(response: Response): Promise<RequestRefused> {

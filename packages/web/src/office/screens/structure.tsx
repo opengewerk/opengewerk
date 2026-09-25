@@ -54,7 +54,7 @@ import {
 import { installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumbs, Empty, FactList, PageHead, Screen } from '../kit.js'
@@ -614,7 +614,7 @@ function BoardDetail({ boardId }: { readonly boardId: string }) {
     const result = await client.remove('distribution_boards', boardId)
 
     if (result.outcome === 'refused') {
-      setTrouble(refusalText[result.reason])
+      setTrouble(refusalFor(result))
 
       return
     }
@@ -813,7 +813,7 @@ function SectionsTable({
   async function move(id: string, step: -1 | 1) {
     const refused = await moveAmong(client, 'board_sections', sections, id, step)
 
-    setTrouble(refused && refused.outcome === 'refused' ? refusalText[refused.reason] : null)
+    setTrouble(refused && refused.outcome === 'refused' ? refusalFor(refused) : null)
   }
 
   async function remove(id: string) {
@@ -821,7 +821,7 @@ function SectionsTable({
 
     const result = await client.remove('board_sections', id)
 
-    setTrouble(result.outcome === 'refused' ? refusalText[result.reason] : null)
+    setTrouble(result.outcome === 'refused' ? refusalFor(result) : null)
   }
 
   const editForm = (section: RecordState) => {
@@ -1066,7 +1066,7 @@ function CircuitDetail({ circuitId }: { readonly circuitId: string }) {
   async function move(step: -1 | 1) {
     const refused = await moveAmong(client, 'circuits', group, circuitId, step)
 
-    setTrouble(refused && refused.outcome === 'refused' ? refusalText[refused.reason] : null)
+    setTrouble(refused && refused.outcome === 'refused' ? refusalFor(refused) : null)
   }
 
   async function remove() {
@@ -1075,7 +1075,7 @@ function CircuitDetail({ circuitId }: { readonly circuitId: string }) {
     const result = await client.remove('circuits', circuitId)
 
     if (result.outcome === 'refused') {
-      setTrouble(refusalText[result.reason])
+      setTrouble(refusalFor(result))
 
       return
     }
@@ -1242,7 +1242,7 @@ function EquipmentTable({
   async function move(id: string, step: -1 | 1) {
     const refused = await moveAmong(client, 'equipment', equipment, id, step)
 
-    setTrouble(refused && refused.outcome === 'refused' ? refusalText[refused.reason] : null)
+    setTrouble(refused && refused.outcome === 'refused' ? refusalFor(refused) : null)
   }
 
   async function remove(id: string) {
@@ -1250,7 +1250,7 @@ function EquipmentTable({
 
     const result = await client.remove('equipment', id)
 
-    setTrouble(result.outcome === 'refused' ? refusalText[result.reason] : null)
+    setTrouble(result.outcome === 'refused' ? refusalFor(result) : null)
   }
 
   const editForm = (item: RecordState) => {

@@ -19,7 +19,7 @@ import { uuidv7 } from 'uuidv7'
 
 import { byRecord, project, recordKey } from './projection.js'
 import type { LocalStore, StoredFile } from './store.js'
-import { isUnauthenticated, RequestRefused, type SyncTransport } from './transport.js'
+import { isForbidden, isUnauthenticated, RequestRefused, type SyncTransport } from './transport.js'
 
 /**
  * The way a change that needs a connection reaches the server: at the route
@@ -74,6 +74,11 @@ export type EditResult =
       readonly outcome: 'refused'
       readonly reason: ConflictReason
       readonly fields: readonly string[]
+      /**
+       * The server's own sentence, when it turned a direct write down with
+       * one. Absent when the device decided, or nobody answered.
+       */
+      readonly message?: string
     }
 
 /** Values on their way in, before anything decides they are patchable. */
@@ -174,6 +179,21 @@ export const refusalText: Readonly<Record<ConflictReason, string>> = {
   record_missing: 'Den Datensatz gibt es nicht mehr.',
   unknown_entity: 'Diese Art von Datensatz kennt die Instanz nicht.',
   set_by_server: 'Dieses Feld vergibt der Server, nicht das Gerät.',
+}
+
+/**
+ * What a screen says about a refused edit.
+ *
+ * The server's sentence when there is one. A direct write it turned down
+ * carries the reason `online_only`, and on its own that would tell a person
+ * with a working connection to wait for one, over a right that is missing or
+ * a record that is gone (#254). Otherwise the sentence for the reason.
+ */
+export function refusalFor(refused: {
+  readonly reason: ConflictReason
+  readonly message?: string
+}): string {
+  return refused.message ?? refusalText[refused.reason]
 }
 
 /**
@@ -520,10 +540,16 @@ export class SyncClient {
 
       // Without a connection this is the one refusal the interface can act on:
       // it is the same answer the merge would have given, and it says the
-      // change has to wait for a network rather than that it was lost.
-      this.publish({
-        trouble: error instanceof RequestRefused ? error.message : 'Keine Verbindung.',
-      })
+      // change has to wait for a network rather than that it was lost. A
+      // refusal is an answer and brings its own sentence, which the screen
+      // shows instead (#254).
+      if (error instanceof RequestRefused) {
+        this.publish({ trouble: error.message })
+
+        return { outcome: 'refused', reason: 'online_only', fields: [], message: error.message }
+      }
+
+      this.publish({ trouble: 'Keine Verbindung.' })
 
       return { outcome: 'refused', reason: 'online_only', fields: [] }
     }
@@ -725,6 +751,9 @@ export class SyncClient {
         return
       }
 
+      // A 403 lands here, with the session still good: the strip shows the
+      // server's sentence, a missing right or an address the instance does not
+      // trust, and the device stays open (#254).
       this.publish({
         exchanging: false,
         trouble:
@@ -1000,7 +1029,10 @@ export class SyncClient {
       try {
         await this.transport.upload(file.sha256, file.bytes, file.mediaType)
       } catch (error) {
-        if (!(error instanceof RequestRefused) || isUnauthenticated(error)) {
+        // A 403 says nothing about the file. It refuses the request as a
+        // whole, and the file would be let go over a missing right or an
+        // untrusted address that the next attempt may no longer have.
+        if (!(error instanceof RequestRefused) || isUnauthenticated(error) || isForbidden(error)) {
           throw error
         }
       }

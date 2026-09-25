@@ -19,7 +19,7 @@ import {
 } from '../../app/electrical.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
 
@@ -76,7 +76,7 @@ export function BoardsSection({ installationId }: { readonly installationId: str
   async function move(id: string, step: -1 | 1) {
     const refused = await moveAmong(client, 'distribution_boards', boards, id, step)
 
-    setTrouble(refused && refused.outcome === 'refused' ? refusalText[refused.reason] : null)
+    setTrouble(refused && refused.outcome === 'refused' ? refusalFor(refused) : null)
   }
 
   return (

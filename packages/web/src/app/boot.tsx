@@ -1,4 +1,4 @@
-import { requiresSecondFactor, syncEntities } from '@opengewerk/domain'
+import { requiresSecondFactor, syncEntities, type TenantId } from '@opengewerk/domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -88,12 +88,41 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   })
 
   const tenantId = account.data?.tenantId ?? null
+  // Set when the server turned the running client away as signed out and the
+  // account came back as it was; see `signedOut`.
+  const [stalled, setStalled] = useState(false)
+  // Bumped to start a client again for the same business, which the effect
+  // below would otherwise never do: nothing it depends on has changed.
+  const [round, setRound] = useState(0)
 
   const forget = useCallback(() => {
     setStep('asking')
     setClient(null)
     void queries.invalidateQueries({ queryKey: ['account'] })
   }, [queries])
+
+  /**
+   * The server answered the running client with "not signed in".
+   *
+   * The account is asked again, and it decides. A session that has run out
+   * takes the business with it, and the gate asks for a sign in. A session
+   * that is still good comes back with the same business, and then nothing the
+   * effect below depends on changes: the gate waited for a client that nothing
+   * would ever start (#254). That case is shown, with a way to try again.
+   * Starting a client by itself instead would loop against a server that keeps
+   * saying no.
+   */
+  const signedOut = useCallback(
+    (business: TenantId) => {
+      setClient(null)
+      void queries.invalidateQueries({ queryKey: accountQuery.queryKey }).then(() => {
+        if (queries.getQueryData(accountQuery.queryKey)?.tenantId === business) {
+          setStalled(true)
+        }
+      })
+    },
+    [queries],
+  )
 
   useEffect(() => {
     if (!tenantId) {
@@ -111,7 +140,9 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
         writer: directWrite,
         deviceId,
         entities: syncEntities,
-        onSignedOut: forget,
+        onSignedOut: () => {
+          signedOut(tenantId)
+        },
       })
 
       if (!live) {
@@ -124,6 +155,7 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
       }
 
       started = running
+      setStalled(false)
       setClient(running)
       void running.synchronise()
     })()
@@ -132,8 +164,9 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
       live = false
       started?.stop()
       setClient(null)
+      setStalled(false)
     }
-  }, [tenantId, deviceId, forget])
+  }, [tenantId, deviceId, signedOut, round])
 
   if (token) {
     return <InvitationScreen token={token} />
@@ -221,6 +254,28 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
   }
 
   if (!client) {
+    if (stalled) {
+      return (
+        <Gate title="Abgleich unterbrochen">
+          <GateText muted={false}>
+            Der Server hat eine Anfrage dieses Geräts als nicht angemeldet abgelehnt, die Anmeldung
+            gilt aber noch. Was auf dem Gerät erfasst ist, bleibt erhalten.
+          </GateText>
+          <Button
+            tone="secondary"
+            wide
+            icon={RefreshCw}
+            onClick={() => {
+              setStalled(false)
+              setRound((count) => count + 1)
+            }}
+          >
+            Erneut versuchen
+          </Button>
+        </Gate>
+      )
+    }
+
     return <GateWaiting>Die Daten dieses Geräts werden geöffnet.</GateWaiting>
   }
 

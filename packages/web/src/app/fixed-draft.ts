@@ -1,6 +1,6 @@
 import type { SyncConflict } from '@opengewerk/domain'
 
-import { refusalText, type SyncClient } from '../sync/client.js'
+import { refusalFor, type SyncClient } from '../sync/client.js'
 import { maybeText } from '../sync/fields.js'
 import { today } from './format.js'
 import { documentKindLabel, documentKindOf } from './labels.js'
@@ -178,7 +178,7 @@ export async function draftFromFixed(
   })
 
   if (made.outcome === 'refused') {
-    return { outcome: 'refused', message: refusalText[made.reason] }
+    return { outcome: 'refused', message: refusalFor(made) }
   }
 
   const ordered = [...lines.values()].sort(
@@ -193,7 +193,7 @@ export async function draftFromFixed(
     })
 
     if (written.outcome === 'refused') {
-      return { outcome: 'refused', message: refusalText[written.reason] }
+      return { outcome: 'refused', message: refusalFor(written) }
     }
   }
 

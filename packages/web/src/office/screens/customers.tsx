@@ -26,7 +26,7 @@ import {
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asBoolean, asTextOrNull, yesOrNo } from '../../app/record-form.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import type { EditResult } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
@@ -1013,7 +1013,7 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
         : await client.create('customers', values)
 
       if (result.outcome === 'refused') {
-        setTrouble(refusalText[result.reason])
+        setTrouble(refusalFor(result))
         setWrong(result.fields)
 
         return

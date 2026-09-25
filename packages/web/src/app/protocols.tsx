@@ -43,7 +43,7 @@ import {
   TextArea,
   useEntry,
 } from '../components/index.js'
-import { type EditResult, refusalText, type SyncClient } from '../sync/client.js'
+import { type EditResult, refusalFor, type SyncClient } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useRecords, useRelated, useSync, useSyncStatus } from '../sync/provider.js'
 import { ordered, useBoards } from './electrical.js'
@@ -316,7 +316,7 @@ export function ProtocolsList({
       })
 
       if (made.outcome === 'refused') {
-        setTrouble(refusalText[made.reason])
+        setTrouble(refusalFor(made))
       } else {
         onStarted(made.id)
       }
@@ -1085,7 +1085,7 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
       })
 
       if (result.outcome === 'refused') {
-        setTrouble(refusalText[result.reason])
+        setTrouble(refusalFor(result))
 
         return false
       }

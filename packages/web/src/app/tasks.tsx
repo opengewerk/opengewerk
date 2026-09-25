@@ -6,7 +6,7 @@ import { useState } from 'react'
 
 import { Button, useEntry } from '../components/index.js'
 import { type Assignee, assignees } from '../session/tasks.js'
-import { refusalText } from '../sync/client.js'
+import { refusalFor } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useRecord, useSync } from '../sync/provider.js'
 import { date, today } from './format.js'
@@ -122,7 +122,7 @@ export function TaskItem({
       .update('tasks', id, { status: status === 'open' ? 'done' : 'open' })
       .then((saved) => {
         if (saved.outcome === 'refused') {
-          setTrouble(refusalText[saved.reason])
+          setTrouble(refusalFor(saved))
         }
       })
   }

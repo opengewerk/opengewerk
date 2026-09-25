@@ -18,7 +18,7 @@ import {
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { clockOf, useStopwatch } from '../../app/time.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { InstallationBoards } from './boards.js'
@@ -287,7 +287,7 @@ function JobReports({ job }: { readonly job: RecordState }) {
     })
 
     if (made.outcome === 'refused') {
-      setTrouble(refusalText[made.reason])
+      setTrouble(refusalFor(made))
 
       return
     }

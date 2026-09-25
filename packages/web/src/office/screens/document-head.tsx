@@ -21,7 +21,7 @@ import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/lab
 import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { parameterHistory } from '../../session/parameters.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useSync } from '../../sync/provider.js'
 import type { Fact } from '../kit.js'
@@ -342,7 +342,7 @@ function HeaderForm({
       if (saved.outcome === 'queued') {
         setEdits({})
       } else {
-        setTrouble(refusalText[saved.reason])
+        setTrouble(refusalFor(saved))
       }
     } finally {
       setWorking(false)

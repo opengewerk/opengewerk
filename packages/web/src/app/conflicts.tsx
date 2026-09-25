@@ -5,7 +5,7 @@ import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { Button, Card, Cell, Column, Panel, TablePanel, useEntry } from '../components/index.js'
-import { type RefusedOperation, refusalText } from '../sync/client.js'
+import { type RefusedOperation, refusalFor, refusalText } from '../sync/client.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'
 import { amount, clockTime, euros, moment } from './format.js'
@@ -226,7 +226,7 @@ function ConflictCard({
           // simply cannot stand: an issued document is the usual case. Saying
           // so and leaving the conflict open beats marking it decided when
           // nothing was decided.
-          setTrouble(refusalText[again.reason])
+          setTrouble(refusalFor(again))
 
           return
         }

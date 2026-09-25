@@ -3,7 +3,7 @@ import { Mail, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button, IconButton } from '../components/index.js'
-import { refusalText } from '../sync/client.js'
+import { refusalFor } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { personName } from './naming.js'
@@ -137,7 +137,7 @@ export function ContactList({
 
     const result = await client.remove('contacts', id)
 
-    setTrouble(result.outcome === 'refused' ? refusalText[result.reason] : null)
+    setTrouble(result.outcome === 'refused' ? refusalFor(result) : null)
   }
 
   if (contacts.length === 0) {

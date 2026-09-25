@@ -5,7 +5,7 @@ import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { Button, Field, SelectField, useEntry } from '../components/index.js'
-import { refusalText } from '../sync/client.js'
+import { refusalFor } from '../sync/client.js'
 import type { EditResult } from '../sync/client.js'
 
 /**
@@ -139,7 +139,7 @@ export function RecordForm({
       const result = await onSubmit(values)
 
       if (result.outcome === 'refused') {
-        setTrouble(refusalText[result.reason])
+        setTrouble(refusalFor(result))
         setWrongFields(result.fields)
       }
     } finally {

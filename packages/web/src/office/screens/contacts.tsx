@@ -13,7 +13,7 @@ import {
 } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText } from '../../sync/fields.js'
 import { useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 
@@ -56,7 +56,7 @@ export function ContactsSection({
     const result = await client.remove('contacts', contactId)
 
     if (result.outcome === 'refused') {
-      setTrouble(refusalText[result.reason])
+      setTrouble(refusalFor(result))
     } else {
       setEditing(null)
       setTrouble(null)

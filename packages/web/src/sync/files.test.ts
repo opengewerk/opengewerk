@@ -127,6 +127,26 @@ describe('a file made on the device', () => {
     expect(server.uploaded.size).toBe(0)
   })
 
+  it('stays on the device over a 403, which refuses the request and not the file (#254)', async () => {
+    const client = await start()
+
+    server.refuseUploads = new RequestRefused(403, 'Kein Zugang zu diesem Betrieb.', {})
+
+    const { sha256, sizeBytes } = await client.keepFile(photo, 'image/jpeg')
+
+    await attach(client, sha256, sizeBytes)
+    await client.synchronise()
+
+    expect(client.status().trouble).toBe('Kein Zugang zu diesem Betrieb.')
+    expect(server.sent).toEqual([])
+
+    server.refuseUploads = null
+    await client.synchronise()
+
+    expect([...server.uploaded.keys()]).toEqual([sha256])
+    expect(client.status().pending).toBe(0)
+  })
+
   it('is read back from the device, made here or fetched once', async () => {
     const client = await start()
     const { sha256 } = await client.keepFile(photo, 'image/jpeg')

@@ -13,7 +13,7 @@ import { queryOptions, useQuery } from '@tanstack/react-query'
 import { useMemo, useSyncExternalStore } from 'react'
 
 import { locationConsent } from '../session/time.js'
-import { type EditResult, refusalText, type SyncClient } from '../sync/client.js'
+import { type EditResult, refusalFor, type SyncClient } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { accountQuery } from './queries.js'
@@ -258,7 +258,7 @@ export async function stopStopwatch({
   })
 
   if (made.outcome === 'refused') {
-    return refusalText[made.reason]
+    return refusalFor(made)
   }
 
   await client.setStopwatch(null)

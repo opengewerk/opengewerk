@@ -52,7 +52,7 @@ import {
   valuesOf,
 } from '../../app/protocols.js'
 import { useMay } from '../../app/queries.js'
-import { refusalText } from '../../sync/client.js'
+import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useSync } from '../../sync/provider.js'
 import { SiteActionBar } from '../action-bar.js'
@@ -1159,7 +1159,7 @@ function SigningStep({
       })
 
       if (signed.outcome === 'refused') {
-        setTrouble(refusalText[signed.reason])
+        setTrouble(refusalFor(signed))
       }
     } finally {
       setWorking(false)
