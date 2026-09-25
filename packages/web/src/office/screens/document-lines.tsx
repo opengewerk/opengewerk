@@ -23,20 +23,22 @@ import {
   vatRates,
 } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
+import clsx from 'clsx'
+import { Check, Plus } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import {
   Button,
-  Card,
   Cell,
   Column,
+  Confirm,
   Field,
-  IconButton,
   SelectField,
-  Table,
+  TablePanel,
   TextArea,
 } from '../../components/index.js'
+import type { TableCard } from '../../components/index.js'
 import {
   amount,
   centsAsInput,
@@ -64,7 +66,7 @@ import type { EditResult } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Section } from '../layout.js'
+import { Reorder } from './boards.js'
 import { SnippetPicker } from './snippet-picker.js'
 
 /** A line as the screen works with it: the record, and what is read off it. */
@@ -105,10 +107,11 @@ export function inOrder(records: readonly RecordState[]): readonly ShownLine[] {
     }))
 }
 
-/** The totals, or the sentence the rules answer with for a date they do not cover. */
 /**
  * What the lines add up to, by the rules of the date the tax belongs to: the
  * document's own, or for a cancellation the date of the invoice it takes back.
+ * The totals, or the sentence the rules answer with for a date they do not
+ * cover.
  *
  * A cancellation undoes the tax that invoice stated, and should a rate change
  * between the two, its own date would work out a different tax from the same
@@ -131,6 +134,92 @@ export function totalsOf(
     }
 
     throw error
+  }
+}
+
+/**
+ * What a document bills after its deductions, or the sentence the rule answers
+ * with when the progress invoices do not fit it.
+ */
+function billedOrRefusal(
+  totals: DocumentTotals,
+  deductions: readonly DeductionContent[],
+  taxTreatment: TaxTreatment,
+): BilledAmount | string {
+  try {
+    return billedAfter(totals, deductions, taxTreatment)
+  } catch (error) {
+    if (error instanceof RuleError) {
+      return error.message
+    }
+
+    throw error
+  }
+}
+
+/**
+ * The figures of a document, worked out once for the screen: its lines, what
+ * they add up to, what earlier progress invoices took off and what is left to
+ * ask for. The table of lines shows them, and the head says from them when an
+ * invoice is due.
+ */
+export interface DocumentFigures {
+  readonly lines: readonly ShownLine[]
+  /** A report has no prices on paper and none here. */
+  readonly priced: boolean
+  readonly taxed: boolean
+  /** The invoice a cancellation takes back, and null for every other document. */
+  readonly original: RecordState | null
+  readonly totals: DocumentTotals | string
+  readonly deductions: readonly DeductionContent[]
+  readonly deductionTrouble: string | null
+  /** What the document asks for in the end, in cents; null where that is not known. */
+  readonly billedCents: number | null
+}
+
+export function useDocumentFigures(document: RecordState): DocumentFigures {
+  const documentId = String(document['id'])
+  const records = useRelated('document_lines', 'documentId', documentId)
+  const lines = useMemo(() => inOrder(records), [records])
+  const kind = documentKindOf(document)
+  const priced = showsPrices(kind)
+  const cancelling = kind === 'cancellation_invoice'
+  // The invoice a cancellation takes back. Its kind names the figures, its
+  // date says which rates they were taxed at.
+  const original = useRecord(
+    'documents',
+    cancelling ? (maybeText(document, 'predecessorDocumentId') ?? undefined) : undefined,
+  )
+  // A cancellation has no chain of its own to take off. What it shows are the
+  // deductions of its invoice turned round, and the server answers with those
+  // out of what the cancellation froze.
+  const deducting = deducts(kind) || cancelling
+  // What earlier progress invoices billed, as they froze it. Only the server
+  // holds that; everything else on this screen comes out of the local store.
+  const answer = useQuery({
+    queryKey: ['deductions', documentId],
+    queryFn: () => deductionsOf(documentId),
+    enabled: deducting,
+  })
+  const deductions = deducting && Array.isArray(answer.data) ? answer.data : []
+  const totals = totalsOf(document, lines, original)
+  const taxTreatment = taxTreatmentOf(document)
+  const billed =
+    typeof totals === 'string' ? null : billedOrRefusal(totals, deductions, taxTreatment)
+
+  return {
+    lines,
+    priced,
+    taxed: priced && taxTreatment === 'standard',
+    original,
+    totals,
+    deductions,
+    deductionTrouble: answer.error
+      ? answer.error instanceof RequestRefused
+        ? answer.error.message
+        : 'Die Abzüge früherer Abschlagsrechnungen ließen sich ohne Verbindung nicht laden.'
+      : null,
+    billedCents: priced && billed !== null && typeof billed !== 'string' ? billed.grossCents : null,
   }
 }
 
@@ -238,27 +327,29 @@ function LineForm({
 
   return (
     <form
-      className="flex flex-col gap-4 py-2"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         void save(event)
       }}
     >
-      <SnippetPicker
-        purpose="line"
-        label={item ? 'Position aus Textbaustein' : 'Titel aus Textbaustein'}
-        onPick={(snippet) => {
-          setDesignation(snippet.title)
-          setDescription(snippet.text)
-        }}
-      />
-      <Field
-        label={item ? 'Bezeichnung' : 'Titel'}
-        value={designation}
-        problem={problems['designation']}
-        onChange={(event) => {
-          setDesignation(event.target.value)
-        }}
-      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label={item ? 'Bezeichnung' : 'Titel'}
+          value={designation}
+          problem={problems['designation']}
+          onChange={(event) => {
+            setDesignation(event.target.value)
+          }}
+        />
+        <SnippetPicker
+          purpose="line"
+          label={item ? 'Position aus Textbaustein' : 'Titel aus Textbaustein'}
+          onPick={(snippet) => {
+            setDesignation(snippet.title)
+            setDescription(snippet.text)
+          }}
+        />
+      </div>
       <TextArea
         label="Beschreibung"
         rows={3}
@@ -268,7 +359,7 @@ function LineForm({
         }}
       />
       {item ? (
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field
             label="Menge"
             inputMode="decimal"
@@ -301,7 +392,7 @@ function LineForm({
       {item && priced && taxed && rate === 'zero' ? (
         // The conditions of section 12 (3) UStG, because whether a line meets
         // them is the business's to judge and nothing here can check it (#127).
-        <p className="text-body text-ink-muted">
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
           0 % nach § 12 Abs. 3 UStG, seit 2023: für Solarmodule, die für den Betrieb wesentlichen
           Komponenten und Speicher samt ihrer Installation, geliefert an den Betreiber einer Anlage
           auf oder bei Wohnungen oder Gebäuden, die dem Gemeinwohl dienen. Bei höchstens 30 kWp laut
@@ -316,8 +407,8 @@ function LineForm({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" icon={record ? Check : Plus} disabled={working}>
           {working ? 'Wird gespeichert' : submitLabel}
         </Button>
         <Button tone="quiet" disabled={working} onClick={onCancel}>
@@ -328,57 +419,67 @@ function LineForm({
   )
 }
 
+/** A position or title as a sentence names it: "Position 1.2", "Titel 2". */
+function lineName(kind: LineKind, number: string): string {
+  return `${kind === 'title' ? 'Titel' : 'Position'} ${number}`
+}
+
 /**
- * The lines and what they add up to, laid out the way the printed document
- * lays them out: titles over their positions, the positions numbered below
- * them, a sum under each title. `outlineRows` does the numbering for both, so
- * position 2.3 on the screen is position 2.3 on paper.
+ * "Positionen", the table of the boards "Angebot, Entwurf" and
+ * "Schlussrechnung, festgeschrieben": titles over their positions, the
+ * positions numbered below them, a sum under each title, and under the table
+ * what they add up to. `outlineRows` does the numbering for the printed
+ * document as well, so position 2.3 on the screen is position 2.3 on paper.
  *
- * A report has no prices on paper and none here: quantity and what it was,
- * no price, no sum, no tax. The same `showsPrices` decides both, so the screen
- * cannot show a figure the printed report leaves out.
+ * On a draft the head of the card adds a position or a title, and the column
+ * "Ändern" moves, changes and removes a line. A report has no prices on paper
+ * and none here: quantity and what it was, no price, no sum, no tax. The same
+ * `showsPrices` decides both.
+ *
+ * On a phone every row is a box, as tables are there (#218).
  */
-export function LinesSection({
+export function LinesPanel({
   document,
   editable,
+  figures,
 }: {
   readonly document: RecordState
   readonly editable: boolean
+  readonly figures: DocumentFigures
 }) {
   const client = useSync()
   const documentId = String(document['id'])
-  const records = useRelated('document_lines', 'documentId', documentId)
-  const lines = useMemo(() => inOrder(records), [records])
   const kind = documentKindOf(document)
-  const priced = showsPrices(kind)
-  const cancelling = kind === 'cancellation_invoice'
-  // The invoice a cancellation takes back. Its kind names the figures, its
-  // date says which rates they were taxed at.
-  const original = useRecord(
-    'documents',
-    cancelling ? (maybeText(document, 'predecessorDocumentId') ?? undefined) : undefined,
-  )
-  // A cancellation has no chain of its own to take off. What it shows are the
-  // deductions of its invoice turned round, and the server answers with those
-  // out of what the cancellation froze.
-  const deducting = deducts(kind) || cancelling
-  // What earlier progress invoices billed, as they froze it. Only the server
-  // holds that; everything else on this screen comes out of the local store.
-  const deductions = useQuery({
-    queryKey: ['deductions', documentId],
-    queryFn: () => deductionsOf(documentId),
-    enabled: deducting,
-  })
-  const taxed = priced && taxTreatmentOf(document) === 'standard'
+  const { lines, priced, taxed, totals } = figures
   const rows = outlineRows(lines).filter((row) => priced || row.row !== 'subtotal')
-  const totals = totalsOf(document, lines, original)
   const rateOf = new Map(
     typeof totals === 'string' ? [] : totals.byRate.map((entry) => [entry.rate, entry.basisPoints]),
   )
   const width = (priced ? 5 : 3) + (taxed ? 1 : 0) + (editable ? 1 : 0)
+  // The widths of the boards: a draft has the room of the whole page, a fixed
+  // document shares it with the side column and draws its figures narrower.
+  const widths = editable
+    ? {
+        position: 'w-[50px]',
+        quantity: 'w-[100px]',
+        price: 'w-[100px]',
+        rate: 'w-[60px]',
+        total: 'w-[100px]',
+      }
+    : priced
+      ? {
+          position: 'w-[44px]',
+          quantity: 'w-[90px]',
+          price: 'w-[88px]',
+          rate: 'w-[48px]',
+          total: 'w-[92px]',
+        }
+      : { position: 'w-[50px]', quantity: 'w-[110px]', price: '', rate: '', total: '' }
   const [adding, setAdding] = useState<LineKind | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
-  const [removing, setRemoving] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<{ id: string; name: string; title: boolean } | null>(
+    null,
+  )
   const [trouble, setTrouble] = useState<string | null>(null)
 
   /**
@@ -424,221 +525,129 @@ export function LinesSection({
   const nextPosition =
     lines.reduce((highest, line) => Math.max(highest, count(line.record, 'position')), 0) + 1
 
-  return (
-    <Section title="Positionen">
-      <div className="flex flex-col gap-4">
+  function editForm(line: ShownLine) {
+    return (
+      <LineForm
+        kind={line.kind}
+        record={line.record}
+        taxed={taxed}
+        priced={priced}
+        submitLabel="Speichern"
+        onCancel={() => {
+          setEditing(null)
+        }}
+        onSave={async (values) => {
+          const saved = await client.update('document_lines', line.id, values)
+
+          if (saved.outcome === 'queued') {
+            setEditing(null)
+          }
+
+          return saved
+        }}
+      />
+    )
+  }
+
+  function changeButtons(line: ShownLine, number: string) {
+    const index = lines.indexOf(line)
+
+    return (
+      <Reorder
+        name={number}
+        canUp={Boolean(movedInOutline(lines, index, -1))}
+        canDown={Boolean(movedInOutline(lines, index, 1))}
+        onMove={(step) => void move(line.id, step)}
+        onEdit={() => {
+          setAdding(null)
+          setEditing(line.id)
+        }}
+        onRemove={() => {
+          setRemoving({
+            id: line.id,
+            name: lineName(line.kind, number),
+            title: line.kind === 'title',
+          })
+        }}
+      />
+    )
+  }
+
+  const quantityOf = (line: ShownLine) =>
+    `${amount(count(line.record, 'quantityMilli'))} ${lineUnitShort[lineUnitOf(line.record)]}`
+  const rateText = (line: ShownLine) =>
+    rateOf.has(line.vatRate) ? percent(rateOf.get(line.vatRate) ?? 0) : vatRateLabel[line.vatRate]
+
+  const cards: TableCard[] = rows.map((row) => {
+    if (row.row === 'subtotal') {
+      return {
+        key: `sum-${row.number}`,
+        title: (
+          <span className="text-ink-muted">{`Summe Titel ${row.number}: ${row.designation}`}</span>
+        ),
+        right: <span className="numeric font-semibold text-ink">{euros(row.netCents)}</span>,
+      }
+    }
+
+    const { line } = row
+
+    if (editing === line.id) {
+      return { key: line.id, title: line.designation, form: editForm(line) }
+    }
+
+    const description = maybeText(line.record, 'description')
+    const heading = (
+      <>
+        <span className={row.row === 'title' ? 'font-semibold' : undefined}>
+          {`${row.number} ${line.designation}`}
+        </span>
+        {description ? (
+          <span className="block whitespace-pre-line text-[13px] text-ink-muted">
+            {description}
+          </span>
+        ) : null}
+      </>
+    )
+
+    if (row.row === 'title') {
+      return {
+        key: line.id,
+        title: heading,
+        ...(editable ? { actions: changeButtons(line, row.number) } : {}),
+      }
+    }
+
+    return {
+      key: line.id,
+      title: heading,
+      sub: [
+        quantityOf(line),
+        ...(priced ? [`je ${euros(count(line.record, 'unitPriceCents'))}`] : []),
+        ...(taxed ? [rateText(line)] : []),
+      ].join(' · '),
+      ...(priced
+        ? { right: <span className="numeric font-semibold text-ink">{euros(line.netCents)}</span> }
+        : {}),
+      ...(editable ? { actions: changeButtons(line, row.number) } : {}),
+    }
+  })
+
+  const lead =
+    trouble !== null || (editable && adding !== null) ? (
+      <div className="flex flex-col gap-3">
         {trouble ? (
           <p role="alert" className="text-body font-semibold text-conflict">
             {trouble}
           </p>
         ) : null}
-
-        {lines.length === 0 ? (
-          <Nothing>Noch keine Position.</Nothing>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table caption="Positionen des Belegs">
-              <thead>
-                <tr>
-                  <Column>Pos.</Column>
-                  <Column>Bezeichnung</Column>
-                  <Column numeric>Menge</Column>
-                  {priced ? <Column numeric>Einzelpreis</Column> : null}
-                  {taxed ? <Column numeric>USt.</Column> : null}
-                  {priced ? <Column numeric>Gesamt</Column> : null}
-                  {editable ? <Column>Ändern</Column> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  if (row.row === 'subtotal') {
-                    return (
-                      <tr key={`sum-${row.number}`}>
-                        <Cell> </Cell>
-                        <Cell colSpan={taxed ? 4 : 3} className="font-semibold">
-                          {`Summe Titel ${row.number}: ${row.designation}`}
-                        </Cell>
-                        <Cell numeric className="font-semibold">
-                          {euros(row.netCents)}
-                        </Cell>
-                        {editable ? <Cell> </Cell> : null}
-                      </tr>
-                    )
-                  }
-
-                  const { line } = row
-
-                  if (editing === line.id) {
-                    return (
-                      <tr key={line.id}>
-                        <Cell colSpan={width}>
-                          <LineForm
-                            kind={line.kind}
-                            record={line.record}
-                            taxed={taxed}
-                            priced={priced}
-                            submitLabel="Speichern"
-                            onCancel={() => {
-                              setEditing(null)
-                            }}
-                            onSave={async (values) => {
-                              const saved = await client.update('document_lines', line.id, values)
-
-                              if (saved.outcome === 'queued') {
-                                setEditing(null)
-                              }
-
-                              return saved
-                            }}
-                          />
-                        </Cell>
-                      </tr>
-                    )
-                  }
-
-                  const description = maybeText(line.record, 'description')
-                  const title = row.row === 'title'
-                  const index = lines.indexOf(line)
-
-                  return (
-                    <tr key={line.id} className={title ? 'bg-surface-sunken' : undefined}>
-                      <Cell className={title ? 'font-semibold' : 'text-ink-muted'}>
-                        {row.number}
-                      </Cell>
-                      <Cell colSpan={title ? width - 1 - (editable ? 1 : 0) : undefined}>
-                        <span className={title ? 'font-semibold' : undefined}>
-                          {line.designation}
-                        </span>
-                        {description ? (
-                          <span className="block whitespace-pre-line text-table text-ink-muted">
-                            {description}
-                          </span>
-                        ) : null}
-                      </Cell>
-                      {title ? null : (
-                        <>
-                          <Cell numeric>
-                            {`${amount(count(line.record, 'quantityMilli'))} ${lineUnitShort[lineUnitOf(line.record)]}`}
-                          </Cell>
-                          {priced ? (
-                            <Cell numeric>{euros(count(line.record, 'unitPriceCents'))}</Cell>
-                          ) : null}
-                          {taxed ? (
-                            <Cell numeric>
-                              {rateOf.has(line.vatRate)
-                                ? percent(rateOf.get(line.vatRate) ?? 0)
-                                : vatRateLabel[line.vatRate]}
-                            </Cell>
-                          ) : null}
-                          {priced ? <Cell numeric>{euros(line.netCents)}</Cell> : null}
-                        </>
-                      )}
-                      {editable ? (
-                        <Cell>
-                          {removing === line.id ? (
-                            <span className="inline-flex flex-wrap gap-2">
-                              <Button tone="danger" onClick={() => void remove(line.id)}>
-                                Entfernen
-                              </Button>
-                              <Button
-                                tone="quiet"
-                                onClick={() => {
-                                  setRemoving(null)
-                                }}
-                              >
-                                Behalten
-                              </Button>
-                            </span>
-                          ) : (
-                            <span className="inline-flex flex-wrap gap-1">
-                              <IconButton
-                                label={`${row.number} nach oben`}
-                                title={title ? 'Mit den Positionen nach oben' : 'Nach oben'}
-                                disabled={!movedInOutline(lines, index, -1)}
-                                onClick={() => void move(line.id, -1)}
-                              >
-                                ↑
-                              </IconButton>
-                              <IconButton
-                                label={`${row.number} nach unten`}
-                                title={title ? 'Mit den Positionen nach unten' : 'Nach unten'}
-                                disabled={!movedInOutline(lines, index, 1)}
-                                onClick={() => void move(line.id, 1)}
-                              >
-                                ↓
-                              </IconButton>
-                              <IconButton
-                                label={`${row.number} bearbeiten`}
-                                title="Bearbeiten"
-                                onClick={() => {
-                                  setAdding(null)
-                                  setEditing(line.id)
-                                }}
-                              >
-                                ✎
-                              </IconButton>
-                              <IconButton
-                                label={`${row.number} entfernen`}
-                                title="Entfernen"
-                                onClick={() => {
-                                  setRemoving(line.id)
-                                }}
-                              >
-                                ✕
-                              </IconButton>
-                            </span>
-                          )}
-                        </Cell>
-                      ) : null}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </Table>
-          </div>
-        )}
-
-        {priced ? (
-          <Totals
-            totals={totals}
-            taxed={taxed}
-            kind={kind}
-            original={original ? documentKindOf(original) : null}
-            taxTreatment={taxTreatmentOf(document)}
-            deductions={deducting && Array.isArray(deductions.data) ? deductions.data : []}
-            deductionTrouble={
-              deductions.error
-                ? deductions.error instanceof RequestRefused
-                  ? deductions.error.message
-                  : 'Die Abzüge früherer Abschlagsrechnungen ließen sich ohne Verbindung nicht laden.'
-                : null
-            }
-          />
-        ) : null}
-
-        {editable && adding === null ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => {
-                setEditing(null)
-                setAdding('item')
-              }}
-            >
-              Position hinzufügen
-            </Button>
-            <Button
-              onClick={() => {
-                setEditing(null)
-                setAdding('title')
-              }}
-            >
-              Titel hinzufügen
-            </Button>
-          </div>
-        ) : null}
-
         {editable && adding !== null ? (
-          <Card label={adding === 'item' ? 'Neue Position' : 'Neuer Titel'} tone="sunken">
+          <div role="group" aria-label={adding === 'item' ? 'Neue Position' : 'Neuer Titel'}>
+            <p
+              aria-hidden="true"
+              className="mb-2 font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase"
+            >
+              {adding === 'item' ? 'Neue Position' : 'Neuer Titel'}
+            </p>
             <LineForm
               kind={adding}
               taxed={taxed}
@@ -662,31 +671,184 @@ export function LinesSection({
                 return made
               }}
             />
-          </Card>
+          </div>
         ) : null}
       </div>
-    </Section>
+    ) : undefined
+
+  return (
+    <>
+      <TablePanel
+        title="Positionen"
+        caption="Positionen des Belegs"
+        action={
+          editable && adding === null ? (
+            <span className="flex flex-wrap gap-1.5">
+              <Button
+                size="small"
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null)
+                  setAdding('item')
+                }}
+              >
+                Position hinzufügen
+              </Button>
+              <Button
+                size="small"
+                icon={Plus}
+                onClick={() => {
+                  setEditing(null)
+                  setAdding('title')
+                }}
+              >
+                Titel hinzufügen
+              </Button>
+            </span>
+          ) : null
+        }
+        lead={lead}
+        cards={cards}
+        cardsEmpty="Noch keine Position."
+        note={
+          priced ? (
+            <Totals
+              totals={totals}
+              taxed={taxed}
+              kind={kind}
+              original={figures.original ? documentKindOf(figures.original) : null}
+              taxTreatment={taxTreatmentOf(document)}
+              deductions={figures.deductions}
+              deductionTrouble={figures.deductionTrouble}
+            />
+          ) : undefined
+        }
+      >
+        <thead>
+          <tr>
+            <Column className={widths.position}>Pos.</Column>
+            <Column>Bezeichnung</Column>
+            <Column numeric className={widths.quantity}>
+              Menge
+            </Column>
+            {priced ? (
+              <Column numeric className={widths.price}>
+                Einzelpreis
+              </Column>
+            ) : null}
+            {taxed ? (
+              <Column numeric className={widths.rate}>
+                USt.
+              </Column>
+            ) : null}
+            {priced ? (
+              <Column numeric className={widths.total}>
+                Gesamt
+              </Column>
+            ) : null}
+            {editable ? (
+              <Column numeric className="w-[120px]">
+                Ändern
+              </Column>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <Cell colSpan={width} className="text-ink-muted">
+                Noch keine Position.
+              </Cell>
+            </tr>
+          ) : null}
+          {rows.map((row) => {
+            if (row.row === 'subtotal') {
+              return (
+                <tr key={`sum-${row.number}`}>
+                  <Cell> </Cell>
+                  <Cell className="text-ink-muted">{`Summe Titel ${row.number}: ${row.designation}`}</Cell>
+                  <Cell> </Cell>
+                  <Cell> </Cell>
+                  {taxed ? <Cell> </Cell> : null}
+                  <Cell numeric className="font-semibold">
+                    {centsAsInput(row.netCents)}
+                  </Cell>
+                  {editable ? <Cell> </Cell> : null}
+                </tr>
+              )
+            }
+
+            const { line } = row
+
+            if (editing === line.id) {
+              return (
+                <tr key={line.id}>
+                  <Cell colSpan={width}>{editForm(line)}</Cell>
+                </tr>
+              )
+            }
+
+            const description = maybeText(line.record, 'description')
+            const title = row.row === 'title'
+
+            return (
+              <tr key={line.id}>
+                <Cell className={title ? 'font-semibold' : undefined}>{row.number}</Cell>
+                <Cell>
+                  <span className={title ? 'font-semibold' : undefined}>{line.designation}</span>
+                  {description ? (
+                    <span className="block whitespace-pre-line text-[12px] text-ink-faint">
+                      {description}
+                    </span>
+                  ) : null}
+                </Cell>
+                {title ? (
+                  <>
+                    <Cell> </Cell>
+                    {priced ? <Cell> </Cell> : null}
+                    {taxed ? <Cell> </Cell> : null}
+                    {priced ? <Cell> </Cell> : null}
+                  </>
+                ) : (
+                  <>
+                    <Cell numeric>{quantityOf(line)}</Cell>
+                    {priced ? (
+                      <Cell numeric>{centsAsInput(count(line.record, 'unitPriceCents'))}</Cell>
+                    ) : null}
+                    {taxed ? <Cell numeric>{rateText(line)}</Cell> : null}
+                    {priced ? (
+                      <Cell numeric className="font-semibold">
+                        {centsAsInput(line.netCents)}
+                      </Cell>
+                    ) : null}
+                  </>
+                )}
+                {editable ? <Cell numeric>{changeButtons(line, row.number)}</Cell> : null}
+              </tr>
+            )
+          })}
+        </tbody>
+      </TablePanel>
+
+      <Confirm
+        open={removing !== null}
+        title={`${removing?.name ?? 'Position'} entfernen?`}
+        confirm="Entfernen"
+        onConfirm={() => {
+          if (removing) {
+            void remove(removing.id)
+          }
+        }}
+        onCancel={() => {
+          setRemoving(null)
+        }}
+      >
+        {removing?.title
+          ? 'Der Titel verschwindet aus dem Entwurf, seine Positionen bleiben stehen.'
+          : 'Die Position verschwindet aus dem Entwurf.'}
+      </Confirm>
+    </>
   )
-}
-
-/**
- * What a document bills after its deductions, or the sentence the rule answers
- * with when the progress invoices do not fit it.
- */
-function billedOrRefusal(
-  totals: DocumentTotals,
-  deductions: readonly DeductionContent[],
-  taxTreatment: TaxTreatment,
-): BilledAmount | string {
-  try {
-    return billedAfter(totals, deductions, taxTreatment)
-  } catch (error) {
-    if (error instanceof RuleError) {
-      return error.message
-    }
-
-    throw error
-  }
 }
 
 /**
@@ -720,10 +882,39 @@ function deductionDetail(deduction: DeductionContent, taxed: boolean): string {
   return [...came, ...figures].join(', ')
 }
 
+/** One row of the totals: a name at the left, a figure at the right. */
+function Sum({
+  strong = false,
+  label,
+  detail,
+  children,
+}: {
+  readonly strong?: boolean
+  readonly label: string
+  /** Under the name, smaller: what a deduction took off. */
+  readonly detail?: string
+  readonly children: ReactNode
+}) {
+  return (
+    <div
+      className={clsx(
+        'flex items-start justify-between gap-4',
+        strong ? 'border-t border-line pt-[5px] text-[16px] font-bold text-ink' : 'text-ink-muted',
+      )}
+    >
+      <dt>
+        {label}
+        {detail ? <span className="block text-[12px]">{detail}</span> : null}
+      </dt>
+      <dd className="numeric shrink-0 text-right">{children}</dd>
+    </div>
+  )
+}
+
 /**
- * The figures under the lines, in the order the printed document has them:
- * the net sum, the tax per rate with the amount it is on, the total. Without
- * tax only the total, and the sentence that says why.
+ * The figures under the lines, in the order the printed document has them and
+ * in its words: the net sum, the tax per rate with the amount it is on, the
+ * total. Without tax only the total, and the sentence that says why.
  *
  * An invoice that takes off earlier progress invoices goes on the way the
  * paper does: each of them with its number, date and what it billed, and then
@@ -775,37 +966,40 @@ function Totals({
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <dl className="grid w-full max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-body">
+      <dl
+        className={clsx(
+          'flex w-full flex-col gap-[5px] text-[13px]',
+          deducting ? 'max-w-[420px]' : 'max-w-[330px]',
+        )}
+      >
         {taxed ? (
           <>
-            <dt className="text-ink-muted">Summe netto</dt>
-            <dd className="numeric text-right">{euros(totals.netCents)}</dd>
+            <Sum label="Summe netto">{euros(totals.netCents)}</Sum>
             {totals.byRate.map((entry) => (
-              <Fragment key={entry.rate}>
-                <dt className="text-ink-muted">
-                  {`Umsatzsteuer ${percent(entry.basisPoints)} auf ${euros(entry.netCents)}`}
-                </dt>
-                <dd className="numeric text-right">{euros(entry.taxCents)}</dd>
-              </Fragment>
+              <Sum
+                key={entry.rate}
+                label={`Umsatzsteuer ${percent(entry.basisPoints)} auf ${euros(entry.netCents)}`}
+              >
+                {euros(entry.taxCents)}
+              </Sum>
             ))}
           </>
         ) : null}
-        <dt className="font-semibold">{whole}</dt>
-        <dd className="numeric text-right font-semibold">{euros(totals.grossCents)}</dd>
+        <Sum strong label={whole}>
+          {euros(totals.grossCents)}
+        </Sum>
         {deductions.map((deduction) => {
           const part = deductedPart(deduction)
           const detail = deductionDetail(deduction, taxed)
 
           return (
-            <Fragment key={deduction.number}>
-              <dt className="text-ink-muted">
-                {`${deducted} ${deduction.number} vom ${date(deduction.documentDate)}`}
-                {detail === '' ? null : <span className="block text-table">{detail}</span>}
-              </dt>
-              <dd className="numeric text-right">
-                {euros(part.grossCents === 0 ? 0 : -part.grossCents)}
-              </dd>
-            </Fragment>
+            <Sum
+              key={deduction.number}
+              label={`${deducted} ${deduction.number} vom ${date(deduction.documentDate)}`}
+              {...(detail === '' ? {} : { detail })}
+            >
+              {euros(part.grossCents === 0 ? 0 : -part.grossCents)}
+            </Sum>
           )
         })}
         {billed !== null && typeof billed !== 'string' ? (
@@ -817,16 +1011,15 @@ function Totals({
 
                   return (
                     <Fragment key={entry.rate}>
-                      <dt className="text-ink-muted">{`Rechnungsbetrag netto${group}`}</dt>
-                      <dd className="numeric text-right">{euros(entry.netCents)}</dd>
-                      <dt className="text-ink-muted">{`Umsatzsteuer${group}`}</dt>
-                      <dd className="numeric text-right">{euros(entry.taxCents)}</dd>
+                      <Sum label={`Rechnungsbetrag netto${group}`}>{euros(entry.netCents)}</Sum>
+                      <Sum label={`Umsatzsteuer${group}`}>{euros(entry.taxCents)}</Sum>
                     </Fragment>
                   )
                 })
               : null}
-            <dt className="font-semibold">Rechnungsbetrag</dt>
-            <dd className="numeric text-right font-semibold">{euros(billed.grossCents)}</dd>
+            <Sum strong label="Rechnungsbetrag">
+              {euros(billed.grossCents)}
+            </Sum>
           </>
         ) : null}
       </dl>

@@ -607,7 +607,6 @@ describe('a quote with titles', () => {
     await mount('/belege/d-1')
     const person = userEvent.setup()
 
-    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
     await person.selectOptions(await screen.findByLabelText('Textbaustein für oben'), 's-1')
 
     expect((screen.getByLabelText('Text über den Positionen') as HTMLTextAreaElement).value).toBe(
@@ -770,7 +769,7 @@ describe('an issued quote', () => {
 
     const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
 
-    expect(chain.getByRole('link', { name: 'Angebot' })).toBeDefined()
+    expect(chain.getByRole('link', { name: 'Angebot AN-2026-0001' })).toBeDefined()
   })
 })
 
@@ -843,6 +842,45 @@ describe('a report signed on site', () => {
       await screen.findByRole('heading', { level: 1, name: 'Regiebericht RB-2026-0001' }),
     ).toBeDefined()
     expect(screen.getByRole('img', { name: 'Unterschrift von Erika Berg' })).toBeDefined()
+  })
+
+  it('goes on to its invoice through issuing, as "Rechnung erstellen" in its head offers', async () => {
+    // The board puts "Rechnung erstellen" beside "Festschreiben". A successor
+    // is made out of an issued document only, so the report is issued first.
+    serverSays('POST', '/documents/d-1/issue', () => {
+      const issued = { ...server.row('documents', 'd-1'), status: 'issued', number: 'RB-2026-0001' }
+
+      server.put('documents', issued)
+
+      return { status: 201, body: issued }
+    })
+    serverSays('POST', '/documents/d-1/successors', () => {
+      const made = document({ id: 'd-2', kind: 'final_invoice', predecessorDocumentId: 'd-1' })
+
+      server.put('documents', made)
+
+      return { status: 201, body: made }
+    })
+
+    await mount('/belege/d-1', signed)
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Rechnung erstellen' }))
+
+    const issuing = within(screen.getByRole('region', { name: 'Festschreiben' }))
+
+    await person.click(
+      issuing.getByRole('button', { name: 'Festschreiben und Rechnung erstellen' }),
+    )
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rechnung' })).toBeDefined()
+    expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([
+      '/documents/d-1/issue',
+      '/documents/d-1/successors',
+    ])
+    expect(calls.find((call) => call.path === '/documents/d-1/successors')?.body).toEqual({
+      kind: 'final_invoice',
+    })
   })
 })
 
@@ -998,15 +1036,14 @@ describe('invoices in the chain', () => {
     expect(screen.getByText('Rechnungsbetrag').nextElementSibling?.textContent).toMatch(/856,80\s€/)
   })
 
-  it('take the time of the work in the head, and show it', async () => {
+  it('take the time of the work in the head, and keep it there', async () => {
     await mount('/belege/d-1', {
       documents: [document({ kind: 'final_invoice' })],
       document_lines: [line('l-1', 1)],
     })
     const person = userEvent.setup()
 
-    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
-    await person.type(screen.getByLabelText('Leistung von'), '2026-09-01')
+    await person.type(await screen.findByLabelText('Leistung von'), '2026-09-01')
     await person.type(screen.getByLabelText('Leistung bis'), '2026-09-15')
     await person.click(screen.getByRole('button', { name: 'Speichern' }))
 
@@ -1018,7 +1055,32 @@ describe('invoices in the chain', () => {
       serviceFrom: '2026-09-01',
       serviceUntil: '2026-09-15',
     })
-    expect(await screen.findByText('01.09.2026 bis 15.09.2026')).toBeDefined()
+    // Saved, the form shows what is stored, and there is nothing left to save.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Speichern' }).hasAttribute('disabled')).toBe(true)
+    })
+    expect((screen.getByLabelText('Leistung von') as HTMLInputElement).value).toBe('2026-09-01')
+  })
+
+  it('show the time of the work on an issued invoice, and the day it is due', async () => {
+    await mount('/belege/d-1', {
+      documents: [
+        document({
+          kind: 'final_invoice',
+          status: 'issued',
+          number: 'RE-2026-0001',
+          serviceFrom: '2026-09-01',
+          serviceUntil: '2026-09-15',
+        }),
+      ],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const head = within(await screen.findByRole('region', { name: 'Kopf und Texte' }))
+
+    expect(head.getByText('01.09.2026 bis 15.09.2026')).toBeDefined()
+    // 14 days after the 21st, the default term with no setting of its own.
+    expect(await head.findByText('05.10.2026')).toBeDefined()
   })
 
   it('refuse a time of the work that ends before it begins, before anything is queued', async () => {
@@ -1028,8 +1090,7 @@ describe('invoices in the chain', () => {
     })
     const person = userEvent.setup()
 
-    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
-    await person.type(screen.getByLabelText('Leistung von'), '2026-09-15')
+    await person.type(await screen.findByLabelText('Leistung von'), '2026-09-15')
     await person.type(screen.getByLabelText('Leistung bis'), '2026-09-01')
     await person.click(screen.getByRole('button', { name: 'Speichern' }))
 
@@ -1072,7 +1133,9 @@ describe('the payment term', () => {
       customers: [{ ...customer, kind: 'business', name: 'Bau Nord GmbH', isBusiness: true }],
     })
 
-    expect(await screen.findByText('90 Tage, nur für diesen Beleg')).toBeDefined()
+    expect(
+      ((await screen.findByLabelText('Zahlungsziel in Tagen')) as HTMLInputElement).value,
+    ).toBe('90')
     expect(screen.getByRole('note').textContent).toBe(
       'Mehr als 60 Tage gegenüber einem Unternehmen: so ein Zahlungsziel sollte ausdrücklich ' +
         'vereinbart sein, damit es trägt (§ 271a Abs. 1 BGB).',
@@ -1082,23 +1145,35 @@ describe('the payment term', () => {
   it('says nothing of it towards a consumer, whom the paragraph does not cover', async () => {
     await mount('/belege/d-1', { documents: [document({ paymentTermDays: 90 })] })
 
-    expect(await screen.findByText('90 Tage, nur für diesen Beleg')).toBeDefined()
+    expect(
+      ((await screen.findByLabelText('Zahlungsziel in Tagen')) as HTMLInputElement).value,
+    ).toBe('90')
     expect(screen.queryByText(/§ 271a/)).toBeNull()
+  })
+
+  it('names the term of its own on an issued quote, and the paragraph beside it', async () => {
+    await mount('/belege/d-1', {
+      documents: [document({ status: 'issued', number: 'AN-2026-0001', paymentTermDays: 90 })],
+      customers: [{ ...customer, kind: 'business', name: 'Bau Nord GmbH', isBusiness: true }],
+    })
+
+    expect(await screen.findByText('90 Tage, nur für diesen Beleg')).toBeDefined()
+    expect(screen.getByRole('note').textContent).toMatch(/§ 271a Abs\. 1 BGB/)
   })
 
   it('is the setting of the date of the quote, and says so', async () => {
     serverSays('GET', '/settings/parameters', () => ({ status: 200, body: thirtyFromSeptember }))
     await mount('/belege/d-1')
 
-    expect(await screen.findByText('30 Tage, aus den Einstellungen')).toBeDefined()
+    expect(await screen.findByText(/aus den Einstellungen, 30 Tage\./)).toBeDefined()
+    expect(screen.getByLabelText('Zahlungsziel in Tagen').getAttribute('placeholder')).toBe('30')
   })
 
   it('is set for this document alone through the outbox', async () => {
     await mount('/belege/d-1')
     const person = userEvent.setup()
 
-    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
-    await person.type(screen.getByLabelText('Zahlungsziel in Tagen'), '45')
+    await person.type(await screen.findByLabelText('Zahlungsziel in Tagen'), '45')
     await person.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => {
@@ -1106,17 +1181,17 @@ describe('the payment term', () => {
     })
 
     expect(valuesOf(server.operationsOn('documents')[0])).toMatchObject({ paymentTermDays: 45 })
-    expect(await screen.findByText('45 Tage, nur für diesen Beleg')).toBeDefined()
+    expect((screen.getByLabelText('Zahlungsziel in Tagen') as HTMLInputElement).value).toBe('45')
   })
 
   it('goes back to the setting when the field is emptied', async () => {
     await mount('/belege/d-1', { documents: [document({ paymentTermDays: 45 })] })
     const person = userEvent.setup()
+    const field = (await screen.findByLabelText('Zahlungsziel in Tagen')) as HTMLInputElement
 
-    expect(await screen.findByText('45 Tage, nur für diesen Beleg')).toBeDefined()
+    expect(field.value).toBe('45')
 
-    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
-    await person.clear(screen.getByLabelText('Zahlungsziel in Tagen'))
+    await person.clear(field)
     await person.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => {
@@ -1124,15 +1199,14 @@ describe('the payment term', () => {
     })
 
     expect(valuesOf(server.operationsOn('documents')[0])).toMatchObject({ paymentTermDays: null })
-    expect(await screen.findByText('14 Tage, aus den Einstellungen')).toBeDefined()
+    expect(await screen.findByText(/aus den Einstellungen, 14 Tage\./)).toBeDefined()
   })
 
   it('refuses a term no document may state, before anything is queued', async () => {
     await mount('/belege/d-1')
     const person = userEvent.setup()
 
-    await person.click(await screen.findByRole('button', { name: 'Bearbeiten' }))
-    await person.type(screen.getByLabelText('Zahlungsziel in Tagen'), '400')
+    await person.type(await screen.findByLabelText('Zahlungsziel in Tagen'), '400')
     await person.click(screen.getByRole('button', { name: 'Speichern' }))
 
     expect((await screen.findByRole('alert')).textContent).toBe(
@@ -1229,7 +1303,7 @@ describe('cancelling an invoice', () => {
     const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
 
     expect(chain.getByText('Storno zu')).toBeDefined()
-    expect(chain.getByRole('link', { name: 'Rechnung' })).toBeDefined()
+    expect(chain.getByRole('link', { name: 'Rechnung RE-2026-0001' })).toBeDefined()
   })
 
   it('says why it refuses, and stays on the invoice', async () => {
@@ -1260,16 +1334,16 @@ describe('cancelling an invoice', () => {
       document_lines: [line('l-1', 1), ...lines],
     })
 
-    const card = within(await screen.findByRole('region', { name: 'Storniert' }))
+    const frame = within(await screen.findByRole('region', { name: 'RE-2026-0001' }))
 
-    expect(card.getByText(/Der Beleg ist storniert/)).toBeDefined()
-    expect(screen.queryByRole('region', { name: 'Festgeschrieben' })).toBeNull()
+    expect(frame.getByText('STORNIERT')).toBeDefined()
+    expect(frame.getByRole('status').textContent).toMatch(/Der Beleg ist storniert/)
     expect(screen.queryByRole('button', { name: 'Stornieren' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull()
 
     const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
 
-    expect(chain.getByRole('link', { name: 'Stornorechnung' })).toBeDefined()
+    expect(chain.getByRole('link', { name: 'Stornorechnung RE-2026-0002' })).toBeDefined()
   })
 
   it('gives back what a progress invoice took off, and names the work as the invoice did', async () => {
@@ -2321,7 +2395,7 @@ describe('the collective invoice', () => {
     })
 
     const chain = within(await screen.findByRole('region', { name: 'Belegkette' }))
-    const reports = chain.getAllByRole('link', { name: 'Regiebericht' })
+    const reports = chain.getAllByRole('link', { name: /^Regiebericht RB-/ })
 
     expect(reports.map((link) => link.getAttribute('href'))).toEqual(['/belege/d-1', '/belege/d-2'])
   })
@@ -2334,5 +2408,112 @@ describe('the collective invoice', () => {
 
     expect(await screen.findByRole('link', { name: 'Weiter bei Rechnung, Entwurf' })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Rechnung erstellen' })).toBeNull()
+  })
+})
+
+/**
+ * The screen of a document after its boards "Angebot, Entwurf" and
+ * "Schlussrechnung, festgeschrieben" (#219): the frame that says what it is,
+ * the head as a form from the start, and the lines as boxes on a phone.
+ */
+describe('the document as its boards draw it (#219)', () => {
+  it('frames a draft in the colour of waiting, with no number yet', async () => {
+    await mount('/belege/d-1', { document_lines: [line('l-1', 1)] })
+
+    const frame = within(await screen.findByRole('region', { name: 'Angebot, Entwurf' }))
+
+    expect(frame.getByText(/Noch keine Nummer vergeben/)).toBeDefined()
+    expect(frame.getByRole('region', { name: 'Kopf und Texte' })).toBeDefined()
+    expect(frame.getByRole('region', { name: 'Positionen' })).toBeDefined()
+  })
+
+  it('frames a fixed document under its number, with when it was fixed', async () => {
+    await mount('/belege/d-1', {
+      documents: [
+        document({
+          status: 'issued',
+          number: 'AN-2026-0001',
+          issuedAt: '2026-09-21T08:58:00.000Z',
+        }),
+      ],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const frame = within(await screen.findByRole('region', { name: 'AN-2026-0001' }))
+
+    expect(frame.getByText('FEST')).toBeDefined()
+    expect(frame.getByText(/^Festgeschrieben 21\.09\.2026, \d\d:\d\d$/)).toBeDefined()
+    expect(frame.getByRole('region', { name: 'Belegkette' })).toBeDefined()
+  })
+
+  it('drops what was typed into the head with "Abbrechen", and waits while nothing changed', async () => {
+    await mount('/belege/d-1')
+    const person = userEvent.setup()
+    const subject = (await screen.findByLabelText('Betreff')) as HTMLInputElement
+    const save = screen.getByRole('button', { name: 'Speichern' })
+
+    expect(save.hasAttribute('disabled')).toBe(true)
+
+    await person.clear(subject)
+    await person.type(subject, 'Zählerschrank und Außenlicht')
+
+    expect(save.hasAttribute('disabled')).toBe(false)
+
+    await person.click(screen.getByRole('button', { name: 'Abbrechen' }))
+
+    expect(subject.value).toBe('Zählerschrank erneuern')
+    expect(save.hasAttribute('disabled')).toBe(true)
+    expect(server.operationsOn('documents')).toHaveLength(0)
+  })
+
+  it('asks before a position goes, and then removes it through the outbox', async () => {
+    await mount('/belege/d-1', {
+      document_lines: [line('l-1', 1), line('l-2', 2, { designation: 'Zweite' })],
+    })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: '2 entfernen' }))
+
+    const question = within(screen.getByRole('alertdialog', { name: 'Position 2 entfernen?' }))
+
+    expect(server.operationsOn('document_lines')).toHaveLength(0)
+
+    await person.click(question.getByRole('button', { name: 'Entfernen' }))
+
+    await waitFor(() => {
+      expect(
+        server
+          .operationsOn('document_lines')
+          .some((operation) => operation.kind === 'delete' && operation.recordId === 'l-2'),
+      ).toBe(true)
+    })
+  })
+
+  it('lists the lines as boxes on a phone, the figures under the name', async () => {
+    // 390 pixels: no band from 600 on matches.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+
+    await mount('/belege/d-1', { document_lines: outlined })
+
+    const positions = within(await screen.findByRole('region', { name: 'Positionen' }))
+
+    expect(positions.queryByRole('table')).toBeNull()
+
+    const boxes = within(positions.getByRole('list', { name: 'Positionen des Belegs' }))
+      .getAllByRole('listitem')
+      .map((box) => box.textContent ?? '')
+
+    expect(
+      boxes.some((box) => /^1\.1 Zählerschrank setzen1 Stk\. · je 1\.200,00\s€/.test(box)),
+    ).toBe(true)
+    expect(boxes.some((box) => /^Summe Titel 1: Zählerschrank1\.500,00\s€$/.test(box))).toBe(true)
+    expect(await positions.findByRole('button', { name: '1.1 nach oben' })).toBeDefined()
+    // What they add up to stays under them.
+    expect(positions.getByText(/Umsatzsteuer 19 % auf 1\.680,00\s€/)).toBeDefined()
   })
 })

@@ -26,9 +26,12 @@ export const signatureStroke = {
 export function SignaturePicture({
   path,
   label,
+  className = 'block w-full max-w-md aspect-[5/2]',
 }: {
   readonly path: string
   readonly label: string
+  /** The size, where the frame around it decides it: the office draws it in a box. */
+  readonly className?: string
 }) {
   if (!signaturePathIsValid(path)) {
     return null
@@ -39,7 +42,7 @@ export function SignaturePicture({
       role="img"
       aria-label={label}
       viewBox={signatureViewBox}
-      className="block w-full max-w-md aspect-[5/2] text-ink"
+      className={`${className} text-ink`}
     >
       <path d={path} {...signatureStroke} />
     </svg>
