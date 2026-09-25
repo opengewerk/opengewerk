@@ -3,12 +3,20 @@ import {
   type TenantId,
   type TenantParameter,
   type TenantParameterKey,
+  tenantParameterNames,
   tenantParameterUnits,
 } from '@opengewerk/domain'
 import { and, desc, eq, isNull, lte, or, sql } from 'drizzle-orm'
 
 import type { TenantTransaction } from './database.js'
 import { tenantParameters } from './schema/index.js'
+
+/** An ISO day as a person in Germany writes it: 2026-01-01 is 01.01.2026. */
+function germanDay(on: string): string {
+  const [year, month, day] = on.split('-')
+
+  return `${day ?? ''}.${month ?? ''}.${year ?? ''}`
+}
 
 /** One day back, on the ISO date scale and without a time zone in sight. */
 function theDayBefore(on: IsoDate): IsoDate {
@@ -75,7 +83,7 @@ export async function setParameter(
     // would depend on which row came back first. Correcting a past period is a
     // different and much rarer thing, and it should look different.
     throw new ParameterError(
-      `Für ${setting.key} gilt bereits ein Wert ab ${latest.validFrom}. Ein neuer Wert kann nur später beginnen.`,
+      `Für ${tenantParameterNames[setting.key]} gilt bereits ein Wert ab ${germanDay(latest.validFrom)}. Ein neuer Wert kann nur später beginnen.`,
     )
   }
 

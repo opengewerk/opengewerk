@@ -77,6 +77,31 @@ export const letterheadFields = [
 export type LetterheadField = (typeof letterheadFields)[number]
 
 /**
+ * What each field is called on the screen, and in every sentence that names
+ * one. Kept here so that the route that refuses a field and the screen that
+ * shows it call it the same, and never by its key (#221).
+ */
+export const letterheadFieldLabels: Readonly<Record<LetterheadField, string>> = {
+  companyName: 'Name auf den Belegen',
+  street: 'Straße',
+  houseNumber: 'Hausnummer',
+  postalCode: 'Postleitzahl',
+  city: 'Ort',
+  country: 'Land',
+  phone: 'Telefon',
+  email: 'E-Mail',
+  website: 'Website',
+  taxNumber: 'Steuernummer',
+  vatId: 'USt-IdNr.',
+  iban: 'IBAN',
+  bic: 'BIC',
+  bankName: 'Bank',
+  registerCourt: 'Registergericht',
+  registerNumber: 'Registernummer',
+  managingDirectors: 'Vertretung',
+}
+
+/**
  * The media types a logo may have.
  *
  * PNG and JPEG and nothing else. SVG would print the sharpest, and it is also

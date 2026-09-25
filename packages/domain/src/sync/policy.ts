@@ -299,6 +299,9 @@ export const keptByTheServer: readonly string[] = [
   'createdAt',
   'updatedAt',
   'updatedBy',
+  // Written by the same trigger as `updatedBy`, from the device of the
+  // transaction; a value in a patch was overwritten anyway (#221).
+  'deviceId',
   'version',
   'changeSequence',
   'deletedAt',

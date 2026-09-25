@@ -142,6 +142,18 @@ describe('writing the letterhead', () => {
     expect((refused.body as { message: string }).message).toContain('Prüfziffern')
   })
 
+  it('names a field that is too long as the screen names it (#221)', async () => {
+    const refused = await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .send({ companyName: 'x'.repeat(301) })
+      .expect(400)
+
+    expect((refused.body as { message: string }).message).toBe(
+      '„Name auf den Belegen“ ist länger als 300 Zeichen, für einen Briefkopf zu lang.',
+    )
+  })
+
   it('refuses a country that is not a two letter code', async () => {
     await http()
       .put('/settings/letterhead')

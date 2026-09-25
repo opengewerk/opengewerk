@@ -74,10 +74,10 @@ describe('the fields a business gives its reports', () => {
     ])
   })
 
-  it('are asked what every definition is asked: options, units, keys', () => {
+  it('are refused with the label the owner typed, never with the key behind it (#221)', () => {
     expect(
       reportFieldsProblems([{ ...weather, options: [{ value: 'dry', label: 'trocken' }] }]),
-    ).toEqual(['report: die Auswahl field_1 hat weniger als zwei Möglichkeiten.'])
+    ).toEqual([`Die Auswahl „${weather.label}“ braucht mindestens zwei Möglichkeiten.`])
     expect(
       reportFieldsProblems([
         {
@@ -89,10 +89,13 @@ describe('the fields a business gives its reports', () => {
         },
       ]),
     ).toEqual([
-      'report: jede Möglichkeit der Auswahl field_1 braucht einen eigenen Wert und eine Beschriftung.',
+      `Jede Möglichkeit der Auswahl „${weather.label}“ braucht einen eigenen Wert und eine Beschriftung.`,
     ])
     expect(reportFieldsProblems([{ ...distance, unit: 'furlong' as never }])).toEqual([
-      'report: field_2 nennt eine Einheit, die es nicht gibt.',
+      `Das Feld „${distance.label}“ nennt eine Einheit, die es nicht gibt.`,
+    ])
+    expect(reportFieldsProblems([{ ...distance, decimals: 4 }])).toEqual([
+      `Das Feld „${distance.label}“ zeigt null bis drei Nachkommastellen.`,
     ])
   })
 

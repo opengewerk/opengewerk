@@ -62,6 +62,19 @@ export const tenantParameterKeys = [
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
 
+/**
+ * What each setting is called in a sentence, after "für": "Für die
+ * Kleinunternehmerregelung gilt bereits ein Wert ab ...". A refusal a person
+ * reads names the setting as the screen does, never by its key (#221).
+ */
+export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> = {
+  'small_business.claimed': 'die Kleinunternehmerregelung',
+  'invoice.payment_term_days': 'das Zahlungsziel',
+  'e_invoice.transition_claimed': 'den Übergang zur E-Rechnung',
+  'cash_accounting.permitted': 'die Ist-Versteuerung',
+  'report.mail_on_signature': 'den Regiebericht nach der Unterschrift',
+}
+
 export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>> = {
   'small_business.claimed': 'flag',
   'invoice.payment_term_days': 'days',

@@ -17,6 +17,7 @@ import {
   ibanIsValid,
   largestLogoBytes,
   type LetterheadField,
+  letterheadFieldLabels,
   letterheadFields,
   logoMediaTypes,
   type LogoMediaType,
@@ -76,14 +77,14 @@ function letterheadFrom(body: unknown): Record<LetterheadField, string | null> {
     const value = source[field]
 
     if (value !== undefined && value !== null && typeof value !== 'string') {
-      throw new BadRequestException(`${field} muss ein Text sein.`)
+      throw new BadRequestException(`„${letterheadFieldLabels[field]}“ muss ein Text sein.`)
     }
 
     const trimmed = typeof value === 'string' ? value.trim() : ''
 
     if (trimmed.length > longestField) {
       throw new BadRequestException(
-        `${field} ist länger als ${String(longestField)} Zeichen, für einen Briefkopf zu lang.`,
+        `„${letterheadFieldLabels[field]}“ ist länger als ${String(longestField)} Zeichen, für einen Briefkopf zu lang.`,
       )
     }
 
