@@ -1,6 +1,6 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Button, IconButton } from './button.js'
 import { Confirm } from './confirm.js'
@@ -98,6 +98,120 @@ describe('a table', () => {
     expect(screen.getByRole('table', { name: 'Positionen der Rechnung' })).toBeDefined()
     expect(screen.getByRole('columnheader', { name: 'Summe' }).getAttribute('scope')).toBe('col')
     expect(screen.getByRole('cell', { name: '217,00' }).className).toContain('numeric')
+  })
+})
+
+describe('the head of a table', () => {
+  /** The ResizeObserver of the table, run by hand once it has observed. */
+  let measure: (() => void) | undefined
+
+  beforeEach(() => {
+    measure = undefined
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private readonly callback: () => void) {}
+        observe() {
+          measure = () => {
+            this.callback()
+          }
+        }
+        disconnect() {}
+      },
+    )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  /** Frame, table and head with the sizes of a window. */
+  function sized(frame: number, table: { width: number; height: number }) {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const size =
+        this.tagName === 'TABLE'
+          ? table
+          : this.tagName === 'THEAD'
+            ? { width: table.width, height: 33.4 }
+            : { width: frame, height: table.height }
+      return DOMRect.fromRect(size)
+    })
+  }
+
+  function positions() {
+    return (
+      <Table caption="Positionen der Rechnung">
+        <thead>
+          <tr>
+            <Column>Bezeichnung</Column>
+            <Column numeric>Summe</Column>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <Cell>Arbeitszeit Monteur</Cell>
+            <Cell numeric>217,00</Cell>
+          </tr>
+        </tbody>
+      </Table>
+    )
+  }
+
+  function frameOf(table: HTMLElement): HTMLElement {
+    return table.parentElement as HTMLElement
+  }
+
+  it('stays under the top bar while a table that fits scrolls with the page (#272)', () => {
+    // A frame that scrolls sideways is a scroll container in both directions,
+    // and a sticky head sticks to the frame, which never scrolls up or down.
+    // One that clips is none, so a table that fits gets one of those.
+    sized(900, { width: 900, height: 420.8 })
+    render(positions())
+    act(() => measure?.())
+
+    const frame = frameOf(screen.getByRole('table'))
+    expect(frame.className).toContain('overflow-x-clip')
+    expect(frame.hasAttribute('data-wide')).toBe(false)
+    expect(frame.hasAttribute('data-nested')).toBe(false)
+    // As far as the head can travel before it would leave its table, rounded
+    // down so that it never ends below the last row.
+    expect(frame.style.getPropertyValue('--table-head-travel')).toBe('387px')
+  })
+
+  it('leaves a table wider than its frame to scroll sideways in it', () => {
+    sized(360, { width: 900, height: 420.8 })
+    render(positions())
+    act(() => measure?.())
+
+    const frame = frameOf(screen.getByRole('table'))
+    expect(frame.className).toContain('overflow-x-auto')
+    expect(frame.hasAttribute('data-wide')).toBe(true)
+  })
+
+  it('sticks to a column that scrolls on its own and not under the top bar', () => {
+    // The top edge of the column is where the head belongs there. Under the
+    // top bar would also push it down into its own rows wherever such a
+    // container does not scroll at all, 56 pixels below the edge of a card
+    // that clips with `overflow: hidden`.
+    sized(900, { width: 900, height: 420.8 })
+    render(<div style={{ overflowY: 'auto' }}>{positions()}</div>)
+    act(() => measure?.())
+
+    expect(frameOf(screen.getByRole('table')).hasAttribute('data-nested')).toBe(true)
+  })
+
+  it('scrolls sideways until it has been measured', () => {
+    // A frame that scrolls shows every column; one that clips would cut a
+    // wide table off before anybody knew it was wide.
+    vi.stubGlobal('ResizeObserver', undefined)
+    render(positions())
+
+    const frame = frameOf(screen.getByRole('table'))
+    expect(frame.className).toContain('overflow-x-auto')
+    expect(frame.hasAttribute('data-wide')).toBe(true)
   })
 })
 

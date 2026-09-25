@@ -171,7 +171,10 @@ export function TablePanel({
       aria-labelledby={title ? headingId : undefined}
       aria-label={title ? undefined : caption}
       className={clsx(
-        'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[5px] border border-line bg-surface',
+        // Clipped for the rounded corners, and not hidden: a card with
+        // `overflow: hidden` is a scroll container, and the head of its table
+        // would stick to the card instead of staying under the top bar (#272).
+        'flex min-h-0 min-w-0 flex-col overflow-clip rounded-[5px] border border-line bg-surface',
         '[--surface-here:var(--color-surface)]',
         grow && 'grow',
         className,

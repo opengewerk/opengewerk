@@ -95,4 +95,66 @@
     z-index: 1;
     background-color: inherit;
   }
+
+  /*
+   * The head of a table stays under the top bar while the page scrolls past
+   * its rows, as the same board asks for windows lower than 700 pixels
+   * (#272). The office shell says how tall its top bar is, `--sticky-top`,
+   * and `Table` says how its frame sits: `data-nested` where something
+   * between it and the page scrolls on its own, and the head sticks at the
+   * top edge of that one, `data-wide` where the table is wider than its
+   * frame. The head lies over the rows it passes, its first cell over the
+   * first column that stays put.
+   */
+  .table-frame {
+    --table-head-offset: var(--sticky-top, 0px);
+  }
+
+  .table-frame[data-nested] {
+    --table-head-offset: 0px;
+  }
+
+  .scrolling-table > thead th {
+    position: relative;
+    z-index: 2;
+  }
+
+  .scrolling-table > thead tr > :first-child {
+    z-index: 3;
+  }
+
+  .table-frame:not([data-wide]) > .scrolling-table > thead th {
+    position: sticky;
+    top: var(--table-head-offset);
+  }
+
+  /*
+   * A wide table scrolls sideways in its frame, and a frame that scrolls is a
+   * scroll container in both directions: a sticky head would stick to the
+   * frame, which never scrolls up or down. Its head follows the page instead,
+   * moved by exactly as far as the page has scrolled since the top of the
+   * frame reached the top bar, and no further than the last row. A browser
+   * that cannot drive an animation by scrolling lets the head scroll away
+   * with the page, as before.
+   */
+  @supports (animation-timeline: view()) {
+    .table-frame[data-wide] {
+      view-timeline-name: --table-frame;
+      view-timeline-axis: block;
+      view-timeline-inset: var(--table-head-offset) 0px;
+    }
+
+    .table-frame[data-wide] > .scrolling-table > thead th {
+      animation: table-head-follows linear both;
+      animation-duration: auto;
+      animation-timeline: --table-frame;
+      animation-range: exit-crossing 0% exit-crossing var(--table-head-travel, 0px);
+    }
+  }
+}
+
+@keyframes table-head-follows {
+  to {
+    translate: 0 var(--table-head-travel, 0px);
+  }
 }
