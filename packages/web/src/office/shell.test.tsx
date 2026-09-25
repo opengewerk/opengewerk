@@ -35,7 +35,7 @@ async function mount(path = '/', seed: (server: TestServer) => void = () => {}) 
     store: await openLocalStore(`huelle${String((counter += 1))}`),
     transport: server,
     writer: server,
-    deviceId: 'buero-rechner',
+    deviceId: 'office-computer',
     entities: ['tasks'],
     onSignedOut: () => {},
   })
