@@ -19,6 +19,7 @@ import {
 } from '../../components/index.js'
 import type { StatusTone } from '../../components/index.js'
 import { date } from '../../app/format.js'
+import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { jobKindLabel, jobKindOf, jobStatusLabel, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
@@ -286,6 +287,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
     </Panel>
   ) : null
   const documents = <JobDocumentsPanel state={documentsState} />
+  const notes = <JobNotesPanel jobId={jobId} />
   const time = <JobTimeSection jobId={jobId} />
   const files = (
     <FilesPanel
@@ -406,6 +408,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
                 {followUp}
                 {facts}
                 {chain}
+                {notes}
                 {people}
                 {tasks}
                 {related}
@@ -427,6 +430,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
               <>
                 {followUp}
                 {documents}
+                {notes}
                 {time}
                 {files}
               </>
@@ -443,6 +447,27 @@ function JobRecord({ job }: { readonly job: RecordState }) {
         </>
       )}
     </Screen>
+  )
+}
+
+/**
+ * What the site wrote about the job (#220), the newest first, with who wrote
+ * it when. The office reads the notes here and writes none: what is to be done
+ * stays in the description, which is the office's.
+ */
+function JobNotesPanel({ jobId }: { readonly jobId: string }) {
+  const notes = useJobNotes(jobId)
+
+  return (
+    <Panel title="Notizen von der Baustelle">
+      {notes.length === 0 ? (
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          Von der Baustelle gibt es zu diesem Auftrag noch keine Notiz.
+        </p>
+      ) : (
+        <JobNoteList notes={notes} label="Notizen von der Baustelle" />
+      )}
+    </Panel>
   )
 }
 

@@ -1,7 +1,7 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Link, Outlet, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Check, MapPin, Pencil, Signature, Smartphone, Zap } from 'lucide-react'
+import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
 import { Button, Confirm, DocumentState, Panel, useBand } from '../../components/index.js'
@@ -18,13 +18,13 @@ import {
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { clockOf, useStopwatch } from '../../app/time.js'
-import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { InstallationBoards } from './boards.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
+import { JobNotes } from './notes.js'
 import { InstallationProtocols } from './protocol.js'
 import { shownStatus } from './report.js'
 import { JobTasks, MyTasks } from './tasks.js'
@@ -400,7 +400,6 @@ export function SiteJobScreen() {
     'installations',
     job?.['installationId'] ? String(job['installationId']) : undefined,
   )
-  const [noting, setNoting] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   // Closing a job asks first (#222): it leaves the list, and after 30 days the devices.
   const [closing, setClosing] = useState(false)
@@ -503,31 +502,6 @@ export function SiteJobScreen() {
     </Panel>
   ) : null
 
-  const note =
-    reports && noting ? (
-      <Panel title="Notiz zum Auftrag">
-        <RecordForm
-          fields={[{ name: 'description', label: 'Was passiert ist' }]}
-          record={job}
-          submitLabel="Notiz sichern"
-          onCancel={() => {
-            setNoting(false)
-          }}
-          onSubmit={async (values) => {
-            const saved = await client.update('jobs', jobId, {
-              description: asTextOrNull(values['description']),
-            })
-
-            if (saved.outcome === 'queued') {
-              setNoting(false)
-            }
-
-            return saved
-          }}
-        />
-      </Panel>
-    ) : null
-
   const end = (
     <div className="flex flex-col gap-2">
       {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
@@ -571,24 +545,14 @@ export function SiteJobScreen() {
       >
         {`„${text(job, 'designation')}“ gilt danach als abgeschlossen. Auf den Geräten der Monteure bleibt er noch 30 Tage zu sehen.`}
       </Confirm>
-
-      {reports ? (
-        <Button
-          wide
-          height={48}
-          icon={Pencil}
-          onClick={() => {
-            setNoting((open) => !open)
-          }}
-        >
-          {noting ? 'Notiz schließen' : 'Notiz schreiben'}
-        </Button>
-      ) : null}
     </div>
   )
 
   const contacts = <JobContacts job={job} />
   const lineage = <JobLineage job={job} />
+  // What happened on site (#220), under what the office wants done, as the
+  // board "Auftrag, ganze Seite" puts the two together.
+  const notes = <JobNotes job={job} />
   const time = <JobTime job={job} />
   const writing = <JobReports job={job} />
   const files = <JobFiles job={job} />
@@ -627,11 +591,11 @@ export function SiteJobScreen() {
           </div>
           <div className="flex min-w-0 flex-col gap-3">
             {todo}
+            {notes}
             {writing}
             {time}
             {files}
             {tasks}
-            {note}
             {end}
           </div>
         </div>
@@ -657,11 +621,11 @@ export function SiteJobScreen() {
       {lineage}
       {plant}
       {todo}
+      {notes}
       {time}
       {writing}
       {files}
       {tasks}
-      {note}
       {end}
     </SiteScreen>
   )

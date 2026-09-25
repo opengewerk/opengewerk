@@ -22,6 +22,7 @@ import type {
   Inverter,
   Job,
   JobAssignment,
+  JobNote,
   Letterhead,
   Membership,
   NumberRange,
@@ -65,6 +66,7 @@ import type {
   formDefinitions,
   formRecords,
   jobAssignments,
+  jobNotes,
   jobs,
   letterheads,
   memberships,
@@ -125,6 +127,7 @@ export type FormDefinitionMatches = Assert<
   Exact<typeof formDefinitions.$inferSelect, FormDefinitionRecord>
 >
 export type JobAssignmentMatches = Assert<Exact<typeof jobAssignments.$inferSelect, JobAssignment>>
+export type JobNoteMatches = Assert<Exact<typeof jobNotes.$inferSelect, JobNote>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>
 export type DocumentSnapshotMatches = Assert<

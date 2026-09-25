@@ -4,6 +4,7 @@ import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
+import { SiteNoteScreen } from './screens/notes.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteReportScreen } from './screens/report.js'
 import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
@@ -66,6 +67,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/dateien',
     component: SiteFilesScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/notiz',
+    component: SiteNoteScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
   createRoute({ getParentRoute: () => root, path: '/zeiten/$day', component: SiteTimeScreen }),

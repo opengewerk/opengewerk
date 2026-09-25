@@ -4,17 +4,19 @@ import { rolesAllow } from './authorization.js'
 import { followUpProblem, isJobProgress } from './job.js'
 
 describe('the progress of a job', () => {
-  it('is finishing it, taking it up and writing down what happened', () => {
+  it('is finishing it and taking it up', () => {
     expect(isJobProgress([{ field: 'status', to: 'completed' }])).toBe(true)
     expect(isJobProgress([{ field: 'status', to: 'active' }])).toBe(true)
-    expect(isJobProgress([{ field: 'description', to: 'Zähler getauscht.' }])).toBe(true)
-    expect(isJobProgress([{ field: 'description', to: null }])).toBe(true)
+  })
+
+  it('leaves the description with the office, since what happened on site is a note of its own (#220)', () => {
+    expect(isJobProgress([{ field: 'description', to: 'Zähler getauscht.' }])).toBe(false)
     expect(
       isJobProgress([
         { field: 'status', to: 'completed' },
         { field: 'description', to: 'Fertig.' },
       ]),
-    ).toBe(true)
+    ).toBe(false)
   })
 
   it('is not cancelling a job or sending it back to draft', () => {

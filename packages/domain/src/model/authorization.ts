@@ -32,11 +32,12 @@ export const permissions = [
   'job.read',
   'job.write',
   /**
-   * Reporting how a job goes (#128): taking it up, finishing it and writing
-   * down what happened, which are the status and the note and nothing else
-   * (`isJobProgress`). The one right on a job a technician has. Who the job is
-   * for, where it is and what it is called stay with `job.write`, and so does
-   * creating a job at all: the office takes an order, the site reports on it.
+   * Reporting how a job goes (#128): taking it up and finishing it, which is
+   * its status and nothing else (`isJobProgress`), and writing down what
+   * happened, which is a note of its own (`JobNote`, #220). The one right on a
+   * job a technician has. Who the job is for, where it is, what it is called
+   * and what is to be done stay with `job.write`, and so does creating a job
+   * at all: the office takes an order, the site reports on it.
    *
    * Everybody with `job.write` has this one too, because an operation is
    * asked for the narrowest right that covers it and a finished job from the

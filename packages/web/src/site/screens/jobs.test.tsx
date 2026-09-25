@@ -18,6 +18,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './jobs.js'
+import { SiteNoteScreen } from './notes.js'
 
 /**
  * A job on site, seen by the technician who works on it (#128).
@@ -86,6 +87,7 @@ async function mount(
       'document_signatures',
       'tasks',
       'time_entries',
+      'job_notes',
     ],
     onSignedOut: () => {},
   })
@@ -113,6 +115,11 @@ async function mount(
             getParentRoute: () => root,
             path: '/auftraege/$jobId',
             component: SiteJobScreen,
+          }),
+          createRoute({
+            getParentRoute: () => root,
+            path: '/auftraege/$jobId/notiz',
+            component: SiteNoteScreen,
           }),
         ]),
     history: createMemoryHistory({ initialEntries: [path] }),
@@ -213,21 +220,41 @@ describe('a job on site, for a technician', () => {
     expect(await screen.findByText('Dieser Auftrag ist abgeschlossen.')).toBeTruthy()
   })
 
-  it('takes a note about what happened, and nothing else about the job', async () => {
+  it('writes down what happened as a note of its own, and leaves the job as the office put it (#220)', async () => {
     signedInAs('technician')
     await mount()
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Notiz schreiben' }))
-    await user.type(await screen.findByLabelText('Was passiert ist'), 'Sicherung getauscht.')
+
+    // A note says something.
+    await user.click(await screen.findByRole('button', { name: 'Notiz sichern' }))
+    expect(await screen.findByText('Eine Notiz braucht einen Text.')).toBeTruthy()
+
+    await user.type(screen.getByLabelText('Was passiert ist'), 'Sicherung getauscht.')
     await user.click(screen.getByRole('button', { name: 'Notiz sichern' }))
 
+    // Back at the job, the note under what is to be done, with who wrote it when.
+    const notes = await screen.findByRole('list', { name: 'Notizen' })
+
+    expect(within(notes).getByText('Sicherung getauscht.')).toBeTruthy()
+    expect(within(notes).getByText(/^Max Monteur, heute \d\d:\d\d/)).toBeTruthy()
+
     await waitFor(() => {
-      expect(server.row('jobs', 'j-1')?.['description']).toBe('Sicherung getauscht.')
+      expect(server.operations().map(({ entity, kind }) => `${entity} ${kind}`)).toEqual([
+        'job_notes create',
+      ])
     })
-    expect(
-      server.operations().flatMap((operation) => operation.patches.map((patch) => patch.field)),
-    ).toEqual(['description'])
+
+    const written = Object.fromEntries(
+      (server.operations()[0]?.patches ?? []).map((patch) => [patch.field, patch.to]),
+    )
+
+    expect(written).toMatchObject({ jobId: 'j-1', text: 'Sicherung getauscht.' })
+    expect(Number.isNaN(Date.parse(String(written['writtenAt'])))).toBe(false)
+    // Who wrote it is the server's to say; the device does not name anybody.
+    expect(written).not.toHaveProperty('createdBy')
+    expect(server.row('jobs', 'j-1')?.['description']).toBeNull()
   })
 })
 

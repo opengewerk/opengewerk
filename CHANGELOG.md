@@ -190,6 +190,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Notiz auf der Baustelle überschreibt nicht mehr die Beschreibung des Auftrags (#220). Bisher
+  war "Notiz schreiben" mit der Beschreibung vorbelegt und schrieb in genau dieses Feld zurück, und
+  im Büro stand danach die Notiz dort, wo das Büro festgehalten hatte, was zu tun ist. Jetzt ist
+  jede Notiz ein eigener Eintrag mit Person und Uhrzeit, auch ohne Netz geschrieben, auf einem
+  eigenen Bildschirm "Notiz schreiben"; am Auftrag steht sie in der Karte "Notizen" unter "Was zu
+  tun ist", im Büro unter "Notizen von der Baustelle". Eine Notiz lässt sich danach nicht ändern,
+  und die Beschreibung ändert nur noch das Büro (Migration 0045, Feature-Gliederung v2.20,
+  Nachtrag in ADR 0006).
 - Ein Tag wie der Tag einer Prüfung oder das Datum eines Belegs steht auf jedem Gerät so da, wie
   er gespeichert ist. Bisher wurde "2026-09-25" als Mitternacht in UTC gelesen und in der Zeitzone
   des Geräts gezeigt, westlich von Greenwich also als der 24.; im Kopf des Prüfprotokolls stand

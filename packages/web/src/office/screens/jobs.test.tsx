@@ -90,6 +90,7 @@ async function mount(
       'job_assignments',
       'documents',
       'tasks',
+      'job_notes',
     ],
     onSignedOut: () => {},
   })
@@ -157,6 +158,48 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('the notes from the site (#220)', () => {
+  it('stand at the job, the newest first, with who wrote them when, and nothing to write', async () => {
+    signedInAs('office')
+    answers.set('/tasks/assignees', [
+      { userId: 'u-7', name: 'Anna Weber', active: true },
+      { userId: 'u-8', name: 'Jonas Brandt', active: true },
+    ])
+    await mount([job('j-1', { status: 'active' })], '/auftraege/j-1', {
+      job_notes: [
+        {
+          id: 'n-1',
+          jobId: 'j-1',
+          text: 'Zugang über den Hof.',
+          writtenAt: '2026-09-18T06:15:00.000Z',
+          createdBy: 'u-8',
+        },
+        {
+          id: 'n-2',
+          jobId: 'j-1',
+          text: 'Bewegungsmelder EG getauscht.',
+          writtenAt: '2026-09-18T08:42:00.000Z',
+          createdBy: 'u-7',
+        },
+      ],
+    })
+
+    const card = await screen.findByRole('region', { name: 'Notizen von der Baustelle' })
+
+    // The names come a moment after the notes, with the list of the business.
+    await within(card).findByText(/^Anna Weber/)
+
+    const entries = within(card).getAllByRole('listitem')
+
+    expect(entries.map((entry) => entry.textContent)).toEqual([
+      'Bewegungsmelder EG getauscht.Anna Weber, 18.09.2026, 10:42',
+      'Zugang über den Hof.Jonas Brandt, 18.09.2026, 08:15',
+    ])
+    // The description stays the office's, and a note is written on site.
+    expect(within(card).queryByRole('button')).toBeNull()
+  })
 })
 
 describe('a follow-up job', () => {

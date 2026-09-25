@@ -184,9 +184,11 @@ function parseOperation(entry: unknown, index: number, deviceId: string): Operat
  * whose door it was.
  *
  * The job is the one subject where the fields decide (#128). Finishing a job
- * and writing down what happened is what a technician does on site, and asks
- * for `job.progress`; a change that also says who the job is for, where it is
- * or what it is called asks for `job.write`, however small the rest of it is.
+ * is what a technician does on site, and asks for `job.progress`; a change
+ * that also says who the job is for, where it is, what it is called or what is
+ * to be done asks for `job.write`, however small the rest of it is. Writing
+ * down what happened is a note of its own (#220) and asks for `job.progress`
+ * as well.
  * The operation is asked for the narrowest right that covers it, and whoever
  * holds `job.write` holds `job.progress` as well.
  */
@@ -200,6 +202,12 @@ export function permissionFor(
   }
 
   if (entity === 'jobs' && kind === 'update' && isJobProgress(patches)) {
+    return 'job.progress'
+  }
+
+  // What happened on site (#220), which is the progress of the job and not
+  // what the job is: the technician on it writes it.
+  if (entity === 'job_notes' && kind === 'create') {
     return 'job.progress'
   }
 
@@ -230,6 +238,9 @@ export function permissionFor(
     document_sources: 'document.write',
     // The same for who is on a job (#140), which the office sets at a route.
     job_assignments: 'job.write',
+    // A note is never changed (#220); a change sent anyway asks for the
+    // right on the job itself, and the policy answers it `online_only`.
+    job_notes: 'job.write',
     // A test protocol is measured at an installation and belongs to it (#79):
     // whoever may record its structure may record its test.
     form_records: 'installation.write',

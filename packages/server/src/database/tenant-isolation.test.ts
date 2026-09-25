@@ -628,6 +628,15 @@ const crossings: readonly {
               from (select set_config('app.user_id', ${own.user}, true)) as acting`,
   },
   {
+    // Inserts, since a note is written once (#220); its author comes from the
+    // request as it would for a device.
+    key: 'job_notes_job_in_tenant',
+    write: (own, other) =>
+      sql`insert into job_notes (tenant_id, job_id, text, written_at)
+            select ${own.tenant}, ${other.job}, 'Zähler getauscht.', now()
+              from (select set_config('app.user_id', ${own.user}, true)) as acting`,
+  },
+  {
     key: 'time_entries_correction_in_tenant',
     write: (own, other) =>
       sql`insert into time_entries (tenant_id, kind, started_at, ended_at, corrects_entry_id, note)
