@@ -26,6 +26,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   USt-IdNr., und Strg K springt hinein. Die Kundenakte hat zwei Spalten, Objekte, Aufträge und
   Dateien links, Stammdaten, Ansprechpartner und Aufgaben rechts. "Neuer Kunde" und "Bearbeiten"
   sind eigene Bildschirme wie auf der Tafel "Neuer Kunde", statt eines Formulars über der Liste.
+- Objekte und Anlagen haben eigene Listen, wie auf den Tafeln "Objekte" und "Anlagen" (#219):
+  bisher fand man ein Objekt nur über seinen Kunden und eine Anlage nur über ihr Objekt. Beide
+  stehen in der Navigation unter Stammdaten, mit Filtern, "Sortiert nach" und derselben Liste in
+  jeder Breite wie die Kunden. Objekt und Anlagenakte folgen ihren Tafeln: Tabellen für Anlagen
+  und Aufträge, die Verteiler mit Pfeilen zum Umsortieren, die Prüfprotokolle mit Datum und
+  Zustand, im Kopf der Anlage das Stromkreisverzeichnis und "Anlagenstruktur öffnen".
+- Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
+  setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
+  Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
+  jeder Oberfläche zusammen mit der Schriftgröße, darum kam die Zeilenhöhe der Schrift zuerst gar
+  nicht an.
+- Eine Spaltenbreite meint wie im Canvas die Breite des Textes, der Innenabstand kommt dazu. Bisher
+  schloss sie ihn ein, und jede Spalte mit einer Breite war um 16 bis 22 Pixel schmaler als
+  gezeichnet (#219).
 - Knöpfe, Felder, Karten, Tabellen und Zustände sind die Bausteine des Canvas (#219), im Büro wie
   auf der Baustelle: Karten mit einer Überschrift in Kapitälchen und kleinen Knöpfen im Kopf,
   Tabellen mit Zeilen von 30 Pixeln, in denen Namen in Schieferfarbe stehen und die ganze Zeile der

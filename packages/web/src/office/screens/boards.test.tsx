@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
 import { SyncProvider } from '../../sync/provider.js'
@@ -167,6 +167,31 @@ function tableRows(): string[][] {
 
 beforeEach(() => {
   server = new TestServer()
+  // Somebody from the office, who may change an installation and its
+  // structure: the buttons for it are only there for that right (#219).
+  const answers = new Map<string, unknown>([
+    [
+      '/api/auth/get-session',
+      {
+        user: { id: 'u-1', email: 'u-1@nord.example.de', name: 'u-1' },
+        session: { activeTenantId: 't-1' },
+      },
+    ],
+    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
+  ])
+
+  vi.stubGlobal('fetch', (path: string) =>
+    Promise.resolve(
+      new Response(JSON.stringify(answers.get(path) ?? {}), {
+        status: answers.has(path) ? 200 : 404,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ),
+  )
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('the boards of an installation', () => {
@@ -175,16 +200,19 @@ describe('the boards of an installation', () => {
     const user = userEvent.setup()
 
     const boards = await screen.findByRole('region', { name: 'Verteiler' })
-    expect(within(boards).getByRole('link', { name: /HV/ }).textContent).toContain(
+    expect(within(boards).getByRole('link', { name: /HV/ }).closest('li')?.textContent).toContain(
       'Hauptverteilung, Keller, 3 Stromkreise',
     )
-    expect(
-      within(boards).getByRole('link', { name: 'Stromkreisverzeichnis' }).getAttribute('href'),
-    ).toBe('/installations/i-1/circuit-chart')
+    // The chart is in the head of the record, as a button with a printer.
+    expect(screen.getByRole('link', { name: 'Stromkreisverzeichnis' }).getAttribute('href')).toBe(
+      '/installations/i-1/circuit-chart',
+    )
 
-    await user.click(within(boards).getByRole('button', { name: 'Verteiler anlegen' }))
+    // The small button in the head of the card makes way for the form, whose
+    // own button is called the same.
+    await user.click(await within(boards).findByRole('button', { name: 'Verteiler anlegen' }))
     await user.type(within(boards).getByLabelText('Bezeichnung'), 'UV Küche')
-    await user.click(within(boards).getByRole('button', { name: 'Anlegen' }))
+    await user.click(within(boards).getByRole('button', { name: 'Verteiler anlegen' }))
     // Waited for rather than synchronised at once: the save reaches the
     // outbox a step after the click, and a round started before it would
     // find nothing to send.

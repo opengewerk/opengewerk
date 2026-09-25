@@ -30,7 +30,12 @@
     background-color: var(--color-ground);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    line-height: var(--text-body--line-height);
+    /* The line height of Barlow itself, as every board of the canvas is drawn:
+       none of them sets one, and a row of a card or a list came out a third
+       higher at the 1.45 of running text (#219). Running text sets its own,
+       as the boards do where they mean one: 1.4 under a field, 1.5 in an
+       empty card. */
+    line-height: normal;
     /* A long word breaks rather than push the page wider than the screen:
        "Treppenhausbeleuchtung" in the title of a job is wider than a phone
        of 320 pixels (#218). Only where it would not fit on a line of its

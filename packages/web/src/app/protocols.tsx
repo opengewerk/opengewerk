@@ -29,10 +29,20 @@ import {
 import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
+import { Copy, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Field, FieldLabel, SelectField, TextArea } from '../components/index.js'
+import {
+  Button,
+  Field,
+  FieldLabel,
+  SelectField,
+  Status,
+  statusIcons,
+  TextArea,
+  useEntry,
+} from '../components/index.js'
 import { type EditResult, refusalText, type SyncClient } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useRecords, useRelated, useSync, useSyncStatus } from '../sync/provider.js'
@@ -285,6 +295,7 @@ export function ProtocolsList({
   readonly onStarted: (recordId: string) => void
 }) {
   const client = useSync()
+  const entry = useEntry()
   const protocols = useProtocols(installationId)
   const circuits = useBlockCircuits(installationId)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -311,6 +322,99 @@ export function ProtocolsList({
     } finally {
       setWorking(false)
     }
+  }
+
+  if (entry === 'office') {
+    // The card "Prüfprotokolle" of the record of an installation, as the
+    // canvas draws it (#219): a line per protocol with its day and its state,
+    // then the way to a new one, and to one that starts from the last.
+    return (
+      <div className="flex flex-col gap-2.5">
+        {protocols.length === 0 ? (
+          <p className="text-[13px] leading-[1.4] text-ink-muted">
+            An dieser Anlage gibt es noch kein Prüfprotokoll.
+          </p>
+        ) : (
+          <ul>
+            {protocols.map((protocol) => {
+              const id = String(protocol['id'])
+
+              return (
+                <li
+                  key={id}
+                  className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-row py-2 last:border-b-0"
+                >
+                  <Link
+                    to={pathOf(id)}
+                    className="text-[14px] font-medium text-copper-text underline underline-offset-2"
+                  >
+                    {definitionOf(protocol)?.title ?? 'Formular einer anderen Fassung'}
+                  </Link>
+                  <div className="grow" />
+                  <span className="numeric text-[13px] text-ink-faint">
+                    {date(protocol['performedOn'])}
+                    {client.isPending('form_records', id) ? ', noch nicht übertragen' : ''}
+                  </span>
+                  {isSigned(protocol) ? (
+                    <Status tone="done" icon={statusIcons.sign}>
+                      Unterschrieben
+                    </Status>
+                  ) : (
+                    <Status tone="draft">Entwurf</Status>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        {circuits.length === 0 ? (
+          <p className="text-[13px] leading-[1.4] text-ink-muted">
+            Gemessen wird je Stromkreis aus dem Stromkreisverzeichnis. Solange die Anlage keinen
+            hat, bleibt der Teil "Messen" leer.
+          </p>
+        ) : null}
+
+        {protocolRegistry.current().map((definition) => {
+          const template = protocols.find(
+            (protocol) => protocol['definitionKey'] === definition.key && isSigned(protocol),
+          )
+
+          return (
+            <div key={definition.key} className="flex flex-col items-start gap-2.5">
+              <Button
+                icon={Plus}
+                disabled={working}
+                onClick={() => {
+                  void start(definition, null)
+                }}
+              >
+                {`${definition.title} anlegen`}
+              </Button>
+              {template ? (
+                <button
+                  type="button"
+                  disabled={working}
+                  onClick={() => {
+                    void start(definition, template)
+                  }}
+                  className="inline-flex cursor-pointer items-center gap-1.5 text-[13px] text-copper-text underline underline-offset-2"
+                >
+                  <Copy size={14} strokeWidth={1.9} aria-hidden="true" />
+                  {`Mit dem Protokoll vom ${date(template['performedOn'])} als Vorlage`}
+                </button>
+              ) : null}
+            </div>
+          )
+        })}
+
+        {trouble ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+      </div>
+    )
   }
 
   return (
