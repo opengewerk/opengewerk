@@ -141,6 +141,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   "Angaben ergänzen" ist das Formular allein, mit Schutzeinrichtung, RCD und Leitung in Kästen,
   der Einheit hinter dem Feld und den Knöpfen unten. Felder auf der Baustelle sind 52 Pixel hoch
   wie auf jeder Tafel, bisher 60.
+- Das Prüfprotokoll auf der Baustelle folgt seinen Tafeln (#219): statt eines langen Formulars mit
+  einem aufklappbaren Block je Stromkreis gibt es eine Übersicht, die zu jedem Abschnitt sagt, wie
+  weit er ist, darunter das Ergebnis und die Unterschrift. Jeder Abschnitt ist ein eigener Schritt,
+  gemessen wird Stromkreis für Stromkreis mit "Weiter zu F2" und "Zu F1" unten, und "Messen"
+  öffnet den ersten Stromkreis ohne Wert. Jeder Messwert steht in einer eigenen Karte mit dem
+  Grenzwert in Kurzform neben der Beschriftung, der Einheit im Feld und einem roten Rand, wenn er
+  außerhalb liegt, dann auch mit der Quelle. Was auf einem Schritt eingetragen ist, wird beim
+  Verlassen gesichert, auch über den Pfeil im Kopf; bisher war es ohne "Speichern" verloren. Ein
+  Foto zum Mangel landet bei den Dateien der Anlage, wo das Ergebnis es als Foto anbietet.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
