@@ -7,6 +7,34 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Der CI-Job "Breiten und Auflösungen" öffnet jeden Bildschirm von Büro und Baustelle in einem
+  echten Browser bei 14 Breiten von 320 bis 3840 Pixel, hell und dunkel, und scheitert, sobald eine
+  Seite breiter ist als ihr Fenster (#218). Die Bildschirme findet er selbst, indem er den Links der
+  Vorschau folgt, damit ein neuer Bildschirm geprüft wird, ohne dass ihn jemand einträgt. Der Browser
+  ist das Abbild des Renderers aus `docker/compose.yaml`. Lokal prüft dasselbe
+  `pnpm --filter @opengewerk/web run widths` gegen die laufende Vorschau.
+
+### Geändert
+
+- Keine Seite ist mehr breiter als ihr Fenster (#218). Eine Tabelle, die nicht passt, rollt in
+  ihrem Rahmen, und ihre erste Spalte bleibt dabei stehen, wie es die Tafel "Breiten und
+  Auflösungen" verlangt; lange Wörter brechen um, Zahlen und Beträge nie. Zu breit waren am Telefon
+  die Zugänge um bis zu 270 Pixel, die E-Mail-Einstellungen und die Startseite der Baustelle, deren
+  Auftrag "Treppenhausbeleuchtung auf LED umrüsten" nicht umbrach.
+- Das Büro richtet sich nach den Stufen der Tafel (#218): ab 1024 Pixel sind Knöpfe und Felder
+  34 Pixel hoch und Tabellenzeilen 30, wie auf jeder Vorlage, darunter wird für den Finger
+  gezeichnet, mit mindestens 44 Pixeln und auf dem Telefon mit größerer Schrift. Bisher waren die
+  Knöpfe auch am Schreibtisch 44 Pixel hoch, weil die Mindesthöhe für Finger für jede Breite galt.
+  Die Umbruchpunkte sind die der Tafel: 600, 1024, 1600 und 2400 Pixel.
+
+### Behoben
+
+- Der Server beantwortet `HEAD` auf eine Seite der Oberfläche wie `GET` (#218). Bisher kam 404
+  zurück, und ein Monitor, der mit `HEAD` fragt, hätte eine laufende Installation als ausgefallen
+  gemeldet. Aufgefallen ist es beim Bau der Prüfung der Breiten.
+
 ## [0.2.0] - 2026-09-25
 
 Die zweite Fassung. Sie bringt die Oberfläche nach den Vorlagen im Canvas und zwei

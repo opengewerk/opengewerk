@@ -101,6 +101,18 @@ describe('the interface the server hands out', () => {
     expect(answer.text).toContain('Baustelle')
   })
 
+  it('answers a HEAD for a page like the GET, only without the body', async () => {
+    // A monitor that checks whether the installation is up often asks with
+    // HEAD. Answered with a 404, a running office looks like one that is
+    // gone.
+    for (const path of ['/', '/kunden/018f-abc', '/m/', '/m/auftraege/018f-abc']) {
+      const answer = await request(application).head(path)
+
+      expect([path, answer.status, answer.type]).toEqual([path, 200, 'text/html'])
+      expect(answer.text).toBeUndefined()
+    }
+  })
+
   it('answers /m itself with the site shell', async () => {
     expect((await request(application).get('/m')).text).toContain('Baustelle')
   })

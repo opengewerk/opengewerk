@@ -160,7 +160,12 @@ export function serveInterface(application: Express, directory: string): void {
   application.get(/.*/, (request: Request, response: Response, next: () => void) => {
     // A file the static middleware did not find goes on to whatever answers
     // after this, and that is a 404, like a path of the API nobody serves.
-    if (request.method !== 'GET' || belongsToTheApi(request.path) || namesAFile(request.path)) {
+    // HEAD is answered like GET, without the body, which Express leaves out
+    // by itself. Until #218 it was a 404, and a monitor asking with HEAD
+    // would have reported a running installation as gone.
+    const reading = request.method === 'GET' || request.method === 'HEAD'
+
+    if (!reading || belongsToTheApi(request.path) || namesAFile(request.path)) {
       next()
 
       return

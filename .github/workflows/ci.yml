@@ -472,6 +472,108 @@ jobs:
             ${{ env.SAMPLES }}
           if-no-files-found: ignore
 
+  widths:
+    name: Breiten und Auflösungen
+    runs-on: ubuntu-latest
+
+    # Every screen of both entries at the widths of the board "Breiten und
+    # Auflösungen", from 320 to 3840 pixels, light and dark, and the job fails
+    # as soon as a page is wider than its window (#218). The screens are found
+    # by following the links of the preview, so a new one is checked without
+    # anybody adding it here.
+    #
+    # The browser is the image of the renderer in docker/compose.yaml, on the
+    # network of the runner: the preview listens on 127.0.0.1 and nowhere
+    # else, and a service container would not reach it there.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: opengewerk
+          POSTGRES_PASSWORD: opengewerk
+          POSTGRES_DB: opengewerk_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opengewerk -d opengewerk_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+
+      - name: Browser wie im Betrieb starten
+        run: |
+          set -euo pipefail
+          image=$(sed -n '/^  renderer:$/{n;s/^ *image: //p;}' docker/compose.yaml)
+
+          if [ -z "$image" ]; then
+            echo "In docker/compose.yaml steht kein Abbild für den Renderer."
+            exit 1
+          fi
+
+          echo "Browser: $image"
+          docker run -d --rm --name browser --network host -e TOKEN=probe -e TIMEOUT=1800000 "$image"
+
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:3000/json/version?token=probe"; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Der Browser ist nach einer Minute nicht erreichbar."
+          exit 1
+
+      - name: pnpm über Corepack bereitstellen
+        run: corepack enable
+
+      - name: Node einrichten
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Vorschau starten
+        run: |
+          set -euo pipefail
+          # Builds the interface, empties and migrates opengewerk_preview in
+          # the database above and plants the sample business. The line below
+          # is printed once all of it is there.
+          nohup pnpm run preview > "$RUNNER_TEMP/preview.log" 2>&1 &
+
+          for _ in $(seq 1 90); do
+            if grep -q "Die Vorschau läuft unter" "$RUNNER_TEMP/preview.log"; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat "$RUNNER_TEMP/preview.log"
+          echo "Die Vorschau ist nach drei Minuten nicht gestartet."
+          exit 1
+
+      - name: Jede Seite bei jeder Breite
+        run: pnpm --filter @opengewerk/web run widths
+        env:
+          WIDTHS_BROWSER: ws://127.0.0.1:3000?token=probe&timeout=1800000
+          WIDTHS_ADDRESS: http://127.0.0.1:23700
+
+      - name: Aufnahmen bei einem Fehlschlag
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: widths-report
+          path: |
+            packages/web/widths-report
+            ${{ runner.temp }}/preview.log
+          if-no-files-found: ignore
+
   operations:
     name: Betrieb über Docker Compose
     runs-on: ubuntu-latest

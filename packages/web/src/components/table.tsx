@@ -17,10 +17,20 @@ export function Table({
   readonly children: ReactNode
 }) {
   return (
-    <table className="w-full border-collapse text-table">
-      <caption className="sr-only">{caption}</caption>
-      {children}
-    </table>
+    // The frame scrolls, never the page, as the board "Breiten und
+    // Auflösungen" asks (#218). `scrolling-table` in `index.css` keeps the
+    // first column standing while the rest slides past. The cells draw their
+    // own borders (`border-separate`), because a collapsed border belongs to
+    // the table and would scroll away under a cell that stays put. The frame
+    // is positioned, or text that is only there for a screen reader, placed
+    // absolutely in a heading, would reach past it and widen the page: the
+    // accounts were 270 pixels too wide on a phone for that alone.
+    <div className="relative max-w-full overflow-x-auto">
+      <table className="scrolling-table w-full border-separate border-spacing-0 text-table">
+        <caption className="sr-only">{caption}</caption>
+        {children}
+      </table>
+    </div>
   )
 }
 
@@ -35,9 +45,10 @@ export function Column({ numeric = false, className, ...rest }: ColumnProps) {
     <th
       scope="col"
       className={clsx(
-        'font-condensed text-label font-semibold tracking-wide uppercase',
+        'font-condensed text-label font-semibold tracking-[0.8px] uppercase',
         'text-ink-faint bg-ground border-b border-line',
-        'px-3 py-2',
+        // As the table cards of the canvas: 8 pixels, and 14 at the edges.
+        'px-2 py-2 first:pl-3.5 last:pr-3.5',
         numeric ? 'text-right' : 'text-left',
         className,
       )}
@@ -59,7 +70,10 @@ export function Cell({ numeric = false, className, ...rest }: CellProps) {
   return (
     <td
       className={clsx(
-        'px-3 py-2 border-b border-line text-ink',
+        // Rows of 30 pixels from 1024 pixels on, for a mouse, and of 40
+        // below, for a finger, as the board "Breiten und Auflösungen" has it.
+        'px-2 py-[7px] first:pl-3.5 last:pr-3.5 max-lg:py-3',
+        'border-b border-row text-ink',
         numeric && 'text-right numeric',
         className,
       )}

@@ -32,6 +32,9 @@
   --color-surface-sunken: #eae6dd;
   --color-line: #dcd8cf;
   --color-line-strong: #837c6f;
+  /* The hairline between two rows of a table, lighter than a line, as the
+     table cards of the canvas draw it. */
+  --color-row: #ece8e0;
 
   --color-ink: #1b2430;
   --color-ink-muted: #4a5260;
@@ -72,11 +75,22 @@
   --color-offline: #e08a3c;
   --color-on-offline: #1b2430;
 
-  /* The office is the ground state here too. The site entry widens everything
-     below; see the `[data-entry='site']` block. */
+  /* The bands of the board "Breiten und Auflösungen" (#218): S up to 599
+     pixels, M from 600, L from 1024, XL from 1600 and XXL from 2400. Tailwind's
+     own steps do not meet them, and `md` has no band, so it is gone. */
+  --breakpoint-sm: 37.5rem;
+  --breakpoint-md: initial;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 100rem;
+  --breakpoint-2xl: 150rem;
+
+  /* The office is the ground state here too, drawn for a mouse from band L on:
+     buttons and fields 34 pixels high, as on every board at 1280 pixels.
+     Below that a finger does the work, see the media block further down, and
+     the site entry widens everything, see the `[data-entry='site']` block. */
   --spacing-control: 2.125rem;
-  --spacing-control-lg: 2.625rem;
-  --spacing-tap: 2.75rem;
+  --spacing-control-lg: 2.125rem;
+  --spacing-tap: 2.125rem;
 
   --text-label: 0.75rem;
   --text-label--line-height: 1.1;
@@ -112,6 +126,7 @@
   --color-surface-sunken: #232d3b;
   --color-line: #38424f;
   --color-line-strong: #6b7889;
+  --color-row: #2a3441;
 
   --color-ink: #f4f1ea;
   --color-ink-muted: #a8afb9;
@@ -141,6 +156,29 @@
 
   --color-offline: #e08a3c;
   --color-on-offline: #1b2430;
+}
+
+/*
+ * The office below 1024 pixels, the bands S and M: a phone or a tablet, held
+ * by somebody who taps. Nothing to tap is lower than 44 pixels there, and on a
+ * phone the text is a size up, as the board draws it (15 to 17 pixels). From
+ * 1024 pixels the office is drawn for a mouse again; the height of a button
+ * there was 44 pixels by mistake until #218, because a minimum for fingers
+ * held for every width.
+ */
+@media (width < 64rem) {
+  :root {
+    --spacing-control: 2.75rem;
+    --spacing-control-lg: 2.75rem;
+    --spacing-tap: 2.75rem;
+  }
+}
+
+@media (width < 37.5rem) {
+  :root {
+    --text-body: 0.9375rem;
+    --text-table: 0.9375rem;
+  }
 }
 
 /*
