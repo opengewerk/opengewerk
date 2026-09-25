@@ -143,6 +143,34 @@ describe('the conflict screen', () => {
     expect(row.getByText('Zählertausch')).toBeDefined()
   })
 
+  it('says on which device a change was made in words, not by its key (#271)', async () => {
+    server.open = [
+      conflict(),
+      conflict({
+        id: 'k-2' as SyncConflict['id'],
+        recordId: 'j-2',
+        deviceId: '0192a7c4-1f3e-7b21-9c55-2f0d4e8a6b10',
+      }),
+    ]
+
+    const client = await withClient(server, {
+      jobs: [
+        { id: 'j-1', designation: 'Zähler prüfen', version: 2, deletedAt: null },
+        { id: 'j-2', designation: 'Zähler prüfen', version: 2, deletedAt: null },
+      ],
+    })
+
+    render(
+      <SyncProvider client={client}>
+        <ConflictScreen />
+      </SyncProvider>,
+    )
+
+    expect(await screen.findByText(/^Erfasst .* auf diesem Gerät\.$/)).toBeDefined()
+    expect(screen.getByText(/^Erfasst .* auf einem anderen Gerät\.$/)).toBeDefined()
+    expect(screen.queryByText(/0192a7c4/)).toBeNull()
+  })
+
   it('lets the device win, and sends that as an ordinary change', async () => {
     server.open = [conflict()]
 

@@ -139,7 +139,7 @@ describe('the number ranges of a business', () => {
   it('are changed by the owner and not by the office', async () => {
     const refused = await change('invoice', { pattern: 'R{number:5}' }, office()).expect(403)
 
-    expect((refused.body as { message: string }).message).toContain('settings.write')
+    expect((refused.body as { message: string }).message).toContain('Einstellungen ändern')
   })
 
   it('number the next document with the new pattern, and keep what was handed out', async () => {

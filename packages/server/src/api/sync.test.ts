@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { contactParentText, syncEntities } from '@opengewerk/domain'
+import { contactParentText, missingPermission, syncEntities } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -491,7 +491,7 @@ describe('what a device may not do without a connection', () => {
       })
       .expect(400)
 
-    expect(refused.body.message).toMatch(/customer\.write/)
+    expect(refused.body.message).toBe(missingPermission('customer.write'))
   })
 
   it('may not create a site either way, because only the customer is cut that finely', async () => {
@@ -516,7 +516,7 @@ describe('what a device may not do without a connection', () => {
       })
       .expect(400)
 
-    expect(refused.body.message).toMatch(/site\.write/)
+    expect(refused.body.message).toBe(missingPermission('site.write'))
   })
 
   it('cannot touch a document once it has been issued', async () => {
@@ -1576,7 +1576,7 @@ describe('the progress of a job from the site', () => {
       })
       .expect(400)
 
-    expect(refused.body.message).toMatch(/job\.write/)
+    expect(refused.body.message).toBe(missingPermission('job.write'))
     expect(await row(job.id)).toMatchObject({ status: job.status, description: null })
   })
 
@@ -1602,7 +1602,7 @@ describe('the progress of a job from the site', () => {
       })
       .expect(400)
 
-    expect(refused.body.message).toMatch(/job\.write/)
+    expect(refused.body.message).toBe(missingPermission('job.write'))
     expect(await row(job.id)).toMatchObject({
       status: job.status,
       designation: 'Zählerschrank tauschen',
@@ -1628,7 +1628,7 @@ describe('the progress of a job from the site', () => {
       })
       .expect(400)
 
-    expect(refused.body.message).toMatch(/job\.write/)
+    expect(refused.body.message).toBe(missingPermission('job.write'))
   })
 
   it('does not create a job either; the office takes the order', async () => {
@@ -1652,7 +1652,7 @@ describe('the progress of a job from the site', () => {
       })
       .expect(400)
 
-    expect(refused.body.message).toMatch(/job\.write/)
+    expect(refused.body.message).toBe(missingPermission('job.write'))
   })
 })
 
@@ -1798,7 +1798,9 @@ describe('a transmission refused over one operation', () => {
 
     const refused = await transmit(app, technician(), [site], 400)
 
-    expect(refused.message).toBe('Fehlendes Recht für sites: site.write')
+    expect(refused.message).toBe(
+      'Objekte bearbeiten darf dieser Zugang nicht. Der Inhaber vergibt die Rollen unter „Zugänge“.',
+    )
     expect(refused.operationId).toBe(site.id)
   })
 

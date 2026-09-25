@@ -12,6 +12,7 @@ import {
 import {
   isAllowed,
   isJobProgress,
+  missingPermission,
   type Operation,
   type OperationId,
   type OperationKind,
@@ -295,7 +296,8 @@ export class SyncController {
       if (!isAllowed(identity, needed)) {
         throw naming(
           operation.id,
-          new BadRequestException(`Fehlendes Recht für ${operation.entity}: ${needed}`),
+          // In words, as the conflict screen shows it under the refused change (#271).
+          new BadRequestException(missingPermission(needed)),
         )
       }
     }

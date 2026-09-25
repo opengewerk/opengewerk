@@ -7,6 +7,7 @@ import type {
   RecordState,
   SyncConflict,
 } from '@opengewerk/domain'
+import { missingPermission } from '@opengewerk/domain'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DirectWriter, SyncClient } from './client.js'
@@ -908,13 +909,13 @@ describe('an exchange with the server', () => {
         entity: 'customers',
         rows: [row({ id: 'c-1', name: 'Meyer', kind: 'private' })],
       })
-      writer.refuse = new RequestRefused(403, 'Fehlendes Recht: customer.write')
+      writer.refuse = new RequestRefused(403, missingPermission('customer.write'))
 
       const tried = await client.update('customers', 'c-1', { name: 'Meyer GmbH' })
 
       expect(signedOut).not.toHaveBeenCalled()
       expect(tried.outcome === 'refused' ? refusalFor(tried) : null).toBe(
-        'Fehlendes Recht: customer.write',
+        'Kunden ändern darf dieser Zugang nicht. Der Inhaber vergibt die Rollen unter „Zugänge“.',
       )
 
       writer.refuse = new TypeError('Failed to fetch')

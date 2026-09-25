@@ -233,7 +233,7 @@ describe('the fields of the reports in the settings', () => {
 
     expect(receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'online_only' })
     expect((refused as { message?: string }).message).toBe(
-      'Fehlendes Recht für form_definitions: settings.write',
+      'Einstellungen ändern darf dieser Zugang nicht. Der Inhaber vergibt die Rollen unter „Zugänge“.',
     )
   })
 
