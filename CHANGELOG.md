@@ -32,6 +32,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Mitternacht auch den Tag des Starts und lässt seine Knöpfe unter den Text rutschen, statt ihn
   zusammenzudrücken; die Tafel im Canvas hatte genau das falsch gezeichnet und ist berichtigt.
   Im Dunkeln bleibt die wartende Leiste dunkel mit weißer Schrift, wie gezeichnet.
+- Die Baustelle hat die Hülle aus dem Canvas (#217): unten vier Reiter, Aufträge, Zeiten,
+  Konflikte mit der Zahl der wartenden und Menü; ab 1024 Pixel, auf dem Tablet quer, stehen sie als
+  Leiste links, und nur der Bildschirm rollt. "Menü" öffnet eine Schublade von unten mit der Person,
+  hell oder dunkel für dieses Gerät, dem Weg zur Büroansicht und dem Abmelden; Umschalter und
+  Abmelden gab es auf der Baustelle bisher nicht. Die Seiten unter den Reitern, Auftrag,
+  Regiebericht, Verteiler, Stromkreis und Prüfprotokoll, haben einen Kopf in Schiefer mit dem Weg
+  zurück, ihrem Titel und einer Zeile darunter, und zeigen "Offline", solange nichts durchkommt.
+  Das Prüfprotokoll hatte bisher als einzige keinen Weg zurück in der Hülle.
 
 ### Behoben
 

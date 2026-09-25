@@ -1,8 +1,8 @@
 import type { RoleKey } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 
-import { rolesInWords } from '../app/labels.js'
-import { accountQuery } from '../app/queries.js'
+import { rolesInWords } from './labels.js'
+import { accountQuery } from './queries.js'
 import { availableTenants } from '../session/session.js'
 
 /** Who is signed in and where, as the header and the menu show it. */

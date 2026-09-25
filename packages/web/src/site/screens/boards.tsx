@@ -26,6 +26,7 @@ import {
 import { RecordForm } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
+import { SiteHeader } from '../header.js'
 
 /**
  * The structure of an installation on site: read it, and add what is missing.
@@ -178,7 +179,7 @@ export function SiteBoardScreen() {
   if (!board || !boardId || !jobId) {
     return (
       <div className="flex flex-col gap-4 p-4">
-        <h1 className="text-title font-semibold">Nicht gefunden</h1>
+        <SiteHeader title="Nicht gefunden" />
         <p className="text-body">
           Diesen Verteiler hat dieses Gerät nicht. Mit Verbindung holt der Abgleich ihn.
         </p>
@@ -207,13 +208,12 @@ export function SiteBoardScreen() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-col gap-1">
-        <FieldLabel>{distributionBoardKindLabel[boardKindOf(board)]}</FieldLabel>
-        <h1 className="text-title font-semibold">{text(board, 'designation')}</h1>
-        {maybeText(board, 'location') ? (
-          <p className="text-body text-ink-muted">{text(board, 'location')}</p>
-        ) : null}
-      </div>
+      <SiteHeader
+        title={text(board, 'designation')}
+        sub={[distributionBoardKindLabel[boardKindOf(board)], maybeText(board, 'location')]
+          .filter(Boolean)
+          .join(', ')}
+      />
 
       {adding ? (
         <Card label="Stromkreis nachtragen">
@@ -295,6 +295,7 @@ export function SiteCircuitScreen() {
   const boardId = circuit ? String(circuit['distributionBoardId']) : undefined
   const sections = useSections(boardId)
   const section = useRecord('board_sections', maybeText(circuit, 'boardSectionId') ?? undefined)
+  const board = useRecord('distribution_boards', boardId)
   const equipment = useEquipment(circuitId)
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -302,7 +303,7 @@ export function SiteCircuitScreen() {
   if (!circuit || !circuitId) {
     return (
       <div className="flex flex-col gap-4 p-4">
-        <h1 className="text-title font-semibold">Nicht gefunden</h1>
+        <SiteHeader title="Nicht gefunden" />
         <p className="text-body">
           Diesen Stromkreis hat dieses Gerät nicht. Mit Verbindung holt der Abgleich ihn.
         </p>
@@ -314,12 +315,20 @@ export function SiteCircuitScreen() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-col gap-1">
-        <FieldLabel>
-          {section ? `Stromkreis, ${text(section, 'designation')}` : 'Stromkreis'}
-        </FieldLabel>
-        <h1 className="text-title font-semibold">{text(circuit, 'designation')}</h1>
-      </div>
+      <SiteHeader
+        title={text(circuit, 'designation')}
+        sub={
+          editing
+            ? 'Angaben ergänzen'
+            : [
+                'Stromkreis',
+                section ? text(section, 'designation') : '',
+                board ? text(board, 'designation') : '',
+              ]
+                .filter((part) => part !== '')
+                .join(', ')
+        }
+      />
 
       {editing ? (
         <Card label="Angaben ergänzen">

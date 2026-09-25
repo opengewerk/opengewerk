@@ -67,6 +67,11 @@
   --color-bar-action-wait: #7a5e13;
   --color-bar-action-conflict: #a3312b;
 
+  /* "Offline" in the slate header on site: the same in both grounds, because
+     the header is slate in both. */
+  --color-offline: #e08a3c;
+  --color-on-offline: #1b2430;
+
   /* The office is the ground state here too. The site entry widens everything
      below; see the `[data-entry='site']` block. */
   --spacing-control: 2.125rem;
@@ -133,6 +138,9 @@
   --color-bar-action: #141a23;
   --color-bar-action-wait: #f4f1ea;
   --color-bar-action-conflict: #f4f1ea;
+
+  --color-offline: #e08a3c;
+  --color-on-offline: #1b2430;
 }
 
 /*

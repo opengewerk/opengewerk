@@ -21,7 +21,7 @@ import { accountQuery, useMay } from '../app/queries.js'
 import { useTheme } from '../app/theme.js'
 import { text } from '../sync/fields.js'
 import { useRecords, useSyncStatus } from '../sync/provider.js'
-import { useWho } from './who.js'
+import { useWho } from '../app/who.js'
 
 interface Entry {
   readonly to: string

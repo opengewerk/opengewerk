@@ -89,6 +89,7 @@ const filled = [
   { front: 'on-status', back: 'conflict', what: 'die Leiste bei einem Konflikt' },
   { front: 'bar-action-wait', back: 'bar-action', what: 'der Knopf auf der wartenden Leiste' },
   { front: 'bar-action-conflict', back: 'bar-action', what: 'der Knopf auf der Konfliktleiste' },
+  { front: 'on-offline', back: 'offline', what: '"Offline" im Kopf der Baustelle' },
   { front: 'top-ink', back: 'top', what: 'der Name in der Kopfleiste' },
   { front: 'top-muted', back: 'top', what: 'der Betrieb in der Kopfleiste' },
   { front: 'ground', back: 'ink', what: 'der gewählte Eintrag der Navigation' },

@@ -17,7 +17,7 @@ import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { TestServer } from '../sync/test-server.js'
 import { OfficeShell } from './shell.js'
-import { initialsOf } from './who.js'
+import { initialsOf } from '../app/who.js'
 
 /**
  * The shell of the office as the canvas draws it (#217): the header in slate

@@ -4,7 +4,7 @@ import {
   sealingField,
   signerNameProblem,
 } from '@opengewerk/domain'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -23,6 +23,7 @@ import { refusalText } from '../../sync/client.js'
 import { text } from '../../sync/fields.js'
 import { useRecord, useSync } from '../../sync/provider.js'
 import { SignaturePad } from '../signature-pad.js'
+import { SiteHeader } from '../header.js'
 
 /**
  * The test protocol on site (#79): started at the installation of the job,
@@ -212,6 +213,17 @@ function SigningStep({
   )
 }
 
+/**
+ * What kind of protocol, for the line under "Prüfprotokoll" in the header:
+ * "Erstprüfung nach DIN VDE 0100-600" rather than the whole title again.
+ */
+function kindOfProtocol(record: RecordState): string {
+  const title = definitionOf(record)?.title ?? ''
+  const word = 'Prüfprotokoll '
+
+  return title.startsWith(word) ? title.slice(word.length) : title
+}
+
 export function SiteProtocolScreen() {
   const { jobId, recordId } = useParams({ strict: false }) as {
     jobId?: string
@@ -227,7 +239,7 @@ export function SiteProtocolScreen() {
   if (!record || !recordId || !jobId) {
     return (
       <div className="flex flex-col gap-4 p-4">
-        <h1 className="text-title font-semibold">Nicht gefunden</h1>
+        <SiteHeader title="Nicht gefunden" />
         <p className="text-body">
           Dieses Protokoll hat dieses Gerät nicht. Mit Verbindung holt der Abgleich es.
         </p>
@@ -239,23 +251,15 @@ export function SiteProtocolScreen() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <Link
-        to={`/auftraege/${jobId}`}
-        className="text-body text-copper-text font-semibold underline underline-offset-2"
-      >
-        Zurück zum Auftrag
-      </Link>
-      <div className="flex flex-col gap-1">
-        <FieldLabel>
-          {installation ? text(installation, 'designation') : 'Prüfprotokoll'}
-        </FieldLabel>
-        <h1 className="text-title font-semibold">
-          {definitionOf(record)?.title ?? 'Prüfprotokoll'}
-        </h1>
-        <p className="text-body text-ink-muted">
-          {`${date(record['performedOn'])}, ${signed ? 'unterschrieben' : 'Entwurf'}`}
-        </p>
-      </div>
+      <SiteHeader
+        title="Prüfprotokoll"
+        sub={[kindOfProtocol(record), installation ? text(installation, 'designation') : '']
+          .filter((part) => part !== '')
+          .join(', ')}
+      />
+      <p className="text-body text-ink-muted">
+        {`${date(record['performedOn'])}, ${signed ? 'unterschrieben' : 'Entwurf'}`}
+      </p>
 
       {signed ? <ProtocolPdfLink recordId={recordId} /> : null}
 
