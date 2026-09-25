@@ -12,6 +12,7 @@ import {
   Table,
   ThemeSwitch,
 } from '../../components/index.js'
+import { deviceName } from '../../app/devices.js'
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
@@ -99,7 +100,12 @@ export function AccountScreen() {
       </Section>
 
       <Section title="Zweiter Faktor">
-        {account.data?.twoFactorEnabled ? (
+        {account.isPending ? (
+          // Not "Noch nicht eingerichtet" while the answer is on its way: for
+          // a moment that told everybody with a second factor they had none
+          // (#223).
+          <Nothing>Wird geladen.</Nothing>
+        ) : account.data?.twoFactorEnabled ? (
           <div className="flex flex-col gap-4">
             <p className="text-body">
               Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der
@@ -174,7 +180,7 @@ export function AccountScreen() {
               {list.data.map((entry) => (
                 <tr key={entry.sessionId}>
                   <Cell>
-                    {entry.userAgent ?? 'Unbekanntes Gerät'}
+                    {deviceName(entry.userAgent)}
                     {entry.current ? (
                       <span className="ml-2 font-semibold text-copper-text">dieses Gerät</span>
                     ) : null}
@@ -190,7 +196,7 @@ export function AccountScreen() {
                         setTrouble(null)
                         setSigningOut({
                           sessionId: entry.sessionId,
-                          label: entry.userAgent ?? 'Das Gerät',
+                          label: deviceName(entry.userAgent),
                         })
                       }}
                     >
@@ -265,11 +271,13 @@ function RecoveryCodes() {
         <p className="text-body">
           {left.data === undefined || left.data === null
             ? 'Die Codes sind der Weg hinein, wenn das Telefon weg ist. Jeder gilt einmal.'
-            : left.data === 1
-              ? 'Noch ein Code übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'
-              : 'Noch ' +
-                String(left.data) +
-                ' Codes übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'}
+            : left.data === 0
+              ? 'Kein Code mehr übrig. Ist das Telefon weg, geht die Anmeldung dann nicht mehr; am besten jetzt neue Codes erzeugen.'
+              : left.data === 1
+                ? 'Noch ein Code übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'
+                : 'Noch ' +
+                  String(left.data) +
+                  ' Codes übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'}
         </p>
 
         {fresh ? (

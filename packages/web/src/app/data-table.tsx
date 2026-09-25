@@ -146,12 +146,19 @@ export function DataTable({
       */}
       <p id={countId} role="status" className="text-table text-ink-muted">
         {found.length === rows.length
-          ? `${String(rows.length)} Einträge`
+          ? rows.length === 1
+            ? '1 Eintrag'
+            : `${String(rows.length)} Einträge`
           : `${String(found.length)} von ${String(rows.length)} Einträgen`}
       </p>
 
-      {found.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="py-6 text-body text-ink-muted">{empty}</div>
+      ) : found.length === 0 ? (
+        // A search that finds nothing is not an empty list: "Noch kein Kunde
+        // angelegt" under a search for a name that is not there reads as if
+        // the customers were gone (#223).
+        <div className="py-6 text-body text-ink-muted">{`Für „${filter.trim()}“ gibt es keinen Treffer.`}</div>
       ) : (
         <Table caption={caption}>
           <thead>

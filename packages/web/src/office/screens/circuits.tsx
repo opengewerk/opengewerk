@@ -35,6 +35,10 @@ export function CircuitScreen() {
   const board = useRecord('distribution_boards', boardId)
   const installationId = board ? String(board['installationId']) : undefined
   const installation = useRecord('installations', installationId)
+  // The whole way down, as on the board: customer, site, installation, board
+  // (#223). The path left the first two out.
+  const site = useRecord('sites', maybeText(installation, 'siteId') ?? undefined)
+  const customer = useRecord('customers', maybeText(site, 'customerId') ?? undefined)
   const section = useRecord('board_sections', maybeText(circuit, 'boardSectionId') ?? undefined)
   const sections = useSections(boardId)
   const equipment = useEquipment(circuitId)
@@ -72,6 +76,12 @@ export function CircuitScreen() {
       crumbs={
         <>
           <Crumb to="/">Kunden</Crumb>
+          {customer ? (
+            <Crumb to={`/kunden/${String(customer['id'])}`}>{text(customer, 'name')}</Crumb>
+          ) : null}
+          {site ? (
+            <Crumb to={`/objekte/${String(site['id'])}`}>{text(site, 'designation')}</Crumb>
+          ) : null}
           {installation && installationId ? (
             <Crumb to={`/anlagen/${installationId}`}>{text(installation, 'designation')}</Crumb>
           ) : null}

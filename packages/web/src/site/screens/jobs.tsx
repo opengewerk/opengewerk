@@ -23,6 +23,7 @@ import { InstallationBoards } from './boards.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
 import { InstallationProtocols } from './protocol.js'
+import { shownStatus } from './report.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
@@ -130,6 +131,13 @@ function JobReports({ job }: { readonly job: RecordState }) {
   const client = useSync()
   const navigate = useNavigate()
   const documents = useRelated('documents', 'jobId', jobId)
+  // Signed here and not sent yet, the server still says draft; the device
+  // knows better, as the report itself does (#223).
+  const signatures = useRecords('document_signatures')
+  const signatureOf = useMemo(
+    () => new Map(signatures.map((signature) => [String(signature['documentId']), signature])),
+    [signatures],
+  )
   const reports = useMemo(
     () =>
       documents
@@ -182,7 +190,10 @@ function JobReports({ job }: { readonly job: RecordState }) {
                     {`Regiebericht vom ${date(report['documentDate'])}`}
                   </span>
                   <DocumentState
-                    status={documentStatusOf(report)}
+                    status={shownStatus(
+                      documentStatusOf(report),
+                      signatureOf.get(String(report['id'])) ?? null,
+                    )}
                     number={maybeText(report, 'number')}
                   />
                 </Link>

@@ -56,8 +56,11 @@ const materialUnits = lineUnits
   .filter((unit) => unit !== 'hour' && unit !== 'day')
   .map((unit) => ({ value: unit, label: lineUnitLabel[unit] }))
 
-/** What the device knows about the report, the signature it holds included. */
-function shownStatus(status: DocumentStatus, signature: RecordState | null): DocumentStatus {
+/**
+ * What the device knows about the report, the signature it holds included.
+ * The list of reports at a job asks the same (#223).
+ */
+export function shownStatus(status: DocumentStatus, signature: RecordState | null): DocumentStatus {
   // Signed on this device and not sent yet, the server still says draft. The
   // device knows better, and a badge saying "Entwurf" over a signature would
   // invite somebody to change what the customer has just signed.
