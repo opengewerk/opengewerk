@@ -159,6 +159,17 @@ describe('the list of customers', () => {
     expect(router.state.location.pathname).toBe('/kunden/neu')
   })
 
+  it('says so when a search finds nothing, rather than that there is no customer (#223)', async () => {
+    server.put('customers', customer('c-1', 'Familie Berg', 'private', 'Hamburg'))
+    await mount('/')
+    const user = userEvent.setup()
+
+    await screen.findByRole('table', { name: 'Alle Kunden des Betriebs' })
+    await user.type(screen.getByLabelText('Kunden durchsuchen'), 'Zwickau')
+
+    expect(await screen.findByText('Für „Zwickau“ gibt es keinen Treffer.')).toBeDefined()
+  })
+
   it('turns into one card per customer on a phone', async () => {
     windowOf(390)
     server.put('customers', customer('c-1', 'Familie Berg', 'private', 'Hamburg'))
