@@ -7,6 +7,35 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-25
+
+Die zweite Fassung. Jeder Bildschirm folgt jetzt seiner Vorlage im Canvas, dazu kommen eigene
+Listen für Objekte, Anlagen und Belege, Notizen von der Baustelle als eigene Einträge und zwei
+Sicherheitskorrekturen.
+
+Büro und Baustelle haben ihre Hülle aus den Vorlagen: im Büro die Kopfzeile mit Betrieb und
+Person, die Navigation neben dem Bildschirm und am Telefon hinter "Menü", auf der Baustelle Reiter
+unten, ein Menü von unten und auf dem Tablet eine Leiste links. Die Oberfläche ist auf jedem Gerät
+zuerst hell, dunkel ist eine Wahl je Gerät, und Schrift und Abstände haben die Größe der Vorlagen.
+Keine Seite ist breiter als ihr Fenster, von 320 bis 3840 Pixel, und die CI prüft das bei jedem
+Pull Request. Die Bildschirme selbst folgen ihren Tafeln, von der Kundenliste in jeder Breite über
+die Anlagenstruktur als Baum, das Prüfprotokoll Stromkreis für Stromkreis und die Belegseiten bis
+zu den Bildschirmen vor der Anmeldung; auf dem Tablet quer stehen Aufträge und Auftrag
+nebeneinander.
+
+Neu sind außerdem Rückfragen vor Entfernen, Sperren und Abschließen und Meldungen, die keine
+internen Namen mehr nennen. Ein festgeschriebener Beleg nennt, wer ihn festgeschrieben hat, der
+Fuß der Anmeldung nennt die Fassung, und eine Bemerkung im Prüfprotokoll hat mehrere Zeilen. Der
+Kopf einer Tabelle bleibt beim Rollen unter der Kopfleiste stehen, und ein 403 beim Abgleich meldet
+ein Gerät nicht mehr ab.
+
+Die Sicherheitskorrekturen betreffen die Ersteinrichtung und das Installationspaket, beschrieben
+unter "Sicherheit". Wer 0.1.0 betreibt, aktualisiert mit dem Paket dieser Fassung; wer die
+Ersteinrichtung noch nicht gemacht hat, am besten vor dem ersten Aufruf der Adresse.
+
+Wie bei 0.1.0 fehlen vor dem produktiven Einsatz die fachliche Abnahme der Regelpakete und der
+Grenzwerte des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133).
+
 ### Hinzugefügt
 
 - Eine Liste aller Belege im Büro, nach der Tafel "Belege" (#219), unter "Arbeit" in der
@@ -39,6 +68,37 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Oberfläche ist auf jedem Gerät zuerst hell, und dunkel lässt sich unter "Konto" für dieses Gerät
+  wählen (#216). Bisher folgte sie der Einstellung des Betriebssystems und war auf jedem Rechner mit
+  dunkler Einstellung dunkel, ohne Umschalter. Die Wahl liegt im Browser dieses Geräts und nicht am
+  Konto, denn das Tablet im Keller will oft etwas anderes als der Schreibtisch, und sie gilt schon vor
+  der Anmeldung. Die dunklen Farben stehen nur noch einmal in `tokens.css`, und die Symbole im
+  Umschalter kommen aus Lucide.
+- Das Büro hat die Hülle aus dem Canvas (#217): oben die Kopfzeile in Schiefer mit Marke, Betrieb
+  und der Person, darunter ab 1024 Pixel Breite die Navigation neben dem Bildschirm, in den Gruppen
+  Stammdaten und Arbeit, und am Fuß Abgleich und Einstellungen. Schmaler steckt sie hinter "Menü"
+  in der Kopfzeile und öffnet sich als Schublade mit großen Zeilen für den Daumen. Hinter der Person
+  liegen hell oder dunkel, das Konto und das Abmelden. Die Leisten über dem Bildschirm erscheinen nur
+  noch, wenn etwas zu tun ist; dass alles abgeglichen ist, steht leise unter "Abgleich", denn die
+  grüne Leiste auf jedem Bildschirm sagte meistens nichts und nahm den Platz einer Tabellenzeile.
+  Neben "Aufgaben" steht, wie viele offene Aufgaben auf die angemeldete Person warten.
+- Die Leisten über dem Bildschirm folgen in Büro und Baustelle den Tafeln im Canvas (#217). Ein
+  Baustein zeichnet sie alle, in drei Tönen: bernsteinfarben, wenn etwas wartet, rot bei einem
+  Konflikt oder einer überfälligen Sicherung, und auf dem abgesenkten Grund für die neue Fassung
+  und den Vorschlag des anderen Einstiegs. Im Büro ist eine Leiste eine Zeile, auf der Baustelle
+  steht der zweite Satz klein darunter. Sie stapeln sich in der Reihenfolge der Tafel, erst was
+  nicht warten kann. Der Zeitnehmer auf der Baustelle hat einen Punkt und zwei Zeilen, nennt nach
+  Mitternacht auch den Tag des Starts und lässt seine Knöpfe unter den Text rutschen, statt ihn
+  zusammenzudrücken; die Tafel im Canvas hatte genau das falsch gezeichnet und ist berichtigt.
+  Im Dunkeln bleibt die wartende Leiste dunkel mit weißer Schrift, wie gezeichnet.
+- Die Baustelle hat die Hülle aus dem Canvas (#217): unten vier Reiter, Aufträge, Zeiten,
+  Konflikte mit der Zahl der wartenden und Menü; ab 1024 Pixel, auf dem Tablet quer, stehen sie als
+  Leiste links, und nur der Bildschirm rollt. "Menü" öffnet eine Schublade von unten mit der Person,
+  hell oder dunkel für dieses Gerät, dem Weg zur Büroansicht und dem Abmelden; Umschalter und
+  Abmelden gab es auf der Baustelle bisher nicht. Die Seiten unter den Reitern, Auftrag,
+  Regiebericht, Verteiler, Stromkreis und Prüfprotokoll, haben einen Kopf in Schiefer mit dem Weg
+  zurück, ihrem Titel und einer Zeile darunter, und zeigen "Offline", solange nichts durchkommt.
+  Das Prüfprotokoll hatte bisher als einzige keinen Weg zurück in der Hülle.
 - Die Kunden folgen ihren Tafeln im Canvas (#219), bei jeder Breite der Tafel "Breiten und
   Auflösungen" (#218). Die Liste zeigt am Telefon eine Karte je Kunde, am Tablet die wichtigsten
   Spalten und ab 1024 Pixel jede Spalte, mit so vielen Zeilen, wie das Fenster fasst, und Seiten zum
@@ -224,104 +284,6 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
-- Eine Notiz auf der Baustelle überschreibt nicht mehr die Beschreibung des Auftrags (#220). Bisher
-  war "Notiz schreiben" mit der Beschreibung vorbelegt und schrieb in genau dieses Feld zurück, und
-  im Büro stand danach die Notiz dort, wo das Büro festgehalten hatte, was zu tun ist. Jetzt ist
-  jede Notiz ein eigener Eintrag mit Person und Uhrzeit, auch ohne Netz geschrieben, auf einem
-  eigenen Bildschirm "Notiz schreiben"; am Auftrag steht sie in der Karte "Notizen" unter "Was zu
-  tun ist", im Büro unter "Notizen von der Baustelle". Eine Notiz lässt sich danach nicht ändern,
-  und die Beschreibung ändert nur noch das Büro (Migration 0045, Feature-Gliederung v2.20,
-  Nachtrag in ADR 0006).
-- Ein Tag wie der Tag einer Prüfung oder das Datum eines Belegs steht auf jedem Gerät so da, wie
-  er gespeichert ist. Bisher wurde "2026-09-25" als Mitternacht in UTC gelesen und in der Zeitzone
-  des Geräts gezeigt, westlich von Greenwich also als der 24.; im Kopf des Prüfprotokolls stand
-  dadurch ein anderer Tag als in seinem Feld (#219). Ein Zeitpunkt zeigt jetzt den Tag, der er in
-  Deutschland war, wie `today()` ihn zählt.
-- Der Server beantwortet `HEAD` auf eine Seite der Oberfläche wie `GET` (#218). Bisher kam 404
-  zurück, und ein Monitor, der mit `HEAD` fragt, hätte eine laufende Installation als ausgefallen
-  gemeldet. Aufgefallen ist es beim Bau der Prüfung der Breiten.
-- Ein 403 beim Abgleich meldet das Gerät nicht mehr ab (#254). Bisher galt jede 403 als
-  abgelaufene Anmeldung: das Gerät fragte die Anmeldung neu, bekam sie unverändert zurück und
-  stand danach auf "Einen Moment", bis jemand die Seite neu lud. So ging es etwa jeder Instanz,
-  die unter einer Adresse außerhalb von `TRUSTED_ORIGINS` geöffnet wird. Jetzt zeigt die Leiste den
-  Satz des Servers, und die Daten auf dem Gerät bleiben offen. Nur eine 401 heißt abgemeldet;
-  kommt die Anmeldung danach trotzdem unverändert zurück, sagt das Tor "Abgleich unterbrochen" und
-  bietet "Erneut versuchen" an. Eine abgelehnte direkte Änderung an Stammdaten nennt den Grund des
-  Servers statt "Das geht nur mit Verbindung", und eine Datei, deren Hochladen mit 403 abgelehnt
-  wird, bleibt auf dem Gerät.
-- Meldungen nennen keine internen Namen mehr (#271). Fehlte einem Zugang ein Recht, stand dort
-  "Fehlendes Recht: customer.write", im Abgleich "Fehlendes Recht für document_lines:
-  document.write", und ein Konflikt nannte das Gerät, auf dem er entstand, mit seiner Kennung, einer
-  UUID. Seit #254 zeigt auch eine abgelehnte direkte Änderung den Satz des Servers. Jetzt sagt er,
-  was dieser Zugang nicht darf, und wer das ändern kann: "Belege festschreiben darf dieser Zugang
-  nicht. Der Inhaber vergibt die Rollen unter „Zugänge“." Die Beschriftungen der Rechte stehen in
-  `domain` (`permissionLabel`), und der Konflikt sagt "auf diesem Gerät" oder "auf einem anderen
-  Gerät".
-- Der Kopf einer Tabelle bleibt unter der Kopfleiste stehen, während die Seite an ihren Zeilen
-  vorbeirollt, wie es die Tafel "Breiten und Auflösungen" für Fenster unter 700 Pixel Höhe verlangt
-  (#272). Bisher rollte er mit weg: der Rahmen jeder Tabelle rollte seitlich, auch wenn sie in ihn
-  passte, und ein solcher Rahmen ist in beiden Richtungen ein eigener Rollbereich, an dem ein
-  klebender Kopf hängen bleibt. Jetzt rollt der Rahmen nur, solange die Tabelle breiter ist als er,
-  und Karten mit Tabellen schneiden ihre Ecken mit `overflow: clip` statt `hidden` ab. Der Kopf einer
-  breiten Tabelle folgt der Seite über eine Animation, die das Rollen steuert; ein Browser ohne diese
-  Technik, derzeit Firefox, lässt ihn dort wie bisher mitrollen.
-
-## [0.2.0] - 2026-09-25
-
-Die zweite Fassung. Sie bringt die Oberfläche nach den Vorlagen im Canvas und zwei
-Sicherheitskorrekturen.
-
-Büro und Baustelle haben ihre Hülle aus den Vorlagen: im Büro die Kopfzeile mit Betrieb und
-Person, die Navigation neben dem Bildschirm und am Telefon hinter "Menü", auf der Baustelle Reiter
-unten, ein Menü von unten und auf dem Tablet eine Leiste links. Die Oberfläche ist auf jedem Gerät
-zuerst hell, dunkel ist eine Wahl je Gerät. Schrift und Abstände haben die Größe der Vorlagen, im
-Büro war bisher alles ein Achtel zu klein. Dazu kommen die Leisten über dem Bildschirm nach den
-Tafeln, Rückfragen vor Entfernen, Sperren und Abschließen und Meldungen ohne interne Namen.
-
-Die Sicherheitskorrekturen betreffen die Ersteinrichtung und das Installationspaket, beschrieben
-unter "Sicherheit". Wer 0.1.0 betreibt, aktualisiert mit dem Paket dieser Fassung; wer die
-Ersteinrichtung noch nicht gemacht hat, am besten vor dem ersten Aufruf der Adresse.
-
-Wie bei 0.1.0 fehlen vor dem produktiven Einsatz die fachliche Abnahme der Regelpakete und der
-Grenzwerte des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133). Die Bildschirme
-selbst folgen ihren Vorlagen noch nicht alle (#219).
-
-### Geändert
-
-- Die Oberfläche ist auf jedem Gerät zuerst hell, und dunkel lässt sich unter "Konto" für dieses Gerät
-  wählen (#216). Bisher folgte sie der Einstellung des Betriebssystems und war auf jedem Rechner mit
-  dunkler Einstellung dunkel, ohne Umschalter. Die Wahl liegt im Browser dieses Geräts und nicht am
-  Konto, denn das Tablet im Keller will oft etwas anderes als der Schreibtisch, und sie gilt schon vor
-  der Anmeldung. Die dunklen Farben stehen nur noch einmal in `tokens.css`, und die Symbole im
-  Umschalter kommen aus Lucide.
-- Das Büro hat die Hülle aus dem Canvas (#217): oben die Kopfzeile in Schiefer mit Marke, Betrieb
-  und der Person, darunter ab 1024 Pixel Breite die Navigation neben dem Bildschirm, in den Gruppen
-  Stammdaten und Arbeit, und am Fuß Abgleich und Einstellungen. Schmaler steckt sie hinter "Menü"
-  in der Kopfzeile und öffnet sich als Schublade mit großen Zeilen für den Daumen. Hinter der Person
-  liegen hell oder dunkel, das Konto und das Abmelden. Die Leisten über dem Bildschirm erscheinen nur
-  noch, wenn etwas zu tun ist; dass alles abgeglichen ist, steht leise unter "Abgleich", denn die
-  grüne Leiste auf jedem Bildschirm sagte meistens nichts und nahm den Platz einer Tabellenzeile.
-  Neben "Aufgaben" steht, wie viele offene Aufgaben auf die angemeldete Person warten.
-- Die Leisten über dem Bildschirm folgen in Büro und Baustelle den Tafeln im Canvas (#217). Ein
-  Baustein zeichnet sie alle, in drei Tönen: bernsteinfarben, wenn etwas wartet, rot bei einem
-  Konflikt oder einer überfälligen Sicherung, und auf dem abgesenkten Grund für die neue Fassung
-  und den Vorschlag des anderen Einstiegs. Im Büro ist eine Leiste eine Zeile, auf der Baustelle
-  steht der zweite Satz klein darunter. Sie stapeln sich in der Reihenfolge der Tafel, erst was
-  nicht warten kann. Der Zeitnehmer auf der Baustelle hat einen Punkt und zwei Zeilen, nennt nach
-  Mitternacht auch den Tag des Starts und lässt seine Knöpfe unter den Text rutschen, statt ihn
-  zusammenzudrücken; die Tafel im Canvas hatte genau das falsch gezeichnet und ist berichtigt.
-  Im Dunkeln bleibt die wartende Leiste dunkel mit weißer Schrift, wie gezeichnet.
-- Die Baustelle hat die Hülle aus dem Canvas (#217): unten vier Reiter, Aufträge, Zeiten,
-  Konflikte mit der Zahl der wartenden und Menü; ab 1024 Pixel, auf dem Tablet quer, stehen sie als
-  Leiste links, und nur der Bildschirm rollt. "Menü" öffnet eine Schublade von unten mit der Person,
-  hell oder dunkel für dieses Gerät, dem Weg zur Büroansicht und dem Abmelden; Umschalter und
-  Abmelden gab es auf der Baustelle bisher nicht. Die Seiten unter den Reitern, Auftrag,
-  Regiebericht, Verteiler, Stromkreis und Prüfprotokoll, haben einen Kopf in Schiefer mit dem Weg
-  zurück, ihrem Titel und einer Zeile darunter, und zeigen "Offline", solange nichts durchkommt.
-  Das Prüfprotokoll hatte bisher als einzige keinen Weg zurück in der Hülle.
-
-### Behoben
-
 - Kleinere Befunde aus der Bestandsaufnahme der Oberfläche (#223): eine Liste mit einem Eintrag
   sagt "1 Eintrag"; findet ihre Suche nichts, sagt sie das, statt den Satz einer leeren Liste zu
   zeigen; auf der Baustelle steht ein auf dem Gerät unterschriebener, noch nicht übertragener
@@ -387,6 +349,47 @@ selbst folgen ihren Vorlagen noch nicht alle (#219).
   und nicht die der Baustelle (aufgefallen bei #213). Der Server nahm dafür jeden Pfad, der mit
   `/m` anfing, der Service Worker zog die Grenze schon immer bei `/m` und dem, was darunter liegt.
   Mit dem Material aus Phase 2 hätte ein tiefer Link ins Büro sonst die Baustelle geöffnet.
+- Eine Notiz auf der Baustelle überschreibt nicht mehr die Beschreibung des Auftrags (#220). Bisher
+  war "Notiz schreiben" mit der Beschreibung vorbelegt und schrieb in genau dieses Feld zurück, und
+  im Büro stand danach die Notiz dort, wo das Büro festgehalten hatte, was zu tun ist. Jetzt ist
+  jede Notiz ein eigener Eintrag mit Person und Uhrzeit, auch ohne Netz geschrieben, auf einem
+  eigenen Bildschirm "Notiz schreiben"; am Auftrag steht sie in der Karte "Notizen" unter "Was zu
+  tun ist", im Büro unter "Notizen von der Baustelle". Eine Notiz lässt sich danach nicht ändern,
+  und die Beschreibung ändert nur noch das Büro (Migration 0045, Feature-Gliederung v2.20,
+  Nachtrag in ADR 0006).
+- Ein Tag wie der Tag einer Prüfung oder das Datum eines Belegs steht auf jedem Gerät so da, wie
+  er gespeichert ist. Bisher wurde "2026-09-25" als Mitternacht in UTC gelesen und in der Zeitzone
+  des Geräts gezeigt, westlich von Greenwich also als der 24.; im Kopf des Prüfprotokolls stand
+  dadurch ein anderer Tag als in seinem Feld (#219). Ein Zeitpunkt zeigt jetzt den Tag, der er in
+  Deutschland war, wie `today()` ihn zählt.
+- Der Server beantwortet `HEAD` auf eine Seite der Oberfläche wie `GET` (#218). Bisher kam 404
+  zurück, und ein Monitor, der mit `HEAD` fragt, hätte eine laufende Installation als ausgefallen
+  gemeldet. Aufgefallen ist es beim Bau der Prüfung der Breiten.
+- Ein 403 beim Abgleich meldet das Gerät nicht mehr ab (#254). Bisher galt jede 403 als
+  abgelaufene Anmeldung: das Gerät fragte die Anmeldung neu, bekam sie unverändert zurück und
+  stand danach auf "Einen Moment", bis jemand die Seite neu lud. So ging es etwa jeder Instanz,
+  die unter einer Adresse außerhalb von `TRUSTED_ORIGINS` geöffnet wird. Jetzt zeigt die Leiste den
+  Satz des Servers, und die Daten auf dem Gerät bleiben offen. Nur eine 401 heißt abgemeldet;
+  kommt die Anmeldung danach trotzdem unverändert zurück, sagt das Tor "Abgleich unterbrochen" und
+  bietet "Erneut versuchen" an. Eine abgelehnte direkte Änderung an Stammdaten nennt den Grund des
+  Servers statt "Das geht nur mit Verbindung", und eine Datei, deren Hochladen mit 403 abgelehnt
+  wird, bleibt auf dem Gerät.
+- Meldungen nennen keine internen Namen mehr (#271). Fehlte einem Zugang ein Recht, stand dort
+  "Fehlendes Recht: customer.write", im Abgleich "Fehlendes Recht für document_lines:
+  document.write", und ein Konflikt nannte das Gerät, auf dem er entstand, mit seiner Kennung, einer
+  UUID. Seit #254 zeigt auch eine abgelehnte direkte Änderung den Satz des Servers. Jetzt sagt er,
+  was dieser Zugang nicht darf, und wer das ändern kann: "Belege festschreiben darf dieser Zugang
+  nicht. Der Inhaber vergibt die Rollen unter „Zugänge“." Die Beschriftungen der Rechte stehen in
+  `domain` (`permissionLabel`), und der Konflikt sagt "auf diesem Gerät" oder "auf einem anderen
+  Gerät".
+- Der Kopf einer Tabelle bleibt unter der Kopfleiste stehen, während die Seite an ihren Zeilen
+  vorbeirollt, wie es die Tafel "Breiten und Auflösungen" für Fenster unter 700 Pixel Höhe verlangt
+  (#272). Bisher rollte er mit weg: der Rahmen jeder Tabelle rollte seitlich, auch wenn sie in ihn
+  passte, und ein solcher Rahmen ist in beiden Richtungen ein eigener Rollbereich, an dem ein
+  klebender Kopf hängen bleibt. Jetzt rollt der Rahmen nur, solange die Tabelle breiter ist als er,
+  und Karten mit Tabellen schneiden ihre Ecken mit `overflow: clip` statt `hidden` ab. Der Kopf einer
+  breiten Tabelle folgt der Seite über eine Animation, die das Rollen steuert; ein Browser ohne diese
+  Technik, derzeit Firefox, lässt ihn dort wie bisher mitrollen.
 
 ### Sicherheit
 
