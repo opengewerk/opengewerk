@@ -1,10 +1,19 @@
-import type { JobKind, RecordState } from '@opengewerk/domain'
+import type { JobKind, JobStatus, RecordState } from '@opengewerk/domain'
 import { followUpProblem, jobKinds, jobStatuses } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Field, SelectField, TextArea } from '../../components/index.js'
+import {
+  Button,
+  Card,
+  Field,
+  SelectField,
+  Status,
+  statusIcons,
+  TextArea,
+} from '../../components/index.js'
+import type { StatusTone } from '../../components/index.js'
 import { DataTable } from '../../app/data-table.js'
 import type { ListColumns } from '../../app/data-table.js'
 import {
@@ -49,6 +58,30 @@ function asJob(values: Record<string, string>) {
     status: values['status'] ?? 'draft',
     description: asTextOrNull(values['description']),
   }
+}
+
+/**
+ * The state of a job as the canvas marks it (#219): a running job plays, a
+ * draft is a draft, a finished one is ticked and a cancelled one barred.
+ */
+const jobStates: Readonly<
+  Record<JobStatus, { readonly tone: StatusTone; readonly icon?: typeof statusIcons.play }>
+> = {
+  draft: { tone: 'draft' },
+  active: { tone: 'waiting', icon: statusIcons.play },
+  completed: { tone: 'done' },
+  cancelled: { tone: 'neutral', icon: statusIcons.ban },
+}
+
+export function JobState({ job }: { readonly job: RecordState }) {
+  const status = jobStatusOf(job)
+  const { tone, icon } = jobStates[status]
+
+  return (
+    <Status tone={tone} icon={icon}>
+      {jobStatusLabel[status]}
+    </Status>
+  )
 }
 
 /**

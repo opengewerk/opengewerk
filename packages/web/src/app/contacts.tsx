@@ -18,7 +18,7 @@ import type { FormField } from './record-form.js'
  */
 export type ContactParent = { readonly customerId: string } | { readonly siteId: string }
 
-const contactFields: readonly FormField[] = [
+export const contactFields: readonly FormField[] = [
   { name: 'givenName', label: 'Vorname' },
   { name: 'familyName', label: 'Nachname', required: true },
   {
@@ -31,7 +31,7 @@ const contactFields: readonly FormField[] = [
 ]
 
 /** The values a form collected, in the types the record wants. */
-function asContact(values: Record<string, string>) {
+export function asContact(values: Record<string, string>) {
   return {
     givenName: asTextOrNull(values['givenName']),
     familyName: values['familyName']?.trim() ?? '',
