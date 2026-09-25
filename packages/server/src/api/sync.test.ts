@@ -1711,7 +1711,7 @@ describe('a note from the site', () => {
     ])
 
     // Sent by the office, which may change a job: a note it may not change either.
-    const answer = await push(office(), 'rechner-buero', [
+    const answer = await push(office(), 'office-computer', [
       change({
         entity: 'job_notes',
         recordId: id,
