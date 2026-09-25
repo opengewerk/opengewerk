@@ -6,7 +6,7 @@ import { BrandMark, ThemeSwitch } from '../components/index.js'
 import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'
 import { useSync } from '../sync/provider.js'
-import { useWho } from './who.js'
+import { useWho } from '../app/who.js'
 
 /**
  * The header of every office screen, in slate, as on the canvas: the mark,

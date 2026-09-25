@@ -15,7 +15,6 @@ import {
   Card,
   DocumentState,
   Field,
-  FieldLabel,
   SelectField,
   TextArea,
 } from '../../components/index.js'
@@ -37,6 +36,7 @@ import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { SignaturePad } from '../signature-pad.js'
 import { signedContentOf } from '../signing.js'
+import { SiteHeader } from '../header.js'
 
 /** The lines in the order they stand. The id breaks a tie, as on the server. */
 function inOrder(records: readonly RecordState[]): readonly RecordState[] {
@@ -81,7 +81,7 @@ export function SiteReportScreen() {
   if (!report || !documentId) {
     return (
       <div className="flex flex-col gap-4 p-4">
-        <h1 className="text-title font-semibold">Nicht gefunden</h1>
+        <SiteHeader title="Nicht gefunden" />
         <p className="text-body">
           Diesen Bericht hat dieses Gerät nicht. Mit Verbindung holt der Abgleich ihn.
         </p>
@@ -107,16 +107,17 @@ function ReportView({ report }: { readonly report: RecordState }) {
 
   return (
     <div className="flex flex-col gap-4 p-4">
+      <SiteHeader
+        title="Regiebericht"
+        sub={[
+          job ? text(job, 'designation') : text(report, 'subject'),
+          customer ? text(customer, 'name') : '',
+          date(report['documentDate']),
+        ]
+          .filter((part) => part !== '')
+          .join(', ')}
+      />
       <div className="flex flex-col gap-2">
-        <FieldLabel>Regiebericht</FieldLabel>
-        <h1 className="text-title font-semibold">
-          {job ? text(job, 'designation') : text(report, 'subject') || 'Regiebericht'}
-        </h1>
-        <p className="text-body text-ink-muted">
-          {[customer ? text(customer, 'name') : '', date(report['documentDate'])]
-            .filter((part) => part !== '')
-            .join(', ')}
-        </p>
         <div>
           <DocumentState status={status} number={maybeText(report, 'number')} />
         </div>

@@ -178,7 +178,9 @@ describe('a test protocol on site (#79)', () => {
         name: 'Prüfprotokoll Erstprüfung nach DIN VDE 0100-600 anlegen',
       }),
     )
-    await screen.findByRole('heading', { name: 'Prüfprotokoll Erstprüfung nach DIN VDE 0100-600' })
+    // The header says what it is, and the line under it which one.
+    await screen.findByRole('heading', { name: 'Prüfprotokoll' })
+    expect(screen.getByText(/^Erstprüfung nach DIN VDE 0100-600/)).toBeTruthy()
 
     expect(router.state.location.pathname).toMatch(/^\/auftraege\/j-1\/pruefprotokolle\//)
 

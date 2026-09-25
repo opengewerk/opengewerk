@@ -36,8 +36,11 @@ export function SignOutButton({
   readonly client: SyncClient | null
   readonly onSignedOut: () => void
   readonly wide?: boolean
-  /** A line in the menu under the name in the header, rather than a button. */
-  readonly row?: boolean
+  /**
+   * A line in a menu rather than a button: in the menu under the name in the
+   * office header, or `large` in the menu sheet on site, 56 pixels for a thumb.
+   */
+  readonly row?: boolean | 'large'
 }) {
   const [waiting, setWaiting] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -134,9 +137,13 @@ export function SignOutButton({
           type="button"
           disabled={busy}
           onClick={() => void ask()}
-          className="flex w-full items-center gap-[9px] rounded-control px-3 py-2 text-[14px] leading-[1.2] text-ink cursor-pointer hover:bg-surface-sunken disabled:opacity-60"
+          className={
+            row === 'large'
+              ? 'flex min-h-14 w-full items-center gap-3 rounded-[6px] px-3.5 text-[17px] text-ink cursor-pointer disabled:opacity-60'
+              : 'flex w-full items-center gap-[9px] rounded-control px-3 py-2 text-[14px] leading-[1.2] text-ink cursor-pointer hover:bg-surface-sunken disabled:opacity-60'
+          }
         >
-          <LogOut size={16} strokeWidth={1.9} aria-hidden="true" />
+          <LogOut size={row === 'large' ? 22 : 16} strokeWidth={1.9} aria-hidden="true" />
           Abmelden
         </button>
       ) : (

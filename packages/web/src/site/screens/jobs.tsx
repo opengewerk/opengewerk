@@ -25,6 +25,7 @@ import { JobFiles } from './files.js'
 import { InstallationProtocols } from './protocol.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
+import { SiteHeader } from '../header.js'
 
 /**
  * The jobs this device is meant to work through.
@@ -292,7 +293,7 @@ export function SiteJobScreen() {
   if (!job || !jobId) {
     return (
       <div className="flex flex-col gap-4 p-4">
-        <h1 className="text-title font-semibold">Nicht gefunden</h1>
+        <SiteHeader title="Nicht gefunden" />
         <p className="text-body">
           Diesen Auftrag hat dieses Gerät nicht. Mit Verbindung holt der Abgleich ihn.
         </p>
@@ -305,21 +306,23 @@ export function SiteJobScreen() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-col gap-1">
-        <FieldLabel>{jobKindLabel[jobKindOf(job)]}</FieldLabel>
-        <h1 className="text-title font-semibold">{text(job, 'designation')}</h1>
-        <p className="text-body text-ink-muted">
-          {maybeText(job, 'number') ? (
-            <>
-              <span className="numeric">{text(job, 'number')}</span>
-              {', '}
-            </>
-          ) : client.isPending('jobs', jobId) ? (
-            'Nummer folgt beim Abgleich, '
-          ) : null}
-          {jobStatusLabel[status]}
-        </p>
-      </div>
+      <SiteHeader
+        title={text(job, 'designation')}
+        sub={
+          <>
+            {`${jobKindLabel[jobKindOf(job)]}, `}
+            {maybeText(job, 'number') ? (
+              <>
+                <span className="numeric">{text(job, 'number')}</span>
+                {', '}
+              </>
+            ) : client.isPending('jobs', jobId) ? (
+              'Nummer folgt beim Abgleich, '
+            ) : null}
+            {jobStatusLabel[status]}
+          </>
+        }
+      />
 
       <Card label="Wo und für wen">
         <dl className="flex flex-col gap-3">
