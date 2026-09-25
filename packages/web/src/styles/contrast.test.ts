@@ -56,8 +56,7 @@ function ratio(one: string, other: string): number {
 }
 
 const light = paletteOf(tokens, '@theme')
-const darkBySystem = paletteOf(tokens, ":root:not([data-theme='light'])")
-const darkByChoice = paletteOf(tokens, ":root[data-theme='dark']")
+const dark = paletteOf(tokens, ":root[data-theme='dark']")
 
 /**
  * The three surfaces a foreground colour can land on. Checking a text colour
@@ -140,7 +139,7 @@ describe('the colour tokens', () => {
   })
 
   it('carry enough contrast on the dark ground', () => {
-    check(darkBySystem, 'dunkel')
+    check(dark, 'dunkel')
   })
 
   it('give the filled copper button its own value', () => {
@@ -156,18 +155,17 @@ describe('the colour tokens', () => {
     expect(light.get('copper-solid')).not.toBe(light.get('copper'))
   })
 
-  it('say the same thing in both dark blocks', () => {
-    // The dark values stand twice, once behind the system preference and once
-    // behind the explicit switch, because CSS has no way to write them down
-    // once. Two blocks that have to agree are two blocks that drift, and the
-    // half that drifts is the one nobody has their machine set to.
-    expect(Object.fromEntries(darkByChoice)).toEqual(Object.fromEntries(darkBySystem))
+  it('keep dark a choice and never the system default', () => {
+    // Light on every new device, whatever the operating system prefers (#216).
+    // A media query here made the interface dark on every machine set to dark,
+    // with no switch to get out again.
+    expect(tokens).not.toMatch(/@media\s*\(prefers-color-scheme/)
   })
 
   it('leave no colour behind when the ground changes', () => {
     // A token added to the light block and forgotten in the dark one keeps its
     // light value there. That is how a badge ends up with dark text on a dark
     // fill: the fill was turned around, the lettering was not.
-    expect([...darkBySystem.keys()].sort()).toEqual([...light.keys()].sort())
+    expect([...dark.keys()].sort()).toEqual([...light.keys()].sort())
   })
 })

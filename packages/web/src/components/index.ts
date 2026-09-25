@@ -8,7 +8,10 @@ export { Cell, Column, Table } from './table.js'
 export type { CellProps, ColumnProps } from './table.js'
 
 export { Card, Shell, TextLink } from './surface.js'
-export type { CardProps, CardTone, Entry, ShellProps, TextLinkProps, Theme } from './surface.js'
+export type { CardProps, CardTone, Entry, ShellProps, TextLinkProps } from './surface.js'
+
+export { ThemeSwitch } from './theme-switch.js'
+export type { ThemeChoice, ThemeSwitchProps } from './theme-switch.js'
 
 export { DocumentState, SyncBar } from './state.js'
 export type { DocumentStateProps, SyncBarProps, SyncState } from './state.js'

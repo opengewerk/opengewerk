@@ -61,31 +61,26 @@ export function TextLink({ className, ...rest }: TextLinkProps) {
 }
 
 export type Entry = 'office' | 'site'
-export type Theme = 'light' | 'dark' | 'system'
 
 export interface ShellProps {
   /** `/` or `/m`. Decides the density, not a breakpoint. */
   readonly entry: Entry
-  /** `system` follows the operating system, the other two override it. */
-  readonly theme?: Theme
   readonly children: ReactNode
 }
 
 /**
- * The root of an entry point. Sets the two attributes every token block in
+ * The root of an entry point. Sets the density every token block in
  * `tokens.css` keys on, and nothing else.
  *
- * `system` writes no attribute at all, which is what lets the media query in
- * the tokens decide. Writing `data-theme="light"` would be a different thing:
- * it pins the light ground against the operating system.
+ * Light or dark is not decided here. It sits on `:root`, where the dark block
+ * of the tokens looks for it, and is set by `app/theme.ts` before the first
+ * screen is drawn. This component used to take a `theme` and write it onto its
+ * own `<div>`, which the tokens never read: a switch built on it would have
+ * changed nothing (#216).
  */
-export function Shell({ entry, theme = 'system', children }: ShellProps) {
+export function Shell({ entry, children }: ShellProps) {
   return (
-    <div
-      data-entry={entry}
-      data-theme={theme === 'system' ? undefined : theme}
-      className="min-h-full bg-ground text-ink font-sans text-body"
-    >
+    <div data-entry={entry} className="min-h-full bg-ground text-ink font-sans text-body">
       {children}
     </div>
   )

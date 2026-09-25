@@ -10,9 +10,15 @@
  *    3.88:1, which carries large text and fails everything below 18.66px. A
  *    brand book fixes a colour for a mark, where contrast hardly matters, and
  *    its authority is exactly why nobody recomputes it for a button.
- * 2. The dark values appear twice, once for the system preference and once for
- *    the explicit switch. Two blocks that have to say the same thing drift, so
- *    the test compares them value by value.
+ * 2. Every colour of the light block has its dark counterpart, and the test
+ *    fails when one is missing. A token forgotten in the dark block keeps its
+ *    light value there, which is how dark text ends up on a dark fill.
+ *
+ * Light is the ground state on every device, whatever the operating system
+ * prefers. Dark is a choice made on the device and set as `data-theme` on
+ * `:root` by `app/theme.ts` (#216). There is deliberately no media query for
+ * `prefers-color-scheme`: it made the interface dark on every machine set to
+ * dark, with no way back.
  */
 
 @theme {
@@ -61,35 +67,21 @@
 }
 
 /*
- * The dark ground. Copper turns around here: the filled surface carries dark
- * lettering, not white, because white on copper is glaring against a dark page
- * and fails the ratio anyway.
+ * The browser's own parts follow the choice too: scroll bars, the date picker
+ * and the autofill colour of a field.
  */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --color-ground: #141a23;
-    --color-surface: #1b2430;
-    --color-surface-sunken: #232d3b;
-    --color-line: #38424f;
-    --color-line-strong: #6b7889;
-
-    --color-ink: #f4f1ea;
-    --color-ink-muted: #a8afb9;
-    --color-ink-faint: #8f97a4;
-
-    --color-copper: #e08a3c;
-    --color-copper-solid: #e08a3c;
-    --color-copper-text: #e08a3c;
-    --color-on-copper: #1b2430;
-
-    --color-done: #62b38a;
-    --color-waiting: #d9a83c;
-    --color-conflict: #e0736b;
-    --color-on-status: #141a23;
-  }
+:root {
+  color-scheme: light;
 }
 
+/*
+ * The dark ground, chosen on the device. Copper turns around here: the filled
+ * surface carries dark lettering, not white, because white on copper is
+ * glaring against a dark page and fails the ratio anyway.
+ */
 :root[data-theme='dark'] {
+  color-scheme: dark;
+
   --color-ground: #141a23;
   --color-surface: #1b2430;
   --color-surface-sunken: #232d3b;

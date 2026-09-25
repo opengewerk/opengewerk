@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import { Button, IconButton } from './button.js'
@@ -6,6 +7,7 @@ import { Field } from './field.js'
 import { DocumentState, SyncBar } from './state.js'
 import { Cell, Column, Table } from './table.js'
 import { Card, Shell, TextLink } from './surface.js'
+import { ThemeSwitch } from './theme-switch.js'
 
 /**
  * What these check is not how the components look. It is the handful of
@@ -124,8 +126,8 @@ describe('the sync bar', () => {
 })
 
 describe('the shell of an entry point', () => {
-  it('writes the density, and leaves the ground to the system unless told', () => {
-    const { container, rerender } = render(
+  it('writes the density and leaves light or dark to the root', () => {
+    const { container } = render(
       <Shell entry="site">
         <p>Baustelle</p>
       </Shell>,
@@ -133,16 +135,33 @@ describe('the shell of an entry point', () => {
 
     const root = container.firstElementChild as HTMLElement
     expect(root.getAttribute('data-entry')).toBe('site')
-    // No attribute at all, so the media query in the tokens decides. Writing
-    // "light" here would pin the light ground against the operating system.
+    // The dark tokens are read on `:root`. An attribute here would be one the
+    // stylesheet never looks at, which is what the old `theme` prop wrote.
     expect(root.hasAttribute('data-theme')).toBe(false)
+  })
+})
 
-    rerender(
-      <Shell entry="office" theme="dark">
-        <p>Büro</p>
-      </Shell>,
+describe('the switch between light and dark', () => {
+  it('shows both words and marks the chosen one', async () => {
+    const chosen: string[] = []
+    render(
+      <ThemeSwitch
+        value="light"
+        onChoose={(theme) => {
+          chosen.push(theme)
+        }}
+      />,
     )
-    expect((container.firstElementChild as HTMLElement).getAttribute('data-theme')).toBe('dark')
+
+    const group = screen.getByRole('group', { name: 'Darstellung' })
+    expect(group).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Hell' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Dunkel' }).getAttribute('aria-pressed')).toBe(
+      'false',
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dunkel' }))
+    expect(chosen).toEqual(['dark'])
   })
 })
 
