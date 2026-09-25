@@ -1,10 +1,11 @@
 import type { SnippetPurpose } from '@opengewerk/domain'
 import { snippetPurposes } from '@opengewerk/domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Field, SelectField, TextArea } from '../../components/index.js'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { snippetPurposeLabel } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -15,7 +16,7 @@ import {
 } from '../../session/documents.js'
 import type { SnippetValues, TextSnippet } from '../../session/documents.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { PageHead, Screen } from '../kit.js'
 
 const purposeOptions = snippetPurposes.map((purpose) => ({
   value: purpose,
@@ -45,6 +46,10 @@ function SnippetForm({
   readonly submitLabel: string
   readonly onDone: () => void
 }) {
+  // A new one is the one thing the screen is doing while its card is open,
+  // and the head's button waits for it; a change beside the list is not, and
+  // leaves the copper to the head (#223).
+  const adding = snippet === undefined
   const queries = useQueryClient()
   const [purpose, setPurpose] = useState<string>(snippet?.purpose ?? 'line')
   const [title, setTitle] = useState(snippet?.title ?? '')
@@ -76,12 +81,12 @@ function SnippetForm({
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         void save(event)
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <SelectField label="Wofür" value={purpose} options={purposeOptions} onChange={setPurpose} />
         <Field
           label="Name"
@@ -107,18 +112,28 @@ function SnippetForm({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
-          {working ? 'Wird gespeichert' : submitLabel}
-        </Button>
-        <Button tone="quiet" disabled={working} onClick={onDone}>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button disabled={working} onClick={onDone}>
           Abbrechen
+        </Button>
+        <Button
+          type="submit"
+          tone={adding ? 'primary' : 'secondary'}
+          icon={Check}
+          disabled={working}
+        >
+          {working ? 'Wird gespeichert' : submitLabel}
         </Button>
       </div>
     </form>
   )
 }
 
+/**
+ * One text in its list, as the board "Textbausteine" draws it: the name, the
+ * text under it, and at the right "Bearbeiten" and "Entfernen". Entfernen asks
+ * first, as everything that goes does (#222).
+ */
 function SnippetEntry({
   snippet,
   editable,
@@ -129,23 +144,27 @@ function SnippetEntry({
   const queries = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
   async function remove() {
     setTrouble(null)
+    setWorking(true)
 
     try {
       await removeSnippet(snippet.id)
       await queries.invalidateQueries({ queryKey: ['text-snippets'] })
     } catch (error) {
-      setRemoving(false)
       setTrouble(error instanceof RequestRefused ? error.message : 'Keine Verbindung.')
+    } finally {
+      setWorking(false)
+      setRemoving(false)
     }
   }
 
   if (editing) {
     return (
-      <li>
+      <li className="border-b border-row py-[9px]">
         <SnippetForm
           snippet={snippet}
           submitLabel="Speichern"
@@ -158,61 +177,92 @@ function SnippetEntry({
   }
 
   return (
-    <li className="flex flex-col gap-1 border-b border-line pb-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold text-ink">{snippet.title}</span>
-        {editable ? (
-          removing ? (
-            <span className="inline-flex flex-wrap gap-2">
-              <Button tone="danger" onClick={() => void remove()}>
-                Entfernen
-              </Button>
-              <Button
-                tone="quiet"
-                onClick={() => {
-                  setRemoving(false)
-                }}
-              >
-                Behalten
-              </Button>
-            </span>
-          ) : (
-            <span className="inline-flex flex-wrap gap-2">
-              <Button
-                onClick={() => {
-                  setEditing(true)
-                }}
-              >
-                Bearbeiten
-              </Button>
-              <Button
-                tone="quiet"
-                aria-label={`${snippet.title} entfernen`}
-                onClick={() => {
-                  setRemoving(true)
-                }}
-              >
-                Entfernen
-              </Button>
-            </span>
-          )
+    <li className="flex flex-wrap items-start gap-3 border-b border-row py-[9px]">
+      <div className="min-w-0 grow basis-[240px]">
+        <p className="text-[14px] font-semibold text-ink">{snippet.title}</p>
+        {snippet.text ? (
+          <p className="whitespace-pre-line text-[13px] leading-[1.45] text-ink-muted">
+            {snippet.text}
+          </p>
+        ) : null}
+        {trouble ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
+            {trouble}
+          </p>
         ) : null}
       </div>
-      {snippet.text ? (
-        <p className="whitespace-pre-line text-body text-ink-muted">{snippet.text}</p>
+      {editable ? (
+        <span className="ml-auto flex shrink-0 gap-1.5">
+          <Button
+            size="small"
+            icon={Pencil}
+            aria-label={`${snippet.title} bearbeiten`}
+            onClick={() => {
+              setEditing(true)
+            }}
+          >
+            Bearbeiten
+          </Button>
+          <Button
+            size="small"
+            aria-label={`${snippet.title} entfernen`}
+            onClick={() => {
+              setRemoving(true)
+            }}
+          >
+            Entfernen
+          </Button>
+        </span>
       ) : null}
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
+      <Confirm
+        open={removing}
+        title={`${snippet.title} entfernen?`}
+        confirm="Entfernen"
+        busy={working}
+        onConfirm={() => void remove()}
+        onCancel={() => {
+          setRemoving(false)
+        }}
+      >
+        Der Textbaustein verschwindet aus der Auswahl. Belege, die ihn schon verwenden, behalten
+        ihren Text.
+      </Confirm>
     </li>
+  )
+}
+
+/** One of the three lists, as a card with its sentence under the heading. */
+function SnippetList({
+  purpose,
+  snippets,
+  editable,
+}: {
+  readonly purpose: SnippetPurpose
+  readonly snippets: readonly TextSnippet[]
+  readonly editable: boolean
+}) {
+  const listed = snippets.filter((snippet) => snippet.purpose === purpose)
+
+  return (
+    <Panel title={listTitle[purpose]}>
+      <p className="-mt-[3px] mb-1.5 text-[13px] text-ink-faint">{listHint[purpose]}</p>
+      {listed.length === 0 ? (
+        <p className="text-[13px] leading-[1.4] text-ink-muted">Noch keiner.</p>
+      ) : (
+        <ul>
+          {listed.map((snippet) => (
+            <SnippetEntry key={snippet.id} snippet={snippet} editable={editable} />
+          ))}
+        </ul>
+      )}
+    </Panel>
   )
 }
 
 /**
  * The texts the office writes once and uses again, in three lists: for
- * positions, and for the text above and below them.
+ * positions, and for the text above and below them, laid out as the board
+ * "Textbausteine" has them.
  *
  * Changing one here changes nothing that was written with it. A document
  * takes a copy of the text, so a quote from last year still says what it
@@ -222,33 +272,39 @@ export function TextSnippetScreen() {
   const snippets = useQuery({ queryKey: ['text-snippets'], queryFn: textSnippets })
   const editable = useMay('document.write')
   const [adding, setAdding] = useState(false)
+  const all = snippets.data ?? []
 
   return (
-    <Page
-      title="Textbausteine"
-      meta="Texte für Positionen und für den Text über und unter den Positionen eines Belegs."
-      actions={
-        editable && !adding ? (
-          <Button
-            tone="primary"
-            onClick={() => {
-              setAdding(true)
-            }}
-          >
-            Textbaustein anlegen
-          </Button>
-        ) : null
-      }
-    >
+    <Screen>
+      <PageHead
+        title="Textbausteine"
+        sub="Texte für Positionen und für den Text über und unter den Positionen eines Belegs."
+        wideActions
+        actions={
+          editable ? (
+            <Button
+              tone="primary"
+              icon={Plus}
+              disabled={adding}
+              onClick={() => {
+                setAdding(true)
+              }}
+            >
+              Textbaustein anlegen
+            </Button>
+          ) : null
+        }
+      />
+
       {adding ? (
-        <Card label="Neuer Textbaustein">
+        <Panel title="Neuer Textbaustein">
           <SnippetForm
             submitLabel="Textbaustein anlegen"
             onDone={() => {
               setAdding(false)
             }}
           />
-        </Card>
+        </Panel>
       ) : null}
 
       {snippets.isError ? (
@@ -258,24 +314,11 @@ export function TextSnippetScreen() {
         </p>
       ) : null}
 
-      {snippetPurposes.map((purpose) => {
-        const listed = (snippets.data ?? []).filter((snippet) => snippet.purpose === purpose)
-
-        return (
-          <Section key={purpose} title={listTitle[purpose]}>
-            <p className="mb-3 text-table text-ink-muted">{listHint[purpose]}</p>
-            {listed.length === 0 ? (
-              <Nothing>Noch keiner.</Nothing>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {listed.map((snippet) => (
-                  <SnippetEntry key={snippet.id} snippet={snippet} editable={editable} />
-                ))}
-              </ul>
-            )}
-          </Section>
-        )
-      })}
-    </Page>
+      <SnippetList purpose="line" snippets={all} editable={editable} />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <SnippetList purpose="intro" snippets={all} editable={editable} />
+        <SnippetList purpose="closing" snippets={all} editable={editable} />
+      </div>
+    </Screen>
   )
 }

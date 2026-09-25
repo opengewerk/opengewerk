@@ -278,9 +278,12 @@ export interface TaskLinks {
  */
 export function NewTaskForm({
   links,
+  wide = false,
   onDone,
 }: {
   readonly links: TaskLinks
+  /** The four fields in one row, as the board "Aufgaben" draws the card "Neue Aufgabe". */
+  readonly wide?: boolean
   readonly onDone: () => void
 }) {
   const client = useSync()
@@ -314,6 +317,12 @@ export function NewTaskForm({
         ]}
         record={{ dueOn: today(), assigneeUserId: me }}
         submitLabel="Aufgabe anlegen"
+        {...(wide
+          ? {
+              columns: 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.6fr)]',
+              divided: false,
+            }
+          : {})}
         onCancel={onDone}
         onSubmit={async (values) => {
           const title = asTextOrNull(values['title'])

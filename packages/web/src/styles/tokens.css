@@ -65,6 +65,8 @@
   --color-waiting-edge: #b79a6e;
   --color-conflict-fill: #f6e7e5;
   --color-conflict-edge: #e0c3c0;
+  /* The sentence on a red fill, under the heading of a conflict. */
+  --color-conflict-ink: #6b4340;
 
   /* The header in slate and the navigation beside it, as drawn on the canvas.
      The header stays dark in the light ground: it carries the mark, and the
@@ -176,6 +178,7 @@
   --color-waiting-edge: #6b5311;
   --color-conflict-fill: #3a2222;
   --color-conflict-edge: #6b3a36;
+  --color-conflict-ink: #f0b7b1;
 
   --color-top: #0f141b;
   --color-top-ink: #f4f1ea;

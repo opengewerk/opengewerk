@@ -1,6 +1,5 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
-import { ConflictScreen } from '../app/conflicts.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
 import { BackupScreen } from './screens/backup.js'
@@ -24,6 +23,7 @@ import { SettingsScreen } from './screens/settings.js'
 import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
+import { SyncScreen } from './screens/sync.js'
 import { TaskListScreen } from './screens/tasks.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'
@@ -98,7 +98,7 @@ const routes = [
     path: '/textbausteine',
     component: TextSnippetScreen,
   }),
-  createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
+  createRoute({ getParentRoute: () => root, path: '/konflikte', component: SyncScreen }),
   createRoute({ getParentRoute: () => root, path: '/konto', component: AccountScreen }),
   createRoute({ getParentRoute: () => root, path: '/einstellungen', component: SettingsScreen }),
   createRoute({

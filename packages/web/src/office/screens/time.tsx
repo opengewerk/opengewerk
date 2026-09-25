@@ -10,17 +10,11 @@ import {
 } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import {
-  Button,
-  Cell,
-  Column,
-  Panel,
-  SelectField,
-  Table,
-  TablePanel,
-} from '../../components/index.js'
+import { Button, Cell, Column, Panel, SelectField, TablePanel } from '../../components/index.js'
+import type { TableCard } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -38,7 +32,7 @@ import { timePeople } from '../../session/time.js'
 import type { Assignee } from '../../session/tasks.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecords } from '../../sync/provider.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { PageHead, Screen } from '../kit.js'
 
 /** The people of the business by name, for whoever reads the time of the others. */
 function usePeopleForTime(): readonly Assignee[] {
@@ -116,6 +110,7 @@ export function TimeScreen() {
         return {
           name,
           on,
+          recorded: ofTheDay.length > 0,
           work: minutesOf(ofTheDay, 'work'),
           travel: minutesOf(ofTheDay, 'travel'),
           pause: minutesOf(ofTheDay, 'break'),
@@ -131,45 +126,68 @@ export function TimeScreen() {
 
   if (!readsTime) {
     return (
-      <Page title="Zeiten">
-        <Nothing>Die Zeiten der anderen sieht deine Rolle nicht.</Nothing>
-      </Page>
+      <Screen>
+        <PageHead title="Zeiterfassung" />
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          Die Zeiten der anderen sieht deine Rolle nicht.
+        </p>
+      </Screen>
     )
   }
 
   const total = days.reduce((sum, day) => sum + day.work + day.travel, 0)
+  // A day nobody worked on stays empty, as on the board: "0:00 Std." three
+  // times over under a Sunday says nothing anybody asked.
+  const cards: TableCard[] = days.map((day) => ({
+    key: day.on,
+    title: (
+      <>
+        {`${day.name}, ${date(day.on)}`}
+        <Warnings warnings={day.warnings} />
+      </>
+    ),
+    ...(day.recorded
+      ? {
+          sub: `Arbeit ${hoursText(day.work)} · Fahrt ${hoursText(day.travel)} · Pause ${hoursText(day.pause)}`,
+        }
+      : {}),
+  }))
 
   return (
-    <Page
-      title="Zeiten"
-      meta={`Woche vom ${date(monday)} bis ${date(shiftDay(monday, 6))}`}
-      actions={
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => {
-              setMonday(shiftDay(monday, -7))
-            }}
-          >
-            Vorwoche
-          </Button>
-          <Button
-            onClick={() => {
-              setMonday(mondayOf(today()))
-            }}
-          >
-            Diese Woche
-          </Button>
-          <Button
-            onClick={() => {
-              setMonday(shiftDay(monday, 7))
-            }}
-          >
-            Folgewoche
-          </Button>
-        </div>
-      }
-    >
-      <div className="max-w-sm">
+    <Screen>
+      <PageHead
+        title="Zeiterfassung"
+        sub={`Woche vom ${date(monday)} bis ${date(shiftDay(monday, 6))}`}
+        wideActions
+        actions={
+          <>
+            <Button
+              icon={ChevronLeft}
+              onClick={() => {
+                setMonday(shiftDay(monday, -7))
+              }}
+            >
+              Vorwoche
+            </Button>
+            <Button
+              onClick={() => {
+                setMonday(mondayOf(today()))
+              }}
+            >
+              Diese Woche
+            </Button>
+            <Button
+              onClick={() => {
+                setMonday(shiftDay(monday, 7))
+              }}
+            >
+              Folgewoche
+            </Button>
+          </>
+        }
+      />
+
+      <div className="w-full max-w-[260px] max-sm:max-w-none">
         <SelectField
           label="Person"
           value={person}
@@ -178,63 +196,82 @@ export function TimeScreen() {
         />
       </div>
 
-      <Section title="Die Woche">
-        <Table caption="Arbeitszeit der Woche nach Tagen">
-          <thead>
-            <tr>
-              <Column>Tag</Column>
-              <Column numeric>Arbeit</Column>
-              <Column numeric>Fahrt</Column>
-              <Column numeric>Pause</Column>
-              <Column>Nach dem Arbeitszeitgesetz</Column>
+      <TablePanel
+        title="Die Woche"
+        caption="Arbeitszeit der Woche nach Tagen"
+        cards={cards}
+        note={
+          <strong className="font-semibold text-ink">{`Arbeit und Fahrt in dieser Woche: ${hoursText(total)}`}</strong>
+        }
+      >
+        <thead>
+          <tr>
+            <Column className="w-[200px]">Tag</Column>
+            <Column numeric className="w-[100px]">
+              Arbeit
+            </Column>
+            <Column numeric className="w-[100px]">
+              Fahrt
+            </Column>
+            <Column numeric className="w-[100px]">
+              Pause
+            </Column>
+            <Column>Nach dem Arbeitszeitgesetz</Column>
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day) => (
+            <tr key={day.on}>
+              <Cell className="whitespace-nowrap">{`${day.name}, ${date(day.on)}`}</Cell>
+              <Cell numeric className="whitespace-nowrap">
+                {day.recorded ? hoursText(day.work) : ''}
+              </Cell>
+              <Cell numeric className="whitespace-nowrap">
+                {day.recorded ? hoursText(day.travel) : ''}
+              </Cell>
+              <Cell numeric className="whitespace-nowrap">
+                {day.recorded ? hoursText(day.pause) : ''}
+              </Cell>
+              <Cell>
+                {day.warnings.length > 0 ? (
+                  <Warnings warnings={day.warnings} />
+                ) : day.recorded ? (
+                  <span className="text-ink-faint">keine Hinweise</span>
+                ) : null}
+              </Cell>
             </tr>
-          </thead>
-          <tbody>
-            {days.map((day) => (
-              <tr key={day.on}>
-                <Cell>{`${day.name}, ${date(day.on)}`}</Cell>
-                <Cell numeric className="whitespace-nowrap">
-                  {hoursText(day.work)}
-                </Cell>
-                <Cell numeric className="whitespace-nowrap">
-                  {hoursText(day.travel)}
-                </Cell>
-                <Cell numeric className="whitespace-nowrap">
-                  {hoursText(day.pause)}
-                </Cell>
-                <Cell>
-                  {day.warnings.length === 0 ? (
-                    <span className="text-ink-muted">keine Hinweise</span>
-                  ) : (
-                    <ul className="flex flex-col gap-1">
-                      {day.warnings.map((warning) => (
-                        <li key={warning.kind}>{warning.text}</li>
-                      ))}
-                    </ul>
-                  )}
-                </Cell>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-        <p className="mt-3 text-body">{`Arbeit und Fahrt in dieser Woche: ${hoursText(total)}`}</p>
-      </Section>
+          ))}
+        </tbody>
+      </TablePanel>
 
-      <Section title="Einträge">
-        {week.length === 0 ? (
-          <Nothing>In dieser Woche ist für diese Person nichts erfasst.</Nothing>
-        ) : (
-          <EntryTable entries={week} all={theirs} />
-        )}
-      </Section>
-    </Page>
+      <EntryTable entries={week} all={theirs} />
+    </Screen>
   )
 }
 
 /**
- * Every entry of the week as written, the ones replaced and taken back
- * included. What counts is marked; what does not says why, so the office can
- * read the history the law keeps for two years.
+ * What the Working Hours Act says about a day, in the colour of waiting: a
+ * warning and never a stop, as the rule package has it (#76).
+ */
+function Warnings({ warnings }: { readonly warnings: readonly { kind: string; text: string }[] }) {
+  if (warnings.length === 0) {
+    return null
+  }
+
+  return (
+    <ul className="flex flex-col gap-1 font-semibold text-waiting">
+      {warnings.map((warning) => (
+        <li key={warning.kind}>{warning.text}</li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * "Einträge": every entry of the week as written, the ones replaced and taken
+ * back included, as the board lists them. What counts is marked; what does not
+ * stands in the faint colour and says why, so the office can read the history
+ * the law keeps for two years.
  */
 function EntryTable({
   entries,
@@ -263,69 +300,107 @@ function EntryTable({
     return by
   }, [all])
 
+  const rows = entries.map((entry) => {
+    const id = String(entry['id'])
+    const job = jobs.find((candidate) => String(candidate['id']) === maybeText(entry, 'jobId'))
+    const start = text(entry, 'startedAt')
+    const end = text(entry, 'endedAt')
+    const later = replacedBy.get(id)
+    const state =
+      entry['withdrawn'] === true
+        ? `Streicht einen Eintrag. Grund: ${text(entry, 'note')}`
+        : later
+          ? later['withdrawn'] === true
+            ? 'Gestrichen'
+            : `Korrigiert auf ${date(berlinDay(text(later, 'startedAt')))}, ${clockOf(text(later, 'startedAt'))} bis ${clockOf(text(later, 'endedAt'))}`
+          : maybeText(entry, 'correctsEntryId')
+            ? `Korrektur. Grund: ${text(entry, 'note')}`
+            : (maybeText(entry, 'note') ?? 'gilt')
+
+    return { id, entry, job, start, end, state, counts: counting.has(id) }
+  })
+
+  const jobLink = (job: RecordState | undefined, counts: boolean) =>
+    job ? (
+      <>
+        {counts ? (
+          <Link
+            to={`/auftraege/${String(job['id'])}`}
+            className="text-copper-text underline underline-offset-2"
+          >
+            {text(job, 'designation')}
+          </Link>
+        ) : (
+          text(job, 'designation')
+        )}
+        {maybeText(job, 'number') ? (
+          <span className="numeric text-ink-faint"> {text(job, 'number')}</span>
+        ) : null}
+      </>
+    ) : (
+      <span className="text-ink-faint">keinem</span>
+    )
+
+  const cards: TableCard[] = rows.map((row) => ({
+    key: row.id,
+    title: (
+      <span className={row.counts ? undefined : 'text-ink-faint'}>
+        {`${date(berlinDay(row.start))}, ${clockOf(row.start)} bis ${clockOf(row.end)}`}
+      </span>
+    ),
+    sub: (
+      <>
+        {`${timeEntryKindLabel[timeEntryKindOf(row.entry)]} · `}
+        {row.job ? text(row.job, 'designation') : 'keinem Auftrag'}
+        {` · ${row.state}`}
+      </>
+    ),
+    right: <span className="numeric">{hoursText(minutesBetween(row.start, row.end))}</span>,
+  }))
+
   return (
-    <Table caption="Einträge der Woche">
+    <TablePanel
+      title="Einträge"
+      caption="Einträge der Woche"
+      cards={cards}
+      cardsEmpty="In dieser Woche ist für diese Person nichts erfasst."
+    >
       <thead>
         <tr>
-          <Column>Tag</Column>
-          <Column>Von</Column>
-          <Column>Bis</Column>
-          <Column>Art</Column>
+          <Column className="w-[96px]">Tag</Column>
+          <Column className="w-[56px]">Von</Column>
+          <Column className="w-[56px]">Bis</Column>
+          <Column className="w-[66px]">Art</Column>
           <Column>Auftrag</Column>
-          <Column numeric>Dauer</Column>
-          <Column>Stand</Column>
+          <Column numeric className="w-[80px]">
+            Dauer
+          </Column>
+          <Column className="w-[250px]">Stand</Column>
         </tr>
       </thead>
       <tbody>
-        {entries.map((entry) => {
-          const id = String(entry['id'])
-          const job = jobs.find(
-            (candidate) => String(candidate['id']) === maybeText(entry, 'jobId'),
-          )
-          const start = text(entry, 'startedAt')
-          const end = text(entry, 'endedAt')
-          const later = replacedBy.get(id)
-          const state =
-            entry['withdrawn'] === true
-              ? `Streicht einen Eintrag. Grund: ${text(entry, 'note')}`
-              : later
-                ? later['withdrawn'] === true
-                  ? 'Gestrichen'
-                  : `Korrigiert auf ${date(berlinDay(text(later, 'startedAt')))}, ${clockOf(text(later, 'startedAt'))} bis ${clockOf(text(later, 'endedAt'))}`
-                : maybeText(entry, 'correctsEntryId')
-                  ? `Korrektur. Grund: ${text(entry, 'note')}`
-                  : (maybeText(entry, 'note') ?? 'gilt')
-
-          return (
-            <tr key={id} className={counting.has(id) ? undefined : 'text-ink-muted'}>
-              <Cell className="whitespace-nowrap">{date(berlinDay(start))}</Cell>
-              <Cell className="whitespace-nowrap">{clockOf(start)}</Cell>
-              <Cell className="whitespace-nowrap">{clockOf(end)}</Cell>
-              <Cell>{timeEntryKindLabel[timeEntryKindOf(entry)]}</Cell>
-              <Cell>
-                {job ? (
-                  <Link
-                    to={`/auftraege/${String(job['id'])}`}
-                    className="text-copper-text underline underline-offset-2"
-                  >
-                    {text(job, 'designation')}
-                  </Link>
-                ) : (
-                  <span className="text-ink-faint">keinem</span>
-                )}
-                {job && maybeText(job, 'number') ? (
-                  <span className="numeric text-ink-muted"> {text(job, 'number')}</span>
-                ) : null}
-              </Cell>
-              <Cell numeric className="whitespace-nowrap">
-                {hoursText(minutesBetween(start, end))}
-              </Cell>
-              <Cell>{state}</Cell>
-            </tr>
-          )
-        })}
+        {rows.length === 0 ? (
+          <tr>
+            <Cell colSpan={7} className="text-ink-muted">
+              In dieser Woche ist für diese Person nichts erfasst.
+            </Cell>
+          </tr>
+        ) : null}
+        {rows.map((row) => (
+          <tr key={row.id} className={row.counts ? undefined : 'text-ink-faint'}>
+            <Cell className="whitespace-nowrap">{date(berlinDay(row.start))}</Cell>
+            <Cell className="whitespace-nowrap">{clockOf(row.start)}</Cell>
+            <Cell className="whitespace-nowrap">{clockOf(row.end)}</Cell>
+            <Cell>{timeEntryKindLabel[timeEntryKindOf(row.entry)]}</Cell>
+            <Cell>{jobLink(row.job, row.counts)}</Cell>
+            <Cell numeric className="whitespace-nowrap">
+              {hoursText(minutesBetween(row.start, row.end))}
+            </Cell>
+            <Cell>{row.state}</Cell>
+          </tr>
+        ))}
       </tbody>
-    </Table>
+    </TablePanel>
   )
 }
 

@@ -1645,11 +1645,19 @@ describe('the text snippets', () => {
     const intro = within(await screen.findByRole('region', { name: 'Texte über den Positionen' }))
     expect(await intro.findByText('Anfrage')).toBeDefined()
 
-    await person.click(screen.getByRole('button', { name: 'Textbaustein anlegen' }))
-    await person.selectOptions(screen.getByLabelText('Wofür'), 'closing')
-    await person.type(screen.getByLabelText('Name'), 'Gruß')
-    await person.type(screen.getByLabelText('Text'), 'Mit freundlichen Grüßen')
-    await person.click(screen.getByRole('button', { name: 'Textbaustein anlegen' }))
+    const start = screen.getByRole('button', { name: 'Textbaustein anlegen' })
+
+    await person.click(start)
+
+    // The head's button waits while the new one is open below it (#223).
+    expect(start.hasAttribute('disabled')).toBe(true)
+
+    const form = within(screen.getByRole('region', { name: 'Neuer Textbaustein' }))
+
+    await person.selectOptions(form.getByLabelText('Wofür'), 'closing')
+    await person.type(form.getByLabelText('Name'), 'Gruß')
+    await person.type(form.getByLabelText('Text'), 'Mit freundlichen Grüßen')
+    await person.click(form.getByRole('button', { name: 'Textbaustein anlegen' }))
 
     await waitFor(() => {
       expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
@@ -1657,6 +1665,25 @@ describe('the text snippets', () => {
         title: 'Gruß',
         text: 'Mit freundlichen Grüßen',
       })
+    })
+  })
+
+  it('asks before one goes, and removes it at the server', async () => {
+    serverSays('DELETE', '/documents/text-snippets/s-1', () => ({ status: 204, body: null }))
+
+    await mount('/textbausteine')
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Anfrage entfernen' }))
+
+    const question = within(screen.getByRole('alertdialog', { name: 'Anfrage entfernen?' }))
+
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
+
+    await person.click(question.getByRole('button', { name: 'Entfernen' }))
+
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === 'DELETE')).toBe(true)
     })
   })
 })
