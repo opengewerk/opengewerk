@@ -31,6 +31,7 @@ export function SignOutButton({
   onSignedOut,
   wide = false,
   row = false,
+  icon = false,
 }: {
   /** The running sync client, when a business is open; its outbox is sent first. */
   readonly client: SyncClient | null
@@ -41,6 +42,8 @@ export function SignOutButton({
    * office header, or `large` in the menu sheet on site, 56 pixels for a thumb.
    */
   readonly row?: boolean | 'large'
+  /** The door in front of the word, as the head of "Konto" has it. */
+  readonly icon?: boolean
 }) {
   const [waiting, setWaiting] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -147,7 +150,13 @@ export function SignOutButton({
           Abmelden
         </button>
       ) : (
-        <Button tone="secondary" wide={wide} disabled={busy} onClick={() => void ask()}>
+        <Button
+          tone="secondary"
+          wide={wide}
+          disabled={busy}
+          {...(icon ? { icon: LogOut } : {})}
+          onClick={() => void ask()}
+        >
           Abmelden
         </Button>
       )}

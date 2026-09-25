@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Key } from 'lucide-react'
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import {
   Button,
-  Card,
   Cell,
   Column,
   Confirm,
   Field,
-  Table,
+  Panel,
+  TablePanel,
+  type TableCard,
   ThemeSwitch,
 } from '../../components/index.js'
 import { deviceName } from '../../app/devices.js'
@@ -28,7 +30,8 @@ import {
 } from '../../session/session.js'
 import { useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { PageHead, Screen } from '../kit.js'
+import { Saved, SettingsText } from '../settings-frame.js'
 
 /**
  * What somebody can look after about their own account: the second factor and
@@ -63,169 +66,210 @@ export function AccountScreen() {
     },
   })
 
+  function signOutButton(sessionId: string, label: string, current: boolean): ReactNode {
+    return (
+      <Button
+        size="small"
+        tone="danger"
+        aria-label={`${label} abmelden`}
+        disabled={current || revoke.isPending}
+        onClick={() => {
+          setTrouble(null)
+          setSigningOut({ sessionId, label })
+        }}
+      >
+        Abmelden
+      </Button>
+    )
+  }
+
+  const cards: readonly TableCard[] = (list.data ?? []).map((entry) => ({
+    key: entry.sessionId,
+    title: <DeviceName userAgent={entry.userAgent} current={entry.current} />,
+    sub: `${moment(entry.signedInAt)} bis ${moment(entry.expiresAt)}`,
+    right: entry.longLived ? 'Baustelle, 30 Tage' : 'Büro, 12 Stunden',
+    actions: signOutButton(entry.sessionId, deviceName(entry.userAgent), entry.current),
+  }))
+
   return (
-    <Page
-      title="Konto"
-      meta={account.data ? `${account.data.name}, ${account.data.email}` : 'Dieses Konto.'}
-      actions={
-        <SignOutButton
-          client={client}
-          onSignedOut={() => {
-            // Reloading afterwards rather than routing: signing out ends with
-            // the sync client stopped and the local store gone, and the
-            // shortest honest way to be sure of that is to start again.
-            globalThis.location.assign('/')
-          }}
-        />
-      }
-    >
+    <Screen>
+      <PageHead
+        title="Konto"
+        sub={account.data ? `${account.data.name}, ${account.data.email}` : 'Dieses Konto.'}
+        actions={
+          <SignOutButton
+            client={client}
+            icon
+            onSignedOut={() => {
+              // Reloading afterwards rather than routing: signing out ends with
+              // the sync client stopped and the local store gone, and the
+              // shortest honest way to be sure of that is to start again.
+              globalThis.location.assign('/')
+            }}
+          />
+        }
+      />
+
       {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
 
-      <Section title="Darstellung">
-        <div className="flex flex-col gap-3">
-          <p className="text-body text-ink-muted">
-            Wie OpenGewerk auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät
-            und vor der Anmeldung.
-          </p>
-          <ThemeSwitch value={theme} onChoose={chooseTheme} className="max-w-72" />
-          <p className="text-table text-ink-muted">
-            Gilt auf diesem Gerät, auch ohne Netz. Auf dem Tablet im Keller lässt sich unabhängig
-            davon dunkel wählen.
-          </p>
-        </div>
-      </Section>
-
-      <Section title="Zweiter Faktor">
-        {account.isPending ? (
-          // Not "Noch nicht eingerichtet" while the answer is on its way: for
-          // a moment that told everybody with a second factor they had none
-          // (#223).
-          <Nothing>Wird geladen.</Nothing>
-        ) : account.data?.twoFactorEnabled ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-body">
-              Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der
-              App.
+      <div className="grid gap-3.5 lg:grid-cols-2">
+        <Panel title="Darstellung" roomy>
+          <div className="flex flex-col gap-2.5">
+            <SettingsText muted>
+              Wie OpenGewerk auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät
+              und vor der Anmeldung.
+            </SettingsText>
+            <ThemeSwitch value={theme} onChoose={chooseTheme} className="max-w-[280px]" />
+            <p className="text-[12px] leading-[1.5] text-ink-muted">
+              Gilt auf diesem Gerät, auch ohne Netz. Auf dem Tablet im Keller lässt sich unabhängig
+              davon dunkel wählen.
             </p>
-            <RecoveryCodes />
           </div>
-        ) : setting ? (
-          <SecondFactorSetup
-            onDone={() => {
-              setSetting(false)
-              // The confirmation swaps the session, so what the application
-              // knows about the account and about the devices is both a step
-              // behind.
-              void queries.invalidateQueries({ queryKey: ['account'] })
-              void queries.invalidateQueries({ queryKey: ['devices'] })
-            }}
-            onCancel={() => {
-              setSetting(false)
-            }}
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            <p className="text-body">
-              Noch nicht eingerichtet. Ein zweiter Faktor macht ein gestohlenes Passwort allein
-              nutzlos. Für die Rolle Inhaber ist er Pflicht, für alle anderen empfohlen.
-            </p>
-            <div>
-              <Button
-                tone="primary"
-                onClick={() => {
-                  setSetting(true)
-                }}
-              >
-                Zweiten Faktor einrichten
-              </Button>
+        </Panel>
+
+        <Panel title="Zweiter Faktor" roomy>
+          {account.isPending ? (
+            // Not "Noch nicht eingerichtet" while the answer is on its way: for
+            // a moment that told everybody with a second factor they had none
+            // (#223).
+            <SettingsText muted>Wird geladen.</SettingsText>
+          ) : account.data?.twoFactorEnabled ? (
+            <div className="flex flex-col gap-2.5">
+              <SettingsText>
+                Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der
+                App.
+              </SettingsText>
+              <RecoveryCodes />
             </div>
-          </div>
-        )}
-      </Section>
+          ) : setting ? (
+            <SecondFactorSetup
+              onDone={() => {
+                setSetting(false)
+                // The confirmation swaps the session, so what the application
+                // knows about the account and about the devices is both a step
+                // behind.
+                void queries.invalidateQueries({ queryKey: ['account'] })
+                void queries.invalidateQueries({ queryKey: ['devices'] })
+              }}
+              onCancel={() => {
+                setSetting(false)
+              }}
+            />
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <SettingsText>
+                Noch nicht eingerichtet. Ein zweiter Faktor macht ein gestohlenes Passwort allein
+                nutzlos. Für die Rolle Inhaber ist er Pflicht, für alle anderen empfohlen.
+              </SettingsText>
+              <div>
+                <Button
+                  tone="primary"
+                  onClick={() => {
+                    setSetting(true)
+                  }}
+                >
+                  Zweiten Faktor einrichten
+                </Button>
+              </div>
+            </div>
+          )}
+        </Panel>
+      </div>
 
-      <Section title="Passwort">
+      <Panel title="Passwort" roomy>
         <PasswordChange
           onChanged={() => {
             // The other devices are signed out, so the list is a step behind.
             void queries.invalidateQueries({ queryKey: ['devices'] })
           }}
         />
-      </Section>
+      </Panel>
 
-      <Section title="Angemeldete Geräte">
-        {list.isPending ? (
-          <Nothing>Wird geladen.</Nothing>
-        ) : list.isError ? (
-          <Nothing>Die Liste kam nicht an.</Nothing>
-        ) : list.data.length === 0 ? (
-          <Nothing>Keine Anmeldung außer dieser.</Nothing>
-        ) : (
-          <Table caption="Geräte, auf denen dieses Konto angemeldet ist">
-            <thead>
-              <tr>
-                <Column>Gerät</Column>
-                <Column>Angemeldet</Column>
-                <Column>Läuft ab</Column>
-                <Column>Art</Column>
-                <Column>
-                  <span className="sr-only">Abmelden</span>
-                </Column>
-              </tr>
-            </thead>
-            <tbody>
-              {list.data.map((entry) => (
-                <tr key={entry.sessionId}>
-                  <Cell>
-                    {deviceName(entry.userAgent)}
-                    {entry.current ? (
-                      <span className="ml-2 font-semibold text-copper-text">dieses Gerät</span>
-                    ) : null}
-                  </Cell>
-                  <Cell>{moment(entry.signedInAt)}</Cell>
-                  <Cell>{moment(entry.expiresAt)}</Cell>
-                  <Cell>{entry.longLived ? 'Baustelle, 30 Tage' : 'Büro, 12 Stunden'}</Cell>
-                  <Cell>
-                    <Button
-                      tone="danger"
-                      disabled={entry.current || revoke.isPending}
-                      onClick={() => {
-                        setTrouble(null)
-                        setSigningOut({
-                          sessionId: entry.sessionId,
-                          label: deviceName(entry.userAgent),
-                        })
-                      }}
-                    >
-                      Abmelden
-                    </Button>
-                  </Cell>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-        <Confirm
-          open={signingOut !== null}
-          title="Gerät abmelden?"
-          confirm="Abmelden"
-          busy={revoke.isPending}
-          onConfirm={() => {
-            if (signingOut) {
-              revoke.mutate(signingOut.sessionId)
-            }
-          }}
-          onCancel={() => {
-            setSigningOut(null)
-          }}
+      {list.isPending || list.isError || list.data.length === 0 ? (
+        <Panel title="Angemeldete Geräte">
+          <SettingsText muted>
+            {list.isPending
+              ? 'Wird geladen.'
+              : list.isError
+                ? 'Die Liste kam nicht an.'
+                : 'Keine Anmeldung außer dieser.'}
+          </SettingsText>
+        </Panel>
+      ) : (
+        <TablePanel
+          title="Angemeldete Geräte"
+          caption="Geräte, auf denen dieses Konto angemeldet ist"
+          cards={cards}
         >
-          {`${signingOut?.label ?? ''} muss sich danach neu anmelden. Was dort noch nicht übertragen ist, bleibt auf dem Gerät und geht nach der nächsten Anmeldung hinaus.`}
-        </Confirm>
-      </Section>
-    </Page>
+          <thead>
+            <tr>
+              <Column>Gerät</Column>
+              <Column className="w-[150px]">Angemeldet</Column>
+              <Column className="w-[150px]">Läuft ab</Column>
+              <Column className="w-[140px]">Art</Column>
+              <Column numeric className="w-[110px]">
+                <span className="sr-only">Abmelden</span>
+              </Column>
+            </tr>
+          </thead>
+          <tbody>
+            {list.data.map((entry) => (
+              <tr key={entry.sessionId}>
+                <Cell>
+                  <DeviceName userAgent={entry.userAgent} current={entry.current} />
+                </Cell>
+                <Cell className="text-[13px]">{moment(entry.signedInAt)}</Cell>
+                <Cell className="text-[13px]">{moment(entry.expiresAt)}</Cell>
+                <Cell className="text-[13px]">
+                  {entry.longLived ? 'Baustelle, 30 Tage' : 'Büro, 12 Stunden'}
+                </Cell>
+                <Cell numeric>
+                  {signOutButton(entry.sessionId, deviceName(entry.userAgent), entry.current)}
+                </Cell>
+              </tr>
+            ))}
+          </tbody>
+        </TablePanel>
+      )}
+      <Confirm
+        open={signingOut !== null}
+        title="Gerät abmelden?"
+        confirm="Abmelden"
+        busy={revoke.isPending}
+        onConfirm={() => {
+          if (signingOut) {
+            revoke.mutate(signingOut.sessionId)
+          }
+        }}
+        onCancel={() => {
+          setSigningOut(null)
+        }}
+      >
+        {`${signingOut?.label ?? ''} muss sich danach neu anmelden. Was dort noch nicht übertragen ist, bleibt auf dem Gerät und geht nach der nächsten Anmeldung hinaus.`}
+      </Confirm>
+    </Screen>
+  )
+}
+
+/** The device a session runs on, and "dieses Gerät" for the one looking. */
+function DeviceName({
+  userAgent,
+  current,
+}: {
+  readonly userAgent: string | null
+  readonly current: boolean
+}) {
+  return (
+    <>
+      {deviceName(userAgent)}
+      {current ? (
+        <span className="ml-1.5 text-[12px] font-bold text-copper-text">dieses Gerät</span>
+      ) : null}
+    </>
   )
 }
 
@@ -266,9 +310,15 @@ function RecoveryCodes() {
   }
 
   return (
-    <Card label="Wiederherstellungscodes" tone="sunken">
-      <div className="flex flex-col gap-3">
-        <p className="text-body">
+    <section
+      aria-label="Wiederherstellungscodes"
+      className="flex flex-col gap-2.5 rounded-[5px] border border-line bg-surface-sunken px-3 py-2.5"
+    >
+      <h3 className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+        Wiederherstellungscodes
+      </h3>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="min-w-0 grow basis-48 text-[13px] leading-[1.45]">
           {left.data === undefined || left.data === null
             ? 'Die Codes sind der Weg hinein, wenn das Telefon weg ist. Jeder gilt einmal.'
             : left.data === 0
@@ -278,76 +328,76 @@ function RecoveryCodes() {
                 : 'Noch ' +
                   String(left.data) +
                   ' Codes übrig. Die Codes sind der Weg hinein, wenn das Telefon weg ist.'}
-        </p>
-
-        {fresh ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-body font-semibold">
-              Die neuen Codes. Jetzt ausdrucken oder aufschreiben, danach sind sie nicht mehr zu
-              sehen; die alten gelten nicht mehr.
-            </p>
-            <ul className="grid grid-cols-2 gap-2">
-              {fresh.map((code) => (
-                <li key={code} className="text-body font-condensed tracking-wider numeric">
-                  {code}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {asking ? (
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              void make(event)
+        </span>
+        {asking ? null : (
+          <Button
+            size="small"
+            icon={Key}
+            onClick={() => {
+              setAsking(true)
             }}
           >
-            <Field
-              label="Passwort zur Bestätigung"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-              }}
-            />
-            {trouble ? (
-              <p role="alert" className="text-body font-semibold text-conflict">
-                {trouble}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" tone="primary" disabled={working}>
-                {working ? 'Wird erzeugt' : 'Neue Codes erzeugen'}
-              </Button>
-              <Button
-                tone="quiet"
-                onClick={() => {
-                  setAsking(false)
-                  setPassword('')
-                  setTrouble(null)
-                }}
-              >
-                Abbrechen
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div>
-            <Button
-              tone="secondary"
-              onClick={() => {
-                setAsking(true)
-              }}
-            >
-              Neue Wiederherstellungscodes
-            </Button>
-          </div>
+            Neue Codes erzeugen
+          </Button>
         )}
       </div>
-    </Card>
+
+      {fresh ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-[13px] leading-[1.45] font-semibold">
+            Die neuen Codes. Jetzt ausdrucken oder aufschreiben, danach sind sie nicht mehr zu
+            sehen; die alten gelten nicht mehr.
+          </p>
+          <ul className="grid grid-cols-2 gap-2">
+            {fresh.map((code) => (
+              <li key={code} className="numeric font-condensed text-[15px] tracking-wider">
+                {code}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {asking ? (
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(event) => {
+            void make(event)
+          }}
+        >
+          <Field
+            label="Passwort zur Bestätigung"
+            type="password"
+            autoComplete="current-password"
+            required
+            className="sm:max-w-[280px]"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value)
+            }}
+          />
+          {trouble ? (
+            <p role="alert" className="text-[13px] font-semibold text-conflict">
+              {trouble}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" tone="primary" icon={Key} disabled={working}>
+              {working ? 'Wird erzeugt' : 'Neue Codes erzeugen'}
+            </Button>
+            <Button
+              onClick={() => {
+                setAsking(false)
+                setPassword('')
+                setTrouble(null)
+              }}
+            >
+              Abbrechen
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </section>
   )
 }
 
@@ -406,53 +456,53 @@ function PasswordChange({ onChanged }: { readonly onChanged: () => void }) {
 
   return (
     <form
-      className="flex max-w-md flex-col gap-3"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         void submit(event)
       }}
     >
-      <Field
-        label="Bisheriges Passwort"
-        type="password"
-        autoComplete="current-password"
-        required
-        value={current}
-        onChange={(event) => {
-          setCurrent(event.target.value)
-        }}
-      />
-      <Field
-        label="Neues Passwort"
-        type="password"
-        autoComplete="new-password"
-        required
-        value={next}
-        onChange={(event) => {
-          setNext(event.target.value)
-        }}
-      />
-      <Field
-        label="Neues Passwort wiederholen"
-        type="password"
-        autoComplete="new-password"
-        required
-        value={repeated}
-        onChange={(event) => {
-          setRepeated(event.target.value)
-        }}
-      />
-      {said ? (
-        <p
-          role={said.ok ? 'status' : 'alert'}
-          className={said.ok ? 'text-body' : 'text-body font-semibold text-conflict'}
-        >
-          {said.text}
-        </p>
-      ) : null}
-      <div>
-        <Button type="submit" tone="primary" disabled={working}>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Field
+          label="Bisheriges Passwort"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={current}
+          onChange={(event) => {
+            setCurrent(event.target.value)
+          }}
+        />
+        <Field
+          label="Neues Passwort"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={next}
+          onChange={(event) => {
+            setNext(event.target.value)
+          }}
+        />
+        <Field
+          label="Neues Passwort wiederholen"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={repeated}
+          onChange={(event) => {
+            setRepeated(event.target.value)
+          }}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={working}>
           {working ? 'Wird geändert' : 'Passwort ändern'}
         </Button>
+        {said?.ok ? <Saved>{said.text}</Saved> : null}
+        {said && !said.ok ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
+            {said.text}
+          </p>
+        ) : null}
       </div>
     </form>
   )

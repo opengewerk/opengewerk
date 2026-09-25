@@ -7,10 +7,11 @@ import {
   normalizedWording,
 } from '@opengewerk/domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import type { FormEvent } from 'react'
+import { Check as Tick, Pencil, Plus, RotateCcw } from 'lucide-react'
+import { useId, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Card, Field, TextArea } from '../../components/index.js'
+import { Button, Confirm, Field, Panel, TextArea } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { documentKindLabel } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -23,7 +24,7 @@ import {
   updateInstruction,
 } from '../../session/instructions.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 const queryKey = ['instructions']
 
@@ -138,7 +139,7 @@ function Summary({ instruction }: { readonly instruction: InstructionView }) {
   const kinds = documentKinds.filter((kind) => instruction.kinds.includes(kind))
 
   return (
-    <p className="text-table text-ink-muted">
+    <p className="text-[13px] leading-[1.45] text-ink-muted">
       {kinds.length === 0
         ? 'Zu keinem Beleg vorgeschlagen.'
         : `Vorgeschlagen für ${inWords(kinds.map((kind) => documentKindLabel[kind]))}` +
@@ -289,13 +290,10 @@ function InstructionForm({
       <Placeholders />
 
       {leavesModel ? (
-        <div role="note" className="rounded-control border border-conflict p-3 text-body">
-          <p className="font-semibold text-conflict">{changedHeading(template)}</p>
-          <p className="mt-1">{changedWarning[template]}</p>
-          <p className="mt-1 text-table text-ink-muted">
-            Der ursprüngliche Wortlaut lässt sich jederzeit wiederherstellen.
-          </p>
-        </div>
+        <ChangedNote heading={changedHeading(template)}>
+          {changedWarning[template]} Der ursprüngliche Wortlaut lässt sich jederzeit
+          wiederherstellen.
+        </ChangedNote>
       ) : null}
 
       <fieldset className="flex flex-col gap-2">
@@ -348,8 +346,13 @@ function InstructionForm({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="submit"
+          tone={instruction ? 'secondary' : 'primary'}
+          icon={Tick}
+          disabled={working}
+        >
           {working
             ? 'Wird gespeichert'
             : instruction
@@ -358,11 +361,59 @@ function InstructionForm({
                 : 'Speichern'
               : 'Belehrung anlegen'}
         </Button>
-        <Button tone="quiet" disabled={working} onClick={onDone}>
+        <Button disabled={working} onClick={onDone}>
           Abbrechen
         </Button>
       </div>
     </form>
+  )
+}
+
+/**
+ * The card of one instruction, `item()` of the board "Belehrungen": the name
+ * at the size of a heading with its buttons beside it, then where it comes
+ * from, what a change cost, whom it is proposed for, and the wording to open.
+ */
+function InstructionCard({
+  title,
+  actions,
+  children,
+}: {
+  readonly title: string
+  readonly actions: ReactNode
+  readonly children: ReactNode
+}) {
+  const heading = useId()
+
+  return (
+    <section
+      aria-labelledby={heading}
+      className="min-w-0 rounded-[5px] border border-line bg-surface px-3.5 py-3 [--surface-here:var(--color-surface)]"
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <h2 id={heading} className="grow text-[15px] font-semibold [overflow-wrap:anywhere]">
+          {title}
+        </h2>
+        {actions}
+      </div>
+      <div className="flex flex-col gap-2">{children}</div>
+    </section>
+  )
+}
+
+/** What a change to a shipped instruction cost, in a red box as on the board. */
+function ChangedNote({
+  heading,
+  children,
+}: {
+  readonly heading: string
+  readonly children: ReactNode
+}) {
+  return (
+    <div role="note" className="rounded-[5px] border border-conflict bg-conflict-fill px-3 py-2.5">
+      <p className="text-[13px] font-bold text-conflict">{heading}</p>
+      <div className="mt-[3px] text-[13px] leading-[1.45] text-conflict-ink">{children}</div>
+    </div>
   )
 }
 
@@ -409,9 +460,11 @@ function InstructionEntry({
   }
 
   const actions = mayWrite ? (
-    <span className="inline-flex flex-wrap gap-2">
+    <span className="flex flex-wrap gap-1.5">
       {editing ? null : (
         <Button
+          size="small"
+          icon={Pencil}
           onClick={() => {
             setEditing(true)
           }}
@@ -421,7 +474,8 @@ function InstructionEntry({
       )}
       {instruction.changed && !editing ? (
         <Button
-          tone="quiet"
+          size="small"
+          icon={RotateCcw}
           disabled={working}
           onClick={() => void act(() => restoreInstruction(instruction.id))}
         >
@@ -429,94 +483,86 @@ function InstructionEntry({
         </Button>
       ) : null}
       {instruction.template === null && !editing ? (
-        removing ? (
-          <>
-            <Button
-              tone="danger"
-              disabled={working}
-              onClick={() => void act(() => removeInstruction(instruction.id))}
-            >
-              Entfernen
-            </Button>
-            <Button
-              tone="quiet"
-              onClick={() => {
-                setRemoving(false)
-              }}
-            >
-              Behalten
-            </Button>
-          </>
-        ) : (
-          <Button
-            tone="quiet"
-            aria-label={`${instruction.title} entfernen`}
-            onClick={() => {
-              setRemoving(true)
-            }}
-          >
-            Entfernen
-          </Button>
-        )
+        <Button
+          size="small"
+          tone="danger"
+          aria-label={`${instruction.title} entfernen`}
+          onClick={() => {
+            setRemoving(true)
+          }}
+        >
+          Entfernen
+        </Button>
       ) : null}
     </span>
   ) : null
 
   return (
-    <Section title={instruction.title} actions={actions}>
-      <div className="flex flex-col gap-3">
-        <p className="text-table font-semibold text-ink-muted">{origin(instruction)}</p>
+    <InstructionCard title={instruction.title} actions={actions}>
+      <p className="text-[12px] font-semibold text-ink-faint">{origin(instruction)}</p>
 
-        {instruction.changed && instruction.template !== null ? (
-          <div role="note" className="rounded-control border border-conflict p-3 text-body">
-            <p className="font-semibold text-conflict">{changedHeading(instruction.template)}</p>
-            <p className="mt-1">{changedWarning[instruction.template]}</p>
-          </div>
-        ) : null}
+      {instruction.changed && instruction.template !== null ? (
+        <ChangedNote heading={changedHeading(instruction.template)}>
+          {changedWarning[instruction.template]}
+        </ChangedNote>
+      ) : null}
 
-        {instruction.newerModel ? (
-          <p role="note" className="text-body font-semibold">
-            Seit dieser Änderung ist eine neue Fassung {versionOf(instruction.template)} erschienen,
-            gültig ab {date(instruction.newerModel.validFrom)}. Die geänderte Fassung wurde dabei
-            nicht angepasst; mit „Original wiederherstellen“ gilt wieder{' '}
-            {isStatutory(instruction.template) ? 'das Muster' : 'die mitgelieferte Fassung'}.
-          </p>
-        ) : null}
+      {instruction.newerModel ? (
+        <p role="note" className="text-[13px] leading-[1.45] font-semibold">
+          Seit dieser Änderung ist eine neue Fassung {versionOf(instruction.template)} erschienen,
+          gültig ab {date(instruction.newerModel.validFrom)}. Die geänderte Fassung wurde dabei
+          nicht angepasst; mit „Original wiederherstellen“ gilt wieder{' '}
+          {isStatutory(instruction.template) ? 'das Muster' : 'die mitgelieferte Fassung'}.
+        </p>
+      ) : null}
 
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+      {trouble ? (
+        <p role="alert" className="text-body font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
 
-        {editing ? (
-          <InstructionForm
-            instruction={instruction}
-            onDone={() => {
-              setEditing(false)
-            }}
-          />
-        ) : (
-          <>
-            <Summary instruction={instruction} />
-            <details>
-              <summary className="cursor-pointer text-body font-semibold">Wortlaut</summary>
-              <div className="mt-3 flex flex-col gap-3">
-                <InstructionText text={instruction.body} />
-                {instruction.model ? (
-                  <p className="text-table text-ink-muted">
-                    {isStatutory(instruction.template)
-                      ? 'Fundstelle des Musters'
-                      : 'Rechtsgrundlage'}
-                    : {instruction.model.source}
-                  </p>
-                ) : null}
-              </div>
-            </details>
-          </>
-        )}
-      </div>
-    </Section>
+      {editing ? (
+        <InstructionForm
+          instruction={instruction}
+          onDone={() => {
+            setEditing(false)
+          }}
+        />
+      ) : (
+        <>
+          <Summary instruction={instruction} />
+          <details className="border-t border-row pt-2">
+            <summary className="cursor-pointer text-[13px] font-semibold text-copper-text">
+              Wortlaut
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              <InstructionText text={instruction.body} />
+              {instruction.model ? (
+                <p className="text-table text-ink-muted">
+                  {isStatutory(instruction.template) ? 'Fundstelle des Musters' : 'Rechtsgrundlage'}
+                  : {instruction.model.source}
+                </p>
+              ) : null}
+            </div>
+          </details>
+        </>
+      )}
+
+      <Confirm
+        open={removing}
+        title={`${instruction.title} entfernen?`}
+        confirm="Entfernen"
+        busy={working}
+        onConfirm={() => void act(() => removeInstruction(instruction.id))}
+        onCancel={() => {
+          setRemoving(false)
+        }}
+      >
+        Die Belehrung wird keinem Beleg mehr vorgeschlagen. Belege, mit denen sie schon
+        hinausgegangen ist, behalten ihren Wortlaut.
+      </Confirm>
+    </InstructionCard>
   )
 }
 
@@ -539,13 +585,16 @@ export function InstructionsScreen() {
   const [adding, setAdding] = useState(false)
 
   return (
-    <Page
+    <SettingsPage
+      active="belehrungen"
       title="Belehrungen"
-      meta="Was Kunden mit einem Beleg bekommen, allen voran die Widerrufsbelehrung."
+      sub="Was Kunden mit einem Beleg bekommen, allen voran die Widerrufsbelehrung."
       actions={
-        mayWrite && !adding ? (
+        mayWrite ? (
           <Button
             tone="primary"
+            icon={Plus}
+            disabled={adding}
             onClick={() => {
               setAdding(true)
             }}
@@ -555,32 +604,34 @@ export function InstructionsScreen() {
         ) : null
       }
     >
-      <p className="text-body text-ink-muted">
+      <SettingsText muted>
         Eine Belehrung wird zu den Belegen vorgeschlagen, die hier angehakt sind, und lässt sich am
         Beleg ein- und ausschalten. Mit dem Festschreiben wird ihr Wortlaut mit dem Beleg
         festgehalten; eine spätere Änderung hier betrifft nur Belege, die danach festgeschrieben
         werden.
-      </p>
+      </SettingsText>
 
       {adding ? (
-        <Card label="Neue Belehrung">
+        <Panel title="Neue Belehrung" roomy>
           <InstructionForm
             onDone={() => {
               setAdding(false)
             }}
           />
-        </Card>
+        </Panel>
       ) : null}
 
       {listed.isPending ? (
-        <Nothing>Wird geladen.</Nothing>
+        <SettingsText muted>Wird geladen.</SettingsText>
       ) : listed.isError ? (
-        <Nothing>{saidWhy(listed.error, 'Die Belehrungen kamen nicht an.')}</Nothing>
+        <SettingsText muted>
+          {saidWhy(listed.error, 'Die Belehrungen kamen nicht an.')}
+        </SettingsText>
       ) : (
         listed.data.map((instruction) => (
           <InstructionEntry key={instruction.id} instruction={instruction} mayWrite={mayWrite} />
         ))
       )}
-    </Page>
+    </SettingsPage>
   )
 }

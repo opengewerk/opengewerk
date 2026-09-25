@@ -7,12 +7,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
-import { Button, Field, TextArea } from '../../components/index.js'
+import { Button, Field, Panel, TextArea } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { Saved, SettingsPage, SettingsState, SettingsText } from '../settings-frame.js'
 
 /** The claim of section 27 (38) number 2 UStG, the transition of 2027. */
 const transitionKey = 'e_invoice.transition_claimed'
@@ -203,21 +203,27 @@ export function TaxScreen() {
     history.data?.filter((period) => period.key === key) ?? []
 
   return (
-    <Page title="Steuern" meta="Was der Betrieb über seine eigene Besteuerung erklärt.">
-      <p className="text-body text-ink-muted">
+    <SettingsPage
+      active="steuern"
+      title="Steuern"
+      sub="Was der Betrieb über seine eigene Besteuerung erklärt."
+    >
+      <SettingsText muted>
         Hier steht, was OpenGewerk nicht aus den Belegen wissen kann und der Betrieb deshalb selbst
         erklärt. Jede Erklärung gilt ab einem Tag. Was davor galt, bleibt für die Belege aus dieser
         Zeit stehen.
-      </p>
+      </SettingsText>
 
       {history.isPending ? (
-        <Nothing>Wird geladen.</Nothing>
+        <SettingsText muted>Wird geladen.</SettingsText>
       ) : history.isError ? (
-        <Nothing>{saidWhy(history.error, 'Die Erklärungen kamen nicht an.')}</Nothing>
+        <SettingsText muted>
+          {saidWhy(history.error, 'Die Erklärungen kamen nicht an.')}
+        </SettingsText>
       ) : (
         <>
           {mayWrite ? null : (
-            <p className="text-body font-semibold">Erklären kann das nur der Inhaber.</p>
+            <p className="text-[14px] font-semibold">Erklären kann das nur der Inhaber.</p>
           )}
           <SmallBusinessSection periods={of('small_business.claimed')} mayWrite={mayWrite} />
           <CashAccountingSection periods={of('cash_accounting.permitted')} mayWrite={mayWrite} />
@@ -231,7 +237,7 @@ export function TaxScreen() {
           ))}
         </>
       )}
-    </Page>
+    </SettingsPage>
   )
 }
 
@@ -251,13 +257,13 @@ export function History({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-body font-semibold text-ink">Verlauf</p>
-      <ul className="list-disc pl-6 text-body text-ink">
+    <div>
+      <p className="mb-[3px] text-[13px] font-semibold text-ink">Verlauf</p>
+      <ul className="list-disc pl-[18px] text-[13px] leading-[1.5] text-ink-muted">
         {[...periods]
           .sort((left, right) => left.validFrom.localeCompare(right.validFrom))
           .map((period) => (
-            <li key={period.id}>
+            <li key={period.id} className="py-0.5">
               Ab {date(period.validFrom)}: {period.value === 1 ? stated : notStated}
               {period.note ? `. Grundlage: ${period.note}` : ''}
             </li>
@@ -337,7 +343,7 @@ function PeriodForm({
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-[11px]"
       onSubmit={(event) => {
         event.preventDefault()
 
@@ -346,44 +352,39 @@ function PeriodForm({
         }
       }}
     >
-      <Field
-        label={dateLabel}
-        type="date"
-        value={from}
-        min={earliest ?? undefined}
-        hint={dateHint}
-        problem={problem ?? undefined}
-        onChange={(event) => {
-          setSaved(false)
-          setPicked(event.target.value)
-        }}
-      />
-      {stated ? null : (
-        <TextArea
-          label={noteLabel}
-          hint={noteHint}
-          rows={2}
-          value={note}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label={dateLabel}
+          type="date"
+          value={from}
+          min={earliest ?? undefined}
+          hint={dateHint}
+          problem={problem ?? undefined}
           onChange={(event) => {
             setSaved(false)
-            setNote(event.target.value)
+            setPicked(event.target.value)
           }}
         />
-      )}
-      <div>
-        <Button
-          type="submit"
-          tone={stated ? 'secondary' : 'primary'}
-          disabled={change.isPending || problem !== null}
-        >
+        {stated ? null : (
+          <TextArea
+            label={noteLabel}
+            hint={noteHint}
+            value={note}
+            onChange={(event) => {
+              setSaved(false)
+              setNote(event.target.value)
+            }}
+          />
+        )}
+      </div>
+      {/* A plain button, as on the board: a statement is one of three on the
+          screen, and none of them is the one thing it is for (#223). */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={change.isPending || problem !== null}>
           {change.isPending ? 'Einen Moment' : button}
         </Button>
+        {saved ? <Saved /> : null}
       </div>
-      {saved ? (
-        <p role="status" className="text-body text-ink-muted">
-          Gespeichert.
-        </p>
-      ) : null}
       {trouble ? (
         <p role="alert" className="text-body font-semibold text-conflict">
           {trouble}
@@ -417,23 +418,23 @@ function SmallBusinessSection({
   const stated = standing?.value === 1
 
   return (
-    <Section title="Kleinunternehmerregelung">
-      <div className="flex flex-col gap-3">
+    <Panel title="Kleinunternehmerregelung" roomy>
+      <div className="flex flex-col gap-[11px]">
         {previous && current ? (
-          <p className="text-body text-ink">
+          <SettingsText>
             Die Umsätze eines Kleinunternehmers sind steuerfrei, wenn sein Gesamtumsatz im
             vergangenen Jahr nicht über {wholeEuros(previous.cents)} lag und im laufenden Jahr{' '}
             {wholeEuros(current.cents)} nicht überschreitet ({previous.source}). Den Umsatz kennt
             OpenGewerk nicht, deshalb erklärt der Betrieb hier, ob er die Regelung nutzt.
-          </p>
+          </SettingsText>
         ) : null}
-        <p className="text-body text-ink">
+        <SettingsText muted>
           Mit der Erklärung schlägt OpenGewerk neue Belege ohne Umsatzsteuer vor, mit dem Hinweis
           auf die Steuerbefreiung, und eine Rechnung muss keine E-Rechnung sein. Am Entwurf lässt
           sich das ändern, und was schon festgeschrieben ist, bleibt, wie es ist.
-        </p>
+        </SettingsText>
 
-        <p className="text-body font-semibold">
+        <SettingsState>
           {standing === null
             ? 'Nicht erklärt: neue Belege werden mit Umsatzsteuer vorgeschlagen.'
             : stated
@@ -441,7 +442,7 @@ function SmallBusinessSection({
                 'Umsatzsteuer vorgeschlagen.'
               : `Beendet ab dem ${date(standing.validFrom)}: Belege von diesem Tag an werden ` +
                 'mit Umsatzsteuer vorgeschlagen.'}
-        </p>
+        </SettingsState>
 
         <History periods={periods} stated="Kleinunternehmerregelung" notStated="Regelbesteuerung" />
 
@@ -470,7 +471,7 @@ function SmallBusinessSection({
           />
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }
 
@@ -497,9 +498,9 @@ function CashAccountingSection({
   const stated = standing?.value === 1
 
   return (
-    <Section title="Ist-Versteuerung">
-      <div className="flex flex-col gap-3">
-        <p className="text-body text-ink">
+    <Panel title="Ist-Versteuerung" roomy>
+      <div className="flex flex-col gap-[11px]">
+        <SettingsText>
           Üblich ist die Soll-Versteuerung: die Umsatzsteuer gehört in die Voranmeldung für den
           Zeitraum, in dem die Leistung ausgeführt wurde, auch wenn der Kunde noch nicht gezahlt
           hat. Bei der Ist-Versteuerung zählt der Zeitraum, in dem das Geld eingeht.
@@ -509,18 +510,18 @@ function CashAccountingSection({
               `(${limit.source}).`
             : ' Das Finanzamt gestattet sie auf Antrag (§ 20 UStG).'}{' '}
           Ob es das getan hat, weiß OpenGewerk nicht, deshalb erklärt der Betrieb es hier.
-        </p>
+        </SettingsText>
         {statementFrom ? (
-          <p className="text-body text-ink">
+          <SettingsText muted>
             Mit der Erklärung trägt jede Rechnung mit ausgewiesener Umsatzsteuer ab dem{' '}
             {date(statementFrom)} die Angabe „Versteuerung nach vereinnahmten Entgelten“, die das
             Gesetz von da an verlangt (§ 14 Abs. 4 Satz 1 Nr. 6a UStG). Die Voranmeldung selbst, für
             die der Unterschied eigentlich zählt, kommt mit der Buchhaltung und liest dieselbe
             Erklärung.
-          </p>
+          </SettingsText>
         ) : null}
 
-        <p className="text-body font-semibold">
+        <SettingsState>
           {standing === null
             ? 'Nicht erklärt: der Betrieb versteuert nach vereinbarten Entgelten ' +
               '(Soll-Versteuerung).'
@@ -528,7 +529,7 @@ function CashAccountingSection({
               ? `Erklärt ab dem ${date(standing.validFrom)}: das Finanzamt hat die ` +
                 'Ist-Versteuerung gestattet.'
               : `Soll-Versteuerung ab dem ${date(standing.validFrom)}.`}
-        </p>
+        </SettingsState>
 
         <History periods={periods} stated="Ist-Versteuerung" notStated="Soll-Versteuerung" />
 
@@ -557,7 +558,7 @@ function CashAccountingSection({
           />
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }
 
@@ -608,24 +609,24 @@ function TransitionSection({
   })
 
   return (
-    <Section title={`E-Rechnung für Leistungen aus ${year}`}>
-      <div className="flex flex-col gap-3">
-        <p className="text-body text-ink">
+    <Panel title={`E-Rechnung für Leistungen aus ${year}`} roomy>
+      <div className="flex flex-col gap-[11px]">
+        <SettingsText>
           Für eine Leistung aus {year} darf eine Rechnung an ein Unternehmen im Inland noch auf
           Papier oder, wenn der Kunde zustimmt, als PDF gehen. Dafür muss sie bis zum{' '}
           {date(transition.until)} übermittelt werden, und der Gesamtumsatz des Betriebs darf{' '}
           {yearBefore} nicht über {wholeEuros(transition.limitCents)} gelegen haben (
           {transition.source}). Den Umsatz kennt OpenGewerk nicht, deshalb erklärt ihn der Betrieb
           hier.
-        </p>
-        <p className="text-body text-ink">
+        </SettingsText>
+        <SettingsText muted>
           Ohne Erklärung gilt die Pflicht: eine Rechnung an ein Unternehmen, der für die E-Rechnung
           eine Angabe fehlt, wird nicht festgeschrieben. Mit Erklärung wird sie trotzdem
           festgeschrieben und geht auf Papier oder, wenn der Kunde zustimmt, als PDF hinaus. Fehlt
           nichts, bekommt der Kunde die E-Rechnung so oder so.
-        </p>
+        </SettingsText>
 
-        <p className="text-body font-semibold">
+        <SettingsState>
           {over
             ? `Der Übergang endete am ${date(transition.until)}. ${
                 claimed ? 'Zuletzt war er erklärt.' : 'Zuletzt war er nicht erklärt.'
@@ -637,53 +638,46 @@ function TransitionSection({
                   `nicht über ${wholeEuros(transition.limitCents)}.`
                 : `Zurückgenommen ab dem ${date(standing.validFrom)}: für Leistungen ab diesem ` +
                   'Tag gilt die Pflicht zur E-Rechnung.'}
-        </p>
+        </SettingsState>
 
         <History periods={periods} stated="erklärt" notStated="nicht erklärt" />
 
         {mayWrite && !over ? (
           <form
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-[11px]"
             onSubmit={(event) => {
               event.preventDefault()
               change.mutate()
             }}
           >
             {claimed ? null : (
-              <TextArea
-                label="Grundlage der Erklärung"
-                hint={`Freiwillig, etwa der Gesamtumsatz ${yearBefore} laut Buchhaltung. Steht mit im Verlauf.`}
-                rows={2}
-                value={note}
-                onChange={(event) => {
-                  setSaved(false)
-                  setNote(event.target.value)
-                }}
-              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TextArea
+                  label="Grundlage der Erklärung"
+                  hint={`Freiwillig, etwa der Gesamtumsatz ${yearBefore} laut Buchhaltung. Steht mit im Verlauf.`}
+                  value={note}
+                  onChange={(event) => {
+                    setSaved(false)
+                    setNote(event.target.value)
+                  }}
+                />
+              </div>
             )}
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="submit"
-                tone={claimed ? 'secondary' : 'primary'}
-                disabled={change.isPending}
-              >
+              <Button type="submit" disabled={change.isPending}>
                 {change.isPending
                   ? 'Einen Moment'
                   : claimed
                     ? 'Erklärung zurücknehmen'
                     : 'Übergang erklären'}
               </Button>
-              <p className="text-body text-ink-muted">
+              <p className="text-[13px] text-ink-muted">
                 {claimed
                   ? `Für Leistungen ab dem ${date(start)} gilt dann wieder die Pflicht.`
                   : `Die Erklärung gilt für Leistungen ab dem ${date(start)}.`}
               </p>
+              {saved ? <Saved /> : null}
             </div>
-            {saved ? (
-              <p role="status" className="text-body text-ink-muted">
-                Gespeichert.
-              </p>
-            ) : null}
           </form>
         ) : null}
 
@@ -693,6 +687,6 @@ function TransitionSection({
           </p>
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }

@@ -11,13 +11,15 @@ import {
   reportFieldsProblems,
 } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import clsx from 'clsx'
+import { ArrowDown, ArrowUp, Check, Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Confirm, Field, SelectField, TextArea } from '../../components/index.js'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { currentReportFields, saveReportFields } from '../../session/report-fields.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { Saved, SettingsPage, SettingsText } from '../settings-frame.js'
 
 const kindLabel: Readonly<Record<ReportFieldKind, string>> = {
   text: 'Text',
@@ -66,6 +68,18 @@ function optionsFrom(typed: string): { value: string; label: string }[] {
     .map((line) => ({ value: line, label: line }))
 }
 
+/**
+ * The columns of a field on the board "Felder des Regieberichts": a choice
+ * has its options beside the kind, a number its unit and places, a text
+ * leaves the third column empty.
+ */
+const columnsOf: Readonly<Record<ReportFieldKind, string>> = {
+  text: 'lg:grid-cols-3',
+  yes_no: 'lg:grid-cols-3',
+  number: 'lg:grid-cols-4',
+  choice: 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)]',
+}
+
 /** What a field is, in a line: "Zahl mit Einheit, km". */
 function describe(field: ReportField): string {
   switch (field.kind) {
@@ -92,18 +106,19 @@ export function ReportFieldsScreen() {
   const mayWrite = useMay('settings.write')
 
   return (
-    <Page
+    <SettingsPage
+      active="regiebericht"
       title="Felder des Regieberichts"
-      meta="Was ein Bericht neben Arbeitszeit und Material festhält."
+      sub="Was ein Bericht neben Arbeitszeit und Material festhält."
     >
       {current.isPending ? (
-        <Nothing>Wird geladen.</Nothing>
+        <SettingsText muted>Wird geladen.</SettingsText>
       ) : current.isError ? (
-        <Nothing>{saidWhy(current.error, 'Die Felder kamen nicht an.')}</Nothing>
+        <SettingsText muted>{saidWhy(current.error, 'Die Felder kamen nicht an.')}</SettingsText>
       ) : (
         <FieldsSection definition={current.data} mayWrite={mayWrite} />
       )}
-    </Page>
+    </SettingsPage>
   )
 }
 
@@ -176,31 +191,33 @@ function FieldsSection({
   }
 
   return (
-    <Section title={definition ? `Fassung ${String(definition.version)}` : 'Noch keine Felder'}>
-      <div className="flex flex-col gap-4">
-        <p className="text-body text-ink">
+    <Panel title={definition ? `Fassung ${String(definition.version)}` : 'Noch keine Felder'} roomy>
+      <div className="flex flex-col gap-3">
+        <SettingsText>
           Jeder Regiebericht bekommt diese Felder. Ausgefüllt werden sie auf der Baustelle, auch
           ohne Netz, und der Kunde unterschreibt sie mit dem Bericht. Eine Änderung gilt für
           Berichte, die danach angelegt werden; ein älterer behält die Felder, mit denen er angelegt
           wurde.
-        </p>
+        </SettingsText>
 
         {!mayWrite ? (
           fields.length === 0 ? (
-            <Nothing>Der Betrieb hat seinen Berichten keine eigenen Felder gegeben.</Nothing>
+            <SettingsText muted>
+              Der Betrieb hat seinen Berichten keine eigenen Felder gegeben.
+            </SettingsText>
           ) : (
             <ul className="flex flex-col gap-2">
               {fields.map((field) => (
                 <li key={field.key} className="flex flex-col">
-                  <span className="text-body font-semibold">{field.label}</span>
-                  <span className="text-table text-ink-muted">{describe(field)}</span>
+                  <span className="text-[14px] font-semibold">{field.label}</span>
+                  <span className="text-[13px] text-ink-muted">{describe(field)}</span>
                 </li>
               ))}
             </ul>
           )
         ) : (
           <form
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-3"
             onSubmit={(event) => {
               event.preventDefault()
 
@@ -212,10 +229,12 @@ function FieldsSection({
             {fields.map((field, index) => (
               <fieldset
                 key={field.key}
-                className="flex flex-col gap-3 rounded-control border border-line p-4"
+                className="m-0 min-w-0 rounded-[5px] border border-line bg-ground px-3.5 pt-2 pb-3"
               >
-                <legend className="px-1 text-table text-ink-muted">{`Feld ${String(index + 1)}`}</legend>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <legend className="px-1.5 font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+                  {`Feld ${String(index + 1)}`}
+                </legend>
+                <div className={clsx('grid gap-3 sm:grid-cols-2', columnsOf[field.kind])}>
                   <Field
                     label="Beschriftung"
                     value={field.label}
@@ -260,22 +279,25 @@ function FieldsSection({
                       />
                     </>
                   ) : null}
+                  {field.kind === 'choice' ? (
+                    <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                      <TextArea
+                        label="Möglichkeiten"
+                        hint="Eine je Zeile, mindestens zwei."
+                        rows={3}
+                        value={options[field.key] ?? ''}
+                        onChange={(event) => {
+                          setSaved(null)
+                          setOptions((all) => ({ ...all, [field.key]: event.target.value }))
+                        }}
+                      />
+                    </div>
+                  ) : null}
                 </div>
-                {field.kind === 'choice' ? (
-                  <TextArea
-                    label="Möglichkeiten"
-                    hint="Eine je Zeile, mindestens zwei."
-                    rows={3}
-                    value={options[field.key] ?? ''}
-                    onChange={(event) => {
-                      setSaved(null)
-                      setOptions((all) => ({ ...all, [field.key]: event.target.value }))
-                    }}
-                  />
-                ) : null}
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
                   <Button
-                    tone="quiet"
+                    size="small"
+                    icon={ArrowUp}
                     disabled={index === 0}
                     onClick={() => {
                       move(index, -1)
@@ -284,7 +306,8 @@ function FieldsSection({
                     Nach oben
                   </Button>
                   <Button
-                    tone="quiet"
+                    size="small"
+                    icon={ArrowDown}
                     disabled={index === fields.length - 1}
                     onClick={() => {
                       move(index, 1)
@@ -293,7 +316,7 @@ function FieldsSection({
                     Nach unten
                   </Button>
                   <Button
-                    tone="quiet"
+                    size="small"
                     onClick={() => {
                       setRemoving(field)
                     }}
@@ -325,12 +348,12 @@ function FieldsSection({
             </Confirm>
 
             {problem !== undefined && fields.length > 0 ? (
-              <p className="text-body font-semibold text-conflict">{problem}</p>
+              <p className="text-[13px] font-semibold text-conflict">{problem}</p>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2.5">
               <Button
-                tone="secondary"
+                icon={Plus}
                 disabled={fields.length >= mostReportFields}
                 onClick={() => {
                   setSaved(null)
@@ -345,25 +368,26 @@ function FieldsSection({
               <Button
                 type="submit"
                 tone="primary"
+                icon={Check}
                 disabled={save.isPending || problem !== undefined}
               >
                 {save.isPending ? 'Einen Moment' : 'Speichern'}
               </Button>
+              {saved !== null ? (
+                <Saved>
+                  {`Gespeichert als Fassung ${String(saved)}. Berichte, die schon angelegt sind, behalten ihre Felder.`}
+                </Saved>
+              ) : null}
             </div>
           </form>
         )}
 
-        {saved !== null ? (
-          <p role="status" className="text-body text-ink-muted">
-            {`Gespeichert als Fassung ${String(saved)}. Berichte, die schon angelegt sind, behalten ihre Felder.`}
-          </p>
-        ) : null}
         {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
             {trouble}
           </p>
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }

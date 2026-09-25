@@ -5,6 +5,7 @@ import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InRouter } from '../../app/in-router.js'
 import { NumberRangesScreen } from './number-ranges.js'
 
 /**
@@ -28,7 +29,12 @@ function serverSays(method: string, path: string, body: unknown, status = 200): 
 function inQueries(node: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-  return <QueryClientProvider client={client}>{node}</QueryClientProvider>
+  // In a router, for the links at the side of every settings screen (#219).
+  return (
+    <QueryClientProvider client={client}>
+      <InRouter>{node}</InRouter>
+    </QueryClientProvider>
+  )
 }
 
 function signedInAs(...roles: RoleKey[]) {
@@ -50,8 +56,9 @@ const quotes = { key: 'quote', pattern: 'AN-{year}-{number:4}', nextValue: 1, ne
 
 const jobs = { key: 'job', pattern: 'AU-{year}-{number:4}', nextValue: 3, next: 'AU-2026-0003' }
 
-function section(name: string): HTMLElement {
-  return screen.getByRole('region', { name })
+/** The row of one sequence in the table of the board "Nummernkreise" (#219). */
+function row(name: string): HTMLElement {
+  return screen.getByRole('row', { name })
 }
 
 beforeEach(() => {
@@ -91,24 +98,26 @@ describe('the number ranges', () => {
     signedInAs('office')
     render(inQueries(<NumberRangesScreen />))
 
-    const jobSection = await screen.findByRole('region', { name: 'Aufträge' })
+    const jobRow = await screen.findByRole('row', { name: 'Aufträge' })
 
-    expect(jobSection.textContent).toContain('der nächste Auftrag heißt AU-2026-0003')
-    expect(jobSection.textContent).toContain('beim Anlegen')
+    expect(jobRow.textContent).toContain('AU-2026-0003')
+    expect(jobRow.textContent).toContain('beim Anlegen')
   })
 
   it('show the office each pattern and the next number, with nothing to change', async () => {
     signedInAs('office')
     render(inQueries(<NumberRangesScreen />))
 
-    const invoiceSection = await screen.findByRole('region', { name: 'Rechnungen' })
+    const invoiceRow = await screen.findByRole('row', { name: 'Rechnungen' })
 
-    expect(invoiceSection.textContent).toContain('der nächste Beleg heißt RE-2026-0014')
-    expect(invoiceSection.textContent).toContain('lückenlos')
+    expect(invoiceRow.textContent).toContain('RE-{year}-{number:4}')
+    expect(invoiceRow.textContent).toContain('RE-2026-0014')
+    expect(invoiceRow.textContent).toContain('lückenlos')
 
     await waitFor(() => {
-      expect(within(invoiceSection).queryByRole('button')).toBeNull()
+      expect(within(invoiceRow).queryByRole('button')).toBeNull()
     })
+    expect(within(invoiceRow).queryByRole('textbox')).toBeNull()
   })
 
   it('show the owner the next number while the pattern is typed', async () => {
@@ -117,13 +126,13 @@ describe('the number ranges', () => {
 
     const person = userEvent.setup()
     const pattern = await within(
-      await screen.findByRole('region', { name: 'Rechnungen' }),
-    ).findByLabelText('Muster')
+      await screen.findByRole('row', { name: 'Rechnungen' }),
+    ).findByLabelText('Muster der Rechnungen')
 
     await person.clear(pattern)
     await person.type(pattern, 'R-{{number:5}')
 
-    expect(section('Rechnungen').textContent).toContain('Der nächste Beleg heißt R-00014.')
+    expect(row('Rechnungen').textContent).toContain('R-00014')
   })
 
   it('say what is wrong with a pattern, and save none', async () => {
@@ -131,15 +140,15 @@ describe('the number ranges', () => {
     render(inQueries(<NumberRangesScreen />))
 
     const person = userEvent.setup()
-    const quoteSection = await screen.findByRole('region', { name: 'Angebote' })
-    const pattern = await within(quoteSection).findByLabelText('Muster')
+    const quoteRow = await screen.findByRole('row', { name: 'Angebote' })
+    const pattern = await within(quoteRow).findByLabelText('Muster der Angebote')
 
     await person.clear(pattern)
     await person.type(pattern, 'AN-{{year}')
 
-    expect(within(quoteSection).getByText(/Es fehlt \{number\}/)).toBeTruthy()
+    expect(within(quoteRow).getByText(/Es fehlt \{number\}/)).toBeTruthy()
     expect(
-      (within(quoteSection).getByRole('button', { name: 'Speichern' }) as HTMLButtonElement)
+      (within(quoteRow).getByRole('button', { name: 'Angebote speichern' }) as HTMLButtonElement)
         .disabled,
     ).toBe(true)
   })
@@ -154,12 +163,21 @@ describe('the number ranges', () => {
     render(inQueries(<NumberRangesScreen />))
 
     const person = userEvent.setup()
-    const invoiceSection = await screen.findByRole('region', { name: 'Rechnungen' })
-    const pattern = await within(invoiceSection).findByLabelText('Muster')
+    const invoiceRow = await screen.findByRole('row', { name: 'Rechnungen' })
+    const pattern = await within(invoiceRow).findByLabelText('Muster der Rechnungen')
+
+    // Nothing changed, nothing to save: the button waits (#223).
+    expect(
+      (
+        within(invoiceRow).getByRole('button', {
+          name: 'Rechnungen speichern',
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true)
 
     await person.clear(pattern)
     await person.type(pattern, 'RE-{{year}-{{number:5}')
-    await person.click(within(invoiceSection).getByRole('button', { name: 'Speichern' }))
+    await person.click(within(invoiceRow).getByRole('button', { name: 'Rechnungen speichern' }))
 
     await waitFor(() => {
       expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
@@ -170,11 +188,11 @@ describe('the number ranges', () => {
       await screen.findByText('Gespeichert. Der nächste Beleg heißt RE-2026-00014.'),
     ).toBeTruthy()
 
-    const next = within(section('Rechnungen')).getByLabelText('Nächste Nummer')
+    const next = within(row('Rechnungen')).getByLabelText('Nächste Nummer der Rechnungen')
 
     await person.clear(next)
     await person.type(next, '9')
 
-    expect(within(section('Rechnungen')).getByText(/kann nur steigen, von 14 an/)).toBeTruthy()
+    expect(within(row('Rechnungen')).getByText(/kann nur steigen, von 14 an/)).toBeTruthy()
   })
 })

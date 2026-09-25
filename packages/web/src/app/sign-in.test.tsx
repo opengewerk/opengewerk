@@ -131,7 +131,9 @@ describe('the recovery codes under "Konto"', () => {
 
     expect(await screen.findByText(/Noch 3 Codes übrig/)).toBeTruthy()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Neue Wiederherstellungscodes' }))
+    // The small button of the board opens the question, and the one under the
+    // password makes the codes (#219).
+    await userEvent.click(screen.getByRole('button', { name: 'Neue Codes erzeugen' }))
     await userEvent.type(screen.getByLabelText('Passwort zur Bestätigung'), 'das-passwort')
     await userEvent.click(screen.getByRole('button', { name: 'Neue Codes erzeugen' }))
 

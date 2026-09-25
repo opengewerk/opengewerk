@@ -1,13 +1,15 @@
 import type { BackupStatus } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Server } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Server, TriangleAlert } from 'lucide-react'
 
 import { moment } from '../../app/format.js'
-import { Strip, stripAction } from '../../components/index.js'
+import { Panel, Strip, stripAction } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { backupStatus } from '../../session/backup.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { FactList, NoteBox } from '../kit.js'
+import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 const sizes = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 })
 
@@ -55,83 +57,96 @@ export function BackupScreen() {
   const status = useQuery(backupQuery)
 
   return (
-    <Page title="Sicherung" meta="Wann diese Instanz zuletzt gesichert wurde.">
-      <Section title="Letzte Sicherung">
+    <SettingsPage
+      active="sicherung"
+      title="Sicherung"
+      sub="Wann diese Instanz zuletzt gesichert wurde."
+    >
+      <Panel title="Letzte Sicherung" roomy>
         {status.isPending ? (
-          <Nothing>Wird geladen.</Nothing>
+          <SettingsText muted>Wird geladen.</SettingsText>
         ) : status.isError ? (
-          <Nothing>Der Stand kam nicht an.</Nothing>
+          <SettingsText muted>Der Stand kam nicht an.</SettingsText>
         ) : (
           <LastBackup status={status.data} />
         )}
-      </Section>
+      </Panel>
 
-      <Section title="Wie gesichert wird">
-        <div className="flex max-w-3xl flex-col gap-3 text-body">
-          <p>
+      <Panel title="Wie gesichert wird" roomy>
+        <div className="flex flex-col gap-2.5">
+          <SettingsText>
             Jede Nacht um 02:30 Uhr sichert die Instanz die Datenbank und den Dateispeicher in ein
             Archiv, und vierzehn Generationen bleiben. War der Rechner zu dieser Zeit aus, holt sie
             die Sicherung nach, sobald er wieder läuft.
-          </p>
-          <p>
+          </SettingsText>
+          <SettingsText muted>
             Eine Sicherung auf derselben Platte wie die Daten übersteht einen Fehler, aber keinen
             Ausfall der Platte. Wer die Instanz betreibt, legt die Archive deshalb auf eine andere
             Maschine, über <code>BACKUP_TARGET</code>; die README beschreibt, wie.
-          </p>
+          </SettingsText>
         </div>
-      </Section>
-    </Page>
+      </Panel>
+    </SettingsPage>
+  )
+}
+
+/** A backup that is behind, in red: something to act on. */
+function Behind({ children }: { readonly children: ReactNode }) {
+  return (
+    <div role="alert">
+      <NoteBox tone="conflict" icon={TriangleAlert}>
+        {children}
+      </NoteBox>
+    </div>
   )
 }
 
 function LastBackup({ status }: { readonly status: BackupStatus }) {
   if (status.state === 'unknown') {
     return (
-      <p className="max-w-3xl text-body">
+      <SettingsText>
         Diese Instanz weiß nichts über Sicherungen. So ist es auf einem Entwicklungsrechner und in
         der Vorschau; eine Installation über Docker Compose sichert jede Nacht und meldet es hier.
-      </p>
+      </SettingsText>
     )
   }
 
   if (status.state === 'none') {
     return status.overdue ? (
-      <p role="alert" className="max-w-3xl text-body font-semibold text-conflict">
+      <Behind>
         Diese Instanz wurde noch nie gesichert. Läuft der Dienst <code>backup-schedule</code>? Was
         er meldet, steht in <code>docker compose logs backup-schedule</code>.
-      </p>
+      </Behind>
     ) : (
-      <p className="max-w-3xl text-body">
+      <SettingsText>
         Noch keine Sicherung. Die erste läuft in der kommenden Nacht um 02:30 Uhr.
-      </p>
+      </SettingsText>
     )
   }
 
   return (
-    <div className="flex max-w-3xl flex-col gap-3">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-body">
-        <dt className="text-ink-muted">Fertig</dt>
-        <dd>{moment(status.finishedAt)}</dd>
-        <dt className="text-ink-muted">Archiv</dt>
-        <dd>
-          {status.archive}, {size(status.bytes)}
-        </dd>
-        <dt className="text-ink-muted">Verschlüsselt</dt>
-        <dd>{status.encrypted ? 'Ja' : 'Nein'}</dd>
-      </dl>
+    <div className="flex flex-col gap-3">
+      <FactList
+        keyWidth={110}
+        facts={[
+          { label: 'Fertig', value: moment(status.finishedAt) },
+          { label: 'Archiv', value: `${status.archive}, ${size(status.bytes)}` },
+          { label: 'Verschlüsselt', value: status.encrypted ? 'Ja' : 'Nein' },
+        ]}
+      />
       {status.overdue ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <Behind>
           Die letzte Sicherung ist älter als zwei Tage. Läuft der Dienst{' '}
           <code>backup-schedule</code>? Was er meldet, steht in{' '}
           <code>docker compose logs backup-schedule</code>.
-        </p>
+        </Behind>
       ) : null}
       {status.encrypted ? null : (
-        <p className="text-body">
+        <NoteBox tone="waiting" icon={TriangleAlert}>
           Das Archiv liegt unverschlüsselt, und es enthält Kundendaten und Belege. Mit einem
           öffentlichen Schlüssel in <code>BACKUP_AGE_RECIPIENT</code> wird es verschlüsselt; die
           README beschreibt, wie.
-        </p>
+        </NoteBox>
       )}
     </div>
   )

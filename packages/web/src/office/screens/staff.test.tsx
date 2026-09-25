@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InRouter } from '../../app/in-router.js'
 import { StaffScreen } from './staff.js'
 
 /**
@@ -35,7 +36,12 @@ function asked(path: string, method = 'GET'): Call | undefined {
 function inQueries(node: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-  return <QueryClientProvider client={client}>{node}</QueryClientProvider>
+  // In a router, for the links at the side of every settings screen (#219).
+  return (
+    <QueryClientProvider client={client}>
+      <InRouter>{node}</InRouter>
+    </QueryClientProvider>
+  )
 }
 
 const christa = {
@@ -64,6 +70,12 @@ beforeEach(() => {
 
   serverSays('GET', '/staff', [christa, maxMonteur])
   serverSays('GET', '/staff/invitations', [])
+  // Christa is looking: the list of settings at the side asks who she is.
+  serverSays('GET', '/api/auth/get-session', {
+    user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
+    session: { activeTenantId: 't-1' },
+  })
+  serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['owner'] }])
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     calls.push({

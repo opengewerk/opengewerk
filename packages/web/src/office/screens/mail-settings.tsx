@@ -2,13 +2,13 @@ import type { IsoDate } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button } from '../../components/index.js'
+import { Button, Panel } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { mailStatus } from '../../session/mail.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import { Saved, SettingsPage, SettingsState, SettingsText } from '../settings-frame.js'
 import { MailServerSection } from './mail-server.js'
 import { History, latestPeriod, proposedFrom } from './taxes.js'
 
@@ -39,18 +39,24 @@ export function MailSettingsScreen() {
   const writesServer = useMay('mail.write')
 
   return (
-    <Page title="E-Mail-Einstellungen" meta="Wie dieser Betrieb E-Mails verschickt.">
+    <SettingsPage
+      active="e-mail"
+      title="E-Mail-Einstellungen"
+      sub="Wie dieser Betrieb E-Mails verschickt."
+    >
       {readsServer ? <MailServerSection mayWrite={writesServer} /> : <MailStatusSection />}
 
       {history.isPending ? null : history.isError ? (
-        <Nothing>{saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}</Nothing>
+        <SettingsText muted>
+          {saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}
+        </SettingsText>
       ) : (
         <ReportSection
           periods={history.data.filter((period) => period.key === reportSetting)}
           mayWrite={mayWrite}
         />
       )}
-    </Page>
+    </SettingsPage>
   )
 }
 
@@ -59,23 +65,25 @@ function MailStatusSection() {
   const status = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
 
   return (
-    <Section title="Mailserver">
+    <Panel title="Mailserver" roomy>
       {status.isPending ? (
-        <Nothing>Wird geladen.</Nothing>
+        <SettingsText muted>Wird geladen.</SettingsText>
       ) : status.isError ? (
-        <Nothing>{saidWhy(status.error, 'Die Angaben zum Versand kamen nicht an.')}</Nothing>
+        <SettingsText muted>
+          {saidWhy(status.error, 'Die Angaben zum Versand kamen nicht an.')}
+        </SettingsText>
       ) : status.data.configured ? (
-        <p className="text-body text-ink">
+        <SettingsText>
           Eingerichtet. Dieser Betrieb verschickt von {status.data.from}; als Absender steht der
           Name aus dem Briefkopf davor. Den Mailserver richtet der Inhaber hier ein.
-        </p>
+        </SettingsText>
       ) : (
-        <p className="text-body text-ink">
+        <SettingsText>
           Nicht eingerichtet, dieser Betrieb verschickt deshalb keine E-Mails. Den Mailserver
           richtet der Inhaber hier ein.
-        </p>
+        </SettingsText>
       )}
-    </Section>
+    </Panel>
   )
 }
 
@@ -117,16 +125,16 @@ function ReportSection({
   })
 
   return (
-    <Section title="Regiebericht nach der Unterschrift">
-      <div className="flex flex-col gap-3">
-        <p className="text-body text-ink">
+    <Panel title="Regiebericht nach der Unterschrift" roomy>
+      <div className="flex flex-col gap-[11px]">
+        <SettingsText>
           Unterschreibt der Kunde einen Regiebericht auf der Baustelle, kann er ihn gleich danach
           per E-Mail bekommen, als PDF mit seiner Unterschrift. Die Nachricht geht an die Adresse,
           die beim Kunden hinterlegt ist; fehlt sie, lässt sich der Bericht vom Büro aus
           verschicken.
-        </p>
+        </SettingsText>
 
-        <p className="text-body font-semibold">
+        <SettingsState>
           {standing === null
             ? 'Aus: unterschriebene Regieberichte bleiben beim Büro.'
             : on
@@ -134,14 +142,13 @@ function ReportSection({
                 'gleich an den Kunden.'
               : `Aus seit dem ${date(standing.validFrom)}: unterschriebene Regieberichte bleiben ` +
                 'beim Büro.'}
-        </p>
+        </SettingsState>
 
         <History periods={periods} stated="an" notStated="aus" />
 
         {mayWrite ? (
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              tone={on ? 'secondary' : 'primary'}
               disabled={change.isPending}
               onClick={() => {
                 change.mutate()
@@ -149,21 +156,17 @@ function ReportSection({
             >
               {change.isPending ? 'Einen Moment' : on ? 'Ausschalten' : 'Einschalten'}
             </Button>
-            <p className="text-body text-ink-muted">Gilt ab dem {date(from)}.</p>
+            <SettingsText muted>Gilt ab dem {date(from)}.</SettingsText>
+            {saved ? <Saved /> : null}
           </div>
         ) : null}
 
-        {saved ? (
-          <p role="status" className="text-body text-ink-muted">
-            Gespeichert.
-          </p>
-        ) : null}
         {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
             {trouble}
           </p>
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }

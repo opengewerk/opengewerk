@@ -7,9 +7,10 @@ import {
   unknownPlaceholders,
 } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Confirm, Field, SelectField, TextArea } from '../../components/index.js'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { letterhead, type LetterheadView } from '../../session/letterhead.js'
@@ -24,7 +25,7 @@ import {
   saveMailServer,
 } from '../../session/mail.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Section } from '../layout.js'
+import { Saved, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -114,18 +115,20 @@ export function MailServerSection({ mayWrite }: { readonly mayWrite: boolean }) 
   const [said, setSaid] = useState<Said | null>(null)
 
   return (
-    <Section title="Mailserver">
-      <div className="flex flex-col gap-4">
-        <p className="text-body text-ink">
+    <Panel title="Mailserver" roomy>
+      <div className="flex flex-col gap-3">
+        <SettingsText>
           Über diesen Mailserver verschickt OpenGewerk alle E-Mails des Betriebs: Belege an Kunden,
           Einladungen neuer Zugänge und fällige Aufgaben. Die Angaben stehen beim E-Mail-Anbieter,
-          meist unter "SMTP" oder "Postausgangsserver".
-        </p>
+          meist unter „SMTP“ oder „Postausgangsserver“.
+        </SettingsText>
 
         {stored.isPending ? (
-          <Nothing>Wird geladen.</Nothing>
+          <SettingsText muted>Wird geladen.</SettingsText>
         ) : stored.isError ? (
-          <Nothing>{saidWhy(stored.error, 'Die Angaben zum Mailserver kamen nicht an.')}</Nothing>
+          <SettingsText muted>
+            {saidWhy(stored.error, 'Die Angaben zum Mailserver kamen nicht an.')}
+          </SettingsText>
         ) : (
           <MailServerForm
             key={stored.data?.updatedAt ?? 'neu'}
@@ -135,20 +138,14 @@ export function MailServerSection({ mayWrite }: { readonly mayWrite: boolean }) 
           />
         )}
 
-        {said ? (
-          <p
-            role={said.tone}
-            className={
-              said.tone === 'alert'
-                ? 'text-body font-semibold text-conflict'
-                : 'text-body text-ink-muted'
-            }
-          >
+        {said?.tone === 'status' ? <Saved>{said.text}</Saved> : null}
+        {said?.tone === 'alert' ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
             {said.text}
           </p>
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }
 
@@ -241,142 +238,156 @@ function MailServerForm({
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
         onSaid(null)
         save.mutate()
       }}
     >
-      <fieldset disabled={!mayWrite} className="flex flex-col gap-4">
-        <Field
-          label="Server"
-          name="host"
-          autoComplete="off"
-          required
-          value={host}
-          onChange={(event) => {
-            setHost(event.target.value)
-          }}
-          hint="Etwa smtp.ionos.de, ohne smtp:// davor und ohne Port."
-        />
-        <SelectField
-          label="Verschlüsselung"
-          value={security}
-          options={smtpSecurities.map((value) => ({ value, label: securityLabels[value] }))}
-          onChange={(value) => {
-            // A port that was only the one that went with the old choice
-            // follows the new one, instead of staying 587 under TLS.
-            if (port === String(defaultSmtpPorts[security])) {
-              setPort('')
-            }
+      <fieldset disabled={!mayWrite} className="flex min-w-0 flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,0.8fr)]">
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+            <Field
+              label="Server"
+              name="host"
+              autoComplete="off"
+              required
+              value={host}
+              onChange={(event) => {
+                setHost(event.target.value)
+              }}
+              hint="Etwa smtp.ionos.de, ohne smtp:// davor und ohne Port."
+            />
+          </div>
+          <SelectField
+            label="Verschlüsselung"
+            value={security}
+            options={smtpSecurities.map((value) => ({ value, label: securityLabels[value] }))}
+            onChange={(value) => {
+              // A port that was only the one that went with the old choice
+              // follows the new one, instead of staying 587 under TLS.
+              if (port === String(defaultSmtpPorts[security])) {
+                setPort('')
+              }
 
-            setSecurity(value as SmtpSecurity)
-          }}
-        />
-        <Field
-          label="Port"
-          name="port"
-          inputMode="numeric"
-          numeric
-          value={port}
-          placeholder={String(defaultSmtpPorts[security])}
-          onChange={(event) => {
-            setPort(event.target.value)
-          }}
-          hint="Leer lassen für den Port, der zur Verschlüsselung gehört."
-        />
-        <Field
-          label="Benutzername"
-          name="username"
-          autoComplete="off"
-          value={username}
-          onChange={(event) => {
-            setUsername(event.target.value)
-          }}
-          hint="Meist die E-Mail-Adresse des Postfachs. Leer für einen Mailserver ohne Anmeldung."
-        />
-        <Field
-          label="Passwort"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          disabled={username.trim() === ''}
-          onChange={(event) => {
-            setPassword(event.target.value)
-          }}
-          problem={
-            stored?.password === 'unreadable'
-              ? 'Das gespeicherte Passwort lässt sich nicht mehr lesen, weil SESSION_SECRET der ' +
-                'Instanz getauscht wurde. Bitte neu eingeben; bis dahin geht keine E-Mail hinaus.'
-              : undefined
-          }
-          hint={
-            stored?.password === 'set'
-              ? `Gespeichert${stored.passwordSetAt ? ` am ${moment(stored.passwordSetAt)}` : ''}. ` +
-                'Leer lassen, um es zu behalten.'
-              : 'Wird verschlüsselt gespeichert und nie wieder angezeigt.'
-          }
-        />
-        <Field
-          label="Absenderadresse"
-          name="fromAddress"
-          type="email"
-          autoComplete="off"
-          required
-          value={fromAddress}
-          onChange={(event) => {
-            setFromAddress(event.target.value)
-          }}
-          hint="Von dieser Adresse gehen die E-Mails hinaus. Der Name davor kommt aus dem Briefkopf."
-        />
-        <TextArea
-          label="Signatur"
-          name="signature"
-          rows={6}
-          value={signature}
-          placeholder={'Viele Grüße\n{benutzer}\n\n{briefkopf}'}
-          onChange={(event) => {
-            setSignature(event.target.value)
-          }}
-          problem={
-            unknown.length > 0
-              ? `Unbekannt: ${unknown.join(', ')}. Möglich sind {benutzer} und {briefkopf}.`
-              : undefined
-          }
-          hint={
-            'Steht unter jeder E-Mail. {benutzer} ist der Name dessen, der die E-Mail ' +
-            'verschickt; bei automatischen E-Mails fällt die Zeile weg. {briefkopf} ist der ' +
-            'Briefkopf. Leer lassen für den Briefkopf allein.'
-          }
-        />
-      </fieldset>
-
-      {issuer ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <SignaturePreview
-            title="Von Ihnen verschickt"
-            text={renderSignature(template, {
-              issuer,
-              sender: account.data?.name || 'Ihr Name',
-            })}
+              setSecurity(value as SmtpSecurity)
+            }}
           />
-          <SignaturePreview
-            title="Automatisch verschickt"
-            text={renderSignature(template, { issuer, sender: null })}
+          <Field
+            label="Port"
+            name="port"
+            inputMode="numeric"
+            numeric
+            value={port}
+            placeholder={String(defaultSmtpPorts[security])}
+            onChange={(event) => {
+              setPort(event.target.value)
+            }}
+            hint="Leer lassen für den Port, der zur Verschlüsselung gehört."
           />
         </div>
-      ) : null}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field
+            label="Benutzername"
+            name="username"
+            autoComplete="off"
+            value={username}
+            onChange={(event) => {
+              setUsername(event.target.value)
+            }}
+            hint="Meist die E-Mail-Adresse des Postfachs. Leer für einen Mailserver ohne Anmeldung."
+          />
+          <Field
+            label="Passwort"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            disabled={username.trim() === ''}
+            onChange={(event) => {
+              setPassword(event.target.value)
+            }}
+            problem={
+              stored?.password === 'unreadable'
+                ? 'Das gespeicherte Passwort lässt sich nicht mehr lesen, weil SESSION_SECRET der ' +
+                  'Instanz getauscht wurde. Bitte neu eingeben; bis dahin geht keine E-Mail hinaus.'
+                : undefined
+            }
+            hint={
+              stored?.password === 'set'
+                ? `Gespeichert${stored.passwordSetAt ? ` am ${moment(stored.passwordSetAt)}` : ''}. ` +
+                  'Leer lassen, um es zu behalten.'
+                : 'Wird verschlüsselt gespeichert und nie wieder angezeigt.'
+            }
+          />
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+            <Field
+              label="Absenderadresse"
+              name="fromAddress"
+              type="email"
+              autoComplete="off"
+              required
+              value={fromAddress}
+              onChange={(event) => {
+                setFromAddress(event.target.value)
+              }}
+              hint="Von dieser Adresse gehen die E-Mails hinaus. Der Name davor kommt aus dem Briefkopf."
+            />
+          </div>
+        </div>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <TextArea
+            label="Signatur"
+            name="signature"
+            rows={4}
+            value={signature}
+            placeholder={'Viele Grüße\n{benutzer}\n\n{briefkopf}'}
+            onChange={(event) => {
+              setSignature(event.target.value)
+            }}
+            problem={
+              unknown.length > 0
+                ? `Unbekannt: ${unknown.join(', ')}. Möglich sind {benutzer} und {briefkopf}.`
+                : undefined
+            }
+            hint={
+              'Steht unter jeder E-Mail. {benutzer} ist der Name dessen, der die E-Mail ' +
+              'verschickt; bei automatischen E-Mails fällt die Zeile weg. {briefkopf} ist der ' +
+              'Briefkopf. Leer lassen für den Briefkopf allein.'
+            }
+          />
+          {issuer ? (
+            <div className="grid gap-2.5 sm:grid-cols-2">
+              <SignaturePreview
+                title="Von Ihnen verschickt"
+                text={renderSignature(template, {
+                  issuer,
+                  sender: account.data?.name || 'Ihr Name',
+                })}
+              />
+              <SignaturePreview
+                title="Automatisch verschickt"
+                text={renderSignature(template, { issuer, sender: null })}
+              />
+            </div>
+          ) : null}
+        </div>
+      </fieldset>
 
       {mayWrite ? (
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" tone="primary" disabled={working || unknown.length > 0}>
+          <Button
+            type="submit"
+            tone="primary"
+            icon={Check}
+            disabled={working || unknown.length > 0}
+          >
             {save.isPending ? 'Wird geprüft' : 'Speichern'}
           </Button>
           <Button
             type="button"
-            tone="secondary"
+            icon={RefreshCw}
             disabled={working}
             onClick={() => {
               onSaid(null)
@@ -422,9 +433,9 @@ function MailServerForm({
 /** How the signature reads under a message, one case each. */
 function SignaturePreview({ title, text }: { readonly title: string; readonly text: string }) {
   return (
-    <figure className="flex flex-col gap-1">
-      <figcaption className="text-table text-ink-muted">{title}</figcaption>
-      <pre className="whitespace-pre-wrap rounded-control border border-line bg-surface px-3 py-2 font-sans text-table text-ink">
+    <figure className="flex min-w-0 flex-col gap-1">
+      <figcaption className="text-[12px] font-semibold text-ink-faint">{title}</figcaption>
+      <pre className="rounded-[4px] border border-line bg-ground px-3 py-2.5 font-sans text-[13px] leading-[1.45] whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">
         {`-- \n${text}`}
       </pre>
     </figure>
