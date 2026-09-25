@@ -21,8 +21,6 @@ import {
   customerKindOf,
   documentKindLabel,
   documentKindOf,
-  jobKindLabel,
-  jobKindOf,
   jobStatusOf,
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -38,6 +36,7 @@ import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { DocumentMarker } from './document-marker.js'
 import { useGrossByDocument } from './document-gross.js'
+import { JobsPanel } from './job-table.js'
 import { JobState, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
 
@@ -631,7 +630,7 @@ function CustomerSites({
   readonly sites: readonly RecordState[]
 }) {
   const client = useSync()
-  const creates = useMay('customer.create')
+  const creates = useMay('site.write')
   const installations = useRecords('installations')
   const jobs = useRecords('jobs')
   const [adding, setAdding] = useState(false)
@@ -695,7 +694,7 @@ function CustomerSites({
       <Panel title="Objekte" action={action}>
         {form}
         {adding ? null : (
-          <p className="text-[13px] text-ink-muted">
+          <p className="text-[13px] leading-[1.4] text-ink-muted">
             Noch kein Objekt. Ein Objekt ist das Gebäude, zu dem ein Auftrag fährt.
           </p>
         )}
@@ -767,89 +766,42 @@ function CustomerJobs({
   readonly onAdding: (adding: boolean) => void
 }) {
   const writes = useMay('job.write')
-  const sites = useRecords('sites')
-  const navigate = useNavigate()
-  const siteName = (job: RecordState) =>
-    text(sites.find((site) => String(site['id']) === text(job, 'siteId')) ?? null, 'designation')
-
-  const form = adding ? (
-    <NewJobForm
-      customerId={customerId}
-      onDone={() => {
-        onAdding(false)
-      }}
-    />
-  ) : null
-
-  const action =
-    writes && !adding ? (
-      <Button
-        size="small"
-        icon={Plus}
-        onClick={() => {
-          onAdding(true)
-        }}
-      >
-        Auftrag anlegen
-      </Button>
-    ) : null
-
-  if (jobs.length === 0) {
-    return (
-      <Panel title="Aufträge" action={action}>
-        {form}
-        {adding ? null : (
-          <p className="text-[13px] text-ink-muted">Für diesen Kunden läuft noch kein Auftrag.</p>
-        )}
-      </Panel>
-    )
-  }
-
-  const sorted = [...jobs].sort((left, right) =>
-    text(right, 'number').localeCompare(text(left, 'number')),
-  )
 
   return (
-    <TablePanel title="Aufträge" caption="Aufträge des Kunden" action={action} lead={form}>
-      <thead>
-        <tr>
-          <Column>Bezeichnung</Column>
-          <Column className="w-[106px]">Nummer</Column>
-          <Column className="w-[104px]">Art</Column>
-          <Column className="w-[124px]">Status</Column>
-          <Column className="w-[150px]">Objekt</Column>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map((job) => {
-          const id = String(job['id'])
-
-          return (
-            <tr
-              key={id}
-              className="cursor-pointer hover:bg-surface-sunken"
-              onClick={(event) => {
-                if (!(event.target as HTMLElement).closest('a')) {
-                  void navigate({ to: `/auftraege/${id}` })
-                }
-              }}
-            >
-              <Cell>
-                <Link to={`/auftraege/${id}`} className="text-inherit no-underline hover:underline">
-                  {text(job, 'designation')}
-                </Link>
-              </Cell>
-              <Cell className="numeric">{text(job, 'number')}</Cell>
-              <Cell>{jobKindLabel[jobKindOf(job)]}</Cell>
-              <Cell>
-                <JobState job={job} />
-              </Cell>
-              <Cell>{siteName(job)}</Cell>
-            </tr>
-          )
-        })}
-      </tbody>
-    </TablePanel>
+    <JobsPanel
+      caption="Aufträge des Kunden"
+      jobs={jobs}
+      columns={[
+        { key: 'number', width: 'w-[106px]' },
+        { key: 'kind', width: 'w-[104px]' },
+        { key: 'status', width: 'w-[124px]' },
+        { key: 'site', width: 'w-[150px]' },
+      ]}
+      lead={
+        adding ? (
+          <NewJobForm
+            customerId={customerId}
+            onDone={() => {
+              onAdding(false)
+            }}
+          />
+        ) : null
+      }
+      action={
+        writes && !adding ? (
+          <Button
+            size="small"
+            icon={Plus}
+            onClick={() => {
+              onAdding(true)
+            }}
+          >
+            Auftrag anlegen
+          </Button>
+        ) : null
+      }
+      empty="Für diesen Kunden läuft noch kein Auftrag."
+    />
   )
 }
 
@@ -862,7 +814,9 @@ function CustomerDocuments({ customerId }: { readonly customerId: string }) {
   if (documents.length === 0) {
     return (
       <Panel title="Belege">
-        <p className="text-[13px] text-ink-muted">Noch kein Beleg für diesen Kunden.</p>
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          Noch kein Beleg für diesen Kunden.
+        </p>
       </Panel>
     )
   }

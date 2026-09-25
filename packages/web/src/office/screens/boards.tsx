@@ -8,9 +8,12 @@ import {
   rcdText,
 } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { ArrowDown, ArrowUp, Plus, Printer } from 'lucide-react'
 import { Fragment, useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { Button, Card, Cell, Column, IconButton, Table } from '../../components/index.js'
+import { Button, Card, Cell, Column, IconButton, Panel, Table } from '../../components/index.js'
 import {
   asBoard,
   asSection,
@@ -29,6 +32,7 @@ import {
   useCircuits,
   useSections,
 } from '../../app/electrical.js'
+import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
@@ -84,13 +88,49 @@ function ChartLink({
 }
 
 /**
- * The boards of an installation, on the installation's screen: what there is,
- * a way to add one, and the chart of all of them.
+ * The circuit chart as a button with a printer on it, as the head of the
+ * record of an installation draws it on the canvas (#219). Without a
+ * connection it cannot be printed, and the button says so in its title.
+ */
+export function ChartButton({ installationId }: { readonly installationId: string }) {
+  const { online } = useSyncStatus()
+
+  if (!online) {
+    return (
+      <Button
+        icon={Printer}
+        disabled
+        title="Das Stromkreisverzeichnis druckt der Server, dafür braucht es Verbindung."
+      >
+        Stromkreisverzeichnis
+      </Button>
+    )
+  }
+
+  return (
+    <a
+      href={circuitChartAddress(installationId)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex h-control min-h-tap items-center justify-center gap-[7px] rounded-control border border-control bg-surface px-[14px] text-body text-ink no-underline lg:whitespace-nowrap"
+    >
+      <Printer size={15} strokeWidth={2.3} aria-hidden="true" />
+      Stromkreisverzeichnis
+    </a>
+  )
+}
+
+/**
+ * The boards of an installation, as the card "Verteiler" of the canvas draws
+ * them (#219): a line per board with what it is, where and how many
+ * circuits, and the arrows to put it in its place. The chart of all of them
+ * is in the head of the record.
  */
 export function BoardsSection({ installationId }: { readonly installationId: string }) {
   const client = useSync()
   const boards = useBoards(installationId)
   const circuits = useRecords('circuits')
+  const writes = useMay('installation.write')
   const [adding, setAdding] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const pending = boards.some((board) =>
@@ -104,40 +144,34 @@ export function BoardsSection({ installationId }: { readonly installationId: str
   }
 
   return (
-    <Section
+    <Panel
       title="Verteiler"
-      actions={
-        <span className="inline-flex flex-wrap items-start gap-2">
-          {boards.length > 0 ? (
-            <ChartLink
-              href={circuitChartAddress(installationId)}
-              label="Stromkreisverzeichnis"
-              pending={pending}
-            />
-          ) : null}
+      action={
+        writes && !adding ? (
           <Button
-            tone="secondary"
+            size="small"
+            icon={Plus}
             onClick={() => {
-              setAdding((open) => !open)
+              setAdding(true)
             }}
           >
-            {adding ? 'Abbrechen' : 'Verteiler anlegen'}
+            Verteiler anlegen
           </Button>
-        </span>
+        ) : null
       }
     >
       {trouble ? (
-        <p role="alert" className="mb-3 text-body font-semibold text-conflict">
+        <p role="alert" className="mb-2 text-[13px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
 
       {adding ? (
-        <div className="mb-4">
+        <div className="mb-3">
           <RecordForm
             fields={boardFields}
             record={newBoard(boards)}
-            submitLabel="Anlegen"
+            submitLabel="Verteiler anlegen"
             onCancel={() => {
               setAdding(false)
             }}
@@ -159,10 +193,12 @@ export function BoardsSection({ installationId }: { readonly installationId: str
       ) : null}
 
       {boards.length === 0 ? (
-        <Nothing>
-          Noch kein Verteiler. Hauptverteilung und Unterverteilungen stehen hier, darunter ihre
-          Felder, Stromkreise und Betriebsmittel.
-        </Nothing>
+        adding ? null : (
+          <p className="text-[13px] leading-[1.4] text-ink-muted">
+            Noch kein Verteiler. Hauptverteilung und Unterverteilungen stehen hier, darunter ihre
+            Felder, Stromkreise und Betriebsmittel.
+          </p>
+        )
       ) : (
         <ul className="flex flex-col gap-2">
           {boards.map((board, index) => {
@@ -171,15 +207,18 @@ export function BoardsSection({ installationId }: { readonly installationId: str
             const designation = text(board, 'designation')
 
             return (
-              <li key={id} className="flex items-stretch gap-2">
-                <Link
-                  to={`/verteiler/${id}`}
-                  className="grow flex flex-wrap items-baseline gap-x-3 gap-y-1 p-3 rounded-card border border-line bg-surface"
-                >
-                  <span className="text-body font-semibold text-copper-text underline underline-offset-2">
+              <li
+                key={id}
+                className="flex items-center gap-2.5 rounded-control border border-line bg-ground px-[11px] py-[9px]"
+              >
+                <div className="min-w-0 grow">
+                  <Link
+                    to={`/verteiler/${id}`}
+                    className="text-[14px] font-semibold text-copper-text underline underline-offset-2"
+                  >
                     {designation}
-                  </span>
-                  <span className="text-table text-ink-muted">
+                  </Link>
+                  <div className="text-[13px] text-ink-faint">
                     {[
                       distributionBoardKindLabel[boardKindOf(board)],
                       maybeText(board, 'location'),
@@ -188,32 +227,69 @@ export function BoardsSection({ installationId }: { readonly installationId: str
                     ]
                       .filter((part): part is string => part !== null)
                       .join(', ')}
-                  </span>
-                </Link>
-                <span className="inline-flex items-center gap-1">
-                  <IconButton
-                    label={`${designation} nach oben`}
-                    title="Nach oben"
-                    disabled={index === 0}
-                    onClick={() => void move(id, -1)}
-                  >
-                    ↑
-                  </IconButton>
-                  <IconButton
-                    label={`${designation} nach unten`}
-                    title="Nach unten"
-                    disabled={index === boards.length - 1}
-                    onClick={() => void move(id, 1)}
-                  >
-                    ↓
-                  </IconButton>
-                </span>
+                  </div>
+                </div>
+                {writes ? (
+                  <>
+                    <SmallIcon
+                      label={`${designation} nach oben`}
+                      disabled={index === 0}
+                      onClick={() => void move(id, -1)}
+                    >
+                      <ArrowUp size={14} strokeWidth={2} aria-hidden="true" />
+                    </SmallIcon>
+                    <SmallIcon
+                      label={`${designation} nach unten`}
+                      disabled={index === boards.length - 1}
+                      onClick={() => void move(id, 1)}
+                    >
+                      <ArrowDown size={14} strokeWidth={2} aria-hidden="true" />
+                    </SmallIcon>
+                  </>
+                ) : null}
               </li>
             )
           })}
         </ul>
       )}
-    </Section>
+
+      {pending ? (
+        <p className="mt-2 text-[13px] leading-[1.4] text-ink-muted">
+          Noch nicht Übertragenes fehlt im Stromkreisverzeichnis.
+        </p>
+      ) : null}
+    </Panel>
+  )
+}
+
+/** A small symbol button of the canvas, 26 pixels for the mouse, a finger's size below. */
+export function SmallIcon({
+  label,
+  disabled,
+  onClick,
+  danger = false,
+  children,
+}: {
+  readonly label: string
+  readonly disabled?: boolean
+  readonly onClick: () => void
+  readonly danger?: boolean
+  readonly children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={clsx(
+        'flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-control disabled:cursor-not-allowed disabled:text-disabled max-lg:size-tap',
+        danger ? 'text-conflict' : 'text-ink-muted',
+      )}
+    >
+      {children}
+    </button>
   )
 }
 

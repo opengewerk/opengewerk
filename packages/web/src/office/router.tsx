@@ -13,7 +13,7 @@ import {
   NewCustomerScreen,
 } from './screens/customers.js'
 import { DocumentScreen } from './screens/documents.js'
-import { InstallationScreen } from './screens/installations.js'
+import { InstallationList, InstallationScreen } from './screens/installations.js'
 import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
@@ -22,7 +22,7 @@ import { PaymentTermScreen } from './screens/payment-term.js'
 import { ProtocolScreen } from './screens/protocols.js'
 import { ReportFieldsScreen } from './screens/report-fields.js'
 import { SettingsScreen } from './screens/settings.js'
-import { SiteScreen } from './screens/sites.js'
+import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
 import { TaskListScreen } from './screens/tasks.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
@@ -62,7 +62,11 @@ const routes = [
     path: '/kunden/$customerId/bearbeiten',
     component: EditCustomerScreen,
   }),
+  // Sites and installations have lists of their own, as the boards "Objekte"
+  // and "Anlagen" draw them (#219).
+  createRoute({ getParentRoute: () => root, path: '/objekte', component: SiteList }),
   createRoute({ getParentRoute: () => root, path: '/objekte/$siteId', component: SiteScreen }),
+  createRoute({ getParentRoute: () => root, path: '/anlagen', component: InstallationList }),
   createRoute({
     getParentRoute: () => root,
     path: '/anlagen/$installationId',

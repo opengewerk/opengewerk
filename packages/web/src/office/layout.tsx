@@ -140,5 +140,5 @@ export function Fact({
 
 /** What a list says when it has nothing in it, in a sentence and not a dash. */
 export function Nothing({ children }: { readonly children: ReactNode }) {
-  return <p className="text-[13px] text-ink-muted">{children}</p>
+  return <p className="text-[13px] leading-[1.4] text-ink-muted">{children}</p>
 }

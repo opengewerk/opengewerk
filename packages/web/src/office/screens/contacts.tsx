@@ -99,7 +99,7 @@ export function ContactsSection({
 
       {contacts.length === 0 ? (
         adding ? null : (
-          <p className="text-[13px] text-ink-muted">{empty}</p>
+          <p className="text-[13px] leading-[1.4] text-ink-muted">{empty}</p>
         )
       ) : (
         <ul>

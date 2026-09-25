@@ -1,15 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
   Calendar,
   Clock,
+  House,
   RefreshCw,
   Settings,
   SquareCheck,
   TextAlignStart,
   Users,
   X,
+  Zap,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useReducer, useRef } from 'react'
@@ -29,6 +31,11 @@ interface Entry {
   readonly icon: LucideIcon
   /** Abgleich and Einstellungen: there when needed, quieter than the work. */
   readonly quiet?: boolean
+  /**
+   * Further paths that light the entry: the record of a customer lights
+   * "Kunden", a board or a circuit "Anlagen", as the boards draw it.
+   */
+  readonly also?: readonly string[]
   readonly badge?: Badge
 }
 
@@ -73,7 +80,14 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
     {
       title: 'Stammdaten',
       entries: [
-        { to: '/', label: 'Kunden', icon: Users },
+        { to: '/', label: 'Kunden', icon: Users, also: ['/kunden'] },
+        { to: '/objekte', label: 'Objekte', icon: House },
+        {
+          to: '/anlagen',
+          label: 'Anlagen',
+          icon: Zap,
+          also: ['/verteiler', '/stromkreise', '/pruefprotokolle'],
+        },
         ...(readsDocuments
           ? [{ to: '/textbausteine', label: 'Textbausteine', icon: TextAlignStart }]
           : []),
@@ -159,9 +173,9 @@ function useOpenTasksOfMine(): number {
 const groupLabel = 'font-condensed font-semibold uppercase tracking-[1.1px] text-ink-faint'
 
 /**
- * One entry. `activeProps` rather than a class worked out from the path: the
- * router knows which one is active and also sets `aria-current`, which is how
- * a screen reader says "you are here".
+ * One entry, lit on its own path and on the paths below it, and on the paths
+ * it names under `also`. `aria-current` goes with it, which is how a screen
+ * reader says "you are here".
  */
 function EntryLink({
   entry,
@@ -174,6 +188,11 @@ function EntryLink({
   readonly onFollow?: () => void
 }) {
   const Icon = entry.icon
+  const path = useRouterState({ select: (state) => state.location.pathname })
+  const under = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`)
+  // The customer list lives at `/`, and every path starts with that.
+  const isActive =
+    (entry.to === '/' ? path === '/' : under(entry.to)) || (entry.also ?? []).some(under)
   // The line height of the canvas, Barlow's own: at the 1.45 of running text a
   // row came out 34 px instead of 31, and the list 4 px longer per entry.
   const base = clsx(
@@ -189,17 +208,19 @@ function EntryLink({
   return (
     <Link
       to={entry.to}
-      // `exact` on the root, or every path would light it up: the customer
-      // list lives at `/`, and `/auftraege` starts with it.
-      activeOptions={entry.to === '/' ? { exact: true } : undefined}
+      aria-current={isActive ? 'page' : undefined}
       aria-label={entry.badge ? `${entry.label}, ${entry.badge.spoken}` : undefined}
-      activeProps={{
-        className: clsx(base, 'bg-ink text-ground', large ? 'font-semibold' : 'font-medium'),
-      }}
-      inactiveProps={{ className: clsx(base, idle) }}
+      // Which entry is lit is worked out above, including the paths under
+      // `also`; the router agrees on its own path and adds nothing else.
+      activeOptions={{ exact: true, includeSearch: false }}
+      className={
+        isActive
+          ? clsx(base, 'bg-ink text-ground', large ? 'font-semibold' : 'font-medium')
+          : clsx(base, idle)
+      }
       onClick={onFollow}
     >
-      {({ isActive }) => (
+      {() => (
         <>
           <Icon size={large ? 20 : 16} strokeWidth={1.9} aria-hidden="true" />
           {entry.label}

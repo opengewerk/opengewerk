@@ -239,7 +239,13 @@ export function TaskList({
 
   if (tasks.length === 0) {
     return (
-      <p className={entry === 'office' ? 'text-[13px] text-ink-muted' : 'text-body text-ink-muted'}>
+      <p
+        className={
+          entry === 'office'
+            ? 'text-[13px] leading-[1.4] text-ink-muted'
+            : 'text-body text-ink-muted'
+        }
+      >
         {empty}
       </p>
     )
