@@ -11,12 +11,21 @@ import {
   workingTimeWarnings,
 } from '@opengewerk/domain'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+
 import clsx from 'clsx'
-import { useMemo, useState } from 'react'
+import { Check, ChevronLeft, ChevronRight, Play, Plus } from 'lucide-react'
+import { useId, useMemo, useState } from 'react'
 import type { ButtonHTMLAttributes } from 'react'
 
-import { Button, Card, Field, FieldLabel, SelectField } from '../../components/index.js'
+import {
+  Button,
+  Field,
+  Panel,
+  SelectField,
+  TextArea,
+  useButtonLook,
+} from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -48,6 +57,9 @@ import { answerLocationConsent } from '../../session/time.js'
 import { refusalText, type EditResult } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
+import { SiteActionBar } from '../action-bar.js'
+import { SiteHeader } from '../header.js'
+import { SiteLink, SiteScreen, SiteText, SiteTrouble, TopTitle } from '../kit.js'
 
 /** What a form or a button says back: nothing, or the sentence that went wrong. */
 function outcomeText(result: EditResult | string | null): string | null {
@@ -269,34 +281,25 @@ export function TodayTime() {
   }
 
   return (
-    <Card
-      label="Deine Zeit"
-      heading={<h2 className="text-body font-semibold">Deine Zeit heute</h2>}
-    >
-      <div className="flex flex-col gap-3">
-        <p className="text-body">{`${hoursText(worked)} Arbeit und Fahrt erfasst.`}</p>
+    <Panel title="Deine Zeit heute">
+      <div className="flex flex-col gap-2">
+        <SiteText>{`${hoursText(worked)} Arbeit und Fahrt erfasst.`}</SiteText>
         {running ? null : (
           <Button
             wide
+            height={48}
             disabled={timing.busy}
             onClick={() => void timing.start({ kind: 'travel', jobId: null })}
           >
             Fahrt beginnen
           </Button>
         )}
-        {timing.trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {timing.trouble}
-          </p>
-        ) : null}
-        <Link
-          to="/zeiten"
-          className="inline-flex items-center h-control min-h-tap text-body font-semibold text-copper-text"
-        >
-          Zeiten ansehen und nachtragen
-        </Link>
+        {timing.trouble ? <SiteTrouble>{timing.trouble}</SiteTrouble> : null}
+        <p className="text-[17px]">
+          <SiteLink to="/zeiten">Zeiten ansehen und nachtragen</SiteLink>
+        </p>
       </div>
-    </Card>
+    </Panel>
   )
 }
 
@@ -327,18 +330,19 @@ export function JobTime({ job }: { readonly job: RecordState }) {
   const workingHere = running?.jobId === jobId && running.kind === 'work'
 
   return (
-    <Card label="Zeit" heading={<h2 className="text-body font-semibold">Deine Zeit hier</h2>}>
-      <div className="flex flex-col gap-3">
-        <p className="text-body">
+    <Panel title="Deine Zeit hier">
+      <div className="flex flex-col gap-1.5">
+        <SiteText>
           {`${hoursText(minutesOf(here, 'work'))} Arbeit, ${hoursText(minutesOf(here, 'travel'))} Fahrt.`}
-        </p>
+        </SiteText>
         {workingHere ? (
-          <p className="text-body text-ink-muted">{`Die Arbeit hier läuft seit ${clockOf(running.startedAt)}.`}</p>
+          <SiteText muted>{`Die Arbeit hier läuft seit ${clockOf(running.startedAt)}.`}</SiteText>
         ) : (
-          <>
+          <div className="mt-1.5 flex flex-col gap-1">
             <Button
-              tone="secondary"
               wide
+              height={52}
+              icon={Play}
               disabled={timing.busy}
               onClick={() => void timing.start({ kind: 'work', jobId })}
             >
@@ -348,21 +352,18 @@ export function JobTime({ job }: { readonly job: RecordState }) {
               <Button
                 tone="quiet"
                 wide
+                height={44}
                 disabled={timing.busy}
                 onClick={() => void timing.start({ kind: 'travel', jobId })}
               >
                 Fahrt hierher beginnen
               </Button>
             )}
-          </>
+          </div>
         )}
-        {timing.trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {timing.trouble}
-          </p>
-        ) : null}
+        {timing.trouble ? <SiteTrouble>{timing.trouble}</SiteTrouble> : null}
       </div>
-    </Card>
+    </Panel>
   )
 }
 
@@ -382,22 +383,75 @@ function lateText(on: string): string | null {
   }
 }
 
-interface EntryFormProps {
-  readonly day: string
-  readonly entry?: RecordState
-  readonly onDone: () => void
+/** The day a path names, or today when it names none or no day at all. */
+function dayOf(param: string | undefined): string {
+  return param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : today()
+}
+
+/** Where the times of a day are: today under "/zeiten", any other day under its date. */
+export function dayPath(day: string): string {
+  return day === today() ? '/zeiten' : `/zeiten/${day}`
+}
+
+/** "Heute" for today, the date for any other day. */
+function dayTitle(day: string): string {
+  return day === today() ? 'Heute' : date(day)
 }
 
 /**
- * A stretch typed in by hand: the late entry for the day somebody forgot to
- * press, and the correction of an entry that is wrong.
+ * A stretch typed in by hand, the board "Zeit nachtragen": the late entry for
+ * the day somebody forgot to press, and the correction of an entry that is
+ * wrong. A screen of its own with the two buttons at its foot, as the board
+ * draws it, and back to the day once it is saved.
  *
  * An end before the start is taken as the next morning, which is how a night
  * job from ten to two gets written without a second date field. What would be
  * refused is said before anything goes into the outbox.
  */
-function EntryForm({ day, entry, onDone }: EntryFormProps) {
+export function SiteTimeEntryScreen() {
+  const { day: dayParam, entryId } = useParams({ strict: false }) as {
+    day?: string
+    entryId?: string
+  }
+  const records = useMay('time.write')
+  const me = useMe()
+  const entries = useTimeEntries()
+  const day = dayOf(dayParam)
+  const correcting = entryId !== undefined
+  const entry = useMemo(
+    () =>
+      entryId
+        ? entriesOf(entries, me).find((candidate) => String(candidate['id']) === entryId)
+        : undefined,
+    [entries, me, entryId],
+  )
+  const title = correcting ? 'Zeit korrigieren' : 'Zeit nachtragen'
+
+  if (!records || (correcting && !entry)) {
+    return (
+      <SiteScreen>
+        <SiteHeader title={title} />
+        <SiteText>
+          {records
+            ? 'Diesen Eintrag hat dieses Gerät nicht.'
+            : 'Mit deiner Rolle erfasst du hier keine Zeiten.'}
+        </SiteText>
+      </SiteScreen>
+    )
+  }
+
+  return (
+    <SiteScreen gap={14}>
+      <SiteHeader title={title} sub={dayTitle(day)} />
+      {/* Remounted per entry, so a form never carries the values of another. */}
+      <EntryForm key={entryId ?? day} day={day} {...(entry ? { entry } : {})} />
+    </SiteScreen>
+  )
+}
+
+function EntryForm({ day, entry }: { readonly day: string; readonly entry?: RecordState }) {
   const client = useSync()
+  const navigate = useNavigate()
   const jobs = useRecords('jobs')
   const [kind, setKind] = useState<TimeEntryKind>(entry ? timeEntryKindOf(entry) : 'work')
   const [jobId, setJobId] = useState(entry ? (maybeText(entry, 'jobId') ?? '') : '')
@@ -406,6 +460,7 @@ function EntryForm({ day, entry, onDone }: EntryFormProps) {
   const [until, setUntil] = useState(entry ? clockOf(text(entry, 'endedAt')) : '')
   const [note, setNote] = useState('')
   const [trouble, setTrouble] = useState<string | null>(null)
+  const formId = useId()
   // Said for a late entry, not for a correction: what the law dates is the
   // record, and a correction puts right a record that was made.
   const late = entry ? null : lateText(on)
@@ -449,79 +504,94 @@ function EntryForm({ day, entry, onDone }: EntryFormProps) {
       return
     }
 
-    onDone()
+    void navigate({ to: dayPath(on) })
   }
 
   return (
-    <form
-      className="flex flex-col gap-3"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void save()
-      }}
-    >
-      <SelectField
-        label="Art"
-        value={kind}
-        options={timeEntryKinds.map((value) => ({ value, label: timeEntryKindLabel[value] }))}
-        onChange={(value) => {
-          setKind(value as TimeEntryKind)
+    <>
+      <form
+        id={formId}
+        className="flex flex-col gap-3.5"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void save()
         }}
-      />
-      <SelectField label="Auftrag" value={jobId} options={jobOptions} onChange={setJobId} />
-      <Field
-        label="Tag"
-        type="date"
-        value={on}
-        max={today()}
-        onChange={(event) => {
-          setOn(event.target.value)
-        }}
-      />
-      <Field
-        label="Beginn"
-        type="time"
-        value={from}
-        onChange={(event) => {
-          setFrom(event.target.value)
-        }}
-      />
-      <Field
-        label="Ende"
-        type="time"
-        value={until}
-        hint={
-          from !== '' && until !== '' && until <= from
-            ? 'Das Ende liegt am nächsten Tag.'
-            : undefined
-        }
-        onChange={(event) => {
-          setUntil(event.target.value)
-        }}
-      />
-      <Field
-        label={entry ? 'Grund der Korrektur' : 'Notiz'}
-        value={note}
-        required={Boolean(entry)}
-        onChange={(event) => {
-          setNote(event.target.value)
-        }}
-      />
-      {late ? <p className="text-body text-ink-muted">{late}</p> : null}
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
-      <div className="flex flex-col gap-2">
-        <Button type="submit" tone="primary" wide>
-          {entry ? 'Korrektur sichern' : 'Nachtragen'}
-        </Button>
-        <Button tone="quiet" wide onClick={onDone}>
+      >
+        <SelectField
+          label="Art"
+          value={kind}
+          options={timeEntryKinds.map((value) => ({ value, label: timeEntryKindLabel[value] }))}
+          onChange={(value) => {
+            setKind(value as TimeEntryKind)
+          }}
+        />
+        <SelectField label="Auftrag" value={jobId} options={jobOptions} onChange={setJobId} />
+        <Field
+          label="Tag"
+          type="date"
+          value={on}
+          max={today()}
+          onChange={(event) => {
+            setOn(event.target.value)
+          }}
+        />
+        <div className="grid grid-cols-2 items-start gap-2.5">
+          <Field
+            label="Beginn"
+            type="time"
+            value={from}
+            onChange={(event) => {
+              setFrom(event.target.value)
+            }}
+          />
+          <Field
+            label="Ende"
+            type="time"
+            value={until}
+            hint={
+              from !== '' && until !== '' && until <= from
+                ? 'Das Ende liegt am nächsten Tag.'
+                : undefined
+            }
+            onChange={(event) => {
+              setUntil(event.target.value)
+            }}
+          />
+        </div>
+        <TextArea
+          label={entry ? 'Grund der Korrektur' : 'Notiz'}
+          rows={3}
+          value={note}
+          required={Boolean(entry)}
+          onChange={(event) => {
+            setNote(event.target.value)
+          }}
+        />
+        {late ? <SiteText muted>{late}</SiteText> : null}
+        {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+      </form>
+      <SiteActionBar>
+        <Button
+          wide
+          className="flex-1 basis-0"
+          onClick={() => {
+            void navigate({ to: dayPath(day) })
+          }}
+        >
           Abbrechen
         </Button>
-      </div>
-    </form>
+        <Button
+          type="submit"
+          form={formId}
+          tone="primary"
+          wide
+          icon={Check}
+          className="flex-2 basis-0"
+        >
+          {entry ? 'Korrektur sichern' : 'Nachtragen'}
+        </Button>
+      </SiteActionBar>
+    </>
   )
 }
 
@@ -539,7 +609,7 @@ function WithdrawForm({
 
   return (
     <form
-      className="flex flex-col gap-3"
+      className="mt-2 flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
         void withdrawEntry(client, entry, reason).then((result) => {
@@ -561,16 +631,12 @@ function WithdrawForm({
           setReason(event.target.value)
         }}
       />
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
-      <div className="flex flex-col gap-2">
-        <Button type="submit" tone="danger" wide>
+      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" tone="danger" height={48}>
           Eintrag streichen
         </Button>
-        <Button tone="quiet" wide onClick={onDone}>
+        <Button tone="quiet" height={48} onClick={onDone}>
           Abbrechen
         </Button>
       </div>
@@ -578,7 +644,11 @@ function WithdrawForm({
   )
 }
 
-/** One entry of the day, with what it replaced and what can still be done about it. */
+/**
+ * One entry of the day, as the card "Einträge" of the board "Zeiten, heute"
+ * draws it: from when to when in bold, what and for which job, what it
+ * replaced, whether it is up yet, and correcting or striking it.
+ */
 function EntryRow({
   entry,
   replaced,
@@ -590,55 +660,47 @@ function EntryRow({
 }) {
   const client = useSync()
   const job = useRecord('jobs', maybeText(entry, 'jobId') ?? undefined)
-  const [doing, setDoing] = useState<'correct' | 'withdraw' | null>(null)
+  const [withdrawing, setWithdrawing] = useState(false)
+  const correctLook = useButtonLook('secondary', 'normal', 44)
   const start = text(entry, 'startedAt')
   const end = text(entry, 'endedAt')
   const pending = client.isPending('time_entries', String(entry['id']))
 
   return (
-    <li className="flex flex-col gap-2 p-3 rounded-card border border-line bg-surface">
-      <p className="text-body">
-        <span className="font-semibold numeric">{`${clockOf(start)} bis ${clockOf(end)}`}</span>
+    <li className="border-b border-row py-2.5">
+      <p className="text-[17px] leading-[1.4] [overflow-wrap:anywhere]">
+        <b className="numeric font-semibold">{`${clockOf(start)} bis ${clockOf(end)}`}</b>
         {`, ${timeEntryKindLabel[timeEntryKindOf(entry)]}`}
         {job ? `, ${text(job, 'designation')}` : ''}
         {`, ${hoursText(minutesBetween(start, end))}`}
       </p>
       {replaced ? (
-        <p className="text-table text-ink-muted">
+        <p className="mt-0.5 text-[15px] text-ink-muted">
           {`Korrigiert, vorher ${clockOf(text(replaced, 'startedAt'))} bis ${clockOf(text(replaced, 'endedAt'))}. Grund: ${text(entry, 'note')}`}
         </p>
       ) : maybeText(entry, 'note') ? (
-        <p className="text-table text-ink-muted">{text(entry, 'note')}</p>
+        <p className="mt-0.5 text-[15px] text-ink-muted">{text(entry, 'note')}</p>
       ) : null}
-      {pending ? <p className="text-table text-ink-muted">Noch nicht übertragen.</p> : null}
-      {doing === 'correct' ? (
-        <EntryForm
-          day={day}
-          entry={entry}
-          onDone={() => {
-            setDoing(null)
-          }}
-        />
-      ) : doing === 'withdraw' ? (
+      {pending ? (
+        <p className="mt-0.5 text-[15px] font-semibold text-waiting">Noch nicht übertragen.</p>
+      ) : null}
+      {withdrawing ? (
         <WithdrawForm
           entry={entry}
           onDone={() => {
-            setDoing(null)
+            setWithdrawing(false)
           }}
         />
       ) : (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={() => {
-              setDoing('correct')
-            }}
-          >
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Link to={`/zeiten/${day}/korrigieren/${String(entry['id'])}`} className={correctLook}>
             Korrigieren
-          </Button>
+          </Link>
           <Button
-            tone="quiet"
+            tone="danger"
+            height={44}
             onClick={() => {
-              setDoing('withdraw')
+              setWithdrawing(true)
             }}
           >
             Streichen
@@ -676,49 +738,73 @@ function ConsentCard() {
   }
 
   return (
-    <Card label="Standort" heading={<h2 className="text-body font-semibold">Standort</h2>}>
-      <div className="flex flex-col gap-3">
-        <p className="text-body">
+    <Panel title="Standort">
+      <div className="flex flex-col gap-2.5">
+        <SiteText size={16}>
           {given
             ? 'Du hast eingewilligt: beim Start und beim Stopp merkt sich das Gerät, wo du bist, und nirgends dazwischen.'
             : 'Ohne deine Einwilligung wird kein Standort erfasst. Mit ihr merkt sich das Gerät beim Start und beim Stopp, wo du bist, und nirgends dazwischen.'}
-        </p>
-        <p className="text-table text-ink-muted">
+        </SiteText>
+        <SiteText muted size={15}>
           Die Einwilligung ist freiwillig und lässt sich jederzeit widerrufen. Einträge danach
           tragen keinen Standort mehr.
-        </p>
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+        </SiteText>
+        {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
         <Button
           tone={given ? 'danger' : 'secondary'}
           wide
+          height={48}
           disabled={busy}
           onClick={() => void answer(!given)}
         >
           {given ? 'Einwilligung widerrufen' : 'Einwilligen'}
         </Button>
       </div>
-    </Card>
+    </Panel>
+  )
+}
+
+/** A step to the day before or after, a square button beside the title. */
+function DayStep({
+  to,
+  label,
+  icon: Icon,
+}: {
+  readonly to: string | null
+  readonly label: string
+  readonly icon: typeof ChevronLeft
+}) {
+  const look =
+    'flex size-12 items-center justify-center rounded-control border border-control bg-surface text-ink'
+
+  // No day after today: the step is there and cannot be taken.
+  return to === null ? (
+    <span aria-disabled="true" className={clsx(look, 'border-line text-disabled')}>
+      <Icon size={22} strokeWidth={2.2} aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+    </span>
+  ) : (
+    <Link to={to} aria-label={label} className={look}>
+      <Icon size={22} strokeWidth={2.2} aria-hidden="true" />
+    </Link>
   )
 }
 
 /**
- * One's own days, one at a time (#76): what was recorded, what the Working
- * Hours Act would say about it, the late entry and the corrections.
+ * One's own days, one at a time (#76), the board "Zeiten, heute": what was
+ * recorded, what the Working Hours Act would say about it, the late entry and
+ * the corrections.
  *
  * Only one's own, also for somebody whose role reads everybody's: on a phone
  * on site this is the diary of the person holding it. The office has the
  * overview of all.
  */
 export function SiteTimeScreen() {
+  const { day: dayParam } = useParams({ strict: false }) as { day?: string }
   const records = useMay('time.write')
   const me = useMe()
   const entries = useTimeEntries()
-  const [on, setOn] = useState<string>(today())
-  const [adding, setAdding] = useState(false)
+  const on = dayOf(dayParam)
   const mine = useMemo(() => entriesOf(entries, me), [entries, me])
   const counting = useMemo(() => effectiveEntries(mine), [mine])
   const ofTheDay = useMemo(() => startingOn(counting, on as IsoDate), [counting, on])
@@ -731,77 +817,68 @@ export function SiteTimeScreen() {
     () => workingTimeWarnings(counting.map(timed), on as IsoDate, shippedRules),
     [counting, on],
   )
+  const addLook = useButtonLook('secondary', 'normal', 48)
 
   if (!records) {
     return (
-      <div className="flex flex-col gap-4 p-4">
-        <h1 className="text-title font-semibold">Zeiten</h1>
-        <p className="text-body">Mit deiner Rolle erfasst du hier keine Zeiten.</p>
-      </div>
+      <SiteScreen>
+        <TopTitle over="Zeiten" title="Zeiten" />
+        <SiteText>Mit deiner Rolle erfasst du hier keine Zeiten.</SiteText>
+      </SiteScreen>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-col gap-1">
-        <FieldLabel>Zeiten</FieldLabel>
-        <h1 className="text-title font-semibold">{on === today() ? 'Heute' : date(on)}</h1>
-      </div>
+    <SiteScreen>
+      <TopTitle
+        over="Zeiten"
+        title={dayTitle(on)}
+        right={
+          <div className="flex gap-1.5">
+            <DayStep to={dayPath(shiftDay(on, -1))} label="Vortag" icon={ChevronLeft} />
+            <DayStep
+              to={on >= today() ? null : dayPath(shiftDay(on, 1))}
+              label="Folgetag"
+              icon={ChevronRight}
+            />
+          </div>
+        }
+      />
 
-      <div className="flex gap-2">
-        <Button
-          wide
-          onClick={() => {
-            setOn(shiftDay(on, -1))
-          }}
-        >
-          Vortag
-        </Button>
-        <Button
-          wide
-          disabled={on >= today()}
-          onClick={() => {
-            setOn(shiftDay(on, 1))
-          }}
-        >
-          Folgetag
-        </Button>
-      </div>
-
-      <Card label="Summe">
-        <dl className="grid grid-cols-3 gap-3">
+      <Panel>
+        <dl className="grid grid-cols-3 gap-2 text-center">
           {(['work', 'travel', 'break'] as const).map((kind) => (
-            <div key={kind}>
-              <dt>
-                <FieldLabel>{timeEntryKindLabel[kind]}</FieldLabel>
-              </dt>
-              <dd className="text-body numeric">{hoursText(minutesOf(ofTheDay, kind))}</dd>
+            <div key={kind} className="flex flex-col-reverse">
+              <dt className="text-[15px] text-ink-muted">{timeEntryKindLabel[kind]}</dt>
+              <dd className="numeric text-[24px] font-bold">
+                {hoursText(minutesOf(ofTheDay, kind))}
+              </dd>
             </div>
           ))}
         </dl>
-      </Card>
+      </Panel>
 
       {warnings.length > 0 ? (
-        <Card
-          label="Hinweise"
-          heading={<h2 className="text-body font-semibold">Nach dem Arbeitszeitgesetz</h2>}
-        >
+        <Panel title="Nach dem Arbeitszeitgesetz">
           <ul className="flex flex-col gap-2">
             {warnings.map((warning) => (
-              <li key={warning.kind} className="text-body">
+              <li
+                key={warning.kind}
+                className="text-[16px] leading-[1.45] font-semibold text-waiting"
+              >
                 {warning.text}
               </li>
             ))}
           </ul>
-        </Card>
+        </Panel>
       ) : null}
 
-      <Card label="Einträge" heading={<h2 className="text-body font-semibold">Einträge</h2>}>
-        <div className="flex flex-col gap-3">
-          {ofTheDay.length === 0 ? (
-            <p className="text-body text-ink-muted">An diesem Tag ist nichts erfasst.</p>
+      <Panel title="Einträge">
+        <div className="flex flex-col gap-2">
+          {ofTheDay.length === 0 && withdrawn.length === 0 ? (
+            <SiteText muted>An diesem Tag ist nichts erfasst.</SiteText>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul aria-label="Einträge" className="flex flex-col">
               {ofTheDay.map((entry) => {
                 const corrects = maybeText(entry, 'correctsEntryId')
 
@@ -814,38 +891,27 @@ export function SiteTimeScreen() {
                   />
                 )
               })}
-            </ul>
-          )}
-          {withdrawn.length > 0 ? (
-            <ul className="flex flex-col gap-1">
               {withdrawn.map((entry) => (
-                <li key={String(entry['id'])} className="text-table text-ink-muted">
-                  {`Gestrichen: ${clockOf(text(entry, 'startedAt'))} bis ${clockOf(text(entry, 'endedAt'))}, ${timeEntryKindLabel[timeEntryKindOf(entry)]}. Grund: ${text(entry, 'note')}`}
+                <li
+                  key={String(entry['id'])}
+                  className="border-b border-row py-2.5 text-[16px] text-ink-faint"
+                >
+                  <s>
+                    {`Gestrichen: ${clockOf(text(entry, 'startedAt'))} bis ${clockOf(text(entry, 'endedAt'))}, ${timeEntryKindLabel[timeEntryKindOf(entry)]}.`}
+                  </s>
+                  {` Grund: ${text(entry, 'note')}`}
                 </li>
               ))}
             </ul>
-          ) : null}
-          {adding ? (
-            <EntryForm
-              day={on}
-              onDone={() => {
-                setAdding(false)
-              }}
-            />
-          ) : (
-            <Button
-              wide
-              onClick={() => {
-                setAdding(true)
-              }}
-            >
-              Zeit nachtragen
-            </Button>
           )}
+          <Link to={`/zeiten/${on}/nachtragen`} className={clsx(addLook, 'w-full')}>
+            <Plus size={20} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
+            Zeit nachtragen
+          </Link>
         </div>
-      </Card>
+      </Panel>
 
       <ConsentCard />
-    </div>
+    </SiteScreen>
   )
 }

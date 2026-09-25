@@ -20,6 +20,22 @@ export type ButtonTone = 'primary' | 'secondary' | 'dark' | 'danger' | 'quiet'
 export type ButtonSize = 'normal' | 'small'
 
 /**
+ * How high a button on site is, as `sbtn()` of the boards draws it: 60 at the
+ * foot of a screen, 52 for a button in a card, 48 for the lesser one under a
+ * list and 44 for one in a row, "Erledigt" beside a task. Never lower: ADR
+ * 0004 puts nothing a thumb has to hit under 44 pixels. The office ignores it.
+ */
+export type SiteHeight = 44 | 48 | 52 | 56 | 60
+
+const siteHeights: Readonly<Record<SiteHeight, string>> = {
+  44: 'min-h-11',
+  48: 'min-h-12',
+  52: 'min-h-13',
+  56: 'min-h-14',
+  60: 'min-h-control',
+}
+
+/**
  * The colours of a tone. The office sets only the filled ones in semibold,
  * the site every one of them, as `button()` and `sbtn()` of the canvas do; a
  * small button and a button on site sit on the page colour rather than on a
@@ -60,9 +76,12 @@ function toneClasses(tone: ButtonTone, size: ButtonSize, entry: Entry): string {
  * button is as tall as the control token says and may wrap, because a long
  * label on a phone is better on two lines than cut.
  */
-function sizeClasses(size: ButtonSize, entry: Entry): string {
+function sizeClasses(size: ButtonSize, entry: Entry, height: SiteHeight = 60): string {
   if (entry === 'site') {
-    return 'min-h-control px-[14px] py-1.5 gap-[9px] text-[16px] leading-[1.25] text-center'
+    return clsx(
+      siteHeights[height],
+      'px-[14px] py-1.5 gap-[9px] text-[16px] leading-[1.25] text-center',
+    )
   }
 
   return size === 'small'
@@ -90,6 +109,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   readonly icon?: LucideIcon
   /** Fills the width of its container, which is what the site entry wants. */
   readonly wide?: boolean
+  /** On site, the height the board gives it; 60 when nothing is said. */
+  readonly height?: SiteHeight
   readonly children: ReactNode
 }
 
@@ -107,6 +128,7 @@ export function Button({
   size = 'normal',
   icon: Icon,
   wide = false,
+  height,
   className,
   children,
   ...rest
@@ -120,7 +142,7 @@ export function Button({
         'inline-flex items-center justify-center rounded-control',
         'cursor-pointer disabled:cursor-not-allowed',
         'disabled:bg-ground disabled:text-disabled disabled:border-line',
-        sizeClasses(size, entry),
+        sizeClasses(size, entry, height),
         toneClasses(tone, size, entry),
         wide && 'w-full',
         className,
@@ -138,12 +160,16 @@ export function Button({
  * opens, a file that downloads. A link stays a link, so that it opens in a new
  * tab and a screen reader calls it one, and only borrows the clothes.
  */
-export function useButtonLook(tone: ButtonTone = 'secondary', size: ButtonSize = 'normal'): string {
+export function useButtonLook(
+  tone: ButtonTone = 'secondary',
+  size: ButtonSize = 'normal',
+  height?: SiteHeight,
+): string {
   const entry = useEntry()
 
   return clsx(
     'inline-flex items-center justify-center rounded-control no-underline cursor-pointer',
-    sizeClasses(size, entry),
+    sizeClasses(size, entry, height),
     toneClasses(tone, size, entry),
   )
 }
@@ -154,6 +180,7 @@ export interface ButtonLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement>
   /** A symbol in front of the label, never instead of it. */
   readonly icon?: LucideIcon
   readonly wide?: boolean
+  readonly height?: SiteHeight
   readonly children: ReactNode
 }
 
@@ -163,12 +190,13 @@ export function ButtonLink({
   size = 'normal',
   icon: Icon,
   wide = false,
+  height,
   className,
   children,
   ...rest
 }: ButtonLinkProps) {
   const entry = useEntry()
-  const look = useButtonLook(tone, size)
+  const look = useButtonLook(tone, size, height)
 
   return (
     <a className={clsx(look, wide && 'w-full', className)} {...rest}>

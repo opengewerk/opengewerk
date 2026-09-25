@@ -8,7 +8,7 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Field, FieldLabel } from '../../components/index.js'
+import { Button, Card, Field } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import {
   definitionOf,
@@ -24,6 +24,7 @@ import { text } from '../../sync/fields.js'
 import { useRecord, useSync } from '../../sync/provider.js'
 import { SignaturePad } from '../signature-pad.js'
 import { SiteHeader } from '../header.js'
+import { SiteLabel } from '../kit.js'
 
 /**
  * The test protocol on site (#79): started at the installation of the job,
@@ -47,8 +48,8 @@ export function InstallationProtocols({
   const navigate = useNavigate()
 
   return (
-    <div className="flex flex-col gap-3">
-      <FieldLabel>Prüfprotokolle</FieldLabel>
+    <section aria-label="Prüfprotokolle">
+      <SiteLabel className="mt-1">Prüfprotokolle</SiteLabel>
       <ProtocolsList
         installationId={installationId}
         jobId={jobId}
@@ -57,7 +58,7 @@ export function InstallationProtocols({
           void navigate({ to: protocolPath(jobId, recordId) })
         }}
       />
-    </div>
+    </section>
   )
 }
 

@@ -1,4 +1,5 @@
 import { contactParentProblem, contactParentText, type RecordState } from '@opengewerk/domain'
+import { Mail, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button, IconButton } from '../components/index.js'
@@ -104,6 +105,10 @@ export function NewContactForm({
   )
 }
 
+/** A number or an address to tap, drawn in the line and hit a little larger. */
+const contactLink =
+  'relative inline-flex items-center gap-1.5 font-semibold text-copper-text underline underline-offset-2 [overflow-wrap:anywhere] before:absolute before:inset-x-0 before:-inset-y-2.5'
+
 /**
  * The contacts of one customer or site, with phone and e-mail to tap.
  *
@@ -136,18 +141,18 @@ export function ContactList({
   }
 
   if (contacts.length === 0) {
-    return <p className="text-body text-ink-muted">{empty}</p>
+    return <p className="py-2 text-[16px] leading-[1.45] text-ink-muted">{empty}</p>
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="text-[16px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
 
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col">
         {byName(contacts).map((contact) => {
           const id = String(contact['id'])
           const name = contactName(contact)
@@ -185,34 +190,39 @@ export function ContactList({
             )
           }
 
+          // A person as the card "Ansprechpartner" on site draws one: the
+          // name, the role under it, and the number and address to tap side
+          // by side, over a line.
           return (
-            <li key={id} className="flex flex-wrap items-start justify-between gap-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-body font-semibold">
+            <li
+              key={id}
+              className="flex flex-wrap items-start justify-between gap-2 border-b border-row py-2"
+            >
+              <div className="min-w-0">
+                <span className="block text-[17px] font-semibold [overflow-wrap:anywhere]">
                   {name}
                   {client.isPending('contacts', id) ? (
-                    <span className="text-table font-normal text-ink-muted">
-                      {' '}
-                      noch nicht übertragen
+                    <span className="text-[14px] font-semibold text-waiting">
+                      {', noch nicht übertragen'}
                     </span>
                   ) : null}
                 </span>
-                {role ? <span className="text-table text-ink-muted">{role}</span> : null}
-                {phone ? (
-                  <a
-                    href={`tel:${dialable(phone)}`}
-                    className="text-copper-text font-semibold underline underline-offset-2"
-                  >
-                    {phone}
-                  </a>
-                ) : null}
-                {email ? (
-                  <a
-                    href={`mailto:${email}`}
-                    className="text-copper-text font-semibold underline underline-offset-2"
-                  >
-                    {email}
-                  </a>
+                {role ? <span className="block text-[15px] text-ink-muted">{role}</span> : null}
+                {phone || email ? (
+                  <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1.5 text-[16px]">
+                    {phone ? (
+                      <a href={`tel:${dialable(phone)}`} className={contactLink}>
+                        <Smartphone size={17} strokeWidth={2.2} aria-hidden="true" />
+                        {phone}
+                      </a>
+                    ) : null}
+                    {email ? (
+                      <a href={`mailto:${email}`} className={contactLink}>
+                        <Mail size={17} strokeWidth={2.2} aria-hidden="true" />
+                        {email}
+                      </a>
+                    ) : null}
+                  </span>
                 ) : null}
               </div>
 

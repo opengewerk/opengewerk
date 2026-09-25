@@ -1,8 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Check, MapPin, Pencil, Signature, Smartphone, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Card, Confirm, DocumentState, FieldLabel } from '../../components/index.js'
+import { Button, Confirm, DocumentState, Panel } from '../../components/index.js'
 import { addressLine, date, today } from '../../app/format.js'
 import {
   documentKindOf,
@@ -15,6 +17,7 @@ import {
   jobStatusOf,
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
+import { clockOf, useStopwatch } from '../../app/time.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
@@ -27,6 +30,19 @@ import { shownStatus } from './report.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
+import {
+  NotSent,
+  SiteAnchor,
+  SiteFacts,
+  SiteLink,
+  SiteRow,
+  SiteRows,
+  SiteScreen,
+  SiteText,
+  SiteTrouble,
+  TitleCount,
+  TopTitle,
+} from '../kit.js'
 
 /**
  * The jobs this device is meant to work through.
@@ -50,70 +66,131 @@ function openJobs(jobs: readonly RecordState[]): readonly RecordState[] {
   })
 }
 
+/** "Donnerstag, 24. September", the day over the list as the board has it. */
+const dayOfList = new Intl.DateTimeFormat('de-DE', {
+  timeZone: 'Europe/Berlin',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+})
+
+/**
+ * A job in the list, `job_card()` of the board "Offene Aufträge": the number
+ * with its state at the right, the title, for whom and where, the kind, and
+ * the installation it is about. The one the stopwatch runs for has a copper
+ * edge and "Arbeit läuft" beside its number, so it is found without reading.
+ */
 function JobCard({ job }: { readonly job: RecordState }) {
+  const jobId = String(job['id'])
   const site = useRecord('sites', job['siteId'] ? String(job['siteId']) : undefined)
   const customer = useRecord('customers', String(job['customerId']))
+  const installation = useRecord(
+    'installations',
+    job['installationId'] ? String(job['installationId']) : undefined,
+  )
+  const running = useStopwatch()
   const client = useSync()
+  const working = running?.jobId === jobId && running.kind === 'work'
+  const number = maybeText(job, 'number')
+  const who = [customer ? text(customer, 'name') : null, site ? text(site, 'designation') : null]
+    .filter((part): part is string => part !== null && part !== '')
+    .join(', ')
+  const address = site ? addressLine(site) : ''
 
   return (
     <li>
       <Link
-        to={`/auftraege/${String(job['id'])}`}
-        // The whole card is the target, and it is at least 60 pixels high with
-        // a thumb in a glove in mind. A link and not a handler, so the keyboard
-        // and the screen reader get the same thing the thumb does.
-        className="flex flex-col gap-1 p-4 rounded-card border border-line bg-surface min-h-tap"
+        to={`/auftraege/${jobId}`}
+        // The whole card is the target, with a thumb in a glove in mind. A
+        // link and not a handler, so the keyboard and the screen reader get
+        // the same thing the thumb does.
+        className={clsx(
+          'block rounded-[6px] border border-l-4 border-line bg-surface py-[13px] pr-3.5 pl-4 text-ink no-underline',
+          working ? 'border-l-copper' : 'border-l-control',
+        )}
       >
-        <span className="text-title font-semibold">{text(job, 'designation')}</span>
-        <span className="text-body text-ink-muted">
-          {customer ? text(customer, 'name') : ''}
-          {site ? `, ${text(site, 'designation')}` : ''}
+        <span className="flex items-center gap-2">
+          <span className="numeric text-[16px] font-bold whitespace-nowrap">
+            {number ?? 'Nummer folgt'}
+          </span>
+          {working ? (
+            <span className="rounded-[3px] bg-copper-solid px-[7px] py-px font-condensed text-[14px] font-semibold tracking-[0.8px] whitespace-nowrap text-on-copper uppercase">
+              Arbeit läuft
+            </span>
+          ) : null}
+          <span className="grow" />
+          <span className="numeric text-[15px] whitespace-nowrap text-ink-muted">
+            {working ? `seit ${clockOf(running.startedAt)}` : jobStatusLabel[jobStatusOf(job)]}
+          </span>
         </span>
-        {site ? <span className="text-body text-ink-muted">{addressLine(site)}</span> : null}
-        <span className="text-body">
-          {maybeText(job, 'number') ? (
+        <span className="mt-1 block text-[19px] leading-[1.25] font-bold [overflow-wrap:anywhere]">
+          {text(job, 'designation')}
+        </span>
+        {who || address ? (
+          <span className="mt-1 block text-[16px] leading-[1.35] text-ink-muted [overflow-wrap:anywhere]">
+            {who}
+            {who && address ? <br /> : null}
+            {address}
+          </span>
+        ) : null}
+        <span className="mt-0.5 block text-[15px] text-ink-faint">
+          {jobKindLabel[jobKindOf(job)]}
+          {client.isPending('jobs', jobId) ? (
             <>
-              <span className="numeric">{text(job, 'number')}</span>
               {', '}
+              <NotSent />
             </>
           ) : null}
-          {jobKindLabel[jobKindOf(job)]}
-          {', '}
-          {jobStatusLabel[jobStatusOf(job)]}
-          {client.isPending('jobs', String(job['id'])) ? ', noch nicht übertragen' : ''}
         </span>
+        {installation ? (
+          <span className="mt-1.5 flex items-center gap-1.5 text-[15px] text-ink-muted">
+            <Zap size={15} strokeWidth={2} aria-hidden="true" className="shrink-0 text-ink-faint" />
+            <span className="min-w-0 [overflow-wrap:anywhere]">
+              {text(installation, 'designation')}
+            </span>
+          </span>
+        ) : null}
       </Link>
     </li>
   )
 }
 
+/**
+ * The first screen on site, the board "Offene Aufträge": the day, the open
+ * jobs with the one being worked on marked, then the time of the day and the
+ * tasks that are one's own.
+ */
 export function SiteJobList() {
   const jobs = useRecords('jobs')
   const open = useMemo(() => openJobs(jobs), [jobs])
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <TodayTime />
-
-      <MyTasks />
-
-      <h1 className="text-title font-semibold">Offene Aufträge</h1>
+    <SiteScreen gap={14}>
+      <TopTitle
+        over={dayOfList.format(new Date())}
+        title="Offene Aufträge"
+        right={<TitleCount count={open.length} label="offen" />}
+      />
 
       {open.length === 0 ? (
-        <Card label="Nichts offen" tone="sunken">
-          <p className="text-body">
+        <Panel title="Nichts offen">
+          <SiteText>
             Gerade ist kein Auftrag offen. Was im Büro angelegt wird, erscheint hier, sobald das
             Gerät wieder Netz hatte.
-          </p>
-        </Card>
+          </SiteText>
+        </Panel>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul aria-label="Offene Aufträge" className="flex flex-col gap-2.5">
           {open.map((job) => (
             <JobCard key={String(job['id'])} job={job} />
           ))}
         </ul>
       )}
-    </div>
+
+      <TodayTime />
+
+      <MyTasks />
+    </SiteScreen>
   )
 }
 
@@ -174,43 +251,37 @@ function JobReports({ job }: { readonly job: RecordState }) {
   }
 
   return (
-    <Card label="Regieberichte">
-      <div className="flex flex-col gap-3">
+    <Panel title="Regieberichte">
+      <div className="flex flex-col gap-2">
         {reports.length === 0 ? (
-          <p className="text-body text-ink-muted">Zu diesem Auftrag gibt es noch keinen.</p>
+          <SiteText muted>Zu diesem Auftrag gibt es noch keinen.</SiteText>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <SiteRows label="Regieberichte">
             {reports.map((report) => (
-              <li key={String(report['id'])}>
-                <Link
-                  to={`/auftraege/${jobId}/berichte/${String(report['id'])}`}
-                  className="flex flex-wrap items-center gap-3 p-3 rounded-card border border-line bg-surface min-h-tap"
-                >
-                  <span className="text-body font-semibold">
-                    {`Regiebericht vom ${date(report['documentDate'])}`}
-                  </span>
+              <SiteRow
+                key={String(report['id'])}
+                to={`/auftraege/${jobId}/berichte/${String(report['id'])}`}
+                title={`Regiebericht vom ${date(report['documentDate'])}`}
+                right={
                   <DocumentState
                     status={shownStatus(
                       documentStatusOf(report),
                       signatureOf.get(String(report['id'])) ?? null,
                     )}
-                    number={maybeText(report, 'number')}
                   />
-                </Link>
-              </li>
+                }
+              />
             ))}
-          </ul>
+          </SiteRows>
         )}
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
-        <Button tone="secondary" wide onClick={() => void start()}>
+        {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+        {/* The one copper button of the screen (#223): a report is what a
+            technician writes here. */}
+        <Button tone="primary" wide height={52} icon={Signature} onClick={() => void start()}>
           Regiebericht schreiben
         </Button>
       </div>
-    </Card>
+    </Panel>
   )
 }
 
@@ -229,47 +300,34 @@ function JobLineage({ job }: { readonly job: RecordState }) {
   }
 
   const linked = (other: RecordState) => (
-    <Link
-      to={`/auftraege/${String(other['id'])}`}
-      className="text-copper-text font-semibold underline underline-offset-2"
-    >
-      {text(other, 'designation')}
-    </Link>
+    <>
+      <SiteLink to={`/auftraege/${String(other['id'])}`}>{text(other, 'designation')}</SiteLink>
+      <span className="text-ink-muted">{`, ${jobStatusLabel[jobStatusOf(other)]}`}</span>
+    </>
   )
 
   return (
-    <Card label="Vorher und danach">
-      <dl className="flex flex-col gap-3">
-        {before ? (
-          <div>
-            <dt>
-              <FieldLabel>Folgt auf</FieldLabel>
-            </dt>
-            <dd className="text-body">
-              {linked(before)}
-              {`, ${jobStatusLabel[jobStatusOf(before)]}`}
-            </dd>
-          </div>
-        ) : null}
-        {after.length > 0 ? (
-          <div>
-            <dt>
-              <FieldLabel>Folgeaufträge</FieldLabel>
-            </dt>
-            <dd>
-              <ul className="flex flex-col gap-1 text-body">
-                {after.map((follower) => (
-                  <li key={String(follower['id'])}>
-                    {linked(follower)}
-                    {`, ${jobStatusLabel[jobStatusOf(follower)]}`}
-                  </li>
-                ))}
-              </ul>
-            </dd>
-          </div>
-        ) : null}
-      </dl>
-    </Card>
+    <Panel title="Vorher und danach">
+      <SiteFacts
+        facts={[
+          ...(before ? [{ label: 'Folgt auf', value: linked(before) }] : []),
+          ...(after.length > 0
+            ? [
+                {
+                  label: 'Folgeaufträge',
+                  value: (
+                    <ul className="flex flex-col gap-1">
+                      {after.map((follower) => (
+                        <li key={String(follower['id'])}>{linked(follower)}</li>
+                      ))}
+                    </ul>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
+    </Panel>
   )
 }
 
@@ -305,20 +363,21 @@ export function SiteJobScreen() {
 
   if (!job || !jobId) {
     return (
-      <div className="flex flex-col gap-4 p-4">
+      <SiteScreen>
         <SiteHeader title="Nicht gefunden" />
-        <p className="text-body">
+        <SiteText>
           Diesen Auftrag hat dieses Gerät nicht. Mit Verbindung holt der Abgleich ihn.
-        </p>
-      </div>
+        </SiteText>
+      </SiteScreen>
     )
   }
 
   const status = jobStatusOf(job)
   const address = addressLine(site)
+  const phone = customer ? maybeText(customer, 'phone') : null
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <SiteScreen>
       <SiteHeader
         title={text(job, 'designation')}
         sub={
@@ -337,100 +396,81 @@ export function SiteJobScreen() {
         }
       />
 
-      <Card label="Wo und für wen">
-        <dl className="flex flex-col gap-3">
-          <div>
-            <dt>
-              <FieldLabel>Kunde</FieldLabel>
-            </dt>
-            <dd className="text-body">{customer ? text(customer, 'name') : 'nicht angegeben'}</dd>
-          </div>
-          <div>
-            <dt>
-              <FieldLabel>Objekt</FieldLabel>
-            </dt>
-            <dd className="text-body">{site ? text(site, 'designation') : 'nicht angegeben'}</dd>
-          </div>
-          {address ? (
-            <div>
-              <dt>
-                <FieldLabel>Anschrift</FieldLabel>
-              </dt>
-              <dd className="text-body">
-                {/*
-                  A link into the phone's map app. The one thing a technician
-                  standing next to a van actually wants from an address.
-                */}
-                <a
-                  href={`geo:0,0?q=${encodeURIComponent(address)}`}
-                  className="text-copper-text font-semibold underline underline-offset-2"
-                >
-                  {address}
-                </a>
-              </dd>
-            </div>
-          ) : null}
-          {customer && maybeText(customer, 'phone') ? (
-            <div>
-              <dt>
-                <FieldLabel>Telefon</FieldLabel>
-              </dt>
-              <dd className="text-body">
-                <a
-                  href={`tel:${text(customer, 'phone')}`}
-                  className="text-copper-text font-semibold underline underline-offset-2"
-                >
-                  {text(customer, 'phone')}
-                </a>
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-      </Card>
+      <Panel title="Wo und für wen">
+        <SiteFacts
+          facts={[
+            { label: 'Kunde', value: customer ? text(customer, 'name') : 'nicht angegeben' },
+            { label: 'Objekt', value: site ? text(site, 'designation') : 'nicht angegeben' },
+            ...(address
+              ? [
+                  {
+                    label: 'Anschrift',
+                    // A link into the phone's map app: the one thing a
+                    // technician standing next to a van wants from an address.
+                    value: (
+                      <SiteAnchor href={`geo:0,0?q=${encodeURIComponent(address)}`} icon={MapPin}>
+                        {address}
+                      </SiteAnchor>
+                    ),
+                  },
+                ]
+              : []),
+            ...(phone
+              ? [
+                  {
+                    label: 'Telefon',
+                    value: (
+                      <SiteAnchor href={`tel:${phone}`} icon={Smartphone}>
+                        {phone}
+                      </SiteAnchor>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </Panel>
 
       <JobContacts job={job} />
 
       <JobLineage job={job} />
 
       {installation ? (
-        <Card label="Anlage">
-          <dl className="flex flex-col gap-3">
-            <div>
-              <dt>
-                <FieldLabel>{installationKindLabel[installationKindOf(installation)]}</FieldLabel>
-              </dt>
-              <dd className="text-body font-semibold">{text(installation, 'designation')}</dd>
-            </div>
-            {maybeText(installation, 'serialNumber') ? (
-              <div>
-                <dt>
-                  <FieldLabel>Seriennummer</FieldLabel>
-                </dt>
-                <dd className="text-body numeric">{text(installation, 'serialNumber')}</dd>
-              </div>
-            ) : null}
-            {maybeText(installation, 'commissionedOn') ? (
-              <div>
-                <dt>
-                  <FieldLabel>In Betrieb seit</FieldLabel>
-                </dt>
-                <dd className="text-body">{date(installation['commissionedOn'])}</dd>
-              </div>
-            ) : null}
-          </dl>
-          <div className="mt-4">
+        <Panel title="Anlage">
+          <div className="flex flex-col gap-2.5">
+            <SiteFacts
+              facts={[
+                {
+                  label: installationKindLabel[installationKindOf(installation)],
+                  value: <b className="font-semibold">{text(installation, 'designation')}</b>,
+                },
+                ...(maybeText(installation, 'serialNumber')
+                  ? [
+                      {
+                        label: 'Seriennummer',
+                        value: (
+                          <span className="numeric">{text(installation, 'serialNumber')}</span>
+                        ),
+                      },
+                    ]
+                  : []),
+                ...(maybeText(installation, 'commissionedOn')
+                  ? [{ label: 'In Betrieb seit', value: date(installation['commissionedOn']) }]
+                  : []),
+              ]}
+            />
             <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
-          </div>
-          <div className="mt-4">
             <InstallationProtocols jobId={jobId} installationId={String(installation['id'])} />
           </div>
-        </Card>
+        </Panel>
       ) : null}
 
       {maybeText(job, 'description') ? (
-        <Card label="Was zu tun ist">
-          <p className="text-body whitespace-pre-line">{text(job, 'description')}</p>
-        </Card>
+        <Panel title="Was zu tun ist">
+          <p className="text-[17px] leading-[1.45] whitespace-pre-line [overflow-wrap:anywhere]">
+            {text(job, 'description')}
+          </p>
+        </Panel>
       ) : null}
 
       <JobTime job={job} />
@@ -442,7 +482,7 @@ export function SiteJobScreen() {
       <JobTasks job={job} />
 
       {reports && noting ? (
-        <Card label="Notiz zum Auftrag">
+        <Panel title="Notiz zum Auftrag">
           <RecordForm
             fields={[{ name: 'description', label: 'Was passiert ist' }]}
             record={job}
@@ -462,22 +502,22 @@ export function SiteJobScreen() {
               return saved
             }}
           />
-        </Card>
+        </Panel>
       ) : null}
 
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
+      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {status === 'completed' ? (
-          <p className="text-body text-ink-muted">Dieser Auftrag ist abgeschlossen.</p>
+          <SiteText muted>Dieser Auftrag ist abgeschlossen.</SiteText>
         ) : reports ? (
+          // Slate, as the board has it: finishing is going somewhere, not
+          // the thing this screen is for.
           <Button
-            tone="primary"
+            tone="dark"
             wide
+            height={52}
+            icon={Check}
             onClick={() => {
               setTrouble(null)
               setClosing(true)
@@ -510,8 +550,9 @@ export function SiteJobScreen() {
 
         {reports ? (
           <Button
-            tone="secondary"
             wide
+            height={48}
+            icon={Pencil}
             onClick={() => {
               setNoting((open) => !open)
             }}
@@ -520,6 +561,6 @@ export function SiteJobScreen() {
           </Button>
         ) : null}
       </div>
-    </div>
+    </SiteScreen>
   )
 }

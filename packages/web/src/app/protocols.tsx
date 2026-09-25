@@ -49,6 +49,7 @@ import { useRecords, useRelated, useSync, useSyncStatus } from '../sync/provider
 import { ordered, useBoards } from './electrical.js'
 import { amount, date, scaledNumber, today } from './format.js'
 import { SignaturePicture } from './signature.js'
+import { NotSent, SiteRow, SiteRows } from '../site/kit.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.
@@ -419,44 +420,44 @@ export function ProtocolsList({
     )
   }
 
+  // On site the rows of the card "Anlage" (#219): the protocol, its day and
+  // whether it is signed, then the way to a new one and to one that starts
+  // from the last.
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {protocols.length === 0 ? (
-        <p className="text-body text-ink-muted">
+        <p className="py-2 text-[16px] leading-[1.45] text-ink-muted">
           An dieser Anlage gibt es noch kein Prüfprotokoll.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <SiteRows>
           {protocols.map((protocol) => {
             const id = String(protocol['id'])
 
             return (
-              <li key={id}>
-                <Link
-                  to={pathOf(id)}
-                  className="flex flex-col gap-1 p-3 rounded-card border border-line bg-surface min-h-tap"
-                >
-                  <span className="text-body font-semibold">
-                    {definitionOf(protocol)?.title ?? 'Formular einer anderen Fassung'}
-                  </span>
-                  <span className="text-body text-ink-muted">
-                    {[
-                      date(protocol['performedOn']),
-                      isSigned(protocol) ? 'unterschrieben' : 'Entwurf',
-                      client.isPending('form_records', id) ? 'noch nicht übertragen' : null,
-                    ]
-                      .filter((part): part is string => part !== null)
-                      .join(', ')}
-                  </span>
-                </Link>
-              </li>
+              <SiteRow
+                key={id}
+                to={pathOf(id)}
+                title={definitionOf(protocol)?.title ?? 'Formular einer anderen Fassung'}
+                meta={
+                  <>
+                    {`${date(protocol['performedOn'])}, ${isSigned(protocol) ? 'unterschrieben' : 'Entwurf'}`}
+                    {client.isPending('form_records', id) ? (
+                      <>
+                        {', '}
+                        <NotSent />
+                      </>
+                    ) : null}
+                  </>
+                }
+              />
             )
           })}
-        </ul>
+        </SiteRows>
       )}
 
       {circuits.length === 0 ? (
-        <p className="text-body text-ink-muted">
+        <p className="text-[16px] leading-[1.45] text-ink-muted">
           Gemessen wird je Stromkreis aus dem Stromkreisverzeichnis. Solange die Anlage keinen hat,
           bleibt der Teil "Messen" leer.
         </p>
@@ -469,10 +470,11 @@ export function ProtocolsList({
         )
 
         return (
-          <div key={definition.key} className="flex flex-col gap-2">
+          <div key={definition.key} className="flex flex-col gap-1">
             <Button
-              tone="secondary"
               wide
+              height={52}
+              icon={Plus}
               disabled={working}
               onClick={() => {
                 void start(definition, null)
@@ -484,6 +486,7 @@ export function ProtocolsList({
               <Button
                 tone="quiet"
                 wide
+                height={44}
                 disabled={working}
                 onClick={() => {
                   void start(definition, template)

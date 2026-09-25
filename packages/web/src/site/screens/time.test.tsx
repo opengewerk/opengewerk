@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
+  createRoute,
   createRouter,
+  Outlet,
   RouterProvider,
 } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -19,7 +21,7 @@ import { SyncClient } from '../../sync/client.js'
 import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
-import { JobTime, SiteTimeScreen, StopwatchBar } from './time.js'
+import { JobTime, SiteTimeEntryScreen, SiteTimeScreen, StopwatchBar } from './time.js'
 
 /**
  * The working time of #76 on screen: started at a job and stopped into one
@@ -56,7 +58,11 @@ function at(clock: string, day = '2026-09-21'): Date {
   return new Date(`${day}T${clock}:00+02:00`)
 }
 
-async function mount(content: ReactNode, rows: Readonly<Record<string, RecordState[]>> = {}) {
+async function mount(
+  content: ReactNode,
+  rows: Readonly<Record<string, RecordState[]>> = {},
+  site = false,
+) {
   server.put('jobs', job)
 
   for (const [entity, list] of Object.entries(rows)) {
@@ -79,9 +85,31 @@ async function mount(content: ReactNode, rows: Readonly<Record<string, RecordSta
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   // Under a router, because the screens link to jobs and to the list of the day.
+  // The day on site under the routes of the site, because a late entry and a
+  // correction are screens of their own (#219).
+  const root = createRootRoute({ component: site ? Outlet : () => content })
   const router = createRouter({
-    routeTree: createRootRoute({ component: () => content }),
-    history: createMemoryHistory({ initialEntries: ['/'] }),
+    routeTree: site
+      ? root.addChildren([
+          createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
+          createRoute({
+            getParentRoute: () => root,
+            path: '/zeiten/$day',
+            component: SiteTimeScreen,
+          }),
+          createRoute({
+            getParentRoute: () => root,
+            path: '/zeiten/$day/nachtragen',
+            component: SiteTimeEntryScreen,
+          }),
+          createRoute({
+            getParentRoute: () => root,
+            path: '/zeiten/$day/korrigieren/$entryId',
+            component: SiteTimeEntryScreen,
+          }),
+        ])
+      : root,
+    history: createMemoryHistory({ initialEntries: [site ? '/zeiten' : '/'] }),
   })
 
   render(
@@ -305,17 +333,17 @@ describe('the day on site', () => {
   it('warns about the Working Hours Act and keeps every entry', async () => {
     signedInAs('technician')
     vi.setSystemTime(at('20:00'))
-    await mount(<SiteTimeScreen />, { time_entries: long })
+    await mount(null, { time_entries: long }, true)
 
     expect(await screen.findByText(/^11:15 Std\. Arbeit am 21\.09\.2026\. Erlaubt/)).toBeDefined()
     expect(screen.getByText(/30 Minuten Pause bei 11:15 Std\. Arbeit/)).toBeDefined()
-    expect(screen.getAllByRole('button', { name: 'Korrigieren' })).toHaveLength(2)
+    expect(screen.getAllByRole('link', { name: 'Korrigieren' })).toHaveLength(2)
   })
 
   it('corrects an entry with a new one that names it, and says what it replaced', async () => {
     signedInAs('technician')
     vi.setSystemTime(at('20:00'))
-    const { client } = await mount(<SiteTimeScreen />, { time_entries: long })
+    const { client } = await mount(null, { time_entries: long }, true)
     const user = userEvent.setup()
 
     const first = (await screen.findByText('07:00 bis 12:00')).closest('li')
@@ -324,11 +352,12 @@ describe('the day on site', () => {
       throw new Error('no entry')
     }
 
-    await user.click(within(first).getByRole('button', { name: 'Korrigieren' }))
-    await user.clear(within(first).getByLabelText('Ende'))
-    await user.type(within(first).getByLabelText('Ende'), '11:00')
-    await user.type(within(first).getByLabelText('Grund der Korrektur'), 'Ende falsch getippt')
-    await user.click(within(first).getByRole('button', { name: 'Korrektur sichern' }))
+    // The correction is a screen of its own, and it comes back to the day.
+    await user.click(within(first).getByRole('link', { name: 'Korrigieren' }))
+    await user.clear(await screen.findByLabelText('Ende'))
+    await user.type(screen.getByLabelText('Ende'), '11:00')
+    await user.type(screen.getByLabelText('Grund der Korrektur'), 'Ende falsch getippt')
+    await user.click(screen.getByRole('button', { name: 'Korrektur sichern' }))
 
     expect(
       await screen.findByText('Korrigiert, vorher 07:00 bis 12:00. Grund: Ende falsch getippt'),
@@ -351,7 +380,7 @@ describe('the day on site', () => {
   it('takes an entry back with a reason, and shows it as taken back', async () => {
     signedInAs('technician')
     vi.setSystemTime(at('20:00'))
-    const { client } = await mount(<SiteTimeScreen />, { time_entries: long })
+    const { client } = await mount(null, { time_entries: long }, true)
     const user = userEvent.setup()
 
     const second = (await screen.findByText('12:30 bis 18:45')).closest('li')
@@ -367,9 +396,13 @@ describe('the day on site', () => {
     )
     await user.click(within(second).getByRole('button', { name: 'Eintrag streichen' }))
 
-    expect(
-      await screen.findByText('Gestrichen: 12:30 bis 18:45, Arbeit. Grund: Doppelt erfasst'),
-    ).toBeDefined()
+    // Struck through as on the board, the reason beside it.
+    const struck = await screen.findByText('Gestrichen: 12:30 bis 18:45, Arbeit.')
+
+    expect(struck.tagName).toBe('S')
+    expect(struck.closest('li')?.textContent).toBe(
+      'Gestrichen: 12:30 bis 18:45, Arbeit. Grund: Doppelt erfasst',
+    )
     expect(screen.queryByText('12:30 bis 18:45')).toBeNull()
 
     await client.synchronise()
@@ -387,12 +420,12 @@ describe('the day on site', () => {
   it('takes a late entry and says that it is late, a night past midnight included', async () => {
     signedInAs('technician')
     vi.setSystemTime(at('09:00', '2026-09-21'))
-    const { client } = await mount(<SiteTimeScreen />)
+    const { client } = await mount(null, {}, true)
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'Zeit nachtragen' }))
+    await user.click(await screen.findByRole('link', { name: 'Zeit nachtragen' }))
 
-    const day = screen.getByLabelText('Tag')
+    const day = await screen.findByLabelText('Tag')
 
     await user.clear(day)
     await user.type(day, '2026-09-08')
@@ -403,7 +436,8 @@ describe('the day on site', () => {
     expect(screen.getByText(/Nachgetragen nach dem 15\.09\.2026/)).toBeDefined()
 
     await user.click(screen.getByRole('button', { name: 'Nachtragen' }))
-    await screen.findByRole('button', { name: 'Zeit nachtragen' })
+    // Back on a day, the one it was entered for.
+    await screen.findByRole('link', { name: 'Zeit nachtragen' })
     await client.synchronise()
 
     expect(created()).toEqual([

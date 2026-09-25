@@ -4,13 +4,21 @@ import { createHash } from 'node:crypto'
 
 import { largestAttachmentBytes, type RecordState, type RoleKey } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Outlet,
+  RouterProvider,
+} from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AttachmentsSection } from '../office/screens/attachments.js'
-import { JobFiles } from '../site/screens/files.js'
+import { JobFiles, SiteFilesScreen } from '../site/screens/files.js'
 import { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
@@ -61,6 +69,27 @@ const job = {
   kind: 'service',
   status: 'active',
   designation: 'Zählerschrank',
+}
+
+/**
+ * Under a router with the screen of the files, because the card on the job
+ * links there and the files are opened there (#219).
+ */
+function onSite(content: ReactNode, at = '/') {
+  const root = createRootRoute({ component: Outlet })
+  const router = createRouter({
+    routeTree: root.addChildren([
+      createRoute({ getParentRoute: () => root, path: '/', component: () => content }),
+      createRoute({
+        getParentRoute: () => root,
+        path: '/auftraege/$jobId/dateien',
+        component: SiteFilesScreen,
+      }),
+    ]),
+    history: createMemoryHistory({ initialEntries: [at] }),
+  })
+
+  return <RouterProvider router={router} />
 }
 
 async function mount(content: ReactNode) {
@@ -260,7 +289,7 @@ describe('a file added in the office', () => {
 describe('a photo taken on site', () => {
   it('waits on the device without a network, and shows there already', async () => {
     signedInAs('technician')
-    const client = await mount(<JobFiles job={job as unknown as RecordState} />)
+    const client = await mount(onSite(<JobFiles job={job as unknown as RecordState} />))
 
     server.offline = true
 
@@ -296,9 +325,10 @@ describe('a photo taken on site', () => {
       createdAt: '2026-09-23T08:00:00.000Z',
     })
 
-    await mount(<JobFiles job={job as unknown as RecordState} />)
+    // Opened on the screen of the files, which the rows of the job lead to.
+    await mount(onSite(null, '/auftraege/j-1/dateien'))
 
-    const list = within(await screen.findByRole('region', { name: 'Fotos und Dateien' }))
+    const list = within(await screen.findByRole('list', { name: 'Fotos und Dateien' }))
 
     await userEvent.click(await list.findByRole('button', { name: 'Öffnen' }))
 

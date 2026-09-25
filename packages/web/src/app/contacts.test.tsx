@@ -274,17 +274,6 @@ async function contactsSection() {
   return within(await screen.findByRole('region', { name: 'Ansprechpartner' }))
 }
 
-/** The part of a list that a heading opens, the customer's or the site's. */
-function group(heading: HTMLElement) {
-  const part = heading.closest('section')
-
-  if (!part) {
-    throw new Error('Die Überschrift steht in keinem Abschnitt.')
-  }
-
-  return within(part)
-}
-
 beforeEach(() => {
   server = new Server()
   answers = new Map()
@@ -410,8 +399,9 @@ describe('the contacts at a job on site', () => {
     await mount('/auftraege/j-1')
 
     const section = await contactsSection()
-    const atCustomer = group(section.getByRole('heading', { name: 'Beim Kunden' }))
-    const atSite = group(section.getByRole('heading', { name: 'Am Objekt' }))
+    // The two groups of the card, each under its small capitals (#219).
+    const atCustomer = within(section.getByRole('region', { name: 'Beim Kunden' }))
+    const atSite = within(section.getByRole('region', { name: 'Am Objekt' }))
 
     expect(atCustomer.getByText(/Zander/)).toBeDefined()
     expect(atCustomer.queryByText(/Jensen/)).toBeNull()
@@ -429,9 +419,10 @@ describe('the contacts at a job on site', () => {
 
     server.offline = true
 
-    await userEvent.click(
-      await section.findByRole('button', { name: 'Ansprechpartner am Objekt anlegen' }),
-    )
+    // One button, as on the board; a contact met on site goes to the site
+    // unless somebody says otherwise.
+    await userEvent.click(await section.findByRole('button', { name: 'Ansprechpartner anlegen' }))
+    expect((section.getByLabelText('Gehört zu') as HTMLSelectElement).value).toBe('site')
     await userEvent.type(section.getByLabelText(/Nachname/), 'Meyer')
     await userEvent.type(section.getByLabelText(/Rolle/), 'Mieterin')
     await userEvent.click(section.getByRole('button', { name: 'Anlegen' }))
