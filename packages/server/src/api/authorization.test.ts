@@ -142,6 +142,8 @@ describe('the office', () => {
       .expect(201)
     expect(issued.body.status).toBe('issued')
     expect(issued.body.issuedAt).not.toBeNull()
+    // And who did it, the account from the request (#249).
+    expect(issued.body.issuedBy).toBe('test')
 
     await request(app.getHttpServer())
       .post(`/documents/${draft}/issue`)

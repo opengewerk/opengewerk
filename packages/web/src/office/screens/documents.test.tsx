@@ -2473,6 +2473,30 @@ describe('the document as its boards draw it (#219)', () => {
     expect(frame.getByRole('region', { name: 'Belegkette' })).toBeDefined()
   })
 
+  it('names who fixed it next to the moment, as the board does (#249)', async () => {
+    serverSays('GET', '/tasks/assignees', () => ({
+      status: 200,
+      body: [{ userId: 'u-anna', name: 'Anna Weber', active: true }],
+    }))
+    await mount('/belege/d-1', {
+      documents: [
+        document({
+          status: 'issued',
+          number: 'RE-2026-0001',
+          issuedAt: '2026-09-21T08:58:00.000Z',
+          issuedBy: 'u-anna',
+        }),
+      ],
+      document_lines: [line('l-1', 1)],
+    })
+
+    const frame = within(await screen.findByRole('region', { name: 'RE-2026-0001' }))
+
+    expect(
+      await frame.findByText(/^Festgeschrieben 21\.09\.2026, \d\d:\d\d · Anna Weber$/),
+    ).toBeDefined()
+  })
+
   it('drops what was typed into the head with "Abbrechen", and waits while nothing changed', async () => {
     await mount('/belege/d-1')
     const person = userEvent.setup()

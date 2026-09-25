@@ -68,6 +68,14 @@ export const documents = pgTable(
     serviceFrom: date('service_from'),
     serviceUntil: date('service_until'),
     issuedAt: timestamp('issued_at', { withTimezone: true }),
+    /**
+     * The account that issued it, written by the route with `issued_at` and
+     * reserved in the sync (#249). No foreign key: an issued document is fixed,
+     * and a key that emptied the column when somebody leaves the business
+     * would be refused by the trigger that keeps it so. Null for a draft and
+     * for every document issued before the column.
+     */
+    issuedBy: text('issued_by'),
     subject: text('subject'),
     /** The paragraphs above and below the lines, free text as it is printed. */
     introText: text('intro_text'),

@@ -562,6 +562,21 @@ describe('what a device may not do without a connection', () => {
       reason: 'set_by_server',
     })
 
+    // Nor can it put a draft under somebody's name (#249).
+    const named = await push(office(), 'telefon-anna', [
+      change({
+        entity: 'documents',
+        recordId: draft.body.id,
+        patches: [{ field: 'issuedBy', from: null, to: 'someone-else' }],
+      }),
+    ])
+
+    expect(named.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'set_by_server',
+      fields: ['issuedBy'],
+    })
+
     const documents = await http().get('/documents').set('x-test-identity', office()).expect(200)
     const after = (documents.body as { id: string; status: string; number: string | null }[]).find(
       (document) => document.id === draft.body.id,

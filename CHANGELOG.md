@@ -22,6 +22,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Vorschau folgt, damit ein neuer Bildschirm geprüft wird, ohne dass ihn jemand einträgt. Der Browser
   ist das Abbild des Renderers aus `docker/compose.yaml`. Lokal prüft dasselbe
   `pnpm --filter @opengewerk/web run widths` gegen die laufende Vorschau.
+- Ein festgeschriebener Beleg nennt, wer ihn festgeschrieben hat, wie auf der Tafel
+  "Schlussrechnung, festgeschrieben": "Festgeschrieben 24.09.2026, 10:58 · Anna Weber" (#249).
+  Bisher stand dort nur der Zeitpunkt, denn der Beleg hielt fest, wann, aber nicht, wer; das stand
+  nur im Audit-Log, und das kommt auf kein Gerät. Die Route, die festschreibt, schreibt das Konto
+  jetzt mit dem Zeitpunkt in `issued_by` (Migration 0046), auch an der Stornorechnung, und im
+  Abgleich ist das Feld dem Server vorbehalten. Den Namen holt der Bildschirm wie die Aufgaben
+  über `GET /tasks/assignees`. Belege von davor zeigen weiter nur den Zeitpunkt.
 
 ### Geändert
 
