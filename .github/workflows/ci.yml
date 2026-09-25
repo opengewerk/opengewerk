@@ -150,7 +150,7 @@ jobs:
               "führ für über übung üblich müss prüf gründ würde verfüg zurück dürf tür "
               "gültig günstig büro gebühr spüren fünf kürz lücke stück schlüssel "
               "unterstütz berücksicht natürlich gerüst draußen straße größe maßnahme "
-              "schließ außer"
+              "schließ außer grün gefüll füllung"
           ).split()
 
           TRANSLITERATION = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
