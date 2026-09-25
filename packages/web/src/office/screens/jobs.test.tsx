@@ -17,7 +17,7 @@ import { SyncClient } from '../../sync/client.js'
 import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
-import { JobScreen } from './jobs.js'
+import { JobList, JobScreen } from './jobs.js'
 
 /**
  * Follow-up jobs in the office (#170): made from a finished job, for the same
@@ -100,7 +100,12 @@ async function mount(
   const router = createRouter({
     routeTree: root.addChildren([
       createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
-      createRoute({ getParentRoute: () => root, path: '/auftraege', component: () => null }),
+      createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
+      createRoute({
+        getParentRoute: () => root,
+        path: '/belege/$documentId',
+        component: () => null,
+      }),
       createRoute({
         getParentRoute: () => root,
         path: '/kunden/$customerId',
@@ -346,5 +351,120 @@ describe('who is on a job (#140)', () => {
     await screen.findByRole('region', { name: 'Aufgaben' })
 
     expect(screen.queryByRole('button', { name: 'Zuordnen' })).toBeNull()
+  })
+})
+
+describe('the jobs as the boards draw them (#219)', () => {
+  const documents: RecordState[] = [
+    {
+      id: 'd-1',
+      customerId: 'c-1',
+      jobId: 'j-1',
+      kind: 'quote',
+      status: 'issued',
+      number: 'A-2026-0091',
+      documentDate: '2026-09-15',
+      subject: 'Störung Treppenhauslicht',
+    },
+    {
+      id: 'd-2',
+      customerId: 'c-1',
+      jobId: 'j-1',
+      kind: 'time_and_material_report',
+      status: 'signed',
+      number: null,
+      documentDate: '2026-09-18',
+      subject: 'Arbeiten am 18.09.',
+    },
+    {
+      id: 'd-3',
+      customerId: 'c-1',
+      jobId: 'j-1',
+      kind: 'final_invoice',
+      status: 'draft',
+      number: null,
+      documentDate: '2026-09-19',
+      subject: 'Störung Treppenhauslicht',
+    },
+  ]
+
+  it('lists every job with its number, state, customer and the people on it', async () => {
+    signedInAs('office')
+    answers.set('/tasks/assignees', [{ userId: 'u-toni', name: 'Toni Techniker', active: true }])
+    await mount(
+      [
+        job('j-1', { status: 'active', designation: 'Störung Treppenhauslicht' }),
+        job('j-2', { status: 'completed' }),
+      ],
+      '/auftraege',
+      { job_assignments: [{ id: 'a-1', jobId: 'j-1', userId: 'u-toni' }] },
+    )
+    const user = userEvent.setup()
+
+    const table = await screen.findByRole('table', { name: 'Alle Aufträge des Betriebs' })
+    await waitFor(() => {
+      expect(within(table).getByText('Toni Techniker')).toBeDefined()
+    })
+    const row = within(table).getByRole('link', { name: 'AU-2026-0001' }).closest('tr')
+
+    expect(row?.textContent).toContain('Störung Treppenhauslicht')
+    expect(row?.textContent).toContain('Laufend')
+    expect(row?.textContent).toContain('Familie Berg')
+
+    await user.click(screen.getByRole('button', { name: 'Laufend' }))
+
+    expect(within(table).queryByRole('link', { name: 'AU-2026-0002' })).toBeNull()
+  })
+
+  it('shows its chain of documents across the top and the documents in a table', async () => {
+    signedInAs('office')
+    await mount([job('j-1', { status: 'active' })], '/auftraege/j-1', { documents })
+
+    const chain = await screen.findByRole('region', { name: 'Belegkette' })
+    const boxes = within(chain)
+      .getAllByRole('listitem')
+      .map((box) => box.textContent)
+
+    // Oldest first, each in a word and a line: the quote with its number and
+    // what it comes to, here nothing without lines, the signed report still
+    // without its number, the draft invoice without any.
+    expect(boxes).toEqual([
+      // The amount as money is written, with a no-break space before the sign.
+      `AngebotA-2026-0091 · 0,00${String.fromCharCode(0xa0)}€`,
+      'Regiebericht' + 'noch ohne Nummer · unterschrieben',
+      'Rechnung' + 'Entwurf, keine Nummer',
+    ])
+
+    const table = screen.getByRole('table', { name: 'Belege des Auftrags' })
+    const invoice = within(table).getByRole('link', { name: 'Rechnung' }).closest('tr')
+
+    expect(invoice?.textContent).toContain('Entwurf')
+    expect(invoice?.textContent).toContain('19.09.2026')
+  })
+
+  it('stands behind tabs on a phone, the overview first', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    signedInAs('office')
+    await mount([job('j-1', { status: 'active' })], '/auftraege/j-1', { documents })
+    const user = userEvent.setup()
+
+    const tabs = await screen.findByRole('tablist', { name: 'Bereiche des Auftrags' })
+    expect(within(tabs).getByRole('tab', { name: 'Übersicht' }).getAttribute('aria-selected')).toBe(
+      'true',
+    )
+    expect(screen.getByRole('region', { name: 'Auftrag' })).toBeDefined()
+    expect(screen.queryByRole('region', { name: 'Belege' })).toBeNull()
+
+    await user.click(within(tabs).getByRole('tab', { name: 'Belege' }))
+
+    // The documents as boxes, a phone's table.
+    const panel = screen.getByRole('region', { name: 'Belege' })
+    expect(within(panel).getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.queryByRole('region', { name: 'Auftrag' })).toBeNull()
   })
 })

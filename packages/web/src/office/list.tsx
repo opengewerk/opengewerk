@@ -9,6 +9,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import { Button, Cell, Column, TablePanel } from '../components/index.js'
 import { useBand } from '../components/band.js'
 import type { Band } from '../components/band.js'
+import { text } from '../sync/fields.js'
 import { Chip, Key, PageHead } from './kit.js'
 
 /**
@@ -93,6 +94,15 @@ export interface ListScreenProps {
   readonly note?: ReactNode
   /** A list with nothing in it yet. */
   readonly empty: ListEmpty
+}
+
+/** The last change first: "Sortiert nach: Zuletzt geändert", as the list boards do. */
+export const lastChanged: ListSort = {
+  id: 'changed',
+  label: 'Zuletzt geändert',
+  compare: (left, right) =>
+    text(right, 'updatedAt').localeCompare(text(left, 'updatedAt')) ||
+    String(right['id']).localeCompare(String(left['id'])),
 }
 
 /** "248 Einträge", with the thousands the way a person writes them. */

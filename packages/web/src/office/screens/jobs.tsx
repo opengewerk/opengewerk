@@ -1,28 +1,25 @@
 import type { JobKind, JobStatus, RecordState } from '@opengewerk/domain'
 import { followUpProblem, jobKinds, jobStatuses } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Calendar, Pencil, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import {
   Button,
-  Card,
   Field,
+  NumberBadge,
+  Panel,
   SelectField,
   Status,
   statusIcons,
   TextArea,
+  useBand,
 } from '../../components/index.js'
 import type { StatusTone } from '../../components/index.js'
-import { DataTable } from '../../app/data-table.js'
-import type { ListColumns } from '../../app/data-table.js'
-import {
-  jobKindLabel,
-  jobKindOf,
-  jobStatusLabel,
-  jobStatusOf,
-  jobStatusTone,
-} from '../../app/labels.js'
+import { date } from '../../app/format.js'
+import { jobKindLabel, jobKindOf, jobStatusLabel, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
@@ -32,9 +29,11 @@ import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
-import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
-import { AttachmentsSection } from './attachments.js'
-import { JobDocuments } from './documents.js'
+import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
+import { lastChanged, ListCard, ListScreen } from '../list.js'
+import type { ListColumn } from '../list.js'
+import { FilesPanel } from './attachments.js'
+import { DocumentChainCard, JobDocumentsPanel, useJobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'
 import { JobTimeSection } from './time.js'
 
@@ -84,292 +83,502 @@ export function JobState({ job }: { readonly job: RecordState }) {
   )
 }
 
-/**
- * A job in a list, with its state in a word and in a colour.
- *
- * Both, never only the colour: that is the one distinction a colour blind
- * reader does not get, and a row that differs in hue alone says nothing to
- * them. Shared by the customer, site and job screens, so the three cannot
- * drift into three different ways of saying "laufend".
- */
-export function JobLine({ job }: { readonly job: RecordState }) {
-  const status = jobStatusOf(job)
+/** Whom a job has, by name, for the list and the card of the job. */
+function useCrews(): ReadonlyMap<string, readonly string[]> {
+  const assignments = useRecords('job_assignments')
+  const { people } = usePeople()
 
-  return (
-    <li className="flex flex-wrap items-baseline gap-2">
-      <Link
-        to={`/auftraege/${String(job['id'])}`}
-        className="text-copper-text font-semibold underline underline-offset-2"
-      >
-        {text(job, 'designation')}
-      </Link>
-      <span className={jobStatusTone[status]}>{jobStatusLabel[status]}</span>
-      {maybeText(job, 'number') ? (
-        <span className="numeric text-ink-muted">{text(job, 'number')}</span>
-      ) : null}
-    </li>
-  )
+  return useMemo(() => {
+    const crews = new Map<string, string[]>()
+
+    for (const assignment of assignments) {
+      const name = people.find((person) => person.userId === text(assignment, 'userId'))?.name
+
+      if (name) {
+        const jobId = text(assignment, 'jobId')
+
+        crews.set(jobId, [...(crews.get(jobId) ?? []), name])
+      }
+    }
+
+    return crews
+  }, [assignments, people])
 }
 
-const columns: ListColumns = [
-  { id: 'designation', accessorFn: (row) => text(row, 'designation'), header: 'Bezeichnung' },
-  {
-    id: 'number',
-    accessorFn: (row) => text(row, 'number'),
-    header: 'Nummer',
-    meta: { numeric: true },
-  },
-  { id: 'kind', accessorFn: (row) => jobKindLabel[jobKindOf(row)], header: 'Art' },
-  { id: 'status', accessorFn: (row) => jobStatusLabel[jobStatusOf(row)], header: 'Status' },
-]
-
+/**
+ * All jobs of the business, as the board "Aufträge" of the canvas has them
+ * (#219): the number first, then what it is, for whom and who is on it.
+ */
 export function JobList() {
   const jobs = useRecords('jobs')
   const customers = useRecords('customers')
+  const crews = useCrews()
 
-  const withCustomer = useMemo(() => {
-    const names = new Map(customers.map((entry) => [String(entry['id']), text(entry, 'name')]))
+  const names = useMemo(
+    () => new Map(customers.map((customer) => [String(customer['id']), text(customer, 'name')])),
+    [customers],
+  )
+  const customerName = (row: RecordState) => names.get(text(row, 'customerId')) ?? ''
+  const crew = (row: RecordState) => (crews.get(String(row['id'])) ?? []).join(', ')
 
-    // The customer's name is folded in here rather than looked up per cell,
-    // because the search box searches what the table holds: without this, a
-    // list of jobs could not be narrowed by the customer they are for, which
-    // is the first thing anybody tries.
-    return jobs.map((job) => ({ ...job, customerName: names.get(String(job['customerId'])) ?? '' }))
-  }, [jobs, customers])
+  const columns: readonly ListColumn[] = [
+    {
+      id: 'number',
+      header: 'Nummer',
+      value: (row) => text(row, 'number'),
+      // A job made on a device gets its number when it arrives.
+      cell: (row) =>
+        maybeText(row, 'number') ?? <span className="text-ink-faint">noch ohne Nummer</span>,
+      width: 'w-[116px]',
+    },
+    { id: 'designation', header: 'Bezeichnung', value: (row) => text(row, 'designation') },
+    {
+      id: 'kind',
+      header: 'Art',
+      value: (row) => jobKindLabel[jobKindOf(row)],
+      width: 'w-[110px]',
+      wideOnly: true,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      value: (row) => jobStatusLabel[jobStatusOf(row)],
+      cell: (row) => <JobState job={row} />,
+      width: 'w-[136px]',
+    },
+    { id: 'customer', header: 'Kunde', value: customerName, width: 'w-[190px]' },
+    { id: 'crew', header: 'Monteure', value: crew, width: 'w-[170px]', wideOnly: true },
+  ]
+  const byStatus = (status: JobStatus) => (row: RecordState) => jobStatusOf(row) === status
 
   return (
-    <Page title="Aufträge" meta="Projekte und Serviceeinsätze.">
-      <DataTable
-        caption="Alle Aufträge des Betriebs"
-        rows={withCustomer}
-        columns={[
-          ...columns,
-          { id: 'customerName', accessorFn: (row) => text(row, 'customerName'), header: 'Kunde' },
-        ]}
-        searchLabel="Aufträge suchen"
-        hrefFor={(row) => `/auftraege/${String(row['id'])}`}
-        empty="Noch kein Auftrag. Ein Auftrag entsteht am Kunden oder am Objekt."
-      />
-    </Page>
+    <ListScreen
+      title="Aufträge"
+      caption="Alle Aufträge des Betriebs"
+      rows={jobs}
+      columns={columns}
+      hrefFor={(row) => `/auftraege/${String(row['id'])}`}
+      searchLabel="Aufträge durchsuchen"
+      searchPlaceholder="Nummer, Bezeichnung, Kunde …"
+      filters={[
+        { id: 'active', label: 'Laufend', test: byStatus('active') },
+        { id: 'draft', label: 'Entwurf', test: byStatus('draft') },
+        { id: 'completed', label: 'Abgeschlossen', test: byStatus('completed') },
+        { id: 'cancelled', label: 'Abgebrochen', test: byStatus('cancelled') },
+      ]}
+      sorts={[
+        lastChanged,
+        {
+          id: 'number',
+          label: 'Nummer',
+          compare: (left, right) =>
+            text(right, 'number').localeCompare(text(left, 'number'), 'de', { numeric: true }),
+        },
+      ]}
+      card={(row) => (
+        <ListCard
+          to={`/auftraege/${String(row['id'])}`}
+          title={text(row, 'designation')}
+          sub={[maybeText(row, 'number'), customerName(row)].filter(Boolean).join(' · ')}
+          right={<JobState job={row} />}
+        />
+      )}
+      note="Ein Auftrag entsteht am Kunden oder am Objekt."
+      empty={{
+        icon: Calendar,
+        title: 'Noch kein Auftrag angelegt',
+        text: 'Ein Auftrag entsteht am Kunden oder am Objekt, unter „Aufträge“.',
+      }}
+    />
   )
 }
 
 export function JobScreen() {
   const { jobId } = useParams({ strict: false }) as { jobId?: string }
-  const client = useSync()
   const job = useRecord('jobs', jobId)
-  const customer = useRecord('customers', job ? String(job['customerId']) : undefined)
-  const site = useRecord('sites', job?.['siteId'] ? String(job['siteId']) : undefined)
-  const installation = useRecord(
-    'installations',
-    job?.['installationId'] ? String(job['installationId']) : undefined,
-  )
-  const children = useRelated('jobs', 'parentJobId', jobId)
-  const predecessor = useRecord(
-    'jobs',
-    job ? (maybeText(job, 'predecessorJobId') ?? undefined) : undefined,
-  )
-  const followers = useRelated('jobs', 'predecessorJobId', jobId)
-  const mayWrite = useMay('job.write')
-  const [editing, setEditing] = useState(false)
-  const [following, setFollowing] = useState(false)
 
   if (!job || !jobId) {
     return (
-      <Page title="Nicht gefunden">
-        <Nothing>
-          Diesen Auftrag gibt es nicht mehr, oder dieses Gerät kennt ihn noch nicht.
-        </Nothing>
-      </Page>
+      <Screen>
+        <PageHead title="Nicht gefunden" crumbs={[{ to: '/auftraege', label: 'Aufträge' }]} />
+        <Empty>Diesen Auftrag gibt es nicht mehr, oder dieses Gerät kennt ihn noch nicht.</Empty>
+      </Screen>
     )
   }
 
+  // Keyed, so that going from a job to its follow-up starts with no form open.
+  return <JobRecord key={jobId} job={job} />
+}
+
+type Tab = 'overview' | 'documents' | 'time' | 'files'
+
+const tabs: readonly { readonly id: Tab; readonly label: string }[] = [
+  { id: 'overview', label: 'Übersicht' },
+  { id: 'documents', label: 'Belege' },
+  { id: 'time', label: 'Zeiten' },
+  { id: 'files', label: 'Dateien' },
+]
+
+/**
+ * One job, `auftrag()` of the canvas (#219): its chain of documents across
+ * the top, the documents, the time and the files at the left, the job, who is
+ * on it, its tasks and what followed it at the right. On a phone the parts
+ * stand behind tabs, as the board "Auftrag im Büro, Telefon" has them.
+ */
+function JobRecord({ job }: { readonly job: RecordState }) {
+  const jobId = String(job['id'])
+  const client = useSync()
+  const band = useBand()
+  const customer = useRecord('customers', String(job['customerId']))
+  const site = useRecord('sites', maybeText(job, 'siteId') ?? undefined)
+  const writesJobs = useMay('job.write')
+  const documentsState = useJobDocuments(job)
+  const [editing, setEditing] = useState(false)
+  const [following, setFollowing] = useState(false)
+  const [tab, setTab] = useState<Tab>('overview')
+  const [more, setMore] = useState(false)
+
   const status = jobStatusOf(job)
+  const number = maybeText(job, 'number')
+  const sub = [
+    jobKindLabel[jobKindOf(job)],
+    maybeText(job, 'createdAt') ? `angelegt ${date(job['createdAt'])}` : null,
+    site ? `Objekt ${text(site, 'designation')}` : null,
+    !number && client.isPending('jobs', jobId) ? 'Nummer folgt beim Abgleich' : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' · ')
+  const { mayWrite: writesDocuments, working, trouble } = documentsState
+
+  const facts = (
+    <Panel title="Auftrag">
+      {editing ? (
+        <RecordForm
+          fields={jobFields}
+          record={job}
+          submitLabel="Speichern"
+          onCancel={() => {
+            setEditing(false)
+          }}
+          onSubmit={async (values) => {
+            const saved = await client.update('jobs', jobId, asJob(values))
+
+            if (saved.outcome === 'queued') {
+              setEditing(false)
+            }
+
+            return saved
+          }}
+        />
+      ) : (
+        <JobFacts job={job} />
+      )}
+    </Panel>
+  )
+  const followUp = following ? (
+    <Panel title="Folgeauftrag">
+      <FollowUpForm
+        predecessor={job}
+        onDone={() => {
+          setFollowing(false)
+        }}
+      />
+    </Panel>
+  ) : null
+  const documents = <JobDocumentsPanel state={documentsState} />
+  const time = <JobTimeSection jobId={jobId} />
+  const files = (
+    <FilesPanel
+      field="jobId"
+      id={jobId}
+      home={{
+        customerId: String(job['customerId']),
+        siteId: maybeText(job, 'siteId'),
+        installationId: maybeText(job, 'installationId'),
+        jobId,
+      }}
+      empty="Zu diesem Auftrag gibt es noch keine Datei. Fotos von der Baustelle landen hier."
+    />
+  )
+  const people = <JobPeople jobId={jobId} />
+  const tasks = (
+    <TasksSection
+      field="jobId"
+      id={jobId}
+      links={{
+        customerId: String(job['customerId']),
+        siteId: maybeText(job, 'siteId'),
+        jobId,
+      }}
+      empty="Zu diesem Auftrag ist keine Aufgabe offen."
+    />
+  )
+  const related = <RelatedJobs jobId={jobId} />
+  const chain = <DocumentChainCard documents={documentsState.documents} />
 
   return (
-    <Page
-      crumbs={
-        <>
-          <Crumb to="/auftraege">Aufträge</Crumb>
-          {customer ? (
-            <Crumb to={`/kunden/${String(customer['id'])}`}>{text(customer, 'name')}</Crumb>
-          ) : null}
-        </>
-      }
-      title={text(job, 'designation')}
-      meta={
-        <>
-          {jobKindLabel[jobKindOf(job)]}
-          <span aria-hidden="true"> · </span>
-          <span className={jobStatusTone[status]}>{jobStatusLabel[status]}</span>
-          {maybeText(job, 'number') ? (
-            <>
-              <span aria-hidden="true"> · </span>
-              <span className="numeric">{text(job, 'number')}</span>
-            </>
-          ) : client.isPending('jobs', String(job['id'])) ? (
-            <>
-              <span aria-hidden="true"> · </span>
-              Nummer folgt beim Abgleich
-            </>
-          ) : null}
-        </>
-      }
-      actions={
-        <>
-          <Button
-            tone="secondary"
-            onClick={() => {
-              setEditing((open) => !open)
-            }}
-          >
-            {editing ? 'Bearbeiten beenden' : 'Bearbeiten'}
-          </Button>
-          {status === 'completed' && mayWrite ? (
+    <Screen>
+      <PageHead
+        crumbs={[
+          { to: '/auftraege', label: 'Aufträge' },
+          ...(customer
+            ? [{ to: `/kunden/${String(customer['id'])}`, label: text(customer, 'name') }]
+            : []),
+        ]}
+        phoneBack={{ to: '/auftraege', label: 'Aufträge' }}
+        title={text(job, 'designation')}
+        badges={
+          <>
+            {number ? <NumberBadge>{number}</NumberBadge> : null}
+            <JobState job={job} />
+          </>
+        }
+        sub={sub}
+        wideActions
+        actions={
+          <>
             <Button
-              tone="secondary"
-              disabled={following}
+              icon={Pencil}
+              disabled={editing}
               onClick={() => {
-                setFollowing(true)
+                setEditing(true)
+                setTab('overview')
               }}
             >
-              Folgeauftrag anlegen
+              Bearbeiten
             </Button>
-          ) : null}
-        </>
-      }
-    >
-      {following ? (
-        <Card label="Folgeauftrag">
-          <FollowUpForm
-            predecessor={job}
-            onDone={() => {
-              setFollowing(false)
-            }}
-          />
-        </Card>
-      ) : null}
-
-      {editing ? (
-        <Card label="Auftrag bearbeiten">
-          <RecordForm
-            fields={jobFields}
-            record={job}
-            submitLabel="Speichern"
-            onCancel={() => {
-              setEditing(false)
-            }}
-            onSubmit={async (values) => {
-              const saved = await client.update('jobs', jobId, asJob(values))
-
-              if (saved.outcome === 'queued') {
-                setEditing(false)
-              }
-
-              return saved
-            }}
-          />
-        </Card>
-      ) : (
-        <Card label="Auftrag">
-          <Facts>
-            <Fact label="Kunde">
-              {customer ? (
-                <Link
-                  to={`/kunden/${String(customer['id'])}`}
-                  className="text-copper-text underline underline-offset-2"
-                >
-                  {text(customer, 'name')}
-                </Link>
-              ) : null}
-            </Fact>
-            <Fact label="Objekt">
-              {site ? (
-                <Link
-                  to={`/objekte/${String(site['id'])}`}
-                  className="text-copper-text underline underline-offset-2"
-                >
-                  {text(site, 'designation')}
-                </Link>
-              ) : null}
-            </Fact>
-            <Fact label="Anlage">
-              {installation ? (
-                <Link
-                  to={`/anlagen/${String(installation['id'])}`}
-                  className="text-copper-text underline underline-offset-2"
-                >
-                  {text(installation, 'designation')}
-                </Link>
-              ) : null}
-            </Fact>
-            <Fact label="Beschreibung">{maybeText(job, 'description')}</Fact>
-            {predecessor ? (
-              <Fact label="Folgt auf">
-                <Link
-                  to={`/auftraege/${String(predecessor['id'])}`}
-                  className="text-copper-text underline underline-offset-2"
-                >
-                  {text(predecessor, 'designation')}
-                </Link>
-                {maybeText(predecessor, 'number') ? (
-                  <span className="numeric text-ink-muted">{` ${text(predecessor, 'number')}`}</span>
-                ) : null}
-              </Fact>
+            {writesDocuments ? (
+              <Button disabled={working} onClick={() => void documentsState.start('quote')}>
+                Angebot anlegen
+              </Button>
             ) : null}
-          </Facts>
-        </Card>
+            {/* On a phone two in a row, and the rest behind "Weitere Aktionen",
+                as the board draws the head there. */}
+            {band === 'S' && (writesDocuments || (status === 'completed' && writesJobs)) ? (
+              <Button
+                aria-expanded={more}
+                onClick={() => {
+                  setMore((open) => !open)
+                }}
+              >
+                Weitere Aktionen
+              </Button>
+            ) : null}
+            {band !== 'S' || more ? (
+              <>
+                {writesDocuments ? (
+                  <Button
+                    disabled={working}
+                    onClick={() => void documentsState.start('cost_estimate')}
+                  >
+                    Kostenvoranschlag anlegen
+                  </Button>
+                ) : null}
+                {status === 'completed' && writesJobs ? (
+                  <Button
+                    disabled={following}
+                    onClick={() => {
+                      setFollowing(true)
+                      setTab('overview')
+                    }}
+                  >
+                    Folgeauftrag anlegen
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
+          </>
+        }
+      />
+
+      {trouble ? (
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+
+      {band === 'S' ? (
+        <>
+          <Tabs tab={tab} onChange={setTab} />
+          <div role="tabpanel" id={`${jobId}-${tab}`} className="flex flex-col gap-3">
+            {tab === 'overview' ? (
+              <>
+                {followUp}
+                {facts}
+                {chain}
+                {people}
+                {tasks}
+                {related}
+              </>
+            ) : tab === 'documents' ? (
+              documents
+            ) : tab === 'time' ? (
+              time
+            ) : (
+              files
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          {chain}
+          <RecordColumns
+            main={
+              <>
+                {followUp}
+                {documents}
+                {time}
+                {files}
+              </>
+            }
+            side={
+              <>
+                {facts}
+                {people}
+                {tasks}
+                {related}
+              </>
+            }
+          />
+        </>
       )}
+    </Screen>
+  )
+}
 
-      <JobPeople jobId={jobId} />
+/** The parts of a job on a phone, as tabs in a bar, "Übersicht" first. */
+function Tabs({ tab, onChange }: { readonly tab: Tab; readonly onChange: (tab: Tab) => void }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Bereiche des Auftrags"
+      className="flex gap-1 rounded-[5px] border border-line bg-surface-sunken p-[3px]"
+    >
+      {tabs.map((entry) => (
+        <button
+          key={entry.id}
+          type="button"
+          role="tab"
+          aria-selected={tab === entry.id}
+          onClick={() => {
+            onChange(entry.id)
+          }}
+          className={clsx(
+            'min-h-10 grow basis-0 cursor-pointer rounded-[3px] text-[14px]',
+            tab === entry.id ? 'bg-surface font-semibold text-ink' : 'text-ink-muted',
+          )}
+        >
+          {entry.label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
-      <JobDocuments job={job} />
+/** "Auftrag": for whom, where, what, and what it follows. */
+function JobFacts({ job }: { readonly job: RecordState }) {
+  const customer = useRecord('customers', String(job['customerId']))
+  const site = useRecord('sites', maybeText(job, 'siteId') ?? undefined)
+  const installation = useRecord('installations', maybeText(job, 'installationId') ?? undefined)
+  const predecessor = useRecord('jobs', maybeText(job, 'predecessorJobId') ?? undefined)
+  const link = (to: string, label: string) => (
+    <Link to={to} className="text-copper-text underline underline-offset-2">
+      {label}
+    </Link>
+  )
 
-      <AttachmentsSection
-        field="jobId"
-        id={jobId}
-        home={{
-          customerId: String(job['customerId']),
-          siteId: maybeText(job, 'siteId'),
-          installationId: maybeText(job, 'installationId'),
-          jobId,
-        }}
-        empty="Zu diesem Auftrag gibt es noch keine Datei. Fotos von der Baustelle landen hier."
-      />
+  return (
+    <FactList
+      keyWidth={96}
+      facts={[
+        {
+          label: 'Kunde',
+          value: customer
+            ? link(`/kunden/${String(customer['id'])}`, text(customer, 'name'))
+            : null,
+        },
+        {
+          label: 'Objekt',
+          value: site ? link(`/objekte/${String(site['id'])}`, text(site, 'designation')) : null,
+        },
+        {
+          label: 'Anlage',
+          value: installation
+            ? link(`/anlagen/${String(installation['id'])}`, text(installation, 'designation'))
+            : null,
+        },
+        { label: 'Beschreibung', value: maybeText(job, 'description') },
+        ...(predecessor
+          ? [
+              {
+                label: 'Folgt auf',
+                value: (
+                  <>
+                    {link(
+                      `/auftraege/${String(predecessor['id'])}`,
+                      text(predecessor, 'designation'),
+                    )}
+                    {maybeText(predecessor, 'number') ? (
+                      <span className="numeric block">{text(predecessor, 'number')}</span>
+                    ) : null}
+                  </>
+                ),
+              },
+            ]
+          : []),
+      ]}
+    />
+  )
+}
 
-      <JobTimeSection jobId={jobId} />
+/** The jobs that came out of this one: its follow-ups and its parts. */
+function RelatedJobs({ jobId }: { readonly jobId: string }) {
+  const followers = useRelated('jobs', 'predecessorJobId', jobId)
+  const children = useRelated('jobs', 'parentJobId', jobId)
 
-      <TasksSection
-        field="jobId"
-        id={jobId}
-        links={{
-          customerId: String(job['customerId']),
-          siteId: maybeText(job, 'siteId'),
-          jobId,
-        }}
-        empty="Zu diesem Auftrag ist keine Aufgabe offen."
-      />
-
-      {children.length > 0 ? (
-        <Section title="Teilaufträge">
-          <ul className="flex flex-col gap-2">
-            {children.map((child) => (
-              <JobLine key={String(child['id'])} job={child} />
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
+  return (
+    <>
       {followers.length > 0 ? (
-        <Section title="Folgeaufträge">
-          <ul className="flex flex-col gap-2">
-            {followers.map((follower) => (
-              <JobLine key={String(follower['id'])} job={follower} />
-            ))}
-          </ul>
-        </Section>
+        <Panel title="Folgeaufträge">
+          <JobLines jobs={followers} />
+        </Panel>
       ) : null}
-    </Page>
+      {children.length > 0 ? (
+        <Panel title="Teilaufträge">
+          <JobLines jobs={children} />
+        </Panel>
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * Jobs as lines in a card, `list_lines()` of the canvas: the name as a link,
+ * the state beside it, the number at the right. The state in a word and a
+ * symbol, never in a colour alone.
+ */
+function JobLines({ jobs }: { readonly jobs: readonly RecordState[] }) {
+  return (
+    <ul>
+      {jobs.map((job) => (
+        <li
+          key={String(job['id'])}
+          className="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-row py-2 last:border-b-0"
+        >
+          <Link
+            to={`/auftraege/${String(job['id'])}`}
+            className="text-[14px] font-medium text-copper-text underline underline-offset-2"
+          >
+            {text(job, 'designation')}
+          </Link>
+          <JobState job={job} />
+          <div className="grow" />
+          {maybeText(job, 'number') ? (
+            <span className="numeric text-[13px] text-ink-faint">{text(job, 'number')}</span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -417,12 +626,89 @@ function JobPeople({ jobId }: { readonly jobId: string }) {
     }
   }
 
+  let content: ReactNode
+
+  if (chosen !== null) {
+    content = (
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void save([...chosen])
+        }}
+      >
+        <ul className="flex flex-col gap-2">
+          {choices.map((person) => (
+            <li key={person.userId}>
+              <label className="flex items-center gap-2 text-[14px]">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  checked={chosen.has(person.userId)}
+                  onChange={(event) => {
+                    const next = new Set(chosen)
+
+                    if (event.target.checked) {
+                      next.add(person.userId)
+                    } else {
+                      next.delete(person.userId)
+                    }
+
+                    setChosen(next)
+                  }}
+                />
+                {person.name}
+              </label>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            size="small"
+            disabled={working}
+            onClick={() => {
+              setChosen(null)
+              setTrouble(null)
+            }}
+          >
+            Abbrechen
+          </Button>
+          <Button type="submit" size="small" tone="primary" disabled={working}>
+            {working ? 'Einen Moment' : 'Speichern'}
+          </Button>
+        </div>
+      </form>
+    )
+  } else {
+    content = (
+      <div className="flex flex-col gap-2">
+        {on.length > 0 ? (
+          <ul className="flex flex-col gap-1.5 text-[14px] text-ink">
+            {on.map((userId) => (
+              <li key={userId} className="flex items-center gap-2">
+                <UserRound size={15} strokeWidth={2} aria-hidden="true" className="shrink-0" />
+                {nameOf(userId)}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <p className="text-[13px] leading-[1.4] text-ink-faint">
+          {on.length > 0
+            ? 'Ein Monteur hat auf seinem Gerät nur die Aufträge, denen er zugeordnet ist.'
+            : 'Noch niemand ist diesem Auftrag zugeordnet. Ein Monteur hat auf seinem Gerät nur ' +
+              'die Aufträge, denen er zugeordnet ist.'}
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <Section
+    <Panel
       title="Monteure"
-      actions={
+      action={
         mayWrite && chosen === null ? (
           <Button
+            size="small"
             onClick={() => {
               setChosen(new Set(on))
             }}
@@ -432,73 +718,13 @@ function JobPeople({ jobId }: { readonly jobId: string }) {
         ) : null
       }
     >
-      {chosen !== null ? (
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void save([...chosen])
-          }}
-        >
-          <ul className="flex flex-col gap-2">
-            {choices.map((person) => (
-              <li key={person.userId}>
-                <label className="flex items-center gap-2 text-body">
-                  <input
-                    type="checkbox"
-                    className="size-5"
-                    checked={chosen.has(person.userId)}
-                    onChange={(event) => {
-                      const next = new Set(chosen)
-
-                      if (event.target.checked) {
-                        next.add(person.userId)
-                      } else {
-                        next.delete(person.userId)
-                      }
-
-                      setChosen(next)
-                    }}
-                  />
-                  {person.name}
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-3">
-            <Button type="submit" tone="primary" disabled={working}>
-              {working ? 'Einen Moment' : 'Speichern'}
-            </Button>
-            <Button
-              tone="quiet"
-              disabled={working}
-              onClick={() => {
-                setChosen(null)
-                setTrouble(null)
-              }}
-            >
-              Abbrechen
-            </Button>
-          </div>
-        </form>
-      ) : on.length > 0 ? (
-        <ul className="flex flex-col gap-1 text-body text-ink">
-          {on.map((userId) => (
-            <li key={userId}>{nameOf(userId)}</li>
-          ))}
-        </ul>
-      ) : (
-        <Nothing>
-          Noch niemand ist diesem Auftrag zugeordnet. Ein Monteur hat auf seinem Gerät nur die
-          Aufträge, denen er zugeordnet ist.
-        </Nothing>
-      )}
+      {content}
       {trouble ? (
-        <p role="alert" className="mt-3 text-body font-semibold text-conflict">
+        <p role="alert" className="mt-2 text-[13px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
-    </Section>
+    </Panel>
   )
 }
 
