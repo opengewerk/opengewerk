@@ -7,17 +7,20 @@ import {
   whyFixed,
 } from '@opengewerk/domain'
 import { useParams } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { Camera, Check, Pencil, Plus, Signature, X } from 'lucide-react'
+import { useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import {
   Button,
-  Card,
+  Confirm,
   DocumentState,
   Field,
+  Panel,
   SelectField,
   TextArea,
 } from '../../components/index.js'
+import { addAttachment } from '../../app/attachments.js'
 import { ReportFieldsForm, ReportFieldsText } from '../../app/report-fields.js'
 import { amount, date, moment, parseQuantity } from '../../app/format.js'
 import {
@@ -28,15 +31,18 @@ import {
   lineUnitOf,
   lineUnitShort,
 } from '../../app/labels.js'
+import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { SignaturePicture } from '../../app/signature.js'
 import type { EditResult } from '../../sync/client.js'
 import { refusalText } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
+import { SiteActionBar, SiteNoTabs } from '../action-bar.js'
+import { SiteHeader } from '../header.js'
+import { SiteScreen, SiteText, SiteTrouble } from '../kit.js'
 import { SignaturePad } from '../signature-pad.js'
 import { signedContentOf } from '../signing.js'
-import { SiteHeader } from '../header.js'
 
 /** The lines in the order they stand. The id breaks a tie, as on the server. */
 function inOrder(records: readonly RecordState[]): readonly RecordState[] {
@@ -56,6 +62,9 @@ const materialUnits = lineUnits
   .filter((unit) => unit !== 'hour' && unit !== 'day')
   .map((unit) => ({ value: unit, label: lineUnitLabel[unit] }))
 
+/** A quarter of an hour, in the thousandths lines count in: the step of the board. */
+const quarterHour = 250
+
 /**
  * What the device knows about the report, the signature it holds included.
  * The list of reports at a job asks the same (#223).
@@ -67,9 +76,28 @@ export function shownStatus(status: DocumentStatus, signature: RecordState | nul
   return status === 'draft' && signature ? 'signed' : status
 }
 
+/** "3 Posten": what the card counts, titles left out. */
+function postsOf(lines: readonly RecordState[]): string {
+  const posts = lines.filter((line) => lineKindOf(line) !== 'title').length
+
+  return posts === 1 ? '1 Posten' : `${String(posts)} Posten`
+}
+
+/** "2 Stk.", "3,5 Std.": the quantity with its unit as the report prints it. */
+function quantityOf(line: RecordState): string {
+  return `${amount(count(line, 'quantityMilli'))} ${lineUnitShort[lineUnitOf(line)]}`
+}
+
+/** The line the stepper stands for: the first hours of the report. */
+function hoursLineOf(lines: readonly RecordState[]): RecordState | null {
+  return lines.find((line) => lineKindOf(line) !== 'title' && lineUnitOf(line) === 'hour') ?? null
+}
+
 /**
  * A time and material report, written on site and signed there by the
- * customer, section 4.10 and #73.
+ * customer, section 4.10 and #73, as the boards "Regiebericht schreiben",
+ * "Material eintragen", "Vom Kunden unterschreiben lassen" and "Regiebericht
+ * unterschrieben" draw it.
  *
  * Everything on it goes through the outbox, the signature included, because
  * the place it is written is a cellar. The one rule that makes it a signed
@@ -83,12 +111,12 @@ export function SiteReportScreen() {
 
   if (!report || !documentId) {
     return (
-      <div className="flex flex-col gap-4 p-4">
+      <SiteScreen>
         <SiteHeader title="Nicht gefunden" />
-        <p className="text-body">
+        <SiteText>
           Diesen Bericht hat dieses Gerät nicht. Mit Verbindung holt der Abgleich ihn.
-        </p>
-      </div>
+        </SiteText>
+      </SiteScreen>
     )
   }
 
@@ -109,7 +137,7 @@ function ReportView({ report }: { readonly report: RecordState }) {
   const [signing, setSigning] = useState(false)
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <SiteScreen>
       <SiteHeader
         title="Regiebericht"
         sub={[
@@ -120,14 +148,9 @@ function ReportView({ report }: { readonly report: RecordState }) {
           .filter((part) => part !== '')
           .join(', ')}
       />
-      <div className="flex flex-col gap-2">
-        <div>
-          <DocumentState status={status} number={maybeText(report, 'number')} />
-        </div>
-        {client.isPending('documents', reportId) ? (
-          <p className="text-body text-ink-muted">Noch nicht übertragen.</p>
-        ) : null}
-      </div>
+      {status === 'draft' && client.isPending('documents', reportId) ? (
+        <p className="text-[15px] font-semibold text-waiting">Noch nicht übertragen.</p>
+      ) : null}
 
       {status !== 'draft' ? (
         <SignedReport report={report} lines={lines} signature={signature} status={status} />
@@ -148,80 +171,38 @@ function ReportView({ report }: { readonly report: RecordState }) {
           }}
         />
       )}
-    </div>
+    </SiteScreen>
   )
 }
 
-/** The lines as the customer reads them: quantity, unit, what it was. */
-function LineList({
-  lines,
-  onRemove,
-}: {
-  readonly lines: readonly RecordState[]
-  /** Given while the report can still change, and only then. */
-  readonly onRemove?: (id: string) => void
-}) {
-  const [removing, setRemoving] = useState<string | null>(null)
-
+/**
+ * The lines as the customer reads them, `readonly()` of the boards: the
+ * quantity in bold in a column of its own, what it was beside it.
+ */
+function ReadLines({ lines }: { readonly lines: readonly RecordState[] }) {
   if (lines.length === 0) {
-    return <p className="text-body text-ink-muted">Noch keine Arbeitszeit und kein Material.</p>
+    return <SiteText muted>Noch keine Arbeitszeit und kein Material.</SiteText>
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-line">
+    <ul aria-label="Arbeitszeit und Material" className="flex flex-col">
       {lines.map((line) => {
         const id = String(line['id'])
         const title = lineKindOf(line) === 'title'
         const description = maybeText(line, 'description')
 
         return (
-          <li key={id} className="flex flex-col gap-2 py-3">
-            <div className="flex items-baseline gap-3">
+          <li key={id} className="border-b border-row py-[7px] text-[17px]">
+            <div className="flex gap-2.5">
               {title ? null : (
-                <span className="numeric shrink-0 text-body font-semibold">
-                  {`${amount(count(line, 'quantityMilli'))} ${lineUnitShort[lineUnitOf(line)]}`}
-                </span>
+                <b className="numeric w-[78px] shrink-0 font-semibold">{quantityOf(line)}</b>
               )}
-              <span className={title ? 'text-body font-semibold' : 'text-body'}>
+              <span className={title ? 'font-semibold' : '[overflow-wrap:anywhere]'}>
                 {text(line, 'designation')}
               </span>
             </div>
             {description ? (
-              <p className="text-body text-ink-muted whitespace-pre-line">{description}</p>
-            ) : null}
-            {onRemove ? (
-              removing === id ? (
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    tone="danger"
-                    onClick={() => {
-                      setRemoving(null)
-                      onRemove(id)
-                    }}
-                  >
-                    Entfernen
-                  </Button>
-                  <Button
-                    tone="quiet"
-                    onClick={() => {
-                      setRemoving(null)
-                    }}
-                  >
-                    Behalten
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <Button
-                    tone="quiet"
-                    onClick={() => {
-                      setRemoving(id)
-                    }}
-                  >
-                    {`${text(line, 'designation')} entfernen`}
-                  </Button>
-                </div>
-              )
+              <p className="mt-0.5 text-[15px] whitespace-pre-line text-ink-muted">{description}</p>
             ) : null}
           </li>
         )
@@ -230,21 +211,156 @@ function LineList({
   )
 }
 
+/**
+ * A line to take off again, `material_row()` of the boards: on the page
+ * colour, the name, the quantity in bold, and the cross that asks first.
+ */
+function MaterialRow({
+  line,
+  onRemove,
+}: {
+  readonly line: RecordState
+  readonly onRemove: () => void
+}) {
+  const name = text(line, 'designation')
+
+  return (
+    <li className="flex min-h-14 items-center gap-2.5 rounded-[6px] border border-line bg-ground py-1.5 pr-1 pl-3">
+      <span className="min-w-0 grow text-[17px] [overflow-wrap:anywhere]">{name}</span>
+      <b className="numeric text-[17px] font-semibold whitespace-nowrap">{quantityOf(line)}</b>
+      <button
+        type="button"
+        aria-label={`${name} entfernen`}
+        onClick={onRemove}
+        className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-control text-ink-muted"
+      >
+        <X size={20} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+    </li>
+  )
+}
+
+/** The lines that can still be taken off, each asking before it goes (#222). */
+function MaterialRows({
+  lines,
+  onRemove,
+}: {
+  readonly lines: readonly RecordState[]
+  readonly onRemove: (id: string) => void
+}) {
+  const [removing, setRemoving] = useState<RecordState | null>(null)
+
+  if (lines.length === 0) {
+    return null
+  }
+
+  return (
+    <>
+      <ul aria-label="Posten des Berichts" className="flex flex-col gap-2">
+        {lines.map((line) => (
+          <MaterialRow
+            key={String(line['id'])}
+            line={line}
+            onRemove={() => {
+              setRemoving(line)
+            }}
+          />
+        ))}
+      </ul>
+      <Confirm
+        open={removing !== null}
+        title={`„${removing ? text(removing, 'designation') : ''}“ entfernen?`}
+        confirm="Entfernen"
+        onConfirm={() => {
+          if (removing) {
+            onRemove(String(removing['id']))
+          }
+
+          setRemoving(null)
+        }}
+        onCancel={() => {
+          setRemoving(null)
+        }}
+      >
+        Der Posten steht danach nicht mehr im Bericht.
+      </Confirm>
+    </>
+  )
+}
+
 /** What the report says was done, above its lines, as on paper. */
 function WorkDone({ report }: { readonly report: RecordState }) {
   const introText = maybeText(report, 'introText')
 
   return introText ? (
-    <p className="text-body whitespace-pre-line">{introText}</p>
+    <p className="text-[17px] leading-[1.45] whitespace-pre-line [overflow-wrap:anywhere]">
+      {introText}
+    </p>
   ) : (
-    <p className="text-body text-ink-muted">Noch nichts eingetragen.</p>
+    <SiteText muted>Noch nichts eingetragen.</SiteText>
+  )
+}
+
+/**
+ * The working time as the board draws it: the hours in large figures between
+ * a minus and a plus, a quarter of an hour a tap. Every tap is saved at once,
+ * through the outbox, so nothing is lost when the device goes in a pocket.
+ * Down to nothing, the line goes.
+ */
+function HoursStepper({
+  line,
+  working,
+  onChange,
+}: {
+  readonly line: RecordState | null
+  readonly working: boolean
+  readonly onChange: (quantityMilli: number) => void
+}) {
+  const hours = line ? count(line, 'quantityMilli') : 0
+  const step =
+    'flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-control border border-control bg-ground text-[28px] font-medium text-ink disabled:cursor-not-allowed disabled:text-disabled'
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <button
+        type="button"
+        aria-label="Eine Viertelstunde weniger"
+        disabled={working || hours === 0}
+        onClick={() => {
+          onChange(Math.max(0, hours - quarterHour))
+        }}
+        className={step}
+      >
+        −
+      </button>
+      <div className="min-w-0 grow text-center">
+        <p className="numeric text-[34px] leading-[1.1] font-bold">
+          {`${amount(hours)} ${lineUnitShort.hour}`}
+        </p>
+        <p className="text-[15px] text-ink-muted">
+          {line ? text(line, 'designation') : 'Arbeitszeit'}
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label="Eine Viertelstunde mehr"
+        disabled={working}
+        onClick={() => {
+          onChange(hours + quarterHour)
+        }}
+        className={step}
+      >
+        +
+      </button>
+    </div>
   )
 }
 
 type Editor = 'text' | 'hours' | 'material'
 
 /**
- * Writing the report: the text, the hours, the material. Every entry is safe
+ * Writing the report, the board "Regiebericht schreiben, ohne Netz": the text,
+ * the fields of the business, the hours and the material. Every entry is safe
  * on the device the moment it is saved, and none of them needs a network.
  */
 function WritingStep({
@@ -260,9 +376,12 @@ function WritingStep({
   const reportId = String(report['id'])
   const [editor, setEditor] = useState<Editor | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
   const hasContent = maybeText(report, 'introText') !== null || lines.length > 0
   const nextPosition =
     lines.reduce((highest, line) => Math.max(highest, count(line, 'position')), 0) + 1
+  const hoursLine = hoursLineOf(lines)
+  const others = lines.filter((line) => line !== hoursLine && lineKindOf(line) !== 'title')
 
   async function addLine(values: {
     readonly designation: string
@@ -299,9 +418,61 @@ function WritingStep({
     }
   }
 
+  async function setHours(quantityMilli: number) {
+    setTrouble(null)
+    setWorking(true)
+
+    try {
+      const result = hoursLine
+        ? quantityMilli === 0
+          ? await client.remove('document_lines', String(hoursLine['id']))
+          : await client.update('document_lines', String(hoursLine['id']), { quantityMilli })
+        : await addLine({ designation: 'Arbeitszeit', quantityMilli, unit: 'hour' })
+
+      if (result.outcome === 'refused') {
+        setTrouble(refusalText[result.reason])
+      }
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  // Entering hours or material is a screen of its own on the board: the form
+  // over the list, nothing else, and no bar at the foot.
+  if (editor === 'hours' || editor === 'material') {
+    return (
+      <>
+        <LineForm
+          key={editor}
+          editor={editor}
+          onSave={addLine}
+          onCancel={() => {
+            setEditor(null)
+          }}
+        />
+        <Panel
+          title="Arbeitszeit und Material"
+          action={<span className="text-[14px] text-ink-faint">{postsOf(lines)}</span>}
+        >
+          {lines.length === 0 ? (
+            <SiteText muted>Noch keine Arbeitszeit und kein Material.</SiteText>
+          ) : (
+            <MaterialRows
+              lines={lines.filter((line) => lineKindOf(line) !== 'title')}
+              onRemove={(id) => {
+                void remove(id)
+              }}
+            />
+          )}
+        </Panel>
+        <SiteNoTabs />
+      </>
+    )
+  }
+
   return (
     <>
-      <Card label="Was gemacht wurde">
+      <Panel title="Was gemacht wurde">
         {editor === 'text' ? (
           <WorkDoneForm
             report={report}
@@ -310,94 +481,149 @@ function WritingStep({
             }}
           />
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <WorkDone report={report} />
-            <div>
-              <Button
-                tone="secondary"
-                disabled={editor !== null}
-                onClick={() => {
-                  setEditor('text')
-                }}
-              >
-                {maybeText(report, 'introText') ? 'Text ändern' : 'Text schreiben'}
-              </Button>
-            </div>
+            <Button
+              wide
+              height={48}
+              icon={Pencil}
+              onClick={() => {
+                setEditor('text')
+              }}
+            >
+              {maybeText(report, 'introText') ? 'Text ändern' : 'Text schreiben'}
+            </Button>
           </div>
         )}
-      </Card>
+      </Panel>
 
       <ReportFieldsForm report={report} />
 
-      <Card label="Arbeitszeit und Material">
+      <Panel
+        title="Arbeitszeit und Material"
+        action={<span className="text-[14px] text-ink-faint">{postsOf(lines)}</span>}
+      >
         <div className="flex flex-col gap-3">
-          <LineList
-            lines={lines}
-            onRemove={
-              editor === null
-                ? (id) => {
-                    void remove(id)
-                  }
-                : undefined
-            }
+          <HoursStepper
+            line={hoursLine}
+            working={working}
+            onChange={(value) => void setHours(value)}
           />
-
-          {editor === 'hours' || editor === 'material' ? (
-            <LineForm
-              key={editor}
-              editor={editor}
-              onSave={addLine}
-              onCancel={() => {
-                setEditor(null)
+          <MaterialRows
+            lines={others}
+            onRemove={(id) => {
+              void remove(id)
+            }}
+          />
+          <div className="flex gap-2">
+            <Button
+              wide
+              height={52}
+              icon={Plus}
+              disabled={editor !== null}
+              onClick={() => {
+                setEditor('material')
               }}
-            />
-          ) : null}
-
-          {editor === null ? (
-            <div className="flex flex-col gap-3">
-              <Button
-                tone="secondary"
-                wide
-                onClick={() => {
-                  setEditor('hours')
-                }}
-              >
-                Arbeitszeit eintragen
-              </Button>
-              <Button
-                tone="secondary"
-                wide
-                onClick={() => {
-                  setEditor('material')
-                }}
-              >
-                Material eintragen
-              </Button>
-            </div>
-          ) : null}
+            >
+              Material eintragen
+            </Button>
+            <ReportPhoto report={report} />
+          </div>
+          <Button
+            tone="quiet"
+            wide
+            height={44}
+            icon={Plus}
+            disabled={editor !== null}
+            onClick={() => {
+              setEditor('hours')
+            }}
+          >
+            {hoursLine ? 'Weitere Arbeitszeit eintragen' : 'Arbeitszeit eintragen'}
+          </Button>
         </div>
-      </Card>
+      </Panel>
 
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
+      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
 
-      <div className="flex flex-col gap-2">
-        <Button tone="primary" wide disabled={editor !== null || !hasContent} onClick={onSign}>
+      <SiteActionBar
+        note={
+          !hasContent
+            ? 'Unterschrieben wird ein Bericht mit Text oder mit Arbeitszeit und Material.'
+            : editor !== null
+              ? 'Erst die offene Eingabe sichern oder abbrechen. Unterschrieben wird, was gesichert ist.'
+              : 'Wird ohne Netz gespeichert und später abgeglichen. Die Rechnung schreibt das Büro.'
+        }
+      >
+        <Button
+          tone="primary"
+          wide
+          icon={Signature}
+          className="text-[19px]"
+          disabled={editor !== null || !hasContent}
+          onClick={onSign}
+        >
           Vom Kunden unterschreiben lassen
         </Button>
-        {!hasContent ? (
-          <p className="text-body text-ink-muted">
-            Unterschrieben wird ein Bericht mit Text oder mit Arbeitszeit und Material.
-          </p>
-        ) : editor !== null ? (
-          <p className="text-body text-ink-muted">
-            Erst die offene Eingabe sichern oder abbrechen. Unterschrieben wird, was gesichert ist.
-          </p>
-        ) : null}
-      </div>
+      </SiteActionBar>
+    </>
+  )
+}
+
+/**
+ * A photo from the report, the camera beside "Material eintragen" on the
+ * board: it goes to the files of the job, where the office finds it with the
+ * others, and waits on the device like every photo taken here.
+ */
+function ReportPhoto({ report }: { readonly report: RecordState }) {
+  const client = useSync()
+  const writes = useMay('attachment.write')
+  const job = useRecord('jobs', maybeText(report, 'jobId') ?? undefined)
+  const shooter = useRef<HTMLInputElement>(null)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  if (!writes || !job) {
+    return null
+  }
+
+  const home = {
+    customerId: String(job['customerId']),
+    siteId: maybeText(job, 'siteId'),
+    installationId: maybeText(job, 'installationId'),
+    jobId: String(job['id']),
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Foto aufnehmen"
+        title={trouble ?? 'Foto aufnehmen'}
+        onClick={() => {
+          shooter.current?.click()
+        }}
+        className="flex size-13 shrink-0 cursor-pointer items-center justify-center rounded-control border border-control bg-ground text-ink"
+      >
+        <Camera size={22} strokeWidth={2.1} aria-hidden="true" />
+      </button>
+      <input
+        ref={shooter}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Foto zum Bericht aufnehmen"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+
+          event.target.value = ''
+
+          if (file) {
+            void addAttachment(client, home, file, false).then(setTrouble)
+          }
+        }}
+      />
     </>
   )
 }
@@ -449,28 +675,22 @@ function WorkDoneForm({
           setValue(event.target.value)
         }}
       />
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
-          Text sichern
-        </Button>
-        <Button tone="quiet" disabled={working} onClick={onDone}>
-          Abbrechen
-        </Button>
-      </div>
+      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+      <Button type="submit" tone="primary" wide height={52} icon={Check} disabled={working}>
+        Text sichern
+      </Button>
+      <Button wide height={48} disabled={working} onClick={onDone}>
+        Abbrechen
+      </Button>
     </form>
   )
 }
 
 /**
- * One entry of time or material. Two variants of one form rather than one
- * form with a kind field: on site "Arbeitszeit eintragen" is a different
- * action from "Material eintragen", and hours have a unit nobody should have
- * to pick.
+ * One entry of time or material, the board "Material eintragen": a card of
+ * its own over the list. Two variants of one form rather than one form with a
+ * kind field: on site "Arbeitszeit eintragen" is a different action from
+ * "Material eintragen", and hours have a unit nobody should have to pick.
  */
 function LineForm({
   editor,
@@ -535,52 +755,65 @@ function LineForm({
   }
 
   return (
-    <form
-      className="flex flex-col gap-3"
-      onSubmit={(event) => {
-        void save(event)
-      }}
-    >
-      <Field
-        label={hours ? 'Bezeichnung' : 'Material'}
-        value={designation}
-        problem={problems['designation']}
-        onChange={(event) => {
-          setDesignation(event.target.value)
+    <Panel title={hours ? 'Arbeitszeit eintragen' : 'Material eintragen'}>
+      <form
+        className="flex flex-col gap-3.5"
+        onSubmit={(event) => {
+          void save(event)
         }}
-      />
-      <Field
-        label={hours ? 'Stunden' : 'Menge'}
-        inputMode="decimal"
-        numeric
-        value={quantity}
-        problem={problems['quantity']}
-        onChange={(event) => {
-          setQuantity(event.target.value)
-        }}
-      />
-      {hours ? null : (
-        <SelectField label="Einheit" value={unit} options={materialUnits} onChange={setUnit} />
-      )}
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
+      >
+        <Field
+          label={hours ? 'Bezeichnung' : 'Material'}
+          value={designation}
+          problem={problems['designation']}
+          hint={
+            hours
+              ? 'Wie es im Bericht steht, zum Beispiel Arbeitszeit Geselle.'
+              : 'Was verbaut wurde, zum Beispiel Leitungsschutzschalter B16.'
+          }
+          onChange={(event) => {
+            setDesignation(event.target.value)
+          }}
+        />
+        <div className="flex items-start gap-2.5">
+          <div className={hours ? 'min-w-0 grow' : 'w-[120px] shrink-0'}>
+            <Field
+              label={hours ? 'Stunden' : 'Menge'}
+              inputMode="decimal"
+              numeric
+              value={quantity}
+              problem={problems['quantity']}
+              onChange={(event) => {
+                setQuantity(event.target.value)
+              }}
+            />
+          </div>
+          {hours ? null : (
+            <div className="min-w-0 grow">
+              <SelectField
+                label="Einheit"
+                value={unit}
+                options={materialUnits}
+                onChange={setUnit}
+              />
+            </div>
+          )}
+        </div>
+        {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+        <Button type="submit" tone="primary" wide height={52} icon={Check} disabled={working}>
           {hours ? 'Arbeitszeit sichern' : 'Material sichern'}
         </Button>
-        <Button tone="quiet" disabled={working} onClick={onCancel}>
+        <Button wide height={48} disabled={working} onClick={onCancel}>
           Abbrechen
         </Button>
-      </div>
-    </form>
+      </form>
+    </Panel>
   )
 }
 
 /**
- * The page the customer reads and signs, and nothing on it can be changed.
+ * The page the customer reads and signs, the board "Vom Kunden unterschreiben
+ * lassen", and nothing on it can be changed.
  *
  * It is the saved report and not a form: what is shown here is what the
  * fingerprint is worked out from, in the same render, so the customer signs
@@ -603,6 +836,7 @@ function SigningStep({
   const [problem, setProblem] = useState<string | undefined>(undefined)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
+  const formId = useId()
   const fingerprint = signedContentFingerprint(signedContentOf(report, lines))
 
   async function sign(event: FormEvent) {
@@ -650,60 +884,78 @@ function SigningStep({
   }
 
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(event) => {
-        void sign(event)
-      }}
-    >
-      <p className="text-body font-semibold">
+    <>
+      <p className="text-[18px] leading-[1.45] font-semibold">
         Bitte lesen Sie den Bericht und unterschreiben Sie darunter.
       </p>
 
-      <Card label="Was gemacht wurde">
-        <WorkDone report={report} />
-      </Card>
+      <ReadOnlyReport report={report} lines={lines} />
 
-      <ReportFieldsText report={report} />
+      <form
+        id={formId}
+        className="contents"
+        onSubmit={(event) => {
+          void sign(event)
+        }}
+      >
+        <Panel title="Unterschrift">
+          <div className="flex flex-col gap-3">
+            <Field
+              label="Name"
+              autoComplete="off"
+              value={signerName}
+              problem={problem}
+              onChange={(event) => {
+                setSignerName(event.target.value)
+              }}
+            />
+            <SignaturePad label="Unterschriftsfeld" onChange={setPath} />
+          </div>
+        </Panel>
+      </form>
 
-      <Card label="Arbeitszeit und Material">
-        <LineList lines={lines} />
-      </Card>
+      {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
 
-      <Card label="Unterschrift">
-        <div className="flex flex-col gap-4">
-          <Field
-            label="Name"
-            autoComplete="off"
-            value={signerName}
-            problem={problem}
-            onChange={(event) => {
-              setSignerName(event.target.value)
-            }}
-          />
-          <SignaturePad label="Unterschriftsfeld" onChange={setPath} />
-        </div>
-      </Card>
-
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
-
-      <div className="flex flex-col gap-3">
-        <Button type="submit" tone="primary" wide disabled={working}>
+      <SiteActionBar stacked>
+        <Button type="submit" form={formId} tone="primary" wide icon={Check} disabled={working}>
           Unterschreiben
         </Button>
-        <Button tone="quiet" wide disabled={working} onClick={onBack}>
+        <Button wide height={48} disabled={working} onClick={onBack}>
           Zurück zum Bericht
         </Button>
-      </div>
-    </form>
+      </SiteActionBar>
+    </>
   )
 }
 
-/** A report nothing changes on any more, with the signature it carries. */
+/** The report as it is signed: what was done, the fields, and the lines. */
+function ReadOnlyReport({
+  report,
+  lines,
+}: {
+  readonly report: RecordState
+  readonly lines: readonly RecordState[]
+}) {
+  return (
+    <>
+      <Panel title="Was gemacht wurde">
+        <WorkDone report={report} />
+      </Panel>
+
+      <ReportFieldsText report={report} />
+
+      <Panel title="Arbeitszeit und Material">
+        <ReadLines lines={lines} />
+      </Panel>
+    </>
+  )
+}
+
+/**
+ * A report nothing changes on any more, the board "Regiebericht
+ * unterschrieben": the state, why it stays as it is, the report, and the
+ * signature it carries.
+ */
 function SignedReport({
   report,
   lines,
@@ -720,41 +972,39 @@ function SignedReport({
 
   return (
     <>
+      <div>
+        <DocumentState status={status} number={maybeText(report, 'number')} />
+      </div>
+
       {fixed ? (
-        <Card label="Nicht mehr änderbar" tone="sunken">
-          <p role="status" className="text-body">
-            {fixed}
-          </p>
-        </Card>
+        <p
+          role="status"
+          className="rounded-[6px] border border-line bg-surface-sunken px-3.5 py-3 text-[16px] leading-[1.45]"
+        >
+          {fixed}
+        </p>
       ) : null}
 
-      <Card label="Was gemacht wurde">
-        <WorkDone report={report} />
-      </Card>
-
-      <ReportFieldsText report={report} />
-
-      <Card label="Arbeitszeit und Material">
-        <LineList lines={lines} />
-      </Card>
+      <ReadOnlyReport report={report} lines={lines} />
 
       {signature ? (
-        <Card label="Unterschrift">
+        <Panel title="Unterschrift">
           <div className="flex flex-col gap-2">
             <SignaturePicture
               path={text(signature, 'path')}
               label={`Unterschrift von ${text(signature, 'signerName')}`}
+              className="h-[120px]"
             />
-            <p className="text-body">
+            <p className="text-[16px] font-semibold">
               {`${text(signature, 'signerName')}, ${moment(maybeText(signature, 'signedAt'))} Uhr`}
             </p>
             {client.isPending('document_signatures', String(signature['id'])) ? (
-              <p className="text-body text-ink-muted">
+              <SiteText muted size={15}>
                 Noch nicht übertragen. Die Unterschrift geht mit dem nächsten Abgleich ins Büro.
-              </p>
+              </SiteText>
             ) : null}
           </div>
-        </Card>
+        </Panel>
       ) : null}
     </>
   )

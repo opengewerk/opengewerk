@@ -15,7 +15,7 @@ import {
 } from '@opengewerk/domain'
 import { useMemo, useState } from 'react'
 
-import { Card, FieldLabel } from '../components/index.js'
+import { Panel } from '../components/index.js'
 import { refusalText } from '../sync/client.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { FieldInput } from './protocols.js'
@@ -84,16 +84,21 @@ export function useReportFieldLines(report: RecordState): readonly ReportFieldCo
   )
 }
 
-/** The fields as a list of label and text, for whatever frame the entry puts around them. */
+/**
+ * The fields as a list of label and text, `kv()` of the site boards: the
+ * label in small capitals over its text.
+ */
 export function ReportFieldList({ lines }: { readonly lines: readonly ReportFieldContent[] }) {
   return (
-    <dl className="flex flex-col gap-3">
+    <dl className="flex flex-col gap-2.5">
       {lines.map((line) => (
         <div key={line.label}>
-          <dt>
-            <FieldLabel>{line.label}</FieldLabel>
+          <dt className="font-condensed text-[13px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+            {line.label}
           </dt>
-          <dd className="text-body whitespace-pre-line">{line.text}</dd>
+          <dd className="mt-0.5 text-[17px] leading-[1.4] whitespace-pre-line [overflow-wrap:anywhere]">
+            {line.text}
+          </dd>
         </div>
       ))}
     </dl>
@@ -105,9 +110,9 @@ export function ReportFieldsText({ report }: { readonly report: RecordState }) {
   const lines = useReportFieldLines(report)
 
   return lines.length === 0 ? null : (
-    <Card label="Angaben">
+    <Panel title="Angaben">
       <ReportFieldList lines={lines} />
-    </Card>
+    </Panel>
   )
 }
 
@@ -165,9 +170,9 @@ export function ReportFieldsForm({ report }: { readonly report: RecordState }) {
   }
 
   return (
-    <Card label="Angaben">
+    <Panel title="Angaben">
       <div
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3"
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
             void save(draft)
@@ -200,11 +205,11 @@ export function ReportFieldsForm({ report }: { readonly report: RecordState }) {
           />
         ))}
         {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
+          <p role="alert" className="text-[16px] font-semibold text-conflict">
             {trouble}
           </p>
         ) : null}
       </div>
-    </Card>
+    </Panel>
   )
 }

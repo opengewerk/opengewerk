@@ -14,14 +14,18 @@ import { useEntry } from './surface.js'
  */
 const look = {
   office: {
+    frame: 'gap-1',
     label: 'text-[13px] font-medium text-ink',
     control: 'px-2.5 rounded-control text-body',
-    note: 'text-[13px] leading-[1.4]',
+    note: 'text-[13px] leading-[1.4] text-ink-faint',
+    unit: 'text-[13px] text-ink-muted',
   },
   site: {
+    frame: 'gap-1.5',
     label: 'text-[15px] font-semibold text-ink',
     control: 'px-3 rounded-[5px] text-[17px]',
-    note: 'text-[14px] leading-[1.4]',
+    note: 'text-[14px] leading-[1.4] text-ink-muted',
+    unit: 'text-[17px] text-ink-muted',
   },
 } as const satisfies Record<Entry, Record<string, string>>
 
@@ -47,12 +51,12 @@ function Notes({
   return (
     <>
       {hint ? (
-        <p id={hintId} className={clsx(look[entry].note, 'text-ink-faint')}>
+        <p id={hintId} className={look[entry].note}>
           {hint}
         </p>
       ) : null}
       {problem ? (
-        <p id={problemId} className={clsx(look[entry].note, 'font-semibold text-conflict')}>
+        <p id={problemId} className={clsx(look[entry].note, 'font-semibold text-conflict!')}>
           {problem}
         </p>
       ) : null}
@@ -75,6 +79,11 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   readonly problem?: string
   /** Amounts, quantities, measured values: switches on tabular figures. */
   readonly numeric?: boolean
+  /**
+   * The unit behind the field, "A" or "mm²", as the site boards draw it:
+   * outside the box, so a thumb does not type into it.
+   */
+  readonly unit?: string
 }
 
 /**
@@ -90,6 +99,7 @@ export function Field({
   hint,
   problem,
   numeric = false,
+  unit,
   className,
   ref,
   ...rest
@@ -100,25 +110,38 @@ export function Field({
   const problemId = `${id}-problem`
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
 
+  const input = (
+    <input
+      id={id}
+      ref={ref}
+      aria-invalid={problem ? true : undefined}
+      aria-describedby={described.length > 0 ? described : undefined}
+      className={clsx(
+        'h-control-lg min-h-tap w-full min-w-0 bg-input text-ink',
+        look[entry].control,
+        edge(problem),
+        numeric && 'numeric',
+        className,
+      )}
+      {...rest}
+    />
+  )
+
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className={clsx('flex min-w-0 flex-col', look[entry].frame)}>
       <label htmlFor={id} className={look[entry].label}>
         {label}
       </label>
-      <input
-        id={id}
-        ref={ref}
-        aria-invalid={problem ? true : undefined}
-        aria-describedby={described.length > 0 ? described : undefined}
-        className={clsx(
-          'h-control-lg min-h-tap w-full min-w-0 bg-input text-ink',
-          look[entry].control,
-          edge(problem),
-          numeric && 'numeric',
-          className,
-        )}
-        {...rest}
-      />
+      {unit ? (
+        <div className="flex items-center gap-2.5">
+          {input}
+          <span aria-hidden="true" className={clsx('shrink-0', look[entry].unit)}>
+            {unit}
+          </span>
+        </div>
+      ) : (
+        input
+      )}
       <Notes entry={entry} hint={hint} hintId={hintId} problem={problem} problemId={problemId} />
     </div>
   )
@@ -158,7 +181,7 @@ export function TextArea({ label, hint, problem, rows = 4, className, ...rest }:
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className={clsx('flex min-w-0 flex-col', look[entry].frame)}>
       <label htmlFor={id} className={look[entry].label}>
         {label}
       </label>
@@ -217,7 +240,7 @@ export function SelectField({
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div className={clsx('flex min-w-0 flex-col', look[entry].frame)}>
       <label htmlFor={id} className={look[entry].label}>
         {label}
       </label>

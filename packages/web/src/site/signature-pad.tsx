@@ -98,17 +98,16 @@ export function SignaturePad({
     onChange(null)
   }
 
+  // As `pad()` of the boards draws it: the field in the colour of an input,
+  // the line to sign on, and under it the hint with "Feld leeren" beside it.
   return (
     <div className="flex flex-col gap-2">
-      <p id={hint} className="text-body text-ink-muted">
-        Mit dem Finger oder einem Stift im Feld unterschreiben.
-      </p>
       <svg
         role="img"
         aria-label={label}
         aria-describedby={hint}
         viewBox={signatureViewBox}
-        className="block w-full aspect-[5/2] rounded-card border-2 border-line-strong bg-surface text-ink touch-none select-none cursor-crosshair"
+        className="block aspect-[5/2] w-full cursor-crosshair touch-none rounded-[6px] border border-line-strong bg-input text-ink select-none"
         onPointerDown={start}
         onPointerMove={extend}
         onPointerUp={end}
@@ -127,12 +126,15 @@ export function SignaturePad({
         <path d={drawn} {...signatureStroke} />
       </svg>
       {full ? (
-        <p role="status" className="text-body text-ink">
+        <p role="status" className="text-[16px] text-ink">
           Das Feld ist voll. Was bis hierher gezeichnet ist, gilt; zum Neuanfang das Feld leeren.
         </p>
       ) : null}
-      <div>
-        <Button tone="quiet" disabled={drawn === ''} onClick={clear}>
+      <div className="flex items-center gap-2">
+        <p id={hint} className="min-w-0 grow text-[15px] leading-[1.45] text-ink-muted">
+          Mit dem Finger oder einem Stift im Feld unterschreiben.
+        </p>
+        <Button tone="quiet" height={44} disabled={drawn === ''} onClick={clear}>
           Feld leeren
         </Button>
       </div>
