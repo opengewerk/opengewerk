@@ -9,7 +9,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Field, SelectField, TextArea } from '../../components/index.js'
+import { Button, Confirm, Field, SelectField, TextArea } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { letterhead, type LetterheadView } from '../../session/letterhead.js'
@@ -217,9 +217,11 @@ function MailServerForm({
     },
   })
 
+  const [asking, setAsking] = useState(false)
   const remove = useMutation({
     mutationFn: removeMailServer,
     onSuccess: () => {
+      setAsking(false)
       onSaid({
         tone: 'status',
         text:
@@ -229,6 +231,7 @@ function MailServerForm({
       refresh()
     },
     onError: (error) => {
+      setAsking(false)
       onSaid({ tone: 'alert', text: saidWhy(error, 'Der Mailserver ließ sich nicht entfernen.') })
     },
   })
@@ -389,12 +392,27 @@ function MailServerForm({
               disabled={working}
               onClick={() => {
                 onSaid(null)
-                remove.mutate()
+                setAsking(true)
               }}
             >
               Mailserver entfernen
             </Button>
           ) : null}
+          <Confirm
+            open={asking}
+            title="Mailserver entfernen?"
+            confirm="Entfernen"
+            busy={remove.isPending}
+            onConfirm={() => {
+              remove.mutate()
+            }}
+            onCancel={() => {
+              setAsking(false)
+            }}
+          >
+            Die Anmeldung beim Mailserver wird gelöscht. E-Mails, die noch warten, gehen danach
+            nicht mehr hinaus, bis wieder ein Mailserver eingetragen ist.
+          </Confirm>
         </div>
       ) : null}
     </form>

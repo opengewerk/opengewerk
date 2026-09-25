@@ -43,6 +43,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Was sich nicht einfach zurücknehmen lässt, fragt vorher nach (#222): Logo entfernen, Mailserver
+  entfernen, einen Zugang sperren, eine Einladung zurückziehen, ein Gerät abmelden, ein Feld des
+  Regieberichts entfernen und auf der Baustelle einen Auftrag abschließen. Bisher wirkten diese
+  Knöpfe sofort, auch der, nach dem wartende E-Mails nicht mehr hinausgehen. Die Rückfrage ist ein
+  Dialog wie auf den Vorlagen im Canvas; sie beginnt auf "Abbrechen", damit Enter aus Gewohnheit
+  nichts auslöst, und sagt in einem Satz, was danach gilt.
 - Meldungen nennen, was auf dem Bildschirm steht, und keine internen Namen mehr (#221). Die Felder
   des Regieberichts nennen eine Auswahl mit der Beschriftung, die der Inhaber getippt hat, statt
   mit `field_1`; der Briefkopf nennt ein zu langes Feld so, wie es über dem Feld steht; eine

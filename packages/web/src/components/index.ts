@@ -1,4 +1,6 @@
 export { Button, IconButton } from './button.js'
+export { Confirm } from './confirm.js'
+export type { ConfirmProps } from './confirm.js'
 export type { ButtonProps, ButtonTone, IconButtonProps } from './button.js'
 
 export { Field, FieldLabel, SelectField, TextArea } from './field.js'

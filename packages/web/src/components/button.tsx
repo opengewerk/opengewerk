@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 
 /**
  * The three things a button can be here, and a fourth that is barely one.
@@ -19,6 +19,8 @@ const toneClasses: Readonly<Record<ButtonTone, string>> = {
 }
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** A prop like any other since React 19, passed on to the `<button>`. */
+  readonly ref?: Ref<HTMLButtonElement>
   readonly tone?: ButtonTone
   /** Fills the width of its container, which is what the site entry wants. */
   readonly wide?: boolean

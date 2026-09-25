@@ -3,6 +3,7 @@ import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import { Button, IconButton } from './button.js'
+import { Confirm } from './confirm.js'
 import { Field } from './field.js'
 import { DocumentState } from './state.js'
 import { Strip } from './strip.js'
@@ -154,6 +155,52 @@ describe('a strip over the screen', () => {
     expect(screen.getByRole('status').textContent).toBe(
       'Der Server nimmt eine Änderung nicht an. Bis sie entschieden ist, geht nichts hinaus.',
     )
+  })
+})
+
+describe('a question before something that cannot be taken back', () => {
+  it('starts on the way out, and Escape and the way out both cancel', async () => {
+    const answers: string[] = []
+    const user = userEvent.setup()
+
+    render(
+      <Confirm
+        open
+        title="Anna Weber sperren?"
+        confirm="Sperren"
+        onConfirm={() => answers.push('sperren')}
+        onCancel={() => answers.push('abbrechen')}
+      >
+        Anna Weber kann sich danach nicht mehr anmelden.
+      </Confirm>,
+    )
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Anna Weber sperren?' })
+    expect(dialog.getAttribute('aria-describedby')).toBeTruthy()
+    // Enter by reflex must not block anybody.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Abbrechen' }))
+
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
+    await user.click(screen.getByRole('button', { name: 'Sperren' }))
+
+    expect(answers).toEqual(['abbrechen', 'abbrechen', 'sperren'])
+  })
+
+  it('is not there while it is not asked', () => {
+    render(
+      <Confirm
+        open={false}
+        title="Gerät abmelden?"
+        confirm="Abmelden"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      >
+        Das Gerät muss sich danach neu anmelden.
+      </Confirm>,
+    )
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 })
 

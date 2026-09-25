@@ -9,7 +9,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -132,6 +132,11 @@ describe('a job on site, for a technician', () => {
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Auftrag abschließen' }))
+
+    // It asks first, and nothing has gone out while it asks (#222).
+    const asked = screen.getByRole('alertdialog', { name: 'Auftrag abschließen?' })
+    expect(server.operations()).toEqual([])
+    await user.click(within(asked).getByRole('button', { name: 'Abschließen' }))
 
     await waitFor(() => {
       expect(server.row('jobs', 'j-1')?.['status']).toBe('completed')

@@ -7,7 +7,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Field } from '../../components/index.js'
+import { Button, Confirm, Field } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import {
   type LetterheadView,
@@ -264,19 +264,50 @@ function LogoSection({
   }
 
   const upload = useMutation({ mutationFn: uploadLogo, ...done })
-  const remove = useMutation({ mutationFn: removeLogo, ...done })
+  const remove = useMutation({
+    mutationFn: removeLogo,
+    onSuccess: (saved: LetterheadView) => {
+      setAsking(false)
+      done.onSuccess(saved)
+    },
+    onError: (error: unknown) => {
+      setAsking(false)
+      done.onError(error)
+    },
+  })
+  const [asking, setAsking] = useState(false)
 
   return (
     <Section
       title="Logo"
       actions={
         mayWrite && view.logo ? (
-          <Button tone="secondary" disabled={remove.isPending} onClick={() => remove.mutate()}>
+          <Button
+            tone="secondary"
+            disabled={remove.isPending}
+            onClick={() => {
+              setAsking(true)
+            }}
+          >
             Logo entfernen
           </Button>
         ) : null
       }
     >
+      <Confirm
+        open={asking}
+        title="Logo entfernen?"
+        confirm="Entfernen"
+        busy={remove.isPending}
+        onConfirm={() => {
+          remove.mutate()
+        }}
+        onCancel={() => {
+          setAsking(false)
+        }}
+      >
+        Neue Belege tragen oben dann nur den Namen. Was schon festgeschrieben ist, behält sein Logo.
+      </Confirm>
       <div className="flex flex-col gap-3">
         {view.logo ? (
           <img
