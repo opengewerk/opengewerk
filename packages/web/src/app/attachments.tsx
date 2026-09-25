@@ -597,14 +597,17 @@ export function AddFiles({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Side by side and alike, as the boards draw them. */}
-      <div className="flex gap-2">
+      {/* Side by side and alike, as the boards draw them, and one under the
+          other where half the width is too little for a label, rather than
+          over the edge of the card. */}
+      <div className="flex flex-wrap gap-2">
         {camera ? (
           <Button
             tone={cameraTone}
             wide
             height={height}
             icon={Camera}
+            className="grow basis-0"
             disabled={working}
             onClick={() => {
               shooter.current?.click()
@@ -617,6 +620,7 @@ export function AddFiles({
           wide
           height={height}
           icon={Upload}
+          className="grow basis-0"
           disabled={working}
           onClick={() => {
             picker.current?.click()
