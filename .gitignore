@@ -19,6 +19,7 @@ venv/
 
 # Editors
 .vscode/
+.claude/
 .idea/
 *.iml
 
