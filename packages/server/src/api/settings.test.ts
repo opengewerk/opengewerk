@@ -128,7 +128,12 @@ describe('a setting a business makes', () => {
       .send({ key: 'small_business.claimed', from: '2026-01-01', value: 1 })
       .expect(400)
       .expect((answer) => {
-        expect(answer.body.message).toMatch(/bereits ein Wert ab 2026-01-01/)
+        // Named as the screen names it, with the day as it is written here,
+        // and never by its key (#221).
+        expect(answer.body.message).toContain(
+          'Für die Kleinunternehmerregelung gilt bereits ein Wert ab 01.01.2026.',
+        )
+        expect(answer.body.message).not.toContain('small_business')
       })
   })
 

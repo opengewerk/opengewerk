@@ -64,6 +64,7 @@ export * from './rules/working-time.js'
 // is merged and when that is a conflict. Where the outbox physically sits is
 // the client's business and comes with the interface that shows it.
 export * from './sync/merge.js'
+export * from './sync/names.js'
 export * from './sync/operation.js'
 export * from './sync/policy.js'
 export * from './sync/record.js'

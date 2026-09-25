@@ -1,4 +1,9 @@
-import { type LetterheadField, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
+import {
+  type LetterheadField,
+  largestLogoBytes,
+  letterheadFieldLabels,
+  logoMediaTypes,
+} from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -19,12 +24,14 @@ function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
 
-/** The fields of one group on the screen, with their German labels. */
+/**
+ * The fields of one group on the screen. Their labels come from
+ * `letterheadFieldLabels`, which the route uses as well when it refuses one.
+ */
 interface Group {
   readonly title: string
   readonly fields: readonly {
     readonly field: LetterheadField
-    readonly label: string
     readonly hint?: string
     readonly type?: string
     readonly autoComplete?: string
@@ -41,52 +48,46 @@ const groups: readonly Group[] = [
     fields: [
       {
         field: 'companyName',
-        label: 'Name auf den Belegen',
         hint: 'Vollständig, bei einem Einzelunternehmen mit Vor- und Nachnamen.',
         autoComplete: 'organization',
       },
-      { field: 'street', label: 'Straße', autoComplete: 'address-line1' },
-      { field: 'houseNumber', label: 'Hausnummer' },
-      { field: 'postalCode', label: 'Postleitzahl', autoComplete: 'postal-code' },
-      { field: 'city', label: 'Ort', autoComplete: 'address-level2' },
-      { field: 'country', label: 'Land', hint: 'Als Kürzel, etwa DE oder AT.' },
+      { field: 'street', autoComplete: 'address-line1' },
+      { field: 'houseNumber' },
+      { field: 'postalCode', autoComplete: 'postal-code' },
+      { field: 'city', autoComplete: 'address-level2' },
+      { field: 'country', hint: 'Als Kürzel, etwa DE oder AT.' },
     ],
   },
   {
     title: 'Kontakt',
     fields: [
-      { field: 'phone', label: 'Telefon', type: 'tel', autoComplete: 'tel' },
-      { field: 'email', label: 'E-Mail', type: 'email', autoComplete: 'email' },
-      { field: 'website', label: 'Website', autoComplete: 'url' },
+      { field: 'phone', type: 'tel', autoComplete: 'tel' },
+      { field: 'email', type: 'email', autoComplete: 'email' },
+      { field: 'website', autoComplete: 'url' },
     ],
   },
   {
     title: 'Steuer',
-    fields: [
-      { field: 'taxNumber', label: 'Steuernummer' },
-      { field: 'vatId', label: 'USt-IdNr.', hint: 'Etwa DE123456789.' },
-    ],
+    fields: [{ field: 'taxNumber' }, { field: 'vatId', hint: 'Etwa DE123456789.' }],
   },
   {
     title: 'Bankverbindung',
     fields: [
-      { field: 'bankName', label: 'Bank' },
+      { field: 'bankName' },
       {
         field: 'iban',
-        label: 'IBAN',
         hint: 'Wird beim Speichern gegen ihre Prüfziffern gehalten.',
       },
-      { field: 'bic', label: 'BIC' },
+      { field: 'bic' },
     ],
   },
   {
     title: 'Handelsregister und Vertretung',
     fields: [
-      { field: 'registerCourt', label: 'Registergericht', hint: 'Etwa Amtsgericht Hamburg.' },
-      { field: 'registerNumber', label: 'Registernummer', hint: 'Etwa HRB 12345.' },
+      { field: 'registerCourt', hint: 'Etwa Amtsgericht Hamburg.' },
+      { field: 'registerNumber', hint: 'Etwa HRB 12345.' },
       {
         field: 'managingDirectors',
-        label: 'Vertretung',
         hint: 'So, wie es auf den Briefen stehen soll, etwa „Geschäftsführer: Max Mustermann“.',
       },
     ],
@@ -194,10 +195,10 @@ function LetterheadForm({
       {groups.map((group) => (
         <Section key={group.title} title={group.title}>
           <div className="grid gap-4 sm:grid-cols-2">
-            {group.fields.map(({ field, label, hint, type, autoComplete }) => (
+            {group.fields.map(({ field, hint, type, autoComplete }) => (
               <Field
                 key={field}
-                label={label}
+                label={letterheadFieldLabels[field]}
                 name={field}
                 type={type ?? 'text'}
                 autoComplete={autoComplete ?? 'off'}

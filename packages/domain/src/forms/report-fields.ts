@@ -8,7 +8,7 @@ import type {
   TextField,
   YesNoField,
 } from './definition.js'
-import { definitionProblems, fieldsOf } from './definition.js'
+import { definitionProblems, fieldsOf, measurementUnits } from './definition.js'
 import { formatMeasured } from './limits.js'
 import type { FieldValue, FormValues } from './values.js'
 
@@ -139,7 +139,43 @@ export function reportFieldsProblems(fields: unknown): readonly string[] {
     return [`Das Feld ${twice} steht zweimal da.`]
   }
 
-  // The rest is what every definition is asked: keys, units, options.
+  // What the owner can get wrong on the screen is said with the label they
+  // typed, not with the key the field got behind the scenes (#221): the
+  // options of a choice, and the unit and places of a number.
+  for (const field of fields as readonly ReportField[]) {
+    const named = `„${field.label.trim()}“`
+
+    if (field.kind === 'choice') {
+      const options = Array.isArray(field.options) ? field.options : []
+
+      if (options.length < 2) {
+        return [`Die Auswahl ${named} braucht mindestens zwei Möglichkeiten.`]
+      }
+
+      if (
+        options.some((option) => option.value === '' || option.label.trim() === '') ||
+        new Set(options.map((option) => option.value)).size !== options.length
+      ) {
+        return [
+          `Jede Möglichkeit der Auswahl ${named} braucht einen eigenen Wert und eine Beschriftung.`,
+        ]
+      }
+    }
+
+    if (field.kind === 'number') {
+      if (!measurementUnits.includes(field.unit)) {
+        return [`Das Feld ${named} nennt eine Einheit, die es nicht gibt.`]
+      }
+
+      if (!Number.isInteger(field.decimals) || field.decimals < 0 || field.decimals > 3) {
+        return [`Das Feld ${named} zeigt null bis drei Nachkommastellen.`]
+      }
+    }
+  }
+
+  // The rest is what every definition is asked: keys, units, options. Only a
+  // client that sends what the screen never would reaches it, and a developer
+  // reads its sentences.
   return definitionProblems(reportDefinition(1, fields as readonly ReportField[]))
 }
 

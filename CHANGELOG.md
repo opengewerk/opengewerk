@@ -43,6 +43,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Meldungen nennen, was auf dem Bildschirm steht, und keine internen Namen mehr (#221). Die Felder
+  des Regieberichts nennen eine Auswahl mit der Beschriftung, die der Inhaber getippt hat, statt
+  mit `field_1`; der Briefkopf nennt ein zu langes Feld so, wie es über dem Feld steht; eine
+  abgelehnte Einstellung sagt "Für die Kleinunternehmerregelung gilt bereits ein Wert ab
+  01.01.2026." statt `small_business.claimed` und ein ISO-Datum. Die Namen der Datensätze und
+  Felder, die ein Konflikt zeigt, liegen jetzt in `domain`, und ein Test hält sie gegen das Schema:
+  jede Entität des Abgleichs und jedes Feld, das ein Gerät schreiben darf, hat einen. Es fehlten
+  34, darunter die Zeiteinträge und die Protokolle, und auf der Baustelle stand deshalb etwa
+  `performedOn` in einem Konflikt. `deviceId` zählt jetzt wie `updatedBy` zu den Feldern des
+  Servers, ein Trigger setzt es ohnehin.
 - Während eine Änderung unterwegs ist, meldet die Leiste nicht mehr "Keine Verbindung." (#223). Der
   Abgleich zählt jede Änderung im Postausgang als noch nicht angekommen, und die Leiste las daraus
   eine fehlende Verbindung, auch in dem Moment, in dem die Änderung gerade hinausgeht. Sie erscheint

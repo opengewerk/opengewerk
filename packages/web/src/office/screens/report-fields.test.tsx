@@ -93,10 +93,11 @@ describe('the fields of the reports, as the owner sets them', () => {
     await user.type(screen.getByLabelText('Beschriftung'), 'Wetter')
     await user.selectOptions(screen.getByLabelText('Art'), 'Auswahl')
 
-    // A choice with one option is refused before anything is sent.
+    // A choice with one option is refused before anything is sent, and the
+    // sentence names the field by what the owner typed (#221).
     await user.type(screen.getByLabelText('Möglichkeiten'), 'trocken')
     expect(
-      screen.getByText('report: die Auswahl field_1 hat weniger als zwei Möglichkeiten.'),
+      screen.getByText('Die Auswahl „Wetter“ braucht mindestens zwei Möglichkeiten.'),
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Speichern' })).toHaveProperty('disabled', true)
 
