@@ -15,9 +15,26 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Konto, denn das Tablet im Keller will oft etwas anderes als der Schreibtisch, und sie gilt schon vor
   der Anmeldung. Die dunklen Farben stehen nur noch einmal in `tokens.css`, und die Symbole im
   Umschalter kommen aus Lucide.
+- Das Büro hat die Hülle aus dem Canvas (#217): oben die Kopfzeile in Schiefer mit Marke, Betrieb
+  und der Person, darunter ab 1024 Pixel Breite die Navigation neben dem Bildschirm, in den Gruppen
+  Stammdaten und Arbeit, und am Fuß Abgleich und Einstellungen. Schmaler steckt sie hinter "Menü"
+  in der Kopfzeile und öffnet sich als Schublade mit großen Zeilen für den Daumen. Hinter der Person
+  liegen hell oder dunkel, das Konto und das Abmelden. Die Leisten über dem Bildschirm erscheinen nur
+  noch, wenn etwas zu tun ist; dass alles abgeglichen ist, steht leise unter "Abgleich", denn die
+  grüne Leiste auf jedem Bildschirm sagte meistens nichts und nahm den Platz einer Tabellenzeile.
+  Neben "Aufgaben" steht, wie viele offene Aufgaben auf die angemeldete Person warten.
 
 ### Behoben
 
+- Schrift und Abstände haben die Größe aus dem Canvas (#229). `html` bekam die Schriftgröße aus den
+  Tokens, und weil die Tokens in rem geschrieben sind, rechnete jeder zweimal: im Büro war Fließtext
+  12,25 statt 14 Pixel groß, ein Bedienelement 29,75 statt 34, und auf der Baustelle, deren Wurzel
+  ebenfalls die Größe des Büros bekam, ein Bedienelement 52,5 statt 60 Pixel. Die Wurzel behält jetzt
+  die Größe des Browsers, und ein Test hält das fest.
+- Im Prüfprotokoll hat die Leiste mit "Speichern" wieder einen Hintergrund, und die Überschriften
+  der Abschnitte nennen eine Größe, die es gibt. Die Klassen `bg-canvas` und `text-heading` nannten
+  keine Farbe und keine Größe; gefunden hat sie die Prüfung der Klassen gegen die Tokens, die bisher
+  nur die Bausteine las und jetzt jeden Bildschirm liest.
 - Die Signaturprüfung aus den Hinweisen der Release-Seite geht auch in Git Bash durch (#212). Der
   Befehl nannte die Identität des Workflows als regulären Ausdruck, und Git Bash schreibt die
   Argumente eines Windows-Programms um, bevor sie ankommen: aus `github\.com` wurde `github/.com`,

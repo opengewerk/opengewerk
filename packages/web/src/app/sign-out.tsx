@@ -1,3 +1,4 @@
+import { LogOut } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '../components/index.js'
@@ -29,11 +30,14 @@ export function SignOutButton({
   client,
   onSignedOut,
   wide = false,
+  row = false,
 }: {
   /** The running sync client, when a business is open; its outbox is sent first. */
   readonly client: SyncClient | null
   readonly onSignedOut: () => void
   readonly wide?: boolean
+  /** A line in the menu under the name in the header, rather than a button. */
+  readonly row?: boolean
 }) {
   const [waiting, setWaiting] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -125,9 +129,21 @@ export function SignOutButton({
 
   return (
     <>
-      <Button tone="secondary" wide={wide} disabled={busy} onClick={() => void ask()}>
-        Abmelden
-      </Button>
+      {row ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void ask()}
+          className="flex w-full items-center gap-[9px] rounded-control px-3 py-2 text-[14px] leading-[1.2] text-ink cursor-pointer hover:bg-surface-sunken disabled:opacity-60"
+        >
+          <LogOut size={16} strokeWidth={1.9} aria-hidden="true" />
+          Abmelden
+        </button>
+      ) : (
+        <Button tone="secondary" wide={wide} disabled={busy} onClick={() => void ask()}>
+          Abmelden
+        </Button>
+      )}
       {trouble ? (
         <p role="alert" className="text-body font-semibold text-conflict">
           {trouble}

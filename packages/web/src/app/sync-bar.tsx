@@ -3,11 +3,10 @@ import type { ReactNode } from 'react'
 
 import { Button, SyncBar } from '../components/index.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
-import { sinceThen } from './format.js'
 import { applyUpdate, subscribeToUpdates, updateWaiting } from './updates.js'
 
 /**
- * The strip that sits above every screen on both entries.
+ * The strip above every screen on both entries, when there is something to do.
  *
  * A strip and never a popup, and it is not dismissible. A conflict that can be
  * clicked away is a conflict nobody sees, and a conflict nobody sees becomes
@@ -65,7 +64,10 @@ export function SyncStatusBar({ conflictsLink }: { readonly conflictsLink?: Reac
     )
   }
 
-  return <SyncBar state="synced">{`Alles abgeglichen, ${sinceThen(status.lastSyncedAt)}.`}</SyncBar>
+  // Everything arrived: no strip. The office says so quietly under "Abgleich"
+  // in the navigation, the site on its conflict screen (#217). A strip that
+  // is always there teaches people to stop reading strips.
+  return null
 }
 
 /**

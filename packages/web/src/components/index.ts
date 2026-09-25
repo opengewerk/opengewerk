@@ -10,6 +10,7 @@ export type { CellProps, ColumnProps } from './table.js'
 export { Card, Shell, TextLink } from './surface.js'
 export type { CardProps, CardTone, Entry, ShellProps, TextLinkProps } from './surface.js'
 
+export { BrandMark } from './brand-mark.js'
 export { ThemeSwitch } from './theme-switch.js'
 export type { ThemeChoice, ThemeSwitchProps } from './theme-switch.js'
 

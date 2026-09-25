@@ -59,12 +59,13 @@ const light = paletteOf(tokens, '@theme')
 const dark = paletteOf(tokens, ":root[data-theme='dark']")
 
 /**
- * The three surfaces a foreground colour can land on. Checking a text colour
- * only against the card is how the first draft of this passed while three
- * values were too light: the page and the navigation strip are darker, and
- * nothing stops a label from sitting on either.
+ * The surfaces a foreground colour can land on: the page, a card, a sunken
+ * strip and the navigation beside the page. Checking a text colour only
+ * against the card is how the first draft of this passed while three values
+ * were too light: the page and the navigation are darker, and nothing stops a
+ * label from sitting on either.
  */
-const surfaces = ['ground', 'surface', 'surface-sunken'] as const
+const surfaces = ['ground', 'surface', 'surface-sunken', 'nav'] as const
 
 /** Text, at any size this interface actually uses. 4.5 is the requirement. */
 const textColours = [
@@ -87,6 +88,9 @@ const filled = [
   { front: 'on-status', back: 'done', what: 'die gruene Abgleichleiste' },
   { front: 'on-status', back: 'waiting', what: 'die gelbe Abgleichleiste' },
   { front: 'on-status', back: 'conflict', what: 'die rote Abgleichleiste' },
+  { front: 'top-ink', back: 'top', what: 'der Name in der Kopfleiste' },
+  { front: 'top-muted', back: 'top', what: 'der Betrieb in der Kopfleiste' },
+  { front: 'ground', back: 'ink', what: 'der gewählte Eintrag der Navigation' },
 ] as const
 
 function value(palette: Map<string, string>, name: string, ground: string): string {

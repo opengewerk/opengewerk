@@ -8,12 +8,18 @@ import tokens from './tokens.css?raw'
  * an element with no background, which on an ivory page is invisible, and the
  * typecheck has nothing to say about it.
  *
- * This walks the components, pulls out every class that names a token, and
- * holds it against what `tokens.css` actually declares. It is the cheap half of
- * what a full Tailwind build would tell us, and it runs without one.
+ * This walks every screen and component, pulls out every class that names a
+ * token, and holds it against what `tokens.css` actually declares. It is the
+ * cheap half of what a full Tailwind build would tell us, and it runs without
+ * one.
+ *
+ * It read only the components until the header and the navigation of the
+ * office brought colours of their own (#217). Widened to the screens, it found
+ * `bg-canvas` and `text-heading` on the inspection record, two classes that
+ * had named nothing since they were written.
  */
 
-const sources = import.meta.glob('../components/*.tsx', {
+const sources = import.meta.glob(['../**/*.tsx', '!../**/*.test.tsx'], {
   query: '?raw',
   eager: true,
   import: 'default',
@@ -67,6 +73,21 @@ const builtIn: ReadonlySet<string> = new Set([
   'auto',
   'sr',
   'only',
+  // `h-px` for a hairline, `min-h-dvh` for a page as tall as the screen that
+  // is left, `font-mono` for a placeholder in running text: Tailwind's own
+  // scale, which `@import 'tailwindcss'` brings along.
+  'px',
+  'dvh',
+  'mono',
+])
+
+/**
+ * Strings in the screens that read like a class and are something else. Kept
+ * as a list for the same reason as `builtIn`.
+ */
+const notClasses: ReadonlySet<string> = new Set([
+  // The query key of the text snippets, `['text-snippets']`.
+  'text-snippets',
 ])
 
 /** Which set of names a prefix draws from. `text-` draws from three. */
@@ -97,9 +118,11 @@ const namespaces: Readonly<Record<string, readonly ReadonlySet<string>[]>> = {
 const prefixes = Object.keys(namespaces)
   .sort((left, right) => right.length - left.length)
   .join('|')
-const candidate = new RegExp(`\\b(${prefixes})-([a-z][a-z0-9-]*)\\b`, 'g')
+// Not after a hyphen, a slash or a dot: `max-w-md` is not `w-md`, and
+// `./screens/text-snippets.js` is a module and not a colour.
+const candidate = new RegExp(`(?<![-/.])\\b(${prefixes})-([a-z][a-z0-9-]*)\\b`, 'g')
 
-describe('the components', () => {
+describe('the screens and components', () => {
   it('are actually there to look at', () => {
     // Without this the checks below would pass on an empty list, and an empty
     // list is the one result that proves nothing.
@@ -116,7 +139,11 @@ describe('the components', () => {
 
         // `border-b`, `border-l-4`: a side, optionally with a width. Tailwind's
         // own, and not a colour.
-        if (builtIn.has(suffix) || /^[btlrxy](-\d+)?$/.test(suffix)) {
+        if (
+          builtIn.has(suffix) ||
+          notClasses.has(`${prefix}-${suffix}`) ||
+          /^[btlrxy](-\d+)?$/.test(suffix)
+        ) {
           continue
         }
 

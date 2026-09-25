@@ -20,11 +20,16 @@
 @import './tokens.css';
 
 @layer base {
+  /*
+   * No font size on the root. The tokens are in rem, and rem is the font size
+   * of this element: set from `--text-body`, it counted every token twice and
+   * drew the office an eighth smaller than the canvas, the site as well
+   * (#229). The size of an entry is set by its shell, next to `data-entry`.
+   */
   html {
     background-color: var(--color-ground);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: var(--text-body);
     line-height: var(--text-body--line-height);
   }
 

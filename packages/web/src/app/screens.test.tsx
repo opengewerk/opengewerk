@@ -572,16 +572,20 @@ describe('the bar above every screen', () => {
     expect(bar.textContent).not.toContain('Konflikt')
   })
 
-  it('says everything arrived when the outbox is empty', async () => {
+  it('shows no strip when the outbox is empty', async () => {
+    // Everything arrived is not a thing to do. The office says it quietly in
+    // the navigation under "Abgleich"; a bar over every screen said nothing
+    // most of the time (#217).
     const client = await withClient(new Quiet())
 
-    render(
+    const { container } = render(
       <SyncProvider client={client}>
         <SyncStatusBar />
       </SyncProvider>,
     )
 
-    expect(screen.getByRole('status').textContent).toContain('Alles abgeglichen')
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(container.textContent).toBe('')
   })
 
   it('counts what is still on the device when the server cannot be reached', async () => {

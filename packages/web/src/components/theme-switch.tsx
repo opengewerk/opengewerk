@@ -6,6 +6,8 @@ export type ThemeChoice = 'light' | 'dark'
 export interface ThemeSwitchProps {
   readonly value: ThemeChoice
   readonly onChoose: (theme: ThemeChoice) => void
+  /** 52 px and 16 px type, for the drawer on a phone in the office. */
+  readonly large?: boolean
   readonly className?: string
 }
 
@@ -22,13 +24,14 @@ const choices: readonly { readonly value: ThemeChoice; readonly label: string }[
  * itself in the dark and needs no colour of its own. The height follows
  * `--spacing-control`, 34px in the office and 60px on site.
  */
-export function ThemeSwitch({ value, onChoose, className }: ThemeSwitchProps) {
+export function ThemeSwitch({ value, onChoose, large = false, className }: ThemeSwitchProps) {
   return (
     <div
       role="group"
       aria-label="Darstellung"
       className={clsx(
-        'flex h-control gap-[3px] p-[3px] bg-surface-sunken border border-line rounded-control',
+        'flex gap-[3px] p-[3px] bg-surface-sunken border border-line rounded-control',
+        large ? 'h-[52px]' : 'h-control',
         className,
       )}
     >
@@ -45,14 +48,15 @@ export function ThemeSwitch({ value, onChoose, className }: ThemeSwitchProps) {
             }}
             className={clsx(
               'flex-1 inline-flex items-center justify-center gap-2 px-3 rounded-[3px]',
-              'text-body cursor-pointer',
+              large ? 'text-[16px]' : 'text-body',
+              'cursor-pointer',
               chosen ? 'bg-ink text-ground font-semibold' : 'bg-transparent text-ink',
             )}
           >
             {choice.value === 'light' ? (
-              <Sun size={16} strokeWidth={2} aria-hidden="true" />
+              <Sun size={large ? 20 : 16} strokeWidth={2} aria-hidden="true" />
             ) : (
-              <Moon size={16} strokeWidth={2} aria-hidden="true" />
+              <Moon size={large ? 20 : 16} strokeWidth={2} aria-hidden="true" />
             )}
             {choice.label}
           </button>

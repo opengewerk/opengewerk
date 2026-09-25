@@ -47,6 +47,15 @@
   --color-conflict: #a3312b;
   --color-on-status: #ffffff;
 
+  /* The header in slate and the navigation beside it, as drawn on the canvas.
+     The header stays dark in the light ground: it carries the mark, and the
+     mark is drawn for slate. */
+  --color-top: #1b2430;
+  --color-top-ink: #f4f1ea;
+  --color-top-muted: #cfcbc2;
+  --color-top-line: #3a4453;
+  --color-nav: #eae6dd;
+
   /* The office is the ground state here too. The site entry widens everything
      below; see the `[data-entry='site']` block. */
   --spacing-control: 2.125rem;
@@ -101,6 +110,12 @@
   --color-waiting: #d9a83c;
   --color-conflict: #e0736b;
   --color-on-status: #141a23;
+
+  --color-top: #0f141b;
+  --color-top-ink: #f4f1ea;
+  --color-top-muted: #cfcbc2;
+  --color-top-line: #2a3441;
+  --color-nav: #182029;
 }
 
 /*
