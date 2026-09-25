@@ -17,13 +17,14 @@ import { SyncClient } from '../../sync/client.js'
 import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
-import { BoardScreen } from './boards.js'
-import { CircuitScreen } from './circuits.js'
 import { InstallationScreen } from './installations.js'
+import { BoardScreen, CircuitScreen } from './structure.js'
 
 /**
  * #70 in the office: a board written down with its sections and circuits,
- * the way the chart on its door will list them.
+ * the way the chart on its door will list them, on the screen of the
+ * structure the canvas draws (#219): the tree at the left, what is selected
+ * at the right.
  */
 
 let server: TestServer
@@ -150,19 +151,15 @@ async function mount(path: string) {
   return { client, router }
 }
 
-/** The rows of the circuit table as a person reads them, cell by cell. */
-function tableRows(): string[][] {
-  const table = screen.getByRole('table', { name: 'Stromkreise des Verteilers' })
+/** The circuits in the tree, top to bottom, as their codes. */
+function treeCodes(): string[] {
+  const tree = screen.getByRole('region', { name: 'Struktur der Anlage' })
 
-  return within(table)
-    .getAllByRole('row')
-    .slice(1)
-    .map((row) =>
-      within(row)
-        .getAllByRole('cell')
-        .map((cell) => cell.textContent.trim())
-        .slice(0, 7),
-    )
+  return within(tree)
+    .getAllByRole('link')
+    .map((link) => link.textContent)
+    .filter((label) => /^[A-Z]\d/.test(label))
+    .map((label) => label.replace(/^([A-Z]\d+).*$/, '$1'))
 }
 
 beforeEach(() => {
@@ -235,38 +232,43 @@ describe('the boards of an installation', () => {
 })
 
 describe('a board in the office', () => {
-  it('lists its circuits the way the chart does: on the board first, then each section', async () => {
+  it('shows its sections and the circuits on it directly, and the rest in the tree', async () => {
     await mount('/verteiler/b-1')
 
-    await screen.findByRole('table', { name: 'Stromkreise des Verteilers' })
+    await screen.findByRole('table', { name: 'Felder des Verteilers' })
 
-    expect(tableRows()).toEqual([
-      ['Ohne Feld'],
-      ['Q1', 'Zuleitung UV', '', '', '', '', ''],
-      ['Feld 1'],
-      ['F2', 'Steckdosen Küche', 'LS B 16 A', 'Typ A 30 mA', 'NYM-J 3 × 2,5 mm²', '18,5 m', 'C'],
-      ['F10', 'Herd', '', '', '', '', ''],
-    ])
+    // In the tree: on the board first, then each section, each in the order
+    // of the board, F2 before F10.
+    expect(treeCodes()).toEqual(['Q1', 'F2', 'F10'])
+
+    const fields = screen.getByRole('table', { name: 'Felder des Verteilers' })
+    expect(within(fields).getByRole('cell', { name: 'Feld 1' })).toBeDefined()
+
+    const direct = screen.getByRole('table', { name: 'Stromkreise ohne Feld' })
+    expect(within(direct).getByRole('link', { name: 'Q1' })).toBeDefined()
+    expect(within(direct).queryByRole('link', { name: 'F2' })).toBeNull()
+
     expect(screen.getByRole('link', { name: 'Stromkreisverzeichnis' }).getAttribute('href')).toBe(
       '/installations/i-1/circuit-chart?board=b-1',
     )
   })
 
   it('puts the next circuit into the section the last one went into', async () => {
-    const { client } = await mount('/verteiler/b-1')
+    const { client, router } = await mount('/verteiler/b-1')
     const user = userEvent.setup()
-    const circuits = await screen.findByRole('region', { name: 'Stromkreise' })
 
-    await user.click(within(circuits).getByRole('button', { name: 'Stromkreis anlegen' }))
-    await user.type(within(circuits).getByLabelText('Bezeichnung'), 'F11')
-    await user.selectOptions(within(circuits).getByLabelText('Feld'), 'Feld 1')
-    await user.click(within(circuits).getByRole('button', { name: 'Anlegen' }))
+    await user.click(await screen.findByRole('button', { name: 'Stromkreis' }))
+    await user.type(screen.getByLabelText('Bezeichnung'), 'F11')
+    await user.selectOptions(screen.getByLabelText('Feld'), 'Feld 1')
+    await user.click(screen.getByRole('button', { name: 'Stromkreis anlegen' }))
 
-    // Found and not got: the form closes once the circuit is safe in the
-    // outbox, a step after the click, and on a slow machine the button still
-    // says "Abbrechen" at the moment the click has landed.
-    await user.click(await within(circuits).findByRole('button', { name: 'Stromkreis anlegen' }))
-    expect(within(circuits).getByLabelText<HTMLSelectElement>('Feld').value).toBe('f-1')
+    // The new circuit is what is selected next, and the next new one starts
+    // in its section.
+    await waitFor(() => {
+      expect(router.state.location.pathname).toMatch(/^\/stromkreise\//)
+    })
+    await user.click(await screen.findByRole('button', { name: 'Stromkreis' }))
+    expect(screen.getByLabelText<HTMLSelectElement>('Feld').value).toBe('f-1')
 
     await client.synchronise()
     const [created] = server.operations()
@@ -276,7 +278,7 @@ describe('a board in the office', () => {
   })
 
   it('moves a circuit within its section and numbers the section afresh', async () => {
-    const { client } = await mount('/verteiler/b-1')
+    const { client } = await mount('/stromkreise/k-2')
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'F2 nach unten' }))
@@ -285,7 +287,7 @@ describe('a board in the office', () => {
     // the two numbers would have moved nothing; numbered afresh, F10 keeps
     // its 0 and F2 gets the 1, and only that one change is written.
     await waitFor(() => {
-      expect(tableRows().map((row) => row[0])).toEqual(['Ohne Feld', 'Q1', 'Feld 1', 'F10', 'F2'])
+      expect(treeCodes()).toEqual(['Q1', 'F10', 'F2'])
     })
 
     await client.synchronise()
@@ -299,11 +301,13 @@ describe('a board in the office', () => {
     const user = userEvent.setup()
 
     await user.click(await screen.findByRole('button', { name: 'Verteiler löschen' }))
-    expect(screen.getByRole('alert').textContent).toBe(
+
+    const question = screen.getByRole('alertdialog', { name: 'HV löschen?' })
+    expect(question.textContent).toContain(
       'Mit dem Verteiler gehen 1 Feld und 3 Stromkreise samt ihren Betriebsmitteln.',
     )
 
-    await user.click(screen.getByRole('button', { name: 'Löschen' }))
+    await user.click(within(question).getByRole('button', { name: 'Löschen' }))
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/anlagen/i-1')
     })
@@ -320,15 +324,28 @@ describe('a circuit in the office', () => {
     await mount('/stromkreise/k-2')
     const user = userEvent.setup()
 
-    const facts = await screen.findByRole('region', { name: 'Stromkreis' })
-    expect(within(facts).getByText('Feld 1')).toBeDefined()
-    expect(within(facts).getByText('Typ A 30 mA')).toBeDefined()
+    const detail = await screen.findByRole('region', { name: 'F2, Steckdosen Küche' })
+    // Board and section in the line under the name.
+    expect(within(detail).getByText('HV, Feld 1')).toBeDefined()
+
+    // The two cards in the words of the canvas: the device in a word, the
+    // RCD on one line, the cable by type and size on lines of their own.
+    const protection = within(detail).getByRole('region', { name: 'Schutzeinrichtung' })
+    expect(within(protection).getByText('LS-Schalter')).toBeDefined()
+    expect(within(protection).getByText('Typ A, 30 mA')).toBeDefined()
+    expect(within(protection).getByText('16 A')).toBeDefined()
+    const cable = within(detail).getByRole('region', { name: 'Leitung und Verbraucher' })
+    expect(within(cable).getByText('NYM-J')).toBeDefined()
+    expect(within(cable).getByText('3 × 2,5 mm²')).toBeDefined()
+    expect(within(cable).getByText('18,5 m')).toBeDefined()
 
     const equipment = screen.getByRole('region', { name: 'Betriebsmittel' })
-    await user.click(within(equipment).getByRole('button', { name: 'Betriebsmittel anlegen' }))
+    await user.click(
+      await within(equipment).findByRole('button', { name: 'Betriebsmittel anlegen' }),
+    )
     await user.type(within(equipment).getByLabelText('Bezeichnung'), 'Steckdose Arbeitsplatte')
     await user.type(within(equipment).getByLabelText('Typ'), '20 EUC-914')
-    await user.click(within(equipment).getByRole('button', { name: 'Anlegen' }))
+    await user.click(within(equipment).getByRole('button', { name: 'Betriebsmittel anlegen' }))
 
     // Waited for rather than synchronised at once: the save reaches the
     // outbox a step after the click, and a round started before it would
@@ -344,5 +361,50 @@ describe('a circuit in the office', () => {
         position: 0,
       }),
     ])
+  })
+})
+
+describe('the structure on a phone', () => {
+  it('lists the equipment as boxes and still asks before one goes', async () => {
+    // 390 pixels: no band from 600 on matches.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    server.put('equipment', {
+      id: 'e-1',
+      circuitId: 'k-2',
+      designation: 'Steckdose Arbeitsplatte',
+      kind: 'Steckdose',
+      manufacturer: 'Busch-Jaeger',
+      model: '20 EUC-914',
+      serialNumber: null,
+      position: 0,
+    })
+    await mount('/stromkreise/k-2')
+    const user = userEvent.setup()
+
+    // A box per piece, the rest of its row in a line under the name, and no
+    // table that would have to be pushed sideways.
+    const equipment = await screen.findByRole('region', { name: 'Betriebsmittel' })
+    expect(within(equipment).queryByRole('table')).toBeNull()
+    const [box] = within(
+      within(equipment).getByRole('list', { name: 'Betriebsmittel des Stromkreises' }),
+    ).getAllByRole('listitem')
+    expect(box?.textContent).toContain('Steckdose Arbeitsplatte')
+    expect(box?.textContent).toContain('Steckdose · Busch-Jaeger · 20 EUC-914')
+
+    // The question stands beside the list, so it opens here too. The
+    // buttons come once the rights of the session are known.
+    await user.click(
+      await within(box as HTMLElement).findByRole('button', {
+        name: 'Steckdose Arbeitsplatte entfernen',
+      }),
+    )
+    expect(
+      screen.getByRole('alertdialog', { name: 'Steckdose Arbeitsplatte entfernen?' }),
+    ).toBeDefined()
   })
 })

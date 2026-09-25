@@ -428,17 +428,25 @@ export function rcdText(circuit: CircuitFigures): string | null {
  * "1,5 mm²". Null when nothing about it is known.
  */
 export function cableText(circuit: CircuitFigures): string | null {
-  const size =
-    circuit.cableCrossSectionMilli === null
-      ? null
-      : `${circuit.cableCores === null ? '' : `${String(circuit.cableCores)} × `}${milliText(
-          circuit.cableCrossSectionMilli,
-        )} mm²`
-  const parts = [circuit.cableType, size].filter(
+  const parts = [circuit.cableType, cableSizeText(circuit)].filter(
     (part): part is string => part !== null && part.trim() !== '',
   )
 
   return parts.length === 0 ? null : parts.join(' ')
+}
+
+/**
+ * The size of the cable without its type: "3 × 1,5 mm²", where a card lists
+ * type and cross section on lines of their own. Null without a cross section.
+ */
+export function cableSizeText(circuit: CircuitFigures): string | null {
+  if (circuit.cableCrossSectionMilli === null) {
+    return null
+  }
+
+  const cores = circuit.cableCores === null ? '' : `${String(circuit.cableCores)} × `
+
+  return `${cores}${milliText(circuit.cableCrossSectionMilli)} mm²`
 }
 
 /** The length of the cable: "12,5 m". */

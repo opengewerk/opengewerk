@@ -1,4 +1,4 @@
-import { Link, Outlet } from '@tanstack/react-router'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 
 import { Shell } from '../components/index.js'
@@ -6,7 +6,17 @@ import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { Drawer, Sidebar } from './navigation.js'
 import { BackupBar } from './screens/backup.js'
-import { TopBar } from './top-bar.js'
+import { PathSlot, TopBar } from './top-bar.js'
+
+/**
+ * The screens one works in rather than passes through: the structure of an
+ * installation. From 1024 pixels they take the width of the navigation and
+ * put their path into the header, as `structure_page()` of the canvas does;
+ * narrower, nothing changes, the navigation is behind "Menü" anyway.
+ */
+function isFocus(path: string): boolean {
+  return path.startsWith('/verteiler/') || path.startsWith('/stromkreise/')
+}
 
 /**
  * What every office screen sits in, as drawn on the canvas: the header in
@@ -29,6 +39,8 @@ export function OfficeShell() {
   const closeDrawer = useCallback(() => {
     setDrawer(false)
   }, [])
+  const focus = isFocus(useRouterState({ select: (state) => state.location.pathname }))
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
 
   return (
     <Shell entry="office">
@@ -43,7 +55,7 @@ export function OfficeShell() {
           Zum Inhalt springen
         </a>
 
-        <TopBar menuOpen={drawer} onMenu={openDrawer} />
+        <TopBar menuOpen={drawer} onMenu={openDrawer} focus={focus} onSlot={setSlot} />
 
         {/* In the order of the board "Leisten im Büro": what cannot wait first,
             the offers last. */}
@@ -61,9 +73,11 @@ export function OfficeShell() {
         {/* The screen as tall as the window, so that a list can fill it to
             the bottom with its pages at the foot, as the list boards do. */}
         <div className="flex flex-1">
-          <Sidebar />
+          {focus ? null : <Sidebar />}
           <main id="inhalt" className="flex min-w-0 flex-1 flex-col">
-            <Outlet />
+            <PathSlot.Provider value={focus ? slot : null}>
+              <Outlet />
+            </PathSlot.Provider>
           </main>
         </div>
 

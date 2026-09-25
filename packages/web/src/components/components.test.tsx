@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Button, IconButton } from './button.js'
 import { Confirm } from './confirm.js'
 import { Field } from './field.js'
+import { TablePanel } from './panel.js'
 import { DocumentState } from './state.js'
 import { Strip } from './strip.js'
 import { Cell, Column, Table } from './table.js'
@@ -97,6 +98,80 @@ describe('a table', () => {
     expect(screen.getByRole('table', { name: 'Positionen der Rechnung' })).toBeDefined()
     expect(screen.getByRole('columnheader', { name: 'Summe' }).getAttribute('scope')).toBe('col')
     expect(screen.getByRole('cell', { name: '217,00' }).className).toContain('numeric')
+  })
+})
+
+describe('a table in a card on a phone', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** A window of the given width, as far as the bands are concerned. */
+  function windowOf(width: number) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: Number(/min-width:\s*([\d.]+)rem/.exec(query)?.[1] ?? '0') * 16 <= width,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  }
+
+  function objects(cards = true) {
+    return (
+      <TablePanel
+        title="Objekte"
+        caption="Objekte des Kunden"
+        cards={
+          cards
+            ? [
+                {
+                  key: 's-1',
+                  title: 'Rheinstraße 12',
+                  sub: 'Rheinstraße 12, 68159 Mannheim · 3 Anlagen',
+                  right: '1 offen',
+                },
+              ]
+            : undefined
+        }
+      >
+        <thead>
+          <tr>
+            <Column>Bezeichnung</Column>
+            <Column>Anschrift</Column>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <Cell>Rheinstraße 12</Cell>
+            <Cell>Rheinstraße 12, 68159 Mannheim</Cell>
+          </tr>
+        </tbody>
+      </TablePanel>
+    )
+  }
+
+  it('stands as one box per row below 600 pixels, as the board of the widths asks', () => {
+    windowOf(390)
+    render(objects())
+
+    // "Tabellen werden Karten, eine Karte je Zeile": no table, a list under
+    // the name of the table, each row with its other columns in a line.
+    expect(screen.queryByRole('table')).toBeNull()
+    const list = screen.getByRole('list', { name: 'Objekte des Kunden' })
+    const [row] = within(list).getAllByRole('listitem')
+    expect(row?.textContent).toBe('Rheinstraße 12Rheinstraße 12, 68159 Mannheim · 3 Anlagen1 offen')
+  })
+
+  it('stays a table from 600 pixels on, and where it has no boxes', () => {
+    windowOf(768)
+    const { unmount } = render(objects())
+    expect(screen.getByRole('table', { name: 'Objekte des Kunden' })).toBeDefined()
+    unmount()
+
+    // A table that brings no boxes scrolls in its frame on a phone instead.
+    windowOf(390)
+    render(objects(false))
+    expect(screen.getByRole('table', { name: 'Objekte des Kunden' })).toBeDefined()
   })
 })
 

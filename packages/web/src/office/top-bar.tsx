@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, Menu, User } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useEffect, useRef, useState } from 'react'
 
 import { BrandMark, ThemeSwitch } from '../components/index.js'
 import { SignOutButton } from '../app/sign-out.js'
@@ -17,12 +17,25 @@ import { useWho } from '../app/who.js'
  * right. Sticky, so the way to everything else stays where it is while a long
  * list scrolls.
  */
+/**
+ * Where a screen that one works in puts its path into the header, from 1024
+ * pixels on: the structure of an installation, as `struct_top()` of the
+ * canvas draws it, with the customer and the site instead of the business.
+ */
+export const PathSlot = createContext<HTMLElement | null>(null)
+
 export function TopBar({
   menuOpen,
   onMenu,
+  focus = false,
+  onSlot,
 }: {
   readonly menuOpen: boolean
   readonly onMenu: () => void
+  /** A screen that brings its own path, and the header makes room for it. */
+  readonly focus?: boolean
+  /** Where the path of that screen goes. */
+  readonly onSlot?: (element: HTMLElement | null) => void
 }) {
   const who = useWho()
 
@@ -42,10 +55,16 @@ export function TopBar({
         <BrandMark />
         <span className="text-[16px] font-semibold tracking-[0.2px]">OpenGewerk</span>
       </Link>
-      <div aria-hidden="true" className="hidden h-[22px] w-px bg-top-line lg:block" />
-      {who.business ? (
-        <span className="hidden px-2 text-[13px] text-top-muted lg:inline">{who.business}</span>
-      ) : null}
+      {focus ? (
+        <div ref={onSlot} className="hidden min-w-0 lg:ml-0 lg:flex" />
+      ) : (
+        <>
+          <div aria-hidden="true" className="hidden h-[22px] w-px bg-top-line lg:block" />
+          {who.business ? (
+            <span className="hidden px-2 text-[13px] text-top-muted lg:inline">{who.business}</span>
+          ) : null}
+        </>
+      )}
       <div className="grow" />
       <PersonMenu />
     </header>

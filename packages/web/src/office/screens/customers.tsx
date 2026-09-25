@@ -6,6 +6,7 @@ import type { FormEvent, ReactNode } from 'react'
 
 import {
   Button,
+  cardLink,
   Cell,
   Column,
   Field,
@@ -14,7 +15,7 @@ import {
   Status,
   TablePanel,
 } from '../../components/index.js'
-import { useThreeColumns } from '../../app/band.js'
+import { useThreeColumns } from '../../components/band.js'
 import { addressLine, countryOptions, date, euros } from '../../app/format.js'
 import {
   customerKindLabel,
@@ -702,8 +703,37 @@ function CustomerSites({
     )
   }
 
+  const count = (id: string) =>
+    installations.filter((installation) => text(installation, 'siteId') === id).length
+  const running = (id: string) =>
+    jobs.filter((job) => text(job, 'siteId') === id && jobStatusOf(job) === 'active').length
+  const cards = sorted.map((site) => {
+    const id = String(site['id'])
+    const installed = count(id)
+    const open = running(id)
+
+    return {
+      key: id,
+      title: (
+        <Link to={`/objekte/${id}`} className={cardLink}>
+          {text(site, 'designation')}
+        </Link>
+      ),
+      sub: [addressLine(site), installed === 1 ? '1 Anlage' : `${String(installed)} Anlagen`]
+        .filter((part) => part !== '')
+        .join(' · '),
+      right: open > 0 ? <OpenBadge value={open} /> : null,
+    }
+  })
+
   return (
-    <TablePanel title="Objekte" caption="Objekte des Kunden" action={action} lead={form}>
+    <TablePanel
+      title="Objekte"
+      caption="Objekte des Kunden"
+      action={action}
+      lead={form}
+      cards={cards}
+    >
       <thead>
         <tr>
           <Column>Bezeichnung</Column>
@@ -719,9 +749,6 @@ function CustomerSites({
       <tbody>
         {sorted.map((site) => {
           const id = String(site['id'])
-          const running = jobs.filter(
-            (job) => text(job, 'siteId') === id && jobStatusOf(job) === 'active',
-          ).length
 
           return (
             <tr
@@ -739,11 +766,9 @@ function CustomerSites({
                 </Link>
               </Cell>
               <Cell>{addressLine(site)}</Cell>
+              <Cell numeric>{count(id)}</Cell>
               <Cell numeric>
-                {installations.filter((installation) => text(installation, 'siteId') === id).length}
-              </Cell>
-              <Cell numeric>
-                <OpenCount value={running} />
+                <OpenCount value={running(id)} />
               </Cell>
             </tr>
           )
@@ -825,8 +850,26 @@ function CustomerDocuments({ customerId }: { readonly customerId: string }) {
     String(right['id']).localeCompare(String(left['id'])),
   )
 
+  const cards = sorted.map((document) => {
+    const id = String(document['id'])
+    const amount = gross.get(id)
+
+    return {
+      key: id,
+      title: (
+        <Link to={`/belege/${id}`} className={cardLink}>
+          {documentKindLabel[documentKindOf(document)]}
+        </Link>
+      ),
+      sub: [text(document, 'number'), amount === null || amount === undefined ? '' : euros(amount)]
+        .filter((part) => part !== '')
+        .join(' · '),
+      right: <DocumentMarker document={document} />,
+    }
+  })
+
   return (
-    <TablePanel title="Belege" caption="Belege des Kunden">
+    <TablePanel title="Belege" caption="Belege des Kunden" cards={cards}>
       <thead>
         <tr>
           <Column>Art</Column>

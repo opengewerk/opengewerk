@@ -4,8 +4,6 @@ import { ConflictScreen } from '../app/conflicts.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
 import { BackupScreen } from './screens/backup.js'
-import { BoardScreen } from './screens/boards.js'
-import { CircuitScreen } from './screens/circuits.js'
 import {
   CustomerList,
   CustomerScreen,
@@ -24,6 +22,7 @@ import { ReportFieldsScreen } from './screens/report-fields.js'
 import { SettingsScreen } from './screens/settings.js'
 import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
+import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { TaskListScreen } from './screens/tasks.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'

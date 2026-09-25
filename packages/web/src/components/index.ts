@@ -22,8 +22,11 @@ export type { DocumentStateProps } from './state.js'
 export { Strip, stripAction } from './strip.js'
 export type { StripActionKind, StripProps, StripTone } from './strip.js'
 
-export { Panel, PanelLabel, TablePanel } from './panel.js'
-export type { PanelProps, TablePanelProps } from './panel.js'
+export { cardLink, Panel, PanelLabel, TablePanel } from './panel.js'
+export type { PanelProps, TableCard, TablePanelProps } from './panel.js'
+
+export { isNarrow, useBand, useThreeColumns } from './band.js'
+export type { Band } from './band.js'
 
 export { NumberBadge, Status, statusIcons } from './status.js'
 export type { StatusProps, StatusTone } from './status.js'
