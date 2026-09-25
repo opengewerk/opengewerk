@@ -1,4 +1,5 @@
 import type { RecordState } from '@opengewerk/domain'
+import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
@@ -83,6 +84,8 @@ export function RecordForm({
   disabledReason,
   check,
   extraAction,
+  columns,
+  divided = true,
 }: {
   readonly fields: readonly FormField[]
   readonly record?: RecordState | null
@@ -101,6 +104,13 @@ export function RecordForm({
   readonly check?: (values: Record<string, string>) => string | null
   /** A further action at the left of the buttons, "Entfernen" in a form that changes. */
   readonly extraAction?: ReactNode
+  /**
+   * The columns from 1024 pixels on, where a board draws the fields of a form
+   * in one row: "Neue Aufgabe" has four. Two below that, one on a phone.
+   */
+  readonly columns?: string
+  /** A line over the buttons, as under the circuit; the new task has none. */
+  readonly divided?: boolean
 }) {
   const entry = useEntry()
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -150,7 +160,7 @@ export function RecordForm({
         </p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={clsx('grid gap-3 sm:grid-cols-2', columns)}>
         {fields.map((field) =>
           field.options ? (
             <SelectField
@@ -206,7 +216,12 @@ export function RecordForm({
       ) : (
         // In the office the buttons stand at the right under a line, the
         // one that saves last, as under the circuit on the canvas.
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-3">
+        <div
+          className={clsx(
+            'flex flex-wrap items-center justify-end gap-2',
+            divided && 'border-t border-line pt-3',
+          )}
+        >
           {extraAction ? (
             <>
               {extraAction}

@@ -373,6 +373,31 @@ describe('the office list of tasks', () => {
     expect(await others.findByText('Aufgabe von Britta')).toBeDefined()
     expect(screen.queryByText('Längst erledigt')).toBeNull()
   })
+
+  it('opens a new task under its head, whose button waits while it is open (#219)', async () => {
+    signedInAs('max', 'office')
+    await mount('/aufgaben', [])
+    const person = userEvent.setup()
+    const start = await screen.findByRole('button', { name: 'Aufgabe anlegen' })
+
+    await person.click(start)
+
+    const form = within(await screen.findByRole('region', { name: 'Neue Aufgabe' }))
+
+    // One copper button at a time (#223): the head's waits for the card's.
+    expect(start.hasAttribute('disabled')).toBe(true)
+
+    await person.type(await form.findByLabelText('Was zu tun ist'), 'Angebot nachfassen')
+    await person.click(form.getByRole('button', { name: 'Aufgabe anlegen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('tasks')).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Neue Aufgabe' })).toBeNull()
+    })
+    expect(start.hasAttribute('disabled')).toBe(false)
+  })
 })
 
 describe('the start screen on site', () => {

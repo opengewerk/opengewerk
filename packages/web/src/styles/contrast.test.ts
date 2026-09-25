@@ -98,6 +98,7 @@ const filled = [
   { front: 'done', back: 'done-fill', what: 'die Marke eines erledigten Zustands' },
   { front: 'waiting', back: 'waiting-fill', what: 'die Marke eines laufenden Zustands' },
   { front: 'conflict', back: 'conflict-fill', what: 'die Marke eines Konflikts' },
+  { front: 'conflict-ink', back: 'conflict-fill', what: 'der Satz unter einem Konflikt' },
   { front: 'ink', back: 'input', what: 'der Text in einem Feld' },
   { front: 'ink-faint', back: 'input', what: 'der Platzhalter in einem Feld' },
   { front: 'ink', back: 'selected', what: 'die gewählte Zeile einer Liste' },

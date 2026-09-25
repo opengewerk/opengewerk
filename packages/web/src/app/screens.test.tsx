@@ -17,6 +17,7 @@ import type { ListColumns } from './data-table.js'
 import { EntrySuggestion } from './suggestion.js'
 import { SyncStatusBar } from './sync-bar.js'
 import { entryChoiceKey } from '../entry/entry.js'
+import { SyncScreen } from '../office/screens/sync.js'
 import type { DirectWriter } from '../sync/client.js'
 import { SyncClient } from '../sync/client.js'
 import { text } from '../sync/fields.js'
@@ -517,6 +518,35 @@ describe('the conflict screen', () => {
     )
 
     expect(screen.getByText(/Nichts zu entscheiden/)).toBeDefined()
+  })
+
+  it('shows the office where the exchange stands, beside what is to decide (#219)', async () => {
+    server.open = [conflict()]
+
+    const client = await withClient(server, {
+      jobs: [{ id: 'j-1', designation: 'Zähler prüfen', version: 2, deletedAt: null }],
+    })
+
+    render(
+      <SyncProvider client={client}>
+        <SyncScreen />
+      </SyncProvider>,
+    )
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Abgleich' })).toBeDefined()
+
+    const state = within(screen.getByRole('region', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('Zuletzt abgeglichen')).toBeDefined()
+    expect(state.getByText('1 Konflikt, bitte entscheiden')).toBeDefined()
+    expect(screen.getByRole('region', { name: 'Zähler prüfen' })).toBeDefined()
+
+    const pulls = server.pulls.length
+
+    server.pulls.push({ changes: [], cursor: 2, hasMore: false })
+    await userEvent.click(screen.getByRole('button', { name: 'Jetzt abgleichen' }))
+
+    expect(server.pulls.length).toBe(pulls)
   })
 })
 

@@ -138,7 +138,8 @@ export function PageHead({
           <div
             className={clsx(
               'flex flex-wrap items-center gap-2',
-              wideActions && 'max-sm:grid max-sm:basis-full max-sm:grid-cols-2',
+              wideActions &&
+                'max-sm:grid max-sm:basis-full max-sm:grid-cols-2 max-sm:[&>*:only-child]:col-span-2',
             )}
           >
             {actions}
@@ -208,32 +209,35 @@ function FactRow({ fact }: { readonly fact: Fact }) {
   )
 }
 
+/** The widths of a side column on the boards. */
+const sideWidths = {
+  282: 'lg:w-[282px]',
+  320: 'lg:w-[320px]',
+  340: 'lg:w-[340px]',
+} as const
+
 /**
  * The two columns of a record from 1024 pixels on: the tables at the left,
  * the facts, the people and the tasks in a column of 282 pixels at the right,
- * or of 340 beside a document, whose side column holds forms. Narrower, one
- * column, in the same order: a screen reader and the Tab key follow the order
- * of the page, and a column moved up by the stylesheet alone would be read in
- * another place than it is seen.
+ * of 320 beside what the exchange has to decide and of 340 beside a document,
+ * whose side column holds forms. Narrower, one column, in the same order: a
+ * screen reader and the Tab key follow the order of the page, and a column
+ * moved up by the stylesheet alone would be read in another place than it is
+ * seen.
  */
 export function RecordColumns({
   main,
   side,
-  wideSide = false,
+  sideWidth = 282,
 }: {
   readonly main: ReactNode
   readonly side: ReactNode
-  readonly wideSide?: boolean
+  readonly sideWidth?: keyof typeof sideWidths
 }) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
       <div className="flex min-w-0 flex-col gap-3 lg:grow">{main}</div>
-      <div
-        className={clsx(
-          'flex min-w-0 flex-col gap-3 lg:shrink-0',
-          wideSide ? 'lg:w-[340px]' : 'lg:w-[282px]',
-        )}
-      >
+      <div className={clsx('flex min-w-0 flex-col gap-3 lg:shrink-0', sideWidths[sideWidth])}>
         {side}
       </div>
     </div>

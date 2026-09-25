@@ -7,7 +7,7 @@ import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, type TaskLinks, usePeople } from '../../app/tasks.js'
 import { text } from '../../sync/fields.js'
 import { useRecords, useRelated } from '../../sync/provider.js'
-import { Page, Section } from '../layout.js'
+import { PageHead, Screen } from '../kit.js'
 
 /**
  * The tasks that hang on one customer, site or job, on that record's screen.
@@ -93,57 +93,68 @@ export function TaskListScreen() {
   const mine = open.filter((task) => text(task, 'assigneeUserId') === me)
   const others = open.filter((task) => text(task, 'assigneeUserId') !== me)
 
+  // The board "Aufgaben": the head with its one copper button, which waits
+  // while the new task is open below it, and the two lists side by side.
   return (
-    <Page
-      title="Aufgaben"
-      meta="Was zu tun ist, nach Fälligkeit."
-      actions={
-        writesTasks ? (
-          <Button
-            tone="primary"
-            onClick={() => {
-              setAdding((opened) => !opened)
-            }}
-          >
-            {adding ? 'Abbrechen' : 'Aufgabe anlegen'}
-          </Button>
-        ) : null
-      }
-    >
+    <Screen>
+      <PageHead
+        title="Aufgaben"
+        sub="Was zu tun ist, nach Fälligkeit."
+        wideActions
+        actions={
+          writesTasks ? (
+            <Button
+              tone="primary"
+              icon={Plus}
+              disabled={adding}
+              onClick={() => {
+                setAdding(true)
+              }}
+            >
+              Aufgabe anlegen
+            </Button>
+          ) : null
+        }
+      />
       {!readsTasks ? (
-        <p className="text-body text-ink-muted">Aufgaben sehen darf dieser Zugang nicht.</p>
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          Aufgaben sehen darf dieser Zugang nicht.
+        </p>
       ) : (
         <>
           {adding ? (
-            <Section title="Neue Aufgabe">
+            <Panel title="Neue Aufgabe">
               <NewTaskForm
                 links={{}}
+                wide
                 onDone={() => {
                   setAdding(false)
                 }}
               />
-            </Section>
+            </Panel>
           ) : null}
-          <Section title="Deine Aufgaben">
-            <TaskList
-              tasks={mine}
-              me={me}
-              people={people}
-              showJob
-              empty="Für dich ist gerade nichts offen."
-            />
-          </Section>
-          <Section title="Offen bei anderen">
-            <TaskList
-              tasks={others}
-              me={me}
-              people={people}
-              showJob
-              empty="Bei den anderen ist gerade nichts offen."
-            />
-          </Section>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Panel title="Deine Aufgaben">
+              <TaskList
+                tasks={mine}
+                me={me}
+                people={people}
+                showJob
+                empty="Für dich ist gerade nichts offen."
+              />
+            </Panel>
+            <Panel title="Offen bei anderen">
+              <TaskList
+                tasks={others}
+                me={me}
+                people={people}
+                showJob
+                empty="Bei den anderen ist gerade nichts offen."
+              />
+            </Panel>
+          </div>
         </>
       )}
-    </Page>
+    </Screen>
   )
 }

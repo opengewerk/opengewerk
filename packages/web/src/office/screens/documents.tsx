@@ -762,7 +762,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   } else {
     body = (
       <RecordColumns
-        wideSide
+        sideWidth={340}
         main={
           <FixedFrame
             number={number ?? heading}

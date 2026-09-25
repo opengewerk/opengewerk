@@ -287,20 +287,22 @@ export function SyncNote() {
     }
   }, [])
 
+  // A conflict has its number beside "Abgleich" and the strip over the page,
+  // and the boards draw no line under the entry then.
+  if (status.state === 'conflict') {
+    return null
+  }
+
   const text =
     status.state === 'refused'
       ? 'Eine Änderung abgelehnt'
-      : status.state === 'conflict'
-        ? status.conflicts.length === 1
-          ? 'Ein Konflikt wartet'
-          : `${String(status.conflicts.length)} Konflikte warten`
-        : status.state === 'offline'
-          ? status.trouble === null
-            ? 'Wird übertragen'
-            : 'Keine Verbindung'
-          : status.lastSyncedAt
-            ? `Abgeglichen, ${sinceThen(status.lastSyncedAt)}`
-            : 'Noch nicht abgeglichen'
+      : status.state === 'offline'
+        ? status.trouble === null
+          ? 'Wird übertragen'
+          : 'Keine Verbindung'
+        : status.lastSyncedAt
+          ? `Abgeglichen, ${sinceThen(status.lastSyncedAt)}`
+          : 'Noch nicht abgeglichen'
 
   return (
     <div

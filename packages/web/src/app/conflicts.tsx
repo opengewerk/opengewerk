@@ -1,11 +1,24 @@
 import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain'
-import { useState } from 'react'
+import { Check, Clock, TriangleAlert, WifiOff } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { useId, useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { Button, Card, Cell, Column, FieldLabel, Table } from '../components/index.js'
+import {
+  Button,
+  Card,
+  Cell,
+  Column,
+  FieldLabel,
+  Panel,
+  Table,
+  TablePanel,
+  useEntry,
+} from '../components/index.js'
 import { type RefusedOperation, refusalText } from '../sync/client.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'
-import { amount, euros, moment } from './format.js'
+import { amount, clockTime, euros, moment } from './format.js'
 import { lineUnitLabel, vatRateLabel } from './labels.js'
 import { entityLabel, fieldLabel, titleOf } from './naming.js'
 
@@ -109,6 +122,54 @@ function inDocumentOrder(fields: readonly string[]): string[] {
 }
 
 /**
+ * A conflict in the office, as the board "Abgleich und Konflikt" frames it: a
+ * red edge, and in a red head what kind of record, which one and why.
+ */
+function ConflictFrame({
+  kind,
+  title,
+  reason,
+  children,
+}: {
+  readonly kind: string
+  readonly title: string
+  readonly reason: string
+  readonly children: ReactNode
+}) {
+  const heading = useId()
+
+  return (
+    <section
+      aria-labelledby={heading}
+      className="min-w-0 overflow-hidden rounded-[6px] border-2 border-conflict bg-surface [--surface-here:var(--color-surface)]"
+    >
+      <div className="border-b border-conflict-edge bg-conflict-fill px-4 py-3">
+        <p className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-conflict uppercase">
+          {kind}
+        </p>
+        <h2 id={heading} className="text-[16px] font-bold text-conflict [overflow-wrap:anywhere]">
+          {title}
+        </h2>
+        <p className="mt-[3px] text-[14px] text-conflict-ink">{reason}</p>
+      </div>
+      <div className="flex flex-col gap-3 px-4 py-3.5">{children}</div>
+    </section>
+  )
+}
+
+/** The name of a field at the head of its row, as a row header. */
+function FieldName({ children }: { readonly children: string }) {
+  return (
+    <th
+      scope="row"
+      className="border-b border-row px-2 py-[7px] text-left font-medium leading-[1.2] text-ink first:pl-3.5 max-lg:py-3"
+    >
+      {children}
+    </th>
+  )
+}
+
+/**
  * One conflict, both versions beside each other.
  *
  * Three columns and not two, and the third is the one that explains the other
@@ -160,6 +221,7 @@ function ConflictCard({
       : Object.keys(conflict.wanted)
   const onlyOnDevice = fixedDocument !== null && known === null
   const deleting = fixedDocument !== null && Object.keys(conflict.wanted).length === 0
+  const entry = useEntry()
 
   async function decide(takeMine: boolean) {
     setWorking(true)
@@ -221,6 +283,154 @@ function ConflictCard({
     } finally {
       setWorking(false)
     }
+  }
+
+  const buttons = (
+    <div className="flex flex-wrap gap-2">
+      {settled ? (
+        <Button
+          tone="primary"
+          disabled={working}
+          onClick={() => {
+            void decide(false)
+          }}
+        >
+          Verstanden
+        </Button>
+      ) : (
+        <>
+          {fixedDocument ? (
+            <Button
+              tone="primary"
+              disabled={working}
+              onClick={() => {
+                void asDraft(fixedDocument)
+              }}
+            >
+              Als neuen Entwurf anlegen
+            </Button>
+          ) : (
+            <Button
+              tone="primary"
+              disabled={working}
+              onClick={() => {
+                void decide(true)
+              }}
+            >
+              Fassung vom Gerät übernehmen
+            </Button>
+          )}
+          <Button
+            tone="secondary"
+            disabled={working}
+            onClick={() => {
+              void decide(false)
+            }}
+          >
+            Stand im System behalten
+          </Button>
+        </>
+      )}
+    </div>
+  )
+
+  if (entry === 'office') {
+    const name = titleOf(conflict.entity, record)
+
+    return (
+      <ConflictFrame
+        kind={entityLabel(conflict.entity)}
+        title={name}
+        reason={reasonText(conflict.reason)}
+      >
+        {settled ? (
+          <p className="text-[14px] leading-[1.5] text-ink">{settled}</p>
+        ) : deleting ? (
+          <p className="text-[14px] leading-[1.5] text-ink">
+            Das Gerät wollte den Eintrag löschen.
+          </p>
+        ) : onlyOnDevice ? (
+          <TablePanel
+            caption={`Was das Gerät an ${name} schreiben wollte`}
+            cards={involved.map((field) => ({
+              key: field,
+              title: fieldLabel(field),
+              sub: `Auf dem Gerät: ${shown(field, conflict.wanted[field])}`,
+            }))}
+          >
+            <thead>
+              <tr>
+                <Column className="w-[160px]">Feld</Column>
+                <Column>Auf dem Gerät</Column>
+              </tr>
+            </thead>
+            <tbody>
+              {involved.map((field) => (
+                <tr key={field}>
+                  <FieldName>{fieldLabel(field)}</FieldName>
+                  <Cell className="font-semibold">{shown(field, conflict.wanted[field])}</Cell>
+                </tr>
+              ))}
+            </tbody>
+          </TablePanel>
+        ) : (
+          <TablePanel
+            caption={`Die beiden Stände von ${name}`}
+            cards={involved.map((field) => ({
+              key: field,
+              title: fieldLabel(field),
+              sub: (
+                <>
+                  <span className="block">{`Auf dem Gerät: ${shown(field, conflict.wanted[field])}`}</span>
+                  <span className="block">{`Im System: ${shown(field, conflict.found[field])}`}</span>
+                  <span className="block">{`Das Gerät sah: ${shown(field, conflict.seen[field])}`}</span>
+                </>
+              ),
+            }))}
+          >
+            <thead>
+              <tr>
+                <Column className="w-[160px]">Feld</Column>
+                <Column>Auf dem Gerät</Column>
+                <Column>Im System</Column>
+                <Column>Das Gerät sah</Column>
+              </tr>
+            </thead>
+            <tbody>
+              {involved.map((field) => (
+                <tr key={field}>
+                  <FieldName>{fieldLabel(field)}</FieldName>
+                  <Cell className="font-semibold">{shown(field, conflict.wanted[field])}</Cell>
+                  <Cell className="font-semibold">{shown(field, conflict.found[field])}</Cell>
+                  <Cell>{shown(field, conflict.seen[field])}</Cell>
+                </tr>
+              ))}
+            </tbody>
+          </TablePanel>
+        )}
+
+        {fixedDocument ? (
+          <p className="text-[14px] leading-[1.5] text-ink">
+            Der Beleg ist inzwischen festgeschrieben und wird nicht mehr geändert. Was auf diesem
+            Gerät dazukam oder geändert wurde, lässt sich als neuer Entwurf für denselben Kunden und
+            Auftrag anlegen; sein Betreff nennt den festgeschriebenen Beleg. Sonst bleibt es beim
+            Stand im System.
+          </p>
+        ) : null}
+
+        <p className="text-[13px] text-ink-faint">
+          {`Erfasst ${moment(conflict.recordedAt)} auf Gerät ${conflict.deviceId}.`}
+        </p>
+
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+
+        {buttons}
+      </ConflictFrame>
+    )
   }
 
   return (
@@ -301,52 +511,7 @@ function ConflictCard({
         </p>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        {settled ? (
-          <Button
-            tone="primary"
-            disabled={working}
-            onClick={() => {
-              void decide(false)
-            }}
-          >
-            Verstanden
-          </Button>
-        ) : (
-          <>
-            {fixedDocument ? (
-              <Button
-                tone="primary"
-                disabled={working}
-                onClick={() => {
-                  void asDraft(fixedDocument)
-                }}
-              >
-                Als neuen Entwurf anlegen
-              </Button>
-            ) : (
-              <Button
-                tone="primary"
-                disabled={working}
-                onClick={() => {
-                  void decide(true)
-                }}
-              >
-                Fassung vom Gerät übernehmen
-              </Button>
-            )}
-            <Button
-              tone="secondary"
-              disabled={working}
-              onClick={() => {
-                void decide(false)
-              }}
-            >
-              Stand im System behalten
-            </Button>
-          </>
-        )}
-      </div>
+      <div className="mt-4">{buttons}</div>
     </Card>
   )
 }
@@ -367,6 +532,7 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
   const { operation, message } = refused
   const title = titleOf(operation.entity, client.get(operation.entity, operation.recordId))
   const creating = operation.kind === 'create'
+  const entry = useEntry()
 
   async function act(work: () => Promise<void>) {
     setWorking(true)
@@ -376,6 +542,79 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
     } finally {
       setWorking(false)
     }
+  }
+
+  const explanation = creating
+    ? 'Der Server nimmt diesen Eintrag nicht an, und bis er entschieden ist, geht nichts ' +
+      'hinaus, was danach auf diesem Gerät erfasst wurde. Verwerfen nimmt ihn samt den ' +
+      'späteren Änderungen an ihm von diesem Gerät; im System war er nie.'
+    : 'Der Server nimmt diese Änderung nicht an, und bis sie entschieden ist, geht nichts ' +
+      'hinaus, was danach auf diesem Gerät erfasst wurde. Verwerfen nimmt sie von diesem ' +
+      'Gerät; im System bleibt der Eintrag, wie er ist.'
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        tone="primary"
+        disabled={working}
+        onClick={() => {
+          void act(() => client.discard(operation.id))
+        }}
+      >
+        {creating ? 'Eintrag verwerfen' : 'Änderung verwerfen'}
+      </Button>
+      <Button
+        tone="secondary"
+        disabled={working}
+        onClick={() => {
+          void act(() => client.synchronise())
+        }}
+      >
+        Erneut senden
+      </Button>
+    </div>
+  )
+
+  if (entry === 'office') {
+    return (
+      <RefusedFrame kind={entityLabel(operation.entity)} title={title}>
+        <p className="text-[14px] font-semibold text-conflict">{message}</p>
+        <p className="text-[14px] leading-[1.5] text-ink">{explanation}</p>
+        {operation.kind === 'delete' ? (
+          <p className="text-[14px] leading-[1.5] text-ink">
+            Das Gerät wollte den Eintrag löschen.
+          </p>
+        ) : (
+          <TablePanel
+            caption={`Was das Gerät an ${title} schreiben wollte`}
+            cards={operation.patches.map((patch) => ({
+              key: patch.field,
+              title: fieldLabel(patch.field),
+              sub: `Auf dem Gerät: ${shown(patch.field, patch.to)}`,
+            }))}
+          >
+            <thead>
+              <tr>
+                <Column className="w-[160px]">Feld</Column>
+                <Column>Auf dem Gerät</Column>
+              </tr>
+            </thead>
+            <tbody>
+              {operation.patches.map((patch) => (
+                <tr key={patch.field}>
+                  <FieldName>{fieldLabel(patch.field)}</FieldName>
+                  <Cell>{shown(patch.field, patch.to)}</Cell>
+                </tr>
+              ))}
+            </tbody>
+          </TablePanel>
+        )}
+        <p className="text-[13px] text-ink-faint">
+          {`Erfasst ${moment(operation.recordedAt)} auf diesem Gerät. Erneut senden hilft nur, ` +
+            'wenn der Grund inzwischen behoben ist, etwa ein Recht, das gefehlt hat.'}
+        </p>
+        {actions}
+      </RefusedFrame>
+    )
   }
 
   return (
@@ -389,15 +628,7 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
         </div>
       }
     >
-      <p className="text-body text-ink">
-        {creating
-          ? 'Der Server nimmt diesen Eintrag nicht an, und bis er entschieden ist, geht nichts ' +
-            'hinaus, was danach auf diesem Gerät erfasst wurde. Verwerfen nimmt ihn samt den ' +
-            'späteren Änderungen an ihm von diesem Gerät; im System war er nie.'
-          : 'Der Server nimmt diese Änderung nicht an, und bis sie entschieden ist, geht nichts ' +
-            'hinaus, was danach auf diesem Gerät erfasst wurde. Verwerfen nimmt sie von diesem ' +
-            'Gerät; im System bleibt der Eintrag, wie er ist.'}
-      </p>
+      <p className="text-body text-ink">{explanation}</p>
 
       {operation.kind === 'delete' ? (
         <p className="mt-3 text-body text-ink">Das Gerät wollte den Eintrag löschen.</p>
@@ -427,46 +658,151 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
           'wenn der Grund inzwischen behoben ist, etwa ein Recht, das gefehlt hat.'}
       </p>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button
-          tone="primary"
-          disabled={working}
-          onClick={() => {
-            void act(() => client.discard(operation.id))
-          }}
-        >
-          {creating ? 'Eintrag verwerfen' : 'Änderung verwerfen'}
-        </Button>
-        <Button
-          tone="secondary"
-          disabled={working}
-          onClick={() => {
-            void act(() => client.synchronise())
-          }}
-        >
-          Erneut senden
-        </Button>
-      </div>
+      <div className="mt-4">{actions}</div>
     </Card>
   )
 }
 
 /**
- * The list somebody has to work through, and the only screen in the
- * application that is allowed to be empty and still worth opening.
+ * An entry the server refused, in the office: a plain card with the kind of
+ * record in small capitals over its name, as the board draws the "Belegposition".
  */
-export function ConflictScreen() {
-  const { conflicts, refused } = useSyncStatus()
-  // The drafts made here, said once they exist: the conflict that led to one
-  // is gone from the list, and without this the draft would appear somewhere
-  // else with nobody told where.
-  const [drafted, setDrafted] = useState<readonly string[]>([])
+function RefusedFrame({
+  kind,
+  title,
+  children,
+}: {
+  readonly kind: string
+  readonly title: string
+  readonly children: ReactNode
+}) {
+  const heading = useId()
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <h1 className="text-title font-semibold">Konflikte</h1>
+    <section
+      aria-labelledby={heading}
+      className="flex min-w-0 flex-col gap-2.5 rounded-[6px] border border-line bg-surface px-4 py-3.5 [--surface-here:var(--color-surface)]"
+    >
+      <div>
+        <p className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+          {kind}
+        </p>
+        <h2 id={heading} className="text-[15px] font-semibold [overflow-wrap:anywhere]">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
+  )
+}
 
-      {drafted.length > 0 ? (
+/** One line of "Stand des Abgleichs": a symbol, what is so, perhaps a time. */
+function StateLine({
+  icon: Icon,
+  tone,
+  strong = false,
+  aside,
+  children,
+}: {
+  readonly icon: LucideIcon
+  readonly tone: 'done' | 'waiting' | 'conflict'
+  readonly strong?: boolean
+  readonly aside?: string
+  readonly children: ReactNode
+}) {
+  const colour =
+    tone === 'done' ? 'text-done' : tone === 'waiting' ? 'text-waiting' : 'text-conflict'
+
+  return (
+    <li className="flex items-center gap-2.5">
+      <Icon size={18} strokeWidth={2.3} aria-hidden="true" className={`shrink-0 ${colour}`} />
+      <span className={`grow text-[14px] ${strong ? `font-semibold ${colour}` : 'text-ink'}`}>
+        {children}
+      </span>
+      {aside ? <span className="numeric text-[13px] text-ink-faint">{aside}</span> : null}
+    </li>
+  )
+}
+
+/**
+ * "Stand des Abgleichs", the side card of the board: when this device last
+ * exchanged with the system, what waits on it, and what somebody has to decide.
+ */
+export function SyncStateCard() {
+  const status = useSyncStatus()
+  const { conflicts, refused, pending, lastSyncedAt } = status
+  const offline = status.state === 'offline' && status.trouble !== null
+
+  return (
+    <Panel title="Stand des Abgleichs">
+      <ul className="flex flex-col gap-[9px]">
+        <StateLine
+          icon={Check}
+          tone="done"
+          {...(lastSyncedAt ? { aside: clockTime(lastSyncedAt) } : {})}
+        >
+          {lastSyncedAt ? 'Zuletzt abgeglichen' : 'Noch nicht abgeglichen'}
+        </StateLine>
+        {offline ? (
+          <StateLine icon={WifiOff} tone="waiting">
+            Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.
+          </StateLine>
+        ) : null}
+        {pending > 0 ? (
+          <StateLine icon={Clock} tone="waiting">
+            {pending === 1 ? '1 Vorgang wartet' : `${String(pending)} Vorgänge warten`}
+          </StateLine>
+        ) : null}
+        {refused ? (
+          <StateLine icon={TriangleAlert} tone="conflict" strong>
+            Eine Änderung abgelehnt, bitte entscheiden
+          </StateLine>
+        ) : null}
+        {conflicts.length > 0 ? (
+          <StateLine icon={TriangleAlert} tone="conflict" strong>
+            {conflicts.length === 1
+              ? '1 Konflikt, bitte entscheiden'
+              : `${String(conflicts.length)} Konflikte, bitte entscheiden`}
+          </StateLine>
+        ) : null}
+        {pending === 0 && conflicts.length === 0 && !refused && !offline ? (
+          <StateLine icon={Check} tone="done">
+            Nichts wartet, nichts zu entscheiden
+          </StateLine>
+        ) : null}
+      </ul>
+    </Panel>
+  )
+}
+
+/** The sentence for a list with nothing in it. */
+export function NothingToDecide() {
+  return (
+    <p className="text-body">
+      Nichts zu entscheiden. Änderungen von zwei Geräten sind hier gelandet, wenn beide dasselbe
+      Feld angefasst haben.
+    </p>
+  )
+}
+
+/**
+ * What is to decide, in the order it has to be decided: first the entry the
+ * outbox is stuck on, then the conflicts. The drafts made from a conflict are
+ * said once they exist: the conflict that led to one is gone from the list,
+ * and without this the draft would appear somewhere else with nobody told
+ * where.
+ */
+export function useDecisions(): {
+  readonly drafted: ReactNode
+  readonly cards: ReactNode
+  readonly empty: boolean
+} {
+  const { conflicts, refused } = useSyncStatus()
+  const [drafted, setDrafted] = useState<readonly string[]>([])
+
+  return {
+    drafted:
+      drafted.length > 0 ? (
         <Card label="Als neuer Entwurf angelegt" tone="sunken">
           <ul role="status" className="flex flex-col gap-1 text-body">
             {drafted.map((subject) => (
@@ -477,19 +813,11 @@ export function ConflictScreen() {
             ))}
           </ul>
         </Card>
-      ) : null}
-
-      {refused ? <RefusedCard key={refused.operation.id} refused={refused} /> : null}
-
-      {conflicts.length === 0 && !refused ? (
-        <Card label="Keine Konflikte" tone="sunken">
-          <p className="text-body">
-            Nichts zu entscheiden. Änderungen von zwei Geräten sind hier gelandet, wenn beide
-            dasselbe Feld angefasst haben.
-          </p>
-        </Card>
-      ) : (
-        conflicts.map((conflict) => (
+      ) : null,
+    cards: (
+      <>
+        {refused ? <RefusedCard key={refused.operation.id} refused={refused} /> : null}
+        {conflicts.map((conflict) => (
           <ConflictCard
             key={conflict.id}
             conflict={conflict}
@@ -497,7 +825,32 @@ export function ConflictScreen() {
               setDrafted((before) => [...before, subject])
             }}
           />
-        ))
+        ))}
+      </>
+    ),
+    empty: conflicts.length === 0 && !refused,
+  }
+}
+
+/**
+ * The list somebody has to work through on site, and the only screen in the
+ * application that is allowed to be empty and still worth opening.
+ */
+export function ConflictScreen() {
+  const { drafted, cards, empty } = useDecisions()
+
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <h1 className="text-title font-semibold">Konflikte</h1>
+
+      {drafted}
+
+      {empty ? (
+        <Card label="Keine Konflikte" tone="sunken">
+          <NothingToDecide />
+        </Card>
+      ) : (
+        cards
       )}
     </div>
   )

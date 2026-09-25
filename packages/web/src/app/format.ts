@@ -32,6 +32,7 @@ const quantity = new Intl.NumberFormat('de-DE', {
 const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' })
 const calendarDay = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'UTC' })
 const dayAndTime = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
+const timeOfDay = new Intl.DateTimeFormat('de-DE', { timeStyle: 'short' })
 
 const percentages = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
 
@@ -84,6 +85,11 @@ export function date(value: unknown): string {
   const at = new Date(value)
 
   return Number.isNaN(at.getTime()) ? '' : day.format(at)
+}
+
+/** The time of day of a moment, "17:10", in the time zone of the device. */
+export function clockTime(value: Date): string {
+  return Number.isNaN(value.getTime()) ? '' : timeOfDay.format(value)
 }
 
 export function moment(value: Date | string | null): string {

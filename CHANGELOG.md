@@ -87,6 +87,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ein Folgebeleg nur aus einem festgeschriebenen Beleg entsteht, und die Rechnung öffnet sich
   danach. Je Bildschirm gibt es nur noch einen Knopf in Kupfer (#223), wo bisher jeder mögliche
   Folgebeleg einer war.
+- Aufgaben, Zeiterfassung, Textbausteine und Abgleich folgen ihren Tafeln (#219). Die Aufgaben
+  zeigen die eigenen und die der anderen nebeneinander, eine neue Aufgabe entsteht in einer Karte
+  mit vier Feldern in einer Reihe, und "Aufgabe anlegen" im Kopf wartet, solange sie offen ist,
+  wie "Textbaustein anlegen" bei den Textbausteinen (#223). Die Zeiterfassung heißt wie in der
+  Navigation, die Woche lässt leere Tage leer statt dreimal "0:00 Std." zu zeigen, und die
+  Hinweise nach dem Arbeitszeitgesetz stehen in der Farbe des Wartens. Die Textbausteine stehen in
+  drei Karten, die Positionen über die ganze Breite, und ein Textbaustein geht erst nach einer
+  Rückfrage. Der Abgleich im Büro zeigt links, was zu entscheiden ist, jeden Konflikt mit rotem
+  Kopf, und rechts den Stand des Abgleichs mit "Jetzt abgleichen" im Kopf; unter "Abgleich" in der
+  Navigation steht bei einem Konflikt nur noch die Zahl. Am Telefon werden alle vier Tabellen zu
+  Kästen, und ein einzelner Knopf im Kopf nimmt dort die ganze Breite.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
