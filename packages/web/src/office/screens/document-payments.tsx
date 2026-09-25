@@ -2,16 +2,18 @@ import type { DeductionContent, DocumentKind, IsoDate } from '@opengewerk/domain
 import { paymentProblem } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Field } from '../../components/index.js'
-import { date, euros, parseEuros, today } from '../../app/format.js'
+import { Button, Field, Panel } from '../../components/index.js'
+import { centsAsInput, date, euros, parseEuros, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { paymentsOf, recordPayment, removePayment } from '../../session/documents.js'
 import { useRelated } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Fact, Facts } from '../layout.js'
+import { StepText } from './document-frame.js'
 
 /** What went wrong with a call about payments, in a sentence somebody can act on. */
 function reasonOf(error: unknown): string {
@@ -88,11 +90,11 @@ export function PaymentsCard({
   // An answer this screen does not understand is no answer either.
   if (!answer.data || !Array.isArray(answer.data.payments)) {
     return (
-      <Card label="Zahlungseingänge" tone="sunken">
-        <p className="text-body text-ink-muted">
+      <Panel title="Zahlungseingänge">
+        <p className="text-[13px] leading-[1.45] text-ink-muted">
           Die Zahlungseingänge stehen auf dem Server und lassen sich ohne Verbindung nicht anzeigen.
         </p>
-      </Card>
+      </Panel>
     )
   }
 
@@ -117,10 +119,10 @@ export function PaymentsCard({
   }
 
   return (
-    <Card label="Zahlungseingänge">
-      <div className="flex flex-col gap-4">
+    <Panel title="Zahlungseingänge">
+      <div className="flex flex-col gap-2.5">
         {kind === 'progress_invoice' ? (
-          <p className="text-body text-ink">
+          <p className="text-[13px] leading-[1.45] text-ink">
             Die Schlussrechnung zieht ab, was hier bis zu ihrem Festschreiben eingegangen ist, und
             nicht, was diese Abschlagsrechnung gestellt hat.
           </p>
@@ -128,18 +130,23 @@ export function PaymentsCard({
         <Facts>
           <Fact label="Gefordert">{euros(billedCents)}</Fact>
           <Fact label="Eingegangen">{euros(receivedCents)}</Fact>
-          <Fact label="Offen">{euros(open)}</Fact>
+          <Fact label="Offen">
+            {open > 0 ? <span className="font-bold text-waiting">{euros(open)}</span> : euros(open)}
+          </Fact>
         </Facts>
         {payments.length > 0 ? (
-          <ul className="flex flex-col gap-1 text-body text-ink">
+          <ul className="text-[13px] text-ink">
             {payments.map((payment) => (
-              <li key={payment.id} className="flex flex-wrap items-center gap-3">
-                <span className="numeric">
+              <li
+                key={payment.id}
+                className="flex flex-wrap items-center gap-2.5 border-b border-row py-1.5 first:border-t"
+              >
+                <span className="numeric grow">
                   {`${date(payment.receivedOn)}: ${euros(payment.amountCents)}`}
                 </span>
                 {mayWrite ? (
                   <Button
-                    tone="quiet"
+                    size="small"
                     disabled={remove.isPending}
                     aria-label={`Eingang vom ${date(payment.receivedOn)} über ${euros(payment.amountCents)} entfernen`}
                     onClick={() => {
@@ -153,15 +160,18 @@ export function PaymentsCard({
             ))}
           </ul>
         ) : (
-          <p className="text-body text-ink-muted">Auf diese Rechnung ist nichts eingegangen.</p>
+          <p className="text-[13px] leading-[1.45] text-ink-muted">
+            Auf diese Rechnung ist nichts eingegangen.
+          </p>
         )}
         {mayWrite && open > 0 ? (
-          <form className="flex flex-col gap-3" onSubmit={submit} noValidate>
+          <form className="flex flex-col gap-2.5" onSubmit={submit} noValidate>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field
                 label="Betrag in Euro"
                 numeric
                 inputMode="decimal"
+                placeholder={centsAsInput(open)}
                 value={amount}
                 {...(problem === null ? {} : { problem })}
                 onChange={(event) => {
@@ -180,11 +190,9 @@ export function PaymentsCard({
                 }}
               />
             </div>
-            <div>
-              <Button type="submit" disabled={record.isPending}>
-                {record.isPending ? 'Einen Moment' : 'Eingang erfassen'}
-              </Button>
-            </div>
+            <Button type="submit" tone="primary" icon={Plus} wide disabled={record.isPending}>
+              {record.isPending ? 'Einen Moment' : 'Eingang erfassen'}
+            </Button>
           </form>
         ) : null}
         {trouble ? (
@@ -193,7 +201,7 @@ export function PaymentsCard({
           </p>
         ) : null}
       </div>
-    </Card>
+    </Panel>
   )
 }
 
@@ -238,13 +246,13 @@ export function PaymentConfirmation({
   readonly onChange: (key: string, checked: boolean) => void
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-body text-ink">
+    <>
+      <StepText muted>
         Die Schlussrechnung zieht je Abschlagsrechnung ab, was darauf eingegangen ist, und nicht,
         was sie gestellt hat (§ 14 Abs. 5 UStG). Bitte je Abschlagsrechnung bestätigen, dass der
         erfasste Eingang stimmt. Fehlt einer, zuerst an der Abschlagsrechnung erfassen.
-      </p>
-      <ul className="flex flex-col gap-2">
+      </StepText>
+      <ul className="flex flex-col gap-1.5">
         {deductions.map((deduction) => (
           <ConfirmedDeduction
             key={deduction.number}
@@ -256,7 +264,7 @@ export function PaymentConfirmation({
           />
         ))}
       </ul>
-    </div>
+    </>
   )
 }
 
@@ -274,11 +282,11 @@ function ConfirmedDeduction({
   const [invoice] = useRelated('documents', 'number', deduction.number)
 
   return (
-    <li className="flex flex-col gap-1">
-      <label className="flex items-start gap-2 text-body">
+    <li className="flex flex-col gap-1.5">
+      <label className="flex items-start gap-[9px] text-[14px] leading-[1.4]">
         <input
           type="checkbox"
-          className="mt-0.5 size-5 shrink-0"
+          className="mt-0.5 size-4 shrink-0 accent-copper-solid max-lg:size-5"
           checked={checked}
           onChange={(event) => {
             onChange(event.target.checked)
@@ -289,7 +297,7 @@ function ConfirmedDeduction({
         </span>
       </label>
       {invoice ? (
-        <p className="pl-7 text-table">
+        <p className="ml-[25px] text-[13px] max-lg:ml-[29px]">
           <Link
             to={`/belege/${String(invoice['id'])}`}
             className="text-copper-text underline underline-offset-2"

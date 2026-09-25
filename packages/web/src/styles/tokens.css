@@ -91,6 +91,15 @@
   --color-offline: #e08a3c;
   --color-on-offline: #1b2430;
 
+  /* A fixed document, as the board "Schlussrechnung, festgeschrieben" draws
+     it: in a slate frame under a slate head, with a copper lock and the chip
+     "FEST". The head is slate in both grounds, like the header of the page;
+     the frame takes the strong line in the dark one, where slate would vanish
+     against the ground. */
+  --color-fixed-edge: #1b2430;
+  --color-fixed-accent: #e08a3c;
+  --color-on-fixed-accent: #1b2430;
+
   /* The bands of the board "Breiten und Auflösungen" (#218): S up to 599
      pixels, M from 600, L from 1024, XL from 1600 and XXL from 2400. Tailwind's
      own steps do not meet them, and `md` has no band, so it is gone. */
@@ -182,6 +191,10 @@
 
   --color-offline: #e08a3c;
   --color-on-offline: #1b2430;
+
+  --color-fixed-edge: #6b7889;
+  --color-fixed-accent: #e08a3c;
+  --color-on-fixed-accent: #1b2430;
 }
 
 /*

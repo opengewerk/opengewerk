@@ -73,6 +73,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   der Kopf führt "‹ Aufträge" zurück, und was nicht in zwei Knöpfe passt, steht hinter "Weitere
   Aktionen", wie auf der Tafel "Auftrag im Büro, Telefon". Angaben einer Akte stehen am Telefon
   in 15 Pixeln, wie die Tafel "Breiten und Auflösungen" Schrift dort verlangt.
+- Ein Beleg folgt seinen Tafeln "Angebot, Entwurf", "Festschreiben einer Schlussrechnung",
+  "Schlussrechnung, festgeschrieben" und "Regiebericht, unterschrieben" (#219). Ein Entwurf steht
+  in einem gestrichelten Rahmen, der sagt, dass er noch keine Nummer hat, und sein Kopf ist gleich
+  ein Formular mit "Abbrechen" und "Speichern", statt hinter "Bearbeiten" zu liegen; was jemand
+  nicht geändert hat, zeigt immer den gespeicherten Stand. Ein festgeschriebener Beleg steht unter
+  seiner Nummer in einem Rahmen mit der Marke "FEST", daneben E-Rechnung, Zahlungseingänge und
+  Versand per E-Mail, und nennt im Kopf den Tag, an dem die Rechnung fällig ist. Die Positionen
+  haben ihre Knöpfe im Kopf der Karte und die Spalte "Ändern", eine Position geht nur nach einer
+  Rückfrage, und am Telefon ist jede Zeile ein Kasten. Festschreiben und Stornieren sind Karten
+  mit kräftigem Rand, die fehlenden Pflichtangaben stehen unter den Knöpfen. Am unterschriebenen
+  Regiebericht steht wie auf der Tafel "Rechnung erstellen": er wird dabei festgeschrieben, weil
+  ein Folgebeleg nur aus einem festgeschriebenen Beleg entsteht, und die Rechnung öffnet sich
+  danach. Je Bildschirm gibt es nur noch einen Knopf in Kupfer (#223), wo bisher jeder mögliche
+  Folgebeleg einer war.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen

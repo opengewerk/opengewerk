@@ -156,6 +156,9 @@ const keyWidths = {
   96: 'grid-cols-[96px_minmax(0,1fr)]',
   100: 'grid-cols-[100px_minmax(0,1fr)]',
   110: 'grid-cols-[110px_minmax(0,1fr)]',
+  120: 'grid-cols-[120px_minmax(0,1fr)]',
+  130: 'grid-cols-[130px_minmax(0,1fr)]',
+  140: 'grid-cols-[140px_minmax(0,1fr)]',
 } as const
 
 export interface Fact {
@@ -207,22 +210,32 @@ function FactRow({ fact }: { readonly fact: Fact }) {
 
 /**
  * The two columns of a record from 1024 pixels on: the tables at the left,
- * the facts, the people and the tasks in a column of 282 pixels at the right.
- * Narrower, one column, in the same order: a screen reader and the Tab key
- * follow the order of the page, and a column moved up by the stylesheet alone
- * would be read in another place than it is seen.
+ * the facts, the people and the tasks in a column of 282 pixels at the right,
+ * or of 340 beside a document, whose side column holds forms. Narrower, one
+ * column, in the same order: a screen reader and the Tab key follow the order
+ * of the page, and a column moved up by the stylesheet alone would be read in
+ * another place than it is seen.
  */
 export function RecordColumns({
   main,
   side,
+  wideSide = false,
 }: {
   readonly main: ReactNode
   readonly side: ReactNode
+  readonly wideSide?: boolean
 }) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
       <div className="flex min-w-0 flex-col gap-3 lg:grow">{main}</div>
-      <div className="flex min-w-0 flex-col gap-3 lg:w-[282px] lg:shrink-0">{side}</div>
+      <div
+        className={clsx(
+          'flex min-w-0 flex-col gap-3 lg:shrink-0',
+          wideSide ? 'lg:w-[340px]' : 'lg:w-[282px]',
+        )}
+      >
+        {side}
+      </div>
     </div>
   )
 }

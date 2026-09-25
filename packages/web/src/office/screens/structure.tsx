@@ -13,16 +13,7 @@ import {
 } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
-  ChevronRight,
-  Pencil,
-  Plus,
-  Printer,
-  X,
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Printer } from 'lucide-react'
 import { useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
@@ -68,7 +59,7 @@ import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumbs, Empty, FactList, PageHead, Screen } from '../kit.js'
 import { PathSlot } from '../top-bar.js'
-import { SmallIcon } from './boards.js'
+import { Reorder, SmallIcon } from './boards.js'
 
 /**
  * The structure of an installation, as the boards "Anlagenstruktur" of the
@@ -797,40 +788,6 @@ function sectionsInWords(count: number): string {
   return count === 1 ? '1 Feld' : `${String(count)} Felder`
 }
 
-/** Up, down, change and remove, the column "Ändern" of the canvas. */
-function Reorder({
-  name,
-  first,
-  last,
-  onMove,
-  onEdit,
-  onRemove,
-}: {
-  readonly name: string
-  readonly first: boolean
-  readonly last: boolean
-  readonly onMove: (step: -1 | 1) => void
-  readonly onEdit: () => void
-  readonly onRemove: () => void
-}) {
-  return (
-    <span className="inline-flex gap-0.5">
-      <SmallIcon compact label={`${name} nach oben`} disabled={first} onClick={() => onMove(-1)}>
-        <ArrowUp size={14} strokeWidth={2} aria-hidden="true" />
-      </SmallIcon>
-      <SmallIcon compact label={`${name} nach unten`} disabled={last} onClick={() => onMove(1)}>
-        <ArrowDown size={14} strokeWidth={2} aria-hidden="true" />
-      </SmallIcon>
-      <SmallIcon compact label={`${name} bearbeiten`} onClick={onEdit}>
-        <Pencil size={14} strokeWidth={2} aria-hidden="true" />
-      </SmallIcon>
-      <SmallIcon compact label={`${name} entfernen`} danger onClick={onRemove}>
-        <X size={14} strokeWidth={2} aria-hidden="true" />
-      </SmallIcon>
-    </span>
-  )
-}
-
 /** "Felder": the sections of a board, in order, to rename, move and remove. */
 function SectionsTable({
   boardId,
@@ -899,8 +856,8 @@ function SectionsTable({
     return (
       <Reorder
         name={name}
-        first={index === 0}
-        last={index === sections.length - 1}
+        canUp={index > 0}
+        canDown={index < sections.length - 1}
         onMove={(step) => void move(id, step)}
         onEdit={() => setEditing(id)}
         onRemove={() => setRemoving({ id, name, inside })}
@@ -1327,8 +1284,8 @@ function EquipmentTable({
     return (
       <Reorder
         name={name}
-        first={index === 0}
-        last={index === equipment.length - 1}
+        canUp={index > 0}
+        canDown={index < equipment.length - 1}
         onMove={(step) => void move(id, step)}
         onEdit={() => {
           setAdding(false)

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { LucideIcon } from 'lucide-react'
-import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 
 import type { Entry } from './surface.js'
 import { useEntry } from './surface.js'
@@ -130,6 +130,51 @@ export function Button({
       {Icon ? <Icon {...iconSize(size, entry)} aria-hidden="true" className="shrink-0" /> : null}
       {children}
     </button>
+  )
+}
+
+/**
+ * The look of a button for something that is a link: a route, a PDF that
+ * opens, a file that downloads. A link stays a link, so that it opens in a new
+ * tab and a screen reader calls it one, and only borrows the clothes.
+ */
+export function useButtonLook(tone: ButtonTone = 'secondary', size: ButtonSize = 'normal'): string {
+  const entry = useEntry()
+
+  return clsx(
+    'inline-flex items-center justify-center rounded-control no-underline cursor-pointer',
+    sizeClasses(size, entry),
+    toneClasses(tone, size, entry),
+  )
+}
+
+export interface ButtonLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
+  readonly tone?: ButtonTone
+  readonly size?: ButtonSize
+  /** A symbol in front of the label, never instead of it. */
+  readonly icon?: LucideIcon
+  readonly wide?: boolean
+  readonly children: ReactNode
+}
+
+/** An `<a>` for an address outside the router, dressed as a button: "PDF öffnen". */
+export function ButtonLink({
+  tone = 'secondary',
+  size = 'normal',
+  icon: Icon,
+  wide = false,
+  className,
+  children,
+  ...rest
+}: ButtonLinkProps) {
+  const entry = useEntry()
+  const look = useButtonLook(tone, size)
+
+  return (
+    <a className={clsx(look, wide && 'w-full', className)} {...rest}>
+      {Icon ? <Icon {...iconSize(size, entry)} aria-hidden="true" className="shrink-0" /> : null}
+      {children}
+    </a>
   )
 }
 

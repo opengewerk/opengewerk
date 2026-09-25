@@ -1,7 +1,10 @@
 import type { RecordState, WithdrawalVariant } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { TriangleAlert } from 'lucide-react'
+import { useId } from 'react'
+import type { ReactNode } from 'react'
 
-import { SelectField } from '../../components/index.js'
+import { Panel, SelectField } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import {
   chooseInstructions,
@@ -13,7 +16,7 @@ import {
 } from '../../session/instructions.js'
 import { maybeText } from '../../sync/fields.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Section } from '../layout.js'
+import { NoteBox } from '../kit.js'
 
 const variantOptions: readonly { readonly value: WithdrawalVariant; readonly label: string }[] = [
   { value: 'service', label: 'Arbeiten, also eine Dienstleistung' },
@@ -33,7 +36,7 @@ function SheetLink({
       href={instructionSheetAddress(documentId, instruction.index)}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-table font-semibold text-copper-text underline underline-offset-2"
+      className="text-copper-text underline underline-offset-2"
       aria-label={`${instruction.title} als eigenes Blatt öffnen`}
     >
       Als Blatt öffnen
@@ -50,6 +53,39 @@ function whereItGoes(withDocument: boolean, went: boolean): string {
   }
 
   return 'Liegt als eigenes Blatt zum Ausdrucken bereit.'
+}
+
+/**
+ * One instruction as the board draws it, `checkbox()` of the canvas: the box,
+ * the name beside it, and under the name in smaller type where it goes. What
+ * stands under the name describes the box and is not part of its name, so the
+ * box is called what the instruction is called.
+ */
+function InstructionRow({
+  title,
+  box,
+  children,
+}: {
+  readonly title: string
+  /** The box, or nothing where an instruction only stands there, on a fixed document. */
+  readonly box?: (ids: { readonly box: string; readonly note: string }) => ReactNode
+  readonly children: ReactNode
+}) {
+  const ids = { box: useId(), note: useId() }
+
+  return (
+    <li className="flex items-start gap-[9px]">
+      {box ? box(ids) : null}
+      <div className="min-w-0 text-[14px] leading-[1.4] text-ink">
+        {box ? <label htmlFor={ids.box}>{title}</label> : <span>{title}</span>}
+        {children ? (
+          <span id={ids.note} className="block text-[13px] text-ink-muted">
+            {children}
+          </span>
+        ) : null}
+      </div>
+    </li>
+  )
 }
 
 /** One instruction on a draft, with its switch. */
@@ -69,35 +105,39 @@ function Choice({
   readonly onSwitch: (included: boolean) => void
 }) {
   return (
-    <li className="flex flex-col gap-1">
-      <label className="flex items-center gap-2 text-body font-semibold">
+    <InstructionRow
+      title={choice.title}
+      box={(ids) => (
         <input
+          id={ids.box}
           type="checkbox"
-          className="size-5"
+          aria-describedby={choice.included ? ids.note : undefined}
+          className="mt-0.5 size-4 shrink-0 accent-copper-solid max-lg:size-5"
           checked={choice.included}
           disabled={!editable || working || choice.required}
           onChange={(event) => {
             onSwitch(event.target.checked)
           }}
         />
-        {choice.title}
-      </label>
+      )}
+    >
       {choice.included ? (
-        <p className="pl-7 text-table text-ink-muted">
+        <>
           {choice.required ? 'Pflicht an jedem Angebot an einen Verbraucher. ' : ''}
           {whereItGoes(choice.withDocument, false)}
           {choice.proposed || choice.required
             ? ''
             : ' Für diesen Beleg nicht vorgeschlagen, von Hand dazugenommen.'}
           {choice.changed ? ' Der Betrieb hat den Wortlaut geändert.' : ''}
-        </p>
+          {printed && !printed.withDocument ? (
+            <>
+              {' '}
+              <SheetLink documentId={documentId} instruction={printed} />
+            </>
+          ) : null}
+        </>
       ) : null}
-      {choice.included && printed && !printed.withDocument ? (
-        <p className="pl-7">
-          <SheetLink documentId={documentId} instruction={printed} />
-        </p>
-      ) : null}
-    </li>
+    </InstructionRow>
   )
 }
 
@@ -114,7 +154,7 @@ function Choice({
  * Read from the server, like the PDF: the instructions of the business live
  * there, and a device that has none offline shows why.
  */
-export function InstructionsSection({ document }: { readonly document: RecordState }) {
+export function InstructionsCard({ document }: { readonly document: RecordState }) {
   const documentId = String(document['id'])
   const queries = useQueryClient()
   const mayWrite = useMay('document.write')
@@ -143,13 +183,13 @@ export function InstructionsSection({ document }: { readonly document: RecordSta
 
   if (view.isError) {
     return (
-      <Section title="Belehrungen">
-        <Nothing>
+      <Panel title="Belehrungen">
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
           {view.error instanceof RequestRefused
             ? view.error.message
             : 'Die Belehrungen liegen auf dem Server und brauchen eine Verbindung.'}
-        </Nothing>
-      </Section>
+        </p>
+      </Panel>
     )
   }
 
@@ -176,31 +216,26 @@ export function InstructionsSection({ document }: { readonly document: RecordSta
         : null
 
   return (
-    <Section title="Belehrungen">
-      <div className="flex flex-col gap-4">
+    <Panel title="Belehrungen">
+      <div className="flex flex-col gap-2.5">
         {fixed ? (
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-2.5">
             {printed.map((instruction) => (
-              <li key={instruction.index} className="flex flex-col gap-1">
-                <span className="text-body font-semibold">{instruction.title}</span>
-                <span className="text-table text-ink-muted">
-                  {whereItGoes(instruction.withDocument, went)}
-                  {instruction.changed ? ' Mit geändertem Wortlaut des Musters.' : ''}
-                </span>
-                <span>
-                  <SheetLink documentId={documentId} instruction={instruction} />
-                </span>
-              </li>
+              <InstructionRow key={instruction.index} title={instruction.title}>
+                {whereItGoes(instruction.withDocument, went)}
+                {instruction.changed ? ' Mit geändertem Wortlaut des Musters.' : ''}{' '}
+                <SheetLink documentId={documentId} instruction={instruction} />
+              </InstructionRow>
             ))}
           </ul>
         ) : (
           <>
             {included.length === 0 ? (
-              <p className="text-body text-ink-muted">
+              <p className="text-[13px] leading-[1.4] text-ink-muted">
                 Zu diesem Beleg ist keine Belehrung vorgeschlagen.
               </p>
             ) : (
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-2.5">
                 {included.map((choice) => (
                   <Choice
                     key={choice.id}
@@ -218,24 +253,26 @@ export function InstructionsSection({ document }: { readonly document: RecordSta
             )}
 
             {dependsOnContract ? (
-              <SelectField
-                label="Der Vertrag betrifft"
-                value={variant}
-                options={variantOptions}
-                disabled={!editable || choose.isPending}
-                hint="Davon hängt ab, wann die Widerrufsfrist beginnt und was bei einem Widerruf mit Arbeit oder Waren geschieht."
-                onChange={(value) => {
-                  choose.mutate({ variant: value as WithdrawalVariant })
-                }}
-              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <SelectField
+                  label="Der Vertrag betrifft"
+                  value={variant}
+                  options={variantOptions}
+                  disabled={!editable || choose.isPending}
+                  hint="Davon hängt ab, wann die Widerrufsfrist beginnt und was bei einem Widerruf mit Arbeit oder Waren geschieht."
+                  onChange={(value) => {
+                    choose.mutate({ variant: value as WithdrawalVariant })
+                  }}
+                />
+              </div>
             ) : null}
 
             {others.length > 0 && editable ? (
               <details>
-                <summary className="cursor-pointer text-body font-semibold">
+                <summary className="cursor-pointer text-[14px] font-semibold">
                   Weitere Belehrungen
                 </summary>
-                <ul className="mt-3 flex flex-col gap-3">
+                <ul className="mt-2.5 flex flex-col gap-2.5">
                   {others.map((choice) => (
                     <Choice
                       key={choice.id}
@@ -254,13 +291,15 @@ export function InstructionsSection({ document }: { readonly document: RecordSta
             ) : null}
 
             {gaps.length > 0 ? (
-              <div role="note" className="rounded-control border border-conflict p-3 text-body">
-                <p className="font-semibold text-conflict">Vor dem Festschreiben fehlt noch</p>
-                <ul className="mt-1 flex flex-col gap-1">
-                  {gaps.map((gap) => (
-                    <li key={gap}>{gap}</li>
-                  ))}
-                </ul>
+              <div role="note">
+                <NoteBox tone="conflict" icon={TriangleAlert}>
+                  <span className="font-semibold">Vor dem Festschreiben fehlt noch:</span>
+                  <ul className="mt-1 flex flex-col gap-1">
+                    {gaps.map((gap) => (
+                      <li key={gap}>{gap}</li>
+                    ))}
+                  </ul>
+                </NoteBox>
               </div>
             ) : null}
           </>
@@ -272,6 +311,6 @@ export function InstructionsSection({ document }: { readonly document: RecordSta
           </p>
         ) : null}
       </div>
-    </Section>
+    </Panel>
   )
 }

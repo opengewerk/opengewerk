@@ -1,5 +1,7 @@
 import type { IsoDate, RecordState } from '@opengewerk/domain'
 import {
+  addDays,
+  carriesDueDate,
   isInvoice,
   longPaymentTermNotice,
   paymentTermLabel,
@@ -9,10 +11,11 @@ import {
   taxTreatments,
 } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Check } from 'lucide-react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field, SelectField, TextArea } from '../../components/index.js'
+import { Button, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -21,7 +24,8 @@ import { parameterHistory } from '../../session/parameters.js'
 import { refusalText } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useSync } from '../../sync/provider.js'
-import { Fact, Facts, Section } from '../layout.js'
+import type { Fact } from '../kit.js'
+import { FactList, NoteBox } from '../kit.js'
 import { daysFrom, paymentTermOn } from './payment-term.js'
 import { SnippetPicker, withSnippet } from './snippet-picker.js'
 
@@ -84,24 +88,8 @@ function servicePeriod(document: RecordState): string {
   return until === null || until === from ? date(from) : `${date(from)} bis ${date(until)}`
 }
 
-/**
- * The head of a document and the texts around its lines: what it is about,
- * when it was written, how it is taxed, and what it says before and after the
- * positions. An invoice adds when the work was done, section 14 (4) number 6
- * UStG; a final invoice is not issued without it.
- *
- * Every kind that states a payment term shows it here, and here it is
- * overridden for this one document. Left empty, the business's setting of
- * the document's date applies, and that is what the head says.
- */
-export function HeaderSection({
-  document,
-  editable,
-}: {
-  readonly document: RecordState
-  readonly editable: boolean
-}) {
-  const [editing, setEditing] = useState(false)
+/** The business's payment term on the document's date, when this person may read it. */
+function useSetting(document: RecordState): number | null {
   const statesTerm = statesPaymentTerm(documentKindOf(document))
   const readsSettings = useMay('settings.read')
   const history = useQuery({
@@ -109,65 +97,117 @@ export function HeaderSection({
     queryFn: parameterHistory,
     enabled: statesTerm && readsSettings,
   })
-  const setting = history.data ? paymentTermOn(history.data, text(document, 'documentDate')) : null
+
+  return history.data ? paymentTermOn(history.data, text(document, 'documentDate')) : null
+}
+
+/**
+ * "Kopf und Texte": what a document is about, when it was written, how it is
+ * taxed, the payment term and the texts around its lines. An invoice adds
+ * when the work was done, section 14 (4) number 6 UStG; a final invoice is not
+ * issued without it.
+ *
+ * On a draft it is the form of the board "Angebot, Entwurf", open from the
+ * start, with "Abbrechen" and "Speichern" in the head of the card. On a fixed
+ * document it is the facts of "Schlussrechnung, festgeschrieben", with the
+ * day payment is due where the document states one.
+ */
+export function HeaderCard({
+  document,
+  editable,
+  billedCents,
+}: {
+  readonly document: RecordState
+  readonly editable: boolean
+  /** What the document asks for after its deductions, for the day it is due; null if unknown. */
+  readonly billedCents: number | null
+}) {
+  const setting = useSetting(document)
   const customer = useRecord('customers', String(document['customerId']))
-  const notice = statesTerm ? termNotice(document, customer, ownTerm(document) ?? setting) : null
+
+  return editable ? (
+    <HeaderForm document={document} customer={customer} setting={setting} />
+  ) : (
+    <HeaderFacts
+      document={document}
+      customer={customer}
+      setting={setting}
+      billedCents={billedCents}
+    />
+  )
+}
+
+function HeaderFacts({
+  document,
+  customer,
+  setting,
+  billedCents,
+}: {
+  readonly document: RecordState
+  readonly customer: RecordState | null
+  readonly setting: number | null
+  readonly billedCents: number | null
+}) {
+  const kind = documentKindOf(document)
+  const statesTerm = statesPaymentTerm(kind)
+  const own = ownTerm(document)
+  const days = own ?? setting
+  const notice = statesTerm ? termNotice(document, customer, days) : null
+  // An invoice that asks for nothing states no day, as `paymentTermOf` has it.
+  const dueOn =
+    carriesDueDate(kind) && days !== null && billedCents !== null && billedCents > 0
+      ? addDays(text(document, 'documentDate') as IsoDate, days)
+      : null
+  const intro = maybeText(document, 'introText')
+  const closing = maybeText(document, 'closingText')
+
+  const facts: Fact[] = [
+    { label: 'Betreff', value: text(document, 'subject') },
+    { label: 'Belegdatum', value: date(document['documentDate']) },
+    ...(isInvoice(kind) ? [{ label: 'Leistungszeitraum', value: servicePeriod(document) }] : []),
+    { label: 'Umsatzsteuer', value: taxTreatmentLabel[taxTreatmentOf(document)] },
+    ...(statesTerm
+      ? [
+          {
+            label: 'Zahlungsziel',
+            value: (
+              <>
+                {termFact(own, setting)}
+                {notice ? (
+                  <span role="note" className="block font-semibold">
+                    {notice}
+                  </span>
+                ) : null}
+              </>
+            ),
+          },
+        ]
+      : []),
+    ...(dueOn ? [{ label: 'Fällig', value: date(dueOn) }] : []),
+    // The texts only where there are any: the board lists none, and a row
+    // saying "nicht angegeben" twice under every quote says nothing.
+    ...(intro
+      ? [
+          {
+            label: 'Text über den Positionen',
+            value: <span className="whitespace-pre-line">{intro}</span>,
+          },
+        ]
+      : []),
+    ...(closing
+      ? [
+          {
+            label: 'Text unter den Positionen',
+            value: <span className="whitespace-pre-line">{closing}</span>,
+          },
+        ]
+      : []),
+  ]
 
   return (
-    <Section
-      title="Kopf und Texte"
-      actions={
-        editable ? (
-          <Button
-            onClick={() => {
-              setEditing((open) => !open)
-            }}
-          >
-            {editing ? 'Bearbeiten beenden' : 'Bearbeiten'}
-          </Button>
-        ) : null
-      }
-    >
-      {editing && editable ? (
-        <HeaderForm
-          document={document}
-          customer={customer}
-          setting={setting}
-          onDone={() => {
-            setEditing(false)
-          }}
-        />
-      ) : (
-        <Facts>
-          <Fact label="Betreff">{text(document, 'subject')}</Fact>
-          <Fact label="Belegdatum">{date(document['documentDate'])}</Fact>
-          {isInvoice(documentKindOf(document)) ? (
-            <Fact label="Leistungszeitraum">{servicePeriod(document)}</Fact>
-          ) : null}
-          <Fact label="Umsatzsteuer">{taxTreatmentLabel[taxTreatmentOf(document)]}</Fact>
-          {statesTerm ? (
-            <Fact label="Zahlungsziel">
-              {termFact(ownTerm(document), setting)}
-              {notice ? (
-                <span role="note" className="block text-body font-semibold">
-                  {notice}
-                </span>
-              ) : null}
-            </Fact>
-          ) : null}
-          <Fact label="Text über den Positionen">
-            {maybeText(document, 'introText') ? (
-              <span className="whitespace-pre-line">{text(document, 'introText')}</span>
-            ) : null}
-          </Fact>
-          <Fact label="Text unter den Positionen">
-            {maybeText(document, 'closingText') ? (
-              <span className="whitespace-pre-line">{text(document, 'closingText')}</span>
-            ) : null}
-          </Fact>
-        </Facts>
-      )}
-    </Section>
+    <Panel title="Kopf und Texte">
+      <FactList facts={facts} keyWidth={130} />
+    </Panel>
   )
 }
 
@@ -176,48 +216,87 @@ const treatmentOptions = taxTreatments.map((treatment) => ({
   label: taxTreatmentLabel[treatment],
 }))
 
+/** The fields of the head as typed, strings all of them, the way the form holds them. */
+interface HeadValues {
+  readonly subject: string
+  readonly documentDate: string
+  readonly serviceFrom: string
+  readonly serviceUntil: string
+  readonly taxTreatment: string
+  readonly term: string
+  readonly introText: string
+  readonly closingText: string
+}
+
+function storedValues(document: RecordState): HeadValues {
+  const own = ownTerm(document)
+
+  return {
+    subject: text(document, 'subject'),
+    documentDate: text(document, 'documentDate'),
+    serviceFrom: text(document, 'serviceFrom'),
+    serviceUntil: text(document, 'serviceUntil'),
+    taxTreatment: taxTreatmentOf(document),
+    term: own === null ? '' : String(own),
+    introText: text(document, 'introText'),
+    closingText: text(document, 'closingText'),
+  }
+}
+
+/**
+ * The head of a draft, open as a form from the start.
+ *
+ * It holds only what somebody changed. Every other field shows what is
+ * stored, so a change that comes in from another device while nobody types
+ * shows here at once, and saving never writes back a value that was only
+ * displayed. "Abbrechen" drops the changes, and both buttons wait while
+ * there are none.
+ */
 function HeaderForm({
   document,
   customer,
   setting,
-  onDone,
 }: {
   readonly document: RecordState
   /** The customer the document is for, whose kind decides the notice of #149. */
   readonly customer: RecordState | null
   /** The business's payment term on the document's date, when it can be read. */
   readonly setting: number | null
-  readonly onDone: () => void
 }) {
   const client = useSync()
-  const [subject, setSubject] = useState(text(document, 'subject'))
-  const [documentDate, setDocumentDate] = useState(text(document, 'documentDate'))
-  const [serviceFrom, setServiceFrom] = useState(text(document, 'serviceFrom'))
-  const [serviceUntil, setServiceUntil] = useState(text(document, 'serviceUntil'))
-  const invoice = isInvoice(documentKindOf(document))
-  const statesTerm = statesPaymentTerm(documentKindOf(document))
-  const [treatment, setTreatment] = useState<string>(taxTreatmentOf(document))
-  const [term, setTerm] = useState(() => {
-    const own = ownTerm(document)
-
-    return own === null ? '' : String(own)
-  })
-  const [introText, setIntroText] = useState(text(document, 'introText'))
-  const [closingText, setClosingText] = useState(text(document, 'closingText'))
+  const formId = useId()
+  const [edits, setEdits] = useState<Partial<HeadValues>>({})
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const stored = storedValues(document)
+  const values: HeadValues = { ...stored, ...edits }
+  const changed = (Object.keys(edits) as (keyof HeadValues)[]).some(
+    (field) => edits[field] !== stored[field],
+  )
+  const kind = documentKindOf(document)
+  const invoice = isInvoice(kind)
+  const statesTerm = statesPaymentTerm(kind)
+
+  function set(field: keyof HeadValues) {
+    return (value: string) => {
+      setEdits((before) => ({ ...before, [field]: value }))
+    }
+  }
 
   // Empty is not a mistake here, it hands the document back to the setting.
-  const termRead = term.trim() === '' ? null : daysFrom(term)
+  const termRead = values.term.trim() === '' ? null : daysFrom(values.term)
   const termProblem = termRead !== null && 'problem' in termRead ? termRead.problem : null
   const termAsTyped = termRead === null ? setting : 'days' in termRead ? termRead.days : null
   const notice = statesTerm
-    ? termNotice({ ...document, documentDate }, customer, termAsTyped)
+    ? termNotice({ ...document, documentDate: values.documentDate }, customer, termAsTyped)
     : null
   // The period as it is sent: a last day without a first is dropped below,
   // so it is no mistake here either.
   const periodProblem = invoice
-    ? servicePeriodProblem(serviceFrom, serviceFrom.trim() === '' ? null : serviceUntil)
+    ? servicePeriodProblem(
+        values.serviceFrom,
+        values.serviceFrom.trim() === '' ? null : values.serviceUntil,
+      )
     : null
 
   async function save(event: FormEvent) {
@@ -239,26 +318,29 @@ function HeaderForm({
 
     try {
       const saved = await client.update('documents', String(document['id']), {
-        subject: asTextOrNull(subject),
-        documentDate,
+        subject: asTextOrNull(values.subject),
+        documentDate: values.documentDate,
         // Only on an invoice, and there as entered: the first day alone is a
         // single day of work, and a last day without a first is not a period.
         ...(invoice
           ? {
-              serviceFrom: asTextOrNull(serviceFrom),
-              serviceUntil: asTextOrNull(serviceFrom) === null ? null : asTextOrNull(serviceUntil),
+              serviceFrom: asTextOrNull(values.serviceFrom),
+              serviceUntil:
+                asTextOrNull(values.serviceFrom) === null
+                  ? null
+                  : asTextOrNull(values.serviceUntil),
             }
           : {}),
-        taxTreatment: treatment,
+        taxTreatment: values.taxTreatment,
         ...(statesTerm
           ? { paymentTermDays: termRead !== null && 'days' in termRead ? termRead.days : null }
           : {}),
-        introText: asTextOrNull(introText),
-        closingText: asTextOrNull(closingText),
+        introText: asTextOrNull(values.introText),
+        closingText: asTextOrNull(values.closingText),
       })
 
       if (saved.outcome === 'queued') {
-        onDone()
+        setEdits({})
       } else {
         setTrouble(refusalText[saved.reason])
       }
@@ -267,130 +349,153 @@ function HeaderForm({
     }
   }
 
+  const shownSetting = setting === null ? '' : `, ${paymentTermLabel(setting)}`
+
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={(event) => {
-        void save(event)
-      }}
+    <Panel
+      title="Kopf und Texte"
+      action={
+        <span className="flex gap-1.5">
+          <Button
+            size="small"
+            disabled={working || !changed}
+            onClick={() => {
+              setEdits({})
+              setTrouble(null)
+            }}
+          >
+            Abbrechen
+          </Button>
+          <Button
+            size="small"
+            icon={Check}
+            type="submit"
+            form={formId}
+            disabled={working || !changed}
+          >
+            {working ? 'Wird gespeichert' : 'Speichern'}
+          </Button>
+        </span>
+      }
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Betreff"
-          value={subject}
-          onChange={(event) => {
-            setSubject(event.target.value)
-          }}
-        />
-        <Field
-          label="Belegdatum"
-          type="date"
-          required
-          value={documentDate}
-          onChange={(event) => {
-            setDocumentDate(event.target.value)
-          }}
-        />
-        {invoice ? (
-          <>
-            <Field
-              label="Leistung von"
-              type="date"
-              hint="Der Tag der Arbeit, bei mehreren Tagen der erste."
-              value={serviceFrom}
-              onChange={(event) => {
-                setServiceFrom(event.target.value)
-              }}
-            />
-            <Field
-              label="Leistung bis"
-              type="date"
-              hint="Leer lassen, wenn es ein einziger Tag war."
-              value={serviceUntil}
-              onChange={(event) => {
-                setServiceUntil(event.target.value)
-              }}
-              {...(periodProblem === null ? {} : { problem: periodProblem })}
-            />
-          </>
-        ) : null}
-        <SelectField
-          label="Umsatzsteuer"
-          value={treatment}
-          options={treatmentOptions}
-          hint="Beim Anlegen aus dem Kunden und den Angaben des Betriebs vorgeschlagen."
-          onChange={setTreatment}
-        />
-        {statesTerm ? (
+      <form
+        id={formId}
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          void save(event)
+        }}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.3fr)]">
           <Field
-            label="Zahlungsziel in Tagen"
-            name="paymentTermDays"
-            inputMode="numeric"
-            numeric
-            value={term}
+            label="Betreff"
+            value={values.subject}
             onChange={(event) => {
-              setTerm(event.target.value)
+              set('subject')(event.target.value)
             }}
-            {...(termProblem === null ? {} : { problem: termProblem })}
-            hint={
-              (setting === null
-                ? 'Leer lassen für das Zahlungsziel aus den Einstellungen. 0 heißt sofort zahlbar.'
-                : `Leer lassen für das Zahlungsziel aus den Einstellungen, ${paymentTermLabel(setting)}. ` +
-                  '0 heißt sofort zahlbar.') + (notice === null ? '' : ` ${notice}`)
-            }
           />
+          <Field
+            label="Belegdatum"
+            type="date"
+            required
+            value={values.documentDate}
+            onChange={(event) => {
+              set('documentDate')(event.target.value)
+            }}
+          />
+          <SelectField
+            label="Umsatzsteuer"
+            value={values.taxTreatment}
+            options={treatmentOptions}
+            hint="Beim Anlegen aus dem Kunden und den Angaben des Betriebs vorgeschlagen."
+            onChange={set('taxTreatment')}
+          />
+          {statesTerm ? (
+            <Field
+              label="Zahlungsziel in Tagen"
+              name="paymentTermDays"
+              inputMode="numeric"
+              numeric
+              placeholder={setting === null ? undefined : String(setting)}
+              value={values.term}
+              onChange={(event) => {
+                set('term')(event.target.value)
+              }}
+              {...(termProblem === null ? {} : { problem: termProblem })}
+              hint={`Leer lassen für das Zahlungsziel aus den Einstellungen${shownSetting}. 0 heißt sofort zahlbar.`}
+            />
+          ) : null}
+          {invoice ? (
+            <>
+              <Field
+                label="Leistung von"
+                type="date"
+                hint="Der Tag der Arbeit, bei mehreren Tagen der erste."
+                value={values.serviceFrom}
+                onChange={(event) => {
+                  set('serviceFrom')(event.target.value)
+                }}
+              />
+              <Field
+                label="Leistung bis"
+                type="date"
+                hint="Leer lassen, wenn es ein einziger Tag war."
+                value={values.serviceUntil}
+                onChange={(event) => {
+                  set('serviceUntil')(event.target.value)
+                }}
+                {...(periodProblem === null ? {} : { problem: periodProblem })}
+              />
+            </>
+          ) : null}
+        </div>
+
+        {notice ? (
+          <div role="note">
+            <NoteBox tone="waiting">{notice}</NoteBox>
+          </div>
         ) : null}
-      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <TextArea
-            label="Text über den Positionen"
-            value={introText}
-            onChange={(event) => {
-              setIntroText(event.target.value)
-            }}
-          />
-          <SnippetPicker
-            purpose="intro"
-            label="Textbaustein für oben"
-            onPick={(snippet) => {
-              setIntroText((current) => withSnippet(current, snippet))
-            }}
-          />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <TextArea
+              label="Text über den Positionen"
+              value={values.introText}
+              onChange={(event) => {
+                set('introText')(event.target.value)
+              }}
+            />
+            <SnippetPicker
+              purpose="intro"
+              label="Textbaustein für oben"
+              onPick={(snippet) => {
+                set('introText')(withSnippet(values.introText, snippet))
+              }}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <TextArea
+              label="Text unter den Positionen"
+              value={values.closingText}
+              onChange={(event) => {
+                set('closingText')(event.target.value)
+              }}
+            />
+            <SnippetPicker
+              purpose="closing"
+              label="Textbaustein für unten"
+              onPick={(snippet) => {
+                set('closingText')(withSnippet(values.closingText, snippet))
+              }}
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <TextArea
-            label="Text unter den Positionen"
-            value={closingText}
-            onChange={(event) => {
-              setClosingText(event.target.value)
-            }}
-          />
-          <SnippetPicker
-            purpose="closing"
-            label="Textbaustein für unten"
-            onPick={(snippet) => {
-              setClosingText((current) => withSnippet(current, snippet))
-            }}
-          />
-        </div>
-      </div>
 
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
-          {working ? 'Wird gespeichert' : 'Speichern'}
-        </Button>
-        <Button tone="quiet" disabled={working} onClick={onDone}>
-          Abbrechen
-        </Button>
-      </div>
-    </form>
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+      </form>
+    </Panel>
   )
 }

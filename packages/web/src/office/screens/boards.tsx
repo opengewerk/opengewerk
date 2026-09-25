@@ -1,7 +1,7 @@
 import { distributionBoardKindLabel } from '@opengewerk/domain'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ArrowDown, ArrowUp, Plus, Printer } from 'lucide-react'
+import { ArrowDown, ArrowUp, Pencil, Plus, Printer, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -230,5 +230,44 @@ export function SmallIcon({
     >
       {children}
     </button>
+  )
+}
+
+/**
+ * Up, down, change and remove, the column "Ändern" of the canvas, as the
+ * fields of a board, the equipment of a circuit and the lines of a document
+ * draw it. Whether a step is possible is the caller's to say: a title of a
+ * document moves over a whole section and not over the next row.
+ */
+export function Reorder({
+  name,
+  canUp,
+  canDown,
+  onMove,
+  onEdit,
+  onRemove,
+}: {
+  readonly name: string
+  readonly canUp: boolean
+  readonly canDown: boolean
+  readonly onMove: (step: -1 | 1) => void
+  readonly onEdit: () => void
+  readonly onRemove: () => void
+}) {
+  return (
+    <span className="inline-flex gap-0.5">
+      <SmallIcon compact label={`${name} nach oben`} disabled={!canUp} onClick={() => onMove(-1)}>
+        <ArrowUp size={14} strokeWidth={2} aria-hidden="true" />
+      </SmallIcon>
+      <SmallIcon compact label={`${name} nach unten`} disabled={!canDown} onClick={() => onMove(1)}>
+        <ArrowDown size={14} strokeWidth={2} aria-hidden="true" />
+      </SmallIcon>
+      <SmallIcon compact label={`${name} bearbeiten`} onClick={onEdit}>
+        <Pencil size={14} strokeWidth={2} aria-hidden="true" />
+      </SmallIcon>
+      <SmallIcon compact label={`${name} entfernen`} danger onClick={onRemove}>
+        <X size={14} strokeWidth={2} aria-hidden="true" />
+      </SmallIcon>
+    </span>
   )
 }
