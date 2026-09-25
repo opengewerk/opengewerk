@@ -568,7 +568,9 @@ für Docker Compose, der Schalter `CLOSED` und die Angaben der Sicherung, die
 auch dann laufen muss, wenn die Anwendung es nicht tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
-`curl http://127.0.0.1:23700/health` antwortet mit `{"status":"bereit"}`. Im
+`curl http://127.0.0.1:23700/health` antwortet mit
+`{"status":"bereit","database":true,"version":"0.2.0"}`, aus einem Checkout mit
+`"version":null`. Dieselbe Fassung steht im Fuß der Anmeldung (#259). Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 
 Die Protokolle der Container zeigt `docker compose -f docker/compose.yaml logs`.

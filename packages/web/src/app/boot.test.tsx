@@ -204,6 +204,27 @@ describe('starting with a network', () => {
     expect(globalThis.localStorage.getItem('opengewerk.tenants')).toBeNull()
   })
 
+  it('shows the version the server names in the foot of the sign in (#259)', async () => {
+    vi.stubGlobal('fetch', (path: string) =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify(
+            path === '/health'
+              ? { status: 'bereit', database: true, version: '0.2.0' }
+              : path === '/setup'
+                ? { needed: false }
+                : null,
+          ),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    )
+    start()
+
+    expect(await screen.findByRole('heading', { name: 'Anmelden' })).toBeTruthy()
+    expect(await screen.findByText('AGPL-3.0 · Version 0.2.0')).toBeTruthy()
+  })
+
   it('keeps who is signed in, where and with which roles, for the next start without one', async () => {
     const tenantId = await businessOnTheDevice()
 

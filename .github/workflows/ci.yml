@@ -651,9 +651,10 @@ jobs:
         run: |
           set -eu
 
+          # No version: a checkout runs "source", which names none (#259).
           health=$(curl --silent --fail http://127.0.0.1:23700/health)
           echo "Health: ${health}"
-          test "${health}" = '{"status":"bereit","database":true}'
+          test "${health}" = '{"status":"bereit","database":true,"version":null}'
 
           # Without authentication every route touching data has to refuse. An
           # instance answering 200 here would be handing out tenant data.
@@ -1221,7 +1222,7 @@ jobs:
 
           health=$(curl --silent --fail http://127.0.0.1:23700/health)
           echo "Health nach dem Update: ${health}"
-          test "${health}" = '{"status":"bereit","database":true}'
+          test "${health}" = '{"status":"bereit","database":true,"version":null}'
 
       - name: Eine fehlerhafte Migration bricht ab, die Instanz läuft weiter
         run: |
@@ -1285,7 +1286,7 @@ jobs:
 
           health=$(curl --silent --fail http://127.0.0.1:23700/health)
           echo "Health nach dem Fehlschlag: ${health}"
-          test "${health}" = '{"status":"bereit","database":true}'
+          test "${health}" = '{"status":"bereit","database":true,"version":null}'
 
           # And the database stands where it stood. The first statement of the
           # failed migration went through without complaint, its table is gone

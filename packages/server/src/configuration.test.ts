@@ -55,9 +55,28 @@ describe('the configuration', () => {
       backupStatusPath: null,
       closed: false,
       mailInternalHosts: [],
+      version: null,
       port: 8080,
       host: '127.0.0.1',
     })
+  })
+
+  /**
+   * Handed over by the Compose file, where a release kit carries its version
+   * in place of "source" (#259). Only a version is taken: the sign in shows
+   * it, and "source", "latest" or a typo there would mean nothing to anybody.
+   */
+  it('reads the version a release hands over, and none for a checkout or anything else', () => {
+    const versionOf = (value: string | undefined) =>
+      readConfiguration({ ...valid, OPENGEWERK_VERSION: value }, writable).version
+
+    expect(versionOf('0.2.0')).toBe('0.2.0')
+    expect(versionOf(' 1.10.3 ')).toBe('1.10.3')
+    expect(versionOf('0.3.0-rc.1')).toBe('0.3.0-rc.1')
+
+    for (const nothing of [undefined, '', 'source', 'latest', 'v0.2.0', '0.2', '0.2.0 # alt']) {
+      expect(versionOf(nothing), String(nothing)).toBe(null)
+    }
   })
 
   /**

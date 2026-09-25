@@ -106,6 +106,7 @@ async function start(): Promise<void> {
     renderer: rendererFor(readRendererConfiguration()),
     trustedOrigins: configuration.trustedOrigins,
     backupStatus: configuration.backupStatusPath,
+    version: configuration.version,
   }
 
   const application = await NestFactory.create<NestExpressApplication>(

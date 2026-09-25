@@ -50,7 +50,24 @@ describe('the health check', () => {
   it('answers without any credentials', async () => {
     const response = await request(app.getHttpServer()).get('/health').expect(200)
 
-    expect(response.body).toEqual({ status: 'bereit', database: true })
+    expect(response.body).toEqual({ status: 'bereit', database: true, version: null })
+  })
+
+  it('names the version the installation runs, for the foot of the sign in (#259)', async () => {
+    const built = await Test.createTestingModule({
+      imports: [ApiModule.create(database, new ClosedIdentitySource(), { version: '0.2.0' })],
+    }).compile()
+    const released = built.createNestApplication()
+
+    await released.init()
+
+    try {
+      const response = await request(released.getHttpServer()).get('/health').expect(200)
+
+      expect(response.body).toEqual({ status: 'bereit', database: true, version: '0.2.0' })
+    } finally {
+      await released.close()
+    }
   })
 
   it('reports the database as unreachable instead of claiming to be fine', async () => {
@@ -69,7 +86,7 @@ describe('the health check', () => {
       // turn a loud outage into a quiet one.
       const response = await request(broken.getHttpServer()).get('/health').expect(503)
 
-      expect(response.body).toEqual({ status: 'gestört', database: false })
+      expect(response.body).toEqual({ status: 'gestört', database: false, version: null })
 
       await broken.close()
     } finally {

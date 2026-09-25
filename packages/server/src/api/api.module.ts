@@ -52,6 +52,7 @@ import {
   RENDERER,
   SETUP_CODE,
   TRUSTED_ORIGINS,
+  VERSION,
 } from './handed-in.js'
 import { InvitationController } from './invitation.controller.js'
 import { SameOriginGuard } from './origin.js'
@@ -109,6 +110,11 @@ export interface ApiOptions {
    * that makes none, and is not warned.
    */
   readonly backupStatus?: string | null
+  /**
+   * The version this installation runs (#259), which the health check names
+   * and the foot of the sign in shows. Left out, there is none to name.
+   */
+  readonly version?: string | null
 }
 
 /**
@@ -156,6 +162,7 @@ export class ApiModule implements NestModule {
       renderer = rendererFor({ url: undefined, token: undefined }),
       mail = null,
       backupStatus = null,
+      version = null,
     } = options
 
     return {
@@ -208,6 +215,7 @@ export class ApiModule implements NestModule {
         { provide: RENDERER, useValue: renderer },
         { provide: MAIL, useValue: mail },
         { provide: BACKUP_STATUS, useValue: backupStatus },
+        { provide: VERSION, useValue: version },
         DocumentFiles,
         ...(authentication
           ? [

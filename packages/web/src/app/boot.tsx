@@ -12,7 +12,7 @@ import { openLocalStore } from '../sync/store.js'
 import { directWrite, httpTransport } from '../sync/transport.js'
 import { unreachable } from '../session/remembered.js'
 import { deviceIdentity } from './device.js'
-import { Gate, GateText, GateWaiting } from './gate.js'
+import { Gate, GateText, GateWaiting, InstanceVersion } from './gate.js'
 import { InvitationScreen } from './invitation.js'
 import { PasswordResetScreen } from './password-reset.js'
 import { accountQuery } from './queries.js'
@@ -20,6 +20,7 @@ import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
 import {
   availableTenants,
+  instanceVersion,
   invitationToken,
   passwordResetToken,
   setupNeeded,
@@ -53,6 +54,24 @@ import type { Account } from './../session/session.js'
 type Step = 'second-factor' | 'asking' | 'working'
 
 export function Boot({ entry, children }: { readonly entry: Entry; readonly children: ReactNode }) {
+  // Asked once per start and kept: the version does not change while the page
+  // is open, and without an answer the foot of the gate shows the licence
+  // alone (#259).
+  const version = useQuery({
+    queryKey: ['version'],
+    queryFn: instanceVersion,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  })
+
+  return (
+    <InstanceVersion.Provider value={version.data ?? null}>
+      <BootSteps entry={entry}>{children}</BootSteps>
+    </InstanceVersion.Provider>
+  )
+}
+
+function BootSteps({ entry, children }: { readonly entry: Entry; readonly children: ReactNode }) {
   const queries = useQueryClient()
   // Read once and then constant, like the device identity below. The screen it
   // leads to leaves the address behind when it is done, so this never has to

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Lock, LockOpen } from 'lucide-react'
-import { useId } from 'react'
+import { createContext, useContext, useId } from 'react'
 import type { ReactNode } from 'react'
 
 import { BrandMark, GateProvider } from '../components/index.js'
@@ -63,10 +63,19 @@ export function Gate({
 }
 
 /**
+ * The version this installation runs, for the foot of the brand (#259). Handed
+ * in by `Boot`, which asks the server once; a gate without it, a checkout or
+ * a server that did not answer, shows the licence alone.
+ */
+export const InstanceVersion = createContext<string | null>(null)
+
+/**
  * The brand at a desk: the mark, what OpenGewerk is in one sentence, where it
- * runs in another, and the licence under a line.
+ * runs in another, and the licence and the version under a line.
  */
 function Brand() {
+  const version = useContext(InstanceVersion)
+
   return (
     <aside className="hidden w-[470px] shrink-0 flex-col bg-gate px-10 py-11 text-top-ink lg:flex">
       <div className="flex items-center gap-[13px]">
@@ -82,10 +91,11 @@ function Brand() {
           außer Ihnen kann sie abschalten.
         </p>
       </div>
-      {/* The board draws the version and a way to the help beside the
-          licence. Neither has a source yet: the interface does not know its
-          version, and there is no help before phase 2. Both come with #259. */}
-      <p className="border-t border-gate-line pt-5 text-[13px] text-gate-faint">AGPL-3.0</p>
+      {/* The board drew a way to the help as well. There is none before
+          phase 2, and a link into nothing would be worse than none (#259). */}
+      <p className="border-t border-gate-line pt-5 text-[13px] text-gate-faint">
+        {version ? `AGPL-3.0 · Version ${version}` : 'AGPL-3.0'}
+      </p>
     </aside>
   )
 }

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Button, Field } from '../components/index.js'
-import { Gate } from './gate.js'
+import { Gate, InstanceVersion } from './gate.js'
 
 /**
  * The frame before sign in (#219), as the boards of the page "Vor der
@@ -36,6 +36,22 @@ describe('the gate before sign in', () => {
 
     expect(screen.queryByText('Verbunden mit')).toBeNull()
     expect(screen.getAllByText('Unverschlüsselt verbunden mit')).toHaveLength(2)
+  })
+
+  it('names the version beside the licence, and the licence alone without one (#259)', () => {
+    const { unmount } = render(
+      <InstanceVersion.Provider value="0.2.0">
+        <Gate title="Anmelden">Inhalt</Gate>
+      </InstanceVersion.Provider>,
+    )
+
+    expect(screen.getByText('AGPL-3.0 · Version 0.2.0')).toBeTruthy()
+    unmount()
+
+    render(<Gate title="Anmelden">Inhalt</Gate>)
+
+    expect(screen.getByText('AGPL-3.0')).toBeTruthy()
+    expect(screen.queryByText(/Version/)).toBeNull()
   })
 
   it('gives fields and buttons the sizes of the gate', () => {
