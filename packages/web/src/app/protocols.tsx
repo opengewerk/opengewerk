@@ -991,7 +991,7 @@ export function ProtocolSheet({
           className="flex flex-col gap-4 p-4 rounded-card border border-line bg-surface"
         >
           <div className="flex flex-col gap-1">
-            <h2 className="text-heading font-semibold">{section.title}</h2>
+            <h2 className="text-body font-semibold">{section.title}</h2>
             {section.hint ? <p className="text-table text-ink-muted">{section.hint}</p> : null}
           </div>
           {section.fields.map((field) => {
@@ -1051,7 +1051,7 @@ export function ProtocolSheet({
       ) : null}
 
       {editable ? (
-        <div className="sticky bottom-0 flex flex-col gap-2 py-3 bg-canvas">
+        <div className="sticky bottom-0 flex flex-col gap-2 py-3 bg-ground">
           {unsaved ? (
             <p className="text-table text-ink-muted">Nicht gespeicherte Änderungen.</p>
           ) : null}

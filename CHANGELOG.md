@@ -23,6 +23,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   12,25 statt 14 Pixel groß, ein Bedienelement 29,75 statt 34, und auf der Baustelle, deren Wurzel
   ebenfalls die Größe des Büros bekam, ein Bedienelement 52,5 statt 60 Pixel. Die Wurzel behält jetzt
   die Größe des Browsers, und ein Test hält das fest.
+- Im Prüfprotokoll hat die Leiste mit "Speichern" wieder einen Hintergrund, und die Überschriften
+  der Abschnitte nennen eine Größe, die es gibt. Die Klassen `bg-canvas` und `text-heading` nannten
+  keine Farbe und keine Größe; gefunden hat sie die Prüfung der Klassen gegen die Tokens, die bisher
+  nur die Bausteine las und jetzt jeden Bildschirm liest.
 - Die Signaturprüfung aus den Hinweisen der Release-Seite geht auch in Git Bash durch (#212). Der
   Befehl nannte die Identität des Workflows als regulären Ausdruck, und Git Bash schreibt die
   Argumente eines Windows-Programms um, bevor sie ankommen: aus `github\.com` wurde `github/.com`,
