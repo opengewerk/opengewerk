@@ -65,6 +65,11 @@ export function Column({ numeric = false, className, ...rest }: ColumnProps) {
         'text-ink-faint bg-ground border-b border-line',
         // As the table cards of the canvas: 8 pixels, and 14 at the edges.
         'px-2 py-2 leading-[1.2] first:pl-3.5 last:pr-3.5',
+        // A width is the width of the text, as the canvas means it: there
+        // `width: 120px` on a head cell makes a column of 136 with its
+        // padding, here it made one of 120, and every column with a width
+        // came out narrower than drawn (#219).
+        'box-content',
         numeric ? 'text-right' : 'text-left',
         className,
       )}

@@ -83,13 +83,18 @@ export interface ShellProps {
  * screen is drawn. This component used to take a `theme` and write it onto its
  * own `<div>`, which the tokens never read: a switch built on it would have
  * changed nothing (#216).
+ *
+ * The size of running text comes from `text-body`, its line height does not:
+ * `text-body` brings the 1.45 of a paragraph along, and set here it reached
+ * every row of every card and list below, a third higher than the boards of
+ * the canvas draw them with the line height of the font itself (#219).
  */
 export function Shell({ entry, children }: ShellProps) {
   return (
     <EntryContext.Provider value={entry}>
       <div
         data-entry={entry}
-        className="min-h-full bg-ground text-ink font-sans text-body [--surface-here:var(--color-ground)]"
+        className="min-h-full bg-ground text-ink font-sans text-body leading-[normal] [--surface-here:var(--color-ground)]"
       >
         {children}
       </div>
