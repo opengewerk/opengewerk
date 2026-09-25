@@ -1,6 +1,7 @@
+import { Monitor, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button } from '../components/index.js'
+import { Strip, stripAction } from '../components/index.js'
 import type { Entry } from '../entry/entry.js'
 import {
   entryPath,
@@ -38,33 +39,36 @@ export function EntrySuggestion({ here }: { readonly here: Entry }) {
   }
 
   return (
-    <div
-      role="status"
-      className="flex flex-wrap items-center gap-3 px-4 py-2 bg-surface-sunken border-b border-line text-body"
+    <Strip
+      tone="info"
+      icon={suggested === 'site' ? Smartphone : Monitor}
+      actions={
+        <>
+          <a
+            href={entryPath[suggested]}
+            className={stripAction('link', 'info', here)}
+            onClick={() => {
+              rememberEntry(suggested)
+            }}
+          >
+            {`Zur ${other[suggested]}`}
+          </a>
+          <button
+            type="button"
+            className={stripAction('quiet', 'info', here)}
+            onClick={() => {
+              rememberEntry(here)
+              setSuggested(null)
+            }}
+          >
+            Hier bleiben
+          </button>
+        </>
+      }
     >
-      <span className="grow">
-        {suggested === 'site'
-          ? 'Das sieht nach einem Gerät für die Baustelle aus.'
-          : 'Das sieht nach einem Arbeitsplatz aus. Im Büro ist mehr zu sehen.'}
-      </span>
-      <a
-        href={entryPath[suggested]}
-        className="inline-flex items-center justify-center h-control min-h-tap px-4 rounded-control text-body font-semibold bg-copper-solid text-on-copper"
-        onClick={() => {
-          rememberEntry(suggested)
-        }}
-      >
-        {`Zur ${other[suggested]}`}
-      </a>
-      <Button
-        tone="quiet"
-        onClick={() => {
-          rememberEntry(here)
-          setSuggested(null)
-        }}
-      >
-        Hier bleiben
-      </Button>
-    </div>
+      {suggested === 'site'
+        ? 'Das sieht nach einem Gerät für die Baustelle aus.'
+        : 'Das sieht nach einem Arbeitsplatz aus. Im Büro ist mehr zu sehen.'}
+    </Strip>
   )
 }

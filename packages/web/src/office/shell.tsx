@@ -14,8 +14,8 @@ import { TopBar } from './top-bar.js'
  * beside the screen. Below 1024 px the navigation moves into a drawer behind
  * "Menü" in the header.
  *
- * The strips come before the navigation and the content, in that order, and
- * none of them can be dismissed. They only appear when there is something to
+ * The strips come before the navigation and the content, in the order of the
+ * board "Leisten im Büro", and none of them can be dismissed. They only appear when there is something to
  * do: a conflict, a refused entry, no connection, a new version, a backup that
  * is overdue. That everything arrived is said quietly in the navigation under
  * "Abgleich" instead; a green bar over every screen said nothing most of the
@@ -45,19 +45,18 @@ export function OfficeShell() {
 
         <TopBar menuOpen={drawer} onMenu={openDrawer} />
 
-        <EntrySuggestion here="office" />
-        <UpdateBar />
+        {/* In the order of the board "Leisten im Büro": what cannot wait first,
+            the offers last. */}
         <SyncStatusBar
-          conflictsLink={
-            <Link
-              to="/konflikte"
-              className="inline-flex h-7 items-center rounded-control bg-surface px-3 text-[13px] font-semibold text-ink no-underline"
-            >
+          conflictsLink={(className) => (
+            <Link to="/konflikte" className={className}>
               Ansehen
             </Link>
-          }
+          )}
         />
         <BackupBar />
+        <UpdateBar />
+        <EntrySuggestion here="office" />
 
         <div className="flex flex-1 items-start">
           <Sidebar />

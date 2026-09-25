@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 import { Button, IconButton } from './button.js'
 import { Field } from './field.js'
-import { DocumentState, SyncBar } from './state.js'
+import { DocumentState } from './state.js'
+import { Strip } from './strip.js'
 import { Cell, Column, Table } from './table.js'
 import { Card, Shell, TextLink } from './surface.js'
 import { ThemeSwitch } from './theme-switch.js'
@@ -109,19 +110,50 @@ describe('the state of a document', () => {
   })
 })
 
-describe('the sync bar', () => {
+describe('a strip over the screen', () => {
   it('interrupts for a conflict and does not for the quiet states', () => {
     // `alert` is announced at once, `status` when the reader gets to it. Using
-    // `alert` for "everything synced" would train people to ignore it, and
-    // then the one that matters goes past them too.
-    const { rerender } = render(<SyncBar state="synced">Alles abgeglichen</SyncBar>)
+    // `alert` for a quiet state would train people to ignore it, and then the
+    // one that matters goes past them too.
+    const { rerender } = render(<Strip tone="info">Eine neue Fassung liegt bereit.</Strip>)
     expect(screen.getByRole('status')).toBeDefined()
 
-    rerender(<SyncBar state="offline">Kein Netz, 3 Vorgänge warten</SyncBar>)
+    rerender(<Strip tone="wait">3 Änderungen auf dem Gerät. Keine Verbindung.</Strip>)
     expect(screen.getByRole('status')).toBeDefined()
 
-    rerender(<SyncBar state="conflict">1 Konflikt, bitte entscheiden</SyncBar>)
+    rerender(
+      <Strip tone="conflict" urgent>
+        Ein Konflikt wartet auf eine Entscheidung.
+      </Strip>,
+    )
     expect(screen.getByRole('alert')).toBeDefined()
+  })
+
+  it('says its second sentence under the first on site and after it in the office', () => {
+    const { rerender } = render(
+      <Shell entry="site">
+        <Strip tone="wait" detail="3 Änderungen auf dem Gerät.">
+          Keine Verbindung.
+        </Strip>
+      </Shell>,
+    )
+
+    // Two lines: each sentence is an element of its own.
+    expect(screen.getByText('Keine Verbindung.').textContent).toBe('Keine Verbindung.')
+    expect(screen.getByText('3 Änderungen auf dem Gerät.')).toBeDefined()
+
+    rerender(
+      <Shell entry="office">
+        <Strip tone="wait" detail="Bis sie entschieden ist, geht nichts hinaus.">
+          Der Server nimmt eine Änderung nicht an.
+        </Strip>
+      </Shell>,
+    )
+
+    // One line: both sentences in one run of text.
+    expect(screen.getByRole('status').textContent).toBe(
+      'Der Server nimmt eine Änderung nicht an. Bis sie entschieden ist, geht nichts hinaus.',
+    )
   })
 })
 

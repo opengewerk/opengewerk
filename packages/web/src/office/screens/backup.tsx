@@ -1,8 +1,10 @@
 import type { BackupStatus } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Server } from 'lucide-react'
 
 import { moment } from '../../app/format.js'
+import { Strip, stripAction } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { backupStatus } from '../../session/backup.js'
 import { Nothing, Page, Section } from '../layout.js'
@@ -154,18 +156,20 @@ export function BackupBar() {
       ? `Die letzte Sicherung ist vom ${moment(status.data.finishedAt)} und damit älter als zwei Tage.`
       : 'Diese Instanz wurde noch nie gesichert.'
 
+  // Red, as on the board "Leisten im Büro": a backup that is behind is
+  // something to act on, not an offer.
   return (
-    <div
-      role="alert"
-      className="flex flex-wrap items-center gap-3 px-4 py-2 min-h-tap bg-surface-sunken border-b border-line text-body"
+    <Strip
+      tone="conflict"
+      icon={Server}
+      urgent
+      actions={
+        <Link to="/einstellungen/sicherung" className={stripAction('plain', 'conflict', 'office')}>
+          Ansehen
+        </Link>
+      }
     >
-      <span className="grow font-semibold text-conflict">{said}</span>
-      <Link
-        to="/einstellungen/sicherung"
-        className="inline-flex items-center h-control min-h-tap px-3 rounded-control bg-surface text-ink font-semibold"
-      >
-        Ansehen
-      </Link>
-    </div>
+      {said}
+    </Strip>
   )
 }

@@ -12,7 +12,9 @@ import {
 } from '@opengewerk/domain'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
 import { useMemo, useState } from 'react'
+import type { ButtonHTMLAttributes } from 'react'
 
 import { Button, Card, Field, FieldLabel, SelectField } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
@@ -126,6 +128,11 @@ function useTiming() {
  * is run on unnoticed; the forgotten one is the one that becomes a wrong
  * record. The buttons are the next step from what runs: a break and the end
  * from work, the arrival from travel, going on from a break.
+ *
+ * Drawn as on the board "Leisten auf der Baustelle", with one correction: the
+ * board pressed "Fahrt" into a column one letter wide beside "Angekommen,
+ * Arbeit beginnen". Here the sentence keeps a width of its own, and the
+ * buttons move under it when both do not fit.
  */
 export function StopwatchBar() {
   const running = useStopwatch()
@@ -139,35 +146,46 @@ export function StopwatchBar() {
 
   const elapsed = Math.max(0, minute - Math.floor(Date.parse(running.startedAt) / 60_000))
   const forgotten = elapsed > 24 * 60
+  // The day as well, once it is not today: "seit 07:30" on the next morning
+  // reads as half an hour ago.
+  const startedOn = date(running.startedAt)
+  const since =
+    startedOn === date(today())
+      ? clockOf(running.startedAt)
+      : `${startedOn}, ${clockOf(running.startedAt)}`
 
   return (
     <section
       aria-label="Zeitnehmer"
-      className="flex flex-col gap-2 px-4 py-3 border-b border-line bg-surface-sunken"
+      className="flex flex-wrap items-center gap-x-2.5 gap-y-2 px-4 py-2.5 border-b border-line bg-surface-sunken"
     >
-      <p className="text-body">
-        <span className="font-semibold">{name}</span>
-        {` seit ${clockOf(running.startedAt)}, ${hoursText(elapsed)}`}
-      </p>
-      <div className="flex flex-wrap gap-2">
+      <span
+        aria-hidden="true"
+        className="size-2.5 shrink-0 rounded-full bg-copper shadow-[0_0_0_4px_rgb(200_103_31/0.18)]"
+      />
+      <div className="min-w-0 grow basis-40 leading-[1.25]">
+        <div className="text-[15px] font-semibold [overflow-wrap:anywhere]">{name}</div>
+        <div className="text-[14px] text-ink-muted numeric">{`seit ${since}, ${hoursText(elapsed)}`}</div>
+      </div>
+      <div className="ml-auto flex shrink-0 gap-1.5">
         {running.kind === 'work' ? (
-          <Button
+          <StopwatchButton
             disabled={timing.busy}
             onClick={() => void timing.start({ kind: 'break', jobId: null }, running)}
           >
             Pause
-          </Button>
+          </StopwatchButton>
         ) : null}
         {running.kind === 'travel' && running.jobId ? (
-          <Button
+          <StopwatchButton
             disabled={timing.busy}
             onClick={() => void timing.start({ kind: 'work', jobId: running.jobId })}
           >
             Angekommen, Arbeit beginnen
-          </Button>
+          </StopwatchButton>
         ) : null}
         {running.kind === 'break' && running.resume ? (
-          <Button
+          <StopwatchButton
             disabled={timing.busy}
             onClick={() => {
               if (running.resume) {
@@ -176,19 +194,23 @@ export function StopwatchBar() {
             }}
           >
             Weiter arbeiten
-          </Button>
+          </StopwatchButton>
         ) : null}
-        <Button tone="primary" disabled={timing.busy} onClick={() => void timing.stop()}>
-          Stopp
-        </Button>
         {forgotten ? (
-          <Button tone="danger" disabled={timing.busy} onClick={() => void timing.discard()}>
+          <StopwatchButton
+            tone="danger"
+            disabled={timing.busy}
+            onClick={() => void timing.discard()}
+          >
             Verwerfen
-          </Button>
+          </StopwatchButton>
         ) : null}
+        <StopwatchButton tone="primary" disabled={timing.busy} onClick={() => void timing.stop()}>
+          Stopp
+        </StopwatchButton>
       </div>
       {timing.trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="basis-full text-body font-semibold text-conflict">
           {timing.trouble}
           {forgotten
             ? ' Die echte Zeit lässt sich unter "Zeiten" nachtragen, danach den Zeitnehmer verwerfen.'
@@ -196,6 +218,35 @@ export function StopwatchBar() {
         </p>
       ) : null}
     </section>
+  )
+}
+
+/**
+ * The buttons in the stopwatch strip: 40 pixels as drawn, so the strip stays a
+ * strip and does not become a toolbar, and 44 that take a tap, through the
+ * pseudo element that reaches past them.
+ */
+function StopwatchButton({
+  tone = 'secondary',
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  readonly tone?: 'primary' | 'secondary' | 'danger'
+}) {
+  return (
+    <button
+      type="button"
+      className={clsx(
+        'relative inline-flex min-h-10 items-center justify-center rounded-[5px] px-3 text-[15px] font-semibold cursor-pointer',
+        'before:absolute before:inset-x-0 before:-inset-y-0.5',
+        'disabled:cursor-not-allowed disabled:opacity-60',
+        tone === 'primary'
+          ? 'bg-copper-solid text-on-copper'
+          : tone === 'danger'
+            ? 'bg-surface text-conflict border border-conflict'
+            : 'bg-surface text-ink border border-line-strong',
+      )}
+      {...rest}
+    />
   )
 }
 

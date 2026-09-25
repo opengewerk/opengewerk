@@ -84,10 +84,11 @@ const textColours = [
  * quietest way to produce an unreadable badge.
  */
 const filled = [
-  { front: 'on-copper', back: 'copper-solid', what: 'der gefuellte Kupferknopf' },
-  { front: 'on-status', back: 'done', what: 'die gruene Abgleichleiste' },
-  { front: 'on-status', back: 'waiting', what: 'die gelbe Abgleichleiste' },
-  { front: 'on-status', back: 'conflict', what: 'die rote Abgleichleiste' },
+  { front: 'on-copper', back: 'copper-solid', what: 'der gefüllte Kupferknopf' },
+  { front: 'on-bar-wait', back: 'bar-wait', what: 'die Leiste, wenn etwas wartet' },
+  { front: 'on-status', back: 'conflict', what: 'die Leiste bei einem Konflikt' },
+  { front: 'bar-action-wait', back: 'bar-action', what: 'der Knopf auf der wartenden Leiste' },
+  { front: 'bar-action-conflict', back: 'bar-action', what: 'der Knopf auf der Konfliktleiste' },
   { front: 'top-ink', back: 'top', what: 'der Name in der Kopfleiste' },
   { front: 'top-muted', back: 'top', what: 'der Betrieb in der Kopfleiste' },
   { front: 'ground', back: 'ink', what: 'der gewählte Eintrag der Navigation' },

@@ -1,31 +1,47 @@
+import { RotateCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button, SyncBar } from '../components/index.js'
+import { Strip, stripAction, useEntry } from '../components/index.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { applyUpdate, subscribeToUpdates, updateWaiting } from './updates.js'
 
 /**
- * The strip above every screen on both entries, when there is something to do.
+ * The strip over every screen on both entries, when there is something to do.
  *
- * A strip and never a popup, and it is not dismissible. A conflict that can be
- * clicked away is a conflict nobody sees, and a conflict nobody sees becomes
- * an invoice with the wrong content, weeks later and out of context. The same
- * goes quieter for the outbox: a person who left the cellar has to be able to
- * tell at a glance whether what they wrote down has arrived.
+ * A person who left the cellar has to be able to tell at a glance whether
+ * what they wrote down has arrived, and a conflict has to be in the way until
+ * somebody decides it. Everything arrived is no strip at all: the office says
+ * so quietly under "Abgleich" in the navigation, the site on its conflict
+ * screen (#217). A strip that is always there teaches people to stop reading
+ * strips.
+ *
+ * `conflictsLink` draws the way to the conflicts with the classes it is
+ * handed, because the two entries route there each in their own router.
  */
-export function SyncStatusBar({ conflictsLink }: { readonly conflictsLink?: ReactNode }) {
+export function SyncStatusBar({
+  conflictsLink,
+}: {
+  readonly conflictsLink?: (className: string) => ReactNode
+}) {
   const client = useSync()
   const status = useSyncStatus()
+  const entry = useEntry()
 
   // Louder than a conflict, and ahead of one: until the refused entry is
   // decided, nothing queued behind it leaves the device, a decision on a
   // conflict included.
   if (status.state === 'refused') {
     return (
-      <SyncBar state="conflict" action={conflictsLink}>
-        Der Server nimmt eine Änderung nicht an. Bis sie entschieden ist, geht nichts hinaus.
-      </SyncBar>
+      <Strip
+        tone="conflict"
+        icon={TriangleAlert}
+        urgent
+        detail="Bis sie entschieden ist, geht nichts hinaus."
+        actions={conflictsLink?.(stripAction('plain', 'conflict', entry))}
+      >
+        Der Server nimmt eine Änderung nicht an.
+      </Strip>
     )
   }
 
@@ -33,66 +49,95 @@ export function SyncStatusBar({ conflictsLink }: { readonly conflictsLink?: Reac
     const count = status.conflicts.length
 
     return (
-      <SyncBar state="conflict" action={conflictsLink}>
+      <Strip
+        tone="conflict"
+        icon={TriangleAlert}
+        urgent
+        actions={conflictsLink?.(stripAction('plain', 'conflict', entry))}
+      >
         {count === 1
           ? 'Ein Konflikt wartet auf eine Entscheidung.'
           : `${String(count)} Konflikte warten auf eine Entscheidung.`}
-      </SyncBar>
+      </Strip>
     )
   }
 
-  if (status.state === 'offline') {
-    return (
-      <SyncBar
-        state="offline"
-        action={
-          <Button
-            tone="secondary"
-            disabled={status.exchanging}
-            onClick={() => {
-              void client.synchronise()
-            }}
-          >
-            {status.exchanging ? 'Läuft' : 'Erneut versuchen'}
-          </Button>
-        }
+  // Waiting changes with nothing gone wrong are no missing connection: that
+  // is every change for the moment between the outbox and the server, and a
+  // strip saying "Keine Verbindung." over a send that works was the result
+  // (#223). A real failure always leaves its reason in `trouble`.
+  if (status.state === 'offline' && status.trouble !== null) {
+    const why = status.trouble
+    const waiting =
+      status.pending > 0
+        ? `${String(status.pending)} Änderung${status.pending === 1 ? '' : 'en'} auf dem Gerät.`
+        : null
+    const retry = (
+      <button
+        type="button"
+        className={stripAction('plain', 'wait', entry)}
+        disabled={status.exchanging}
+        onClick={() => {
+          void client.synchronise()
+        }}
       >
-        {status.pending > 0
-          ? `${String(status.pending)} Änderung${status.pending === 1 ? '' : 'en'} auf dem Gerät. ${status.trouble ?? 'Keine Verbindung.'}`
-          : (status.trouble ?? 'Keine Verbindung.')}
-      </SyncBar>
+        {status.exchanging ? 'Läuft' : 'Erneut versuchen'}
+      </button>
+    )
+
+    // The office says the count first, as one line; the site names the state
+    // in its first sentence and puts the count under it, as the two boards
+    // draw it. Without a count, whatever else the reason says goes there.
+    const cut = why.indexOf('. ')
+    const head = cut < 0 ? why : why.slice(0, cut + 1)
+    const rest = cut < 0 ? null : why.slice(cut + 2)
+
+    return entry === 'site' ? (
+      <Strip tone="wait" icon={WifiOff} detail={waiting ?? rest} actions={retry}>
+        {head}
+      </Strip>
+    ) : (
+      <Strip tone="wait" icon={WifiOff} actions={retry}>
+        {waiting ? `${waiting} ${why}` : why}
+      </Strip>
     )
   }
 
-  // Everything arrived: no strip. The office says so quietly under "Abgleich"
-  // in the navigation, the site on its conflict screen (#217). A strip that
-  // is always there teaches people to stop reading strips.
   return null
 }
 
 /**
  * The offer to take the new version, once the service worker has one ready.
  *
- * Its own strip under the sync bar rather than a corner toast, for the
- * same reason: on a phone held in one hand a toast in a corner is a thing that
- * appears and vanishes while somebody is looking at a meter.
+ * Its own strip rather than a corner toast, for the same reason as above: on a
+ * phone held in one hand a toast in a corner is a thing that appears and
+ * vanishes while somebody is looking at a meter.
  */
 export function UpdateBar() {
   const waiting = useSyncExternalStore(subscribeToUpdates, updateWaiting, () => false)
+  const entry = useEntry()
 
   if (!waiting) {
     return null
   }
 
   return (
-    <div
-      role="status"
-      className="flex items-center gap-3 px-4 py-2 min-h-tap bg-surface-sunken border-b border-line text-body"
+    <Strip
+      tone="info"
+      // The site board draws this strip without a symbol; the office one with
+      // the arrow of a reload.
+      icon={entry === 'site' ? undefined : RotateCw}
+      actions={
+        <button
+          type="button"
+          className={stripAction('primary', 'info', entry)}
+          onClick={applyUpdate}
+        >
+          Jetzt übernehmen
+        </button>
+      }
     >
-      <span className="grow">Eine neue Fassung liegt bereit.</span>
-      <Button tone="primary" onClick={applyUpdate}>
-        Jetzt übernehmen
-      </Button>
-    </div>
+      Eine neue Fassung liegt bereit.
+    </Strip>
   )
 }

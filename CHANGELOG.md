@@ -23,9 +23,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   noch, wenn etwas zu tun ist; dass alles abgeglichen ist, steht leise unter "Abgleich", denn die
   grüne Leiste auf jedem Bildschirm sagte meistens nichts und nahm den Platz einer Tabellenzeile.
   Neben "Aufgaben" steht, wie viele offene Aufgaben auf die angemeldete Person warten.
+- Die Leisten über dem Bildschirm folgen in Büro und Baustelle den Tafeln im Canvas (#217). Ein
+  Baustein zeichnet sie alle, in drei Tönen: bernsteinfarben, wenn etwas wartet, rot bei einem
+  Konflikt oder einer überfälligen Sicherung, und auf dem abgesenkten Grund für die neue Fassung
+  und den Vorschlag des anderen Einstiegs. Im Büro ist eine Leiste eine Zeile, auf der Baustelle
+  steht der zweite Satz klein darunter. Sie stapeln sich in der Reihenfolge der Tafel, erst was
+  nicht warten kann. Der Zeitnehmer auf der Baustelle hat einen Punkt und zwei Zeilen, nennt nach
+  Mitternacht auch den Tag des Starts und lässt seine Knöpfe unter den Text rutschen, statt ihn
+  zusammenzudrücken; die Tafel im Canvas hatte genau das falsch gezeichnet und ist berichtigt.
+  Im Dunkeln bleibt die wartende Leiste dunkel mit weißer Schrift, wie gezeichnet.
 
 ### Behoben
 
+- Während eine Änderung unterwegs ist, meldet die Leiste nicht mehr "Keine Verbindung." (#223). Der
+  Abgleich zählt jede Änderung im Postausgang als noch nicht angekommen, und die Leiste las daraus
+  eine fehlende Verbindung, auch in dem Moment, in dem die Änderung gerade hinausgeht. Sie erscheint
+  jetzt nur, wenn ein Versuch wirklich gescheitert ist, und unter "Abgleich" steht bis dahin leise
+  "Wird übertragen".
 - Schrift und Abstände haben die Größe aus dem Canvas (#229). `html` bekam die Schriftgröße aus den
   Tokens, und weil die Tokens in rem geschrieben sind, rechnete jeder zweimal: im Büro war Fließtext
   12,25 statt 14 Pixel groß, ein Bedienelement 29,75 statt 34, und auf der Baustelle, deren Wurzel
