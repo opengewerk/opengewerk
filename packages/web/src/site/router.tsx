@@ -2,10 +2,11 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 
 import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
+import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen } from './screens/jobs.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteReportScreen } from './screens/report.js'
-import { SiteTimeScreen } from './screens/time.js'
+import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
 import { SiteShell } from './shell.js'
 
 /**
@@ -49,7 +50,23 @@ const routes = [
     path: '/auftraege/$jobId/pruefprotokolle/$recordId',
     component: SiteProtocolScreen,
   }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/dateien',
+    component: SiteFilesScreen,
+  }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
+  createRoute({ getParentRoute: () => root, path: '/zeiten/$day', component: SiteTimeScreen }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/zeiten/$day/nachtragen',
+    component: SiteTimeEntryScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/zeiten/$day/korrigieren/$entryId',
+    component: SiteTimeEntryScreen,
+  }),
   createRoute({ getParentRoute: () => root, path: '/konflikte', component: ConflictScreen }),
 ]
 

@@ -176,46 +176,51 @@ export function TaskItem({
     )
   }
 
+  // A row of the card on site, `task_row()` of the boards: what, by when and
+  // for whom, red when it is overdue, the job it hangs on, and "Erledigt" at
+  // the right.
   return (
-    <li className="flex flex-col gap-2 p-3 rounded-card border border-line bg-surface">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <span
-            className={
-              status === 'done'
-                ? 'text-body text-ink-muted line-through'
-                : 'text-body font-semibold text-ink'
-            }
-          >
-            {text(task, 'title')}
-          </span>
-          <span
-            className={isOverdue(task) ? 'text-table text-conflict' : 'text-table text-ink-muted'}
-          >
-            {facts.join(', ')}
-          </span>
+    <li className="flex items-start gap-2.5 border-b border-row py-2.5">
+      <div className="min-w-0 grow">
+        <div
+          className={clsx(
+            'text-[17px] font-semibold [overflow-wrap:anywhere]',
+            status === 'done' && 'font-normal text-ink-faint line-through',
+          )}
+        >
+          {text(task, 'title')}
         </div>
-        {mayWrite ? (
-          <Button tone="secondary" onClick={toggle}>
-            {status === 'open' ? 'Erledigt' : 'Wieder öffnen'}
-          </Button>
+        <div
+          className={clsx(
+            'mt-0.5 text-[15px] leading-[1.35]',
+            isOverdue(task) ? 'text-conflict' : 'text-ink-muted',
+          )}
+        >
+          {facts.join(', ')}
+        </div>
+        {maybeText(task, 'notes') ? (
+          <p className="mt-1 text-[16px] whitespace-pre-line text-ink">{text(task, 'notes')}</p>
+        ) : null}
+        {job ? (
+          <div className="mt-1 text-[17px]">
+            <Link
+              to={`/auftraege/${String(job['id'])}`}
+              className="relative font-semibold text-copper-text underline underline-offset-2 before:absolute before:inset-x-0 before:-inset-y-2.5"
+            >
+              {text(job, 'designation')}
+            </Link>
+          </div>
+        ) : null}
+        {trouble ? (
+          <p role="alert" className="mt-1 text-[16px] font-semibold text-conflict">
+            {trouble}
+          </p>
         ) : null}
       </div>
-      {maybeText(task, 'notes') ? (
-        <p className="text-body text-ink whitespace-pre-line">{text(task, 'notes')}</p>
-      ) : null}
-      {job ? (
-        <Link
-          to={`/auftraege/${String(job['id'])}`}
-          className="text-copper-text font-semibold underline underline-offset-2 self-start"
-        >
-          {text(job, 'designation')}
-        </Link>
-      ) : null}
-      {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
-          {trouble}
-        </p>
+      {mayWrite ? (
+        <Button height={44} onClick={toggle}>
+          {status === 'open' ? 'Erledigt' : 'Wieder öffnen'}
+        </Button>
       ) : null}
     </li>
   )
@@ -243,7 +248,7 @@ export function TaskList({
         className={
           entry === 'office'
             ? 'text-[13px] leading-[1.4] text-ink-muted'
-            : 'text-body text-ink-muted'
+            : 'text-[16px] leading-[1.45] text-ink-muted'
         }
       >
         {empty}
@@ -252,7 +257,7 @@ export function TaskList({
   }
 
   return (
-    <ul className={entry === 'office' ? undefined : 'flex flex-col gap-2'}>
+    <ul>
       {inWorkingOrder(tasks).map((task) => (
         <TaskItem key={String(task['id'])} task={task} me={me} people={people} showJob={showJob} />
       ))}

@@ -1,6 +1,7 @@
 import type { RecordState } from '@opengewerk/domain'
 import { distributionBoardKindLabel } from '@opengewerk/domain'
 import { Link, useParams } from '@tanstack/react-router'
+import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button, Card, FieldLabel } from '../../components/index.js'
@@ -27,6 +28,7 @@ import { RecordForm } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
+import { NotSent, SiteLabel, SiteRow, SiteRows } from '../kit.js'
 
 /**
  * The structure of an installation on site: read it, and add what is missing.
@@ -51,42 +53,52 @@ export function InstallationBoards({
   const circuits = useRecords('circuits')
   const [adding, setAdding] = useState(false)
 
+  // In the card "Anlage" as the board draws it: "Verteiler" in small
+  // capitals over a row per board, and the way to one more under them.
   return (
-    <div className="flex flex-col gap-3">
-      <FieldLabel>Verteiler</FieldLabel>
-      {boards.length === 0 ? (
-        <p className="text-body text-ink-muted">
-          Für diese Anlage ist noch kein Verteiler erfasst.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {boards.map((board) => {
-            const id = String(board['id'])
-            const count = circuits.filter((circuit) => circuit['distributionBoardId'] === id).length
+    <>
+      <section aria-label="Verteiler">
+        <SiteLabel className="mt-1">Verteiler</SiteLabel>
+        {boards.length === 0 ? (
+          <p className="py-2 text-[16px] leading-[1.45] text-ink-muted">
+            Für diese Anlage ist noch kein Verteiler erfasst.
+          </p>
+        ) : (
+          <SiteRows>
+            {boards.map((board) => {
+              const id = String(board['id'])
+              const count = circuits.filter(
+                (circuit) => circuit['distributionBoardId'] === id,
+              ).length
 
-            return (
-              <li key={id}>
-                <Link
+              return (
+                <SiteRow
+                  key={id}
                   to={`/auftraege/${jobId}/verteiler/${id}`}
-                  className="flex flex-col gap-1 p-3 rounded-card border border-line bg-surface min-h-tap"
-                >
-                  <span className="text-body font-semibold">{text(board, 'designation')}</span>
-                  <span className="text-body text-ink-muted">
-                    {[
-                      distributionBoardKindLabel[boardKindOf(board)],
-                      maybeText(board, 'location'),
-                      circuitsInWords(count),
-                      client.isPending('distribution_boards', id) ? 'noch nicht übertragen' : null,
-                    ]
-                      .filter((part): part is string => part !== null)
-                      .join(', ')}
-                  </span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                  title={text(board, 'designation')}
+                  meta={
+                    <>
+                      {[
+                        distributionBoardKindLabel[boardKindOf(board)],
+                        maybeText(board, 'location'),
+                        circuitsInWords(count),
+                      ]
+                        .filter((part): part is string => part !== null)
+                        .join(', ')}
+                      {client.isPending('distribution_boards', id) ? (
+                        <>
+                          {', '}
+                          <NotSent />
+                        </>
+                      ) : null}
+                    </>
+                  }
+                />
+              )
+            })}
+          </SiteRows>
+        )}
+      </section>
 
       {adding ? (
         <RecordForm
@@ -112,8 +124,9 @@ export function InstallationBoards({
         />
       ) : (
         <Button
-          tone="secondary"
           wide
+          height={48}
+          icon={Plus}
           onClick={() => {
             setAdding(true)
           }}
@@ -121,7 +134,7 @@ export function InstallationBoards({
           Verteiler nachtragen
         </Button>
       )}
-    </div>
+    </>
   )
 }
 

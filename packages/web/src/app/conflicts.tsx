@@ -1,20 +1,10 @@
 import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain'
-import { Check, Clock, TriangleAlert, WifiOff } from 'lucide-react'
+import { Check, Clock, RefreshCw, Server, Smartphone, TriangleAlert, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import {
-  Button,
-  Card,
-  Cell,
-  Column,
-  FieldLabel,
-  Panel,
-  Table,
-  TablePanel,
-  useEntry,
-} from '../components/index.js'
+import { Button, Card, Cell, Column, Panel, TablePanel, useEntry } from '../components/index.js'
 import { type RefusedOperation, refusalText } from '../sync/client.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'
@@ -433,67 +423,79 @@ function ConflictCard({
     )
   }
 
+  const siteButtons = (
+    <div className="mt-1.5 flex flex-col gap-2">
+      {settled ? (
+        <Button tone="dark" wide height={56} disabled={working} onClick={() => void decide(false)}>
+          Verstanden
+        </Button>
+      ) : (
+        <>
+          {fixedDocument ? (
+            <Button
+              tone="dark"
+              wide
+              height={56}
+              disabled={working}
+              onClick={() => void asDraft(fixedDocument)}
+            >
+              Als neuen Entwurf anlegen
+            </Button>
+          ) : (
+            <Button
+              tone="dark"
+              wide
+              height={56}
+              disabled={working}
+              onClick={() => void decide(true)}
+            >
+              Fassung vom Gerät übernehmen
+            </Button>
+          )}
+          <Button wide height={56} disabled={working} onClick={() => void decide(false)}>
+            Stand im System behalten
+          </Button>
+        </>
+      )}
+    </div>
+  )
+
+  // On site the card of the board "Konflikte": a red frame, the record in a
+  // red head with what happened, then each field with the two versions one
+  // over the other, which a phone has room for where a table has none.
   return (
-    <Card
-      label={`Konflikt an ${entityLabel(conflict.entity)} ${titleOf(conflict.entity, record)}`}
-      heading={
-        <div className="flex flex-col gap-1">
-          <FieldLabel>{entityLabel(conflict.entity)}</FieldLabel>
-          <h2 className="text-title font-semibold">{titleOf(conflict.entity, record)}</h2>
-          <p className="text-body text-ink-muted">{reasonText(conflict.reason)}</p>
-        </div>
-      }
+    <SiteConflictFrame
+      kind={entityLabel(conflict.entity)}
+      title={titleOf(conflict.entity, record)}
+      reason={reasonText(conflict.reason)}
     >
       {settled ? (
-        <p className="text-body text-ink">{settled}</p>
+        <p className="text-[17px] leading-[1.45]">{settled}</p>
       ) : deleting ? (
-        <p className="text-body text-ink">Das Gerät wollte den Eintrag löschen.</p>
-      ) : onlyOnDevice ? (
-        <Table caption={`Was das Gerät an ${titleOf(conflict.entity, record)} schreiben wollte`}>
-          <thead>
-            <tr>
-              <Column>Feld</Column>
-              <Column>Auf dem Gerät</Column>
-            </tr>
-          </thead>
-          <tbody>
-            {involved.map((field) => (
-              <tr key={field}>
-                <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
-                  {fieldLabel(field)}
-                </th>
-                <Cell>{shown(field, conflict.wanted[field])}</Cell>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <p className="text-[17px] leading-[1.45]">Das Gerät wollte den Eintrag löschen.</p>
       ) : (
-        <Table caption={`Die beiden Stände von ${titleOf(conflict.entity, record)}`}>
-          <thead>
-            <tr>
-              <Column>Feld</Column>
-              <Column>Auf dem Gerät</Column>
-              <Column>Im System</Column>
-              <Column>Das Gerät sah</Column>
-            </tr>
-          </thead>
-          <tbody>
-            {involved.map((field) => (
-              <tr key={field}>
-                <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
-                  {fieldLabel(field)}
-                </th>
-                <Cell>{shown(field, conflict.wanted[field])}</Cell>
-                <Cell>{shown(field, conflict.found[field])}</Cell>
-                <Cell className="text-ink-muted">{shown(field, conflict.seen[field])}</Cell>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        involved.map((field) => (
+          <div key={field} className="flex flex-col gap-2">
+            <SiteFieldHead>{`Feld: ${fieldLabel(field)}`}</SiteFieldHead>
+            <SiteVersion icon={Smartphone} head="Auf dem Gerät">
+              {shown(field, conflict.wanted[field])}
+            </SiteVersion>
+            {onlyOnDevice ? null : (
+              <>
+                <SiteVersion icon={Server} head="Im System">
+                  {shown(field, conflict.found[field])}
+                </SiteVersion>
+                <p className="text-[15px] text-ink-muted">
+                  {`Das Gerät sah: ${shown(field, conflict.seen[field])}`}
+                </p>
+              </>
+            )}
+          </div>
+        ))
       )}
 
       {fixedDocument ? (
-        <p className="mt-3 text-body text-ink">
+        <p className="text-[16px] leading-[1.45]">
           Der Beleg ist inzwischen festgeschrieben und wird nicht mehr geändert. Was auf diesem
           Gerät dazukam oder geändert wurde, lässt sich als neuer Entwurf für denselben Kunden und
           Auftrag anlegen; sein Betreff nennt den festgeschriebenen Beleg. Sonst bleibt es beim
@@ -501,18 +503,88 @@ function ConflictCard({
         </p>
       ) : null}
 
-      <p className="mt-3 text-table text-ink-muted">
+      <p className="numeric text-[14px] text-ink-faint">
         {`Erfasst ${moment(conflict.recordedAt)} auf Gerät ${conflict.deviceId}.`}
       </p>
 
       {trouble ? (
-        <p role="alert" className="mt-3 text-body font-semibold text-conflict">
+        <p role="alert" className="text-[16px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
 
-      <div className="mt-4">{buttons}</div>
-    </Card>
+      {siteButtons}
+    </SiteConflictFrame>
+  )
+}
+
+/** Small capitals over a field of a conflict on site: "Feld: Bezeichnung". */
+function SiteFieldHead({ children }: { readonly children: string }) {
+  return (
+    <p className="font-condensed text-[13px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+      {children}
+    </p>
+  )
+}
+
+/** One version of a field, on the device or in the system, in a box of its own. */
+function SiteVersion({
+  icon: Icon,
+  head,
+  children,
+}: {
+  readonly icon: LucideIcon
+  readonly head: string
+  readonly children: string
+}) {
+  return (
+    <div className="rounded-[6px] border border-line bg-ground px-3 py-2.5">
+      <p className="flex items-center gap-1.5 font-condensed text-[14px] font-semibold tracking-[1px] text-ink-faint uppercase">
+        <Icon size={15} strokeWidth={2.2} aria-hidden="true" />
+        {head}
+      </p>
+      <p className="mt-1 text-[18px] leading-[1.3] font-bold [overflow-wrap:anywhere]">
+        {children}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * A conflict on site, `konflikte()` of the canvas: 2 pixels of red around it,
+ * the kind in small capitals and the name in red in a pale red head, the
+ * reason under it.
+ */
+function SiteConflictFrame({
+  kind,
+  title,
+  reason,
+  children,
+}: {
+  readonly kind: string
+  readonly title: string
+  readonly reason: string
+  readonly children: ReactNode
+}) {
+  const heading = useId()
+
+  return (
+    <section
+      aria-labelledby={heading}
+      className="overflow-hidden rounded-[6px] border-2 border-conflict bg-surface [--surface-here:var(--color-surface)]"
+    >
+      <div className="bg-conflict-fill px-3.5 py-3">
+        <SiteFieldHead>{kind}</SiteFieldHead>
+        <h2
+          id={heading}
+          className="mt-0.5 text-[20px] font-bold text-conflict [overflow-wrap:anywhere]"
+        >
+          {title}
+        </h2>
+        <p className="mt-1 text-[16px] leading-[1.4] text-conflict-ink">{reason}</p>
+      </div>
+      <div className="flex flex-col gap-2 px-3.5 py-3">{children}</div>
+    </section>
   )
 }
 
@@ -617,49 +689,58 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
     )
   }
 
+  // On site a plain card with the kind over the name and the reason in red,
+  // as the office has it, at the size of the site.
   return (
-    <Card
-      label={`Abgelehnte Änderung an ${title}`}
-      heading={
-        <div className="flex flex-col gap-1">
-          <FieldLabel>{entityLabel(operation.entity)}</FieldLabel>
-          <h2 className="text-title font-semibold">{title}</h2>
-          <p className="text-body text-ink-muted">{message}</p>
+    <Panel>
+      <div className="flex flex-col gap-2">
+        <div>
+          <SiteFieldHead>{entityLabel(operation.entity)}</SiteFieldHead>
+          <h2 className="mt-0.5 text-[20px] font-bold [overflow-wrap:anywhere]">{title}</h2>
+          <p className="mt-1 text-[16px] font-semibold text-conflict">{message}</p>
         </div>
-      }
-    >
-      <p className="text-body text-ink">{explanation}</p>
-
-      {operation.kind === 'delete' ? (
-        <p className="mt-3 text-body text-ink">Das Gerät wollte den Eintrag löschen.</p>
-      ) : (
-        <Table caption={`Was das Gerät an ${title} schreiben wollte`}>
-          <thead>
-            <tr>
-              <Column>Feld</Column>
-              <Column>Auf dem Gerät</Column>
-            </tr>
-          </thead>
-          <tbody>
-            {operation.patches.map((patch) => (
-              <tr key={patch.field}>
-                <th scope="row" className="px-3 py-2 border-b border-line text-left font-medium">
-                  {fieldLabel(patch.field)}
-                </th>
-                <Cell>{shown(patch.field, patch.to)}</Cell>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-
-      <p className="mt-3 text-table text-ink-muted">
-        {`Erfasst ${moment(operation.recordedAt)} auf diesem Gerät. Erneut senden hilft nur, ` +
-          'wenn der Grund inzwischen behoben ist, etwa ein Recht, das gefehlt hat.'}
-      </p>
-
-      <div className="mt-4">{actions}</div>
-    </Card>
+        <p className="text-[16px] leading-[1.45]">{explanation}</p>
+        {operation.kind === 'delete' ? (
+          <p className="text-[16px] leading-[1.45]">Das Gerät wollte den Eintrag löschen.</p>
+        ) : (
+          operation.patches.map((patch) => (
+            <div key={patch.field} className="flex flex-col gap-2">
+              <SiteFieldHead>{`Feld: ${fieldLabel(patch.field)}`}</SiteFieldHead>
+              <SiteVersion icon={Smartphone} head="Auf dem Gerät">
+                {shown(patch.field, patch.to)}
+              </SiteVersion>
+            </div>
+          ))
+        )}
+        <p className="numeric text-[14px] text-ink-faint">
+          {`Erfasst ${moment(operation.recordedAt)} auf diesem Gerät. Erneut senden hilft nur, ` +
+            'wenn der Grund inzwischen behoben ist, etwa ein Recht, das gefehlt hat.'}
+        </p>
+        <div className="mt-1.5 flex flex-col gap-2">
+          <Button
+            tone="dark"
+            wide
+            height={56}
+            disabled={working}
+            onClick={() => {
+              void act(() => client.discard(operation.id))
+            }}
+          >
+            {creating ? 'Eintrag verwerfen' : 'Änderung verwerfen'}
+          </Button>
+          <Button
+            wide
+            height={56}
+            disabled={working}
+            onClick={() => {
+              void act(() => client.synchronise())
+            }}
+          >
+            Erneut senden
+          </Button>
+        </div>
+      </div>
+    </Panel>
   )
 }
 
@@ -832,26 +913,114 @@ export function useDecisions(): {
   }
 }
 
-/**
- * The list somebody has to work through on site, and the only screen in the
- * application that is allowed to be empty and still worth opening.
- */
-export function ConflictScreen() {
-  const { drafted, cards, empty } = useDecisions()
+/** One line of the state on site: a symbol and a sentence, 16 pixels. */
+function SiteStateLine({
+  icon: Icon,
+  tone,
+  strong = false,
+  children,
+}: {
+  readonly icon: LucideIcon
+  readonly tone: 'done' | 'waiting' | 'conflict'
+  readonly strong?: boolean
+  readonly children: ReactNode
+}) {
+  const colour =
+    tone === 'done' ? 'text-done' : tone === 'waiting' ? 'text-waiting' : 'text-conflict'
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <h1 className="text-title font-semibold">Konflikte</h1>
+    <li className="flex items-center gap-2.5">
+      <Icon size={20} strokeWidth={2.3} aria-hidden="true" className={`shrink-0 ${colour}`} />
+      <span
+        className={`text-[16px] leading-[1.4] ${strong ? `font-semibold ${colour}` : 'text-ink'}`}
+      >
+        {children}
+      </span>
+    </li>
+  )
+}
+
+/**
+ * The list somebody has to work through on site, the board "Konflikte", and
+ * the only screen in the application that is allowed to be empty and still
+ * worth opening: when this device last exchanged, what waits on it, what is
+ * to decide, and a way to try again.
+ */
+export function ConflictScreen() {
+  const client = useSync()
+  const status = useSyncStatus()
+  const { drafted, cards, empty } = useDecisions()
+  const { conflicts, refused, pending, lastSyncedAt } = status
+  const offline = status.state === 'offline'
+  const [working, setWorking] = useState(false)
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3 p-4">
+      <div>
+        <p className="font-condensed text-[15px] font-semibold tracking-[1.2px] text-ink-faint uppercase">
+          Abgleich
+        </p>
+        <h1 className="mt-0.5 text-[27px] leading-[1.15] font-bold">Konflikte</h1>
+      </div>
+
+      <Panel>
+        <ul aria-label="Stand des Abgleichs" className="flex flex-col gap-2">
+          <SiteStateLine icon={Check} tone="done">
+            {lastSyncedAt
+              ? `Zuletzt abgeglichen um ${clockTime(lastSyncedAt)}.`
+              : 'Noch nicht abgeglichen.'}
+          </SiteStateLine>
+          {offline ? (
+            <SiteStateLine icon={WifiOff} tone="waiting">
+              Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.
+            </SiteStateLine>
+          ) : null}
+          {pending > 0 ? (
+            <SiteStateLine icon={Clock} tone="waiting">
+              {pending === 1
+                ? '1 Änderung wartet auf dem Gerät.'
+                : `${String(pending)} Änderungen warten auf dem Gerät.`}
+            </SiteStateLine>
+          ) : null}
+          {refused ? (
+            <SiteStateLine icon={TriangleAlert} tone="conflict" strong>
+              Eine Änderung wurde abgelehnt und wartet auf eine Entscheidung.
+            </SiteStateLine>
+          ) : null}
+          {conflicts.length > 0 ? (
+            <SiteStateLine icon={TriangleAlert} tone="conflict" strong>
+              {conflicts.length === 1
+                ? 'Ein Konflikt wartet auf eine Entscheidung.'
+                : `${String(conflicts.length)} Konflikte warten auf eine Entscheidung.`}
+            </SiteStateLine>
+          ) : null}
+        </ul>
+      </Panel>
 
       {drafted}
 
       {empty ? (
-        <Card label="Keine Konflikte" tone="sunken">
+        <Panel title="Keine Konflikte">
           <NothingToDecide />
-        </Card>
+        </Panel>
       ) : (
         cards
       )}
+
+      <Button
+        wide
+        height={52}
+        icon={RefreshCw}
+        disabled={working}
+        onClick={() => {
+          setWorking(true)
+          void client.synchronise().finally(() => {
+            setWorking(false)
+          })
+        }}
+      >
+        Erneut versuchen
+      </Button>
     </div>
   )
 }

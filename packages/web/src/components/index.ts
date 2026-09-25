@@ -7,6 +7,7 @@ export type {
   ButtonSize,
   ButtonTone,
   IconButtonProps,
+  SiteHeight,
 } from './button.js'
 
 export { Field, FieldLabel, SelectField, TextArea } from './field.js'

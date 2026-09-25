@@ -1,7 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Card } from '../../components/index.js'
+import { Button, Panel } from '../../components/index.js'
 import { taskStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, usePeople } from '../../app/tasks.js'
@@ -34,12 +35,9 @@ export function MyTasks() {
   }
 
   return (
-    <Card
-      label="Deine Aufgaben"
-      heading={<h2 className="text-body font-semibold">Deine Aufgaben</h2>}
-    >
+    <Panel title="Deine Aufgaben">
       <TaskList tasks={mine} me={me} people={people} showJob empty="" />
-    </Card>
+    </Panel>
   )
 }
 
@@ -64,8 +62,8 @@ export function JobTasks({ job }: { readonly job: RecordState }) {
   }
 
   return (
-    <Card label="Aufgaben" heading={<h2 className="text-body font-semibold">Aufgaben</h2>}>
-      <div className="flex flex-col gap-3">
+    <Panel title="Aufgaben">
+      <div className="flex flex-col gap-2">
         <TaskList
           tasks={tasks}
           me={me}
@@ -85,8 +83,9 @@ export function JobTasks({ job }: { readonly job: RecordState }) {
           />
         ) : writesTasks ? (
           <Button
-            tone="secondary"
             wide
+            height={48}
+            icon={Plus}
             onClick={() => {
               setAdding(true)
             }}
@@ -95,6 +94,6 @@ export function JobTasks({ job }: { readonly job: RecordState }) {
           </Button>
         ) : null}
       </div>
-    </Card>
+    </Panel>
   )
 }

@@ -8,6 +8,7 @@ import { BrandMark, Shell } from '../components/index.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { useSyncStatus } from '../sync/provider.js'
+import { ActionSlotProvider } from './action-bar.js'
 import { HeaderSlotProvider } from './header.js'
 import { SiteMenu } from './menu.js'
 import { StopwatchBar } from './screens/time.js'
@@ -28,6 +29,8 @@ export function SiteShell() {
   // The header of a screen is drawn into this place through a portal, see
   // `SiteHeader`; the element only exists once the shell is mounted.
   const [slot, setSlot] = useState<HTMLElement | null>(null)
+  // The bar at the foot of a form, see `SiteActionBar`.
+  const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null)
   const [menu, setMenu] = useState(false)
   const openMenu = useCallback(() => {
     setMenu(true)
@@ -39,35 +42,40 @@ export function SiteShell() {
   return (
     <Shell entry="site">
       <HeaderSlotProvider value={slot}>
-        {/* From 1024 pixels a frame as on the board "Tablet quer": the bars on
+        <ActionSlotProvider value={actionSlot}>
+          {/* From 1024 pixels a frame as on the board "Tablet quer": the bars on
             top, the rail and the screen below, and only the screen scrolls,
             so the rail keeps "Menü" in reach whatever stands above it. */}
-        <div className="flex min-h-dvh flex-col lg:h-dvh">
-          {/* The strips first, in the order of the board "Leisten auf der
+          <div className="group/site flex min-h-dvh flex-col lg:h-dvh">
+            {/* The strips first, in the order of the board "Leisten auf der
               Baustelle", then the header of the screen, then the stopwatch,
               which runs under them on every screen. */}
-          <SyncStatusBar
-            conflictsLink={(className) => (
-              <Link to="/konflikte" className={className}>
-                Ansehen
-              </Link>
-            )}
-          />
-          <UpdateBar />
-          <EntrySuggestion here="site" />
-          <div ref={setSlot} />
-          <StopwatchBar />
+            <SyncStatusBar
+              conflictsLink={(className) => (
+                <Link to="/konflikte" className={className}>
+                  Ansehen
+                </Link>
+              )}
+            />
+            <UpdateBar />
+            <EntrySuggestion here="site" />
+            <div ref={setSlot} />
+            <StopwatchBar />
 
-          <div className="flex grow items-start lg:min-h-0 lg:items-stretch">
-            <Rail menuOpen={menu} onMenu={openMenu} />
-            <main id="inhalt" className="min-w-0 grow lg:overflow-y-auto">
-              <Outlet />
-            </main>
+            <div className="flex grow items-start lg:min-h-0 lg:items-stretch">
+              <Rail menuOpen={menu} onMenu={openMenu} />
+              <main id="inhalt" className="min-w-0 grow lg:overflow-y-auto">
+                <Outlet />
+              </main>
+            </div>
+
+            {/* The bar of a form stands where the thumb is, over the tabs, which
+              give way to it on a phone as they do on the boards. */}
+            <div ref={setActionSlot} className="sticky bottom-0 z-20 empty:hidden" />
+            <Tabs menuOpen={menu} onMenu={openMenu} />
+            <SiteMenu open={menu} onClose={closeMenu} />
           </div>
-
-          <Tabs menuOpen={menu} onMenu={openMenu} />
-          <SiteMenu open={menu} onClose={closeMenu} />
-        </div>
+        </ActionSlotProvider>
       </HeaderSlotProvider>
     </Shell>
   )
@@ -141,7 +149,7 @@ function Tabs({ menuOpen, onMenu }: { readonly menuOpen: boolean; readonly onMen
   return (
     <nav
       aria-label="Bereiche"
-      className="sticky bottom-0 z-20 flex border-t border-line bg-surface lg:hidden"
+      className="sticky bottom-0 z-20 flex border-t border-line bg-surface group-has-[[data-action-bar]]/site:hidden lg:hidden"
     >
       {tabs.map((item) => (
         <Link

@@ -10,14 +10,17 @@ import {
   previewQuality,
   type RecordState,
 } from '@opengewerk/domain'
+import clsx from 'clsx'
+import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Button, IconButton } from '../components/index.js'
+import { Button, Confirm, type SiteHeight } from '../components/index.js'
 import { refusalText, type SyncClient } from '../sync/client.js'
 import { count, maybeText, text } from '../sync/fields.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { fileSize, moment } from './format.js'
 import { shrinkPicture } from './pictures.js'
+import { SiteRow, SiteRows } from '../site/kit.js'
 
 /**
  * Where a new file hangs (#77): the places of the screen it is added on. A
@@ -280,23 +283,32 @@ export function versionLine(client: SyncClient, version: RecordState, versions: 
   return parts.join(', ')
 }
 
+/**
+ * The picture of a file, or the symbol of the boards where there is none
+ * yet: 52 pixels in a row of the job, 64 on the screen of the files.
+ */
 function Preview({
   version,
   title,
+  small = false,
 }: {
   readonly version: RecordState | undefined
   readonly title: string
+  readonly small?: boolean
 }) {
   const href = usePreview(version)
 
   return (
-    <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-control border border-line bg-surface-sunken">
+    <span
+      className={clsx(
+        'flex shrink-0 items-center justify-center overflow-hidden border border-line bg-surface-sunken text-ink-faint',
+        small ? 'size-13 rounded-[5px]' : 'size-16 rounded-[6px]',
+      )}
+    >
       {href ? (
         <img src={href} alt={`Vorschau von ${title}`} className="h-full w-full object-cover" />
       ) : (
-        <span aria-hidden="true" className="text-table text-ink-muted">
-          {(maybeText(version, 'fileName')?.split('.').pop() ?? 'Datei').slice(0, 4).toUpperCase()}
-        </span>
+        <ImageIcon size={small ? 22 : 24} strokeWidth={2} aria-hidden="true" />
       )}
     </span>
   )
@@ -312,10 +324,16 @@ export function AttachmentList({
   attachments,
   writes,
   empty,
+  rowsTo,
 }: {
   readonly attachments: readonly RecordState[]
   readonly writes: boolean
   readonly empty: string
+  /**
+   * Rows that open this screen, as the card "Fotos und Dateien" of a job has
+   * them, instead of each file with its buttons.
+   */
+  readonly rowsTo?: string
 }) {
   const client = useSync()
   const versions = useVersions()
@@ -362,13 +380,39 @@ export function AttachmentList({
   }
 
   if (ordered.length === 0) {
-    return <p className="text-body text-ink-muted">{empty}</p>
+    return <p className="text-[16px] leading-[1.45] text-ink-muted">{empty}</p>
   }
 
+  if (rowsTo) {
+    return (
+      <SiteRows label="Fotos und Dateien">
+        {ordered.map((attachment) => {
+          const id = String(attachment['id'])
+          const title = text(attachment, 'title')
+          const all = versions.get(id) ?? []
+
+          return (
+            <SiteRow
+              key={id}
+              to={rowsTo}
+              thumb={<Preview version={all[0]} title={title} small />}
+              title={title}
+              meta={
+                all[0] ? versionLine(client, all[0], all.length) : 'Die Datei ist noch unterwegs.'
+              }
+            />
+          )
+        })}
+      </SiteRows>
+    )
+  }
+
+  const removed = removing ? attachments.find((row) => String(row['id']) === removing) : undefined
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
       {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="text-[16px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
@@ -385,36 +429,37 @@ export function AttachmentList({
         }}
       />
 
-      <ul className="flex flex-col gap-3">
+      <ul aria-label="Fotos und Dateien" className="flex flex-col">
         {ordered.map((attachment) => {
           const id = String(attachment['id'])
           const title = text(attachment, 'title')
           const all = versions.get(id) ?? []
           const [latest, ...earlier] = all
 
+          // A file as the board "Fotos und Dateien" draws it: the picture, the
+          // name and the line under it, then what can be done with it.
           return (
-            <li key={id} className="flex items-start gap-3">
-              <Preview version={latest} title={title} />
+            <li key={id} className="border-b border-row py-2.5 last:border-b-0">
+              <div className="flex items-center gap-3">
+                <Preview version={latest} title={title} />
+                <div className="min-w-0 grow">
+                  <p className="text-[17px] font-semibold [overflow-wrap:anywhere]">{title}</p>
+                  <p className="text-[15px] leading-[1.35] text-ink-muted">
+                    {latest
+                      ? versionLine(client, latest, all.length)
+                      : 'Die Datei ist noch unterwegs.'}
+                  </p>
+                </div>
+              </div>
 
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-body font-semibold break-words">{title}</span>
-                {latest ? (
-                  <span className="text-table text-ink-muted">
-                    {versionLine(client, latest, all.length)}
-                  </span>
-                ) : (
-                  <span className="text-table text-ink-muted">Die Datei ist noch unterwegs.</span>
-                )}
-
-                <span className="flex flex-wrap items-center gap-2">
-                  {latest ? (
-                    <Button tone="secondary" onClick={() => void openVersion(client, latest)}>
-                      Öffnen
-                    </Button>
-                  ) : null}
+              {latest ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <Button height={44} onClick={() => void openVersion(client, latest)}>
+                    Öffnen
+                  </Button>
                   {writes ? (
                     <Button
-                      tone="quiet"
+                      height={44}
                       onClick={() => {
                         replacingFor.current = id
                         replacing.current?.click()
@@ -424,65 +469,70 @@ export function AttachmentList({
                     </Button>
                   ) : null}
                   {writes ? (
-                    removing === id ? (
-                      <>
-                        <Button tone="danger" onClick={() => void remove(id)}>
-                          Entfernen
-                        </Button>
+                    <button
+                      type="button"
+                      aria-label={`${title} entfernen`}
+                      title="Entfernen"
+                      onClick={() => {
+                        setTrouble(null)
+                        setRemoving(id)
+                      }}
+                      className="ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-control text-conflict"
+                    >
+                      <X size={20} strokeWidth={2.2} aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {earlier.length > 0 ? (
+                <details className="mt-1.5">
+                  <summary className="flex min-h-11 cursor-pointer items-center text-[15px] font-semibold text-copper-text">
+                    {earlier.length === 1
+                      ? 'Eine frühere Fassung'
+                      : `${String(earlier.length)} frühere Fassungen`}
+                  </summary>
+                  <ul className="flex flex-col gap-1">
+                    {earlier.map((version, index) => (
+                      <li
+                        key={String(version['id'])}
+                        className="flex flex-wrap items-center gap-2 text-[15px]"
+                      >
+                        <span className="min-w-0 grow">
+                          {`Fassung ${String(earlier.length - index)}: ${text(version, 'fileName')}, ${fileSize(count(version, 'sizeBytes'))}`}
+                        </span>
                         <Button
                           tone="quiet"
-                          onClick={() => {
-                            setRemoving(null)
-                          }}
+                          height={44}
+                          onClick={() => void openVersion(client, version)}
                         >
-                          Behalten
+                          Öffnen
                         </Button>
-                      </>
-                    ) : (
-                      <IconButton
-                        label={`${title} entfernen`}
-                        title="Entfernen"
-                        tone="danger"
-                        onClick={() => {
-                          setTrouble(null)
-                          setRemoving(id)
-                        }}
-                      >
-                        ✕
-                      </IconButton>
-                    )
-                  ) : null}
-                </span>
-
-                {earlier.length > 0 ? (
-                  <details className="text-table">
-                    <summary className="cursor-pointer text-ink-muted">
-                      {earlier.length === 1
-                        ? 'Eine frühere Fassung'
-                        : `${String(earlier.length)} frühere Fassungen`}
-                    </summary>
-                    <ul className="mt-2 flex flex-col gap-1">
-                      {earlier.map((version, index) => (
-                        <li
-                          key={String(version['id'])}
-                          className="flex flex-wrap items-center gap-2"
-                        >
-                          <span>
-                            {`Fassung ${String(earlier.length - index)}: ${text(version, 'fileName')}, ${fileSize(count(version, 'sizeBytes'))}`}
-                          </span>
-                          <Button tone="quiet" onClick={() => void openVersion(client, version)}>
-                            Öffnen
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : null}
-              </div>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </li>
           )
         })}
       </ul>
+
+      <Confirm
+        open={removed !== undefined}
+        title={`${removed ? text(removed, 'title') : 'Datei'} entfernen?`}
+        confirm="Entfernen"
+        onConfirm={() => {
+          if (removing) {
+            void remove(removing)
+          }
+        }}
+        onCancel={() => {
+          setRemoving(null)
+        }}
+      >
+        Die Datei steht danach an keinem Auftrag mehr. Ihre Fassungen bleiben aufbewahrt.
+      </Confirm>
     </div>
   )
 }
@@ -498,9 +548,20 @@ export function AttachmentList({
 export function AddFiles({
   home,
   camera = false,
+  cameraTone = 'primary',
+  height = 52,
+  keepChoice = true,
 }: {
   readonly home: AttachmentHome
   readonly camera?: boolean
+  /**
+   * Copper where taking a photo is what the screen is for, as on "Fotos und
+   * Dateien"; on the job it gives way to the report (#223).
+   */
+  readonly cameraTone?: 'primary' | 'secondary'
+  readonly height?: SiteHeight
+  /** Whether "Fotos in voller Größe behalten" stands under the buttons. */
+  readonly keepChoice?: boolean
 }) {
   const client = useSync()
   const picker = useRef<HTMLInputElement>(null)
@@ -536,11 +597,14 @@ export function AddFiles({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Side by side and alike, as the boards draw them. */}
+      <div className="flex gap-2">
         {camera ? (
           <Button
-            tone="primary"
+            tone={cameraTone}
             wide
+            height={height}
+            icon={Camera}
             disabled={working}
             onClick={() => {
               shooter.current?.click()
@@ -550,8 +614,9 @@ export function AddFiles({
           </Button>
         ) : null}
         <Button
-          tone={camera ? 'secondary' : 'primary'}
-          wide={camera}
+          wide
+          height={height}
+          icon={Upload}
           disabled={working}
           onClick={() => {
             picker.current?.click()
@@ -587,19 +652,22 @@ export function AddFiles({
         }}
       />
 
-      <label className="flex items-center gap-2 text-table text-ink-muted">
-        <input
-          type="checkbox"
-          checked={keepOriginal}
-          onChange={(event) => {
-            setKeepOriginal(event.target.checked)
-          }}
-        />
-        Fotos in voller Größe behalten
-      </label>
+      {keepChoice ? (
+        <label className="flex min-h-11 items-center gap-2.5 text-[16px]">
+          <input
+            type="checkbox"
+            className="size-5 shrink-0 accent-copper-solid"
+            checked={keepOriginal}
+            onChange={(event) => {
+              setKeepOriginal(event.target.checked)
+            }}
+          />
+          Fotos in voller Größe behalten
+        </label>
+      ) : null}
 
       {problems.map((problem) => (
-        <p key={problem} role="alert" className="text-body font-semibold text-conflict">
+        <p key={problem} role="alert" className="text-[16px] font-semibold text-conflict">
           {problem}
         </p>
       ))}

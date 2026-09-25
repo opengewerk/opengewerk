@@ -22,12 +22,21 @@ export function useWayBack(): { readonly to: string; readonly label: string } | 
   const onReport = matchRoute({ to: '/auftraege/$jobId/berichte/$documentId' })
   const onBoard = matchRoute({ to: '/auftraege/$jobId/verteiler/$boardId' })
   const onProtocol = matchRoute({ to: '/auftraege/$jobId/pruefprotokolle/$recordId' })
+  const onFiles = matchRoute({ to: '/auftraege/$jobId/dateien' })
   const onCircuit = matchRoute({
     to: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
   })
+  const onEntry =
+    matchRoute({ to: '/zeiten/$day/nachtragen' }) ||
+    matchRoute({ to: '/zeiten/$day/korrigieren/$entryId' })
   // The circuit goes back to its board, everything else below a job back to
   // the job, the job back to the list.
-  const underJob = onReport || onBoard || onProtocol
+  const underJob = onReport || onBoard || onProtocol || onFiles
+
+  // A late entry or a correction goes back to its day.
+  if (onEntry) {
+    return { to: `/zeiten/${onEntry.day}`, label: 'Zurück zu den Zeiten' }
+  }
 
   if (onCircuit) {
     return {

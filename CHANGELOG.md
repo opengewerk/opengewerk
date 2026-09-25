@@ -112,6 +112,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nebeneinander, das Passwort in einer Reihe und die Geräte als Tabelle. Je Bildschirm gibt es
   höchstens einen Knopf in Kupfer (#223), im Konto waren es bisher zwei; ein Knopf im Kopf wartet,
   solange sein Formular offen ist, und was gespeichert ist, sagt ein grüner Haken.
+- Auftragsliste, Auftrag, Zeiten und Konflikte der Baustelle folgen ihren Tafeln (#219). Die Liste
+  zeigt über den Aufträgen den Tag und wie viele offen sind; ein Auftrag steht als Karte mit
+  Nummer, Zustand, Kunde, Anschrift, Art und Anlage, und der, an dem gerade gearbeitet wird, hat
+  einen kupfernen Rand und "Arbeit läuft". Darunter stehen die Zeit des Tages und die eigenen
+  Aufgaben. Am Auftrag trägt jede Karte ihre Überschrift in Kapitälchen, Verteiler,
+  Prüfprotokolle und Regieberichte sind Zeilen mit Pfeil, die Ansprechpartner haben einen Knopf
+  statt zwei, und "Auftrag abschließen" ist schieferfarben. Fotos und Dateien eines Auftrags haben
+  einen eigenen Bildschirm mit Öffnen, neuer Fassung und Entfernen nach einer Rückfrage; am Auftrag
+  stehen sie als Zeilen, die dorthin führen. "Zeit nachtragen" und "Korrigieren" sind eigene
+  Bildschirme mit den Knöpfen unten, wo sonst die Reiter stehen, und die Pfeile im Kopf der Zeiten
+  blättern zum Vortag und zum Folgetag. Die Konflikte zeigen den Stand des Abgleichs und jeden
+  Konflikt in rotem Rahmen, die zwei Fassungen eines Felds untereinander. Knöpfe auf der Baustelle
+  haben die Höhen der Tafeln, 44 bis 60 Pixel. Je Bildschirm ein Knopf in Kupfer (#223): am
+  Auftrag ist es "Regiebericht schreiben", "Foto aufnehmen" ist dort ein normaler Knopf und nur auf
+  dem Bildschirm der Dateien in Kupfer.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
