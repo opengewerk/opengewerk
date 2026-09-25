@@ -51,6 +51,12 @@ export const RENDERER = Symbol('Renderer')
 export const BACKUP_STATUS = Symbol('BackupStatus')
 
 /**
+ * The version this installation runs (#259), or null where there is none to
+ * name: a checkout, the preview, a test.
+ */
+export const VERSION = Symbol('Version')
+
+/**
  * What the routes around mail need: where the instance is reached for the
  * links in a message, the key a mail password is sealed with, and a way to
  * try a connection. Null on a closed instance and in a test that sends

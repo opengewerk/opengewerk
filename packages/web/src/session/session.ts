@@ -139,6 +139,19 @@ export async function setupNeeded(): Promise<boolean> {
   return answer.needed === true
 }
 
+/**
+ * The version this installation runs, as the health check names it (#259),
+ * for the foot of the sign in. Null for a checkout, which has none to name,
+ * and for any answer that carries none.
+ */
+export async function instanceVersion(): Promise<string | null> {
+  const answer = await request<unknown>('/health')
+  const version =
+    typeof answer === 'object' && answer !== null ? (answer as { version?: unknown }).version : null
+
+  return typeof version === 'string' && version !== '' ? version : null
+}
+
 export interface FirstRun {
   /**
    * The code from `docker/.env` on the server (#215), sent as typed: case,

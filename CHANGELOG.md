@@ -22,6 +22,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Vorschau folgt, damit ein neuer Bildschirm geprüft wird, ohne dass ihn jemand einträgt. Der Browser
   ist das Abbild des Renderers aus `docker/compose.yaml`. Lokal prüft dasselbe
   `pnpm --filter @opengewerk/web run widths` gegen die laufende Vorschau.
+- Der Fuß der Anmeldung nennt die Fassung der Installation, "AGPL-3.0 · Version 0.2.0", wie auf
+  den Tafeln der Seite "Vor der Anmeldung" (#259). Die Oberfläche kannte ihre Fassung bisher
+  nicht, sie stand nur im Installationspaket. Jetzt gibt `docker/compose.yaml` den Wert
+  `OPENGEWERK_VERSION` an die Anwendung weiter, den der Workflow "Release" im Paket schon an die
+  Stelle von `source` schreibt, und `GET /health` nennt ihn; ein Checkout zeigt keine Fassung. Den
+  Weg zur Hilfe, den die Tafeln daneben zeichneten, gibt es erst mit der Hilfe selbst in Phase 2
+  (#269), entschieden von Moritz am 25.09.2026.
 
 ### Geändert
 

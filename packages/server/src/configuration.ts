@@ -86,6 +86,11 @@ export interface Configuration {
    * one business could otherwise open the network of the operator for it.
    */
   readonly mailInternalHosts: readonly string[]
+  /**
+   * The version this installation runs, "0.2.0", for the foot of the sign in
+   * (#259). Null where there is none to name: a checkout runs "source".
+   */
+  readonly version: string | null
 }
 
 /** What went wrong, phrased for whoever is looking at the container log. */
@@ -368,6 +373,22 @@ function setupCode(environment: Environment): string | null {
   return code
 }
 
+/**
+ * The version of this installation, from `OPENGEWERK_VERSION` (#259).
+ *
+ * The Compose file hands it over, with the value a release kit carries in
+ * place of "source", so an installation from a kit knows its version without a
+ * step of its own. A checkout says "source", and a value somebody wrote into
+ * the .env by hand may say anything. Only a version is taken, so that the sign
+ * in never shows a word that means nothing to whoever reads it; anything else
+ * is no version, and never a reason not to start.
+ */
+function releaseVersion(environment: Environment): string | null {
+  const raw = environment['OPENGEWERK_VERSION']?.trim() ?? ''
+
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(raw) ? raw : null
+}
+
 /** The mail servers in the instance's own network its operator allows. */
 export function mailInternalHosts(environment: Environment): readonly string[] {
   const entries = (environment['MAIL_INTERNAL_HOSTS'] ?? '')
@@ -417,6 +438,7 @@ export function readConfiguration(
     backupStatusPath: environment['BACKUP_STATUS_PATH']?.trim() || null,
     closed: flag(environment, 'CLOSED'),
     mailInternalHosts: mailInternalHosts(environment),
+    version: releaseVersion(environment),
     // Far above the 3000 that most machines that develop anything have taken
     // already, and below the range Linux hands out for outgoing connections.
     port: port(environment, 'PORT', 23700),
