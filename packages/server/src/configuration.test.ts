@@ -51,6 +51,7 @@ describe('the configuration', () => {
       storagePath: '/var/lib/opengewerk/storage',
       sessionSecret: secret,
       trustedOrigins: ['https://opengewerk.example.de'],
+      setupCode: null,
       backupStatusPath: null,
       closed: false,
       mailInternalHosts: [],
@@ -74,6 +75,45 @@ describe('the configuration', () => {
     expect(
       readConfiguration({ ...valid, BACKUP_STATUS_PATH: '  ' }, writable).backupStatusPath,
     ).toBe(null)
+  })
+
+  /**
+   * The code the first run asks for (#215), kept the way it is compared. Its
+   * absence does not stop the start: an instance that was set up long ago
+   * never needs it again, and without one the first run is refused instead.
+   */
+  it('reads the setup code the way it is compared, and nothing when it is not given', () => {
+    expect(readConfiguration({ ...valid, SETUP_CODE: ' k7q4-9pxm ' }, writable).setupCode).toBe(
+      'K7Q49PXM',
+    )
+    expect(readConfiguration(valid, writable).setupCode).toBe(null)
+    expect(readConfiguration({ ...valid, SETUP_CODE: '   ' }, writable).setupCode).toBe(null)
+  })
+
+  /**
+   * The two ways a code can be there and still hold nobody off: the value of
+   * the template, which everybody who has read it knows, and one short enough
+   * to guess. Neither sentence repeats what was set.
+   */
+  it('refuses a setup code from the template or too short to hold anybody off', () => {
+    for (const [code, sentence] of [
+      ['bitte-ersetzen-6', 'Platzhalter aus der Vorlage'],
+      ['K7Q-4PX', 'zu kurz'],
+      ['- - - -', 'zu kurz'],
+    ] as const) {
+      let said = ''
+
+      try {
+        readConfiguration({ ...valid, SETUP_CODE: code }, writable)
+      } catch (error) {
+        said = error instanceof ConfigurationError ? error.message : ''
+      }
+
+      expect(said).toContain('SETUP_CODE')
+      expect(said).toContain(sentence)
+      expect(said).toContain('sh docker/start.sh')
+      expect(said).not.toContain(code)
+    }
   })
 
   /**

@@ -46,6 +46,17 @@ distinct=$(grep -E '^(POSTGRES_PASSWORD|OPENGEWERK_OWNER_PASSWORD|OPENGEWERK_APP
 test "$distinct" -eq 5
 check 'jeder Schlüssel anders'
 
+# The setup code (#215): eight characters to type, without 0, O, 1, I and L,
+# and not in the output either.
+code=$(grep '^SETUP_CODE=' "$work/.env" | cut -d= -f2-)
+printf '%s' "$code" | grep -Eq '^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$'
+if printf '%s' "$out" | grep -qF "$code"; then
+  echo 'FEHLER: der Einrichtungscode steht in der Ausgabe'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'eingetragen:.* SETUP_CODE'
+check 'Einrichtungscode: XXXX-XXXX ohne verwechselbare Zeichen, nicht in der Ausgabe'
+
 # 2. A second run changes nothing.
 before=$(sha256sum "$work/.env" | cut -d' ' -f1)
 out=$(sh "$work/setup.sh" < /dev/null 2>&1)
@@ -66,7 +77,22 @@ grep -Eq '^NEW_SECRET=[0-9a-f]{64}$' "$work/.env"
 printf '%s' "$out" | grep -q 'Aus der Vorlage übernommen: CLOSED NEW_SECRET'
 check 'neuere Vorlage: fehlende Variablen übernommen, neuer Schlüssel erzeugt'
 
-# 4. A renderer switched off stays off. An empty value is a value, and only a
+# 4. An .env from before #215 has no setup code. It gets one on the next
+# start, like any key a newer template brings, and in the same form.
+grep -v '^SETUP_CODE=' "$work/.env" > "$work/.env.old"
+mv "$work/.env.old" "$work/.env"
+out=$(sh "$work/setup.sh" < /dev/null 2>&1)
+printf '%s\n' "$out"
+grep -Eq '^SETUP_CODE=[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$' "$work/.env"
+printf '%s' "$out" | grep -q 'Aus der Vorlage übernommen: SETUP_CODE'
+code=$(grep '^SETUP_CODE=' "$work/.env" | cut -d= -f2-)
+if printf '%s' "$out" | grep -qF "$code"; then
+  echo 'FEHLER: der Einrichtungscode steht in der Ausgabe'
+  exit 1
+fi
+check 'ältere .env ohne Einrichtungscode: bekommt einen'
+
+# 5. A renderer switched off stays off. An empty value is a value, and only a
 # line that is missing is taken from the template again.
 sed 's/^COMPOSE_PROFILES=.*/COMPOSE_PROFILES=/' "$work/.env" > "$work/.env.off"
 mv "$work/.env.off" "$work/.env"
@@ -75,7 +101,7 @@ printf '%s\n' "$out"
 grep -qx 'COMPOSE_PROFILES=' "$work/.env"
 check 'abgeschalteter Renderer: bleibt abgeschaltet'
 
-# 5. An .env from before #155 still says "latest", which never named a
+# 6. An .env from before #155 still says "latest", which never named a
 # version. It becomes empty, and a version somebody chose stays.
 sed 's/^OPENGEWERK_VERSION=.*/OPENGEWERK_VERSION=latest/' "$work/.env" > "$work/.env.old"
 mv "$work/.env.old" "$work/.env"
@@ -89,7 +115,7 @@ sh "$work/setup.sh" < /dev/null > /dev/null 2>&1
 grep -qx 'OPENGEWERK_VERSION=0.2.0' "$work/.env"
 check 'latest aus einer alten .env: jetzt leer, eine gewählte Fassung bleibt'
 
-# 6. No address and nobody at the terminal: a sentence, and a failure.
+# 7. No address and nobody at the terminal: a sentence, and a failure.
 rm "$work/.env"
 if out=$(sh "$work/setup.sh" < /dev/null 2>&1); then
   echo 'FEHLER: ohne Adresse lief das Skript durch'
@@ -99,7 +125,7 @@ printf '%s\n' "$out"
 printf '%s' "$out" | grep -q 'fehlt die Adresse'
 check 'ohne Adresse: abgelehnt'
 
-# 7. An address with a path.
+# 8. An address with a path.
 rm "$work/.env"
 if out=$(OPENGEWERK_ADDRESS=https://opengewerk.example.org/buero sh "$work/setup.sh" < /dev/null 2>&1); then
   echo 'FEHLER: eine Adresse mit Pfad lief durch'
@@ -108,7 +134,7 @@ fi
 printf '%s' "$out" | grep -q 'hat einen Pfad'
 check 'Adresse mit Pfad: abgelehnt'
 
-# 8. A trailing slash is taken off.
+# 9. A trailing slash is taken off.
 rm "$work/.env"
 OPENGEWERK_ADDRESS=https://opengewerk.example.org/ sh "$work/setup.sh" < /dev/null > /dev/null 2>&1
 grep -q '^TRUSTED_ORIGINS=https://opengewerk.example.org$' "$work/.env"

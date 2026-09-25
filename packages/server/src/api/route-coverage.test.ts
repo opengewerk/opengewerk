@@ -143,6 +143,8 @@ describe('every route', () => {
    * For the first run it is the state of the data. `create_first_tenant`
    * refuses unless the instance is empty, under a lock rather than after a
    * look, so the route answers exactly once in the life of an installation.
+   * And since #215 the setup code from the .env on the server, so that the one
+   * answer goes to whoever can get at the server and not to whoever came first.
    *
    * For the redemption it is the token: 32 random bytes the office of one
    * business made, good once, for a week, and callable back. Nothing else

@@ -31,8 +31,16 @@ function saidWhy(error: unknown, fallback: string): string {
  * The password is typed twice. Not ceremony: this is the only account on the
  * instance, nobody can reset it for this person, and a typo in it means
  * starting the installation again.
+ *
+ * The setup code comes first (#215), with a line under it, as the canvas draws
+ * it on "Tor-Einrichten": it is what lets somebody in, the rest describes the
+ * business. Before it, an empty instance took its first run from whoever
+ * reached the address first. The code stands in `docker/.env` on the server,
+ * so only somebody who can get at the server sets up, and the hint says so in
+ * those words.
  */
 export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
+  const [setupCode, setSetupCode] = useState('')
   const [company, setCompany] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -56,7 +64,7 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
     setTrouble(null)
 
     try {
-      await runSetup({ company, name, email, password })
+      await runSetup({ setupCode, company, name, email, password })
       // The ordinary sign in, with the ordinary cookie. The setup route hands
       // out no session of its own, so there is only ever one way in to keep
       // right.
@@ -81,6 +89,20 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
           void submit(event)
         }}
       >
+        <Field
+          label="Einrichtungscode"
+          name="setup-code"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          required
+          value={setupCode}
+          onChange={(event) => {
+            setSetupCode(event.target.value)
+          }}
+          hint="Steht auf dem Server in der Datei docker/.env. So richtet nur ein, wer an den Server kommt."
+        />
+        <hr className="border-line" />
         <Field
           label="Betrieb"
           name="organization"

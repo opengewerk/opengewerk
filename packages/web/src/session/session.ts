@@ -140,6 +140,11 @@ export async function setupNeeded(): Promise<boolean> {
 }
 
 export interface FirstRun {
+  /**
+   * The code from `docker/.env` on the server (#215), sent as typed: case,
+   * spaces and the dash are the server's business, which compares them away.
+   */
+  readonly setupCode: string
   readonly company: string
   readonly name: string
   readonly email: string

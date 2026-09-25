@@ -74,3 +74,15 @@ compose up -d --wait --wait-timeout 300 ||
 
 address=$(grep '^TRUSTED_ORIGINS=' "$here/.env" | head -n 1 | cut -d= -f2- | cut -d, -f1)
 say "OpenGewerk läuft. Im Browser: $address"
+
+# An instance nobody has set up yet asks for the setup code on its first
+# screen (#215). Said here is where it is and never what it is: the code
+# stands in the .env and nowhere else, not in this output and not in a log.
+# Asked from inside the application container, which has node, so that this
+# machine needs neither curl nor wget; a question without an answer, as on a
+# closed instance, costs the sentence and nothing more.
+needed=$(compose exec -T app node -e 'fetch(`http://127.0.0.1:${process.env.PORT}/setup`).then((answer) => answer.json()).then((body) => console.log(body.needed === true), () => console.log(false))' 2>/dev/null | tr -d '\r') || needed=''
+
+if [ "$needed" = true ]; then
+  say 'Die Instanz ist noch leer. Die Einrichtung im Browser fragt nach dem Einrichtungscode, er steht in docker/.env unter SETUP_CODE. Am besten gleich einrichten.'
+fi

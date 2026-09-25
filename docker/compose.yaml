@@ -1,7 +1,7 @@
 # OpenGewerk for operation. One call, and an empty machine runs a migrated
 # instance:
 #
-#   cp .env.example .env    (and replace the four passwords in it)
+#   cp .env.example .env    (and replace every placeholder in it)
 #   docker compose up -d
 #
 # Five services, three of which run at all times. The order is not a
@@ -127,6 +127,13 @@ services:
       # protection off in exactly the installation whose operator did not think
       # about it.
       TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:?TRUSTED_ORIGINS fehlt in der .env-Datei}
+      # The code the first run asks for (#215), so that a freshly started
+      # instance is set up by whoever can read the .env and not by whoever
+      # reaches the address first. Optional here on purpose: an instance that
+      # has been set up never needs it again and starts without it, and an
+      # empty one without it refuses the first run with the sentence saying
+      # that start.sh adds it.
+      SETUP_CODE: ${SETUP_CODE:-}
       # Recognises nobody while this is on, the sign in included. For a restore
       # or a migration window, when the instance should be up and reachable and
       # hand out nothing.

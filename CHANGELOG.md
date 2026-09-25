@@ -40,6 +40,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Die Ersteinrichtung verlangt einen Einrichtungscode (#215, GHSA-3rf5-5w7x-m9ff). Bis dahin nahm
+  eine leere Instanz die Einrichtung von jedem an, der ihre Adresse erreichte, und zwischen dem
+  ersten Start und der Einrichtung steht eine Instanz meist offen im Netz: wer zuerst kam, wurde
+  Inhaber. `setup.sh` erzeugt den Code jetzt mit den übrigen Schlüsseln als `SETUP_CODE` in
+  `docker/.env`, acht Zeichen ohne die verwechselbaren 0, O, 1, I und L, und gibt ihn nicht aus;
+  `start.sh` sagt nach dem Start einer leeren Instanz nur, wo er steht. Der Bildschirm "Einrichten"
+  fragt ihn als erstes Feld ab, der Server vergleicht ihn in konstanter Zeit und nimmt je Adresse
+  fünf falsche Codes in der Viertelstunde an, über alle Adressen zusammen hundert. Eine laufende
+  Instanz bekommt den Code beim nächsten `sh docker/start.sh`, braucht ihn aber nicht mehr: nach
+  der Einrichtung öffnet er nichts. Fehlt er, startet die Instanz trotzdem und lehnt nur die
+  Einrichtung ab.
 - Im Installationspaket gehört jeder Eintrag root (#214, GHSA-4h36-cpv3-jf5q). Das Paket von 0.1.0
   trug an jeder Datei die Benutzerkennung des Rechners, auf dem es gebaut wurde, und tar übernimmt
   sie, wenn root entpackt: der Ordner `opengewerk` gehört danach dem lokalen Konto mit derselben

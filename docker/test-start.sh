@@ -2,8 +2,9 @@
 # Exercises the choice start.sh makes (#155), with a docker that only writes
 # down what it was asked: a checkout of the source builds, a release kit pulls
 # the version in its compose.yaml and builds nothing, and a version in the .env
-# or the environment wins. What the containers then do is the job of the CI
-# run that starts the whole stack.
+# or the environment wins. And what it says about the setup code (#215): where
+# it is while the instance is empty, never what it is. What the containers
+# then do is the job of the CI run that starts the whole stack.
 #
 # Prints what it checks and stops at the first thing that is wrong.
 set -eu
@@ -17,10 +18,16 @@ cp "$source_dir/start.sh" "$source_dir/setup.sh" "$source_dir/.env.example" \
   "$source_dir/compose.yaml" "$work/docker/"
 
 # Every call as one line: the version it saw in the environment, then the
-# arguments. "docker compose version" answers like the real one does.
+# arguments. "docker compose version" answers like the real one does. The one
+# question start.sh asks the running application, whether it still waits for
+# its first run, is answered with SETUP_NEEDED, false when it is not set and
+# nothing at all when it is empty.
 cat > "$work/bin/docker" <<'FAKE'
 #!/bin/sh
 printf '%s|%s\n' "${OPENGEWERK_VERSION:-}" "$*" >> "$CALLS"
+case "$*" in
+  *' exec -T app '*) printf '%s' "${SETUP_NEEDED-false}" ;;
+esac
 FAKE
 chmod +x "$work/bin/docker"
 
@@ -99,5 +106,31 @@ pin latest
 start
 pulled '0\.3\.0'
 check 'latest aus einer alten .env: das Paket holt seine Fassung'
+
+# 6. An instance nobody has set up yet (#215): one line on where the setup
+# code is, with the name of the variable and the file, and the code itself in
+# none of what start.sh prints.
+code=$(grep '^SETUP_CODE=' "$work/docker/.env" | cut -d= -f2-)
+test -n "$code"
+: > "$CALLS"
+out=$(SETUP_NEEDED=true OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh "$work/docker/start.sh" < /dev/null 2>&1)
+printf '%s\n' "$out"
+printf '%s' "$out" | grep -q 'Einrichtungscode, er steht in docker/.env unter SETUP_CODE'
+if printf '%s' "$out" | grep -qF "$code"; then
+  echo 'FEHLER: der Einrichtungscode steht in der Ausgabe'
+  exit 1
+fi
+grep -q '|compose -f .*compose.yaml exec -T app node -e ' "$CALLS"
+check 'leere Instanz: nennt, wo der Einrichtungscode steht, und nicht den Code'
+
+# 7. Set up, or no answer at all: not a word about the code.
+for answer in false ''; do
+  out=$(SETUP_NEEDED=$answer OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh "$work/docker/start.sh" < /dev/null 2>&1)
+  if printf '%s' "$out" | grep -q 'Einrichtungscode'; then
+    echo 'FEHLER: eine eingerichtete Instanz bekommt den Hinweis auf den Einrichtungscode'
+    exit 1
+  fi
+done
+check 'eingerichtete Instanz: kein Hinweis'
 
 echo 'Startskript: alles in Ordnung.'

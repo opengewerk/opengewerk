@@ -50,6 +50,7 @@ import {
   MAIL,
   type MailContext,
   RENDERER,
+  SETUP_CODE,
   TRUSTED_ORIGINS,
 } from './handed-in.js'
 import { InvitationController } from './invitation.controller.js'
@@ -74,6 +75,13 @@ import { TimeController } from './time.controller.js'
  */
 export interface ApiOptions {
   readonly authentication?: Authentication
+  /**
+   * The code the first run asks for (#215), from `SETUP_CODE`. Left out, an
+   * empty instance cannot be set up at all: the first run is refused with the
+   * sentence saying that `sh docker/start.sh` adds one. Only read where the
+   * authentication is handed in, because only then is there a first run.
+   */
+  readonly setupCode?: string | null
   /**
    * The addresses a browser may send a request that changes something from,
    * the same list better-auth gets. Left out, no browser may: a request with
@@ -142,6 +150,7 @@ export class ApiModule implements NestModule {
   ): DynamicModule {
     const {
       authentication,
+      setupCode = null,
       trustedOrigins = [],
       files = noFileStorage,
       renderer = rendererFor({ url: undefined, token: undefined }),
@@ -199,7 +208,12 @@ export class ApiModule implements NestModule {
         { provide: MAIL, useValue: mail },
         { provide: BACKUP_STATUS, useValue: backupStatus },
         DocumentFiles,
-        ...(authentication ? [{ provide: AUTHENTICATION, useValue: authentication }] : []),
+        ...(authentication
+          ? [
+              { provide: AUTHENTICATION, useValue: authentication },
+              { provide: SETUP_CODE, useValue: setupCode },
+            ]
+          : []),
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // In this order, which is the order Nest runs them in: a form from a
