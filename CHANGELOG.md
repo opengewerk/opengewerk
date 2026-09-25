@@ -200,6 +200,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   entfernt (#246). Seit die Listen ihren Tafeln folgen, benutzte sie kein Bildschirm mehr; die
   Listen stehen auf einem eigenen Baustein, der jede Stufe der Tafel "Breiten und Auflösungen"
   anders zeigt. Nachtrag in ADR 0004.
+- Die Bemerkung zu einem Stromkreis im Prüfprotokoll hat mehrere Zeilen, wie auf der Tafel
+  "Prüfprotokoll, Messen je Stromkreis" (#256). Eine Bemerkung zu einem Mangel ist oft länger als
+  eine Zeile, und in einem einzeiligen Feld sah man sie beim Tippen nicht ganz. Dafür bringt das
+  Paket Elektro und PV die Fassung 2 der Definition `vde-0100-600` mit, die sich von Fassung 1 nur
+  darin unterscheidet (Paketfassung 0.2.0). Neue Protokolle entstehen in Fassung 2, eine Vorlage
+  aus Fassung 1 trägt ihre Werte hinüber, und jedes bestehende Protokoll bleibt in der Fassung
+  lesbar, in der es ausgefüllt wurde; der Server nimmt beide an.
 
 ### Behoben
 

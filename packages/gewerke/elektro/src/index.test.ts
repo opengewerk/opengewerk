@@ -1,6 +1,7 @@
 import {
   definitionProblems,
   fieldsOf,
+  type FormDefinition,
   type FormField,
   limitVerdict,
   type MeasurementField,
@@ -34,7 +35,10 @@ function measurementsOf(fields: readonly FormField[]): MeasurementField[] {
 
 describe('the package Elektro und PV', () => {
   it('lists in its manifest exactly the forms and rules it brings', () => {
-    expect(elektroManifest.forms).toEqual(['formulare/vde-0100-600.v1.json'])
+    expect(elektroManifest.forms).toEqual([
+      'formulare/vde-0100-600.v1.json',
+      'formulare/vde-0100-600.v2.json',
+    ])
     expect(elektroManifest.rules).toEqual(['regeln/vde-0100-600.json'])
     expect(elektroForms).toHaveLength(elektroManifest.forms.length)
     expect(elektroRulePackages).toHaveLength(elektroManifest.rules.length)
@@ -73,6 +77,42 @@ describe('the package Elektro und PV', () => {
     for (const record of elektroRules.all()) {
       expect(record.source.trim(), record.key).not.toBe('')
     }
+  })
+
+  it('fills a new protocol in the newest version and still reads the first (#256)', () => {
+    const first = elektroRegistry.definitionFor('vde-0100-600', 1)
+    const second = elektroRegistry.definitionFor('vde-0100-600', 2)
+    const remark = (definition: FormDefinition | null) => {
+      const circuits = definition
+        ? fieldsOf(definition).find((field) => field.key === 'circuits')
+        : null
+
+      return circuits?.kind === 'group'
+        ? circuits.fields.find((field) => field.key === 'remark')
+        : undefined
+    }
+
+    expect(elektroRegistry.current().map((definition) => definition.version)).toEqual([2])
+    expect(remark(first)).toEqual({ kind: 'text', key: 'remark', label: 'Bemerkung' })
+    expect(remark(second)).toEqual({
+      kind: 'text',
+      key: 'remark',
+      label: 'Bemerkung',
+      multiline: true,
+    })
+  })
+
+  it('changes nothing in version 2 but the remark, so a template carries over whole', () => {
+    const first = JSON.stringify(elektroRegistry.definitionFor('vde-0100-600', 1))
+    const line = '{"kind":"text","key":"remark","label":"Bemerkung"}'
+
+    expect(first).toContain(line)
+    expect(elektroRegistry.definitionFor('vde-0100-600', 2)).toEqual({
+      ...(JSON.parse(
+        first.replace(line, '{"kind":"text","key":"remark","label":"Bemerkung","multiline":true}'),
+      ) as FormDefinition),
+      version: 2,
+    })
   })
 
   it('judges the protocol of #79 as the standard does', () => {

@@ -1,8 +1,8 @@
 {
   "name": "elektro",
   "title": "Elektro und PV",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minimumCore": "0.0.0",
-  "forms": ["formulare/vde-0100-600.v1.json"],
+  "forms": ["formulare/vde-0100-600.v1.json", "formulare/vde-0100-600.v2.json"],
   "rules": ["regeln/vde-0100-600.json"]
 }
