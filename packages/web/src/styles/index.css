@@ -31,6 +31,20 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     line-height: var(--text-body--line-height);
+    /* A long word breaks rather than push the page wider than the screen:
+       "Treppenhausbeleuchtung" in the title of a job is wider than a phone
+       of 320 pixels (#218). Only where it would not fit on a line of its
+       own, so ordinary text wraps as it always did. */
+    overflow-wrap: break-word;
+  }
+
+  /*
+   * A fieldset is as wide as its widest content unless told otherwise, the
+   * one element that ignores the width it is given. The mail settings were
+   * 42 pixels wider than a phone because of it (#218).
+   */
+  fieldset {
+    min-inline-size: 0;
   }
 
   /*
@@ -40,6 +54,8 @@
    */
   .numeric {
     font-variant-numeric: tabular-nums;
+    /* Figures and amounts never break, words do (#218). */
+    overflow-wrap: normal;
   }
 
   /*
@@ -50,5 +66,28 @@
   :focus-visible {
     outline: 2px solid var(--color-copper-text);
     outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /*
+   * A table wider than its place scrolls in its own frame, and its first
+   * column stays put while the rest slides past, so a row can still be told
+   * apart (#218). A cell that stays put needs a background, or the other
+   * columns show through it. It takes the one of its row, and a row without
+   * one of its own takes the surface it sits on, which `Surface` and `Shell`
+   * hand down as `--surface-here`. Both rules sit below the utilities, so a
+   * row that is sunken or under the pointer keeps its colour and passes it to
+   * its first cell, and a heading keeps its own.
+   */
+  .scrolling-table tr {
+    background-color: var(--surface-here);
+  }
+
+  .scrolling-table tr > :first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: inherit;
   }
 }

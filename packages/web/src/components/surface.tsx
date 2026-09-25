@@ -30,7 +30,12 @@ export function Card({ label, tone = 'raised', heading, children, className }: C
       aria-label={label}
       className={clsx(
         'border border-line rounded-card p-4',
-        tone === 'raised' ? 'bg-surface' : 'bg-surface-sunken',
+        // What it is drawn on, for the few things inside that need to paint
+        // the same colour themselves, like the first column of a table that
+        // stays put while the rest scrolls.
+        tone === 'raised'
+          ? 'bg-surface [--surface-here:var(--color-surface)]'
+          : 'bg-surface-sunken [--surface-here:var(--color-surface-sunken)]',
         className,
       )}
     >
@@ -82,7 +87,10 @@ export interface ShellProps {
 export function Shell({ entry, children }: ShellProps) {
   return (
     <EntryContext.Provider value={entry}>
-      <div data-entry={entry} className="min-h-full bg-ground text-ink font-sans text-body">
+      <div
+        data-entry={entry}
+        className="min-h-full bg-ground text-ink font-sans text-body [--surface-here:var(--color-ground)]"
+      >
         {children}
       </div>
     </EntryContext.Provider>

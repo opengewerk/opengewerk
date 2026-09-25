@@ -136,6 +136,15 @@ export default tseslint.config(
     },
   },
 
+  {
+    // The check of the widths runs in Node and hands functions to a browser,
+    // which run there: both sets of names are real in the one file (#218).
+    files: ['packages/web/scripts/widths.js'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+  },
+
   // Has to stay last: it switches off everything Prettier already decides.
   prettier,
 )

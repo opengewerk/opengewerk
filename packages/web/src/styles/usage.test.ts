@@ -78,6 +78,8 @@ const builtIn: ReadonlySet<string> = new Set([
   // scale, which `@import 'tailwindcss'` brings along.
   'px',
   'dvh',
+  // `border-spacing-0` on a table whose cells draw their own borders (#218).
+  'spacing-0',
   'mono',
 ])
 

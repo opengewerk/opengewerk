@@ -40,3 +40,6 @@ Thumbs.db
 
 # Graphify
 graphify-out/
+
+# Screens that were too wide, photographed by packages/web/scripts/widths.js
+widths-report/
