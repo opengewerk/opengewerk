@@ -3,7 +3,7 @@ import type { RoleKey } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 
-import { Button, Cell, Column, Field, Table } from '../../components/index.js'
+import { Button, Cell, Column, Confirm, Field, Table } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { roleLabel, rolesInWords } from '../../app/labels.js'
 import { mailStatus } from '../../session/mail.js'
@@ -63,6 +63,10 @@ export function StaffScreen() {
   const [mailedTo, setMailedTo] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
   const [devicesOf, setDevicesOf] = useState<string | null>(null)
+  // Blocking and withdrawing ask first (#222); unblocking does not, it takes
+  // nothing away.
+  const [blocking, setBlocking] = useState<{ userId: string; name: string } | null>(null)
+  const [withdrawing, setWithdrawing] = useState<{ id: string; email: string } | null>(null)
 
   function refresh() {
     void queries.invalidateQueries({ queryKey: ['staff'] })
@@ -81,16 +85,24 @@ export function StaffScreen() {
   const block = useMutation({
     mutationFn: ({ userId, blocked }: { userId: string; blocked: boolean }) =>
       setBlocked(userId, blocked),
-    onSuccess: refresh,
+    onSuccess: () => {
+      setBlocking(null)
+      refresh()
+    },
     onError: (error) => {
+      setBlocking(null)
       setTrouble(saidWhy(error, 'Das ließ sich nicht ändern.'))
     },
   })
 
   const withdraw = useMutation({
     mutationFn: withdrawInvitation,
-    onSuccess: refresh,
+    onSuccess: () => {
+      setWithdrawing(null)
+      refresh()
+    },
     onError: (error) => {
+      setWithdrawing(null)
       setTrouble(saidWhy(error, 'Die Einladung ließ sich nicht zurückziehen.'))
     },
   })
@@ -216,10 +228,12 @@ export function StaffScreen() {
                         disabled={block.isPending}
                         onClick={() => {
                           setTrouble(null)
-                          block.mutate({
-                            userId: person.userId,
-                            blocked: person.blockedAt === null,
-                          })
+
+                          if (person.blockedAt === null) {
+                            setBlocking({ userId: person.userId, name: person.name })
+                          } else {
+                            block.mutate({ userId: person.userId, blocked: false })
+                          }
                         }}
                       >
                         {person.blockedAt ? 'Entsperren' : 'Sperren'}
@@ -279,7 +293,7 @@ export function StaffScreen() {
                       disabled={withdraw.isPending}
                       onClick={() => {
                         setTrouble(null)
-                        withdraw.mutate(entry.id)
+                        setWithdrawing({ id: entry.id, email: entry.email })
                       }}
                     >
                       Zurückziehen
@@ -291,6 +305,39 @@ export function StaffScreen() {
           </Table>
         )}
       </Section>
+
+      <Confirm
+        open={blocking !== null}
+        title={`${blocking?.name ?? ''} sperren?`}
+        confirm="Sperren"
+        busy={block.isPending}
+        onConfirm={() => {
+          if (blocking) {
+            block.mutate({ userId: blocking.userId, blocked: true })
+          }
+        }}
+        onCancel={() => {
+          setBlocking(null)
+        }}
+      >
+        {`${blocking?.name ?? ''} kann sich danach nicht mehr anmelden, und alle Geräte dieses Zugangs werden abgemeldet. Entsperren geht jederzeit.`}
+      </Confirm>
+      <Confirm
+        open={withdrawing !== null}
+        title="Einladung zurückziehen?"
+        confirm="Zurückziehen"
+        busy={withdraw.isPending}
+        onConfirm={() => {
+          if (withdrawing) {
+            withdraw.mutate(withdrawing.id)
+          }
+        }}
+        onCancel={() => {
+          setWithdrawing(null)
+        }}
+      >
+        {`Der Link in der Einladung an ${withdrawing?.email ?? ''} gilt danach nicht mehr. Eine neue Einladung geht jederzeit.`}
+      </Confirm>
     </Page>
   )
 }
@@ -612,12 +659,15 @@ function Devices({
     queryFn: () => staffDevices(userId),
   })
 
+  const [signingOut, setSigningOut] = useState<{ sessionId: string; label: string } | null>(null)
   const revoke = useMutation({
     mutationFn: (sessionId: string) => revokeStaffDevice(userId, sessionId),
     onSuccess: () => {
+      setSigningOut(null)
       void queries.invalidateQueries({ queryKey: ['staff-devices', userId] })
     },
     onError: (error) => {
+      setSigningOut(null)
       onTrouble(saidWhy(error, 'Das Gerät ließ sich nicht abmelden.'))
     },
   })
@@ -663,7 +713,10 @@ function Devices({
                     disabled={revoke.isPending}
                     onClick={() => {
                       onTrouble(null)
-                      revoke.mutate(entry.sessionId)
+                      setSigningOut({
+                        sessionId: entry.sessionId,
+                        label: entry.userAgent ?? 'Das Gerät',
+                      })
                     }}
                   >
                     Abmelden
@@ -674,6 +727,22 @@ function Devices({
           </tbody>
         </Table>
       )}
+      <Confirm
+        open={signingOut !== null}
+        title="Gerät abmelden?"
+        confirm="Abmelden"
+        busy={revoke.isPending}
+        onConfirm={() => {
+          if (signingOut) {
+            revoke.mutate(signingOut.sessionId)
+          }
+        }}
+        onCancel={() => {
+          setSigningOut(null)
+        }}
+      >
+        {`${signingOut?.label ?? ''} muss sich danach neu anmelden. Was dort noch nicht übertragen ist, bleibt auf dem Gerät und geht nach der nächsten Anmeldung hinaus.`}
+      </Confirm>
     </Section>
   )
 }

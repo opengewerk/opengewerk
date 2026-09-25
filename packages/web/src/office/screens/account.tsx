@@ -2,7 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Cell, Column, Field, Table, ThemeSwitch } from '../../components/index.js'
+import {
+  Button,
+  Card,
+  Cell,
+  Column,
+  Confirm,
+  Field,
+  Table,
+  ThemeSwitch,
+} from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
@@ -39,12 +48,16 @@ export function AccountScreen() {
   const [setting, setSetting] = useState(false)
   const [theme, chooseTheme] = useTheme()
 
+  // Signing another device out asks first (#222).
+  const [signingOut, setSigningOut] = useState<{ sessionId: string; label: string } | null>(null)
   const revoke = useMutation({
     mutationFn: revokeDevice,
     onSuccess: () => {
+      setSigningOut(null)
       void queries.invalidateQueries({ queryKey: ['devices'] })
     },
     onError: () => {
+      setSigningOut(null)
       setTrouble('Das Gerät ließ sich nicht abmelden.')
     },
   })
@@ -175,7 +188,10 @@ export function AccountScreen() {
                       disabled={entry.current || revoke.isPending}
                       onClick={() => {
                         setTrouble(null)
-                        revoke.mutate(entry.sessionId)
+                        setSigningOut({
+                          sessionId: entry.sessionId,
+                          label: entry.userAgent ?? 'Das Gerät',
+                        })
                       }}
                     >
                       Abmelden
@@ -186,6 +202,22 @@ export function AccountScreen() {
             </tbody>
           </Table>
         )}
+        <Confirm
+          open={signingOut !== null}
+          title="Gerät abmelden?"
+          confirm="Abmelden"
+          busy={revoke.isPending}
+          onConfirm={() => {
+            if (signingOut) {
+              revoke.mutate(signingOut.sessionId)
+            }
+          }}
+          onCancel={() => {
+            setSigningOut(null)
+          }}
+        >
+          {`${signingOut?.label ?? ''} muss sich danach neu anmelden. Was dort noch nicht übertragen ist, bleibt auf dem Gerät und geht nach der nächsten Anmeldung hinaus.`}
+        </Confirm>
       </Section>
     </Page>
   )

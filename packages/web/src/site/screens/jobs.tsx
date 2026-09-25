@@ -2,7 +2,7 @@ import type { RecordState } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
-import { Button, Card, DocumentState, FieldLabel } from '../../components/index.js'
+import { Button, Card, Confirm, DocumentState, FieldLabel } from '../../components/index.js'
 import { addressLine, date, today } from '../../app/format.js'
 import {
   documentKindOf,
@@ -288,6 +288,8 @@ export function SiteJobScreen() {
   )
   const [noting, setNoting] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  // Closing a job asks first (#222): it leaves the list, and after 30 days the devices.
+  const [closing, setClosing] = useState(false)
   const reports = useMay('job.progress')
 
   if (!job || !jobId) {
@@ -467,17 +469,33 @@ export function SiteJobScreen() {
             wide
             onClick={() => {
               setTrouble(null)
-
-              void client.update('jobs', jobId, { status: 'completed' }).then((saved) => {
-                if (saved.outcome === 'refused') {
-                  setTrouble('Das ging nicht. Der Auftrag bleibt offen.')
-                }
-              })
+              setClosing(true)
             }}
           >
             Auftrag abschließen
           </Button>
         ) : null}
+
+        <Confirm
+          open={closing}
+          title="Auftrag abschließen?"
+          confirm="Abschließen"
+          tone="primary"
+          onConfirm={() => {
+            setClosing(false)
+
+            void client.update('jobs', jobId, { status: 'completed' }).then((saved) => {
+              if (saved.outcome === 'refused') {
+                setTrouble('Das ging nicht. Der Auftrag bleibt offen.')
+              }
+            })
+          }}
+          onCancel={() => {
+            setClosing(false)
+          }}
+        >
+          {`„${text(job, 'designation')}“ gilt danach als abgeschlossen. Auf den Geräten der Monteure bleibt er noch 30 Tage zu sehen.`}
+        </Confirm>
 
         {reports ? (
           <Button

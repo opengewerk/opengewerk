@@ -13,7 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Field, SelectField, TextArea } from '../../components/index.js'
+import { Button, Confirm, Field, SelectField, TextArea } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { currentReportFields, saveReportFields } from '../../session/report-fields.js'
 import { RequestRefused } from '../../sync/transport.js'
@@ -127,6 +127,9 @@ function FieldsSection({
   )
   const [trouble, setTrouble] = useState<string | null>(null)
   const [saved, setSaved] = useState<number | null>(null)
+  // A field is taken off after a question (#222): once saved, new reports no
+  // longer have it.
+  const [removing, setRemoving] = useState<ReportField | null>(null)
 
   // The keys of the saved version and of the form, so that a field removed
   // here and one added in the same breath never share a key.
@@ -292,8 +295,7 @@ function FieldsSection({
                   <Button
                     tone="quiet"
                     onClick={() => {
-                      setSaved(null)
-                      setFields((all) => all.filter((entry) => entry.key !== field.key))
+                      setRemoving(field)
                     }}
                   >
                     Entfernen
@@ -301,6 +303,26 @@ function FieldsSection({
                 </div>
               </fieldset>
             ))}
+
+            <Confirm
+              open={removing !== null}
+              title={`„${removing?.label.trim() || 'Feld'}“ entfernen?`}
+              confirm="Entfernen"
+              onConfirm={() => {
+                if (removing) {
+                  setSaved(null)
+                  setFields((all) => all.filter((entry) => entry.key !== removing.key))
+                }
+
+                setRemoving(null)
+              }}
+              onCancel={() => {
+                setRemoving(null)
+              }}
+            >
+              Neue Regieberichte haben das Feld nicht mehr, sobald die Felder gespeichert sind.
+              Berichte, die es schon haben, behalten es.
+            </Confirm>
 
             {problem !== undefined && fields.length > 0 ? (
               <p className="text-body font-semibold text-conflict">{problem}</p>
