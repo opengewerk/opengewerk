@@ -106,8 +106,8 @@ function useCrews(): ReadonlyMap<string, readonly string[]> {
 }
 
 /**
- * All jobs of the business, `auftraege_liste()` of the canvas (#219): the
- * number first, then what it is, for whom and who is on it.
+ * All jobs of the business, as the board "Aufträge" of the canvas has them
+ * (#219): the number first, then what it is, for whom and who is on it.
  */
 export function JobList() {
   const jobs = useRecords('jobs')
