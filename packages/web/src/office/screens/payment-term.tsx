@@ -5,14 +5,21 @@ import {
   paymentTermProblem,
 } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Field } from '../../components/index.js'
+import { Button, Field, Panel } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Nothing, Page, Section } from '../layout.js'
+import {
+  Saved,
+  SettingsHistory,
+  SettingsPage,
+  SettingsState,
+  SettingsText,
+} from '../settings-frame.js'
 import { latestPeriod, proposedFrom } from './taxes.js'
 
 /** The setting this screen changes: the payment term of every document without its own. */
@@ -67,18 +74,24 @@ export function PaymentTermScreen() {
   const mayWrite = useMay('settings.write')
 
   return (
-    <Page title="Zahlungsziel" meta="Wie viel Zeit Kunden zum Bezahlen haben.">
+    <SettingsPage
+      active="zahlungsziel"
+      title="Zahlungsziel"
+      sub="Wie viel Zeit Kunden zum Bezahlen haben."
+    >
       {history.isPending ? (
-        <Nothing>Wird geladen.</Nothing>
+        <SettingsText muted>Wird geladen.</SettingsText>
       ) : history.isError ? (
-        <Nothing>{saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}</Nothing>
+        <SettingsText muted>
+          {saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}
+        </SettingsText>
       ) : (
         <PaymentTermSection
           periods={history.data.filter((period) => period.key === paymentTermSetting)}
           mayWrite={mayWrite}
         />
       )}
-    </Page>
+    </SettingsPage>
   )
 }
 
@@ -116,22 +129,26 @@ function PaymentTermSection({
   })
 
   return (
-    <Section title="Vorgabe für jeden Beleg">
+    <Panel title="Vorgabe für jeden Beleg" roomy>
       <div className="flex flex-col gap-3">
-        <p className="text-body text-ink">
+        <SettingsText>
           So viele Tage nach dem Rechnungsdatum hat ein Kunde Zeit zu zahlen. Eine Rechnung nennt
           daraus den Tag, bis zu dem sie bezahlt sein soll; Angebot, Kostenvoranschlag und
           Auftragsbestätigung nennen die Tage. Ein einzelner Beleg kann in seinem Kopf ein eigenes
           Zahlungsziel haben, das dann auch für die Belege gilt, die aus ihm entstehen.
-        </p>
+        </SettingsText>
 
-        <p className="text-body font-semibold">
+        <SettingsState>
           {standing === null
             ? `${paymentTermLabel(current)}, die Vorgabe von OpenGewerk.`
             : `${paymentTermLabel(current)} seit dem ${date(standing.validFrom)}.`}
-        </p>
+        </SettingsState>
 
-        <TermHistory periods={periods} />
+        <SettingsHistory
+          items={[...periods]
+            .sort((left, right) => left.validFrom.localeCompare(right.validFrom))
+            .map((period) => `Ab ${date(period.validFrom)}: ${paymentTermLabel(period.value)}`)}
+        />
 
         {mayWrite ? (
           <form
@@ -145,9 +162,10 @@ function PaymentTermSection({
               }
             }}
           >
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div>
               <Field
                 label="Tage"
+                className="sm:max-w-[160px]"
                 name="paymentTermDays"
                 inputMode="numeric"
                 numeric
@@ -163,22 +181,22 @@ function PaymentTermSection({
                 }
               />
             </div>
-            <div>
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 type="submit"
                 tone="primary"
+                icon={Check}
                 disabled={save.isPending || problem !== null || unchanged}
               >
                 {save.isPending ? 'Einen Moment' : 'Speichern'}
               </Button>
+              {saved ? (
+                <Saved>
+                  Gespeichert. Belege, die vorher datiert sind, behalten ihr Zahlungsziel.
+                </Saved>
+              ) : null}
             </div>
           </form>
-        ) : null}
-
-        {saved ? (
-          <p role="status" className="text-body text-ink-muted">
-            Gespeichert. Belege, die vorher datiert sind, behalten ihr Zahlungsziel.
-          </p>
         ) : null}
         {trouble ? (
           <p role="alert" className="text-body font-semibold text-conflict">
@@ -186,28 +204,6 @@ function PaymentTermSection({
           </p>
         ) : null}
       </div>
-    </Section>
-  )
-}
-
-/** Every period the term had, oldest first, so an old document stays explainable. */
-function TermHistory({ periods }: { readonly periods: readonly ParameterPeriod[] }) {
-  if (periods.length === 0) {
-    return null
-  }
-
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-body font-semibold text-ink">Verlauf</p>
-      <ul className="list-disc pl-6 text-body text-ink">
-        {[...periods]
-          .sort((left, right) => left.validFrom.localeCompare(right.validFrom))
-          .map((period) => (
-            <li key={period.id}>
-              Ab {date(period.validFrom)}: {paymentTermLabel(period.value)}
-            </li>
-          ))}
-      </ul>
-    </div>
+    </Panel>
   )
 }

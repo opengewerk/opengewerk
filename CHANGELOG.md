@@ -98,6 +98,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Kopf, und rechts den Stand des Abgleichs mit "Jetzt abgleichen" im Kopf; unter "Abgleich" in der
   Navigation steht bei einem Konflikt nur noch die Zahl. Am Telefon werden alle vier Tabellen zu
   Kästen, und ein einzelner Knopf im Kopf nimmt dort die ganze Breite.
+- Die Einstellungen und das Konto folgen ihren Tafeln (#219). Jeder Einstellungsbildschirm hat
+  links die Liste "Dieser Betrieb" mit allen anderen, unter 1024 Pixel stattdessen den Weg zurück
+  zu "Einstellungen", und die Übersicht zeigt jede Einstellung als Kachel mit Symbol. Bisher kam
+  man von einer Einstellung zur nächsten nur über die Übersicht. Der Briefkopf stellt Straße und
+  Hausnummer, Postleitzahl, Ort und Land in eine Reihe und Kontakt neben Steuer, Bankverbindung
+  neben Handelsregister; das Logo wird in seiner Karte gewählt und geht erst nach einer Rückfrage.
+  Die Nummernkreise sind eine Tabelle mit einer Zeile je Kreis, die mit einem kleinen Knopf
+  speichert, sobald sie geändert ist, statt sechs Karten mit je einem Knopf in Kupfer. Die Felder
+  des Regieberichts stehen in einem Kasten je Feld mit Pfeilen zum Umsortieren, die
+  E-Mail-Einstellungen in den Reihen der Tafel mit der Signatur neben ihrer Vorschau, die Zugänge
+  als Tabellen mit den Rollen in einer Zeile, und das Konto zeigt Darstellung und zweiten Faktor
+  nebeneinander, das Passwort in einer Reihe und die Geräte als Tabelle. Je Bildschirm gibt es
+  höchstens einen Knopf in Kupfer (#223), im Konto waren es bisher zwei; ein Knopf im Kopf wartet,
+  solange sein Formular offen ist, und was gespeichert ist, sagt ein grüner Haken.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen

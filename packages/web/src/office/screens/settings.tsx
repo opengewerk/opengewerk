@@ -1,102 +1,58 @@
 import { Link } from '@tanstack/react-router'
 
-import { useMay } from '../../app/queries.js'
-import { Page } from '../layout.js'
-
-interface Entry {
-  readonly to: string
-  readonly title: string
-  readonly about: string
-}
+import { NoteBox, PageHead, Screen } from '../kit.js'
+import { useSettingsEntries } from '../settings-frame.js'
 
 /**
- * Everything a business sets for itself, in one place.
+ * Everything a business sets for itself, in one place, as the board
+ * "Einstellungen" lays it out: a tile for each screen with a symbol, its name
+ * and one sentence on what it is for, so that somebody looking for the
+ * signature under their mails does not have to guess that it lives with the
+ * mail server.
  *
  * The settings are screens of their own, each under `/einstellungen`, so that
  * the entry "Einstellungen" in the navigation stays lit on every one of them.
- * This page is the table of contents: what there is, and one sentence on what
- * each is for, so that somebody looking for the signature under their mails
- * does not have to guess that it lives with the mail server.
- *
- * Only what the person may read is listed. The access list is the owner's; a
- * courtesy and not the gate, like the navigation, because the routes behind
- * each screen ask again on every request.
+ * What belongs to a person and not to the business, light or dark, the
+ * password and the second factor, is under "Konto", and the note at the foot
+ * says where.
  */
 export function SettingsScreen() {
-  const readsSettings = useMay('settings.read')
-  const administers = useMay('membership.read')
-
-  const entries: readonly Entry[] = [
-    ...(readsSettings
-      ? [
-          {
-            to: '/einstellungen/briefkopf',
-            title: 'Briefkopf',
-            about: 'Name, Anschrift, Bankverbindung und Logo, oben und unten auf jedem Beleg.',
-          },
-          {
-            to: '/einstellungen/steuern',
-            title: 'Steuern',
-            about: 'Kleinunternehmerregelung, Ist-Versteuerung und der Übergang zur E-Rechnung.',
-          },
-          {
-            to: '/einstellungen/nummernkreise',
-            title: 'Nummernkreise',
-            about: 'Wie Angebote, Rechnungen und die übrigen Belege nummeriert werden.',
-          },
-          {
-            to: '/einstellungen/zahlungsziel',
-            title: 'Zahlungsziel',
-            about: 'Wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben für jeden Beleg.',
-          },
-          {
-            to: '/einstellungen/belehrungen',
-            title: 'Belehrungen',
-            about: 'Die Widerrufsbelehrung und eigene Belehrungen, die mit Belegen hinausgehen.',
-          },
-          {
-            to: '/einstellungen/regiebericht',
-            title: 'Felder des Regieberichts',
-            about: 'Was jeder Bericht neben Arbeitszeit und Material festhält, etwa das Wetter.',
-          },
-          {
-            to: '/einstellungen/e-mail',
-            title: 'E-Mail-Einstellungen',
-            about: 'Der Mailserver des Betriebs, die Signatur und was von selbst verschickt wird.',
-          },
-          {
-            to: '/einstellungen/sicherung',
-            title: 'Sicherung',
-            about: 'Wann die Instanz zuletzt gesichert wurde. Das geschieht jede Nacht von selbst.',
-          },
-        ]
-      : []),
-    ...(administers
-      ? [
-          {
-            to: '/einstellungen/zugaenge',
-            title: 'Zugänge',
-            about: 'Wer in diesem Betrieb arbeitet, mit welchen Rollen, und die Einladungen.',
-          },
-        ]
-      : []),
-  ]
+  const entries = useSettingsEntries()
 
   return (
-    <Page title="Einstellungen" meta="Was dieser Betrieb für sich festlegt.">
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {entries.map((entry) => (
-          <li key={entry.to}>
-            <Link
-              to={entry.to}
-              className="flex h-full flex-col gap-1 rounded-control border border-line bg-surface p-4 text-ink hover:border-line-strong"
-            >
-              <span className="text-body font-semibold">{entry.title}</span>
-              <span className="text-table text-ink-muted">{entry.about}</span>
-            </Link>
-          </li>
-        ))}
+    <Screen className="lg:gap-4">
+      <PageHead title="Einstellungen" sub="Was dieser Betrieb für sich festlegt." />
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {entries.map((entry) => {
+          const Icon = entry.icon
+
+          return (
+            <li key={entry.to}>
+              <Link
+                to={entry.to}
+                className="flex h-full items-start gap-3 rounded-[5px] border border-line bg-surface p-4 text-ink no-underline hover:border-line-strong"
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex size-9 shrink-0 items-center justify-center rounded-[5px] bg-surface-sunken text-ink-muted"
+                >
+                  <Icon size={18} strokeWidth={2} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-semibold">{entry.title}</span>
+                  <span className="mt-[3px] block text-[13px] leading-[1.45] text-ink-muted">
+                    {entry.about}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          )
+        })}
       </ul>
-    </Page>
+      <NoteBox>
+        Hell oder dunkel, Passwort und zweiter Faktor gehören nicht dem Betrieb, sondern dem Konto.
+        Sie stehen im Menü unter dem Namen oben rechts.
+      </NoteBox>
+    </Screen>
   )
 }

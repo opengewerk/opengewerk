@@ -5,6 +5,7 @@ import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InRouter } from '../../app/in-router.js'
 import type { InstructionView } from '../../session/instructions.js'
 import { InstructionsScreen } from './instructions.js'
 
@@ -30,7 +31,12 @@ function serverSays(method: string, path: string, body: unknown, status = 200): 
 function inQueries(node: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-  return <QueryClientProvider client={client}>{node}</QueryClientProvider>
+  // In a router, for the links at the side of every settings screen (#219).
+  return (
+    <QueryClientProvider client={client}>
+      <InRouter>{node}</InRouter>
+    </QueryClientProvider>
+  )
 }
 
 function signedInAs(...roles: RoleKey[]) {

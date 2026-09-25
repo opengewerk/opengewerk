@@ -41,6 +41,9 @@
      used right now. */
   --color-control: #c9c4b9;
   --color-input: #ffffff;
+  /* The paper a document is printed on: the logo of the letterhead is shown on
+     it in both grounds, as it will stand on the page. */
+  --color-paper: #ffffff;
   --color-selected: #f1efe8;
   --color-disabled: #9aa0a9;
 
@@ -156,6 +159,7 @@
   --color-row: #2a3441;
   --color-control: #4a5566;
   --color-input: #141a23;
+  --color-paper: #ffffff;
   --color-selected: #232d3b;
   --color-disabled: #6b7889;
 
