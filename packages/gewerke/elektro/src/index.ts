@@ -8,7 +8,8 @@ import {
 } from '@opengewerk/domain'
 
 import manifest from '../manifest.json' with { type: 'json' }
-import vde0100600 from '../formulare/vde-0100-600.v1.json' with { type: 'json' }
+import vde0100600v1 from '../formulare/vde-0100-600.v1.json' with { type: 'json' }
+import vde0100600v2 from '../formulare/vde-0100-600.v2.json' with { type: 'json' }
 import vde0100600Limits from '../regeln/vde-0100-600.json' with { type: 'json' }
 
 /**
@@ -35,8 +36,15 @@ export interface TradeManifest {
 
 export const elektroManifest: TradeManifest = manifest
 
-/** Every version of every form the package has shipped, the oldest kept for the forms filled in it. */
-export const elektroForms: readonly FormDefinition[] = [vde0100600 as FormDefinition]
+/**
+ * Every version of every form the package has shipped, the oldest kept for the
+ * forms filled in it. Version 2 of the protocol differs from version 1 in one
+ * thing: the remark on a circuit takes more than a line (#256).
+ */
+export const elektroForms: readonly FormDefinition[] = [
+  vde0100600v1 as FormDefinition,
+  vde0100600v2 as FormDefinition,
+]
 
 export const elektroRulePackages: readonly RulePackage[] = [vde0100600Limits as RulePackage]
 

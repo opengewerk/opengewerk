@@ -353,6 +353,11 @@ export interface Document extends Synced {
   readonly serviceUntil: IsoDate | null
   /** When it was fixed. Null while it is a draft. */
   readonly issuedAt: Date | null
+  /**
+   * The account that fixed it, set by the server with `issuedAt` (#249). Null
+   * while it is a draft, and for a document fixed before anybody kept it.
+   */
+  readonly issuedBy: string | null
   readonly subject: string | null
   /**
    * The paragraph above the lines and the one below them. Free text, usually

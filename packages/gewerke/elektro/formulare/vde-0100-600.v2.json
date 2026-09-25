@@ -1,0 +1,255 @@
+{
+  "key": "vde-0100-600",
+  "version": 2,
+  "title": "Prüfprotokoll Erstprüfung nach DIN VDE 0100-600",
+  "attachesTo": "installation",
+  "sections": [
+    {
+      "key": "general",
+      "title": "Prüfung",
+      "fields": [
+        { "kind": "text", "key": "tester", "label": "Prüfer", "required": true, "carry": true },
+        {
+          "kind": "text",
+          "key": "instrument",
+          "label": "Messgerät",
+          "carry": true,
+          "hint": "Hersteller, Typ und Seriennummer."
+        },
+        {
+          "kind": "choice",
+          "key": "occasion",
+          "label": "Anlass",
+          "required": true,
+          "options": [
+            { "value": "new", "label": "Neuanlage" },
+            { "value": "extension", "label": "Erweiterung" },
+            { "value": "change", "label": "Änderung" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "earthing_system",
+          "label": "Netzform",
+          "required": true,
+          "carry": true,
+          "options": [
+            { "value": "tn_c", "label": "TN-C" },
+            { "value": "tn_s", "label": "TN-S" },
+            { "value": "tn_c_s", "label": "TN-C-S" },
+            { "value": "tt", "label": "TT" },
+            { "value": "it", "label": "IT" }
+          ]
+        },
+        {
+          "kind": "number",
+          "key": "nominal_voltage",
+          "label": "Nennspannung",
+          "carry": true,
+          "unit": "volt",
+          "decimals": 0
+        }
+      ]
+    },
+    {
+      "key": "inspection",
+      "title": "Besichtigen",
+      "hint": "DIN VDE 0100-600, Abschnitt 6.4.2.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "basic_protection",
+          "label": "Basisschutz, Schutz gegen direktes Berühren",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "protective_devices",
+          "label": "Auswahl und Einstellung der Schutz- und Überwachungseinrichtungen",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "conductors",
+          "label": "Leiterquerschnitte und Verlegung der Kabel und Leitungen",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "identification",
+          "label": "Kennzeichnung von Stromkreisen, Schutz- und Neutralleitern",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "fire_protection",
+          "label": "Brandabschottungen und Schutz gegen thermische Einflüsse",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "documentation",
+          "label": "Unterlagen vorhanden, Stromkreisverzeichnis und Schaltpläne",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "trial",
+      "title": "Erproben",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "rcd_test_button",
+          "label": "Prüftaste der Fehlerstromschutzeinrichtungen",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "switchgear",
+          "label": "Funktion von Schalt-, Steuer- und Verriegelungseinrichtungen",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "motor_rotation",
+          "label": "Drehrichtung von Motoren",
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "measurements",
+      "title": "Messen",
+      "hint": "DIN VDE 0100-600, Abschnitt 6.4.3, je Stromkreis aus dem Stromkreisverzeichnis.",
+      "fields": [
+        {
+          "kind": "group",
+          "key": "circuits",
+          "label": "Stromkreise",
+          "repeat": "circuits",
+          "fields": [
+            {
+              "kind": "measurement",
+              "key": "protective_conductor",
+              "label": "Durchgängigkeit des Schutzleiters RPE",
+              "unit": "ohm",
+              "decimals": 2
+            },
+            {
+              "kind": "measurement",
+              "key": "insulation_resistance",
+              "label": "Isolationswiderstand Riso",
+              "unit": "megaohm",
+              "decimals": 2,
+              "limit": { "kind": "at_least", "rule": "elektro.insulation.minimum_up_to_500v" }
+            },
+            {
+              "kind": "measurement",
+              "key": "loop_impedance",
+              "label": "Schleifenimpedanz Zs",
+              "unit": "ohm",
+              "decimals": 2,
+              "limit": { "kind": "loop_impedance" }
+            },
+            {
+              "kind": "measurement",
+              "key": "rcd_trip_current",
+              "label": "Auslösestrom IΔ",
+              "unit": "milliampere",
+              "decimals": 1,
+              "limit": { "kind": "rcd_trip_current" }
+            },
+            {
+              "kind": "measurement",
+              "key": "rcd_trip_time",
+              "label": "Auslösezeit tΔ",
+              "unit": "millisecond",
+              "decimals": 0,
+              "limit": { "kind": "at_most", "rule": "elektro.rcd.trip_time_maximum" }
+            },
+            {
+              "kind": "choice",
+              "key": "phase_sequence",
+              "label": "Drehfeld",
+              "options": [
+                { "value": "clockwise", "label": "rechts" },
+                { "value": "counterclockwise", "label": "links" },
+                { "value": "not_applicable", "label": "entfällt" }
+              ]
+            },
+            { "kind": "text", "key": "remark", "label": "Bemerkung", "multiline": true }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "result",
+      "title": "Ergebnis",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "verdict",
+          "label": "Ergebnis",
+          "required": true,
+          "options": [
+            { "value": "passed", "label": "Keine Mängel festgestellt" },
+            { "value": "defects", "label": "Mängel festgestellt" }
+          ]
+        },
+        { "kind": "text", "key": "defects", "label": "Mängel", "multiline": true },
+        { "kind": "photo", "key": "photo", "label": "Foto" },
+        {
+          "kind": "signature",
+          "key": "tester_signature",
+          "label": "Unterschrift des Prüfers",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

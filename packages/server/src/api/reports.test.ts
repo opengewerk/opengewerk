@@ -549,7 +549,9 @@ describe('a signed report', () => {
       .set('x-test-identity', office())
       .expect(201)
 
-    expect(issued.body).toMatchObject({ status: 'issued' })
+    // Who issued it comes with the number, a step the trigger on a signed
+    // report lets through and nothing else (#249).
+    expect(issued.body).toMatchObject({ status: 'issued', issuedBy: 'test' })
     expect((issued.body as { number: string | null }).number).not.toBeNull()
 
     const { rows } = await admin.query<{ content: DocumentContent }>(

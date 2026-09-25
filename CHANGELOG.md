@@ -22,6 +22,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Vorschau folgt, damit ein neuer Bildschirm geprüft wird, ohne dass ihn jemand einträgt. Der Browser
   ist das Abbild des Renderers aus `docker/compose.yaml`. Lokal prüft dasselbe
   `pnpm --filter @opengewerk/web run widths` gegen die laufende Vorschau.
+- Ein festgeschriebener Beleg nennt, wer ihn festgeschrieben hat, wie auf der Tafel
+  "Schlussrechnung, festgeschrieben": "Festgeschrieben 24.09.2026, 10:58 · Anna Weber" (#249).
+  Bisher stand dort nur der Zeitpunkt, denn der Beleg hielt fest, wann, aber nicht, wer; das stand
+  nur im Audit-Log, und das kommt auf kein Gerät. Die Route, die festschreibt, schreibt das Konto
+  jetzt mit dem Zeitpunkt in `issued_by` (Migration 0046), auch an der Stornorechnung, und im
+  Abgleich ist das Feld dem Server vorbehalten. Den Namen holt der Bildschirm wie die Aufgaben
+  über `GET /tasks/assignees`. Belege von davor zeigen weiter nur den Zeitpunkt.
 - Der Fuß der Anmeldung nennt die Fassung der Installation, "AGPL-3.0 · Version 0.2.0", wie auf
   den Tafeln der Seite "Vor der Anmeldung" (#259). Die Oberfläche kannte ihre Fassung bisher
   nicht, sie stand nur im Installationspaket. Jetzt gibt `docker/compose.yaml` den Wert
@@ -207,6 +214,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   entfernt (#246). Seit die Listen ihren Tafeln folgen, benutzte sie kein Bildschirm mehr; die
   Listen stehen auf einem eigenen Baustein, der jede Stufe der Tafel "Breiten und Auflösungen"
   anders zeigt. Nachtrag in ADR 0004.
+- Die Bemerkung zu einem Stromkreis im Prüfprotokoll hat mehrere Zeilen, wie auf der Tafel
+  "Prüfprotokoll, Messen je Stromkreis" (#256). Eine Bemerkung zu einem Mangel ist oft länger als
+  eine Zeile, und in einem einzeiligen Feld sah man sie beim Tippen nicht ganz. Dafür bringt das
+  Paket Elektro und PV die Fassung 2 der Definition `vde-0100-600` mit, die sich von Fassung 1 nur
+  darin unterscheidet (Paketfassung 0.2.0). Neue Protokolle entstehen in Fassung 2, eine Vorlage
+  aus Fassung 1 trägt ihre Werte hinüber, und jedes bestehende Protokoll bleibt in der Fassung
+  lesbar, in der es ausgefüllt wurde; der Server nimmt beide an.
 
 ### Behoben
 

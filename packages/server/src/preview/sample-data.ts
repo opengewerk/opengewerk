@@ -909,9 +909,16 @@ function sampleProtocols(
   initial.setUTCDate(initial.getUTCDate() - 196)
 
   const initialOn = initial.toISOString().slice(0, 10)
-  const record = (performedOn: string, status: 'draft' | 'signed', values: object) => ({
+  // The signed one in the version it was filled in, the draft in the newest,
+  // with the remark over lines that version 2 brought (#256).
+  const record = (
+    performedOn: string,
+    status: 'draft' | 'signed',
+    values: object,
+    definitionVersion = 1,
+  ) => ({
     definitionKey: 'vde-0100-600',
-    definitionVersion: 1,
+    definitionVersion,
     installationId: cabinet,
     jobId: null,
     performedOn,
@@ -946,22 +953,30 @@ function sampleProtocols(
     [
       'form_records',
       newId<'form-record'>(),
-      record(today, 'draft', {
-        ...general,
-        occasion: 'extension',
-        ...inspected('defect'),
-        circuits: blocks({
-          [circuits.light]: measured(210, 480_000, 540, 21_000, 22_000, 'not_applicable'),
-          [circuits.living]: measured(320, 550_000, 720, 19_000, 24_000, 'not_applicable'),
-          [circuits.kitchen]: measured(440, 510_000, 3_410, 21_000, 26_000, 'not_applicable'),
-          [circuits.cooker]: measured(280, 620_000, 610, 22_000, 18_000, 'clockwise'),
-          [circuits.wallbox]: measured(350, 700_000, 390, 24_000, 31_000, 'clockwise'),
-        }),
-        verdict: 'defects',
-        defects:
-          'F3: Schleifenimpedanz zu hoch, Klemmstelle in der Küche prüfen. Kennzeichnung der ' +
-          'Stromkreise unvollständig.',
-      }),
+      record(
+        today,
+        'draft',
+        {
+          ...general,
+          occasion: 'extension',
+          ...inspected('defect'),
+          circuits: blocks({
+            [circuits.light]: measured(210, 480_000, 540, 21_000, 22_000, 'not_applicable'),
+            [circuits.living]: measured(320, 550_000, 720, 19_000, 24_000, 'not_applicable'),
+            [circuits.kitchen]: {
+              ...measured(440, 510_000, 3_410, 21_000, 26_000, 'not_applicable'),
+              remark: 'Zs zu hoch, Leitungslänge prüfen.',
+            },
+            [circuits.cooker]: measured(280, 620_000, 610, 22_000, 18_000, 'clockwise'),
+            [circuits.wallbox]: measured(350, 700_000, 390, 24_000, 31_000, 'clockwise'),
+          }),
+          verdict: 'defects',
+          defects:
+            'F3: Schleifenimpedanz zu hoch, Klemmstelle in der Küche prüfen. Kennzeichnung der ' +
+            'Stromkreise unvollständig.',
+        },
+        2,
+      ),
     ],
   ]
 }

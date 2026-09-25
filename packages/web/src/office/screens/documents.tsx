@@ -34,6 +34,7 @@ import type { TableCard } from '../../components/index.js'
 import { date, euros, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
+import { usePeople } from '../../app/tasks.js'
 import { useReportFieldLines } from '../../app/report-fields.js'
 import {
   createDocument,
@@ -41,6 +42,7 @@ import {
   makeSuccessor,
   pdfAddress,
 } from '../../session/documents.js'
+import type { Assignee } from '../../session/tasks.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
@@ -413,6 +415,25 @@ export function DocumentChainCard({ documents }: { readonly documents: readonly 
   )
 }
 
+/**
+ * The line under the number of a fixed document, as the board "Schlussrechnung,
+ * festgeschrieben" has it: when, and by whom (#249). The name comes the way the
+ * name on a task does. A document fixed before anybody kept it, or by somebody
+ * this device cannot name, shows the moment alone.
+ */
+export function issuedLine(document: RecordState, people: readonly Assignee[]): string {
+  const at = maybeText(document, 'issuedAt')
+
+  if (!at) {
+    return 'Festgeschrieben'
+  }
+
+  const by = maybeText(document, 'issuedBy')
+  const name = by ? people.find((person) => person.userId === by)?.name : undefined
+
+  return name ? `Festgeschrieben ${moment(at)} · ${name}` : `Festgeschrieben ${moment(at)}`
+}
+
 /** The symbol of a document in the chain: locked, signed, drafted, cancelled. */
 const chainIcons: Readonly<Record<DocumentStatus, LucideIcon>> = {
   draft: Pencil,
@@ -546,6 +567,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   const [trouble, setTrouble] = useState<string | null>(null)
   const [following, setFollowing] = useState(false)
   const figures = useDocumentFigures(document)
+  const { people } = usePeople()
 
   const kind = documentKindOf(document)
   const status = documentStatusOf(document)
@@ -766,11 +788,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         main={
           <FixedFrame
             number={number ?? heading}
-            sub={
-              maybeText(document, 'issuedAt')
-                ? `Festgeschrieben ${moment(maybeText(document, 'issuedAt'))}`
-                : 'Festgeschrieben'
-            }
+            sub={issuedLine(document, people)}
             chip={status === 'cancelled' ? 'STORNIERT' : 'FEST'}
           >
             {fixed ? <FixedNotice status={status}>{fixed}</FixedNotice> : null}

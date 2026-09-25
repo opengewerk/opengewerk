@@ -94,10 +94,10 @@ function complete(over: Record<string, unknown> = {}): string {
   })
 }
 
-function protocol(recordId: string, values: string) {
+function protocol(recordId: string, values: string, version = 1) {
   return created('form_records', recordId, {
     definitionKey: 'vde-0100-600',
-    definitionVersion: 1,
+    definitionVersion: version,
     installationId,
     performedOn: '2026-09-24',
     status: 'draft',
@@ -165,6 +165,33 @@ describe('a test protocol through the outbox', () => {
     // next change finds in `from` what it saw. The 0,85 MΩ below the limit
     // stays: what was measured is what goes on paper.
     expect(rows[0]?.values).toBe(complete())
+  })
+
+  it('is taken in both versions the package ships, the second with a remark over lines (#256)', async () => {
+    const second = newId<'form-record'>()
+    const first = newId<'form-record'>()
+    const values = complete({
+      circuits: [
+        {
+          circuitId,
+          circuit: kitchen,
+          values: { loop_impedance: 780, remark: 'Zs zu hoch.\nLeitungslänge prüfen.' },
+        },
+      ],
+    })
+    const { receipts } = await push(app, technician(), [
+      protocol(second, values, 2),
+      protocol(first, complete(), 1),
+    ])
+
+    expect(receipts.map((receipt) => receipt.outcome)).toEqual(['applied', 'applied'])
+
+    const { rows } = await admin.query<{ definition_version: number; values: string }>(
+      'select definition_version, values from form_records where id = $1',
+      [second],
+    )
+
+    expect(rows[0]).toEqual({ definition_version: 2, values })
   })
 
   it('is refused with the sentence for a value its definition does not know', async () => {
