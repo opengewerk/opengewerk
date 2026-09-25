@@ -42,12 +42,16 @@ export async function openPreview(
   const application = await NestFactory.create<NestExpressApplication>(
     ApiModule.create(database, new PreviewIdentitySource(identity), {
       // The address the preview is opened at, the same port under its other
-      // name, and vite's, which passes the page's own origin on when it serves
-      // the interface next to the preview. Anything else sending a change is
-      // taken for a form from somewhere else, as on an instance.
+      // name, vite's, which passes the page's own origin on when it serves the
+      // interface next to the preview, and the name a container on this
+      // machine reaches it by: the browser of the renderer image, which the
+      // check of the widths and the pictures next to the boards use, and which
+      // could not save anything before (#254). Anything else sending a change
+      // is taken for a form from somewhere else, as on an instance.
       trustedOrigins: [
         address,
         `http://localhost:${String(previewPort())}`,
+        `http://host.docker.internal:${String(previewPort())}`,
         'http://127.0.0.1:5173',
         'http://localhost:5173',
       ],

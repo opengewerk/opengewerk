@@ -24,15 +24,18 @@ export const actionBarMark = 'data-action-bar'
 export function SiteActionBar({
   children,
   note,
+  stacked = false,
 }: {
   readonly children: ReactNode
   readonly note?: ReactNode
+  /** One button over the other, as "Unterschreiben" over "Zurück zum Bericht". */
+  readonly stacked?: boolean
 }) {
   const slot = useContext(ActionSlot)
 
   const bar = (
     <div {...{ [actionBarMark]: '' }} className="border-t border-line bg-ground px-4 pt-3 pb-4">
-      <div className="flex gap-2">{children}</div>
+      <div className={stacked ? 'flex flex-col gap-2' : 'flex gap-2'}>{children}</div>
       {note ? (
         <p className="mt-2 text-center text-[14px] leading-[1.35] text-ink-muted">{note}</p>
       ) : null}
@@ -42,4 +45,16 @@ export function SiteActionBar({
   // Without a shell around it, in a test of one screen, the bar stands in
   // place; its buttons are still there to be pressed.
   return slot ? createPortal(bar, slot) : bar
+}
+
+/**
+ * No bar and no tabs either, for a step of a flow that the board draws
+ * without both, "Material eintragen": the tabs would come and go between two
+ * steps of the same report otherwise.
+ */
+export function SiteNoTabs() {
+  const slot = useContext(ActionSlot)
+  const mark = <div {...{ [actionBarMark]: '' }} hidden />
+
+  return slot ? createPortal(mark, slot) : null
 }

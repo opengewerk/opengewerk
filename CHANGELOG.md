@@ -127,6 +127,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   haben die Höhen der Tafeln, 44 bis 60 Pixel. Je Bildschirm ein Knopf in Kupfer (#223): am
   Auftrag ist es "Regiebericht schreiben", "Foto aufnehmen" ist dort ein normaler Knopf und nur auf
   dem Bildschirm der Dateien in Kupfer.
+- Der Regiebericht auf der Baustelle folgt seinen Tafeln (#219). Die Arbeitszeit hat einen Zähler
+  mit Minus und Plus, eine Viertelstunde je Tipp, jede gleich auf dem Gerät gesichert; Material
+  steht als Zeile mit Menge und Kreuz, das vor dem Entfernen fragt. Material und weitere
+  Arbeitszeit werden in einer eigenen Karte über der Liste eingetragen, ein Foto aus dem Bericht
+  landet bei den Dateien des Auftrags. "Vom Kunden unterschreiben lassen" steht unten, wo sonst die
+  Reiter sind, mit dem Satz, dass alles ohne Netz gesichert wird, ebenso "Unterschreiben" und
+  "Zurück zum Bericht" beim Unterschreiben. Der unterschriebene Bericht zeigt seinen Zustand, warum
+  er sich nicht mehr ändert, den Bericht und die Unterschrift.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
