@@ -1,10 +1,12 @@
 import type { TenantId } from '@opengewerk/domain'
+import clsx from 'clsx'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Field, FieldLabel } from '../components/index.js'
+import { Button, Field } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import type { Entry } from '../entry/entry.js'
+import { Gate, GateText } from './gate.js'
 import { roleLabel } from './labels.js'
 import { SignOutButton } from './sign-out.js'
 import {
@@ -21,28 +23,22 @@ function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
 
-/**
- * The frame every step before working shares: the mark, one card, one action.
- *
- * `<main>` and an `<h1>`, because this is the first thing a screen reader
- * meets and an application that starts with an unlabelled div starts badly.
- */
-function Gate({ title, children }: { readonly title: string; readonly children: React.ReactNode }) {
+/** A sentence that went wrong, in the gate. */
+function GateTrouble({ children }: { readonly children: string }) {
   return (
-    <main className="min-h-dvh flex items-center justify-center p-4">
-      <div className="w-full max-w-md flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <FieldLabel>OpenGewerk</FieldLabel>
-          <h1 className="text-title font-semibold">{title}</h1>
-        </div>
-        <Card label={title}>{children}</Card>
-      </div>
-    </main>
+    <p
+      role="alert"
+      className="text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]"
+    >
+      {children}
+    </p>
   )
 }
 
 /**
- * Email and password, and nothing else on the screen.
+ * Email and password, and nothing else on the screen, the board
+ * "Tor-Anmelden": "Passwort vergessen?" beside the label of the password, and
+ * under the button the sentence that says a code from the app may follow.
  *
  * No link to register, because there is no registering: an account is made on
  * the command line by somebody who already has one, which is the decision from
@@ -116,7 +112,7 @@ export function SignInScreen({
   return (
     <Gate title="Anmelden">
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
           void submit(event)
         }}
@@ -142,43 +138,51 @@ export function SignInScreen({
           onChange={(event) => {
             setPassword(event.target.value)
           }}
+          aside={
+            asked ? null : (
+              // A button, since it sends something, drawn as the link the
+              // board has beside the label.
+              <button
+                type="button"
+                disabled={working}
+                onClick={() => {
+                  void forgotten()
+                }}
+                className="cursor-pointer text-[13px] font-medium text-copper-text underline disabled:cursor-not-allowed disabled:text-disabled"
+              >
+                Passwort vergessen?
+              </button>
+            )
+          }
         />
 
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+        {trouble ? <GateTrouble>{trouble}</GateTrouble> : null}
 
         <Button type="submit" tone="primary" wide disabled={working}>
           {working ? 'Einen Moment' : 'Anmelden'}
         </Button>
 
         {asked ? (
-          <p role="status" className="text-body">
+          <p role="status" className="text-[15px] leading-[1.5] text-ink lg:text-[14px]">
             Wenn es zu dieser Adresse einen Zugang gibt und ein Betrieb, in dem er arbeitet, E-Mails
             verschickt, ist ein Link zu einem neuen Passwort unterwegs. Er gilt eine Stunde. Kommt
             keiner an, hilft der Inhaber des Betriebs weiter.
           </p>
-        ) : (
-          <Button
-            tone="quiet"
-            wide
-            disabled={working}
-            onClick={() => {
-              void forgotten()
-            }}
-          >
-            Passwort vergessen?
-          </Button>
-        )}
+        ) : null}
+
+        <p className="text-[15px] leading-[1.5] text-ink-muted lg:text-[13px]">
+          Für die Rolle Inhaber ist der zweite Faktor Pflicht, für alle anderen empfohlen. Nach dem
+          Passwort folgt dann der Code aus der App.
+        </p>
       </form>
     </Gate>
   )
 }
 
 /**
- * The second factor, for the accounts that have to have one.
+ * The second factor, for the accounts that have to have one, the board
+ * "Tor-Zweiter-Faktor": the code in a large field, at a desk as on a phone,
+ * because it is read off another screen and typed digit by digit.
  *
  * With the code from the app, or with one of the recovery codes shown when the
  * factor was set up, for somebody whose phone is gone (#125). Afterwards the
@@ -217,8 +221,8 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
   if (left !== undefined) {
     return (
       <Gate title="Wiederherstellungscode eingelöst">
-        <p className="text-body">{codesLeftSentence(left)}</p>
-        <Button className="mt-4" tone="primary" wide onClick={onVerified}>
+        <GateText muted={false}>{codesLeftSentence(left)}</GateText>
+        <Button tone="primary" wide onClick={onVerified}>
           Weiter
         </Button>
       </Gate>
@@ -228,7 +232,7 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
   return (
     <Gate title="Zweiter Faktor">
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
           void submit(event)
         }}
@@ -244,6 +248,7 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
             spellCheck={false}
             maxLength={20}
             required
+            className="h-13! text-[17px]!"
             value={code}
             onChange={(event) => {
               setCode(event.target.value)
@@ -259,6 +264,7 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
             autoComplete="one-time-code"
             maxLength={8}
             required
+            className="h-13! text-[17px]!"
             value={code}
             onChange={(event) => {
               setCode(event.target.value)
@@ -266,11 +272,7 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
           />
         )}
 
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+        {trouble ? <GateTrouble>{trouble}</GateTrouble> : null}
 
         <Button type="submit" tone="primary" wide disabled={working}>
           {working ? 'Wird geprüft' : 'Weiter'}
@@ -278,7 +280,6 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
 
         <Button
           tone="quiet"
-          wide
           onClick={() => {
             setRecovery(!recovery)
             setCode('')
@@ -310,7 +311,8 @@ function codesLeftSentence(left: number | null): string {
 }
 
 /**
- * Which business this session works in.
+ * Which business this session works in, the board "Tor-Betrieb": one box
+ * each, side by side while they fit, with the roles in small capitals.
  *
  * Asked before anything is read and not afterwards. A session without a
  * business would have to be told which one by every request, and then the
@@ -353,47 +355,44 @@ export function TenantScreen({
   if (tenants.length === 0) {
     return (
       <Gate title="Kein Betrieb">
-        <p className="text-body">
+        <GateText muted={false}>
           Dieses Konto gehört zu keinem Betrieb. Wer die Instanz betreibt, legt die Zugehörigkeit
           an.
-        </p>
-        <div className="mt-4">
-          <SignOutButton client={null} onSignedOut={onSignedOut} wide />
-        </div>
+        </GateText>
+        <SignOutButton client={null} onSignedOut={onSignedOut} wide />
       </Gate>
     )
   }
 
   return (
-    <Gate title="Betrieb wählen">
-      <ul className="flex flex-col gap-3">
+    <Gate title="Betrieb wählen" width={640}>
+      <ul className="flex flex-wrap gap-2.5">
         {tenants.map((tenant) => (
-          <li key={tenant.id}>
-            <Button
-              tone="secondary"
-              wide
-              className="justify-between"
+          <li key={tenant.id} className="flex min-w-[12rem] grow basis-0">
+            <button
+              type="button"
               disabled={working !== null}
               onClick={() => {
                 void choose(tenant)
               }}
+              className={clsx(
+                'flex w-full cursor-pointer flex-col items-start gap-[3px] rounded-[5px] px-3.5 py-3 text-left text-ink hover:border-ink disabled:cursor-not-allowed',
+                // The one being opened, as the board marks the chosen one.
+                working === tenant.id
+                  ? 'border-[1.5px] border-ink bg-input'
+                  : 'border border-line bg-surface',
+              )}
             >
-              <span>{tenant.name}</span>
-              <span className="font-condensed text-label uppercase tracking-wider text-ink-muted">
+              <span className="text-[16px] font-semibold">{tenant.name}</span>
+              <span className="font-condensed text-[13px] font-semibold tracking-[0.8px] text-ink-faint uppercase">
                 {tenant.roles.map((role) => roleLabel[role]).join(', ')}
               </span>
-            </Button>
+            </button>
           </li>
         ))}
       </ul>
 
-      {trouble ? (
-        <p role="alert" className="mt-4 text-body font-semibold text-conflict">
-          {trouble}
-        </p>
-      ) : null}
+      {trouble ? <GateTrouble>{trouble}</GateTrouble> : null}
     </Gate>
   )
 }
-
-export { Gate }

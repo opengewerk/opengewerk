@@ -4,7 +4,7 @@ import type { FormEvent } from 'react'
 import { Button, Field } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import { resetPassword, shortestPassword } from './../session/session.js'
-import { Gate } from './sign-in.js'
+import { Gate, GateText } from './gate.js'
 
 /**
  * The far end of the link in the mail, for somebody who forgot their
@@ -59,12 +59,11 @@ export function PasswordResetScreen({ token }: { readonly token: string }) {
   if (done) {
     return (
       <Gate title="Passwort gesetzt">
-        <p className="text-body">
+        <GateText muted={false}>
           Das neue Passwort gilt ab sofort, und alle Geräte dieses Zugangs sind abgemeldet. Jetzt
           mit ihm anmelden.
-        </p>
+        </GateText>
         <Button
-          className="mt-4"
           tone="primary"
           wide
           onClick={() => {
@@ -81,7 +80,7 @@ export function PasswordResetScreen({ token }: { readonly token: string }) {
   return (
     <Gate title="Passwort neu setzen">
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
           void submit(event)
         }}
@@ -108,7 +107,10 @@ export function PasswordResetScreen({ token }: { readonly token: string }) {
         />
 
         {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
+          <p
+            role="alert"
+            className="text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]"
+          >
             {trouble}
           </p>
         ) : null}

@@ -20,6 +20,7 @@ export { Card, Shell, TextLink, useEntry } from './surface.js'
 export type { CardProps, CardTone, Entry, ShellProps, TextLinkProps } from './surface.js'
 
 export { BrandMark } from './brand-mark.js'
+export { GateProvider, useInGate } from './gate.js'
 export { ThemeSwitch } from './theme-switch.js'
 export type { ThemeChoice, ThemeSwitchProps } from './theme-switch.js'
 

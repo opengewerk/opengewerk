@@ -80,6 +80,16 @@
   --color-top-line: #3a4453;
   --color-nav: #eae6dd;
 
+  /* The brand beside the sign in, as the boards "Tor-Anmelden" draw it: slate
+     with the mark, and the same in both grounds, so the dark block repeats
+     these values rather than turning them. A lighter slate for the sentences
+     and the foot, and green for the lock of an encrypted connection. */
+  --color-gate: #1b2430;
+  --color-gate-text: #a8afb9;
+  --color-gate-faint: #838b98;
+  --color-gate-line: #38424f;
+  --color-gate-lock: #62b38a;
+
   /* The strips over a screen, as on the boards "Leisten im Büro" and "Leisten
      auf der Baustelle": amber while something waits, red for a conflict, and
      a plain button in the colour of its strip. The amber of a strip stays dark
@@ -189,6 +199,13 @@
   --color-top-muted: #cfcbc2;
   --color-top-line: #2a3441;
   --color-nav: #182029;
+
+  /* The brand beside the sign in stays the slate of the mark. */
+  --color-gate: #1b2430;
+  --color-gate-text: #a8afb9;
+  --color-gate-faint: #838b98;
+  --color-gate-line: #38424f;
+  --color-gate-lock: #62b38a;
 
   --color-bar-wait: #6b5311;
   --color-on-bar-wait: #ffffff;

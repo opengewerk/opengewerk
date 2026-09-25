@@ -146,6 +146,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
   jeder Oberfläche zusammen mit der Schriftgröße, darum kam die Zeilenhöhe der Schrift zuerst gar
   nicht an.
+- Die Bildschirme vor der Anmeldung folgen ihren Tafeln (#219). Am Schreibtisch steht links die
+  Marke auf Schiefer mit zwei Sätzen dazu, was OpenGewerk ist und wo es läuft, rechts über der
+  Karte die Adresse, an die das Passwort geht, mit Schloss nur bei verschlüsselter Verbindung; am
+  Telefon ist die Marke ein Kopf in Schiefer. Bisher stand eine schlichte Karte mitten auf der
+  Seite. Felder sind im Tor 42 Pixel hoch am Schreibtisch und 52 am Telefon, Knöpfe 46 und 56.
+  "Passwort vergessen?" steht neben dem Passwort, unter "Anmelden" der Satz zum zweiten Faktor.
+  Die Betriebe stehen als Kästen nebeneinander, der QR-Code neben dem Schlüssel zum Eintippen,
+  "Einen Moment" hat einen Kreis, der sich dreht, und "Keine Verbindung" ein Symbol. Fassung und
+  Hilfe, die die Tafeln im Fuß zeichnen, kommen mit #259.
 - Eine Spaltenbreite meint wie im Canvas die Breite des Textes, der Innenabstand kommt dazu. Bisher
   schloss sie ihn ein, und jede Spalte mit einer Breite war um 16 bis 22 Pixel schmaler als
   gezeichnet (#219).

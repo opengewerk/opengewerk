@@ -2,9 +2,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { encode } from 'uqr'
 
-import { Button, Card, Field, FieldLabel } from '../components/index.js'
+import { Button, Field, FieldLabel, useInGate } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
-import { Gate } from './sign-in.js'
+import { Gate, GateText } from './gate.js'
 import {
   runSetup,
   secretFrom,
@@ -16,6 +16,24 @@ import {
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
+}
+
+/** A sentence that went wrong, at the size of the gate there and of a card elsewhere. */
+function Trouble({ children }: { readonly children: string }) {
+  const gate = useInGate()
+
+  return (
+    <p
+      role="alert"
+      className={
+        gate
+          ? 'text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]'
+          : 'text-body font-semibold text-conflict'
+      }
+    >
+      {children}
+    </p>
+  )
 }
 
 /**
@@ -78,13 +96,13 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
 
   return (
     <Gate title="Einrichten">
-      <p className="text-body text-ink-muted">
+      <GateText>
         Diese Instanz ist noch leer. Hier entstehen der Betrieb und das erste Konto. Wer dieses
         Konto hat, legt später alle weiteren an.
-      </p>
+      </GateText>
 
       <form
-        className="mt-4 flex flex-col gap-4"
+        className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
           void submit(event)
         }}
@@ -102,7 +120,7 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
           }}
           hint="Steht auf dem Server in der Datei docker/.env. So richtet nur ein, wer an den Server kommt."
         />
-        <hr className="border-line" />
+        <hr className="border-0 border-t border-line" />
         <Field
           label="Betrieb"
           name="organization"
@@ -162,11 +180,7 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
           problem={mismatched ? 'Die beiden Passwörter sind nicht gleich.' : undefined}
         />
 
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+        {trouble ? <Trouble>{trouble}</Trouble> : null}
 
         <Button type="submit" tone="primary" wide disabled={working || mismatched}>
           {working ? 'Wird eingerichtet' : 'Betrieb anlegen'}
@@ -196,7 +210,7 @@ export function QrCode({ text, label }: { readonly text: string; readonly label:
       viewBox={`0 0 ${String(edge)} ${String(edge)}`}
       role="img"
       aria-label={label}
-      className="w-full max-w-64 h-auto rounded-card"
+      className="h-auto w-full rounded-[6px] border border-line"
       // Blocks, not smoothed. A scaled up QR code with interpolation between
       // the modules is one a camera has to work at.
       style={{ imageRendering: 'pixelated' }}
@@ -303,11 +317,7 @@ export function SecondFactorSetup({
           hint="Zur Sicherheit noch einmal, bevor ein neuer Zugang entsteht."
         />
 
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+        {trouble ? <Trouble>{trouble}</Trouble> : null}
 
         <Button type="submit" tone="primary" wide disabled={working}>
           {working ? 'Einen Moment' : 'Einrichten'}
@@ -322,34 +332,43 @@ export function SecondFactorSetup({
     )
   }
 
+  // As the board "Tor-Faktor-Einrichten" draws it: the code to scan beside the
+  // key to type, the recovery codes in a sunken box, and the check at the end.
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center gap-2">
-        <QrCode text={started.totpUri} label="QR-Code für die Authenticator-App" />
-        <p className="text-table text-ink-muted text-center">
-          Scannen, oder diesen Schlüssel eintippen:
-        </p>
-        <p className="text-body font-condensed tracking-wider break-all text-center">
-          {secretFrom(started.totpUri)}
-        </p>
+    <div className="flex flex-col gap-[15px]">
+      <div className="flex flex-wrap items-center gap-[18px]">
+        <div className="w-48 shrink-0">
+          <QrCode text={started.totpUri} label="QR-Code für die Authenticator-App" />
+        </div>
+        <div className="flex min-w-[12rem] grow basis-0 flex-col gap-1.5">
+          <p className="text-[13px] leading-[1.5] text-ink-muted">
+            Scannen, oder diesen Schlüssel eintippen:
+          </p>
+          <p className="font-condensed text-[18px] font-semibold tracking-[1.5px] [overflow-wrap:anywhere] text-ink">
+            {secretFrom(started.totpUri)}
+          </p>
+        </div>
       </div>
 
-      <Card label="Wiederherstellungscodes" tone="sunken">
-        <p className="text-body">
+      <section
+        aria-label="Wiederherstellungscodes"
+        className="flex flex-col gap-2.5 rounded-[5px] border border-line bg-surface-sunken px-4 py-3.5"
+      >
+        <p className="text-[14px] leading-[1.5] text-ink">
           Diese Codes sind der Weg hinein, wenn das Telefon weg ist. Jeder gilt einmal. Jetzt
           ausdrucken oder aufschreiben, danach sind sie nicht mehr zu sehen.
         </p>
-        <ul className="mt-3 grid grid-cols-2 gap-2">
+        <ul className="grid grid-cols-2 gap-x-[18px] gap-y-1.5">
           {started.backupCodes.map((backup) => (
-            <li key={backup} className="text-body font-condensed tracking-wider numeric">
-              {backup}
+            <li key={backup}>
+              <code className="text-[15px] font-semibold tracking-[0.5px] text-ink">{backup}</code>
             </li>
           ))}
         </ul>
-      </Card>
+      </section>
 
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
           void confirm(event)
         }}
@@ -369,11 +388,7 @@ export function SecondFactorSetup({
           hint="Erst wenn ein Code gestimmt hat, gilt der zweite Faktor als eingerichtet."
         />
 
-        {trouble ? (
-          <p role="alert" className="text-body font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
+        {trouble ? <Trouble>{trouble}</Trouble> : null}
 
         <Button type="submit" tone="primary" wide disabled={working}>
           {working ? 'Wird geprüft' : 'Fertig'}
@@ -392,14 +407,12 @@ export function SecondFactorSetup({
  */
 export function SecondFactorSetupScreen({ onDone }: { readonly onDone: () => void }) {
   return (
-    <Gate title="Zweiter Faktor">
-      <p className="text-body text-ink-muted">
+    <Gate title="Zweiter Faktor" width={600}>
+      <GateText>
         Für die Rolle Inhaber ist ein zweiter Faktor Pflicht. Richten Sie ihn mit einer
         Authenticator-App auf dem Telefon ein.
-      </p>
-      <div className="mt-4">
-        <SecondFactorSetup onDone={onDone} />
-      </div>
+      </GateText>
+      <SecondFactorSetup onDone={onDone} />
     </Gate>
   )
 }

@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import type { LucideIcon } from 'lucide-react'
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 
+import { useInGate } from './gate.js'
 import type { Entry } from './surface.js'
 import { useEntry } from './surface.js'
 
@@ -91,6 +92,23 @@ function sizeClasses(size: ButtonSize, entry: Entry, height: SiteHeight = 60): s
       'h-control min-h-tap px-[14px] gap-[7px] text-body lg:whitespace-nowrap max-lg:h-auto max-lg:py-1.5 max-lg:text-center max-lg:text-[15px]'
 }
 
+/**
+ * A button before sign in, `gate_button()` of the boards: 56 pixels on a phone
+ * and 46 at a desk, the filled one in copper, the plain one on the page colour.
+ * The quiet one is `quiet()` there, a line of copper text, underlined and at
+ * the left, "Telefon nicht zur Hand? Wiederherstellungscode".
+ */
+function gateClasses(tone: ButtonTone): string {
+  switch (tone) {
+    case 'quiet':
+      return 'self-start justify-start rounded-control border-0 bg-transparent px-0 py-1 text-left text-[15px] lg:text-[14px] font-semibold text-copper-text underline'
+    case 'primary':
+      return 'min-h-14 lg:min-h-[46px] rounded-[4px] px-[14px] py-1.5 gap-[9px] text-[17px] lg:text-[16px] leading-[1.25] text-center bg-copper-solid text-on-copper border border-copper-solid font-semibold'
+    default:
+      return 'min-h-14 lg:min-h-[46px] rounded-[4px] px-[14px] py-1.5 gap-[9px] text-[17px] lg:text-[16px] leading-[1.25] text-center bg-ground text-ink border border-control font-medium'
+  }
+}
+
 /** The size of the symbol in front of the label, from the same drawings. */
 function iconSize(size: ButtonSize, entry: Entry): { size: number; strokeWidth: number } {
   if (entry === 'site') {
@@ -134,22 +152,31 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const entry = useEntry()
+  const gate = useInGate()
 
   return (
     <button
       type="button"
       className={clsx(
-        'inline-flex items-center justify-center rounded-control',
+        'inline-flex items-center justify-center',
         'cursor-pointer disabled:cursor-not-allowed',
         'disabled:bg-ground disabled:text-disabled disabled:border-line',
-        sizeClasses(size, entry, height),
-        toneClasses(tone, size, entry),
-        wide && 'w-full',
+        gate
+          ? gateClasses(tone)
+          : ['rounded-control', sizeClasses(size, entry, height), toneClasses(tone, size, entry)],
+        // A quiet button in the gate is a line of text and never fills the width.
+        wide && !(gate && tone === 'quiet') && 'w-full',
         className,
       )}
       {...rest}
     >
-      {Icon ? <Icon {...iconSize(size, entry)} aria-hidden="true" className="shrink-0" /> : null}
+      {Icon ? (
+        <Icon
+          {...(gate ? { size: 19, strokeWidth: 2 } : iconSize(size, entry))}
+          aria-hidden="true"
+          className="shrink-0"
+        />
+      ) : null}
       {children}
     </button>
   )
