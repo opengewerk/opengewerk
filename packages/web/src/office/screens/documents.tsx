@@ -21,10 +21,26 @@ import {
 } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { ChevronRight, Lock, Pencil } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Card, DocumentState, Field } from '../../components/index.js'
-import { date, moment, today } from '../../app/format.js'
+import {
+  Button,
+  Card,
+  cardLink,
+  Cell,
+  Column,
+  DocumentState,
+  Field,
+  Panel,
+  statusIcons,
+  TablePanel,
+  useBand,
+} from '../../components/index.js'
+import type { TableCard } from '../../components/index.js'
+import { date, euros, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { ReportFieldList, useReportFieldLines } from '../../app/report-fields.js'
@@ -50,9 +66,11 @@ import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Crumb, Fact, Facts, Nothing, Page, Section } from '../layout.js'
+import { useGrossByDocument } from './document-gross.js'
 import { HeaderSection } from './document-head.js'
 import { InstructionsSection } from './document-instructions.js'
 import { LinesSection } from './document-lines.js'
+import { DocumentMarker } from './document-marker.js'
 import { confirmationKey, PaymentConfirmation, PaymentsCard } from './document-payments.js'
 import { claimableTransitions } from './taxes.js'
 
@@ -129,6 +147,19 @@ export function DocumentEntry({ document }: { readonly document: RecordState }) 
   )
 }
 
+/** What the screen of a job needs of its documents: the list, and the ways to a new one. */
+export interface JobDocumentsState {
+  /** Oldest first, the order the chain was written in. */
+  readonly documents: readonly RecordState[]
+  /** The reports one invoice can bill (#135). */
+  readonly openReports: readonly RecordState[]
+  readonly mayWrite: boolean
+  readonly working: boolean
+  readonly trouble: string | null
+  readonly start: (kind: 'quote' | 'cost_estimate') => Promise<void>
+  readonly collect: () => Promise<void>
+}
+
 /**
  * The documents of a job, and the two ways to start one.
  *
@@ -137,15 +168,15 @@ export function DocumentEntry({ document }: { readonly document: RecordState }) 
  * keeps them apart, and a form with a kind field is how somebody sends the
  * wrong one because the field was left on its default.
  */
-export function JobDocuments({ job }: { readonly job: RecordState }) {
+export function useJobDocuments(job: RecordState): JobDocumentsState {
   const jobId = String(job['id'])
   const client = useSync()
   const navigate = useNavigate()
   const mayWrite = useMay('document.write')
-  const documents = useRelated('documents', 'jobId', jobId)
+  const related = useRelated('documents', 'jobId', jobId)
   const sources = useRecords('document_sources')
-  const sorted = useMemo(() => [...documents].sort(byDate), [documents])
-  const open = useMemo(() => openReports(documents, sources), [documents, sources])
+  const documents = useMemo(() => [...related].sort(byDate), [related])
+  const open = useMemo(() => openReports(related, sources), [related, sources])
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
@@ -205,43 +236,225 @@ export function JobDocuments({ job }: { readonly job: RecordState }) {
     }
   }
 
-  return (
-    <Section
-      title="Belege"
-      actions={
-        mayWrite ? (
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={working} onClick={() => void start('quote')}>
-              Angebot anlegen
-            </Button>
-            <Button disabled={working} onClick={() => void start('cost_estimate')}>
-              Kostenvoranschlag anlegen
-            </Button>
-            {open.length > 1 ? (
-              <Button disabled={working} onClick={() => void collect()}>
-                {`Rechnung über ${String(open.length)} Regieberichte`}
-              </Button>
-            ) : null}
-          </div>
-        ) : null
-      }
-    >
-      {trouble ? (
-        <p role="alert" className="mb-3 text-body font-semibold text-conflict">
-          {trouble}
+  return { documents, openReports: open, mayWrite, working, trouble, start, collect }
+}
+
+/**
+ * "Belege" of a job, `table_card()` of the board "Auftrag": what each is, its
+ * number and state, its day and subject; over them the one invoice for the
+ * open reports.
+ */
+export function JobDocumentsPanel({ state }: { readonly state: JobDocumentsState }) {
+  const { documents, openReports: open, mayWrite, working } = state
+  const navigate = useNavigate()
+  const action =
+    mayWrite && open.length > 1 ? (
+      <Button size="small" disabled={working} onClick={() => void state.collect()}>
+        {`Rechnung über ${String(open.length)} Regieberichte`}
+      </Button>
+    ) : null
+
+  if (documents.length === 0) {
+    return (
+      <Panel title="Belege" action={action}>
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          Noch kein Beleg zu diesem Auftrag. Angebot und Kostenvoranschlag entstehen oben im Kopf.
         </p>
-      ) : null}
-      {sorted.length === 0 ? (
-        <Nothing>Noch kein Beleg zu diesem Auftrag.</Nothing>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {sorted.map((document) => (
-            <DocumentEntry key={String(document['id'])} document={document} />
-          ))}
-        </ul>
-      )}
-    </Section>
+      </Panel>
+    )
+  }
+
+  const cards: TableCard[] = documents.map((document) => {
+    const id = String(document['id'])
+
+    return {
+      key: id,
+      title: (
+        <Link to={`/belege/${id}`} className={cardLink}>
+          {documentKindLabel[documentKindOf(document)]}
+        </Link>
+      ),
+      sub: [text(document, 'number'), date(document['documentDate']), text(document, 'subject')]
+        .filter((part) => part !== '')
+        .join(' · '),
+      right: <DocumentMarker document={document} />,
+    }
+  })
+
+  return (
+    <TablePanel title="Belege" caption="Belege des Auftrags" action={action} cards={cards}>
+      <thead>
+        <tr>
+          <Column className="w-[150px]">Art</Column>
+          <Column className="w-[108px]">Nummer</Column>
+          <Column className="w-[140px]">Status</Column>
+          <Column className="w-[92px]">Datum</Column>
+          <Column>Betreff</Column>
+        </tr>
+      </thead>
+      <tbody>
+        {documents.map((document) => {
+          const id = String(document['id'])
+
+          return (
+            <tr
+              key={id}
+              className="cursor-pointer hover:bg-surface-sunken"
+              onClick={(event) => {
+                if (!(event.target as HTMLElement).closest('a, button')) {
+                  void navigate({ to: `/belege/${id}` })
+                }
+              }}
+            >
+              <Cell>
+                <Link to={`/belege/${id}`} className="text-inherit no-underline hover:underline">
+                  {documentKindLabel[documentKindOf(document)]}
+                </Link>
+              </Cell>
+              <Cell className="numeric">{text(document, 'number')}</Cell>
+              <Cell>
+                <DocumentMarker document={document} />
+              </Cell>
+              <Cell className="numeric">{date(document['documentDate'])}</Cell>
+              <Cell>{text(document, 'subject')}</Cell>
+            </tr>
+          )
+        })}
+      </tbody>
+    </TablePanel>
   )
+}
+
+/**
+ * "Belegkette" over the record of a job: its documents in the order they
+ * were written, each with its state in a symbol and a line, the draft in a
+ * dashed box because it is not yet what it will be.
+ */
+export function DocumentChainCard({ documents }: { readonly documents: readonly RecordState[] }) {
+  const gross = useGrossByDocument()
+  const band = useBand()
+
+  if (documents.length === 0) {
+    return null
+  }
+
+  // On a phone a line per document, the number at the right, as the chain of
+  // "Auftrag im Büro, Telefon" stands.
+  if (band === 'S') {
+    return (
+      <Panel title="Belegkette">
+        <ol className="flex flex-col gap-1.5">
+          {documents.map((document) => {
+            const id = String(document['id'])
+            const status = documentStatusOf(document)
+            const Icon = chainIcons[status]
+
+            return (
+              <li key={id}>
+                <Link
+                  to={`/belege/${id}`}
+                  className="flex min-h-10 items-center gap-2 rounded-control border border-line bg-ground px-2.5 text-[15px] text-ink no-underline"
+                >
+                  <Icon
+                    size={16}
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                    className="shrink-0 text-ink-muted"
+                  />
+                  <span className="min-w-0 grow">
+                    {documentKindLabel[documentKindOf(document)]}
+                  </span>
+                  <span className="numeric shrink-0 text-[13px] text-ink-faint">
+                    {maybeText(document, 'number') ??
+                      (status === 'draft'
+                        ? 'Entwurf'
+                        : status === 'signed'
+                          ? 'unterschrieben'
+                          : '')}
+                  </span>
+                </Link>
+              </li>
+            )
+          })}
+        </ol>
+      </Panel>
+    )
+  }
+
+  return (
+    <Panel title="Belegkette">
+      <ol className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
+        {documents.map((document, index) => {
+          const id = String(document['id'])
+          const status = documentStatusOf(document)
+          const number = maybeText(document, 'number')
+          const amount = gross.get(id)
+          const Icon = chainIcons[status]
+          const draft = status === 'draft'
+          const line =
+            status === 'draft'
+              ? 'Entwurf, keine Nummer'
+              : [
+                  number ?? (status === 'signed' ? 'noch ohne Nummer' : null),
+                  status === 'signed'
+                    ? 'unterschrieben'
+                    : status === 'cancelled'
+                      ? 'storniert'
+                      : amount === null || amount === undefined
+                        ? null
+                        : euros(amount),
+                ]
+                  .filter((part): part is string => part !== null)
+                  .join(' · ')
+
+          return (
+            <li key={id} className="flex min-w-0 items-stretch gap-2 lg:basis-0 lg:grow">
+              {index > 0 ? (
+                <ChevronRight
+                  size={15}
+                  strokeWidth={2.2}
+                  aria-hidden="true"
+                  className="hidden shrink-0 self-center text-ink-faint lg:block"
+                />
+              ) : null}
+              <Link
+                to={`/belege/${id}`}
+                className={clsx(
+                  'flex min-w-0 grow flex-col gap-[3px] rounded-control border px-[11px] py-[9px] no-underline',
+                  draft
+                    ? 'border-dashed border-waiting-edge bg-surface text-waiting'
+                    : 'border-line bg-ground text-ink',
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold">
+                  <Icon
+                    size={13}
+                    strokeWidth={2.2}
+                    aria-hidden="true"
+                    className={clsx('shrink-0', draft ? 'text-waiting' : 'text-ink-muted')}
+                  />
+                  {documentKindLabel[documentKindOf(document)]}
+                </span>
+                <span
+                  className={clsx('numeric text-[13px]', draft ? 'text-waiting' : 'text-ink-muted')}
+                >
+                  {line}
+                </span>
+              </Link>
+            </li>
+          )
+        })}
+      </ol>
+    </Panel>
+  )
+}
+
+/** The symbol of a document in the chain: locked, signed, drafted, cancelled. */
+const chainIcons: Readonly<Record<DocumentStatus, LucideIcon>> = {
+  draft: Pencil,
+  signed: statusIcons.sign,
+  issued: Lock,
+  cancelled: statusIcons.ban,
 }
 
 /**

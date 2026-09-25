@@ -57,6 +57,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Bildschirm gezeichnet wird. Die Anlagenakte führt ihre Protokolle wie die Tafel in der Folge,
   in der geprüft wurde. Die Vorschau hat dafür an der Anlage der Familie Berg zwei Protokolle,
   eines unterschrieben und einen Entwurf mit einer Schleifenimpedanz außerhalb des Grenzwerts.
+- Die Aufträge folgen ihren Tafeln (#219). Die Liste führt vorn die Nummer, dazu Art, Status,
+  Kunde und die Monteure, mit Filtern nach Status und "Sortiert nach", in jeder Breite wie die
+  anderen Listen. Der Auftrag zeigt über die ganze Breite seine Belegkette, jeden Beleg mit
+  Zustand und Nummer, links die Belege als Tabelle, die Zeiten und die Dateien, rechts den Auftrag,
+  die Monteure, die Aufgaben und die Folgeaufträge; "Angebot anlegen" und "Kostenvoranschlag
+  anlegen" stehen im Kopf. Am Telefon liegen Übersicht, Belege, Zeiten und Dateien hinter Reitern,
+  der Kopf führt "‹ Aufträge" zurück, und was nicht in zwei Knöpfe passt, steht hinter "Weitere
+  Aktionen", wie auf der Tafel "Auftrag im Büro, Telefon". Angaben einer Akte stehen am Telefon
+  in 15 Pixeln, wie die Tafel "Breiten und Auflösungen" Schrift dort verlangt.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen

@@ -11,7 +11,7 @@ import { RecordForm } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
-import { ListCard, ListScreen } from '../list.js'
+import { lastChanged, ListCard, ListScreen } from '../list.js'
 import type { ListColumn } from '../list.js'
 import { FilesPanel } from './attachments.js'
 import { useBoards } from '../../app/electrical.js'
@@ -19,7 +19,7 @@ import { BoardsSection, ChartButton } from './boards.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
-import { asInstallation, installationFields, lastChanged, warrantyText } from './sites.js'
+import { asInstallation, installationFields, warrantyText } from './sites.js'
 
 /**
  * All installations of the business, `anlagen_liste()` of the canvas (#219):

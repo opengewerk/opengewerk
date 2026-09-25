@@ -12,7 +12,15 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
-import { Button, Cell, Column, SelectField, Table } from '../../components/index.js'
+import {
+  Button,
+  Cell,
+  Column,
+  Panel,
+  SelectField,
+  Table,
+  TablePanel,
+} from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -350,34 +358,52 @@ export function JobTimeSection({ jobId }: { readonly jobId: string }) {
     return null
   }
 
+  // "Zeiten" of the board "Auftrag": work and travel by person, the hours at
+  // the right; on a phone a box per person.
+  if (byPerson.length === 0) {
+    return (
+      <Panel title="Zeiten">
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          Für diesen Auftrag ist noch keine Zeit erfasst.
+        </p>
+      </Panel>
+    )
+  }
+
   return (
-    <Section title="Zeiten">
-      {byPerson.length === 0 ? (
-        <Nothing>Für diesen Auftrag ist noch keine Zeit erfasst.</Nothing>
-      ) : (
-        <Table caption="Erfasste Zeit an diesem Auftrag">
-          <thead>
-            <tr>
-              <Column>Person</Column>
-              <Column numeric>Arbeit</Column>
-              <Column numeric>Fahrt</Column>
-            </tr>
-          </thead>
-          <tbody>
-            {byPerson.map((row) => (
-              <tr key={row.userId}>
-                <Cell>{nameOf(row.userId, people)}</Cell>
-                <Cell numeric className="whitespace-nowrap">
-                  {hoursText(row.work)}
-                </Cell>
-                <Cell numeric className="whitespace-nowrap">
-                  {hoursText(row.travel)}
-                </Cell>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
-    </Section>
+    <TablePanel
+      title="Zeiten"
+      caption="Erfasste Zeit an diesem Auftrag"
+      cards={byPerson.map((row) => ({
+        key: row.userId,
+        title: nameOf(row.userId, people),
+        sub: `Arbeit ${hoursText(row.work)} · Fahrt ${hoursText(row.travel)}`,
+      }))}
+    >
+      <thead>
+        <tr>
+          <Column>Person</Column>
+          <Column numeric className="w-[110px]">
+            Arbeit
+          </Column>
+          <Column numeric className="w-[110px]">
+            Fahrt
+          </Column>
+        </tr>
+      </thead>
+      <tbody>
+        {byPerson.map((row) => (
+          <tr key={row.userId}>
+            <Cell>{nameOf(row.userId, people)}</Cell>
+            <Cell numeric className="whitespace-nowrap">
+              {hoursText(row.work)}
+            </Cell>
+            <Cell numeric className="whitespace-nowrap">
+              {hoursText(row.travel)}
+            </Cell>
+          </tr>
+        ))}
+      </tbody>
+    </TablePanel>
   )
 }

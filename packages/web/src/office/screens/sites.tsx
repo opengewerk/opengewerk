@@ -12,8 +12,8 @@ import type { FormField } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
-import { ListCard, ListScreen } from '../list.js'
-import type { ListColumn, ListSort } from '../list.js'
+import { lastChanged, ListCard, ListScreen } from '../list.js'
+import type { ListColumn } from '../list.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf } from './customers.js'
@@ -75,15 +75,6 @@ export function warrantyText(installation: RecordState): string {
   return maybeText(installation, 'warrantyEndsOn')
     ? `bis ${date(installation['warrantyEndsOn'])}`
     : ''
-}
-
-/** The last change first: "Sortiert nach: Zuletzt geändert", as the list boards do. */
-export const lastChanged: ListSort = {
-  id: 'changed',
-  label: 'Zuletzt geändert',
-  compare: (left, right) =>
-    text(right, 'updatedAt').localeCompare(text(left, 'updatedAt')) ||
-    String(right['id']).localeCompare(String(left['id'])),
 }
 
 /** A count of what is open: amber and bold when there is something, grey when not. */

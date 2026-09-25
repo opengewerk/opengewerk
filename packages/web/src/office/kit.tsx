@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ChevronRight, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -80,6 +80,13 @@ export interface PageHeadProps {
   readonly sub?: ReactNode
   /** At the right, the primary action last. */
   readonly actions?: ReactNode
+  /**
+   * On a phone, instead of the path: the way back to the list, "‹ Aufträge",
+   * as the board "Auftrag im Büro, Telefon" draws it.
+   */
+  readonly phoneBack?: Crumb
+  /** On a phone the actions under the title across the whole width, two in a row. */
+  readonly wideActions?: boolean
 }
 
 /**
@@ -88,14 +95,36 @@ export interface PageHeadProps {
  * the count moves under the title and the actions under both, where there is
  * room for a thumb.
  */
-export function PageHead({ title, crumbs, badges, count, sub, actions }: PageHeadProps) {
+export function PageHead({
+  title,
+  crumbs,
+  badges,
+  count,
+  sub,
+  actions,
+  phoneBack,
+  wideActions = false,
+}: PageHeadProps) {
   return (
     <div className="flex flex-col gap-[9px]">
-      {crumbs && crumbs.length > 0 ? <Crumbs items={crumbs} /> : null}
+      {crumbs && crumbs.length > 0 ? (
+        <div className={phoneBack ? 'max-sm:hidden' : undefined}>
+          <Crumbs items={crumbs} />
+        </div>
+      ) : null}
+      {phoneBack ? (
+        <Link
+          to={phoneBack.to}
+          className="inline-flex min-h-10 items-center gap-1 self-start text-[15px] text-copper-text underline underline-offset-2 sm:hidden"
+        >
+          <ChevronLeft size={18} strokeWidth={2.2} aria-hidden="true" />
+          {phoneBack.label}
+        </Link>
+      ) : null}
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 grow">
           <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 max-lg:gap-y-0">
-            <h1 className="text-[24px] leading-[1.2] font-semibold tracking-[-0.2px] text-ink [overflow-wrap:anywhere]">
+            <h1 className="text-[24px] leading-[1.2] font-semibold tracking-[-0.2px] text-ink [overflow-wrap:anywhere] max-sm:basis-full">
               {title}
             </h1>
             {badges}
@@ -105,7 +134,16 @@ export function PageHead({ title, crumbs, badges, count, sub, actions }: PageHea
           </div>
           {sub ? <div className="mt-[5px] text-[13px] text-ink-faint">{sub}</div> : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div
+            className={clsx(
+              'flex flex-wrap items-center gap-2',
+              wideActions && 'max-sm:grid max-sm:basis-full max-sm:grid-cols-2',
+            )}
+          >
+            {actions}
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -139,7 +177,14 @@ export function FactList({
   readonly keyWidth?: keyof typeof keyWidths
 }) {
   return (
-    <dl className={clsx('grid gap-x-2 gap-y-[5px] text-[13px] text-ink', keyWidths[keyWidth])}>
+    // 15 pixels on a phone, as the facts of "Auftrag im Büro, Telefon" and
+    // the rule of the board "Breiten und Auflösungen" have text there.
+    <dl
+      className={clsx(
+        'grid gap-x-2 gap-y-[5px] text-[13px] text-ink max-sm:text-[15px]',
+        keyWidths[keyWidth],
+      )}
+    >
       {facts.map((fact) => (
         <FactRow key={fact.label} fact={fact} />
       ))}
