@@ -200,10 +200,15 @@ describe('a test protocol in the office (#79)', () => {
     expect(screen.queryByRole('textbox')).toBeNull()
     expect(screen.getByText('Benning IT 130')).toBeTruthy()
     expect(screen.getByText(/1 Wert außerhalb/)).toBeTruthy()
+    // Under the table of what was measured, as the board writes it: the
+    // circuit and the value, the verdict, and where the limit comes from.
     expect(
       screen.getByText(
-        'Außerhalb des Grenzwerts, mindestens 1,00 MΩ. Quelle: DIN VDE 0100-600 (VDE 0100-600):2017-06, Tabelle 6.1.',
+        'F1, Isolationswiderstand Riso 0,85 MΩ: Außerhalb des Grenzwerts, mindestens 1,00 MΩ.',
       ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(/Quelle: DIN VDE 0100-600 \(VDE 0100-600\):2017-06, Tabelle 6\.1\./),
     ).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Unterschrift des Prüfers, Paul Prüfer' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Als PDF' }).getAttribute('href')).toBe(
@@ -254,6 +259,86 @@ describe('a test protocol in the office (#79)', () => {
     expect(await screen.findByRole('button', { name: 'Speichern' })).toBeTruthy()
     expect(screen.getByLabelText('Prüfer')).toHaveProperty('value', 'Paul Prüfer')
     expect(client.list('form_records')).toHaveLength(2)
+  })
+
+  it('takes the answers of a draft as buttons and saves them from its head, as the board draws it', async () => {
+    const user = userEvent.setup()
+
+    server.put('form_records', {
+      id: 'p-3',
+      definitionKey: 'vde-0100-600',
+      definitionVersion: 1,
+      installationId: 'i-1',
+      jobId: null,
+      performedOn: '2026-09-25',
+      status: 'draft',
+      values: JSON.stringify({
+        tester: 'Paul Prüfer',
+        basic_protection: 'ok',
+        circuits: [
+          {
+            circuitId: 'k-1',
+            circuit: kitchen,
+            values: { loop_impedance: 3_410 },
+          },
+          {
+            circuitId: 'k-3',
+            circuit: {
+              designation: 'F3',
+              consumer: 'Wallbox',
+              tripCharacteristic: 'c',
+              ratedCurrentMilli: 32_000,
+              ratedResidualCurrentMilli: 30,
+            },
+            values: {},
+          },
+        ],
+      }),
+    })
+
+    await mount('/pruefprotokolle/p-3')
+
+    // The day of the test as it is written, whatever the zone of the device.
+    expect(await screen.findByText('25.09.2026')).toBeTruthy()
+
+    // A test point, its three answers, the one given pressed.
+    const point = screen.getByRole('group', { name: 'Basisschutz, Schutz gegen direktes Berühren' })
+    expect(
+      within(point).getByRole('button', { name: 'in Ordnung' }).getAttribute('aria-pressed'),
+    ).toBe('true')
+    await user.click(within(point).getByRole('button', { name: 'Mangel' }))
+
+    // What was measured, a row per circuit, the value outside its limit said
+    // in the row and in words under the table.
+    const measured = screen.getByRole('table', { name: 'Stromkreise' })
+    expect(within(measured).getByText('1 Wert außerhalb')).toBeTruthy()
+    expect(within(measured).getByText('noch nichts eingetragen')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'F1, Schleifenimpedanz Zs 3,41 Ω: Außerhalb des Grenzwerts, höchstens 2,87 Ω.',
+      ),
+    ).toBeTruthy()
+
+    // A row opens to its inputs, the remark among them.
+    await user.click(within(measured).getByRole('button', { name: /F3 Wallbox/ }))
+    await user.type(screen.getByLabelText('Bemerkung'), 'Noch nicht angeschlossen')
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(server.operations().some((operation) => operation.kind === 'update')).toBe(true)
+    })
+    const saved = server.operations().find((operation) => operation.kind === 'update')
+    const values = readFormValues(
+      saved?.patches.find((patch) => patch.field === 'values')?.to ?? null,
+    )
+    const blocks = values?.['circuits'] as readonly { circuitId: string; values: unknown }[]
+
+    expect(values?.['basic_protection']).toBe('defect')
+    expect(blocks.map((block) => [block.circuitId, block.values])).toEqual([
+      ['k-1', { loop_impedance: 3_410 }],
+      ['k-3', { remark: 'Noch nicht angeschlossen' }],
+    ])
   })
 
   it('offers a draft the circuits the chart has gained since it was started', async () => {

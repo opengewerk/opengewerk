@@ -27,7 +27,10 @@ const quantity = new Intl.NumberFormat('de-DE', {
   maximumFractionDigits: 3,
 })
 
-const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' })
+// A moment is shown as the day it was in Germany, the day `today()` counts;
+// a day as the records keep it is shown as it is written (see `date`).
+const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' })
+const calendarDay = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'UTC' })
 const dayAndTime = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' })
 
 const percentages = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
@@ -66,6 +69,16 @@ export function amount(milli: number): string {
 export function date(value: unknown): string {
   if (typeof value !== 'string' || value.length === 0) {
     return ''
+  }
+
+  // "2026-09-25" is a day and not a moment. Read as midnight in UTC and shown
+  // in the time zone of the device, it was the 24th on every device west of
+  // Greenwich, the office's protocol said so beside the right day in its own
+  // field (#219).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const at = new Date(`${value}T00:00:00Z`)
+
+    return Number.isNaN(at.getTime()) ? '' : calendarDay.format(at)
   }
 
   const at = new Date(value)

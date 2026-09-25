@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ruleSet } from '../rules/rule.js'
 import type { FormDefinition, MeasurementField } from './definition.js'
 import { definitionProblems, formRegistry } from './definition.js'
-import { formatMeasured, limitVerdict } from './limits.js'
+import { formatMeasured, limitVerdict, measuredNumber } from './limits.js'
 import { formRecordProblem } from './record.js'
 import {
   circuitBlocks,
@@ -464,5 +464,8 @@ describe('a measured value against its limit (#79)', () => {
   it('writes a value the way it is read', () => {
     expect(formatMeasured(850, 'ohm', 2)).toBe('0,85 Ω')
     expect(formatMeasured(23_000, 'millisecond', 0)).toBe('23 ms')
+    // Without the unit, for a column that names it in its head.
+    expect(measuredNumber(3_410, 2)).toBe('3,41')
+    expect(measuredNumber(480_000, 2)).toBe('480,00')
   })
 })
