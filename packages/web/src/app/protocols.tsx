@@ -995,7 +995,12 @@ export interface ProtocolDraft {
   readonly generation: number
   readonly trouble: string | null
   readonly working: boolean
-  readonly save: () => Promise<void>
+  /**
+   * Whether what is typed is saved now, or was already: false when the form
+   * refused it and says why in `trouble`, so a step that saves on leaving
+   * knows to stay.
+   */
+  readonly save: () => Promise<boolean>
 }
 
 /**
@@ -1049,11 +1054,11 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
     })
   }
 
-  async function save() {
+  async function save(): Promise<boolean> {
     // Nothing typed, nothing to send: the button stays where it is drawn,
     // and a click on it writes no second copy of the same values.
     if (!unsaved) {
-      return
+      return true
     }
 
     const values = formValuesText(draft)
@@ -1067,7 +1072,7 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
     if (problem !== null) {
       setTrouble(problem)
 
-      return
+      return false
     }
 
     setTrouble(null)
@@ -1081,9 +1086,13 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
 
       if (result.outcome === 'refused') {
         setTrouble(refusalText[result.reason])
-      } else {
-        setBase({ values, performedOn })
+
+        return false
       }
+
+      setBase({ values, performedOn })
+
+      return true
     } finally {
       setWorking(false)
     }
