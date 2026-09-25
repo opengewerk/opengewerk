@@ -32,7 +32,7 @@ export function DraftFrame({
   return (
     <section
       aria-label={`${kind}, Entwurf`}
-      className="min-w-0 overflow-hidden rounded-[6px] border border-dashed border-waiting-edge bg-surface [--surface-here:var(--color-surface)]"
+      className="min-w-0 overflow-clip rounded-[6px] border border-dashed border-waiting-edge bg-surface [--surface-here:var(--color-surface)]"
     >
       <div className="flex items-center gap-[11px] border-b border-dashed border-waiting-edge bg-waiting-fill px-4 py-[11px] text-waiting">
         <Pencil size={18} strokeWidth={2} aria-hidden="true" className="shrink-0" />
@@ -68,7 +68,7 @@ export function FixedFrame({
   return (
     <section
       aria-label={number}
-      className="min-w-0 overflow-hidden rounded-[6px] border border-fixed-edge bg-surface [--surface-here:var(--color-surface)]"
+      className="min-w-0 overflow-clip rounded-[6px] border border-fixed-edge bg-surface [--surface-here:var(--color-surface)]"
     >
       <div className="flex items-center gap-[11px] bg-top px-4 py-[11px] text-top-ink">
         <Lock

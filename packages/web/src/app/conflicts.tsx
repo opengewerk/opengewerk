@@ -131,7 +131,7 @@ function ConflictFrame({
   return (
     <section
       aria-labelledby={heading}
-      className="min-w-0 overflow-hidden rounded-[6px] border-2 border-conflict bg-surface [--surface-here:var(--color-surface)]"
+      className="min-w-0 overflow-clip rounded-[6px] border-2 border-conflict bg-surface [--surface-here:var(--color-surface)]"
     >
       <div className="border-b border-conflict-edge bg-conflict-fill px-4 py-3">
         <p className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-conflict uppercase">
@@ -580,7 +580,7 @@ function SiteConflictFrame({
   return (
     <section
       aria-labelledby={heading}
-      className="overflow-hidden rounded-[6px] border-2 border-conflict bg-surface [--surface-here:var(--color-surface)]"
+      className="overflow-clip rounded-[6px] border-2 border-conflict bg-surface [--surface-here:var(--color-surface)]"
     >
       <div className="bg-conflict-fill px-3.5 py-3">
         <SiteFieldHead>{kind}</SiteFieldHead>

@@ -1,5 +1,90 @@
 import clsx from 'clsx'
-import type { ReactNode, ThHTMLAttributes, TdHTMLAttributes } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ReactNode, RefObject, ThHTMLAttributes, TdHTMLAttributes } from 'react'
+
+/**
+ * How the frame of a table sits, which decides how its head stays in view
+ * (#272) and what `index.css` does with it.
+ */
+interface FrameFit {
+  /** The table is wider than its frame, and the frame scrolls sideways. */
+  readonly wide: boolean
+  /**
+   * Something between the frame and the page is a scroll container: a column
+   * that scrolls on its own, or a card that clips with `overflow: hidden`.
+   * The head then sticks at the top edge of that one and not under the top
+   * bar of the page, which would push it down into its own rows wherever that
+   * container does not scroll at all.
+   */
+  readonly nested: boolean
+}
+
+function insideScrollContainer(element: HTMLElement): boolean {
+  for (let above = element.parentElement; above; above = above.parentElement) {
+    if (above === document.body || above === document.documentElement) {
+      return false
+    }
+
+    const style = getComputedStyle(above)
+
+    if (/auto|scroll|hidden|overlay/.test(`${style.overflowX} ${style.overflowY}`)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
+ * Measured whenever the frame or the table changes size. It starts out wide,
+ * which is always safe: a frame that scrolls sideways shows everything, one
+ * that clips would cut a wide table off until the first measurement. Without
+ * a ResizeObserver it stays so.
+ *
+ * The distance the head can travel down its table, the table less its head,
+ * goes to the frame as `--table-head-travel` for the animation that carries
+ * the head of a wide table. Straight onto the element, because it changes
+ * with every row and nothing React renders depends on it.
+ */
+function useFrameFit(frame: RefObject<HTMLDivElement | null>): FrameFit {
+  const [fit, setFit] = useState<FrameFit>({ wide: true, nested: false })
+
+  useEffect(() => {
+    const element = frame.current
+    const table = element?.querySelector('table')
+
+    if (!element || !table || typeof ResizeObserver !== 'function') {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      const bounds = table.getBoundingClientRect()
+      const head = table.tHead?.getBoundingClientRect().height ?? 0
+      const wide = bounds.width > element.getBoundingClientRect().width + 0.5
+      const nested = insideScrollContainer(element)
+
+      // Rounded down, so that the head never ends below the last row: a head
+      // half a pixel past the table would make the frame of a wide table
+      // scroll up and down as well.
+      element.style.setProperty(
+        '--table-head-travel',
+        `${String(Math.max(0, Math.floor(bounds.height - head)))}px`,
+      )
+      setFit((before) =>
+        before.wide === wide && before.nested === nested ? before : { wide, nested },
+      )
+    })
+
+    observer.observe(element)
+    observer.observe(table)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [frame])
+
+  return fit
+}
 
 /**
  * A table, and a real one: `<table>`, `<th scope>`, `<caption>`.
@@ -26,6 +111,9 @@ export function Table({
   /** Column widths as given rather than as the content would like them. */
   readonly fixed?: boolean
 }) {
+  const frame = useRef<HTMLDivElement>(null)
+  const { wide, nested } = useFrameFit(frame)
+
   return (
     // The frame scrolls, never the page, as the board "Breiten und
     // Auflösungen" asks (#218). `scrolling-table` in `index.css` keeps the
@@ -35,7 +123,23 @@ export function Table({
     // is positioned, or text that is only there for a screen reader, placed
     // absolutely in a heading, would reach past it and widen the page: the
     // accounts were 270 pixels too wide on a phone for that alone.
-    <div className="relative max-w-full overflow-x-auto">
+    //
+    // It scrolls only while the table is wider than it (#272). A frame that
+    // scrolls sideways is a scroll container in both directions, and a sticky
+    // head would stick to it, which never scrolls up or down, instead of
+    // staying under the top bar while the page scrolls, as the same board
+    // asks. A frame that clips is none, and the head of a table that fits is
+    // sticky; the head of a wide one follows the page by an animation that
+    // the scrolling drives, both in `index.css`.
+    <div
+      ref={frame}
+      data-wide={wide ? '' : undefined}
+      data-nested={nested ? '' : undefined}
+      className={clsx(
+        'table-frame relative max-w-full',
+        wide ? 'overflow-x-auto' : 'overflow-x-clip',
+      )}
+    >
       <table
         className={clsx(
           'scrolling-table w-full border-separate border-spacing-0 text-table',

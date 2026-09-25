@@ -257,6 +257,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nicht. Der Inhaber vergibt die Rollen unter „Zugänge“." Die Beschriftungen der Rechte stehen in
   `domain` (`permissionLabel`), und der Konflikt sagt "auf diesem Gerät" oder "auf einem anderen
   Gerät".
+- Der Kopf einer Tabelle bleibt unter der Kopfleiste stehen, während die Seite an ihren Zeilen
+  vorbeirollt, wie es die Tafel "Breiten und Auflösungen" für Fenster unter 700 Pixel Höhe verlangt
+  (#272). Bisher rollte er mit weg: der Rahmen jeder Tabelle rollte seitlich, auch wenn sie in ihn
+  passte, und ein solcher Rahmen ist in beiden Richtungen ein eigener Rollbereich, an dem ein
+  klebender Kopf hängen bleibt. Jetzt rollt der Rahmen nur, solange die Tabelle breiter ist als er,
+  und Karten mit Tabellen schneiden ihre Ecken mit `overflow: clip` statt `hidden` ab. Der Kopf einer
+  breiten Tabelle folgt der Seite über eine Animation, die das Rollen steuert; ein Browser ohne diese
+  Technik, derzeit Firefox, lässt ihn dort wie bisher mitrollen.
 
 ## [0.2.0] - 2026-09-25
 
