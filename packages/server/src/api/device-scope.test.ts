@@ -186,6 +186,33 @@ describe('the device of a technician', () => {
     expect(pulled.narrowed['customers']).toBe(pulled.narrowed['jobs'])
   })
 
+  it('holds the notes of the jobs its person is on (#220)', async () => {
+    const berg = await household('Berg')
+    const kramer = await household('Kramer')
+
+    await assign(berg.job, ['max'])
+    await assign(kramer.job, ['toni'])
+
+    const mine = newId<'job-note'>()
+    const theirs = newId<'job-note'>()
+    const at = new Date().toISOString()
+
+    await push(app, as('max'), [
+      created('job_notes', mine, { jobId: berg.job, text: 'Plombe fehlt.', writtenAt: at }),
+    ])
+    await push(app, as('toni'), [
+      created('job_notes', theirs, { jobId: kramer.job, text: 'Hund im Hof.', writtenAt: at }),
+    ])
+
+    const pulled = await pull('max')
+
+    expect(idsOf(pulled, 'job_notes')).toContain(mine)
+    expect(idsOf(pulled, 'job_notes')).not.toContain(theirs)
+    expect(pulled.narrowed['job_notes']).toBe(pulled.narrowed['jobs'])
+    // The office reads every note at the job it belongs to.
+    expect(idsOf(await pull('britta'), 'job_notes')).toEqual(expect.arrayContaining([mine, theirs]))
+  })
+
   it('holds a task handed to its person, wherever the task hangs', async () => {
     const kramer = await household('Kramer')
     // Tasks are written through the outbox, on site as in the office.

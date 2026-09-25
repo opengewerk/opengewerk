@@ -53,6 +53,7 @@ export async function deviceScope(
 export const scopedEntities: readonly string[] = [
   'jobs',
   'job_assignments',
+  'job_notes',
   'customers',
   'contacts',
   'sites',
@@ -118,6 +119,7 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
   const own: Readonly<Record<string, SQL>> = {
     jobs: sql`${column('id')} in ${jobs}`,
     job_assignments: sql`${column('job_id')} in ${jobs}`,
+    job_notes: sql`${column('job_id')} in ${jobs}`,
     customers: sql`${column('id')} in ${customers}`,
     contacts: sql`(${column('customer_id')} in ${customers} or ${column('site_id')} in ${sites})`,
     sites: sql`${column('id')} in ${sites}`,

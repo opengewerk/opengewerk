@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { contactParentText, syncEntities } from '@opengewerk/domain'
+import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -1498,7 +1499,8 @@ describe('the rights the queue asks for', () => {
  * What the site reports about a job (#128). The site app offered "Auftrag
  * abschließen" and "Notiz schreiben" from the start, and a technician's
  * device had both refused, because either one needed `job.write`. Since then
- * a technician may report and still may not decide what the job is.
+ * a technician may report and still may not decide what the job is, and
+ * since #220 what happened is a note of its own rather than the description.
  */
 describe('the progress of a job from the site', () => {
   async function aJob() {
@@ -1521,7 +1523,7 @@ describe('the progress of a job from the site', () => {
     return rows[0]
   }
 
-  it('is a finished job and a note about it, sent by a technician', async () => {
+  it('is a finished job, sent by a technician', async () => {
     const job = await aJob()
 
     const answer = await push(technician(), 'telefon-anna', [
@@ -1529,18 +1531,38 @@ describe('the progress of a job from the site', () => {
         entity: 'jobs',
         recordId: job.id,
         baseVersion: job.version,
-        patches: [
-          { field: 'status', from: job.status, to: 'completed' },
-          { field: 'description', from: null, to: 'Zählerschrank getauscht, alles geprüft.' },
-        ],
+        patches: [{ field: 'status', from: job.status, to: 'completed' }],
       }),
     ])
 
     expect(answer.receipts[0]?.outcome).toBe('applied')
-    expect(await row(job.id)).toMatchObject({
-      status: 'completed',
-      description: 'Zählerschrank getauscht, alles geprüft.',
-    })
+    expect(await row(job.id)).toMatchObject({ status: 'completed' })
+  })
+
+  it('does not write over what the office put down as the job (#220)', async () => {
+    const job = await aJob()
+
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          change({
+            entity: 'jobs',
+            recordId: job.id,
+            baseVersion: job.version,
+            patches: [
+              { field: 'status', from: job.status, to: 'completed' },
+              { field: 'description', from: null, to: 'Zählerschrank getauscht.' },
+            ],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toMatch(/job\.write/)
+    expect(await row(job.id)).toMatchObject({ status: job.status, description: null })
   })
 
   it('does not rename a job, not even alongside finishing it', async () => {
@@ -1616,6 +1638,117 @@ describe('the progress of a job from the site', () => {
       .expect(400)
 
     expect(refused.body.message).toMatch(/job\.write/)
+  })
+})
+
+/**
+ * A note from the site (#220): what happened, written by whoever was there,
+ * an entry of its own beside the job and never the job's description.
+ */
+describe('a note from the site', () => {
+  async function aJob() {
+    const job = await http()
+      .post('/jobs')
+      .set('x-test-identity', office())
+      .send({ customerId, kind: 'service', designation: 'Treppenhauslicht' })
+      .expect(201)
+
+    return job.body as { id: string }
+  }
+
+  function writing(recordId: string, values: Record<string, string>) {
+    return change({
+      entity: 'job_notes',
+      recordId,
+      kind: 'create',
+      patches: Object.entries(values).map(([field, to]) => ({ field, from: null, to })),
+    })
+  }
+
+  async function note(id: string) {
+    const { rows } = await admin.query<{
+      job_id: string
+      text: string
+      written_at: Date
+      created_by: string | null
+    }>('select job_id, text, written_at, created_by from job_notes where id = $1', [id])
+
+    return rows[0]
+  }
+
+  it('is written by the technician on the job, with the moment of the device and the author of the request', async () => {
+    const job = await aJob()
+    const id = newId<'job-note'>()
+
+    const answer = await push(technician(), 'telefon-anna', [
+      writing(id, {
+        jobId: job.id,
+        text: 'Bewegungsmelder EG getauscht, die Leuchte im 2. OG flackert noch.',
+        writtenAt: '2026-09-25T08:42:00.000Z',
+      }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+    expect(await note(id)).toEqual({
+      job_id: job.id,
+      text: 'Bewegungsmelder EG getauscht, die Leuchte im 2. OG flackert noch.',
+      written_at: new Date('2026-09-25T08:42:00.000Z'),
+      // Whoever sent it, from the request; the device names nobody.
+      created_by: 'test',
+    })
+  })
+
+  it('stays as it was written', async () => {
+    const job = await aJob()
+    const id = newId<'job-note'>()
+
+    await push(technician(), 'telefon-anna', [
+      writing(id, {
+        jobId: job.id,
+        text: 'Zugang über den Hof.',
+        writtenAt: new Date().toISOString(),
+      }),
+    ])
+
+    // Sent by the office, which may change a job: a note it may not change either.
+    const answer = await push(office(), 'office-computer', [
+      change({
+        entity: 'job_notes',
+        recordId: id,
+        baseVersion: 1,
+        patches: [{ field: 'text', from: 'Zugang über den Hof.', to: 'Anders.' }],
+      }),
+    ])
+
+    expect(answer.receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'online_only' })
+    expect((await note(id))?.text).toBe('Zugang über den Hof.')
+    // Nor behind the policy: the database grants reading and inserting.
+    await expect(
+      database.forTenant({ tenantId: north.id, userId: 'test' }, (tx) =>
+        tx.execute(sql`update job_notes set text = 'Anders.' where id = ${id}`),
+      ),
+    ).rejects.toThrow()
+  })
+
+  it('says something', async () => {
+    const job = await aJob()
+
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'telefon-anna',
+        operations: [
+          writing(newId<'job-note'>(), {
+            jobId: job.id,
+            text: '   ',
+            writtenAt: new Date().toISOString(),
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toBe('Eine Notiz braucht einen Text.')
   })
 })
 

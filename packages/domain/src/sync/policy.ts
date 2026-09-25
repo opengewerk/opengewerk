@@ -237,6 +237,14 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    */
   time_entries: { create: true, change: 'never', reserved: ['userId'] },
   /**
+   * A note from the site about a job (#220), written without a network where
+   * the work is and never changed afterwards, like a time entry: `change:
+   * 'never'` with no route behind it and a database that grants reading and
+   * inserting. A note that turns out wrong is followed by another one. Who
+   * wrote it, the server writes from the request, so `createdBy` is its own.
+   */
+  job_notes: { create: true, change: 'never', reserved: ['createdBy'] },
+  /**
    * Which reports a collective invoice was made out of (#135), one row each.
    * Made by the route that makes the invoice, in the same transaction, and
    * released by the database when the invoice is cancelled or its draft is

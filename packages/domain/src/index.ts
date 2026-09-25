@@ -32,6 +32,7 @@ export * from './model/photovoltaic.js'
 export * from './model/site.js'
 export * from './model/task.js'
 export * from './model/time-entry.js'
+export * from './model/job-note.js'
 export * from './model/tenant.js'
 export * from './model/text-snippet.js'
 

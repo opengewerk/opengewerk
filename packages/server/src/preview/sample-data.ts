@@ -563,6 +563,44 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     throw new Error(`The sample tasks were not all taken: ${JSON.stringify(refused)}`)
   }
 
+  // Two notes from the site at the meter cabinet (#220), one from this
+  // morning and one from yesterday, as the board "Auftrag, ganze Seite" draws
+  // them: what happened, and who wrote it when.
+  const hoursAgo = (hours: number): string => new Date(Date.now() - hours * 3_600_000).toISOString()
+  const notes = [
+    {
+      text: 'Alter Zählerschrank ausgebaut. Die Zuleitung ist länger als gedacht, bitte beim Material berücksichtigen.',
+      writtenAt: hoursAgo(26),
+    },
+    {
+      text: 'Neuer Schrank gesetzt, Netzbetreiber kommt zum Setzen des Zählers. Der Zugang ist über den Garten.',
+      writtenAt: hoursAgo(2),
+    },
+  ]
+  const written = await post('/sync', {
+    deviceId: 'vorschau-tablet',
+    operations: notes.map((values) => ({
+      id: newId<'operation'>(),
+      entity: 'job_notes',
+      recordId: newId<'job-note'>(),
+      kind: 'create',
+      baseVersion: null,
+      patches: Object.entries({ ...values, jobId: renewal }).map(([field, to]) => ({
+        field,
+        from: null,
+        to,
+      })),
+      recordedAt: new Date().toISOString(),
+    })),
+  })
+  const unwritten = (
+    (written['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+  ).filter((taken) => taken.outcome !== 'applied')
+
+  if (unwritten.length > 0) {
+    throw new Error(`The sample notes were not all taken: ${JSON.stringify(unwritten)}`)
+  }
+
   await plantBoards(post, cabinet, today)
 }
 

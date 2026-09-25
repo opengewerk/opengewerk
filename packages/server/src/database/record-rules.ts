@@ -8,7 +8,9 @@ import {
   attachmentSizeProblem,
   deviceInfoProblem,
   fileHashProblem,
+  jobNoteProblem,
   linePositionProblem,
+  noteTimeProblem,
   type Operation,
   type RecordState,
   servicePeriodProblem,
@@ -125,6 +127,10 @@ const rules: Readonly<Record<string, readonly RecordRule[]>> = {
           jobId: at('jobId'),
         }),
     },
+  ],
+  job_notes: [
+    { fields: ['text'], problem: (at) => jobNoteProblem(at('text')) },
+    { fields: ['writtenAt'], problem: (at) => noteTimeProblem(at('writtenAt')) },
   ],
   attachment_versions: [
     { fields: ['sha256'], problem: (at) => fileHashProblem(at('sha256')) },

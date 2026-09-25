@@ -85,21 +85,22 @@ interface FieldChange {
 
 /**
  * Whether a change to a job only reports its progress: a status from
- * `jobProgressStatuses`, the note about what happened, or both.
+ * `jobProgressStatuses`, and nothing else.
  *
  * This is the part of a job a technician may write (`job.progress`). Which
- * customer it is for, where it is and what it is called stays with whoever
- * holds `job.write`, and a change that touches any of that as well needs that
- * right, however small the rest of it is. An empty change reports nothing and
- * is not progress either.
+ * customer it is for, where it is, what it is called and what is to be done
+ * stays with whoever holds `job.write`, and a change that touches any of that
+ * as well needs that right, however small the rest of it is. What happened on
+ * site is a note of its own (`JobNote`, #220), not the description: until
+ * then a note written on site replaced what the office had put down as the
+ * job. An empty change reports nothing and is not progress either.
  */
 export function isJobProgress(changes: readonly FieldChange[]): boolean {
   return (
     changes.length > 0 &&
     changes.every(
       (change) =>
-        change.field === 'description' ||
-        (change.field === 'status' && jobProgressStatuses.some((status) => status === change.to)),
+        change.field === 'status' && jobProgressStatuses.some((status) => status === change.to),
     )
   )
 }
