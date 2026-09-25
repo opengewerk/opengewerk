@@ -148,7 +148,9 @@ describe('the stopwatch', () => {
 
     const bar = await screen.findByRole('region', { name: 'Zeitnehmer' })
 
-    expect(bar.textContent).toContain('Arbeit, Zählerschrank seit 07:00')
+    // Two lines, as on the board: what runs, and since when.
+    expect(within(bar).getByText('Arbeit, Zählerschrank', { selector: 'div' })).toBeTruthy()
+    expect(bar.textContent).toContain('seit 07:00')
 
     vi.setSystemTime(at('11:30'))
     await user.click(within(bar).getByRole('button', { name: 'Stopp' }))
@@ -222,18 +224,20 @@ describe('the stopwatch', () => {
     // Asked of the bar and not of the first "Pause" on the screen: until the
     // break has started, that is the button that was just pressed.
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Zeitnehmer' }).textContent).toContain(
-        'Pause seit 09:00',
-      )
+      const bar = screen.getByRole('region', { name: 'Zeitnehmer' })
+
+      expect(within(bar).getByText('Pause', { selector: 'div' })).toBeTruthy()
+      expect(bar.textContent).toContain('seit 09:00')
     })
 
     vi.setSystemTime(at('09:30'))
     await user.click(screen.getByRole('button', { name: 'Weiter arbeiten' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('region', { name: 'Zeitnehmer' }).textContent).toContain(
-        'Arbeit, Zählerschrank seit 09:30',
-      )
+      const bar = screen.getByRole('region', { name: 'Zeitnehmer' })
+
+      expect(within(bar).getByText('Arbeit, Zählerschrank', { selector: 'div' })).toBeTruthy()
+      expect(bar.textContent).toContain('seit 09:30')
     })
     await client.synchronise()
 

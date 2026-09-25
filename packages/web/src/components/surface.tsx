@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { createContext, useContext } from 'react'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 
 /**
@@ -80,8 +81,22 @@ export interface ShellProps {
  */
 export function Shell({ entry, children }: ShellProps) {
   return (
-    <div data-entry={entry} className="min-h-full bg-ground text-ink font-sans text-body">
-      {children}
-    </div>
+    <EntryContext.Provider value={entry}>
+      <div data-entry={entry} className="min-h-full bg-ground text-ink font-sans text-body">
+        {children}
+      </div>
+    </EntryContext.Provider>
   )
+}
+
+const EntryContext = createContext<Entry>('office')
+
+/**
+ * Which entry a component is drawn in, for the few that are laid out
+ * differently and not only denser: a strip over the screen says its two
+ * sentences side by side in the office and one under the other on site. Sizes
+ * alone come from the tokens under `data-entry` and need no question.
+ */
+export function useEntry(): Entry {
+  return useContext(EntryContext)
 }

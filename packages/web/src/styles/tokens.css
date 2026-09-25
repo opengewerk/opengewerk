@@ -56,6 +56,17 @@
   --color-top-line: #3a4453;
   --color-nav: #eae6dd;
 
+  /* The strips over a screen, as on the boards "Leisten im Büro" and "Leisten
+     auf der Baustelle": amber while something waits, red for a conflict, and
+     a plain button in the colour of its strip. The amber of a strip stays dark
+     in the dark ground, with white lettering, so it reads as a strip and not
+     as a warning light. */
+  --color-bar-wait: #7a5e13;
+  --color-on-bar-wait: #ffffff;
+  --color-bar-action: #ffffff;
+  --color-bar-action-wait: #7a5e13;
+  --color-bar-action-conflict: #a3312b;
+
   /* The office is the ground state here too. The site entry widens everything
      below; see the `[data-entry='site']` block. */
   --spacing-control: 2.125rem;
@@ -116,6 +127,12 @@
   --color-top-muted: #cfcbc2;
   --color-top-line: #2a3441;
   --color-nav: #182029;
+
+  --color-bar-wait: #6b5311;
+  --color-on-bar-wait: #ffffff;
+  --color-bar-action: #141a23;
+  --color-bar-action-wait: #f4f1ea;
+  --color-bar-action-conflict: #f4f1ea;
 }
 
 /*

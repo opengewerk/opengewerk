@@ -23,6 +23,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   noch, wenn etwas zu tun ist; dass alles abgeglichen ist, steht leise unter "Abgleich", denn die
   grüne Leiste auf jedem Bildschirm sagte meistens nichts und nahm den Platz einer Tabellenzeile.
   Neben "Aufgaben" steht, wie viele offene Aufgaben auf die angemeldete Person warten.
+- Die Leisten über dem Bildschirm folgen in Büro und Baustelle den Tafeln im Canvas (#217). Ein
+  Baustein zeichnet sie alle, in drei Tönen: bernsteinfarben, wenn etwas wartet, rot bei einem
+  Konflikt oder einer überfälligen Sicherung, und auf dem abgesenkten Grund für die neue Fassung
+  und den Vorschlag des anderen Einstiegs. Im Büro ist eine Leiste eine Zeile, auf der Baustelle
+  steht der zweite Satz klein darunter. Sie stapeln sich in der Reihenfolge der Tafel, erst was
+  nicht warten kann. Der Zeitnehmer auf der Baustelle hat einen Punkt und zwei Zeilen, nennt nach
+  Mitternacht auch den Tag des Starts und lässt seine Knöpfe unter den Text rutschen, statt ihn
+  zusammenzudrücken; die Tafel im Canvas hatte genau das falsch gezeichnet und ist berichtigt.
+  Im Dunkeln bleibt die wartende Leiste dunkel mit weißer Schrift, wie gezeichnet.
 
 ### Behoben
 

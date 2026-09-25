@@ -1,7 +1,5 @@
 import clsx from 'clsx'
-import { Check, TriangleAlert, WifiOff } from 'lucide-react'
 import type { DocumentStatus } from '@opengewerk/domain'
-import type { ReactNode } from 'react'
 
 /**
  * What a document's state looks like, and it is deliberately loud.
@@ -51,49 +49,5 @@ export function DocumentState({ status, number }: DocumentStateProps) {
       {documentStateLabel[status]}
       {number ? <span className="numeric font-normal text-ink-muted">{number}</span> : null}
     </span>
-  )
-}
-
-/**
- * What the outbox is doing. Always a strip, never a popup that can be clicked
- * away: a conflict nobody sees becomes an invoice with the wrong content, later
- * and out of context.
- */
-export type SyncState = 'synced' | 'offline' | 'conflict'
-
-const syncClasses: Readonly<Record<SyncState, string>> = {
-  synced: 'bg-done text-on-status',
-  offline: 'bg-waiting text-on-status',
-  conflict: 'bg-conflict text-on-status',
-}
-
-export interface SyncBarProps {
-  readonly state: SyncState
-  readonly children: ReactNode
-  /** The way out of the state, when there is one. */
-  readonly action?: ReactNode
-}
-
-const syncIcons = { synced: Check, offline: WifiOff, conflict: TriangleAlert } as const
-
-export function SyncBar({ state, children, action }: SyncBarProps) {
-  const Icon = syncIcons[state]
-
-  return (
-    <div
-      // A conflict interrupts, the other two do not. `alert` is announced at
-      // once, `status` when the reader gets to it, and using `alert` for the
-      // quiet states would train people to ignore it.
-      role={state === 'conflict' ? 'alert' : 'status'}
-      className={clsx(
-        'flex items-center gap-2.5 px-4 py-1.5 min-h-tap lg:px-5',
-        'text-body font-semibold',
-        syncClasses[state],
-      )}
-    >
-      <Icon size={17} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
-      <span className="grow">{children}</span>
-      {action}
-    </div>
   )
 }

@@ -47,18 +47,18 @@ export function SiteShell() {
   return (
     <Shell entry="site">
       <div className="min-h-dvh flex flex-col">
-        <UpdateBar />
-        <StopwatchBar />
+        {/* The strips first, as on the board "Leisten auf der Baustelle", then
+            the stopwatch, which runs under them on every screen. */}
         <SyncStatusBar
-          conflictsLink={
-            <Link
-              to="/konflikte"
-              className="inline-flex items-center h-control min-h-tap px-3 rounded-control bg-surface text-ink font-semibold"
-            >
+          conflictsLink={(className) => (
+            <Link to="/konflikte" className={className}>
               Ansehen
             </Link>
-          }
+          )}
         />
+        <UpdateBar />
+        <EntrySuggestion here="site" />
+        <StopwatchBar />
 
         {/*
           The way back, and only when there is one. A phone has a back gesture,
@@ -113,8 +113,6 @@ export function SiteShell() {
             ))}
           </ul>
         </nav>
-
-        <EntrySuggestion here="site" />
       </div>
     </Shell>
   )
