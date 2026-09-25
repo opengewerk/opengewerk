@@ -417,7 +417,7 @@ export class DocumentsController {
       // and out of every list at the same time.
       const [issued] = await tx
         .update(documents)
-        .set({ status: 'issued', number, issuedAt, updatedAt: issuedAt })
+        .set({ status: 'issued', number, issuedAt, issuedBy: identity.userId, updatedAt: issuedAt })
         .where(
           and(
             eq(documents.id, existing.id),
@@ -863,7 +863,7 @@ export class DocumentsController {
 
       const [issued] = await tx
         .update(documents)
-        .set({ status: 'issued', number, issuedAt, updatedAt: issuedAt })
+        .set({ status: 'issued', number, issuedAt, issuedBy: identity.userId, updatedAt: issuedAt })
         .where(and(eq(documents.id, created.id), eq(documents.status, 'draft')))
         .returning()
 

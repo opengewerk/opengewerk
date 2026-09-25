@@ -141,7 +141,9 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * until the patch lands. `reserved` is the other half, and it is the half
    * that matters, because these three fields together are the issuing. The
    * number comes from the counter, the timestamp from the server clock, and
-   * the status from the endpoint that holds both.
+   * the status from the endpoint that holds both. Who issued it comes from the
+   * same endpoint (#249): a device that could write it could put a document
+   * under somebody else's name.
    *
    * It covers creating as well, which is where the gate cannot help at all:
    * there is no previous state to look at, and a document arriving as
@@ -159,7 +161,7 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
     create: true,
     change: 'merge',
     onlyWhile: { field: 'status', values: ['draft'] },
-    reserved: ['status', 'number', 'issuedAt', 'predecessorDocumentId'],
+    reserved: ['status', 'number', 'issuedAt', 'issuedBy', 'predecessorDocumentId'],
     createdAs: { status: 'draft' },
   },
   /**

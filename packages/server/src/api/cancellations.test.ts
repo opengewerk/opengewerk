@@ -249,6 +249,8 @@ describe('cancelling an invoice', () => {
       kind: 'cancellation_invoice',
       status: 'issued',
       predecessorDocumentId: invoice.id,
+      // Issued in the same step, by whoever cancels (#249).
+      issuedBy: 'test',
     })
     // The same sequence as the invoices, section 14 UStG wants no second one.
     expect(storno.number).toMatch(/^RE-2026-\d{4}$/)
