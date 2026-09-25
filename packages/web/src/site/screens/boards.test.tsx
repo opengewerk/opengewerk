@@ -313,13 +313,12 @@ describe('a circuit on site', () => {
 
     await user.click(screen.getByRole('button', { name: 'Angaben ergänzen' }))
 
-    const form = screen.getByRole('region', { name: 'Angaben ergänzen' })
-    await user.type(within(form).getByLabelText('Länge in m'), '18')
-    await user.selectOptions(
-      within(form).getByLabelText('Verlegeart'),
-      'C: Direkt auf oder in der Wand',
-    )
-    await user.click(within(form).getByRole('button', { name: 'Angaben sichern' }))
+    // The form is the screen, as on the board "Stromkreis, Angaben ergänzen",
+    // with the unit beside the field and the buttons at the foot.
+    expect(screen.queryByRole('region', { name: 'Was bekannt ist' })).toBeNull()
+    await user.type(screen.getByLabelText(/^Länge/), '18')
+    await user.selectOptions(screen.getByLabelText('Verlegeart'), 'C: Direkt auf oder in der Wand')
+    await user.click(screen.getByRole('button', { name: 'Angaben sichern' }))
 
     // Waited for rather than synchronised at once: the save reaches the
     // outbox a step after the click, and a round started before it would

@@ -8,7 +8,6 @@ import type {
   TripCharacteristic,
 } from '@opengewerk/domain'
 import {
-  cableInstallationMethodLabel,
   cableInstallationMethodName,
   cableInstallationMethods,
   cableLengthText,
@@ -40,6 +39,7 @@ import { count, maybeText, oneOf, text } from '../sync/fields.js'
 import { useRelated } from '../sync/provider.js'
 import { scaledNumber } from './format.js'
 import { asTextOrNull, type FormField } from './record-form.js'
+import { SiteActionBar } from '../site/action-bar.js'
 
 /**
  * The structure below an installation as both entries show it: board,
@@ -358,8 +358,10 @@ export function CircuitForm({
   readonly onCancel?: () => void
 }) {
   const entry = useEntry()
+  const site = entry === 'site'
   const start = record ? figuresOf(record) : null
   const listId = useId()
+  const formId = useId()
   const [designation, setDesignation] = useState(text(record, 'designation'))
   const [consumer, setConsumer] = useState(text(record, 'consumer'))
   const [inSection, setInSection] = useState(maybeText(record, 'boardSectionId') ?? section ?? '')
@@ -446,18 +448,22 @@ export function CircuitForm({
 
   return (
     <form
-      className={clsx('flex flex-col gap-3', entry === 'office' && 'grow')}
+      id={formId}
+      className={clsx('flex flex-col', site ? 'gap-3.5' : 'grow gap-3')}
       onSubmit={(event) => {
         void submit(event)
       }}
     >
       {/* As `stromkreis_form()` of the canvas: name, consumer and section in
-          one row, then a box for each part of the circuit. */}
+          one row in the office, one under the other on site, then a box for
+          each part of the circuit. */}
       <div
         className={
-          sections.length > 0
-            ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.4fr)]'
-            : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]'
+          site
+            ? 'flex flex-col gap-3.5'
+            : sections.length > 0
+              ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.4fr)]'
+              : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]'
         }
       >
         <Field
@@ -517,26 +523,32 @@ export function CircuitForm({
           }}
           {...problemOf(problems, 'overcurrentDevice')}
         />
-        <SelectField
-          label="Charakteristik"
-          value={characteristic}
-          options={[
-            nothing,
-            ...curves.map((option) => ({ value: option, label: tripCharacteristicLabel[option] })),
-          ]}
-          onChange={setCharacteristic}
-          {...problemOf(problems, 'tripCharacteristic')}
-        />
-        <Field
-          label="Nennstrom in A"
-          numeric
-          inputMode="decimal"
-          value={ratedCurrent}
-          onChange={(event) => {
-            setRatedCurrent(event.target.value)
-          }}
-          {...problemOf(problems, 'ratedCurrentMilli')}
-        />
+        <Pair>
+          <SelectField
+            label="Charakteristik"
+            value={characteristic}
+            options={[
+              nothing,
+              ...curves.map((option) => ({
+                value: option,
+                label: tripCharacteristicLabel[option],
+              })),
+            ]}
+            onChange={setCharacteristic}
+            {...problemOf(problems, 'tripCharacteristic')}
+          />
+          <Field
+            label={site ? 'Nennstrom' : 'Nennstrom in A'}
+            numeric
+            inputMode="decimal"
+            {...(site ? { unit: 'A' } : {})}
+            value={ratedCurrent}
+            onChange={(event) => {
+              setRatedCurrent(event.target.value)
+            }}
+            {...problemOf(problems, 'ratedCurrentMilli')}
+          />
+        </Pair>
       </Group>
 
       <Group title="RCD" columns="two">
@@ -551,9 +563,10 @@ export function CircuitForm({
           {...problemOf(problems, 'rcdType')}
         />
         <Field
-          label="Bemessungsdifferenzstrom in mA"
+          label={site ? 'Bemessungsdifferenzstrom' : 'Bemessungsdifferenzstrom in mA'}
           numeric
           inputMode="numeric"
+          {...(site ? { unit: 'mA' } : {})}
           hint="Zum Beispiel 30."
           value={residualCurrent}
           onChange={(event) => {
@@ -595,31 +608,34 @@ export function CircuitForm({
             <option key={option} value={option} />
           ))}
         </datalist>
+        <Pair>
+          <Field
+            label="Aderzahl"
+            numeric
+            inputMode="numeric"
+            value={cores}
+            onChange={(event) => {
+              setCores(event.target.value)
+            }}
+            {...problemOf(problems, 'cableCores')}
+          />
+          <Field
+            label={site ? 'Querschnitt' : 'Querschnitt in mm²'}
+            numeric
+            inputMode="decimal"
+            {...(site ? { unit: 'mm²' } : { hint: 'Zum Beispiel 1,5.' })}
+            value={crossSection}
+            onChange={(event) => {
+              setCrossSection(event.target.value)
+            }}
+            {...problemOf(problems, 'cableCrossSectionMilli')}
+          />
+        </Pair>
         <Field
-          label="Aderzahl"
-          numeric
-          inputMode="numeric"
-          value={cores}
-          onChange={(event) => {
-            setCores(event.target.value)
-          }}
-          {...problemOf(problems, 'cableCores')}
-        />
-        <Field
-          label="Querschnitt in mm²"
+          label={site ? 'Länge' : 'Länge in m'}
           numeric
           inputMode="decimal"
-          hint="Zum Beispiel 1,5."
-          value={crossSection}
-          onChange={(event) => {
-            setCrossSection(event.target.value)
-          }}
-          {...problemOf(problems, 'cableCrossSectionMilli')}
-        />
-        <Field
-          label="Länge in m"
-          numeric
-          inputMode="decimal"
+          {...(site ? { unit: 'm' } : {})}
           value={length}
           onChange={(event) => {
             setLength(event.target.value)
@@ -639,17 +655,27 @@ export function CircuitForm({
         </p>
       ) : null}
 
-      {entry === 'site' ? (
-        <div className="flex flex-col gap-2">
-          <Button type="submit" tone="primary" wide disabled={working}>
-            {working ? 'Wird gespeichert' : submitLabel}
-          </Button>
+      {site ? (
+        // At the foot of the screen, where the tabs are otherwise, as the
+        // board "Stromkreis, Angaben ergänzen" draws the two buttons.
+        <SiteActionBar>
           {onCancel ? (
-            <Button tone="quiet" wide onClick={onCancel} disabled={working}>
+            <Button wide className="flex-1 basis-0" onClick={onCancel} disabled={working}>
               Abbrechen
             </Button>
           ) : null}
-        </div>
+          <Button
+            type="submit"
+            form={formId}
+            tone="primary"
+            wide
+            icon={Check}
+            className="flex-2 basis-0"
+            disabled={working}
+          >
+            {working ? 'Wird gespeichert' : submitLabel}
+          </Button>
+        </SiteActionBar>
       ) : (
         // At the foot of the box, however short the form above it, as the
         // board draws "Abbrechen" and "Speichern".
@@ -719,14 +745,31 @@ function Group({
     )
   }
 
+  // On site the box of `group()`: the page colour, the name in small capitals
+  // in its edge, and the fields one under the other, two where they pair.
   return (
-    <fieldset className="flex flex-col gap-3 border-t border-line pt-3">
-      <legend className="pr-2 text-label leading-[normal]">
-        <FieldLabel>{title}</FieldLabel>
+    <fieldset className="flex min-w-0 flex-col gap-3 rounded-[6px] border border-line bg-ground px-3.5 pt-3 pb-3.5">
+      <legend className="px-1.5 font-condensed text-[14px] leading-[normal] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+        {title}
       </legend>
-      <div className="grid gap-4 sm:grid-cols-3">{children}</div>
+      {children}
       {below}
     </fieldset>
+  )
+}
+
+/**
+ * Two fields side by side on site, `pair()` of the boards: characteristic and
+ * current, cores and cross section. In the office they are two more columns
+ * of the box, so there it is nothing but its children.
+ */
+function Pair({ children }: { readonly children: ReactNode }) {
+  const entry = useEntry()
+
+  return entry === 'site' ? (
+    <div className="grid grid-cols-2 items-start gap-2.5">{children}</div>
+  ) : (
+    <>{children}</>
   )
 }
 
@@ -745,10 +788,12 @@ export function circuitFacts(circuit: RecordState): readonly { label: string; va
     { label: 'Länge', value: cableLengthText(figures) },
     {
       label: 'Verlegeart',
+      // In words and not the letter alone, as the board "Stromkreis mit
+      // Betriebsmitteln" has it: "C" says nothing to somebody reading it off.
       value:
         figures.cableInstallationMethod === null
           ? null
-          : cableInstallationMethodLabel[figures.cableInstallationMethod],
+          : cableInstallationMethodName[figures.cableInstallationMethod],
     },
   ].filter((fact): fact is { label: string; value: string } => fact.value !== null)
 }

@@ -236,7 +236,9 @@
  */
 [data-entry='site'] {
   --spacing-control: 3.75rem;
-  --spacing-control-lg: 3.75rem;
+  /* Fields are 52 pixels high on every site board, `site_field()`; the 60
+     pixels are the buttons at the foot of a screen (#219). */
+  --spacing-control-lg: 3.25rem;
   --spacing-tap: 3.5rem;
 
   --text-label: 0.875rem;

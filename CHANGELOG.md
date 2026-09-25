@@ -135,6 +135,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Reiter sind, mit dem Satz, dass alles ohne Netz gesichert wird, ebenso "Unterschreiben" und
   "Zurück zum Bericht" beim Unterschreiben. Der unterschriebene Bericht zeigt seinen Zustand, warum
   er sich nicht mehr ändert, den Bericht und die Unterschrift.
+- Verteiler und Stromkreis auf der Baustelle folgen ihren Tafeln (#219): ein Stromkreis steht als
+  Karte mit seiner Bezeichnung auf Schiefer, wie sie im Verteiler aufgedruckt ist, dem Verbraucher
+  und Schutz und Leitung darunter; "Was bekannt ist" nennt die Verlegeart in Worten.
+  "Angaben ergänzen" ist das Formular allein, mit Schutzeinrichtung, RCD und Leitung in Kästen,
+  der Einheit hinter dem Feld und den Knöpfen unten. Felder auf der Baustelle sind 52 Pixel hoch
+  wie auf jeder Tafel, bisher 60.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen
