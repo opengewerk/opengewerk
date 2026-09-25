@@ -605,6 +605,27 @@ describe('the bar above every screen', () => {
 
     expect(screen.getByRole('status').textContent).toContain('1 Änderung auf dem Gerät')
   })
+
+  it('says nothing about the connection while a change is on its way (#223)', async () => {
+    const server = new Quiet()
+    const client = await withClient(server)
+
+    // A send that has not answered yet: the change waits, nothing went wrong.
+    server.push = () => new Promise(() => {})
+
+    await client.create('customers', { name: 'Meyer', kind: 'private' })
+    void client.synchronise()
+
+    const { container } = render(
+      <SyncProvider client={client}>
+        <SyncStatusBar />
+      </SyncProvider>,
+    )
+
+    expect(client.status().pending).toBe(1)
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(container.textContent).toBe('')
+  })
 })
 
 describe('the suggestion to switch entry', () => {

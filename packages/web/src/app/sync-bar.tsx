@@ -62,8 +62,12 @@ export function SyncStatusBar({
     )
   }
 
-  if (status.state === 'offline') {
-    const why = status.trouble ?? 'Keine Verbindung.'
+  // Waiting changes with nothing gone wrong are no missing connection: that
+  // is every change for the moment between the outbox and the server, and a
+  // strip saying "Keine Verbindung." over a send that works was the result
+  // (#223). A real failure always leaves its reason in `trouble`.
+  if (status.state === 'offline' && status.trouble !== null) {
+    const why = status.trouble
     const waiting =
       status.pending > 0
         ? `${String(status.pending)} Änderung${status.pending === 1 ? '' : 'en'} auf dem Gerät.`

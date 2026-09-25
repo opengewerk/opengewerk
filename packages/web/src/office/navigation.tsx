@@ -252,7 +252,9 @@ export function SyncNote() {
           ? 'Ein Konflikt wartet'
           : `${String(status.conflicts.length)} Konflikte warten`
         : status.state === 'offline'
-          ? 'Keine Verbindung'
+          ? status.trouble === null
+            ? 'Wird übertragen'
+            : 'Keine Verbindung'
           : status.lastSyncedAt
             ? `Abgeglichen, ${sinceThen(status.lastSyncedAt)}`
             : 'Noch nicht abgeglichen'
@@ -261,7 +263,11 @@ export function SyncNote() {
     <div
       className={clsx(
         'pl-[35px] pr-2.5 pb-1.5 -mt-[3px] text-[12px] leading-snug',
-        status.state === 'synced' ? 'text-ink-faint' : 'text-conflict font-semibold',
+        // Quiet while everything goes as it should, also while a change is on
+        // its way; red only when something needs somebody.
+        status.state === 'synced' || (status.state === 'offline' && status.trouble === null)
+          ? 'text-ink-faint'
+          : 'text-conflict font-semibold',
       )}
     >
       {text}

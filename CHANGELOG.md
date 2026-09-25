@@ -35,6 +35,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Während eine Änderung unterwegs ist, meldet die Leiste nicht mehr "Keine Verbindung." (#223). Der
+  Abgleich zählt jede Änderung im Postausgang als noch nicht angekommen, und die Leiste las daraus
+  eine fehlende Verbindung, auch in dem Moment, in dem die Änderung gerade hinausgeht. Sie erscheint
+  jetzt nur, wenn ein Versuch wirklich gescheitert ist, und unter "Abgleich" steht bis dahin leise
+  "Wird übertragen".
 - Schrift und Abstände haben die Größe aus dem Canvas (#229). `html` bekam die Schriftgröße aus den
   Tokens, und weil die Tokens in rem geschrieben sind, rechnete jeder zweimal: im Büro war Fließtext
   12,25 statt 14 Pixel groß, ein Bedienelement 29,75 statt 34, und auf der Baustelle, deren Wurzel
