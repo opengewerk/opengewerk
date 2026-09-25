@@ -10,6 +10,7 @@ import {
   EditCustomerScreen,
   NewCustomerScreen,
 } from './screens/customers.js'
+import { DocumentList } from './screens/document-list.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationList, InstallationScreen } from './screens/installations.js'
 import { InstructionsScreen } from './screens/instructions.js'
@@ -86,6 +87,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => root, path: '/aufgaben', component: TaskListScreen }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: TimeScreen }),
+  createRoute({ getParentRoute: () => root, path: '/belege', component: DocumentList }),
   createRoute({
     getParentRoute: () => root,
     path: '/belege/$documentId',

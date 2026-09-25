@@ -75,6 +75,45 @@ export async function paymentsOf(
   }
 }
 
+/** What an issued invoice asks for and what came in on it, for the list of documents. */
+export interface OpenAmount {
+  readonly documentId: DocumentId
+  readonly billedCents: number
+  readonly receivedCents: number
+}
+
+/**
+ * Every issued invoice on which less came in than it asks for (#219): what
+ * "Offen" means in the list of documents. Asked of the snapshots and the
+ * payments in two reads rather than one per invoice, because a list asks it
+ * of all of them at once; what an invoice asks for is its frozen figure, as
+ * for `paymentsOf`.
+ */
+export async function openAmounts(tx: TenantTransaction): Promise<readonly OpenAmount[]> {
+  const issued = await tx
+    .select({ id: documents.id, kind: documents.kind, content: documentSnapshots.content })
+    .from(documents)
+    .innerJoin(documentSnapshots, eq(documentSnapshots.documentId, documents.id))
+    .where(eq(documents.status, 'issued'))
+  const received = await tx
+    .select({
+      documentId: payments.documentId,
+      cents: sql<string>`coalesce(sum(${payments.amountCents}), 0)`,
+    })
+    .from(payments)
+    .groupBy(payments.documentId)
+  const cameIn = new Map(received.map((row) => [row.documentId, Number(row.cents)]))
+
+  return issued
+    .filter((row) => receivesPayments(row.kind))
+    .map((row) => ({
+      documentId: row.id as DocumentId,
+      billedCents: currentContent(row.content).billed.grossCents,
+      receivedCents: cameIn.get(row.id) ?? 0,
+    }))
+    .filter((row) => row.receivedCents < row.billedCents)
+}
+
 /**
  * Records a payment on an issued invoice.
  *

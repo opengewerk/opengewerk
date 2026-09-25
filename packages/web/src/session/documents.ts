@@ -151,6 +151,18 @@ export function paymentsOf(id: string): Promise<PaymentsOf> {
   return request<PaymentsOf>(`/documents/${encodeURIComponent(id)}/payments`)
 }
 
+/** What an issued invoice asks for and what came in on it, for the list of documents. */
+export interface OpenAmount {
+  readonly documentId: string
+  readonly billedCents: number
+  readonly receivedCents: number
+}
+
+/** Every issued invoice with something still open (#219), what "Offen" means in the list. */
+export function openAmounts(): Promise<readonly OpenAmount[]> {
+  return request<readonly OpenAmount[]>('/payments/open')
+}
+
 export function recordPayment(
   id: string,
   payment: { readonly amountCents: number; readonly receivedOn: IsoDate },

@@ -69,6 +69,7 @@ export default defineConfig({
         '/form-records',
         '/time',
         '/documents',
+        '/payments',
         '/sync',
         '/settings',
         '/setup',

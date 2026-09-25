@@ -771,6 +771,33 @@ describe('payments on an invoice', () => {
       .expect(403)
   })
 
+  it('say for the list of documents what is still open on every invoice (#219)', async () => {
+    const partly = await issuedInvoice()
+    const paid = await issuedInvoice()
+    const drafted = await draft('final_invoice')
+
+    await pay(partly.id, 4_000)
+    await pay(paid.id, 14_280)
+
+    const answer = await http().get('/payments/open').set('x-test-identity', office()).expect(200)
+    const open = answer.body as { documentId: string; billedCents: number; receivedCents: number }[]
+
+    // What each asks for and what came in, for the invoices with something
+    // left; one paid in full and a draft are not open.
+    expect(open.find((row) => row.documentId === partly.id)).toEqual({
+      documentId: partly.id,
+      billedCents: 14_280,
+      receivedCents: 4_000,
+    })
+    expect(open.some((row) => row.documentId === paid.id)).toBe(false)
+    expect(open.some((row) => row.documentId === drafted.id)).toBe(false)
+
+    await http()
+      .get('/payments/open')
+      .set('x-test-identity', as(north.id, 'technician'))
+      .expect(403)
+  })
+
   it('keep an invoice from being cancelled until they are moved', async () => {
     const invoice = await issuedInvoice()
     const payment = await pay(invoice.id, 1_000)

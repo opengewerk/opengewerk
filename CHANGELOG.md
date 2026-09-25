@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Liste aller Belege im Büro, nach der Tafel "Belege" (#219), unter "Arbeit" in der
+  Navigation, mit der Zahl der Entwürfe daneben. Bisher fand man einen Beleg nur über seinen
+  Auftrag oder seinen Kunden. Nummer, Art, Betreff, Kunde, Datum, Zustand und Betrag, mit den
+  Filtern "Entwürfe", "Angebote", "Rechnungen" und "Offen"; ein Entwurf steht als "ohne Nummer"
+  da. "Offen" heißt festgeschrieben und noch nicht voll bezahlt und fragt dafür die neue Route
+  `GET /payments/open`, weil Zahlungseingänge nicht auf ein Gerät gehen (#189); ohne Verbindung
+  und ohne das Recht `payment.read` fehlt der Filter.
 - Der CI-Job "Breiten und Auflösungen" öffnet jeden Bildschirm von Büro und Baustelle in einem
   echten Browser bei 14 Breiten von 320 bis 3840 Pixel, hell und dunkel, und scheitert, sobald eine
   Seite breiter ist als ihr Fenster (#218). Die Bildschirme findet er selbst, indem er den Links der

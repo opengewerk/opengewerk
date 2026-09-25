@@ -12,7 +12,13 @@ import {
 import type { DocumentId } from '@opengewerk/domain'
 
 import { Database } from '../database/database.js'
-import { PaymentRefused, paymentsOf, recordPayment, removePayment } from '../payments/payments.js'
+import {
+  openAmounts,
+  PaymentRefused,
+  paymentsOf,
+  recordPayment,
+  removePayment,
+} from '../payments/payments.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
 import { pick } from './body.js'
@@ -88,5 +94,21 @@ export class PaymentsController {
     if (!removed) {
       throw new NotFoundException()
     }
+  }
+}
+
+/**
+ * What is still open on every issued invoice, for the list of documents in
+ * the office and its chip "Offen" (#219). A list of what each asks for and
+ * what came in, so the office works out the rest the way it shows it.
+ */
+@Controller('payments')
+export class OpenPaymentsController {
+  constructor(private readonly database: Database) {}
+
+  @Get('open')
+  @RequiresPermission('payment.read')
+  open(@CurrentIdentity() identity: RequestIdentity) {
+    return this.database.forTenant(identity, (tx) => openAmounts(tx))
   }
 }
