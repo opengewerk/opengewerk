@@ -28,10 +28,12 @@ import {
   tripCharacteristicLabel,
   tripCharacteristics,
 } from '@opengewerk/domain'
+import clsx from 'clsx'
+import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Field, FieldLabel, SelectField } from '../components/index.js'
+import { Button, Field, FieldLabel, SelectField, useEntry } from '../components/index.js'
 import { refusalText } from '../sync/client.js'
 import type { Draft, EditResult, SyncClient } from '../sync/client.js'
 import { count, maybeText, oneOf, text } from '../sync/fields.js'
@@ -355,6 +357,7 @@ export function CircuitForm({
   readonly onSubmit: (values: Draft) => Promise<EditResult>
   readonly onCancel?: () => void
 }) {
+  const entry = useEntry()
   const start = record ? figuresOf(record) : null
   const listId = useId()
   const [designation, setDesignation] = useState(text(record, 'designation'))
@@ -443,12 +446,20 @@ export function CircuitForm({
 
   return (
     <form
-      className="flex flex-col gap-5"
+      className={clsx('flex flex-col gap-3', entry === 'office' && 'grow')}
       onSubmit={(event) => {
         void submit(event)
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* As `stromkreis_form()` of the canvas: name, consumer and section in
+          one row, then a box for each part of the circuit. */}
+      <div
+        className={
+          sections.length > 0
+            ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.4fr)]'
+            : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]'
+        }
+      >
         <Field
           label="Bezeichnung"
           required
@@ -482,7 +493,7 @@ export function CircuitForm({
         ) : null}
       </div>
 
-      <Group title="Schutzeinrichtung">
+      <Group title="Schutzeinrichtung" columns="protection">
         <SelectField
           label="Art"
           value={device}
@@ -528,7 +539,7 @@ export function CircuitForm({
         />
       </Group>
 
-      <Group title="RCD">
+      <Group title="RCD" columns="two">
         <SelectField
           label="Typ"
           value={rcdType}
@@ -552,7 +563,25 @@ export function CircuitForm({
         />
       </Group>
 
-      <Group title="Leitung">
+      <Group
+        title="Leitung"
+        columns="cable"
+        below={
+          <SelectField
+            label="Verlegeart"
+            value={method}
+            options={[
+              nothing,
+              ...cableInstallationMethods.map((option) => ({
+                value: option,
+                label: cableInstallationMethodName[option],
+              })),
+            ]}
+            onChange={setMethod}
+            {...problemOf(problems, 'cableInstallationMethod')}
+          />
+        }
+      >
         <Field
           label="Typ"
           list={listId}
@@ -597,42 +626,44 @@ export function CircuitForm({
           }}
           {...problemOf(problems, 'cableLengthMilli')}
         />
-        <SelectField
-          label="Verlegeart"
-          value={method}
-          options={[
-            nothing,
-            ...cableInstallationMethods.map((option) => ({
-              value: option,
-              label: cableInstallationMethodName[option],
-            })),
-          ]}
-          onChange={setMethod}
-          {...problemOf(problems, 'cableInstallationMethod')}
-        />
       </Group>
 
       {Object.keys(problems).length > 0 ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
           Nicht gespeichert. Bitte die markierten Felder ansehen.
         </p>
       ) : null}
       {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working}>
-          {working ? 'Wird gespeichert' : submitLabel}
-        </Button>
-        {onCancel ? (
-          <Button tone="quiet" onClick={onCancel} disabled={working}>
-            Abbrechen
+      {entry === 'site' ? (
+        <div className="flex flex-col gap-2">
+          <Button type="submit" tone="primary" wide disabled={working}>
+            {working ? 'Wird gespeichert' : submitLabel}
           </Button>
-        ) : null}
-      </div>
+          {onCancel ? (
+            <Button tone="quiet" wide onClick={onCancel} disabled={working}>
+              Abbrechen
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        // At the foot of the box, however short the form above it, as the
+        // board draws "Abbrechen" and "Speichern".
+        <div className="mt-auto flex flex-wrap items-center justify-end gap-2 border-t border-line pt-3">
+          {onCancel ? (
+            <Button onClick={onCancel} disabled={working}>
+              Abbrechen
+            </Button>
+          ) : null}
+          <Button type="submit" tone="primary" icon={Check} disabled={working}>
+            {working ? 'Wird gespeichert' : submitLabel}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }
@@ -644,17 +675,57 @@ function problemOf(problems: Readonly<Record<string, string>>, field: string) {
   return problem === undefined ? {} : { problem }
 }
 
+/** The columns of the boxes, as the canvas lays them out. */
+const groupColumns = {
+  protection: 'sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]',
+  two: 'sm:grid-cols-2',
+  cable: 'sm:grid-cols-4',
+} as const
+
 /**
  * A group of fields with a heading of its own. A `fieldset` with a `legend`,
- * so that a screen reader says "Leitung, Typ" and not just "Typ" twice.
+ * so that a screen reader says "Leitung, Typ" and not just "Typ" twice. In
+ * the office a box on the page colour, as the canvas draws it; on site a line
+ * above it.
  */
-function Group({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+function Group({
+  title,
+  columns,
+  below,
+  children,
+}: {
+  readonly title: string
+  readonly columns: keyof typeof groupColumns
+  /**
+   * A field under the columns, across the whole box: the method of laying a
+   * cable, whose choices are sentences.
+   */
+  readonly below?: ReactNode
+  readonly children: ReactNode
+}) {
+  const entry = useEntry()
+
+  // The legend at the size of its label: at the size of the page around it,
+  // its line stood three pixels higher than the label in it.
+  if (entry === 'office') {
+    return (
+      <fieldset className="rounded-[5px] border border-line bg-ground px-3.5 py-3">
+        <legend className="px-1.5 text-label leading-[normal]">
+          <FieldLabel>{title}</FieldLabel>
+        </legend>
+        <div className={clsx('grid gap-3', groupColumns[columns])}>{children}</div>
+        {below ? <div className="mt-2.5">{below}</div> : null}
+      </fieldset>
+    )
+  }
+
   return (
     <fieldset className="flex flex-col gap-3 border-t border-line pt-3">
-      <legend className="pr-2">
+      <legend className="pr-2 text-label leading-[normal]">
         <FieldLabel>{title}</FieldLabel>
       </legend>
       <div className="grid gap-4 sm:grid-cols-3">{children}</div>
+      {below}
     </fieldset>
   )
 }

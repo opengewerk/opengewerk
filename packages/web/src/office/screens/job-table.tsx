@@ -2,7 +2,7 @@ import type { RecordState } from '@opengewerk/domain'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { Cell, Column, Panel, TablePanel } from '../../components/index.js'
+import { cardLink, Cell, Column, Panel, TablePanel } from '../../components/index.js'
 import { jobKindLabel, jobKindOf } from '../../app/labels.js'
 import { text } from '../../sync/fields.js'
 import { useRecords } from '../../sync/provider.js'
@@ -61,14 +61,12 @@ export function JobsPanel({
     String(right['id']).localeCompare(String(left['id'])),
   )
 
-  const value = (job: RecordState, key: JobColumnKey): ReactNode => {
+  const words = (job: RecordState, key: Exclude<JobColumnKey, 'status'>): string => {
     switch (key) {
       case 'number':
         return text(job, 'number')
       case 'kind':
         return jobKindLabel[jobKindOf(job)]
-      case 'status':
-        return <JobState job={job} />
       case 'site':
         return text(
           sites.find((site) => String(site['id']) === text(job, 'siteId')) ?? null,
@@ -77,8 +75,31 @@ export function JobsPanel({
     }
   }
 
+  const value = (job: RecordState, key: JobColumnKey): ReactNode =>
+    key === 'status' ? <JobState job={job} /> : words(job, key)
+
+  // On a phone the same columns in a line under the name, the state at the right.
+  const shown = columns.flatMap((column) => (column.key === 'status' ? [] : [column.key]))
+  const cards = sorted.map((job) => {
+    const id = String(job['id'])
+
+    return {
+      key: id,
+      title: (
+        <Link to={`/auftraege/${id}`} className={cardLink}>
+          {text(job, 'designation')}
+        </Link>
+      ),
+      sub: shown
+        .map((key) => words(job, key))
+        .filter((part) => part !== '')
+        .join(' · '),
+      right: columns.some((column) => column.key === 'status') ? <JobState job={job} /> : null,
+    }
+  })
+
   return (
-    <TablePanel title="Aufträge" caption={caption} action={action} lead={lead}>
+    <TablePanel title="Aufträge" caption={caption} action={action} lead={lead} cards={cards}>
       <thead>
         <tr>
           <Column>Bezeichnung</Column>

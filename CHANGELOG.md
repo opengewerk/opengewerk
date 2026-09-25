@@ -32,6 +32,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   jeder Breite wie die Kunden. Objekt und Anlagenakte folgen ihren Tafeln: Tabellen für Anlagen
   und Aufträge, die Verteiler mit Pfeilen zum Umsortieren, die Prüfprotokolle mit Datum und
   Zustand, im Kopf der Anlage das Stromkreisverzeichnis und "Anlagenstruktur öffnen".
+- Die Anlagenstruktur ist ein Bildschirm, wie auf den Tafeln "Anlagenstruktur" (#219): links der
+  Baum der Anlage mit Verteilern, Feldern und Stromkreisen, rechts, was darin gewählt ist, und im
+  Kopf der Pfad zur Anlage statt der Navigation. Bisher waren Verteiler und Stromkreis zwei
+  getrennte Seiten, und wer von F3 zu F4 wollte, ging über den Verteiler zurück. Die Karten eines
+  Stromkreises schreiben ihn wie die Tafel ("LS-Schalter", "Typ A, 30 mA", Typ und Querschnitt
+  der Leitung auf eigenen Zeilen), das Formular gruppiert Schutzeinrichtung, RCD und Leitung in
+  Kästen, die Verlegeart steht über die ganze Breite darunter.
+- Tabellen in einer Akte stehen am Telefon als ein Kasten je Zeile, wie es die Tafel "Breiten und
+  Auflösungen" unter 600 Pixeln verlangt (#218): Objekte, Aufträge und Belege eines Kunden, die
+  Anlagen und Aufträge eines Objekts, die Aufträge einer Anlage, Felder, Stromkreise und
+  Betriebsmittel der Anlagenstruktur. Bisher rollten sie dort seitlich in ihrem Rahmen, und ein
+  Betriebsmittel stand auf fünf Zeilen verteilt. Auf Telefon und Tablet springt die
+  Anlagenstruktur nach einem Tipp in den Baum zu dem, was gewählt ist, denn es steht dort unter
+  dem Baum.
 - Die Oberfläche zeichnet mit der Zeilenhöhe der Schrift, wie jede Tafel im Canvas; Fließtext
   setzt seine eigene. Bisher galt überall die Zeilenhöhe von Fließtext, und Zeilen in Karten und
   Listen waren um ein Drittel höher als gezeichnet (#219). Gesetzt hatte sie der äußerste Rahmen

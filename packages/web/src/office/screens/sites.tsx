@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { House, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Cell, Column, Panel, TablePanel } from '../../components/index.js'
+import { Button, cardLink, Cell, Column, Panel, TablePanel } from '../../components/index.js'
 import { addressLine, countryOptions, date } from '../../app/format.js'
 import { installationKindLabel, installationKindOf, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -322,6 +322,26 @@ export function SiteScreen() {
                 title="Anlagen"
                 caption="Anlagen am Objekt"
                 lead={installationForm}
+                cards={installations.map((installation) => {
+                  const id = String(installation['id'])
+                  const since = maybeText(installation, 'commissionedOn')
+
+                  return {
+                    key: id,
+                    title: (
+                      <Link to={`/anlagen/${id}`} className={cardLink}>
+                        {text(installation, 'designation')}
+                      </Link>
+                    ),
+                    sub: [
+                      installationKindLabel[installationKindOf(installation)],
+                      text(installation, 'manufacturer'),
+                      since ? `in Betrieb seit ${date(since)}` : '',
+                    ]
+                      .filter((part) => part !== '')
+                      .join(' · '),
+                  }
+                })}
                 action={
                   createsInstallations && adding !== 'installation' ? (
                     <Button size="small" icon={Plus} onClick={() => setAdding('installation')}>

@@ -7,8 +7,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 
 import { Button, Cell, Column, TablePanel } from '../components/index.js'
-import { useBand } from '../app/band.js'
-import type { Band } from '../app/band.js'
+import { useBand } from '../components/band.js'
+import type { Band } from '../components/band.js'
 import { Chip, Key, PageHead } from './kit.js'
 
 /**

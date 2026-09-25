@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   cableLengthText,
+  cableSizeText,
   cableText,
   characteristicsFor,
   type CircuitFigures,
@@ -118,6 +119,7 @@ describe('a circuit on the chart and on the screen', () => {
     expect(overcurrentText(kitchen)).toBe('LS B 16 A')
     expect(rcdText(kitchen)).toBe('Typ A 30 mA')
     expect(cableText(kitchen)).toBe('NYM-J 3 × 2,5 mm²')
+    expect(cableSizeText(kitchen)).toBe('3 × 2,5 mm²')
     expect(cableLengthText(kitchen)).toBe('18,5 m')
   })
 
@@ -125,6 +127,7 @@ describe('a circuit on the chart and on the screen', () => {
     expect(overcurrentText(nothingKnown)).toBeNull()
     expect(rcdText(nothingKnown)).toBeNull()
     expect(cableText(nothingKnown)).toBeNull()
+    expect(cableSizeText(nothingKnown)).toBeNull()
     expect(cableLengthText(nothingKnown)).toBeNull()
   })
 
@@ -137,6 +140,8 @@ describe('a circuit on the chart and on the screen', () => {
     expect(cableText({ ...nothingKnown, cableType: 'NYY-J', cableCores: 5 })).toBe('NYY-J')
     expect(cableText({ ...nothingKnown, cableCrossSectionMilli: 1_500 })).toBe('1,5 mm²')
     expect(cableText({ ...nothingKnown, cableType: '  ' })).toBeNull()
+    expect(cableSizeText({ ...nothingKnown, cableCores: 5 })).toBeNull()
+    expect(cableSizeText({ ...nothingKnown, cableCrossSectionMilli: 1_500 })).toBe('1,5 mm²')
   })
 
   it('writes thousandths the way they are read', () => {
