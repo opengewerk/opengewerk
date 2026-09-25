@@ -112,10 +112,13 @@ async function start(): Promise<void> {
     // The authentication goes in only when the instance is open, and that is
     // what puts the first run setup on the routing table at all. Closed, the
     // controller is not registered and its two routes are simply not there.
+    // The setup code goes with it, because only the first run asks for it.
     ApiModule.create(
       database,
       identities,
-      configuration.closed ? output : { ...output, authentication, mail },
+      configuration.closed
+        ? output
+        : { ...output, authentication, mail, setupCode: configuration.setupCode },
     ),
     {
       // The container log is the only log there is, so it carries warnings
@@ -212,6 +215,9 @@ async function start(): Promise<void> {
   // A sentence in the log is never worth a server that does not start, so a
   // database that cannot answer simply gets no sentence. That is the case on
   // an instance whose migrations have not run.
+  //
+  // Where the setup code is, and never the code itself (#215): the log of a
+  // container is read by more people and kept longer than the .env.
   const empty = configuration.closed ? false : await instanceIsEmpty(database).catch(() => false)
 
   console.info(
@@ -223,7 +229,12 @@ async function start(): Promise<void> {
         : '') +
       (empty
         ? ' Diese Instanz ist noch leer: im Browser steht die Ersteinrichtung, die den ' +
-          'Betrieb und den ersten Zugang anlegt.'
+          'Betrieb und den ersten Zugang anlegt.' +
+          (configuration.setupCode
+            ? ' Sie verlangt den Einrichtungscode aus SETUP_CODE, in einer Installation ' +
+              'mit Docker steht er in docker/.env.'
+            : ' SETUP_CODE ist nicht gesetzt, deshalb nimmt sie keine Einrichtung an; ' +
+              '"sh docker/start.sh" trägt den Einrichtungscode in docker/.env ein.')
         : ''),
   )
 }

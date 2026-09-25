@@ -21,6 +21,13 @@ import type { SecretKey } from '../secrets/key.js'
 export const AUTHENTICATION = Symbol('Authentication')
 
 /**
+ * The code the first run asks for (#215), from `SETUP_CODE`, or null where the
+ * instance has none: then the first run is refused with the sentence saying
+ * how to get one. Read by the setup controller and by nothing else.
+ */
+export const SETUP_CODE = Symbol('SetupCode')
+
+/**
  * The addresses a browser may send a request that changes something from,
  * read by `SameOriginGuard`. The same list better-auth gets, because the check
  * is the same check.

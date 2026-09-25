@@ -37,12 +37,18 @@ import { ApiModule } from './api.module.js'
 const origin = 'https://opengewerk.example.de'
 const password = 'ein-ordentlich-langes-passwort'
 
+/** The code of this instance, as `setup.sh` would have written it into the .env (#215). */
+const setupCode = 'K7Q4-9PXM'
+
 const firstRun = {
   company: 'Elektro Neubeginn GmbH',
   name: 'Olga Beispiel',
   email: 'chefin@neubeginn.example.de',
   password,
 }
+
+/** What the setup screen sends: the code first, then the business and the account. */
+const firstRequest = { setupCode, ...firstRun }
 
 let admin: Pool
 let database: Database
@@ -51,6 +57,18 @@ let app: INestApplication
 
 function http() {
   return request(app.getHttpServer())
+}
+
+/**
+ * A first run from a given address, the way a proxy in front would report it.
+ *
+ * The limit on wrong codes lives in the controller and so for the whole file.
+ * Every test that sends a wrong code does it from an address of its own, from
+ * the ranges reserved for documentation, so that no test runs into the
+ * attempts of another.
+ */
+function from(address: string) {
+  return http().post('/setup').set('origin', origin).set('x-forwarded-for', address)
 }
 
 /** Back to the state a freshly started installation is in. */
@@ -135,6 +153,7 @@ beforeAll(async () => {
     imports: [
       ApiModule.create(database, new SessionIdentitySource(authentication, database), {
         authentication,
+        setupCode,
         trustedOrigins: [origin],
       }),
     ],
@@ -158,7 +177,7 @@ describe('an instance nobody has used yet', () => {
     const before = await http().get('/setup').expect(200)
     expect(before.body).toEqual({ needed: true })
 
-    await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
 
     const after = await http().get('/setup').expect(200)
     expect(after.body).toEqual({ needed: false })
@@ -171,7 +190,7 @@ describe('an instance nobody has used yet', () => {
   it('takes somebody from nothing to a signed in owner', async () => {
     await emptyInstance()
 
-    const created = await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    const created = await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
     const tenantId = created.body.tenantId as string
 
     expect(tenantId).toMatch(/^[0-9a-f-]{36}$/)
@@ -195,7 +214,7 @@ describe('an instance nobody has used yet', () => {
   it('leaves a business, an account and a membership that belong together', async () => {
     await emptyInstance()
 
-    await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
 
     const business = await theBusiness()
     expect(business.name).toBe(firstRun.company)
@@ -236,7 +255,7 @@ describe('an instance nobody has used yet', () => {
   it('writes its own beginning into the audit log of the new business', async () => {
     await emptyInstance()
 
-    const created = await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    const created = await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
     const tenantId = created.body.tenantId as TenantId
 
     const entries = await database.forTenant({ tenantId }, (tx) =>
@@ -260,12 +279,12 @@ describe('an instance that has been set up', () => {
   it('refuses a second first run', async () => {
     await emptyInstance()
 
-    await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
 
     const refused = await http()
       .post('/setup')
       .set('origin', origin)
-      .send({ ...firstRun, email: 'zweite@neubeginn.example.de' })
+      .send({ ...firstRequest, email: 'zweite@neubeginn.example.de' })
       .expect(409)
 
     expect(refused.body.message).toContain('bereits eingerichtet')
@@ -311,7 +330,7 @@ describe('the first run', () => {
     const refused = await http()
       .post('/setup')
       .set('origin', origin)
-      .send({ ...firstRun, password: 'kurz' })
+      .send({ ...firstRequest, password: 'kurz' })
       .expect(400)
 
     expect(refused.body.message).toContain('zu kurz')
@@ -324,7 +343,7 @@ describe('the first run', () => {
     await http()
       .post('/setup')
       .set('origin', origin)
-      .send({ ...firstRun, email: 'chefin' })
+      .send({ ...firstRequest, email: 'chefin' })
       .expect(400)
 
     expect(await instanceIsEmpty(database)).toBe(true)
@@ -335,6 +354,7 @@ describe('the first run', () => {
 
     const refused = await http().post('/setup').set('origin', origin).send({}).expect(400)
 
+    expect(refused.body.message).toContain('setupCode')
     expect(refused.body.message).toContain('company')
     expect(refused.body.message).toContain('password')
   })
@@ -351,7 +371,7 @@ describe('the first run', () => {
     const refused = await http()
       .post('/setup')
       .set('origin', 'https://fremde-seite.example.com')
-      .send(firstRun)
+      .send(firstRequest)
       .expect(403)
 
     expect(refused.body.message).toContain('fremden Adresse')
@@ -371,7 +391,7 @@ describe('the first run', () => {
     const refused = await http()
       .post('/setup')
       .type('form')
-      .send({ ...firstRun })
+      .send({ ...firstRequest })
       .expect(415)
 
     expect(refused.body.message).toContain('JSON')
@@ -381,8 +401,114 @@ describe('the first run', () => {
   it('lets a request without an origin through, which is how a shell sends one', async () => {
     await emptyInstance()
 
-    await http().post('/setup').send(firstRun).expect(201)
+    await http().post('/setup').send(firstRequest).expect(201)
     expect(await instanceIsEmpty(database)).toBe(false)
+  })
+})
+
+/**
+ * The code from the .env that the first run asks for (#215).
+ *
+ * Before it, an empty instance took its first run from whoever reached the
+ * address first, and between the first start and the first run an instance
+ * usually stands open on the internet. The code is what only somebody who can
+ * read the .env on the server knows.
+ */
+describe('the setup code', () => {
+  it('lets the first run in with the code of the instance', async () => {
+    await emptyInstance()
+
+    await from('192.0.2.10').send(firstRequest).expect(201)
+    expect(await instanceIsEmpty(database)).toBe(false)
+  })
+
+  it('takes the code however it was typed, in small letters, with spaces or without the dash', async () => {
+    for (const typed of ['k7q4-9pxm', ' K7Q4 9PXM ', 'k7q49pxm', 'K 7 Q 4 - 9 P X M']) {
+      await emptyInstance()
+
+      await from('192.0.2.11')
+        .send({ ...firstRequest, setupCode: typed })
+        .expect(201)
+    }
+  })
+
+  /**
+   * The refusal says that the code is wrong and nothing else: not how close it
+   * came, not how long the right one is, and never the right one.
+   */
+  it('turns down a wrong code, and leaves the instance empty', async () => {
+    await emptyInstance()
+
+    for (const wrong of ['K7Q4-9PXN', 'K7Q4', 'K7Q4-9PXM-9PXM']) {
+      const refused = await from('192.0.2.12')
+        .send({ ...firstRequest, setupCode: wrong })
+        .expect(403)
+
+      expect(refused.body.message).toBe('Der Einrichtungscode stimmt nicht.')
+    }
+
+    expect(await counted()).toEqual({ businesses: 0, accounts: 0 })
+    expect(await instanceIsEmpty(database)).toBe(true)
+  })
+
+  /**
+   * Five wrong codes from one address, and the sixth attempt is refused
+   * before its code is looked at, the right one included. Another address
+   * still gets in: the person at the server should not be locked out by
+   * whoever is guessing.
+   */
+  it('stops listening to an address after five wrong codes, and only to that one', async () => {
+    await emptyInstance()
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      await from('198.51.100.7')
+        .send({ ...firstRequest, setupCode: 'AAAA-AAAA' })
+        .expect(403)
+    }
+
+    const limited = await from('198.51.100.7').send(firstRequest).expect(429)
+
+    expect(limited.body.message).toBe(
+      'Zu viele Versuche. Bitte in einer Viertelstunde erneut versuchen.',
+    )
+    expect(await instanceIsEmpty(database)).toBe(true)
+
+    await from('198.51.100.8').send(firstRequest).expect(201)
+  })
+
+  /**
+   * An .env from before #215, or one filled in by hand without the line. The
+   * instance runs, and the first run is refused with the sentence that says
+   * how to get a code, rather than taken from anybody.
+   */
+  it('refuses every first run on an instance without a code, and says how to get one', async () => {
+    await emptyInstance()
+
+    const built = await Test.createTestingModule({
+      imports: [
+        ApiModule.create(database, new SessionIdentitySource(authentication, database), {
+          authentication,
+          trustedOrigins: [origin],
+        }),
+      ],
+    }).compile()
+    const withoutCode = built.createNestApplication()
+    await withoutCode.init()
+
+    try {
+      const refused = await request(withoutCode.getHttpServer())
+        .post('/setup')
+        .set('origin', origin)
+        .send(firstRequest)
+        .expect(503)
+
+      expect(refused.body.message).toContain('keinen Einrichtungscode')
+      expect(refused.body.message).toContain('sh docker/start.sh')
+      expect(refused.body.message).toContain('SETUP_CODE')
+      expect(await instanceIsEmpty(database)).toBe(true)
+    } finally {
+      await withoutCode.close()
+    }
   })
 })
 
@@ -399,7 +525,7 @@ describe('the second factor an owner cannot work without', () => {
   it('is set up before the business is chosen, and the owner then gets in', async () => {
     await emptyInstance()
 
-    const created = await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    const created = await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
     const tenantId = created.body.tenantId as string
 
     const signedIn = await http()
@@ -453,7 +579,7 @@ describe('the second factor an owner cannot work without', () => {
   it('lets the owner in with a recovery code, each once, and makes new ones', async () => {
     await emptyInstance()
 
-    const created = await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    const created = await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
     const tenantId = created.body.tenantId as string
     const first = cookiesOf(
       await http()
@@ -545,7 +671,7 @@ describe('the second factor an owner cannot work without', () => {
   it('can also be set up from inside a business, and the choice survives it', async () => {
     await emptyInstance()
 
-    const created = await http().post('/setup').set('origin', origin).send(firstRun).expect(201)
+    const created = await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
     const tenantId = created.body.tenantId as string
 
     const signedIn = await http()

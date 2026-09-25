@@ -3,7 +3,8 @@
 # hand.
 #
 # The first time it copies the template and replaces every placeholder with a
-# secret made here, 32 random bytes as hex. Later runs add what a newer
+# secret made here, 32 random bytes as hex, and the setup code with a code of
+# eight characters somebody can type (#215). Later runs add what a newer
 # template brought and leave everything that is set alone, so the script is
 # safe to run before every start and every update; `start.sh` does exactly
 # that.
@@ -42,6 +43,30 @@ secret() {
   else
     return 1
   fi
+}
+
+# Random bytes, as many as asked for, from the same two sources.
+random_bytes() {
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand "$1"
+  elif [ -r /dev/urandom ]; then
+    dd if=/dev/urandom bs="$1" count=1 2>/dev/null
+  else
+    return 1
+  fi
+}
+
+# The code the first run asks for (#215): eight characters as XXXX-XXXX, from
+# an alphabet without 0, O, 1, I and L, because somebody reads it off a
+# terminal and types it into a browser. tr keeps the random bytes that are in
+# the alphabet and drops the rest, and every byte value is as likely as any
+# other, so every character of the alphabet is too. 512 bytes leave about 60
+# of them, and the length is checked all the same.
+setup_code() {
+  pool=$(random_bytes 512 | LC_ALL=C tr -dc 'ABCDEFGHJKMNPQRSTUVWXYZ23456789')
+  code=$(printf '%.8s' "$pool")
+  [ "${#code}" -eq 8 ] || return 1
+  printf '%.4s-%s\n' "$code" "${code#????}"
 }
 
 # Rewrites the .env through a file next to it and moves that over the old one,
@@ -111,6 +136,11 @@ while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in
     \#*)
       printf '%s\n' "$line"
+      ;;
+    SETUP_CODE=bitte-ersetzen*)
+      value=$(setup_code) || fail 'Es ließ sich kein Einrichtungscode erzeugen, weder openssl noch /dev/urandom ist verfügbar. docker/.env ist unverändert.'
+      printf 'SETUP_CODE=%s\n' "$value"
+      made="$made SETUP_CODE"
       ;;
     *=bitte-ersetzen*)
       name=${line%%=*}

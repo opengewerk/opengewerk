@@ -20,11 +20,16 @@ interface Call {
 }
 
 let calls: Call[]
-let answers: Map<string, unknown>
+let answers: Map<string, { readonly status: number; readonly body: unknown }>
 
 /** A server that answers what it was told to, and remembers what it was asked. */
 function serverSays(path: string, answer: unknown): void {
-  answers.set(path, answer)
+  answers.set(path, { status: 200, body: answer })
+}
+
+/** The same server turning a request down, with the sentence Nest puts in `message`. */
+function serverRefuses(path: string, status: number, message: string): void {
+  answers.set(path, { status, body: { statusCode: status, message } })
 }
 
 beforeEach(() => {
@@ -37,9 +42,11 @@ beforeEach(() => {
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     })
 
+    const answer = answers.get(path) ?? { status: 200, body: {} }
+
     return Promise.resolve(
-      new Response(JSON.stringify(answers.get(path) ?? {}), {
-        status: 200,
+      new Response(JSON.stringify(answer.body), {
+        status: answer.status,
         headers: { 'Content-Type': 'application/json' },
       }),
     )
@@ -54,21 +61,49 @@ function asked(path: string): Call | undefined {
   return calls.find((call) => call.path === path)
 }
 
+/** Everything the first run screen asks for, typed the way a person would. */
+async function fillIn(setupCode: string): Promise<void> {
+  await userEvent.type(screen.getByLabelText('Einrichtungscode'), setupCode)
+  await userEvent.type(screen.getByLabelText('Betrieb'), 'Elektro Neubeginn GmbH')
+  await userEvent.type(screen.getByLabelText('Ihr Name'), 'Olga Beispiel')
+  await userEvent.type(screen.getByLabelText('E-Mail'), 'chefin@neubeginn.example.de')
+  await userEvent.type(screen.getByLabelText('Passwort'), 'ein-langes-passwort')
+  await userEvent.type(screen.getByLabelText('Passwort wiederholen'), 'ein-langes-passwort')
+}
+
 describe('the first run screen', () => {
-  it('sends the business and the account, and then signs the person in', async () => {
+  /**
+   * The code comes first, above everything that describes the business, and
+   * says where it is (#215). Where and not what: the screen never knows it.
+   */
+  it('asks for the setup code first and says where it is', () => {
+    render(<SetupScreen onDone={vi.fn()} />)
+
+    const fields = screen.getAllByRole('textbox')
+    const code = screen.getByLabelText('Einrichtungscode')
+
+    expect(fields[0]).toBe(code)
+    expect(code.getAttribute('aria-describedby')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Steht auf dem Server in der Datei docker/.env. So richtet nur ein, wer an den Server kommt.',
+      ),
+    ).toBeDefined()
+    expect(screen.getByRole('separator')).toBeDefined()
+  })
+
+  it('sends the code, the business and the account, and then signs the person in', async () => {
     serverSays('/setup', { tenantId: 'b-1' })
 
     const done = vi.fn()
     render(<SetupScreen onDone={done} />)
 
-    await userEvent.type(screen.getByLabelText('Betrieb'), 'Elektro Neubeginn GmbH')
-    await userEvent.type(screen.getByLabelText('Ihr Name'), 'Olga Beispiel')
-    await userEvent.type(screen.getByLabelText('E-Mail'), 'chefin@neubeginn.example.de')
-    await userEvent.type(screen.getByLabelText('Passwort'), 'ein-langes-passwort')
-    await userEvent.type(screen.getByLabelText('Passwort wiederholen'), 'ein-langes-passwort')
+    await fillIn('k7q4-9pxm')
     await userEvent.click(screen.getByRole('button', { name: 'Betrieb anlegen' }))
 
+    // As typed. Capitals, spaces and the dash are the server's business.
     expect(asked('/setup')?.body).toEqual({
+      setupCode: 'k7q4-9pxm',
       company: 'Elektro Neubeginn GmbH',
       name: 'Olga Beispiel',
       email: 'chefin@neubeginn.example.de',
@@ -83,6 +118,38 @@ describe('the first run screen', () => {
     })
 
     expect(done).toHaveBeenCalled()
+  })
+
+  /**
+   * A wrong code and too many of them are the server's to say, in its own
+   * words. Nobody is signed in afterwards, and the screen stays where it is,
+   * with everything still filled in for the next try.
+   */
+  it('shows why the server turned the code down, and signs nobody in', async () => {
+    for (const [status, sentence] of [
+      [403, 'Der Einrichtungscode stimmt nicht.'],
+      [429, 'Zu viele Versuche. Bitte in einer Viertelstunde erneut versuchen.'],
+    ] as const) {
+      calls = []
+      serverRefuses('/setup', status, sentence)
+
+      const done = vi.fn()
+      const { unmount } = render(<SetupScreen onDone={done} />)
+
+      await fillIn('K7Q4-9PXN')
+      await userEvent.click(screen.getByRole('button', { name: 'Betrieb anlegen' }))
+
+      expect((await screen.findByRole('alert')).textContent).toBe(sentence)
+      expect(asked('/api/auth/sign-in/email')).toBeUndefined()
+      expect(done).not.toHaveBeenCalled()
+      expect(screen.getByLabelText('Einrichtungscode')).toHaveProperty('value', 'K7Q4-9PXN')
+      expect(screen.getByRole('button', { name: 'Betrieb anlegen' })).toHaveProperty(
+        'disabled',
+        false,
+      )
+
+      unmount()
+    }
   })
 
   /**

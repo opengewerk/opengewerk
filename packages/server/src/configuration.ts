@@ -1,5 +1,6 @@
 import { accessSync, constants, statSync } from 'node:fs'
 
+import { normalizeSetupCode, shortestSetupCode } from './authentication/setup-code.js'
 import { isHostName } from './mail/configuration.js'
 
 /**
@@ -50,6 +51,12 @@ export interface Configuration {
    * whose operator did not think about it.
    */
   readonly trustedOrigins: readonly string[]
+  /**
+   * The code the first run asks for (#215), normalised, or null where none is
+   * set. `docker/setup.sh` makes it with the other keys; see `setupCode` below
+   * for why its absence does not stop the start.
+   */
+  readonly setupCode: string | null
   /**
    * Where the backups record when they last finished (#130), or null.
    *
@@ -326,6 +333,41 @@ function trustedOrigins(environment: Environment): readonly string[] {
   return entries
 }
 
+/**
+ * The code the first run asks for (#215), normalised the way it is compared.
+ *
+ * Missing is no reason to refuse the start, unlike the keys above. Only an
+ * instance with no business and no account ever asks for it, and one that has
+ * been set up for months must not stop over a value it will never use again,
+ * which is what an .env from before #215 would do on the first update that
+ * goes around `setup.sh`. Without a code the first run is refused instead, with
+ * the sentence saying that `sh docker/start.sh` adds one, so the safe end of
+ * the choice is kept either way.
+ *
+ * A placeholder and a code too short to hold anybody off are refused like any
+ * other key: the first is known to everybody who has read the template, the
+ * second is guessed in an afternoon. Neither sentence repeats the value.
+ */
+function setupCode(environment: Environment): string | null {
+  const raw = environment['SETUP_CODE']?.trim()
+
+  if (!raw) {
+    return null
+  }
+
+  const code = normalizeSetupCode(refusePlaceholder(raw, 'SETUP_CODE'))
+
+  if (code.length < shortestSetupCode) {
+    throw new ConfigurationError(
+      `SETUP_CODE ist zu kurz. Erwartet werden mindestens ${String(shortestSetupCode)} ` +
+        'Zeichen, Leerzeichen und Bindestriche nicht gezählt. Wer die Zeile aus docker/.env ' +
+        'löscht, bekommt von "sh docker/start.sh" einen neuen.',
+    )
+  }
+
+  return code
+}
+
 /** The mail servers in the instance's own network its operator allows. */
 export function mailInternalHosts(environment: Environment): readonly string[] {
   const entries = (environment['MAIL_INTERNAL_HOSTS'] ?? '')
@@ -371,6 +413,7 @@ export function readConfiguration(
     storagePath: storagePath(environment, checkAccess),
     sessionSecret: sessionSecret(environment),
     trustedOrigins: trustedOrigins(environment),
+    setupCode: setupCode(environment),
     backupStatusPath: environment['BACKUP_STATUS_PATH']?.trim() || null,
     closed: flag(environment, 'CLOSED'),
     mailInternalHosts: mailInternalHosts(environment),

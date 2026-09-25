@@ -3,17 +3,25 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   Get,
+  HttpException,
+  HttpStatus,
   Inject,
   Post,
+  Req,
+  ServiceUnavailableException,
 } from '@nestjs/common'
 import type { TenantId } from '@opengewerk/domain'
+import type { Request } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { shortestPassword } from '../authentication/password.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
+import { normalizeSetupCode, SetupAttempts, setupCodesMatch } from '../authentication/setup-code.js'
 import { PublicRoute } from './authorization.js'
-import { AUTHENTICATION } from './handed-in.js'
+import { clientAddress } from './client-address.js'
+import { AUTHENTICATION, SETUP_CODE } from './handed-in.js'
 import { pick, requireFields } from './body.js'
 import { Database } from '../database/database.js'
 
@@ -27,7 +35,10 @@ const restAfterFailure = 2000
  * now. It has to be: there is nobody to authenticate before the first account
  * exists, and that is the whole problem being solved. What keeps it from being
  * a way in for anybody else is that it answers at all only while the instance
- * is empty, which is a question asked of the database and not a setting.
+ * is empty, which is a question asked of the database and not a setting, and
+ * since #215 that it asks for the setup code from the `.env` on the server.
+ * Without the code, whoever reached a freshly started instance first became
+ * its owner.
  *
  * It is registered only when the instance is open. `CLOSED=true` leaves the
  * controller out of the module, so the routes are not there to be found: a
@@ -57,9 +68,13 @@ export class SetupController {
   private running = false
   private lastFailure = 0
 
+  /** The wrong setup codes of the last quarter of an hour, see `SetupAttempts`. */
+  private readonly attempts = new SetupAttempts()
+
   constructor(
     private readonly database: Database,
     @Inject(AUTHENTICATION) private readonly authentication: Authentication,
+    @Inject(SETUP_CODE) private readonly setupCode: string | null,
   ) {}
 
   /**
@@ -83,14 +98,20 @@ export class SetupController {
    * people who open this screen at the same moment end up with one business
    * between them. The check above is for the interface, which needs an answer
    * before it draws anything.
+   *
+   * The setup code is asked after the fields and before anything costs: a
+   * request that is wrong in its form tells nobody anything about the code,
+   * and one with a wrong code never reaches the hashing of a password.
    */
   @Post()
   @PublicRoute()
-  async run(@Body() body: unknown): Promise<{ tenantId: TenantId }> {
-    const values = pick(body, ['company', 'name', 'email', 'password'] as const)
+  async run(@Body() body: unknown, @Req() request: Request): Promise<{ tenantId: TenantId }> {
+    const fields = ['setupCode', 'company', 'name', 'email', 'password'] as const
+    const values = pick(body, fields)
 
-    requireFields(values, ['company', 'name', 'email', 'password'] as const)
+    requireFields(values, fields)
 
+    const setupCode = text(values.setupCode, 'setupCode')
     const company = text(values.company, 'company')
     const name = text(values.name, 'name')
     const email = text(values.email, 'email')
@@ -106,6 +127,8 @@ export class SetupController {
           'Konto wird einmal eingerichtet und jahrelang benutzt.',
       )
     }
+
+    this.admit(setupCode, clientAddress(request))
 
     if (this.running || Date.now() - this.lastFailure < restAfterFailure) {
       throw new ConflictException(
@@ -129,6 +152,44 @@ export class SetupController {
       throw trouble
     } finally {
       this.running = false
+    }
+  }
+
+  /**
+   * Lets a first run on only with the setup code of this instance (#215).
+   *
+   * Nothing between asking the limit and counting a wrong code waits for
+   * anything, so two requests arriving together cannot both slip under it.
+   * The code itself goes nowhere: not into a message, not into the log.
+   */
+  private admit(given: string, address: string): void {
+    const expected = normalizeSetupCode(this.setupCode ?? '')
+
+    if (expected === '') {
+      throw new ServiceUnavailableException(
+        'Diese Instanz hat keinen Einrichtungscode, deshalb nimmt sie keine Einrichtung an. ' +
+          '"sh docker/start.sh" auf dem Server trägt ihn unter SETUP_CODE in docker/.env ' +
+          'ein und startet die Instanz neu.',
+      )
+    }
+
+    if (this.attempts.refuses(address)) {
+      // With a body shaped like Nest's own exceptions, so that the screen
+      // reads the sentence from `message` as it does everywhere else.
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message: 'Zu viele Versuche. Bitte in einer Viertelstunde erneut versuchen.',
+          error: 'Too Many Requests',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
+
+    if (!setupCodesMatch(given, expected)) {
+      this.attempts.failed(address)
+
+      throw new ForbiddenException('Der Einrichtungscode stimmt nicht.')
     }
   }
 }

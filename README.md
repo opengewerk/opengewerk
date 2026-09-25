@@ -509,7 +509,7 @@ Eine Codebasis, zwei Einstiege, wie ADR 0004 es festlegt. `/` ist das Büro, `/m
 
 **Das Bündelbudget wird gemessen, nicht gewünscht.** ADR 0004 nennt eine Zahl: unter 300 kB gzip beim ersten Laden auf der Baustelle. `pnpm --filter @opengewerk/web run budget` liest die gebauten HTML-Dateien, zählt zusammen, was der Browser holt, bevor die Anwendung läuft, und bricht ab, wenn es zu viel wird. Am 24.09.2026 nach den Feldern des Regieberichts aus #78 gemessen: **Baustelle 179 kB, Büro 226 kB**. Die Schriften werden daneben ausgewiesen und nicht mitgezählt, sie kommen je Schnitt nach und blockieren nichts.
 
-**Vor der Anmeldung stehen drei Bildschirme, die es nur gibt, solange sie gebraucht werden.** Eine leere Instanz zeigt die Ersteinrichtung statt der Anmeldung. Ein Konto, dessen Rolle einen zweiten Faktor verlangt, richtet ihn ein, bevor es einen Betrieb wählt. Und wer einen Einladungslink bekommen hat, löst ihn dort ein und wählt dabei sein Passwort selbst. Alle drei sitzen im Tor und nicht hinter der Navigation, denn wer dort steht, erreicht keinen einzigen Bildschirm dahinter. Nachträglich geht der zweite Faktor über "Konto" im Büro, wo auch die eigene Geräteliste steht. Ist das Telefon weg, nimmt der zweite Schritt der Anmeldung einen der Wiederherstellungscodes, die beim Einrichten angezeigt wurden, jeden einmal; wie viele noch übrig sind, steht danach und unter "Konto", wo nach dem Passwort auch ein neuer Satz entsteht.
+**Vor der Anmeldung stehen drei Bildschirme, die es nur gibt, solange sie gebraucht werden.** Eine leere Instanz zeigt die Ersteinrichtung statt der Anmeldung, und die fragt zuerst nach dem Einrichtungscode aus `docker/.env` (#215). Ein Konto, dessen Rolle einen zweiten Faktor verlangt, richtet ihn ein, bevor es einen Betrieb wählt. Und wer einen Einladungslink bekommen hat, löst ihn dort ein und wählt dabei sein Passwort selbst. Alle drei sitzen im Tor und nicht hinter der Navigation, denn wer dort steht, erreicht keinen einzigen Bildschirm dahinter. Nachträglich geht der zweite Faktor über "Konto" im Büro, wo auch die eigene Geräteliste steht. Ist das Telefon weg, nimmt der zweite Schritt der Anmeldung einen der Wiederherstellungscodes, die beim Einrichten angezeigt wurden, jeden einmal; wie viele noch übrig sind, steht danach und unter "Konto", wo nach dem Passwort auch ein neuer Satz entsteht.
 
 **Angemeldet bleibt, wer arbeitet.** Im Büro läuft eine Sitzung zwölf Stunden nach ihrer letzten Benutzung ab, auf einem Gerät, das auf der Baustelle den Betrieb gewählt hat, dreißig Tage. Das Cookie gilt dabei immer dreißig Tage; was zählt, ist die Sitzung in der Datenbank, und eine abgelaufene wird abgelehnt, wie lang das Cookie auch noch gälte. Ohne Netz öffnet die Baustelle den Betrieb, in dem zuletzt jemand angemeldet war, mit dem, was auf dem Gerät liegt. Dafür merkt sich der Browser, wer das war und mit welchen Rollen, und keinen Schlüssel, damit ohne Netz dieselben Bildschirme erscheinen wie mit (#184); beim Abmelden vergisst er beides, beim Wechsel des Betriebs das Konto, und sobald der Server wieder antwortet, entscheidet er. Abmelden löscht außerdem, was das Gerät von den Betrieben hält, nachdem es gesendet hat, was noch wartet; geht das nicht, fragt es vorher (#186).
 
@@ -542,26 +542,29 @@ als `OPENGEWERK_VERSION` ein.
 
 **Beim ersten Start füllt er die `.env` selbst aus.** Er legt `docker/.env` aus
 der Vorlage an und erzeugt jedes Passwort und jeden Schlüssel darin, 32
-Zufallsbytes als Hex, jeden für sich. In der Konsole stehen nur die Namen, nie
-die Werte, und die Datei ist danach nur für ihren Besitzer lesbar. Gefragt wird
-einzig nach der Adresse, unter der OpenGewerk im Browser geöffnet wird; ohne
-Terminal kommt sie aus `OPENGEWERK_ADDRESS`. Danach richtet er die Datenbank ein
-und startet die Instanz. Jeder weitere Aufruf lässt Gesetztes stehen, ergänzt
-nur, was eine neuere Vorlage mitbringt, und startet in der Reihenfolge, die ein
-Update braucht. `sh docker/setup.sh` richtet nur die Datei ein, ohne zu starten.
+Zufallsbytes als Hex, jeden für sich, dazu den Einrichtungscode für die erste
+Einrichtung im Browser, acht Zeichen zum Abtippen (siehe "Der erste Zugang").
+In der Konsole stehen nur die Namen, nie die Werte, und die Datei ist danach nur
+für ihren Besitzer lesbar. Gefragt wird einzig nach der Adresse, unter der
+OpenGewerk im Browser geöffnet wird; ohne Terminal kommt sie aus
+`OPENGEWERK_ADDRESS`. Danach richtet er die Datenbank ein und startet die
+Instanz. Jeder weitere Aufruf lässt Gesetztes stehen, ergänzt nur, was eine
+neuere Vorlage mitbringt, und startet in der Reihenfolge, die ein Update
+braucht. `sh docker/setup.sh` richtet nur die Datei ein, ohne zu starten.
 
 Wer die `.env` lieber von Hand füllt, erzeugt jeden Schlüssel einzeln mit
-`openssl rand -hex 32`. Eine Instanz, die noch einen Platzhalter aus der Vorlage
-findet, startet nicht: sie nennt die Variable, nie ihren Wert, und verweist auf
-das Skript.
+`openssl rand -hex 32`; als `SETUP_CODE` taugt jeder Code ab acht Zeichen,
+Leerzeichen und Bindestriche nicht gezählt. Eine Instanz, die noch einen
+Platzhalter aus der Vorlage findet, startet nicht: sie nennt die Variable, nie
+ihren Wert, und verweist auf das Skript.
 
 **Eingestellt wird in der Oberfläche, nicht in der `.env`.** Briefkopf, Steuern,
 Mailserver und alles, was ein Betrieb sonst festlegt, stehen im Büro. In der
 `.env` bleibt nur, was gebraucht wird, bevor die Oberfläche läuft: die
-Passwörter der Datenbank, `SESSION_SECRET`, der Token des Renderers, die Adresse
-der Instanz, Port, Fassung und mitstartende Dienste für Docker Compose, der
-Schalter `CLOSED` und die Angaben der Sicherung, die auch dann laufen muss, wenn
-die Anwendung es nicht tut.
+Passwörter der Datenbank, `SESSION_SECRET`, der Token des Renderers, der
+Einrichtungscode, die Adresse der Instanz, Port, Fassung und mitstartende Dienste
+für Docker Compose, der Schalter `CLOSED` und die Angaben der Sicherung, die
+auch dann laufen muss, wenn die Anwendung es nicht tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
 `curl http://127.0.0.1:23700/health` antwortet mit `{"status":"bereit"}`. Im
@@ -576,10 +579,28 @@ Docker-Konfiguration der Maschine muss dafür niemand etwas ändern.
 ### Der erste Zugang
 
 Im Browser, und sonst nirgends nötig. Eine Instanz, auf der es weder einen
-Betrieb noch ein Konto gibt, zeigt statt der Anmeldung die Einrichtung: Name des
-Betriebs, Name und E-Mail der Person, die ihn führt, und ein Passwort, das sie
-selbst wählt. Daraus entstehen in einem Zug der Betrieb, das Konto und die
-Zugehörigkeit dazwischen, alle drei in einer Transaktion.
+Betrieb noch ein Konto gibt, zeigt statt der Anmeldung die Einrichtung: den
+Einrichtungscode, Name des Betriebs, Name und E-Mail der Person, die ihn führt,
+und ein Passwort, das sie selbst wählt. Daraus entstehen in einem Zug der
+Betrieb, das Konto und die Zugehörigkeit dazwischen, alle drei in einer
+Transaktion.
+
+**Die Einrichtung gleich nach dem ersten Start erledigen.** Bis dahin kann jeder,
+der die Adresse erreicht, den Bildschirm öffnen, und was ihn aufhält, ist allein
+der Einrichtungscode (#215). Der steht in `docker/.env` unter `SETUP_CODE`, zu
+lesen also nur für jemanden, der an den Server kommt, und genau der soll
+einrichten. `setup.sh` erzeugt ihn beim ersten Start mit den übrigen Schlüsseln,
+acht Zeichen wie `K7Q4-9PXM` ohne die verwechselbaren 0, O, 1, I und L, und gibt
+ihn wie jeden Wert nicht aus; `start.sh` sagt nach dem Start einer leeren Instanz
+nur, wo er steht. Ablesen lässt er sich auf dem Server etwa mit
+`grep SETUP_CODE docker/.env`. Klein- und Großschreibung, Leerzeichen und der
+Bindestrich spielen beim Eintippen keine Rolle. Nach fünf falschen Codes nimmt
+die Instanz von derselben Adresse eine Viertelstunde lang keinen mehr an, über
+alle Adressen zusammen nach hundert; hinter einem Reverse Proxy gilt als Adresse
+der letzte Eintrag in `X-Forwarded-For`. Fehlt `SETUP_CODE` in der `.env`,
+startet die Instanz trotzdem, lehnt aber die Einrichtung ab, bis
+`sh docker/start.sh` ihn eingetragen hat. Nach der Einrichtung öffnet der Code
+nichts mehr.
 
 Direkt danach kommt der zweite Faktor, denn das erste Konto ist ein `owner`, und
 für diese Rolle ist er Pflicht (ADR 0006). Ein QR-Code für die
@@ -593,7 +614,9 @@ Die Bedingung ist eine Abfrage an die Datenbank und kein Schalter, den jemand
 zurückstellen kann, und sie wird unter einer Sperre gestellt: zwei Leute, die
 den Bildschirm gleichzeitig öffnen, legen einen Betrieb an und nicht zwei. Ein
 zweiter Versuch bekommt 409 und den Satz dazu. `CLOSED=true` schaltet sie mit
-ab, dann gibt es die Route gar nicht.
+ab, dann gibt es die Route gar nicht. Der Einrichtungscode ist dazu eine zweite
+Bedingung und kein Schalter: wer ihn zurücksetzt oder ändert, öffnet damit
+keine eingerichtete Instanz.
 
 ### Jeder weitere Zugang
 
