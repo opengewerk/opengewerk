@@ -7,6 +7,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Die Oberfläche ist auf jedem Gerät zuerst hell, und dunkel lässt sich unter "Konto" für dieses Gerät
+  wählen (#216). Bisher folgte sie der Einstellung des Betriebssystems und war auf jedem Rechner mit
+  dunkler Einstellung dunkel, ohne Umschalter. Die Wahl liegt im Browser dieses Geräts und nicht am
+  Konto, denn das Tablet im Keller will oft etwas anderes als der Schreibtisch, und sie gilt schon vor
+  der Anmeldung. Die dunklen Farben stehen nur noch einmal in `tokens.css`, und die Symbole im
+  Umschalter kommen aus Lucide.
+
 ### Behoben
 
 - Die Signaturprüfung aus den Hinweisen der Release-Seite geht auch in Git Bash durch (#212). Der

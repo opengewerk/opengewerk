@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Card, Cell, Column, Field, Table } from '../../components/index.js'
+import { Button, Card, Cell, Column, Field, Table, ThemeSwitch } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
 import { SignOutButton } from '../../app/sign-out.js'
+import { useTheme } from '../../app/theme.js'
 import {
   changePassword,
   devices,
@@ -36,6 +37,7 @@ export function AccountScreen() {
   const list = useQuery({ queryKey: ['devices'], queryFn: devices })
   const [trouble, setTrouble] = useState<string | null>(null)
   const [setting, setSetting] = useState(false)
+  const [theme, chooseTheme] = useTheme()
 
   const revoke = useMutation({
     mutationFn: revokeDevice,
@@ -68,6 +70,20 @@ export function AccountScreen() {
           {trouble}
         </p>
       ) : null}
+
+      <Section title="Darstellung">
+        <div className="flex flex-col gap-3">
+          <p className="text-body text-ink-muted">
+            Wie OpenGewerk auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät
+            und vor der Anmeldung.
+          </p>
+          <ThemeSwitch value={theme} onChoose={chooseTheme} className="max-w-72" />
+          <p className="text-table text-ink-muted">
+            Gilt auf diesem Gerät, auch ohne Netz. Auf dem Tablet im Keller lässt sich unabhängig
+            davon dunkel wählen.
+          </p>
+        </div>
+      </Section>
 
       <Section title="Zweiter Faktor">
         {account.data?.twoFactorEnabled ? (

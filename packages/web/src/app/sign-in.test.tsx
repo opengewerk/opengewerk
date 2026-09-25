@@ -221,3 +221,30 @@ describe('the password under "Konto"', () => {
     ).toBeTruthy()
   })
 })
+
+describe('light or dark under "Konto"', () => {
+  it('switches this device and remembers it, with light as the start', async () => {
+    localStorage.removeItem('opengewerk.theme')
+    delete document.documentElement.dataset.theme
+    answers.set('/api/auth/get-session', {
+      user: { id: 'u-1', email: 'buero@nord.example.de', name: 'Beate', twoFactorEnabled: false },
+      session: { activeTenantId: 't-1' },
+    })
+    answers.set('/auth/devices', [])
+
+    await account()
+
+    const group = await screen.findByRole('group', { name: 'Darstellung' })
+    expect(group).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Hell' }).getAttribute('aria-pressed')).toBe('true')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Dunkel' }))
+
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(localStorage.getItem('opengewerk.theme')).toBe('dark')
+    expect(screen.getByRole('button', { name: 'Dunkel' }).getAttribute('aria-pressed')).toBe('true')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hell' }))
+    expect(document.documentElement.dataset.theme).toBe('light')
+  })
+})
