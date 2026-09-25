@@ -146,6 +146,56 @@ export const permissions = [
 export type Permission = (typeof permissions)[number]
 
 /**
+ * What a right lets somebody do, in the words of the office (#271). Written as
+ * the thing done, so that a refusal can say what this access may not do
+ * without naming a key that nobody outside the code has ever seen.
+ */
+export const permissionLabel: Readonly<Record<Permission, string>> = {
+  'customer.read': 'Kunden ansehen',
+  'customer.create': 'Kunden anlegen',
+  'customer.write': 'Kunden ändern',
+  'site.read': 'Objekte ansehen',
+  'site.write': 'Objekte bearbeiten',
+  'installation.read': 'Anlagen ansehen',
+  'installation.write': 'Anlagen bearbeiten',
+  'job.read': 'Aufträge ansehen',
+  'job.write': 'Aufträge bearbeiten',
+  'job.progress': 'Aufträge abschließen und Notizen schreiben',
+  'job.read.all': 'Alle Aufträge des Betriebs auf dem Gerät halten',
+  'document.read': 'Belege ansehen',
+  'document.write': 'Belege bearbeiten',
+  'document.issue': 'Belege festschreiben',
+  'payment.read': 'Zahlungseingänge ansehen',
+  'payment.write': 'Zahlungseingänge erfassen',
+  'task.read': 'Aufgaben ansehen',
+  'task.write': 'Aufgaben bearbeiten',
+  'attachment.read': 'Dateien ansehen',
+  'attachment.write': 'Dateien ablegen',
+  'time.read': 'Die Arbeitszeiten anderer ansehen',
+  'time.write': 'Arbeitszeiten erfassen',
+  'sync.read': 'Daten abgleichen',
+  'sync.write': 'Änderungen senden',
+  'settings.read': 'Einstellungen ansehen',
+  'settings.write': 'Einstellungen ändern',
+  'membership.read': 'Zugänge ansehen',
+  'membership.write': 'Zugänge verwalten',
+  'mail.read': 'E-Mail-Einstellungen ansehen',
+  'mail.write': 'E-Mail-Einstellungen ändern',
+}
+
+/**
+ * The sentence a refusal over a missing right says, the same from a route as
+ * from the sync. A right is never given alone but with a role, so the way out
+ * it names is the owner and the screen where roles are given.
+ */
+export function missingPermission(permission: Permission): string {
+  return (
+    `${permissionLabel[permission]} darf dieser Zugang nicht. ` +
+    'Der Inhaber vergibt die Rollen unter „Zugänge“.'
+  )
+}
+
+/**
  * The roles a business starts with. The full list in ADR 0006 is longer;
  * accounting, site manager and the read only role for the tax office arrive
  * with the phases that need them.

@@ -130,7 +130,7 @@ describe('the mail server of a business', () => {
       .set('x-test-identity', office())
       .expect(403)
 
-    expect((refused.body as { message: string }).message).toContain('mail.read')
+    expect((refused.body as { message: string }).message).toContain('E-Mail-Einstellungen ansehen')
     await save(settings, office()).expect(403)
     await http().delete('/settings/mail/server').set('x-test-identity', office()).expect(403)
   })

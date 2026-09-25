@@ -249,6 +249,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   bietet "Erneut versuchen" an. Eine abgelehnte direkte Änderung an Stammdaten nennt den Grund des
   Servers statt "Das geht nur mit Verbindung", und eine Datei, deren Hochladen mit 403 abgelehnt
   wird, bleibt auf dem Gerät.
+- Meldungen nennen keine internen Namen mehr (#271). Fehlte einem Zugang ein Recht, stand dort
+  "Fehlendes Recht: customer.write", im Abgleich "Fehlendes Recht für document_lines:
+  document.write", und ein Konflikt nannte das Gerät, auf dem er entstand, mit seiner Kennung, einer
+  UUID. Seit #254 zeigt auch eine abgelehnte direkte Änderung den Satz des Servers. Jetzt sagt er,
+  was dieser Zugang nicht darf, und wer das ändern kann: "Belege festschreiben darf dieser Zugang
+  nicht. Der Inhaber vergibt die Rollen unter „Zugänge“." Die Beschriftungen der Rechte stehen in
+  `domain` (`permissionLabel`), und der Konflikt sagt "auf diesem Gerät" oder "auf einem anderen
+  Gerät".
 
 ## [0.2.0] - 2026-09-25
 

@@ -181,6 +181,15 @@ function FieldName({ children }: { readonly children: string }) {
  * (#139, ADR 0005 point 4), and the new draft takes every such change to the
  * same document at once, see `draftFromFixed`.
  */
+/**
+ * Where a conflicting change was made, as far as a person can tell: on this
+ * device or on another one. The key of a device is a UUID and says nothing to
+ * anybody who reads it (#271).
+ */
+function madeOn(conflict: SyncConflict, deviceId: string): string {
+  return conflict.deviceId === deviceId ? 'auf diesem Gerät' : 'auf einem anderen Gerät'
+}
+
 function ConflictCard({
   conflict,
   onDrafted,
@@ -409,7 +418,7 @@ function ConflictCard({
         ) : null}
 
         <p className="text-[13px] text-ink-faint">
-          {`Erfasst ${moment(conflict.recordedAt)} auf Gerät ${conflict.deviceId}.`}
+          {`Erfasst ${moment(conflict.recordedAt)} ${madeOn(conflict, client.deviceId)}.`}
         </p>
 
         {trouble ? (
@@ -504,7 +513,7 @@ function ConflictCard({
       ) : null}
 
       <p className="numeric text-[14px] text-ink-faint">
-        {`Erfasst ${moment(conflict.recordedAt)} auf Gerät ${conflict.deviceId}.`}
+        {`Erfasst ${moment(conflict.recordedAt)} ${madeOn(conflict, client.deviceId)}.`}
       </p>
 
       {trouble ? (

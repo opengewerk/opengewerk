@@ -306,7 +306,7 @@ describe('the list of people in a business', () => {
     const cookies = await workIn(beate.email, north.id)
 
     const refused = await http().get('/staff').set('cookie', cookies).expect(403)
-    expect(refused.body.message).toContain('membership.read')
+    expect(refused.body.message).toContain('Zugänge ansehen')
 
     await http()
       .post('/staff')

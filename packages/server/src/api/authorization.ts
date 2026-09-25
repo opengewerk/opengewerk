@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { isAllowed, type Permission } from '@opengewerk/domain'
+import { isAllowed, missingPermission, type Permission } from '@opengewerk/domain'
 
 import {
   IDENTITY_SOURCE,
@@ -142,7 +142,8 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     if (!isAllowed(identity, permission)) {
-      throw new ForbiddenException(`Fehlendes Recht: ${permission}`)
+      // In words and not as the key of the right, since a screen shows it (#271).
+      throw new ForbiddenException(missingPermission(permission))
     }
 
     // Only once everything has passed. A handler that runs has an identity

@@ -97,7 +97,9 @@ describe('a technician', () => {
       .set('x-test-identity', technician())
       .expect(403)
 
-    expect(refused.body.message).toContain('document.issue')
+    expect(refused.body.message).toBe(
+      'Belege festschreiben darf dieser Zugang nicht. Der Inhaber vergibt die Rollen unter „Zugänge“.',
+    )
 
     // And it really did not happen, rather than being answered with a 403 and
     // going through anyway.
