@@ -58,9 +58,11 @@ export function OfficeShell() {
         <UpdateBar />
         <EntrySuggestion here="office" />
 
-        <div className="flex flex-1 items-start">
+        {/* The screen as tall as the window, so that a list can fill it to
+            the bottom with its pages at the foot, as the list boards do. */}
+        <div className="flex flex-1">
           <Sidebar />
-          <main id="inhalt" className="min-w-0 flex-1">
+          <main id="inhalt" className="flex min-w-0 flex-1 flex-col">
             <Outlet />
           </main>
         </div>

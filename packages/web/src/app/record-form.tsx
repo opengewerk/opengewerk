@@ -1,8 +1,9 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Check } from 'lucide-react'
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Field, SelectField } from '../components/index.js'
+import { Button, Field, SelectField, useEntry } from '../components/index.js'
 import { refusalText } from '../sync/client.js'
 import type { EditResult } from '../sync/client.js'
 
@@ -81,6 +82,7 @@ export function RecordForm({
   disabled,
   disabledReason,
   check,
+  extraAction,
 }: {
   readonly fields: readonly FormField[]
   readonly record?: RecordState | null
@@ -97,7 +99,10 @@ export function RecordForm({
    * transmission, and a form is the one place that can still say which field.
    */
   readonly check?: (values: Record<string, string>) => string | null
+  /** A further action at the left of the buttons, "Entfernen" in a form that changes. */
+  readonly extraAction?: ReactNode
 }) {
+  const entry = useEntry()
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(fields.map((field) => [field.name, held(record, field)])),
   )
@@ -134,18 +139,18 @@ export function RecordForm({
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         void submit(event)
       }}
     >
       {disabled && disabledReason ? (
-        <p role="status" className="text-body font-medium text-ink-muted">
+        <p role="status" className="text-[13px] font-medium text-ink-muted">
           {disabledReason}
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {fields.map((field) =>
           field.options ? (
             <SelectField
@@ -179,21 +184,45 @@ export function RecordForm({
       </div>
 
       {trouble ? (
-        <p role="alert" className="text-body font-semibold text-conflict">
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
           {trouble}
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" tone="primary" disabled={working || disabled}>
-          {working ? 'Wird gespeichert' : submitLabel}
-        </Button>
-        {onCancel ? (
-          <Button tone="quiet" onClick={onCancel} disabled={working}>
-            Abbrechen
+      {entry === 'site' ? (
+        // On site the action is a button across the screen, the way out
+        // under it, as the forms of the site boards have it.
+        <div className="flex flex-col gap-2">
+          <Button type="submit" tone="primary" wide disabled={working || disabled}>
+            {working ? 'Wird gespeichert' : submitLabel}
           </Button>
-        ) : null}
-      </div>
+          {onCancel ? (
+            <Button tone="quiet" wide onClick={onCancel} disabled={working}>
+              Abbrechen
+            </Button>
+          ) : null}
+          {extraAction}
+        </div>
+      ) : (
+        // In the office the buttons stand at the right under a line, the
+        // one that saves last, as under the circuit on the canvas.
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-3">
+          {extraAction ? (
+            <>
+              {extraAction}
+              <div className="grow" />
+            </>
+          ) : null}
+          {onCancel ? (
+            <Button onClick={onCancel} disabled={working}>
+              Abbrechen
+            </Button>
+          ) : null}
+          <Button type="submit" tone="primary" icon={Check} disabled={working || disabled}>
+            {working ? 'Wird gespeichert' : submitLabel}
+          </Button>
+        </div>
+      )}
     </form>
   )
 }

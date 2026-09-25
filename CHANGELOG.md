@@ -18,6 +18,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Kunden folgen ihren Tafeln im Canvas (#219), bei jeder Breite der Tafel "Breiten und
+  Auflösungen" (#218). Die Liste zeigt am Telefon eine Karte je Kunde, am Tablet die wichtigsten
+  Spalten und ab 1024 Pixel jede Spalte, mit so vielen Zeilen, wie das Fenster fasst, und Seiten zum
+  Blättern; ab 1600 Pixel steht rechts eine Vorschau des gewählten Kunden, ab 2400 Pixel die ganze
+  Akte daneben, ab 3000 Pixel in drei Spalten. Filter nach Art, die Suche findet auch die
+  USt-IdNr., und Strg K springt hinein. Die Kundenakte hat zwei Spalten, Objekte, Aufträge und
+  Dateien links, Stammdaten, Ansprechpartner und Aufgaben rechts. "Neuer Kunde" und "Bearbeiten"
+  sind eigene Bildschirme wie auf der Tafel "Neuer Kunde", statt eines Formulars über der Liste.
+- Knöpfe, Felder, Karten, Tabellen und Zustände sind die Bausteine des Canvas (#219), im Büro wie
+  auf der Baustelle: Karten mit einer Überschrift in Kapitälchen und kleinen Knöpfen im Kopf,
+  Tabellen mit Zeilen von 30 Pixeln, in denen Namen in Schieferfarbe stehen und die ganze Zeile der
+  Link ist, Auswahllisten mit dem Pfeil der Vorlage und der Zustand eines Auftrags oder Belegs im
+  Büro als kleine Marke mit Symbol. Das Büro setzt diese Bausteine auf jedem Bildschirm schon ein;
+  die Bildschirme selbst folgen ihren Tafeln nach und nach. Die Kundenart "Gewerblich" heißt wie im
+  Canvas "Gewerbe".
+- Ansprechpartner, Aufgaben und Dateien stehen an jedem Datensatz als Karten wie im Canvas. Einen
+  Ansprechpartner ändert der Stift, und Entfernen liegt dahinter, mit Rückfrage; eine Datei
+  entfernt das Kreuz, ebenfalls mit Rückfrage.
 - Keine Seite ist mehr breiter als ihr Fenster (#218). Eine Tabelle, die nicht passt, rollt in
   ihrem Rahmen, und ihre erste Spalte bleibt dabei stehen, wie es die Tafel "Breiten und
   Auflösungen" verlangt; lange Wörter brechen um, Zahlen und Beträge nie. Zu breit waren am Telefon

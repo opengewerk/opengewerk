@@ -151,7 +151,7 @@ export async function addVersion(
  * version is made, so the newest is the one with the highest id, on a device
  * that has not sent it yet as much as on the server.
  */
-function useVersions(): ReadonlyMap<string, readonly RecordState[]> {
+export function useVersions(): ReadonlyMap<string, readonly RecordState[]> {
   const versions = useRecords('attachment_versions')
 
   return useMemo(() => {
@@ -242,7 +242,7 @@ export function usePreview(version: RecordState | undefined): string | null {
  * everything made here and so works without a network, and from the server
  * otherwise. In a new window, from the click that asked for it.
  */
-async function openVersion(client: SyncClient, version: RecordState): Promise<void> {
+export async function openVersion(client: SyncClient, version: RecordState): Promise<void> {
   const local = await client.readFile(text(version, 'sha256'))
 
   if (!local) {
@@ -264,7 +264,7 @@ async function openVersion(client: SyncClient, version: RecordState): Promise<vo
 }
 
 /** The line under a file's name: name, size, version, and whether it is up yet. */
-function versionLine(client: SyncClient, version: RecordState, versions: number): string {
+export function versionLine(client: SyncClient, version: RecordState, versions: number): string {
   const parts = [text(version, 'fileName'), fileSize(count(version, 'sizeBytes'))]
 
   if (versions > 1) {

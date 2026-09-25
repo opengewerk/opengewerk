@@ -68,7 +68,7 @@ import { Nothing, Section } from '../layout.js'
 import { SnippetPicker } from './snippet-picker.js'
 
 /** A line as the screen works with it: the record, and what is read off it. */
-interface ShownLine {
+export interface ShownLine {
   readonly id: string
   readonly record: RecordState
   readonly kind: LineKind
@@ -81,7 +81,7 @@ interface ShownLine {
  * The lines in the order they stand. The id breaks a tie, because two
  * devices can each append a line at the same position.
  */
-function inOrder(records: readonly RecordState[]): readonly ShownLine[] {
+export function inOrder(records: readonly RecordState[]): readonly ShownLine[] {
   return [...records]
     .sort(
       (left, right) =>
@@ -115,7 +115,7 @@ function inOrder(records: readonly RecordState[]): readonly ShownLine[] {
  * lines. The server does not work it out at all, it mirrors what the invoice
  * froze; counting by the invoice's date is how the screen comes to the same.
  */
-function totalsOf(
+export function totalsOf(
   document: RecordState,
   lines: readonly ShownLine[],
   original: RecordState | null,

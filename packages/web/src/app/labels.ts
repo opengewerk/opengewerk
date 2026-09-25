@@ -42,7 +42,7 @@ import { oneOf } from '../sync/fields.js'
 
 export const customerKindLabel: Readonly<Record<CustomerKind, string>> = {
   private: 'Privat',
-  business: 'Gewerblich',
+  business: 'Gewerbe',
   property_management: 'Hausverwaltung',
   general_contractor: 'Generalunternehmer',
 }

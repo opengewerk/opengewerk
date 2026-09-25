@@ -1,9 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
 import { useState } from 'react'
 
-import { Button } from '../components/index.js'
+import { Button, useEntry } from '../components/index.js'
 import { type Assignee, assignees } from '../session/tasks.js'
 import { refusalText } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
@@ -99,6 +100,7 @@ export function TaskItem({
   readonly showJob?: boolean
 }) {
   const client = useSync()
+  const entry = useEntry()
   const mayWrite = useMay('task.write')
   const id = String(task['id'])
   const status = taskStatusOf(task)
@@ -112,6 +114,67 @@ export function TaskItem({
     status === 'done' ? 'erledigt' : null,
     client.isPending('tasks', id) ? 'noch nicht übertragen' : null,
   ].filter((fact): fact is string => fact !== null)
+
+  const toggle = () => {
+    setTrouble(null)
+
+    void client
+      .update('tasks', id, { status: status === 'open' ? 'done' : 'open' })
+      .then((saved) => {
+        if (saved.outcome === 'refused') {
+          setTrouble(refusalText[saved.reason])
+        }
+      })
+  }
+
+  if (entry === 'office') {
+    // A row of the card, as `task_item()` of the canvas draws it (#219): what,
+    // then by when and for whom, red when it is overdue, the job it hangs
+    // on, and the one button at the right.
+    return (
+      <li className="flex items-start gap-2.5 border-b border-row py-[9px]">
+        <div className="min-w-0 grow">
+          <div
+            className={clsx(
+              'text-[14px] font-medium [overflow-wrap:anywhere]',
+              status === 'done' && 'text-ink-faint line-through',
+            )}
+          >
+            {text(task, 'title')}
+          </div>
+          <div
+            className={clsx(
+              'mt-0.5 text-[13px]',
+              isOverdue(task) ? 'text-conflict' : 'text-ink-faint',
+            )}
+          >
+            {facts.join(', ')}
+          </div>
+          {maybeText(task, 'notes') ? (
+            <p className="mt-1 whitespace-pre-line text-[13px] text-ink">{text(task, 'notes')}</p>
+          ) : null}
+          {job ? (
+            <Link
+              to={`/auftraege/${String(job['id'])}`}
+              className="text-[13px] text-copper-text underline underline-offset-2"
+            >
+              {text(job, 'designation')}
+            </Link>
+          ) : null}
+          {trouble ? (
+            <p role="alert" className="mt-1 text-[13px] font-semibold text-conflict">
+              {trouble}
+            </p>
+          ) : null}
+        </div>
+        {mayWrite ? (
+          <Button size="small" onClick={toggle}>
+            {status === 'open' ? 'Erledigt' : 'Wieder öffnen'}
+          </Button>
+        ) : null}
+      </li>
+    )
+  }
 
   return (
     <li className="flex flex-col gap-2 p-3 rounded-card border border-line bg-surface">
@@ -133,20 +196,7 @@ export function TaskItem({
           </span>
         </div>
         {mayWrite ? (
-          <Button
-            tone="secondary"
-            onClick={() => {
-              setTrouble(null)
-
-              void client
-                .update('tasks', id, { status: status === 'open' ? 'done' : 'open' })
-                .then((saved) => {
-                  if (saved.outcome === 'refused') {
-                    setTrouble(refusalText[saved.reason])
-                  }
-                })
-            }}
-          >
+          <Button tone="secondary" onClick={toggle}>
             {status === 'open' ? 'Erledigt' : 'Wieder öffnen'}
           </Button>
         ) : null}
@@ -185,12 +235,18 @@ export function TaskList({
   readonly showJob?: boolean
   readonly empty: string
 }) {
+  const entry = useEntry()
+
   if (tasks.length === 0) {
-    return <p className="text-body text-ink-muted">{empty}</p>
+    return (
+      <p className={entry === 'office' ? 'text-[13px] text-ink-muted' : 'text-body text-ink-muted'}>
+        {empty}
+      </p>
+    )
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className={entry === 'office' ? undefined : 'flex flex-col gap-2'}>
       {inWorkingOrder(tasks).map((task) => (
         <TaskItem key={String(task['id'])} task={task} me={me} people={people} showJob={showJob} />
       ))}

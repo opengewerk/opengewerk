@@ -35,6 +35,14 @@
   /* The hairline between two rows of a table, lighter than a line, as the
      table cards of the canvas draw it. */
   --color-row: #ece8e0;
+  /* The rest of the palette of the canvas (#219): the edge of a button, which
+     only has to be seen next to its label, the white inside a field, the
+     row that is selected in a list, and the grey of a control that cannot be
+     used right now. */
+  --color-control: #c9c4b9;
+  --color-input: #ffffff;
+  --color-selected: #f1efe8;
+  --color-disabled: #9aa0a9;
 
   --color-ink: #1b2430;
   --color-ink-muted: #4a5260;
@@ -49,6 +57,14 @@
   --color-waiting: #7a5e13;
   --color-conflict: #a3312b;
   --color-on-status: #ffffff;
+  /* A state as a small marker, "Laufend", "Festgeschrieben", "Überfällig":
+     the colour of the state on a light fill of its own, inside an edge. */
+  --color-done-fill: #e4eee8;
+  --color-done-edge: #bfd8cb;
+  --color-waiting-fill: #f5eedc;
+  --color-waiting-edge: #b79a6e;
+  --color-conflict-fill: #f6e7e5;
+  --color-conflict-edge: #e0c3c0;
 
   /* The header in slate and the navigation beside it, as drawn on the canvas.
      The header stays dark in the light ground: it carries the mark, and the
@@ -127,6 +143,10 @@
   --color-line: #38424f;
   --color-line-strong: #6b7889;
   --color-row: #2a3441;
+  --color-control: #4a5566;
+  --color-input: #141a23;
+  --color-selected: #232d3b;
+  --color-disabled: #6b7889;
 
   --color-ink: #f4f1ea;
   --color-ink-muted: #a8afb9;
@@ -141,6 +161,12 @@
   --color-waiting: #d9a83c;
   --color-conflict: #e0736b;
   --color-on-status: #141a23;
+  --color-done-fill: #1e3329;
+  --color-done-edge: #2f5a45;
+  --color-waiting-fill: #2e2816;
+  --color-waiting-edge: #6b5311;
+  --color-conflict-fill: #3a2222;
+  --color-conflict-edge: #6b3a36;
 
   --color-top: #0f141b;
   --color-top-ink: #f4f1ea;

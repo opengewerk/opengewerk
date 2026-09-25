@@ -6,7 +6,12 @@ import { AccountScreen } from './screens/account.js'
 import { BackupScreen } from './screens/backup.js'
 import { BoardScreen } from './screens/boards.js'
 import { CircuitScreen } from './screens/circuits.js'
-import { CustomerList, CustomerScreen } from './screens/customers.js'
+import {
+  CustomerList,
+  CustomerScreen,
+  EditCustomerScreen,
+  NewCustomerScreen,
+} from './screens/customers.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationScreen } from './screens/installations.js'
 import { InstructionsScreen } from './screens/instructions.js'
@@ -44,10 +49,18 @@ const root = createRootRoute({ component: OfficeShell })
 
 const routes = [
   createRoute({ getParentRoute: () => root, path: '/', component: CustomerList }),
+  // A path of its own for a new customer, as the board "Neuer Kunde" draws a
+  // screen of its own; a fixed segment wins over the parameter beside it.
+  createRoute({ getParentRoute: () => root, path: '/kunden/neu', component: NewCustomerScreen }),
   createRoute({
     getParentRoute: () => root,
     path: '/kunden/$customerId',
     component: CustomerScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/kunden/$customerId/bearbeiten',
+    component: EditCustomerScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/objekte/$siteId', component: SiteScreen }),
   createRoute({

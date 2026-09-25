@@ -1,6 +1,7 @@
+import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button } from '../../components/index.js'
+import { Button, Panel } from '../../components/index.js'
 import { taskStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, type TaskLinks, usePeople } from '../../app/tasks.js'
@@ -38,24 +39,26 @@ export function TasksSection({
     return null
   }
 
+  // A card of the record, as `tasks_card()` of the canvas draws it (#219).
   return (
-    <Section
+    <Panel
       title="Aufgaben"
-      actions={
-        writesTasks ? (
+      action={
+        writesTasks && !adding ? (
           <Button
-            tone="secondary"
+            size="small"
+            icon={Plus}
             onClick={() => {
-              setAdding((open) => !open)
+              setAdding(true)
             }}
           >
-            {adding ? 'Abbrechen' : 'Aufgabe anlegen'}
+            Aufgabe anlegen
           </Button>
         ) : null
       }
     >
       {adding ? (
-        <div className="mb-4">
+        <div className="mb-3">
           <NewTaskForm
             links={links}
             onDone={() => {
@@ -65,7 +68,7 @@ export function TasksSection({
         </div>
       ) : null}
       <TaskList tasks={tasks} me={me} people={people} showJob={field !== 'jobId'} empty={empty} />
-    </Section>
+    </Panel>
   )
 }
 

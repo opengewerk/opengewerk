@@ -93,6 +93,14 @@ const filled = [
   { front: 'top-ink', back: 'top', what: 'der Name in der Kopfleiste' },
   { front: 'top-muted', back: 'top', what: 'der Betrieb in der Kopfleiste' },
   { front: 'ground', back: 'ink', what: 'der gewählte Eintrag der Navigation' },
+  { front: 'ground', back: 'ink', what: 'der dunkle Knopf, "Akte öffnen"' },
+  { front: 'done', back: 'done-fill', what: 'die Marke eines erledigten Zustands' },
+  { front: 'waiting', back: 'waiting-fill', what: 'die Marke eines laufenden Zustands' },
+  { front: 'conflict', back: 'conflict-fill', what: 'die Marke eines Konflikts' },
+  { front: 'ink', back: 'input', what: 'der Text in einem Feld' },
+  { front: 'ink-faint', back: 'input', what: 'der Platzhalter in einem Feld' },
+  { front: 'ink', back: 'selected', what: 'die gewählte Zeile einer Liste' },
+  { front: 'ink-muted', back: 'selected', what: 'eine Nebenspalte der gewählten Zeile' },
 ] as const
 
 function value(palette: Map<string, string>, name: string, ground: string): string {

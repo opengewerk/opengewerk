@@ -1,7 +1,7 @@
 export { Button, IconButton } from './button.js'
 export { Confirm } from './confirm.js'
 export type { ConfirmProps } from './confirm.js'
-export type { ButtonProps, ButtonTone, IconButtonProps } from './button.js'
+export type { ButtonProps, ButtonSize, ButtonTone, IconButtonProps } from './button.js'
 
 export { Field, FieldLabel, SelectField, TextArea } from './field.js'
 export type { FieldProps, SelectFieldProps, TextAreaProps } from './field.js'
@@ -21,3 +21,9 @@ export type { DocumentStateProps } from './state.js'
 
 export { Strip, stripAction } from './strip.js'
 export type { StripActionKind, StripProps, StripTone } from './strip.js'
+
+export { Panel, PanelLabel, TablePanel } from './panel.js'
+export type { PanelProps, TablePanelProps } from './panel.js'
+
+export { NumberBadge, Status, statusIcons } from './status.js'
+export type { StatusProps, StatusTone } from './status.js'
