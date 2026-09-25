@@ -7,6 +7,26 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-25
+
+Die zweite Fassung. Sie bringt die Oberfläche nach den Vorlagen im Canvas und zwei
+Sicherheitskorrekturen.
+
+Büro und Baustelle haben ihre Hülle aus den Vorlagen: im Büro die Kopfzeile mit Betrieb und
+Person, die Navigation neben dem Bildschirm und am Telefon hinter "Menü", auf der Baustelle Reiter
+unten, ein Menü von unten und auf dem Tablet eine Leiste links. Die Oberfläche ist auf jedem Gerät
+zuerst hell, dunkel ist eine Wahl je Gerät. Schrift und Abstände haben die Größe der Vorlagen, im
+Büro war bisher alles ein Achtel zu klein. Dazu kommen die Leisten über dem Bildschirm nach den
+Tafeln, Rückfragen vor Entfernen, Sperren und Abschließen und Meldungen ohne interne Namen.
+
+Die Sicherheitskorrekturen betreffen die Ersteinrichtung und das Installationspaket, beschrieben
+unter "Sicherheit". Wer 0.1.0 betreibt, aktualisiert mit dem Paket dieser Fassung; wer die
+Ersteinrichtung noch nicht gemacht hat, am besten vor dem ersten Aufruf der Adresse.
+
+Wie bei 0.1.0 fehlen vor dem produktiven Einsatz die fachliche Abnahme der Regelpakete und der
+Grenzwerte des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133). Die Bildschirme
+selbst folgen ihren Vorlagen noch nicht alle (#219).
+
 ### Geändert
 
 - Die Oberfläche ist auf jedem Gerät zuerst hell, und dunkel lässt sich unter "Konto" für dieses Gerät
