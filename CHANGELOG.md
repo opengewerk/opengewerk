@@ -30,6 +30,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   über den Jahreswechsel wird dort geteilt, jeder Teil gegen sein Jahr. `daysInYear` ist dafür
   eine Funktion des Jahres geworden. Gebraucht wird der Zins erst mit dem Mahnwesen in Phase 3
   (#328), bis dahin rechnet damit nur die Prüfung der Regeln.
+- Fundstellen nach derselben Gegenprüfung, ohne einen Wert zu ändern (#31). Die Notiz am
+  Grenzwert der Schleifenimpedanz nennt den informativen Anhang D der DIN VDE 0100-600:2017-06
+  mit seinen zwei Dritteln, als Beleg aus zweiter Hand, und dass offen ist, nach welchem Wert
+  das Prüfprotokoll urteilt. Das Paket `invoice` und der Satz für § 19 UStG nennen Abschnitt
+  14.7a UStAE aus dem BMF-Schreiben vom 18.03.2025, das auch eine umgangssprachliche Angabe
+  genügen lässt. Das Paket `working-time` nennt den Referentenentwurf zum Arbeitszeitgesetz,
+  der die Aufzeichnung am Tag der Arbeit verlangen würde; beschlossen ist er nicht. Kein
+  eingetragener Wert weicht von seiner Fundstelle ab.
 
 ## [0.3.0] - 2026-09-26
 

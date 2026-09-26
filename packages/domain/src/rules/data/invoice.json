@@ -36,7 +36,7 @@
       "unit": "flag",
       "value": 1,
       "source": "§ 34a UStDV, Jahressteuergesetz 2024",
-      "note": "Seit 2025 genügen Name und Anschrift beider Seiten, Steuernummer oder Umsatzsteuer-Identifikationsnummer, das Ausstellungsdatum, Menge und Art der Leistung, das Entgelt und der Hinweis auf die Steuerbefreiung. Rechnungsnummer und Leistungszeitpunkt gehören nicht mehr dazu."
+      "note": "Seit 2025 genügen Name und Anschrift beider Seiten, Steuernummer oder Umsatzsteuer-Identifikationsnummer, das Ausstellungsdatum, Menge und Art der Leistung, das Entgelt und der Hinweis auf die Steuerbefreiung. Rechnungsnummer und Leistungszeitpunkt gehören nicht mehr dazu. Den Hinweis darf der Betrieb auch umgangssprachlich fassen, etwa „steuerfreier Kleinunternehmer“, wenn er die Steuerbefreiung eindeutig bezeichnet, und er gehört auch auf eine Kleinbetragsrechnung (Abschnitt 14.7a Abs. 1 Satz 4 und Abs. 2 Satz 2 UStAE, BMF-Schreiben vom 18.03.2025, am 26.09.2026 gelesen). Gedruckt wird der Wortlaut von § 34a Satz 1 Nr. 5 UStDV, siehe taxNotes in model/document.ts."
     },
     {
       "key": "invoice.cash_accounting_statement",
