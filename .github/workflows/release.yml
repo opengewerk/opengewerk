@@ -6,7 +6,8 @@ name: Release
 # through Sigstore, and writes the release page with the section of
 # CHANGELOG.md for that version and the installation kit: the folder docker/
 # with the version in its compose.yaml, so that "sh docker/start.sh" and every
-# docker compose command in it pull this release instead of building.
+# docker compose command in it pull this release instead of building. A second
+# job mirrors the images with their signatures to Docker Hub (#281).
 
 on:
   push:
@@ -31,6 +32,8 @@ jobs:
       packages: write
       # The identity Sigstore signs with, instead of a key someone keeps.
       id-token: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Repository auschecken
@@ -175,6 +178,8 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           APP_DIGEST: ${{ steps.app.outputs.digest }}
           BACKUP_DIGEST: ${{ steps.backup.outputs.digest }}
+          # Whether the job below mirrors the release to Docker Hub (#281).
+          DOCKER_HUB: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
         run: |
           set -eu
           python3 - <<'PYTHON'
@@ -249,6 +254,16 @@ jobs:
                   f"[CHANGELOG](https://github.com/opengewerk/opengewerk/blob/v{version}/CHANGELOG.md)."
               )
 
+          # Docker Hub carries the same images, copied with their signatures by
+          # the job after this one (#281). The kit still pulls from ghcr.io.
+          mirror = ""
+          if os.environ.get("DOCKER_HUB") == "true":
+              mirror = (
+                  "\nDieselben Abbilder liegen mit denselben Digests und Signaturen auch auf "
+                  f"Docker Hub, als `opengewerk/opengewerk:{version}` und `opengewerk/backup:{version}`. "
+                  "Das Paket holt sie trotzdem aus ghcr.io, denn Docker Hub begrenzt anonyme Pulls.\n"
+              )
+
           # The signature is checked against the exact identity of the run for
           # this tag, not against a pattern (#212). Git Bash rewrites the
           # arguments of a Windows program before they arrive, backslashes
@@ -264,7 +279,7 @@ jobs:
 
           - `ghcr.io/opengewerk/opengewerk:{version}` (`{os.environ["APP_DIGEST"]}`)
           - `ghcr.io/opengewerk/backup:{version}` (`{os.environ["BACKUP_DIGEST"]}`)
-
+          {mirror}
           Gebraucht werden Docker und Docker Compose ab 2.22. Beide Abbilder sind ohne Schlüssel über Sigstore signiert. Prüfen:
 
           ```bash
@@ -282,3 +297,17 @@ jobs:
             --notes-file notes.md \
             "opengewerk-$VERSION.tar.gz" \
             "opengewerk-$VERSION.tar.gz.sha256"
+
+  # The same images on Docker Hub, with their signatures, after the release
+  # page exists (#281). Without the secrets the called workflow does nothing.
+  docker-hub:
+    name: Nach Docker Hub spiegeln
+    needs: release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/docker-hub.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

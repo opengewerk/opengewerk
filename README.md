@@ -1052,7 +1052,11 @@ CHANGELOG oder für einen Tag, der nicht auf einem Stand von `main` steht,
 bricht er ab. Ob ein Abbild wirklich aus diesem Repository stammt, zeigt
 `cosign verify` mit dem Befehl aus den Hinweisen jedes Releases. Ein Tag wird
 nie neu vergeben: eine Fassung ist, was unter ihrem Tag steht, und dafür steht
-ihre Signatur.
+ihre Signatur. Ein zweiter Job spiegelt beide Abbilder mit ihren Signaturen nach
+Docker Hub, als `opengewerk/opengewerk` und `opengewerk/backup`, dort mit `latest`
+für die neueste Fassung (#281). Das Paket holt weiter aus ghcr.io, denn Docker Hub
+begrenzt anonyme Pulls; eine ältere Fassung holt der Workflow "Docker Hub" von Hand
+nach.
 
 Eine Fassung, die eine Sicherheitslücke schließt, trägt in ihrem Abschnitt des
 CHANGELOG den Unterabschnitt `### Sicherheit`, und ihre Release-Seite beginnt

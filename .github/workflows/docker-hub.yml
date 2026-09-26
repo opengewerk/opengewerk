@@ -1,0 +1,189 @@
+name: Docker Hub
+
+# Mirrors a published release from ghcr.io to Docker Hub (#281): the same
+# images under docker.io/opengewerk, with the same digests and the same
+# signatures, so that the cosign verify command of the release page holds there
+# as well. ghcr.io stays the source. The kit pulls from there, and Docker Hub
+# limits anonymous pulls.
+#
+# The release workflow calls this after every release. Started by hand, it
+# brings an earlier release over. Without the two secrets it does nothing, so a
+# fork or an installation of its own releases without them.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Fassung, etwa 0.3.0
+        required: true
+        type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Fassung, die nach Docker Hub gespiegelt wird, etwa 0.3.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Every action from outside GitHub is pinned to a commit, with its version in a
+# comment, as in release.yml: this job holds the token that writes to Docker
+# Hub. Dependabot moves the pins and the comments along.
+
+jobs:
+  mirror:
+    name: Nach Docker Hub spiegeln
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Einrichtung prüfen
+        id: setup
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::notice::Docker Hub ist nicht eingerichtet, DOCKERHUB_USERNAME oder DOCKERHUB_TOKEN fehlt. Nichts gespiegelt."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Die Fassung $VERSION hat nicht die Form 1.2.3." >&2
+            exit 1
+          fi
+
+          # Only what was released. latest only for the newest release, so
+          # that bringing an older one over never moves it back.
+          gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" --json tagName > /dev/null
+          newest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          if [ "$newest" = "v$VERSION" ]; then
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Repository auschecken
+        if: steps.setup.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Downloaded and checked against the SHA-256 from checksums.txt of the
+      # release, compared with the download itself on 26.09.2026. The action
+      # that would install it fetches without any check, in a job that holds
+      # the token for Docker Hub.
+      - name: crane bereitstellen
+        if: steps.setup.outputs.enabled == 'true'
+        env:
+          CRANE_VERSION: v0.22.1
+          CRANE_SHA256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+        run: |
+          set -eu
+          archive=go-containerregistry_Linux_x86_64.tar.gz
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/google/go-containerregistry/releases/download/$CRANE_VERSION/$archive"
+          echo "$CRANE_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/crane"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/crane" crane
+          echo "$RUNNER_TEMP/crane" >> "$GITHUB_PATH"
+
+      - name: Cosign bereitstellen
+        if: steps.setup.outputs.enabled == 'true'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: In Docker Hub anmelden
+        if: steps.setup.outputs.enabled == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # crane and not cosign copy: cosign 3.1.3 writes the image itself under
+      # the signature tag sha256-<digest> instead of the signature index, and
+      # cosign verify then finds no signature at all (#281). crane copies each
+      # tag as it is. The signatures are the tags sha256-<digest> of the image
+      # list and of every manifest it names, as --recursive signs them in the
+      # release workflow.
+      - name: Abbilder und Signaturen kopieren
+        if: steps.setup.outputs.enabled == 'true'
+        env:
+          LATEST: ${{ steps.setup.outputs.latest }}
+        run: |
+          set -eu
+
+          for image in opengewerk backup; do
+            source="ghcr.io/opengewerk/$image"
+            target="docker.io/opengewerk/$image"
+            digest=$(crane digest "$source:$VERSION")
+
+            crane copy "$source:$VERSION" "$target:$VERSION"
+
+            tags=$(crane ls "$source")
+            for manifest in "$digest" $(crane manifest "$source@$digest" | jq -r '.manifests[]?.digest'); do
+              tag=$(printf '%s' "$manifest" | tr ':' '-')
+              if printf '%s\n' "$tags" | grep -qx "$tag"; then
+                crane copy "$source:$tag" "$target:$tag"
+              fi
+            done
+
+            if [ "$(crane digest "$target:$VERSION")" != "$digest" ]; then
+              echo "$target:$VERSION hat nicht den Digest $digest aus ghcr.io." >&2
+              exit 1
+            fi
+
+            if [ "$LATEST" = true ]; then
+              crane tag "$target:$VERSION" latest
+            fi
+          done
+
+      # With the exact identity of the release run for this tag, the same
+      # command the release page names, only with the other registry.
+      - name: Signaturen auf Docker Hub prüfen
+        if: steps.setup.outputs.enabled == 'true'
+        run: |
+          set -eu
+
+          for image in opengewerk backup; do
+            cosign verify "docker.io/opengewerk/$image:$VERSION" \
+              --certificate-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/v$VERSION" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+            echo "docker.io/opengewerk/$image:$VERSION ist signiert wie in ghcr.io."
+          done
+
+      # The pages on Docker Hub, from the texts in .github/dockerhub. This
+      # needs a token with Read, Write and Delete; copying needs less.
+      - name: Seite der Anwendung auf Docker Hub
+        if: steps.setup.outputs.enabled == 'true'
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: opengewerk/opengewerk
+          short-description: Self-hosted Handwerkersoftware für Elektro und PV, Büro und Baustelle auch ohne Netz
+          readme-filepath: .github/dockerhub/opengewerk.md
+
+      - name: Seite der Sicherung auf Docker Hub
+        if: steps.setup.outputs.enabled == 'true'
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: opengewerk/backup
+          short-description: Die nächtliche Sicherung von OpenGewerk, startet mit dem Installationspaket
+          readme-filepath: .github/dockerhub/backup.md
