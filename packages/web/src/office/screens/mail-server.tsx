@@ -81,7 +81,12 @@ function saidOfSaving(saved: SavedMailServer): Said {
       }
 }
 
-/** The business as the letterhead has it, for the preview of `{briefkopf}`. */
+/**
+ * The business as the letterhead has it, for the preview of `{briefkopf}`:
+ * everything the signature prints, the register and who represents the
+ * business included (#278). The tax number and the bank stay out, as they
+ * stay out of every mail.
+ */
 function issuerOf(view: LetterheadView): IssuerContent {
   return {
     name: view.companyName ?? view.setUpAs,
@@ -94,13 +99,13 @@ function issuerOf(view: LetterheadView): IssuerContent {
     email: view.email,
     website: view.website,
     taxNumber: null,
-    vatId: null,
+    vatId: view.vatId,
     iban: null,
     bic: null,
     bankName: null,
-    registerCourt: null,
-    registerNumber: null,
-    managingDirectors: null,
+    registerCourt: view.registerCourt,
+    registerNumber: view.registerNumber,
+    managingDirectors: view.managingDirectors,
     logo: null,
   }
 }

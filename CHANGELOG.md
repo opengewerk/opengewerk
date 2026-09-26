@@ -7,6 +7,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Behoben
+
+- Die Signatur unter jeder E-Mail trägt mit `{briefkopf}` jetzt auch, was der Briefkopf unter
+  "Handelsregister und Vertretung" hält, und die USt-IdNr., wie die Fußzeile jedes Belegs (#278).
+  Eine E-Mail an einen Kunden ist ein Geschäftsbrief, und ein eingetragener Betrieb nennt darauf je
+  nach Rechtsform Registergericht, Registernummer und seine Geschäftsführer oder seinen Vorstand
+  (§ 37a HGB, § 35a GmbHG und die Vorschriften der übrigen Rechtsformen); bisher ging jede Nachricht
+  ohne diese Angaben hinaus. Sie stehen unter einer Leerzeile nach den Kontaktdaten, Steuernummer und
+  Bankverbindung bleiben den Belegen vorbehalten. Eine Signatur ohne `{briefkopf}` trägt sie nicht,
+  und als Sitz gilt der Ort der Anschrift, beides entschieden von Moritz am 26.09.2026. Die Vorschau
+  unter "E-Mail-Einstellungen" zeigt die Angaben ebenso, und die Feature-Gliederung nennt die
+  Pflichtangaben auf Geschäftsbriefen seit v2.21.
+
 ## [0.2.0] - 2026-09-25
 
 Die zweite Fassung. Jeder Bildschirm folgt jetzt seiner Vorlage im Canvas, dazu kommen eigene

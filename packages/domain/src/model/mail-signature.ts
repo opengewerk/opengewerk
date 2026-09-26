@@ -20,25 +20,47 @@ export const defaultSignature = '{briefkopf}'
 /** How long a signature may be. A letterhead and a few lines, not a newsletter. */
 export const signatureMaxLength = 2000
 
+/** The lines that are there, one under the other. */
+function lines(candidates: readonly (string | null)[]): string {
+  return candidates.filter((line): line is string => line !== null && line.length > 0).join('\n')
+}
+
 /**
  * The business at the foot of a message, the way its letterhead has it: name,
- * address, telephone, mail and web. What a signature says when the business
- * has not written one, and what `{briefkopf}` stands for when it has.
+ * address, telephone, mail and web, and under a blank line what the footer of
+ * every document prints besides, the VAT ID, the commercial register and who
+ * represents the business. What a signature says when the business has not
+ * written one, and what `{briefkopf}` stands for when it has.
+ *
+ * A mail to a customer is a business letter, and a business in the commercial
+ * register names its register court, its number and, depending on its legal
+ * form, its managing directors on every one (section 37a HGB, section 35a
+ * GmbHG and their kin, #278). The seat is the town of the address, as decided
+ * on 26.09.2026. A signature without `{briefkopf}` carries none of it, which
+ * is the business's own choice.
  */
 export function letterheadSignature(issuer: IssuerContent): string {
   const street = [issuer.street, issuer.houseNumber].filter(Boolean).join(' ')
   const town = [issuer.postalCode, issuer.city].filter(Boolean).join(' ')
+  const register = [issuer.registerCourt, issuer.registerNumber].filter(Boolean).join(', ')
 
-  return [
+  const contact = lines([
     issuer.name,
     street || null,
     town || null,
     issuer.phone ? `Telefon ${issuer.phone}` : null,
     issuer.email,
     issuer.website,
-  ]
-    .filter((line): line is string => line !== null && line.length > 0)
-    .join('\n')
+  ])
+  // In the order of the footer of a document, without the tax number, which
+  // belongs on an invoice and not under every mail.
+  const legal = lines([
+    issuer.vatId ? `USt-IdNr. ${issuer.vatId}` : null,
+    register || null,
+    issuer.managingDirectors,
+  ])
+
+  return [contact, legal].filter((block) => block.length > 0).join('\n\n')
 }
 
 /**

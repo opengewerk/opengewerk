@@ -60,6 +60,51 @@ describe('a signature', () => {
     expect(renderSignature(template, { issuer, sender: null })).toBe(`Viele Grüße\n\n${letterhead}`)
   })
 
+  /**
+   * A mail to a customer is a business letter, and a business in the
+   * commercial register names its register court, its number and who
+   * represents it on every one. The footer of a document always printed
+   * them, the signature left them out (#278).
+   */
+  it('carries the VAT ID, the register and who represents the business, as a document does', () => {
+    const registered: IssuerContent = {
+      ...issuer,
+      taxNumber: '22/815/08154',
+      vatId: 'DE123456789',
+      iban: 'DE89 3704 0044 0532 0130 00',
+      registerCourt: 'Amtsgericht Hamburg',
+      registerNumber: 'HRB 12345',
+      managingDirectors: 'Geschäftsführerin: Christa Chefin',
+    }
+    const legal = [
+      'USt-IdNr. DE123456789',
+      'Amtsgericht Hamburg, HRB 12345',
+      'Geschäftsführerin: Christa Chefin',
+    ].join('\n')
+
+    // Under a blank line, and without the tax number and the bank, which
+    // belong on an invoice and not under every mail.
+    expect(letterheadSignature(registered)).toBe(`${letterhead}\n\n${legal}`)
+    expect(
+      renderSignature('Viele Grüße\n{benutzer}\n\n{briefkopf}', {
+        issuer: registered,
+        sender: 'Beate Büro',
+      }),
+    ).toBe(`Viele Grüße\nBeate Büro\n\n${letterhead}\n\n${legal}`)
+
+    // Without the placeholder, none of it: that is the business's choice.
+    expect(
+      renderSignature('Viele Grüße\n{benutzer}', { issuer: registered, sender: 'Beate Büro' }),
+    ).toBe('Viele Grüße\nBeate Büro')
+  })
+
+  it('prints of the register what there is, and no blank line when there is nothing', () => {
+    expect(letterheadSignature({ ...issuer, registerNumber: 'HRB 12345' })).toBe(
+      `${letterhead}\n\nHRB 12345`,
+    )
+    expect(letterheadSignature(issuer)).not.toContain('\n\n')
+  })
+
   it('reads line ends the way a text field in any browser sends them', () => {
     expect(renderSignature('{benutzer}\r\nElektro Nord', { issuer, sender: 'Max' })).toBe(
       'Max\nElektro Nord',
