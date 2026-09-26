@@ -10,8 +10,11 @@ import { request } from '../sync/transport.js'
  * and the letterhead is only ever changed at a desk.
  */
 export type LetterheadView = Readonly<Record<LetterheadField, string | null>> & {
-  /** The name the business was set up with, printed when the field is empty. */
-  readonly setUpAs: string
+  /**
+   * The name of the business, as the top bar and the choice of business show
+   * it, and printed when the name for the documents is empty (#276).
+   */
+  readonly businessName: string
   readonly logo: { readonly mediaType: string; readonly sizeBytes: number } | null
 }
 
@@ -24,10 +27,15 @@ export function letterhead(): Promise<LetterheadView> {
   return request<LetterheadView>(path)
 }
 
+/** The whole letterhead, and the name of the business that goes with it. */
 export function saveLetterhead(
   values: Readonly<Record<LetterheadField, string>>,
+  businessName: string,
 ): Promise<LetterheadView> {
-  return request<LetterheadView>(path, { method: 'PUT', body: JSON.stringify(values) })
+  return request<LetterheadView>(path, {
+    method: 'PUT',
+    body: JSON.stringify({ ...values, businessName }),
+  })
 }
 
 /**

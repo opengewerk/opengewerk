@@ -349,6 +349,19 @@ describe('the first run', () => {
     expect(await instanceIsEmpty(database)).toBe(true)
   })
 
+  it('turns down a name for the business that the settings would refuse as well (#276)', async () => {
+    await emptyInstance()
+
+    const refused = await http()
+      .post('/setup')
+      .set('origin', origin)
+      .send({ ...firstRequest, company: 'x'.repeat(121) })
+      .expect(400)
+
+    expect(refused.body.message).toContain('länger als 120 Zeichen')
+    expect(await instanceIsEmpty(database)).toBe(true)
+  })
+
   it('names the fields it is missing', async () => {
     await emptyInstance()
 

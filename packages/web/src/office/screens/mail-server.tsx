@@ -84,7 +84,7 @@ function saidOfSaving(saved: SavedMailServer): Said {
 /** The business as the letterhead has it, for the preview of `{briefkopf}`. */
 function issuerOf(view: LetterheadView): IssuerContent {
   return {
-    name: view.companyName ?? view.setUpAs,
+    name: view.companyName ?? view.businessName,
     street: view.street,
     houseNumber: view.houseNumber,
     postalCode: view.postalCode,
