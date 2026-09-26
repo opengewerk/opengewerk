@@ -6,13 +6,51 @@ import type { BilledAmount } from './invoice.js'
 import { applyRate, type RuleSet, withoutNegativeZero } from './rule.js'
 
 /**
- * The days a year is counted as having when interest is worked out.
+ * The days of a calendar year when interest is worked out: 366 in a leap year,
+ * 365 otherwise.
  *
- * Named rather than written into the formula, so that the one number this
+ * Named rather than written into the formula, so that the one thing this
  * calculation turns on is findable, and so that a test can name it too instead
  * of repeating a literal that nobody would connect to the decision behind it.
+ * Until 26.09.2026 it was a single number for every year; why it changed is
+ * told at `lateInterestOn`.
  */
-export const daysInYear = 365
+export function daysInYear(year: number): number {
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+
+  return leap ? 366 : 365
+}
+
+/** One year in parts that a day of either length of year divides into evenly. */
+const partsPerYear = 365 * 366
+
+/**
+ * How much of a year `days` days from `from` make up, in `partsPerYear`.
+ *
+ * Every day counts against the length of its own calendar year, so a period
+ * across a turn of the year is split there. Whole numbers throughout: a day of
+ * an ordinary year is 366 parts and a day of a leap year 365, and the one
+ * division into money happens at the end. A period of no days is no part.
+ */
+function yearPartsOf(from: IsoDate, days: number): number {
+  let parts = 0
+  let day = from
+  let left = days
+
+  while (left > 0) {
+    const year = Number(day.slice(0, 4))
+    const nextYear = `${String(year + 1)}-01-01` as IsoDate
+    const untilNextYear =
+      (Date.parse(`${nextYear}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86_400_000
+    const inThisYear = Math.min(left, untilNextYear)
+
+    parts += inThisYear * (partsPerYear / daysInYear(year))
+    left -= inThisYear
+    day = nextYear
+  }
+
+  return parts
+}
 
 export const debtorKinds = ['business', 'consumer'] as const
 
@@ -128,26 +166,33 @@ export interface LateInterest {
  * returned but an error, because a made up interest rate on a real invoice is
  * worse than a missing one.
  *
- * **The year is divided into 365 days**, decided by Moritz on 20.09.2026 as
- * part of the expert acceptance in issue #31. It was the one open question
- * there, and it was worth real money: ten thousand euro ninety days late at
- * the rate of early 2024 come to 315.50 euro over 360 days and 311.18 over
- * 365. A test pins that figure, because nothing else did: the tests around it
- * only compared two results with each other and would have passed just as
- * happily with either divisor.
+ * **Each day counts against the length of its own year**: a day of an
+ * ordinary year is a 365th of the annual interest, a day of a leap year a
+ * 366th, which is actual/actual in the ISDA sense. Decided by Moritz on
+ * 26.09.2026 in issue #31, after a check of the sources that day found that
+ * the usual calculations of default interest under section 288 BGB count day
+ * by day with 366 days in a leap year; the law itself only says "for the
+ * year". From 20.09.2026 the year had 365 days without exception, and before
+ * that 360, which nobody had decided at all. It is worth real money: ten
+ * thousand euro ninety days late from 1 March 2024, at the rate of early 2024,
+ * come to 315.50 euro over 360 days, 311.18 over 365 and 310.33 over the 366
+ * days of that leap year. A full calendar year now carries exactly the annual
+ * rate and never more, which a flat 365 did not in a leap year. A test pins the
+ * figure, because nothing else did: the tests around it only compared two
+ * results with each other and would have passed just as happily with any
+ * divisor.
  *
- * It stays in code rather than moving into a data package, and that is not an
- * oversight. A package holds what the law sets and changes on a date: a rate,
- * a threshold, a number of days. The divisor is not that. It is the convention
- * the days are counted in, it has no period of validity, and giving it one
- * would invite somebody to set it per tenant, which is exactly the sort of
- * thing section 1.7 keeps out of a business's reach.
+ * A period across a turn of the year is split there, each part against its
+ * own year. The rate is still the one of the day the invoice fell late, for
+ * the whole period; splitting at the half years in which the Bundesbank sets
+ * it anew belongs to the dunning work in phase 3 (#328).
  *
- * A leap year gets no special treatment. Dividing by 366 in one year and 365
- * in the next would make two invoices that straddle a turn of the year
- * incomparable, and act/365 is the convention in ordinary use. If that is ever
- * to change, it is a decision of the same kind as this one and belongs in the
- * same place.
+ * The method stays in code rather than moving into a data package, and that
+ * is not an oversight. A package holds what the law sets and changes on a
+ * date: a rate, a threshold, a number of days. The method is not that. It is
+ * the convention the days are counted in, it has no period of validity, and
+ * giving it one would invite somebody to set it per tenant, which is exactly
+ * the sort of thing section 1.7 keeps out of a business's reach.
  */
 export function lateInterestOn(
   rules: RuleSet,
@@ -169,7 +214,8 @@ export function lateInterestOn(
     baseRateBasisPoints,
     premiumBasisPoints,
     interestCents: withoutNegativeZero(
-      Math.sign(perYear) * Math.round((Math.abs(perYear) * owed.days) / daysInYear),
+      Math.sign(perYear) *
+        Math.round((Math.abs(perYear) * yearPartsOf(on, owed.days)) / partsPerYear),
     ),
     flatFeeCents:
       owed.debtor === 'business' ? rules.valueAt('late_payment.flat_fee', 'cents', on) : 0,

@@ -20,6 +20,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Docker Hub zeigt `latest` auf die neueste Fassung; das Paket holt weiter aus ghcr.io, weil Docker
   Hub anonyme Pulls begrenzt.
 
+### Geändert
+
+- Der Verzugszins zählt jeden Tag gegen die Länge seines Kalenderjahres, 366 Tage im Schaltjahr und
+  sonst 365 (act/act), statt jedes Jahr mit 365 Tagen (#31). Entschieden von Moritz am 26.09.2026
+  nach einer Gegenprüfung der Rechtsquellen: so rechnen die üblichen Verfahren für Zinsen nach
+  § 288 BGB, und ein volles Kalenderjahr trägt damit genau den Jahreszins. Mit 365 Tagen kam ein
+  Schaltjahr auf einen Tageszins mehr, beim heutigen Satz 2,88 Euro auf 10.000 Euro. Ein Zeitraum
+  über den Jahreswechsel wird dort geteilt, jeder Teil gegen sein Jahr. `daysInYear` ist dafür
+  eine Funktion des Jahres geworden. Gebraucht wird der Zins erst mit dem Mahnwesen in Phase 3
+  (#328), bis dahin rechnet damit nur die Prüfung der Regeln.
+
 ## [0.3.0] - 2026-09-26
 
 Die dritte Fassung, klein und aus der ersten Einrichtung einer echten Instanz mit 0.2.0 entstanden.

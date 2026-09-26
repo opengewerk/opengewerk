@@ -317,30 +317,65 @@ describe('an invoice that was not paid', () => {
    * The divisor, pinned down. Until 20.09.2026 it said 360, nothing had been
    * decided, and no test would have noticed the difference: the checks around
    * it only compare two results with each other and would have been green
-   * with either value.
+   * with any value. From then it was 365 for every year, and since 26.09.2026
+   * each day counts against the length of its own year (#31).
    *
-   * Ten thousand euros, ninety days, the rate of the first half of 2024. Over
-   * 365 that is 311.18 euros, over 360 it would be 315.50. A divisor that can
-   * change unnoticed is real money on a reminder.
+   * Ten thousand euros, ninety days from 1 March 2024, the rate of the first
+   * half of 2024. Over the 366 days of that leap year that is 310.33 euros,
+   * over a flat 365 it was 311.18, over 360 it would be 315.50. A divisor that
+   * can change unnoticed is real money on a reminder.
    */
-  it('divides the year into the days the decision of 20.09.2026 settled on', () => {
+  it('counts each day against the length of its own year, as decided on 26.09.2026', () => {
     const owed = { principalCents: 1_000_000, days: 90, debtor: 'business' as const }
     const interest = lateInterestOn(shippedRules, owed, '2024-03-01' as IsoDate)
 
-    expect(daysInYear).toBe(365)
-    expect(interest.interestCents).toBe(31_118)
+    expect(daysInYear(2024)).toBe(366)
+    expect(interest.interestCents).toBe(31_033)
   })
 
   /**
-   * The counter check: a full year carries exactly the annual interest, no
-   * more and no less. With a divisor of 360 it would be about one and a half
-   * percent too much, and that would show up nowhere else.
+   * The counter check: a full calendar year carries exactly the annual
+   * interest, no more and no less, in a leap year as in any other. With a
+   * divisor of 360 it would be about one and a half percent too much, and with
+   * a flat 365 a leap year came to one day's interest more than the law allows
+   * for a year; neither would show up anywhere else.
    */
-  it('charges exactly one year of interest for a year', () => {
-    const owed = { principalCents: 1_000_000, days: daysInYear, debtor: 'business' as const }
-    const interest = lateInterestOn(shippedRules, owed, '2024-03-01' as IsoDate)
+  it('charges exactly one year of interest for a calendar year, leap year or not', () => {
+    const leap = lateInterestOn(
+      shippedRules,
+      { principalCents: 1_000_000, days: daysInYear(2024), debtor: 'business' },
+      '2024-01-01' as IsoDate,
+    )
+    const ordinary = lateInterestOn(
+      shippedRules,
+      { principalCents: 1_000_000, days: daysInYear(2025), debtor: 'business' },
+      '2025-01-01' as IsoDate,
+    )
 
-    expect(interest.interestCents).toBe(126_200)
+    // 3.62 plus 9 at the start of 2024, 2.27 plus 9 at the start of 2025.
+    expect(leap.interestCents).toBe(126_200)
+    expect(ordinary.interestCents).toBe(112_700)
+  })
+
+  /**
+   * Across a turn of the year the period is split, each part against its own
+   * year: 17 days of December 2024 over 366 and 14 days of January 2025 over
+   * 365, at the rate of the day the invoice fell late. One divisor for the
+   * whole period would give 105.06 euros over 365 and 104.77 over 366.
+   */
+  it('splits a period at the turn of the year', () => {
+    const owed = { principalCents: 1_000_000, days: 31, debtor: 'business' as const }
+    const interest = lateInterestOn(shippedRules, owed, '2024-12-15' as IsoDate)
+
+    expect(interest.basisPoints).toBe(1237)
+    expect(interest.interestCents).toBe(10_490)
+  })
+
+  it('knows a leap year by the Gregorian rule', () => {
+    expect(daysInYear(2025)).toBe(365)
+    expect(daysInYear(2028)).toBe(366)
+    expect(daysInYear(2100)).toBe(365)
+    expect(daysInYear(2000)).toBe(366)
   })
 
   it('costs a consumer less, and no flat fee', () => {
