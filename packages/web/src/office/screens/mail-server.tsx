@@ -89,7 +89,7 @@ function saidOfSaving(saved: SavedMailServer): Said {
  */
 function issuerOf(view: LetterheadView): IssuerContent {
   return {
-    name: view.companyName ?? view.setUpAs,
+    name: view.companyName ?? view.businessName,
     street: view.street,
     houseNumber: view.houseNumber,
     postalCode: view.postalCode,

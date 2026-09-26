@@ -74,7 +74,7 @@ beforeEach(() => {
     registerCourt: 'Amtsgericht Hamburg',
     registerNumber: 'HRB 12345',
     managingDirectors: 'Geschäftsführer: Max Nord',
-    setUpAs: 'Elektro Nord GmbH',
+    businessName: 'Elektro Nord GmbH',
     logo: null,
   })
 

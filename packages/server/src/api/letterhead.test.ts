@@ -79,7 +79,7 @@ afterAll(async () => {
 })
 
 describe('a letterhead nobody has filled in yet', () => {
-  it('is empty, and names the business it was set up as', async () => {
+  it('is empty, and names the business', async () => {
     const answer = await http()
       .get('/settings/letterhead')
       .set('x-test-identity', as(north.id, 'office'))
@@ -90,7 +90,7 @@ describe('a letterhead nobody has filled in yet', () => {
       street: null,
       country: 'DE',
       taxNumber: null,
-      setUpAs: 'Elektro Nord GmbH',
+      businessName: 'Elektro Nord GmbH',
       logo: null,
     })
   })
@@ -171,7 +171,7 @@ describe('writing the letterhead', () => {
     expect(answer.body).toMatchObject({
       street: null,
       taxNumber: null,
-      setUpAs: 'Elektro Süd GmbH',
+      businessName: 'Elektro Süd GmbH',
     })
   })
 })
@@ -251,5 +251,113 @@ describe('the logo', () => {
       .set('content-type', 'image/png')
       .send(png)
       .expect(403)
+  })
+})
+
+/**
+ * The name of the business, changed where the letterhead is (#276). Before,
+ * the first run wrote it and nothing changed it again: a name the browser had
+ * filled in by itself stayed in the top bar for good.
+ */
+describe('renaming the business', () => {
+  async function nameOf(tenant: { readonly id: string }): Promise<string | undefined> {
+    const { rows } = await admin.query<{ name: string }>('select name from tenants where id = $1', [
+      tenant.id,
+    ])
+
+    return rows[0]?.name
+  }
+
+  it('takes the new name, trimmed, and leaves an entry with who did it', async () => {
+    const answer = await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .send({ businessName: '  Elektro Nord  ', street: 'Hafenstraße' })
+      .expect(200)
+
+    expect(answer.body).toMatchObject({ businessName: 'Elektro Nord', street: 'Hafenstraße' })
+    expect(await nameOf(north)).toBe('Elektro Nord')
+    // The business next door keeps its own.
+    expect(await nameOf(south)).toBe('Elektro Süd GmbH')
+
+    const { rows } = await admin.query<{
+      old_value: string
+      new_value: string
+      user_id: string
+      reason: string
+    }>(
+      `select old_value, new_value, user_id, reason from audit_entries
+        where table_name = 'tenants' and field = 'name' and operation = 'update'
+          and tenant_id = $1`,
+      [north.id],
+    )
+
+    expect(rows).toEqual([
+      {
+        old_value: 'Elektro Nord GmbH',
+        new_value: 'Elektro Nord',
+        user_id: 'test',
+        reason: 'settings.write',
+      },
+    ])
+  })
+
+  it('writes nothing about the name when it stays as it was, or is not sent', async () => {
+    await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .send({ businessName: 'Elektro Nord', street: 'Hafenstraße' })
+      .expect(200)
+    await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .send({ street: 'Hafenstraße' })
+      .expect(200)
+
+    expect(await nameOf(north)).toBe('Elektro Nord')
+
+    const { rows } = await admin.query<{ count: string }>(
+      `select count(*) from audit_entries
+        where table_name = 'tenants' and field = 'name' and operation = 'update'
+          and tenant_id = $1`,
+      [north.id],
+    )
+    expect(Number(rows[0]?.count)).toBe(1)
+  })
+
+  it('refuses an empty name, and one too long for the top bar, and keeps the old one', async () => {
+    const empty = await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .send({ businessName: '   ', street: 'Anderswo' })
+      .expect(400)
+
+    expect((empty.body as { message: string }).message).toBe('Der Name des Betriebs fehlt.')
+
+    const long = await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .send({ businessName: 'x'.repeat(121) })
+      .expect(400)
+
+    expect((long.body as { message: string }).message).toContain('länger als 120 Zeichen')
+    expect(await nameOf(north)).toBe('Elektro Nord')
+
+    // Nothing else of the refused body was kept either.
+    const letterhead = await http()
+      .get('/settings/letterhead')
+      .set('x-test-identity', owner())
+      .expect(200)
+    expect(letterhead.body).toMatchObject({ street: 'Hafenstraße', businessName: 'Elektro Nord' })
+  })
+
+  it('belongs to the owner, and the office may not do it', async () => {
+    await http()
+      .put('/settings/letterhead')
+      .set('x-test-identity', as(north.id, 'office'))
+      .send({ businessName: 'Büro war hier' })
+      .expect(403)
+
+    expect(await nameOf(north)).toBe('Elektro Nord')
   })
 })

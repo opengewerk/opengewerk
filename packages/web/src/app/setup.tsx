@@ -1,3 +1,4 @@
+import { businessNameMaxLength } from '@opengewerk/domain'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { encode } from 'uqr'
@@ -123,8 +124,12 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
         <hr className="border-0 border-t border-line" />
         <Field
           label="Betrieb"
-          name="organization"
-          autoComplete="organization"
+          // Not "organization" (#276): with it, a browser or a password
+          // manager filled in a company of its own, and the business was set
+          // up under a name nobody had typed.
+          name="business"
+          autoComplete="off"
+          maxLength={businessNameMaxLength}
           required
           value={company}
           onChange={(event) => {

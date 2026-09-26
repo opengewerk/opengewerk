@@ -7,6 +7,28 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Der Name des Betriebs lässt sich ändern, unter "Einstellungen", "Briefkopf" in der Karte
+  "Betrieb", neben dem Namen auf den Belegen (#276). Bisher schrieb ihn nur die Ersteinrichtung, und
+  ein falscher Name ließ sich nur in der Datenbank korrigieren; auf msk.opengewerk.de stand so ein
+  Name in der Kopfleiste, den niemand getippt hatte. Ändern darf ihn, wer den Briefkopf ändern darf
+  (`settings.write`). Er wird mit dem Briefkopf in derselben Transaktion gespeichert, und das
+  Audit-Log hält fest, wer ihn geändert hat. Kopfleiste und "Betrieb wählen" zeigen danach den neuen
+  Namen, ebenso ein Beleg, dessen Briefkopf keinen eigenen Namen trägt; ein festgeschriebener
+  behält seinen. Die Anwendungsrolle darf dafür seit Migration 0047 an der Zeile ihres Betriebs in
+  `tenants` genau `name` und `updated_at` ändern. Anlegen, Löschen und die Kennung bleiben gesperrt,
+  wie seit 0007.
+
+### Geändert
+
+- Das Feld "Betrieb" der Ersteinrichtung bietet sich Browsern und Passwortmanagern nicht mehr als
+  Firma zum Ausfüllen an (`autocomplete="off"` statt `organization`, #276), denn am
+  wahrscheinlichsten kam der fremde Name auf msk.opengewerk.de genau so hinein. Ersteinrichtung und
+  Einstellungen prüfen den Namen mit derselben Regel (`businessNameProblem` in `domain`): nicht leer
+  und höchstens 120 Zeichen, weil er in der Kopfleiste steht. Der vollständige Name für die Belege
+  hat sein eigenes Feld.
+
 ### Behoben
 
 - Die Signatur unter jeder E-Mail trägt mit `{briefkopf}` jetzt auch, was der Briefkopf unter

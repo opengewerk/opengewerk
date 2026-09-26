@@ -12,7 +12,7 @@ import {
   Req,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import type { TenantId } from '@opengewerk/domain'
+import { businessNameProblem, type TenantId } from '@opengewerk/domain'
 import type { Request } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
@@ -116,6 +116,13 @@ export class SetupController {
     const name = text(values.name, 'name')
     const email = text(values.email, 'email')
     const password = text(values.password, 'password')
+
+    // The same rule as when the owner changes the name later (#276).
+    const nameProblem = businessNameProblem(company)
+
+    if (nameProblem !== null) {
+      throw new BadRequestException(nameProblem)
+    }
 
     if (!email.includes('@')) {
       throw new BadRequestException('Die E-Mail-Adresse sieht nicht wie eine aus.')

@@ -92,6 +92,21 @@ describe('the first run screen', () => {
     expect(screen.getByRole('separator')).toBeDefined()
   })
 
+  /**
+   * On msk.opengewerk.de the business was set up under a name nobody had
+   * typed, most likely filled in as a company by a password manager (#276).
+   * The field no longer invites that, and stops where the settings would.
+   */
+  it('keeps the name of the business out of the reach of autofill', () => {
+    render(<SetupScreen onDone={vi.fn()} />)
+
+    const business = screen.getByLabelText('Betrieb') as HTMLInputElement
+
+    expect(business.getAttribute('autocomplete')).toBe('off')
+    expect(business.name).not.toBe('organization')
+    expect(business.maxLength).toBe(120)
+  })
+
   it('sends the code, the business and the account, and then signs the person in', async () => {
     serverSays('/setup', { tenantId: 'b-1' })
 

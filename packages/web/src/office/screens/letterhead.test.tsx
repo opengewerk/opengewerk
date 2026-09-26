@@ -56,7 +56,7 @@ const stored = {
   registerCourt: null,
   registerNumber: null,
   managingDirectors: null,
-  setUpAs: 'Elektro Nord GmbH',
+  businessName: 'Elektro Nord GmbH',
   logo: null,
 }
 
@@ -99,18 +99,22 @@ afterEach(() => {
 })
 
 describe('the letterhead screen for the owner', () => {
-  it('starts from what is stored, with the name the business was set up as in view', async () => {
+  it('starts from what is stored, with the name of the business in view', async () => {
     signedInAs('owner')
     render(inQueries(<LetterheadScreen />))
 
     const street = await screen.findByLabelText('Straße')
     expect((street as HTMLInputElement).value).toBe('Hafenstraße')
 
-    // An empty name prints the one the business was set up with, and the
-    // placeholder says so before anybody wonders.
+    // An empty name prints the name of the business, and the placeholder
+    // says so before anybody wonders.
     const name = screen.getByLabelText('Name auf den Belegen') as HTMLInputElement
     expect(name.value).toBe('')
     expect(name.placeholder).toBe('Elektro Nord GmbH')
+
+    const business = screen.getByLabelText('Name des Betriebs') as HTMLInputElement
+    expect(business.value).toBe('Elektro Nord GmbH')
+    expect(business.readOnly).toBe(false)
   })
 
   it('sends the whole letterhead when it is saved, and says that it was', async () => {
@@ -128,6 +132,54 @@ describe('the letterhead screen for the owner', () => {
     expect(sent['iban']).toBe('DE89 3704 0044 0532 0130 00')
     expect(sent['street']).toBe('Hafenstraße')
     expect(sent['companyName']).toBe('')
+    expect(sent['businessName']).toBe('Elektro Nord GmbH')
+  })
+
+  /**
+   * The name of the business, which only the first run wrote before (#276).
+   * After saving, the list of memberships is asked again, because the top bar
+   * and "Betrieb wählen" read the name from there.
+   */
+  it('renames the business, and asks for the list the top bar shows again', async () => {
+    signedInAs('owner')
+    serverSays('PUT', '/settings/letterhead', { ...stored, businessName: 'Elektro Nord' })
+    render(inQueries(<LetterheadScreen />))
+
+    const person = userEvent.setup()
+    const business = await screen.findByLabelText('Name des Betriebs')
+    await person.clear(business)
+    await person.type(business, 'Elektro Nord')
+
+    // The name for the documents falls back to it, and says so as it is typed.
+    const printed = screen.getByLabelText('Name auf den Belegen') as HTMLInputElement
+    expect(printed.placeholder).toBe('Elektro Nord')
+
+    const asked = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === '/auth/tenants').length
+    const before = asked()
+
+    await person.click(screen.getByRole('button', { name: 'Briefkopf speichern' }))
+    expect(await screen.findByText('Gespeichert.')).toBeTruthy()
+
+    const sent = calls.find((call) => call.method === 'PUT')?.body as Record<string, string>
+    expect(sent['businessName']).toBe('Elektro Nord')
+    await vi.waitFor(() => {
+      expect(asked()).toBeGreaterThan(before)
+    })
+  })
+
+  it('says at the field that the name is missing, and sends nothing without one', async () => {
+    signedInAs('owner')
+    render(inQueries(<LetterheadScreen />))
+
+    const person = userEvent.setup()
+    await person.clear(await screen.findByLabelText('Name des Betriebs'))
+
+    expect(await screen.findByText('Der Name des Betriebs fehlt.')).toBeTruthy()
+
+    await person.click(screen.getByRole('button', { name: 'Briefkopf speichern' }))
+
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false)
   })
 
   it('shows the reason the server gives when it refuses', async () => {
@@ -156,6 +208,10 @@ describe('the letterhead screen for the office', () => {
     const street = (await screen.findByLabelText('Straße')) as HTMLInputElement
     expect(street.value).toBe('Hafenstraße')
     expect(street.readOnly).toBe(true)
+
+    const business = screen.getByLabelText('Name des Betriebs') as HTMLInputElement
+    expect(business.value).toBe('Elektro Nord GmbH')
+    expect(business.readOnly).toBe(true)
 
     expect(await screen.findByText('Ändern kann den Briefkopf nur der Inhaber.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Briefkopf speichern' })).toBeNull()

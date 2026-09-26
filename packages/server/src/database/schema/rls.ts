@@ -48,9 +48,9 @@ export function tenantIsolation(tenantId: PgColumn) {
  * Whoever changes the comparison has to change it once, not notice that there
  * are two.
  *
- * Reading is all the application role does here. Creating, renaming and
- * deleting a tenant belong to whoever sets up the instance, and since 0007
- * that is not merely the intention but the grant.
+ * Reading, and since 0047 changing the name (#276), is all the application
+ * role does here. Creating and deleting a tenant belong to whoever sets up the
+ * instance, and since 0007 that is not merely the intention but the grant.
  */
 export function ownTenantOnly(id: PgColumn) {
   return tenantIsolation(id)
@@ -73,8 +73,10 @@ export function ownTenantOnly(id: PgColumn) {
  * memberships and no more: the two policies compose instead of one undoing
  * the other.
  *
- * Reading only. Creating and renaming a company belongs to whoever sets up the
- * instance, and since 0007 that is a grant and not merely an intention.
+ * Reading only. Creating a company belongs to whoever sets up the instance,
+ * and since 0007 that is a grant and not merely an intention. Renaming its
+ * own is the one change the application role may make, and only under the
+ * policy above, inside the company (#276).
  */
 export function ownTenantsOutsideTenant(id: PgColumn) {
   return pgPolicy('own_tenants_outside_tenant', {
@@ -232,8 +234,8 @@ export function readableByTheOwner() {
  * below shuts the door a second time whatever else permits, and the function
  * itself refuses unless the instance is empty.
  *
- * Insert only. Renaming and deleting a business stay where 0007 put them, with
- * whoever set the instance up.
+ * Insert only. Deleting a business stays where 0007 put it, with whoever set
+ * the instance up; renaming it is the owner's since 0047 (#276).
  */
 export function createdBySetupOnly() {
   return [

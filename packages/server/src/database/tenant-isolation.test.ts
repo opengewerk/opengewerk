@@ -337,11 +337,12 @@ describe('the tenants table', () => {
     expect(seenBySouth[0]?.id).toBe(south.id)
   })
 
-  it('cannot be written by the application role at all', async () => {
+  it('cannot be created, deleted or given another id by the application role', async () => {
     // Reading was never the hole. The policy narrowed that to the session
     // tenant from the first migration on. What stood open was the blanket
-    // grant from 0001: a tenant could rename itself, and it could delete its
-    // own row, which the foreign keys would follow all the way down.
+    // grant from 0001: a tenant could delete its own row, which the foreign
+    // keys would follow all the way down. Since 0047 it may change its name,
+    // and that is all (#276).
     const inserted = await refusedBy(
       database.forTenant({ tenantId: north.id }, (tx) =>
         tx.insert(schema.tenants).values({ name: 'Selbst angelegt' }),
@@ -349,15 +350,15 @@ describe('the tenants table', () => {
     )
     expect(inserted.code).toBe(insufficientPrivilege)
 
-    const renamed = await refusedBy(
+    const moved = await refusedBy(
       database.forTenant({ tenantId: north.id }, (tx) =>
         tx
           .update(schema.tenants)
-          .set({ name: 'Selbst umbenannt' })
+          .set({ id: newId<'tenant'>() })
           .where(sql`true`),
       ),
     )
-    expect(renamed.code).toBe(insufficientPrivilege)
+    expect(moved.code).toBe(insufficientPrivilege)
 
     const removed = await refusedBy(
       database.forTenant({ tenantId: north.id }, (tx) =>
@@ -368,6 +369,33 @@ describe('the tenants table', () => {
 
     const { rows } = await admin.query<{ count: string }>('select count(*) from tenants')
     expect(rows[0]?.count).toBe('2')
+  })
+
+  it('renames its own business and no other (#276)', async () => {
+    const { rows: before } = await admin.query<{ id: string; name: string }>(
+      'select id, name from tenants order by id',
+    )
+
+    // No condition at all: the policy alone decides which row that reaches.
+    await database.forTenant({ tenantId: north.id }, (tx) =>
+      tx
+        .update(schema.tenants)
+        .set({ name: 'Nord umbenannt', updatedAt: new Date() })
+        .where(sql`true`),
+    )
+
+    const { rows: after } = await admin.query<{ id: string; name: string }>(
+      'select id, name from tenants order by id',
+    )
+
+    expect(after).toEqual(
+      before.map((row) => (row.id === north.id ? { ...row, name: 'Nord umbenannt' } : row)),
+    )
+
+    await admin.query('update tenants set name = $2 where id = $1', [
+      north.id,
+      before.find((row) => row.id === north.id)?.name,
+    ])
   })
 })
 
