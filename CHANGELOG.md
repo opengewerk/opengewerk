@@ -7,6 +7,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Die Abbilder jeder Fassung erscheinen zusätzlich auf Docker Hub, als `opengewerk/opengewerk` und
+  `opengewerk/backup` (#281), damit OpenGewerk dort gefunden wird, wo viele zuerst nach Software
+  suchen. Docker Hub ist ein Spiegel von ghcr.io und kein zweiter Bau: Der neue Workflow "Docker
+  Hub" kopiert Abbilder und Signaturen mit `crane`, prüft danach mit `cosign verify` gegen dieselbe
+  Identität des Release-Workflows und pflegt die Seiten dort aus `.github/dockerhub/`. Der Workflow
+  "Release" ruft ihn nach jeder Fassung auf, von Hand holt er eine ältere nach; ohne die Secrets
+  `DOCKERHUB_USERNAME` und `DOCKERHUB_TOKEN` tut er nichts. `cosign copy` taugt dafür nicht, es
+  schreibt in cosign 3.1.3 das Abbild unter den Signatur-Tag statt des Signatur-Index. Nur auf
+  Docker Hub zeigt `latest` auf die neueste Fassung; das Paket holt weiter aus ghcr.io, weil Docker
+  Hub anonyme Pulls begrenzt.
+
 ## [0.3.0] - 2026-09-26
 
 Die dritte Fassung, klein und aus der ersten Einrichtung einer echten Instanz mit 0.2.0 entstanden.
