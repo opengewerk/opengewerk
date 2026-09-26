@@ -38,6 +38,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   genügen lässt. Das Paket `working-time` nennt den Referentenentwurf zum Arbeitszeitgesetz,
   der die Aufzeichnung am Tag der Arbeit verlangen würde; beschlossen ist er nicht. Kein
   eingetragener Wert weicht von seiner Fundstelle ab.
+- Die Feature-Gliederung (v2.22) nimmt die vorvertraglichen Informationen an Verbraucher nach
+  Art. 246 Abs. 1 und Art. 246a § 1 Abs. 1 EGBGB in Phase 1 auf (#431). Seit dem 27.09.2026
+  verlangen sie für Waren die harmonisierte Mitteilung zur Gewährleistung nach der
+  Durchführungsverordnung (EU) 2025/1960, und ein Angebot an einen Verbraucher mit Lieferung
+  und Montage trägt sie noch nicht. Die README nennt das beim Stand von Phase 1.
 
 ## [0.3.0] - 2026-09-26
 
