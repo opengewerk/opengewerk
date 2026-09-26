@@ -36,7 +36,7 @@
       "unit": "volts",
       "value": 230,
       "source": "DIN VDE 0100-410 (VDE 0100-410):2018-10, 411.4.4, Zs × Ia ≤ U0 mit U0 = 230 V nach DIN EN 60038",
-      "note": "Die Schleifenimpedanz, bei der der Leitungsschutzschalter noch unverzögert auslöst, aus der Nennspannung gegen Erde und dem Auslösestrom Ia."
+      "note": "Die Schleifenimpedanz, bei der der Leitungsschutzschalter noch unverzögert auslöst, aus der Nennspannung gegen Erde und dem Auslösestrom Ia. Das ist der ungeminderte Grenzwert. Der informative Anhang D der DIN VDE 0100-600:2017-06 setzt für den gemessenen Wert zwei Drittel davon an, weil die Leiter im Betrieb wärmer sind als bei der Messung, und im Hauptteil nennen die Anmerkungen 4 und 5 zu 6.4.3.7.3 eine Messunsicherheit von ± 30 % und einen Faktor 1,24 zur Umrechnung von 20 °C auf 80 °C. Beides ist nur aus zweiter Hand belegt, aus einer Leserfrage bei elektro.net vom 24.11.2023, und nicht am Normtext geprüft. Nach welchem Wert das Protokoll urteilt, ist offen in #31."
     },
     {
       "key": "elektro.loop.factor_b",

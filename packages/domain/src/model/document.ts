@@ -283,6 +283,14 @@ export type TaxTreatment = (typeof taxTreatments)[number]
  * words of that provision; the one before it said no VAT was charged under
  * section 19, which named the paragraph but not the exemption it now is.
  *
+ * Plainer words would do as well. Section 14.7a (1) sentence 4 of the VAT
+ * application decree, added by the letter of the finance ministry of
+ * 18.03.2025, accepts a colloquial note such as "steuerfreier
+ * Kleinunternehmer" as long as it names the exemption unambiguously, and (2)
+ * sentence 2 asks for the note on a small amount invoice too. Keeping to the
+ * wording of the provision is the careful choice, not the only one; checked
+ * on 26.09.2026 in issue #31.
+ *
  * Not in a rule package, although they are legal wordings. The packages hold
  * numbers with a unit and a period of validity, and `RuleRecord.value` is a
  * number; a sentence has no unit and nothing to add up. Should a wording ever

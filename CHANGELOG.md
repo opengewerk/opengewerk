@@ -20,6 +20,30 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Docker Hub zeigt `latest` auf die neueste Fassung; das Paket holt weiter aus ghcr.io, weil Docker
   Hub anonyme Pulls begrenzt.
 
+### Geändert
+
+- Der Verzugszins zählt jeden Tag gegen die Länge seines Kalenderjahres, 366 Tage im Schaltjahr und
+  sonst 365 (act/act), statt jedes Jahr mit 365 Tagen (#31). Entschieden von Moritz am 26.09.2026
+  nach einer Gegenprüfung der Rechtsquellen: so rechnen die üblichen Verfahren für Zinsen nach
+  § 288 BGB, und ein volles Kalenderjahr trägt damit genau den Jahreszins. Mit 365 Tagen kam ein
+  Schaltjahr auf einen Tageszins mehr, beim heutigen Satz 2,88 Euro auf 10.000 Euro. Ein Zeitraum
+  über den Jahreswechsel wird dort geteilt, jeder Teil gegen sein Jahr. `daysInYear` ist dafür
+  eine Funktion des Jahres geworden. Gebraucht wird der Zins erst mit dem Mahnwesen in Phase 3
+  (#328), bis dahin rechnet damit nur die Prüfung der Regeln.
+- Fundstellen nach derselben Gegenprüfung, ohne einen Wert zu ändern (#31). Die Notiz am
+  Grenzwert der Schleifenimpedanz nennt den informativen Anhang D der DIN VDE 0100-600:2017-06
+  mit seinen zwei Dritteln, als Beleg aus zweiter Hand, und dass offen ist, nach welchem Wert
+  das Prüfprotokoll urteilt. Das Paket `invoice` und der Satz für § 19 UStG nennen Abschnitt
+  14.7a UStAE aus dem BMF-Schreiben vom 18.03.2025, das auch eine umgangssprachliche Angabe
+  genügen lässt. Das Paket `working-time` nennt den Referentenentwurf zum Arbeitszeitgesetz,
+  der die Aufzeichnung am Tag der Arbeit verlangen würde; beschlossen ist er nicht. Kein
+  eingetragener Wert weicht von seiner Fundstelle ab.
+- Die Feature-Gliederung (v2.22) nimmt die vorvertraglichen Informationen an Verbraucher nach
+  Art. 246 Abs. 1 und Art. 246a § 1 Abs. 1 EGBGB in Phase 1 auf (#431). Seit dem 27.09.2026
+  verlangen sie für Waren die harmonisierte Mitteilung zur Gewährleistung nach der
+  Durchführungsverordnung (EU) 2025/1960, und ein Angebot an einen Verbraucher mit Lieferung
+  und Montage trägt sie noch nicht. Die README nennt das beim Stand von Phase 1.
+
 ## [0.3.0] - 2026-09-26
 
 Die dritte Fassung, klein und aus der ersten Einrichtung einer echten Instanz mit 0.2.0 entstanden.
