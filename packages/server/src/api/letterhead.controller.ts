@@ -14,6 +14,7 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import {
+  businessNameProblem,
   ibanIsValid,
   largestLogoBytes,
   type LetterheadField,
@@ -23,7 +24,7 @@ import {
   type LogoMediaType,
   type TenantId,
 } from '@opengewerk/domain'
-import { eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import type { Request } from 'express'
 
 import { Database, type TenantTransaction } from '../database/database.js'
@@ -110,7 +111,36 @@ function letterheadFrom(body: unknown): Record<LetterheadField, string | null> {
 }
 
 /**
- * The letterhead of the business, and its logo.
+ * The name of the business, when the body brings one (#276).
+ *
+ * It travels with the letterhead because the screen shows it in the same card,
+ * beside the name for the documents, which falls back to it. Left out, it stays
+ * as it is: unlike a field of the letterhead it cannot be empty, the top bar
+ * and the choice of business show it.
+ */
+function businessNameFrom(body: unknown): string | undefined {
+  const value = (body as Record<string, unknown>)['businessName']
+
+  if (value === undefined) {
+    return undefined
+  }
+
+  if (typeof value !== 'string') {
+    throw new BadRequestException('„Name des Betriebs“ muss ein Text sein.')
+  }
+
+  const problem = businessNameProblem(value)
+
+  if (problem !== null) {
+    throw new BadRequestException(problem)
+  }
+
+  return value.trim()
+}
+
+/**
+ * The letterhead of the business, its logo, and since #276 the name of the
+ * business itself.
  *
  * Under the settings rights and not the document ones. Reading belongs to the
  * office as well, because it writes the documents the letterhead ends up on;
@@ -125,9 +155,9 @@ export class LetterheadController {
   ) {}
 
   /**
-   * The letterhead as it stands, and the name the business was set up with.
-   * An empty company name prints that one, and the screen shows it as the
-   * placeholder so nobody wonders what an empty field will do.
+   * The letterhead as it stands, and the name of the business. An empty
+   * company name prints that one, and the screen shows it as the placeholder
+   * so nobody wonders what an empty field will do.
    */
   private async view(tx: TenantTransaction, tenantId: TenantId) {
     const [tenant] = await tx
@@ -151,7 +181,7 @@ export class LetterheadController {
       logo = file ?? null
     }
 
-    return { ...fields, setUpAs: tenant?.name ?? '', logo }
+    return { ...fields, businessName: tenant?.name ?? '', logo }
   }
 
   @Get()
@@ -164,8 +194,19 @@ export class LetterheadController {
   @RequiresPermission('settings.write')
   async write(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = letterheadFrom(body)
+    const businessName = businessNameFrom(body)
 
     return this.database.forTenant(identity, async (tx) => {
+      // Only when it changed, so that saving the letterhead leaves no entry
+      // about the name in the log. The trigger writes the one it does leave,
+      // with the person and the right from this transaction.
+      if (businessName !== undefined) {
+        await tx
+          .update(tenants)
+          .set({ name: businessName, updatedAt: new Date() })
+          .where(and(eq(tenants.id, identity.tenantId), ne(tenants.name, businessName)))
+      }
+
       await tx
         .insert(letterheads)
         .values({ ...values, country: values.country ?? 'DE', tenantId: identity.tenantId })

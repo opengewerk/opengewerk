@@ -1,4 +1,6 @@
 import {
+  businessNameMaxLength,
+  businessNameProblem,
   type LetterheadField,
   largestLogoBytes,
   letterheadFieldLabels,
@@ -27,6 +29,13 @@ function saidWhy(error: unknown, fallback: string): string {
 }
 
 /**
+ * The name of the business itself, in the first row of the card "Betrieb"
+ * (#276). Not a field of the letterhead: the top bar and the choice of
+ * business show it, and the letterhead only falls back to it.
+ */
+type BusinessName = 'businessName'
+
+/**
  * The fields of one group on the screen. Their labels come from
  * `letterheadFieldLabels`, which the route uses as well when it refuses one.
  */
@@ -34,7 +43,7 @@ interface Group {
   readonly title: string
   /** The rows of the group, each a list of fields beside each other, with its columns. */
   readonly rows?: readonly {
-    readonly fields: readonly LetterheadField[]
+    readonly fields: readonly (LetterheadField | BusinessName)[]
     readonly columns: string
   }[]
   readonly fields: readonly {
@@ -52,10 +61,10 @@ interface Group {
 const groups: readonly Group[] = [
   {
     title: 'Betrieb',
-    // As the board sets them: the name half across, the street three times
-    // the house number, the town twice the postcode.
+    // As the board sets them: the two names side by side, the street three
+    // times the house number, the town twice the postcode.
     rows: [
-      { fields: ['companyName'], columns: 'sm:grid-cols-2' },
+      { fields: ['businessName', 'companyName'], columns: 'sm:grid-cols-2' },
       { fields: ['street', 'houseNumber'], columns: 'sm:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]' },
       {
         fields: ['postalCode', 'city', 'country'],
@@ -113,7 +122,9 @@ const groups: readonly Group[] = [
 
 /**
  * What the business prints on every document: the name and address at the
- * top, and at the bottom how to reach it, its tax numbers and its bank.
+ * top, and at the bottom how to reach it, its tax numbers and its bank. And
+ * since #276 the name of the business itself, which the top bar shows and the
+ * documents fall back to; before, only the first run ever wrote it.
  *
  * Only the owner changes it, because the tax number and the bank account on
  * every invoice come from here. The office reads it, since it writes the
@@ -190,14 +201,21 @@ function LetterheadForm({
 
     return initial
   })
+  const [businessName, setBusinessName] = useState(view.businessName)
   const [trouble, setTrouble] = useState<string | null>(null)
+  // Said at the field as soon as it is empty; too long it cannot get, the
+  // field stops there.
+  const nameProblem = businessNameProblem(businessName)
 
   const save = useMutation({
-    mutationFn: () => saveLetterhead(values),
+    mutationFn: () => saveLetterhead(values, businessName),
     onSuccess: (stored) => {
       setTrouble(null)
       onSaved(true)
       queries.setQueryData(['letterhead'], stored)
+      // The top bar and the choice of business read the name from the list
+      // of memberships, which would otherwise keep the old one for minutes.
+      void queries.invalidateQueries({ queryKey: ['tenants'] })
     },
     onError: (error) => {
       onSaved(false)
@@ -234,11 +252,34 @@ function LetterheadForm({
         autoComplete={autoComplete ?? 'off'}
         readOnly={!mayWrite}
         value={values[field]}
-        placeholder={field === 'companyName' ? view.setUpAs : undefined}
+        placeholder={field === 'companyName' ? businessName.trim() || view.businessName : undefined}
         hint={hint}
         onChange={(event) => {
           onSaved(false)
           setValues({ ...values, [field]: event.target.value })
+        }}
+      />
+    )
+  }
+
+  function businessNameInput() {
+    return (
+      <Field
+        key="businessName"
+        label="Name des Betriebs"
+        name="businessName"
+        // Not "organization": a browser or a password manager fills that in
+        // by itself, and the name of a business is not a company from an
+        // address book (#276).
+        autoComplete="off"
+        maxLength={businessNameMaxLength}
+        readOnly={!mayWrite}
+        value={businessName}
+        hint="Steht oben in der Kopfleiste und bei „Betrieb wählen“."
+        problem={nameProblem ?? undefined}
+        onChange={(event) => {
+          onSaved(false)
+          setBusinessName(event.target.value)
         }}
       />
     )
@@ -254,6 +295,10 @@ function LetterheadForm({
             ? group.rows.map((row) => (
                 <div key={row.fields.join()} className={`grid gap-3 ${row.columns}`}>
                   {row.fields.map((field) => {
+                    if (field === 'businessName') {
+                      return businessNameInput()
+                    }
+
                     const entry = byName.get(field)
 
                     return entry ? input(entry) : null
@@ -273,6 +318,12 @@ function LetterheadForm({
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
+
+        // The field already says why; nothing goes out without a name.
+        if (nameProblem !== null) {
+          return
+        }
+
         save.mutate()
       }}
     >

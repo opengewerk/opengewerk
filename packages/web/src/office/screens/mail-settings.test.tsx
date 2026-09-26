@@ -69,7 +69,7 @@ beforeEach(() => {
     phone: null,
     email: 'info@elektro-nord.example',
     website: null,
-    setUpAs: 'Elektro Nord GmbH',
+    businessName: 'Elektro Nord GmbH',
     logo: null,
   })
 

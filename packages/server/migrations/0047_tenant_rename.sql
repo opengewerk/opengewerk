@@ -1,0 +1,17 @@
+-- The application role may change the name of its own business, and nothing
+-- else about it (#276).
+--
+-- Migration 0007 took INSERT, UPDATE and DELETE on `tenants` away, because a
+-- tenant could rename itself and nothing had asked for that. Now something
+-- does: the first run writes the name, and a name a browser filled in by
+-- itself stayed in the top bar for good, with a psql prompt as the only way
+-- to correct it. The owner renames the business under "Einstellungen",
+-- "Briefkopf", behind `settings.write`.
+--
+-- The grant is cut to the two columns a rename writes. The id stays out of
+-- reach, and so do INSERT and DELETE: creating a business still belongs to the
+-- first run, and a business that could delete its own row would take every
+-- record with it through the foreign keys. The policy on the table keeps the
+-- row to the business of the session, and the audit trigger writes down who
+-- changed the name, like any other change.
+GRANT UPDATE ("name", "updated_at") ON "tenants" TO "opengewerk_app";
