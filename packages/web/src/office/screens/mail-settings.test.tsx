@@ -69,6 +69,11 @@ beforeEach(() => {
     phone: null,
     email: 'info@elektro-nord.example',
     website: null,
+    taxNumber: '22/815/08154',
+    vatId: 'DE123456789',
+    registerCourt: 'Amtsgericht Hamburg',
+    registerNumber: 'HRB 12345',
+    managingDirectors: 'Geschäftsführer: Max Nord',
     businessName: 'Elektro Nord GmbH',
     logo: null,
   })
@@ -265,6 +270,30 @@ describe('the mail server, as the owner sets it up', () => {
     })
     expect(byItself.closest('figure')?.textContent).not.toContain('Christa Chefin')
     expect(byItself.closest('figure')?.textContent).toContain('Elektro Nord GmbH')
+  })
+
+  /**
+   * What a registered business has to name on every mail stands in the
+   * preview as it goes out (#278); the tax number and the bank do not.
+   */
+  it('shows the register and who represents the business under both', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/settings/mail/server', { server: stored })
+    render(inQueries(<MailSettingsScreen />))
+
+    const legal = [
+      'USt-IdNr. DE123456789',
+      'Amtsgericht Hamburg, HRB 12345',
+      'Geschäftsführer: Max Nord',
+    ].join('\n')
+    const byHand = await screen.findByText('Von Ihnen verschickt')
+    const byItself = screen.getByText('Automatisch verschickt')
+
+    await waitFor(() => {
+      expect(byHand.closest('figure')?.textContent).toContain(legal)
+    })
+    expect(byItself.closest('figure')?.textContent).toContain(legal)
+    expect(byItself.closest('figure')?.textContent).not.toContain('22/815/08154')
   })
 
   it('names an unknown placeholder before anything is sent', async () => {
