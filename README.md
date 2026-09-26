@@ -43,16 +43,16 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 **Phase 0**, das Fundament, ist gebaut: Datenmodell, Mandantentrennung über Row-Level Security, Rollen und Rechte, Nummernkreise mit Festschreibung, Audit-Log mit Hashkette, Offline-Datenschicht, Regel-Engine und der Betrieb über Docker Compose mit Sicherung, Rückspielen und Update-Pfad.
 
-**Phase 1**, das MVP für den Pilotbetrieb, ist gebaut; die neueste Fassung ist [0.2.0](https://github.com/opengewerk/opengewerk/releases). Vor dem produktiven Einsatz stehen noch die fachliche Abnahme der Regelpakete und Grenzwerte (#31) und ein Praxistest der E-Rechnung bei einem echten Empfänger (#133). Eine Installation startet mit `sh docker/start.sh`, aus einem Release-Paket mit signierten Abbildern oder aus dem Quelltext, wird im Browser mit dem Einrichtungscode aus `docker/.env` eingerichtet und sichert sich jede Nacht selbst. Stand 25.09.2026 gibt es:
+**Phase 1**, das MVP für den Pilotbetrieb, ist gebaut; die neueste Fassung ist [0.3.0](https://github.com/opengewerk/opengewerk/releases). Vor dem produktiven Einsatz stehen noch die fachliche Abnahme der Regelpakete und Grenzwerte (#31) und ein Praxistest der E-Rechnung bei einem echten Empfänger (#133). Eine Installation startet mit `sh docker/start.sh`, aus einem Release-Paket mit signierten Abbildern oder aus dem Quelltext, wird im Browser mit dem Einrichtungscode aus `docker/.env` eingerichtet und sichert sich jede Nacht selbst. Stand 26.09.2026 gibt es:
 
 - **Büro und Baustelle aus einer Anwendung**, die Baustelle ohne Netz: Anmeldung mit zweitem Faktor und Wiederherstellungscodes, weitere Zugänge per Einladungslink, die Rollen Inhaber, Büro und Monteur. Das Gerät eines Monteurs hält nur die Aufträge, auf denen er eingeteilt ist, und was auf ihm entsteht, geht beim nächsten Abgleich hinaus, auch nach einem ganzen Tag ohne Netz.
 - **Kunden, Objekte, Anlagen und Aufträge**: Kunden mit Land und Ansprechpartnern, Aufträge mit eigener Nummer, Folgeaufträgen und Notizen von der Baustelle, Aufgaben mit Erinnerung per E-Mail, eine Dokumentenablage mit Fotos von der Baustelle.
 - **Belege**: Angebot, Kostenvoranschlag und Auftragsbestätigung mit Titeln, Texten und Textbausteinen. Der Regiebericht, auf der Baustelle geschrieben, mit Feldern, die der Betrieb ihm gibt, und vom Kunden auf dem Gerät unterschrieben. Rechnungen mit kumulierten Abschlägen, einer Schlussrechnung, die abzieht, was eingegangen ist, der Sammelrechnung über die Regieberichte eines Auftrags und Storno. Jeder Beleg wird festgeschrieben, mit Zeitpunkt und Person, als PDF mit dem Briefkopf des Betriebs gedruckt und auf Wunsch direkt per E-Mail verschickt, an ein Unternehmen als E-Rechnung, als XRechnung oder ZUGFeRD-PDF.
-- **Recht und Steuern**: die Pflichtangaben nach § 14 UStG vor dem Festschreiben, Kleinunternehmerregelung, Ist-Versteuerung, der Nullsteuersatz für Photovoltaik, das Zahlungsziel mit dem Hinweis nach § 271a BGB und an jedem Angebot an einen Verbraucher Widerrufsbelehrung, Formular und Hinweise zum Erlöschen. Die Regelpakete warten auf die fachkundige Abnahme in #31.
+- **Recht und Steuern**: die Pflichtangaben nach § 14 UStG vor dem Festschreiben, Kleinunternehmerregelung, Ist-Versteuerung, der Nullsteuersatz für Photovoltaik, das Zahlungsziel mit dem Hinweis nach § 271a BGB, an jedem Angebot an einen Verbraucher Widerrufsbelehrung, Formular und Hinweise zum Erlöschen und unter jeder E-Mail die Pflichtangaben auf Geschäftsbriefen. Die Regelpakete warten auf die fachkundige Abnahme in #31.
 - **Zeiterfassung** auf der Baustelle, mit der Aufbewahrung nach § 17 MiLoG und Warnungen nach dem Arbeitszeitgesetz.
 - **Elektro**: die Struktur einer Anlage mit Verteilern, Feldern, Stromkreisen und Betriebsmitteln, das Stromkreisverzeichnis für die Verteilertür als PDF und das Prüfprotokoll der Erstprüfung nach DIN VDE 0100-600 über die Formular-Engine, je Stromkreis gemessen, mit Grenzwerten und Fundstellen und vom Prüfer auf dem Gerät unterschrieben.
 - **Eine Oberfläche nach den Vorlagen im Canvas**: zuerst hell, dunkel als Wahl je Gerät; im Büro Kopfzeile und Navigation, am Telefon hinter "Menü"; auf der Baustelle Reiter unten, ein Menü von unten und auf dem Tablet eine Leiste links. Jeder Bildschirm folgt seiner Tafel, mit eigenen Listen für Kunden, Objekte, Anlagen, Aufträge und Belege, und auf dem Tablet quer stehen Aufträge und Auftrag nebeneinander. Keine Seite ist breiter als ihr Fenster, von 320 bis 3840 Pixel, das prüft die CI bei jedem Pull Request. Was sich nicht zurücknehmen lässt, fragt vorher nach.
-- **Einstellungen im Büro** statt in der `.env`: Briefkopf, Steuern, Nummernkreise, Zahlungsziel, Belehrungen, Felder des Regieberichts, Mailserver, Zugänge und die letzte Sicherung.
+- **Einstellungen im Büro** statt in der `.env`: Briefkopf mit dem Namen des Betriebs, Steuern, Nummernkreise, Zahlungsziel, Belehrungen, Felder des Regieberichts, Mailserver, Zugänge und die letzte Sicherung.
 
 Wie das im Einzelnen gebaut ist, steht in den Kapiteln unter "Entwicklung". Was noch fehlt, steht im [Meilenstein Phase 1](https://github.com/opengewerk/opengewerk/milestone/2), die Reihenfolge im Fahrplan in Abschnitt 10 der Feature-Gliederung.
 
@@ -569,7 +569,7 @@ auch dann laufen muss, wenn die Anwendung es nicht tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
 `curl http://127.0.0.1:23700/health` antwortet mit
-`{"status":"bereit","database":true,"version":"0.2.0"}`, aus einem Checkout mit
+`{"status":"bereit","database":true,"version":"0.3.0"}`, aus einem Checkout mit
 `"version":null`. Dieselbe Fassung steht im Fuß der Anmeldung (#259). Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 

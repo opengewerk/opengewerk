@@ -7,6 +7,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-26
+
+Die dritte Fassung, klein und aus der ersten Einrichtung einer echten Instanz mit 0.2.0 entstanden.
+Der Name des Betriebs lässt sich jetzt unter "Einstellungen", "Briefkopf" ändern, und die Signatur
+unter jeder E-Mail trägt, was ein eingetragener Betrieb auf Geschäftsbriefen angeben muss.
+
+Wer 0.2.0 betreibt, aktualisiert mit dem Paket dieser Fassung; Migration 0047 läuft dabei von selbst.
+Wie bei den Fassungen davor fehlen vor dem produktiven Einsatz die fachliche Abnahme der Regelpakete
+und der Grenzwerte des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133).
+
 ### Hinzugefügt
 
 - Der Name des Betriebs lässt sich ändern, unter "Einstellungen", "Briefkopf" in der Karte
