@@ -1,4 +1,6 @@
 import {
+  type DeadlineId,
+  type DeadlineRegistry,
   type DocumentId,
   type InvitationId,
   type IssuerContent,
@@ -8,13 +10,14 @@ import {
   type TaskId,
   type TenantId,
 } from '@opengewerk/domain'
-import { and, eq, gte, isNull, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm'
 
 import { accountsOf, stillOpen } from '../authentication/administration.js'
 import type { Database, TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import {
   customers,
+  deadlines,
   documents,
   documentSignatures,
   invitations,
@@ -25,8 +28,12 @@ import {
   sites,
   tasks,
 } from '../database/schema/index.js'
+import { deadlineKinds } from '../deadlines/registry.js'
+import { responsibleFor } from '../deadlines/responsible.js'
+import { settingsOf } from '../deadlines/settings.js'
 import { contentOf, frozenContent, issuerOf } from '../documents/content.js'
 import {
+  deadlineDueMessage,
   type DocumentAttachment,
   documentMessage,
   invitationMessage,
@@ -86,11 +93,23 @@ export type Notification =
       readonly invitationId: InvitationId
       readonly requestedBy: string
     }
+  | {
+      /**
+       * A deadline that has come within its lead, of a kind that reminds by
+       * mail (#283). The engine marks it reminded for its due day; the
+       * message goes once per due day, like a task once per day it is due.
+       */
+      readonly kind: 'deadline_due'
+      readonly deadlineId: DeadlineId
+      readonly dueOn: IsoDate
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
   /** The first trusted origin, for links back into the instance. */
   readonly origin: string
+  /** The kinds of deadline, the instance's own unless a test brings others. */
+  readonly deadlineKinds?: DeadlineRegistry
 }
 
 /**
@@ -132,6 +151,8 @@ export function causeOf(notification: Notification): string {
       return `report_signed:${notification.documentId}`
     case 'invitation':
       return `invitation:${notification.invitationId}`
+    case 'deadline_due':
+      return `deadline_due:${notification.deadlineId}:${notification.dueOn}`
   }
 }
 
@@ -208,6 +229,65 @@ export async function dueTasks(
 }
 
 /**
+ * How far back a reminder counts, like a signature for the report sent on
+ * signing: the job looks every minute, and the margin is for an instance
+ * that was down for a night. Switching mail on does not send a pile of old
+ * reminders.
+ */
+const remindersWithinHours = 48
+
+/**
+ * The deadlines reminded lately whose kind reminds by mail and whose message
+ * has not been written, as notifications (#283).
+ *
+ * The engine marks a deadline reminded for its due day when its lead comes,
+ * whether or not the business has a mail server; this job writes the message
+ * only for a business that has one, the same way it does for a task.
+ */
+export async function dueDeadlines(
+  database: Database,
+  tenantId: TenantId,
+  now: Date,
+  registry: DeadlineRegistry = deadlineKinds,
+): Promise<readonly Notification[]> {
+  const mailing = registry.kinds.filter((kind) => kind.actions.includes('mail'))
+
+  if (mailing.length === 0) {
+    return []
+  }
+
+  const since = new Date(now.getTime() - remindersWithinHours * 3_600_000)
+
+  const rows = await database.forTenant({ tenantId, reason: 'notification' }, (tx) =>
+    tx
+      .select({ id: deadlines.id, dueOn: deadlines.dueOn })
+      .from(deadlines)
+      .where(
+        and(
+          eq(deadlines.status, 'open'),
+          inArray(
+            deadlines.kind,
+            mailing.map((kind) => kind.key),
+          ),
+          eq(deadlines.remindedFor, deadlines.dueOn),
+          gte(deadlines.remindedAt, since),
+          sql`not exists (
+            select 1 from ${mailOutbox}
+             where ${mailOutbox.tenantId} = ${deadlines.tenantId}
+               and ${mailOutbox.cause} = 'deadline_due:' || ${deadlines.id}::text || ':' || to_char(${deadlines.dueOn}, 'YYYY-MM-DD')
+          )`,
+        ),
+      ),
+  )
+
+  return rows.map((row) => ({
+    kind: 'deadline_due' as const,
+    deadlineId: row.id,
+    dueOn: row.dueOn as IsoDate,
+  }))
+}
+
+/**
  * Turns a notification into a message in the outbox, or into nothing.
  *
  * The only place a message is written. It decides who is told and what the
@@ -238,6 +318,8 @@ export async function notify(
       return signedReport(database, tenantId, notification)
     case 'invitation':
       return invitationByMail(database, tenantId, notification)
+    case 'deadline_due':
+      return deadlineDue(database, tenantId, notification, context)
   }
 }
 
@@ -617,6 +699,117 @@ async function invitationByMail(
         replyTo: found.issuer.email,
         recipientAddress: found.invitation.email,
         recipientName: found.invitation.name,
+        subject: text.subject,
+        body: text.body,
+      })
+      .onConflictDoNothing({ target: [mailOutbox.tenantId, mailOutbox.cause] })
+      .returning({ id: mailOutbox.id }),
+  )
+
+  return written.map((row) => row.id)
+}
+
+/**
+ * A deadline on its way to whoever answers for it.
+ *
+ * Only an open one, still due on the day it was reminded for, and only of a
+ * kind that reminds by mail. It goes to the person its task went to, or, for
+ * a kind without a task, to the person the settings name now; somebody
+ * blocked in the meantime is passed over for the next one, in the end the
+ * owner. Sent by nobody, like a task that fell due.
+ */
+async function deadlineDue(
+  database: Database,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'deadline_due' }>,
+  context: NotifyContext,
+): Promise<readonly string[]> {
+  const registry = context.deadlineKinds ?? deadlineKinds
+  const actor = { tenantId, reason: 'notification' }
+
+  const found = await database.forTenant(actor, async (tx) => {
+    const [deadline] = await tx
+      .select()
+      .from(deadlines)
+      .where(eq(deadlines.id, notification.deadlineId))
+    const kind = deadline ? registry.kind(deadline.kind) : null
+
+    if (
+      !deadline ||
+      !kind ||
+      !kind.actions.includes('mail') ||
+      deadline.status !== 'open' ||
+      deadline.dueOn !== notification.dueOn ||
+      deadline.remindedFor !== deadline.dueOn
+    ) {
+      return null
+    }
+
+    const [task] = deadline.taskId
+      ? await tx
+          .select({ assignee: tasks.assigneeUserId })
+          .from(tasks)
+          .where(eq(tasks.id, deadline.taskId))
+      : []
+    const setting = (await settingsOf(tx)).get(kind.key) ?? null
+    const recipient = await responsibleFor(tx, tenantId, kind, setting, {
+      responsibleUserId: task?.assignee ?? deadline.responsibleUserId,
+      naturalUserId: deadline.naturalUserId,
+    })
+    const [customer] = deadline.customerId
+      ? await tx
+          .select({ name: customers.name })
+          .from(customers)
+          .where(eq(customers.id, deadline.customerId))
+      : []
+    const issuer = await issuerOf(tx, tenantId)
+
+    return {
+      deadline,
+      kind,
+      recipient,
+      customer: customer?.name ?? null,
+      issuer,
+      signature: await signatureFor(tx, tenantId, issuer, null),
+    }
+  })
+
+  if (!found || found.recipient === null) {
+    return []
+  }
+
+  // The address lives with the account, on the instance, asked for exactly
+  // the one identifier the business gave.
+  const account = (await accountsOf(database, [found.recipient], '')).get(found.recipient)
+
+  if (!account) {
+    return []
+  }
+
+  const text = deadlineDueMessage({
+    deadline: {
+      kind: found.kind.title,
+      source: found.deadline.sourceLabel,
+      dueOn: found.deadline.dueOn,
+      customer: found.customer,
+    },
+    recipientName: account.name,
+    origin: context.origin,
+    signature: found.signature,
+  })
+
+  const written = await database.forTenant(actor, (tx) =>
+    tx
+      .insert(mailOutbox)
+      .values({
+        tenantId,
+        kind: 'deadline_due',
+        cause: causeOf(notification),
+        deadlineId: found.deadline.id,
+        senderName: found.issuer.name,
+        replyTo: found.issuer.email,
+        recipientAddress: account.email,
+        recipientName: account.name,
         subject: text.subject,
         body: text.body,
       })

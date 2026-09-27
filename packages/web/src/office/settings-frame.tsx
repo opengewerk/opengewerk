@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
+  CalendarClock,
   Check,
   ChevronLeft,
   Clock,
@@ -69,6 +70,13 @@ export function useSettingsEntries(): readonly SettingsEntry[] {
             title: 'Zahlungsziel',
             about: 'Wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben für jeden Beleg.',
             icon: Clock,
+          },
+          {
+            key: 'fristen',
+            to: '/einstellungen/fristen',
+            title: 'Fristen',
+            about: 'Wann an Fristen erinnert wird und wer sie bekommt, je Art.',
+            icon: CalendarClock,
           },
           {
             key: 'belehrungen',

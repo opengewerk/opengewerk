@@ -83,6 +83,15 @@ export const permissions = [
   'task.read',
   'task.write',
   /**
+   * The deadlines of the business (#283), read in the list "Fristen" and
+   * changed there: marked done, or given a lead or a person of their own. Not
+   * created by anybody, a deadline follows from its source. The owner and the
+   * office have both; a technician gets what a deadline asks of them as a task
+   * and does not need the list, which names every customer with something due.
+   */
+  'deadline.read',
+  'deadline.write',
+  /**
    * The files in the business's records (#77), one right to read and one to
    * add and remove. Not narrowed to one subject: a photo taken on site belongs
    * to the job, the installation and the customer at once, and whoever may
@@ -169,6 +178,8 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'payment.write': 'Zahlungseingänge erfassen',
   'task.read': 'Aufgaben ansehen',
   'task.write': 'Aufgaben bearbeiten',
+  'deadline.read': 'Fristen ansehen',
+  'deadline.write': 'Fristen bearbeiten',
   'attachment.read': 'Dateien ansehen',
   'attachment.write': 'Dateien ablegen',
   'time.read': 'Die Arbeitszeiten anderer ansehen',
@@ -230,6 +241,8 @@ const officePermissions: readonly Permission[] = [
   'payment.write',
   'task.read',
   'task.write',
+  'deadline.read',
+  'deadline.write',
   'attachment.read',
   'attachment.write',
   'time.read',

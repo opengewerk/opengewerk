@@ -22,6 +22,7 @@ import { invitationLinks } from './mail/invitation-link.js'
 import { passwordResetMails } from './mail/password-reset.js'
 import { reachableOnly } from './mail/reach.js'
 import { smtpTransport } from './mail/transport.js'
+import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { SecretKey } from './secrets/key.js'
 import { FileStore } from './storage/file-store.js'
@@ -170,6 +171,7 @@ async function start(): Promise<void> {
   // pool closes; the other way round the requests still in flight would lose
   // their connection.
   let mailWorker: { readonly stop: () => Promise<void> } | null = null
+  let deadlineWorker: { readonly stop: () => Promise<void> } | null = null
 
   const stop = async (signal: NodeJS.Signals): Promise<void> => {
     console.info(`${signal} empfangen, OpenGewerk fährt herunter.`)
@@ -179,6 +181,8 @@ async function start(): Promise<void> {
       // message is not sent and then forgotten because the pool closed
       // before the row could say so.
       await mailWorker?.stop()
+      // The deadlines likewise: a reminder that has its mark gets its task.
+      await deadlineWorker?.stop()
       await application.close()
       await database.close()
     } catch (error) {
@@ -194,6 +198,13 @@ async function start(): Promise<void> {
   }
 
   await application.listen(configuration.port, configuration.host)
+
+  // The deadline engine runs on every instance that is open, with or without
+  // a mail server: a reminder is a task first, and a message only where the
+  // business can send one (#283).
+  if (!configuration.closed) {
+    deadlineWorker = startDeadlineWorker({ database })
+  }
 
   if (mail) {
     mailWorker = startMailWorker({

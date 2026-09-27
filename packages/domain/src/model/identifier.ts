@@ -45,6 +45,8 @@ export type AttachmentVersionId = Id<'attachment-version'>
 export type TimeEntryId = Id<'time-entry'>
 export type LocationConsentId = Id<'location-consent'>
 export type JobNoteId = Id<'job-note'>
+export type DeadlineId = Id<'deadline'>
+export type DeadlineSettingId = Id<'deadline-setting'>
 
 /**
  * Every record carries the tenant it belongs to and when it was written. The

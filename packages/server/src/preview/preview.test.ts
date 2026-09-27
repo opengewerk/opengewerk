@@ -172,13 +172,21 @@ describe('the sample data', () => {
       }[]
     >('/documents')
     const byKind = new Map(documents.map((document) => [document.kind, document]))
+    const confirmation = byKind.get('order_confirmation')
+    const quote = documents.find((document) => document.id === confirmation?.predecessorDocumentId)
 
-    expect(byKind.get('quote')).toMatchObject({ status: 'issued' })
-    expect(byKind.get('quote')?.number).toMatch(/\d/)
-    expect(byKind.get('order_confirmation')).toMatchObject({
-      status: 'issued',
-      predecessorDocumentId: byKind.get('quote')?.id,
-    })
+    expect(quote).toMatchObject({ kind: 'quote', status: 'issued' })
+    expect(quote?.number).toMatch(/\d/)
+    expect(confirmation).toMatchObject({ status: 'issued' })
+    // And a second quote that nothing has followed, for the list "Fristen" (#283).
+    expect(
+      documents.filter(
+        (document) =>
+          document.kind === 'quote' &&
+          document.status === 'issued' &&
+          !documents.some((other) => other.predecessorDocumentId === document.id),
+      ),
+    ).toHaveLength(1)
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
     // The report signed on site and waiting in the office, and the two days of
     // work in the stairwell that one invoice can bill (#135).

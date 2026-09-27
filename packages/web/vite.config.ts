@@ -64,6 +64,7 @@ export default defineConfig({
         '/installations',
         '/jobs',
         '/tasks',
+        '/deadlines',
         '/files',
         '/attachments',
         '/form-records',

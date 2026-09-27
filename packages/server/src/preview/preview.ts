@@ -3,6 +3,7 @@ import 'reflect-metadata'
 import type { Identity, IsoDate } from '@opengewerk/domain'
 
 import { Database } from '../database/database.js'
+import { runDeadlineCycle, startDeadlineWorker } from '../deadlines/engine.js'
 import { newId } from '../database/identifier.js'
 import { applicationDatabaseUrl } from '../database/test-database.js'
 import { interfacePath } from '../interface.js'
@@ -66,9 +67,18 @@ async function start(): Promise<void> {
 
   await plantSampleData(address, today())
 
+  // The deadlines follow what was just planted, once at once and then every
+  // minute like on an installation, so that the list "Fristen" has its open
+  // quote and a change made in the preview shows there too (#283).
+  await runDeadlineCycle({ database })
+  const deadlines = startDeadlineWorker({ database })
+
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, () => {
-      void application.close().then(() => database.close())
+      void deadlines
+        .stop()
+        .then(() => application.close())
+        .then(() => database.close())
     })
   }
 

@@ -7,6 +7,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Die Fristen-Engine (#283), an der die meisten Issues von Phase 2 hängen: Eine Frist entsteht von
+  selbst aus ihrer Quelle, erinnert zu ihrem Vorlauf und folgt der Quelle, wenn die sich ändert,
+  damit niemand eine Wartung, eine Prüfung oder ein offenes Angebot im Kopf behalten muss. Die
+  erste Art ist die Wiedervorlage eines Angebots, das festgeschrieben ist und auf das noch kein
+  Beleg folgt: nach 14 Tagen bekommt, wer es festgeschrieben hat, die Aufgabe "Angebot …
+  nachfassen", und folgt eine Auftragsbestätigung oder Rechnung, entfällt die Frist. Im Büro
+  stehen unter "Fristen" alle nach Fälligkeit, mit eigenem Vorlauf und eigener Person je Frist;
+  unter "Einstellungen", "Fristen" setzt der Betrieb Intervall, Vorlauf und Person je Art (Rechte
+  `deadline.read` und `deadline.write`, Migration 0049). Die Arten sind Daten, damit die Pakete
+  der Gewerke eigene mitbringen. Von ihren vier Aktionen, Aufgabe, E-Mail, Serviceauftrag und
+  Statuswechsel, führt die Engine jede genau einmal aus, in derselben Transaktion wie die
+  Markierung als erinnert, und erinnert ab sechs Uhr morgens, wie bei einer fälligen Aufgabe.
+
 ### Geändert
 
 - Die Feature-Gliederung (v2.24) trägt die Entscheidungen vor dem Bau von Phase 2 ein, getroffen

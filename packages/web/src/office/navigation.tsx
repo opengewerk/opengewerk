@@ -3,6 +3,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
   Calendar,
+  CalendarClock,
   Clock,
   File,
   House,
@@ -72,6 +73,7 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
   // Whoever reads documents reads the texts they are written from.
   const readsDocuments = useMay('document.read')
   const readsTasks = useMay('task.read')
+  const readsDeadlines = useMay('deadline.read')
   const readsTime = useMay('time.read')
   const mine = useOpenTasksOfMine()
   const drafts = useRecords('documents').filter(
@@ -138,6 +140,7 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
               },
             ]
           : []),
+        ...(readsDeadlines ? [{ to: '/fristen', label: 'Fristen', icon: CalendarClock }] : []),
         ...(readsTime ? [{ to: '/zeiten', label: 'Zeiterfassung', icon: Clock }] : []),
       ],
     },

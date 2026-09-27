@@ -83,6 +83,49 @@ export function taskDueMessage(facts: {
   return { subject: `Heute fällig: ${task.title}`, body }
 }
 
+/** What a deadline that has come within its lead is about, gathered by the caller. */
+export interface DueDeadline {
+  /** What the kind is called: "Wiedervorlage eines Angebots". */
+  readonly kind: string
+  /** What its source is called: "A-2026-0091". */
+  readonly source: string
+  readonly dueOn: string
+  readonly customer: string | null
+}
+
+/**
+ * The note to whoever answers for a deadline, sent when it comes within its
+ * lead (#283). Like the one about a task: what, by when, for which customer,
+ * and the way to the list; the deadline is the message.
+ */
+export function deadlineDueMessage(facts: {
+  readonly deadline: DueDeadline
+  readonly recipientName: string | null
+  /** Where the instance is reached, for the link to the list. */
+  readonly origin: string
+  readonly signature: string
+}): MessageText {
+  const { deadline } = facts
+  const body = [
+    facts.recipientName ? `Hallo ${facts.recipientName},` : 'Hallo,',
+    '',
+    `am ${germanDate(deadline.dueOn)} ist diese Frist fällig:`,
+    '',
+    `${deadline.kind}: ${deadline.source}`,
+    ...(deadline.customer ? ['', `Kunde: ${deadline.customer}`] : []),
+    '',
+    `Alle Fristen: ${facts.origin}/fristen`,
+    '',
+    '-- ',
+    facts.signature,
+  ].join('\n')
+
+  return {
+    subject: `Frist am ${germanDate(deadline.dueOn)}: ${deadline.kind}, ${deadline.source}`,
+    body,
+  }
+}
+
 /**
  * A document as the object of a sentence: "erhalten Sie die Rechnung". A final
  * invoice that closes a row of progress invoices is "die Schlussrechnung",
