@@ -107,7 +107,7 @@ describe('the destination of a mail server', () => {
       const refused = await refusal(destinationOf(settings({ host }), nobody, names))
 
       expect(refused.code).toBe('EDESTINATION')
-      expect(refused.message).toContain('MAIL_INTERNAL_HOSTS')
+      expect(refused.message).toContain('Mailserver im eigenen Netz')
       expect(refused.permanent).toBe(true)
     }
   })

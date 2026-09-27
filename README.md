@@ -54,7 +54,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 - **Eine Oberfläche nach den Vorlagen im Canvas**: zuerst hell, dunkel als Wahl je Gerät; im Büro Kopfzeile und Navigation, am Telefon hinter "Menü"; auf der Baustelle Reiter unten, ein Menü von unten und auf dem Tablet eine Leiste links. Jeder Bildschirm folgt seiner Tafel, mit eigenen Listen für Kunden, Objekte, Anlagen, Aufträge und Belege, und auf dem Tablet quer stehen Aufträge und Auftrag nebeneinander. Keine Seite ist breiter als ihr Fenster, von 320 bis 3840 Pixel, das prüft die CI bei jedem Pull Request. Was sich nicht zurücknehmen lässt, fragt vorher nach.
 - **Einstellungen im Büro** statt in der `.env`: Briefkopf mit dem Namen des Betriebs, Steuern, Nummernkreise, Zahlungsziel, Fristen, Belehrungen, Felder des Regieberichts, Mailserver, Zugänge und die letzte Sicherung.
 
-**Phase 2**, der Kern für Elektro und PV, wird seit dem 27.09.2026 gebaut, Issue für Issue im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3). Dazugekommen sind bisher die Fristen-Engine (#283) mit ihrer ersten Art, der Wiedervorlage eines Angebots, dem niemand geantwortet hat, Push-Nachrichten auf die Geräte der Leute im Betrieb (#284) und das Änderungsprotokoll für den Inhaber im Büro (#285).
+**Phase 2**, der Kern für Elektro und PV, wird seit dem 27.09.2026 gebaut, Issue für Issue im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3). Dazugekommen sind bisher die Fristen-Engine (#283) mit ihrer ersten Art, der Wiedervorlage eines Angebots, dem niemand geantwortet hat, Push-Nachrichten auf die Geräte der Leute im Betrieb (#284), das Änderungsprotokoll für den Inhaber im Büro (#285) und ein Bereich für die Betreiber der Instanz (#188) mit weiteren Betrieben auf einer Instanz (#142) und dem Wechsel zwischen ihnen ohne neue Anmeldung (#242).
 
 Wie das im Einzelnen gebaut ist, steht in den Kapiteln unter "Entwicklung". Was noch fehlt, steht in den Meilensteinen, für Phase 1 im [Meilenstein Phase 1](https://github.com/opengewerk/opengewerk/milestone/2) und für Phase 2 im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3), die Reihenfolge im Fahrplan in Abschnitt 10 der Feature-Gliederung.
 
@@ -769,13 +769,72 @@ lautet dann "getaddrinfo ENOTFOUND", und darauf kommt niemand von selbst.
 `openssl rand -base64` liefert regelmäßig beide Zeichen. OpenGewerk erkennt
 diesen Fall beim Start und sagt, woran es liegt.
 
+### Der Bereich der Instanz und weitere Betriebe
+
+Was keinem Betrieb gehört, sondern der Instanz, steht in einem eigenen Bereich
+(#188): unter dem Namen oben rechts über "Instanz verwalten", unter `/instanz`.
+Dort stehen die Betriebe der Instanz, die Mailserver im eigenen Netz, die ein
+Betrieb benutzen darf, die Uhrzeit der nächtlichen Sicherung, wer die Instanz
+betreibt, und ein Protokoll jeder Änderung daran. Aus einem Betrieb sieht der
+Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber und die Zahl der
+Zugänge, nichts, was in ihm steht.
+
+**Betreiber ist das Konto der Ersteinrichtung**, in derselben Transaktion wie
+Betrieb und Konto. Auf einer Instanz, die schon vorher lief, findet Migration
+0051 dieses Konto im Protokoll des ersten Betriebs. Weitere benennt ein
+Betreiber unter "Betreiber", und von der Kommandozeile geht es auch, etwa auf
+einer Instanz, deren Betreiber sich ausgesperrt haben:
+
+```bash
+docker compose -f docker/compose.yaml exec app node dist/appoint-operator.js inhaber@betrieb.de
+```
+
+Das Konto muss es schon geben. Für den Bereich ist ein zweiter Faktor Pflicht
+wie für den Inhaber, und ein Inhaber erreicht ihn nicht, nur weil er Inhaber
+ist. Sich selbst und den letzten Betreiber entfernt niemand.
+
+**Einen weiteren Betrieb** (#142) legt ein Inhaber unter "Konto", "Betriebe"
+für sich selbst an und ist dort sofort Inhaber, mit dem zweiten Faktor, den er
+schon hat; das Recht heißt `tenant.create`. Für jemand anderen legt ihn ein
+Betreiber im Bereich der Instanz an, mit einem Einladungslink, der die Person
+zum Inhaber macht und wie jede Einladung einmal und sieben Tage gilt. Ohne
+Browser geht es auf der Kommandozeile, und das Passwort eines neuen Kontos
+fragt der Befehl verdeckt ab wie `add-staff`:
+
+```bash
+docker compose -f docker/compose.yaml exec app node dist/add-tenant.js "Elektro Weber OHG" anna@elektro-weber.de "Anna Weber"
+```
+
+Ein neuer Betrieb startet leer wie nach der Ersteinrichtung. Angelegt wird er
+von der Funktion `create_tenant` in der Datenbank, denn die Anwendungsrolle
+darf in `tenants` keine Zeile schreiben; für den Namen gilt dieselbe Regel wie
+bei der Ersteinrichtung und unter "Briefkopf".
+
+**Gewechselt wird ohne neue Anmeldung** (#242), in der Kopfleiste, im Menü am
+Telefon und unter "Konto", sobald eine Person mehr als einen Betrieb hat. Der
+Wechsel schickt vorher hinaus, was im Postausgang des ersten Betriebs wartet,
+beendet die Arbeit dort in dessen Protokoll und startet die Seite im anderen
+Betrieb neu, mit dessen lokaler Ablage. Jede Anfrage einer Seite nennt im Kopf
+`X-OpenGewerk-Tenant` den Betrieb, in dem sie arbeitet, und der Server lehnt
+sie ab, wenn die Sitzung inzwischen in einem anderen steht: ein zweiter Tab,
+der nach einem Wechsel noch im alten Betrieb steht, schickt seinen Postausgang
+so nicht in den neuen, sondern fragt neu und lädt den Betrieb der Sitzung.
+
+**Das Protokoll der Instanz** steht in `instance_changes`, geschrieben vom
+Trigger `record_instance_change` an `instance_operators`, `instance_settings`
+und `tenants`, mit Person und Weg wie im Audit-Log eines Betriebs, aber ohne
+Hashkette: es gehört keinem Betrieb, und eine Kette je Betrieb schützt dort
+nichts. Ändern und Löschen sind wie beim Audit-Log gesperrt. Die Routen des
+Bereichs liegen unter `/instance`, und ein Test hält fest, dass jede, die einen
+Betreiber verlangt, dort liegt und nichts sonst verlangt.
+
 ### E-Mail
 
 In der `.env` steht dafür höchstens eine Zeile, und meist bleibt sie leer. Jeder Betrieb richtet seinen Mailserver im Büro unter "E-Mail-Einstellungen" ein, mit seinem eigenen Postfach und seiner eigenen Anmeldung; wie das aussieht, steht oben unter "Benachrichtigung per E-Mail und Push". Wer die Instanz betreibt, muss dafür nur eines wissen: das Passwort eines Postfachs wird unter einem Schlüssel aus `SESSION_SECRET` versiegelt. Das ist ein Grund mehr, warum dieser Wert in die Sicherung gehört. Wird er getauscht, müssen alle Betriebe ihr Passwort unter "E-Mail-Einstellungen" neu eingeben, bis dahin warten ihre Nachrichten.
 
-`STARTTLS` verlangt die Verschlüsselung, statt sie nur anzunehmen: ein Server, der auf Port 587 ohne antwortet, bekommt kein Passwort im Klartext. `TLS` ist Port 465, "Keine" ist für einen Relay auf derselben Maschine oder im selben Netz, der dafür in `MAIL_INTERNAL_HOSTS` steht. Eine geschlossene Instanz (`CLOSED=true`) verschickt nichts.
+`STARTTLS` verlangt die Verschlüsselung, statt sie nur anzunehmen: ein Server, der auf Port 587 ohne antwortet, bekommt kein Passwort im Klartext. `TLS` ist Port 465, "Keine" ist für einen Relay auf derselben Maschine oder im selben Netz, der dafür im Bereich der Instanz freigegeben ist. Eine geschlossene Instanz (`CLOSED=true`) verschickt nichts.
 
-**Ein Mailserver im eigenen Netz braucht die Freigabe des Betreibers.** OpenGewerk verbindet sich nur mit Mailservern im Internet, und nur auf den Ports für E-Mail: 25, 465, 587 und die Ausweichports 2465, 2525 und 2587. Ein Server unter einer internen Adresse, also diese Maschine, das eigene Netz oder ein Dienst der Instanz wie die Datenbank, wird abgelehnt, bei "Verbindung prüfen" wie beim Versand. Der Name wird dafür einmal aufgelöst, und die Verbindung geht genau an die geprüfte Adresse; das Zertifikat wird weiter gegen den Namen geprüft. Wer einen Mailserver im eigenen Netz betreibt, trägt ihn in `MAIL_INTERNAL_HOSTS` ein, mit Namen oder Adresse, durch Komma getrennt, und für diese Server gilt dann jeder Port. Das steht in der `.env` und nicht im Büro, denn es ist eine Grenze der Instanz und keine Einstellung eines Betriebs: auf einer Instanz mit mehreren Betrieben öffnete sonst jeder Inhaber das Netz des Betreibers für sich. Eine Prüfung sagt, welche Art Fehler es war, und nennt die drei Ziffern einer SMTP-Antwort, nie den Text, den das Gegenüber geschickt hat; und ein Betrieb kann die Verbindung höchstens dreißigmal in zehn Minuten prüfen.
+**Ein Mailserver im eigenen Netz braucht die Freigabe des Betreibers.** OpenGewerk verbindet sich nur mit Mailservern im Internet, und nur auf den Ports für E-Mail: 25, 465, 587 und die Ausweichports 2465, 2525 und 2587. Ein Server unter einer internen Adresse, also diese Maschine, das eigene Netz oder ein Dienst der Instanz wie die Datenbank, wird abgelehnt, bei "Verbindung prüfen" wie beim Versand. Der Name wird dafür einmal aufgelöst, und die Verbindung geht genau an die geprüfte Adresse; das Zertifikat wird weiter gegen den Namen geprüft. Wer einen Mailserver im eigenen Netz betreibt, gibt ihn im Bereich der Instanz frei, unter "Einstellungen", "Mailserver im eigenen Netz", mit Namen oder Adresse, einen je Zeile, und für diese Server gilt dann jeder Port. Das steht dort und nicht im Büro eines Betriebs, denn es ist eine Grenze der Instanz: auf einer Instanz mit mehreren Betrieben öffnete sonst jeder Inhaber das Netz des Betreibers für sich. Stand er bisher in `MAIL_INTERNAL_HOSTS` in der `.env`, übernimmt der nächste Start ihn einmal dorthin, neben das, was dort schon steht; danach ändert ein Wert in der `.env` nichts mehr. Eine Prüfung sagt, welche Art Fehler es war, und nennt die drei Ziffern einer SMTP-Antwort, nie den Text, den das Gegenüber geschickt hat; und ein Betrieb kann die Verbindung höchstens dreißigmal in zehn Minuten prüfen.
 
 ### Vier Dienste, und was sie kosten
 
@@ -894,15 +953,19 @@ sehen darf als alles, ist keine.
 
 Eine Sicherung, an die jemand denken muss, fehlt genau an dem Tag, an dem sie
 gebraucht wird (#130). Der Dienst `backup-schedule` startet mit der Instanz und
-sichert jede Nacht um 02:30 Uhr deutscher Zeit, mit demselben `backup.sh` und
-denselben Einstellungen wie die Sicherung von Hand. War der Rechner um diese
-Zeit aus, holt er die Sicherung nach, sobald er wieder läuft, und zwar genau
-einmal: fällig ist sie, wenn die letzte vor dem letzten 02:30 fertig wurde. Ein
-Neustart am Nachmittag sichert deshalb nicht noch einmal.
+sichert jeden Tag zu einer festen Uhrzeit deutscher Zeit, ohne andere Wahl um
+02:30 Uhr, mit demselben `backup.sh` und denselben Einstellungen wie die
+Sicherung von Hand. War der Rechner um diese Zeit aus, holt er die Sicherung
+nach, sobald er wieder läuft, und zwar genau einmal: fällig ist sie, wenn die
+letzte vor dem letzten Termin fertig wurde. Ein Neustart am Nachmittag sichert
+deshalb nicht noch einmal.
 
-**Die Uhrzeit ist fest.** Eine Einstellung dafür gehörte in die Oberfläche, und
-eine Instanz kann mehrere Betriebe tragen; welcher von ihnen stellte die Stunde
-für alle? Bis das eine Antwort hat, ist die Nacht die Antwort.
+**Die Uhrzeit ist eine Einstellung der Instanz** (#188), nicht eines Betriebs:
+eine Instanz kann mehrere Betriebe tragen, und die Stunde für alle legt fest,
+wer die Instanz betreibt, im Bereich der Instanz unter "Einstellungen". Der
+Dienst liest sie vor jeder Prüfung neu aus der Datenbank, eine Änderung gilt
+also nach spätestens fünf Minuten und ohne Neustart; antwortet die Datenbank
+nicht, gilt 02:30.
 
 **Eine Instanz ohne Betrieb sichert der Zeitplan nicht.** Nach einem
 Plattenverlust kommt sie leer zurück, und eine Sicherung davon wäre die neueste,

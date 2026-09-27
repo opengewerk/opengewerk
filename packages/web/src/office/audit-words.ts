@@ -49,6 +49,13 @@ import { documentStateLabel } from '../components/state.js'
 
 type Words = Readonly<Record<string, string>>
 
+/**
+ * What a page brings along to name what its changes point at: records,
+ * people and devices. The log of a business and the log of the instance
+ * (#188) both carry it, and everything here reads nothing else.
+ */
+export type AuditNames = Pick<AuditPage, 'titles' | 'people' | 'devices'>
+
 const numberRangeWords: Readonly<Record<NumberRangeKey, string>> = {
   job: 'Aufträge',
   quote: 'Angebote',
@@ -146,7 +153,7 @@ export function deviceWords(deviceId: string, page: Pick<AuditPage, 'devices'>):
 }
 
 /** What a record is called: its name as the log last had it, or what it is. */
-export function recordTitle(table: string, id: string, page: AuditPage): string {
+export function recordTitle(table: string, id: string, page: AuditNames): string {
   const found = page.titles[id]
 
   if (!found || found.title === null) {
@@ -163,7 +170,7 @@ export function recordTitle(table: string, id: string, page: AuditPage): string 
 }
 
 /** What kind of record it is: for a document its kind, "Angebot", otherwise the table. */
-export function recordKind(table: string, id: string, page: AuditPage): string {
+export function recordKind(table: string, id: string, page: AuditNames): string {
   const kind = page.titles[id]?.kind
 
   if (table === 'documents' && kind) {
@@ -181,7 +188,7 @@ export function auditValue(
   table: string,
   field: string,
   raw: string | null,
-  page: AuditPage,
+  page: AuditNames,
 ): string | null {
   if (raw === null || raw === '') {
     return null
@@ -211,6 +218,18 @@ export function auditValue(
     const keys = keysOf(raw)
 
     return keys ? keys.map((key) => (documentKindLabel as Words)[key] ?? key).join(', ') : raw
+  }
+
+  // The settings of the instance (#188): a list of servers, and a time the
+  // database writes with seconds that nobody set.
+  if (field === 'mail_internal_hosts') {
+    const keys = keysOf(raw)
+
+    return keys ? (keys.length === 0 ? null : keys.join(', ')) : raw
+  }
+
+  if (field === 'backup_time' && /^\d{2}:\d{2}/.test(raw)) {
+    return raw.slice(0, 5)
   }
 
   if (auditPersonFields.has(field)) {
@@ -336,7 +355,7 @@ export function changeSummary(change: AuditChange): string {
 /** Who, from where and on which way, in the line under the person. */
 export function wayWords(
   change: AuditChange,
-  page: AuditPage,
+  page: AuditNames,
 ): {
   readonly person: string | null
   readonly device: string | null

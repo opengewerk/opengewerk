@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { type BackupStatus, backupOverdueAfterHours } from '@opengewerk/domain'
+import { type BackupStatus, backupOverdueAfterHours, defaultBackupTime } from '@opengewerk/domain'
 
 /** What `backup.sh` writes after every backup, as far as the office needs it. */
 interface Record {
@@ -47,11 +47,15 @@ function recordOf(text: string): Record | null {
  * was set up. An hour old, it has no backup yet and is not warned about it; a
  * week old without one, it is. A record that cannot be read counts as none,
  * the same answer an operator gets from a backup that never ran.
+ *
+ * `time` is when the nightly backup runs, from the settings of the instance,
+ * and goes along so that the office names the right hour.
  */
 export async function backupStatus(
   directory: string | null,
   since: Date,
   now: Date = new Date(),
+  time: string = defaultBackupTime,
 ): Promise<BackupStatus> {
   if (directory === null) {
     return { state: 'unknown' }
@@ -63,13 +67,13 @@ export async function backupStatus(
   try {
     text = await readFile(join(directory, 'last.json'), 'utf8')
   } catch {
-    return { state: 'none', overdue: now.getTime() - since.getTime() > limit }
+    return { state: 'none', overdue: now.getTime() - since.getTime() > limit, time }
   }
 
   const record = recordOf(text)
 
   if (record === null) {
-    return { state: 'none', overdue: now.getTime() - since.getTime() > limit }
+    return { state: 'none', overdue: now.getTime() - since.getTime() > limit, time }
   }
 
   return {
@@ -79,5 +83,6 @@ export async function backupStatus(
     bytes: record.bytes,
     encrypted: record.encrypted,
     overdue: now.getTime() - Date.parse(record.finished) > limit,
+    time,
   }
 }

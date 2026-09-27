@@ -67,6 +67,8 @@ export default defineConfig({
         '/deadlines',
         '/push',
         '/audit',
+        '/instance',
+        '/tenants',
         '/files',
         '/attachments',
         '/form-records',

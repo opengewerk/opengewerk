@@ -6,7 +6,12 @@ import { describe, expect, it } from 'vitest'
 import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
 import { Database } from '../database/database.js'
 import { ApiModule } from './api.module.js'
-import { PERMISSION_METADATA, PUBLIC_METADATA, SESSION_METADATA } from './authorization.js'
+import {
+  OPERATOR_METADATA,
+  PERMISSION_METADATA,
+  PUBLIC_METADATA,
+  SESSION_METADATA,
+} from './authorization.js'
 import { noIdentities } from './test-identity.js'
 
 /**
@@ -29,6 +34,7 @@ interface Route {
   readonly permission: Permission | undefined
   readonly isPublic: boolean
   readonly needsSessionOnly: boolean
+  readonly needsOperator: boolean
 }
 
 function routesOf(controllers: readonly unknown[]): Route[] {
@@ -62,6 +68,7 @@ function routesOf(controllers: readonly unknown[]): Route[] {
         permission: Reflect.getMetadata(PERMISSION_METADATA, handler) as Permission | undefined,
         isPublic: Reflect.getMetadata(PUBLIC_METADATA, handler) === true,
         needsSessionOnly: Reflect.getMetadata(SESSION_METADATA, handler) === true,
+        needsOperator: Reflect.getMetadata(OPERATOR_METADATA, handler) === true,
       })
     }
   }
@@ -102,7 +109,11 @@ describe('every route', () => {
   it('declares the right it needs, writing ones above all', () => {
     const undeclared = routesOf(controllers)
       .filter(
-        (route) => route.permission === undefined && !route.isPublic && !route.needsSessionOnly,
+        (route) =>
+          route.permission === undefined &&
+          !route.isPublic &&
+          !route.needsSessionOnly &&
+          !route.needsOperator,
       )
       .map((route) => route.name)
 
@@ -211,9 +222,29 @@ describe('every route', () => {
       'GET /auth/devices',
       'GET /auth/recovery-codes',
       'GET /auth/tenants',
+      'GET /instance/access',
       'POST /auth/sign-out',
       'POST /auth/tenant',
     ])
+  })
+
+  /**
+   * The fourth kind (#188): the area of the instance, for its operators. No
+   * business and no right of a business come into it, so being the owner of
+   * one opens none of these. All of them live under `/instance`, and one
+   * elsewhere would be a route that forgot which business it means.
+   */
+  it('that needs an operator of the instance is in the area of the instance', () => {
+    const operatorRoutes = routesOf(controllers).filter((route) => route.needsOperator)
+
+    expect(operatorRoutes.length).toBeGreaterThanOrEqual(6)
+    expect(operatorRoutes.filter((route) => !/^\w+ \/instance\//.test(route.name))).toEqual([])
+    // And none of them is also something else, which would open it wider.
+    expect(
+      operatorRoutes.filter(
+        (route) => route.isPublic || route.needsSessionOnly || route.permission !== undefined,
+      ),
+    ).toEqual([])
   })
 
   /**

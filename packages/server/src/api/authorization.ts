@@ -8,8 +8,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { isAllowed, missingPermission, type Permission } from '@opengewerk/domain'
+import { isAllowed, missingPermission, type Permission, workingInHeader } from '@opengewerk/domain'
 
+import { Database } from '../database/database.js'
+import { operatorAccess } from '../instance/operators.js'
 import {
   IDENTITY_SOURCE,
   identityProperty,
@@ -18,9 +20,19 @@ import {
   userProperty,
 } from './identity.js'
 
+/** One value of a request header, undefined where it is missing or said twice. */
+function headerOf(request: unknown, name: string): string | undefined {
+  const value = (request as { headers?: Record<string, string | string[] | undefined> }).headers?.[
+    name.toLowerCase()
+  ]
+
+  return typeof value === 'string' ? value : undefined
+}
+
 export const PERMISSION_METADATA = 'opengewerk:permission'
 export const PUBLIC_METADATA = 'opengewerk:public'
 export const SESSION_METADATA = 'opengewerk:session'
+export const OPERATOR_METADATA = 'opengewerk:operator'
 
 /**
  * The right a handler needs. Sits on the handler, not in its body, so that a
@@ -72,6 +84,14 @@ export const PublicRoute = () => SetMetadata(PUBLIC_METADATA, true)
 export const RequiresSession = () => SetMetadata(SESSION_METADATA, true)
 
 /**
+ * A route of the area of the instance (#188): somebody signed in who is an
+ * operator of the instance and has a second factor set up. No business and
+ * no right of a business come into it; being the owner of one opens nothing
+ * here. Counted by the same test as the other kinds.
+ */
+export const RequiresOperator = () => SetMetadata(OPERATOR_METADATA, true)
+
+/**
  * Resolves who is asking and whether they may. Runs on every request, so a
  * route without a declared right is refused rather than let through: a
  * forgotten decorator has to fail closed.
@@ -85,6 +105,7 @@ export class AuthorizationGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     @Inject(IDENTITY_SOURCE) private readonly identities: IdentitySource,
+    private readonly database: Database,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -102,6 +123,39 @@ export class AuthorizationGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<RequestWithIdentity>()
+
+    const needsOperator = this.reflector.getAllAndOverride<boolean | undefined>(OPERATOR_METADATA, [
+      context.getHandler(),
+      context.getClass(),
+    ])
+
+    if (needsOperator) {
+      // Who, from the session; whether an operator, from the database, read
+      // fresh on every request like the roles of a membership, so that taking
+      // the role away takes effect at once.
+      const user = await this.identities.authenticate(request)
+
+      if (!user) {
+        throw new UnauthorizedException('Keine gültige Anmeldung.')
+      }
+
+      const access = await operatorAccess(this.database, user.userId)
+
+      if (!access.operator) {
+        throw new ForbiddenException('Diesen Bereich erreicht nur ein Betreiber der Instanz.')
+      }
+
+      if (!access.secondFactor) {
+        throw new ForbiddenException(
+          'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht. Bitte zuerst unter ' +
+            '„Konto“ eine Authenticator-App einrichten.',
+        )
+      }
+
+      request[userProperty] = user
+
+      return true
+    }
 
     const needsSessionOnly = this.reflector.getAllAndOverride<boolean | undefined>(
       SESSION_METADATA,
@@ -128,6 +182,19 @@ export class AuthorizationGuard implements CanActivate {
 
     if (!identity) {
       throw new UnauthorizedException('Keine gültige Anmeldung.')
+    }
+
+    // A page names the business it works in (#242). A switch in another tab
+    // moves the session and not this page, which would otherwise send its
+    // outbox into a business it does not show and take that business's
+    // records into its own store. Refused as not signed in to this business,
+    // which is what it is; the page asks again and starts in the other one.
+    const workingIn = headerOf(request, workingInHeader)
+
+    if (workingIn !== undefined && workingIn !== identity.tenantId) {
+      throw new UnauthorizedException(
+        'Diese Seite arbeitet noch in einem anderen Betrieb als die Anmeldung und lädt neu.',
+      )
     }
 
     const permission = this.reflector.getAllAndOverride<Permission | undefined>(

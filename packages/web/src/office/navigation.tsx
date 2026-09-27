@@ -26,6 +26,7 @@ import { useTheme } from '../app/theme.js'
 import { text } from '../sync/fields.js'
 import { useRecords, useSyncStatus } from '../sync/provider.js'
 import { useWho } from '../app/who.js'
+import { DrawerBusiness } from './businesses.js'
 
 interface Entry {
   readonly to: string
@@ -425,11 +426,7 @@ export function Drawer({
             <X size={22} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
-        {who.business ? (
-          <div className="mx-3 mt-3 mb-1 flex min-h-12 items-center rounded-[5px] border border-line bg-surface px-3 text-[15px] font-semibold">
-            {who.business}
-          </div>
-        ) : null}
+        {who.business ? <DrawerBusiness name={who.business} onFollow={onClose} /> : null}
         <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {groups.map((group, index) => (
             <Fragment key={group.title}>

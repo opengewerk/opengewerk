@@ -159,6 +159,13 @@ export const permissions = [
    */
   'audit.read',
   /**
+   * Creating a further business and becoming its owner (#142), under "Konto".
+   * Only the owner has it: somebody who works in the office of one business
+   * does not open another on the same instance on its behalf. For somebody
+   * else, the operators of the instance create one in their area (#188).
+   */
+  'tenant.create',
+  /**
    * Push messages on one's own devices (#284): switching them on and off on a
    * device, choosing the occasions and sending oneself a test. Every role has
    * it, because it is about nobody but the person asking; a right of its own
@@ -209,6 +216,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'mail.read': 'E-Mail-Einstellungen ansehen',
   'mail.write': 'E-Mail-Einstellungen ändern',
   'audit.read': 'Das Änderungsprotokoll einsehen',
+  'tenant.create': 'Weitere Betriebe anlegen',
   'push.write': 'Push-Nachrichten auf eigenen Geräten einschalten',
 }
 

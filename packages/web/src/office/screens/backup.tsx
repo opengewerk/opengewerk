@@ -1,4 +1,4 @@
-import type { BackupStatus } from '@opengewerk/domain'
+import { type BackupStatus, defaultBackupTime } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -45,16 +45,23 @@ export function backupIsBehind(status: BackupStatus | undefined): boolean {
   return (status?.state === 'none' || status?.state === 'recorded') && status.overdue
 }
 
+/** When the backup runs, as the answer names it, or the default before there is one. */
+function timeOf(status: BackupStatus | undefined): string {
+  return status && status.state !== 'unknown' ? status.time : defaultBackupTime
+}
+
 /**
  * The backups of the instance (#130): when the last one finished, and what an
  * owner can do when it did not.
  *
- * Read-only. The backup runs every night at 02:30 without anybody setting
- * anything; the hour is fixed because one instance can carry several
- * businesses, and none of them sets it for the others.
+ * Read-only. The backup runs every day at the hour the operators of the
+ * instance set in their area (#188), 02:30 unless they chose another; no
+ * business sets it, because one instance can carry several and none of them
+ * decides for the others.
  */
 export function BackupScreen() {
   const status = useQuery(backupQuery)
+  const time = timeOf(status.data)
 
   return (
     <SettingsPage
@@ -75,9 +82,10 @@ export function BackupScreen() {
       <Panel title="Wie gesichert wird" roomy>
         <div className="flex flex-col gap-2.5">
           <SettingsText>
-            Jede Nacht um 02:30 Uhr sichert die Instanz die Datenbank und den Dateispeicher in ein
+            Jeden Tag um {time} Uhr sichert die Instanz die Datenbank und den Dateispeicher in ein
             Archiv, und vierzehn Generationen bleiben. War der Rechner zu dieser Zeit aus, holt sie
-            die Sicherung nach, sobald er wieder läuft.
+            die Sicherung nach, sobald er wieder läuft. Die Uhrzeit legt fest, wer die Instanz
+            betreibt.
           </SettingsText>
           <SettingsText muted>
             Eine Sicherung auf derselben Platte wie die Daten übersteht einen Fehler, aber keinen
@@ -118,9 +126,7 @@ function LastBackup({ status }: { readonly status: BackupStatus }) {
         er meldet, steht in <code>docker compose logs backup-schedule</code>.
       </Behind>
     ) : (
-      <SettingsText>
-        Noch keine Sicherung. Die erste läuft in der kommenden Nacht um 02:30 Uhr.
-      </SettingsText>
+      <SettingsText>Noch keine Sicherung. Die erste läuft um {status.time} Uhr.</SettingsText>
     )
   }
 

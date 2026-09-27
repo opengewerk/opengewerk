@@ -19,6 +19,7 @@ import { useMay } from '../../app/queries.js'
 import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../../session/audit.js'
 import { RequestRefused } from '../../sync/transport.js'
 import {
+  type AuditNames,
   auditValue,
   changeSummary,
   fieldWords,
@@ -52,7 +53,7 @@ const deviceDay = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' })
  * `moment()` writes them in the list: taking the day from Berlin and the time
  * from the device would put a change at 23:30 on the wrong day abroad.
  */
-function when(iso: string): string {
+export function when(iso: string): string {
   const at = new Date(iso)
 
   return `am ${deviceDay.format(at)} um ${clockTime(at)}`
@@ -452,9 +453,95 @@ function Value({ text }: { readonly text: string | null }) {
   return text === null ? <span className="text-ink-faint">leer</span> : <>{text}</>
 }
 
-/** The line of a change: when, by whom, on which device and way. */
-function facts(change: AuditChange, page: AuditPage): readonly string[] {
+/**
+ * The fields of an opened change before and after, the table of the board.
+ * The log of the instance (#188) shows its changes the same way.
+ */
+export function FieldsTable({
+  change,
+  page,
+}: {
+  readonly change: AuditChange
+  readonly page: AuditNames
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px] table-fixed border-collapse text-[13px] text-ink">
+        <caption className="sr-only">Felder vorher und nachher</caption>
+        <thead>
+          <tr className="text-left font-condensed text-[12px] font-semibold tracking-[0.8px] text-ink-faint uppercase">
+            <th scope="col" className="w-[150px] pr-2.5 pb-1.5">
+              Feld
+            </th>
+            <th scope="col" className="px-2.5 pb-1.5">
+              Vorher
+            </th>
+            <th scope="col" className="pb-1.5 pl-2.5">
+              Nachher
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {shownFields(change).map((field) => (
+            <tr key={field.field} className="border-t border-row align-top">
+              <th scope="row" className="py-[7px] pr-2.5 text-left font-medium">
+                {fieldWords(change.table, field.field)}
+              </th>
+              <td className="px-2.5 py-[7px] break-words text-ink-muted">
+                <Value text={auditValue(change.table, field.field, field.before, page)} />
+              </td>
+              <td className="py-[7px] pl-2.5 break-words">
+                <Value text={auditValue(change.table, field.field, field.after, page)} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** The same fields on a phone, one under the other, in the opened box. */
+export function FieldList({
+  change,
+  page,
+}: {
+  readonly change: AuditChange
+  readonly page: AuditNames
+}) {
+  return (
+    <dl className="mt-2">
+      {shownFields(change).map((field) => (
+        <div key={field.field} className="border-t border-row py-2">
+          <dt className="text-[13px] font-semibold">{fieldWords(change.table, field.field)}</dt>
+          <dd className="text-[14px] text-ink-muted">
+            <span className="text-[12px] text-ink-faint">Vorher </span>
+            <Value text={auditValue(change.table, field.field, field.before, page)} />
+          </dd>
+          <dd className="text-[14px]">
+            <span className="text-[12px] text-ink-faint">Nachher </span>
+            <Value text={auditValue(change.table, field.field, field.after, page)} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+/**
+ * The line over an opened change: when, by whom, on which device and way,
+ * the moment in bold as the boards set it. The log of the instance (#188)
+ * opens its changes with the same line.
+ */
+export function ChangeFacts({
+  change,
+  page,
+}: {
+  readonly change: AuditChange
+  readonly page: AuditNames
+}) {
   const said = wayWords(change, page)
+  const at = new Date(change.changedAt)
   const verb =
     change.operation === 'insert'
       ? 'Angelegt'
@@ -462,11 +549,17 @@ function facts(change: AuditChange, page: AuditPage): readonly string[] {
         ? 'Entfernt'
         : 'Geändert'
 
-  return [
-    `${verb} ${when(change.changedAt)}${said.person ? ` von ${said.person}` : ''}`,
-    ...(said.device ? [`Gerät: ${said.device}`] : []),
-    `Weg: ${said.way}`,
-  ]
+  return (
+    <p className="mb-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-ink-muted">
+      <span>
+        {`${verb} am `}
+        <strong className="font-semibold text-ink">{`${deviceDay.format(at)} um ${clockTime(at)}`}</strong>
+        {said.person ? ` von ${said.person}` : ''}
+      </span>
+      {said.device ? <span>{`Gerät: ${said.device}`}</span> : null}
+      <span>{`Weg: ${said.way}`}</span>
+    </p>
+  )
 }
 
 /** The buttons under an opened change: the log of this record only, and the record itself. */
@@ -525,50 +618,12 @@ function ChangePanel({
   readonly narrowedTo: string | null
   readonly onClose: () => void
 }) {
-  const fields = shownFields(change)
-
   return (
     <Panel
       title={`${recordKind(change.table, change.recordId, page)} ${recordTitle(change.table, change.recordId, page)}`}
     >
-      <p className="mb-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-ink-muted">
-        {facts(change, page).map((fact) => (
-          <span key={fact}>{fact}</span>
-        ))}
-      </p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] table-fixed border-collapse text-[13px] text-ink">
-          <caption className="sr-only">Felder vorher und nachher</caption>
-          <thead>
-            <tr className="text-left font-condensed text-[12px] font-semibold tracking-[0.8px] text-ink-faint uppercase">
-              <th scope="col" className="w-[150px] pr-2.5 pb-1.5">
-                Feld
-              </th>
-              <th scope="col" className="px-2.5 pb-1.5">
-                Vorher
-              </th>
-              <th scope="col" className="pb-1.5 pl-2.5">
-                Nachher
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map((field) => (
-              <tr key={field.field} className="border-t border-row align-top">
-                <th scope="row" className="py-[7px] pr-2.5 text-left font-medium">
-                  {fieldWords(change.table, field.field)}
-                </th>
-                <td className="px-2.5 py-[7px] break-words text-ink-muted">
-                  <Value text={auditValue(change.table, field.field, field.before, page)} />
-                </td>
-                <td className="py-[7px] pl-2.5 break-words">
-                  <Value text={auditValue(change.table, field.field, field.after, page)} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ChangeFacts change={change} page={page} />
+      <FieldsTable change={change} page={page} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ChangeLinks change={change} narrowedTo={narrowedTo} wide={false} />
         <div className="grow" />
@@ -579,7 +634,13 @@ function ChangePanel({
 }
 
 /** The person, and under it the device and the way; a change past the application stands out. */
-function PersonCell({ change, page }: { readonly change: AuditChange; readonly page: AuditPage }) {
+export function PersonCell({
+  change,
+  page,
+}: {
+  readonly change: AuditChange
+  readonly page: AuditNames
+}) {
   const said = wayWords(change, page)
 
   return (
@@ -713,23 +774,7 @@ function PhoneList({
             </button>
             {isOpen ? (
               <>
-                <dl className="mt-2">
-                  {shownFields(change).map((field) => (
-                    <div key={field.field} className="border-t border-row py-2">
-                      <dt className="text-[13px] font-semibold">
-                        {fieldWords(change.table, field.field)}
-                      </dt>
-                      <dd className="text-[14px] text-ink-muted">
-                        <span className="text-[12px] text-ink-faint">Vorher </span>
-                        <Value text={auditValue(change.table, field.field, field.before, page)} />
-                      </dd>
-                      <dd className="text-[14px]">
-                        <span className="text-[12px] text-ink-faint">Nachher </span>
-                        <Value text={auditValue(change.table, field.field, field.after, page)} />
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+                <FieldList change={change} page={page} />
                 <div className="mt-2.5 grid grid-cols-2 gap-2">
                   <ChangeLinks change={change} narrowedTo={narrowedTo} wide />
                 </div>

@@ -12,6 +12,16 @@ export interface Tenant {
 }
 
 /**
+ * The header a page sends with every request to say which business it works
+ * in (#242). A switch in one tab moves the session and not the other tabs; a
+ * page left behind in the business before would otherwise send its outbox
+ * into the one it no longer shows. The server refuses a request whose header
+ * names another business than the session, and the page starts again in the
+ * business of the session.
+ */
+export const workingInHeader = 'X-OpenGewerk-Tenant'
+
+/**
  * The longest name a business may have. It stands in the top bar and in the
  * list a person with several businesses chooses from, so it is the short name
  * the business goes by; the full one for its documents is the letterhead's.

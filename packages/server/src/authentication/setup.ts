@@ -2,6 +2,7 @@ import type { RoleKey, TenantId } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 
 import type { Database, StraddlingTransaction } from '../database/database.js'
+import { instanceOperators } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
 import { createAccount, grantMembership } from './staff.js'
 
@@ -113,6 +114,10 @@ export async function setUpInstance(
 
       const tenantId = created as TenantId
       const { userId } = await createAccount(context, tx, firstRun)
+
+      // Whoever sets the instance up runs it (#188). Still outside any
+      // business, where the operators are in reach, and before the step in.
+      await tx.insert(instanceOperators).values({ userId })
 
       await enter(tenantId, userId)
       await grantMembership(tx, { tenantId, userId, roles: firstRoles })

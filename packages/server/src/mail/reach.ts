@@ -14,9 +14,9 @@ export const mailPorts: readonly number[] = [25, 465, 587, 2465, 2525, 2587]
 /** Where the mail server of a business may be, beyond the internet. */
 export interface MailReach {
   /**
-   * Servers in the instance's own network that its operator allows, by name
-   * or by address, from `MAIL_INTERNAL_HOSTS`. On any port: the operator
-   * vouches for them.
+   * Servers in the instance's own network that its operators allow, by name
+   * or by address, from the settings of the instance (#188). On any port: the
+   * operators vouch for them.
    */
   readonly internalHosts: readonly string[]
 }
@@ -168,7 +168,7 @@ export async function destinationOf(
       throw new MailDeliveryError(
         `Der Mailserver "${host}" liegt nicht im Internet, sondern in einem internen Netz ` +
           `(${inside}). Mit einem solchen verbindet sich OpenGewerk nur, wenn der Betreiber der ` +
-          'Instanz ihn in MAIL_INTERNAL_HOSTS freigibt.',
+          'Instanz ihn freigibt, in deren Einstellungen unter „Mailserver im eigenen Netz“.',
         'EDESTINATION',
         null,
       )

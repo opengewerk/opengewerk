@@ -266,6 +266,14 @@ describe('the sample data', () => {
     expect(rows[1]?.values).toContain('"loop_impedance":3410')
   })
 
+  it('makes the preview person the operator of the instance, for its area (#188)', async () => {
+    const { rows } = await admin.query<{ user_id: string }>(
+      'select user_id from instance_operators',
+    )
+
+    expect(rows.map((row) => row.user_id)).toEqual(['preview'])
+  })
+
   it('is written down in the audit log under the preview person', async () => {
     const { rows } = await admin.query<{ count: string }>(
       "select count(*) from audit_entries where tenant_id = $1 and user_id = 'preview'",

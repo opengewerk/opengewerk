@@ -9,10 +9,12 @@
 #
 # Four things in here are decisions.
 #
-# 1. THE TIME IS FIXED, 02:30 in the time zone of the businesses. A setting
-#    for it would belong on a screen, and one instance can carry several
-#    businesses; which of them would set the hour of all? Until that has an
-#    answer, the night is the answer.
+# 1. THE TIME IS A SETTING OF THE INSTANCE, 02:30 until its operators choose
+#    another in their area (#188), in the time zone of the businesses. Not a
+#    setting of a business: one instance can carry several, and the hour of
+#    all of them is decided by the people who run the instance. It is read
+#    again before every check, so a change arrives within five minutes and
+#    without a restart, and a database that cannot be asked means 02:30.
 #
 # 2. IT CATCHES UP. A machine that is off at night makes its backup when it
 #    comes back: a backup is due whenever the last one finished before the
@@ -35,7 +37,18 @@ set -eu
 
 : "${BACKUP_STATUS_PATH:=/var/lib/opengewerk/backup-status}"
 
-at='02:30'
+fallback='02:30'
+
+# The time from the settings of the instance, "HH:MM", or the fallback when
+# the database does not answer or answers with something that is not a time.
+configured_time() {
+	value=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" 		--tuples-only --no-align --quiet 		--command "select to_char(backup_time, 'HH24:MI') from instance_settings where id = 1" 		2>/dev/null || true)
+
+	case "$value" in
+		[0-2][0-9]:[0-5][0-9]) echo "$value" ;;
+		*) echo "$fallback" ;;
+	esac
+}
 
 # The epoch of the last backup that finished, or 0 when none is recorded.
 last_recorded() {
@@ -63,11 +76,20 @@ latest_due() {
 	fi
 }
 
-echo "Geplante Sicherung: jede Nacht um ${at} Uhr (${TZ:-UTC}), und nachgeholt, wenn die letzte vor dem letzten Termin lag."
+at=$(configured_time)
+
+echo "Geplante Sicherung: jeden Tag um ${at} Uhr (${TZ:-UTC}), und nachgeholt, wenn die letzte vor dem letzten Termin lag."
 
 attempted=0
 
 while true; do
+	wanted=$(configured_time)
+
+	if [ "$wanted" != "$at" ]; then
+		at=$wanted
+		echo "Die Uhrzeit der geplanten Sicherung ist jetzt ${at} Uhr (${TZ:-UTC})."
+	fi
+
 	due=$(latest_due)
 	last=$(last_recorded)
 

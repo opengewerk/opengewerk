@@ -14,7 +14,12 @@ import { authenticationPath, createAuthentication } from '../authentication/auth
 import { SessionIdentitySource } from '../authentication/session-identity.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
 import { Database } from '../database/database.js'
-import { auditEntries, authUsers, memberships } from '../database/schema/index.js'
+import {
+  auditEntries,
+  authUsers,
+  instanceOperators,
+  memberships,
+} from '../database/schema/index.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -272,6 +277,27 @@ describe('an instance nobody has used yet', () => {
 
     const membership = entries.find((entry) => entry.tableName === 'memberships')
     expect(membership?.userId).toBeTruthy()
+  })
+
+  /**
+   * The area of the instance (#188) is shut to everybody but its operators,
+   * and somebody has to be the first. The one who set the instance up is the
+   * one who runs it, in the same transaction, so there is no moment with an
+   * instance and nobody to run it.
+   */
+  it('makes the account of the first run the first operator of the instance', async () => {
+    await emptyInstance()
+
+    await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
+
+    const operators = await database.forInstance((tx) =>
+      tx
+        .select({ email: authUsers.email })
+        .from(instanceOperators)
+        .innerJoin(authUsers, eq(authUsers.id, instanceOperators.userId)),
+    )
+
+    expect(operators.map((operator) => operator.email)).toEqual([firstRun.email])
   })
 })
 

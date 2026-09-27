@@ -377,14 +377,36 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
 }
 
+/**
+ * The tables of the log of the instance (#188), apart from those of a
+ * business: they carry the instance's own trigger and not the audit trigger,
+ * and the test that holds `auditTables` against the database asks for that one.
+ */
+export const instanceTables: Readonly<Record<string, TableWords>> = {
+  instance_settings: {
+    label: 'Einstellungen der Instanz',
+    fields: {
+      mail_internal_hosts: 'Freigegebene Mailserver',
+      backup_time: 'Uhrzeit der Sicherung',
+      imported_from_environment_at: 'Übernommen aus der .env am',
+    },
+  },
+  instance_operators: { label: 'Betreiber' },
+}
+
 /** What a row of this table is called, "Kunde", or the table's own name where it has none. */
 export function auditTableLabel(table: string): string {
-  return auditTables[table]?.label ?? table
+  return auditTables[table]?.label ?? instanceTables[table]?.label ?? table
 }
 
 /** What a field is called on its own, "Straße", or null where nothing names it. */
 export function auditFieldName(table: string, field: string): string | null {
-  return auditTables[table]?.fields?.[field] ?? commonFields[field] ?? null
+  return (
+    auditTables[table]?.fields?.[field] ??
+    instanceTables[table]?.fields?.[field] ??
+    commonFields[field] ??
+    null
+  )
 }
 
 /** A field with its table, "Kunde, Straße", as the change log shows it. */

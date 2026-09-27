@@ -1135,9 +1135,11 @@ jobs:
           # matters for an update: it brought fewer migrations. Four leaves the
           # two that follow as the ones that have to carry data over.
           #
-          # What this run cannot show is older application code, because none
-          # of it reads these tables yet. The path under test is the database
-          # one, and at this point that is the whole of it.
+          # What this run cannot show is older application code. The path
+          # under test is the database one, so on the older state only the
+          # database runs: the application of this checkout reads tables of
+          # later migrations when it starts (the settings of the instance,
+          # #188), which an older release never did.
           keep = 4
 
           folder = Path("packages/server/migrations")
@@ -1155,9 +1157,12 @@ jobs:
           print("Zurückgenommen auf " + entries[keep - 1]["tag"] + ".")
           PYTHON
 
-      - name: Ältere Fassung starten
+      - name: Datenbank auf dem Stand der älteren Fassung
         working-directory: docker
-        run: docker compose up -d --build --wait --wait-timeout 300
+        run: |
+          set -eu
+          docker compose up -d --wait --wait-timeout 300 postgres
+          docker compose run --rm --build migrate
 
       - name: Daten anlegen und den Stand festhalten
         working-directory: docker

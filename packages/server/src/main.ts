@@ -26,6 +26,7 @@ import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { httpsPost } from './push/post.js'
 import { vapidKeysFrom } from './push/web-push.js'
+import { InstanceSettingsCache, takeOverFromEnvironment } from './instance/settings.js'
 import { startPushWorker } from './push/worker.js'
 import { SecretKey } from './secrets/key.js'
 import { FileStore } from './storage/file-store.js'
@@ -67,6 +68,17 @@ async function start(): Promise<void> {
   // one a link in a message has to point to.
   const origin = configuration.trustedOrigins[0] ?? ''
 
+  // The settings of the instance (#188). MAIL_INTERNAL_HOSTS from the .env is
+  // taken over once, so that an update switches off no mail server that
+  // worked before it; after that its area decides. Kept in memory for the
+  // check on every connection, and read again every half minute.
+  if (await takeOverFromEnvironment(database, configuration.mailInternalHosts)) {
+    console.log('MAIL_INTERNAL_HOSTS ist in die Einstellungen der Instanz übernommen.')
+  }
+
+  const instanceSettings = await InstanceSettingsCache.load(database)
+  const stopInstanceSettings = instanceSettings.every(30_000)
+
   // Each business sets up its own mail server in the office, so there is
   // nothing to ask at startup: the key its password is sealed with is all the
   // instance brings. A closed instance sends nothing. It is closed for a
@@ -74,15 +86,18 @@ async function start(): Promise<void> {
   // being put back is a message about a state that may not survive the hour.
   //
   // The connection reaches mail servers on the internet and the ones the
-  // operator allows in MAIL_INTERNAL_HOSTS, nothing else in the network the
-  // instance runs in; the check in the office and the job that sends alike.
+  // operators allow in the settings of the instance, nothing else in the
+  // network the instance runs in; the check in the office and the job that
+  // sends alike.
   const mail = configuration.closed
     ? null
     : {
         origin,
         key: SecretKey.from(configuration.sessionSecret),
         connect: reachableOnly(smtpTransport, {
-          internalHosts: configuration.mailInternalHosts,
+          get internalHosts() {
+            return instanceSettings.current().mailInternalHosts
+          },
         }),
       }
 
@@ -135,7 +150,14 @@ async function start(): Promise<void> {
       identities,
       configuration.closed
         ? output
-        : { ...output, authentication, mail, push, setupCode: configuration.setupCode },
+        : {
+            ...output,
+            authentication,
+            mail,
+            push,
+            setupCode: configuration.setupCode,
+            instance: { settings: instanceSettings },
+          },
     ),
     {
       // The container log is the only log there is, so it carries warnings
@@ -201,6 +223,7 @@ async function start(): Promise<void> {
       await deadlineWorker?.stop()
       // And push, whose pass writes down what became of each message.
       await pushWorker?.stop()
+      stopInstanceSettings()
       await application.close()
       await database.close()
     } catch (error) {

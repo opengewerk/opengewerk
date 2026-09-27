@@ -153,6 +153,11 @@ export class Database {
   async forInstance<Result>(
     work: (tx: TenantTransaction) => Promise<Result>,
     userId?: string,
+    /**
+     * What the change is for, for the log of the instance (#188). Signing in
+     * and choosing a business are the ordinary case, hence the default.
+     */
+    reason = 'authentication',
   ): Promise<Result> {
     const client: PoolClient = await this.pool.connect()
 
@@ -166,7 +171,7 @@ export class Database {
         `select set_config('app.tenant_id', '', true),
                 set_config('app.user_id', $1, true),
                 set_config('app.reason', $2, true)`,
-        [userId ?? '', 'authentication'],
+        [userId ?? '', reason],
       )
 
       const result = await work(drizzle(client))
@@ -204,10 +209,16 @@ export class Database {
    * lock and then asks whether the instance is still empty, and under a
    * stricter level that question would be answered from a snapshot taken
    * before the wait.
+   *
+   * `userId` is for a transaction whose person is known before it starts, a
+   * signed in owner creating a further business (#142): the business then
+   * carries its creator in the log of the instance too, not only in its own.
+   * The first run setup has nobody yet and leaves it out.
    */
   async forInstanceAndTenant<Result>(
     reason: string,
     work: (straddling: StraddlingTransaction) => Promise<Result>,
+    userId?: string,
   ): Promise<Result> {
     const client: PoolClient = await this.pool.connect()
 
@@ -215,10 +226,10 @@ export class Database {
       await client.query('begin isolation level read committed')
       await client.query(
         `select set_config('app.tenant_id', '', true),
-                set_config('app.user_id', '', true),
+                set_config('app.user_id', $2, true),
                 set_config('app.reason', $1, true),
                 set_config('app.device_id', '', true)`,
-        [reason],
+        [reason, userId ?? ''],
       )
 
       const result = await work({
