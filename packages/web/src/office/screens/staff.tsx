@@ -449,7 +449,9 @@ function StateOf({ person }: { readonly person: StaffEntry }) {
     return <b className="font-semibold text-conflict">Gesperrt seit {moment(person.blockedAt)}</b>
   }
 
-  if (person.twoFactorEnabled) {
+  // The app or a passkey, which signs in only when confirmed on the device
+  // and is a second factor as well (#167).
+  if (person.twoFactorEnabled || person.hasPasskey) {
     return <>Aktiv, zweiter Faktor eingerichtet</>
   }
 

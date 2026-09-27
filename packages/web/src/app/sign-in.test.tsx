@@ -62,6 +62,8 @@ beforeEach(() => {
   answers.set('/push', { available: false, publicKey: null, occasions: [], devices: [] })
   // And about the businesses of the person since #142 and #242.
   answers.set('/auth/tenants', [])
+  // And about the passkeys of the account since #167 and #248.
+  answers.set('/auth/passkeys', [])
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     calls.push({

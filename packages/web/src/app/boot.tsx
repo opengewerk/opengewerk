@@ -1,4 +1,9 @@
-import { requiresSecondFactor, syncEntities, type TenantId } from '@opengewerk/domain'
+import {
+  hasSecondFactor,
+  requiresSecondFactor,
+  syncEntities,
+  type TenantId,
+} from '@opengewerk/domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
@@ -348,10 +353,13 @@ function ChooseTenant({
    * whichever business they pick. Asking here rather than after the choice is
    * deliberate: setting the factor up replaces the session, and at this point
    * there is no business on it yet and nothing to put back.
+   *
+   * A sign in with a passkey carries the second factor itself (#167), so it
+   * goes straight on to the choice, as the server lets it.
    */
   const needed = tenants.data.some((tenant) => requiresSecondFactor(tenant.roles))
 
-  if (needed && !account.twoFactorEnabled) {
+  if (needed && !hasSecondFactor(account)) {
     return <SecondFactorSetupScreen onDone={onDone} />
   }
 

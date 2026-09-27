@@ -277,8 +277,8 @@ function Door() {
     return (
       <InstancePage title="Instanz" sub="Was allen Betrieben auf dieser Instanz gemeinsam ist.">
         <SettingsText>
-          Für diesen Bereich ist ein zweiter Faktor Pflicht, wie für die Rolle Inhaber. Eingerichtet
-          wird er unter{' '}
+          Für diesen Bereich ist ein zweiter Faktor Pflicht, wie für die Rolle Inhaber: eine
+          Authenticator-App oder die Anmeldung mit einem Passkey. Eingerichtet wird beides unter{' '}
           <Link to="/konto" className="text-copper-text underline underline-offset-2">
             Konto
           </Link>

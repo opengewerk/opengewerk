@@ -229,6 +229,10 @@ describe('the tables', () => {
     // The deadlines of #283 are worked out on the server from what the devices
     // sent, and changed in the office; what a deadline asks of somebody on site
     // reaches the device as a task. The settings of each kind are the owner's.
+    //
+    // The passkeys of #167 are the record of a key the account holds, written
+    // when the account changes one; they are read in the audit log and nowhere
+    // else, and a device has no use for a copy.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -253,7 +257,8 @@ describe('the tables', () => {
       name === 'deadline_settings' ||
       name === 'push_subscriptions' ||
       name === 'push_opt_outs' ||
-      name === 'push_outbox'
+      name === 'push_outbox' ||
+      name === 'member_passkeys'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

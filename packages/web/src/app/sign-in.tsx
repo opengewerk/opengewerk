@@ -1,5 +1,6 @@
 import type { TenantId } from '@opengewerk/domain'
 import clsx from 'clsx'
+import { FingerprintPattern } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -9,6 +10,7 @@ import type { Entry } from '../entry/entry.js'
 import { Gate, GateText } from './gate.js'
 import { roleLabel } from './labels.js'
 import { SignOutButton } from './sign-out.js'
+import { passkeysSupported, passkeyTrouble, signInWithPasskey } from './../session/passkeys.js'
 import {
   chooseTenant,
   recoveryCodesLeft,
@@ -36,9 +38,13 @@ function GateTrouble({ children }: { readonly children: string }) {
 }
 
 /**
- * Email and password, and nothing else on the screen, the board
- * "Tor-Anmelden": "Passwort vergessen?" beside the label of the password, and
- * under the button the sentence that says a code from the app may follow.
+ * Email and password, the board "Tor-Anmelden": "Passwort vergessen?" beside
+ * the label of the password, under the button "oder" and the sign in with a
+ * passkey (#167), and last the sentence that says a code from the app may
+ * follow and a passkey needs none.
+ *
+ * The passkey needs no address: the browser offers the passkeys it holds for
+ * this instance. A browser that cannot hold one does not get the button.
  *
  * No link to register, because there is no registering: an account is made on
  * the command line by somebody who already has one, which is the decision from
@@ -58,6 +64,7 @@ export function SignInScreen({
   const [trouble, setTrouble] = useState<string | null>(null)
 
   const [asked, setAsked] = useState(false)
+  const [withPasskey] = useState(passkeysSupported)
 
   /**
    * A link to a new password for the address in the field (#126). The answer
@@ -104,6 +111,20 @@ export function SignInScreen({
       // the same thing for a wrong password and an unknown address, which is
       // what keeps this from being a way of finding out who has an account.
       setTrouble(saidWhy(error, 'Die Anmeldung hat nicht geklappt.'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function passkey() {
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      await signInWithPasskey()
+      onSignedIn()
+    } catch (error) {
+      setTrouble(passkeyTrouble(error, 'Die Anmeldung mit dem Passkey hat nicht geklappt.'))
     } finally {
       setWorking(false)
     }
@@ -162,6 +183,30 @@ export function SignInScreen({
           {working ? 'Einen Moment' : 'Anmelden'}
         </Button>
 
+        {withPasskey ? (
+          <>
+            <div
+              aria-hidden="true"
+              className="flex items-center gap-2.5 text-[13px] text-ink-faint"
+            >
+              <span className="h-px grow bg-line" />
+              oder
+              <span className="h-px grow bg-line" />
+            </div>
+            <Button
+              tone="secondary"
+              wide
+              icon={FingerprintPattern}
+              disabled={working}
+              onClick={() => {
+                void passkey()
+              }}
+            >
+              Mit Passkey anmelden
+            </Button>
+          </>
+        ) : null}
+
         {asked ? (
           <p role="status" className="text-[15px] leading-[1.5] text-ink lg:text-[14px]">
             Wenn es zu dieser Adresse einen Zugang gibt und ein Betrieb, in dem er arbeitet, E-Mails
@@ -172,7 +217,7 @@ export function SignInScreen({
 
         <p className="text-[15px] leading-[1.5] text-ink-muted lg:text-[13px]">
           Für die Rolle Inhaber ist der zweite Faktor Pflicht, für alle anderen empfohlen. Nach dem
-          Passwort folgt dann der Code aus der App.
+          Passwort folgt dann der Code aus der App; ein Passkey zählt selbst als zweiter Faktor.
         </p>
       </form>
     </Gate>

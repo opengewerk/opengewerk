@@ -1,4 +1,4 @@
-import type { RoleKey, TenantId } from '@opengewerk/domain'
+import { isSignInMethod, type RoleKey, type SignInMethod, type TenantId } from '@opengewerk/domain'
 
 import { request } from '../sync/transport.js'
 import {
@@ -49,6 +49,11 @@ export interface Account {
    * pair answers "can this person work here" (ADR 0006).
    */
   readonly twoFactorEnabled: boolean
+  /**
+   * With what this session was signed in (#167). A session that began with a
+   * passkey carries the second factor itself, so the gate asks this as well.
+   */
+  readonly signInMethod: SignInMethod
 }
 
 export interface TenantChoice {
@@ -80,7 +85,7 @@ interface SessionAnswer {
     readonly name?: unknown
     readonly twoFactorEnabled?: unknown
   }
-  readonly session?: { readonly activeTenantId?: unknown }
+  readonly session?: { readonly activeTenantId?: unknown; readonly signInMethod?: unknown }
 }
 
 /** Who is signed in on this browser, or nobody. */
@@ -114,12 +119,14 @@ export async function currentAccount(): Promise<Account | null> {
   }
 
   const tenantId = answer?.session?.activeTenantId
+  const signInMethod = answer?.session?.signInMethod
   const account: Account = {
     userId: user.id,
     email: typeof user.email === 'string' ? user.email : '',
     name: typeof user.name === 'string' ? user.name : '',
     tenantId: typeof tenantId === 'string' ? (tenantId as TenantId) : null,
     twoFactorEnabled: user.twoFactorEnabled === true,
+    signInMethod: isSignInMethod(signInMethod) ? signInMethod : 'password',
   }
 
   rememberAccount(account)
@@ -351,6 +358,8 @@ export interface StaffEntry {
   /** When this business last saw them start work, not the instance. */
   readonly lastSignInAt: string | null
   readonly twoFactorEnabled: boolean
+  /** Whether the account has a passkey, a second factor as well (#167). */
+  readonly hasPasskey: boolean
 }
 
 /** Where the message with an invitation stands, for one sent by mail. */

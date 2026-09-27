@@ -1,10 +1,10 @@
-import type { InstanceAccess, OperatorView } from '@opengewerk/domain'
+import { hasSecondFactor, type InstanceAccess, type OperatorView } from '@opengewerk/domain'
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
-import { asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 
 import { normalise } from '../authentication/administration.js'
 import type { Database } from '../database/database.js'
-import { authUsers, instanceOperators } from '../database/schema/index.js'
+import { authSessions, authUsers, instanceOperators } from '../database/schema/index.js'
 
 /**
  * The operators of the instance (#188): the accounts that run it, and the
@@ -12,20 +12,49 @@ import { authUsers, instanceOperators } from '../database/schema/index.js'
  * first; further ones are named in the area or on the command line.
  */
 
-/** Whether somebody is an operator, and whether the second factor the area needs is set up. */
-export async function operatorAccess(database: Database, userId: string): Promise<InstanceAccess> {
+/**
+ * Whether somebody is an operator, and whether this session carries the
+ * second factor the area needs: the app set up, or a sign in with a passkey
+ * confirmed on the device (#167), as for the role of an owner.
+ */
+export async function operatorAccess(
+  database: Database,
+  userId: string,
+  sessionId: string,
+): Promise<InstanceAccess> {
   const [row] = await database.forInstance(
     (tx) =>
       tx
-        .select({ operator: instanceOperators.id, secondFactor: authUsers.twoFactorEnabled })
+        .select({
+          operator: instanceOperators.id,
+          twoFactorEnabled: authUsers.twoFactorEnabled,
+          signInMethod: authSessions.signInMethod,
+        })
         .from(authUsers)
         .leftJoin(instanceOperators, eq(instanceOperators.userId, authUsers.id))
+        .leftJoin(
+          authSessions,
+          and(eq(authSessions.id, sessionId), eq(authSessions.userId, authUsers.id)),
+        )
         .where(eq(authUsers.id, userId)),
     userId,
   )
 
-  return { operator: Boolean(row?.operator), secondFactor: row?.secondFactor === true }
+  return {
+    operator: Boolean(row?.operator),
+    secondFactor: hasSecondFactor({
+      twoFactorEnabled: row?.twoFactorEnabled,
+      signInMethod: row?.signInMethod,
+    }),
+  }
 }
+
+/**
+ * Whether an account has a second factor to sign in with: the app, or a
+ * passkey, which only signs in when confirmed on the device (#167).
+ */
+export const secondFactorSetUp = sql<boolean>`(${authUsers.twoFactorEnabled} is true or exists (
+  select 1 from auth_passkeys where auth_passkeys.user_id = ${authUsers.id}))`
 
 export async function listOperators(database: Database, asUser: string): Promise<OperatorView[]> {
   const rows = await database.forInstance(
@@ -36,7 +65,7 @@ export async function listOperators(database: Database, asUser: string): Promise
           name: authUsers.name,
           email: authUsers.email,
           since: instanceOperators.createdAt,
-          secondFactor: authUsers.twoFactorEnabled,
+          secondFactor: secondFactorSetUp,
         })
         .from(instanceOperators)
         .innerJoin(authUsers, eq(authUsers.id, instanceOperators.userId))

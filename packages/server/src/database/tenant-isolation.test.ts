@@ -770,6 +770,14 @@ const crossings: readonly {
             values (${own.tenant}, ${other.user}, 'deadline_due')`,
   },
   {
+    // An insert as well: a passkey is recorded in a business and marked when
+    // it goes, but its person never changes (#167).
+    key: 'member_passkeys_person_works_here',
+    write: (own, other) =>
+      sql`insert into member_passkeys (tenant_id, user_id, passkey_id, name)
+            values (${own.tenant}, ${other.user}, 'passkey-elsewhere', 'Telefon')`,
+  },
+  {
     key: 'push_outbox_subscription_in_tenant',
     write: (own, other) =>
       repoint('push_outbox', 'subscription_id', own.pushMessage, other.pushDevice),

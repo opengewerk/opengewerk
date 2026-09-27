@@ -1,5 +1,10 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
-import { requiresSecondFactor, type RoleKey, type TenantId } from '@opengewerk/domain'
+import {
+  hasSecondFactor,
+  requiresSecondFactor,
+  type RoleKey,
+  type TenantId,
+} from '@opengewerk/domain'
 import { and, eq } from 'drizzle-orm'
 
 import type { FoundIdentity, IdentitySource, SignedInUser } from '../api/identity.js'
@@ -117,14 +122,24 @@ export class SessionIdentitySource implements IdentitySource {
 
     const roles = membership.roles as readonly RoleKey[]
 
-    if (requiresSecondFactor(roles) && !found.user.twoFactorEnabled) {
+    if (
+      requiresSecondFactor(roles) &&
+      !hasSecondFactor({
+        twoFactorEnabled: found.user.twoFactorEnabled,
+        signInMethod: found.session.signInMethod,
+      })
+    ) {
       // ADR 0006 hangs this on the role and not on a setting, so it is checked
       // here rather than at sign in: somebody made an owner an hour ago is
       // stopped at the next request, without anybody having to remember to
       // re-check them.
+      //
+      // Asked of the session and not only of the account (#167): a session
+      // that began with a passkey confirmed on the device carries the second
+      // factor itself, one that began with the password alone does not.
       throw new ForbiddenException(
-        'Für diese Rolle ist ein zweiter Faktor Pflicht. Bitte zuerst eine ' +
-          'Authenticator-App einrichten.',
+        'Für diese Rolle ist ein zweiter Faktor Pflicht. Bitte eine Authenticator-App ' +
+          'einrichten oder mit einem Passkey anmelden.',
       )
     }
 

@@ -35,6 +35,7 @@ const account = {
   email: 'monteur@nord.example.de',
   name: 'Max Monteur',
   twoFactorEnabled: false,
+  signInMethod: 'password' as const,
 }
 
 let counter = 0
@@ -224,6 +225,40 @@ describe('starting with a network', () => {
     expect(await screen.findByRole('heading', { name: 'Anmelden' })).toBeTruthy()
     expect(await screen.findByText('AGPL-3.0 · Version 0.2.0')).toBeTruthy()
   })
+
+  /**
+   * A sign in with a passkey carries the second factor itself (#167), so an
+   * owner who has no app goes on to the choice of business, where one who
+   * signed in with the password alone is asked to set the app up.
+   */
+  it.each([
+    ['passkey', 'Betrieb wählen'],
+    ['password', 'Zweiter Faktor'],
+  ])(
+    'sends an owner without the app after a sign in with the %s to "%s"',
+    async (method, heading) => {
+      vi.stubGlobal('fetch', (path: string) => {
+        const answer = path.endsWith('/get-session')
+          ? {
+              user: { id: account.userId, email: account.email, name: account.name },
+              session: { activeTenantId: null, signInMethod: method },
+            }
+          : path === '/auth/tenants'
+            ? [{ id: 't-nord', name: 'Elektro Nord', roles: ['owner'] }]
+            : null
+
+        return Promise.resolve(
+          new Response(JSON.stringify(answer), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        )
+      })
+      start()
+
+      expect(await screen.findByRole('heading', { name: heading })).toBeTruthy()
+    },
+  )
 
   it('keeps who is signed in, where and with which roles, for the next start without one', async () => {
     const tenantId = await businessOnTheDevice()

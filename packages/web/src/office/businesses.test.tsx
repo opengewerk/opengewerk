@@ -100,6 +100,7 @@ beforeEach(() => {
   answer('POST', '/auth/tenant', { tenantId: 't-2' })
   answer('GET', '/push', { available: false, publicKey: null, occasions: [], devices: [] })
   answer('GET', '/auth/devices', [])
+  answer('GET', '/auth/passkeys', [])
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'

@@ -19,6 +19,7 @@ import { interfacePath, serveInterface } from './interface.js'
 import { sendSecurityHeaders } from './security-headers.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
+import { passkeyNotices } from './mail/passkey-notice.js'
 import { passwordResetMails } from './mail/password-reset.js'
 import { reachableOnly } from './mail/reach.js'
 import { smtpTransport } from './mail/transport.js'
@@ -120,6 +121,7 @@ async function start(): Promise<void> {
     secret: configuration.sessionSecret,
     trustedOrigins: configuration.trustedOrigins,
     passwordResetMail: mail ? passwordResetMails(database, mail) : undefined,
+    passkeyNotice: mail ? passkeyNotices(database, mail) : undefined,
   })
 
   const identities = configuration.closed

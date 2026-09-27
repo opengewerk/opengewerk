@@ -35,12 +35,13 @@ import { useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { switchBusiness, useBusinesses } from '../businesses.js'
 import { PageHead, Screen } from '../kit.js'
+import { PasskeysPanel } from './account-passkeys.js'
 import { PushPanel } from './account-push.js'
 import { Saved, SettingsText } from '../settings-frame.js'
 
 /**
- * What somebody can look after about their own account: the second factor and
- * the devices they are signed in on.
+ * What somebody can look after about their own account: the second factor,
+ * the passkeys (#167, #248) and the devices they are signed in on.
  *
  * One screen and not two, because both answer the same question: who can get
  * in as me, and how do I stop them. The device list is what makes the long
@@ -184,6 +185,8 @@ export function AccountScreen() {
           )}
         </Panel>
       </div>
+
+      <PasskeysPanel />
 
       <BusinessesPanel />
 
