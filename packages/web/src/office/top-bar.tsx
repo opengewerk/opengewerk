@@ -1,12 +1,29 @@
+import { queryOptions, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, Menu, User } from 'lucide-react'
+import { ChevronDown, Menu, Server, User } from 'lucide-react'
 import { createContext, useEffect, useRef, useState } from 'react'
 
 import { BrandMark, ThemeSwitch } from '../components/index.js'
+import { accountQuery } from '../app/queries.js'
 import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'
+import { instanceAccess } from '../session/instance.js'
 import { useSync } from '../sync/provider.js'
 import { useWho } from '../app/who.js'
+import { BusinessMenu } from './businesses.js'
+
+/**
+ * Whether the person runs the instance (#188), for the entry under the name
+ * and the door of its area. Asked once the account is known and kept for a
+ * few minutes: the answer changes when another operator names or removes
+ * somebody, and the routes of the area ask again on every request anyway.
+ */
+export const instanceAccessQuery = queryOptions({
+  queryKey: ['instance-access'],
+  queryFn: instanceAccess,
+  staleTime: 5 * 60_000,
+  retry: false,
+})
 
 /**
  * The header of every office screen, in slate, as on the canvas: the mark,
@@ -60,9 +77,7 @@ export function TopBar({
       ) : (
         <>
           <div aria-hidden="true" className="hidden h-[22px] w-px bg-top-line lg:block" />
-          {who.business ? (
-            <span className="hidden px-2 text-[13px] text-top-muted lg:inline">{who.business}</span>
-          ) : null}
+          {who.business ? <BusinessMenu name={who.business} /> : null}
         </>
       )}
       <div className="grow" />
@@ -73,19 +88,22 @@ export function TopBar({
 
 /**
  * The person, and behind them what belongs to them rather than to the
- * business: light or dark on this device, the account, signing out.
+ * business: light or dark on this device, the account, the area of the
+ * instance for those who run it (#188), signing out.
  *
  * A button that opens a panel, not an ARIA menu: the panel holds a switch and
  * links, and a menu role would promise arrow keys over them that a plain list
  * of controls does not need. It closes on Escape, on a click outside and when
  * one of its links is followed.
  */
-function PersonMenu() {
+export function PersonMenu() {
   const who = useWho()
   const client = useSync()
   const [theme, chooseTheme] = useTheme()
   const [open, setOpen] = useState(false)
   const frame = useRef<HTMLDivElement>(null)
+  const account = useQuery(accountQuery)
+  const access = useQuery({ ...instanceAccessQuery, enabled: Boolean(account.data) })
 
   useEffect(() => {
     if (!open) {
@@ -158,6 +176,18 @@ function PersonMenu() {
             <User size={16} strokeWidth={1.9} aria-hidden="true" />
             Konto
           </Link>
+          {access.data?.operator === true ? (
+            <Link
+              to="/instanz"
+              onClick={() => {
+                setOpen(false)
+              }}
+              className="flex items-center gap-[9px] rounded-control px-3 py-2 text-[14px] leading-[1.2] text-ink no-underline hover:bg-surface-sunken"
+            >
+              <Server size={16} strokeWidth={1.9} aria-hidden="true" />
+              Instanz verwalten
+            </Link>
+          ) : null}
           <SignOutButton
             client={client}
             row

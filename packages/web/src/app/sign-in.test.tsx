@@ -60,6 +60,8 @@ beforeEach(() => {
   // "Konto" asks about push since #284; an instance without a key answers
   // this, and the card has nothing to switch.
   answers.set('/push', { available: false, publicKey: null, occasions: [], devices: [] })
+  // And about the businesses of the person since #142 and #242.
+  answers.set('/auth/tenants', [])
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     calls.push({
