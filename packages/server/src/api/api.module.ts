@@ -14,6 +14,7 @@ import { AuthenticationController } from '../authentication/authentication.contr
 import { PasskeysController } from '../authentication/passkeys.controller.js'
 import { RecoveryCodesController } from '../authentication/recovery-codes.controller.js'
 import { Database } from '../database/database.js'
+import type { SecretKey } from '../secrets/key.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { AttachmentsController } from './attachments.controller.js'
@@ -51,6 +52,7 @@ import {
   MAIL,
   type MailContext,
   RENDERER,
+  SECRETS,
   SETUP_CODE,
   TRUSTED_ORIGINS,
   VERSION,
@@ -59,6 +61,7 @@ import { InvitationController } from './invitation.controller.js'
 import { SameOriginGuard } from './origin.js'
 import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
+import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
 import { TagsController } from './tags.controller.js'
@@ -127,6 +130,12 @@ export interface ApiOptions {
    * says so, and the routes that would send refuse with the reason.
    */
   readonly push?: PushContext | null
+  /**
+   * The key the ways into a site are sealed with (#286). Left out, the key of
+   * the mail context, which is the same one; without either, a route that
+   * would seal refuses with the reason.
+   */
+  readonly secrets?: SecretKey | null
   /**
    * The settings of the instance in memory (#188), so that a change made in
    * its area reaches the mail check at once. Left out, the area reads and
@@ -199,6 +208,7 @@ export class ApiModule implements NestModule {
         TagsController,
         ContactsController,
         SitesController,
+        SiteAccessesController,
         InstallationsController,
         CircuitChartController,
         FormRecordsController,
@@ -244,6 +254,7 @@ export class ApiModule implements NestModule {
         { provide: BACKUP_STATUS, useValue: backupStatus },
         { provide: VERSION, useValue: version },
         { provide: PUSH, useValue: push },
+        { provide: SECRETS, useValue: options.secrets ?? mail?.key ?? null },
         ...(options.instance ? [{ provide: INSTANCE, useValue: options.instance }] : []),
         DocumentFiles,
         ...(authentication

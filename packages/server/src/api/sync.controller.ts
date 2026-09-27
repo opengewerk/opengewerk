@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   HttpException,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -18,16 +19,26 @@ import {
   type OperationKind,
   operationKinds,
   type Permission,
+  type SiteAccessId,
   type SyncValue,
+  type TenantId,
 } from '@opengewerk/domain'
 
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
-import { deviceScope, narrowedTo, scopedEntities } from '../database/device-scope.js'
-import { timeEntries } from '../database/schema/index.js'
+import { Database, type TenantTransaction } from '../database/database.js'
+import {
+  accessesOfOpenJobs,
+  deviceScope,
+  narrowedTo,
+  scopedEntities,
+} from '../database/device-scope.js'
+import { siteAccessReveals, timeEntries } from '../database/schema/index.js'
+import type { SecretKey } from '../secrets/key.js'
+import { readAccessValues } from '../secrets/site-access.js'
 import {
   applyOperations,
+  type ChangedRows,
   changesSince,
   closeConflict,
   OperationRefused,
@@ -36,6 +47,7 @@ import {
 } from '../database/sync.js'
 import { RequiresPermission } from './authorization.js'
 import { answerFor } from './database-errors.js'
+import { SECRETS } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
@@ -239,6 +251,10 @@ export function permissionFor(
     document_sources: 'document.write',
     // The same for who is on a job (#140), which the office sets at a route.
     job_assignments: 'job.write',
+    // The ways into a site (#286), kept at the routes of the site; a showing
+    // of one is written by whoever may read the site it opens.
+    site_accesses: 'site.access',
+    site_access_reveals: 'site.read',
     // And for the tags (#314): made and put on at the routes of the office.
     tags: 'customer.write',
     customer_tags: 'customer.write',
@@ -266,9 +282,59 @@ export function permissionFor(
   return subject[entity] ?? null
 }
 
+/**
+ * The rows of the ways into a site with what the device may know of their
+ * value (#286): whether there is one and whether it opens, `valueState`, and
+ * for a device that may hold them and asked, the value itself. Nothing else in
+ * any answer carries it.
+ */
+async function withAccessStates(
+  tx: TenantTransaction,
+  key: SecretKey,
+  tenantId: TenantId,
+  changes: readonly ChangedRows[],
+  withValues: boolean,
+): Promise<readonly ChangedRows[]> {
+  const rows = changes.find((change) => change.entity === 'site_accesses')?.rows ?? []
+  const live = rows.filter((row) => row['deletedAt'] === null)
+
+  if (live.length === 0) {
+    return changes
+  }
+
+  const values = await readAccessValues(
+    tx,
+    key,
+    tenantId,
+    live.map((row) => row['id'] as SiteAccessId),
+  )
+
+  return changes.map((change) =>
+    change.entity !== 'site_accesses'
+      ? change
+      : {
+          entity: change.entity,
+          rows: change.rows.map((row) => {
+            if (row['deletedAt'] !== null) {
+              return row
+            }
+
+            const stored = values.get(row['id'] as SiteAccessId) ?? { state: 'none' as const }
+
+            return withValues && stored.state === 'readable'
+              ? { ...row, valueState: stored.state, value: stored.value }
+              : { ...row, valueState: stored.state }
+          }),
+        },
+  )
+}
+
 @Controller('sync')
 export class SyncController {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    @Inject(SECRETS) private readonly key: SecretKey | null,
+  ) {}
 
   /**
    * One transmission of a device's outbox.
@@ -332,7 +398,11 @@ export class SyncController {
    */
   @Get()
   @RequiresPermission('sync.read')
-  async pull(@CurrentIdentity() identity: RequestIdentity, @Query('since') since?: string) {
+  async pull(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Query('since') since?: string,
+    @Query('access') access?: string,
+  ) {
     const from = Number(since ?? 0)
 
     if (!Number.isInteger(from) || from < 0) {
@@ -344,17 +414,35 @@ export class SyncController {
     // (#140): the jobs they are on, with what hangs on them.
     const ownTimeOnly = !isAllowed(identity, 'time.read')
     const wholeBusiness = isAllowed(identity, 'job.read.all')
+    // The ways into a site (#286): all of them, without a value, for whoever
+    // keeps them, who asks for a value when it is needed; the ones of the open
+    // jobs for a technician, with the value only when the device asks for it,
+    // which the site does and the office does not.
+    const keepsAccess = isAllowed(identity, 'site.access')
+    const withValues = access === 'values' && !keepsAccess
     const { answer, scope } = await this.database.forTenant(identity, async (tx) => {
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
-      const answer = await changesSince(tx, from, undefined, (entity) =>
-        entity === 'time_entries' && ownTimeOnly
-          ? eq(timeEntries.userId, identity.userId)
-          : scope
-            ? narrowedTo(scope, entity)
-            : undefined,
-      )
+      const found = await changesSince(tx, from, undefined, (entity) => {
+        if (entity === 'time_entries' && ownTimeOnly) {
+          return eq(timeEntries.userId, identity.userId)
+        }
 
-      return { answer, scope }
+        // Who saw which value is for the audit log; a device gets its own.
+        if (entity === 'site_access_reveals') {
+          return eq(siteAccessReveals.userId, identity.userId)
+        }
+
+        if (entity === 'site_accesses') {
+          return keepsAccess ? undefined : scope ? accessesOfOpenJobs(scope) : sql`false`
+        }
+
+        return scope ? narrowedTo(scope, entity) : undefined
+      })
+      const changes = this.key
+        ? await withAccessStates(tx, this.key, identity.tenantId, found.changes, withValues)
+        : found.changes
+
+      return { answer: { ...found, changes }, scope }
     })
 
     // What the answer was narrowed to, per entity whose rows depend on who
@@ -371,6 +459,14 @@ export class SyncController {
         ...Object.fromEntries(
           scopedEntities.map((entity) => [entity, scope ? scope.value : 'all']),
         ),
+        // Changes with the open jobs, so that a closed job takes the ways
+        // into its site off the device, and with whether values were asked for.
+        site_accesses: keepsAccess
+          ? 'all'
+          : scope
+            ? `${scope.openValue}:${withValues ? 'values' : 'bare'}`
+            : 'none',
+        site_access_reveals: `user:${identity.userId}`,
       },
     }
   }

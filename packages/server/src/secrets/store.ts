@@ -1,5 +1,5 @@
 import type { TenantId } from '@opengewerk/domain'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
 import { secrets } from '../database/schema/index.js'
@@ -32,7 +32,7 @@ export async function keepSecret(
     .insert(secrets)
     .values({ tenantId, purpose, sealed })
     .onConflictDoUpdate({
-      target: [secrets.tenantId, secrets.purpose],
+      target: [secrets.tenantId, secrets.purpose, secrets.recordId],
       set: { sealed, updatedAt: new Date() },
     })
 }
@@ -47,7 +47,9 @@ export async function readSecret(
   const [row] = await tx
     .select({ sealed: secrets.sealed })
     .from(secrets)
-    .where(and(eq(secrets.tenantId, tenantId), eq(secrets.purpose, purpose)))
+    .where(
+      and(eq(secrets.tenantId, tenantId), eq(secrets.purpose, purpose), isNull(secrets.recordId)),
+    )
 
   if (!row) {
     return { state: 'none' }
@@ -64,5 +66,9 @@ export async function forgetSecret(
   tenantId: TenantId,
   purpose: SecretPurpose,
 ): Promise<void> {
-  await tx.delete(secrets).where(and(eq(secrets.tenantId, tenantId), eq(secrets.purpose, purpose)))
+  await tx
+    .delete(secrets)
+    .where(
+      and(eq(secrets.tenantId, tenantId), eq(secrets.purpose, purpose), isNull(secrets.recordId)),
+    )
 }

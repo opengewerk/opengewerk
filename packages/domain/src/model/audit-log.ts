@@ -188,7 +188,9 @@ export const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
   sites: [
     { table: 'contacts', column: 'site_id' },
     { table: 'site_tags', column: 'site_id' },
+    { table: 'site_accesses', column: 'site_id' },
   ],
+  site_accesses: [{ table: 'site_access_reveals', column: 'site_access_id' }],
   installations: [
     { table: 'distribution_boards', column: 'installation_id' },
     { table: 'inverters', column: 'installation_id' },
@@ -249,6 +251,7 @@ export const auditReferences: Readonly<Record<string, string>> = {
   corrects_entry_id: 'time_entries',
   subscription_id: 'push_subscriptions',
   tag_id: 'tags',
+  site_access_id: 'site_accesses',
 }
 
 /** Fields that hold the id of a person. */
@@ -315,6 +318,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   // A tag on a customer or a site is called by the tag, which the page names.
   customer_tags: ['tag_id'],
   site_tags: ['tag_id'],
+  // The showing of an access is called by the access, which the page names.
+  site_access_reveals: ['site_access_id'],
 }
 
 const defaultTitleFields = ['name', 'designation', 'title', 'subject', 'number']

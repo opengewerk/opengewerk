@@ -30,6 +30,8 @@ import type {
   PvModule,
   PvString,
   Site,
+  SiteAccess,
+  SiteAccessReveal,
   SiteTag,
   StoredFile,
   SyncConflict,
@@ -77,6 +79,8 @@ import type {
   numberRanges,
   pvModules,
   pvStrings,
+  siteAccesses,
+  siteAccessReveals,
   sites,
   siteTags,
   syncConflicts,
@@ -136,6 +140,10 @@ export type JobAssignmentMatches = Assert<Exact<typeof jobAssignments.$inferSele
 export type TagMatches = Assert<Exact<typeof tags.$inferSelect, Tag>>
 export type CustomerTagMatches = Assert<Exact<typeof customerTags.$inferSelect, CustomerTag>>
 export type SiteTagMatches = Assert<Exact<typeof siteTags.$inferSelect, SiteTag>>
+export type SiteAccessMatches = Assert<Exact<typeof siteAccesses.$inferSelect, SiteAccess>>
+export type SiteAccessRevealMatches = Assert<
+  Exact<typeof siteAccessReveals.$inferSelect, SiteAccessReveal>
+>
 export type JobNoteMatches = Assert<Exact<typeof jobNotes.$inferSelect, JobNote>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>
