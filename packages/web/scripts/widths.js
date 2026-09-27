@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,7 +13,9 @@ import { chromium } from 'playwright-core'
  * site, follows every link that leads to a page of the application, and keeps
  * one address per kind of page, so `/kunden/<id>` is visited for one customer
  * and not for all of them. A list kept here would miss the next screen the
- * way the roadmap in the README missed the next phase.
+ * way the roadmap in the README missed the next phase. A page with a button
+ * "Bearbeiten" is checked a second time with that button pressed, because
+ * the form it opens has no link that leads to it.
  *
  * It runs against the preview (`pnpm run preview`), where every request counts
  * as the owner of a sample business, and in a Chromium it connects to rather
@@ -73,12 +75,62 @@ const mostKinds = 120
 
 const identifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** The kind of page an address is: every identifier in it becomes `:id`. */
+/**
+ * A day in an address, as the times on site have them. Taken for a kind of
+ * its own, every day was one: the walk went back a day at a time until it
+ * reached `mostKinds`, measured some ninety days at every width, and could
+ * stop before it found the pages still waiting behind them.
+ */
+const day = /^\d{4}-\d{2}-\d{2}$/
+
+/** The kind of page an address is: every identifier becomes `:id`, every day `:day`. */
 function kindOf(path) {
   return path
     .split('/')
-    .map((part) => (identifier.test(part) ? ':id' : part))
+    .map((part) => (identifier.test(part) ? ':id' : day.test(part) ? ':day' : part))
     .join('/')
+}
+
+/**
+ * The buttons that open a form without an address of its own, or go to one
+ * without a link: the forms of a customer and of a site hold the tags a
+ * person can remove, and the walk, which follows links, never saw them
+ * (Greptile on #446). A page that has one is checked a second time as a kind
+ * of its own, with the button pressed. Found like the pages, by its name,
+ * so that the next form with the same button is checked as well.
+ */
+const openers = ['Bearbeiten']
+
+/** The first button of that name on the page. */
+function opener(page, name) {
+  return page.getByRole('button', { name, exact: true }).first()
+}
+
+/**
+ * The widths at which a screen may draw another layout and with it drop a
+ * form that was open: the steps of `useBand` and of `useThreeColumns`, read
+ * from `src/components/band.ts` rather than written here a second time, in
+ * pixels at the 16 a rem is, since the root has no font size of its own
+ * (#229). The first version knew three of the five bands and opened a form
+ * once for everything from 1024 to 3840 pixels.
+ */
+const steps = [
+  ...readFileSync(resolve(here, '..', 'src', 'components', 'band.ts'), 'utf8').matchAll(
+    /min-width:\s*([\d.]+)rem/g,
+  ),
+]
+  .map((match) => Number(match[1]) * 16)
+  .sort((a, b) => a - b)
+
+if (steps.length < 5) {
+  throw new Error(
+    `In band.ts stehen ${String(steps.length)} Stufen, erwartet sind mindestens fünf: die Prüfung liest sie aus "min-width: <n>rem".`,
+  )
+}
+
+/** How many of those steps a width has passed: the same number, the same layout. */
+function bandOf(width) {
+  return steps.filter((step) => width >= step).length
 }
 
 /** How long a screen may take to settle after it loaded or was resized. */
@@ -184,7 +236,10 @@ async function open(page, path) {
   await settle(page, 400)
 }
 
-/** The kinds of page of both entry points, one address each. */
+/**
+ * The kinds of page of both entry points, one address each, and with it the
+ * button to press first, or null.
+ */
 async function walk(context) {
   const page = await context.newPage()
 
@@ -197,13 +252,21 @@ async function walk(context) {
     const path = queue.shift()
 
     if (!kinds.has(kindOf(path))) {
-      kinds.set(kindOf(path), path)
+      kinds.set(kindOf(path), { path, press: null })
     }
 
     // At a desktop width, where the navigation stands open and every link
     // in it can be found.
     await open(page, path)
     await resize(page, 1280)
+
+    for (const name of openers) {
+      const kind = `${kindOf(path)} (${name})`
+
+      if (!kinds.has(kind) && (await opener(page, name).count()) > 0) {
+        kinds.set(kind, { path, press: name })
+      }
+    }
 
     for (const link of await linksOn(page, queued, looked)) {
       queued.add(link)
@@ -355,22 +418,58 @@ async function main() {
 
       const page = await context.newPage()
 
-      for (const [kind, path] of kinds) {
-        await open(page, path)
+      for (const [kind, { path, press }] of kinds) {
+        // A kind with a button to press opens its page in the loop below, in
+        // every band anew; the first column of its tables is the plain
+        // kind's to check, once per page.
+        if (!press) {
+          await open(page, path)
 
-        const bare = await bareColumns(page)
+          const bare = await bareColumns(page)
 
-        if (bare > 0) {
-          failures.push({
-            kind,
-            theme,
-            line: `${String(bare)} Zellen der stehenden ersten Tabellenspalte ohne Grund`,
-            culprits: [],
-          })
+          if (bare > 0) {
+            failures.push({
+              kind,
+              theme,
+              line: `${String(bare)} Zellen der stehenden ersten Tabellenspalte ohne Grund`,
+              culprits: [],
+            })
+          }
         }
+
+        let band = null
+        let reachable = true
 
         for (const width of widths) {
           await resize(page, width)
+
+          if (press && bandOf(width) !== band) {
+            band = bandOf(width)
+            await open(page, path)
+            await resize(page, width)
+
+            const button = opener(page, press)
+
+            reachable = await button.isVisible()
+
+            // A button that is there at a desktop width and gone in this band
+            // leaves the form out of reach on such a device.
+            if (reachable) {
+              await button.click()
+              await settle(page, 400)
+            } else {
+              failures.push({
+                kind,
+                theme,
+                line: `bei ${String(width)} px ist "${press}" nicht zu sehen`,
+                culprits: [],
+              })
+            }
+          }
+
+          if (!reachable) {
+            continue
+          }
 
           const { over, culprits } = await measure(page)
 

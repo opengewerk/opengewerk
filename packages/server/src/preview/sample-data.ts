@@ -167,6 +167,28 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       city: 'Hamburg',
     }),
   )
+  // Tags (#314), each customer and site with one as long as a name may be, so
+  // that the check of widths, which looks at the first customer and site it
+  // finds, sees the longest a pill can get, also in the forms (Greptile on
+  // #446).
+  await send(base, 'PUT', `/customers/${nordblick}/tags`, {
+    tagIds: [],
+    newTags: ['Rahmenvertrag Wohnungswirtschaft Hamburg'],
+  })
+  await send(base, 'PUT', `/customers/${berg}/tags`, {
+    tagIds: [],
+    newTags: ['Wallbox', 'Wärmepumpe mit Photovoltaik und Speicher'],
+  })
+  // And each site, whose form holds the same pills.
+  await send(base, 'PUT', `/sites/${house}/tags`, {
+    tagIds: [],
+    newTags: ['Denkmalschutz, mit Auflagen der Behörden'],
+  })
+  await send(base, 'PUT', `/sites/${estate}/tags`, {
+    tagIds: [],
+    newTags: ['Zufahrt Hubsteiger nur über den Innenhof'],
+  })
+
   const cabinet = idOf(
     await post('/installations', {
       siteId: house,
