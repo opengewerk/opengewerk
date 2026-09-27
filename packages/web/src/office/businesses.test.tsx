@@ -151,8 +151,8 @@ describe('the business in the header', () => {
     expect(calls.find((call) => call.path === '/auth/tenant')?.body).toEqual({ tenantId: 't-2' })
   })
 
-  it('stays a name for somebody in one business who may create none', async () => {
-    answer('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Kohm GmbH', roles: ['office'] }])
+  it('stays a name for somebody in one business, the owner of it too', async () => {
+    answer('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Kohm GmbH', roles: ['owner'] }])
     await mount()
 
     const header = await screen.findByRole('banner')

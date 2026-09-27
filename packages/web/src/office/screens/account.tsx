@@ -1,4 +1,4 @@
-import { type TenantId, tenantNameProblem } from '@opengewerk/domain'
+import { businessNameMaxLength, businessNameProblem, type TenantId } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Key, Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -534,7 +534,7 @@ function BusinessesPanel() {
   const [name, setName] = useState('')
   const [tried, setTried] = useState(false)
   const [made, setMade] = useState<{ tenantId: TenantId; name: string } | null>(null)
-  const problem = tenantNameProblem(name) ?? undefined
+  const problem = businessNameProblem(name) ?? undefined
 
   const create = useMutation({
     mutationFn: createOwnTenant,
@@ -640,7 +640,7 @@ function BusinessesPanel() {
             <Field
               label="Name des Betriebs"
               value={name}
-              maxLength={200}
+              maxLength={businessNameMaxLength}
               placeholder="etwa Kohm Elektromobilität GmbH"
               hint="Du bist dort Inhaber, mit deinem zweiten Faktor. Der Betrieb startet leer wie nach der Ersteinrichtung: Briefkopf, Steuern und Nummernkreise richtest du dort ein."
               {...(tried && problem ? { problem } : {})}

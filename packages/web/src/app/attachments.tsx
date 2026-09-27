@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button, Confirm, type SiteHeight } from '../components/index.js'
 import { refusalFor, type SyncClient } from '../sync/client.js'
+import { workingInHeaders } from '../sync/transport.js'
 import { count, maybeText, text } from '../sync/fields.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { fileSize, moment } from './format.js'
@@ -205,6 +206,7 @@ export function usePreview(version: RecordState | undefined): string | null {
         try {
           const response = await fetch(`/attachments/versions/${encodeURIComponent(id)}/preview`, {
             credentials: 'include',
+            headers: workingInHeaders(),
           })
 
           if (response.ok) {

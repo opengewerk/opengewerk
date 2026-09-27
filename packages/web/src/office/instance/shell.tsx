@@ -227,15 +227,18 @@ export function InstancePage({
   title,
   sub,
   actions,
+  fill = false,
   children,
 }: {
   readonly title: string
   readonly sub: string
   readonly actions?: ReactNode
+  /** As tall as the window, for a list that runs to the foot of the page with its pages there. */
+  readonly fill?: boolean
   readonly children: ReactNode
 }) {
   return (
-    <Screen className="lg:gap-[13px]">
+    <Screen className={fill ? 'grow lg:gap-[13px]' : 'lg:gap-[13px]'}>
       <PageHead title={title} sub={sub} wideActions {...(actions ? { actions } : {})} />
       {children}
     </Screen>

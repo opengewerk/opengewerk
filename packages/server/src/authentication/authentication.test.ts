@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import { workingInHeader } from '@opengewerk/domain'
 import { toNodeHandler } from 'better-auth/node'
 import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
@@ -398,6 +399,50 @@ describe('the choice of business', () => {
     )
 
     expect(ended.some((entry) => entry.reason === 'session.switch')).toBe(true)
+  })
+
+  /**
+   * The other tab (#242): a page that still works in the first business sends
+   * its business along, and the server refuses it instead of taking its
+   * outbox into the second. Without the header, as before, nothing changes.
+   */
+  it('refuses a page that still works in the business the session left', async () => {
+    const cookies = await signIn(both.email)
+    const choose = (tenantId: string) =>
+      http()
+        .post('/auth/tenant')
+        .set('cookie', withCookies(cookies))
+        .set('origin', origin)
+        .send({ tenantId })
+        .expect(201)
+
+    await choose(north.id)
+    await choose(south.id)
+
+    const left = await http()
+      .get('/sync?since=0')
+      .set('cookie', withCookies(cookies))
+      .set(workingInHeader, north.id)
+      .expect(401)
+
+    expect((left.body as { message: string }).message).toContain('anderen Betrieb')
+
+    await http()
+      .post('/customers')
+      .set('cookie', withCookies(cookies))
+      .set(workingInHeader, north.id)
+      .send({ kind: 'business', name: 'Aus dem alten Tab' })
+      .expect(401)
+    await http()
+      .get('/sync?since=0')
+      .set('cookie', withCookies(cookies))
+      .set(workingInHeader, south.id)
+      .expect(200)
+    await http().get('/customers').set('cookie', withCookies(cookies)).expect(200)
+
+    const { rows } = await admin.query("select 1 from customers where name = 'Aus dem alten Tab'")
+
+    expect(rows).toEqual([])
   })
 })
 

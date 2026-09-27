@@ -1,9 +1,9 @@
 import {
+  businessNameProblem,
   type InstanceTenantView,
   invitationDays,
   type RoleKey,
   type TenantId,
-  tenantNameProblem,
 } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
 import { sql } from 'drizzle-orm'
@@ -34,7 +34,9 @@ function checkedName(name: unknown): string {
     throw new BadRequestException('Der Name des Betriebs fehlt.')
   }
 
-  const problem = tenantNameProblem(name)
+  // The rule of the first run and the settings, so that no name comes in
+  // through this door that the others would refuse (#276).
+  const problem = businessNameProblem(name)
 
   if (problem !== null) {
     throw new BadRequestException(problem)

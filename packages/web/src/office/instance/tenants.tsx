@@ -1,4 +1,8 @@
-import { type InstanceTenantView, tenantNameProblem } from '@opengewerk/domain'
+import {
+  businessNameMaxLength,
+  businessNameProblem,
+  type InstanceTenantView,
+} from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
@@ -188,7 +192,7 @@ function CreateForm({
   const [tried, setTried] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
-  const nameProblem = tenantNameProblem(name) ?? undefined
+  const nameProblem = businessNameProblem(name) ?? undefined
   const ownerProblem = ownerName.trim() === '' ? 'Der Name des Inhabers fehlt.' : undefined
   const mailProblem = ownerEmail.includes('@')
     ? undefined
@@ -226,7 +230,7 @@ function CreateForm({
         <Field
           label="Name des Betriebs"
           value={name}
-          maxLength={200}
+          maxLength={businessNameMaxLength}
           {...(tried && nameProblem ? { problem: nameProblem } : {})}
           onChange={(event) => {
             setName(event.target.value)

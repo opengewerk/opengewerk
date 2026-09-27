@@ -528,9 +528,20 @@ export function FieldList({
   )
 }
 
-/** The line of a change: when, by whom, on which device and way. */
-export function facts(change: AuditChange, page: AuditNames): readonly string[] {
+/**
+ * The line over an opened change: when, by whom, on which device and way,
+ * the moment in bold as the boards set it. The log of the instance (#188)
+ * opens its changes with the same line.
+ */
+export function ChangeFacts({
+  change,
+  page,
+}: {
+  readonly change: AuditChange
+  readonly page: AuditNames
+}) {
   const said = wayWords(change, page)
+  const at = new Date(change.changedAt)
   const verb =
     change.operation === 'insert'
       ? 'Angelegt'
@@ -538,11 +549,17 @@ export function facts(change: AuditChange, page: AuditNames): readonly string[] 
         ? 'Entfernt'
         : 'Geändert'
 
-  return [
-    `${verb} ${when(change.changedAt)}${said.person ? ` von ${said.person}` : ''}`,
-    ...(said.device ? [`Gerät: ${said.device}`] : []),
-    `Weg: ${said.way}`,
-  ]
+  return (
+    <p className="mb-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-ink-muted">
+      <span>
+        {`${verb} am `}
+        <strong className="font-semibold text-ink">{`${deviceDay.format(at)} um ${clockTime(at)}`}</strong>
+        {said.person ? ` von ${said.person}` : ''}
+      </span>
+      {said.device ? <span>{`Gerät: ${said.device}`}</span> : null}
+      <span>{`Weg: ${said.way}`}</span>
+    </p>
+  )
 }
 
 /** The buttons under an opened change: the log of this record only, and the record itself. */
@@ -605,11 +622,7 @@ function ChangePanel({
     <Panel
       title={`${recordKind(change.table, change.recordId, page)} ${recordTitle(change.table, change.recordId, page)}`}
     >
-      <p className="mb-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-ink-muted">
-        {facts(change, page).map((fact) => (
-          <span key={fact}>{fact}</span>
-        ))}
-      </p>
+      <ChangeFacts change={change} page={page} />
       <FieldsTable change={change} page={page} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ChangeLinks change={change} narrowedTo={narrowedTo} wide={false} />

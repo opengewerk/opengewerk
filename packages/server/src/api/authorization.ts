@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { isAllowed, missingPermission, type Permission } from '@opengewerk/domain'
+import { isAllowed, missingPermission, type Permission, workingInHeader } from '@opengewerk/domain'
 
 import { Database } from '../database/database.js'
 import { operatorAccess } from '../instance/operators.js'
@@ -19,6 +19,15 @@ import {
   type RequestWithIdentity,
   userProperty,
 } from './identity.js'
+
+/** One value of a request header, undefined where it is missing or said twice. */
+function headerOf(request: unknown, name: string): string | undefined {
+  const value = (request as { headers?: Record<string, string | string[] | undefined> }).headers?.[
+    name.toLowerCase()
+  ]
+
+  return typeof value === 'string' ? value : undefined
+}
 
 export const PERMISSION_METADATA = 'opengewerk:permission'
 export const PUBLIC_METADATA = 'opengewerk:public'
@@ -173,6 +182,19 @@ export class AuthorizationGuard implements CanActivate {
 
     if (!identity) {
       throw new UnauthorizedException('Keine gültige Anmeldung.')
+    }
+
+    // A page names the business it works in (#242). A switch in another tab
+    // moves the session and not this page, which would otherwise send its
+    // outbox into a business it does not show and take that business's
+    // records into its own store. Refused as not signed in to this business,
+    // which is what it is; the page asks again and starts in the other one.
+    const workingIn = headerOf(request, workingInHeader)
+
+    if (workingIn !== undefined && workingIn !== identity.tenantId) {
+      throw new UnauthorizedException(
+        'Diese Seite arbeitet noch in einem anderen Betrieb als die Anmeldung und lädt neu.',
+      )
     }
 
     const permission = this.reflector.getAllAndOverride<Permission | undefined>(

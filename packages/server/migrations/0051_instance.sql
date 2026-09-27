@@ -191,8 +191,8 @@ AS $$
 DECLARE
 	created uuid;
 BEGIN
-	IF company IS NULL OR length(btrim(company)) = 0 OR length(company) > 200 THEN
-		RAISE EXCEPTION 'Ein Betrieb braucht einen Namen mit höchstens 200 Zeichen.'
+	IF company IS NULL OR length(btrim(company)) = 0 OR length(btrim(company)) > 120 THEN
+		RAISE EXCEPTION 'Ein Betrieb braucht einen Namen mit höchstens 120 Zeichen.'
 			USING ERRCODE = 'OG003';
 	END IF;
 

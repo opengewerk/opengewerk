@@ -57,22 +57,6 @@ export interface InstanceLogPage extends Pick<
   readonly next: string | null
 }
 
-/** The longest name a business may have, as `create_tenant` checks it. */
-export const longestTenantName = 200
-
-/** Why a name for a new business is not one, or null when it is. */
-export function tenantNameProblem(name: string): string | null {
-  const trimmed = name.trim()
-
-  if (trimmed === '') {
-    return 'Der Name des Betriebs fehlt.'
-  }
-
-  return trimmed.length > longestTenantName
-    ? `Der Name des Betriebs hat höchstens ${String(longestTenantName)} Zeichen.`
-    : null
-}
-
 /**
  * Why an entry is not a mail server in the own network, or null when it is:
  * a name or an address, without port and without scheme, as

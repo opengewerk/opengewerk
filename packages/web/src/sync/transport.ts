@@ -1,4 +1,10 @@
-import type { Operation, OperationReceipt, RecordState, SyncConflict } from '@opengewerk/domain'
+import {
+  type Operation,
+  type OperationReceipt,
+  type RecordState,
+  type SyncConflict,
+  workingInHeader,
+} from '@opengewerk/domain'
 
 /**
  * The four calls an exchange makes, and nothing else.
@@ -102,6 +108,26 @@ async function refusal(response: Response): Promise<RequestRefused> {
   }
 }
 
+/** The business this page works in, once the sync client for it has started. */
+let workingIn: string | null = null
+
+/**
+ * Names the business this page works in, for every request from here on, or
+ * none (#242). Set where the sync client for a business starts and cleared
+ * where it stops. A switch in another tab moves the session and not this
+ * page; the server then refuses what this page sends as not signed in to its
+ * business, and the page starts again in the business of the session instead
+ * of sending its outbox into the other one.
+ */
+export function workIn(tenantId: string | null): void {
+  workingIn = tenantId
+}
+
+/** The header that names the business, for the requests that do not go through `request`. */
+export function workingInHeaders(): Readonly<Record<string, string>> {
+  return workingIn === null ? {} : { [workingInHeader]: workingIn }
+}
+
 export async function request<Answer>(path: string, init?: RequestInit): Promise<Answer> {
   const response = await fetch(path, {
     // The session is a cookie. Without this it is simply not sent, and every
@@ -111,6 +137,7 @@ export async function request<Answer>(path: string, init?: RequestInit): Promise
     headers: {
       Accept: 'application/json',
       ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...workingInHeaders(),
       ...init?.headers,
     },
   })
@@ -205,6 +232,7 @@ export const httpTransport: SyncTransport = {
         Accept: 'application/json',
         'Content-Type': 'application/octet-stream',
         'X-Media-Type': mediaType,
+        ...workingInHeaders(),
       },
       body: bytes,
     })

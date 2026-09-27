@@ -11,7 +11,7 @@ import { RequestRefused } from '../../sync/transport.js'
 import { type AuditNames, changeSummary, wayWords } from '../audit-words.js'
 import { Empty } from '../kit.js'
 import { SettingsText } from '../settings-frame.js'
-import { FieldList, FieldsTable, PersonCell, facts } from '../screens/audit-log.js'
+import { ChangeFacts, FieldList, FieldsTable, PersonCell } from '../screens/audit-log.js'
 import { InstancePage } from './shell.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -127,6 +127,7 @@ export function InstanceLogScreen() {
     <InstancePage
       title="Protokoll"
       sub="Jede Änderung an der Instanz. Was in einem Betrieb geändert wird, steht in dessen Änderungsprotokoll."
+      fill={!phone}
     >
       {log.isPending ? (
         <SettingsText muted>Wird geladen.</SettingsText>
@@ -140,11 +141,7 @@ export function InstanceLogScreen() {
         <>
           {open ? (
             <Panel title={instanceRecord(open, page)}>
-              <p className="mb-2.5 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] text-ink-muted">
-                {facts(open, page).map((fact) => (
-                  <span key={fact}>{fact}</span>
-                ))}
-              </p>
+              <ChangeFacts change={open} page={page} />
               <FieldsTable change={open} page={page} />
               <div className="mt-3 flex">
                 <div className="grow" />
@@ -158,7 +155,7 @@ export function InstanceLogScreen() {
               </div>
             </Panel>
           ) : null}
-          <TablePanel caption="Änderungen an der Instanz" footer={footer}>
+          <TablePanel caption="Änderungen an der Instanz" footer={footer} grow>
             <thead>
               <tr>
                 <Column className="w-[120px] min-w-[112px]">Zeitpunkt</Column>

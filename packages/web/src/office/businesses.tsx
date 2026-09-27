@@ -19,7 +19,7 @@ import { useSync } from '../sync/provider.js'
 export function useBusinesses(): {
   readonly list: readonly TenantChoice[]
   readonly current: TenantId | null
-  /** Whether there is anything to switch to or create, which decides between a button and a name. */
+  /** Whether there is another business to switch to, which decides between a button and a name. */
   readonly offersMore: boolean
 } {
   const account = useQuery(accountQuery)
@@ -29,10 +29,11 @@ export function useBusinesses(): {
     staleTime: 5 * 60_000,
     retry: false,
   })
-  const mayCreate = useMay('tenant.create')
   const list = tenants.data ?? []
 
-  return { list, current: account.data?.tenantId ?? null, offersMore: list.length > 1 || mayCreate }
+  // Only with a second business, as #242 has it: somebody in one sees its name
+  // as before, and an owner makes a second one under "Konto".
+  return { list, current: account.data?.tenantId ?? null, offersMore: list.length > 1 }
 }
 
 /**
@@ -48,6 +49,13 @@ export function useBusinesses(): {
 export async function switchBusiness(client: SyncClient | null, tenantId: TenantId): Promise<void> {
   try {
     await client?.synchronise()
+
+    // A round already under way when the switch was asked for answers for it,
+    // and one that fails asks nothing again (`synchronise`). What still waits
+    // then gets a round of its own.
+    if (client && client.status().pending > 0) {
+      await client.synchronise()
+    }
   } catch {
     // What could not go out stays in the store of this business, as it does
     // without a connection, and goes out after the next switch back.
@@ -141,9 +149,9 @@ function NewBusinessLink({
 
 /**
  * The business in the header, from 1024 pixels on, `business_popover()` of
- * the canvas: the name, and where there is more than one business or a new
- * one could be made, a button that opens the list under it. A person in one
- * business who may create none sees the name as before.
+ * the canvas: the name, and where there is more than one business, a button
+ * that opens the list under it. A person in one business sees the name as
+ * before.
  */
 export function BusinessMenu({ name }: { readonly name: string }) {
   const client = useSync()
