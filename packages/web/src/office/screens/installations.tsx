@@ -20,6 +20,7 @@ import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
 import { asInstallation, installationFields, warrantyText } from './sites.js'
+import { ChangesButton } from './audit-log.js'
 
 /**
  * All installations of the business, `anlagen_liste()` of the canvas (#219):
@@ -180,6 +181,7 @@ export function InstallationScreen() {
         }
         actions={
           <>
+            <ChangesButton table="installations" id={installationId} />
             {boards.length > 0 ? <ChartButton installationId={installationId} /> : null}
             {writes ? (
               <Button

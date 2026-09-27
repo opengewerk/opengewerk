@@ -63,6 +63,7 @@ import { SyncController } from './sync.controller.js'
 import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { PUSH, PushController, type PushContext } from './push.controller.js'
+import { AuditController } from './audit.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
 
@@ -195,6 +196,7 @@ export class ApiModule implements NestModule {
         DeadlinesController,
         DeadlineSettingsController,
         PushController,
+        AuditController,
         FilesController,
         AttachmentsController,
         TimeController,

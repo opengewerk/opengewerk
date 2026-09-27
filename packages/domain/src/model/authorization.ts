@@ -151,6 +151,14 @@ export const permissions = [
   'mail.read',
   'mail.write',
   /**
+   * Reading the change log of the business (#285): every field before and
+   * after, with who, when and from which device. Only the owner has it,
+   * because the log keeps old values: a corrected address, a deleted note,
+   * the hours somebody recorded years ago. Reading a customer is not reading
+   * what the customer used to be.
+   */
+  'audit.read',
+  /**
    * Push messages on one's own devices (#284): switching them on and off on a
    * device, choosing the occasions and sending oneself a test. Every role has
    * it, because it is about nobody but the person asking; a right of its own
@@ -200,6 +208,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'membership.write': 'Zugänge verwalten',
   'mail.read': 'E-Mail-Einstellungen ansehen',
   'mail.write': 'E-Mail-Einstellungen ändern',
+  'audit.read': 'Das Änderungsprotokoll einsehen',
   'push.write': 'Push-Nachrichten auf eigenen Geräten einschalten',
 }
 

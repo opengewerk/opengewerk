@@ -33,6 +33,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nichts mehr. Die Adresse des Push-Dienstes muss im Internet liegen. Die Aktion `mail` der
   Fristenarten heißt dafür `reminder`, Erinnerung per E-Mail und Push, wie im Konzept.
   Migration 0050, neues Recht `push.write` für alle Rollen.
+- Das Änderungsprotokoll im Büro (#285), damit der Inhaber sieht, wer wann was geändert hat, ohne
+  an die Datenbank zu gehen. Unter "Einstellungen", "Änderungsprotokoll" stehen die Änderungen des
+  Betriebs, die neuesten zuerst und 50 je Abruf, mit Person, Gerät und Weg, gefiltert nach Zeitraum,
+  Person und Art des Datensatzes; eine Änderung öffnet sich mit ihren Feldern vorher und nachher, in
+  deutschen Namen und lesbaren Werten statt Spaltennamen und Schlüsseln. An Kunde, Objekt, Anlage,
+  Auftrag und Beleg führt der Knopf "Änderungen" zum Protokoll dieses Datensatzes und seiner Teile,
+  am Kunden also mit den Ansprechpartnern und am Beleg mit den Positionen. "Protokoll prüfen" rechnet
+  die Hashkette nach und sagt in einem Satz, ob sie vollständig und unverändert ist oder ab welchem
+  Eintrag nicht; die Prüfung vergleicht dafür auch den Kopf der Kette, damit am Ende entfernte
+  Einträge auffallen. Neues Recht `audit.read`, nur für den Inhaber, weil das Protokoll alte Werte
+  zeigt; das Lesen selbst wird nicht protokolliert. Keine Migration.
 
 ### Geändert
 
