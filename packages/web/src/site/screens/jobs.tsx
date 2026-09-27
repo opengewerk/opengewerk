@@ -468,7 +468,13 @@ export function SiteJobScreen() {
   )
 
   // The ways into the site, when this device holds them (#286).
-  const access = site ? <SiteAccessPanel siteId={String(site['id'])} /> : null
+  // Only at an open job, as it stands on the device: a job closed here
+  // without a network takes the ways in off the screen at once, not at the
+  // next exchange (Greptile on #445).
+  const access =
+    site && (status === 'active' || status === 'draft') ? (
+      <SiteAccessPanel siteId={String(site['id'])} />
+    ) : null
 
   const plant = installation ? (
     <Panel title="Anlage">

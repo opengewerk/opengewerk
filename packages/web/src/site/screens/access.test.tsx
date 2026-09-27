@@ -20,10 +20,11 @@ import { TestServer } from '../../sync/test-server.js'
 import { SiteJobScreen } from './jobs.js'
 
 /**
- * "Zugang zum Objekt" at a job on site (#286), the board "Auftrag: Zugang zum
- * Objekt": each value hidden until tapped, shown from the device also without
- * a network, and every showing a row through the outbox. A value that is not
- * on the device the owner and the office ask for at the route.
+ * "Zugang zum Objekt" at an open job on site (#286), the board "Auftrag:
+ * Zugang zum Objekt": each value hidden until tapped, shown from the device
+ * also without a network once its showing is in the outbox, and hidden again
+ * when the value changes. The owner and the office, who hold no value on any
+ * device, ask for one at the route.
  */
 
 let server: TestServer
@@ -176,7 +177,7 @@ describe('the ways into the site of a job', () => {
 
     await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
 
-    expect(within(card).getByText('4711')).toBeTruthy()
+    expect(await within(card).findByText('4711')).toBeTruthy()
     await waitFor(() => {
       expect(server.operations().map(({ entity, kind }) => `${entity} ${kind}`)).toEqual([
         'site_access_reveals create',
@@ -206,11 +207,69 @@ describe('the ways into the site of a job', () => {
     server.offline = true
     await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
 
-    expect(within(card).getByText('4711')).toBeTruthy()
+    expect(await within(card).findByText('4711')).toBeTruthy()
     await waitFor(() => {
       expect(client.status().pending).toBe(1)
     })
     expect(server.operations()).toEqual([])
+  })
+
+  it('keep a value hidden when its showing cannot be written on the device', async () => {
+    const client = await mount([safe])
+    const user = userEvent.setup()
+    const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
+
+    vi.spyOn(client, 'create').mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError'))
+    await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
+
+    expect(
+      await within(card).findByText(
+        'Das Anzeigen ließ sich auf diesem Gerät nicht festhalten. Der Wert bleibt verdeckt.',
+      ),
+    ).toBeTruthy()
+    expect(within(card).queryByText('4711')).toBeNull()
+    expect(within(card).getByLabelText('verdeckt')).toBeTruthy()
+  })
+
+  it('hide a shown value when a new one arrives, until it is tapped again', async () => {
+    const client = await mount([safe])
+    const user = userEvent.setup()
+    const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
+
+    await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
+
+    expect(await within(card).findByText('4711')).toBeTruthy()
+
+    server.put('site_accesses', { ...safe, value: '0815', valueSetAt: '2026-09-27T11:00:00.000Z' })
+    await client.synchronise()
+
+    await waitFor(() => {
+      expect(within(card).queryByText('4711')).toBeNull()
+    })
+    expect(within(card).queryByText('0815')).toBeNull()
+
+    await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
+
+    expect(await within(card).findByText('0815')).toBeTruthy()
+    await waitFor(() => {
+      expect(server.operations().map(({ entity }) => entity)).toEqual([
+        'site_access_reveals',
+        'site_access_reveals',
+      ])
+    })
+  })
+
+  it('leave the screen when the job is closed on the device, without waiting for the network', async () => {
+    const client = await mount([safe])
+
+    await screen.findByRole('region', { name: 'Zugang zum Objekt' })
+    server.offline = true
+    await client.update('jobs', 'j-1', { status: 'completed' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Zugang zum Objekt' })).toBeNull()
+    })
+    expect(client.status().pending).toBe(1)
   })
 
   it('say so when a value cannot be read any more, and offer nothing to show', async () => {
@@ -234,8 +293,8 @@ describe('the ways into the site of a job', () => {
 })
 
 describe('a way in whose value is not on the device', () => {
-  // Of a site whose jobs are closed: the row, without the value.
-  const closedSite = {
+  // The row without the value, as the owner and the office always hold it.
+  const withoutValue = {
     id: 'a-3',
     siteId: 's-1',
     designation: 'Garage',
@@ -246,7 +305,7 @@ describe('a way in whose value is not on the device', () => {
 
   it('is asked for at the route by the office, which keeps who saw it', async () => {
     roles = ['office']
-    await mount([closedSite])
+    await mount([withoutValue])
     await rolesKnown()
     const user = userEvent.setup()
     const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
@@ -262,7 +321,7 @@ describe('a way in whose value is not on the device', () => {
   it('says why not without a network', async () => {
     roles = ['owner']
     reveal = () => Promise.reject(new TypeError('Failed to fetch'))
-    await mount([closedSite])
+    await mount([withoutValue])
     await rolesKnown()
     const user = userEvent.setup()
     const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
@@ -271,14 +330,14 @@ describe('a way in whose value is not on the device', () => {
 
     expect(
       await within(card).findByText(
-        'Keine Verbindung. Ohne Netz sind nur die Werte zu offenen Aufträgen auf diesem Gerät.',
+        'Keine Verbindung. Inhaber und Büro sehen einen Wert nur mit Verbindung, dabei wird festgehalten, wer ihn gesehen hat.',
       ),
     ).toBeTruthy()
     expect(within(card).queryByText('2468')).toBeNull()
   })
 
-  it('offers nothing to a technician, who holds the values of the open jobs only', async () => {
-    await mount([closedSite])
+  it('offers nothing to a technician whose device holds no value for it', async () => {
+    await mount([withoutValue])
     await rolesKnown()
     const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
 

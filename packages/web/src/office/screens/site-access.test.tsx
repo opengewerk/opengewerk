@@ -89,6 +89,8 @@ async function mount(accesses: readonly RecordState[] = [safe]) {
   )
 
   await screen.findByRole('heading', { name: 'Einfamilienhaus Berg' })
+
+  return client
 }
 
 /** The card, once the roles are known and it shows. */
@@ -170,6 +172,45 @@ describe('the ways into a site in the office', () => {
 
     await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof verbergen' }))
 
+    expect(within(card).queryByText('4711')).toBeNull()
+  })
+
+  it('hide a shown value again when somebody else changed it meanwhile', async () => {
+    const client = await mount()
+    const card = await accessCard()
+    const user = userEvent.setup()
+
+    await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
+
+    expect(await within(card).findByText('4711')).toBeTruthy()
+
+    server.put('site_accesses', { ...safe, valueSetAt: '2026-09-27T11:00:00.000Z' })
+    await client.synchronise()
+
+    await waitFor(() => {
+      expect(within(card).queryByText('4711')).toBeNull()
+    })
+    expect(within(card).getByLabelText('verdeckt')).toBeTruthy()
+    expect(within(card).queryByText(/^Angezeigt um/)).toBeNull()
+  })
+
+  it('give way to saying a shown value cannot be read any more', async () => {
+    const client = await mount()
+    const card = await accessCard()
+    const user = userEvent.setup()
+
+    await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
+
+    expect(await within(card).findByText('4711')).toBeTruthy()
+
+    server.put('site_accesses', { ...safe, valueState: 'unreadable' })
+    await client.synchronise()
+
+    expect(
+      await within(card).findByText(
+        'Nicht mehr lesbar: der Schlüssel dieser Instanz hat sich geändert. Bitte den Wert neu eintragen.',
+      ),
+    ).toBeTruthy()
     expect(within(card).queryByText('4711')).toBeNull()
   })
 

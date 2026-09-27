@@ -12,6 +12,7 @@ import {
   removeAccess,
   revealAccess,
   type Revealed,
+  valueStampOf,
 } from '../../session/site-access.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRelated, useSync } from '../../sync/provider.js'
@@ -26,14 +27,18 @@ function saidWhy(error: unknown, fallback: string): string {
  * board "Objekt mit Zugang: verdeckt, angezeigt, nicht mehr lesbar" draws it:
  * what each opens and its hint, the value hidden until somebody asks for it.
  * Asking goes to the server, which answers with the value and keeps who saw
- * it; nothing of the value lies on this device. Only with `site.access`,
- * which the owner and the office have.
+ * it; nothing of the value lies on this device. A value on the screen counts
+ * only while the access still has it: changed by somebody else meanwhile, it
+ * is hidden again. Only with `site.access`, which the owner and the office
+ * have.
  */
 export function AccessPanel({ siteId }: { readonly siteId: string }) {
   const client = useSync()
   const may = useMay('site.access')
   const accesses = useRelated('site_accesses', 'siteId', siteId)
-  const [shown, setShown] = useState<ReadonlyMap<string, Revealed & { at: Date }>>(new Map())
+  const [shown, setShown] = useState<
+    ReadonlyMap<string, Revealed & { readonly at: Date; readonly stamp: string }>
+  >(new Map())
   const [editing, setEditing] = useState<string | 'new' | null>(null)
   const [removing, setRemoving] = useState<RecordState | null>(null)
   const [busy, setBusy] = useState(false)
@@ -45,13 +50,14 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
 
   async function reveal(access: RecordState) {
     const id = String(access['id'])
+    const stamp = valueStampOf(access)
 
     setTrouble(null)
 
     try {
       const answer = await revealAccess(siteId, id)
 
-      setShown((current) => new Map(current).set(id, { ...answer, at: new Date() }))
+      setShown((current) => new Map(current).set(id, { ...answer, at: new Date(), stamp }))
     } catch (error) {
       setTrouble(
         saidWhy(error, 'Keine Verbindung. Ein Zugang wird im Büro nur mit Verbindung angezeigt.'),
@@ -149,7 +155,9 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
           <ul className="flex flex-col">
             {sorted.map((access) => {
               const id = String(access['id'])
-              const seen = shown.get(id)
+              const asked = shown.get(id)
+              // Only while the access still has the value that was shown.
+              const seen = asked?.stamp === valueStampOf(access) ? asked : undefined
               const state = String(
                 access['valueState'] ?? (maybeText(access, 'valueSetAt') ? 'readable' : 'none'),
               )

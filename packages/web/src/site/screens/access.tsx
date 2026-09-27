@@ -4,31 +4,36 @@ import { useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
 import { Button, Panel } from '../../components/index.js'
-import { revealAccess } from '../../session/site-access.js'
+import { revealAccess, valueStampOf } from '../../session/site-access.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 
+/** A value on the screen: null the one on the device, a string the route's, and when it was set. */
+interface Shown {
+  readonly value: string | null
+  readonly stamp: string
+}
+
 /**
  * "Zugang zum Objekt" on the site (#286), the board "Auftrag: Zugang zum
- * Objekt": the ways into the site of the job, each value hidden until tapped.
- * The values of the sites with an open job the device holds are on it, also
- * without a network, and they go when the job is closed: a technician's
- * assigned ones, every open one for the owner and the office. Every showing
- * leaves a row through the outbox, which reaches the server with the next
- * exchange.
+ * Objekt": the ways into the site of an open job, each value hidden until
+ * tapped. On the device of a technician the values of the sites of their open
+ * jobs are there, also without a network, and they go when the job is
+ * closed. A showing is written to the outbox before the value appears, and
+ * reaches the server with the next exchange; when it cannot be written, the
+ * value stays hidden.
  *
- * A value that is not on the device, of a site whose jobs are closed, the
- * owner and the office ask for at the route, with a connection, as in the
- * office; the route keeps who saw it.
+ * Whoever keeps the ways in, the owner and the office, holds no value on any
+ * device and asks the route for one, with a connection, as in the office; the
+ * route keeps who saw it.
  */
 export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
   const client = useSync()
   const may = useMay('site.access')
   const accesses = useRelated('site_accesses', 'siteId', siteId)
-  // By access: null shows the value on the device, a string one the route
-  // answered with; missing, the value is hidden.
-  const [shown, setShown] = useState<ReadonlyMap<string, string | null>>(new Map())
+  // By access, what is on the screen; missing, the value is hidden.
+  const [shown, setShown] = useState<ReadonlyMap<string, Shown>>(new Map())
   const [trouble, setTrouble] = useState<string | null>(null)
   const held = accesses.filter((access) => access['valueState'] !== undefined)
 
@@ -42,17 +47,30 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
 
   async function show(access: RecordState) {
     const id = String(access['id'])
+    const stamp = valueStampOf(access)
 
     setTrouble(null)
 
     if (typeof access['value'] === 'string') {
-      setShown((current) => new Map(current).set(id, null))
-      // The trace without waiting: the value is on the screen now, and the
-      // row goes whenever the network is there.
-      void client.create('site_access_reveals', {
-        siteAccessId: id,
-        revealedAt: new Date().toISOString(),
-      })
+      // The trace first: the value appears once its showing is in the outbox,
+      // from where it goes whenever the network is there. A device that
+      // cannot write it shows nothing (Greptile on #445).
+      const saved = await client
+        .create('site_access_reveals', {
+          siteAccessId: id,
+          revealedAt: new Date().toISOString(),
+        })
+        .catch(() => null)
+
+      if (saved?.outcome !== 'queued') {
+        setTrouble(
+          'Das Anzeigen ließ sich auf diesem Gerät nicht festhalten. Der Wert bleibt verdeckt.',
+        )
+
+        return
+      }
+
+      setShown((current) => new Map(current).set(id, { value: null, stamp }))
 
       return
     }
@@ -61,7 +79,7 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
       const answer = await revealAccess(siteId, id)
 
       if (answer.state === 'readable') {
-        setShown((current) => new Map(current).set(id, answer.value))
+        setShown((current) => new Map(current).set(id, { value: answer.value, stamp }))
       } else {
         setTrouble('Nicht mehr lesbar. Das Büro trägt den Wert neu ein.')
       }
@@ -69,7 +87,7 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
       setTrouble(
         error instanceof RequestRefused
           ? error.message
-          : 'Keine Verbindung. Ohne Netz sind nur die Werte zu offenen Aufträgen auf diesem Gerät.',
+          : 'Keine Verbindung. Inhaber und Büro sehen einen Wert nur mit Verbindung, dabei wird festgehalten, wer ihn gesehen hat.',
       )
     }
   }
@@ -92,7 +110,11 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
           const state = String(access['valueState'])
           const onDevice = typeof access['value'] === 'string' ? access['value'] : null
           const asked = shown.get(id)
-          const visible = asked === undefined ? null : (asked ?? onDevice)
+          // Only while the access still has the value that was shown.
+          const visible =
+            asked === undefined || asked.stamp !== valueStampOf(access)
+              ? null
+              : (asked.value ?? onDevice)
 
           return (
             <div key={id} className="flex flex-col gap-1.5 border-b border-row pb-3">
