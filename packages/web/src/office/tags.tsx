@@ -42,7 +42,9 @@ const pillSizes = {
 /**
  * One tag, `tag_pill()` of the canvas: a rounded label with the tag in front,
  * set apart from a status by its shape. Small in a list, large in a form,
- * where it can be taken off at its cross.
+ * where it can be taken off at its cross. A name as long as a tag may have
+ * is cut short with an ellipsis rather than running past the edge of a
+ * telephone; the whole name stays in the text and in the title.
  */
 export function TagPill({
   name,
@@ -57,19 +59,20 @@ export function TagPill({
 
   return (
     <span
+      title={name}
       className={clsx(
-        'inline-flex items-center rounded-full border border-line bg-surface-sunken whitespace-nowrap text-ink-muted',
+        'inline-flex max-w-full min-w-0 items-center self-start rounded-full border border-line bg-surface-sunken text-ink-muted',
         pillSizes[size],
       )}
     >
       <TagIcon size={icon} strokeWidth={2.2} aria-hidden="true" className="shrink-0" />
-      {name}
+      <span className="min-w-0 truncate">{name}</span>
       {onRemove ? (
         <button
           type="button"
           aria-label={`${name} entfernen`}
           onClick={onRemove}
-          className="-mr-[3px] inline-flex cursor-pointer items-center border-0 bg-transparent p-0 text-ink-muted"
+          className="-mr-[3px] inline-flex shrink-0 cursor-pointer items-center border-0 bg-transparent p-0 text-ink-muted"
         >
           <X size={12} strokeWidth={2.4} aria-hidden="true" />
         </button>
@@ -93,7 +96,7 @@ export function TagPills({
   }
 
   return (
-    <span className={clsx('inline-flex flex-wrap gap-1.5', className)}>
+    <span className={clsx('inline-flex max-w-full min-w-0 flex-wrap gap-1.5', className)}>
       {names.map((name) => (
         <TagPill key={name} name={name} size={size} />
       ))}
@@ -322,7 +325,7 @@ export function TagPicker({
       {chosen.tagIds.length + chosen.newTags.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5" aria-label="Tags">
           {chosen.tagIds.map((id) => (
-            <li key={id}>
+            <li key={id} className="max-w-full min-w-0">
               <TagPill
                 name={nameOf.get(id) ?? 'ein gelöschter Tag'}
                 size="large"
@@ -333,7 +336,7 @@ export function TagPicker({
             </li>
           ))}
           {chosen.newTags.map((name) => (
-            <li key={`new:${name}`}>
+            <li key={`new:${name}`} className="max-w-full min-w-0">
               <TagPill
                 name={name}
                 size="large"
