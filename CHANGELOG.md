@@ -93,6 +93,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   zeigt nur ein Gerät, das alle Aufträge des Betriebs hält. Tags pflegt, wer Kunden ändern darf, also
   auch das Büro; ein Gerät bekommt sie über den Abgleich und schreibt keine, und ein gelöschter
   Kunde oder ein gelöschtes Objekt nimmt seine Tags mit. Migration 0053.
+- Der Zugang zum Objekt (#286), damit der Code des Schlüsseltresors oder der Alarmanlage dort steht,
+  wo er gebraucht wird, und nicht auf einem Zettel im Auto. Inhaber und Büro tragen unter einem
+  Objekt jeden Zugang mit Bezeichnung, Wert und Hinweis ein (Recht `site.access`). Der Wert liegt
+  versiegelt in `secrets`, gebunden an Betrieb und Eintrag, und steht nie im Änderungsprotokoll, das
+  nur nennt, dass einer gesetzt wurde. Angezeigt wird er auf Klick, im Büro über die Route und mit
+  Verbindung, und jedes Anzeigen wird festgehalten. Auf der Baustelle zeigt ein Auftrag die Karte
+  "Zugang zum Objekt": dort liegt der Wert auf dem Gerät, solange am Objekt ein offener Auftrag ist,
+  den das Gerät hält, beim Monteur die ihm zugeordneten, bei Inhaber und Büro alle offenen, damit er
+  auch ohne Netz vor der Tür steht; ein Anzeigen dort geht mit dem nächsten Abgleich hinaus. Nach dem
+  Abschluss verschwindet der Wert vom Gerät, beim Monteur mit dem ganzen Zugang. Ändert sich
+  `SESSION_SECRET`, sagt die Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern.
+  Migration 0054.
 
 ### Geändert
 

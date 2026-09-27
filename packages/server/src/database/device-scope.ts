@@ -19,8 +19,6 @@ export interface DeviceScope {
    * device holds the ways into (#286), which go when the job is closed.
    */
   readonly openJobIds: readonly string[]
-  /** What the answer names for the ways into the sites, changing with the open jobs. */
-  readonly openValue: string
   /**
    * What the answer of a pull names as narrowed for each entity it narrows.
    * It changes whenever the jobs change, and a device that finds a different
@@ -52,16 +50,26 @@ export async function deviceScope(
      order by j.id`)
   const jobIds = rows.map((row) => row.id)
   const openJobIds = rows.filter((row) => row.open).map((row) => row.id)
-  const digest = (ids: readonly string[]) =>
-    createHash('sha256').update(ids.join(',')).digest('hex').slice(0, 16)
 
   return {
     userId,
     jobIds,
     value: `jobs:${digest(jobIds)}`,
     openJobIds,
-    openValue: `open:${digest(openJobIds)}`,
   }
+}
+
+/** A short fingerprint of a sorted list, for the value an answer names. */
+function digest(ids: readonly string[]): string {
+  return createHash('sha256').update(ids.join(',')).digest('hex').slice(0, 16)
+}
+
+/** A list of ids as a parameter, an empty one included. */
+function uuidArray(ids: readonly string[]): SQL {
+  return sql`array[${sql.join(
+    ids.map((id) => sql`${id}`),
+    sql`, `,
+  )}]::uuid[]`
 }
 
 /** The entities whose rows a scope narrows; every other entity is sent whole. */
@@ -177,15 +185,41 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
 /**
  * The ways into a site (#286) on a device without `site.access`: the sites of
  * its open jobs, and nothing of a closed one, which `closedJobsStayDays` keeps
- * for everything else. A device with the right holds them all and asks for a
- * value when it is needed.
+ * for everything else. A device with the right holds them all, and on site
+ * the values of those in `sitesWithOpenJobs`.
  */
 export function accessesOfOpenJobs(scope: DeviceScope): SQL {
-  const ids = sql`array[${sql.join(
-    scope.openJobIds.map((id) => sql`${id}`),
-    sql`, `,
-  )}]::uuid[]`
-
   return sql`"site_accesses"."site_id" in (select site_id from jobs
-    where id = any(${ids}) and site_id is not null)`
+    where id = any(${uuidArray(scope.openJobIds)}) and site_id is not null)`
+}
+
+/**
+ * The sites whose ways in a device on site holds with their values (#286):
+ * those with a way in and an open job the device holds, the assigned ones in
+ * a scope and every open one for whoever holds the whole business. `value`
+ * changes with the list and goes into the answer, so that a device lets go
+ * of the values of a site whose last open job was closed, and fetches those
+ * of a site that got one or that one of its jobs moved to. A site without a
+ * way in stays out of the list: a job there changes nothing on the device,
+ * and one that holds the whole business would otherwise fetch all of it anew
+ * for every new job.
+ */
+export async function sitesWithOpenJobs(
+  tx: TenantTransaction,
+  scope: DeviceScope | null,
+): Promise<{ readonly siteIds: ReadonlySet<string>; readonly value: string }> {
+  const open = scope
+    ? sql`j.id = any(${uuidArray(scope.openJobIds)})`
+    : sql`j.status in ('draft', 'active') and j.deleted_at is null`
+  const { rows } = await tx.execute<{ site_id: string }>(sql`
+    select distinct j.site_id
+      from jobs j
+     where ${open}
+       and j.site_id is not null
+       and exists (select 1 from site_accesses a
+                    where a.site_id = j.site_id and a.deleted_at is null)
+     order by j.site_id`)
+  const ids = rows.map((row) => row.site_id)
+
+  return { siteIds: new Set(ids), value: `sites:${digest(ids)}` }
 }

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Button, Confirm, Field, Panel } from '../../components/index.js'
-import { moment } from '../../app/format.js'
+import { clockTime } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
   changeAccess,
@@ -23,10 +23,11 @@ function saidWhy(error: unknown, fallback: string): string {
 
 /**
  * "Zugang", the card of the ways into a site in the office (#286), as the
- * board "Buero-Objekt-Zugang" draws it: what each opens and its hint, the
- * value hidden until somebody asks for it. Asking goes to the server, which
- * answers with the value and keeps who saw it; nothing of the value lies on
- * this device. Only with `site.access`, which the owner and the office have.
+ * board "Objekt mit Zugang: verdeckt, angezeigt, nicht mehr lesbar" draws it:
+ * what each opens and its hint, the value hidden until somebody asks for it.
+ * Asking goes to the server, which answers with the value and keeps who saw
+ * it; nothing of the value lies on this device. Only with `site.access`,
+ * which the owner and the office have.
  */
 export function AccessPanel({ siteId }: { readonly siteId: string }) {
   const client = useSync()
@@ -187,7 +188,7 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
                       </Button>
                     </div>
                     <p className="mt-[3px] text-[12px] text-ink-faint">
-                      {`Angezeigt um ${moment(seen.at)}, steht im Änderungsprotokoll.`}
+                      {`Angezeigt um ${clockTime(seen.at)}, steht im Änderungsprotokoll.`}
                     </p>
                   </>
                 ) : seen?.state === 'unreadable' || state === 'unreadable' ? (

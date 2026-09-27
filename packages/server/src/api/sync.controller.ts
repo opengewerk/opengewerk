@@ -32,6 +32,7 @@ import {
   deviceScope,
   narrowedTo,
   scopedEntities,
+  sitesWithOpenJobs,
 } from '../database/device-scope.js'
 import { siteAccessReveals, timeEntries } from '../database/schema/index.js'
 import type { SecretKey } from '../secrets/key.js'
@@ -251,10 +252,14 @@ export function permissionFor(
     document_sources: 'document.write',
     // The same for who is on a job (#140), which the office sets at a route.
     job_assignments: 'job.write',
-    // The ways into a site (#286), kept at the routes of the site; a showing
-    // of one is written by whoever may read the site it opens.
-    site_accesses: 'site.access',
-    site_access_reveals: 'site.read',
+    // The ways into a site (#286), kept at the routes of the site, which ask
+    // for `site.access`; the policy refuses every write from a device, and
+    // this names the right to change the site they belong to. A showing is
+    // written by the device that showed a value, and every device that holds
+    // one writes through the sync: no right beyond that, and the person comes
+    // from the request.
+    site_accesses: 'site.write',
+    site_access_reveals: 'sync.write',
     // And for the tags (#314): made and put on at the routes of the office.
     tags: 'customer.write',
     customer_tags: 'customer.write',
@@ -285,15 +290,15 @@ export function permissionFor(
 /**
  * The rows of the ways into a site with what the device may know of their
  * value (#286): whether there is one and whether it opens, `valueState`, and
- * for a device that may hold them and asked, the value itself. Nothing else in
- * any answer carries it.
+ * the value itself for the sites in `valued`, the ones with an open job on a
+ * device on site that asked. Nothing else in any answer carries it.
  */
 async function withAccessStates(
   tx: TenantTransaction,
   key: SecretKey,
   tenantId: TenantId,
   changes: readonly ChangedRows[],
-  withValues: boolean,
+  valued: ReadonlySet<string> | null,
 ): Promise<readonly ChangedRows[]> {
   const rows = changes.find((change) => change.entity === 'site_accesses')?.rows ?? []
   const live = rows.filter((row) => row['deletedAt'] === null)
@@ -321,7 +326,7 @@ async function withAccessStates(
 
             const stored = values.get(row['id'] as SiteAccessId) ?? { state: 'none' as const }
 
-            return withValues && stored.state === 'readable'
+            return valued?.has(String(row['siteId'])) && stored.state === 'readable'
               ? { ...row, valueState: stored.state, value: stored.value }
               : { ...row, valueState: stored.state }
           }),
@@ -414,14 +419,18 @@ export class SyncController {
     // (#140): the jobs they are on, with what hangs on them.
     const ownTimeOnly = !isAllowed(identity, 'time.read')
     const wholeBusiness = isAllowed(identity, 'job.read.all')
-    // The ways into a site (#286): all of them, without a value, for whoever
-    // keeps them, who asks for a value when it is needed; the ones of the open
-    // jobs for a technician, with the value only when the device asks for it,
-    // which the site does and the office does not.
+    // The ways into a site (#286): all of them for whoever keeps them, and
+    // for a technician the ones of the sites of their open jobs. A value only
+    // when the device asks for values, which the site does and the office
+    // does not, and then for the sites with an open job the device holds, so
+    // that it opens the door in a cellar without a network. Any other value
+    // the office asks for on purpose, at the route that keeps who saw it.
     const keepsAccess = isAllowed(identity, 'site.access')
-    const withValues = access === 'values' && !keepsAccess
-    const { answer, scope } = await this.database.forTenant(identity, async (tx) => {
+    const withValues = access === 'values'
+    const { answer, scope, sites } = await this.database.forTenant(identity, async (tx) => {
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
+      const sites =
+        scope !== null || (keepsAccess && withValues) ? await sitesWithOpenJobs(tx, scope) : null
       const found = await changesSince(tx, from, undefined, (entity) => {
         if (entity === 'time_entries' && ownTimeOnly) {
           return eq(timeEntries.userId, identity.userId)
@@ -439,10 +448,16 @@ export class SyncController {
         return scope ? narrowedTo(scope, entity) : undefined
       })
       const changes = this.key
-        ? await withAccessStates(tx, this.key, identity.tenantId, found.changes, withValues)
+        ? await withAccessStates(
+            tx,
+            this.key,
+            identity.tenantId,
+            found.changes,
+            withValues ? (sites?.siteIds ?? null) : null,
+          )
         : found.changes
 
-      return { answer: { ...found, changes }, scope }
+      return { answer: { ...found, changes }, scope, sites }
     })
 
     // What the answer was narrowed to, per entity whose rows depend on who
@@ -459,12 +474,15 @@ export class SyncController {
         ...Object.fromEntries(
           scopedEntities.map((entity) => [entity, scope ? scope.value : 'all']),
         ),
-        // Changes with the open jobs, so that a closed job takes the ways
-        // into its site off the device, and with whether values were asked for.
+        // Changes with the sites of the open jobs, so that a closed job takes
+        // the ways into its site or their values off the device, and with
+        // whether values were asked for.
         site_accesses: keepsAccess
-          ? 'all'
-          : scope
-            ? `${scope.openValue}:${withValues ? 'values' : 'bare'}`
+          ? withValues && sites
+            ? `all:${sites.value}:values`
+            : 'all'
+          : scope && sites
+            ? `${sites.value}:${withValues ? 'values' : 'bare'}`
             : 'none',
         site_access_reveals: `user:${identity.userId}`,
       },

@@ -541,6 +541,29 @@ const crossings: readonly {
             values (${own.tenant}, ${own.site}, ${other.tag})`,
   },
   {
+    // The ways into a site (#286). Inserts: the application may not move an
+    // access to another site, and a showing is written once, its person from
+    // the request as it would be for a device.
+    key: 'site_accesses_site_in_tenant',
+    write: (own, other) =>
+      sql`insert into site_accesses (tenant_id, site_id, designation)
+            values (${own.tenant}, ${other.site}, 'Schlüsseltresor')`,
+  },
+  {
+    key: 'site_access_reveals_access_in_tenant',
+    write: (own, other) =>
+      sql`insert into site_access_reveals (tenant_id, site_access_id, revealed_at)
+            select ${own.tenant}, ${other.siteAccess}, now()
+              from (select set_config('app.user_id', ${own.user}, true)) as acting`,
+  },
+  {
+    key: 'site_access_reveals_person_works_here',
+    write: (own, other) =>
+      sql`insert into site_access_reveals (tenant_id, site_access_id, revealed_at)
+            select ${own.tenant}, ${own.siteAccess}, now()
+              from (select set_config('app.user_id', ${other.user}, true)) as acting`,
+  },
+  {
     // An insert and not a repoint: a follow-up names the job before it when it
     // is made (#170), and the trigger refuses any later change before the key
     // is asked. On an insert the trigger finds no job of another business and
@@ -979,6 +1002,7 @@ interface Planted {
   readonly circuit: string
   readonly equipment: string
   readonly tag: string
+  readonly siteAccess: string
 }
 
 /**
@@ -1105,6 +1129,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     ),
     letterhead: await one('insert into letterheads (tenant_id) values ($1)', [tenant]),
     tag: await one('insert into tags (tenant_id, name) values ($1, $2)', [tenant, `Tag ${slug}`]),
+    siteAccess: await one(
+      "insert into site_accesses (tenant_id, site_id, designation) values ($1, $2, 'Schlüsseltresor Hof')",
+      [tenant, site],
+    ),
     invitation,
     task,
     mail: await one(

@@ -22,8 +22,9 @@ import { created, push } from './test-structure.js'
 /**
  * The ways into a site (#286): kept by the office, the value sealed apart,
  * never in the audit log and never in an answer that does not ask for it;
- * shown to the office on request, which leaves a trace, and held on the
- * device of a technician for the open jobs there only.
+ * shown to the office on request, which leaves a trace, and held on a device
+ * on site for the sites of its open jobs only, the assigned ones of a
+ * technician and every open one of whoever holds the whole business.
  */
 
 const north = { id: newId<'tenant'>() as TenantId, name: 'Elektro Nord GmbH' }
@@ -169,10 +170,11 @@ describe('an access to a site', () => {
     expect(access['valueSetAt']).not.toBeNull()
     expect(JSON.stringify(access)).not.toContain(code)
 
-    const pulled = await pull(office(), true)
+    const pulled = await pull(office())
     const row = accessesOf(pulled).find((candidate) => candidate['id'] === access['id'])
 
-    // The office learns that there is a value, and not the value.
+    // The office learns that there is a value, and not the value, unless it
+    // asks for values on site.
     expect(row).toMatchObject({ valueState: 'readable' })
     expect(JSON.stringify(pulled)).not.toContain(code)
 
@@ -406,6 +408,40 @@ describe('an access on the device of a technician', () => {
     expect(rows[0]?.revealed_at.toISOString()).toBe(revealedAt)
   })
 
+  it('follows a job that moves to another site', async () => {
+    const { customer, site, job } = await siteWithJob('Umzug')
+    const other = String(
+      (await post('/sites', { customerId: customer, designation: 'Haus Umzug, hinten' }))['id'],
+    )
+    const left = await addAccess(site, { designation: 'Vorne', value: '1212' })
+    const moved = await addAccess(other, { designation: 'Hinten', value: '3434' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    const before = await pull(technician(), true)
+
+    expect(accessesOf(before).map((row) => row['id'])).toContain(left['id'])
+    expect(accessesOf(before).map((row) => row['id'])).not.toContain(moved['id'])
+
+    await http()
+      .patch(`/jobs/${job}`)
+      .set('x-test-identity', office())
+      .send({ siteId: other })
+      .expect(200)
+
+    // The answer says so, and the device fetches the site it moved to.
+    const after = await pull(technician(), true)
+
+    expect(after.narrowed['site_accesses']).not.toBe(before.narrowed['site_accesses'])
+    expect(accessesOf(after).map((row) => row['id'])).toContain(moved['id'])
+    expect(accessesOf(after).map((row) => row['id'])).not.toContain(left['id'])
+    expect(JSON.stringify(after)).not.toContain('1212')
+  })
+
   it('is neither kept nor asked for at the routes by a technician', async () => {
     const { site } = await siteWithJob('Rechte')
     const access = await addAccess(site, { designation: 'Tür', value: '5555' })
@@ -419,6 +455,60 @@ describe('an access on the device of a technician', () => {
       .post(`/sites/${site}/accesses/${String(access['id'])}/reveal`)
       .set('x-test-identity', technician())
       .expect(403)
+  })
+})
+
+describe('an access on a device of the office on site', () => {
+  function rowOf(pulled: Pulled, id: unknown) {
+    return accessesOf(pulled).find((row) => row['id'] === id)
+  }
+
+  it('comes with its value for a site with an open job, and without for the others', async () => {
+    const open = await siteWithJob('Offen')
+    const done = await siteWithJob('Erledigt')
+    const withJob = await addAccess(open.site, { designation: 'Hoftor', value: '9753' })
+    const withoutJob = await addAccess(done.site, { designation: 'Keller', value: '8642' })
+
+    await http()
+      .patch(`/jobs/${done.job}`)
+      .set('x-test-identity', office())
+      .send({ status: 'completed' })
+      .expect(200)
+
+    // On site: the value where a job is open, so that it is there in a
+    // cellar without a network, and only that there is one elsewhere.
+    const onSite = await pull(office(), true)
+
+    expect(rowOf(onSite, withJob['id'])).toMatchObject({ valueState: 'readable', value: '9753' })
+    expect(rowOf(onSite, withoutJob['id'])).toMatchObject({ valueState: 'readable' })
+    expect(rowOf(onSite, withoutJob['id'])?.['value']).toBeUndefined()
+
+    // In the office, which does not ask, no value at all.
+    const inOffice = await pull(office())
+
+    expect(JSON.stringify(inOffice)).not.toContain('9753')
+    expect(inOffice.narrowed['site_accesses']).toBe('all')
+
+    // A new job at a site without a way in leaves the device as it is, so it
+    // does not fetch the whole business anew; a job closed where there is
+    // one takes the value off.
+    await siteWithJob('Ohne Zugang')
+
+    expect((await pull(office(), true)).narrowed['site_accesses']).toBe(
+      onSite.narrowed['site_accesses'],
+    )
+
+    await http()
+      .patch(`/jobs/${open.job}`)
+      .set('x-test-identity', office())
+      .send({ status: 'completed' })
+      .expect(200)
+
+    const after = await pull(office(), true)
+
+    expect(after.narrowed['site_accesses']).not.toBe(onSite.narrowed['site_accesses'])
+    expect(rowOf(after, withJob['id'])).toMatchObject({ valueState: 'readable' })
+    expect(rowOf(after, withJob['id'])?.['value']).toBeUndefined()
   })
 })
 
