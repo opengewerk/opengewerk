@@ -57,9 +57,12 @@ fi
 printf '%s' "$out" | grep -q 'eingetragen:.* SETUP_CODE'
 check 'Einrichtungscode: XXXX-XXXX ohne verwechselbare Zeichen, nicht in der Ausgabe'
 
-# The key for push (#284): a private key on P-256 that openssl reads back,
-# and not in the output either.
+# The key for push (#284): a private key on P-256 in PKCS #8, and not in the
+# output either. "pkcs8" and not "pkey" for the form: pkey reads the older SEC1
+# form as well, which the application refuses, and a check with it passed while
+# every instance it made failed to start.
 vapid=$(grep '^VAPID_PRIVATE_KEY=' "$work/.env" | cut -d= -f2-)
+printf '%s' "$vapid" | openssl base64 -d -A | openssl pkcs8 -nocrypt -inform DER -outform PEM > /dev/null 2>&1
 printf '%s' "$vapid" | openssl base64 -d -A | openssl pkey -inform DER -noout -text 2>/dev/null | grep -q prime256v1
 if printf '%s' "$out" | grep -qF "$vapid"; then
   echo 'FEHLER: der Schlüssel für Push steht in der Ausgabe'
@@ -110,7 +113,7 @@ out=$(sh "$work/setup.sh" < /dev/null 2>&1)
 printf '%s\n' "$out"
 printf '%s' "$out" | grep -q 'Aus der Vorlage übernommen: VAPID_PRIVATE_KEY'
 vapid=$(grep '^VAPID_PRIVATE_KEY=' "$work/.env" | cut -d= -f2-)
-printf '%s' "$vapid" | openssl base64 -d -A | openssl pkey -inform DER -noout 2>/dev/null
+printf '%s' "$vapid" | openssl base64 -d -A | openssl pkcs8 -nocrypt -inform DER -outform PEM > /dev/null 2>&1
 check 'ältere .env ohne Schlüssel für Push: bekommt einen'
 
 # 5. A renderer switched off stays off. An empty value is a value, and only a

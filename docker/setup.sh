@@ -71,12 +71,15 @@ setup_code() {
 
 # The key push messages are signed with (#284): a private key on P-256 as
 # PKCS #8 in base64 on one line, not a random string, because a push service
-# checks a signature with its public half. Only openssl makes one here; without
-# it the line stays empty and the instance runs without push, rather than not
-# at all.
+# checks a signature with its public half. Through "pkcs8 -topk8" and not
+# straight out of genpkey: asked for DER, genpkey writes an EC key in the older
+# SEC1 form. Only openssl makes one here; without it the line stays empty and
+# the instance runs without push, rather than not at all.
 vapid_key() {
   command -v openssl >/dev/null 2>&1 || return 1
-  key=$(openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -outform DER 2>/dev/null | openssl base64 -A) || return 1
+  key=$(openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 2>/dev/null |
+    openssl pkcs8 -topk8 -nocrypt -outform DER 2>/dev/null |
+    openssl base64 -A) || return 1
   [ -n "$key" ] || return 1
   printf '%s\n' "$key"
 }

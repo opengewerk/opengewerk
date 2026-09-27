@@ -134,6 +134,13 @@ describe('the signature for the push service', () => {
     expect(fromBase64Url(keys.publicKey)[0]).toBe(4)
   })
 
+  it('takes the older SEC1 form too, which openssl genpkey writes as DER', () => {
+    const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+    const sec1 = privateKey.export({ format: 'der', type: 'sec1' }).toString('base64')
+
+    expect(fromBase64Url(vapidKeysFrom(sec1, 'https://x.example').publicKey)).toHaveLength(65)
+  })
+
   it('refuses anything that is not a key on P-256', () => {
     expect(() => vapidKeysFrom('bitte-ersetzen', 'https://x.example')).toThrow(VapidKeyError)
     expect(() => vapidKeysFrom(aPrivateKey('secp384r1'), 'https://x.example')).toThrow(/P-256/)

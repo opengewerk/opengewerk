@@ -142,21 +142,31 @@ export interface VapidKeys {
 
 export class VapidKeyError extends Error {}
 
+/** A private key in DER, as PKCS #8 or in the older SEC1 form, or null. */
+function privateKeyOf(der: Buffer): KeyObject | null {
+  for (const type of ['pkcs8', 'sec1'] as const) {
+    try {
+      return createPrivateKey({ key: der, format: 'der', type })
+    } catch {
+      // The other form, then.
+    }
+  }
+
+  return null
+}
+
 /**
  * The keys from the private key in the .env, PKCS #8 in base64 as setup.sh
- * writes it. Anything else, and a key on another curve, is refused.
+ * writes it. The older SEC1 form is taken as well, because `openssl genpkey`
+ * writes an EC key in it when asked for DER, and a key made by hand that way
+ * is a key all the same. Anything else, and a key on another curve, is
+ * refused.
  */
 export function vapidKeysFrom(privateKeyBase64: string, subject: string): VapidKeys {
-  let privateKey: KeyObject
+  const privateKey = privateKeyOf(Buffer.from(privateKeyBase64, 'base64'))
 
-  try {
-    privateKey = createPrivateKey({
-      key: Buffer.from(privateKeyBase64, 'base64'),
-      format: 'der',
-      type: 'pkcs8',
-    })
-  } catch {
-    throw new VapidKeyError('not a private key in PKCS #8')
+  if (!privateKey) {
+    throw new VapidKeyError('not a private key in PKCS #8 or SEC1')
   }
 
   if (
