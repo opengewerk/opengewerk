@@ -84,6 +84,7 @@ export function RecordForm({
   disabledReason,
   check,
   extraAction,
+  after,
   columns,
   divided = true,
 }: {
@@ -104,6 +105,8 @@ export function RecordForm({
   readonly check?: (values: Record<string, string>) => string | null
   /** A further action at the left of the buttons, "Entfernen" in a form that changes. */
   readonly extraAction?: ReactNode
+  /** More of the form after the fields, kept by the caller: the tags of a site. */
+  readonly after?: ReactNode
   /**
    * The columns from 1024 pixels on, where a board draws the fields of a form
    * in one row: "Neue Aufgabe" has four. Two below that, one on a phone.
@@ -192,6 +195,8 @@ export function RecordForm({
           ),
         )}
       </div>
+
+      {after}
 
       {trouble ? (
         <p role="alert" className="text-[13px] font-semibold text-conflict">

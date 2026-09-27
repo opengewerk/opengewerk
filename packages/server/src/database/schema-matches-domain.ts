@@ -7,6 +7,7 @@ import type {
   Circuit,
   Contact,
   Customer,
+  CustomerTag,
   DistributionBoard,
   Document,
   DocumentFile,
@@ -29,10 +30,12 @@ import type {
   PvModule,
   PvString,
   Site,
+  SiteTag,
   StoredFile,
   SyncConflict,
   SyncOperation,
   SyncSequence,
+  Tag,
   Task,
   Tenant,
   TenantParameter,
@@ -65,6 +68,7 @@ import type {
   inverters,
   formDefinitions,
   formRecords,
+  customerTags,
   jobAssignments,
   jobNotes,
   jobs,
@@ -74,9 +78,11 @@ import type {
   pvModules,
   pvStrings,
   sites,
+  siteTags,
   syncConflicts,
   syncOperations,
   syncSequences,
+  tags,
   tasks,
   tenantParameters,
   tenants,
@@ -127,6 +133,9 @@ export type FormDefinitionMatches = Assert<
   Exact<typeof formDefinitions.$inferSelect, FormDefinitionRecord>
 >
 export type JobAssignmentMatches = Assert<Exact<typeof jobAssignments.$inferSelect, JobAssignment>>
+export type TagMatches = Assert<Exact<typeof tags.$inferSelect, Tag>>
+export type CustomerTagMatches = Assert<Exact<typeof customerTags.$inferSelect, CustomerTag>>
+export type SiteTagMatches = Assert<Exact<typeof siteTags.$inferSelect, SiteTag>>
 export type JobNoteMatches = Assert<Exact<typeof jobNotes.$inferSelect, JobNote>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>

@@ -74,6 +74,8 @@ export interface PageHeadProps {
   readonly crumbs?: readonly Crumb[]
   /** Beside the title: a state, the kind, a number. */
   readonly badges?: ReactNode
+  /** On a line of their own under the title: the tags of a customer or a site. */
+  readonly tags?: ReactNode
   /** Beside the title in lighter figures: "248 Einträge". */
   readonly count?: string
   /** The line under the title: since when, how many, what runs. */
@@ -99,6 +101,7 @@ export function PageHead({
   title,
   crumbs,
   badges,
+  tags,
   count,
   sub,
   actions,
@@ -132,6 +135,7 @@ export function PageHead({
               <span className="numeric text-[14px] text-ink-faint max-lg:basis-full">{count}</span>
             ) : null}
           </div>
+          {tags ? <div className="mt-[7px] flex flex-wrap gap-1.5">{tags}</div> : null}
           {sub ? <div className="mt-[5px] text-[13px] text-ink-faint">{sub}</div> : null}
         </div>
         {actions ? (

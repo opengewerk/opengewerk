@@ -515,6 +515,32 @@ const crossings: readonly {
             values (${own.tenant}, ${own.job}, ${other.user})`,
   },
   {
+    // The tags of a customer and a site (#314). Inserts, because the
+    // application may only mark one deleted and never move it.
+    key: 'customer_tags_customer_in_tenant',
+    write: (own, other) =>
+      sql`insert into customer_tags (tenant_id, customer_id, tag_id)
+            values (${own.tenant}, ${other.customer}, ${own.tag})`,
+  },
+  {
+    key: 'customer_tags_tag_in_tenant',
+    write: (own, other) =>
+      sql`insert into customer_tags (tenant_id, customer_id, tag_id)
+            values (${own.tenant}, ${own.customer}, ${other.tag})`,
+  },
+  {
+    key: 'site_tags_site_in_tenant',
+    write: (own, other) =>
+      sql`insert into site_tags (tenant_id, site_id, tag_id)
+            values (${own.tenant}, ${other.site}, ${own.tag})`,
+  },
+  {
+    key: 'site_tags_tag_in_tenant',
+    write: (own, other) =>
+      sql`insert into site_tags (tenant_id, site_id, tag_id)
+            values (${own.tenant}, ${own.site}, ${other.tag})`,
+  },
+  {
     // An insert and not a repoint: a follow-up names the job before it when it
     // is made (#170), and the trigger refuses any later change before the key
     // is asked. On an insert the trigger finds no job of another business and
@@ -952,6 +978,7 @@ interface Planted {
   readonly section: string
   readonly circuit: string
   readonly equipment: string
+  readonly tag: string
 }
 
 /**
@@ -1077,6 +1104,7 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       [tenant, user],
     ),
     letterhead: await one('insert into letterheads (tenant_id) values ($1)', [tenant]),
+    tag: await one('insert into tags (tenant_id, name) values ($1, $2)', [tenant, `Tag ${slug}`]),
     invitation,
     task,
     mail: await one(

@@ -7,13 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common'
 import type { SiteId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
-import { sites } from '../database/schema/index.js'
+import { sites, siteTags } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
+import { setTags, tagChoiceFrom } from './tag-choice.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -90,6 +92,35 @@ export class SitesController {
   }
 
   /**
+   * The tags of the site as the whole list (#314), `{ tagIds, newTags }`:
+   * the tags it is to have and names for new ones, which become tags of the
+   * business unless one by that name is there already.
+   */
+  @Put(':id/tags')
+  @RequiresPermission('site.write')
+  async tag(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const choice = tagChoiceFrom(body)
+
+    return this.database.forTenant(identity, async (tx) => {
+      const [record] = await tx
+        .select({ id: sites.id })
+        .from(sites)
+        .where(and(eq(sites.id, id as SiteId), isNull(sites.deletedAt)))
+        .for('no key update')
+
+      if (!record) {
+        throw new NotFoundException()
+      }
+
+      return setTags(tx, identity.tenantId, { kind: 'site', id: record.id }, choice)
+    })
+  }
+
+  /**
    * Marked as deleted, not removed. A row that is gone is a row a device that
    * was offline never hears about, because a delta pull delivers what changed
    * and a row that is no longer there is not among it.
@@ -97,13 +128,24 @@ export class SitesController {
   @Delete(':id')
   @RequiresPermission('site.write')
   async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
-    const [removed] = await this.database.forTenant(identity, (tx) =>
-      tx
+    const [removed] = await this.database.forTenant(identity, async (tx) => {
+      const now = new Date()
+      const [gone] = await tx
         .update(sites)
-        .set({ deletedAt: new Date() })
+        .set({ deletedAt: now })
         .where(and(eq(sites.id, id as SiteId), isNull(sites.deletedAt)))
-        .returning(),
-    )
+        .returning()
+
+      // Its tags go with it, as a deleted tag takes its assignments (#314).
+      if (gone) {
+        await tx
+          .update(siteTags)
+          .set({ deletedAt: now })
+          .where(and(eq(siteTags.siteId, gone.id), isNull(siteTags.deletedAt)))
+      }
+
+      return [gone]
+    })
 
     if (!removed) {
       throw new NotFoundException()

@@ -55,8 +55,10 @@ export const scopedEntities: readonly string[] = [
   'job_assignments',
   'job_notes',
   'customers',
+  'customer_tags',
   'contacts',
   'sites',
+  'site_tags',
   'installations',
   'distribution_boards',
   'board_sections',
@@ -113,16 +115,22 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
 
   const table = sql.identifier(entity)
   const column = (name: string) => sql`${table}.${sql.identifier(name)}`
-  const created = sql`${column('id')} in (select record_id from audit_entries
-    where table_name = ${entity} and operation = 'insert' and user_id = ${scope.userId})`
+  const createdBy = (name: string) => sql`(select record_id from audit_entries
+    where table_name = ${name} and operation = 'insert' and user_id = ${scope.userId})`
+  const created = sql`${column('id')} in ${createdBy(entity)}`
 
   const own: Readonly<Record<string, SQL>> = {
     jobs: sql`${column('id')} in ${jobs}`,
     job_assignments: sql`${column('job_id')} in ${jobs}`,
     job_notes: sql`${column('job_id')} in ${jobs}`,
     customers: sql`${column('id')} in ${customers}`,
+    // The tags of every customer and site the device holds, those its person
+    // created without a job among them.
+    customer_tags: sql`(${column('customer_id')} in ${customers}
+      or ${column('customer_id')} in ${createdBy('customers')})`,
     contacts: sql`(${column('customer_id')} in ${customers} or ${column('site_id')} in ${sites})`,
     sites: sql`${column('id')} in ${sites}`,
+    site_tags: sql`(${column('site_id')} in ${sites} or ${column('site_id')} in ${createdBy('sites')})`,
     installations: sql`${column('id')} in ${installations}`,
     distribution_boards: sql`${column('id')} in ${boards}`,
     board_sections: sql`${column('distribution_board_id')} in ${boards}`,

@@ -1,6 +1,6 @@
-import { customerKinds, type RecordState } from '@opengewerk/domain'
+import { customerKinds, customerStandingLabel, type RecordState } from '@opengewerk/domain'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { ArrowRight, Check, Clock, Pencil, Plus, Users, X } from 'lucide-react'
+import { ArrowRight, Check, Clock, Pencil, Plus, Tag, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
@@ -26,13 +26,31 @@ import {
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asBoolean, asTextOrNull, yesOrNo } from '../../app/record-form.js'
+import { setTags } from '../../session/tags.js'
 import { refusalFor } from '../../sync/client.js'
 import type { EditResult } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
+import { RequestRefused } from '../../sync/transport.js'
+import {
+  useHoldsAll,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '../../sync/provider.js'
 import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import { ListCard, ListScreen } from '../list.js'
 import type { ListColumn, ListFilter } from '../list.js'
+import {
+  type ChosenTags,
+  TagPicker,
+  TagPill,
+  TagPills,
+  useStandings,
+  useTags,
+  useTagsBy,
+} from '../tags.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { DocumentMarker } from './document-marker.js'
@@ -137,6 +155,14 @@ function customerSummary(customer: RecordState, sites: number, running: number):
 export function CustomerList() {
   const customers = useRecords('customers')
   const counts = useCountsByCustomer()
+  const tagged = useTagsBy('customer')
+  const tags = useTags()
+  const standings = useStandings()
+  // Whether a customer has a completed job, the device can only tell when it
+  // holds every job: a technician's holds the ones they are on. Asked of the
+  // last exchange rather than of the roles, which may lag behind a change.
+  const knowsStanding = useHoldsAll('jobs')
+  const tagsOf = (row: RecordState) => tagged.get(String(row['id']))?.names ?? []
   const navigate = useNavigate()
   const creates = useMay('customer.create')
 
@@ -149,7 +175,12 @@ export function CustomerList() {
   )
 
   const columns: readonly ListColumn[] = [
-    { id: 'name', header: 'Name', value: (row) => text(row, 'name') },
+    {
+      id: 'name',
+      header: 'Name',
+      value: (row) => text(row, 'name'),
+      beside: (row) => <TagPills names={tagsOf(row)} size="small" />,
+    },
     {
       id: 'kind',
       header: 'Art',
@@ -186,6 +217,28 @@ export function CustomerList() {
     test: (row) => customerKindOf(row) === kind,
   }))
 
+  // What follows from the jobs, a group of its own beside the kinds (#314).
+  const facets = {
+    label: 'Bestandskunde oder Neukunde',
+    filters: (['existing', 'new'] as const).map((standing) => ({
+      id: standing,
+      label: customerStandingLabel[standing],
+      test: (row: RecordState) => (standings.get(String(row['id'])) ?? 'new') === standing,
+    })),
+  }
+
+  const choice = {
+    label: 'Tag',
+    all: 'Alle Tags',
+    icon: Tag,
+    options: tags.map((tag) => ({
+      id: String(tag['id']),
+      label: text(tag, 'name'),
+      test: (row: RecordState) =>
+        tagged.get(String(row['id']))?.ids.includes(String(tag['id'])) ?? false,
+    })),
+  }
+
   const openNew = () => {
     void navigate({ to: '/kunden/neu' })
   }
@@ -196,11 +249,13 @@ export function CustomerList() {
       caption="Alle Kunden des Betriebs"
       rows={sorted}
       columns={columns}
-      alsoSearched={(row) => [text(row, 'vatId'), text(row, 'street')].join(' ')}
+      alsoSearched={(row) => [text(row, 'vatId'), text(row, 'street'), ...tagsOf(row)].join(' ')}
       hrefFor={(row) => `/kunden/${String(row['id'])}`}
       searchLabel="Kunden durchsuchen"
-      searchPlaceholder="Name, Ort, Umsatzsteuer-Id …"
+      searchPlaceholder="Name, Ort, Tag, Umsatzsteuer-Id …"
       filters={filters}
+      facets={knowsStanding ? facets : undefined}
+      choice={choice}
       primary={creates ? { label: 'Neuer Kunde', onPress: openNew } : undefined}
       card={(row) => {
         const running = counts.running.get(String(row['id'])) ?? 0
@@ -210,6 +265,11 @@ export function CustomerList() {
             to={`/kunden/${String(row['id'])}`}
             title={text(row, 'name')}
             sub={[customerKindLabel[customerKindOf(row)], placeOf(row)].filter(Boolean).join(' · ')}
+            below={
+              tagsOf(row).length > 0
+                ? tagsOf(row).map((name) => <TagPill key={name} name={name} />)
+                : undefined
+            }
             right={running > 0 ? <OpenBadge value={running} /> : null}
           />
         )
@@ -432,6 +492,9 @@ function CustomerRecord({
   const jobs = useRelated('jobs', 'customerId', customerId)
   const writes = useMay('customer.write')
   const createsJobs = useMay('job.write')
+  const tagged = useTagsBy('customer')
+  const standing = useStandings()
+  const knowsStanding = useHoldsAll('jobs')
   // "Auftrag anlegen" in the preview beside the list leads here with the
   // form open.
   const search = useSearch({ strict: false }) as { readonly neu?: string }
@@ -454,7 +517,21 @@ function CustomerRecord({
     <PageHead
       title={text(customer, 'name')}
       crumbs={layout === 'screen' ? [{ to: '/', label: 'Kunden' }] : undefined}
-      badges={<Status tone="neutral">{customerKindLabel[customerKindOf(customer)]}</Status>}
+      badges={
+        <>
+          <Status tone="neutral">{customerKindLabel[customerKindOf(customer)]}</Status>
+          {knowsStanding ? (
+            <Status tone="neutral">
+              {customerStandingLabel[standing.get(customerId) ?? 'new']}
+            </Status>
+          ) : null}
+        </>
+      }
+      tags={
+        (tagged.get(customerId)?.names.length ?? 0) > 0
+          ? tagged.get(customerId)?.names.map((name) => <TagPill key={name} name={name} />)
+          : undefined
+      }
       sub={
         customerSummary(customer, sites.length, running) +
         (pending ? ' · noch nicht übertragen' : '')
@@ -979,7 +1056,12 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
   const status = useSyncStatus()
   const navigate = useNavigate()
   const customer = useRecord('customers', customerId)
+  const tagged = useTagsBy('customer')
+  const held = customerId ? (tagged.get(customerId)?.ids ?? []) : []
   const [draft, setDraft] = useState<CustomerDraft>(() => draftOf(customer))
+  // Null until somebody changes the tags: until then the form shows what the
+  // record has, also once rows arrive after it opened, and sends nothing.
+  const [chosen, setChosen] = useState<ChosenTags | null>(null)
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [wrong, setWrong] = useState<readonly string[]>([])
@@ -1019,6 +1101,23 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
         setWrong(result.fields)
 
         return
+      }
+
+      if (editing && chosen !== null && tagsChanged(held, chosen)) {
+        try {
+          await setTags({ customerId }, chosen)
+          await client.synchronise()
+        } catch (error) {
+          // The fields are saved by now; the form says so rather than let a
+          // "Abbrechen" look as if it took them back.
+          setTrouble(
+            `Die Angaben des Kunden sind gespeichert, seine Tags nicht. ${
+              error instanceof RequestRefused ? error.message : 'Keine Verbindung.'
+            }`,
+          )
+
+          return
+        }
       }
 
       await navigate({ to: `/kunden/${editing ? customerId : result.id}` })
@@ -1151,11 +1250,29 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
                 />
               </div>
             </FormPanel>
+            {editing ? (
+              <FormPanel title="Tags">
+                <TagPicker
+                  kind="customer"
+                  chosen={chosen ?? { tagIds: held, newTags: [] }}
+                  onChange={setChosen}
+                />
+              </FormPanel>
+            ) : null}
             <FormPanel title="Notizen">{input('notes', 'Notizen')}</FormPanel>
           </div>
         </div>
       </form>
     </Screen>
+  )
+}
+
+/** Whether the tags chosen in a form differ from those the record has. */
+export function tagsChanged(held: readonly string[], chosen: ChosenTags): boolean {
+  return (
+    chosen.newTags.length > 0 ||
+    held.length !== chosen.tagIds.length ||
+    held.some((tagId) => !chosen.tagIds.includes(tagId))
   )
 }
 

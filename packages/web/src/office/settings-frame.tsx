@@ -13,6 +13,7 @@ import {
   Server,
   Shield,
   Signature,
+  Tag,
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -72,6 +73,13 @@ export function useSettingsEntries(): readonly SettingsEntry[] {
             title: 'Zahlungsziel',
             about: 'Wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben für jeden Beleg.',
             icon: Clock,
+          },
+          {
+            key: 'tags',
+            to: '/einstellungen/tags',
+            title: 'Tags',
+            about: 'Wörter, nach denen Kunden und Objekte geordnet und gefiltert werden.',
+            icon: Tag,
           },
           {
             key: 'fristen',

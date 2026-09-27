@@ -9,14 +9,17 @@ import { installationKindLabel, installationKindOf, jobStatusOf } from '../../ap
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
+import { setTags } from '../../session/tags.js'
 import { maybeText, text } from '../../sync/fields.js'
+import { RequestRefused } from '../../sync/transport.js'
 import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
+import { type ChosenTags, TagPicker, TagPill, useTagsBy } from '../tags.js'
 import { lastChanged, ListCard, ListScreen } from '../list.js'
 import type { ListColumn } from '../list.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
-import { placeOf } from './customers.js'
+import { placeOf, tagsChanged } from './customers.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
@@ -203,7 +206,10 @@ export function SiteScreen() {
   const writes = useMay('site.write')
   const createsInstallations = useMay('installation.write')
   const createsJobs = useMay('job.write')
+  const tagged = useTagsBy('site')
   const [editing, setEditing] = useState(false)
+  // Null until somebody changes the tags, as in the form of a customer.
+  const [chosen, setChosen] = useState<ChosenTags | null>(null)
   const [adding, setAdding] = useState<'installation' | 'job' | null>(null)
   const navigate = useNavigate()
 
@@ -218,6 +224,8 @@ export function SiteScreen() {
 
   const customerId = String(site['customerId'])
   const offline = client.needsConnection('sites') && !status.online
+  const held = tagged.get(siteId)?.ids ?? []
+  const names = tagged.get(siteId)?.names ?? []
 
   const installationForm =
     adding === 'installation' ? (
@@ -258,6 +266,9 @@ export function SiteScreen() {
           { to: '/', label: 'Kunden' },
           ...(customer ? [{ to: `/kunden/${customerId}`, label: text(customer, 'name') }] : []),
         ]}
+        tags={
+          names.length > 0 ? names.map((name) => <TagPill key={name} name={name} />) : undefined
+        }
         sub={
           addressLine(site) + (client.isPending('sites', siteId) ? ' · noch nicht übertragen' : '')
         }
@@ -268,6 +279,7 @@ export function SiteScreen() {
               <Button
                 icon={Pencil}
                 onClick={() => {
+                  setChosen(null)
                   setEditing(true)
                 }}
               >
@@ -430,6 +442,13 @@ export function SiteScreen() {
                       ? 'Stammdaten werden nur mit Verbindung geändert. Gerade ist keine da.'
                       : undefined
                   }
+                  after={
+                    <TagPicker
+                      kind="site"
+                      chosen={chosen ?? { tagIds: held, newTags: [] }}
+                      onChange={setChosen}
+                    />
+                  }
                   onCancel={() => {
                     setEditing(false)
                   }}
@@ -444,9 +463,27 @@ export function SiteScreen() {
                       notes: asTextOrNull(values['notes']),
                     })
 
-                    if (saved.outcome === 'queued') {
-                      setEditing(false)
+                    if (saved.outcome !== 'queued') {
+                      return saved
                     }
+
+                    if (chosen !== null && tagsChanged(held, chosen)) {
+                      try {
+                        await setTags({ siteId }, chosen)
+                        await client.synchronise()
+                      } catch (error) {
+                        return {
+                          outcome: 'refused',
+                          reason: 'online_only',
+                          fields: [],
+                          message: `Die Angaben des Objekts sind gespeichert, seine Tags nicht. ${
+                            error instanceof RequestRefused ? error.message : 'Keine Verbindung.'
+                          }`,
+                        }
+                      }
+                    }
+
+                    setEditing(false)
 
                     return saved
                   }}

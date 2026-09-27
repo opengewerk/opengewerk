@@ -61,6 +61,7 @@ import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
+import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { PUSH, PushController, type PushContext } from './push.controller.js'
@@ -195,6 +196,7 @@ export class ApiModule implements NestModule {
         PasskeysController,
         StaffController,
         CustomersController,
+        TagsController,
         ContactsController,
         SitesController,
         InstallationsController,

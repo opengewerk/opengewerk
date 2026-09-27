@@ -46,12 +46,40 @@ export interface ListColumn {
   readonly muted?: boolean
   /** Shown only with every column, at band L; dropped where room is short. */
   readonly wideOnly?: boolean
+  /**
+   * What follows the link in the first column, outside it: the tags of a
+   * customer, which are not part of where the row leads.
+   */
+  readonly beside?: (row: RecordState) => ReactNode
 }
 
 export interface ListFilter {
   readonly id: string
   readonly label: string
   readonly test: (row: RecordState) => boolean
+}
+
+/**
+ * A second group of chips after the first, on or off one at a time and
+ * narrowing whatever the first chose: Bestandskunde or Neukunde beside the
+ * kinds of customer.
+ */
+export interface ListFacets {
+  /** What a reader hears the group called. */
+  readonly label: string
+  readonly filters: readonly ListFilter[]
+}
+
+/**
+ * A choice from a list beside the chips, for as many values as a business
+ * makes: the tags. Narrows like a chip, together with every chip that is on.
+ */
+export interface ListChoice {
+  readonly label: string
+  /** The first entry, for no choice at all: "Alle Tags". */
+  readonly all: string
+  readonly icon?: LucideIcon
+  readonly options: readonly ListFilter[]
 }
 
 export interface ListSort {
@@ -80,6 +108,10 @@ export interface ListScreenProps {
   readonly searchPlaceholder: string
   /** The chips; "Alle" comes first by itself. */
   readonly filters?: readonly ListFilter[]
+  /** A second group of chips, narrowing the first. */
+  readonly facets?: ListFacets
+  /** A choice from a list, narrowing the chips; left out while it has no options. */
+  readonly choice?: ListChoice
   /** A choice of order in the row of the search, "Sortiert nach". */
   readonly sorts?: readonly ListSort[]
   /** The one action of the list, "Neuer Kunde". */
@@ -193,12 +225,12 @@ function narrowed(
   columns: readonly ListColumn[],
   alsoSearched: ((row: RecordState) => string) | undefined,
   search: string,
-  filter: ListFilter | undefined,
+  tests: readonly ListFilter[],
   sort: ListSort | undefined,
 ): readonly RecordState[] {
   const words = search.trim().toLocaleLowerCase('de').split(/\s+/).filter(Boolean)
   const found = rows.filter((row) => {
-    if (filter && !filter.test(row)) {
+    if (!tests.every((test) => test.test(row))) {
       return false
     }
 
@@ -242,6 +274,8 @@ export function ListScreen(props: ListScreenProps) {
     searchLabel,
     searchPlaceholder,
     filters = [],
+    facets,
+    choice,
     sorts = [],
     primary,
     card,
@@ -252,6 +286,8 @@ export function ListScreen(props: ListScreenProps) {
   const band = useBand()
   const [search, setSearch] = useState('')
   const [filterId, setFilterId] = useState<string | null>(null)
+  const [facetId, setFacetId] = useState<string | null>(null)
+  const [choiceId, setChoiceId] = useState<string | null>(null)
   const [sortId, setSortId] = useState<string | null>(sorts[0]?.id ?? null)
   const [page, setPage] = useState(0)
   const [chosen, setChosen] = useState<string | null>(null)
@@ -263,10 +299,17 @@ export function ListScreen(props: ListScreenProps) {
   useKeysToSearch(input)
 
   const filter = filters.find((candidate) => candidate.id === filterId)
+  const facet = facets?.filters.find((candidate) => candidate.id === facetId)
+  // A choice deleted in the meantime, a tag, narrows nothing any more.
+  const picked = choice?.options.find((candidate) => candidate.id === choiceId)
   const sort = sorts.find((candidate) => candidate.id === sortId)
+  const tests = useMemo(
+    () => [filter, facet, picked].filter((test): test is ListFilter => test !== undefined),
+    [filter, facet, picked],
+  )
   const found = useMemo(
-    () => narrowed(rows, columns, alsoSearched, search, filter, sort),
-    [rows, columns, alsoSearched, search, filter, sort],
+    () => narrowed(rows, columns, alsoSearched, search, tests, sort),
+    [rows, columns, alsoSearched, search, tests, sort],
   )
 
   const fit = useRowsThatFit(frame, 20)
@@ -325,6 +368,18 @@ export function ListScreen(props: ListScreenProps) {
       filterId={filterId}
       onFilter={(id) => {
         setFilterId(id)
+        setPage(0)
+      }}
+      facets={facets}
+      facetId={facetId}
+      onFacet={(id) => {
+        setFacetId(id)
+        setPage(0)
+      }}
+      choice={choice && choice.options.length > 0 ? choice : undefined}
+      choiceId={picked ? choiceId : null}
+      onChoice={(id) => {
+        setChoiceId(id)
         setPage(0)
       }}
       sorts={sorts}
@@ -493,19 +548,22 @@ function ListRow({
             )}
           >
             {index === 0 ? (
-              <Link
-                to={href}
-                className="text-inherit no-underline hover:underline"
-                aria-current={selects && selected ? 'true' : undefined}
-                onClick={(event) => {
-                  if (selects && !opensElsewhere(event)) {
-                    event.preventDefault()
-                    onSelect(row)
-                  }
-                }}
-              >
-                {content}
-              </Link>
+              <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                <Link
+                  to={href}
+                  className="text-inherit no-underline hover:underline"
+                  aria-current={selects && selected ? 'true' : undefined}
+                  onClick={(event) => {
+                    if (selects && !opensElsewhere(event)) {
+                      event.preventDefault()
+                      onSelect(row)
+                    }
+                  }}
+                >
+                  {content}
+                </Link>
+                {column.beside?.(row)}
+              </span>
             ) : (
               content
             )}
@@ -557,6 +615,12 @@ function SearchRow({
   filters,
   filterId,
   onFilter,
+  facets,
+  facetId,
+  onFacet,
+  choice,
+  choiceId,
+  onChoice,
   sorts,
   sortId,
   onSort,
@@ -572,6 +636,12 @@ function SearchRow({
   readonly filters: readonly ListFilter[]
   readonly filterId: string | null
   readonly onFilter: (id: string | null) => void
+  readonly facets: ListFacets | undefined
+  readonly facetId: string | null
+  readonly onFacet: (id: string | null) => void
+  readonly choice: ListChoice | undefined
+  readonly choiceId: string | null
+  readonly onChoice: (id: string | null) => void
   readonly sorts: readonly ListSort[]
   readonly sortId: string | null
   readonly onSort: (id: string) => void
@@ -579,6 +649,7 @@ function SearchRow({
 }) {
   const searchId = useId()
   const sortSelectId = useId()
+  const choiceSelectId = useId()
   const narrow = band === 'S' || band === 'M'
 
   const chips =
@@ -632,6 +703,32 @@ function SearchRow({
         )}
       />
       {chips}
+      {facets && facets.filters.length > 0 ? (
+        <>
+          {narrow ? null : <span aria-hidden="true" className="h-[22px] w-px bg-line" />}
+          <div className="flex flex-wrap gap-1.5 lg:gap-2" role="group" aria-label={facets.label}>
+            {facets.filters.map((facet) => (
+              <Chip
+                key={facet.id}
+                pressed={facetId === facet.id}
+                // Pressed again, off again: this group has no "Alle".
+                onPress={() => onFacet(facetId === facet.id ? null : facet.id)}
+              >
+                {facet.label}
+              </Chip>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {choice ? (
+        <ChoiceSelect
+          id={choiceSelectId}
+          choice={choice}
+          value={choiceId}
+          narrow={narrow}
+          onChange={onChoice}
+        />
+      ) : null}
       {!narrow && (hint || sorts.length > 0) ? <div className="grow" /> : null}
       {hint ? (
         <span className="flex items-center gap-1.5 text-[13px] text-ink-faint">
@@ -735,11 +832,14 @@ export function ListCard({
   to,
   title,
   sub,
+  below,
   right,
 }: {
   readonly to: string
   readonly title: ReactNode
   readonly sub?: ReactNode
+  /** Under the line, the tags of a customer. */
+  readonly below?: ReactNode
   readonly right?: ReactNode
 }) {
   return (
@@ -750,6 +850,7 @@ export function ListCard({
       <span className="min-w-0 grow">
         <span className="block text-[16px] font-semibold [overflow-wrap:anywhere]">{title}</span>
         {sub ? <span className="mt-0.5 block text-[14px] text-ink-muted">{sub}</span> : null}
+        {below ? <span className="mt-1.5 flex flex-wrap gap-1.5">{below}</span> : null}
       </span>
       {right ? <span className="flex shrink-0 flex-col items-end gap-[3px]">{right}</span> : null}
       <ChevronRight
@@ -759,5 +860,67 @@ export function ListCard({
         className="shrink-0 text-ink-faint"
       />
     </Link>
+  )
+}
+
+/**
+ * The choice from a list in the row of the search, `tag_select()` of the
+ * canvas: the icon in front and the native list underneath, as wide as the
+ * screen on a phone and a tablet.
+ */
+function ChoiceSelect({
+  id,
+  choice,
+  value,
+  narrow,
+  onChange,
+}: {
+  readonly id: string
+  readonly choice: ListChoice
+  readonly value: string | null
+  readonly narrow: boolean
+  readonly onChange: (id: string | null) => void
+}) {
+  const Icon = choice.icon
+
+  return (
+    <span className={clsx('relative inline-flex', narrow ? 'w-full' : 'w-[176px]')}>
+      <label htmlFor={id} className="sr-only">
+        {choice.label}
+      </label>
+      {Icon ? (
+        <Icon
+          size={14}
+          strokeWidth={2.2}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-muted"
+        />
+      ) : null}
+      <select
+        id={id}
+        value={value ?? ''}
+        onChange={(event) => {
+          onChange(event.target.value === '' ? null : event.target.value)
+        }}
+        className={clsx(
+          'w-full cursor-pointer appearance-none border border-line-strong bg-surface pr-7 text-ink',
+          Icon ? 'pl-[30px]' : 'pl-2.5',
+          narrow ? 'h-12 rounded-[5px] text-[16px]' : 'h-8 rounded-control text-[13px]',
+        )}
+      >
+        <option value="">{choice.all}</option>
+        {choice.options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={14}
+        strokeWidth={2.2}
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-[9px] -translate-y-1/2 text-ink-muted"
+      />
+    </span>
   )
 }
