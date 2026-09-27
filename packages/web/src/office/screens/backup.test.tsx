@@ -66,6 +66,7 @@ const recorded = {
   bytes: 12_400_000,
   encrypted: true,
   overdue: false,
+  time: '02:30',
 } as const
 
 beforeEach(() => {
@@ -110,11 +111,18 @@ describe('the screen "Sicherung"', () => {
   })
 
   it('waits calmly for the first night of a new business, and not for one of days', async () => {
-    backup({ state: 'none', overdue: false })
+    backup({ state: 'none', overdue: false, time: '02:30' })
     mount(<BackupScreen />)
 
-    expect(await screen.findByText(/Die erste läuft in der kommenden Nacht/)).toBeDefined()
+    expect(await screen.findByText(/Die erste läuft um 02:30 Uhr/)).toBeDefined()
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('names the hour the operators of the instance chose (#188)', async () => {
+    backup({ ...recorded, time: '04:15' })
+    mount(<BackupScreen />)
+
+    expect(await screen.findByText(/Jeden Tag um 04:15 Uhr/)).toBeDefined()
   })
 
   it('says that it knows nothing, where the instance knows no record', async () => {
@@ -151,7 +159,7 @@ describe('the line at the top of the office', () => {
 
   it('is not there for a technician, who reads no settings and is not asked', async () => {
     signedInAs('technician')
-    backup({ state: 'none', overdue: true })
+    backup({ state: 'none', overdue: true, time: '02:30' })
     mount(<BackupBar />)
 
     await settled('/auth/tenants')

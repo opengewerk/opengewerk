@@ -134,20 +134,38 @@ export const previewRoles: readonly RoleKey[] = ['owner']
  * mounts no sign in anyway. It exists because a membership has to point at a
  * user, and the membership is what the route that lists the businesses of the
  * person asking reads.
+ *
+ * It is also the operator of the instance (#188), as the account of a real
+ * first run is, so that the area of the instance can be looked at. All of it
+ * in one transaction under the reason of a first run, which is what the logs
+ * of the business and of the instance then say.
  */
 export async function admitPreviewUser(
   admin: Pool,
   tenant: { readonly id: TenantId; readonly name: string },
 ): Promise<void> {
-  await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
-  await admin.query(
-    `insert into auth_users (id, name, email, email_verified, two_factor_enabled)
-     values ($1, $2, $3, true, true)`,
-    [previewUser.id, previewUser.name, previewUser.email],
-  )
-  await admin.query('insert into memberships (tenant_id, user_id, roles) values ($1, $2, $3)', [
-    tenant.id,
-    previewUser.id,
-    previewRoles,
-  ])
+  const client = await admin.connect()
+
+  try {
+    await client.query('begin')
+    await client.query("select set_config('app.reason', 'instance.setup', true)")
+    await client.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await client.query(
+      `insert into auth_users (id, name, email, email_verified, two_factor_enabled)
+       values ($1, $2, $3, true, true)`,
+      [previewUser.id, previewUser.name, previewUser.email],
+    )
+    await client.query('insert into memberships (tenant_id, user_id, roles) values ($1, $2, $3)', [
+      tenant.id,
+      previewUser.id,
+      previewRoles,
+    ])
+    await client.query('insert into instance_operators (user_id) values ($1)', [previewUser.id])
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    client.release()
+  }
 }

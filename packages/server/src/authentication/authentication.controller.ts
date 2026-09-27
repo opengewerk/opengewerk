@@ -145,14 +145,26 @@ export class AuthenticationController {
       Date.now() + (deviceId ? sessionLifetimes.registeredDevice : sessionLifetimes.office) * 1000,
     )
 
-    await this.database.forInstance(
-      (tx) =>
-        tx
-          .update(authSessions)
-          .set({ activeTenantId: chosen, deviceId, longLived: deviceId !== null, expiresAt })
-          .where(eq(authSessions.id, user.sessionId)),
-      user.userId,
-    )
+    const previous = await this.database.forInstance(async (tx) => {
+      const [before] = await tx
+        .select({ activeTenantId: authSessions.activeTenantId })
+        .from(authSessions)
+        .where(eq(authSessions.id, user.sessionId))
+
+      await tx
+        .update(authSessions)
+        .set({ activeTenantId: chosen, deviceId, longLived: deviceId !== null, expiresAt })
+        .where(eq(authSessions.id, user.sessionId))
+
+      return before?.activeTenantId ?? null
+    }, user.userId)
+
+    // A switch from one business to another (#242) ends the work in the first,
+    // which would otherwise stay open in its log until the end of time: the
+    // sign out closes only what is open in the business chosen last.
+    if (previous !== null && previous !== chosen) {
+      await this.closeTenantSessions(previous, user.userId, user.sessionId, 'session.switch')
+    }
 
     // Inside the business now, so this row lands in its audit log with the
     // user on it. The reason the log records comes from the route, as always.

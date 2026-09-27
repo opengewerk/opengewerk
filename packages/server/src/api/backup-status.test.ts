@@ -74,7 +74,7 @@ describe('the last backup', () => {
       .set('x-test-identity', as(north.id, 'office'))
       .expect(200)
 
-    expect(answer.body).toEqual({ state: 'none', overdue: true })
+    expect(answer.body).toEqual({ state: 'none', overdue: true, time: '02:30' })
   })
 
   it('names the last one to the owner once a backup has recorded it', async () => {
@@ -105,6 +105,7 @@ describe('the last backup', () => {
       bytes: 2048,
       encrypted: false,
       overdue: false,
+      time: '02:30',
     })
   })
 

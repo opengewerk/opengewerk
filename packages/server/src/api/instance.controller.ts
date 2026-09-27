@@ -47,7 +47,9 @@ export interface InstanceContext {
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function field(body: unknown, name: string): unknown {
-  return typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[name] : undefined
+  return typeof body === 'object' && body !== null
+    ? (body as Record<string, unknown>)[name]
+    : undefined
 }
 
 /**
@@ -155,6 +157,10 @@ export class InstanceController {
       ownerEmail: field(body, 'ownerEmail'),
     })
 
-    return { tenantId: created.tenantId, token: created.token, expiresAt: created.expiresAt.toISOString() }
+    return {
+      tenantId: created.tenantId,
+      token: created.token,
+      expiresAt: created.expiresAt.toISOString(),
+    }
   }
 }

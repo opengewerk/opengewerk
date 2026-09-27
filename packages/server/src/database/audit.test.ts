@@ -109,6 +109,10 @@ describe('the tables', () => {
     // again: a sealed password in it would stay there for good, open to
     // anybody who later holds the log and the key together. The log learns
     // when a password was set from `mail_settings`, which it does watch.
+    //
+    // The `instance_` tables (#188) belong to the instance and to no business,
+    // like the accounts, and have a log of their own; the test below holds
+    // that one.
     const { rows } = await admin.query<{ table_name: string; triggers: string }>(
       `select c.relname as table_name,
               (select count(*) from pg_trigger t
@@ -120,6 +124,7 @@ describe('the tables', () => {
           and c.relname not like 'audit\\_%'
           and c.relname not like 'sync\\_%'
           and c.relname not like 'auth\\_%'
+          and c.relname not like 'instance\\_%'
           and c.relname <> 'secrets'
           and c.relname <> '__drizzle_migrations'
         order by c.relname`,
@@ -136,11 +141,31 @@ describe('the tables', () => {
       `select count(*) from pg_trigger t
          join pg_class c on c.oid = t.tgrelid
         where (c.relname like 'audit\\_%' or c.relname like 'sync\\_%'
-               or c.relname like 'auth\\_%' or c.relname = 'secrets')
+               or c.relname like 'auth\\_%' or c.relname like 'instance\\_%'
+               or c.relname = 'secrets')
           and t.tgname = 'audit_changes'`,
     )
 
     expect(Number(rows[0]?.count)).toBe(0)
+  })
+
+  it('give the tables of the instance a log of their own, and the businesses too', async () => {
+    // The operators and the settings of the instance, and `tenants` for a
+    // business being created or removed; the log of the instance itself is
+    // what is written, so it carries no writer.
+    const { rows } = await admin.query<{ table_name: string }>(
+      `select c.relname as table_name
+         from pg_trigger t
+         join pg_class c on c.oid = t.tgrelid
+        where t.tgname = 'instance_changes'
+        order by c.relname`,
+    )
+
+    expect(rows.map((row) => row.table_name)).toEqual([
+      'instance_operators',
+      'instance_settings',
+      'tenants',
+    ])
   })
 })
 

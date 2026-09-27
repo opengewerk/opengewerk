@@ -39,12 +39,14 @@ export async function readInstanceLog(
   before: string | null,
 ): Promise<InstanceLogPage> {
   const read = await database.forInstance(async (tx) => {
+    // PostgreSQL has no max() over uuid. The text of a uuidv7 sorts as its
+    // bytes do, and those in the order the entries were written.
     const pages = await tx.execute(sql`
-      select change_id::text as change_id, max(id)::text as last
+      select change_id::text as change_id, max(id::text) as last
         from instance_changes
        group by change_id
-       ${before === null ? sql`` : sql`having max(id) < ${before}::uuid`}
-       order by max(id) desc
+       ${before === null ? sql`` : sql`having max(id::text) < ${before.toLowerCase()}`}
+       order by max(id::text) desc
        limit ${auditPageSize + 1}`)
     const wanted = pages.rows as { change_id: string; last: string }[]
     const shown = wanted.slice(0, auditPageSize)
@@ -99,7 +101,9 @@ export async function readInstanceLog(
     )
   }
 
-  const ordered = [...changes.values()].sort((one, other) => other.changedAt.localeCompare(one.changedAt))
+  const ordered = [...changes.values()].sort((one, other) =>
+    other.changedAt.localeCompare(one.changedAt),
+  )
   const currentNames = new Map(read.names.map((tenant) => [tenant.id, tenant.name]))
   const titles: Record<string, AuditTitle> = {}
   const people = new Set<string>()
@@ -126,7 +130,11 @@ export async function readInstanceLog(
       titles[change.recordId] = {
         table: 'tenants',
         field: 'name',
-        title: currentNames.get(change.recordId) ?? logged('name') ?? titles[change.recordId]?.title ?? null,
+        title:
+          currentNames.get(change.recordId) ??
+          logged('name') ??
+          titles[change.recordId]?.title ??
+          null,
         kind: null,
       }
     } else if (change.table === 'instance_operators') {

@@ -7289,6 +7289,15 @@
             "opengewerk_app"
           ],
           "using": "nullif(current_setting('app.tenant_id', true), '') is null\n        and \"memberships\".\"user_id\" = nullif(current_setting('app.user_id', true), '')"
+        },
+        "readable_by_the_owner": {
+          "name": "readable_by_the_owner",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "current_user"
+          ],
+          "using": "true"
         }
       },
       "checkConstraints": {},

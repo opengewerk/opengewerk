@@ -20,7 +20,10 @@ export class TenantsController {
     @CurrentIdentity() identity: RequestIdentity,
     @Body() body: unknown,
   ): Promise<{ readonly tenantId: string; readonly name: string }> {
-    const name = typeof body === 'object' && body !== null ? (body as Record<string, unknown>)['name'] : undefined
+    const name =
+      typeof body === 'object' && body !== null
+        ? (body as Record<string, unknown>)['name']
+        : undefined
 
     return createOwnTenant(this.database, identity.userId, name)
   }

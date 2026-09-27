@@ -72,6 +72,7 @@ export async function createOwnTenant(
 
       return created
     },
+    userId,
   )
 
   return { tenantId, name: checked }
@@ -123,6 +124,7 @@ export async function createTenantFor(
 
       return created
     },
+    operator,
   )
 
   return { tenantId, token, expiresAt }

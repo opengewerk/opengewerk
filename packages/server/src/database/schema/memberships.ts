@@ -55,6 +55,9 @@ export const memberships = pgTable(
   (table) => [
     unique('memberships_one_per_user').on(table.tenantId, table.userId),
     ...membershipVisibility(table.tenantId, table.userId),
+    // For `instance_tenants()` (#188), which counts the people and names the
+    // owners of every business for the operators and hands out nothing else.
+    readableByTheOwner(),
   ],
 )
 

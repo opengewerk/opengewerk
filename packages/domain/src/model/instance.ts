@@ -49,7 +49,10 @@ export interface InstanceTenantView {
 }
 
 /** A page of the log of the instance, in the shape of the log of a business. */
-export interface InstanceLogPage extends Pick<AuditPage, 'changes' | 'titles' | 'people' | 'devices'> {
+export interface InstanceLogPage extends Pick<
+  AuditPage,
+  'changes' | 'titles' | 'people' | 'devices'
+> {
   /** Hand this back as `before` for the page after, null at the first change. */
   readonly next: string | null
 }
@@ -78,7 +81,9 @@ export function tenantNameProblem(name: string): string | null {
 export function mailHostProblem(entry: string): string | null {
   const ok = /^[A-Za-z0-9.-]+$|^\[?[0-9A-Fa-f:.]+\]?$/.test(entry) && !entry.startsWith('-')
 
-  return ok ? null : `„${entry}“ ist kein Servername und keine Adresse. Erwartet wird etwa mail.intern.example oder 192.168.1.20, ohne Port.`
+  return ok
+    ? null
+    : `„${entry}“ ist kein Servername und keine Adresse. Erwartet wird etwa mail.intern.example oder 192.168.1.20, ohne Port.`
 }
 
 /** Why a time for the nightly backup is not one, or null when it is: "HH:MM". */
@@ -86,7 +91,7 @@ export function backupTimeProblem(value: string): string | null {
   const found = /^(\d{2}):(\d{2})$/.exec(value)
 
   if (!found) {
-    return 'Eine Uhrzeit in der Form SS:MM, etwa 02:30.'
+    return 'Eine Uhrzeit wie 02:30, Stunden und Minuten.'
   }
 
   const hours = Number(found[1])

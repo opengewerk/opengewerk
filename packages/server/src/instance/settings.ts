@@ -1,8 +1,4 @@
-import {
-  backupTimeProblem,
-  type InstanceSettingsView,
-  mailHostProblem,
-} from '@opengewerk/domain'
+import { backupTimeProblem, type InstanceSettingsView, mailHostProblem } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
 import { and, eq, isNull } from 'drizzle-orm'
 
@@ -56,7 +52,9 @@ export function checkedChange(body: unknown): InstanceSettingsChange {
       throw new BadRequestException('mailInternalHosts ist eine Liste von Servern.')
     }
 
-    const cleaned = [...new Set((hosts as string[]).map((host) => host.trim()).filter((host) => host !== ''))]
+    const cleaned = [
+      ...new Set((hosts as string[]).map((host) => host.trim()).filter((host) => host !== '')),
+    ]
 
     if (cleaned.length > 50) {
       throw new BadRequestException('Höchstens 50 freigegebene Mailserver.')
@@ -119,7 +117,8 @@ export async function saveInstanceSettings(
  * switches off no mail server that worked before it. After that the screen
  * decides, and a later value in the `.env` changes nothing; the template says
  * so. An empty value takes nothing over and leaves the door open for a value
- * set later.
+ * set later, and what the operators set in the meantime stays: the servers
+ * from the `.env` come in next to it, never in its place.
  */
 export async function takeOverFromEnvironment(
   database: Database,
@@ -129,22 +128,32 @@ export async function takeOverFromEnvironment(
     return false
   }
 
-  const taken = await database.forInstance(
-    (tx) =>
-      tx
+  return database.forInstance(
+    async (tx) => {
+      const [row] = await tx
+        .select({ hosts: instanceSettings.mailInternalHosts })
+        .from(instanceSettings)
+        .where(and(eq(instanceSettings.id, 1), isNull(instanceSettings.importedFromEnvironmentAt)))
+        .for('update')
+
+      if (!row) {
+        return false
+      }
+
+      await tx
         .update(instanceSettings)
         .set({
-          mailInternalHosts: [...hosts],
+          mailInternalHosts: [...row.hosts, ...hosts.filter((host) => !row.hosts.includes(host))],
           importedFromEnvironmentAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(and(eq(instanceSettings.id, 1), isNull(instanceSettings.importedFromEnvironmentAt)))
-        .returning({ id: instanceSettings.id }),
+        .where(eq(instanceSettings.id, 1))
+
+      return true
+    },
     undefined,
     'environment',
   )
-
-  return taken.length > 0
 }
 
 /**

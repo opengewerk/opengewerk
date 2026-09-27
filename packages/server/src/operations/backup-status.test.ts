@@ -60,6 +60,7 @@ describe('the last backup', () => {
       bytes: 1_234_567,
       encrypted: true,
       overdue: false,
+      time: '02:30',
     })
     expect(await backupStatus(directory(record(hours(49))), hours(24 * 30), now)).toMatchObject({
       overdue: true,
@@ -70,10 +71,12 @@ describe('the last backup', () => {
     expect(await backupStatus(directory(), hours(1), now)).toEqual({
       state: 'none',
       overdue: false,
+      time: '02:30',
     })
-    expect(await backupStatus(directory(), hours(24 * 7), now)).toEqual({
+    expect(await backupStatus(directory(), hours(24 * 7), now, '04:15')).toEqual({
       state: 'none',
       overdue: true,
+      time: '04:15',
     })
   })
 
@@ -82,6 +85,7 @@ describe('the last backup', () => {
       expect(await backupStatus(directory(broken), hours(24 * 7), now)).toEqual({
         state: 'none',
         overdue: true,
+        time: '02:30',
       })
     }
   })

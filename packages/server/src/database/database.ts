@@ -209,10 +209,16 @@ export class Database {
    * lock and then asks whether the instance is still empty, and under a
    * stricter level that question would be answered from a snapshot taken
    * before the wait.
+   *
+   * `userId` is for a transaction whose person is known before it starts, a
+   * signed in owner creating a further business (#142): the business then
+   * carries its creator in the log of the instance too, not only in its own.
+   * The first run setup has nobody yet and leaves it out.
    */
   async forInstanceAndTenant<Result>(
     reason: string,
     work: (straddling: StraddlingTransaction) => Promise<Result>,
+    userId?: string,
   ): Promise<Result> {
     const client: PoolClient = await this.pool.connect()
 
@@ -220,10 +226,10 @@ export class Database {
       await client.query('begin isolation level read committed')
       await client.query(
         `select set_config('app.tenant_id', '', true),
-                set_config('app.user_id', '', true),
+                set_config('app.user_id', $2, true),
                 set_config('app.reason', $1, true),
                 set_config('app.device_id', '', true)`,
-        [reason],
+        [reason, userId ?? ''],
       )
 
       const result = await work({

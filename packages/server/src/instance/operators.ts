@@ -82,7 +82,9 @@ export async function appointOperator(
         .where(eq(sql`lower(${authUsers.email})`, wanted))
 
       if (!account) {
-        throw new NotFoundException('Ein Konto mit dieser Adresse gibt es auf dieser Instanz nicht.')
+        throw new NotFoundException(
+          'Ein Konto mit dieser Adresse gibt es auf dieser Instanz nicht.',
+        )
       }
 
       const inserted = await tx
@@ -112,7 +114,11 @@ export async function appointOperator(
 }
 
 /** Takes the role away. Not from oneself, and never from the last one. */
-export async function removeOperator(database: Database, byUser: string, userId: string): Promise<void> {
+export async function removeOperator(
+  database: Database,
+  byUser: string,
+  userId: string,
+): Promise<void> {
   if (userId === byUser) {
     throw new ConflictException('Sich selbst entfernt kein Betreiber; das macht ein anderer.')
   }

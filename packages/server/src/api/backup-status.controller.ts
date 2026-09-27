@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
 import { tenants } from '../database/schema/index.js'
+import { readInstanceSettings } from '../instance/settings.js'
 import { backupStatus } from '../operations/backup-status.js'
 import { RequiresPermission } from './authorization.js'
 import { BACKUP_STATUS } from './handed-in.js'
@@ -36,6 +37,9 @@ export class BackupStatusController {
       return tenant?.createdAt ?? new Date()
     })
 
-    return backupStatus(this.directory, since)
+    // The hour is the instance's, set by its operators (#188), and only named here.
+    const { backupTime } = await readInstanceSettings(this.database)
+
+    return backupStatus(this.directory, since, new Date(), backupTime)
   }
 }
