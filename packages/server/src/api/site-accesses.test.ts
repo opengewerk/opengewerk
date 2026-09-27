@@ -22,14 +22,15 @@ import { created, push } from './test-structure.js'
 /**
  * The ways into a site (#286): kept by the office, the value sealed apart,
  * never in the audit log and never in an answer that does not ask for it;
- * shown to the office on request, which leaves a trace, and held on a device
- * on site for the sites of its open jobs only, the assigned ones of a
- * technician and every open one of whoever holds the whole business.
+ * shown to the office on request, which leaves a trace, and held on the
+ * device of a technician for the sites of their open jobs only.
  */
 
 const north = { id: newId<'tenant'>() as TenantId, name: 'Elektro Nord GmbH' }
 const south = { id: newId<'tenant'>() as TenantId, name: 'Elektro Süd GmbH' }
 
+// Every code in this file starts with a word: an answer is searched for it as
+// text, and four digits alone turn up in an id or a timestamp by chance.
 const key = SecretKey.from('s'.repeat(64))
 const code = 'Tresor-4711'
 
@@ -173,8 +174,7 @@ describe('an access to a site', () => {
     const pulled = await pull(office())
     const row = accessesOf(pulled).find((candidate) => candidate['id'] === access['id'])
 
-    // The office learns that there is a value, and not the value, unless it
-    // asks for values on site.
+    // The office learns that there is a value, and not the value.
     expect(row).toMatchObject({ valueState: 'readable' })
     expect(JSON.stringify(pulled)).not.toContain(code)
 
@@ -197,14 +197,14 @@ describe('an access to a site', () => {
 
   it('shows its value to the office on request and keeps who saw it when', async () => {
     const { site } = await siteWithJob('Kern')
-    const access = await addAccess(site, { designation: 'Alarmanlage', value: '1234#' })
+    const access = await addAccess(site, { designation: 'Alarmanlage', value: 'Code 1234#' })
 
     const shown = await http()
       .post(`/sites/${site}/accesses/${String(access['id'])}/reveal`)
       .set('x-test-identity', office())
       .expect(201)
 
-    expect(shown.body).toEqual({ state: 'readable', value: '1234#' })
+    expect(shown.body).toEqual({ state: 'readable', value: 'Code 1234#' })
 
     const { rows } = await admin.query<{ user_id: string }>(
       'select user_id from site_access_reveals where site_access_id = $1',
@@ -252,7 +252,7 @@ describe('an access to a site', () => {
 
   it('forgets its value at once when it is deleted', async () => {
     const { site } = await siteWithJob('Weg')
-    const access = await addAccess(site, { designation: 'Briefkasten', value: '0000' })
+    const access = await addAccess(site, { designation: 'Briefkasten', value: 'Code 0000' })
 
     await http()
       .delete(`/sites/${site}/accesses/${String(access['id'])}`)
@@ -264,6 +264,80 @@ describe('an access to a site', () => {
     ])
 
     expect(rows).toEqual([])
+  })
+
+  it('goes with its site, and its value with it', async () => {
+    const { site, job } = await siteWithJob('Abriss')
+    const access = await addAccess(site, { designation: 'Bautür', value: 'Code 7777' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    const before = await pull(technician(), true)
+
+    expect(accessesOf(before).map((row) => row['id'])).toContain(access['id'])
+
+    await http().delete(`/sites/${site}`).set('x-test-identity', office()).expect(200)
+
+    const { rows: kept } = await admin.query('select id from secrets where record_id = $1', [
+      access['id'],
+    ])
+    const { rows: marked } = await admin.query<{ deleted_at: Date | null }>(
+      'select deleted_at from site_accesses where id = $1',
+      [access['id']],
+    )
+
+    expect(kept).toEqual([])
+    expect(marked[0]?.deleted_at).not.toBeNull()
+
+    const after = await pull(technician(), true)
+
+    expect(after.narrowed['site_accesses']).not.toBe(before.narrowed['site_accesses'])
+    expect(accessesOf(after).map((row) => row['id'])).not.toContain(access['id'])
+    expect(JSON.stringify(after)).not.toContain('Code 7777')
+  })
+
+  it('is out of reach at the routes once its site is gone, even where nothing marked it', async () => {
+    const { site, job } = await siteWithJob('Weggeräumt')
+    const access = await addAccess(site, { designation: 'Keller', value: 'Code 4321' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    // Past the trigger, as a site marked by some other way would be: the
+    // routes and the pull ask the site themselves.
+    const client = await admin.connect()
+
+    try {
+      await client.query('set session_replication_role = replica')
+      await client.query('update sites set deleted_at = now() where id = $1', [site])
+    } finally {
+      await client.query('reset session_replication_role')
+      client.release()
+    }
+
+    await http()
+      .post(`/sites/${site}/accesses/${String(access['id'])}/reveal`)
+      .set('x-test-identity', office())
+      .expect(404)
+    await http()
+      .patch(`/sites/${site}/accesses/${String(access['id'])}`)
+      .set('x-test-identity', office())
+      .send({ value: 'neu' })
+      .expect(404)
+    await http()
+      .post(`/sites/${site}/accesses`)
+      .set('x-test-identity', office())
+      .send({ designation: 'Neu', value: '1' })
+      .expect(404)
+
+    expect(JSON.stringify(await pull(technician(), true))).not.toContain('Code 4321')
   })
 
   it('may be only a hint, without a value to show', async () => {
@@ -326,8 +400,8 @@ describe('an access on the device of a technician', () => {
   it('comes with its value for the open jobs of that person, and only when asked for', async () => {
     const theirs = await siteWithJob('Monteur')
     const others = await siteWithJob('Andere')
-    const mine = await addAccess(theirs.site, { designation: 'Haustür', value: '2468' })
-    const notMine = await addAccess(others.site, { designation: 'Keller', value: '1357' })
+    const mine = await addAccess(theirs.site, { designation: 'Haustür', value: 'Code 2468' })
+    const notMine = await addAccess(others.site, { designation: 'Keller', value: 'Code 1357' })
 
     await http()
       .put(`/jobs/${theirs.job}/assignees`)
@@ -342,19 +416,19 @@ describe('an access on the device of a technician', () => {
     expect(ids).not.toContain(notMine['id'])
     expect(accessesOf(withValues).find((row) => row['id'] === mine['id'])).toMatchObject({
       valueState: 'readable',
-      value: '2468',
+      value: 'Code 2468',
     })
 
     // The same device without asking, as the office entry would pull.
     const bare = await pull(technician())
 
-    expect(JSON.stringify(bare)).not.toContain('2468')
+    expect(JSON.stringify(bare)).not.toContain('Code 2468')
     expect(bare.narrowed['site_accesses']).not.toBe(withValues.narrowed['site_accesses'])
   })
 
   it('goes from the device when the job is closed', async () => {
     const { site, job } = await siteWithJob('Schluss')
-    const access = await addAccess(site, { designation: 'Garage', value: '8642' })
+    const access = await addAccess(site, { designation: 'Garage', value: 'Code 8642' })
 
     await http()
       .put(`/jobs/${job}/assignees`)
@@ -376,12 +450,12 @@ describe('an access on the device of a technician', () => {
 
     expect(after.narrowed['site_accesses']).not.toBe(before.narrowed['site_accesses'])
     expect(accessesOf(after).map((row) => row['id'])).not.toContain(access['id'])
-    expect(JSON.stringify(after)).not.toContain('8642')
+    expect(JSON.stringify(after)).not.toContain('Code 8642')
   })
 
   it('is shown on the device and the showing arrives through the outbox, with its person', async () => {
     const { site, job } = await siteWithJob('Anzeige')
-    const access = await addAccess(site, { designation: 'Hoftor', value: '1111' })
+    const access = await addAccess(site, { designation: 'Hoftor', value: 'Code 1111' })
 
     await http()
       .put(`/jobs/${job}/assignees`)
@@ -408,13 +482,90 @@ describe('an access on the device of a technician', () => {
     expect(rows[0]?.revealed_at.toISOString()).toBe(revealedAt)
   })
 
+  it('keeps a showing that arrives after the job was closed and the access deleted', async () => {
+    const { site, job } = await siteWithJob('Keller')
+    const access = await addAccess(site, { designation: 'Kellertür', value: 'Code 5656' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    // Shown in a cellar without a network; meanwhile the office closes the
+    // job and deletes the access. The showing happened and is kept.
+    await http()
+      .patch(`/jobs/${job}`)
+      .set('x-test-identity', office())
+      .send({ status: 'completed' })
+      .expect(200)
+    await http()
+      .delete(`/sites/${site}/accesses/${String(access['id'])}`)
+      .set('x-test-identity', office())
+      .expect(200)
+
+    const answer = await push(app, technician(), [
+      created('site_access_reveals', newId<'site-access-reveal'>(), {
+        siteAccessId: String(access['id']),
+        revealedAt: '2026-09-27T10:00:00.000Z',
+      }),
+    ])
+
+    expect(answer.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
+
+    const { rows } = await admin.query<{ user_id: string }>(
+      'select user_id from site_access_reveals where site_access_id = $1',
+      [access['id']],
+    )
+
+    expect(rows).toEqual([{ user_id: 'max' }])
+  })
+
+  it('refuses a showing of a value its device never held, and only that one', async () => {
+    const theirs = await siteWithJob('Eigenes')
+    const others = await siteWithJob('Fremdes')
+    const mine = await addAccess(theirs.site, { designation: 'Tor', value: 'Code 6161' })
+    const notMine = await addAccess(others.site, { designation: 'Tür', value: 'Code 7272' })
+
+    await http()
+      .put(`/jobs/${theirs.job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    const answer = await push(app, technician(), [
+      created('site_access_reveals', newId<'site-access-reveal'>(), {
+        siteAccessId: String(notMine['id']),
+        revealedAt: '2026-09-27T10:01:00.000Z',
+      }),
+      created('site_access_reveals', newId<'site-access-reveal'>(), {
+        siteAccessId: String(mine['id']),
+        revealedAt: '2026-09-27T10:02:00.000Z',
+      }),
+    ])
+
+    expect(
+      answer.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields]),
+    ).toEqual([
+      ['conflict', 'record_missing', ['siteAccessId']],
+      ['applied', null, []],
+    ])
+
+    const { rows } = await admin.query<{ site_access_id: string }>(
+      'select site_access_id from site_access_reveals where site_access_id = any($1)',
+      [[mine['id'], notMine['id']]],
+    )
+
+    expect(rows).toEqual([{ site_access_id: mine['id'] }])
+  })
+
   it('follows a job that moves to another site', async () => {
     const { customer, site, job } = await siteWithJob('Umzug')
     const other = String(
       (await post('/sites', { customerId: customer, designation: 'Haus Umzug, hinten' }))['id'],
     )
-    const left = await addAccess(site, { designation: 'Vorne', value: '1212' })
-    const moved = await addAccess(other, { designation: 'Hinten', value: '3434' })
+    const left = await addAccess(site, { designation: 'Vorne', value: 'Code 1212' })
+    const moved = await addAccess(other, { designation: 'Hinten', value: 'Code 3434' })
 
     await http()
       .put(`/jobs/${job}/assignees`)
@@ -439,12 +590,12 @@ describe('an access on the device of a technician', () => {
     expect(after.narrowed['site_accesses']).not.toBe(before.narrowed['site_accesses'])
     expect(accessesOf(after).map((row) => row['id'])).toContain(moved['id'])
     expect(accessesOf(after).map((row) => row['id'])).not.toContain(left['id'])
-    expect(JSON.stringify(after)).not.toContain('1212')
+    expect(JSON.stringify(after)).not.toContain('Code 1212')
   })
 
   it('is neither kept nor asked for at the routes by a technician', async () => {
     const { site } = await siteWithJob('Rechte')
-    const access = await addAccess(site, { designation: 'Tür', value: '5555' })
+    const access = await addAccess(site, { designation: 'Tür', value: 'Code 5555' })
 
     await http()
       .post(`/sites/${site}/accesses`)
@@ -458,57 +609,23 @@ describe('an access on the device of a technician', () => {
   })
 })
 
-describe('an access on a device of the office on site', () => {
-  function rowOf(pulled: Pulled, id: unknown) {
-    return accessesOf(pulled).find((row) => row['id'] === id)
-  }
+describe('an access on a device of the office', () => {
+  it('never comes with its value, whatever the request asks for', async () => {
+    const { site } = await siteWithJob('Offen')
+    const access = await addAccess(site, { designation: 'Hoftor', value: 'Code 9753' })
 
-  it('comes with its value for a site with an open job, and without for the others', async () => {
-    const open = await siteWithJob('Offen')
-    const done = await siteWithJob('Erledigt')
-    const withJob = await addAccess(open.site, { designation: 'Hoftor', value: '9753' })
-    const withoutJob = await addAccess(done.site, { designation: 'Keller', value: '8642' })
+    // The office opens the site as well, and the site asks for values. The
+    // office asks the route instead, which keeps who saw a value; a request
+    // it builds itself gets no further (Greptile on #445).
+    for (const asked of [true, false]) {
+      const pulled = await pull(office(), asked)
+      const row = accessesOf(pulled).find((candidate) => candidate['id'] === access['id'])
 
-    await http()
-      .patch(`/jobs/${done.job}`)
-      .set('x-test-identity', office())
-      .send({ status: 'completed' })
-      .expect(200)
-
-    // On site: the value where a job is open, so that it is there in a
-    // cellar without a network, and only that there is one elsewhere.
-    const onSite = await pull(office(), true)
-
-    expect(rowOf(onSite, withJob['id'])).toMatchObject({ valueState: 'readable', value: '9753' })
-    expect(rowOf(onSite, withoutJob['id'])).toMatchObject({ valueState: 'readable' })
-    expect(rowOf(onSite, withoutJob['id'])?.['value']).toBeUndefined()
-
-    // In the office, which does not ask, no value at all.
-    const inOffice = await pull(office())
-
-    expect(JSON.stringify(inOffice)).not.toContain('9753')
-    expect(inOffice.narrowed['site_accesses']).toBe('all')
-
-    // A new job at a site without a way in leaves the device as it is, so it
-    // does not fetch the whole business anew; a job closed where there is
-    // one takes the value off.
-    await siteWithJob('Ohne Zugang')
-
-    expect((await pull(office(), true)).narrowed['site_accesses']).toBe(
-      onSite.narrowed['site_accesses'],
-    )
-
-    await http()
-      .patch(`/jobs/${open.job}`)
-      .set('x-test-identity', office())
-      .send({ status: 'completed' })
-      .expect(200)
-
-    const after = await pull(office(), true)
-
-    expect(after.narrowed['site_accesses']).not.toBe(onSite.narrowed['site_accesses'])
-    expect(rowOf(after, withJob['id'])).toMatchObject({ valueState: 'readable' })
-    expect(rowOf(after, withJob['id'])?.['value']).toBeUndefined()
+      expect(row).toMatchObject({ valueState: 'readable' })
+      expect(row?.['value']).toBeUndefined()
+      expect(JSON.stringify(pulled)).not.toContain('Code 9753')
+      expect(pulled.narrowed['site_accesses']).toBe('all')
+    }
   })
 })
 
@@ -536,7 +653,7 @@ describe('the seal of an access', () => {
 describe('an access and the business it belongs to', () => {
   it('is out of reach of another business, and its seal opens only for its own row', async () => {
     const { site } = await siteWithJob('Nord')
-    const ours = await addAccess(site, { designation: 'Nordtür', value: '9999' })
+    const ours = await addAccess(site, { designation: 'Nordtür', value: 'Code 9999' })
     const theirSite = String(
       (
         await post(
@@ -551,7 +668,11 @@ describe('an access and the business it belongs to', () => {
         )
       )['id'],
     )
-    const theirs = await addAccess(theirSite, { designation: 'Südtür', value: '1111' }, neighbour())
+    const theirs = await addAccess(
+      theirSite,
+      { designation: 'Südtür', value: 'Code 1111' },
+      neighbour(),
+    )
 
     await http()
       .post(`/sites/${site}/accesses/${String(ours['id'])}/reveal`)

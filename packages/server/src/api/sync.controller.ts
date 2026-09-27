@@ -379,7 +379,7 @@ export class SyncController {
 
     try {
       return await this.database.forTenant({ ...identity, deviceId }, async (tx) => ({
-        receipts: await applyOperations(tx, identity.tenantId, operations),
+        receipts: await applyOperations(tx, identity.tenantId, operations, identity),
       }))
     } catch (error) {
       if (error instanceof OperationRefused) {
@@ -419,18 +419,19 @@ export class SyncController {
     // (#140): the jobs they are on, with what hangs on them.
     const ownTimeOnly = !isAllowed(identity, 'time.read')
     const wholeBusiness = isAllowed(identity, 'job.read.all')
-    // The ways into a site (#286): all of them for whoever keeps them, and
-    // for a technician the ones of the sites of their open jobs. A value only
-    // when the device asks for values, which the site does and the office
-    // does not, and then for the sites with an open job the device holds, so
-    // that it opens the door in a cellar without a network. Any other value
-    // the office asks for on purpose, at the route that keeps who saw it.
+    // The ways into a site (#286): all of them, without a value, for whoever
+    // keeps them, who asks the route for a value when it is needed and leaves
+    // a trace there; the ones of the sites of their open jobs for a
+    // technician, with the value when the device asks for it, which the site
+    // does and the office does not, so that it opens the door in a cellar
+    // without a network. Whoever keeps them gets no value here, whatever the
+    // request says: the parameter is the client's to choose, the right is not
+    // (Greptile on #445).
     const keepsAccess = isAllowed(identity, 'site.access')
-    const withValues = access === 'values'
+    const withValues = access === 'values' && !keepsAccess
     const { answer, scope, sites } = await this.database.forTenant(identity, async (tx) => {
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
-      const sites =
-        scope !== null || (keepsAccess && withValues) ? await sitesWithOpenJobs(tx, scope) : null
+      const sites = scope !== null && !keepsAccess ? await sitesWithOpenJobs(tx, scope) : null
       const found = await changesSince(tx, from, undefined, (entity) => {
         if (entity === 'time_entries' && ownTimeOnly) {
           return eq(timeEntries.userId, identity.userId)
@@ -475,12 +476,10 @@ export class SyncController {
           scopedEntities.map((entity) => [entity, scope ? scope.value : 'all']),
         ),
         // Changes with the sites of the open jobs, so that a closed job takes
-        // the ways into its site or their values off the device, and with
-        // whether values were asked for.
+        // the ways into its site off the device, and with whether values were
+        // asked for.
         site_accesses: keepsAccess
-          ? withValues && sites
-            ? `all:${sites.value}:values`
-            : 'all'
+          ? 'all'
           : scope && sites
             ? `${sites.value}:${withValues ? 'values' : 'bare'}`
             : 'none',

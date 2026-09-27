@@ -9,10 +9,11 @@
 --
 -- Everything down to the policies comes from the schema. What follows is
 -- written by hand: FORCE and the grants of the two new tables, their audit and
--- sync triggers, and the person of a showing, from the request as for working
--- time. The application may insert a showing and never change one; of an
--- access it may change what it opens, the hint, when the value was set and
--- that it is deleted.
+-- sync triggers, the person of a showing, from the request as for working
+-- time, and a trigger on `sites` that takes the ways in and their values with
+-- a site that is deleted. The application may insert a showing and never
+-- change one; of an access it may change what it opens, the hint, when the
+-- value was set and that it is deleted.
 
 ALTER TYPE "public"."secret_purpose" ADD VALUE 'site_access';--> statement-breakpoint
 CREATE TABLE "site_access_reveals" (
@@ -78,4 +79,36 @@ CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "site_access_
 CREATE TRIGGER "stamp_sync_columns" BEFORE INSERT OR UPDATE ON "site_access_reveals"
 	FOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();--> statement-breakpoint
 CREATE TRIGGER "site_access_reveals_record_owner" BEFORE INSERT ON "site_access_reveals"
-	FOR EACH ROW EXECUTE FUNCTION "record_time_owner"();
+	FOR EACH ROW EXECUTE FUNCTION "record_time_owner"();--> statement-breakpoint
+
+-- A site marked as deleted marks its ways in as well, so that every device
+-- hears of it, and forgets their values, as the route does for one access: a
+-- code must not outlive the site it opens (Greptile on #445). A trigger and
+-- not the route, so that no other way of deleting a site leaves one behind.
+-- The accesses first and the values after, each statement with its own
+-- snapshot: a value written by a transaction the first one had to wait for
+-- is gone as well. The literal of the new purpose is read when the function
+-- runs, in a later transaction, not here where the value was added.
+CREATE FUNCTION "site_accesses_follow_deletion"() RETURNS trigger
+	LANGUAGE plpgsql
+	SET search_path = pg_catalog, public
+AS $$
+BEGIN
+	IF old.deleted_at IS NOT NULL OR new.deleted_at IS NULL THEN
+		RETURN NULL;
+	END IF;
+
+	UPDATE public.site_accesses SET deleted_at = new.deleted_at
+	 WHERE tenant_id = new.tenant_id AND site_id = new.id AND deleted_at IS NULL;
+
+	DELETE FROM public.secrets
+	 WHERE tenant_id = new.tenant_id
+	   AND purpose = 'site_access'
+	   AND record_id IN (SELECT id FROM public.site_accesses
+	                      WHERE tenant_id = new.tenant_id AND site_id = new.id);
+
+	RETURN NULL;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER "site_accesses_follow_deletion" AFTER UPDATE OF "deleted_at" ON "sites"
+	FOR EACH ROW EXECUTE FUNCTION "site_accesses_follow_deletion"();

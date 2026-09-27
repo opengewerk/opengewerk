@@ -9,6 +9,8 @@
 -- value cannot be dropped, so the type is built again without it, as in the
 -- rollback of 0052.
 
+DROP TRIGGER "site_accesses_follow_deletion" ON "sites";--> statement-breakpoint
+DROP FUNCTION "site_accesses_follow_deletion"();--> statement-breakpoint
 DROP TABLE "site_access_reveals";--> statement-breakpoint
 DROP TABLE "site_accesses";--> statement-breakpoint
 DELETE FROM "secrets" WHERE "purpose" = 'site_access';--> statement-breakpoint

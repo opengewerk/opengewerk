@@ -14,7 +14,7 @@ import {
 import { accessProblem, type SiteAccessId, type SiteId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
+import { Database, type TenantTransaction } from '../database/database.js'
 import { siteAccesses, siteAccessReveals, sites } from '../database/schema/index.js'
 import { forgetAccessValue, keepAccessValue, readAccessValue } from '../secrets/site-access.js'
 import type { SecretKey } from '../secrets/key.js'
@@ -54,6 +54,29 @@ function accessFrom(body: unknown, creating: boolean) {
   }
 
   return shaped
+}
+
+/**
+ * An access that is not deleted, at a site that is not deleted either. The
+ * trigger on `sites` marks the accesses of a deleted site; this asks the site
+ * as well, so that no route shows or changes a way into a site that is gone
+ * (Greptile on #445). `lock` holds the access until the transaction ends.
+ */
+async function openAccess(tx: TenantTransaction, siteId: string, id: string, lock: boolean) {
+  const query = tx
+    .select({ access: siteAccesses })
+    .from(siteAccesses)
+    .innerJoin(sites, and(eq(sites.id, siteAccesses.siteId), isNull(sites.deletedAt)))
+    .where(
+      and(
+        eq(siteAccesses.id, id as SiteAccessId),
+        eq(siteAccesses.siteId, siteId as SiteId),
+        isNull(siteAccesses.deletedAt),
+      ),
+    )
+  const [found] = lock ? await query.for('no key update', { of: siteAccesses }) : await query
+
+  return found?.access
 }
 
 /**
@@ -99,10 +122,13 @@ export class SiteAccessesController {
     const key = access.value === undefined ? null : this.sealing()
 
     return this.database.forTenant(identity, async (tx) => {
+      // Held until the access is written: a site deleted meanwhile would
+      // otherwise miss the new access, and its value would outlive it.
       const [site] = await tx
         .select({ id: sites.id })
         .from(sites)
         .where(and(eq(sites.id, siteId as SiteId), isNull(sites.deletedAt)))
+        .for('share')
 
       if (!site) {
         throw new NotFoundException()
@@ -139,17 +165,7 @@ export class SiteAccessesController {
     const key = access.value === undefined ? null : this.sealing()
 
     return this.database.forTenant(identity, async (tx) => {
-      const [existing] = await tx
-        .select()
-        .from(siteAccesses)
-        .where(
-          and(
-            eq(siteAccesses.id, id as SiteAccessId),
-            eq(siteAccesses.siteId, siteId as SiteId),
-            isNull(siteAccesses.deletedAt),
-          ),
-        )
-        .for('no key update')
+      const existing = await openAccess(tx, siteId, id, true)
 
       if (!existing) {
         throw new NotFoundException()
@@ -229,16 +245,7 @@ export class SiteAccessesController {
     const key = this.sealing()
 
     return this.database.forTenant(identity, async (tx) => {
-      const [access] = await tx
-        .select({ id: siteAccesses.id })
-        .from(siteAccesses)
-        .where(
-          and(
-            eq(siteAccesses.id, id as SiteAccessId),
-            eq(siteAccesses.siteId, siteId as SiteId),
-            isNull(siteAccesses.deletedAt),
-          ),
-        )
+      const access = await openAccess(tx, siteId, id, false)
 
       if (!access) {
         throw new NotFoundException()

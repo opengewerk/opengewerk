@@ -74,6 +74,17 @@ export function referencesOf(table: PgTable): readonly Reference[] {
   return references
 }
 
+/**
+ * The references that may name a record marked as deleted, per table. A
+ * showing of a value, written on a device without a network, has to arrive
+ * even when the office deleted the access before the next exchange: the
+ * showing happened, and its record is what was promised (Greptile on #445).
+ * The key holds, since a deleted row stays.
+ */
+const mayNameDeleted: Readonly<Record<string, readonly string[]>> = {
+  site_access_reveals: ['siteAccessId'],
+}
+
 /** A reference that names nothing this business may hang a record on. */
 export interface MissingReference {
   readonly field: string
@@ -94,7 +105,8 @@ export interface MissingReference {
  * Asked under row level security, so a record of another business is not
  * there, which is the answer it deserves. A record marked as deleted is not
  * there either: the key would take it, the row exists, and the new record
- * would hang on something no list shows any more.
+ * would hang on something no list shows any more. Only a trace of what
+ * happened may, in `mayNameDeleted`.
  */
 export async function missingReference(
   tx: TenantTransaction,
@@ -102,6 +114,8 @@ export async function missingReference(
   values: Readonly<Record<string, unknown>>,
   creating: boolean,
 ): Promise<MissingReference | null> {
+  const deletedToo = mayNameDeleted[getTableName(table)] ?? []
+
   for (const { field, target, required } of referencesOf(table)) {
     const value = values[field]
 
@@ -113,7 +127,7 @@ export async function missingReference(
       continue
     }
 
-    if (!isUuid(value) || !(await exists(tx, target, value))) {
+    if (!isUuid(value) || !(await exists(tx, target, value, deletedToo.includes(field)))) {
       return { field, target: getTableName(target) }
     }
   }
@@ -121,7 +135,12 @@ export async function missingReference(
   return null
 }
 
-async function exists(tx: TenantTransaction, target: PgTable, id: string): Promise<boolean> {
+async function exists(
+  tx: TenantTransaction,
+  target: PgTable,
+  id: string,
+  deletedToo: boolean,
+): Promise<boolean> {
   const columns = getTableColumns(target) as Record<string, PgColumn>
   const key = columns['id']
   const deletedAt = columns['deletedAt']
@@ -130,7 +149,8 @@ async function exists(tx: TenantTransaction, target: PgTable, id: string): Promi
     throw new Error(`The table ${getTableName(target)} has no id to find a record by`)
   }
 
-  const condition: SQL | undefined = deletedAt ? and(eq(key, id), isNull(deletedAt)) : eq(key, id)
+  const condition: SQL | undefined =
+    deletedAt && !deletedToo ? and(eq(key, id), isNull(deletedAt)) : eq(key, id)
   const found = await tx.select({ id: key }).from(target).where(condition)
 
   return found.length > 0

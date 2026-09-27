@@ -185,8 +185,8 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
 /**
  * The ways into a site (#286) on a device without `site.access`: the sites of
  * its open jobs, and nothing of a closed one, which `closedJobsStayDays` keeps
- * for everything else. A device with the right holds them all, and on site
- * the values of those in `sitesWithOpenJobs`.
+ * for everything else. A device with the right holds them all, without a
+ * value, and asks the route for one when it is needed.
  */
 export function accessesOfOpenJobs(scope: DeviceScope): SQL {
   return sql`"site_accesses"."site_id" in (select site_id from jobs
@@ -194,28 +194,25 @@ export function accessesOfOpenJobs(scope: DeviceScope): SQL {
 }
 
 /**
- * The sites whose ways in a device on site holds with their values (#286):
- * those with a way in and an open job the device holds, the assigned ones in
- * a scope and every open one for whoever holds the whole business. `value`
- * changes with the list and goes into the answer, so that a device lets go
- * of the values of a site whose last open job was closed, and fetches those
- * of a site that got one or that one of its jobs moved to. A site without a
- * way in stays out of the list: a job there changes nothing on the device,
- * and one that holds the whole business would otherwise fetch all of it anew
- * for every new job.
+ * The sites whose ways in the device of a technician holds, with their values
+ * on site (#286): those with a way in and an open job the person is assigned
+ * to. `value` changes with the list and goes into the answer, so that a device
+ * lets go of the ways into a site whose last open job was closed, and fetches
+ * those of a site that got one or that one of its jobs moved to. A site
+ * without a way in stays out of the list: a job there changes nothing on the
+ * device, and the device would fetch its part anew for nothing.
  */
 export async function sitesWithOpenJobs(
   tx: TenantTransaction,
-  scope: DeviceScope | null,
+  scope: DeviceScope,
 ): Promise<{ readonly siteIds: ReadonlySet<string>; readonly value: string }> {
-  const open = scope
-    ? sql`j.id = any(${uuidArray(scope.openJobIds)})`
-    : sql`j.status in ('draft', 'active') and j.deleted_at is null`
   const { rows } = await tx.execute<{ site_id: string }>(sql`
     select distinct j.site_id
       from jobs j
-     where ${open}
+     where j.id = any(${uuidArray(scope.openJobIds)})
        and j.site_id is not null
+       and exists (select 1 from sites s
+                    where s.id = j.site_id and s.deleted_at is null)
        and exists (select 1 from site_accesses a
                     where a.site_id = j.site_id and a.deleted_at is null)
      order by j.site_id`)
