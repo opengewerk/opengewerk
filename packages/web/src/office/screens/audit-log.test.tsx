@@ -5,6 +5,7 @@ import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { clockTime, moment } from '../../app/format.js'
 import { InRouter } from '../../app/in-router.js'
 import { AuditLogScreen, ChangesButton } from './audit-log.js'
 
@@ -264,7 +265,13 @@ describe('the check of the chain', () => {
     await user.click(screen.getByRole('button', { name: 'Protokoll prüfen' }))
 
     expect(await screen.findByText('Vollständig und unverändert.')).toBeTruthy()
-    expect(screen.getByText(/18\.412 Einträge geprüft am 27\.09\.2026 um 14:40/)).toBeTruthy()
+    // In the time zone of the device, whichever that is: the CI runs in UTC.
+    const at = new Date('2026-09-27T12:40:00Z')
+    const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(at)
+
+    expect(
+      screen.getByText(`18.412 Einträge geprüft am ${day} um ${clockTime(at)}.`, { exact: false }),
+    ).toBeTruthy()
   })
 
   it('says where the chain breaks and marks the change', async () => {
@@ -283,7 +290,9 @@ describe('the check of the chain', () => {
     await user.click(screen.getByRole('button', { name: 'Protokoll prüfen' }))
 
     expect(
-      await screen.findByText('Ab dem Eintrag vom 27.09.2026, 14:32 passt die Kette nicht mehr.'),
+      await screen.findByText(
+        `Ab dem Eintrag vom ${moment('2026-09-27T12:32:00Z')} passt die Kette nicht mehr.`,
+      ),
     ).toBeTruthy()
     expect(screen.getByText(/Der Eintrag wurde nachträglich verändert\./)).toBeTruthy()
 
