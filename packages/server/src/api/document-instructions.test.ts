@@ -1,3 +1,4 @@
+import { PDFDocument } from '@cantoo/pdf-lib'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DocumentContent } from '@opengewerk/domain'
@@ -41,6 +42,18 @@ const jobs: PrintJob[] = []
 
 const standIn: Renderer = async (job) => {
   jobs.push(job)
+
+  // A document with a page the law prescribes needs a PDF that pdf-lib reads,
+  // ending in the empty page left for it (#431): here the quote and that page,
+  // in a size no notice has, so that the swap shows.
+  if (job.html.includes('class="legal-page"')) {
+    const printed = await PDFDocument.create()
+
+    printed.addPage([500, 700])
+    printed.addPage([500, 700])
+
+    return printed.save()
+  }
 
   return new TextEncoder().encode(`%PDF-1.7 Probedruck ${String(jobs.length)}`)
 }
@@ -181,6 +194,8 @@ describe('the instructions of a quote to a consumer', () => {
       ['Hinweise zum Erlöschen des Widerrufsrechts', true, true, true],
       ['Muster-Widerrufsformular', true, true, true],
       ['Verlangen auf vorzeitigen Leistungsbeginn', true, true, false],
+      // A quote about work, and dated before 27.09.2026 as well (#431).
+      ['Mitteilung zur gesetzlichen Gewährleistung', false, false, true],
     ])
     expect(view.printed.map((entry) => entry.index)).toEqual([0, 1, 2, 3])
     expect(view.printed[0]?.source).toContain('Anlage 1 zu Art. 246a')
@@ -266,6 +281,7 @@ describe('the choice on a document', () => {
       ['Hinweise zum Erlöschen des Widerrufsrechts', true],
       ['Muster-Widerrufsformular', true],
       ['Verlangen auf vorzeitigen Leistungsbeginn', false],
+      ['Mitteilung zur gesetzlichen Gewährleistung', false],
     ])
 
     const refused = await choose(id, {
@@ -449,5 +465,105 @@ describe('the instructions on paper', () => {
 
     await pdf(`/documents/${id}/instructions/7/pdf`).expect(404)
     await pdf(`/documents/${id}/instructions/zwei/pdf`).expect(404)
+  })
+})
+
+describe('the notice on the legal guarantee', () => {
+  const notice = 'Mitteilung zur gesetzlichen Gewährleistung'
+  // The day the law asks for it from (#431).
+  const onTheDay = { documentDate: '2026-09-27' }
+
+  it('goes with a quote to a consumer about goods from 27.09.2026, last and as a page', async () => {
+    const id = await quote(consumer, onTheDay)
+    const before = (await instructionsOf(id)).choices.find((entry) => entry.title === notice)
+
+    expect(before).toMatchObject({
+      proposed: false,
+      included: false,
+      required: false,
+      page: true,
+      onlyForGoods: true,
+    })
+
+    const view = (await choose(id, { variant: 'goods' }).expect(200))
+      .body as DocumentInstructionsView
+
+    expect(view.choices.find((entry) => entry.title === notice)).toMatchObject({
+      proposed: true,
+      included: true,
+      required: true,
+    })
+    expect(view.printed.at(-1)).toMatchObject({ title: notice, withDocument: true, page: true })
+
+    const refused = await choose(id, {
+      instructionId: await idOf(id, notice),
+      included: false,
+    }).expect(409)
+
+    expect((refused.body as { message: string }).message).toBe(
+      `Die Belehrung „${notice}“ gehört zu jedem Angebot an einen Verbraucher über eine ` +
+        'Lieferung von Waren und lässt sich nicht abschalten.',
+    )
+  })
+
+  it('does not go with a quote dated earlier, or with one to a business', async () => {
+    const earlier = await quote()
+
+    await choose(earlier, { variant: 'goods' }).expect(200)
+
+    expect((await instructionsOf(earlier)).printed.map((entry) => entry.title)).not.toContain(
+      notice,
+    )
+
+    const toBusiness = await quote(business, onTheDay)
+
+    await choose(toBusiness, { variant: 'goods' }).expect(200)
+
+    expect((await instructionsOf(toBusiness)).printed).toEqual([])
+  })
+
+  it('is the last page of the PDF, the page of the Commission in place of the empty one', async () => {
+    const id = await quote(consumer, onTheDay)
+
+    await choose(id, { variant: 'goods' }).expect(200)
+
+    const answer = await pdf(`/documents/${id}/pdf`).expect(200)
+    const printed = await PDFDocument.load(answer.body as Buffer)
+    const html = jobs.at(-1)?.html ?? ''
+
+    expect(html).toContain('<section class="legal-page" aria-hidden="true"></section>')
+    expect(html).not.toContain(`<h2>${notice}</h2>`)
+    expect(printed.getPageCount()).toBe(2)
+    expect(printed.getPage(0).getSize()).toEqual({ width: 500, height: 700 })
+    expect(printed.getPage(1).getSize().width).toBeCloseTo(595.276, 1)
+    expect(printed.getPage(1).getSize().height).toBeCloseTo(841.89, 1)
+  })
+
+  it('is frozen with the quote, and its sheet is the page alone', async () => {
+    const id = await quote(consumer, onTheDay)
+
+    await choose(id, { variant: 'goods' }).expect(200)
+    await issue(id).expect(201)
+
+    const content = await snapshotOf(id)
+    const index = content.instructions.findIndex((entry) => entry.graphic !== null)
+
+    expect(index).toBe(content.instructions.length - 1)
+    expect(content.instructions[index]).toMatchObject({
+      title: notice,
+      graphic: 'guarantee-notice-de-2025-09-25',
+      withDocument: true,
+      variant: 'goods',
+      model: { template: 'guarantee_notice', validFrom: '2026-09-27', changed: false },
+    })
+
+    const printedBefore = jobs.length
+    const sheet = await pdf(`/documents/${id}/instructions/${String(index)}/pdf`).expect(200)
+    const page = await PDFDocument.load(sheet.body as Buffer)
+
+    // No renderer asked: the sheet is the page of the Commission itself.
+    expect(jobs.length).toBe(printedBefore)
+    expect(page.getPageCount()).toBe(1)
+    expect(page.getPage(0).getSize().height).toBeCloseTo(841.89, 1)
   })
 })

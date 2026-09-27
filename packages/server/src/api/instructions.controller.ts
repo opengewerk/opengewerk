@@ -5,10 +5,13 @@ import {
   Controller,
   Delete,
   Get,
+  InternalServerErrorException,
   NotFoundException,
   Param,
   Patch,
   Post,
+  Res,
+  StreamableFile,
 } from '@nestjs/common'
 import {
   type DocumentKind,
@@ -19,14 +22,22 @@ import {
   longestInstructionBody,
   longestInstructionTitle,
   normalizedWording,
+  onlyForGoods,
   requiredKinds,
   unknownInstructionPlaceholders,
   wordingAt,
+  wordingIsFixed,
 } from '@opengewerk/domain'
 import { eq, max } from 'drizzle-orm'
+import type { Response } from 'express'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { instructions } from '../database/schema/index.js'
+import {
+  isLegalGraphic,
+  LegalGraphicError,
+  legalGraphicImage,
+} from '../documents/legal-graphics.js'
 import {
   ensureShippedInstructions,
   type InstructionRow,
@@ -200,6 +211,42 @@ export class InstructionsController {
     })
   }
 
+  /**
+   * The picture of a page the law prescribes whole, for the settings screen,
+   * #431. By the name a wording gives it and not by an instruction, because the
+   * page is the same for every business. Its own origin, because the screen
+   * shows no `data:` pictures; and it never changes under its name, a new
+   * version of the page ships under a new one.
+   */
+  @Get('graphics/:name')
+  @RequiresPermission('settings.read')
+  async graphic(
+    @Param('name') name: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    if (!isLegalGraphic(name)) {
+      throw new NotFoundException()
+    }
+
+    try {
+      const { bytes, mediaType } = await legalGraphicImage(name)
+
+      response.setHeader('Cache-Control', 'private, max-age=31536000, immutable')
+
+      return new StreamableFile(Buffer.from(bytes), {
+        type: mediaType,
+        disposition: 'inline',
+        length: bytes.byteLength,
+      })
+    } catch (error) {
+      if (error instanceof LegalGraphicError) {
+        throw new InternalServerErrorException(error.message)
+      }
+
+      throw error
+    }
+  }
+
   /** One the business writes itself, listed after everything it has. */
   @Post()
   @RequiresPermission('settings.write')
@@ -270,16 +317,28 @@ export class InstructionsController {
         )
       }
 
+      // Words the law prescribes whole are not the business's to change (#431).
+      if (words !== undefined && wordingIsFixed(row.template)) {
+        throw new BadRequestException(
+          `„${shownTitle(row, today)}“ gibt die EU in Gestaltung und Wortlaut vor ` +
+            '(Durchführungsverordnung (EU) 2025/1960, Anhang I) und lässt sich nicht bearbeiten.',
+        )
+      }
+
       // The two models a quote to a consumer has to carry keep that quote, and
       // they go out with it: a sheet the office may forget to print is not an
       // instruction the customer got.
       const required = requiredKinds(row.template)
       const kinds = settings.kinds
+      const about =
+        row.template !== null && onlyForGoods.includes(row.template)
+          ? ' über eine Lieferung von Waren'
+          : ''
 
       if (kinds && required.some((kind) => !kinds.includes(kind))) {
         throw new BadRequestException(
           `Die Belehrung „${shownTitle(row, today)}“ gehört zu jedem Angebot an einen ` +
-            'Verbraucher, deshalb lässt sich das Angebot hier nicht abwählen.',
+            `Verbraucher${about}, deshalb lässt sich das Angebot hier nicht abwählen.`,
         )
       }
 

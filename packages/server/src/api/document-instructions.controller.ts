@@ -17,6 +17,8 @@ import {
   type InstructionContent,
   type InstructionTemplate,
   includedIn,
+  latestWording,
+  onlyForGoods,
   proposedFor,
   requiredFor,
   RuleError,
@@ -59,6 +61,10 @@ export interface InstructionChoiceView {
   readonly withDocument: boolean
   /** A shipped one whose words the business changed. */
   readonly changed: boolean
+  /** Printed as a page the law prescribes, the last of the PDF, and not as words (#431). */
+  readonly page: boolean
+  /** Only for a contract about goods, so the choice of contract below decides it. */
+  readonly onlyForGoods: boolean
 }
 
 /** An instruction the way it is printed with this document; the index names its sheet. */
@@ -69,6 +75,8 @@ export interface PrintedInstructionView {
   readonly changed: boolean
   /** Where its model is in the law, for a shipped one. */
   readonly source: string | null
+  /** Printed as a page the law prescribes, the last of the PDF, and not as words (#431). */
+  readonly page: boolean
 }
 
 export interface DocumentInstructionsView {
@@ -92,7 +100,13 @@ function printedFrom(
     withDocument: instruction.withDocument,
     changed: instruction.model?.changed ?? false,
     source: instruction.model?.source ?? null,
+    page: instruction.graphic !== null,
   }))
+}
+
+/** Whether a shipped instruction is only for a contract about goods. */
+function goodsOnly(template: InstructionTemplate | null): boolean {
+  return template !== null && onlyForGoods.includes(template)
 }
 
 /** A title as it may stand in a file name. A document number may well contain a slash. */
@@ -158,7 +172,12 @@ export class DocumentInstructionsController {
     const issuer = await issuerOf(tx, document.tenantId)
     const { contents, gaps } = await instructionsFor(tx, document, issuer, isBusiness)
     const choices = await choicesOf(tx, document.id)
-    const facts = { kind: document.kind, recipientIsBusiness: isBusiness }
+    const facts = {
+      kind: document.kind,
+      recipientIsBusiness: isBusiness,
+      documentDate: document.documentDate,
+      variant: choices.variant,
+    }
 
     return {
       fixed: document.status !== 'draft',
@@ -175,6 +194,9 @@ export class DocumentInstructionsController {
               required: requiredFor(row, facts),
               withDocument: row.withDocument,
               changed: row.template !== null && row.body !== null,
+              page:
+                row.template !== null && (latestWording(row.template)?.graphic ?? null) !== null,
+              onlyForGoods: goodsOnly(row.template),
             }))
           : [],
       printed: printedFrom(contents),
@@ -258,14 +280,18 @@ export class DocumentInstructionsController {
         const facts = {
           kind: document.kind,
           recipientIsBusiness: await this.recipientIsBusiness(tx, document),
+          documentDate: document.documentDate,
+          variant: next.variant,
         }
         const proposed = proposedFor(instruction, facts)
         const included = values.included === true
 
         if (!included && requiredFor(instruction, facts)) {
+          const about = goodsOnly(instruction.template) ? ' über eine Lieferung von Waren' : ''
+
           throw new ConflictException(
             `Die Belehrung „${shownTitle(instruction, document.documentDate)}“ gehört zu jedem ` +
-              'Angebot an einen Verbraucher und lässt sich nicht abschalten.',
+              `Angebot an einen Verbraucher${about} und lässt sich nicht abschalten.`,
           )
         }
         const on = current.switchedOn.filter((id) => id !== instruction.id)

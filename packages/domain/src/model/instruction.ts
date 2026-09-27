@@ -21,12 +21,22 @@ import type {
  * words. The other two have no model in the law; their words are the ones
  * Moritz uses on msk-solutions.de, and they go to #31 for review like a rule
  * package.
+ *
+ * `guarantee_notice` is the harmonised notice of the EU on the legal
+ * guarantee for goods, annex I to Implementing Regulation (EU) 2025/1960,
+ * which a consumer gets before a contract about goods since 27.09.2026
+ * (#431). The law prescribes it as a whole page, and it ships as that page;
+ * see `fixedWording`.
+ *
+ * A new key goes at the end: the database adds a value to its enum at the
+ * end, and a test holds both lists to the same order.
  */
 export const instructionTemplates = [
   'withdrawal',
   'withdrawal_form',
   'early_start',
   'withdrawal_notes',
+  'guarantee_notice',
 ] as const
 
 export type InstructionTemplate = (typeof instructionTemplates)[number]
@@ -365,13 +375,89 @@ export function instructionBlocks(text: string): readonly InstructionBlock[] {
  *
  * Not the sheet for an early start. It is needed when a customer wants the
  * work to begin within the fourteen days, and not otherwise.
+ *
+ * The notice on the legal guarantee goes with every quote to a consumer as
+ * well, but only where the quote is about goods and dated from the day the
+ * law asks for it, see `appliesTo`. An estimate gets it by hand, like the
+ * instructions. Decided by Moritz on 26.09.2026 in #431.
  */
 export const requiredWith: Readonly<Partial<Record<InstructionTemplate, readonly DocumentKind[]>>> =
   {
     withdrawal: ['quote'],
     withdrawal_form: ['quote'],
     withdrawal_notes: ['quote'],
+    guarantee_notice: ['quote'],
   }
+
+/**
+ * What decides whether an instruction goes with a document: its kind, whether
+ * the customer is a business, the kind of contract chosen on it, and its date.
+ */
+export interface DocumentFacts {
+  readonly kind: DocumentKind
+  readonly recipientIsBusiness: boolean
+  readonly variant: WithdrawalVariant
+  readonly documentDate: IsoDate
+}
+
+/**
+ * The shipped instructions that belong only to a contract about goods.
+ *
+ * The notice on the legal guarantee speaks of goods, and a contract for work
+ * alone has none to speak of. Whether a quote is about goods is what the
+ * office chooses on it as "Lieferung von Waren mit Montage", the choice that
+ * already decides the sentences of the instruction on withdrawal. Decided by
+ * Moritz on 26.09.2026 in #431.
+ */
+export const onlyForGoods: readonly InstructionTemplate[] = ['guarantee_notice']
+
+/**
+ * The day from which the law asks for a shipped instruction, where that day
+ * came after the software had documents: the notice on the legal guarantee
+ * from 27.09.2026, when Art. 3 of the act of 03.02.2026 came into force
+ * (BGBl. 2026 I Nr. 28, Art. 10 (3)). A document dated earlier goes out
+ * without it, rather than lacking it. The first version of its wording starts
+ * on the same day, and a test holds the two together.
+ */
+export const requiredFrom: Readonly<Partial<Record<InstructionTemplate, IsoDate>>> = {
+  guarantee_notice: '2026-09-27' as IsoDate,
+}
+
+/**
+ * The shipped instructions whose words the business cannot change, because
+ * the law prescribes them whole: of the harmonised notice "none of the
+ * elements is editable" (annex I, explanation 1, to Implementing Regulation
+ * (EU) 2025/1960). The business still chooses the documents it is proposed
+ * for; the server refuses anything else.
+ */
+export const fixedWording: readonly InstructionTemplate[] = ['guarantee_notice']
+
+/** Whether the words of an instruction are the law's and nobody else's. */
+export function wordingIsFixed(template: InstructionTemplate | null): boolean {
+  return template !== null && fixedWording.includes(template)
+}
+
+/**
+ * Whether a shipped instruction applies to a document at all: to its kind of
+ * contract, and on its date. Every instruction the business wrote does.
+ */
+export function appliesTo(
+  template: InstructionTemplate | null,
+  document: Pick<DocumentFacts, 'variant' | 'documentDate'>,
+): boolean {
+  if (template === null) {
+    return true
+  }
+
+  if (onlyForGoods.includes(template) && document.variant !== 'goods') {
+    return false
+  }
+
+  const from = requiredFrom[template]
+
+  // ISO dates sort like the days they name.
+  return from === undefined || from <= document.documentDate
+}
 
 /** The kinds a shipped instruction always goes with, none for one the business wrote. */
 export function requiredKinds(template: InstructionTemplate | null): readonly DocumentKind[] {
@@ -381,15 +467,18 @@ export function requiredKinds(template: InstructionTemplate | null): readonly Do
 /**
  * Whether an instruction has to go with a document: a shipped one the law
  * asks for, on a kind it is required with, to a customer who is not a
- * business. A business has no right of withdrawal, so nothing is required
- * for one.
+ * business, where it applies to the contract and the date. A business has no
+ * right of withdrawal and no consumer's guarantee, so nothing is required for
+ * one.
  */
 export function requiredFor(
   instruction: Pick<Instruction, 'template'>,
-  document: { readonly kind: DocumentKind; readonly recipientIsBusiness: boolean },
+  document: DocumentFacts,
 ): boolean {
   return (
-    !document.recipientIsBusiness && requiredKinds(instruction.template).includes(document.kind)
+    !document.recipientIsBusiness &&
+    requiredKinds(instruction.template).includes(document.kind) &&
+    appliesTo(instruction.template, document)
   )
 }
 
@@ -401,14 +490,17 @@ export function requiredFor(
  * A proposal, which the office switches on or off per document, because
  * whether a contract is concluded away from the business premises or at a
  * distance is something the software cannot know. The exception is what
- * `requiredFor` names; that goes with the document either way.
+ * `requiredFor` names; that goes with the document either way. A shipped
+ * instruction that does not apply to the contract or the date is not
+ * proposed, see `appliesTo`; the office can still switch it on by hand.
  */
 export function proposedFor(
-  instruction: Pick<Instruction, 'kinds' | 'consumersOnly'>,
-  document: { readonly kind: DocumentKind; readonly recipientIsBusiness: boolean },
+  instruction: Pick<Instruction, 'template' | 'kinds' | 'consumersOnly'>,
+  document: DocumentFacts,
 ): boolean {
   return (
     instruction.kinds.includes(document.kind) &&
-    !(instruction.consumersOnly && document.recipientIsBusiness)
+    !(instruction.consumersOnly && document.recipientIsBusiness) &&
+    appliesTo(instruction.template, document)
   )
 }

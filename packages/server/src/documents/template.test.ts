@@ -11,7 +11,7 @@ import {
 } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
-import { instructionSheet, printJob } from './template.js'
+import { instructionSheet, legalPagesOf, printJob } from './template.js'
 
 /**
  * The template, without a renderer. What can be checked on the HTML is what
@@ -627,6 +627,7 @@ describe('the instructions of a document', () => {
       changed: false,
     },
     variant: 'service',
+    graphic: null,
   }
   const sheet: InstructionContent = {
     title: 'Beginn <vorzeitig>',
@@ -634,6 +635,21 @@ describe('the instructions of a document', () => {
     withDocument: false,
     model: null,
     variant: 'service',
+    graphic: null,
+  }
+  // The harmonised notice on the legal guarantee (#431): a page, not words.
+  const notice: InstructionContent = {
+    title: 'Mitteilung zur gesetzlichen Gewährleistung',
+    text: 'Die harmonisierte Mitteilung der Europäischen Union zur gesetzlichen Gewährleistung.',
+    withDocument: true,
+    model: {
+      template: 'guarantee_notice',
+      validFrom: '2026-09-27',
+      source: 'Anhang I der Durchführungsverordnung (EU) 2025/1960',
+      changed: false,
+    },
+    variant: 'goods',
+    graphic: 'guarantee-notice-de-2025-09-25',
   }
 
   it('follow the document on pages of their own, the ones that go out with it', () => {
@@ -649,6 +665,29 @@ describe('the instructions of a document', () => {
     expect(html).toContain('<ul><li>An uns:</li></ul>')
     expect(html).toContain('<div class="write-line"></div>')
     expect(html).not.toContain('vorzeitig')
+  })
+
+  it('leave an empty last page for a page the law prescribes whole', () => {
+    const content = invoice(
+      { kind: 'quote', number: 'AN-2026-0007' },
+      { instructions: [notice, withdrawal, sheet] },
+    )
+    const { html } = printJob(content, { logo: null })
+
+    // Its words are not written out; the page of the Commission takes the
+    // place of the empty one at the very end, after every other instruction.
+    expect(html).not.toContain('<h2>Mitteilung zur gesetzlichen Gewährleistung</h2>')
+    expect(html).toMatch(/<section class="legal-page" aria-hidden="true"><\/section>\s*<\/main>/)
+    expect(html.indexOf('<h2>Widerrufsbelehrung</h2>')).toBeLessThan(
+      html.indexOf('class="legal-page"'),
+    )
+    expect(legalPagesOf(content)).toEqual(['guarantee-notice-de-2025-09-25'])
+    // One that stays at the document is no page of the PDF.
+    expect(
+      legalPagesOf(
+        invoice({ kind: 'quote' }, { instructions: [{ ...notice, withDocument: false }] }),
+      ),
+    ).toEqual([])
   })
 
   it('are printed as a sheet each, and what a person typed stays text', () => {

@@ -33,9 +33,9 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * version 7 the payment term, version 8 the instructions that went with it,
  * version 9 the number of the job it belongs to, version 10 what came in on
  * the progress invoices it takes off, version 11 the fields a business gives
- * its reports.
+ * its reports, version 12 the graphic an instruction is printed as.
  */
-export const documentContentVersion = 11
+export const documentContentVersion = 12
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -210,6 +210,15 @@ export interface InstructionContent {
   readonly model: InstructionModelContent | null
   /** The kind of contract its words were filled in for. */
   readonly variant: WithdrawalVariant
+  /**
+   * The shipped graphic printed instead of the words, by the name its file
+   * ships under, or null for an instruction printed as text. Only the
+   * harmonised notice on the legal guarantee has one (#431): the law
+   * prescribes the page itself, and the words are its description. Kept as
+   * a name and not as the file, because the file never changes under its
+   * name; a new version of the notice ships under a new one.
+   */
+  readonly graphic: string | null
 }
 
 export interface DocumentContent {
@@ -288,8 +297,14 @@ export interface ReportFieldContent {
   readonly text: string
 }
 
+/** The eleventh shape, from #78: the report fields, and instructions printed as text only. */
+export interface DocumentContentV11 extends Omit<DocumentContent, 'version' | 'instructions'> {
+  readonly version: 11
+  readonly instructions: readonly Omit<InstructionContent, 'graphic'>[]
+}
+
 /** The tenth shape, from #189: what came in on the progress invoices, and no report fields yet. */
-export interface DocumentContentV10 extends Omit<DocumentContent, 'version' | 'reportFields'> {
+export interface DocumentContentV10 extends Omit<DocumentContentV11, 'version' | 'reportFields'> {
   readonly version: 10
 }
 
@@ -354,6 +369,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV11
   | DocumentContentV10
   | DocumentContentV9
   | DocumentContentV8

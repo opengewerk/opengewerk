@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import type { DocumentContentV1, LineContent } from '../model/document-content.js'
+import type {
+  DocumentContentV1,
+  DocumentContentV11,
+  LineContent,
+} from '../model/document-content.js'
 import { continuesChain, deducts, documentKinds, successorsOf } from '../model/document.js'
 import { currentContent } from './document-content.js'
 import { movedInOutline, outlineRows } from './outline.js'
@@ -228,7 +232,7 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(11)
+    expect(read.version).toBe(12)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
@@ -259,6 +263,26 @@ describe('a snapshot written in the first shape', () => {
       grossCents: 147560,
       byRate: [],
     })
+
+    // Before version 12 every instruction was printed as text; the page of
+    // the harmonised notice came with #431.
+    const eleventh = {
+      ...read,
+      version: 11 as const,
+      instructions: [
+        {
+          title: 'Widerrufsbelehrung',
+          text: 'Sie haben das Recht, binnen vierzehn Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen.',
+          withDocument: true,
+          model: null,
+          variant: 'service' as const,
+        },
+      ],
+    } satisfies DocumentContentV11
+
+    expect(currentContent(eleventh).instructions).toEqual([
+      { ...eleventh.instructions[0], graphic: null },
+    ])
   })
 })
 

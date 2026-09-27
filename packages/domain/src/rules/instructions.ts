@@ -3,6 +3,7 @@ import type { InstructionContent, IssuerContent } from '../model/document-conten
 import type { IsoDate } from '../model/identifier.js'
 import {
   type ContractBlocks,
+  type DocumentFacts,
   filledInstruction,
   type Instruction,
   type InstructionChoices,
@@ -13,6 +14,7 @@ import {
   requiredFor,
   unfilledPlaceholders,
   type WithdrawalVariant,
+  wordingIsFixed,
 } from '../model/instruction.js'
 import shipped from './data/instructions.json' with { type: 'json' }
 
@@ -39,6 +41,14 @@ export interface ShippedWording {
    * on design of its model, filled in.
    */
   readonly contract?: Readonly<Record<WithdrawalVariant, ContractBlocks>>
+  /**
+   * The name of a page the law prescribes whole, printed instead of the words:
+   * the file the server ships under `assets/legal`, which it checks against its
+   * digest before printing. The words are then a description of the page, for
+   * whoever cannot see it. Only the harmonised notice on the legal guarantee
+   * has one (#431).
+   */
+  readonly graphic?: string
   /** German, because whoever reads it is deciding whether it is right. */
   readonly note?: string
 }
@@ -116,7 +126,9 @@ export function contractBlocksAt(
  * document: they have to reach the customer in text form. Not to the
  * estimate, which is no offer the customer accepts. The sheet for an early
  * start is proposed with them and kept at the document, to be printed when
- * the customer wants the work to begin within the fourteen days.
+ * the customer wants the work to begin within the fourteen days. The notice
+ * on the legal guarantee comes last, as it is printed last, on the page of its
+ * own the law gives it (#431).
  */
 export const shippedInstructionDefaults: Readonly<
   Record<
@@ -152,6 +164,12 @@ export const shippedInstructionDefaults: Readonly<
     consumersOnly: true,
     withDocument: false,
     position: 4,
+  },
+  guarantee_notice: {
+    kinds: ['quote'],
+    consumersOnly: true,
+    withDocument: true,
+    position: 5,
   },
 }
 
@@ -209,7 +227,9 @@ export function instructionWordingAt(
 
   // A shipped instruction is printed under the heading of its model, the
   // one of the document's day, whatever heading its row was written with.
-  if (instruction.body !== null) {
+  // One whose words the law prescribes whole has no other words to print,
+  // whatever a row may carry.
+  if (instruction.body !== null && !wordingIsFixed(instruction.template)) {
     return {
       title: wording?.title ?? instruction.title,
       text: instruction.body,
@@ -235,14 +255,17 @@ function inWords(parts: readonly string[]): string {
 
 /**
  * Whether an instruction goes with a document: always where it is required,
- * else the office's choice, else the proposal.
+ * else the office's choice, else the proposal. The kind of contract is the
+ * one chosen on the document.
  */
 export function includedIn(
   instruction: Pick<InstructionForDocument, 'id' | 'template' | 'kinds' | 'consumersOnly'>,
   choices: InstructionChoices,
-  document: { readonly kind: DocumentKind; readonly recipientIsBusiness: boolean },
+  document: Omit<DocumentFacts, 'variant'>,
 ): boolean {
-  if (requiredFor(instruction, document)) {
+  const facts: DocumentFacts = { ...document, variant: choices.variant }
+
+  if (requiredFor(instruction, facts)) {
     return true
   }
 
@@ -250,7 +273,7 @@ export function includedIn(
     return false
   }
 
-  return choices.switchedOn.includes(instruction.id) || proposedFor(instruction, document)
+  return choices.switchedOn.includes(instruction.id) || proposedFor(instruction, facts)
 }
 
 /**
@@ -306,6 +329,7 @@ export function documentInstructions(
   const contents: InstructionContent[] = []
   const gaps: InstructionGap[] = []
   const on = document.documentDate
+  const facts: DocumentFacts = { ...document, variant: choices.variant }
 
   for (const instruction of instructions) {
     if (!includedIn(instruction, choices, document)) {
@@ -315,7 +339,7 @@ export function documentInstructions(
     const words = instructionWordingAt(instruction, on, wordings)
     // Named by the heading it is printed under, once there is one.
     const named = `Die Belehrung „${words?.title ?? instruction.title}“`
-    const wayOut = requiredFor(instruction, document) ? compulsory : switchOff
+    const wayOut = requiredFor(instruction, facts) ? compulsory : switchOff
 
     if (words === null) {
       const first = instruction.template
@@ -379,6 +403,7 @@ export function documentInstructions(
             }
           : null,
       variant: choices.variant,
+      graphic: words.changed ? null : (words.wording?.graphic ?? null),
     })
   }
 

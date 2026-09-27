@@ -337,6 +337,13 @@
       "when": 1790423663810,
       "tag": "0047_tenant_rename",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790498978441,
+      "tag": "0048_guarantee_notice",
+      "breakpoints": true
     }
   ]
 }

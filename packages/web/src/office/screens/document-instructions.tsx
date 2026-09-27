@@ -44,8 +44,17 @@ function SheetLink({
   )
 }
 
-/** Where an instruction goes, in the words of the screen; in the past once it went. */
-function whereItGoes(withDocument: boolean, went: boolean): string {
+/**
+ * Where an instruction goes, in the words of the screen; in the past once it
+ * went. A page the law prescribes whole goes last, on a page of its own (#431).
+ */
+function whereItGoes(withDocument: boolean, went: boolean, page = false): string {
+  if (withDocument && page) {
+    return went
+      ? 'Ist mit dem Beleg hinausgegangen, als letzte Seite im PDF.'
+      : 'Geht mit dem Beleg hinaus, als letzte Seite im PDF und in der E-Mail.'
+  }
+
   if (withDocument) {
     return went
       ? 'Ist mit dem Beleg hinausgegangen, im PDF nach dem Beleg.'
@@ -123,8 +132,12 @@ function Choice({
     >
       {choice.included ? (
         <>
-          {choice.required ? 'Pflicht an jedem Angebot an einen Verbraucher. ' : ''}
-          {whereItGoes(choice.withDocument, false)}
+          {choice.required
+            ? choice.onlyForGoods
+              ? 'Pflicht an jedem Angebot an einen Verbraucher über eine Lieferung von Waren. '
+              : 'Pflicht an jedem Angebot an einen Verbraucher. '
+            : ''}
+          {whereItGoes(choice.withDocument, false, choice.page)}
           {choice.proposed || choice.required
             ? ''
             : ' Für diesen Beleg nicht vorgeschlagen, von Hand dazugenommen.'}
@@ -222,7 +235,7 @@ export function InstructionsCard({ document }: { readonly document: RecordState 
           <ul className="flex flex-col gap-2.5">
             {printed.map((instruction) => (
               <InstructionRow key={instruction.index} title={instruction.title}>
-                {whereItGoes(instruction.withDocument, went)}
+                {whereItGoes(instruction.withDocument, went, instruction.page)}
                 {instruction.changed ? ' Mit geändertem Wortlaut des Musters.' : ''}{' '}
                 <SheetLink documentId={documentId} instruction={instruction} />
               </InstructionRow>
@@ -259,7 +272,7 @@ export function InstructionsCard({ document }: { readonly document: RecordState 
                   value={variant}
                   options={variantOptions}
                   disabled={!editable || choose.isPending}
-                  hint="Davon hängt ab, wann die Widerrufsfrist beginnt und was bei einem Widerruf mit Arbeit oder Waren geschieht."
+                  hint="Davon hängt ab, wann die Widerrufsfrist beginnt, was bei einem Widerruf mit Arbeit oder Waren geschieht und ob die Mitteilung zur Gewährleistung dazugehört."
                   onChange={(value) => {
                     choose.mutate({ variant: value as WithdrawalVariant })
                   }}

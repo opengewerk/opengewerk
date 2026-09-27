@@ -19,11 +19,13 @@ import {
   createInstruction,
   type InstructionView,
   instructions,
+  legalGraphicAddress,
   removeInstruction,
   restoreInstruction,
   updateInstruction,
 } from '../../session/instructions.js'
 import { RequestRefused } from '../../sync/transport.js'
+import { NoteBox } from '../kit.js'
 import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 const queryKey = ['instructions']
@@ -64,6 +66,9 @@ const changedWarning: Readonly<Record<InstructionTemplate, string>> = {
     'aber weiter sagen, dass der Kunde den Beginn vor Ablauf der Widerrufsfrist ausdrücklich ' +
     'verlangt und dass er weiß, dass sein Widerrufsrecht mit der vollständigen Erfüllung erlischt ' +
     '(§ 356 Abs. 5 Nr. 2 und § 357a Abs. 2 BGB).',
+  // Never shown: nothing changes the notice, see `fixedWording`.
+  guarantee_notice:
+    'Die Mitteilung gibt die EU in Gestaltung und Wortlaut vor, sie lässt sich nicht ändern.',
 }
 
 /** What a shipped instruction is, in the words of the screen. */
@@ -72,6 +77,7 @@ const shippedAs: Readonly<Record<InstructionTemplate, string>> = {
   withdrawal_form: 'Mitgeliefertes Muster',
   withdrawal_notes: 'Mitgelieferte Hinweise',
   early_start: 'Mitgelieferter Vordruck',
+  guarantee_notice: 'Amtliche Mitteilung der EU',
 }
 
 /** Whether a template is the law's words, so that changing it costs the safe harbour. */
@@ -94,8 +100,16 @@ function versionOf(template: InstructionTemplate | null): string {
     ? 'der Hinweise'
     : template === 'early_start'
       ? 'des Vordrucks'
-      : 'des Musters'
+      : template === 'guarantee_notice'
+        ? 'der Mitteilung'
+        : 'des Musters'
 }
+
+/** What the notice box says over a page the law prescribes whole (#431). */
+const fixedNote =
+  'Gestaltung und Wortlaut gibt die EU vor (Durchführungsverordnung (EU) 2025/1960, Anhang I). ' +
+  'Die Mitteilung lässt sich nicht bearbeiten und steht im PDF auf einer eigenen A4-Seite, ohne ' +
+  'Briefkopf und ohne Fußzeile.'
 
 /**
  * The words of an instruction the way they are printed: headings, paragraphs,
@@ -137,17 +151,26 @@ export function InstructionText({ text }: { readonly text: string }) {
 /** Which kinds, whom and whether it goes out with the document, in two sentences. */
 function Summary({ instruction }: { readonly instruction: InstructionView }) {
   const kinds = documentKinds.filter((kind) => instruction.kinds.includes(kind))
+  const whom = instruction.consumersOnly ? ', nur an Kunden, die kein Unternehmen sind' : ''
+  const goods = instruction.onlyForGoods
+    ? ', wenn der Vertrag eine Lieferung von Waren mit Montage betrifft'
+    : ''
 
   return (
     <p className="text-[13px] leading-[1.45] text-ink-muted">
       {kinds.length === 0
         ? 'Zu keinem Beleg vorgeschlagen.'
-        : `Vorgeschlagen für ${inWords(kinds.map((kind) => documentKindLabel[kind]))}` +
-          (instruction.consumersOnly ? ', nur an Kunden, die kein Unternehmen sind.' : '.')}{' '}
+        : `Vorgeschlagen für ${inWords(kinds.map((kind) => documentKindLabel[kind]))}${whom}${goods}.`}{' '}
       {instruction.withDocument
-        ? 'Geht mit dem Beleg hinaus, im PDF nach dem Beleg und damit auch in der E-Mail.'
+        ? instruction.graphic !== null
+          ? 'Geht mit dem Beleg hinaus, als letzte Seite im PDF und damit auch in der E-Mail.'
+          : 'Geht mit dem Beleg hinaus, im PDF nach dem Beleg und damit auch in der E-Mail.'
         : 'Liegt am Beleg als eigenes Blatt zum Ausdrucken bereit.'}
-      {instruction.requiredWith.length > 0 ? ' Pflicht an jedem Angebot an einen Verbraucher.' : ''}
+      {instruction.requiredWith.length > 0
+        ? instruction.onlyForGoods
+          ? ' Pflicht an jedem solchen Angebot an einen Verbraucher.'
+          : ' Pflicht an jedem Angebot an einen Verbraucher.'
+        : ''}
     </p>
   )
 }
@@ -279,15 +302,21 @@ function InstructionForm({
           }}
         />
       ) : null}
-      <TextArea
-        label="Wortlaut"
-        rows={16}
-        value={body}
-        onChange={(event) => {
-          setBody(event.target.value)
-        }}
-      />
-      <Placeholders />
+      {instruction?.fixedWording ? (
+        <NoteBox>{fixedNote}</NoteBox>
+      ) : (
+        <>
+          <TextArea
+            label="Wortlaut"
+            rows={16}
+            value={body}
+            onChange={(event) => {
+              setBody(event.target.value)
+            }}
+          />
+          <Placeholders />
+        </>
+      )}
 
       {leavesModel ? (
         <ChangedNote heading={changedHeading(template)}>
@@ -317,8 +346,9 @@ function InstructionForm({
         </div>
         {required.length > 0 ? (
           <p className="text-table text-ink-muted">
-            Pflicht an jedem Angebot an einen Verbraucher, deshalb bleiben „Angebot“ und „Geht mit
-            dem Beleg hinaus“ angehakt.
+            Pflicht an jedem Angebot an einen Verbraucher
+            {instruction?.onlyForGoods ? ' über eine Lieferung von Waren' : ''}, deshalb bleiben
+            „Angebot“ und „Geht mit dem Beleg hinaus“ angehakt.
           </p>
         ) : null}
       </fieldset>
@@ -505,6 +535,8 @@ function InstructionEntry({
         <ChangedNote heading={changedHeading(instruction.template)}>
           {changedWarning[instruction.template]}
         </ChangedNote>
+      ) : instruction.fixedWording ? (
+        <NoteBox>{fixedNote}</NoteBox>
       ) : null}
 
       {instruction.newerModel ? (
@@ -534,10 +566,21 @@ function InstructionEntry({
           <Summary instruction={instruction} />
           <details className="border-t border-row pt-2">
             <summary className="cursor-pointer text-[13px] font-semibold text-copper-text">
-              Wortlaut
+              {instruction.graphic !== null ? 'Mitteilung ansehen' : 'Wortlaut'}
             </summary>
             <div className="mt-3 flex flex-col gap-3">
-              <InstructionText text={instruction.body} />
+              {instruction.graphic !== null ? (
+                // The page as it is printed, and its description for whoever
+                // cannot see it.
+                <img
+                  src={legalGraphicAddress(instruction.graphic)}
+                  alt={instruction.body}
+                  loading="lazy"
+                  className="w-full max-w-[420px] border border-line"
+                />
+              ) : (
+                <InstructionText text={instruction.body} />
+              )}
               {instruction.model ? (
                 <p className="text-table text-ink-muted">
                   {isStatutory(instruction.template) ? 'Fundstelle des Musters' : 'Rechtsgrundlage'}
