@@ -57,6 +57,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Art. 246 Abs. 1 und Art. 246a § 1 Abs. 1 EGBGB in Phase 1 auf (#431). Seit dem 27.09.2026
   verlangen sie für Waren die harmonisierte Mitteilung zur Gewährleistung nach der
   Durchführungsverordnung (EU) 2025/1960; gebaut mit #431, siehe unter "Hinzugefügt".
+- Die Feature-Gliederung (v2.23) legt fest, wie die Mitteilung zur Gewährleistung gedruckt wird,
+  als letzte Seite im PDF und nur bei "Lieferung von Waren mit Montage", und ordnet die
+  Kennzeichnung einer Haltbarkeitsgarantie des Herstellers nach Anhang II der Phase 2 zu (#433),
+  weil sie je Ware gilt und an den Artikelstamm gehört. Die übrigen neuen Angaben legt der
+  Betrieb als eigene Belehrung an, wenn der Hersteller sie liefert; so entschieden von Moritz am
+  26.09.2026.
 
 ## [0.3.0] - 2026-09-26
 
