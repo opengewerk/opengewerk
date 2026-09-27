@@ -67,7 +67,7 @@ afterEach(() => {
 })
 
 describe('the settings', () => {
-  it('list every screen for the owner, the access list included', async () => {
+  it('list every screen for the owner, the access list and the change log included', async () => {
     signedInAs('owner')
     mount()
 
@@ -84,15 +84,17 @@ describe('the settings', () => {
       '/einstellungen/e-mail',
       '/einstellungen/sicherung',
       '/einstellungen/zugaenge',
+      '/einstellungen/protokoll',
     ])
   })
 
-  it('leave the access list out for the office', async () => {
+  it('leave the access list and the change log out for the office', async () => {
     signedInAs('office')
     mount()
 
     await screen.findByRole('link', { name: /Nummernkreise/ })
 
     expect(screen.queryByRole('link', { name: /Zugänge/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Änderungsprotokoll/ })).toBeNull()
   })
 })

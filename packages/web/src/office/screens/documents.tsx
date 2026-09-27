@@ -65,6 +65,7 @@ import { DocumentMarker } from './document-marker.js'
 import { PaymentsCard } from './document-payments.js'
 import { CancelPanel, IssuePanel, reasonOf } from './document-steps.js'
 import { claimableTransitions } from './taxes.js'
+import { ChangesButton } from './audit-log.js'
 
 /** Oldest first, the order the chain was written in. The id breaks a tie. */
 function byDate(left: RecordState, right: RecordState): number {
@@ -640,6 +641,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   // "Festschreiben" beside it as the plain step.
   const actions = (
     <>
+      <ChangesButton table="documents" id={documentId} />
       <ButtonLink
         href={pdfAddress(documentId)}
         target="_blank"

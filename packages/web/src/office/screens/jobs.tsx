@@ -37,6 +37,7 @@ import { FilesPanel } from './attachments.js'
 import { DocumentChainCard, JobDocumentsPanel, useJobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'
 import { JobTimeSection } from './time.js'
+import { ChangesButton } from './audit-log.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
 const statusOptions = jobStatuses.map((status) => ({
@@ -339,6 +340,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
         wideActions
         actions={
           <>
+            <ChangesButton table="jobs" id={jobId} />
             <Button
               icon={Pencil}
               disabled={editing}

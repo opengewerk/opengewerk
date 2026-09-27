@@ -66,6 +66,7 @@ export default defineConfig({
         '/tasks',
         '/deadlines',
         '/push',
+        '/audit',
         '/files',
         '/attachments',
         '/form-records',

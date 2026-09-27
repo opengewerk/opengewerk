@@ -20,6 +20,7 @@ import { placeOf } from './customers.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
+import { ChangesButton } from './audit-log.js'
 
 const siteFields: readonly FormField[] = [
   {
@@ -262,6 +263,7 @@ export function SiteScreen() {
         }
         actions={
           <>
+            <ChangesButton table="sites" id={siteId} />
             {writes ? (
               <Button
                 icon={Pencil}

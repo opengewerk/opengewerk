@@ -40,6 +40,7 @@ import { useGrossByDocument } from './document-gross.js'
 import { JobsPanel } from './job-table.js'
 import { JobState, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
+import { ChangesButton } from './audit-log.js'
 
 const kindOptions = customerKinds.map((kind) => ({
   value: kind,
@@ -460,6 +461,7 @@ function CustomerRecord({
       }
       actions={
         <>
+          <ChangesButton table="customers" id={customerId} />
           {writes ? (
             <Button
               icon={Pencil}

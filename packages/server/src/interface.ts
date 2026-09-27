@@ -70,6 +70,7 @@ const apiPrefixes = [
   'tasks',
   'deadlines',
   'push',
+  'audit',
   'files',
   'attachments',
   'form-records',

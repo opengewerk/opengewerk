@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
+import { AuditLogScreen } from './screens/audit-log.js'
 import { BackupScreen } from './screens/backup.js'
 import {
   CustomerList,
@@ -149,6 +150,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/einstellungen/zugaenge',
     component: StaffScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/protokoll',
+    component: AuditLogScreen,
   }),
 ]
 

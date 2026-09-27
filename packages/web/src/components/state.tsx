@@ -19,7 +19,7 @@ import { useEntry } from './surface.js'
  * `domain`, so a state added there turns this into a type error instead of a
  * blank badge.
  */
-const documentStateLabel: Readonly<Record<DocumentStatus, string>> = {
+export const documentStateLabel: Readonly<Record<DocumentStatus, string>> = {
   draft: 'Entwurf',
   signed: 'Unterschrieben',
   issued: 'Festgeschrieben',

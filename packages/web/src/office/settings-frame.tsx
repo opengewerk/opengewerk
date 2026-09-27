@@ -7,6 +7,7 @@ import {
   Clock,
   Euro,
   File,
+  History,
   List,
   Mail,
   Server,
@@ -39,6 +40,7 @@ export interface SettingsEntry {
 export function useSettingsEntries(): readonly SettingsEntry[] {
   const readsSettings = useMay('settings.read')
   const administers = useMay('membership.read')
+  const readsLog = useMay('audit.read')
 
   return [
     ...(readsSettings
@@ -116,6 +118,18 @@ export function useSettingsEntries(): readonly SettingsEntry[] {
             title: 'Zugänge',
             about: 'Wer in diesem Betrieb arbeitet, mit welchen Rollen, und die Einladungen.',
             icon: Users,
+          },
+        ]
+      : []),
+    ...(readsLog
+      ? [
+          {
+            key: 'protokoll',
+            to: '/einstellungen/protokoll',
+            title: 'Änderungsprotokoll',
+            about:
+              'Wer wann was geändert hat, Feld für Feld, und ob das Protokoll unverändert ist.',
+            icon: History,
           },
         ]
       : []),
