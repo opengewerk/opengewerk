@@ -127,6 +127,40 @@ export function deadlineDueMessage(facts: {
 }
 
 /**
+ * What a push message says (#284). A title and one line, and never a name, an
+ * address or a word somebody typed: the message passes through the push
+ * service of the browser's maker, and the text of a task is whatever its
+ * author wrote, a customer's name included. What it is about the device shows
+ * after the tap, from its own data.
+ */
+export interface PushText {
+  readonly title: string
+  readonly body: string
+}
+
+/** A task of the person's that falls due today. */
+export function taskDuePush(): PushText {
+  return { title: 'Heute fällig', body: 'Eine Aufgabe ist heute für dich fällig.' }
+}
+
+/** A deadline the person answers for, by the name of its kind and its day. */
+export function deadlineDuePush(facts: {
+  /** What the kind is called: "Wiedervorlage eines Angebots". */
+  readonly kind: string
+  readonly dueOn: string
+}): PushText {
+  return { title: `Frist am ${germanDate(facts.dueOn)}`, body: facts.kind }
+}
+
+/** The message a person sends themselves from "Konto", to see that push works. */
+export function testPush(): PushText {
+  return {
+    title: 'Probenachricht',
+    body: 'So kommen Benachrichtigungen von OpenGewerk auf diesem Gerät an.',
+  }
+}
+
+/**
  * A document as the object of a sentence: "erhalten Sie die Rechnung". A final
  * invoice that closes a row of progress invoices is "die Schlussrechnung",
  * as its page calls it (#132); `objectOf` asks.

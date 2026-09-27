@@ -265,9 +265,10 @@ async function remindOne(
 
         break
       }
-      case 'mail':
-        // Written by the mail job, which knows whether this business has a
-        // mail server; it finds the deadline by its mark (`dueDeadlines`).
+      case 'reminder':
+        // Written by the jobs that send, the one for mail and the one for
+        // push (#284), each of which knows whether it has a way to the
+        // person; they find the deadline by its mark (`dueDeadlines`).
         break
       case 'service_job': {
         if (claimed.customerId === null) {

@@ -27,9 +27,19 @@ export interface SignedInUser {
   readonly sessionId: string
 }
 
+/**
+ * An identity as a source finds it, with the session it came from where there
+ * is one. The session is what a device is signed in with, so that something
+ * bound to it, a push subscription (#284), ends when the device is signed out.
+ * The preview and the tests have none.
+ */
+export interface FoundIdentity extends Identity {
+  readonly sessionId?: string
+}
+
 export interface IdentitySource {
   /** Returns null when the request carries no valid identity. */
-  identify(request: unknown): Promise<Identity | null>
+  identify(request: unknown): Promise<FoundIdentity | null>
   /**
    * Who is signed in, without asking which business they are working in.
    *
@@ -53,7 +63,7 @@ export interface IdentitySource {
  * question and belongs to the screen that asks for it, which does not exist
  * yet.
  */
-export interface RequestIdentity extends Identity {
+export interface RequestIdentity extends FoundIdentity {
   readonly reason: Permission
 }
 

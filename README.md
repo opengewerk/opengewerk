@@ -54,7 +54,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 - **Eine Oberfläche nach den Vorlagen im Canvas**: zuerst hell, dunkel als Wahl je Gerät; im Büro Kopfzeile und Navigation, am Telefon hinter "Menü"; auf der Baustelle Reiter unten, ein Menü von unten und auf dem Tablet eine Leiste links. Jeder Bildschirm folgt seiner Tafel, mit eigenen Listen für Kunden, Objekte, Anlagen, Aufträge und Belege, und auf dem Tablet quer stehen Aufträge und Auftrag nebeneinander. Keine Seite ist breiter als ihr Fenster, von 320 bis 3840 Pixel, das prüft die CI bei jedem Pull Request. Was sich nicht zurücknehmen lässt, fragt vorher nach.
 - **Einstellungen im Büro** statt in der `.env`: Briefkopf mit dem Namen des Betriebs, Steuern, Nummernkreise, Zahlungsziel, Fristen, Belehrungen, Felder des Regieberichts, Mailserver, Zugänge und die letzte Sicherung.
 
-**Phase 2**, der Kern für Elektro und PV, wird seit dem 27.09.2026 gebaut, Issue für Issue im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3). Dazugekommen ist bisher die Fristen-Engine (#283) mit ihrer ersten Art, der Wiedervorlage eines Angebots, dem niemand geantwortet hat.
+**Phase 2**, der Kern für Elektro und PV, wird seit dem 27.09.2026 gebaut, Issue für Issue im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3). Dazugekommen sind bisher die Fristen-Engine (#283) mit ihrer ersten Art, der Wiedervorlage eines Angebots, dem niemand geantwortet hat, und Push-Nachrichten auf die Geräte der Leute im Betrieb (#284).
 
 Wie das im Einzelnen gebaut ist, steht in den Kapiteln unter "Entwicklung". Was noch fehlt, steht in den Meilensteinen, für Phase 1 im [Meilenstein Phase 1](https://github.com/opengewerk/opengewerk/milestone/2) und für Phase 2 im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3), die Reihenfolge im Fahrplan in Abschnitt 10 der Feature-Gliederung.
 
@@ -340,7 +340,7 @@ Eine Frist ist ein Tag, an dem etwas fällig wird, weil vorher etwas anderes ges
 
 **Die Arten sind Daten.** Eine Art nennt ihre Quelle, das Intervall, den Vorlauf, wer verantwortlich ist, was bei Fälligkeit geschieht und den Titel der Aufgabe mit dem Platzhalter `{quelle}`. Die Arten des Kerns stehen in `packages/domain/src/deadlines/core.json`, die eines Gewerks bringt dessen Paket mit, und `deadlineRegistry` führt beide beim Start zusammen und lehnt eine fehlerhafte Art ab, bevor sie eine Frist anlegt (Nachtrag in ADR 0008). Die Quellen selbst sind Abfragen im Server (`deadlines/sources.ts`), denn sie fragen die Datenbank; eine neue Art nennt eine vorhandene Quelle.
 
-**Vier Aktionen, jede genau einmal.** Beginnt der Vorlauf, tut die Engine, was die Art sagt: eine Aufgabe für die verantwortliche Person, eine E-Mail an sie, sofern der Betrieb einen Mailserver hat, ein Serviceauftrag mit der nächsten Nummer aus dem Kreis der Aufträge oder ein Statuswechsel an der Quelle. Die Markierung "erinnert für diesen Tag" ist dabei der Anspruch: von zwei Läufen im selben Augenblick bekommt einer die Zeile und der andere nichts, und wer sie bekommt, erledigt die Aktionen in derselben Transaktion. Scheitert eine, rollt alles zurück, die Markierung eingeschlossen, und der nächste Lauf versucht es wieder. Erinnert wird ab sechs Uhr morgens am Tag der Erinnerung, wie bei einer fälligen Aufgabe, und eine Instanz, die über diesen Tag hinaus stand, holt es einmal nach. Die Wiedervorlage legt nur eine Aufgabe an, "Angebot AN-2026-0002 nachfassen", ohne Urheber, wie es das Kapitel zu den Aufgaben vorsieht. Wird die Aufgabe erledigt, ist es die Frist auch, und umgekehrt.
+**Vier Aktionen, jede genau einmal.** Beginnt der Vorlauf, tut die Engine, was die Art sagt: eine Aufgabe für die verantwortliche Person, eine Erinnerung an sie per E-Mail, sofern der Betrieb einen Mailserver hat, und per Push auf ihre Geräte, ein Serviceauftrag mit der nächsten Nummer aus dem Kreis der Aufträge oder ein Statuswechsel an der Quelle. Die Markierung "erinnert für diesen Tag" ist dabei der Anspruch: von zwei Läufen im selben Augenblick bekommt einer die Zeile und der andere nichts, und wer sie bekommt, erledigt die Aktionen in derselben Transaktion. Scheitert eine, rollt alles zurück, die Markierung eingeschlossen, und der nächste Lauf versucht es wieder. Erinnert wird ab sechs Uhr morgens am Tag der Erinnerung, wie bei einer fälligen Aufgabe, und eine Instanz, die über diesen Tag hinaus stand, holt es einmal nach. Die Wiedervorlage legt nur eine Aufgabe an, "Angebot AN-2026-0002 nachfassen", ohne Urheber, wie es das Kapitel zu den Aufgaben vorsieht. Wird die Aufgabe erledigt, ist es die Frist auch, und umgekehrt.
 
 **Wer verantwortlich ist, entscheidet sich in Stufen.** Erst die Person, die eine einzelne Frist bekommen hat, dann die, die der Betrieb für die Art festgelegt hat, dann die Vorgabe der Art, bei der Wiedervorlage also wer das Angebot festgeschrieben hat, und zuletzt der erste Inhaber. Wer gesperrt ist, wird übersprungen. Für den Vorlauf gilt dieselbe Reihenfolge ohne die letzte Stufe: eigener Vorlauf der Frist, Einstellung des Betriebs, Vorgabe der Art. So entschieden von Moritz am 27.09.2026 (Feature-Gliederung v2.24).
 
@@ -348,7 +348,7 @@ Eine Frist ist ein Tag, an dem etwas fällig wird, weil vorher etwas anderes ges
 
 **Auf dem Server und nicht auf dem Gerät.** Eine Frist entsteht aus dem, was die Geräte geschickt haben, und der nächste Lauf bestimmt sie aus ihrer Quelle neu; was ein Gerät im Keller an ihr änderte, wäre eine Minute später überschrieben. Die Tabellen stehen deshalb nicht im Abgleich (Nachtrag in ADR 0005). Was eine Frist auslöst, reist dagegen wie alles andere: ihre Aufgabe kommt mit dem nächsten Abruf auf das Gerät der verantwortlichen Person.
 
-Was nicht dazugehört: die Arten der Gewerke, deren erste mit der Wiederholungsprüfung kommt (#301), Push-Benachrichtigungen (#284) und Fristen, die niemand aus einer Quelle ableiten kann. Die kommen, wo ein Issue sie braucht, als neue Art mit einer neuen Quelle.
+Was nicht dazugehört: die Arten der Gewerke, deren erste mit der Wiederholungsprüfung kommt (#301), und Fristen, die niemand aus einer Quelle ableiten kann. Die kommen, wo ein Issue sie braucht, als neue Art mit einer neuen Quelle.
 
 ### Ansprechpartner
 
@@ -406,7 +406,7 @@ Was ein Betrieb über seine eigene Besteuerung erklärt, steht im Büro unter "S
 
 **Was die Erklärungen bewirken.** Mit der Kleinunternehmerregelung schlägt OpenGewerk neue Belege ohne Umsatzsteuer vor, mit dem Hinweis auf die Steuerbefreiung, und eine Rechnung geht als PDF hinaus; am Entwurf lässt sich das ändern. Die Ist-Versteuerung ändert heute genau eines: ab dem 1. Januar 2028 trägt jede Rechnung mit ausgewiesener Umsatzsteuer die Angabe „Versteuerung nach vereinnahmten Entgelten“, die § 14 Abs. 4 Satz 1 Nr. 6a UStG von da an verlangt, im PDF wie in der E-Rechnung. Ab demselben Tag darf der Kunde die Vorsteuer aus einer solchen Rechnung erst abziehen, wenn er gezahlt hat, und daran erkennt er es. Gelesen wird die Erklärung am Belegdatum und mit dem Festschreiben eingefroren. Eine Rechnung nach § 19 oder § 13b trägt die Angabe nicht, dort weist sie keine Steuer aus; diese Lesart steht mit auf der Liste für #31. Wofür der Unterschied zwischen Soll- und Ist-Versteuerung eigentlich zählt, der Zeitraum, in dem die Steuer anzumelden ist, gehört zur Umsatzsteuer-Voranmeldung der Buchhaltung, die dieselbe Einstellung liest.
 
-### Benachrichtigung per E-Mail
+### Benachrichtigung per E-Mail und Push
 
 Abschnitt 2 der Feature-Gliederung sieht Benachrichtigungen aus genau zwei Quellen vor, der Fristen-Engine und Statuswechseln, und dazu einen Satz, der wichtiger ist als die Funktion selbst: keine modulspezifischen Erinnerungen. Wer eine Mail dort verschickt, wo sie gebraucht wird, hat am Ende sieben Absender, sieben Vorlagen und sieben Stellen für die Adresse des Betriebs. Deshalb gibt es einen Absender und einen Weg zu ihm.
 
@@ -421,6 +421,14 @@ Abschnitt 2 der Feature-Gliederung sieht Benachrichtigungen aus genau zwei Quell
 **Der unterschriebene Regiebericht, auf Wunsch sofort.** Unter "E-Mail-Einstellungen" im Büro schaltet der Inhaber ein, dass ein Regiebericht, den der Kunde auf der Baustelle unterschreibt, gleich danach an diesen Kunden geht, als PDF mit der Unterschrift (`report.mail_on_signature`). Die Unterschrift ist dafür der Auslöser: der Job findet neu unterschriebene Berichte und schreibt je Bericht eine Nachricht, wenn die Einstellung am Tag der Unterschrift an war und beim Kunden eine Adresse steht. Geschaltet wird ab heute und nie rückwirkend, und der Job sieht nur Unterschriften der letzten 48 Stunden an; wer einschaltet, verschickt damit keinen Stapel alter Berichte. Fehlt die Adresse, bleibt der Bericht beim Büro und lässt sich über die Karte "Per E-Mail" verschicken, wie jeder festgeschriebene Beleg auch schon vor seiner Nummer. Derselbe Bildschirm sagt dem Büro, ob der Betrieb überhaupt einen Mailserver hat und von welcher Adresse er verschickt.
 
 **Die Einladung, ohne dass das Büro den Link sieht.** Unter "Zugänge" lässt sich ein neuer Zugang auch per E-Mail einladen, statt den Link selbst weiterzugeben. Das Token entsteht dann erst beim Versand: der Job erzeugt es, legt seine Prüfsumme an die Einladung und den Link in die Nachricht. In `mail_outbox` steht an seiner Stelle ein Platzhalter, und damit auch in allem, was das Audit-Log vom Postausgang festhält; wer eine Sicherung der Datenbank in die Hände bekommt, findet darin keinen Weg in einen Betrieb. Scheitert ein Versuch, entsteht beim nächsten ein neues Token, und nur der Link, der ankommt, funktioniert. Eine Einladung, die zurückgezogen, benutzt oder abgelaufen ist, wird nicht mehr verschickt, und die Nachricht bleibt mit diesem Grund stehen. Der Link beginnt mit dem ersten Eintrag aus `TRUSTED_ORIGINS`, wie jeder Link in einer Nachricht.
+
+**Push auf die eigenen Geräte** (#284). Dieselben Anlässe gehen auch als Push-Nachricht an die Geräte der Leute im Betrieb, als zweiter Kanal im selben Weg: `notifications/push.ts` entscheidet wie `notify` für die E-Mail, wem was gesagt wird, und `taskStillDue` und `deadlineStillDue` beantworten die Frage für beide gleich. Ein Modul meldet weiter nur seinen Anlass. Unter "Konto" im Büro und im Menü der Baustelle schaltet jede Person Push auf dem Gerät ein, auf dem sie gerade ist; der Browser fragt dabei selbst nach der Erlaubnis. Welche Anlässe sie als Push will, wählt sie dort für alle ihre Geräte, und jeder ist an, bis sie ihn abschaltet (`push_opt_outs`). Bisher sind das die fällige Aufgabe am Morgen und die Erinnerung einer Frist, deren Art erinnert. Eine Probenachricht geht auf Knopfdruck sofort an alle Geräte.
+
+**Die Nachricht sagt nur, was ansteht.** Sie geht verschlüsselt nach RFC 8291 über den Push-Dienst des Browserherstellers und trägt einen Titel, eine Zeile und den Weg, wohin ein Tippen führt: "Heute fällig", "Eine Aufgabe ist heute für dich fällig." Keinen Namen, keine Anschrift und nicht den Text einer Aufgabe, denn der ist, was jemand hineingeschrieben hat; was es ist, zeigt das Gerät nach dem Tippen aus seinen eigenen Daten. Signiert wird jede Anfrage nach RFC 8292 mit dem Schlüssel aus `VAPID_PRIVATE_KEY`, den `docker/setup.sh` beim Start anlegt und nie ausgibt; ein Browser nimmt nur Nachrichten an, die mit dem Schlüssel signiert sind, mit dem er sich angemeldet hat. Beides steht ohne Paket in `push/web-push.ts` und wird gegen das Beispiel aus RFC 8291 Byte für Byte geprüft. Fehlt der Schlüssel, verschickt die Instanz keine Push-Nachrichten, und "Konto" sagt das.
+
+**Ein Gerät, das abgemeldet ist, bekommt nichts mehr.** Ein Abonnement gehört einer Person in einem Betrieb und ist an die Sitzung gebunden, mit der das Gerät angemeldet ist. Endet sie, beim Abmelden, über "Angemeldete Geräte" von einem anderen Gerät aus oder mit einem neuen Passwort, geht keine Nachricht mehr hin, und der nächste Lauf nimmt das Gerät aus der Liste. Beim Abmelden meldet sich das Gerät zudem selbst ab. Bei jedem Start mit eingeschaltetem Push schreibt es sein Abonnement neu, gebunden an die Sitzung von jetzt, und meldet sich neu an, wenn der Schlüssel der Instanz ein anderer ist. Die Adresse des Push-Dienstes muss im Internet liegen und über HTTPS erreichbar sein, wie der Mailserver eines Betriebs; der Name wird bei jeder Verbindung geprüft.
+
+**Ein Push-Dienst, der nicht antwortet**, bekommt die Nachricht nach einer, fünf, fünfzehn, dreißig und sechzig Minuten noch einmal, aber nie später als sie etwas nützt: eine fällige Aufgabe bis zum Ende ihres Tages, eine Frist einen Tag lang. Danach bleibt die Nachricht als gescheitert stehen. Hat der Browser das Abonnement aufgegeben, antwortet der Dienst mit 404 oder 410, und das Gerät verschwindet samt seinen Nachrichten. Auf dem iPhone und dem iPad kommen Push-Nachrichten nur, wenn OpenGewerk über "Zum Home-Bildschirm" als App installiert ist; die Karte sagt das, bevor jemand es versucht.
 
 **Der Mailserver gehört dem Betrieb.** Jeder Betrieb richtet unter "E-Mail-Einstellungen" im Büro seinen eigenen ein: Server, Port, Verschlüsselung, Anmeldung und die Adresse, von der er verschickt. Gesehen und geändert wird das nur mit den Rechten `mail.read` und `mail.write`, die anfangs nur der Inhaber hat, denn die Anmeldung an einem Postfach erlaubt es, im Namen des Betriebs an jeden zu schreiben. Das Büro erfährt nur, ob der Betrieb E-Mails verschickt und von welcher Adresse, damit es weiß, ob "Per E-Mail" etwas tut. Ein Betrieb ohne Mailserver verschickt nichts, und für ihn wird auch nichts geschrieben: eine Nachricht, die auf einen Server wartet, den niemand eingerichtet hat, ginge an dem Tag hinaus, an dem es jemand tut, über das, was damals fällig war.
 
@@ -577,7 +585,9 @@ braucht. `sh docker/setup.sh` richtet nur die Datei ein, ohne zu starten.
 
 Wer die `.env` lieber von Hand füllt, erzeugt jeden Schlüssel einzeln mit
 `openssl rand -hex 32`; als `SETUP_CODE` taugt jeder Code ab acht Zeichen,
-Leerzeichen und Bindestriche nicht gezählt. Eine Instanz, die noch einen
+Leerzeichen und Bindestriche nicht gezählt. `VAPID_PRIVATE_KEY` ist kein
+Zufallswert, sondern ein Schlüssel auf P-256; der Befehl dafür steht in
+`docker/.env.example`. Eine Instanz, die noch einen
 Platzhalter aus der Vorlage findet, startet nicht: sie nennt die Variable, nie
 ihren Wert, und verweist auf das Skript.
 
@@ -585,7 +595,7 @@ ihren Wert, und verweist auf das Skript.
 Mailserver und alles, was ein Betrieb sonst festlegt, stehen im Büro. In der
 `.env` bleibt nur, was gebraucht wird, bevor die Oberfläche läuft: die
 Passwörter der Datenbank, `SESSION_SECRET`, der Token des Renderers, der
-Einrichtungscode, die Adresse der Instanz, Port, Fassung und mitstartende Dienste
+Einrichtungscode, der Schlüssel für Push-Nachrichten, die Adresse der Instanz, Port, Fassung und mitstartende Dienste
 für Docker Compose, der Schalter `CLOSED` und die Angaben der Sicherung, die
 auch dann laufen muss, wenn die Anwendung es nicht tut.
 
@@ -659,7 +669,7 @@ ist schlechter als eines, das niemand kennt.
 Hat der Betrieb einen Mailserver, geht der Link auf Wunsch gleich per E-Mail an
 die Person, und dann sieht ihn auch im Büro niemand. Unter den offenen
 Einladungen steht, ob die E-Mail angekommen ist; wie das Token dabei entsteht,
-steht unter "Benachrichtigung per E-Mail".
+steht unter "Benachrichtigung per E-Mail und Push".
 
 Der Link gilt sieben Tage, funktioniert genau einmal und lässt sich zurückziehen.
 Gespeichert wird von ihm nur eine Prüfsumme, er steht also genau in dem Moment
@@ -757,7 +767,7 @@ diesen Fall beim Start und sagt, woran es liegt.
 
 ### E-Mail
 
-In der `.env` steht dafür höchstens eine Zeile, und meist bleibt sie leer. Jeder Betrieb richtet seinen Mailserver im Büro unter "E-Mail-Einstellungen" ein, mit seinem eigenen Postfach und seiner eigenen Anmeldung; wie das aussieht, steht oben unter "Benachrichtigung per E-Mail". Wer die Instanz betreibt, muss dafür nur eines wissen: das Passwort eines Postfachs wird unter einem Schlüssel aus `SESSION_SECRET` versiegelt. Das ist ein Grund mehr, warum dieser Wert in die Sicherung gehört. Wird er getauscht, müssen alle Betriebe ihr Passwort unter "E-Mail-Einstellungen" neu eingeben, bis dahin warten ihre Nachrichten.
+In der `.env` steht dafür höchstens eine Zeile, und meist bleibt sie leer. Jeder Betrieb richtet seinen Mailserver im Büro unter "E-Mail-Einstellungen" ein, mit seinem eigenen Postfach und seiner eigenen Anmeldung; wie das aussieht, steht oben unter "Benachrichtigung per E-Mail und Push". Wer die Instanz betreibt, muss dafür nur eines wissen: das Passwort eines Postfachs wird unter einem Schlüssel aus `SESSION_SECRET` versiegelt. Das ist ein Grund mehr, warum dieser Wert in die Sicherung gehört. Wird er getauscht, müssen alle Betriebe ihr Passwort unter "E-Mail-Einstellungen" neu eingeben, bis dahin warten ihre Nachrichten.
 
 `STARTTLS` verlangt die Verschlüsselung, statt sie nur anzunehmen: ein Server, der auf Port 587 ohne antwortet, bekommt kein Passwort im Klartext. `TLS` ist Port 465, "Keine" ist für einen Relay auf derselben Maschine oder im selben Netz, der dafür in `MAIL_INTERNAL_HOSTS` steht. Eine geschlossene Instanz (`CLOSED=true`) verschickt nichts.
 

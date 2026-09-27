@@ -150,6 +150,14 @@ export const permissions = [
    */
   'mail.read',
   'mail.write',
+  /**
+   * Push messages on one's own devices (#284): switching them on and off on a
+   * device, choosing the occasions and sending oneself a test. Every role has
+   * it, because it is about nobody but the person asking; a right of its own
+   * all the same, since a route in a business has to name one, and the day a
+   * role should not get messages on a telephone it is one line.
+   */
+  'push.write',
 ] as const
 
 export type Permission = (typeof permissions)[number]
@@ -192,6 +200,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'membership.write': 'Zugänge verwalten',
   'mail.read': 'E-Mail-Einstellungen ansehen',
   'mail.write': 'E-Mail-Einstellungen ändern',
+  'push.write': 'Push-Nachrichten auf eigenen Geräten einschalten',
 }
 
 /**
@@ -252,6 +261,7 @@ const officePermissions: readonly Permission[] = [
   // Reading, not setting. What a business claims about its own taxation is a
   // decision for whoever answers for it.
   'settings.read',
+  'push.write',
 ]
 
 /**
@@ -290,6 +300,8 @@ const technicianPermissions: readonly Permission[] = [
   // The one who is actually in a basement without a network.
   'sync.read',
   'sync.write',
+  // A task handed on from the office, on the telephone in the pocket.
+  'push.write',
 ]
 
 export const roles: Readonly<Record<RoleKey, Role>> = {

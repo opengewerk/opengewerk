@@ -24,6 +24,9 @@ import { reachableOnly } from './mail/reach.js'
 import { smtpTransport } from './mail/transport.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
+import { httpsPost } from './push/post.js'
+import { vapidKeysFrom } from './push/web-push.js'
+import { startPushWorker } from './push/worker.js'
 import { SecretKey } from './secrets/key.js'
 import { FileStore } from './storage/file-store.js'
 
@@ -83,6 +86,18 @@ async function start(): Promise<void> {
         }),
       }
 
+  // Push to the devices of the people in a business (#284), where the .env
+  // holds a key to sign with; without one the instance sends none and says so
+  // under "Konto". The first trusted origin is who runs the instance, for the
+  // operator of a push service. A closed instance sends nothing, as for mail.
+  const push =
+    !configuration.closed && configuration.vapidPrivateKey
+      ? {
+          vapid: vapidKeysFrom(configuration.vapidPrivateKey, origin),
+          post: httpsPost(),
+        }
+      : null
+
   // After the mail, because the link to a new password goes out through the
   // mail server of a business (#126). A closed instance sends none.
   const authentication = createAuthentication({
@@ -120,7 +135,7 @@ async function start(): Promise<void> {
       identities,
       configuration.closed
         ? output
-        : { ...output, authentication, mail, setupCode: configuration.setupCode },
+        : { ...output, authentication, mail, push, setupCode: configuration.setupCode },
     ),
     {
       // The container log is the only log there is, so it carries warnings
@@ -172,6 +187,7 @@ async function start(): Promise<void> {
   // their connection.
   let mailWorker: { readonly stop: () => Promise<void> } | null = null
   let deadlineWorker: { readonly stop: () => Promise<void> } | null = null
+  let pushWorker: { readonly stop: () => Promise<void> } | null = null
 
   const stop = async (signal: NodeJS.Signals): Promise<void> => {
     console.info(`${signal} empfangen, OpenGewerk fährt herunter.`)
@@ -183,6 +199,8 @@ async function start(): Promise<void> {
       await mailWorker?.stop()
       // The deadlines likewise: a reminder that has its mark gets its task.
       await deadlineWorker?.stop()
+      // And push, whose pass writes down what became of each message.
+      await pushWorker?.stop()
       await application.close()
       await database.close()
     } catch (error) {
@@ -204,6 +222,10 @@ async function start(): Promise<void> {
   // business can send one (#283).
   if (!configuration.closed) {
     deadlineWorker = startDeadlineWorker({ database })
+  }
+
+  if (push) {
+    pushWorker = startPushWorker({ database, vapid: push.vapid, post: push.post })
   }
 
   if (mail) {

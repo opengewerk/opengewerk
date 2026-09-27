@@ -6,6 +6,7 @@ import { rememberedAccount } from '../session/remembered.js'
 import { signOut } from '../session/session.js'
 import type { SyncClient } from '../sync/client.js'
 import { deleteLocalStore, storesOnDevice, waitingIn } from '../sync/store.js'
+import { leavePush } from './push.js'
 
 /** "1 Änderung" or "3 Änderungen". */
 function changes(count: number): string {
@@ -73,6 +74,16 @@ export function SignOutButton({
 
       return
     }
+
+    // Push goes first, while there is a session to take this device's row
+    // off with (#284). Never longer than a few seconds and never in the way:
+    // the server sends nothing to a device whose session has ended anyway.
+    await Promise.race([
+      leavePush().catch(() => undefined),
+      new Promise((resolve) => {
+        setTimeout(resolve, 3_000)
+      }),
+    ])
 
     // Without a network this fails, and the device is signed out all the
     // same: nothing is left here, and the server ends the session the next

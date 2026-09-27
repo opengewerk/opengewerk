@@ -1,13 +1,8 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
-import {
-  type Identity,
-  requiresSecondFactor,
-  type RoleKey,
-  type TenantId,
-} from '@opengewerk/domain'
+import { requiresSecondFactor, type RoleKey, type TenantId } from '@opengewerk/domain'
 import { and, eq } from 'drizzle-orm'
 
-import type { IdentitySource, SignedInUser } from '../api/identity.js'
+import type { FoundIdentity, IdentitySource, SignedInUser } from '../api/identity.js'
 import type { Database } from '../database/database.js'
 import { memberships } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
@@ -69,7 +64,7 @@ export class SessionIdentitySource implements IdentitySource {
     return found
   }
 
-  async identify(request: unknown): Promise<Identity | null> {
+  async identify(request: unknown): Promise<FoundIdentity | null> {
     const found = await this.session(request)
 
     if (!found) {
@@ -133,7 +128,7 @@ export class SessionIdentitySource implements IdentitySource {
       )
     }
 
-    return { userId: found.user.id, tenantId, roles }
+    return { userId: found.user.id, tenantId, roles, sessionId: found.session.id }
   }
 }
 

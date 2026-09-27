@@ -57,6 +57,9 @@ let answers: Map<string, unknown>
 beforeEach(() => {
   calls = []
   answers = new Map()
+  // "Konto" asks about push since #284; an instance without a key answers
+  // this, and the card has nothing to switch.
+  answers.set('/push', { available: false, publicKey: null, occasions: [], devices: [] })
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     calls.push({

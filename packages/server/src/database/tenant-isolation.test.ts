@@ -758,6 +758,23 @@ const crossings: readonly {
     write: (own, other) => repoint('mail_outbox', 'deadline_id', own.mail, other.deadline),
   },
   {
+    key: 'push_subscriptions_person_works_here',
+    write: (own, other) => repoint('push_subscriptions', 'user_id', own.pushDevice, other.user),
+  },
+  {
+    // An insert, because a choice is made and taken back and never moved: the
+    // application may insert and delete a row here, not change one (#284).
+    key: 'push_opt_outs_person_works_here',
+    write: (own, other) =>
+      sql`insert into push_opt_outs (tenant_id, user_id, occasion)
+            values (${own.tenant}, ${other.user}, 'deadline_due')`,
+  },
+  {
+    key: 'push_outbox_subscription_in_tenant',
+    write: (own, other) =>
+      repoint('push_outbox', 'subscription_id', own.pushMessage, other.pushDevice),
+  },
+  {
     key: 'inverters_installation_in_tenant',
     write: (own, other) =>
       repoint('inverters', 'installation_id', own.inverter, other.installation),
@@ -917,6 +934,9 @@ interface Planted {
   readonly mail: string
   readonly deadline: string
   readonly deadlineSetting: string
+  readonly pushDevice: string
+  readonly pushOptOut: string
+  readonly pushMessage: string
   readonly inverter: string
   readonly pvString: string
   readonly pvModule: string
@@ -991,6 +1011,11 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     "insert into tasks (tenant_id, title, due_on, assignee_user_id) values ($1, 'Zählerschrank prüfen', '2026-09-30', $2)",
     [tenant, user],
   )
+  const pushDevice = await one(
+    `insert into push_subscriptions (tenant_id, user_id, entry, label, endpoint, p256dh, auth)
+       values ($1, $2, 'office', 'Chrome auf Windows', $3, 'BPublic', 'Secret')`,
+    [tenant, user, `https://push.example.com/${slug}`],
+  )
   const inverter = await one(
     "insert into inverters (tenant_id, installation_id, designation) values ($1, $2, 'WR 1')",
     [tenant, installation],
@@ -1059,6 +1084,16 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     deadlineSetting: await one(
       "insert into deadline_settings (tenant_id, kind, lead_days) values ($1, 'quote.follow_up', 2)",
       [tenant],
+    ),
+    pushDevice,
+    pushOptOut: await one(
+      "insert into push_opt_outs (tenant_id, user_id, occasion) values ($1, $2, 'task_due')",
+      [tenant, user],
+    ),
+    pushMessage: await one(
+      `insert into push_outbox (tenant_id, kind, cause, subscription_id, title, body, url, expires_at)
+         values ($1, 'test', 'test:1', $2, 'Probenachricht', 'Probe', '/konto', now() + interval '1 hour')`,
+      [tenant, pushDevice],
     ),
     inverter,
     pvString,

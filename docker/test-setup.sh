@@ -57,6 +57,17 @@ fi
 printf '%s' "$out" | grep -q 'eingetragen:.* SETUP_CODE'
 check 'Einrichtungscode: XXXX-XXXX ohne verwechselbare Zeichen, nicht in der Ausgabe'
 
+# The key for push (#284): a private key on P-256 that openssl reads back,
+# and not in the output either.
+vapid=$(grep '^VAPID_PRIVATE_KEY=' "$work/.env" | cut -d= -f2-)
+printf '%s' "$vapid" | openssl base64 -d -A | openssl pkey -inform DER -noout -text 2>/dev/null | grep -q prime256v1
+if printf '%s' "$out" | grep -qF "$vapid"; then
+  echo 'FEHLER: der Schlüssel für Push steht in der Ausgabe'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'eingetragen:.* VAPID_PRIVATE_KEY'
+check 'Schlüssel für Push: auf P-256, nicht in der Ausgabe'
+
 # 2. A second run changes nothing.
 before=$(sha256sum "$work/.env" | cut -d' ' -f1)
 out=$(sh "$work/setup.sh" < /dev/null 2>&1)
@@ -91,6 +102,16 @@ if printf '%s' "$out" | grep -qF "$code"; then
   exit 1
 fi
 check 'ältere .env ohne Einrichtungscode: bekommt einen'
+
+# 4b. An .env from before #284 has no key for push, and gets one the same way.
+grep -v '^VAPID_PRIVATE_KEY=' "$work/.env" > "$work/.env.old"
+mv "$work/.env.old" "$work/.env"
+out=$(sh "$work/setup.sh" < /dev/null 2>&1)
+printf '%s\n' "$out"
+printf '%s' "$out" | grep -q 'Aus der Vorlage übernommen: VAPID_PRIVATE_KEY'
+vapid=$(grep '^VAPID_PRIVATE_KEY=' "$work/.env" | cut -d= -f2-)
+printf '%s' "$vapid" | openssl base64 -d -A | openssl pkey -inform DER -noout 2>/dev/null
+check 'ältere .env ohne Schlüssel für Push: bekommt einen'
 
 # 5. A renderer switched off stays off. An empty value is a value, and only a
 # line that is missing is taken from the template again.

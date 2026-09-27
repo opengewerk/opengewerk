@@ -7,11 +7,12 @@ import { useTheme } from '../app/theme.js'
 import { useWho } from '../app/who.js'
 import { entryPath, rememberEntry } from '../entry/entry.js'
 import { useSync } from '../sync/provider.js'
+import { SitePush } from './push.js'
 
 /**
  * The menu of the site, a sheet from the bottom, as the board "Baustelle:
  * Menü" draws it: who is signed in and where, light or dark on this device,
- * the way to the office view and signing out.
+ * push on this device (#284), the way to the office view and signing out.
  *
  * From the bottom because that is where the thumb is and where the tab that
  * opens it sits. It closes on the cross, on Escape and on a tap beside it; the
@@ -98,6 +99,7 @@ export function SiteMenu({
           </p>
         </div>
         <div aria-hidden="true" className="my-1.5 h-px bg-line" />
+        <SitePush />
         <a
           href={entryPath.office}
           onClick={() => {

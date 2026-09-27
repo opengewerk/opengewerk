@@ -62,6 +62,7 @@ import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
 import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
+import { PUSH, PushController, type PushContext } from './push.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
 
@@ -116,6 +117,11 @@ export interface ApiOptions {
    * and the foot of the sign in shows. Left out, there is none to name.
    */
   readonly version?: string | null
+  /**
+   * What push needs (#284). Left out, the instance sends no push: "Konto"
+   * says so, and the routes that would send refuse with the reason.
+   */
+  readonly push?: PushContext | null
 }
 
 /**
@@ -164,6 +170,7 @@ export class ApiModule implements NestModule {
       mail = null,
       backupStatus = null,
       version = null,
+      push = null,
     } = options
 
     return {
@@ -187,6 +194,7 @@ export class ApiModule implements NestModule {
         TasksController,
         DeadlinesController,
         DeadlineSettingsController,
+        PushController,
         FilesController,
         AttachmentsController,
         TimeController,
@@ -219,6 +227,7 @@ export class ApiModule implements NestModule {
         { provide: MAIL, useValue: mail },
         { provide: BACKUP_STATUS, useValue: backupStatus },
         { provide: VERSION, useValue: version },
+        { provide: PUSH, useValue: push },
         DocumentFiles,
         ...(authentication
           ? [

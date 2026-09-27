@@ -10,7 +10,7 @@ import {
   type TaskId,
   type TenantId,
 } from '@opengewerk/domain'
-import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 
 import { accountsOf, stillOpen } from '../authentication/administration.js'
 import type { Database, TenantTransaction } from '../database/database.js'
@@ -25,6 +25,9 @@ import {
   mailOutbox,
   mailSettings,
   memberships,
+  pushOptOuts,
+  pushOutbox,
+  pushSubscriptions,
   sites,
   tasks,
 } from '../database/schema/index.js'
@@ -95,9 +98,10 @@ export type Notification =
     }
   | {
       /**
-       * A deadline that has come within its lead, of a kind that reminds by
-       * mail (#283). The engine marks it reminded for its due day; the
-       * message goes once per due day, like a task once per day it is due.
+       * A deadline that has come within its lead, of a kind that reminds
+       * (#283), by mail and by push (#284). The engine marks it reminded for
+       * its due day; the message goes once per due day, like a task once per
+       * day it is due.
        */
       readonly kind: 'deadline_due'
       readonly deadlineId: DeadlineId
@@ -184,6 +188,28 @@ export function berlinClock(now: Date): { readonly day: IsoDate; readonly minute
 export const dueTasksFromMinute = 6 * 60
 
 /**
+ * The two ways a message goes out, each with its own outbox (#81, #284). A
+ * notification is raised for each of them separately, and "told already" is
+ * asked of the outbox of the one that asks.
+ */
+export type Channel = 'mail' | 'push'
+
+/** Whether a cause has no message in the outbox of this channel yet. */
+function notToldBy(channel: Channel, tenant: SQL, cause: SQL): SQL {
+  return channel === 'mail'
+    ? sql`not exists (
+        select 1 from ${mailOutbox}
+         where ${mailOutbox.tenantId} = ${tenant}
+           and ${mailOutbox.cause} = ${cause}
+      )`
+    : sql`not exists (
+        select 1 from ${pushOutbox}
+         where ${pushOutbox.tenantId} = ${tenant}
+           and ${pushOutbox.cause} = ${cause}
+      )`
+}
+
+/**
  * The tasks due today that have not been told yet, as notifications.
  *
  * Asked every minute, and cheap because of that last condition: a task that
@@ -191,11 +217,16 @@ export const dueTasksFromMinute = 6 * 60
  * A task created for a day already past has been late since it was written,
  * and a backlog of messages for old tasks is not what somebody switching mail
  * on wants to find in everybody's inbox.
+ *
+ * For push only the tasks of somebody with a device that takes them and who
+ * has not switched the occasion off, or the same task would be raised again
+ * every minute for somebody who will never get a message about it.
  */
 export async function dueTasks(
   database: Database,
   tenantId: TenantId,
   now: Date,
+  channel: Channel = 'mail',
 ): Promise<readonly Notification[]> {
   const { day, minute } = berlinClock(now)
 
@@ -212,11 +243,23 @@ export async function dueTasks(
           eq(tasks.status, 'open'),
           isNull(tasks.deletedAt),
           eq(tasks.dueOn, day),
-          sql`not exists (
-            select 1 from ${mailOutbox}
-             where ${mailOutbox.tenantId} = ${tasks.tenantId}
-               and ${mailOutbox.cause} = 'task_due:' || ${tasks.id}::text || ':' || to_char(${tasks.dueOn}, 'YYYY-MM-DD')
-          )`,
+          notToldBy(
+            channel,
+            sql`${tasks.tenantId}`,
+            sql`'task_due:' || ${tasks.id}::text || ':' || to_char(${tasks.dueOn}, 'YYYY-MM-DD')`,
+          ),
+          channel === 'push'
+            ? sql`exists (
+                select 1 from ${pushSubscriptions}
+                 where ${pushSubscriptions.tenantId} = ${tasks.tenantId}
+                   and ${pushSubscriptions.userId} = ${tasks.assigneeUserId}
+              ) and not exists (
+                select 1 from ${pushOptOuts}
+                 where ${pushOptOuts.tenantId} = ${tasks.tenantId}
+                   and ${pushOptOuts.userId} = ${tasks.assigneeUserId}
+                   and ${pushOptOuts.occasion} = 'task_due'
+              )`
+            : undefined,
         ),
       ),
   )
@@ -237,22 +280,24 @@ export async function dueTasks(
 const remindersWithinHours = 48
 
 /**
- * The deadlines reminded lately whose kind reminds by mail and whose message
- * has not been written, as notifications (#283).
+ * The deadlines reminded lately whose kind reminds and whose message has not
+ * been written in this channel, as notifications (#283, #284).
  *
  * The engine marks a deadline reminded for its due day when its lead comes,
- * whether or not the business has a mail server; this job writes the message
- * only for a business that has one, the same way it does for a task.
+ * whether or not anybody can be told; the mail job writes the message only
+ * for a business that has a mail server, the push job only for a person with
+ * a device, the same way each does for a task.
  */
 export async function dueDeadlines(
   database: Database,
   tenantId: TenantId,
   now: Date,
   registry: DeadlineRegistry = deadlineKinds,
+  channel: Channel = 'mail',
 ): Promise<readonly Notification[]> {
-  const mailing = registry.kinds.filter((kind) => kind.actions.includes('mail'))
+  const reminding = registry.kinds.filter((kind) => kind.actions.includes('reminder'))
 
-  if (mailing.length === 0) {
+  if (reminding.length === 0) {
     return []
   }
 
@@ -267,15 +312,15 @@ export async function dueDeadlines(
           eq(deadlines.status, 'open'),
           inArray(
             deadlines.kind,
-            mailing.map((kind) => kind.key),
+            reminding.map((kind) => kind.key),
           ),
           eq(deadlines.remindedFor, deadlines.dueOn),
           gte(deadlines.remindedAt, since),
-          sql`not exists (
-            select 1 from ${mailOutbox}
-             where ${mailOutbox.tenantId} = ${deadlines.tenantId}
-               and ${mailOutbox.cause} = 'deadline_due:' || ${deadlines.id}::text || ':' || to_char(${deadlines.dueOn}, 'YYYY-MM-DD')
-          )`,
+          notToldBy(
+            channel,
+            sql`${deadlines.tenantId}`,
+            sql`'deadline_due:' || ${deadlines.id}::text || ':' || to_char(${deadlines.dueOn}, 'YYYY-MM-DD')`,
+          ),
         ),
       ),
   )
@@ -323,6 +368,57 @@ export async function notify(
   }
 }
 
+/**
+ * The task of a notification, if it is still open, not removed and due on the
+ * day the notification is about, and its person still works in the business;
+ * otherwise null. Asked by every channel, so that mail and push agree on
+ * whom a task is told to and when not at all.
+ */
+export async function taskStillDue(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'task_due' }>,
+) {
+  const [task] = await tx
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      notes: tasks.notes,
+      dueOn: tasks.dueOn,
+      status: tasks.status,
+      deletedAt: tasks.deletedAt,
+      assignee: tasks.assigneeUserId,
+      customer: customers.name,
+      site: sites.designation,
+      job: jobs.designation,
+    })
+    .from(tasks)
+    .leftJoin(customers, eq(customers.id, tasks.customerId))
+    .leftJoin(sites, eq(sites.id, tasks.siteId))
+    .leftJoin(jobs, eq(jobs.id, tasks.jobId))
+    .where(eq(tasks.id, notification.taskId))
+
+  if (
+    !task ||
+    task.status !== 'open' ||
+    task.deletedAt !== null ||
+    task.dueOn !== notification.dueOn
+  ) {
+    return null
+  }
+
+  const [member] = await tx
+    .select({ blockedAt: memberships.blockedAt })
+    .from(memberships)
+    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, task.assignee)))
+
+  if (!member || member.blockedAt !== null) {
+    return null
+  }
+
+  return task
+}
+
 async function taskDue(
   database: Database,
   tenantId: TenantId,
@@ -332,40 +428,9 @@ async function taskDue(
   const actor = { tenantId, reason: 'notification' }
 
   const found = await database.forTenant(actor, async (tx) => {
-    const [task] = await tx
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        notes: tasks.notes,
-        dueOn: tasks.dueOn,
-        status: tasks.status,
-        deletedAt: tasks.deletedAt,
-        assignee: tasks.assigneeUserId,
-        customer: customers.name,
-        site: sites.designation,
-        job: jobs.designation,
-      })
-      .from(tasks)
-      .leftJoin(customers, eq(customers.id, tasks.customerId))
-      .leftJoin(sites, eq(sites.id, tasks.siteId))
-      .leftJoin(jobs, eq(jobs.id, tasks.jobId))
-      .where(eq(tasks.id, notification.taskId))
+    const task = await taskStillDue(tx, tenantId, notification)
 
-    if (
-      !task ||
-      task.status !== 'open' ||
-      task.deletedAt !== null ||
-      task.dueOn !== notification.dueOn
-    ) {
-      return null
-    }
-
-    const [member] = await tx
-      .select({ blockedAt: memberships.blockedAt })
-      .from(memberships)
-      .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, task.assignee)))
-
-    if (!member || member.blockedAt !== null) {
+    if (!task) {
       return null
     }
 
@@ -710,10 +775,63 @@ async function invitationByMail(
 }
 
 /**
+ * The deadline of a notification with its kind, the person it goes to and
+ * its customer, if it is still open, of a kind that reminds, and reminded for
+ * the day the notification is about; otherwise null. Asked by every channel.
+ */
+export async function deadlineStillDue(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  notification: Extract<Notification, { kind: 'deadline_due' }>,
+  registry: DeadlineRegistry,
+) {
+  const [deadline] = await tx
+    .select()
+    .from(deadlines)
+    .where(eq(deadlines.id, notification.deadlineId))
+  const kind = deadline ? registry.kind(deadline.kind) : null
+
+  if (
+    !deadline ||
+    !kind ||
+    !kind.actions.includes('reminder') ||
+    deadline.status !== 'open' ||
+    deadline.dueOn !== notification.dueOn ||
+    deadline.remindedFor !== deadline.dueOn
+  ) {
+    return null
+  }
+
+  const [task] = deadline.taskId
+    ? await tx
+        .select({ assignee: tasks.assigneeUserId })
+        .from(tasks)
+        .where(eq(tasks.id, deadline.taskId))
+    : []
+  const setting = (await settingsOf(tx)).get(kind.key) ?? null
+  const recipient = await responsibleFor(tx, tenantId, kind, setting, {
+    responsibleUserId: task?.assignee ?? deadline.responsibleUserId,
+    naturalUserId: deadline.naturalUserId,
+  })
+  const [customer] = deadline.customerId
+    ? await tx
+        .select({ name: customers.name })
+        .from(customers)
+        .where(eq(customers.id, deadline.customerId))
+    : []
+
+  if (recipient === null) {
+    return null
+  }
+
+  return { deadline, kind, recipient, customer: customer?.name ?? null }
+}
+
+/**
  * A deadline on its way to whoever answers for it.
  *
  * Only an open one, still due on the day it was reminded for, and only of a
- * kind that reminds by mail. It goes to the person its task went to, or, for
+ * kind that reminds (`reminder`). It goes to the person its task went to, or, for
  * a kind without a task, to the person the settings name now; somebody
  * blocked in the meantime is passed over for the next one, in the end the
  * owner. Sent by nobody, like a task that fell due.
@@ -728,53 +846,18 @@ async function deadlineDue(
   const actor = { tenantId, reason: 'notification' }
 
   const found = await database.forTenant(actor, async (tx) => {
-    const [deadline] = await tx
-      .select()
-      .from(deadlines)
-      .where(eq(deadlines.id, notification.deadlineId))
-    const kind = deadline ? registry.kind(deadline.kind) : null
+    const due = await deadlineStillDue(tx, tenantId, notification, registry)
 
-    if (
-      !deadline ||
-      !kind ||
-      !kind.actions.includes('mail') ||
-      deadline.status !== 'open' ||
-      deadline.dueOn !== notification.dueOn ||
-      deadline.remindedFor !== deadline.dueOn
-    ) {
+    if (!due) {
       return null
     }
 
-    const [task] = deadline.taskId
-      ? await tx
-          .select({ assignee: tasks.assigneeUserId })
-          .from(tasks)
-          .where(eq(tasks.id, deadline.taskId))
-      : []
-    const setting = (await settingsOf(tx)).get(kind.key) ?? null
-    const recipient = await responsibleFor(tx, tenantId, kind, setting, {
-      responsibleUserId: task?.assignee ?? deadline.responsibleUserId,
-      naturalUserId: deadline.naturalUserId,
-    })
-    const [customer] = deadline.customerId
-      ? await tx
-          .select({ name: customers.name })
-          .from(customers)
-          .where(eq(customers.id, deadline.customerId))
-      : []
     const issuer = await issuerOf(tx, tenantId)
 
-    return {
-      deadline,
-      kind,
-      recipient,
-      customer: customer?.name ?? null,
-      issuer,
-      signature: await signatureFor(tx, tenantId, issuer, null),
-    }
+    return { ...due, issuer, signature: await signatureFor(tx, tenantId, issuer, null) }
   })
 
-  if (!found || found.recipient === null) {
+  if (!found) {
     return []
   }
 

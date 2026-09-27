@@ -31,6 +31,7 @@ import {
 import { useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { PageHead, Screen } from '../kit.js'
+import { PushPanel } from './account-push.js'
 import { Saved, SettingsText } from '../settings-frame.js'
 
 /**
@@ -179,6 +180,8 @@ export function AccountScreen() {
           )}
         </Panel>
       </div>
+
+      <PushPanel />
 
       <Panel title="Passwort" roomy>
         <PasswordChange
