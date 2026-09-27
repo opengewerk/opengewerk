@@ -2,6 +2,7 @@ import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 
 import { Shell } from '../components/index.js'
+import { usePushRefresh } from '../app/push-state.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { Drawer, Sidebar } from './navigation.js'
@@ -41,6 +42,8 @@ export function OfficeShell() {
   }, [])
   const focus = isFocus(useRouterState({ select: (state) => state.location.pathname }))
   const [slot, setSlot] = useState<HTMLElement | null>(null)
+
+  usePushRefresh('office')
 
   return (
     <Shell entry="office">

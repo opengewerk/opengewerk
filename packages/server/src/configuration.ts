@@ -2,6 +2,7 @@ import { accessSync, constants, statSync } from 'node:fs'
 
 import { normalizeSetupCode, shortestSetupCode } from './authentication/setup-code.js'
 import { isHostName } from './mail/configuration.js'
+import { vapidKeysFrom } from './push/web-push.js'
 
 /**
  * What an instance needs to know, read from the environment once and checked
@@ -91,6 +92,15 @@ export interface Configuration {
    * (#259). Null where there is none to name: a checkout runs "source".
    */
   readonly version: string | null
+  /**
+   * The private key push messages are signed with (#284), PKCS #8 in base64
+   * as `docker/setup.sh` writes it, or null where none is set.
+   *
+   * Null is no reason to refuse the start, as for the setup code: the
+   * instance runs without push, "Konto" says so, and mail goes on as before.
+   * An .env from before #284 gets its key from the next `sh docker/start.sh`.
+   */
+  readonly vapidPrivateKey: string | null
 }
 
 /** What went wrong, phrased for whoever is looking at the container log. */
@@ -389,6 +399,33 @@ function releaseVersion(environment: Environment): string | null {
   return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(raw) ? raw : null
 }
 
+/**
+ * The key for Web Push (#284), checked here so that a key that cannot sign
+ * stops the start with a sentence, rather than every message failing later.
+ * A placeholder is refused like any other; missing is push switched off.
+ */
+function vapidPrivateKey(environment: Environment): string | null {
+  const raw = environment['VAPID_PRIVATE_KEY']?.trim()
+
+  if (!raw) {
+    return null
+  }
+
+  refusePlaceholder(raw, 'VAPID_PRIVATE_KEY')
+
+  try {
+    vapidKeysFrom(raw, 'https://opengewerk.invalid')
+  } catch {
+    throw new ConfigurationError(
+      'VAPID_PRIVATE_KEY ist kein privater Schlüssel auf P-256 in PKCS #8. Wer die Zeile aus ' +
+        'docker/.env löscht, bekommt von "sh docker/start.sh" einen neuen; eingeschaltete Geräte ' +
+        'melden sich danach beim nächsten Öffnen neu an.',
+    )
+  }
+
+  return raw
+}
+
 /** The mail servers in the instance's own network its operator allows. */
 export function mailInternalHosts(environment: Environment): readonly string[] {
   const entries = (environment['MAIL_INTERNAL_HOSTS'] ?? '')
@@ -439,6 +476,7 @@ export function readConfiguration(
     closed: flag(environment, 'CLOSED'),
     mailInternalHosts: mailInternalHosts(environment),
     version: releaseVersion(environment),
+    vapidPrivateKey: vapidPrivateKey(environment),
     // Far above the 3000 that most machines that develop anything have taken
     // already, and below the range Linux hands out for outgoing connections.
     port: port(environment, 'PORT', 23700),

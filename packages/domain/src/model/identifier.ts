@@ -47,6 +47,9 @@ export type LocationConsentId = Id<'location-consent'>
 export type JobNoteId = Id<'job-note'>
 export type DeadlineId = Id<'deadline'>
 export type DeadlineSettingId = Id<'deadline-setting'>
+export type PushSubscriptionId = Id<'push-subscription'>
+export type PushOptOutId = Id<'push-opt-out'>
+export type PushMessageId = Id<'push-message'>
 
 /**
  * Every record carries the tenant it belongs to and when it was written. The

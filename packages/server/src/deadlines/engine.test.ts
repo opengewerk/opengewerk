@@ -403,7 +403,7 @@ describe('the four actions', () => {
     intervalDays: 14,
     leadDays: 0,
     responsible: 'source',
-    actions: ['task', 'mail', 'service_job', 'status'],
+    actions: ['task', 'reminder', 'service_job', 'status'],
     taskTitle: 'Probe zu {quelle}',
   }
 

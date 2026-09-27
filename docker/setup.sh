@@ -69,6 +69,21 @@ setup_code() {
   printf '%.4s-%s\n' "$code" "${code#????}"
 }
 
+# The key push messages are signed with (#284): a private key on P-256 as
+# PKCS #8 in base64 on one line, not a random string, because a push service
+# checks a signature with its public half. Through "pkcs8 -topk8" and not
+# straight out of genpkey: asked for DER, genpkey writes an EC key in the older
+# SEC1 form. Only openssl makes one here; without it the line stays empty and
+# the instance runs without push, rather than not at all.
+vapid_key() {
+  command -v openssl >/dev/null 2>&1 || return 1
+  key=$(openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 2>/dev/null |
+    openssl pkcs8 -topk8 -nocrypt -outform DER 2>/dev/null |
+    openssl base64 -A) || return 1
+  [ -n "$key" ] || return 1
+  printf '%s\n' "$key"
+}
+
 # Rewrites the .env through a file next to it and moves that over the old one,
 # so that an interrupted run leaves the old file whole rather than half of it.
 replace_env() {
@@ -129,6 +144,7 @@ fi
 # and writes to one, with no pipe in between: behind a pipe it would run in a
 # subshell, and the list of names would be empty afterwards.
 made=''
+without_push=''
 draft=$(mktemp "$here/.env.XXXXXX")
 trap 'rm -f "$draft"' EXIT
 
@@ -142,6 +158,15 @@ while IFS= read -r line || [ -n "$line" ]; do
       printf 'SETUP_CODE=%s\n' "$value"
       made="$made SETUP_CODE"
       ;;
+    VAPID_PRIVATE_KEY=bitte-ersetzen*)
+      if value=$(vapid_key); then
+        printf 'VAPID_PRIVATE_KEY=%s\n' "$value"
+        made="$made VAPID_PRIVATE_KEY"
+      else
+        printf 'VAPID_PRIVATE_KEY=\n'
+        without_push=1
+      fi
+      ;;
     *=bitte-ersetzen*)
       name=${line%%=*}
       value=$(secret) || fail 'Es ließ sich kein Schlüssel erzeugen, weder openssl noch /dev/urandom ist verfügbar. docker/.env ist unverändert.'
@@ -154,13 +179,20 @@ while IFS= read -r line || [ -n "$line" ]; do
   esac
 done < "$env_file" > "$draft"
 
-if [ -n "$made" ]; then
+if [ -n "$made" ] || [ -n "$without_push" ]; then
   replace_env "$draft"
-  say "Schlüssel erzeugt und in docker/.env eingetragen:$made"
-  say 'Die Werte stehen nur in dieser Datei, und sie gehört in die Sicherung: ohne SESSION_SECRET lassen sich nach dem Rückspielen weder die zweiten Faktoren noch die Passwörter der Mailserver lesen.'
+
+  if [ -n "$made" ]; then
+    say "Schlüssel erzeugt und in docker/.env eingetragen:$made"
+    say 'Die Werte stehen nur in dieser Datei, und sie gehört in die Sicherung: ohne SESSION_SECRET lassen sich nach dem Rückspielen weder die zweiten Faktoren noch die Passwörter der Mailserver lesen.'
+  fi
 else
   rm -f "$draft"
   say 'Alle Schlüssel in docker/.env sind gesetzt, es war nichts zu erzeugen.'
+fi
+
+if [ -n "$without_push" ]; then
+  say 'Ohne openssl ließ sich kein Schlüssel für Push-Nachrichten erzeugen. VAPID_PRIVATE_KEY bleibt leer, und OpenGewerk läuft ohne Push; den Befehl für einen Schlüssel nennt docker/.env.example.'
 fi
 
 # The address, the one value nothing here can make up.

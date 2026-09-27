@@ -21,6 +21,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   der Gewerke eigene mitbringen. Von ihren vier Aktionen, Aufgabe, E-Mail, Serviceauftrag und
   Statuswechsel, führt die Engine jede genau einmal aus, in derselben Transaktion wie die
   Markierung als erinnert, und erinnert ab sechs Uhr morgens, wie bei einer fälligen Aufgabe.
+- Push-Nachrichten auf die Geräte der Leute im Betrieb (#284), damit eine fällige Aufgabe oder eine
+  Frist auch dann ankommt, wenn OpenGewerk gerade nicht offen ist. Unter "Konto" im Büro und im Menü
+  der Baustelle schaltet jede Person Push auf ihrem Gerät ein, wählt die Anlässe für alle ihre
+  Geräte und schickt sich eine Probenachricht. Push ist ein zweiter Kanal im Weg der
+  Benachrichtigungen: dieselben Anlässe, dieselbe Entscheidung, wem etwas gesagt wird, und eine
+  Nachricht, die nur sagt, was ansteht, ohne Namen und Anschriften. Verschlüsselt nach RFC 8291 und
+  signiert nach RFC 8292 ohne zusätzliches Paket, mit dem Schlüssel aus `VAPID_PRIVATE_KEY`, den
+  `docker/setup.sh` beim nächsten Start selbst anlegt. Ein Abonnement hängt an der Sitzung des
+  Geräts: abgemeldet, auch von einem anderen Gerät aus oder durch ein neues Passwort, bekommt es
+  nichts mehr. Die Adresse des Push-Dienstes muss im Internet liegen. Die Aktion `mail` der
+  Fristenarten heißt dafür `reminder`, Erinnerung per E-Mail und Push, wie im Konzept.
+  Migration 0050, neues Recht `push.write` für alle Rollen.
 
 ### Geändert
 

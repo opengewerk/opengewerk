@@ -250,7 +250,10 @@ describe('the tables', () => {
       name === 'location_consents' ||
       name === 'payments' ||
       name === 'deadlines' ||
-      name === 'deadline_settings'
+      name === 'deadline_settings' ||
+      name === 'push_subscriptions' ||
+      name === 'push_opt_outs' ||
+      name === 'push_outbox'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

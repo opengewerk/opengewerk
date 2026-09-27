@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -56,6 +57,7 @@ describe('the configuration', () => {
       closed: false,
       mailInternalHosts: [],
       version: null,
+      vapidPrivateKey: null,
       port: 8080,
       host: '127.0.0.1',
     })
@@ -132,6 +134,46 @@ describe('the configuration', () => {
       expect(said).toContain(sentence)
       expect(said).toContain('sh docker/start.sh')
       expect(said).not.toContain(code)
+    }
+  })
+
+  /**
+   * The key for push (#284). Missing is push switched off, like the setup
+   * code: an instance from before #284 starts without it. A value that cannot
+   * sign stops the start, with a sentence that does not repeat it.
+   */
+  it('reads the key for push, and nothing when it is not given', () => {
+    const key = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+      .privateKey.export({ format: 'der', type: 'pkcs8' })
+      .toString('base64')
+
+    expect(readConfiguration({ ...valid, VAPID_PRIVATE_KEY: key }, writable).vapidPrivateKey).toBe(
+      key,
+    )
+    expect(readConfiguration(valid, writable).vapidPrivateKey).toBe(null)
+  })
+
+  it('refuses a key for push from the template or not on P-256', () => {
+    const otherCurve = generateKeyPairSync('ec', { namedCurve: 'secp384r1' })
+      .privateKey.export({ format: 'der', type: 'pkcs8' })
+      .toString('base64')
+
+    for (const [key, sentence] of [
+      ['bitte-ersetzen-7', 'Platzhalter aus der Vorlage'],
+      [otherCurve, 'P-256'],
+      ['kein Schlüssel', 'P-256'],
+    ] as const) {
+      let said = ''
+
+      try {
+        readConfiguration({ ...valid, VAPID_PRIVATE_KEY: key }, writable)
+      } catch (error) {
+        said = error instanceof ConfigurationError ? error.message : ''
+      }
+
+      expect(said).toContain('VAPID_PRIVATE_KEY')
+      expect(said).toContain(sentence)
+      expect(said).not.toContain(key)
     }
   })
 

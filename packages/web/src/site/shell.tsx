@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 
 import { BrandMark, Shell } from '../components/index.js'
+import { usePushRefresh } from '../app/push-state.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
 import { useSyncStatus } from '../sync/provider.js'
@@ -38,6 +39,8 @@ export function SiteShell() {
   const closeMenu = useCallback(() => {
     setMenu(false)
   }, [])
+
+  usePushRefresh('site')
 
   return (
     <Shell entry="site">

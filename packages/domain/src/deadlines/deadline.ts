@@ -46,14 +46,16 @@ export type DeadlineStatus = (typeof deadlineStatuses)[number]
  *
  * - `task`: a task for the responsible person, due on the day the deadline is,
  *   written by nobody (the way in #80 left for this).
- * - `mail`: a message to the responsible person through the notifications of
- *   #81, when the business has a mail server.
+ * - `reminder`: a reminder to the responsible person through the
+ *   notifications of #81 and #284, by mail when the business has a mail server
+ *   and by push to every device where that person has switched it on. The
+ *   concept's "Erinnerung (Push/E-Mail)", one action and two channels.
  * - `service_job`: a service job in draft at the customer and site of the
  *   source, for the office to plan.
  * - `status`: a change of state at the source, done by the handler the kind
  *   names in the server.
  */
-export const deadlineActions = ['task', 'mail', 'service_job', 'status'] as const
+export const deadlineActions = ['task', 'reminder', 'service_job', 'status'] as const
 
 export type DeadlineAction = (typeof deadlineActions)[number]
 
@@ -368,14 +370,15 @@ export function defaultResponsibleLabel(
 
 const actionWords: Readonly<Record<DeadlineAction, string>> = {
   task: 'eine Aufgabe',
-  mail: 'eine E-Mail',
+  reminder: 'eine Erinnerung per E-Mail und Push',
   service_job: 'ein Serviceauftrag im Entwurf',
   status: 'ein neuer Stand an der Quelle',
 }
 
 /**
  * What a kind does when its lead comes, as the settings say it: "Bei
- * Fälligkeit: eine Aufgabe und eine E-Mail an die verantwortliche Person."
+ * Fälligkeit: eine Aufgabe und eine Erinnerung per E-Mail und Push für die
+ * verantwortliche Person."
  */
 export function actionsSentence(actions: readonly DeadlineAction[]): string {
   const words = actions.map((action) => actionWords[action])
@@ -383,7 +386,7 @@ export function actionsSentence(actions: readonly DeadlineAction[]): string {
     words.length <= 1
       ? (words[0] ?? 'nichts')
       : `${words.slice(0, -1).join(', ')} und ${words[words.length - 1] ?? ''}`
-  const addressed = actions.some((action) => action === 'task' || action === 'mail')
+  const addressed = actions.some((action) => action === 'task' || action === 'reminder')
 
   return `Bei Fälligkeit: ${listed}${addressed ? ' für die verantwortliche Person' : ''}.`
 }

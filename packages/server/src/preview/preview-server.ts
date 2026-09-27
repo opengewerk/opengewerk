@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,6 +17,8 @@ import { interfacePath, serveInterface } from '../interface.js'
 import { sendSecurityHeaders } from '../security-headers.js'
 import { mailInternalHosts } from '../configuration.js'
 import { reachableOnly } from '../mail/reach.js'
+import { httpsPost } from '../push/post.js'
+import { vapidKeysFrom } from '../push/web-push.js'
 import { smtpTransport } from '../mail/transport.js'
 import { SecretKey } from '../secrets/key.js'
 import { FileStore } from '../storage/file-store.js'
@@ -70,6 +73,18 @@ export async function openPreview(
         connect: reachableOnly(smtpTransport, {
           internalHosts: mailInternalHosts(process.env),
         }),
+      },
+      // Push can be switched on and tried (#284), with a key made for this
+      // start: a preview has no .env, and a device switched on here is
+      // switched off by the next start anyway, with the database it lived in.
+      push: {
+        vapid: vapidKeysFrom(
+          generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+            .privateKey.export({ format: 'der', type: 'pkcs8' })
+            .toString('base64'),
+          address,
+        ),
+        post: httpsPost(),
       },
     }),
     { logger: ['error', 'warn'], bodyParser: false },

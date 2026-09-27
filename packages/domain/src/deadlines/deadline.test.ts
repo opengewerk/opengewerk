@@ -178,8 +178,8 @@ describe('the words of the settings', () => {
     expect(actionsSentence(['task'])).toBe(
       'Bei Fälligkeit: eine Aufgabe für die verantwortliche Person.',
     )
-    expect(actionsSentence(['task', 'mail'])).toBe(
-      'Bei Fälligkeit: eine Aufgabe und eine E-Mail für die verantwortliche Person.',
+    expect(actionsSentence(['task', 'reminder'])).toBe(
+      'Bei Fälligkeit: eine Aufgabe und eine Erinnerung per E-Mail und Push für die verantwortliche Person.',
     )
     expect(actionsSentence(['service_job'])).toBe('Bei Fälligkeit: ein Serviceauftrag im Entwurf.')
     expect(actionsSentence(['task', 'service_job', 'status'])).toBe(
