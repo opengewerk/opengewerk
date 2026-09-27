@@ -9,6 +9,8 @@ import {
   EditCustomerScreen,
   NewCustomerScreen,
 } from './screens/customers.js'
+import { DeadlineSettingsScreen } from './screens/deadline-settings.js'
+import { DeadlineListScreen } from './screens/deadlines.js'
 import { DocumentList } from './screens/document-list.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationList, InstallationScreen } from './screens/installations.js'
@@ -86,6 +88,7 @@ const routes = [
   createRoute({ getParentRoute: () => root, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => root, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => root, path: '/aufgaben', component: TaskListScreen }),
+  createRoute({ getParentRoute: () => root, path: '/fristen', component: DeadlineListScreen }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: TimeScreen }),
   createRoute({ getParentRoute: () => root, path: '/belege', component: DocumentList }),
   createRoute({
@@ -116,6 +119,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/einstellungen/zahlungsziel',
     component: PaymentTermScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/einstellungen/fristen',
+    component: DeadlineSettingsScreen,
   }),
   createRoute({
     getParentRoute: () => root,

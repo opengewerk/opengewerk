@@ -1,8 +1,8 @@
-import type { TenantId } from '@opengewerk/domain'
-import { sql } from 'drizzle-orm'
+import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
 
 import type { Database } from '../database/database.js'
-import { dueTasks, notify, signedReports } from '../notifications/notify.js'
+import { everyTenant } from '../database/every-tenant.js'
+import { dueDeadlines, dueTasks, notify, signedReports } from '../notifications/notify.js'
 import { invitationLink } from '../notifications/templates.js'
 import type { SecretKey } from '../secrets/key.js'
 import type { AttachmentSource } from './attachments.js'
@@ -37,6 +37,8 @@ export interface MailJob {
   readonly attachments?: AttachmentSource
   /** Where the link of an invitation comes from, made when its message goes out. */
   readonly invitationLinks?: InvitationLinkSource
+  /** The kinds of deadline, the instance's own unless a test brings others. */
+  readonly deadlineKinds?: DeadlineRegistry
   readonly now?: () => Date
 }
 
@@ -62,20 +64,6 @@ const serverWide = new Set([
   'EAUTH',
   'ENOAUTH',
 ])
-
-/**
- * The businesses on this instance.
- *
- * The job works for all of them and acts for no person, so it has no
- * membership to find them through. `every_tenant()` is the one question it
- * may ask outside a business, and it answers with identifiers only; every
- * read after that goes through `forTenant` like any other.
- */
-async function everyTenant(database: Database): Promise<readonly TenantId[]> {
-  const result = await database.forInstance((tx) => tx.execute(sql`select every_tenant() as id`))
-
-  return result.rows.map((row) => row['id'] as TenantId)
-}
 
 function outgoing(
   row: OutboxRow,
@@ -175,11 +163,13 @@ export async function runMailCycle(job: MailJob): Promise<CycleReport> {
       const raised = [
         ...(await dueTasks(job.database, tenantId, now)),
         ...(await signedReports(job.database, tenantId, now)),
+        ...(await dueDeadlines(job.database, tenantId, now, job.deadlineKinds)),
       ]
 
       for (const notification of raised) {
         const written = await notify(job.database, tenantId, notification, {
           origin: job.origin,
+          ...(job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {}),
         })
 
         report.written += written.length

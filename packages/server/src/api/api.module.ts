@@ -61,6 +61,7 @@ import { StaffController } from './staff.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SyncController } from './sync.controller.js'
 import { TasksController } from './tasks.controller.js'
+import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
 
@@ -184,6 +185,8 @@ export class ApiModule implements NestModule {
         JobsController,
         CollectiveInvoicesController,
         TasksController,
+        DeadlinesController,
+        DeadlineSettingsController,
         FilesController,
         AttachmentsController,
         TimeController,

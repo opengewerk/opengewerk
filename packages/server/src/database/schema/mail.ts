@@ -12,6 +12,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, timestamps } from './columns.js'
+import { deadlines } from './deadlines.js'
 import { documents } from './documents.js'
 import { invitations } from './memberships.js'
 import { tenantIsolation } from './rls.js'
@@ -19,7 +20,7 @@ import { tasks } from './tasks.js'
 import { tenantColumn } from './tenants.js'
 
 /** What a message is about. One kind per cause the notifications know. */
-export const mailKind = pgEnum('mail_kind', ['task_due', 'document', 'invitation'])
+export const mailKind = pgEnum('mail_kind', ['task_due', 'document', 'invitation', 'deadline_due'])
 
 /**
  * The file a message about a document carries: the PDF, or one of the two
@@ -64,6 +65,7 @@ export const mailOutbox = pgTable(
     documentId: reference<'document'>('document_id'),
     attachment: mailAttachment('attachment'),
     invitationId: reference<'invitation'>('invitation_id'),
+    deadlineId: reference<'deadline'>('deadline_id'),
     /** Who asked for the message, for one somebody asked for. Null for a due task. */
     requestedBy: text('requested_by'),
     senderName: text('sender_name').notNull(),
@@ -96,11 +98,17 @@ export const mailOutbox = pgTable(
       foreignColumns: [invitations.tenantId, invitations.id],
       name: 'mail_outbox_invitation_in_tenant',
     }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.deadlineId],
+      foreignColumns: [deadlines.tenantId, deadlines.id],
+      name: 'mail_outbox_deadline_in_tenant',
+    }).onDelete('restrict'),
     unique('mail_outbox_once_per_cause').on(table.tenantId, table.cause),
     index('mail_outbox_due_idx').on(table.tenantId, table.status, table.nextAttemptAt),
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),
     index('mail_outbox_document_idx').on(table.tenantId, table.documentId),
     index('mail_outbox_invitation_idx').on(table.tenantId, table.invitationId),
+    index('mail_outbox_deadline_idx').on(table.tenantId, table.deadlineId),
   ],
 )
 

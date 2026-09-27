@@ -44,6 +44,11 @@ export * from './forms/record.js'
 export * from './forms/report-fields.js'
 export * from './forms/values.js'
 
+// The deadline engine of section 1.2 (#283): one record for everything that
+// falls due. The kinds are data, from the core and from the trade packages.
+export * from './deadlines/core.js'
+export * from './deadlines/deadline.js'
+
 // The legal parameters. Not in the code: they sit in data packages with a
 // period of validity and the paragraph they come from, and every question to
 // them needs a date, so that a document is judged by the rules of its own time.

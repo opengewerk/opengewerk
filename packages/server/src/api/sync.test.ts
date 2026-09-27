@@ -225,6 +225,10 @@ describe('the tables', () => {
     // The payments from #189 are recorded in the office with a connection, and
     // nothing on site reads them; the final invoice learns them on the server,
     // where it is issued.
+    //
+    // The deadlines of #283 are worked out on the server from what the devices
+    // sent, and changed in the office; what a deadline asks of somebody on site
+    // reaches the device as a task. The settings of each kind are the owner's.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -244,7 +248,9 @@ describe('the tables', () => {
       name === 'mail_settings' ||
       name === 'secrets' ||
       name === 'location_consents' ||
-      name === 'payments'
+      name === 'payments' ||
+      name === 'deadlines' ||
+      name === 'deadline_settings'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

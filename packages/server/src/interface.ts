@@ -68,6 +68,7 @@ const apiPrefixes = [
   'installations',
   'jobs',
   'tasks',
+  'deadlines',
   'files',
   'attachments',
   'form-records',

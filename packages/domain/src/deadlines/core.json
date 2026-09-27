@@ -1,0 +1,17 @@
+{
+  "note": "Die Fristentypen des Kerns: was keinem Gewerk gehört. Ein Gewerk bringt seine eigenen im Ordner fristen/ seines Pakets mit (ADR 0008).",
+  "kinds": [
+    {
+      "key": "quote.follow_up",
+      "trade": null,
+      "title": "Wiedervorlage eines Angebots",
+      "about": "Ein festgeschriebenes Angebot, auf das noch keine Auftragsbestätigung und keine Rechnung folgt, kommt nach einer Zahl von Tagen wieder vor. Folgt ein Beleg, entfällt die Frist von selbst.",
+      "source": "quote",
+      "intervalDays": 14,
+      "leadDays": 0,
+      "responsible": "source",
+      "actions": ["task"],
+      "taskTitle": "Angebot {quelle} nachfassen"
+    }
+  ]
+}

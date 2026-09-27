@@ -79,7 +79,8 @@ const sampleSignature =
 /**
  * A business with enough in it to reach every screen that exists: two
  * customers, a building with an installation, two jobs, an issued quote with
- * the order confirmation made out of it, a progress invoice out of the same
+ * the order confirmation made out of it, a second one nothing has followed,
+ * whose follow-up stands in the list "Fristen", a progress invoice out of the same
  * quote with the final invoice after it, a cost estimate in progress, a report
  * the customer has signed on site, a maintenance invoice to the property
  * management company, the snippets they are written from, three tasks on the
@@ -382,6 +383,24 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       item('Entsorgung der Altleuchten', 1000, 'flat_rate', 6000),
     ],
   )
+
+  // A quote that went out and that nothing has followed yet: its follow-up
+  // stands in the list "Fristen" (#283).
+  const waiting = await document(
+    {
+      customerId: nordblick,
+      jobId: stairwell,
+      siteId: estate,
+      kind: 'quote',
+      subject: 'Notbeleuchtung im Keller nachrüsten',
+    },
+    [
+      item('Notleuchte mit Einzelbatterie', 6000, 'piece', 11900),
+      item('Montage je Leuchte', 6000, 'piece', 3500),
+    ],
+  )
+
+  await post(`/documents/${waiting.id}/issue`, {})
 
   // The maintenance of the last two months, invoiced to a business, issued:
   // the invoice that goes out as an e-invoice.

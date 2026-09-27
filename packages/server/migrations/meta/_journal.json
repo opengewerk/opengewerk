@@ -344,6 +344,13 @@
       "when": 1790498978441,
       "tag": "0048_guarantee_notice",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1790508430980,
+      "tag": "0049_deadlines",
+      "breakpoints": true
     }
   ]
 }

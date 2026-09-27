@@ -720,6 +720,44 @@ const crossings: readonly {
     write: (own, other) => repoint('tasks', 'assignee_user_id', own.task, other.user),
   },
   {
+    key: 'deadlines_document_in_tenant',
+    write: (own, other) => repoint('deadlines', 'document_id', own.deadline, other.document),
+  },
+  {
+    key: 'deadlines_installation_in_tenant',
+    write: (own, other) =>
+      repoint('deadlines', 'installation_id', own.deadline, other.installation),
+  },
+  {
+    key: 'deadlines_customer_in_tenant',
+    write: (own, other) => repoint('deadlines', 'customer_id', own.deadline, other.customer),
+  },
+  {
+    key: 'deadlines_site_in_tenant',
+    write: (own, other) => repoint('deadlines', 'site_id', own.deadline, other.site),
+  },
+  {
+    key: 'deadlines_job_in_tenant',
+    write: (own, other) => repoint('deadlines', 'job_id', own.deadline, other.job),
+  },
+  {
+    key: 'deadlines_task_in_tenant',
+    write: (own, other) => repoint('deadlines', 'task_id', own.deadline, other.task),
+  },
+  {
+    key: 'deadlines_responsible_works_here',
+    write: (own, other) => repoint('deadlines', 'responsible_user_id', own.deadline, other.user),
+  },
+  {
+    key: 'deadline_settings_responsible_works_here',
+    write: (own, other) =>
+      repoint('deadline_settings', 'responsible_user_id', own.deadlineSetting, other.user),
+  },
+  {
+    key: 'mail_outbox_deadline_in_tenant',
+    write: (own, other) => repoint('mail_outbox', 'deadline_id', own.mail, other.deadline),
+  },
+  {
     key: 'inverters_installation_in_tenant',
     write: (own, other) =>
       repoint('inverters', 'installation_id', own.inverter, other.installation),
@@ -877,6 +915,8 @@ interface Planted {
   readonly invitation: string
   readonly task: string
   readonly mail: string
+  readonly deadline: string
+  readonly deadlineSetting: string
   readonly inverter: string
   readonly pvString: string
   readonly pvModule: string
@@ -1010,6 +1050,15 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       `insert into mail_outbox (tenant_id, kind, cause, sender_name, recipient_address, subject, body)
          values ($1, 'task_due', $2, 'Elektro', 'kunde@example.com', 'Fällig', 'Heute fällig.')`,
       [tenant, `task:${task}`],
+    ),
+    deadline: await one(
+      `insert into deadlines (tenant_id, kind, source_id, source_label, document_id, anchor_on, due_on)
+         values ($1, 'quote.follow_up', $2, 'A-2026-0001', $2, '2026-09-22', '2026-10-06')`,
+      [tenant, document],
+    ),
+    deadlineSetting: await one(
+      "insert into deadline_settings (tenant_id, kind, lead_days) values ($1, 'quote.follow_up', 2)",
+      [tenant],
     ),
     inverter,
     pvString,
