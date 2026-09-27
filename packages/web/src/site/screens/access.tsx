@@ -1,6 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Eye, EyeOff, KeyRound } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
 import { Button, Panel } from '../../components/index.js'
@@ -35,6 +35,11 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
   // By access, what is on the screen; missing, the value is hidden.
   const [shown, setShown] = useState<ReadonlyMap<string, Shown>>(new Map())
   const [trouble, setTrouble] = useState<string | null>(null)
+  // By access, a showing on its way: its button stays pressed until the
+  // showing is written, so that two quick taps make one record (Greptile on
+  // #445). The ref answers at once, the state draws the button.
+  const pending = useRef(new Set<string>())
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set())
   const held = accesses.filter((access) => access['valueState'] !== undefined)
 
   if (held.length === 0) {
@@ -46,6 +51,30 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
   )
 
   async function show(access: RecordState) {
+    const id = String(access['id'])
+
+    if (pending.current.has(id)) {
+      return
+    }
+
+    pending.current.add(id)
+    setBusy((current) => new Set(current).add(id))
+
+    try {
+      await showValue(access)
+    } finally {
+      pending.current.delete(id)
+      setBusy((current) => {
+        const next = new Set(current)
+
+        next.delete(id)
+
+        return next
+      })
+    }
+  }
+
+  async function showValue(access: RecordState) {
     const id = String(access['id'])
     const stamp = valueStampOf(access)
 
@@ -161,6 +190,7 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
                       height={48}
                       icon={Eye}
                       aria-label={`${text(access, 'designation')} anzeigen`}
+                      disabled={busy.has(id)}
                       onClick={() => void show(access)}
                     >
                       Anzeigen

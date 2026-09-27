@@ -1,6 +1,6 @@
 import { accessProblem, type RecordState } from '@opengewerk/domain'
 import { Check, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Button, Confirm, Field, Panel } from '../../components/index.js'
@@ -43,6 +43,11 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
   const [removing, setRemoving] = useState<RecordState | null>(null)
   const [busy, setBusy] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  // An access being asked for: its button stays pressed until the answer is
+  // there, so that two quick clicks make one record (Greptile on #445). The
+  // ref answers at once, the state draws the button.
+  const pending = useRef(new Set<string>())
+  const [asking, setAsking] = useState<ReadonlySet<string>>(new Set())
 
   if (!may) {
     return null
@@ -52,6 +57,12 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
     const id = String(access['id'])
     const stamp = valueStampOf(access)
 
+    if (pending.current.has(id)) {
+      return
+    }
+
+    pending.current.add(id)
+    setAsking((current) => new Set(current).add(id))
     setTrouble(null)
 
     try {
@@ -62,6 +73,15 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
       setTrouble(
         saidWhy(error, 'Keine Verbindung. Ein Zugang wird im Büro nur mit Verbindung angezeigt.'),
       )
+    } finally {
+      pending.current.delete(id)
+      setAsking((current) => {
+        const next = new Set(current)
+
+        next.delete(id)
+
+        return next
+      })
     }
   }
 
@@ -219,6 +239,7 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
                         size="small"
                         icon={Eye}
                         aria-label={`${text(access, 'designation')} anzeigen`}
+                        disabled={asking.has(id)}
                         onClick={() => void reveal(access)}
                       >
                         Anzeigen

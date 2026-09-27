@@ -13,7 +13,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SyncClient } from '../../sync/client.js'
+import { type EditResult, SyncClient } from '../../sync/client.js'
 import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
@@ -212,6 +212,30 @@ describe('the ways into the site of a job', () => {
       expect(client.status().pending).toBe(1)
     })
     expect(server.operations()).toEqual([])
+  })
+
+  it('write one showing for two quick taps', async () => {
+    const client = await mount([safe])
+    const user = userEvent.setup()
+    const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
+    let release: (result: EditResult) => void = () => {}
+    const create = vi.spyOn(client, 'create').mockImplementation(
+      () =>
+        new Promise<EditResult>((resolve) => {
+          release = resolve
+        }),
+    )
+    const button = within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' })
+
+    // The second tap comes while the first showing is still being written.
+    await user.click(button)
+    await user.click(button)
+
+    expect(create).toHaveBeenCalledTimes(1)
+
+    release({ outcome: 'queued', id: 'r-1' })
+
+    expect(await within(card).findByText('4711')).toBeTruthy()
   })
 
   it('keep a value hidden when its showing cannot be written on the device', async () => {

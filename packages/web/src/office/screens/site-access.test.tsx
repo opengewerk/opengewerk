@@ -214,6 +214,34 @@ describe('the ways into a site in the office', () => {
     expect(within(card).queryByText('4711')).toBeNull()
   })
 
+  it('ask once for two quick clicks', async () => {
+    let answerNow: (response: Response) => void = () => {}
+
+    reveal = () =>
+      new Promise<Response>((resolve) => {
+        answerNow = resolve
+      })
+    await mount()
+    const card = await accessCard()
+    const user = userEvent.setup()
+    const button = within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' })
+
+    // The second click comes while the route has not answered the first.
+    await user.click(button)
+    await user.click(button)
+
+    expect(sent('POST').map((call) => call.key)).toEqual(['POST /sites/s-1/accesses/a-1/reveal'])
+
+    answerNow(
+      new Response(JSON.stringify({ state: 'readable', value: '4711' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    expect(await within(card).findByText('4711')).toBeTruthy()
+  })
+
   it('say so when there is no connection to ask', async () => {
     reveal = () => Promise.reject(new TypeError('Failed to fetch'))
     await mount()
