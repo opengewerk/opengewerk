@@ -19,6 +19,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   schreibt in cosign 3.1.3 das Abbild unter den Signatur-Tag statt des Signatur-Index. Nur auf
   Docker Hub zeigt `latest` auf die neueste Fassung; das Paket holt weiter aus ghcr.io, weil Docker
   Hub anonyme Pulls begrenzt.
+- Die harmonisierte Mitteilung zur gesetzlichen Gewährleistung nach Anhang I der
+  Durchführungsverordnung (EU) 2025/1960 geht mit jedem Angebot an einen Verbraucher über eine
+  Lieferung von Waren hinaus (#431), Pflicht seit dem 27.09.2026 nach Art. 246 Abs. 1 Nr. 5 und
+  Art. 246a § 1 Abs. 1 Satz 1 Nr. 11 EGBGB. Sie ist eine mitgelieferte Belehrung, aber keine
+  Worte, sondern die Seite der Kommission: unverändert und als letzte Seite im PDF, ohne
+  Briefkopf und Fußzeile, weil die Verordnung keine Änderung und keinen Zusatz erlaubt und
+  mindestens A4 verlangt. Die Vorlage lässt dafür eine leere letzte Seite, die nach dem Rendern
+  mit pdf-lib gegen die amtliche getauscht wird; so zählt die Fußzeile der übrigen Seiten sie mit.
+  Die Datei liegt mit Quelle, Nutzungsbedingungen und Prüfsumme unter
+  `packages/server/assets/legal`, und der Server druckt sie nur, wenn die Prüfsumme stimmt.
+  Pflicht ist sie, wenn am Beleg "Lieferung von Waren mit Montage" gewählt ist und das Angebot
+  ab dem 27.09.2026 datiert; einem Kostenvoranschlag wird sie nicht vorgeschlagen. Ihren Wortlaut
+  ändert niemand, auch nicht über die API, und unter "Einstellungen", "Belehrungen" zeigt die
+  Karte die Seite als Bild. Eingefroren wird sie mit ihrem Namen in Fassung 12 von
+  `DocumentContent`, Migration 0048 ergänzt den Schlüssel `guarantee_notice`.
 
 ### Geändert
 
@@ -41,8 +56,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - Die Feature-Gliederung (v2.22) nimmt die vorvertraglichen Informationen an Verbraucher nach
   Art. 246 Abs. 1 und Art. 246a § 1 Abs. 1 EGBGB in Phase 1 auf (#431). Seit dem 27.09.2026
   verlangen sie für Waren die harmonisierte Mitteilung zur Gewährleistung nach der
-  Durchführungsverordnung (EU) 2025/1960, und ein Angebot an einen Verbraucher mit Lieferung
-  und Montage trägt sie noch nicht. Die README nennt das beim Stand von Phase 1.
+  Durchführungsverordnung (EU) 2025/1960; gebaut mit #431, siehe unter "Hinzugefügt".
+- Die Feature-Gliederung (v2.23) legt fest, wie die Mitteilung zur Gewährleistung gedruckt wird,
+  als letzte Seite im PDF und nur bei "Lieferung von Waren mit Montage", und ordnet die
+  Kennzeichnung einer Haltbarkeitsgarantie des Herstellers nach Anhang II der Phase 2 zu (#433),
+  weil sie je Ware gilt und an den Artikelstamm gehört. Die übrigen neuen Angaben legt der
+  Betrieb als eigene Belehrung an, wenn der Hersteller sie liefert; so entschieden von Moritz am
+  26.09.2026.
 
 ## [0.3.0] - 2026-09-26
 

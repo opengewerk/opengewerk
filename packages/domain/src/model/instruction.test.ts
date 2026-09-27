@@ -141,24 +141,34 @@ describe('the pieces of an instruction on paper', () => {
 })
 
 describe('an instruction proposed for a document', () => {
-  const withdrawal = { kinds: ['quote', 'cost_estimate'] as const, consumersOnly: true }
+  const withdrawal = {
+    template: 'withdrawal' as const,
+    kinds: ['quote', 'cost_estimate'] as const,
+    consumersOnly: true,
+  }
+  // A contract for work, on a day before any of the conditions of #431 began.
+  const onDay = { variant: 'service' as const, documentDate: '2026-09-22' }
 
   it('is proposed for its kinds and a customer who is not a business', () => {
-    expect(proposedFor(withdrawal, { kind: 'quote', recipientIsBusiness: false })).toBe(true)
-    expect(proposedFor(withdrawal, { kind: 'cost_estimate', recipientIsBusiness: false })).toBe(
+    expect(proposedFor(withdrawal, { ...onDay, kind: 'quote', recipientIsBusiness: false })).toBe(
       true,
     )
+    expect(
+      proposedFor(withdrawal, { ...onDay, kind: 'cost_estimate', recipientIsBusiness: false }),
+    ).toBe(true)
   })
 
   it('is not proposed for another kind or, when it is for consumers, for a business', () => {
-    expect(proposedFor(withdrawal, { kind: 'final_invoice', recipientIsBusiness: false })).toBe(
+    expect(
+      proposedFor(withdrawal, { ...onDay, kind: 'final_invoice', recipientIsBusiness: false }),
+    ).toBe(false)
+    expect(proposedFor(withdrawal, { ...onDay, kind: 'quote', recipientIsBusiness: true })).toBe(
       false,
     )
-    expect(proposedFor(withdrawal, { kind: 'quote', recipientIsBusiness: true })).toBe(false)
     expect(
       proposedFor(
         { ...withdrawal, consumersOnly: false },
-        { kind: 'quote', recipientIsBusiness: true },
+        { ...onDay, kind: 'quote', recipientIsBusiness: true },
       ),
     ).toBe(true)
   })
@@ -166,9 +176,29 @@ describe('an instruction proposed for a document', () => {
   it('is proposed for nothing when it has no kinds', () => {
     expect(
       proposedFor(
-        { kinds: [], consumersOnly: false },
-        { kind: 'quote', recipientIsBusiness: false },
+        { template: null, kinds: [], consumersOnly: false },
+        { ...onDay, kind: 'quote', recipientIsBusiness: false },
       ),
     ).toBe(false)
+  })
+
+  it('proposes the notice on the legal guarantee only for goods, and from 27.09.2026', () => {
+    const notice = {
+      template: 'guarantee_notice' as const,
+      kinds: ['quote'] as const,
+      consumersOnly: true,
+    }
+    const goods = {
+      kind: 'quote' as const,
+      recipientIsBusiness: false,
+      variant: 'goods' as const,
+      documentDate: '2026-09-27',
+    }
+
+    expect(proposedFor(notice, goods)).toBe(true)
+    expect(proposedFor(notice, { ...goods, variant: 'service' })).toBe(false)
+    expect(proposedFor(notice, { ...goods, documentDate: '2026-09-26' })).toBe(false)
+    // One the business wrote is proposed whatever the contract is about.
+    expect(proposedFor({ ...notice, template: null }, { ...goods, variant: 'service' })).toBe(true)
   })
 })

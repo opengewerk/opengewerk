@@ -1930,6 +1930,46 @@ describe('the instructions of a document', () => {
     })
   })
 
+  it('keeps the notice on the legal guarantee on a quote about goods, as the last page', async () => {
+    const aboutGoods = {
+      ...proposed,
+      variant: 'goods',
+      choices: [
+        ...proposed.choices,
+        {
+          id: 'i-5',
+          title: 'Mitteilung zur gesetzlichen Gewährleistung',
+          template: 'guarantee_notice',
+          proposed: true,
+          included: true,
+          required: true,
+          withDocument: true,
+          changed: false,
+          page: true,
+          onlyForGoods: true,
+        },
+      ],
+    }
+
+    serverSays('GET', '/documents/d-1/instructions', () => ({ status: 200, body: aboutGoods }))
+    await mount('/belege/d-1')
+
+    const section = within(await screen.findByRole('region', { name: 'Belehrungen' }))
+    const notice = section.getByRole('checkbox', {
+      name: 'Mitteilung zur gesetzlichen Gewährleistung',
+    }) as HTMLInputElement
+
+    expect(notice.checked).toBe(true)
+    expect(notice.disabled).toBe(true)
+    expect(
+      section.getByText(
+        'Pflicht an jedem Angebot an einen Verbraucher über eine Lieferung von Waren. Geht mit ' +
+          'dem Beleg hinaus, als letzte Seite im PDF und in der E-Mail.',
+      ),
+    ).toBeTruthy()
+    expect(section.getByText(/ob die Mitteilung zur Gewährleistung dazugehört/)).toBeTruthy()
+  })
+
   it('keeps the one a quote to a consumer cannot go without switched on', async () => {
     serverSays('GET', '/documents/d-1/instructions', () => ({ status: 200, body: proposed }))
     await mount('/belege/d-1')

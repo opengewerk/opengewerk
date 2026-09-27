@@ -18,6 +18,7 @@ import type {
   DocumentContentV8,
   DocumentContentV9,
   DocumentContentV10,
+  DocumentContentV11,
   InstructionContent,
   IssuerContent,
   LineContent,
@@ -252,8 +253,17 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 10:
-      return { ...stored, version: documentContentVersion, reportFields: [] }
+    case 11:
+      return {
+        ...stored,
+        version: documentContentVersion,
+        instructions: stored.instructions.map((instruction) => ({ ...instruction, graphic: null })),
+      }
+    case 10: {
+      const eleventh: DocumentContentV11 = { ...stored, version: 11, reportFields: [] }
+
+      return currentContent(eleventh)
+    }
     case 9: {
       const tenth: DocumentContentV10 = {
         ...stored,

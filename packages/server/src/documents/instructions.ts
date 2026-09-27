@@ -11,10 +11,13 @@ import {
   type IssuerContent,
   latestWording,
   noInstructionChoices,
+  onlyForGoods,
+  requiredFrom,
   requiredKinds,
   shippedInstructionDefaults,
   type TenantId,
   wordingAt,
+  wordingIsFixed,
 } from '@opengewerk/domain'
 import { asc, eq, sql } from 'drizzle-orm'
 
@@ -116,6 +119,17 @@ export interface InstructionView {
   readonly consumersOnly: boolean
   readonly withDocument: boolean
   readonly position: number
+  /**
+   * The page printed instead of the words, by the name of its file, for the
+   * screen to show; null for an instruction printed as text (#431).
+   */
+  readonly graphic: string | null
+  /** Words the law prescribes whole: nothing on the screen changes them. */
+  readonly fixedWording: boolean
+  /** Only for a contract about goods, "Lieferung von Waren mit Montage" on a document. */
+  readonly onlyForGoods: boolean
+  /** The day the law asks for it from, where that came after its first documents. */
+  readonly requiredFrom: IsoDate | null
 }
 
 /**
@@ -129,7 +143,14 @@ export function shownTitle(row: Pick<InstructionRow, 'template' | 'title'>, toda
 }
 
 export function instructionView(row: InstructionRow, today: IsoDate): InstructionView {
-  const model = row.template === null ? null : wordingAt(row.template, today)
+  // One whose first version is still to come shows that version, so that the
+  // screen has something to show before the day it applies from.
+  const upcoming = row.template === null ? null : latestWording(row.template)
+  const model =
+    row.template === null
+      ? null
+      : (wordingAt(row.template, today) ??
+        (upcoming && upcoming.validFrom > today ? upcoming : null))
   const changed = row.template !== null && row.body !== null
   const latest = changed && row.template !== null ? latestWording(row.template) : null
 
@@ -149,6 +170,10 @@ export function instructionView(row: InstructionRow, today: IsoDate): Instructio
     consumersOnly: row.consumersOnly,
     withDocument: row.withDocument,
     position: row.position,
+    graphic: model?.graphic ?? null,
+    fixedWording: wordingIsFixed(row.template),
+    onlyForGoods: row.template !== null && onlyForGoods.includes(row.template),
+    requiredFrom: row.template === null ? null : (requiredFrom[row.template] ?? null),
   }
 }
 

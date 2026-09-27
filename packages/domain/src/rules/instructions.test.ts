@@ -8,8 +8,10 @@ import {
   noInstructionChoices,
   placeholdersIn,
   requiredFor,
+  requiredFrom,
   requiredKinds,
   withdrawalVariants,
+  wordingIsFixed,
 } from '../model/instruction.js'
 import {
   contractBlocksAt,
@@ -505,7 +507,12 @@ describe('what a quote to a consumer has to carry', () => {
     consumersOnly: true,
     withDocument: true,
   }
-  const toConsumer = { kind: 'quote' as const, recipientIsBusiness: false }
+  const toConsumer = {
+    kind: 'quote' as const,
+    recipientIsBusiness: false,
+    variant: 'service' as const,
+    documentDate: '2026-09-22',
+  }
 
   it('is the instruction on withdrawal, its notes and its form, not the sheet', () => {
     expect(requiredFor({ template: 'withdrawal' }, toConsumer)).toBe(true)
@@ -544,5 +551,97 @@ describe('what a quote to a consumer has to carry', () => {
 
     expect(requiredKinds('withdrawal')).toEqual(['quote'])
     expect(requiredKinds('early_start')).toEqual([])
+  })
+})
+
+describe('the notice on the legal guarantee', () => {
+  const goods = {
+    kind: 'quote' as const,
+    recipientIsBusiness: false,
+    variant: 'goods' as const,
+    documentDate: '2026-09-27',
+  }
+  const notice = {
+    id: 'i-6',
+    template: 'guarantee_notice' as const,
+    title: 'Mitteilung zur gesetzlichen Gewährleistung',
+    body: null,
+    kinds: ['quote'] as const,
+    consumersOnly: true,
+    withDocument: true,
+  }
+  const onGoods = { ...noInstructionChoices, variant: 'goods' as const }
+
+  it('goes with a quote to a consumer about goods, from the day the law asks for it', () => {
+    expect(requiredFor({ template: 'guarantee_notice' }, goods)).toBe(true)
+    expect(requiredFor({ template: 'guarantee_notice' }, { ...goods, variant: 'service' })).toBe(
+      false,
+    )
+    expect(
+      requiredFor({ template: 'guarantee_notice' }, { ...goods, documentDate: '2026-09-26' }),
+    ).toBe(false)
+    expect(
+      requiredFor({ template: 'guarantee_notice' }, { ...goods, recipientIsBusiness: true }),
+    ).toBe(false)
+    expect(requiredFor({ template: 'guarantee_notice' }, { ...goods, kind: 'cost_estimate' })).toBe(
+      false,
+    )
+  })
+
+  it('begins on the day its first wording begins', () => {
+    const first = shippedWordings
+      .filter((wording) => wording.template === 'guarantee_notice')
+      .map((wording) => wording.validFrom)
+      .sort()[0]
+
+    expect(requiredFrom.guarantee_notice).toBe(first)
+  })
+
+  it('is the page of the commission, and no row can reword it', () => {
+    const wording = wordingAt('guarantee_notice', '2026-09-27')
+
+    expect(wording?.graphic).toBe('guarantee-notice-de-2025-09-25')
+    expect(wordingIsFixed('guarantee_notice')).toBe(true)
+    expect(wordingIsFixed('withdrawal')).toBe(false)
+    expect(wordingIsFixed(null)).toBe(false)
+
+    // Words a row should never carry are not printed either.
+    const words = instructionWordingAt({ ...notice, body: 'Eigene Worte' }, '2026-09-27')
+
+    expect(words).toMatchObject({ text: wording?.text, changed: false })
+  })
+
+  it('goes out as its page, and not before 27.09.2026 or with a contract for work', () => {
+    const { contents, gaps } = documentInstructions([notice], onGoods, goods, issuer)
+
+    expect(gaps).toEqual([])
+    expect(contents).toEqual([
+      expect.objectContaining({
+        title: 'Mitteilung zur gesetzlichen Gewährleistung',
+        withDocument: true,
+        graphic: 'guarantee-notice-de-2025-09-25',
+        variant: 'goods',
+        model: expect.objectContaining({
+          template: 'guarantee_notice',
+          validFrom: '2026-09-27',
+          changed: false,
+        }),
+      }),
+    ])
+    expect(documentInstructions([notice], noInstructionChoices, goods, issuer).contents).toEqual([])
+    expect(
+      documentInstructions([notice], onGoods, { ...goods, documentDate: '2026-09-26' }, issuer),
+    ).toEqual({ contents: [], gaps: [] })
+  })
+
+  it('leaves every other instruction printed as text', () => {
+    const { contents } = documentInstructions(
+      [{ ...notice, id: 'i-1', template: 'withdrawal' as const, title: 'Widerrufsbelehrung' }],
+      onGoods,
+      goods,
+      issuer,
+    )
+
+    expect(contents.map((entry) => entry.graphic)).toEqual([null])
   })
 })

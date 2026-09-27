@@ -66,6 +66,10 @@ const withdrawal: InstructionView = {
   consumersOnly: true,
   withDocument: true,
   position: 1,
+  graphic: null,
+  fixedWording: false,
+  onlyForGoods: false,
+  requiredFrom: null,
 }
 
 const form: InstructionView = {
@@ -103,6 +107,29 @@ const own: InstructionView = {
   consumersOnly: false,
   withDocument: true,
   position: 4,
+  graphic: null,
+  fixedWording: false,
+  onlyForGoods: false,
+  requiredFrom: null,
+}
+
+// The harmonised notice on the legal guarantee (#431): a page, not words.
+const notice: InstructionView = {
+  ...withdrawal,
+  id: 'i-5',
+  template: 'guarantee_notice',
+  title: 'Mitteilung zur gesetzlichen Gewährleistung',
+  body: 'Die harmonisierte Mitteilung der Europäischen Union zur gesetzlichen Gewährleistung für Waren.',
+  model: {
+    validFrom: '2026-09-27',
+    source: 'Anhang I der Durchführungsverordnung (EU) 2025/1960',
+    text: 'Die harmonisierte Mitteilung der Europäischen Union zur gesetzlichen Gewährleistung für Waren.',
+  },
+  position: 5,
+  graphic: 'guarantee-notice-de-2025-09-25',
+  fixedWording: true,
+  onlyForGoods: true,
+  requiredFrom: '2026-09-27',
 }
 
 function listed(...entries: InstructionView[]) {
@@ -331,5 +358,45 @@ describe('the instructions, as the office sees them', () => {
 
     expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Belehrung anlegen' })).toBeNull()
+  })
+})
+
+describe('the notice on the legal guarantee', () => {
+  it('shows the page of the EU, and says that nobody changes it', async () => {
+    signedInAs('owner')
+    listed(withdrawal, notice)
+    render(inQueries(<InstructionsScreen />))
+
+    const entry = within(await screen.findByRole('region', { name: notice.title }))
+
+    expect(entry.getByText('Amtliche Mitteilung der EU, Fassung ab 27.09.2026')).toBeTruthy()
+    expect(entry.getByText(/^Gestaltung und Wortlaut gibt die EU vor/)).toBeTruthy()
+    expect(
+      entry.getByText(
+        'Vorgeschlagen für Angebot, nur an Kunden, die kein Unternehmen sind, wenn der Vertrag ' +
+          'eine Lieferung von Waren mit Montage betrifft. Geht mit dem Beleg hinaus, als letzte ' +
+          'Seite im PDF und damit auch in der E-Mail. Pflicht an jedem solchen Angebot an einen ' +
+          'Verbraucher.',
+      ),
+    ).toBeTruthy()
+    expect(entry.getByText('Mitteilung ansehen')).toBeTruthy()
+    // The picture comes from the server's own origin, described for whoever cannot see it.
+    expect(entry.getByAltText(notice.body).getAttribute('src')).toBe(
+      '/settings/instructions/graphics/guarantee-notice-de-2025-09-25',
+    )
+    expect(entry.queryByRole('button', { name: 'Original wiederherstellen' })).toBeNull()
+  })
+
+  it('edits where it is proposed, never its words', async () => {
+    signedInAs('owner')
+    listed(notice)
+    render(inQueries(<InstructionsScreen />))
+
+    const entry = within(await screen.findByRole('region', { name: notice.title }))
+
+    await userEvent.setup().click(entry.getByRole('button', { name: 'Bearbeiten' }))
+
+    expect(entry.queryByLabelText('Wortlaut')).toBeNull()
+    expect(entry.getByText(/über eine Lieferung von Waren, deshalb bleiben/)).toBeTruthy()
   })
 })

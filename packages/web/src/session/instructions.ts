@@ -40,6 +40,14 @@ export interface InstructionView {
   readonly consumersOnly: boolean
   readonly withDocument: boolean
   readonly position: number
+  /** The page printed instead of the words, by the name of its file (#431). */
+  readonly graphic: string | null
+  /** Words the law prescribes whole, which nothing on the screen changes. */
+  readonly fixedWording: boolean
+  /** Only for a contract about goods, "Lieferung von Waren mit Montage". */
+  readonly onlyForGoods: boolean
+  /** The day the law asks for it from, where that came after its first documents. */
+  readonly requiredFrom: IsoDate | null
 }
 
 export interface InstructionSettings {
@@ -57,6 +65,14 @@ const path = '/settings/instructions'
 
 function one(id: string): string {
   return `${path}/${encodeURIComponent(id)}`
+}
+
+/**
+ * Where the picture of a page the law prescribes whole is, for an `<img>`:
+ * of the server's own origin, because the screen shows no `data:` pictures.
+ */
+export function legalGraphicAddress(name: string): string {
+  return `${path}/graphics/${encodeURIComponent(name)}`
 }
 
 export function instructions(): Promise<readonly InstructionView[]> {
@@ -92,6 +108,10 @@ export interface InstructionChoice {
   readonly required: boolean
   readonly withDocument: boolean
   readonly changed: boolean
+  /** Printed as a page the law prescribes, the last of the PDF (#431). */
+  readonly page: boolean
+  /** Only for a contract about goods, so the choice of contract decides it. */
+  readonly onlyForGoods: boolean
 }
 
 /** An instruction the way it is printed with a document; the index names its sheet. */
@@ -101,6 +121,8 @@ export interface PrintedInstruction {
   readonly withDocument: boolean
   readonly changed: boolean
   readonly source: string | null
+  /** Printed as a page the law prescribes, the last of the PDF (#431). */
+  readonly page: boolean
 }
 
 export interface DocumentInstructions {

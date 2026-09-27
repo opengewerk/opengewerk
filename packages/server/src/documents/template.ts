@@ -581,6 +581,7 @@ const pageStyle = `
   .report-fields td { padding: 0.6mm 0; white-space: pre-line; }
   .closing { margin-top: 8mm; break-inside: avoid; }
   .instruction { break-before: page; }
+  .legal-page { break-before: page; height: 1px; }
   .annex { font-size: 8.5pt; color: #5b6573; margin: 0 0 2mm; }
   .instruction h2 { font-size: 13pt; font-weight: 600; margin: 0 0 4mm; }
   .instruction h3, .sheet h3 { font-size: 10pt; font-weight: 600; margin: 5mm 0 1.5mm; }
@@ -680,7 +681,7 @@ function instructionBody(words: string): string {
  */
 function appendix(content: DocumentContent): string {
   return content.instructions
-    .filter((instruction) => instruction.withDocument)
+    .filter((instruction) => instruction.withDocument && instruction.graphic === null)
     .map(
       (instruction) => `<section class="instruction">
     <p class="annex">Anlage zu ${text(reference(content))}</p>
@@ -688,6 +689,31 @@ function appendix(content: DocumentContent): string {
     ${instructionBody(instruction.text)}
   </section>`,
     )
+    .join('\n')
+}
+
+/**
+ * The pages the law prescribes whole that go out with a document, by the name
+ * of their file, in the order they are printed: the harmonised notice on the
+ * legal guarantee, #431.
+ */
+export function legalPagesOf(content: DocumentContent): readonly string[] {
+  return content.instructions.flatMap((instruction) =>
+    instruction.withDocument && instruction.graphic !== null ? [instruction.graphic] : [],
+  )
+}
+
+/**
+ * An empty page for every page in `legalPagesOf`, at the very end. The
+ * template cannot print such a page, because nothing may be added to it and it
+ * has to be at least A4; `withLegalPages` puts the page of the Commission in
+ * place of each after rendering. Left here so that the page count in the
+ * footer counts it, and last so that the swap cannot miss: "Seite 3 von 4"
+ * on the last page of the document, and then the notice.
+ */
+function legalPlaceholders(content: DocumentContent): string {
+  return legalPagesOf(content)
+    .map(() => '<section class="legal-page" aria-hidden="true"></section>')
     .join('\n')
 }
 
@@ -837,6 +863,7 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
   ${closing}
   ${signatureOf(content)}
   ${appendix(content)}
+  ${legalPlaceholders(content)}
 </main>
 </body>
 </html>`

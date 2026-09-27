@@ -15,6 +15,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
+import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { todayInGermany } from '../today.js'
 
@@ -120,6 +121,7 @@ describe('the shipped instructions', () => {
       ['withdrawal_notes', 'Hinweise zum Erlöschen des Widerrufsrechts'],
       ['withdrawal_form', 'Muster-Widerrufsformular'],
       ['early_start', 'Verlangen auf vorzeitigen Leistungsbeginn'],
+      ['guarantee_notice', 'Mitteilung zur gesetzlichen Gewährleistung'],
     ])
     expect(second.map((entry) => entry.id)).toEqual(first.map((entry) => entry.id))
     expect(first[0]).toMatchObject({
@@ -141,7 +143,7 @@ describe('the shipped instructions', () => {
       [north.id],
     )
 
-    expect(rows[0]?.count).toBe('4')
+    expect(rows[0]?.count).toBe('5')
   })
 
   it('show the model in force today, word for word, without keeping it in the row', async () => {
@@ -366,5 +368,49 @@ describe('a shipped instruction', () => {
     const unused = await change(early.id, { kinds: [] }).expect(200)
 
     expect(unused.body).toMatchObject({ kinds: [] })
+  })
+})
+
+describe('the notice on the legal guarantee', () => {
+  it('shows as the page it is, for goods, from 27.09.2026, and nobody rewords it', async () => {
+    const notice = await shipped('guarantee_notice')
+
+    expect(notice).toMatchObject({
+      title: 'Mitteilung zur gesetzlichen Gewährleistung',
+      graphic: 'guarantee-notice-de-2025-09-25',
+      fixedWording: true,
+      onlyForGoods: true,
+      requiredFrom: '2026-09-27',
+      requiredWith: ['quote'],
+      kinds: ['quote'],
+      withDocument: true,
+    })
+
+    const refused = await change(notice.id, { body: 'Eigene Worte' }).expect(400)
+
+    expect((refused.body as { message: string }).message).toContain(
+      'gibt die EU in Gestaltung und Wortlaut vor',
+    )
+
+    // Where it is proposed stays the business's choice.
+    await change(notice.id, { kinds: ['quote', 'cost_estimate'] }).expect(200)
+    await change(notice.id, { kinds: ['quote'] }).expect(200)
+  })
+
+  it('hands out the picture of the page to whoever reads the settings', async () => {
+    const answer = await http()
+      .get('/settings/instructions/graphics/guarantee-notice-de-2025-09-25')
+      .set('x-test-identity', office())
+      .buffer(true)
+      .parse(binary)
+      .expect(200)
+
+    expect(answer.headers['content-type']).toBe('image/png')
+    expect([...(answer.body as Buffer).subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
+
+    await http()
+      .get('/settings/instructions/graphics/guarantee-notice-xx')
+      .set('x-test-identity', office())
+      .expect(404)
   })
 })

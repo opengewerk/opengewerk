@@ -28,10 +28,12 @@ import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
+import { LegalGraphicError, legalPage, withLegalPages } from '../documents/legal-graphics.js'
 import {
   documentTitle,
   headingOf,
   instructionSheet,
+  legalPagesOf,
   type PrintAssets,
   printJob,
 } from '../documents/template.js'
@@ -272,7 +274,11 @@ export class DocumentFiles {
    * is a fault in the template and says so too, and neither is a crash.
    */
   async print(content: DocumentContent): Promise<Uint8Array> {
-    return this.rendered(content, (assets) => printJob(content, assets))
+    const rendered = await this.rendered(content, (assets) => printJob(content, assets))
+
+    // The pages the law prescribes whole go in after rendering, in place of
+    // the empty pages the template left for them (#431).
+    return this.legal(() => withLegalPages(rendered, legalPagesOf(content)))
   }
 
   /**
@@ -281,7 +287,27 @@ export class DocumentFiles {
    * nobody receives it by mail.
    */
   async printSheet(content: DocumentContent, index: number): Promise<Uint8Array> {
+    const graphic = content.instructions[index]?.graphic ?? null
+
+    // A page the law prescribes whole is its own sheet, with nothing around it.
+    if (graphic !== null) {
+      return this.legal(() => legalPage(graphic))
+    }
+
     return this.rendered(content, (assets) => instructionSheet(content, index, assets))
+  }
+
+  /** A file of the Commission that is missing or changed is a fault of the installation. */
+  private async legal(make: () => Promise<Uint8Array>): Promise<Uint8Array> {
+    try {
+      return await make()
+    } catch (error) {
+      if (error instanceof LegalGraphicError) {
+        throw new InternalServerErrorException(error.message)
+      }
+
+      throw error
+    }
   }
 
   private async rendered(
