@@ -633,6 +633,37 @@ describe('a device handed to somebody who sees less, or more', () => {
     expect(transport.asked).toEqual([0, 4, 4])
     expect(first.list('time_entries')).toHaveLength(1)
   })
+
+  /**
+   * Whether the device holds every job, for what the rows add up to (#314):
+   * from the answer of the server, kept across a start, and never assumed
+   * before one said so.
+   */
+  it('knows whether it holds every row of an entity from the last answer', async () => {
+    const device = await startOn('holds-all')
+
+    expect(device.holdsAll('time_entries')).toBe(false)
+
+    transport.pulls = [
+      { changes: [], cursor: 2, hasMore: false, narrowed: { time_entries: 'all' } },
+    ]
+    await device.synchronise()
+
+    expect(device.holdsAll('time_entries')).toBe(true)
+    device.stop()
+
+    const again = await startOn('holds-all')
+
+    expect(again.holdsAll('time_entries')).toBe(true)
+
+    transport.pulls = [
+      { changes: [], cursor: 2, hasMore: false, narrowed: { time_entries: 'user:u-technician' } },
+      { changes: [], cursor: 2, hasMore: false, narrowed: { time_entries: 'user:u-technician' } },
+    ]
+    await again.synchronise()
+
+    expect(again.holdsAll('time_entries')).toBe(false)
+  })
 })
 
 describe('an exchange with the server', () => {

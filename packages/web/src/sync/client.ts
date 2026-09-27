@@ -234,6 +234,12 @@ export class SyncClient {
 
   private cursor = 0
   /**
+   * What the server last said it narrowed each entity to, or null before it
+   * said anything. Kept in memory beside the store, for the screens that have
+   * to know whether the rows they count are all there are (#314).
+   */
+  private narrowedNow: Readonly<Record<string, string>> | null = null
+  /**
    * How many files made here wait for their upload. Counted and not asked of
    * the store on every exchange: without a file waiting, an exchange goes
    * straight to the outbox, as it did before there were files (#77).
@@ -334,6 +340,11 @@ export class SyncClient {
     const held = await store.readMeta(stopwatchKey)
 
     client.held = typeof held === 'string' && held !== '' ? held : null
+
+    const narrowed = await store.readMeta(narrowedKey)
+
+    client.narrowedNow =
+      typeof narrowed === 'string' ? (JSON.parse(narrowed) as Record<string, string>) : null
     client.regroup()
     client.snapshot = {
       ...client.snapshot,
@@ -467,6 +478,17 @@ export class SyncClient {
     this.projected.set(key, shown)
 
     return shown
+  }
+
+  /**
+   * Whether this device holds every row of an entity, as the last answer of
+   * the server said, and not only its part of the business (#140). What the
+   * rows on the device add up to, "Bestandskunde" first, is only true when
+   * they are all there; the roles of the person may say otherwise for a
+   * while after they changed, the answer of the server does not.
+   */
+  holdsAll(entity: string): boolean {
+    return this.narrowedNow?.[entity] === 'all'
   }
 
   /** True while this record has not reached the server yet. */
@@ -916,6 +938,8 @@ export class SyncClient {
 
     const said = JSON.stringify(narrowed)
     const kept = await this.store.readMeta(narrowedKey)
+
+    this.narrowedNow = narrowed
 
     if (kept === said) {
       return false

@@ -41,6 +41,14 @@ export function useSyncStatus(): SyncSnapshot {
 }
 
 /** Everything of one kind that still exists, with the outbox laid over it. */
+/** Whether this device holds every row of an entity, as the last exchange said. */
+export function useHoldsAll(entity: string): boolean {
+  const client = useSync()
+  const read = useCallback(() => client.holdsAll(entity), [client, entity])
+
+  return useSyncExternalStore(client.subscribe, read, read)
+}
+
 export function useRecords(entity: string): readonly RecordState[] {
   const client = useSync()
   const read = useCallback(() => client.list(entity), [client, entity])

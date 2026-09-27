@@ -31,7 +31,14 @@ import { refusalFor } from '../../sync/client.js'
 import type { EditResult } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
+import {
+  useHoldsAll,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '../../sync/provider.js'
 import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import { ListCard, ListScreen } from '../list.js'
 import type { ListColumn, ListFilter } from '../list.js'
@@ -152,8 +159,9 @@ export function CustomerList() {
   const tags = useTags()
   const standings = useStandings()
   // Whether a customer has a completed job, the device can only tell when it
-  // holds every job: a technician's holds the ones they are on.
-  const knowsStanding = useMay('job.read.all')
+  // holds every job: a technician's holds the ones they are on. Asked of the
+  // last exchange rather than of the roles, which may lag behind a change.
+  const knowsStanding = useHoldsAll('jobs')
   const tagsOf = (row: RecordState) => tagged.get(String(row['id']))?.names ?? []
   const navigate = useNavigate()
   const creates = useMay('customer.create')
@@ -486,7 +494,7 @@ function CustomerRecord({
   const createsJobs = useMay('job.write')
   const tagged = useTagsBy('customer')
   const standing = useStandings()
-  const knowsStanding = useMay('job.read.all')
+  const knowsStanding = useHoldsAll('jobs')
   // "Auftrag anlegen" in the preview beside the list leads here with the
   // form open.
   const search = useSearch({ strict: false }) as { readonly neu?: string }

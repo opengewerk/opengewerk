@@ -154,6 +154,8 @@ async function mount(path: string) {
 
 beforeEach(() => {
   server = new TestServer()
+  // The office holds every job, as its answer says.
+  server.narrowed = { jobs: 'all' }
   calls = []
   roles = ['office']
   tagAnswer = { status: 200, body: { tagIds: [] } }
@@ -398,11 +400,12 @@ describe('the tags of a site', () => {
 
 describe('what a form and a device can know about tags', () => {
   it('offers Bestandskunde and Neukunde only on a device that holds every job', async () => {
-    roles = ['technician']
+    // The roles still say office, as they may for a while after a change;
+    // the answer of the server says the device holds the part of a technician.
+    server.narrowed = { jobs: 'jobs:0123456789abcdef' }
     business()
     await mount('/')
 
-    // A technician may create a customer; the button appears once the roles are known.
     await screen.findByRole('button', { name: 'Neuer Kunde' })
 
     expect(screen.queryByRole('group', { name: 'Bestandskunde oder Neukunde' })).toBeNull()

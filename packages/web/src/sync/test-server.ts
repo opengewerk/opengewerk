@@ -24,6 +24,12 @@ export class TestServer implements SyncTransport, DirectWriter {
   /** Set to answer every upload with this refusal instead of taking it. */
   refuseUploads: Error | null = null
   offline = false
+  /**
+   * What the answer says the rows were narrowed to (#76, #140). Unset, it says
+   * nothing, as an older server did; `{ jobs: 'all' }` is a device that holds
+   * every job of the business.
+   */
+  narrowed: Readonly<Record<string, string>> | undefined = undefined
   private readonly tables = new Map<string, Map<string, Row>>()
   private changed = new Map<string, Set<string>>()
   private cursor = 1
@@ -98,7 +104,12 @@ export class TestServer implements SyncTransport, DirectWriter {
     this.changed = new Map()
     this.cursor += 1
 
-    return Promise.resolve({ changes, cursor: this.cursor, hasMore: false })
+    return Promise.resolve({
+      changes,
+      cursor: this.cursor,
+      hasMore: false,
+      ...(this.narrowed ? { narrowed: this.narrowed } : {}),
+    })
   }
 
   conflicts() {
