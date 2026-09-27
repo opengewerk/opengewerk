@@ -651,7 +651,6 @@ function BusinessesPanel() {
             <div className="flex flex-wrap gap-2">
               <div className="grow" />
               <Button
-                tone="quiet"
                 disabled={name === ''}
                 onClick={() => {
                   setName('')

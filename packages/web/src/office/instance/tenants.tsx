@@ -263,9 +263,7 @@ function CreateForm({
           Einen Betrieb für dich selbst legst du unter „Konto“ an, dort bist du gleich Inhaber.
         </SettingsText>
         <div className="grow" />
-        <Button tone="quiet" onClick={onCancel}>
-          Abbrechen
-        </Button>
+        <Button onClick={onCancel}>Abbrechen</Button>
         <Button tone="primary" type="submit" icon={Plus} disabled={create.isPending}>
           Betrieb anlegen
         </Button>
