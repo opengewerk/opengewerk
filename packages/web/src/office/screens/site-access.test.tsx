@@ -222,6 +222,9 @@ describe('keeping the ways into a site', () => {
     expect(within(card).getByText(/^Noch kein Zugang eingetragen\./)).toBeTruthy()
 
     await user.click(within(card).getByRole('button', { name: 'Hinzufügen' }))
+
+    // The card is the form now, under its own title.
+    expect(screen.getByRole('region', { name: 'Zugang hinzufügen' })).toBe(card)
     await user.type(within(card).getByLabelText('Bezeichnung'), '   ')
     await user.click(within(card).getByRole('button', { name: 'Speichern' }))
 
@@ -252,6 +255,8 @@ describe('keeping the ways into a site', () => {
     const user = userEvent.setup()
 
     await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof bearbeiten' }))
+
+    expect(screen.getByRole('region', { name: 'Zugang bearbeiten' })).toBe(card)
 
     const value = within(card).getByLabelText('Wert')
 

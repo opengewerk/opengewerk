@@ -73,11 +73,21 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
     text(left, 'designation').localeCompare(text(right, 'designation'), 'de'),
   )
 
+  // While a form is open, the card is the form, under its own title, as the
+  // board "Zugang bearbeiten" draws it.
+  const edited =
+    editing !== null && editing !== 'new'
+      ? sorted.find((access) => String(access['id']) === editing)
+      : undefined
+  const mode = editing === 'new' ? 'new' : edited ? 'edit' : 'list'
+
   return (
     <Panel
-      title="Zugang"
+      title={
+        mode === 'new' ? 'Zugang hinzufügen' : mode === 'edit' ? 'Zugang bearbeiten' : 'Zugang'
+      }
       action={
-        editing === null ? (
+        mode === 'list' ? (
           <Button size="small" icon={Plus} onClick={() => setEditing('new')}>
             Hinzufügen
           </Button>
@@ -85,9 +95,8 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
       }
     >
       <div className="flex flex-col gap-2">
-        {editing === 'new' ? (
+        {mode === 'new' ? (
           <AccessForm
-            title="Zugang hinzufügen"
             busy={busy}
             onCancel={() => setEditing(null)}
             onSave={async (input) => {
@@ -106,121 +115,116 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
               }
             }}
           />
-        ) : null}
-        {sorted.length === 0 && editing !== 'new' ? (
+        ) : edited ? (
+          <AccessForm
+            access={edited}
+            busy={busy}
+            onCancel={() => setEditing(null)}
+            onRemove={() => setRemoving(edited)}
+            onSave={async (input) => {
+              const id = String(edited['id'])
+
+              setBusy(true)
+
+              try {
+                await changeAccess(siteId, id, input)
+                await client.synchronise()
+                hide(id)
+                setEditing(null)
+
+                return null
+              } catch (error) {
+                return saidWhy(error, 'Der Zugang ließ sich nicht speichern.')
+              } finally {
+                setBusy(false)
+              }
+            }}
+          />
+        ) : sorted.length === 0 ? (
           <p className="text-[13px] leading-[1.4] text-ink-muted">
             Noch kein Zugang eingetragen. Etwa der Code des Schlüsseltresors oder wo der Schlüssel
             liegt.
           </p>
-        ) : null}
-        <ul className="flex flex-col">
-          {sorted.map((access) => {
-            const id = String(access['id'])
-            const seen = shown.get(id)
-            const state = String(
-              access['valueState'] ?? (maybeText(access, 'valueSetAt') ? 'readable' : 'none'),
-            )
-
-            if (editing === id) {
-              return (
-                <li key={id} className="py-2">
-                  <AccessForm
-                    title="Zugang bearbeiten"
-                    access={access}
-                    busy={busy}
-                    onCancel={() => setEditing(null)}
-                    onRemove={() => setRemoving(access)}
-                    onSave={async (input) => {
-                      setBusy(true)
-
-                      try {
-                        await changeAccess(siteId, id, input)
-                        await client.synchronise()
-                        hide(id)
-                        setEditing(null)
-
-                        return null
-                      } catch (error) {
-                        return saidWhy(error, 'Der Zugang ließ sich nicht speichern.')
-                      } finally {
-                        setBusy(false)
-                      }
-                    }}
-                  />
-                </li>
+        ) : (
+          <ul className="flex flex-col">
+            {sorted.map((access) => {
+              const id = String(access['id'])
+              const seen = shown.get(id)
+              const state = String(
+                access['valueState'] ?? (maybeText(access, 'valueSetAt') ? 'readable' : 'none'),
               )
-            }
 
-            return (
-              <li key={id} className="border-b border-row py-2 last:border-b-0">
-                <div className="flex items-start gap-2">
-                  <span className="flex min-w-0 grow items-center gap-1.5 text-[14px] font-semibold [overflow-wrap:anywhere]">
-                    <KeyRound
-                      size={14}
-                      strokeWidth={2.2}
-                      aria-hidden="true"
-                      className="shrink-0 text-ink-muted"
-                    />
-                    {text(access, 'designation')}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`${text(access, 'designation')} bearbeiten`}
-                    onClick={() => setEditing(id)}
-                    className="flex size-[26px] shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent text-ink-muted"
-                  >
-                    <Pencil size={14} strokeWidth={2} aria-hidden="true" />
-                  </button>
-                </div>
-                {seen?.state === 'readable' ? (
-                  <>
+              return (
+                <li key={id} className="border-b border-row py-2 last:border-b-0">
+                  <div className="flex items-start gap-2">
+                    <span className="flex min-w-0 grow items-center gap-1.5 text-[14px] font-semibold [overflow-wrap:anywhere]">
+                      <KeyRound
+                        size={14}
+                        strokeWidth={2.2}
+                        aria-hidden="true"
+                        className="shrink-0 text-ink-muted"
+                      />
+                      {text(access, 'designation')}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`${text(access, 'designation')} bearbeiten`}
+                      onClick={() => setEditing(id)}
+                      className="flex size-[26px] shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent text-ink-muted"
+                    >
+                      <Pencil size={14} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  </div>
+                  {seen?.state === 'readable' ? (
+                    <>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="numeric grow font-condensed text-[18px] font-semibold tracking-[1.5px] [overflow-wrap:anywhere]">
+                          {seen.value}
+                        </span>
+                        <Button
+                          size="small"
+                          icon={EyeOff}
+                          aria-label={`${text(access, 'designation')} verbergen`}
+                          onClick={() => hide(id)}
+                        >
+                          Verbergen
+                        </Button>
+                      </div>
+                      <p className="mt-[3px] text-[12px] text-ink-faint">
+                        {`Angezeigt um ${clockTime(seen.at)}, steht im Änderungsprotokoll.`}
+                      </p>
+                    </>
+                  ) : seen?.state === 'unreadable' || state === 'unreadable' ? (
+                    <p className="mt-1 text-[13px] leading-[1.4] text-waiting">
+                      Nicht mehr lesbar: der Schlüssel dieser Instanz hat sich geändert. Bitte den
+                      Wert neu eintragen.
+                    </p>
+                  ) : state === 'readable' ? (
                     <div className="mt-1 flex items-center gap-2">
-                      <span className="numeric grow font-condensed text-[18px] font-semibold tracking-[1.5px] [overflow-wrap:anywhere]">
-                        {seen.value}
+                      <span
+                        aria-label="verdeckt"
+                        className="grow text-[15px] tracking-[3px] text-ink-muted"
+                      >
+                        ••••••
                       </span>
                       <Button
                         size="small"
-                        icon={EyeOff}
-                        aria-label={`${text(access, 'designation')} verbergen`}
-                        onClick={() => hide(id)}
+                        icon={Eye}
+                        aria-label={`${text(access, 'designation')} anzeigen`}
+                        onClick={() => void reveal(access)}
                       >
-                        Verbergen
+                        Anzeigen
                       </Button>
                     </div>
-                    <p className="mt-[3px] text-[12px] text-ink-faint">
-                      {`Angezeigt um ${clockTime(seen.at)}, steht im Änderungsprotokoll.`}
-                    </p>
-                  </>
-                ) : seen?.state === 'unreadable' || state === 'unreadable' ? (
-                  <p className="mt-1 text-[13px] leading-[1.4] text-waiting">
-                    Nicht mehr lesbar: der Schlüssel dieser Instanz hat sich geändert. Bitte den
-                    Wert neu eintragen.
-                  </p>
-                ) : state === 'readable' ? (
-                  <div className="mt-1 flex items-center gap-2">
-                    <span
-                      aria-label="verdeckt"
-                      className="grow text-[15px] tracking-[3px] text-ink-muted"
-                    >
-                      ••••••
-                    </span>
-                    <Button
-                      size="small"
-                      icon={Eye}
-                      aria-label={`${text(access, 'designation')} anzeigen`}
-                      onClick={() => void reveal(access)}
-                    >
-                      Anzeigen
-                    </Button>
-                  </div>
-                ) : null}
-                {maybeText(access, 'hint') ? (
-                  <p className="mt-1 text-[13px] text-ink-muted">{text(access, 'hint')}</p>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
+                  ) : null}
+                  {maybeText(access, 'hint') ? (
+                    <p className="mt-1 text-[13px] text-ink-muted">{text(access, 'hint')}</p>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
         {trouble ? (
           <p role="alert" className="text-[13px] font-semibold text-conflict">
             {trouble}
@@ -263,14 +267,12 @@ export function AccessPanel({ siteId }: { readonly siteId: string }) {
 }
 
 function AccessForm({
-  title,
   access,
   busy,
   onSave,
   onCancel,
   onRemove,
 }: {
-  readonly title: string
   readonly access?: RecordState
   readonly busy: boolean
   readonly onSave: (input: {
@@ -309,9 +311,6 @@ function AccessForm({
 
   return (
     <form className="flex flex-col gap-2.5" onSubmit={(event) => void submit(event)}>
-      <span className="font-condensed text-label font-semibold tracking-[1.1px] uppercase text-ink-faint">
-        {title}
-      </span>
       <Field
         label="Bezeichnung"
         value={designation}
