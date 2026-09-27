@@ -27,6 +27,15 @@
 -- code again within the last minutes, and the moment of that confirmation is
 -- kept on the session it was made in. better-auth knows nothing of the column.
 --
+-- **Why every passkey stored before goes.** From 20.09.2026 to 23.09.2026 the
+-- plugin was on without any of this: any session could register a passkey
+-- without confirming anything, and nobody could see one (GHSA-jghx-6wmh-mpcj).
+-- A passkey from then was never confirmed, never in a log and never told to
+-- anybody, and with the plugin back on it would sign in again. So the table
+-- starts empty; the password signs in as before, and a passkey is added anew
+-- under "Konto". Row level security is lifted for the one statement, because
+-- as the owner under FORCE the DELETE would find no row and say nothing.
+--
 -- **Why a new kind of mail, and nothing done with it here.** An account is
 -- told by mail about a passkey added to it, through the outbox of a business
 -- it works in. All pending migrations run in one transaction, and a new value
@@ -48,6 +57,9 @@ CREATE TABLE "member_passkeys" (
 );
 --> statement-breakpoint
 ALTER TABLE "member_passkeys" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+ALTER TABLE "auth_passkeys" NO FORCE ROW LEVEL SECURITY;--> statement-breakpoint
+DELETE FROM "auth_passkeys";--> statement-breakpoint
+ALTER TABLE "auth_passkeys" FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "auth_passkeys" ADD COLUMN "last_used_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "auth_sessions" ADD COLUMN "sign_in_method" "sign_in_method" DEFAULT 'password' NOT NULL;--> statement-breakpoint
 ALTER TABLE "auth_sessions" ADD COLUMN "reconfirmed_at" timestamp with time zone;--> statement-breakpoint

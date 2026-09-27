@@ -111,10 +111,12 @@ const browserWords: Readonly<Partial<Record<WebAuthnError['code'], string>>> = {
   ERROR_CEREMONY_ABORTED: 'Abgebrochen, oder die Zeit am Gerät ist abgelaufen.',
   ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED:
     'Auf diesem Gerät liegt schon ein Passkey für dieses Konto.',
+  // A passkey belongs to the first address the instance is set up with; under a
+  // second one, or an IP address, the browser refuses it.
   ERROR_INVALID_DOMAIN:
-    'Passkeys gehen nur unter dem Namen der Instanz, nicht über eine IP-Adresse.',
+    'Passkeys gehen nur unter der Hauptadresse dieser Instanz, nicht unter einer weiteren und nicht über eine IP-Adresse.',
   ERROR_INVALID_RP_ID:
-    'Passkeys gehen nur unter dem Namen der Instanz, nicht über eine IP-Adresse.',
+    'Passkeys gehen nur unter der Hauptadresse dieser Instanz, nicht unter einer weiteren und nicht über eine IP-Adresse.',
   ERROR_AUTHENTICATOR_MISSING_USER_VERIFICATION_SUPPORT:
     'Dieses Gerät kann nicht mit Fingerabdruck, Gesicht oder PIN bestätigen.',
   ERROR_AUTHENTICATOR_MISSING_DISCOVERABLE_CREDENTIAL_SUPPORT:
@@ -130,6 +132,7 @@ const ownCodes: ReadonlySet<string> = new Set([
   'USER_VERIFICATION_REQUIRED',
   'INVALID_PASSWORD',
   'INVALID_CODE',
+  'CODE_REQUIRED',
   'ACCOUNT_TEMPORARILY_LOCKED',
   'NO_PASSWORD',
   'TOTP_NOT_ENABLED',

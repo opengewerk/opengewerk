@@ -2,7 +2,7 @@ import { createOTP } from '@better-auth/utils/otp'
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import { symmetricDecrypt } from 'better-auth/crypto'
-import { and, eq, gte, sql } from 'drizzle-orm'
+import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import { authAccounts, authSessions, authTwoFactors } from '../database/schema/index.js'
@@ -40,14 +40,26 @@ export async function recentlyReconfirmed(database: Database, sessionId: string)
 }
 
 /**
- * Spends a confirmation. Once a passkey is added, the next one needs the
- * password again, so that one confirmation cannot be stretched to a drawer
- * full of keys.
+ * Takes the confirmation of the session for one passkey, and says whether
+ * there was one to take.
+ *
+ * Asking and spending are one statement: two registrations sent at once on
+ * the same session would otherwise both find the confirmation before either
+ * spent it, and one password would have added two keys. Spent when the
+ * registration arrives and not when it succeeds, so a failed one needs the
+ * password again, which is the side to err on.
  */
-export async function spendReconfirmation(database: Database, sessionId: string): Promise<void> {
-  await database.forInstance((tx) =>
-    tx.update(authSessions).set({ reconfirmedAt: null }).where(eq(authSessions.id, sessionId)),
+export async function claimReconfirmation(database: Database, sessionId: string): Promise<boolean> {
+  const since = new Date(Date.now() - reconfirmationWindow * 1000)
+  const claimed = await database.forInstance((tx) =>
+    tx
+      .update(authSessions)
+      .set({ reconfirmedAt: null })
+      .where(and(eq(authSessions.id, sessionId), gte(authSessions.reconfirmedAt, since)))
+      .returning({ id: authSessions.id }),
   )
+
+  return claimed.length > 0
 }
 
 /**
@@ -115,6 +127,15 @@ export function reconfirmation(database: Database): BetterAuthPlugin {
           }
 
           if (user.twoFactorEnabled === true) {
+            if (code === '') {
+              // Not a guess, and not counted as one: a screen that did not
+              // know of the app yet asks for the code and shows its field.
+              throw new APIError('BAD_REQUEST', {
+                code: 'CODE_REQUIRED',
+                message: 'Für dieses Konto gehört der Code aus der App zur Bestätigung dazu.',
+              })
+            }
+
             await checkCode(database, ctx.context.secretConfig, user.id, code)
           }
 
@@ -139,10 +160,22 @@ export function reconfirmation(database: Database): BetterAuthPlugin {
 /** The key better-auth seals the secrets of the app with, however it was configured. */
 type SecretConfig = Parameters<typeof symmetricDecrypt>[0]['key']
 
+const held = () =>
+  new APIError('TOO_MANY_REQUESTS', {
+    code: 'ACCOUNT_TEMPORARILY_LOCKED',
+    message: 'Zu viele falsche Codes hintereinander. Bitte in einer Viertelstunde noch einmal.',
+  })
+
 /**
  * The code from the app, against the secret better-auth keeps sealed, with
  * the same period and length its plugin uses and the same counter of wrong
  * codes it keeps for a sign in.
+ *
+ * Every attempt is counted before the code is looked at, in the statement
+ * that asks whether the account is held: guesses sent at once then count one
+ * by one, and only the first ten of a run get as far as the code, however
+ * many arrive together. A right code takes the count back to nothing, and a
+ * hold somebody else's guesses set in the meantime stays.
  */
 async function checkCode(
   database: Database,
@@ -150,55 +183,64 @@ async function checkCode(
   userId: string,
   code: string,
 ): Promise<void> {
-  const [factor] = await database.forInstance(
-    (tx) =>
-      tx
-        .select({
-          id: authTwoFactors.id,
-          secret: authTwoFactors.secret,
-          lockedUntil: authTwoFactors.lockedUntil,
-        })
-        .from(authTwoFactors)
-        .where(eq(authTwoFactors.userId, userId))
-        .limit(1),
-    userId,
-  )
+  const attempt = await database.forInstance(async (tx) => {
+    // A hold that has run out is lifted first, as better-auth does at a sign in.
+    await tx
+      .update(authTwoFactors)
+      .set({ failedVerificationCount: 0, lockedUntil: null })
+      .where(and(eq(authTwoFactors.userId, userId), lte(authTwoFactors.lockedUntil, new Date())))
 
-  if (!factor) {
+    const [reserved] = await tx
+      .update(authTwoFactors)
+      .set({
+        failedVerificationCount: sql`coalesce(${authTwoFactors.failedVerificationCount}, 0) + 1`,
+      })
+      .where(and(eq(authTwoFactors.userId, userId), isNull(authTwoFactors.lockedUntil)))
+      .returning({
+        id: authTwoFactors.id,
+        secret: authTwoFactors.secret,
+        attempts: authTwoFactors.failedVerificationCount,
+      })
+
+    if (reserved) {
+      return reserved
+    }
+
+    const [factor] = await tx
+      .select({ id: authTwoFactors.id })
+      .from(authTwoFactors)
+      .where(eq(authTwoFactors.userId, userId))
+      .limit(1)
+
+    return factor ? 'held' : null
+  }, userId)
+
+  if (attempt === null) {
     throw new APIError('BAD_REQUEST', {
       code: 'TOTP_NOT_ENABLED',
       message: 'Für dieses Konto ist keine Authenticator-App eingerichtet.',
     })
   }
 
-  if (factor.lockedUntil !== null && factor.lockedUntil.getTime() > Date.now()) {
-    throw new APIError('TOO_MANY_REQUESTS', {
-      code: 'ACCOUNT_TEMPORARILY_LOCKED',
-      message: 'Zu viele falsche Codes hintereinander. Bitte in einer Viertelstunde noch einmal.',
-    })
+  if (attempt === 'held' || (attempt.attempts ?? 0) > allowedFailures) {
+    throw held()
   }
 
-  const secret = await symmetricDecrypt({ key, data: factor.secret })
+  const secret = await symmetricDecrypt({ key, data: attempt.secret })
   const valid =
     /^\d{6}$/.test(code) && (await createOTP(secret, { period: 30, digits: 6 }).verify(code))
 
   if (!valid) {
-    await database.forInstance(async (tx) => {
-      const [counted] = await tx
-        .update(authTwoFactors)
-        .set({
-          failedVerificationCount: sql`coalesce(${authTwoFactors.failedVerificationCount}, 0) + 1`,
-        })
-        .where(eq(authTwoFactors.id, factor.id))
-        .returning({ failures: authTwoFactors.failedVerificationCount })
-
-      if ((counted?.failures ?? 0) >= allowedFailures) {
-        await tx
-          .update(authTwoFactors)
-          .set({ lockedUntil: new Date(Date.now() + lockSeconds * 1000) })
-          .where(eq(authTwoFactors.id, factor.id))
-      }
-    }, userId)
+    if ((attempt.attempts ?? 0) >= allowedFailures) {
+      await database.forInstance(
+        (tx) =>
+          tx
+            .update(authTwoFactors)
+            .set({ lockedUntil: new Date(Date.now() + lockSeconds * 1000) })
+            .where(eq(authTwoFactors.id, attempt.id)),
+        userId,
+      )
+    }
 
     throw new APIError('UNAUTHORIZED', {
       code: 'INVALID_CODE',
@@ -210,8 +252,13 @@ async function checkCode(
     (tx) =>
       tx
         .update(authTwoFactors)
-        .set({ failedVerificationCount: 0, lockedUntil: null })
-        .where(eq(authTwoFactors.id, factor.id)),
+        .set({ failedVerificationCount: 0 })
+        .where(
+          and(
+            eq(authTwoFactors.id, attempt.id),
+            or(isNull(authTwoFactors.lockedUntil), lte(authTwoFactors.lockedUntil, new Date())),
+          ),
+        ),
     userId,
   )
 }

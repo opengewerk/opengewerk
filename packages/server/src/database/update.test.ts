@@ -540,6 +540,37 @@ describe('the operators of an instance set up before 0051', () => {
 })
 
 /**
+ * A passkey stored while the plugin was on without confirmation or list
+ * (GHSA-jghx-6wmh-mpcj) would sign in again once passkeys came back. 0052
+ * takes every one of them, and only them: the account stays.
+ */
+describe('the passkeys stored before 0052', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0052_passkeys')
+
+  it('are gone after the update, and the account with its password is not', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query(
+      "insert into auth_users (id, name, email) values ('planted', 'Paula Planted', 'paula@example.de')",
+    )
+    await admin.query(
+      `insert into auth_passkeys (id, name, user_id, public_key, credential_id, counter, device_type, backed_up)
+         values ('old-key', 'Von damals', 'planted', 'key', 'credential', 0, 'singleDevice', false)`,
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: passkeys } = await admin.query('select 1 from auth_passkeys')
+    const { rows: users } = await admin.query("select 1 from auth_users where id = 'planted'")
+
+    expect(passkeys).toEqual([])
+    expect(users).toHaveLength(1)
+  })
+})
+
+/**
  * 0029 changed the shipped instructions of every business with four UPDATEs,
  * and as the owner under FORCE ROW LEVEL SECURITY they found no row. 0032 says
  * the same again with FORCE lifted. These are the rows 0027 wrote, planted as

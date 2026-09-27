@@ -78,7 +78,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Die Anmeldung zeigt unter "oder" den Knopf "Mit Passkey anmelden". Seit dem 23.09.2026 waren
   Passkeys abgeschaltet (GHSA-jghx-6wmh-mpcj), weil jede Sitzung ohne Bestätigung einen
   registrieren konnte, eine Anmeldung damit keinen zweiten Faktor verlangte und niemand seine
-  Passkeys sah. Migration 0052.
+  Passkeys sah. Migration 0052 löscht deshalb jeden Passkey, der noch aus dieser Zeit stammt: er
+  wurde nie bestätigt, stand in keinem Protokoll und würde sonst wieder anmelden. Das Passwort
+  meldet weiter an, und ein Passkey lässt sich neu hinzufügen.
 
 ### Geändert
 

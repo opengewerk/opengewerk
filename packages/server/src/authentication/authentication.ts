@@ -20,13 +20,13 @@ import {
 import type { PasskeyNotice } from '../mail/passkey-notice.js'
 import type { PasswordResetMail } from '../mail/password-reset.js'
 import { passwordResetLifetime } from '../mail/password-reset.js'
-import { markUsed, recordAdded } from './passkeys.js'
+import { markUsed, recordAdded, recordWithdrawn } from './passkeys.js'
 import { shortestPassword } from './password.js'
 import {
+  claimReconfirmation,
   reconfirmation,
   reconfirmationPath,
   recentlyReconfirmed,
-  spendReconfirmation,
 } from './reconfirmation.js'
 import { renewSession, sessionLifetimes } from './session-lifetime.js'
 
@@ -293,30 +293,40 @@ export function createAuthentication({
           return
         }
 
-        if (!(await recentlyReconfirmed(database, found.session.id))) {
-          throw new APIError('FORBIDDEN', {
+        const unconfirmed = () =>
+          new APIError('FORBIDDEN', {
             code: 'RECONFIRMATION_REQUIRED',
             message:
               'Vor dem Anlegen eines Passkeys bitte mit dem Passwort bestätigen, und wo ' +
               'eingerichtet mit dem Code aus der App.',
           })
+
+        if (ctx.path !== '/passkey/verify-registration') {
+          if (!(await recentlyReconfirmed(database, found.session.id))) {
+            throw unconfirmed()
+          }
+
+          return
         }
 
-        if (ctx.path === '/passkey/verify-registration') {
-          const body = (ctx.body ?? {}) as { name?: unknown; createSession?: unknown }
+        const body = (ctx.body ?? {}) as { name?: unknown; createSession?: unknown }
 
-          if (body.createSession !== undefined && body.createSession !== false) {
-            throw new APIError('BAD_REQUEST', {
-              code: 'PASSKEY_WITHOUT_SESSION',
-              message: 'Ein neuer Passkey meldet nicht an, er kommt zu dieser Sitzung dazu.',
-            })
-          }
+        if (body.createSession !== undefined && body.createSession !== false) {
+          throw new APIError('BAD_REQUEST', {
+            code: 'PASSKEY_WITHOUT_SESSION',
+            message: 'Ein neuer Passkey meldet nicht an, er kommt zu dieser Sitzung dazu.',
+          })
+        }
 
-          const problem = passkeyNameProblem(typeof body.name === 'string' ? body.name : '')
+        const problem = passkeyNameProblem(typeof body.name === 'string' ? body.name : '')
 
-          if (problem) {
-            throw new APIError('BAD_REQUEST', { code: 'PASSKEY_NAME_INVALID', message: problem })
-          }
+        if (problem) {
+          throw new APIError('BAD_REQUEST', { code: 'PASSKEY_NAME_INVALID', message: problem })
+        }
+
+        // Last, so that a mistyped name does not cost the confirmation.
+        if (!(await claimReconfirmation(database, found.session.id))) {
+          throw unconfirmed()
         }
       }),
       /**
@@ -465,12 +475,16 @@ export function createAuthentication({
 
   /**
    * What happens once a passkey is stored: it goes into the log of every
-   * business of the account, the confirmation is spent, and the account is
-   * told by mail.
+   * business of the account, and the account is told by mail.
    *
-   * A passkey that cannot be put into the log does not stay. A key nobody
-   * can see come is the very thing the log is there to prevent, so it is
-   * taken back and the registration answers with an error.
+   * Both before the registration answers. The mail is a row in the outbox of
+   * a business, which the job sends and tries again; written after the answer,
+   * a process stopped in between would leave a key nobody was told of.
+   *
+   * A passkey that cannot be put into the log, or told of, does not stay. A key
+   * nobody can see come is the very thing the log is there to prevent, so it
+   * is taken back, what some businesses already wrote down is closed as
+   * removed, and the registration answers with an error.
    */
   async function afterRegistration(
     returned: unknown,
@@ -484,11 +498,21 @@ export function createAuthentication({
 
     try {
       await recordAdded(database, returned.userId, stored)
+      await passkeyNotice?.(
+        { id: found.user.id, email: found.user.email, name: found.user.name },
+        stored,
+      )
     } catch (error) {
-      console.error('Ein neuer Passkey ließ sich nicht im Protokoll festhalten.', error)
+      console.error('Ein neuer Passkey ließ sich nicht festhalten oder melden.', error)
       await database.forInstance((tx) =>
         tx.delete(authPasskeys).where(eq(authPasskeys.id, stored.id)),
       )
+      await recordWithdrawn(database, returned.userId, stored.id).catch((closing: unknown) => {
+        console.error(
+          'Ein zurückgenommener Passkey ließ sich nicht als gelöscht festhalten.',
+          closing,
+        )
+      })
 
       throw new APIError('INTERNAL_SERVER_ERROR', {
         code: 'PASSKEY_NOT_RECORDED',
@@ -497,15 +521,6 @@ export function createAuthentication({
           'nicht angelegt. Bitte noch einmal versuchen.',
       })
     }
-
-    await spendReconfirmation(database, found.session.id)
-
-    void passkeyNotice?.(
-      { id: found.user.id, email: found.user.email, name: found.user.name },
-      stored,
-    ).catch((error: unknown) => {
-      console.error('Die Mail zu einem neuen Passkey ließ sich nicht schreiben.', error)
-    })
   }
 
   return authentication

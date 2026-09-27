@@ -59,6 +59,8 @@ let database: Database
 let authentication: Authentication
 let app: INestApplication
 const notices: { owner: PasskeyOwner; passkey: { id: string; name: string } }[] = []
+/** Set by the test in which the notice cannot be written. */
+let noticeFails = false
 const userIds = new Map<string, string>()
 let guardedTotpUri = ''
 
@@ -372,6 +374,10 @@ beforeAll(async () => {
     trustedOrigins: [origin],
     rateLimited: false,
     passkeyNotice: (owner, passkey) => {
+      if (noticeFails) {
+        return Promise.reject(new Error('The outbox is not there.'))
+      }
+
       notices.push({ owner, passkey })
 
       return Promise.resolve()
@@ -538,7 +544,7 @@ describe('adding a passkey', () => {
   it('asks for the code as well where the account has the app', async () => {
     const cookies = await signIn(guarded.email)
 
-    const withoutCode = await reconfirm(cookies, { password }).expect(401)
+    const withoutCode = await reconfirm(cookies, { password }).expect(400)
     expect((withoutCode.body as { message: string }).message).toContain('Code aus der App')
 
     await reconfirm(cookies, { password, code: '000000' }).expect(401)
@@ -561,6 +567,115 @@ describe('adding a passkey', () => {
     const held = await reconfirm(cookies, { password, code: await currentCode(guardedTotpUri) })
 
     expect(held.status).toBe(429)
+
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 0, locked_until = null where user_id = $1',
+      [userId],
+    )
+  })
+
+  /**
+   * Two registrations sent at once on one session, each with a challenge of
+   * its own: one confirmation adds one key, and the second is sent back to
+   * the password.
+   */
+  it('adds one passkey for one confirmation, even when two arrive at once', async () => {
+    const cookies = await signIn(worker.email)
+    const userId = userIds.get(worker.email) ?? ''
+    const count = (await passkeyRows(userId)).length
+
+    await reconfirm(cookies, { password }).expect(200)
+
+    const challenges = await Promise.all(
+      [1, 2].map(() =>
+        http()
+          .get(`${authenticationPath}/passkey/generate-register-options`)
+          .set('cookie', cookies)
+          .expect(200),
+      ),
+    )
+    const answers = await Promise.all(
+      challenges.map((options, index) =>
+        http()
+          .post(`${authenticationPath}/passkey/verify-registration`)
+          .set('cookie', joined(cookies, cookiesOf(options)))
+          .set('origin', origin)
+          .send({
+            response: new TestAuthenticator().register(
+              (options.body as { challenge: string }).challenge,
+            ),
+            name: `Gleichzeitig ${String(index + 1)}`,
+          }),
+      ),
+    )
+
+    expect(answers.map((answer) => answer.status).sort()).toEqual([200, 403])
+    expect(await passkeyRows(userId)).toHaveLength(count + 1)
+  })
+
+  it('does not count a missing code as a wrong one, and says the code belongs to it', async () => {
+    const cookies = await signIn(guarded.email)
+    const userId = userIds.get(guarded.email) ?? ''
+
+    const asked = await reconfirm(cookies, { password, code: '' }).expect(400)
+
+    expect((asked.body as { code: string }).code).toBe('CODE_REQUIRED')
+
+    const { rows } = await admin.query<{ failures: number }>(
+      'select coalesce(failed_verification_count, 0) as failures from auth_two_factors where user_id = $1',
+      [userId],
+    )
+
+    expect(rows).toEqual([{ failures: 0 }])
+  })
+
+  /**
+   * Wrong codes sent at once count one by one: of five arriving together at
+   * the ninth attempt, two get as far as the code and the rest are held.
+   */
+  it('counts guesses sent at once one by one, and holds the account at ten', async () => {
+    const cookies = await signIn(guarded.email)
+    const userId = userIds.get(guarded.email) ?? ''
+
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 8 where user_id = $1',
+      [userId],
+    )
+
+    const answers = await Promise.all(
+      [1, 2, 3, 4, 5].map(() => reconfirm(cookies, { password, code: '000000' })),
+    )
+
+    expect(answers.map((answer) => answer.status).sort()).toEqual([401, 401, 429, 429, 429])
+
+    const held = await reconfirm(cookies, { password, code: await currentCode(guardedTotpUri) })
+
+    expect(held.status).toBe(429)
+
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 0, locked_until = null where user_id = $1',
+      [userId],
+    )
+  })
+
+  /**
+   * The state a race leaves: ten attempts counted and the hold not yet set,
+   * because the guess that counted tenth is still checking its code. An
+   * attempt behind it is refused, the right code included, or two guesses at
+   * the same moment would each get a turn beyond the tenth.
+   */
+  it('refuses an attempt beyond the tenth, even with the right code', async () => {
+    const cookies = await signIn(guarded.email)
+    const userId = userIds.get(guarded.email) ?? ''
+
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 10, locked_until = null where user_id = $1',
+      [userId],
+    )
+
+    const refused = await reconfirm(cookies, { password, code: await currentCode(guardedTotpUri) })
+
+    expect(refused.status).toBe(429)
 
     await admin.query(
       'update auth_two_factors set failed_verification_count = 0, locked_until = null where user_id = $1',
@@ -605,6 +720,39 @@ describe('adding a passkey', () => {
     }
 
     expect(await passkeyRows(userId)).toHaveLength(count)
+  })
+
+  /**
+   * The mail about a new key is written before the registration answers, and
+   * a key nobody could be told of goes again, with what the businesses
+   * already wrote down closed as removed.
+   */
+  it('is taken back when the mail about it cannot be written', async () => {
+    const cookies = await signIn(worker.email)
+    const userId = userIds.get(worker.email) ?? ''
+    const count = (await passkeyRows(userId)).length
+
+    await reconfirm(cookies, { password }).expect(200)
+    noticeFails = true
+
+    try {
+      const failed = await register(cookies, new TestAuthenticator(), { name: 'Ohne Mail' })
+
+      expect(failed.status).toBe(500)
+    } finally {
+      noticeFails = false
+    }
+
+    expect(await passkeyRows(userId)).toHaveLength(count)
+
+    const { rows } = await admin.query<{ tenant_id: string; removed: boolean }>(
+      `select tenant_id, removed_at is not null as removed from member_passkeys
+        where user_id = $1 and name = 'Ohne Mail' order by tenant_id`,
+      [userId],
+    )
+
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => row.removed)).toBe(true)
   })
 })
 
@@ -797,6 +945,42 @@ describe('the passkeys of an account', () => {
 
       expect(removed.some((entry) => entry.reason === 'passkey.remove')).toBe(true)
     }
+  })
+
+  /**
+   * A removal whose record broke off after the key was gone is finished by
+   * the same request again, and only then is the answer "not there".
+   */
+  it('finish a removal that broke off halfway when asked again', async () => {
+    await addPasskey(worker.email, 'Halb gelöscht')
+    const userId = userIds.get(worker.email) ?? ''
+    const [passkey] = (await passkeyRows(userId)).filter((row) => row.name === 'Halb gelöscht')
+    const id = passkey?.id ?? ''
+
+    // The key went, the businesses did not learn of it.
+    await admin.query('delete from auth_passkeys where id = $1', [id])
+
+    const cookies = await signIn(worker.email)
+
+    await http()
+      .delete(`/auth/passkeys/${id}`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .expect(200)
+
+    const { rows } = await admin.query<{ removed: boolean }>(
+      'select removed_at is not null as removed from member_passkeys where passkey_id = $1',
+      [id],
+    )
+
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => row.removed)).toBe(true)
+
+    await http()
+      .delete(`/auth/passkeys/${id}`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .expect(404)
   })
 
   it('leave the password to sign in with when the last one is gone', async () => {

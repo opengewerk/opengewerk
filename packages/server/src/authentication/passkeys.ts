@@ -1,6 +1,6 @@
 import { getAuthenticatorName } from '@better-auth/passkey'
 import type { PasskeyEntry, TenantId } from '@opengewerk/domain'
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import { authPasskeys, memberPasskeys, memberships } from '../database/schema/index.js'
@@ -123,6 +123,8 @@ export async function passkeysOf(database: Database, userId: string): Promise<Pa
 /**
  * Renames one of the account's own passkeys. Null when there is none by that
  * key for this account, which is one answer for "not yours" and "not there".
+ * Should the record in a business fail, the same request again brings every
+ * business to the new name.
  */
 export async function renamePasskey(
   database: Database,
@@ -152,15 +154,55 @@ export async function renamePasskey(
 }
 
 /**
+ * Marks a passkey removed in every business that has it on record and not as
+ * removed yet, and says how many did. Only rows that are there: a business
+ * that never learnt of the passkey does not learn of it by its removal.
+ */
+export async function recordWithdrawn(
+  database: Database,
+  userId: string,
+  passkeyId: string,
+): Promise<number> {
+  let closed = 0
+
+  for (const tenantId of await businessesOf(database, userId)) {
+    const rows = await database.forTenant({ tenantId, userId, reason: 'passkey.remove' }, (tx) =>
+      tx
+        .update(memberPasskeys)
+        .set({ removedAt: sql`now()`, updatedAt: sql`now()` })
+        .where(
+          and(
+            eq(memberPasskeys.tenantId, tenantId),
+            eq(memberPasskeys.userId, userId),
+            eq(memberPasskeys.passkeyId, passkeyId),
+            isNull(memberPasskeys.removedAt),
+          ),
+        )
+        .returning({ id: memberPasskeys.id }),
+    )
+
+    closed += rows.length
+  }
+
+  return closed
+}
+
+/**
  * Deletes one of the account's own passkeys, after which it signs nobody in.
  * The password is untouched: whoever deletes the last passkey signs in with
  * it as before (#248). Null as for renaming.
+ *
+ * The key goes first, because a key that is meant to be gone must stop
+ * working whatever happens next. Should the record in a business then fail,
+ * the route answers with an error and the same request again finishes it:
+ * the key is gone, but businesses still holding it as present are closed, and
+ * only when there is nothing left to close is the answer "not there".
  */
 export async function removePasskey(
   database: Database,
   userId: string,
   passkeyId: string,
-): Promise<Recorded | null> {
+): Promise<{ readonly id: string } | null> {
   const [removed] = await database.forInstance(
     (tx) =>
       tx
@@ -170,15 +212,19 @@ export async function removePasskey(
     userId,
   )
 
-  if (!removed) {
-    return null
+  if (removed) {
+    await recordChange(
+      database,
+      userId,
+      { id: removed.id, name: removed.name ?? 'Passkey' },
+      'passkey.remove',
+      new Date(),
+    )
+
+    return { id: removed.id }
   }
 
-  const passkey = { id: removed.id, name: removed.name ?? 'Passkey' }
-
-  await recordChange(database, userId, passkey, 'passkey.remove', new Date())
-
-  return passkey
+  return (await recordWithdrawn(database, userId, passkeyId)) > 0 ? { id: passkeyId } : null
 }
 
 /** Notes that a passkey has just signed somebody in, for the list. */

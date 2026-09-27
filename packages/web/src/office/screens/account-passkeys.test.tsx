@@ -243,6 +243,30 @@ describe('the passkeys under "Konto"', () => {
     })
   })
 
+  it('shows the field for the code when the server asks for it, set up in another tab perhaps', async () => {
+    session(false)
+    answer(
+      'POST',
+      '/api/auth/reconfirm',
+      {
+        code: 'CODE_REQUIRED',
+        message: 'Für dieses Konto gehört der Code aus der App zur Bestätigung dazu.',
+      },
+      400,
+    )
+    mount()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Passkey hinzufügen' }))
+
+    expect(screen.queryByLabelText('Code aus der App')).toBeNull()
+
+    await userEvent.type(screen.getByLabelText('Passwort'), 'das-lange-passwort')
+    await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Code aus der App')
+    expect(await screen.findByLabelText('Code aus der App')).toBeTruthy()
+  })
+
   it("says the server's sentence when the confirmation fails", async () => {
     answer(
       'POST',

@@ -31,6 +31,13 @@ function lastUsed(value: string | null): string {
     : moment(value)
 }
 
+/** The code of a refusal of the server, `RECONFIRMATION_REQUIRED` and the like. */
+function codeOf(error: unknown): string | null {
+  const code = (error instanceof RequestRefused ? error.body : null) as { code?: unknown } | null
+
+  return typeof code?.code === 'string' ? code.code : null
+}
+
 /** A sentence that went wrong, in the card. */
 function Trouble({ children }: { readonly children: string }) {
   return (
@@ -379,7 +386,10 @@ function PasskeyAdding({
   readonly onCancel: () => void
 }) {
   const account = useQuery(accountQuery)
-  const withCode = account.data?.twoFactorEnabled === true
+  // The server asks for the code whenever the account has the app, and says so
+  // when this screen did not know of it yet, set up in another tab perhaps.
+  const [codeAsked, setCodeAsked] = useState(false)
+  const withCode = account.data?.twoFactorEnabled === true || codeAsked
   const [step, setStep] = useState<'confirm' | 'name'>('confirm')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
@@ -400,6 +410,11 @@ function PasskeyAdding({
       setCode('')
       setStep('name')
     } catch (error) {
+      if (codeOf(error) === 'CODE_REQUIRED') {
+        setCodeAsked(true)
+        void account.refetch()
+      }
+
       setTrouble(passkeyTrouble(error, 'Die Bestätigung kam nicht an. Bitte gleich noch einmal.'))
     } finally {
       setWorking(false)
@@ -421,11 +436,7 @@ function PasskeyAdding({
       await addPasskey(name)
       onDone()
     } catch (error) {
-      const refusal = (error instanceof RequestRefused ? error.body : null) as {
-        code?: unknown
-      } | null
-
-      if (refusal?.code === 'RECONFIRMATION_REQUIRED') {
+      if (codeOf(error) === 'RECONFIRMATION_REQUIRED') {
         setStep('confirm')
       }
 
