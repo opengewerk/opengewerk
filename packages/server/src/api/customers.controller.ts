@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common'
 import type { CustomerId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
@@ -14,6 +15,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { Database } from '../database/database.js'
 import { customers } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
+import { setTags, tagChoiceFrom } from './tag-choice.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -93,6 +95,34 @@ export class CustomersController {
     }
 
     return updated
+  }
+
+  /**
+   * The tags of the customer as the whole list (#314), `{ tagIds, newTags }`:
+   * the tags it is to have and names for new ones, which become tags of the
+   * business unless one by that name is there already.
+   */
+  @Put(':id/tags')
+  @RequiresPermission('customer.write')
+  async tag(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const choice = tagChoiceFrom(body)
+
+    return this.database.forTenant(identity, async (tx) => {
+      const [record] = await tx
+        .select({ id: customers.id })
+        .from(customers)
+        .where(and(eq(customers.id, id as CustomerId), isNull(customers.deletedAt)))
+
+      if (!record) {
+        throw new NotFoundException()
+      }
+
+      return setTags(tx, identity.tenantId, { kind: 'customer', id: record.id }, choice)
+    })
   }
 
   /**

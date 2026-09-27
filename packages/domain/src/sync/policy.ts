@@ -282,6 +282,16 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * the fields in without a network, and writes none.
    */
   form_definitions: { create: false, change: 'never' },
+  /**
+   * The tags of a business and which customer and site has which (#314).
+   * Made, renamed and deleted in the office at their route, put on a record
+   * at the route of the record, which asks whether a name is taken; a device
+   * reads them to show and filter, and writes none. Master data, which
+   * changes with a connection.
+   */
+  tags: { create: false, change: 'never' },
+  customer_tags: { create: false, change: 'never' },
+  site_tags: { create: false, change: 'never' },
 }
 
 /**

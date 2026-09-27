@@ -92,6 +92,7 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
     label: 'Ansprechpartner',
     fields: { given_name: 'Vorname', family_name: 'Nachname', role: 'Funktion' },
   },
+  customer_tags: { label: 'Tag an einem Kunden', fields: { tag_id: 'Tag' } },
   customers: {
     label: 'Kunde',
     fields: {
@@ -338,7 +339,9 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
   pv_modules: { label: 'PV-Modul', fields: { pv_string_id: 'String' } },
   pv_strings: { label: 'String', fields: { inverter_id: 'Wechselrichter' } },
+  site_tags: { label: 'Tag an einem Objekt', fields: { tag_id: 'Tag' } },
   sites: { label: 'Objekt' },
+  tags: { label: 'Tag' },
   tasks: {
     label: 'Aufgabe',
     fields: {

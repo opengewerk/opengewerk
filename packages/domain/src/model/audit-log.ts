@@ -181,8 +181,14 @@ export interface AuditPart {
  * invoices.
  */
 export const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
-  customers: [{ table: 'contacts', column: 'customer_id' }],
-  sites: [{ table: 'contacts', column: 'site_id' }],
+  customers: [
+    { table: 'contacts', column: 'customer_id' },
+    { table: 'customer_tags', column: 'customer_id' },
+  ],
+  sites: [
+    { table: 'contacts', column: 'site_id' },
+    { table: 'site_tags', column: 'site_id' },
+  ],
   installations: [
     { table: 'distribution_boards', column: 'installation_id' },
     { table: 'inverters', column: 'installation_id' },
@@ -242,6 +248,7 @@ export const auditReferences: Readonly<Record<string, string>> = {
   invitation_id: 'invitations',
   corrects_entry_id: 'time_entries',
   subscription_id: 'push_subscriptions',
+  tag_id: 'tags',
 }
 
 /** Fields that hold the id of a person. */
@@ -305,6 +312,9 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   // Rows with nothing of their own to be called by are named after what they belong to.
   document_snapshots: ['document_id'],
   document_sources: ['source_document_id'],
+  // A tag on a customer or a site is called by the tag, which the page names.
+  customer_tags: ['tag_id'],
+  site_tags: ['tag_id'],
 }
 
 const defaultTitleFields = ['name', 'designation', 'title', 'subject', 'number']

@@ -33,6 +33,9 @@ export const syncEntityNames: Readonly<Record<string, string>> = {
   job_assignments: 'Zuordnung zu einem Auftrag',
   form_records: 'Protokoll',
   form_definitions: 'Formular',
+  tags: 'Tag',
+  customer_tags: 'Tag an einem Kunden',
+  site_tags: 'Tag an einem Objekt',
 }
 
 export const syncFieldNames: Readonly<Record<string, string>> = {
@@ -59,6 +62,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   warrantyEndsOn: 'Gewährleistung bis',
   customerId: 'Kunde',
   siteId: 'Objekt',
+  tagId: 'Tag',
   jobId: 'Auftrag',
   title: 'Titel',
   dueOn: 'Fällig am',

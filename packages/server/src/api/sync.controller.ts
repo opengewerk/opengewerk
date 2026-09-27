@@ -239,6 +239,10 @@ export function permissionFor(
     document_sources: 'document.write',
     // The same for who is on a job (#140), which the office sets at a route.
     job_assignments: 'job.write',
+    // And for the tags (#314): made and put on at the routes of the office.
+    tags: 'customer.write',
+    customer_tags: 'customer.write',
+    site_tags: 'site.write',
     // A note is never changed (#220); a change sent anyway asks for the
     // right on the job itself, and the policy answers it `online_only`.
     job_notes: 'job.write',
