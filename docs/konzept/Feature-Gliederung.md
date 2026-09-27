@@ -1,6 +1,6 @@
-# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.23
+# OpenGewerk: Feature-Gliederung Handwerkersoftware (CRM & ERP) · v2.24
 
-2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler; v2.15 (23.09.2026) lässt die Dokumentenkette sich nicht mehr verzweigen; v2.16 (23.09.2026) ergänzt den Nullsteuersatz für Photovoltaik; v2.17 (23.09.2026) lässt die Sicherung jede Nacht ohne Zutun laufen; v2.18 (24.09.2026) trägt die Entscheidungen vom 24.09.2026 ein: Regiebericht als Beleg mit eigenen Feldern, Abzug der vereinnahmten Abschläge, Sammelrechnung, Folgeauftrag, Auftragsnummer, Auswahl je Gerät, Bereich für den Betreiber und die Phasen der Punkte, die noch keine hatten; v2.19 (24.09.2026) präzisiert das Format der Formulardefinitionen und was ein Prüfprotokoll aus dem letzten übernimmt; v2.20 (25.09.2026) macht die Notizen der Baustelle zu eigenen Einträgen neben der Beschreibung des Auftrags; v2.21 (26.09.2026) ergänzt die Pflichtangaben auf Geschäftsbriefen unter jeder E-Mail des Betriebs; v2.22 (26.09.2026) ergänzt die harmonisierte Mitteilung zur Gewährleistung an Angeboten an Verbraucher; v2.23 (27.09.2026) legt fest, wie die Mitteilung gedruckt wird, und ordnet die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers der Phase 2 zu (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
+2026-09-17 · Überarbeitung nach Konzept-Review; v2.1 ergänzt die Kanzlei-Anbindung (siehe separates Konzept *OpenGewerk Kanzlei*); v2.2 trägt den Projektnamen ein; v2.3 (18.09.2026) ergänzt Regel-Engine, Stromkreismodell, Messgeräte-Realität, Finance-Absicherung und schneidet die Roadmap auf ein MVP; v2.4 (18.09.2026) trägt die Positionierung als Leitentscheidung 9 ein; v2.5 präzisiert Leitentscheidung 7 um die Reihenfolge Abfrage vor KI; v2.6 (21.09.2026) korrigiert die Fundstelle des Kostenanschlags; v2.7 (22.09.2026) ergänzt die Ist-Versteuerung nach §20 UStG; v2.8 (22.09.2026) legt den Mailserver in die Einstellungen jedes Betriebs; v2.9 (22.09.2026) legt das Zahlungsziel als Einstellung des Betriebs fest, je Beleg überschreibbar, und ordnet Zahlungsbedingungen je Kunde und Skonto der Phase 3 zu; v2.10 (22.09.2026) ordnet jeden Punkt der Abschnitte 1 bis 9 einer Phase zu; v2.11 (22.09.2026) macht aus der Widerrufsbelehrung Belehrungen, die der Betrieb pflegt, mit der E-Mail versendet und im Kundenportal zeigt; v2.12 (22.09.2026) präzisiert, wie eine Belehrung mit dem Beleg hinausgeht; v2.13 (22.09.2026) macht die Widerrufsbelehrung an jedem Angebot an einen Verbraucher zur Pflicht, schlägt für den Kostenvoranschlag keine vor und ergänzt die Hinweise nach Art. 246a §1 Abs. 3 EGBGB; v2.14 (22.09.2026) nennt die Aderzahl der Leitung im Stromkreismodell und das Stromkreisverzeichnis als Ausdruck je Verteiler; v2.15 (23.09.2026) lässt die Dokumentenkette sich nicht mehr verzweigen; v2.16 (23.09.2026) ergänzt den Nullsteuersatz für Photovoltaik; v2.17 (23.09.2026) lässt die Sicherung jede Nacht ohne Zutun laufen; v2.18 (24.09.2026) trägt die Entscheidungen vom 24.09.2026 ein: Regiebericht als Beleg mit eigenen Feldern, Abzug der vereinnahmten Abschläge, Sammelrechnung, Folgeauftrag, Auftragsnummer, Auswahl je Gerät, Bereich für den Betreiber und die Phasen der Punkte, die noch keine hatten; v2.19 (24.09.2026) präzisiert das Format der Formulardefinitionen und was ein Prüfprotokoll aus dem letzten übernimmt; v2.20 (25.09.2026) macht die Notizen der Baustelle zu eigenen Einträgen neben der Beschreibung des Auftrags; v2.21 (26.09.2026) ergänzt die Pflichtangaben auf Geschäftsbriefen unter jeder E-Mail des Betriebs; v2.22 (26.09.2026) ergänzt die harmonisierte Mitteilung zur Gewährleistung an Angeboten an Verbraucher; v2.23 (27.09.2026) legt fest, wie die Mitteilung gedruckt wird, und ordnet die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers der Phase 2 zu; v2.24 (27.09.2026) trägt die Entscheidungen vor dem Bau von Phase 2 ein (Vergleich mit openHandwerk, plancraft, HERO, TAIFUN/STREIT, sevdesk/Lexware, Odoo/SAP FSM/Dynamics)
 
 Vollständige Feature-Liste für ein eigenständiges Open-Source-System (self-hosted), orientiert an den Stärken der Vergleichssysteme und gezielt um deren Schwächen ergänzt.
 
@@ -57,6 +57,8 @@ Eine generische Deadline-Entität (Typ, Quelle, Fälligkeit, Vorlauf, Verantwort
 
 Aktionen: Erinnerung (Push/E-Mail), Aufgabe anlegen, Serviceauftrag anlegen, Statuswechsel.
 
+Wie lange vor der Fälligkeit erinnert wird (Vorlauf), gibt jede Fristart vor. Der Betrieb ändert die Vorgabe je Art in den Einstellungen, und eine einzelne Frist kann abweichen, wie beim Zahlungsziel (4.2). Im Büro zeigt eine eigene Liste „Fristen“ alles, was ansteht, filterbar nach Art, Kunde und Person: genau das weiß bei den Vergleichssystemen keine Stelle.
+
 ### 1.3 Formular-/Protokoll-Engine ★
 
 - Prüfprotokolle, Abnahmeprotokolle und Checklisten sind **datengetriebene Formulare** (Definition als JSON-Datei in einem eigenen Formularformat), nicht hartkodiert
@@ -106,15 +108,15 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Anmeldung mit Passwort und zweitem Faktor (TOTP, für Inhaber Pflicht); Passkeys mit Liste, Widerruf und Bestätigung vor der Registrierung, ein Passkey mit Nutzerbestätigung zählt als zweiter Faktor; Anmeldung über einen eigenen Identitätsanbieter (OIDC) für Betriebe, die einen haben
 - Mandantenfähigkeit: mehrere Firmen auf einer Instanz, getrennte Nummernkreise, Kontenrahmen, Briefpapier. Einen weiteren Betrieb legt ein Inhaber im Büro für sich an, der Betreiber der Instanz auf der Kommandozeile für andere
 - Bereich für den Betreiber der Instanz: was nicht einem Betrieb gehört, sondern der Instanz, etwa ein Mailserver im eigenen Netz, die Uhrzeit der Sicherung und die Betriebe auf ihr. Betreiber ist das Konto aus der Ersteinrichtung, mit Pflicht zum zweiten Faktor; weitere lassen sich dort benennen
-- Audit-Log/Änderungsprotokoll über alle Module, für den Inhaber im Büro einsehbar
+- Audit-Log/Änderungsprotokoll über alle Module, für den Inhaber im Büro einsehbar; das Lesen wird nicht protokolliert
 - **Aufgabenverwaltung** (aus CRM hierher verschoben): To-Dos mit Fälligkeit, Verantwortlichem, Status; optional an Kunde/Objekt/Auftrag gebunden; automatisch erzeugt durch Fristen-Engine
-- Benachrichtigungssystem: E-Mail/Push (Web-Push), gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen). E-Mails gehen über den Mailserver des Betriebs, eingerichtet in dessen E-Mail-Einstellungen hinter einem eigenen Recht; die Zugangsdaten liegen verschlüsselt, Speichern prüft die Verbindung, und eine Signatur mit Platzhaltern ({benutzer}, {briefkopf}) steht unter jeder Nachricht. {briefkopf} trägt den Briefkopf samt Handelsregister, Vertretung und USt-IdNr., soweit sie dort stehen, und damit die Pflichtangaben auf Geschäftsbriefen ⚖; eine Signatur ohne {briefkopf} trägt sie nicht
+- Benachrichtigungssystem: E-Mail/Push (Web-Push), gespeist ausschließlich durch die Fristen-Engine und Statuswechsel (keine modulspezifischen Erinnerungs-Implementierungen). E-Mails gehen über den Mailserver des Betriebs, eingerichtet in dessen E-Mail-Einstellungen hinter einem eigenen Recht; die Zugangsdaten liegen verschlüsselt, Speichern prüft die Verbindung, und eine Signatur mit Platzhaltern ({benutzer}, {briefkopf}) steht unter jeder Nachricht. {briefkopf} trägt den Briefkopf samt Handelsregister, Vertretung und USt-IdNr., soweit sie dort stehen, und damit die Pflichtangaben auf Geschäftsbriefen ⚖; eine Signatur ohne {briefkopf} trägt sie nicht. Welche Anlässe als Push kommen, wählt jede Person unter „Konto“, Vorgabe: alle. Das Schlüsselpaar für Web-Push erzeugt die Installation beim ersten Start in der `.env`, wie ihre übrigen Schlüssel
 - Dubletten-Prüfung (Kunden, Objekte, Artikel) beim Anlegen und Importieren
 - Datenimport/-export (CSV/Excel); Importassistenten für Migration aus plancraft/HERO/sevdesk-Exporten
 - Globale Volltextsuche (Kunden, Objekte, Anlagen, Belege, Dokumente, Protokolle)
 - Offene REST-API + Webhooks; OpenAPI-Spezifikation
 - Textbausteine/Vorlagen (Positionen, Mails, Belegtexte, Rechtstexte)
-- DSGVO-Funktionen ⚖: Löschkonzept mit Aufbewahrungsfristen, Auskunft/Datenexport, Verarbeitungsverzeichnis (Art. 30) als generiertes Dokument, AV-Vertragsvorlage für Hoster/Zahlungsdienstleister
+- DSGVO-Funktionen ⚖: Löschkonzept mit Aufbewahrungsfristen, Auskunft/Datenexport, Verarbeitungsverzeichnis (Art. 30) als generiertes Dokument, AV-Vertragsvorlage für Hoster/Zahlungsdienstleister. Der Löschlauf schlägt vor, was fällig ist, und der Inhaber bestätigt; einzelne Arten stellt er auf automatisch. Im Audit-Log wird ein personenbezogener Wert geschwärzt, wenn sein Datensatz gelöscht ist, und die Hashkette bleibt ganz, weil sie über einen Fingerabdruck des Werts läuft statt über den Wert. Die AV-Vertragsvorlage liegt auf opengewerk.de, wo auch ein Hoster sie findet, und die Anwendung verweist darauf
 - Betrieb: Backup/Restore (inkl. Dokumentenspeicher, jede Nacht ohne Zutun, der Zeitpunkt der letzten Sicherung im Büro sichtbar), Update-Mechanismus mit DB-Migrationen, Health-Check, Docker-Compose-Referenzinstallation, Dateispeicher im Dateisystem oder über S3
 - Releases mit Versionsnummer und fertigen, signierten Abbildern: ein Update zieht die neue Fassung, statt sie aus dem Quelltext zu bauen, und jede frühere bleibt erreichbar
 - Externe Sicherheitsprüfung vor dem ersten Release mit Kanzlei-Connector oder Kundenportal
@@ -129,15 +131,15 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Steuerliche Attribute ⚖: USt-ID, Kunde ist Unternehmer (→ E-Rechnungspflicht), Bauleistungsempfänger (→ §13b), Freistellungsbescheinigung §48 EStG mit Ablaufdatum (→ Fristen-Engine)
 - Mehrere Ansprechpartner pro Kunde; Ansprechpartner pro Objekt (Mieter, Hausmeister)
 - Kommunikationshistorie (Anrufe, Mails, Notizen) zentral am Kunden **und** am Objekt
-- Lead-Erfassung und Qualifizierung vor Kundenanlage
-- Segmentierung/Tags (Gewerk, Region, Kundentyp, Bestandskunde/Neukunde)
+- Lead-Erfassung und Qualifizierung vor Kundenanlage; ein Lead, der nie Kunde wird, wird zwölf Monate nach dem letzten Kontakt zum Löschen vorgeschlagen, die Dauer stellt der Betrieb ein
+- Segmentierung/Tags (Gewerk, Region, Kundentyp, Bestandskunde/Neukunde), an Kunden und an Objekten
 - Kundenpreise, Rabattgruppen, Zahlungsbedingungen je Kunde (Zahlungsbedingungen mit Phase 3: sie setzen sich zwischen das Zahlungsziel des Betriebs und das eines Belegs, siehe 4.2)
 
 ### 3.2 Objekt- & Anlagenakte
 
-- Objekte mit Adresse samt Land, Zugang (Schlüssel, Codes, verschlüsselt gespeichert), Ansprechpartnern, Fotos
-- Anlagen mit Typ, Hersteller, Seriennummer, Inbetriebnahme, Gewährleistungsende, zugeordneten Prüfprotokollen, Wartungsverträgen, Serviceaufträgen
-- **Anlagenstruktur (Elektro) ★**: Anlage → Verteiler (NSHV, UV) → Feld → Stromkreis → Betriebsmittel. Je Stromkreis: Bezeichnung, Sicherung (Typ, Nennstrom, Charakteristik), RCD (Typ, IΔn), Leitung (Typ, Aderzahl, Querschnitt, Länge, Verlegeart), Verbraucher; je Betriebsmittel: Typ, Hersteller, Seriennummer. Diese Struktur ist zugleich das Gerüst der Prüfprotokolle nach VDE 0100-600 / 0105-100 (Messwerte werden je Stromkreis erfasst) und das Stromkreisverzeichnis für den Verteilerausdruck, ein Blatt je Verteiler für seine Tür. Für PV analog: Anlage → Wechselrichter → String → Module, plus Speicher, Zähler, Wallbox.
+- Objekte mit Adresse samt Land, Zugang (Schlüssel, Codes, verschlüsselt gespeichert), Ansprechpartnern, Fotos. Den Zugang sehen Inhaber und Büro und die Monteure offener Aufträge dort, denen sie zugeordnet sind, auf deren Gerät auch ohne Netz, bis der Auftrag abgeschlossen ist; er ist verdeckt, und jedes Aufdecken wird festgehalten ⚖
+- Anlagen mit Typ, Hersteller, Seriennummer, Inbetriebnahme, Gewährleistungsende (aus der Abnahme, 4.11), Herstellergarantie, zugeordneten Prüfprotokollen, Wartungsverträgen, Serviceaufträgen
+- **Anlagenstruktur (Elektro) ★**: Anlage → Verteiler (NSHV, UV) → Feld → Stromkreis → Betriebsmittel. Je Stromkreis: Bezeichnung, Sicherung (Typ, Nennstrom, Charakteristik), RCD (Typ, IΔn), Leitung (Typ, Aderzahl, Querschnitt, Länge, Verlegeart), Verbraucher; je Betriebsmittel: Typ, Hersteller, Seriennummer. Diese Struktur ist zugleich das Gerüst der Prüfprotokolle nach VDE 0100-600 / 0105-100 (Messwerte werden je Stromkreis erfasst) und das Stromkreisverzeichnis für den Verteilerausdruck, ein Blatt je Verteiler für seine Tür. Für PV analog: Anlage → Wechselrichter → String → Module, plus Speicher, Zähler, Wallbox; die bleiben eigene Anlagen am Objekt und verweisen auf die PV-Anlage oder ihren Wechselrichter, wo sie dazugehören. Seriennummern werden per Kamera gescannt, von Hand als Rückfall.
 - **QR-Etikett je Anlage ★**: Aufkleber im Zählerschrank/am Wechselrichter → Scan öffnet Anlagenakte (Techniker) oder eine loginfreie Kundenseite mit nächster Prüfung und Störungsmeldung mit Foto (Kunde)
 - Komplette Historie pro Anlage, auch für den nächsten Handwerker nachvollziehbar
 
@@ -152,13 +154,14 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 - E-Mail-Verknüpfung (IMAP/SMTP): gesendete/empfangene Mails am Kundendatensatz
 - Telefonprotokolle und Terminverlauf
-- Automatische Bestätigungsmails (Termin, Auftragseingang, Rechnungsversand)
+- Automatische Bestätigungsmails (Termin, Auftragseingang, Rechnungsversand): zum Auftragseingang beim Anlegen eines Serviceauftrags, abschaltbar, denn ein anderer Auftrag hat seine Auftragsbestätigung; die Mail zum Termin bringt eine Kalenderdatei mit
 
 ### 3.5 Wartungsverträge
 
 - Vertrag als eigenes Objekt: Kunde, Anlage(n), Laufzeit, Intervall, Kündigungsfrist, Preis/Pauschale, enthaltene Leistungen, Zahlungsrhythmus
 - Automatische Auslösung: Fälligkeit → Serviceauftrag + Termin-Vorschlag + Rechnung nach Ausführung
-- Dauerrechnung/Abo-Abrechnung (monatlich/jährlich)
+- Dauerrechnung/Abo-Abrechnung (monatlich/jährlich) als eine Rechnung je Zeitraum: die erste eines Vertrags als Entwurf, danach auf Wunsch ohne Zutun festgeschrieben und verschickt
+- Ein Wartungsvertrag entsteht aus einem Angebot mit den Wartungsleistungen, das die Belehrungen trägt wie jedes Angebot (4.2). Bei einem Verbraucher weist OpenGewerk auf eine Erstlaufzeit über zwei Jahre, eine stillschweigende Verlängerung und eine Kündigungsfrist über einen Monat hin (§309 Nr. 9 BGB), ohne zu sperren ⚖
 - Kündigungsfristen und Verlängerung über die Fristen-Engine
 
 ### 3.6 Kundenportal (Selbstbedienung)
@@ -178,7 +181,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 - Serien-/Infomails an Kundengruppen (Double-Opt-in, Abmeldelink ⚖)
 - Jubiläen/Geburtstage als Erinnerung
-- Wartungs- und Prüferinnerungen an Kunden (aus der Fristen-Engine)
+- Wartungs- und Prüferinnerungen an Kunden (aus der Fristen-Engine); mit Wartungsvertrag als Teil des Vertrags, ohne nur mit gespeicherter Einwilligung oder nach §7 Abs. 3 UWG, dann mit dem Hinweis auf das Widerspruchsrecht in jeder Mail ⚖
 
 ### 3.8 CRM-Auswertungen
 
@@ -203,8 +206,9 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 **Serviceaufträge / Kundendienst**
 - Schnellerfassung (Anruf → Auftrag in 30 Sekunden), Dispatch an Techniker, Auftragszettel in der App
-- Störungs-/Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen
-- Sofortabrechnung vor Ort (Regiebericht → Rechnung)
+- Störungs-/Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen auf der Rechnung an den Kunden; wer Bereitschaft hat, legt in dieser Zeit Serviceaufträge an
+- Abrechnung vor Ort (Regiebericht → Rechnung): der Monteur legt den Entwurf der Rechnung an, festgeschrieben und verschickt wird im Büro
+- Belehrungen ohne Angebot ⚖: an der Tür zeigt das Gerät Widerrufsbelehrung und Formular, der Kunde unterschreibt das Verlangen auf vorzeitigen Beginn wie einen Regiebericht und bekommt alles per E-Mail; bei einem Auftrag am Telefon gehen sie mit der Bestätigungsmail (3.4) hinaus. Eine ausdrücklich angeforderte dringende Reparatur trägt ein Kennzeichen mit dem Hinweis, dass kein Widerrufsrecht besteht (§312g Abs. 2 Nr. 11 BGB)
 
 **Kalkulation**
 - Zuschlagskalkulation: getrennte Aufschläge auf Material, Lohn, Fremdleistung, Geräte
@@ -227,7 +231,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Kostenvoranschlag (§649 BGB) und Angebot, getrennte Dokumente mit unterschiedlicher Rechtsfolge ⚖
 - Angebot mit Positionsgliederung, Titeln, Alternativ-/Eventual-/Bedarfspositionen, optionalen Positionen, Textbausteinen
 - Auftragsbestätigung
-- Lieferschein
+- Lieferschein, ohne Preise, vom Empfänger auf dem Gerät unterschrieben
 - Regiebericht / Stundenlohnzettel mit Kundenunterschrift (mobil)
 - Abschlagsrechnung **kumuliert** (Leistungsstand gesamt, abzüglich bisher gestellt und bisher gezahlt), Teilrechnung für getrennt abgenommene Bauabschnitte, Schlussrechnung
 - Die Schlussrechnung zieht die vereinnahmten Abschläge ab, nicht die gestellten (§14 Abs. 5 UStG) ⚖: vor dem Festschreiben wird je Abschlagsrechnung eingetragen, was eingegangen ist, voll, zum Teil mit Betrag oder nichts, bis die Offene-Posten-Verwaltung das weiß. Sie heißt „Schlussrechnung“, sobald sie Abschläge abzieht, sonst „Rechnung“
@@ -256,9 +260,10 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 ### 4.3 Termin- & Ressourcenplanung
 
-- Plantafel (Drag & Drop) für Mitarbeiter, Fahrzeuge, Geräte, Subunternehmer
+- Plantafel (Drag & Drop) für Mitarbeiter, Fahrzeuge, Geräte, Subunternehmer; Fahrzeuge, Geräte und Subunternehmer werden Zeilen, sobald es ihre Stammdaten gibt (4.1, 4.6)
 - Serientermine (täglich/wöchentlich/monatlich/jährlich, mit Ausnahmen)
 - Terminbestätigung per Push an die Mitarbeiter-App
+- Termine im eigenen Kalender über ein Abo je Person im Format iCalendar: nur lesend, unter einer geheimen Adresse, die sich sperren lässt; die Plantafel bleibt die Quelle, und der Termin nennt Auftrag, Kunde und Anschrift
 - Urlaubs-/Krankheitsverwaltung (Datenquelle: HR, Anzeige hier) mit direkter Auswirkung auf die Planung
 - Fahrtroutenvorschlag für Kundendienst-Touren
 - Rufbereitschaftsplan (Notdienst)
@@ -267,6 +272,7 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 
 - Mobile Zeiterfassung mit Projekt-/Serviceauftrags-Zuordnung, Start/Stopp und Nachtrag
 - Fahrzeiten, Pausen, Überstunden, Zuschläge (Nacht, Sonntag, Notdienst)
+- Zeitkonto: Überstunden aus der vereinbarten Arbeitszeit (4.9); es zählen Arbeit und Fahrt, Pausen nicht, wie bei der Prüfung nach dem ArbZG. Feiertage nach Bundesland, örtliche einzeln zuschaltbar; der Saldo läuft über den Jahreswechsel weiter
 - Auslöse/Verpflegungsmehraufwand bei Auswärtstätigkeit
 - ArbZG-Prüfung ⚖: Pausenregeln, Höchstarbeitszeit, Ruhezeiten mit Warnung
 - MiLoG-Aufzeichnung ⚖: Beginn, Ende, Dauer; 2 Jahre unveränderbar aufbewahrt
@@ -279,8 +285,9 @@ Ein Gesetzesupdate ist ein neuer Regeldatensatz mit Gültigkeitsbeginn, kein Rel
 - Artikelstammdaten (Lieferantenartikel, EAN, Einheiten, Preise mit Gültigkeit), Lagerbestand, Mindestbestand mit Nachbestell-Hinweis
 - Wareneingang/-ausgang je Projekt; Materialentnahme per Barcode/QR in der App
 - Fahrzeuglager (Bestand je Servicefahrzeug)
-- Lieferantenverwaltung, DATANORM-Import (V4/V5), IDS-Connect-Preisabfrage
-- Haltbarkeitsgarantie des Herstellers je Artikel (Dauer, Hersteller, Modellkennung), daraus an einer Position eines Angebots an einen Verbraucher die harmonisierte Kennzeichnung nach Anhang II der Durchführungsverordnung (EU) 2025/1960 (Art. 246 Abs. 1 Nr. 5a, Art. 246a §1 Abs. 1 Satz 1 Nr. 11a EGBGB) ⚖
+- Lieferantenverwaltung, DATANORM-Import (V4/V5), IDS-Connect-Preisabfrage; die Rabattgruppe des Großhändlers steht am Artikel und wird mit Einkauf und Kalkulation eingerechnet
+- Auf einem Gerät liegen das Fahrzeuglager, häufige und zuletzt benutzte Artikel, der übrige Katalog nur mit Netz; Einkaufspreise sehen Inhaber und Büro
+- Haltbarkeitsgarantie des Herstellers je Artikel (Dauer, Hersteller, Modellkennung), daraus an einer Position eines Angebots an einen Verbraucher die harmonisierte Kennzeichnung nach Anhang II der Durchführungsverordnung (EU) 2025/1960 (Art. 246 Abs. 1 Nr. 5a, Art. 246a §1 Abs. 1 Satz 1 Nr. 11a EGBGB) ⚖. Die Angaben trägt der Betrieb von Hand am Artikel ein, und die Kennzeichnung steht als eigene Seite je Ware nach dem Angebot, an der Position ein Verweis
 
 ### 4.6 Fuhrpark- & Werkzeugverwaltung
 
@@ -317,9 +324,9 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 
 ### 4.9 Personal / HR
 
-- Mitarbeiterakte inkl. Stundensätze (Kosten- und Verrechnungssatz) und vereinbarter Arbeitszeit, aus der die Überstunden der Zeiterfassung folgen (4.4); die acht Stunden aus §3 ArbZG sind eine Grenze und kein Maßstab dafür
+- Mitarbeiterakte inkl. Stundensätze (Kosten- und Verrechnungssatz) und vereinbarter Arbeitszeit, aus der die Überstunden der Zeiterfassung folgen (4.4); die acht Stunden aus §3 ArbZG sind eine Grenze und kein Maßstab dafür. Eine Akte gibt es auch für jemanden ohne Zugang, etwa einen Helfer ohne Telefon, und jede Person liest ihre eigene
 - Qualifikationen/Zertifikate mit Ablauffristen (Elektrofachkraft, PV-Zertifizierung, Höhenarbeit, Führerschein) → Fristen-Engine
-- Urlaubsverwaltung (Datenquelle; Plantafel zeigt an)
+- Urlaubsverwaltung (Datenquelle; Plantafel zeigt an) mit Anspruch und Rest je Jahr: der Monteur beantragt, das Büro gibt frei; Krankheit trägt das Büro ein
 - Lohn-Vorbereitung / Export an externe Lohnbuchhaltung
 - Zugang für Subunternehmer (eingeschränkt)
 
@@ -334,8 +341,9 @@ Ausbau in dieser Reihenfolge: **Belege → Journal → EÜR/USt-VA → Bank → 
 ### 4.11 Abnahme, Mängel & Gewährleistung
 
 - Abnahmeprotokoll (§640 BGB) mit Vorbehalten, Unterschrift, Foto; **das Abnahmedatum ist Trigger der Gewährleistungsfrist** ⚖
-- Gewährleistungsfrist automatisch: BGB 5 Jahre (Bauwerk) / 2 Jahre (sonst), VOB/B 4 Jahre (nur wenn VOB vollständig vereinbart, Kennzeichen am Auftrag); Erinnerung vor Fristablauf
-- Mängel/Reklamationen mit Foto mobil erfassen; Statusverfolgung (gemeldet → in Bearbeitung → behoben → abgenommen)
+- Aufforderung zur Abnahme mit Frist als Vorlage (fiktive Abnahme, §640 Abs. 2 BGB), gegenüber einem Verbraucher mit dem Hinweis auf die Folgen in Textform ⚖
+- Gewährleistungsfrist automatisch: BGB 5 Jahre (Bauwerk) / 2 Jahre (sonst), VOB/B 4 Jahre (nur wenn VOB vollständig vereinbart, Kennzeichen am Auftrag); Erinnerung vor Fristablauf. Mit VOB/B gelten für wartungsbedürftige maschinelle und elektrotechnische Teile zwei Jahre, wenn die Wartung nicht übertragen ist (§13 Abs. 4 Nr. 2 VOB/B). Das Gewährleistungsende an der Anlage folgt aus der Abnahme, eine Garantie des Herstellers steht getrennt
+- Mängel/Reklamationen mit Foto mobil erfassen; Statusverfolgung (gemeldet → in Bearbeitung → behoben → abgenommen); „abgenommen“ mit Unterschrift des Kunden auf dem Gerät, und eine Frist des Kunden zur Beseitigung wird eine Frist der Engine
 - Mängelanzeige/Mängelrüge auch für eigene Lieferanten/Subunternehmer
 - Mängelbericht als PDF-Export
 - Bürgschafts-/Sicherheitseinbehaltsverwaltung (Ablauf über Fristen-Engine)
@@ -387,10 +395,10 @@ Gegenstück zum separaten **Kanzlei-Hub**: Die Kanzlei arbeitet aus ihrem eigene
 
 ### 5.1 Kernmodul: Elektro/PV
 
-- Prüfprotokolle als Formulardefinitionen: E-Check, VDE 0100-600 (Erstprüfung), VDE 0105-100 (Wiederholungsprüfung), DGUV V3 (ortsveränderliche/ortsfeste Betriebsmittel), VDE-AR-N 4105 Inbetriebnahmeprotokoll
+- Prüfprotokolle als Formulardefinitionen: Prüfung der Elektroinstallation aus Wiederholungs- und Geräteprüfung, mit der ein Betrieb auch seinen E-CHECK dokumentiert (die Marke des ZVEH ist nicht der Name eines Formulars), VDE 0100-600 (Erstprüfung), VDE 0105-100 (Wiederholungsprüfung), DGUV V3 (ortsveränderliche/ortsfeste Betriebsmittel), VDE-AR-N 4105 Inbetriebnahmeprotokoll
 - **Messgeräte-Import ★**: Messwerte aus Installationstestern per Datei-Import direkt ins Protokoll; Grenzwertprüfung automatisch. **Realität:** Die Geräte selbst liefern selten brauchbare Rohdaten; importiert werden die Exporte der Hersteller-PC-Software (IZYTRONIQ/ETC bei Gossen Metrawatt, Metrel ES Manager, Fluke DMS, Benning PC-Win), die teils proprietär oder nur als CSV/XML/PDF vorliegen. Deshalb: ein Adapter je Hersteller-Software, beginnend mit dem Gerät des Pilotbetriebs; ein **Proof-of-Concept „Messdatei → Prüfprotokoll“ wird vor Phase 2 gebaut** (Roadmap 10), um Aufwand und Formatzugang realistisch zu bewerten. Fallback ist immer die manuelle Erfassung mit Grenzwertprüfung.
 - Stromkreisverzeichnis je Anlage aus der Anlagenstruktur (3.2), wiederverwendbar bei der nächsten Prüfung; Ausdruck für die Verteilertür
-- PV-Anlagendokumentation: Inbetriebnahmeprotokoll, Stringplan, Komponentenliste (Module, WR, Speicher, Zähler) mit Seriennummern, Ertragsprognose
+- PV-Anlagendokumentation: Inbetriebnahmeprotokoll, Stringplan, Komponentenliste (Module, WR, Speicher, Zähler) mit Seriennummern, Ertragsprognose. Die Prognose trägt der Betrieb als Wert mit Quelle ein, ohne Pflicht zu einem Dienst im Internet, und die Mappe wird bei der Übergabe eingefroren wie ein Beleg
 - Marktstammdatenregister: **Vorbereitung der Betreiber-Meldung** (Datenexport/Ausfüllhilfe); Direktmeldung nur mit MaStR-Webdienst ⏳; meldepflichtig ist der Betreiber, nicht der Installateur
 - Netzbetreiber-Anmeldung: Formular-Vorausfüllung (Anmeldung, Fertigmeldung, E-Installateur-Nachweis)
 - **Anlagen-Monitoring als Servicetrigger ★**: Wechselrichter-APIs (SMA, Fronius, SolarEdge, Huawei) auslesen; Ertragsabfall oder Fehlercode erzeugt Serviceauftrag-Vorschlag
@@ -422,7 +430,7 @@ Gewährleistungs- und Fristenthemen dieser Gewerke laufen über die zentrale Fri
 - Formate: DATEV (Buchungsstapel, Belegbilder, Lohn), GAEB, DATANORM, IDS-Connect, XRechnung/ZUGFeRD (aus- und eingehend), UGL (Lieferschein-/Bestellaustausch mit Großhandel)
 - Bank: FinTS/HBCI, EBICS; Zahlungsabgleich PayPal, Stripe
 - Zahlungsdienstleister für Kunden (Portal): Stripe, PayPal, SEPA-Lastschrift; Wero ⏳ sobald Händlerzahlungen allgemein verfügbar sind
-- Kalender: CalDAV-Sync; E-Mail: IMAP/SMTP
+- Kalender: Abo je Person im Format iCalendar (4.3); E-Mail: IMAP/SMTP
 - Messgeräte: Import-Adapter je Hersteller (siehe 5.1)
 - Wechselrichter-/Monitoring-APIs (siehe 5.1)
 - Wetter-API (Bautagebuch, Plantafel)
@@ -502,7 +510,7 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 | 0: Fundament (schlank) | Tech-Stack-Entscheidungen (ADR 0002-0008), Datenmodell-Kern (Kunde → Objekt → Anlage → Auftrag → Beleg), Mandanten + Rechte, Nummernkreise/Festschreibung, Audit-Log, **Offline-Datenschicht** (IDs, Sync-Queue, Konfliktregeln, ohne Baustellen-UI), Regel-Engine (1.7) mit den Regeln für Phase 1, Docker-Compose, Backup/Restore, Update | Gerüst, auf dem Phase 1 ohne Umbau aufsetzt |
 | 1: MVP Pilotbetrieb | Kunden/Objekte/Anlagen (inkl. Anlagenstruktur Elektro), Angebot → AB → Regiebericht (mobil, Unterschrift) → Rechnung (Storno, Abschlag kumuliert), E-Rechnung ausgehend, Zeiterfassung (mobil, offline), Dokumentenablage, **ein** Prüfprotokoll (VDE 0100-600) über die Formular-Engine, Aufgaben, Benachrichtigung per E-Mail, Zahlungsziel, Belehrungen mit Widerrufsbelehrung, Mitteilung zur Gewährleistung ⚖ | Pilotbetrieb arbeitet produktiv damit; Parallelbetrieb der alten Buchhaltung beginnt |
 | 1b: Messgeräte-PoC | Import einer echten Messdatei des Pilotbetriebs ins VDE-Protokoll | Go/No-Go für den Umfang des Messgeräte-Imports in Phase 2 |
-| 2: Elektro/PV-Kern | Alle Prüfprotokolle (E-Check, 0105-100, DGUV V3, VDE-AR-N 4105), Abnahme mit Gewährleistung und Mängeln ⚖, Messgeräte-Adapter laut PoC, PV-Dokumentation, Wartungsverträge, Fristen-Engine vollständig, QR-Etikett, Plantafel, Serviceaufträge/Dispatch, Material/Fahrzeuglager, Personal, DSGVO-Funktionen ⚖ | Alleinstellungsmerkmal; Betrieb mit mehreren Monteuren |
+| 2: Elektro/PV-Kern | Alle Prüfprotokolle (Prüfung der Elektroinstallation, 0105-100, DGUV V3, VDE-AR-N 4105), Abnahme mit Gewährleistung und Mängeln ⚖, Messgeräte-Adapter laut PoC, PV-Dokumentation, Wartungsverträge, Fristen-Engine vollständig, QR-Etikett, Plantafel, Serviceaufträge/Dispatch, Material/Fahrzeuglager, Personal, DSGVO-Funktionen ⚖ | Alleinstellungsmerkmal; Betrieb mit mehreren Monteuren |
 | 3: Finance | E-Rechnungs-Empfang/Eingangsrechnungen, Journal, OP/Mahnwesen, Zahlungsbedingungen je Kunde und Skonto (4.2), Bank (FinTS), EÜR/USt-VA, DATEV-Export, Lohnexport, Verfahrensdokumentation und Datenzugriff für die Betriebsprüfung ⚖, Steuerberater-Rolle, Kanzlei-Connector (`opengewerk-api-spec` v1, Read-Endpunkte, Zugriffslog); Absicherung laut 4.8 | Buchhaltung ersetzt sevdesk/Lexware nach bestandenem Parallelbetrieb; Kanzlei-Hub kann anbinden |
 | 3b: Kanzlei-Zusammenarbeit | Webhooks, Rückfragen-Postfach, Vorschlags-Freigabe, Kontenrahmen-Profile | Monatsabschluss läuft ohne E-Mail/Telefon |
 | 4: Projekt-Tiefe | Bautagebuch, Kalkulation/Nachkalkulation, Stundenverrechnungssatz-Rechner, Nachträge, Subunternehmer, Einkauf, Fuhrpark/Werkzeug | Baustellenbetriebe |
@@ -512,7 +520,7 @@ Leitgedanke: **So früh wie möglich einen echten Betrieb damit abwickeln.** Pil
 **Zuordnung im Einzelnen.** Die Tabelle nennt die Schwerpunkte. Die übrigen Punkte der Abschnitte 1 bis 9 gehören so zu den Phasen; beides zusammen ist der Fahrplan, und aus beidem werden die Issues einer Phase geschnitten. Was in keiner Phase steht, steht in Abschnitt 12. Wer in 1 bis 9 einen Punkt einträgt, trägt seine Phase im selben Zug hier ein.
 
 - **Phase 1:** das Zahlungsziel des Betriebs, je Beleg überschreibbar (4.2); der Nullsteuersatz für Photovoltaik nach §12 Abs. 3 UStG je Position (1.7, 4.2) ⚖, weil der Pilotbetrieb PV-Anlagen an private Haushalte baut; die Belehrungen als Anhang eines Belegs, mitgeliefert die Widerrufsbelehrung nach §312g BGB, an jedem Angebot an einen Verbraucher Pflicht, dazu eigene des Betriebs, mit der E-Mail versendet und mit dem Beleg eingefroren (4.2) ⚖, weil der Pilotbetrieb Angebote beim Kunden zu Hause schreibt; eigene Felder des Betriebs am Regiebericht über die Formular-Engine (1.3); die Auftragsnummer, die Zuordnung der Monteure mit der Auswahl je Gerät und der Folgeauftrag (1.5, 1.6, 4.1), weil ein verlorenes Telefon sonst den ganzen Kundenstamm trägt ⚖; die Sammelrechnung über Regieberichte, der Abzug der vereinnahmten Abschläge und die Überschrift „Rechnung“ oder „Schlussrechnung“ (1.4, 4.2) ⚖, weil der Pilotbetrieb Regiearbeit über mehrere Tage mit einer Rechnung abrechnet; der Hinweis nach §271a BGB (4.2) ⚖; das Land an Kunde und Objekt (3.1, 3.2); die Pflichtangaben auf Geschäftsbriefen unter jeder E-Mail (2, 7) ⚖; die harmonisierte Mitteilung zur Gewährleistung an jedem Angebot an einen Verbraucher, das Waren enthält (4.2, 7) ⚖, weil die Pflicht seit dem 27.09.2026 gilt und der Pilotbetrieb PV-Anlagen mit Montage an private Haushalte liefert; Releases mit fertigen Abbildern (2), damit der Pilotbetrieb einen Stand hat, zu dem er zurückkehren kann
-- **Phase 2:** das E-Check-Protokoll (5.1); das Abnahmeprotokoll nach §640 BGB über die Formular-Engine mit der Gewährleistungsfrist ab Abnahme, Mängel mobil mit Statusverfolgung und Mängelbericht (4.11) ⚖; Netzbetreiber-Anmeldung, Vorbereitung der MaStR-Meldung, Wallbox und Speicher mit Inbetriebnahme, Förderunterlagen und Prüfintervallen (5.1); der Zugang zum Objekt (Schlüssel, Codes), versiegelt gespeichert (3.2); Serviceaufträge mit Schnellerfassung und Sofortabrechnung vor Ort, Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (4.1, 4.3); zur Plantafel Serientermine, Urlaubs- und Krankheitsverwaltung, Terminbestätigung per Web-Push und CalDAV-Sync (2, 4.3, 6); Mitarbeiterakte und Qualifikationen mit Ablauffristen (4.9); Wartungsverträge mit Dauerrechnung (3.5, 4.2); Lieferantenverwaltung, Lieferschein und DATANORM-Import zum Material (4.2, 4.5); aus der Fristen-Engine Wiedervorlagen für Angebote und Wartungs- und Prüferinnerungen an Kunden (1.2, 3.3, 3.7); Leads und Vertriebspipeline, Kommunikationshistorie mit Notizen und Telefonprotokollen, Tags, Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für Mails (2, 3.1, 3.3, 3.4); die DSGVO-Funktionen mit Löschkonzept, Auskunft und Datenexport, Verarbeitungsverzeichnis und AV-Vertragsvorlage (2) ⚖; die Hilfe im Büro und auf der Baustelle mit kontextsensitiver Hilfe, Kurzanleitungen, Versionshinweisen und Administrator-Handbuch (8); Passkeys als Anmeldung und zweiter Faktor (2); ein weiterer Betrieb, vom Inhaber im Büro angelegt, und der Bereich für den Betreiber der Instanz (2); die Einsicht ins Audit-Log im Büro (2); die vereinbarte Arbeitszeit in der Mitarbeiterakte und die Überstunden daraus, angezeigt als Zeitkonto (4.4, 4.9); die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers nach Anhang II aus den Artikeldaten an der Position eines Angebots an einen Verbraucher (4.2, 4.5) ⚖, weil sie je Ware gilt und an den Artikelstamm gehört
+- **Phase 2:** die Prüfung der Elektroinstallation, mit der sich auch ein E-CHECK dokumentieren lässt (5.1); das Abnahmeprotokoll nach §640 BGB über die Formular-Engine mit der Gewährleistungsfrist ab Abnahme, Mängel mobil mit Statusverfolgung und Mängelbericht (4.11) ⚖; Netzbetreiber-Anmeldung, Vorbereitung der MaStR-Meldung, Wallbox und Speicher mit Inbetriebnahme, Förderunterlagen und Prüfintervallen (5.1); der Zugang zum Objekt (Schlüssel, Codes), versiegelt gespeichert (3.2); Serviceaufträge mit Schnellerfassung und Sofortabrechnung vor Ort, Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (4.1, 4.3); zur Plantafel Serientermine, Urlaubs- und Krankheitsverwaltung, Terminbestätigung per Web-Push und das Kalender-Abo (2, 4.3, 6); Mitarbeiterakte und Qualifikationen mit Ablauffristen (4.9); Wartungsverträge mit Dauerrechnung (3.5, 4.2); Lieferantenverwaltung, Lieferschein und DATANORM-Import zum Material (4.2, 4.5); aus der Fristen-Engine Wiedervorlagen für Angebote und Wartungs- und Prüferinnerungen an Kunden (1.2, 3.3, 3.7); Leads und Vertriebspipeline, Kommunikationshistorie mit Notizen und Telefonprotokollen, Tags, Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für Mails (2, 3.1, 3.3, 3.4); die DSGVO-Funktionen mit Löschkonzept, Auskunft und Datenexport, Verarbeitungsverzeichnis und AV-Vertragsvorlage (2) ⚖; die Hilfe im Büro und auf der Baustelle mit kontextsensitiver Hilfe, Kurzanleitungen, Versionshinweisen und Administrator-Handbuch (8); Passkeys als Anmeldung und zweiter Faktor (2); ein weiterer Betrieb, vom Inhaber im Büro angelegt, und der Bereich für den Betreiber der Instanz (2); die Einsicht ins Audit-Log im Büro (2); die vereinbarte Arbeitszeit in der Mitarbeiterakte und die Überstunden daraus, angezeigt als Zeitkonto (4.4, 4.9); die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers nach Anhang II aus den Artikeldaten an der Position eines Angebots an einen Verbraucher (4.2, 4.5) ⚖, weil sie je Ware gilt und an den Artikelstamm gehört
 - **Phase 3:** der Lohnexport aus der Zeiterfassung (DATEV Lodas und Lohn & Gehalt, CSV) mit Zuschlägen, Auslöse und Verpflegungsmehraufwand (4.4, 4.9); Gutschrift und Rechnungskorrektur (4.2); Kassenbuch und BWA (4.8); der Datenzugriff für die Betriebsprüfung Z1-Z3 mit GDPdU-Export und die generierte Verfahrensdokumentation (4.8, 4.10) ⚖; die Bank auch über EBICS, der Zahlungsabgleich mit PayPal und Stripe (4.8, 6); die Rolle Buchhaltung (2); Datenimport und -export mit Dubletten-Prüfung und die Importassistenten aus plancraft, HERO und sevdesk (2), weil hier der Wechsel des ganzen Betriebs stattfindet; Überstunden ausgezahlt oder übertragen, mit dem Lohnexport (4.4); der Virenscan für Dateien von außen, weil mit dem Empfang von E-Rechnungen der E-Mail-Import kommt (4.10); die externe Sicherheitsprüfung vor dem ersten Release mit Kanzlei-Connector (2); Kunden im Ausland mit Lieferungen in die EU, Prüfung der USt-IdNr. und Ausfuhr (3.1)
 - **Phase 4:** Teilprojekte, Aufmaß mobil mit Übernahme in Kalkulation und Rechnung, Baubesprechungsprotokolle (4.1); Angebote mit Alternativ-, Eventual-, Bedarfs- und optionalen Positionen, GAEB-Import und -Export, der Mengenabgleich angeboten, geliefert, abgerechnet (1.4, 4.2); Kundenpreise, Rabattgruppen, Staffelpreise und Preislisten (3.1, 4.1); die Stundensätze der Mitarbeiter (4.9); Sicherheitseinbehalt und Bürgschaften, Mängelanzeige an Lieferanten und Subunternehmer (4.2, 4.11); der Verbraucherbauvertrag nach §650i BGB mit Baubeschreibung (4.2) ⚖; Einkauf mit IDS-Connect und UGL (4.5, 4.7, 6); die Wetter-API für Bautagebuch und Plantafel (6); die Rolle Bauleiter (2); die Teilrechnung für getrennt abgenommene Bauabschnitte (4.2)
 - **Phase 5:** Abnahmeprotokolle digital unterschreiben, eigene Anlagen mit den nächsten Prüf- und Wartungsterminen, Dokumente zum Herunterladen, die loginfreie Kundenseite hinter dem QR-Etikett, die Belehrungen zu den Belegen und die Widerrufsfunktion nach §356a BGB (3.2, 3.6) ⚖; Zahlungsdienstleister für Kunden (6); der Kunde im Portal als Rolle (2)
@@ -551,6 +559,24 @@ Die ersten beiden Zeilen und die letzte sind keine Einzelentscheidungen, sondern
 - **Native Apps**: Phase 2 der Plattform-Strategie
 
 ---
+
+## Änderungsprotokoll v2.23 → v2.24
+
+Die Entscheidungen vor dem Bau von Phase 2, getroffen von Moritz am 27.09.2026 aus den Abschnitten „Zu klären vor dem Bau“ der Issues #283 bis #319 und #433.
+
+- Präzisiert: Fristen-Engine mit eigener Liste im Büro und einem Vorlauf, den die Fristart vorgibt, der Betrieb je Art ändert und eine einzelne Frist überschreibt (1.2, #283)
+- Präzisiert: Web-Push mit Anlässen, die jede Person wählt, und einem Schlüsselpaar in der `.env`; die Einsicht ins Audit-Log protokolliert das Lesen nicht (2, #284, #285)
+- Präzisiert: Löschkonzept ⚖. Der Löschlauf schlägt vor, der Inhaber bestätigt; im Audit-Log werden Werte gelöschter Datensätze geschwärzt, die Hashkette bleibt ganz, darüber entsteht ein ADR. Die AV-Vertragsvorlage liegt auf opengewerk.de, Leads werden zwölf Monate nach dem letzten Kontakt zum Löschen vorgeschlagen (2, 3.1, #312, #317, #319)
+- Präzisiert: der Zugang zum Objekt auf den Geräten der Monteure offener Aufträge, auch ohne Netz, verdeckt und mit Protokoll jedes Aufdeckens ⚖ (3.2, #286)
+- Präzisiert: Tags an Kunden und Objekten; Bestätigungsmails zum Serviceauftrag und mit Kalenderdatei zum Termin; Erinnerungen an Kunden ohne Wartungsvertrag nur mit Einwilligung oder nach §7 Abs. 3 UWG ⚖ (3.1, 3.4, 3.7, #314, #315, #316)
+- Präzisiert: Wartungsverträge entstehen aus einem Angebot mit Belehrungen, mit Hinweis nach §309 Nr. 9 BGB bei Verbrauchern; die Dauerrechnung ist eine Rechnung je Zeitraum (3.5, #294, #295)
+- Präzisiert: beim Serviceauftrag legt der Monteur den Entwurf der Rechnung an, das Büro schreibt fest; Belehrungen ohne Angebot kommen über das Gerät und die Bestätigungsmail; Notdienstzuschläge stehen auf der Rechnung an den Kunden, und wer Bereitschaft hat, legt Serviceaufträge an (4.1, #292, #293)
+- Geändert: Termine kommen über ein Kalender-Abo je Person (iCalendar, lesend) statt über CalDAV in den eigenen Kalender, damit OpenGewerk keine Zugangsdaten fremder Kalender hält; die Plantafel zeigt in Phase 2 Personen (4.3, 6, #290, #291)
+- Präzisiert: Zeitkonto, Mitarbeiterakte ohne Zugang, die eigene Akte und die Urlaubsverwaltung mit Anspruch, Rest und Antrag (4.4, 4.9, #287, #288, #289)
+- Präzisiert: Artikel auf dem Gerät, Einkaufspreise nur für Inhaber und Büro, die Rabattgruppe aus DATANORM, der Lieferschein ohne Preise mit Unterschrift und die Kennzeichnung einer Haltbarkeitsgarantie als eigene Seite je Ware (4.2, 4.5, #296, #297, #299, #433)
+- Präzisiert: Abnahme mit §13 Abs. 4 Nr. 2 VOB/B, einer Vorlage zur Aufforderung nach §640 Abs. 2 BGB und dem Gewährleistungsende aus der Abnahme; Mängel mit Unterschrift und Frist (4.11, #310, #311)
+- Geändert: das E-Check-Protokoll heißt „Prüfung der Elektroinstallation“, weil E-CHECK eine Marke des ZVEH ist; ein Betrieb dokumentiert damit auch seinen E-CHECK (5.1, #302)
+- Präzisiert: PV-Struktur mit Speicher, Zähler und Wallbox als eigenen Anlagen und gescannten Seriennummern; die PV-Dokumentation mit Prognose von Hand und eingefrorener Mappe (3.2, 5.1, #300, #305)
 
 ## Änderungsprotokoll v2.22 → v2.23
 
