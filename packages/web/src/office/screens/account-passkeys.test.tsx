@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { clockTime, today } from '../../app/format.js'
 import { PasskeysPanel } from './account-passkeys.js'
 
 /**
@@ -48,15 +49,18 @@ function answer(method: string, path: string, body: unknown, status = 200) {
   answers.set(`${method} ${path}`, { status, body })
 }
 
-const today = new Date()
-today.setHours(8, 12, 0, 0)
+// Today as the list counts it, the day in Germany, at noon there: set on the
+// clock of the machine instead, the fixture fell on yesterday for the two
+// hours a day in which a machine in UTC is still a day behind Germany, and
+// the test failed in CI every evening.
+const usedToday = new Date(`${today()}T10:00:00Z`)
 
 const listed = [
   {
     id: 'pk-1',
     name: 'Laptop Büro',
     createdAt: '2026-09-27T06:00:00.000Z',
-    lastUsedAt: today.toISOString(),
+    lastUsedAt: usedToday.toISOString(),
     provider: null,
   },
   {
@@ -124,7 +128,7 @@ describe('the passkeys under "Konto"', () => {
 
     expect(rows).toHaveLength(2)
     expect(rows[0]?.textContent).toContain('Laptop Büro')
-    expect(rows[0]?.textContent).toContain('Heute, 08:12')
+    expect(rows[0]?.textContent).toContain(`Heute, ${clockTime(usedToday)}`)
     expect(rows[1]?.textContent).toContain('Telefon')
     expect(rows[1]?.textContent).toContain('Noch nie')
     expect(
