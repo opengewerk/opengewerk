@@ -153,6 +153,11 @@ export class Database {
   async forInstance<Result>(
     work: (tx: TenantTransaction) => Promise<Result>,
     userId?: string,
+    /**
+     * What the change is for, for the log of the instance (#188). Signing in
+     * and choosing a business are the ordinary case, hence the default.
+     */
+    reason = 'authentication',
   ): Promise<Result> {
     const client: PoolClient = await this.pool.connect()
 
@@ -166,7 +171,7 @@ export class Database {
         `select set_config('app.tenant_id', '', true),
                 set_config('app.user_id', $1, true),
                 set_config('app.reason', $2, true)`,
-        [userId ?? '', 'authentication'],
+        [userId ?? '', reason],
       )
 
       const result = await work(drizzle(client))

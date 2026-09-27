@@ -115,6 +115,13 @@ const reasonWords: Readonly<Record<string, string>> = {
   'instance.setup': 'Ersteinrichtung',
   'invitation.redeem': 'Einladung eingelöst',
   'membership.create': 'Zugang über die Kommandozeile',
+  'instance.settings': 'Einstellungen der Instanz ändern',
+  'operator.appoint': 'Betreiber benennen',
+  'operator.remove': 'Betreiber entfernen',
+  'operator.cli': 'Betreiber über die Kommandozeile',
+  'instance.tenant': 'Betrieb für andere anlegen',
+  'tenant.cli': 'Betrieb über die Kommandozeile',
+  environment: 'Übernommen aus der .env',
   // The sync reads and writes under two rights; either way it is the sync.
   'sync.read': 'Abgleich',
   'sync.write': 'Abgleich',
