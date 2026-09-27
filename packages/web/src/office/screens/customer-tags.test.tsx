@@ -47,6 +47,9 @@ const writer: DirectWriter = {
 let server: TestServer
 let counter = 0
 let calls: { method: string; path: string; body: unknown }[]
+let roles: string[]
+let tagAnswer: { status: number; body: unknown }
+let syncClient: SyncClient
 
 function windowOf(width: number) {
   vi.stubGlobal('matchMedia', (query: string) => {
@@ -115,6 +118,7 @@ async function mount(path: string) {
   })
 
   await client.synchronise()
+  syncClient = client
 
   const root = createRootRoute()
   const router = createRouter({
@@ -151,6 +155,8 @@ async function mount(path: string) {
 beforeEach(() => {
   server = new TestServer()
   calls = []
+  roles = ['office']
+  tagAnswer = { status: 200, body: { tagIds: [] } }
   windowOf(1280)
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
@@ -169,15 +175,14 @@ beforeEach(() => {
           session: { activeTenantId: 't-1' },
         },
       ],
-      ['GET /auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
-      ['PUT /customers/c-hv/tags', { tagIds: [] }],
-      ['PUT /sites/s-1/tags', { tagIds: [] }],
+      ['GET /auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }]],
     ])
     const key = `${method} ${path}`
+    const put = method === 'PUT' && path.endsWith('/tags')
 
     return Promise.resolve(
-      new Response(JSON.stringify(answers.get(key) ?? {}), {
-        status: answers.has(key) ? 200 : 404,
+      new Response(JSON.stringify(put ? tagAnswer.body : (answers.get(key) ?? {})), {
+        status: put ? tagAnswer.status : answers.has(key) ? 200 : 404,
         headers: { 'Content-Type': 'application/json' },
       }),
     )
@@ -220,7 +225,8 @@ describe('the list of customers with tags', () => {
     const user = userEvent.setup()
 
     const table = await screen.findByRole('table', { name: 'Alle Kunden des Betriebs' })
-    const group = screen.getByRole('group', { name: 'Bestandskunde oder Neukunde' })
+    // With the roles, which say whether the device holds every job.
+    const group = await screen.findByRole('group', { name: 'Bestandskunde oder Neukunde' })
 
     await user.click(within(group).getByRole('button', { name: 'Bestandskunde' }))
 
@@ -284,7 +290,7 @@ describe('the record of a customer with tags', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Hausverwaltung Süd GmbH' })
 
-    expect(screen.getByText('Bestandskunde')).toBeDefined()
+    expect(await screen.findByText('Bestandskunde')).toBeDefined()
     expect(screen.getByText('Rahmenvertrag')).toBeDefined()
     expect(screen.getByText('Wallbox')).toBeDefined()
   })
@@ -295,7 +301,7 @@ describe('the record of a customer with tags', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Weber, Familie' })
 
-    expect(screen.getByText('Neukunde')).toBeDefined()
+    expect(await screen.findByText('Neukunde')).toBeDefined()
   })
 })
 
@@ -387,5 +393,58 @@ describe('the tags of a site', () => {
         body: { tagIds: ['t-rahmen', 't-wallbox'], newTags: [] },
       })
     })
+  })
+})
+
+describe('what a form and a device can know about tags', () => {
+  it('offers Bestandskunde and Neukunde only on a device that holds every job', async () => {
+    roles = ['technician']
+    business()
+    await mount('/')
+
+    // A technician may create a customer; the button appears once the roles are known.
+    await screen.findByRole('button', { name: 'Neuer Kunde' })
+
+    expect(screen.queryByRole('group', { name: 'Bestandskunde oder Neukunde' })).toBeNull()
+  })
+
+  it('shows tags that arrive after the form opened, and sends nothing while they are untouched', async () => {
+    server.put('tags', { id: 't-wallbox', name: 'Wallbox', version: 1, deletedAt: null })
+    server.put('customers', customer('c-hv', 'Hausverwaltung Süd GmbH', 'property_management'))
+    const router = await mount('/kunden/c-hv/bearbeiten')
+    const user = userEvent.setup()
+
+    await screen.findByRole('combobox', { name: 'Tag hinzufügen' })
+
+    link('customer_tags', 'ct-late', 'c-hv', 't-wallbox')
+    await syncClient.synchronise()
+
+    expect(await screen.findByRole('button', { name: 'Wallbox entfernen' })).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/kunden/c-hv')
+    })
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false)
+  })
+
+  it('says that the other fields are saved when the tags are refused', async () => {
+    business()
+    tagAnswer = {
+      status: 422,
+      body: {
+        message: 'Einen der Tags gibt es nicht mehr. Die Seite neu laden und noch einmal wählen.',
+      },
+    }
+    await mount('/kunden/c-hv/bearbeiten')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Wallbox entfernen' }))
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Die Angaben des Kunden sind gespeichert, seine Tags nicht. Einen der Tags gibt es nicht mehr. Die Seite neu laden und noch einmal wählen.',
+    )
   })
 })

@@ -13,7 +13,7 @@ import type { CustomerId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
-import { customers } from '../database/schema/index.js'
+import { customers, customerTags } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { setTags, tagChoiceFrom } from './tag-choice.js'
 import { pick, requireFields, requireSomething } from './body.js'
@@ -116,6 +116,7 @@ export class CustomersController {
         .select({ id: customers.id })
         .from(customers)
         .where(and(eq(customers.id, id as CustomerId), isNull(customers.deletedAt)))
+        .for('no key update')
 
       if (!record) {
         throw new NotFoundException()
@@ -133,13 +134,24 @@ export class CustomersController {
   @Delete(':id')
   @RequiresPermission('customer.write')
   async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
-    const [removed] = await this.database.forTenant(identity, (tx) =>
-      tx
+    const [removed] = await this.database.forTenant(identity, async (tx) => {
+      const now = new Date()
+      const [gone] = await tx
         .update(customers)
-        .set({ deletedAt: new Date() })
+        .set({ deletedAt: now })
         .where(and(eq(customers.id, id as CustomerId), isNull(customers.deletedAt)))
-        .returning(),
-    )
+        .returning()
+
+      // Its tags go with it, as a deleted tag takes its assignments (#314).
+      if (gone) {
+        await tx
+          .update(customerTags)
+          .set({ deletedAt: now })
+          .where(and(eq(customerTags.customerId, gone.id), isNull(customerTags.deletedAt)))
+      }
+
+      return [gone]
+    })
 
     if (!removed) {
       throw new NotFoundException()

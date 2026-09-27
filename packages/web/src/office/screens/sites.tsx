@@ -208,7 +208,8 @@ export function SiteScreen() {
   const createsJobs = useMay('job.write')
   const tagged = useTagsBy('site')
   const [editing, setEditing] = useState(false)
-  const [chosen, setChosen] = useState<ChosenTags>({ tagIds: [], newTags: [] })
+  // Null until somebody changes the tags, as in the form of a customer.
+  const [chosen, setChosen] = useState<ChosenTags | null>(null)
   const [adding, setAdding] = useState<'installation' | 'job' | null>(null)
   const navigate = useNavigate()
 
@@ -278,7 +279,7 @@ export function SiteScreen() {
               <Button
                 icon={Pencil}
                 onClick={() => {
-                  setChosen({ tagIds: held, newTags: [] })
+                  setChosen(null)
                   setEditing(true)
                 }}
               >
@@ -441,7 +442,13 @@ export function SiteScreen() {
                       ? 'Stammdaten werden nur mit Verbindung geändert. Gerade ist keine da.'
                       : undefined
                   }
-                  after={<TagPicker kind="site" chosen={chosen} onChange={setChosen} />}
+                  after={
+                    <TagPicker
+                      kind="site"
+                      chosen={chosen ?? { tagIds: held, newTags: [] }}
+                      onChange={setChosen}
+                    />
+                  }
                   onCancel={() => {
                     setEditing(false)
                   }}
@@ -460,7 +467,7 @@ export function SiteScreen() {
                       return saved
                     }
 
-                    if (tagsChanged(held, chosen)) {
+                    if (chosen !== null && tagsChanged(held, chosen)) {
                       try {
                         await setTags({ siteId }, chosen)
                         await client.synchronise()
@@ -469,10 +476,9 @@ export function SiteScreen() {
                           outcome: 'refused',
                           reason: 'online_only',
                           fields: [],
-                          message:
-                            error instanceof RequestRefused
-                              ? error.message
-                              : 'Das Objekt ist gespeichert, seine Tags nicht. Keine Verbindung.',
+                          message: `Die Angaben des Objekts sind gespeichert, seine Tags nicht. ${
+                            error instanceof RequestRefused ? error.message : 'Keine Verbindung.'
+                          }`,
                         }
                       }
                     }

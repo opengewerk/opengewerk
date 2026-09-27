@@ -26,9 +26,11 @@ import { useRecords } from '../sync/provider.js'
 
 export type Tagged = 'customer' | 'site'
 
-const links: Readonly<Record<Tagged, { readonly entity: string; readonly field: string }>> = {
-  customer: { entity: 'customer_tags', field: 'customerId' },
-  site: { entity: 'site_tags', field: 'siteId' },
+const links: Readonly<
+  Record<Tagged, { readonly entity: string; readonly field: string; readonly owners: string }>
+> = {
+  customer: { entity: 'customer_tags', field: 'customerId', owners: 'customers' },
+  site: { entity: 'site_tags', field: 'siteId', owners: 'sites' },
 }
 
 const pillSizes = {
@@ -114,27 +116,30 @@ export function useTags(): readonly RecordState[] {
  * Which tags each customer or each site has, by the id of the record: the
  * ids, and the names in the order a person reads them. A tag deleted in the
  * meantime is left out, although its row on the record is marked deleted in
- * the same step and goes with the next exchange.
+ * the same step and goes with the next exchange; so is a record this device
+ * does not hold, deleted or outside its part of the business.
  */
 export function useTagsBy(
   kind: Tagged,
 ): ReadonlyMap<string, { readonly ids: readonly string[]; readonly names: readonly string[] }> {
   const tags = useRecords('tags')
   const rows = useRecords(links[kind].entity)
+  const owners = useRecords(links[kind].owners)
 
   return useMemo(() => {
     const names = new Map(tags.map((tag) => [String(tag['id']), text(tag, 'name')]))
+    const held = new Set(owners.map((owner) => String(owner['id'])))
     const byRecord = new Map<string, { ids: string[]; names: string[] }>()
 
     for (const row of rows) {
       const tagId = text(row, 'tagId')
       const name = names.get(tagId)
+      const key = text(row, links[kind].field)
 
-      if (name === undefined) {
+      if (name === undefined || !held.has(key)) {
         continue
       }
 
-      const key = text(row, links[kind].field)
       const entry = byRecord.get(key) ?? { ids: [], names: [] }
 
       entry.ids.push(tagId)
@@ -147,7 +152,7 @@ export function useTagsBy(
     }
 
     return byRecord
-  }, [tags, rows, kind])
+  }, [tags, rows, owners, kind])
 }
 
 /** How many customers or sites carry each tag, by the id of the tag. */

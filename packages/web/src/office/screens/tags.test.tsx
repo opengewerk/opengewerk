@@ -98,6 +98,14 @@ beforeEach(() => {
   }
 
   server.put('site_tags', { id: 'st-1', siteId: 's-1', tagId: 't-pv', version: 1, deletedAt: null })
+  // A customer this device does not hold, deleted or outside its part: not counted.
+  server.put('customer_tags', {
+    id: 'ct-4',
+    customerId: 'c-gone',
+    tagId: 't-pv',
+    version: 1,
+    deletedAt: null,
+  })
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'

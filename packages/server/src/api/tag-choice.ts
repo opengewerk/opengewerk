@@ -78,6 +78,11 @@ type Target =
  * A new name becomes a tag, unless the business has one by that name
  * already, whatever its case, which is then the one put on: two people who
  * type "Wallbox" at the same time mean the same tag.
+ *
+ * Every tag put on is read with a share lock, which a deletion has to wait
+ * for, so a tag cannot be deleted between being found and being put on and
+ * keep an assignment its deletion never saw. The caller holds the record
+ * itself locked, so two lists for one record come one after the other.
  */
 export async function setTags(
   tx: TenantTransaction,
@@ -92,6 +97,7 @@ export async function setTags(
           .select({ id: tags.id })
           .from(tags)
           .where(and(inArray(tags.id, [...choice.tagIds]), isNull(tags.deletedAt)))
+          .for('share')
 
   if (known.length !== choice.tagIds.length) {
     throw new UnprocessableEntityException(
@@ -110,6 +116,7 @@ export async function setTags(
       .select({ id: tags.id })
       .from(tags)
       .where(and(sql`lower(${tags.name}) = lower(${name})`, isNull(tags.deletedAt)))
+      .for('share')
 
     if (tag) {
       wanted.add(tag.id)

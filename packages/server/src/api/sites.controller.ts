@@ -13,7 +13,7 @@ import type { SiteId } from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
-import { sites } from '../database/schema/index.js'
+import { sites, siteTags } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { setTags, tagChoiceFrom } from './tag-choice.js'
 import { pick, requireFields, requireSomething } from './body.js'
@@ -110,6 +110,7 @@ export class SitesController {
         .select({ id: sites.id })
         .from(sites)
         .where(and(eq(sites.id, id as SiteId), isNull(sites.deletedAt)))
+        .for('no key update')
 
       if (!record) {
         throw new NotFoundException()
@@ -127,13 +128,24 @@ export class SitesController {
   @Delete(':id')
   @RequiresPermission('site.write')
   async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
-    const [removed] = await this.database.forTenant(identity, (tx) =>
-      tx
+    const [removed] = await this.database.forTenant(identity, async (tx) => {
+      const now = new Date()
+      const [gone] = await tx
         .update(sites)
-        .set({ deletedAt: new Date() })
+        .set({ deletedAt: now })
         .where(and(eq(sites.id, id as SiteId), isNull(sites.deletedAt)))
-        .returning(),
-    )
+        .returning()
+
+      // Its tags go with it, as a deleted tag takes its assignments (#314).
+      if (gone) {
+        await tx
+          .update(siteTags)
+          .set({ deletedAt: now })
+          .where(and(eq(siteTags.siteId, gone.id), isNull(siteTags.deletedAt)))
+      }
+
+      return [gone]
+    })
 
     if (!removed) {
       throw new NotFoundException()

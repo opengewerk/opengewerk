@@ -299,6 +299,84 @@ describe('the tags of a customer and a site', () => {
   })
 })
 
+describe('the tags of a record at the same moment', () => {
+  /**
+   * Two whole lists for one customer at once: one comes after the other, and
+   * the customer ends with the second, not with both. A connection holds the
+   * customer until both have arrived, so that they meet for certain.
+   */
+  it('take one list after the other, not the two together', async () => {
+    const customerId = await post('/customers', { kind: 'business', name: 'Zweimal GmbH' })
+    const first = await makeTag('Erster Stand')
+    const second = await makeTag('Zweiter Stand')
+    const holding = await admin.connect()
+
+    try {
+      await holding.query('begin')
+      await holding.query('select id from customers where id = $1 for update', [customerId])
+
+      const both = Promise.all([
+        tag({ customerId }, { tagIds: [first.id] }).then((answer) => answer),
+        tag({ customerId }, { tagIds: [second.id] }).then((answer) => answer),
+      ])
+
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      await holding.query('commit')
+
+      expect((await both).map((answer) => answer.status)).toEqual([200, 200])
+    } finally {
+      holding.release()
+    }
+
+    expect(await heldBy('customer_tags', 'customer_id', customerId)).toHaveLength(1)
+  })
+
+  /**
+   * A tag deleted while it is being put on: the deletion holds the tag, the
+   * list waits for it and then finds the tag gone, instead of putting on a
+   * tag whose deletion never saw the new assignment.
+   */
+  it('refuse a tag deleted while it is put on', async () => {
+    const customerId = await post('/customers', { kind: 'business', name: 'Gleichzeitig AG' })
+    const going = await makeTag('Geht gerade')
+    const deleting = await admin.connect()
+
+    try {
+      await deleting.query('begin')
+      await deleting.query('update tags set deleted_at = now() where id = $1', [going.id])
+
+      const putting = tag({ customerId }, { tagIds: [going.id] }, 422).then((answer) => answer)
+
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      await deleting.query('commit')
+
+      expect(((await putting).body as { message: string }).message).toContain('gibt es nicht mehr')
+    } finally {
+      deleting.release()
+    }
+
+    expect(await heldBy('customer_tags', 'customer_id', customerId)).toEqual([])
+  })
+})
+
+describe('the tags of a deleted record', () => {
+  it('go with it, from customers and sites alike', async () => {
+    const customerId = await post('/customers', { kind: 'private', name: 'Weg, Familie' })
+    const siteId = await post('/sites', { customerId, designation: 'Haus Weg' })
+    const kept = await makeTag('Bleibt')
+
+    await tag({ customerId }, { tagIds: [kept.id] })
+    await tag({ siteId }, { tagIds: [kept.id] })
+
+    await http().delete(`/sites/${siteId}`).set('x-test-identity', office()).expect(200)
+    await http().delete(`/customers/${customerId}`).set('x-test-identity', office()).expect(200)
+
+    expect(await heldBy('customer_tags', 'customer_id', customerId)).toEqual([])
+    expect(await heldBy('site_tags', 'site_id', siteId)).toEqual([])
+    expect((await tagsOf()).map((row) => row.name)).toContain('Bleibt')
+  })
+})
+
 describe('a tag and the business it was made in', () => {
   it('stays in it: another business neither sees, renames, deletes nor uses it', async () => {
     const ours = await makeTag('Nur im Norden')
@@ -366,6 +444,29 @@ describe('the tags on a device', () => {
 
     expect(rowsOf(theirs, 'tags').map((row) => row['name'])).toContain('Rahmenvertrag')
     expect(rowsOf(theirs, 'customer_tags')).toEqual([])
+    expect(rowsOf(theirs, 'site_tags')).toEqual([])
+  })
+
+  it('come to a technician for the customer and site they made themselves', async () => {
+    const customerId = await post(
+      '/customers',
+      { kind: 'private', name: 'Vor Ort, Neukunde' },
+      technician(),
+    )
+    const siteId = await post('/sites', { customerId, designation: 'Vor Ort' }, office())
+    const found = await makeTag('Vor Ort gefunden')
+
+    await tag({ customerId }, { tagIds: [found.id] })
+    await tag({ siteId }, { tagIds: [found.id] })
+
+    const theirs = await pull(technician())
+
+    // The customer is on the device because its person made it, and its tag with it.
+    expect(rowsOf(theirs, 'customers').map((row) => row['id'])).toContain(customerId)
+    expect(rowsOf(theirs, 'customer_tags')).toContainEqual(
+      expect.objectContaining({ customerId, tagId: found.id }),
+    )
+    // The office made the site, so it is not, and neither is its tag.
     expect(rowsOf(theirs, 'site_tags')).toEqual([])
   })
 

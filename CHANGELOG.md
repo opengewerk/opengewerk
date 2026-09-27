@@ -89,9 +89,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   steht je Betrieb einmal, gleich in welcher Schreibung. Die Kundenliste zeigt die Tags neben dem
   Namen, findet einen Kunden auch über sie und filtert nach einem Tag zusammen mit den Chips; neben
   den Arten stehen die Chips Bestandskunde und Neukunde, die aus den Aufträgen folgen: Bestandskunde
-  ist, wer einen abgeschlossenen Auftrag hat. Die Akte eines Kunden sagt das neben der Art. Tags
-  pflegt, wer Kunden ändern darf, also auch das Büro; ein Gerät bekommt sie über den Abgleich und
-  schreibt keine. Migration 0053.
+  ist, wer einen abgeschlossenen Auftrag hat. Die Akte eines Kunden sagt das neben der Art; beides
+  zeigt nur ein Gerät, das alle Aufträge des Betriebs hält. Tags pflegt, wer Kunden ändern darf, also
+  auch das Büro; ein Gerät bekommt sie über den Abgleich und schreibt keine, und ein gelöschter
+  Kunde oder ein gelöschtes Objekt nimmt seine Tags mit. Migration 0053.
 
 ### Geändert
 

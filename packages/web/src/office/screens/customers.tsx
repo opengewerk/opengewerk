@@ -151,6 +151,9 @@ export function CustomerList() {
   const tagged = useTagsBy('customer')
   const tags = useTags()
   const standings = useStandings()
+  // Whether a customer has a completed job, the device can only tell when it
+  // holds every job: a technician's holds the ones they are on.
+  const knowsStanding = useMay('job.read.all')
   const tagsOf = (row: RecordState) => tagged.get(String(row['id']))?.names ?? []
   const navigate = useNavigate()
   const creates = useMay('customer.create')
@@ -243,7 +246,7 @@ export function CustomerList() {
       searchLabel="Kunden durchsuchen"
       searchPlaceholder="Name, Ort, Tag, Umsatzsteuer-Id …"
       filters={filters}
-      facets={facets}
+      facets={knowsStanding ? facets : undefined}
       choice={choice}
       primary={creates ? { label: 'Neuer Kunde', onPress: openNew } : undefined}
       card={(row) => {
@@ -483,6 +486,7 @@ function CustomerRecord({
   const createsJobs = useMay('job.write')
   const tagged = useTagsBy('customer')
   const standing = useStandings()
+  const knowsStanding = useMay('job.read.all')
   // "Auftrag anlegen" in the preview beside the list leads here with the
   // form open.
   const search = useSearch({ strict: false }) as { readonly neu?: string }
@@ -508,7 +512,11 @@ function CustomerRecord({
       badges={
         <>
           <Status tone="neutral">{customerKindLabel[customerKindOf(customer)]}</Status>
-          <Status tone="neutral">{customerStandingLabel[standing.get(customerId) ?? 'new']}</Status>
+          {knowsStanding ? (
+            <Status tone="neutral">
+              {customerStandingLabel[standing.get(customerId) ?? 'new']}
+            </Status>
+          ) : null}
         </>
       }
       tags={
@@ -1043,7 +1051,9 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
   const tagged = useTagsBy('customer')
   const held = customerId ? (tagged.get(customerId)?.ids ?? []) : []
   const [draft, setDraft] = useState<CustomerDraft>(() => draftOf(customer))
-  const [chosen, setChosen] = useState<ChosenTags>({ tagIds: held, newTags: [] })
+  // Null until somebody changes the tags: until then the form shows what the
+  // record has, also once rows arrive after it opened, and sends nothing.
+  const [chosen, setChosen] = useState<ChosenTags | null>(null)
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [wrong, setWrong] = useState<readonly string[]>([])
@@ -1085,15 +1095,17 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
         return
       }
 
-      if (editing && tagsChanged(held, chosen)) {
+      if (editing && chosen !== null && tagsChanged(held, chosen)) {
         try {
           await setTags({ customerId }, chosen)
           await client.synchronise()
         } catch (error) {
+          // The fields are saved by now; the form says so rather than let a
+          // "Abbrechen" look as if it took them back.
           setTrouble(
-            error instanceof RequestRefused
-              ? error.message
-              : 'Der Kunde ist gespeichert, seine Tags nicht. Keine Verbindung.',
+            `Die Angaben des Kunden sind gespeichert, seine Tags nicht. ${
+              error instanceof RequestRefused ? error.message : 'Keine Verbindung.'
+            }`,
           )
 
           return
@@ -1232,7 +1244,11 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
             </FormPanel>
             {editing ? (
               <FormPanel title="Tags">
-                <TagPicker kind="customer" chosen={chosen} onChange={setChosen} />
+                <TagPicker
+                  kind="customer"
+                  chosen={chosen ?? { tagIds: held, newTags: [] }}
+                  onChange={setChosen}
+                />
               </FormPanel>
             ) : null}
             <FormPanel title="Notizen">{input('notes', 'Notizen')}</FormPanel>
