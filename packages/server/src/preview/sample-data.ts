@@ -186,7 +186,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   })
   await send(base, 'PUT', `/sites/${estate}/tags`, {
     tagIds: [],
-    newTags: ['Zufahrt für Hubsteiger nur über den Hof'],
+    newTags: ['Zufahrt Hubsteiger nur über den Innenhof'],
   })
 
   const cabinet = idOf(

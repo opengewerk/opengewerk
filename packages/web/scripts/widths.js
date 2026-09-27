@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -107,12 +107,30 @@ function opener(page, name) {
 }
 
 /**
- * The band of a width, as `useBand` has it. A screen may draw another layout
- * in another band and with it drop a form that was open, so a form is opened
- * anew whenever the band changes.
+ * The widths at which a screen may draw another layout and with it drop a
+ * form that was open: the steps of `useBand` and of `useThreeColumns`, read
+ * from `src/components/band.ts` rather than written here a second time, in
+ * pixels at the 16 a rem is, since the root has no font size of its own
+ * (#229). The first version knew three of the five bands and opened a form
+ * once for everything from 1024 to 3840 pixels.
  */
+const steps = [
+  ...readFileSync(resolve(here, '..', 'src', 'components', 'band.ts'), 'utf8').matchAll(
+    /min-width:\s*([\d.]+)rem/g,
+  ),
+]
+  .map((match) => Number(match[1]) * 16)
+  .sort((a, b) => a - b)
+
+if (steps.length < 5) {
+  throw new Error(
+    `In band.ts stehen ${String(steps.length)} Stufen, erwartet sind mindestens fünf: die Prüfung liest sie aus "min-width: <n>rem".`,
+  )
+}
+
+/** How many of those steps a width has passed: the same number, the same layout. */
 function bandOf(width) {
-  return width < 600 ? 'S' : width < 1024 ? 'M' : 'L'
+  return steps.filter((step) => width >= step).length
 }
 
 /** How long a screen may take to settle after it loaded or was resized. */
