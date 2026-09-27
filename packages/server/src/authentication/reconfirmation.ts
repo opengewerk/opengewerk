@@ -175,7 +175,8 @@ const held = () =>
  * that asks whether the account is held: guesses sent at once then count one
  * by one, and only the first ten of a run get as far as the code, however
  * many arrive together. A right code takes the count back to nothing, and a
- * hold somebody else's guesses set in the meantime stays.
+ * hold somebody else's guesses set in the meantime stays and confirms
+ * nothing: while the account is held, no code opens it.
  */
 async function checkCode(
   database: Database,
@@ -248,7 +249,7 @@ async function checkCode(
     })
   }
 
-  await database.forInstance(
+  const cleared = await database.forInstance(
     (tx) =>
       tx
         .update(authTwoFactors)
@@ -258,7 +259,13 @@ async function checkCode(
             eq(authTwoFactors.id, attempt.id),
             or(isNull(authTwoFactors.lockedUntil), lte(authTwoFactors.lockedUntil, new Date())),
           ),
-        ),
+        )
+        .returning({ id: authTwoFactors.id }),
     userId,
   )
+
+  // A guess beside this one set the hold while the code was checked.
+  if (cleared.length === 0) {
+    throw held()
+  }
 }

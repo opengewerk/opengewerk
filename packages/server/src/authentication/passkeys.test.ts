@@ -683,6 +683,53 @@ describe('adding a passkey', () => {
     )
   })
 
+  /**
+   * The same race from the other side: the right code is still being checked
+   * when a guess beside it sets the hold. It confirms nothing, and the hold
+   * stays. The guess is played by a trigger that sets the hold in the moment
+   * the attempt is counted.
+   */
+  it('confirms nothing when the account is held while the right code is checked', async () => {
+    const cookies = await signIn(guarded.email)
+    const userId = userIds.get(guarded.email) ?? ''
+
+    await admin.query(`
+      create function test_hold_while_checking() returns trigger language plpgsql as $$
+      begin
+        new.locked_until := now() + interval '15 minutes';
+        return new;
+      end $$`)
+    await admin.query(`
+      create trigger test_hold_while_checking
+        before update of failed_verification_count on auth_two_factors
+        for each row
+        when (old.locked_until is null
+          and new.failed_verification_count > coalesce(old.failed_verification_count, 0))
+        execute function test_hold_while_checking()`)
+
+    try {
+      const refused = await reconfirm(cookies, {
+        password,
+        code: await currentCode(guardedTotpUri),
+      })
+
+      expect(refused.status).toBe(429)
+    } finally {
+      await admin.query('drop trigger test_hold_while_checking on auth_two_factors')
+      await admin.query('drop function test_hold_while_checking()')
+    }
+
+    await http()
+      .get(`${authenticationPath}/passkey/generate-register-options`)
+      .set('cookie', cookies)
+      .expect(403)
+
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 0, locked_until = null where user_id = $1',
+      [userId],
+    )
+  })
+
   it('holds for ten minutes and not longer', async () => {
     const cookies = await signIn(worker.email)
 
