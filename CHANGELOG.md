@@ -7,6 +7,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Die Feature-Gliederung (v2.24) trägt die Entscheidungen vor dem Bau von Phase 2 ein, getroffen
+  von Moritz am 27.09.2026 aus den Abschnitten "Zu klären vor dem Bau" der Issues #283 bis #319 und
+  #433, damit gebaut wird, was im Konzept steht, und nicht, was ein Issue offen ließ. Zwei Punkte
+  ändern den Umfang: Termine kommen über ein Kalender-Abo je Person statt über CalDAV in den
+  eigenen Kalender, damit OpenGewerk keine Zugangsdaten fremder Kalender hält, und das
+  E-Check-Protokoll heißt "Prüfung der Elektroinstallation", weil E-CHECK eine Marke des ZVEH ist.
+
 ## [0.4.0] - 2026-09-27
 
 Die vierte Fassung bringt die harmonisierte Mitteilung zur gesetzlichen Gewährleistung, die seit dem
