@@ -1,4 +1,4 @@
-import type { TenantId } from '@opengewerk/domain'
+import { isSignInMethod, type TenantId } from '@opengewerk/domain'
 
 import { RequestRefused } from '../sync/transport.js'
 import type { Account, TenantChoice } from './session.js'
@@ -56,6 +56,7 @@ export function rememberedAccount(): Account | null {
       name: typeof account.name === 'string' ? account.name : '',
       tenantId: account.tenantId as TenantId,
       twoFactorEnabled: account.twoFactorEnabled === true,
+      signInMethod: isSignInMethod(account.signInMethod) ? account.signInMethod : 'password',
     }
   } catch {
     return null

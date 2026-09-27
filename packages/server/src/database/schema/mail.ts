@@ -19,8 +19,18 @@ import { tenantIsolation } from './rls.js'
 import { tasks } from './tasks.js'
 import { tenantColumn } from './tenants.js'
 
-/** What a message is about. One kind per cause the notifications know. */
-export const mailKind = pgEnum('mail_kind', ['task_due', 'document', 'invitation', 'deadline_due'])
+/**
+ * What a message is about. One kind per cause the notifications know, and one
+ * for the passkey added to an account (#167), which is told to the account
+ * through the outbox of a business it works in.
+ */
+export const mailKind = pgEnum('mail_kind', [
+  'task_due',
+  'document',
+  'invitation',
+  'deadline_due',
+  'passkey_added',
+])
 
 /**
  * The file a message about a document carries: the PDF, or one of the two

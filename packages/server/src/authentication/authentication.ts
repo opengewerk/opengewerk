@@ -1,21 +1,33 @@
+import { passkey } from '@better-auth/passkey'
 import { hash, verify } from '@node-rs/argon2'
+import { passkeyNameProblem } from '@opengewerk/domain'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
+import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api'
 import { twoFactor } from 'better-auth/plugins'
+import { eq } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import {
   authAccounts,
+  authPasskeys,
   authRateLimits,
   authSessions,
   authTwoFactors,
   authUsers,
   authVerifications,
 } from '../database/schema/index.js'
+import type { PasskeyNotice } from '../mail/passkey-notice.js'
 import type { PasswordResetMail } from '../mail/password-reset.js'
 import { passwordResetLifetime } from '../mail/password-reset.js'
+import { markUsed, recordAdded } from './passkeys.js'
 import { shortestPassword } from './password.js'
+import {
+  reconfirmation,
+  reconfirmationPath,
+  recentlyReconfirmed,
+  spendReconfirmation,
+} from './reconfirmation.js'
 import { renewSession, sessionLifetimes } from './session-lifetime.js'
 
 export { sessionLifetimes } from './session-lifetime.js'
@@ -72,14 +84,63 @@ export interface AuthenticationOptions {
    * sent.
    */
   readonly passwordResetMail?: PasswordResetMail
+  /**
+   * Tells an account about a passkey added to it (#167), through the outbox
+   * of a business it works in. Left out, as for the link to a new password,
+   * nothing is sent.
+   */
+  readonly passkeyNotice?: PasskeyNotice
+}
+
+/** The two routes of the passkey plugin that register one, both behind the confirmation. */
+const registering: ReadonlySet<string> = new Set([
+  '/passkey/generate-register-options',
+  '/passkey/verify-registration',
+])
+
+/** Where a sign in with a passkey happens, the one route that makes a passkey session. */
+const passkeySignIn = '/passkey/verify-authentication'
+
+/**
+ * The relying party a passkey is bound to: the host of the first trusted
+ * origin, where the instance is reached. A passkey works on exactly that host
+ * and its subdomains, so the origins it is checked against are the trusted
+ * ones on it; a second origin on another host could not use it anyway.
+ */
+function relyingParty(trustedOrigins: readonly string[]): {
+  readonly id: string
+  readonly origins: string[]
+} {
+  const hosts = trustedOrigins.map((origin) => ({ origin, host: new URL(origin).hostname }))
+  const id = hosts[0]?.host ?? 'localhost'
+
+  return {
+    id,
+    origins: hosts
+      .filter(({ host }) => host === id || host.endsWith(`.${id}`))
+      .map(({ origin }) => origin),
+  }
+}
+
+/** Whether better-auth's answer is a stored passkey, the success of a registration. */
+function isStoredPasskey(
+  value: unknown,
+): value is { readonly id: string; readonly userId: string; readonly name?: string | null } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    typeof (value as { userId?: unknown }).userId === 'string'
+  )
 }
 
 export type Authentication = ReturnType<typeof createAuthentication>
 
 /**
- * The authentication, as ADR 0006 cut it: better-auth's core with sessions and
- * TOTP, and nothing else. Passkeys are part of the cut as well and switched off
- * until they can be listed and revoked, see the plugins below.
+ * The authentication, as ADR 0006 cut it: better-auth's core with sessions,
+ * TOTP and passkeys, and nothing else. Passkeys were switched off from
+ * 23.09.2026 until they could be listed and revoked (GHSA-jghx-6wmh-mpcj);
+ * they came back with #167 and #248, see the plugins below.
  *
  * What is deliberately absent is as much the decision as what is here. No
  * magic link, because that is the way into the customer portal and it is the
@@ -95,8 +156,11 @@ export function createAuthentication({
   trustedOrigins,
   rateLimited = true,
   passwordResetMail,
+  passkeyNotice,
 }: AuthenticationOptions) {
-  return betterAuth({
+  const party = relyingParty(trustedOrigins)
+
+  const authentication = betterAuth({
     appName: 'OpenGewerk',
     secret,
     trustedOrigins: [...trustedOrigins],
@@ -111,6 +175,7 @@ export function createAuthentication({
         account: authAccounts,
         verification: authVerifications,
         twoFactor: authTwoFactors,
+        passkey: authPasskeys,
         rateLimit: authRateLimits,
       },
     }),
@@ -154,8 +219,15 @@ export function createAuthentication({
       // the one lifetime above, which would turn an office session into a
       // month.
       disableSessionRefresh: true,
+      // better-auth's "fresh session", a session younger than a day, is not
+      // asked anywhere. It guarded the registration of a passkey, where the
+      // confirmation with the password now stands (`reconfirmation.ts`), and
+      // better-auth's list of sessions, which is switched off below. A
+      // session's age is a poor stand-in for who is at the keyboard: a
+      // device of ours keeps its session for a month.
+      freshAge: 0,
       /**
-       * The three columns a session of ours has beyond better-auth's.
+       * The four columns a session of ours has beyond better-auth's.
        *
        * Every one of them is `input: false`, and on the first that is not a
        * detail: it is what keeps the chosen business out of anything a client
@@ -169,6 +241,11 @@ export function createAuthentication({
         activeTenantId: { type: 'string', required: false, input: false },
         deviceId: { type: 'string', required: false, input: false },
         longLived: { type: 'boolean', required: false, input: false, defaultValue: false },
+        // With what the session was signed in (#167), set below when the row
+        // is written. Read back on every request, where a passkey session
+        // counts as a second factor, so a client must never be able to write
+        // it: that would be a way past the second factor.
+        signInMethod: { type: 'string', required: false, input: false, defaultValue: 'password' },
       },
     },
     databaseHooks: {
@@ -177,16 +254,71 @@ export function createAuthentication({
           // Every session starts short. Only a device registered in
           // `chooseTenant` gets the long lifetime, and a session that has not
           // chosen a business yet is not one.
-          before: async (session) => ({
+          //
+          // And every session says how it began (#167). Only the route that
+          // signs in with a passkey makes a passkey session; every other way
+          // to a session goes through the password, the code included where
+          // one is set up.
+          before: async (session, context) => ({
             data: {
               ...session,
               expiresAt: new Date(Date.now() + sessionLifetimes.office * 1000),
+              signInMethod: context?.path === passkeySignIn ? 'passkey' : 'password',
             },
           }),
         },
       },
     },
     hooks: {
+      /**
+       * Adding a passkey only after confirming again (#167).
+       *
+       * Both routes that register one ask for a confirmation with the
+       * password within the last minutes, on this very session. Without it a
+       * session left open on a desk, or one lifted from a browser, could give
+       * itself a key of its own, which is what GHSA-jghx-6wmh-mpcj was about.
+       * The registration itself also has to name the passkey and may not ask
+       * for a session of its own: the plugin could make one, and a session
+       * that begins with a registration is a sign in nobody confirmed.
+       */
+      before: createAuthMiddleware(async (ctx) => {
+        if (!registering.has(ctx.path)) {
+          return
+        }
+
+        const found = await getSessionFromCtx(ctx)
+
+        if (!found) {
+          // The plugin answers this itself, with a 401.
+          return
+        }
+
+        if (!(await recentlyReconfirmed(database, found.session.id))) {
+          throw new APIError('FORBIDDEN', {
+            code: 'RECONFIRMATION_REQUIRED',
+            message:
+              'Vor dem Anlegen eines Passkeys bitte mit dem Passwort bestätigen, und wo ' +
+              'eingerichtet mit dem Code aus der App.',
+          })
+        }
+
+        if (ctx.path === '/passkey/verify-registration') {
+          const body = (ctx.body ?? {}) as { name?: unknown; createSession?: unknown }
+
+          if (body.createSession !== undefined && body.createSession !== false) {
+            throw new APIError('BAD_REQUEST', {
+              code: 'PASSKEY_WITHOUT_SESSION',
+              message: 'Ein neuer Passkey meldet nicht an, er kommt zu dieser Sitzung dazu.',
+            })
+          }
+
+          const problem = passkeyNameProblem(typeof body.name === 'string' ? body.name : '')
+
+          if (problem) {
+            throw new APIError('BAD_REQUEST', { code: 'PASSKEY_NAME_INVALID', message: problem })
+          }
+        }
+      }),
       /**
        * Renews a session whenever the interface asks after it, and the cookie
        * with it. The interface asks at every start and whenever it comes back
@@ -195,6 +327,12 @@ export function createAuthentication({
        * (`SessionIdentitySource`).
        */
       after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/passkey/verify-registration') {
+          await afterRegistration(ctx.context.returned, await getSessionFromCtx(ctx))
+
+          return
+        }
+
         if (ctx.path !== '/get-session') {
           return
         }
@@ -238,8 +376,26 @@ export function createAuthentication({
         '/request-password-reset': { window: 60 * 60, max: 5 },
         '/reset-password': { window: 60, max: 5 },
         '/change-password': { window: 60, max: 5 },
+        // The confirmation takes the password and the code like a sign in,
+        // and gets the limit of one (#167).
+        [reconfirmationPath]: { window: 60, max: 5 },
+        '/passkey/verify-registration': { window: 60, max: 5 },
+        '/passkey/verify-authentication': { window: 60, max: 10 },
       },
     },
+    // Routes of better-auth that are not used here, off so that nothing can
+    // reach them. The plugin's own list, rename and delete of passkeys, which
+    // are routes of ours instead because a change to a passkey belongs in the
+    // log of every business of the account (`passkeys.controller.ts`); and
+    // the list of sessions, which answered with the token of every session of
+    // the account and asked only for a young session, since `freshAge` is 0
+    // not even that. The devices of an account are `/auth/devices`.
+    disabledPaths: [
+      '/passkey/list-user-passkeys',
+      '/passkey/update-passkey',
+      '/passkey/delete-passkey',
+      '/list-sessions',
+    ],
     advanced: {
       // Cookies are already HttpOnly and SameSite=Lax by default; this is the
       // one that has to be said out loud, because an instance always runs
@@ -255,12 +411,102 @@ export function createAuthentication({
       twoFactor({
         issuer: 'OpenGewerk',
       }),
-      // No passkeys for now (GHSA-jghx-6wmh-mpcj). With the plugin on, any
-      // session could register one without confirming anything, signing in
-      // with it skipped the second factor, and nobody could see or revoke the
-      // passkeys an account had. They come back with a screen that lists and
-      // revokes them, a confirmation before registering one and an answer to
-      // whether a passkey counts as the second factor (ADR 0006).
+      /**
+       * Passkeys (#167, #248), back since they can be listed, renamed and
+       * deleted under "Konto" and added only after confirming again (see the
+       * hooks above). Two things are asked of every one of them, at
+       * registration and at every sign in: that it is resident, so that it
+       * signs in without typing an address, and that the person confirmed on
+       * the device, with a fingerprint, a face or a PIN. Only then is a sign
+       * in with it a second factor, which is what Moritz decided on
+       * 24.09.2026 (#190).
+       *
+       * The plugin asks the browser for that confirmation but takes an answer
+       * without it; `requireUserVerification` is false in its code. So the
+       * two checks after the plugin's own are ours, and they refuse.
+       */
+      passkey({
+        rpID: party.id,
+        rpName: 'OpenGewerk',
+        origin: party.origins,
+        authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
+        registration: {
+          afterVerification: ({ verification }) => {
+            if (verification.registrationInfo?.userVerified !== true) {
+              throw new APIError('BAD_REQUEST', {
+                code: 'USER_VERIFICATION_REQUIRED',
+                message:
+                  'Ohne Bestätigung am Gerät, mit Fingerabdruck, Gesicht oder PIN, legt ' +
+                  'OpenGewerk keinen Passkey an.',
+              })
+            }
+
+            return Promise.resolve()
+          },
+        },
+        authentication: {
+          afterVerification: async ({ verification }) => {
+            if (!verification.authenticationInfo.userVerified) {
+              throw new APIError('UNAUTHORIZED', {
+                code: 'USER_VERIFICATION_REQUIRED',
+                message:
+                  'Ein Passkey meldet nur mit Bestätigung am Gerät an, mit Fingerabdruck, ' +
+                  'Gesicht oder PIN.',
+              })
+            }
+
+            await markUsed(database, verification.authenticationInfo.credentialID)
+          },
+        },
+      }),
+      reconfirmation(database),
     ],
   })
+
+  /**
+   * What happens once a passkey is stored: it goes into the log of every
+   * business of the account, the confirmation is spent, and the account is
+   * told by mail.
+   *
+   * A passkey that cannot be put into the log does not stay. A key nobody
+   * can see come is the very thing the log is there to prevent, so it is
+   * taken back and the registration answers with an error.
+   */
+  async function afterRegistration(
+    returned: unknown,
+    found: Awaited<ReturnType<typeof getSessionFromCtx>>,
+  ): Promise<void> {
+    if (!found || isAPIError(returned) || !isStoredPasskey(returned)) {
+      return
+    }
+
+    const stored = { id: returned.id, name: returned.name ?? 'Passkey' }
+
+    try {
+      await recordAdded(database, returned.userId, stored)
+    } catch (error) {
+      console.error('Ein neuer Passkey ließ sich nicht im Protokoll festhalten.', error)
+      await database.forInstance((tx) =>
+        tx.delete(authPasskeys).where(eq(authPasskeys.id, stored.id)),
+      )
+
+      throw new APIError('INTERNAL_SERVER_ERROR', {
+        code: 'PASSKEY_NOT_RECORDED',
+        message:
+          'Der Passkey ließ sich nicht im Protokoll der Betriebe festhalten und ist deshalb ' +
+          'nicht angelegt. Bitte noch einmal versuchen.',
+      })
+    }
+
+    await spendReconfirmation(database, found.session.id)
+
+    void passkeyNotice?.(
+      { id: found.user.id, email: found.user.email, name: found.user.name },
+      stored,
+    ).catch((error: unknown) => {
+      console.error('Die Mail zu einem neuen Passkey ließ sich nicht schreiben.', error)
+    })
+  }
+
+  return authentication
 }

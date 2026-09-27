@@ -65,6 +65,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Betrieb endet in dessen Protokoll. Jede Anfrage einer Seite nennt seitdem den Betrieb, in dem sie
   arbeitet: Ein zweiter Tab, der nach einem Wechsel noch im alten Betrieb steht, schickt seinen
   Postausgang nicht in den neuen, sondern lädt neu.
+- Passkeys sind zurück (#167, #248), damit sich jemand ohne Passwort anmeldet, mit Fingerabdruck,
+  Gesicht oder PIN am Gerät, auf der Baustelle ohne das Telefon aus der Jacke. Unter "Konto" stehen
+  die Passkeys des Kontos mit Name, Tag der Registrierung und letzter Benutzung; jeder lässt sich
+  umbenennen und nach einer Rückfrage löschen, und das Passwort bleibt dabei. Hinzugefügt wird ein
+  Passkey nur nach erneuter Bestätigung mit dem Passwort und, wo eingerichtet, dem Code aus der App,
+  nicht allein mit einer bestehenden Sitzung; die Bestätigung gilt zehn Minuten und einen Passkey.
+  Angelegt und angemeldet wird nur mit Bestätigung am Gerät, und eine solche Anmeldung zählt als
+  zweiter Faktor, auch für den Inhaber und im Bereich der Instanz. Hinzufügen, Umbenennen und
+  Löschen stehen im Änderungsprotokoll jedes Betriebs, in dem die Person arbeitet, eine Anmeldung
+  mit Passkey an der Anmeldung im Betrieb, und ein neuer Passkey schickt eine E-Mail an das Konto.
+  Die Anmeldung zeigt unter "oder" den Knopf "Mit Passkey anmelden". Seit dem 23.09.2026 waren
+  Passkeys abgeschaltet (GHSA-jghx-6wmh-mpcj), weil jede Sitzung ohne Bestätigung einen
+  registrieren konnte, eine Anmeldung damit keinen zweiten Faktor verlangte und niemand seine
+  Passkeys sah. Migration 0052.
 
 ### Geändert
 
@@ -85,6 +99,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   E-Check-Protokoll heißt "Prüfung der Elektroinstallation", weil E-CHECK eine Marke des ZVEH ist.
 - better-auth steht auf 1.7.6, der neuesten Fassung, vorher 1.7.5; die Pakete für Passkeys (#167)
   verlangen sie, und jede Abhängigkeit steht auf ihrer neuesten Fassung.
+- `@better-auth/utils` steht auf 0.4.2 statt 0.5.0 und ist jetzt eine Abhängigkeit des Servers,
+  keine der Tests mehr. `@better-auth/passkey` 1.7.6 verlangt genau diese Fassung, dieselbe, mit
+  der better-auth die Codes aus der App prüft; mit 0.5.0 hätte pnpm eine zweite Kopie von
+  better-auths Kern angelegt.
+- Ein zweiter Faktor heißt überall "Authenticator-App oder Passkey": unter "Zugänge", in der Liste
+  der Betreiber und auf der Kommandozeile zählt ein Konto mit Passkey als eingerichtet, und die
+  Meldung zur Pflicht nennt beide Wege (#167).
+- Zwei Routen von better-auth sind abgeschaltet, die niemand benutzt: die Liste der Sitzungen, die
+  mit den Tokens aller Sitzungen des Kontos antwortete, und die eigenen Routen des Passkey-Plugins
+  für Liste, Umbenennen und Löschen, die das Änderungsprotokoll der Betriebe übergangen hätten. Die
+  Geräte eines Kontos stehen weiter unter "Konto". better-auths Prüfung, ob eine Sitzung jünger als
+  ein Tag ist, fällt weg; wo sie galt, beim Hinzufügen eines Passkeys, steht die erneute
+  Bestätigung.
 - Die Web-Tests fragen kein echtes Netz mehr (#440). Eine Abfrage, die nach dem Ende ihres Tests
   noch lief, ging bisher an `http://localhost:3000`, und jeder Lauf schrieb Dutzende
   `ECONNREFUSED` ins Protokoll, zwischen denen ein echter Fehler leicht unterging. Seitdem lehnt

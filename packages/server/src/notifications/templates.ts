@@ -357,3 +357,50 @@ export function passwordResetMessage(facts: {
 
   return { subject: 'Ein neues Passwort für OpenGewerk', body }
 }
+
+/**
+ * The mail about a new passkey (#167).
+ *
+ * Sent to the account whenever a passkey is added, so that one added by
+ * somebody else does not go unnoticed: a passkey opens every business of the
+ * account without the password. What was added and when, where to look, and
+ * what to do if it was not the person reading. It carries no link that does
+ * anything by itself; the one link leads to "Konto", where the passkey can
+ * be deleted after signing in.
+ */
+export function passkeyAddedMessage(facts: {
+  readonly name: string
+  readonly passkey: string
+  readonly addedAt: Date
+  readonly link: string
+  readonly business: string
+}): MessageText {
+  const when = new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(facts.addedAt)
+
+  const body = [
+    facts.name ? `Hallo ${facts.name},` : 'Hallo,',
+    '',
+    `für Ihren Zugang zu OpenGewerk wurde am ${when} Uhr ein neuer Passkey angelegt: ` +
+      `„${facts.passkey}“. Mit ihm melden Sie sich ohne Passwort an, bestätigt mit ` +
+      'Fingerabdruck, Gesicht oder PIN am Gerät.',
+    '',
+    'Ihre Passkeys sehen Sie unter „Konto“:',
+    '',
+    facts.link,
+    '',
+    'Wenn Sie diesen Passkey nicht selbst angelegt haben, löschen Sie ihn dort, ändern Sie Ihr ' +
+      'Passwort und sagen Sie dem Inhaber Ihres Betriebs Bescheid.',
+    '',
+    '-- ',
+    facts.business,
+  ].join('\n')
+
+  return { subject: 'Ein neuer Passkey für OpenGewerk', body }
+}

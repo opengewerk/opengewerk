@@ -91,6 +91,7 @@ const valueWords: Readonly<Record<string, Readonly<Record<string, Words>>>> = {
     cable_installation_method: cableInstallationMethodLabel,
   },
   time_entries: { kind: timeEntryKindLabel },
+  tenant_sessions: { sign_in_method: { password: 'Passwort', passkey: 'Passkey' } },
   number_ranges: { key: numberRangeWords },
   form_records: { definition_key: formWords },
 }

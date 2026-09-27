@@ -42,8 +42,9 @@ async function main(): Promise<void> {
 
     if (!operator.secondFactor) {
       console.info(
-        'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht. Er wird unter „Konto“ ' +
-          'eingerichtet; bis dahin bleibt der Bereich zu.',
+        'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht, eine Authenticator-App ' +
+          'oder ein Passkey. Beides wird unter „Konto“ eingerichtet; bis dahin bleibt der ' +
+          'Bereich zu.',
       )
     }
   } finally {

@@ -1,7 +1,7 @@
 import type { RoleKey } from '@opengewerk/domain'
-import { index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { foreignKey, index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
-import { authUsers } from './authentication.js'
+import { authUsers, signInMethod } from './authentication.js'
 import { primaryId, timestamps } from './columns.js'
 import { membershipVisibility, readableByTheOwner, tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
@@ -92,9 +92,56 @@ export const tenantSessions = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     /** Set on signing out or on the device being revoked. */
     endedAt: timestamp('ended_at', { withTimezone: true }),
+    /**
+     * With what the session was signed in, taken from it when the business is
+     * chosen (#167). This is where a sign in with a passkey shows in the log
+     * of the business.
+     */
+    signInMethod: signInMethod('sign_in_method').notNull().default('password'),
     ...timestamps,
   },
   (table) => [tenantIsolation(table.tenantId)],
+)
+
+/**
+ * The passkeys of somebody who works in this business, as the business sees
+ * them (#167, #248).
+ *
+ * A passkey belongs to the account and lives in `auth_passkeys`, on the
+ * instance, where no audit trigger can reach it. But it opens this business
+ * as much as the password does, so the owner should see it come and go. This
+ * table is how: a row per passkey and business the account works in, written
+ * when the passkey is added, renamed along with it and marked when it is
+ * deleted. The audit trigger watches it like every other table, which puts
+ * all three into the log of every business the person works in, without a
+ * line of the log written by hand. The same way `tenant_sessions` brings a
+ * sign in into the log.
+ *
+ * Never deleted: a passkey that is gone keeps its row with `removed_at` set,
+ * so that "which keys did this person ever have" has an answer. A business
+ * the person joins later learns of a passkey from its next change on.
+ */
+export const memberPasskeys = pgTable(
+  'member_passkeys',
+  {
+    id: primaryId<'member-passkey'>(),
+    ...tenantColumn,
+    userId: text('user_id').notNull(),
+    /** The row in `auth_passkeys`. Not a foreign key: that row is deleted with the passkey, this one stays. */
+    passkeyId: text('passkey_id').notNull(),
+    name: text('name').notNull(),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+      name: 'member_passkeys_person_works_here',
+    }).onDelete('cascade'),
+    unique('member_passkeys_once').on(table.tenantId, table.passkeyId),
+  ],
 )
 
 /**

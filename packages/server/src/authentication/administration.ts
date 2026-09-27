@@ -56,6 +56,8 @@ export interface StaffEntry {
    */
   readonly lastSignInAt: Date | null
   readonly twoFactorEnabled: boolean
+  /** Whether the account has a passkey, which is a second factor too (#167). */
+  readonly hasPasskey: boolean
 }
 
 /**
@@ -193,6 +195,7 @@ export async function listStaff(database: Database, identity: Identity): Promise
         blockedAt: row.blockedAt,
         lastSignInAt: lastSeen.get(row.userId) ?? null,
         twoFactorEnabled: account?.twoFactorEnabled === true,
+        hasPasskey: account?.hasPasskey === true,
       }
     })
     .sort((left, right) => left.name.localeCompare(right.name, 'de'))
@@ -513,7 +516,12 @@ export async function accountsOf(
   database: Database,
   userIds: readonly string[],
   asUser: string,
-): Promise<Map<string, { name: string; email: string; twoFactorEnabled: boolean | null }>> {
+): Promise<
+  Map<
+    string,
+    { name: string; email: string; twoFactorEnabled: boolean | null; hasPasskey: boolean }
+  >
+> {
   if (userIds.length === 0) {
     // drizzle turns an empty `in ()` into a condition that is never true, which
     // is right, but asking at all would be a transaction for nothing.
@@ -528,6 +536,8 @@ export async function accountsOf(
           name: authUsers.name,
           email: authUsers.email,
           twoFactorEnabled: authUsers.twoFactorEnabled,
+          hasPasskey: sql<boolean>`exists (
+            select 1 from auth_passkeys where auth_passkeys.user_id = ${authUsers.id})`,
         })
         .from(authUsers)
         .where(inArray(authUsers.id, [...userIds])),

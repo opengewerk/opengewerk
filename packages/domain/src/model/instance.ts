@@ -12,7 +12,10 @@ import type { AuditPage } from './audit-log.js'
 /** What the person asking may do with the instance. */
 export interface InstanceAccess {
   readonly operator: boolean
-  /** The area of the instance needs a second factor, as the role of an owner does. */
+  /**
+   * Whether this session carries the second factor the area needs, as the
+   * role of an owner does: the app, or a sign in with a passkey (#167).
+   */
   readonly secondFactor: boolean
 }
 
@@ -33,6 +36,7 @@ export interface OperatorView {
   readonly email: string
   /** Since when, ISO 8601. */
   readonly since: string
+  /** Whether the account has a second factor to sign in with, the app or a passkey. */
   readonly secondFactor: boolean
 }
 

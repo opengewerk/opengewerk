@@ -1,5 +1,14 @@
-import type { TenantId } from '@opengewerk/domain'
-import { bigint, boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { signInMethods, type TenantId } from '@opengewerk/domain'
+import {
+  bigint,
+  boolean,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 import { outsideAnyTenant, readableByTheOwner } from './rls.js'
 import { tenants } from './tenants.js'
@@ -56,6 +65,14 @@ export const authUsers = pgTable(
 )
 
 /**
+ * How a session came to be (#167): with the password, and the code from the
+ * app where one is set up, or with a passkey confirmed on the device. Kept on
+ * the session because the second factor is asked on every request, and on the
+ * stretch of work in a business, where the owner reads it.
+ */
+export const signInMethod = pgEnum('sign_in_method', signInMethods)
+
+/**
  * One sign in on one device.
  *
  * `activeTenantId` is the whole reason a session of ours is not just
@@ -96,6 +113,21 @@ export const authSessions = pgTable(
      * moves as the session is refreshed and would stop answering the question.
      */
     longLived: boolean('long_lived').notNull().default(false),
+    /**
+     * With what this session was signed in (#167). Set when the row is
+     * written, from the route that writes it, and never by a client: a
+     * session that could call itself a passkey session would skip the second
+     * factor.
+     */
+    signInMethod: signInMethod('sign_in_method').notNull().default('password'),
+    /**
+     * When the person last confirmed again with the password and, where set
+     * up, the code (#167). Adding a passkey asks for it within the last few
+     * minutes, so that a session left open on somebody's desk cannot give
+     * itself a key of its own. better-auth knows nothing of it; it is written
+     * and read by `reconfirmation.ts` alone.
+     */
+    reconfirmedAt: timestamp('reconfirmed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -162,10 +194,10 @@ export const authTwoFactors = pgTable(
  * it needs no phone in a pocket under a jacket, and it cannot be read out over
  * the shoulder.
  *
- * Nothing writes this table while passkeys are switched off
- * (GHSA-jghx-6wmh-mpcj). It stays, empty, for the day they come back with a
- * screen to list and revoke them; dropping it now and creating it again then
- * would be two migrations for nothing.
+ * Written by better-auth's passkey plugin (#167), which was switched off from
+ * 23.09.2026 (GHSA-jghx-6wmh-mpcj) until it could be listed, renamed and
+ * revoked under "Konto" and added only after confirming again. The table
+ * stood empty in between.
  */
 export const authPasskeys = pgTable(
   'auth_passkeys',
@@ -183,6 +215,11 @@ export const authPasskeys = pgTable(
     transports: text('transports'),
     aaguid: text('aaguid'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * When it last signed somebody in, for the list under "Konto". Ours and
+     * not the plugin's: written after every sign in with it (#167).
+     */
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   },
   () => [outsideAnyTenant()],
 )

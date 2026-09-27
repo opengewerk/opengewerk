@@ -11,6 +11,7 @@ import { raw } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { AuthenticationController } from '../authentication/authentication.controller.js'
+import { PasskeysController } from '../authentication/passkeys.controller.js'
 import { RecoveryCodesController } from '../authentication/recovery-codes.controller.js'
 import { Database } from '../database/database.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
@@ -191,6 +192,7 @@ export class ApiModule implements NestModule {
         // The first two answer without an identity.
         ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
         AuthenticationController,
+        PasskeysController,
         StaffController,
         CustomersController,
         ContactsController,

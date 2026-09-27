@@ -206,10 +206,10 @@ describe('every route', () => {
    * These need somebody signed in but no business, so they cannot ask for a
    * right: a right comes from a membership and a membership is per business,
    * which is exactly what has not been decided yet at this point, or, for the
-   * devices and the recovery codes (#125), what the account has and no
-   * business. A new one turns this red, and it should, because the next route
-   * that "only needs a session" is far more likely to be one that forgot to
-   * say which business it means.
+   * devices, the recovery codes (#125) and the passkeys (#167, #248), what the
+   * account has and no business. A new one turns this red, and it should,
+   * because the next route that "only needs a session" is far more likely to
+   * be one that forgot to say which business it means.
    */
   it('that needs a session but no business is one of the few around signing in', () => {
     const sessionOnly = routesOf(controllers)
@@ -219,10 +219,13 @@ describe('every route', () => {
 
     expect(sessionOnly).toEqual([
       'DELETE /auth/devices/:sessionId',
+      'DELETE /auth/passkeys/:passkeyId',
       'GET /auth/devices',
+      'GET /auth/passkeys',
       'GET /auth/recovery-codes',
       'GET /auth/tenants',
       'GET /instance/access',
+      'PATCH /auth/passkeys/:passkeyId',
       'POST /auth/sign-out',
       'POST /auth/tenant',
     ])

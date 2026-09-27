@@ -139,7 +139,7 @@ export class AuthorizationGuard implements CanActivate {
         throw new UnauthorizedException('Keine gültige Anmeldung.')
       }
 
-      const access = await operatorAccess(this.database, user.userId)
+      const access = await operatorAccess(this.database, user.userId, user.sessionId)
 
       if (!access.operator) {
         throw new ForbiddenException('Diesen Bereich erreicht nur ein Betreiber der Instanz.')
@@ -147,8 +147,8 @@ export class AuthorizationGuard implements CanActivate {
 
       if (!access.secondFactor) {
         throw new ForbiddenException(
-          'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht. Bitte zuerst unter ' +
-            '„Konto“ eine Authenticator-App einrichten.',
+          'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht. Bitte unter „Konto“ ' +
+            'eine Authenticator-App einrichten oder mit einem Passkey anmelden.',
         )
       }
 

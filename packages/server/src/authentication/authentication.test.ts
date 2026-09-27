@@ -469,42 +469,35 @@ describe('the second factor', () => {
 
     const refused = await http().get('/customers').set('cookie', withCookies(cookies)).expect(403)
     expect(refused.body.message).toContain('zweiter Faktor')
-    // The way that exists, and no other: a passkey cannot be set up here.
+    // Both ways out (#167): the app, or signing in with a passkey.
     expect(refused.body.message).toContain('Authenticator-App')
-    expect(refused.body.message).not.toContain('Passkey')
+    expect(refused.body.message).toContain('Passkey')
   })
 
   /**
-   * Passkeys are off until they can be listed and revoked (GHSA-jghx-6wmh-mpcj).
-   * With the plugin on, a session could register one without confirming
-   * anything, and signing in with it skipped the second factor. So the routes
-   * are not there at all, the one that registers and the one that signs in.
+   * Passkeys were off from 23.09.2026 (GHSA-jghx-6wmh-mpcj): a session could
+   * register one without confirming anything, and signing in with it skipped
+   * the second factor. They came back with #167, and the first half of that
+   * advisory is what this holds: a session alone registers nothing, however
+   * young it is. The rest is in `passkeys.test.ts`, which also signs in with
+   * one and shows that only one confirmed on the device counts.
    */
-  it('cannot be gone round with a passkey, because there are no passkey routes', async () => {
-    const cookies = await signIn(office.email)
+  it('cannot be gone round by registering a passkey with a session alone', async () => {
+    const cookies = await signIn(owner.email)
 
-    // The routes of better-auth's passkey plugin 1.7, each with its method.
-    // With the plugin on, the first answers with options, the list with an
-    // empty array and the sign in with a refusal of its body, none with 404.
-    for (const path of [
-      '/passkey/generate-register-options',
-      '/passkey/generate-authenticate-options',
-      '/passkey/list-user-passkeys',
-    ]) {
-      await http()
-        .get(`${authenticationPath}${path}`)
-        .set('cookie', withCookies(cookies))
-        .expect(404)
-    }
+    const refused = await http()
+      .get(`${authenticationPath}/passkey/generate-register-options`)
+      .set('cookie', withCookies(cookies))
+      .expect(403)
 
-    for (const path of ['/passkey/verify-registration', '/passkey/verify-authentication']) {
-      await http()
-        .post(`${authenticationPath}${path}`)
-        .set('cookie', withCookies(cookies))
-        .set('origin', origin)
-        .send({})
-        .expect(404)
-    }
+    expect(refused.body.message).toContain('mit dem Passwort bestätigen')
+
+    await http()
+      .post(`${authenticationPath}/passkey/verify-registration`)
+      .set('cookie', withCookies(cookies))
+      .set('origin', origin)
+      .send({ response: {}, name: 'Ohne Bestätigung' })
+      .expect(403)
   })
 
   it('is not required of the office, who works as usual', async () => {

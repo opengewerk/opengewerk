@@ -1,5 +1,6 @@
 import type { RoleKey } from './authorization.js'
 import type { InvitationId, MembershipId, TenantId, TenantSessionId } from './identifier.js'
+import type { SignInMethod } from './passkey.js'
 
 /**
  * What a person is in one business. A user belongs to the instance, a
@@ -104,6 +105,8 @@ export interface TenantSession {
   readonly startedAt: Date
   /** Set when the session ends, by signing out or by being revoked. */
   readonly endedAt: Date | null
+  /** With what the session was signed in, the password or a passkey (#167). */
+  readonly signInMethod: SignInMethod
   readonly createdAt: Date
   readonly updatedAt: Date
 }

@@ -69,7 +69,7 @@ export class InstanceController {
   @Get('access')
   @RequiresSession()
   access(@CurrentUser() user: SignedInUser): Promise<InstanceAccess> {
-    return operatorAccess(this.database, user.userId)
+    return operatorAccess(this.database, user.userId, user.sessionId)
   }
 
   @Get('settings')

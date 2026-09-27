@@ -297,6 +297,10 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       password_set_at: 'Passwort gesetzt am',
     },
   },
+  member_passkeys: {
+    label: 'Passkey',
+    fields: { passkey_id: 'Kennung des Passkeys', removed_at: 'Gelöscht am' },
+  },
   memberships: { label: 'Zugang', fields: { roles: 'Rollen', blocked_at: 'Gesperrt am' } },
   number_ranges: {
     label: 'Nummernkreis',
@@ -357,7 +361,12 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
   tenant_sessions: {
     label: 'Anmeldung',
-    fields: { session_id: 'Sitzung', started_at: 'Begonnen am', ended_at: 'Beendet am' },
+    fields: {
+      session_id: 'Sitzung',
+      started_at: 'Begonnen am',
+      ended_at: 'Beendet am',
+      sign_in_method: 'Angemeldet mit',
+    },
   },
   tenants: { label: 'Betrieb' },
   text_snippets: { label: 'Textbaustein', fields: { purpose: 'Zweck' } },
@@ -420,4 +429,11 @@ export function auditFieldLabel(table: string, field: string): string {
  * written. The log keeps them, as it keeps everything; the list leaves them
  * out, so that a new customer shows its name and address and not its key.
  */
-export const quietAuditFields: ReadonlySet<string> = new Set(['id', 'tenant_id', 'created_at'])
+export const quietAuditFields: ReadonlySet<string> = new Set([
+  'id',
+  'tenant_id',
+  'created_at',
+  // The key of a passkey on the instance, which says as little as `id` does;
+  // the passkey is named by its name.
+  'passkey_id',
+])
