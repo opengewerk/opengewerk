@@ -94,10 +94,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   auch das Büro; ein Gerät bekommt sie über den Abgleich und schreibt keine, und ein gelöschter
   Kunde oder ein gelöschtes Objekt nimmt seine Tags mit. Ein Name mit den erlaubten 40 Zeichen
   kürzt sich in seiner Pille, statt am Telefon über den Rand zu laufen, und die Beispieldaten der
-  Vorschau tragen einen, damit die Prüfung der Breiten ihn misst. Migration 0053.
+  Vorschau tragen einen an jedem Kunden und Objekt, damit die Prüfung der Breiten ihn misst, auch in
+  den Formularen. Migration 0053.
 
 ### Geändert
 
+- Die Prüfung "Breiten und Auflösungen" drückt auf jeder Seite, die einen Knopf "Bearbeiten"
+  hat, diesen Knopf und misst das Formular dahinter als eigene Art von Seite, in jeder Stufe der
+  Breite neu geöffnet. Sie folgt nur Links, und die Formulare von Kunde und Objekt, in denen sich
+  Tags entfernen lassen, erreicht kein Link. Ein Datum in einer Adresse zählt dabei wie eine
+  Kennung als eine Art von Seite: bis dahin war jedes Datum der Zeiterfassung eine eigene, der
+  Rundgang lief Tag für Tag zurück bis an seine Grenze von 120 Arten und maß rund neunzig Tage in
+  jeder Breite.
 - `MAIL_INTERNAL_HOSTS` in der `.env` wird beim nächsten Start einmal in die Einstellungen der
   Instanz übernommen, neben dem, was dort schon steht, damit ein Update keinen Mailserver abschaltet;
   danach entscheidet der Bereich der Instanz, und ein späterer Wert in der `.env` ändert nichts. Die
