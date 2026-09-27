@@ -83,6 +83,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ändern den Umfang: Termine kommen über ein Kalender-Abo je Person statt über CalDAV in den
   eigenen Kalender, damit OpenGewerk keine Zugangsdaten fremder Kalender hält, und das
   E-Check-Protokoll heißt "Prüfung der Elektroinstallation", weil E-CHECK eine Marke des ZVEH ist.
+- better-auth steht auf 1.7.6, der neuesten Fassung, vorher 1.7.5; die Pakete für Passkeys (#167)
+  verlangen sie, und jede Abhängigkeit steht auf ihrer neuesten Fassung.
+- Die Web-Tests fragen kein echtes Netz mehr (#440). Eine Abfrage, die nach dem Ende ihres Tests
+  noch lief, ging bisher an `http://localhost:3000`, und jeder Lauf schrieb Dutzende
+  `ECONNREFUSED` ins Protokoll, zwischen denen ein echter Fehler leicht unterging. Seitdem lehnt
+  `fetch` außerhalb eines Tests ab wie ein Netz, das nicht da ist.
 
 ## [0.4.0] - 2026-09-27
 
