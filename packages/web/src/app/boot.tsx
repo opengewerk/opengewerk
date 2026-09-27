@@ -9,7 +9,7 @@ import type { Entry } from '../entry/entry.js'
 import { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
-import { directWrite, httpTransport } from '../sync/transport.js'
+import { directWrite, httpTransport, workIn } from '../sync/transport.js'
 import { unreachable } from '../session/remembered.js'
 import { deviceIdentity } from './device.js'
 import { Gate, GateText, GateWaiting, InstanceVersion } from './gate.js'
@@ -151,6 +151,9 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
     let live = true
     let started: SyncClient | null = null
 
+    // From here on every request of this page names this business (#242).
+    workIn(tenantId)
+
     void (async () => {
       const store = await openLocalStore(tenantId)
       const running = await SyncClient.start({
@@ -182,6 +185,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
     return () => {
       live = false
       started?.stop()
+      workIn(null)
       setClient(null)
       setStalled(false)
     }

@@ -188,6 +188,33 @@ export function writtenByTriggerOnly(tenantId: PgColumn) {
 }
 
 /**
+ * `writtenByTriggerOnly` for a log that belongs to no business, the log of
+ * the instance (#188): its trigger writes through the open policy, and the
+ * application reads it outside any business and never writes, WITH CHECK
+ * false, exactly as for the log of a business.
+ */
+export function writtenByTriggerOutsideAnyTenant() {
+  const noTenantInThisTransaction = sql`nullif(current_setting('app.tenant_id', true), '') is null`
+
+  return [
+    pgPolicy('written_by_trigger', {
+      as: 'permissive',
+      for: 'all',
+      to: 'public',
+      using: sql`true`,
+      withCheck: sql`true`,
+    }),
+    pgPolicy('outside_any_tenant', {
+      as: 'restrictive',
+      for: 'all',
+      to: applicationRole,
+      using: noTenantInThisTransaction,
+      withCheck: sql`false`,
+    }),
+  ]
+}
+
+/**
  * Lets the role that owns the tables read this one.
  *
  * `FORCE ROW LEVEL SECURITY` makes the policies apply to the owner as well,

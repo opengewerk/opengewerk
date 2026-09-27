@@ -463,6 +463,83 @@ describe('the jobs closed before 0042', () => {
 })
 
 /**
+ * An instance set up before 0051 has no operator (#188), and its area would
+ * be shut to everybody. 0051 names the account whose membership the first run
+ * wrote, found in the log of that business, and nobody else. The rows are
+ * planted as the superuser with the reasons the application writes, the way a
+ * first run and a later invitation left them.
+ */
+describe('the operators of an instance set up before 0051', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0051_instance')
+
+  it('get the account of the first run, and only that one', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+
+    const client = await admin.connect()
+
+    try {
+      await client.query('begin')
+      await client.query("select set_config('app.reason', 'instance.setup', true)")
+      await client.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+      await client.query(
+        `insert into auth_users (id, name, email)
+           values ('first', 'Olga Owner', 'olga@example.de'), ('later', 'Britta Büro', 'britta@example.de')`,
+      )
+      await client.query(
+        "insert into memberships (tenant_id, user_id, roles) values ($1, 'first', '{owner}')",
+        [tenant.id],
+      )
+      await client.query("select set_config('app.reason', 'membership.create', true)")
+      await client.query(
+        "insert into memberships (tenant_id, user_id, roles) values ($1, 'later', '{owner}')",
+        [tenant.id],
+      )
+      await client.query('commit')
+    } finally {
+      client.release()
+    }
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: operators } = await admin.query<{ user_id: string }>(
+      'select user_id from instance_operators',
+    )
+
+    expect(operators.map((row) => row.user_id)).toEqual(['first'])
+
+    const { rows: settings } = await admin.query<{ hosts: string[]; backup_time: string }>(
+      'select mail_internal_hosts as hosts, backup_time::text as backup_time from instance_settings',
+    )
+
+    expect(settings).toEqual([{ hosts: [], backup_time: '02:30:00' }])
+
+    // Both in the log of the instance, as something the migration did.
+    const { rows: logged } = await admin.query<{ table_name: string; reason: string | null }>(
+      `select distinct table_name, reason from instance_changes
+        where operation = 'insert' order by table_name`,
+    )
+
+    expect(logged).toEqual([
+      { table_name: 'instance_operators', reason: 'migration' },
+      { table_name: 'instance_settings', reason: 'migration' },
+    ])
+  })
+
+  it('leave an instance nobody set up without one, for the first run to name', async () => {
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query('select 1 from instance_operators')
+
+    expect(rows).toEqual([])
+  })
+})
+
+/**
  * 0029 changed the shipped instructions of every business with four UPDATEs,
  * and as the owner under FORCE ROW LEVEL SECURITY they found no row. 0032 says
  * the same again with FORCE lifted. These are the rows 0027 wrote, planted as

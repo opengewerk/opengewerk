@@ -44,8 +44,38 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Eintrag nicht; die Prüfung vergleicht dafür auch den Kopf der Kette, damit am Ende entfernte
   Einträge auffallen. Neues Recht `audit.read`, nur für den Inhaber, weil das Protokoll alte Werte
   zeigt; das Lesen selbst wird nicht protokolliert. Keine Migration.
+- Ein Bereich für die Betreiber der Instanz (#188), weil zwei Einstellungen keinem Betrieb gehören:
+  auf einer Instanz mit mehreren Betrieben entschiede sonst jeder Inhaber über alle. Wer die Instanz
+  betreibt, erreicht ihn unter dem Namen über "Instanz verwalten", nur mit zweitem Faktor, und findet
+  dort die Betriebe der Instanz, die Mailserver im eigenen Netz, die ein Betrieb benutzen darf, die
+  Uhrzeit der nächtlichen Sicherung, die Betreiber und ein eigenes Protokoll jeder Änderung. Aus
+  einem Betrieb sieht der Bereich nur Namen, Tag der Anlage, Inhaber und die Zahl der Zugänge.
+  Betreiber ist das Konto der Ersteinrichtung; auf einer Instanz, die schon läuft, findet Migration
+  0051 dieses Konto im Protokoll des ersten Betriebs, und `appoint-operator` benennt einen weiteren
+  von der Kommandozeile. Ein Inhaber erreicht den Bereich nicht, nur weil er Inhaber ist.
+- Weitere Betriebe auf einer Instanz (#142): Ein Inhaber legt unter "Konto", "Betriebe" einen
+  weiteren für sich an und ist dort sofort Inhaber, mit dem zweiten Faktor, den er schon hat (Recht
+  `tenant.create`). Für jemand anderen legt ihn ein Betreiber im Bereich der Instanz an, mit einem
+  Einladungslink, der die Person zum Inhaber macht, oder auf der Kommandozeile mit `add-tenant`.
+  Ein neuer Betrieb startet leer wie nach der Ersteinrichtung und ist vom ersten getrennt wie zwei
+  fremde. Für den Namen gilt dieselbe Regel wie bei der Ersteinrichtung und unter "Briefkopf".
+- Der Wechsel des Betriebs ohne neue Anmeldung (#242), in der Kopfleiste, im Menü am Telefon und
+  unter "Konto", sobald eine Person mehr als einen Betrieb hat. Was im Postausgang des ersten
+  Betriebs liegt, geht vor dem Wechsel hinaus oder bleibt in dessen Ablage, und die Arbeit im ersten
+  Betrieb endet in dessen Protokoll. Jede Anfrage einer Seite nennt seitdem den Betrieb, in dem sie
+  arbeitet: Ein zweiter Tab, der nach einem Wechsel noch im alten Betrieb steht, schickt seinen
+  Postausgang nicht in den neuen, sondern lädt neu.
 
 ### Geändert
+
+- `MAIL_INTERNAL_HOSTS` in der `.env` wird beim nächsten Start einmal in die Einstellungen der
+  Instanz übernommen, neben dem, was dort schon steht, damit ein Update keinen Mailserver abschaltet;
+  danach entscheidet der Bereich der Instanz, und ein späterer Wert in der `.env` ändert nichts. Die
+  nächtliche Sicherung liest ihre Uhrzeit aus den Einstellungen, 02:30 bleibt die Vorgabe, und
+  "Sicherung" im Büro nennt die eingestellte Zeit.
+- Im Änderungsprotokoll eines Betriebs stehen Abmeldung, abgemeldetes Gerät und Wechsel in einen
+  anderen Betrieb in Worten statt als Schlüssel, und der Zeitpunkt einer geöffneten Änderung ist fett
+  wie auf den Tafeln.
 
 - Die Feature-Gliederung (v2.24) trägt die Entscheidungen vor dem Bau von Phase 2 ein, getroffen
   von Moritz am 27.09.2026 aus den Abschnitten "Zu klären vor dem Bau" der Issues #283 bis #319 und

@@ -1,7 +1,8 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import { workingInHeader } from '@opengewerk/domain'
 import { toNodeHandler } from 'better-auth/node'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -343,6 +344,105 @@ describe('the choice of business', () => {
     const seen = await http().get('/customers').set('cookie', withCookies(south_)).expect(200)
 
     expect((seen.body as { name: string }[]).map((row) => row.name)).not.toContain('Nur im Norden')
+  })
+
+  /**
+   * The switch between two businesses without signing in again (#242). The
+   * session goes over, and the stretch of work in the first business ends
+   * there, in its own log, instead of staying open because the sign out
+   * later closes only what is open in the business chosen last.
+   */
+  it('moves one session from one company to the other, and ends the work in the first', async () => {
+    const cookies = await signIn(both.email)
+    const choose = (tenantId: string) =>
+      http()
+        .post('/auth/tenant')
+        .set('cookie', withCookies(cookies))
+        .set('origin', origin)
+        .send({ tenantId })
+        .expect(201)
+
+    await choose(north.id)
+    await http()
+      .post('/customers')
+      .set('cookie', withCookies(cookies))
+      .send({ kind: 'business', name: 'Vor dem Wechsel' })
+      .expect(201)
+
+    await choose(south.id)
+
+    const seen = await http().get('/customers').set('cookie', withCookies(cookies)).expect(200)
+
+    expect((seen.body as { name: string }[]).map((row) => row.name)).not.toContain(
+      'Vor dem Wechsel',
+    )
+
+    const { rows } = await admin.query<{ tenant_id: string; ended: boolean }>(
+      `select s.tenant_id, s.ended_at is not null as ended
+         from tenant_sessions s
+         join auth_users u on u.id = s.user_id
+        where u.email = $1 and s.session_id = (
+          select id from auth_sessions where user_id = u.id order by created_at desc limit 1)`,
+      [both.email],
+    )
+
+    expect(rows.find((row) => row.tenant_id === north.id)?.ended).toBe(true)
+    expect(rows.find((row) => row.tenant_id === south.id)?.ended).toBe(false)
+
+    const ended = await database.forTenant({ tenantId: north.id }, (tx) =>
+      tx
+        .select({ reason: auditEntries.reason })
+        .from(auditEntries)
+        .where(
+          and(eq(auditEntries.tableName, 'tenant_sessions'), eq(auditEntries.field, 'ended_at')),
+        ),
+    )
+
+    expect(ended.some((entry) => entry.reason === 'session.switch')).toBe(true)
+  })
+
+  /**
+   * The other tab (#242): a page that still works in the first business sends
+   * its business along, and the server refuses it instead of taking its
+   * outbox into the second. Without the header, as before, nothing changes.
+   */
+  it('refuses a page that still works in the business the session left', async () => {
+    const cookies = await signIn(both.email)
+    const choose = (tenantId: string) =>
+      http()
+        .post('/auth/tenant')
+        .set('cookie', withCookies(cookies))
+        .set('origin', origin)
+        .send({ tenantId })
+        .expect(201)
+
+    await choose(north.id)
+    await choose(south.id)
+
+    const left = await http()
+      .get('/sync?since=0')
+      .set('cookie', withCookies(cookies))
+      .set(workingInHeader, north.id)
+      .expect(401)
+
+    expect((left.body as { message: string }).message).toContain('anderen Betrieb')
+
+    await http()
+      .post('/customers')
+      .set('cookie', withCookies(cookies))
+      .set(workingInHeader, north.id)
+      .send({ kind: 'business', name: 'Aus dem alten Tab' })
+      .expect(401)
+    await http()
+      .get('/sync?since=0')
+      .set('cookie', withCookies(cookies))
+      .set(workingInHeader, south.id)
+      .expect(200)
+    await http().get('/customers').set('cookie', withCookies(cookies)).expect(200)
+
+    const { rows } = await admin.query("select 1 from customers where name = 'Aus dem alten Tab'")
+
+    expect(rows).toEqual([])
   })
 })
 

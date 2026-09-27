@@ -64,6 +64,8 @@ import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { PUSH, PushController, type PushContext } from './push.controller.js'
 import { AuditController } from './audit.controller.js'
+import { INSTANCE, InstanceController, type InstanceContext } from './instance.controller.js'
+import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
 
@@ -123,6 +125,12 @@ export interface ApiOptions {
    * says so, and the routes that would send refuse with the reason.
    */
   readonly push?: PushContext | null
+  /**
+   * The settings of the instance in memory (#188), so that a change made in
+   * its area reaches the mail check at once. Left out, the area reads and
+   * writes the database and nothing is kept.
+   */
+  readonly instance?: InstanceContext | null
 }
 
 /**
@@ -197,6 +205,8 @@ export class ApiModule implements NestModule {
         DeadlineSettingsController,
         PushController,
         AuditController,
+        InstanceController,
+        TenantsController,
         FilesController,
         AttachmentsController,
         TimeController,
@@ -230,6 +240,7 @@ export class ApiModule implements NestModule {
         { provide: BACKUP_STATUS, useValue: backupStatus },
         { provide: VERSION, useValue: version },
         { provide: PUSH, useValue: push },
+        ...(options.instance ? [{ provide: INSTANCE, useValue: options.instance }] : []),
         DocumentFiles,
         ...(authentication
           ? [
