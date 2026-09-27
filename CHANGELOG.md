@@ -97,14 +97,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wo er gebraucht wird, und nicht auf einem Zettel im Auto. Inhaber und Büro tragen unter einem
   Objekt jeden Zugang mit Bezeichnung, Wert und Hinweis ein (Recht `site.access`). Der Wert liegt
   versiegelt in `secrets`, gebunden an Betrieb und Eintrag, und steht nie im Änderungsprotokoll, das
-  nur nennt, dass einer gesetzt wurde. Angezeigt wird er auf Klick, im Büro über die Route und mit
-  Verbindung, und jedes Anzeigen wird festgehalten. Auf der Baustelle zeigt ein Auftrag die Karte
-  "Zugang zum Objekt": dort liegt der Wert auf dem Gerät, solange am Objekt ein offener Auftrag ist,
-  den das Gerät hält, beim Monteur die ihm zugeordneten, bei Inhaber und Büro alle offenen, damit er
-  auch ohne Netz vor der Tür steht; ein Anzeigen dort geht mit dem nächsten Abgleich hinaus. Nach dem
-  Abschluss verschwindet der Wert vom Gerät, beim Monteur mit dem ganzen Zugang. Ändert sich
-  `SESSION_SECRET`, sagt die Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern.
-  Migration 0054.
+  nur nennt, dass einer gesetzt wurde. Inhaber und Büro sehen ihn auf Klick über die Route und mit
+  Verbindung, auch auf der Baustelle, und jedes Anzeigen wird festgehalten; auf ihrem Gerät liegt
+  keiner, gleich was eine Anfrage verlangt. Auf dem Gerät eines Monteurs liegt der Wert, solange er
+  einem offenen Auftrag am Objekt zugeordnet ist, damit er auch ohne Netz vor der Tür steht. Die
+  Karte "Zugang zum Objekt" steht nur an einem offenen Auftrag, ein Anzeigen dort wird erst im
+  Postausgang festgehalten und dann gezeigt, und der Server nimmt es nur für einen Zugang an, den das
+  Gerät halten konnte, auch wenn der inzwischen gelöscht ist. Nach dem Abschluss verschwindet der
+  Zugang vom Gerät, ein gelöschtes Objekt nimmt seine Zugänge samt Wert mit, und ein gezeigter Wert,
+  der sich inzwischen geändert hat, wird wieder verdeckt. Ändert sich `SESSION_SECRET`, sagt die
+  Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern. Migration 0054.
 
 ### Geändert
 

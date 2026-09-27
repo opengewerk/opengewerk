@@ -301,7 +301,8 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   /**
    * That somebody saw the value of an access: written by the device that
    * showed it, also without a network, and never changed. Whose it is the
-   * database writes from the request.
+   * database writes from the request, and the server refuses one for an
+   * access the device cannot have held (`revealRefusal`).
    */
   site_access_reveals: { create: true, change: 'never', reserved: ['userId'] },
 }

@@ -26,9 +26,11 @@ export interface SiteAccess extends Synced {
 
 /**
  * That somebody saw the value of an access, and when. Written by the device
- * that showed it, through the outbox and so also without a network, or by the
- * route that hands the value to the office. Who it was the database writes
- * from the request.
+ * that showed it, through the outbox and so also without a network, before
+ * the value appears, or by the route that hands the value to the owner or the
+ * office. Who it was the database writes from the request. The server takes
+ * one from a device only for an access that device can have held, and also
+ * when the access was deleted since: the showing happened.
  */
 export interface SiteAccessReveal extends Synced {
   readonly id: Id<'site-access-reveal'>
