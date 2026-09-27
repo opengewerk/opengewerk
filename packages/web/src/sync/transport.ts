@@ -202,9 +202,10 @@ export const directWrite = {
 
 /**
  * The transport of the site (#286): the same, and its pull asks for the
- * values of the ways into the sites of its open jobs, which the server hands
- * only to the device of a technician on such a job. The office never asks;
- * it gets a value on request, from the route that keeps who saw it.
+ * values of the ways into the sites with an open job the device holds, the
+ * assigned ones of a technician and every open one for the owner and the
+ * office. The office entry never asks; there a value comes on request, from
+ * the route that keeps who saw it.
  */
 export const siteTransport = (): SyncTransport => ({
   ...httpTransport,
