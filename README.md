@@ -43,7 +43,7 @@ Die vollständige Tabelle steht in [`docs/konzept/Feature-Gliederung.md`](docs/k
 
 **Phase 0**, das Fundament, ist gebaut: Datenmodell, Mandantentrennung über Row-Level Security, Rollen und Rechte, Nummernkreise mit Festschreibung, Audit-Log mit Hashkette, Offline-Datenschicht, Regel-Engine und der Betrieb über Docker Compose mit Sicherung, Rückspielen und Update-Pfad.
 
-**Phase 1**, das MVP für den Pilotbetrieb, ist gebaut; die neueste Fassung ist [0.3.0](https://github.com/opengewerk/opengewerk/releases). Vor dem produktiven Einsatz stehen noch die fachliche Abnahme der Regelpakete und Grenzwerte (#31) und ein Praxistest der E-Rechnung bei einem echten Empfänger (#133). Eine Installation startet mit `sh docker/start.sh`, aus einem Release-Paket mit signierten Abbildern oder aus dem Quelltext, wird im Browser mit dem Einrichtungscode aus `docker/.env` eingerichtet und sichert sich jede Nacht selbst. Stand 27.09.2026 gibt es:
+**Phase 1**, das MVP für den Pilotbetrieb, ist gebaut; die neueste Fassung ist [0.4.0](https://github.com/opengewerk/opengewerk/releases). Vor dem produktiven Einsatz stehen noch die fachliche Abnahme der Regelpakete und Grenzwerte (#31) und ein Praxistest der E-Rechnung bei einem echten Empfänger (#133). Eine Installation startet mit `sh docker/start.sh`, aus einem Release-Paket mit signierten Abbildern oder aus dem Quelltext, wird im Browser mit dem Einrichtungscode aus `docker/.env` eingerichtet und sichert sich jede Nacht selbst. Stand 27.09.2026 gibt es:
 
 - **Büro und Baustelle aus einer Anwendung**, die Baustelle ohne Netz: Anmeldung mit zweitem Faktor und Wiederherstellungscodes, weitere Zugänge per Einladungslink, die Rollen Inhaber, Büro und Monteur. Das Gerät eines Monteurs hält nur die Aufträge, auf denen er eingeteilt ist, und was auf ihm entsteht, geht beim nächsten Abgleich hinaus, auch nach einem ganzen Tag ohne Netz.
 - **Kunden, Objekte, Anlagen und Aufträge**: Kunden mit Land und Ansprechpartnern, Aufträge mit eigener Nummer, Folgeaufträgen und Notizen von der Baustelle, Aufgaben mit Erinnerung per E-Mail, eine Dokumentenablage mit Fotos von der Baustelle.
@@ -571,7 +571,7 @@ auch dann laufen muss, wenn die Anwendung es nicht tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
 `curl http://127.0.0.1:23700/health` antwortet mit
-`{"status":"bereit","database":true,"version":"0.3.0"}`, aus einem Checkout mit
+`{"status":"bereit","database":true,"version":"0.4.0"}`, aus einem Checkout mit
 `"version":null`. Dieselbe Fassung steht im Fuß der Anmeldung (#259). Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 

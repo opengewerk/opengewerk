@@ -37,3 +37,11 @@ trägt ein Schild mit den Sternen der EU. Es wird hier nur als Teil der Mitteilu
 den Zweck, für den die Verordnung sie vorschreibt, und ohne eine Verbindung zur EU oder eine
 Billigung durch sie zu behaupten. Diese Dateien stehen nicht unter der AGPL-3.0 des übrigen
 Repositorys.
+
+Eine Genehmigung für das Schild ist nicht eingeholt worden, mit Absicht (entschieden am
+27.09.2026). Nach der Verwaltungsvereinbarung zwischen der Europäischen Union und dem Europarat
+über die Verwendung des Emblems durch Dritte (ABl. C 271 vom 08.09.2012, S. 5) braucht es keine
+schriftliche Erlaubnis, solange die Verwendung keine Verbindung zu einem Organ der EU und keine
+Unterstützung oder Billigung durch sie vortäuscht und keinem Zweck dient, der ihren Zielen
+widerspricht. Hier erscheint das Schild nur in der Seite, die die Verordnung vorschreibt, in der
+Datei, die die Kommission dafür bereitstellt.

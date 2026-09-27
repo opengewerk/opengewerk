@@ -7,6 +7,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-27
+
+Die vierte Fassung bringt die harmonisierte Mitteilung zur gesetzlichen Gewährleistung, die seit dem
+27.09.2026 zu jedem Angebot an einen Verbraucher über eine Lieferung von Waren gehört. Dazu rechnet
+der Verzugszins taggenau nach der Länge des Kalenderjahres, die Regelpakete nennen ihre Fundstellen
+genauer, und die Abbilder erscheinen zusätzlich auf Docker Hub.
+
+Wer 0.3.0 betreibt, aktualisiert mit dem Paket dieser Fassung; Migration 0048 läuft dabei von selbst.
+Wie bei den Fassungen davor fehlen vor dem produktiven Einsatz die fachliche Abnahme der Regelpakete
+und der Grenzwerte des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133).
+
 ### Hinzugefügt
 
 - Die Abbilder jeder Fassung erscheinen zusätzlich auf Docker Hub, als `opengewerk/opengewerk` und
@@ -63,6 +74,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   weil sie je Ware gilt und an den Artikelstamm gehört. Die übrigen neuen Angaben legt der
   Betrieb als eigene Belehrung an, wenn der Hersteller sie liefert; so entschieden von Moritz am
   26.09.2026.
+- Die README zur Mitteilung zur Gewährleistung unter `packages/server/assets/legal` nennt die
+  Grundlage für das Schild mit den Sternen der EU: nach der Vereinbarung zwischen EU und Europarat
+  über die Verwendung des Emblems durch Dritte braucht es keine Erlaubnis, solange keine Verbindung
+  zur EU vorgetäuscht wird. Eine Anfrage an die Kommission ist deshalb nicht gestellt worden,
+  entschieden von Moritz am 27.09.2026.
 
 ## [0.3.0] - 2026-09-26
 
