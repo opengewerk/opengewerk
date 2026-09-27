@@ -92,7 +92,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ist, wer einen abgeschlossenen Auftrag hat. Die Akte eines Kunden sagt das neben der Art; beides
   zeigt nur ein Gerät, das alle Aufträge des Betriebs hält. Tags pflegt, wer Kunden ändern darf, also
   auch das Büro; ein Gerät bekommt sie über den Abgleich und schreibt keine, und ein gelöschter
-  Kunde oder ein gelöschtes Objekt nimmt seine Tags mit. Migration 0053.
+  Kunde oder ein gelöschtes Objekt nimmt seine Tags mit. Ein Name mit den erlaubten 40 Zeichen
+  kürzt sich in seiner Pille, statt am Telefon über den Rand zu laufen, und die Beispieldaten der
+  Vorschau tragen einen, damit die Prüfung der Breiten ihn misst. Migration 0053.
 
 ### Geändert
 

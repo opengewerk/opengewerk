@@ -167,6 +167,18 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       city: 'Hamburg',
     }),
   )
+  // Tags (#314), each customer with one as long as a name may be, so that the
+  // check of widths, which looks at the first customer it finds, sees the
+  // longest a pill can get.
+  await send(base, 'PUT', `/customers/${nordblick}/tags`, {
+    tagIds: [],
+    newTags: ['Rahmenvertrag Wohnungswirtschaft Hamburg'],
+  })
+  await send(base, 'PUT', `/customers/${berg}/tags`, {
+    tagIds: [],
+    newTags: ['Wallbox', 'Wärmepumpe mit Photovoltaik und Speicher'],
+  })
+
   const cabinet = idOf(
     await post('/installations', {
       siteId: house,

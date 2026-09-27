@@ -205,7 +205,7 @@ function TagsSection() {
                 >
                   {nameOf(tag)}
                   <span className="text-[13px] text-ink-muted">
-                    {`${String(count.customers)} Kunden · ${String(count.sites)} Objekte`}
+                    {`${amountOf(count.customers, 'Kunde', 'Kunden')} · ${amountOf(count.sites, 'Objekt', 'Objekte')}`}
                   </span>
                   <div className="flex flex-wrap gap-2">{actions(tag)}</div>
                 </li>
@@ -298,4 +298,9 @@ function TagsSection() {
       </Confirm>
     </Panel>
   )
+}
+
+/** "1 Kunde", "2 Kunden": a number with its word in the right number. */
+function amountOf(count: number, one: string, many: string): string {
+  return `${String(count)} ${count === 1 ? one : many}`
 }

@@ -145,6 +145,26 @@ describe('the tags under the settings', () => {
     ])
   })
 
+  it('count in the singular and the plural in the narrow list', async () => {
+    signedInAs('office')
+    // Narrower than 37.5rem: the list of cards instead of the wide one.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    await mount()
+
+    const list = await screen.findByRole('list', { name: 'Tags des Betriebs' })
+    const rows = within(list).getAllByRole('listitem')
+
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining('2 Kunden · 1 Objekt'),
+      expect.stringContaining('1 Kunde · 0 Objekte'),
+    ])
+  })
+
   it('rename one in its line', async () => {
     signedInAs('office')
     serverSays('PATCH', '/customers/tags/t-wallbox', { id: 't-wallbox', name: 'Ladepunkt' })
