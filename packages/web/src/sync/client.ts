@@ -90,6 +90,13 @@ const cursorKey = 'cursor'
 const narrowedKey = 'narrowed'
 
 /**
+ * What the rows on the device were narrowed to when the last pull ran
+ * through, as JSON, and empty while the pull after a change of the narrowing
+ * is still under way (#444).
+ */
+const settledKey = 'narrowed-settled'
+
+/**
  * The kinds of record the build knew that last moved the cursor, as a sorted
  * list with commas.
  */
@@ -234,9 +241,10 @@ export class SyncClient {
 
   private cursor = 0
   /**
-   * What the server last said it narrowed each entity to, or null before it
-   * said anything. Kept in memory beside the store, for the screens that have
-   * to know whether the rows they count are all there are (#314).
+   * What the rows on this device were narrowed to when the last pull ran
+   * through, or null before one has since the narrowing changed. Kept in
+   * memory beside the store, for the screens that have to know whether the
+   * rows they count are all there are (#314).
    */
   private narrowedNow: Readonly<Record<string, string>> | null = null
   /**
@@ -341,10 +349,12 @@ export class SyncClient {
 
     client.held = typeof held === 'string' && held !== '' ? held : null
 
-    const narrowed = await store.readMeta(narrowedKey)
+    const settled = await store.readMeta(settledKey)
 
     client.narrowedNow =
-      typeof narrowed === 'string' ? (JSON.parse(narrowed) as Record<string, string>) : null
+      typeof settled === 'string' && settled !== ''
+        ? (JSON.parse(settled) as Record<string, string>)
+        : null
     client.regroup()
     client.snapshot = {
       ...client.snapshot,
@@ -485,7 +495,9 @@ export class SyncClient {
    * the server said, and not only its part of the business (#140). What the
    * rows on the device add up to, "Bestandskunde" first, is only true when
    * they are all there; the roles of the person may say otherwise for a
-   * while after they changed, the answer of the server does not.
+   * while after they changed, the answer of the server does not. And only
+   * once the pull that answer started has run through: until its last page
+   * is in, the device holds a part (#444).
    */
   holdsAll(entity: string): boolean {
     return this.narrowedNow?.[entity] === 'all'
@@ -904,6 +916,11 @@ export class SyncClient {
 
       this.cursor = answer.cursor
       await this.store.writeMeta(cursorKey, this.cursor)
+
+      if (!answer.hasMore && answer.narrowed) {
+        await this.settle(answer.narrowed)
+      }
+
       this.publish({})
 
       // `hasMore` means the server stopped at its limit. Asking again is the
@@ -939,8 +956,6 @@ export class SyncClient {
     const said = JSON.stringify(narrowed)
     const kept = await this.store.readMeta(narrowedKey)
 
-    this.narrowedNow = narrowed
-
     if (kept === said) {
       return false
     }
@@ -961,11 +976,31 @@ export class SyncClient {
       this.records.get(entity)?.clear()
     }
 
+    // What the device holds is a part now, until the pull from the start has
+    // run through, and also after a start in between.
+    this.narrowedNow = null
+    await this.store.writeMeta(settledKey, '')
     this.cursor = 0
     await this.store.writeMeta(cursorKey, 0)
     this.publish({})
 
     return true
+  }
+
+  /**
+   * Takes what the answer was narrowed to as what the rows on the device add
+   * up to, once a pull has run through to its last page (#444). Written only
+   * when it changed, which is rarely.
+   */
+  private async settle(narrowed: Readonly<Record<string, string>>): Promise<void> {
+    const said = JSON.stringify(narrowed)
+
+    if (JSON.stringify(this.narrowedNow) === said) {
+      return
+    }
+
+    this.narrowedNow = narrowed
+    await this.store.writeMeta(settledKey, said)
   }
 
   private async refreshConflicts(): Promise<void> {

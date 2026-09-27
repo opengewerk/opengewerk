@@ -664,6 +664,75 @@ describe('a device handed to somebody who sees less, or more', () => {
 
     expect(again.holdsAll('time_entries')).toBe(false)
   })
+
+  /**
+   * Not before the pull after a change has run through (#444): the device
+   * dropped what it held and asks from the start, and until the last page is
+   * in, the rows it counts are a part.
+   */
+  it('says it holds every row only once the pull after a change has run through', async () => {
+    const device = await startOn('holds-all-later')
+
+    transport.pulls = [
+      {
+        changes: [{ entity: 'time_entries', rows: [mine] }],
+        cursor: 4,
+        hasMore: false,
+        narrowed: { time_entries: 'user:u-technician' },
+      },
+    ]
+    await device.synchronise()
+
+    // Given the office role: the answer says all, and the pull from the start
+    // that follows breaks off.
+    const pull = transport.pull.bind(transport)
+    let calls = 0
+
+    transport.pull = (since: number) => {
+      calls += 1
+
+      return calls === 2 ? Promise.reject(new TypeError('Failed to fetch')) : pull(since)
+    }
+    transport.pulls = [
+      { changes: [], cursor: 4, hasMore: false, narrowed: { time_entries: 'all' } },
+    ]
+    await device.synchronise()
+
+    expect(transport.asked).toEqual([0, 4])
+    expect(device.holdsAll('time_entries')).toBe(false)
+    device.stop()
+
+    // Not after a start either, and not between two pages of the next pull.
+    const again = await startOn('holds-all-later')
+    const seen: boolean[] = []
+
+    expect(again.holdsAll('time_entries')).toBe(false)
+
+    transport.pull = (since: number) => {
+      seen.push(again.holdsAll('time_entries'))
+
+      return pull(since)
+    }
+    transport.pulls = [
+      {
+        changes: [{ entity: 'time_entries', rows: [theirs] }],
+        cursor: 7,
+        hasMore: true,
+        narrowed: { time_entries: 'all' },
+      },
+      {
+        changes: [{ entity: 'time_entries', rows: [mine] }],
+        cursor: 9,
+        hasMore: false,
+        narrowed: { time_entries: 'all' },
+      },
+    ]
+    await again.synchronise()
+
+    expect(seen).toEqual([false, false])
+    expect(again.holdsAll('time_entries')).toBe(true)
+    expect(again.list('time_entries').map((entry) => entry['id'])).toEqual(['e-1', 'e-2'])
+  })
 })
 
 describe('an exchange with the server', () => {
