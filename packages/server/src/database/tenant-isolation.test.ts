@@ -564,6 +564,18 @@ const crossings: readonly {
               from (select set_config('app.user_id', ${other.user}, true)) as acting`,
   },
   {
+    key: 'site_access_deliveries_access_in_tenant',
+    write: (own, other) =>
+      sql`insert into site_access_deliveries (tenant_id, site_access_id, user_id)
+            values (${own.tenant}, ${other.siteAccess}, ${own.user})`,
+  },
+  {
+    key: 'site_access_deliveries_person_works_here',
+    write: (own, other) =>
+      sql`insert into site_access_deliveries (tenant_id, site_access_id, user_id)
+            values (${own.tenant}, ${own.siteAccess}, ${other.user})`,
+  },
+  {
     // An insert and not a repoint: a follow-up names the job before it when it
     // is made (#170), and the trigger refuses any later change before the key
     // is asked. On an insert the trigger finds no job of another business and

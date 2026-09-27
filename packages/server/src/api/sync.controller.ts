@@ -34,7 +34,7 @@ import {
   scopedEntities,
   sitesWithOpenJobs,
 } from '../database/device-scope.js'
-import { siteAccessReveals, timeEntries } from '../database/schema/index.js'
+import { siteAccessDeliveries, siteAccessReveals, timeEntries } from '../database/schema/index.js'
 import type { SecretKey } from '../secrets/key.js'
 import { readAccessValues } from '../secrets/site-access.js'
 import {
@@ -290,8 +290,11 @@ export function permissionFor(
 /**
  * The rows of the ways into a site with what the device may know of their
  * value (#286): whether there is one and whether it opens, `valueState`, and
- * the value itself for the sites in `valued`, the ones with an open job on a
- * device on site that asked. Nothing else in any answer carries it.
+ * the value itself for the sites in `valued`, the ones of the open jobs of
+ * the technician whose device asked. Nothing else in any answer carries it,
+ * and every value handed out is recorded for `recipient` the first time, in
+ * `site_access_deliveries`, which is what a showing from that device is
+ * measured against.
  */
 async function withAccessStates(
   tx: TenantTransaction,
@@ -299,6 +302,7 @@ async function withAccessStates(
   tenantId: TenantId,
   changes: readonly ChangedRows[],
   valued: ReadonlySet<string> | null,
+  recipient: string,
 ): Promise<readonly ChangedRows[]> {
   const rows = changes.find((change) => change.entity === 'site_accesses')?.rows ?? []
   const live = rows.filter((row) => row['deletedAt'] === null)
@@ -314,7 +318,8 @@ async function withAccessStates(
     live.map((row) => row['id'] as SiteAccessId),
   )
 
-  return changes.map((change) =>
+  const delivered: SiteAccessId[] = []
+  const answered = changes.map((change) =>
     change.entity !== 'site_accesses'
       ? change
       : {
@@ -326,12 +331,31 @@ async function withAccessStates(
 
             const stored = values.get(row['id'] as SiteAccessId) ?? { state: 'none' as const }
 
-            return valued?.has(String(row['siteId'])) && stored.state === 'readable'
-              ? { ...row, valueState: stored.state, value: stored.value }
-              : { ...row, valueState: stored.state }
+            if (valued?.has(String(row['siteId'])) && stored.state === 'readable') {
+              delivered.push(row['id'] as SiteAccessId)
+
+              return { ...row, valueState: stored.state, value: stored.value }
+            }
+
+            return { ...row, valueState: stored.state }
           }),
         },
   )
+
+  if (delivered.length > 0) {
+    await tx
+      .insert(siteAccessDeliveries)
+      .values(delivered.map((siteAccessId) => ({ tenantId, siteAccessId, userId: recipient })))
+      .onConflictDoNothing({
+        target: [
+          siteAccessDeliveries.tenantId,
+          siteAccessDeliveries.siteAccessId,
+          siteAccessDeliveries.userId,
+        ],
+      })
+  }
+
+  return answered
 }
 
 @Controller('sync')
@@ -455,6 +479,7 @@ export class SyncController {
             identity.tenantId,
             found.changes,
             withValues ? (sites?.siteIds ?? null) : null,
+            identity.userId,
           )
         : found.changes
 

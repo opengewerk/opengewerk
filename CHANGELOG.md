@@ -102,11 +102,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   keiner, gleich was eine Anfrage verlangt. Auf dem Gerät eines Monteurs liegt der Wert, solange er
   einem offenen Auftrag am Objekt zugeordnet ist, damit er auch ohne Netz vor der Tür steht. Die
   Karte "Zugang zum Objekt" steht nur an einem offenen Auftrag, ein Anzeigen dort wird erst im
-  Postausgang festgehalten und dann gezeigt, und der Server nimmt es nur für einen Zugang an, den das
-  Gerät halten konnte, auch wenn der inzwischen gelöscht ist. Nach dem Abschluss verschwindet der
-  Zugang vom Gerät, ein gelöschtes Objekt nimmt seine Zugänge samt Wert mit, und ein gezeigter Wert,
-  der sich inzwischen geändert hat, wird wieder verdeckt. Ändert sich `SESSION_SECRET`, sagt die
-  Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern. Migration 0054.
+  Postausgang festgehalten und dann gezeigt, und zwei schnelle Klicks ergeben ein Anzeigen. Welcher
+  Person ein Abruf welchen Wert gab, steht einmal in `site_access_deliveries` und im
+  Änderungsprotokoll; daran misst der Server ein Anzeigen vom Gerät, gleich ob der Auftrag
+  inzwischen umgezogen, lange abgeschlossen oder der Zugang gelöscht ist. Nach dem Abschluss
+  verschwindet der Zugang vom Gerät, ein gelöschtes Objekt nimmt seine Zugänge samt Wert mit, und
+  ein gezeigter Wert, der sich inzwischen geändert hat, wird wieder verdeckt. Ändert sich
+  `SESSION_SECRET`, sagt die Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern.
+  Migrationen 0054 und 0055.
 
 ### Geändert
 

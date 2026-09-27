@@ -233,6 +233,11 @@ describe('the tables', () => {
     // The passkeys of #167 are the record of a key the account holds, written
     // when the account changes one; they are read in the audit log and nowhere
     // else, and a device has no use for a copy.
+    //
+    // Which person got which value of a way into a site (#286) is written by
+    // the pull that handed the value out and asked when a showing arrives; a
+    // device that held a copy could answer for itself what the server has to
+    // answer against it.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -258,7 +263,8 @@ describe('the tables', () => {
       name === 'push_subscriptions' ||
       name === 'push_opt_outs' ||
       name === 'push_outbox' ||
-      name === 'member_passkeys'
+      name === 'member_passkeys' ||
+      name === 'site_access_deliveries'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

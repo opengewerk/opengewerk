@@ -463,6 +463,9 @@ describe('an access on the device of a technician', () => {
       .send({ userIds: ['max'] })
       .expect(200)
 
+    // The device holds the value once a pull handed it over.
+    await pull(technician(), true)
+
     const revealedAt = '2026-09-27T09:15:00.000Z'
     const answer = await push(app, technician(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
@@ -482,7 +485,7 @@ describe('an access on the device of a technician', () => {
     expect(rows[0]?.revealed_at.toISOString()).toBe(revealedAt)
   })
 
-  it('keeps a showing that arrives after the job was closed and the access deleted', async () => {
+  it('keeps a showing that arrives long after the job was closed and the access deleted', async () => {
     const { site, job } = await siteWithJob('Keller')
     const access = await addAccess(site, { designation: 'Kellertür', value: 'Code 5656' })
 
@@ -491,14 +494,17 @@ describe('an access on the device of a technician', () => {
       .set('x-test-identity', office())
       .send({ userIds: ['max'] })
       .expect(200)
+    await pull(technician(), true)
 
     // Shown in a cellar without a network; meanwhile the office closes the
-    // job and deletes the access. The showing happened and is kept.
+    // job and deletes the access, and the device stays offline for longer
+    // than it keeps a closed job. The showing happened and is kept.
     await http()
       .patch(`/jobs/${job}`)
       .set('x-test-identity', office())
       .send({ status: 'completed' })
       .expect(200)
+    await admin.query("update jobs set closed_at = now() - interval '40 days' where id = $1", [job])
     await http()
       .delete(`/sites/${site}/accesses/${String(access['id'])}`)
       .set('x-test-identity', office())
@@ -521,6 +527,35 @@ describe('an access on the device of a technician', () => {
     expect(rows).toEqual([{ user_id: 'max' }])
   })
 
+  it('keeps a showing that arrives after the job moved to another site', async () => {
+    const { customer, site, job } = await siteWithJob('Wanderung')
+    const other = String(
+      (await post('/sites', { customerId: customer, designation: 'Haus Wanderung, neu' }))['id'],
+    )
+    const access = await addAccess(site, { designation: 'Garagentor', value: 'Code 8383' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+    await pull(technician(), true)
+    await http()
+      .patch(`/jobs/${job}`)
+      .set('x-test-identity', office())
+      .send({ siteId: other })
+      .expect(200)
+
+    const answer = await push(app, technician(), [
+      created('site_access_reveals', newId<'site-access-reveal'>(), {
+        siteAccessId: String(access['id']),
+        revealedAt: '2026-09-27T10:05:00.000Z',
+      }),
+    ])
+
+    expect(answer.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
+  })
+
   it('refuses a showing of a value its device never held, and only that one', async () => {
     const theirs = await siteWithJob('Eigenes')
     const others = await siteWithJob('Fremdes')
@@ -532,6 +567,8 @@ describe('an access on the device of a technician', () => {
       .set('x-test-identity', office())
       .send({ userIds: ['max'] })
       .expect(200)
+
+    await pull(technician(), true)
 
     const answer = await push(app, technician(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
@@ -557,6 +594,63 @@ describe('an access on the device of a technician', () => {
     )
 
     expect(rows).toEqual([{ site_access_id: mine['id'] }])
+  })
+
+  it('records once which person got which value, and only a value handed out', async () => {
+    const theirs = await siteWithJob('Übergabe')
+    const others = await siteWithJob('Keine Übergabe')
+    const mine = await addAccess(theirs.site, { designation: 'Haustür', value: 'Code 9191' })
+    const notMine = await addAccess(others.site, { designation: 'Hoftür', value: 'Code 9292' })
+
+    await http()
+      .put(`/jobs/${theirs.job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    // Asked twice and once without values, as the office entry of the same
+    // device would; and the office, which never gets a value in a pull.
+    await pull(technician(), true)
+    await pull(technician(), true)
+    await pull(technician())
+    await pull(office(), true)
+
+    const { rows } = await admin.query<{ site_access_id: string; user_id: string }>(
+      'select site_access_id, user_id from site_access_deliveries where site_access_id = any($1)',
+      [[mine['id'], notMine['id']]],
+    )
+
+    expect(rows).toEqual([{ site_access_id: mine['id'], user_id: 'max' }])
+
+    // In the log as one change, the insert, with the person it went to.
+    const { rows: logged } = await admin.query<{
+      changes: number
+      operation: string
+      user_id: string
+    }>(
+      `select count(distinct change_id)::int as changes, min(operation) as operation,
+              min(user_id) as user_id
+         from audit_entries
+        where table_name = 'site_access_deliveries' and record_id = (
+          select id from site_access_deliveries where site_access_id = $1)`,
+      [mine['id']],
+    )
+
+    expect(logged[0]).toMatchObject({ changes: 1, operation: 'insert', user_id: 'max' })
+  })
+
+  it('takes a showing from whoever keeps the ways in, who may see any value', async () => {
+    const { site } = await siteWithJob('Büroanzeige')
+    const access = await addAccess(site, { designation: 'Tresor', value: 'Code 9393' })
+
+    const answer = await push(app, office(), [
+      created('site_access_reveals', newId<'site-access-reveal'>(), {
+        siteAccessId: String(access['id']),
+        revealedAt: '2026-09-27T10:06:00.000Z',
+      }),
+    ])
+
+    expect(answer.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
   })
 
   it('follows a job that moves to another site', async () => {

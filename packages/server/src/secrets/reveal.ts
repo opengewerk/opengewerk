@@ -1,13 +1,14 @@
 import {
-  closedJobsStayDays,
   type ConflictReason,
   type Identity,
   isAllowed,
+  type SiteAccessId,
 } from '@opengewerk/domain'
-import { sql } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import type { TenantTransaction } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
+import { siteAccessDeliveries } from '../database/schema/index.js'
 
 /** Why a showing from a device may not land, in the shape of a sync conflict. */
 export interface RevealRefusal {
@@ -20,20 +21,18 @@ export interface RevealRefusal {
  *
  * Whoever keeps the ways in may see every value at the route, so a trace of
  * theirs is always one that could have happened. Anybody else held a value
- * only on the device, and only for a site of a job they were on: the job
- * open, or closed less than `closedJobsStayDays` ago, since a showing in a
- * cellar can arrive after the job was closed. A showing of any other access
- * would put in the record that somebody saw a code they never had (Greptile
- * on #445), and is a conflict about this one operation.
- *
- * An assignment or job that was deleted since still counts: it says the
- * device held the site then, which is what the trace is about.
+ * only if a pull handed it to them, and every such pull left a row in
+ * `site_access_deliveries`. That row is the measure, and not the job as it
+ * is now: a showing in a cellar arrives after the job was closed, closed for
+ * longer than a device keeps it, or moved to another site, and it happened
+ * all the same (Greptile on #445). A showing of a value never handed to the
+ * person would put in the record that somebody saw a code they never had,
+ * and is a conflict about this one operation.
  */
 export async function revealRefusal(
   tx: TenantTransaction,
   sender: Identity,
   values: Readonly<Record<string, unknown>>,
-  now: Date = new Date(),
 ): Promise<RevealRefusal | null> {
   const accessId = values['siteAccessId']
 
@@ -45,16 +44,16 @@ export async function revealRefusal(
     return null
   }
 
-  const since = new Date(now.getTime() - closedJobsStayDays * 24 * 60 * 60 * 1000)
-  const { rows } = await tx.execute(sql`
-    select 1
-      from site_accesses sa
-      join jobs j on j.site_id = sa.site_id and j.tenant_id = sa.tenant_id
-      join job_assignments a on a.job_id = j.id and a.tenant_id = j.tenant_id
-     where sa.id = ${accessId}
-       and a.user_id = ${sender.userId}
-       and (j.status in ('draft', 'active') or j.closed_at >= ${since.toISOString()})
-     limit 1`)
+  const [delivered] = await tx
+    .select({ id: siteAccessDeliveries.id })
+    .from(siteAccessDeliveries)
+    .where(
+      and(
+        eq(siteAccessDeliveries.siteAccessId, accessId as SiteAccessId),
+        eq(siteAccessDeliveries.userId, sender.userId),
+      ),
+    )
+    .limit(1)
 
-  return rows.length > 0 ? null : { reason: 'record_missing', fields: ['siteAccessId'] }
+  return delivered ? null : { reason: 'record_missing', fields: ['siteAccessId'] }
 }

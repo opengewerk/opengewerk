@@ -87,3 +87,36 @@ export const siteAccessReveals = pgTable(
     index('site_access_reveals_person_idx').on(table.tenantId, table.userId),
   ],
 )
+
+/**
+ * Which person got the value of which access on a device (#286): a row the
+ * first time a pull hands a value to that person, never changed after. A
+ * showing written on a device is taken only for an access its person got
+ * this way (`revealRefusal`), whatever became of the job since, moved to
+ * another site or closed long ago; and the audit log says which devices
+ * held which code. Written by the pull and by nothing else, not in the sync.
+ */
+export const siteAccessDeliveries = pgTable(
+  'site_access_deliveries',
+  {
+    id: primaryId<'site-access-delivery'>(),
+    ...tenantColumn,
+    siteAccessId: reference<'site-access'>('site_access_id').notNull(),
+    userId: text('user_id').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.siteAccessId],
+      foreignColumns: [siteAccesses.tenantId, siteAccesses.id],
+      name: 'site_access_deliveries_access_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+      name: 'site_access_deliveries_person_works_here',
+    }).onDelete('restrict'),
+    unique('site_access_deliveries_once').on(table.tenantId, table.siteAccessId, table.userId),
+  ],
+)
