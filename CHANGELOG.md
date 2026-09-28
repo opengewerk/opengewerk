@@ -159,6 +159,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Artikels in eine Position und in den Regiebericht kommt im zweiten Teil. Neue Rechte
   `article.read`, `supplier.read` für alle Rollen und `article.write`, `supplier.write`,
   `purchase.read`, `purchase.write` für Inhaber und Büro, Migration 0058.
+- Artikel in Positionen und im Regiebericht (#296, zweiter Teil), damit Material nicht mehr getippt
+  wird. Im Büro sucht "Position aus Artikel" neben dem Textbaustein im ganzen Katalog und
+  übernimmt Bezeichnung, Beschreibung, Einheit und den Verkaufspreis am Belegdatum; danach gehört
+  der Text der Position, und sie merkt sich nur, aus welchem Artikel sie kam. Auf der Baustelle
+  sucht "Material eintragen" mit Netz im Katalog und ohne Netz in den Artikeln auf dem Gerät: den
+  häufigen und denen, die eine Position in den letzten 90 Tagen genommen hat. Eine Rechnung aus
+  einem Regiebericht gibt einer Position aus einem Artikel den Verkaufspreis ihres eigenen Datums,
+  weil der Bericht keine Preise trägt. Migration 0059.
 
 ### Geändert
 

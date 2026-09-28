@@ -1,4 +1,5 @@
 import type { VatRate } from '../rules/tax.js'
+import type { ArticleId } from './article.js'
 import type { DocumentId, DocumentLineId, Synced } from './identifier.js'
 
 /**
@@ -92,6 +93,14 @@ export interface DocumentLine extends Synced {
   readonly vatRate: VatRate
   /** Quantity times unit price, rounded. Held by a check constraint. */
   readonly netCents: number
+  /**
+   * The article the line was taken from (#296), or null when it was typed.
+   * Only a pointer: text, unit and price belong to the line from the moment
+   * it is taken, and a changed article changes no document. What it is for
+   * is the articles of the last 90 days on the devices, and the price an
+   * invoice gives a line from a report, which has none.
+   */
+  readonly articleId: ArticleId | null
 }
 
 /**

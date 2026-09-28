@@ -17,6 +17,7 @@ import {
   type ArticlePriceId,
   articleProblems,
   isAllowed,
+  isCalendarDay,
   missingPermission,
   type PurchasePriceId,
   priceProblems,
@@ -145,6 +146,10 @@ export class ArticlesController {
    * over number, name, EAN, supplier and the supplier's number, by the
    * frequent ones and by a group of goods. With the selling price of today and
    * the first supplier, and how many more there are.
+   *
+   * `on` asks for the selling price of another day: a position takes the one
+   * of its document's date (#296), and that is what the choice of an article
+   * in a line shows before anybody takes it.
    */
   @Get()
   @RequiresPermission('article.read')
@@ -156,9 +161,14 @@ export class ArticlesController {
     @Query('sort') sort?: string,
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
+    @Query('on') on?: string,
   ) {
     const from = Number(offset ?? 0)
     const size = Number(limit ?? 50)
+
+    if (on !== undefined && !isCalendarDay(on)) {
+      throw new BadRequestException('Ein Tag ist ein Datum im Kalender, zum Beispiel 2026-09-28.')
+    }
 
     if (
       !Number.isInteger(from) ||
@@ -200,7 +210,7 @@ export class ArticlesController {
       conditions.push(eq(articles.groupOfGoods, group.trim()))
     }
 
-    const today = todayInGermany()
+    const day = on ?? todayInGermany()
     const where = and(...conditions)
     const order =
       sort === 'designation'
@@ -214,11 +224,12 @@ export class ArticlesController {
           id: articles.id,
           number: articles.number,
           designation: articles.designation,
+          description: articles.description,
           unit: articles.unit,
           groupOfGoods: articles.groupOfGoods,
           frequent: articles.frequent,
           priceCents: sql<number | null>`(select p.unit_price_cents from article_prices p
-            where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${today}
+            where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
             order by p.valid_from desc limit 1)`,
           supplierName: sql<string | null>`(select s.name from supplier_articles sa
             join suppliers s on s.id = sa.supplier_id and s.deleted_at is null

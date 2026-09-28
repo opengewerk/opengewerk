@@ -414,6 +414,13 @@
       "when": 1790568478120,
       "tag": "0058_articles_suppliers",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1790571794243,
+      "tag": "0059_document_line_article",
+      "breakpoints": true
     }
   ]
 }

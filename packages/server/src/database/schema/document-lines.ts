@@ -1,15 +1,15 @@
-import { lineKinds, lineUnits, quantityFactor, vatRates } from '@opengewerk/domain'
+import { quantityFactor } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, integer, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index, integer, pgTable, text } from 'drizzle-orm/pg-core'
 
+import { articles } from './articles.js'
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { documents } from './documents.js'
+import { lineKind, lineUnit, vatRate } from './line-enums.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
-export const lineKind = pgEnum('line_kind', lineKinds)
-export const lineUnit = pgEnum('line_unit', lineUnits)
-export const vatRate = pgEnum('vat_rate', vatRates)
+export { lineKind, lineUnit, vatRate } from './line-enums.js'
 
 /**
  * One position on a document.
@@ -56,6 +56,11 @@ export const documentLines = pgTable(
     unitPriceCents: integer('unit_price_cents').notNull(),
     vatRate: vatRate('vat_rate').notNull().default('standard'),
     netCents: integer('net_cents').notNull(),
+    /**
+     * The article the line was taken from (#296), or null when it was typed.
+     * A pointer and nothing more: text, unit and price are the line's own.
+     */
+    articleId: reference<'article'>('article_id'),
     ...timestamps,
     ...syncColumns,
   },
@@ -67,6 +72,21 @@ export const documentLines = pgTable(
       name: 'document_lines_document_in_tenant',
     }).onDelete('cascade'),
     index('document_lines_document_idx').on(table.tenantId, table.documentId, table.position),
+    // An article is only marked as deleted, never removed, so nothing ever
+    // has to happen to a line when its article goes.
+    foreignKey({
+      columns: [table.tenantId, table.articleId],
+      foreignColumns: [articles.tenantId, articles.id],
+      name: 'document_lines_article_in_tenant',
+    }),
+    index('document_lines_article_idx').on(table.tenantId, table.articleId),
+    // The articles used lately (`articlesOnDevices`) are asked for at every
+    // pull of every device. This keeps the question to the lines of the last
+    // 90 days, not every line that ever took an article in the life of the
+    // business.
+    index('document_lines_recent_articles_idx')
+      .on(table.tenantId, table.createdAt)
+      .where(sql`${table.articleId} is not null and ${table.deletedAt} is null`),
     check('document_lines_position_positive', sql`${table.position} >= 1`),
     // A title is a heading and nothing else. With an amount on it, a total
     // would contain a figure nobody sees as a position.

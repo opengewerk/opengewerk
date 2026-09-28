@@ -171,6 +171,7 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       unit_price_cents: 'Einzelpreis',
       vat_rate: 'Steuersatz',
       net_cents: 'Nettobetrag',
+      article_id: 'Artikel',
     },
   },
   document_signatures: {

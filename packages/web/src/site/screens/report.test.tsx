@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState } from '@opengewerk/domain'
 import { signaturePathIsValid, signedContentFingerprint } from '@opengewerk/domain'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -10,9 +10,9 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DirectWriter } from '../../sync/client.js'
 import { SyncClient } from '../../sync/client.js'
@@ -185,7 +185,15 @@ async function mount(path: string, rows: Readonly<Record<string, Row[]>> = {}) {
     transport: server,
     writer: server,
     deviceId: 'geraet-im-keller',
-    entities: ['customers', 'jobs', 'documents', 'document_lines', 'document_signatures'],
+    entities: [
+      'customers',
+      'jobs',
+      'documents',
+      'document_lines',
+      'document_signatures',
+      'articles',
+      'article_prices',
+    ],
     onSignedOut: () => {},
   })
 
@@ -257,6 +265,49 @@ function signOn(pad: Element): string {
 beforeEach(() => {
   server = new Server()
 })
+
+afterEach(() => {
+  // A test that takes the network away takes it from the queries as well, for
+  // every test after it; they get it back here.
+  onlineManager.setOnline(true)
+  vi.unstubAllGlobals()
+})
+
+/** A report in draft, for the tests that take material from an article (#296). */
+const draftReport = {
+  id: 'd-1',
+  customerId: 'c-1',
+  jobId: 'j-1',
+  kind: 'time_and_material_report',
+  status: 'draft',
+  number: null,
+  documentDate: '2026-09-21',
+  introText: null,
+  version: 1,
+  deletedAt: null,
+}
+
+/** What the device holds: one frequent article and one used in the last 90 days. */
+const heldArticles = [
+  {
+    id: 'a-2101',
+    number: '2101',
+    designation: 'Leitungsschutzschalter B16, 1-polig',
+    unit: 'piece',
+    frequent: true,
+    version: 1,
+    deletedAt: null,
+  },
+  {
+    id: 'a-1044',
+    number: '1044',
+    designation: 'Mantelleitung NYM-J 5 × 6 mm²',
+    unit: 'metre',
+    frequent: false,
+    version: 1,
+    deletedAt: null,
+  },
+]
 
 describe('a report on site', () => {
   it('is written and signed without a network, and sent as it was written', async () => {
@@ -366,6 +417,98 @@ describe('a report on site', () => {
       expect(screen.queryByText(/Noch nicht übertragen/)).toBeNull()
     })
     expect(server.row('documents', reportId)?.['status']).toBe('signed')
+  })
+
+  it('takes material from an article on the device, also without a network', async () => {
+    // #296: without a network the choice offers what the device holds, the
+    // frequent articles and those of the last 90 days, and one tap fills
+    // material and unit.
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [draftReport],
+      articles: heldArticles,
+    })
+    server.offline = true
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Material eintragen' }))
+
+    expect(screen.getByText(/Ohne Netz sucht die App in den häufigen Artikeln/)).toBeTruthy()
+    expect(screen.getByText('Häufig')).toBeTruthy()
+    expect(screen.getByText('Zuletzt benutzt')).toBeTruthy()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Mantelleitung NYM-J 5 × 6 mm² übernehmen' }),
+    )
+
+    expect((screen.getByLabelText('Material') as HTMLInputElement).value).toBe(
+      'Mantelleitung NYM-J 5 × 6 mm²',
+    )
+    expect((screen.getByLabelText('Einheit') as HTMLSelectElement).value).toBe('metre')
+
+    await user.clear(screen.getByLabelText('Menge'))
+    await user.type(screen.getByLabelText('Menge'), '12,5')
+    await user.click(screen.getByRole('button', { name: 'Material sichern' }))
+
+    expect(await screen.findByText('12,5 m')).toBeTruthy()
+
+    server.offline = false
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+
+    await waitFor(() => {
+      expect(server.operations().some((operation) => operation.entity === 'document_lines')).toBe(
+        true,
+      )
+    })
+
+    const line = server.operations().find((operation) => operation.entity === 'document_lines')
+
+    expect(
+      Object.fromEntries(line?.patches.map((patch) => [patch.field, patch.to]) ?? []),
+    ).toMatchObject({
+      articleId: 'a-1044',
+      unit: 'metre',
+      quantityMilli: 12_500,
+      unitPriceCents: 0,
+    })
+  })
+
+  it('searches the device once an exchange failed, whatever the browser says', async () => {
+    // The flag of the browser says online on a network that answers nothing.
+    // After a failed exchange the device knows better, as its header does: the
+    // search neither waits for the catalogue nor claims to look in it.
+    const user = userEvent.setup()
+    const asked: string[] = []
+
+    vi.stubGlobal('fetch', (url: RequestInfo | URL) => {
+      asked.push(url instanceof Request ? url.url : String(url))
+
+      return Promise.reject(new TypeError('Failed to fetch'))
+    })
+
+    const { client } = await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [draftReport],
+      articles: heldArticles,
+    })
+
+    server.offline = true
+    await act(() => client.synchronise())
+
+    await user.click(await screen.findByRole('button', { name: 'Material eintragen' }))
+
+    expect(screen.getByText(/Ohne Netz sucht die App in den häufigen Artikeln/)).toBeTruthy()
+
+    await user.type(screen.getByLabelText('Artikel suchen'), 'nym')
+
+    expect(
+      await screen.findByRole('button', { name: 'Mantelleitung NYM-J 5 × 6 mm² übernehmen' }),
+    ).toBeTruthy()
+    expect(asked.filter((url) => url.includes('/articles'))).toEqual([])
   })
 
   it('asks for a name and a signature before anything is signed', async () => {

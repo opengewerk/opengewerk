@@ -3,6 +3,7 @@ import type {
   DeductionContent,
   DocumentKind,
   DocumentTotals,
+  IsoDate,
   LineKind,
   RecordState,
   TaxTreatment,
@@ -66,6 +67,7 @@ import type { EditResult } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
+import { ArticlePicker } from './article-picker.js'
 import { Reorder } from './boards.js'
 import { SnippetPicker } from './snippet-picker.js'
 
@@ -235,6 +237,8 @@ type LineValues = {
   readonly unit: string
   readonly unitPriceCents: number
   readonly vatRate: string
+  /** The article the line was taken from, or null when it was typed (#296). */
+  readonly articleId: string | null
 }
 
 const unitOptions = lineUnits.map((unit) => ({ value: unit, label: lineUnitLabel[unit] }))
@@ -244,10 +248,17 @@ const rateOptions = vatRates.map((rate) => ({ value: rate, label: vatRateLabel[r
  * One line, new or changed. A title asks for its heading and nothing else:
  * it carries no amount, and the server refuses one that does. On a document
  * without prices, a report, a position asks for no price either.
+ *
+ * A position can be taken from an article (#296), as the board "Neue Position
+ * aus einem Artikel" draws it: the choice beside the snippets fills the form
+ * with the selling price of the document's date, and the line keeps which
+ * article it came from, but not what the article says: the text is the
+ * line's own from then on.
  */
 function LineForm({
   kind,
   record,
+  day,
   taxed,
   priced,
   submitLabel,
@@ -256,6 +267,8 @@ function LineForm({
 }: {
   readonly kind: LineKind
   readonly record?: RecordState
+  /** The document's date, whose selling price a position takes. */
+  readonly day: IsoDate
   readonly taxed: boolean
   readonly priced: boolean
   readonly submitLabel: string
@@ -268,6 +281,7 @@ function LineForm({
   const [unit, setUnit] = useState<string>(record ? lineUnitOf(record) : 'piece')
   const [price, setPrice] = useState(record ? centsAsInput(count(record, 'unitPriceCents')) : '')
   const [rate, setRate] = useState<string>(record ? vatRateOf(record) : 'standard')
+  const [articleId, setArticleId] = useState<string | null>(maybeText(record ?? null, 'articleId'))
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -315,6 +329,7 @@ function LineForm({
         unit: item ? unit : 'flat_rate',
         unitPriceCents,
         vatRate: item ? rate : 'standard',
+        articleId: item ? articleId : null,
       })
 
       if (result.outcome === 'refused') {
@@ -332,24 +347,61 @@ function LineForm({
         void save(event)
       }}
     >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field
-          label={item ? 'Bezeichnung' : 'Titel'}
-          value={designation}
-          problem={problems['designation']}
-          onChange={(event) => {
-            setDesignation(event.target.value)
-          }}
-        />
-        <SnippetPicker
-          purpose="line"
-          label={item ? 'Position aus Textbaustein' : 'Titel aus Textbaustein'}
-          onPick={(snippet) => {
-            setDesignation(snippet.title)
-            setDescription(snippet.text)
-          }}
-        />
-      </div>
+      {item ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ArticlePicker
+              day={day}
+              priced={priced}
+              onPick={(article) => {
+                setDesignation(article.designation)
+                setDescription(article.description ?? '')
+                setUnit(article.unit)
+                setArticleId(article.id)
+
+                if (priced) {
+                  setPrice(article.priceCents === null ? '' : centsAsInput(article.priceCents))
+                }
+              }}
+            />
+            <SnippetPicker
+              purpose="line"
+              label="Position aus Textbaustein"
+              onPick={(snippet) => {
+                setDesignation(snippet.title)
+                setDescription(snippet.text)
+              }}
+            />
+          </div>
+          <Field
+            label="Bezeichnung"
+            value={designation}
+            problem={problems['designation']}
+            onChange={(event) => {
+              setDesignation(event.target.value)
+            }}
+          />
+        </>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field
+            label="Titel"
+            value={designation}
+            problem={problems['designation']}
+            onChange={(event) => {
+              setDesignation(event.target.value)
+            }}
+          />
+          <SnippetPicker
+            purpose="line"
+            label="Titel aus Textbaustein"
+            onPick={(snippet) => {
+              setDesignation(snippet.title)
+              setDescription(snippet.text)
+            }}
+          />
+        </div>
+      )}
       <TextArea
         label="Beschreibung"
         rows={3}
@@ -408,7 +460,7 @@ function LineForm({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" icon={record ? Check : Plus} disabled={working}>
+        <Button type="submit" tone="primary" icon={record ? Check : Plus} disabled={working}>
           {working ? 'Wird gespeichert' : submitLabel}
         </Button>
         <Button tone="quiet" disabled={working} onClick={onCancel}>
@@ -530,6 +582,7 @@ export function LinesPanel({
       <LineForm
         kind={line.kind}
         record={line.record}
+        day={text(document, 'documentDate')}
         taxed={taxed}
         priced={priced}
         submitLabel="Speichern"
@@ -650,6 +703,7 @@ export function LinesPanel({
             </p>
             <LineForm
               kind={adding}
+              day={text(document, 'documentDate')}
               taxed={taxed}
               priced={priced}
               submitLabel={adding === 'item' ? 'Position hinzufügen' : 'Titel hinzufügen'}
