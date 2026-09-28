@@ -1,4 +1,4 @@
-import type { InstallationId, IsoDate, SiteId, Synced } from './identifier.js'
+import type { InstallationId, InverterId, IsoDate, SiteId, Synced } from './identifier.js'
 
 /**
  * What stands in a building and needs looking after. The inverter of a PV
@@ -39,4 +39,13 @@ export interface Installation extends Synced {
   /** End of the warranty period, watched by the deadline engine later. */
   readonly warrantyEndsOn: IsoDate | null
   readonly notes: string | null
+  /**
+   * The PV system a battery, meter or wallbox belongs to, at the same site
+   * (#300). Storage and the rest stay installations of their own, as section
+   * 3.2 of the concept puts them beside the PV system rather than below it,
+   * and say here where they belong.
+   */
+  readonly pvSystemId: InstallationId | null
+  /** The inverter of that PV system it hangs at, where it hangs at one. */
+  readonly inverterId: InverterId | null
 }

@@ -8,10 +8,12 @@ import {
   attachmentSizeProblem,
   deviceInfoProblem,
   fileHashProblem,
+  inverterLinkProblem,
   jobNoteProblem,
   linePositionProblem,
   noteTimeProblem,
   type Operation,
+  pvSystemLinkProblem,
   type RecordState,
   servicePeriodProblem,
   signerNameProblem,
@@ -56,6 +58,12 @@ const country: RecordRule = {
  * net amount of a line, which the server works out itself, and the job a
  * follow-up follows, which is a question about another record (#170).
  *
+ * A battery, a meter or a wallbox names the PV system it belongs to, and an
+ * inverter only with it (#300): two rules over the installation's own fields,
+ * which the checks and the trigger in the database hold as well. Whether the
+ * system and the inverter fit is a question about other records, asked with
+ * the references (`pvLinkRefusal`).
+ *
  * The versions of an attachment have no check in the database for type, size
  * and hash, and are here all the same (#77). Their key onto `files` holds the
  * hash and the size of what it finds, and a version that breaks one of these
@@ -64,6 +72,16 @@ const country: RecordRule = {
 const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   customers: [country],
   sites: [country],
+  installations: [
+    {
+      fields: ['kind', 'pvSystemId'],
+      problem: (at) => pvSystemLinkProblem(at('kind'), at('pvSystemId')),
+    },
+    {
+      fields: ['pvSystemId', 'inverterId'],
+      problem: (at) => inverterLinkProblem(at('pvSystemId'), at('inverterId')),
+    },
+  ],
   documents: [
     {
       fields: ['serviceFrom', 'serviceUntil'],

@@ -13,6 +13,7 @@ import {
   applicationDatabaseUrl,
   applicationRole,
   applyMigrations,
+  checkViolation,
   connect,
   foreignKeyViolation,
   insufficientPrivilege,
@@ -457,6 +458,15 @@ describe('without a tenant', () => {
 
 /** The key of the lines, which the trigger in front of it keeps from the list. */
 const lineKey = 'document_lines_document_in_tenant'
+
+/**
+ * The keys of a link to a PV system (#300), which the trigger holding the link
+ * stands in front of: they have a case of their own below, as the line has.
+ */
+const pvLinks = [
+  { key: 'installations_pv_system_in_tenant', column: 'pv_system_id', target: 'installation' },
+  { key: 'installations_inverter_in_tenant', column: 'inverter_id', target: 'inverter' },
+] as const
 
 /**
  * Every key between two records of a business, with the write that tries it.
@@ -943,7 +953,11 @@ describe('a reference to a record of another business', () => {
     expect(withoutTheTenant.map((row) => row.key)).toEqual(['circuits_section_belongs_to_board'])
 
     // And every one of them has its case below, so that none is only claimed.
-    const tested = new Set([...crossings.map((crossing) => crossing.key), lineKey])
+    const tested = new Set([
+      ...crossings.map((crossing) => crossing.key),
+      lineKey,
+      ...pvLinks.map((link) => link.key),
+    ])
     expect(rows.map((row) => row.key).filter((key) => !tested.has(key))).toEqual([])
   })
 
@@ -978,6 +992,41 @@ describe('a reference to a record of another business', () => {
     )
     expect(pastEveryPolicy).toEqual({ code: foreignKeyViolation, constraint: lineKey })
   })
+
+  it.each(pvLinks)(
+    'is refused for $column by the trigger first, and by $key behind it',
+    async ({ key, column, target }) => {
+      // Through the application the trigger that holds a link to a PV system
+      // asks for the system and its inverter at the battery's own site, finds
+      // none of another business, and refuses before the key is asked.
+      const throughTheApplication = await refusedBy(
+        database.forTenant({ tenantId: north.id }, (tx) =>
+          tx.execute(repoint('installations', column, own.companion, other[target])),
+        ),
+      )
+      expect(throughTheApplication.code).toBe(checkViolation)
+
+      // The superuser switches the trigger off for one transaction, which
+      // leaves the key, and it holds.
+      const client = await admin.connect()
+
+      try {
+        await client.query('begin')
+        await client.query('alter table installations disable trigger installations_pv_link_holds')
+
+        const pastTheTrigger = await refusedBy(
+          client.query(`update installations set ${column} = $1 where id = $2`, [
+            other[target],
+            own.companion,
+          ]),
+        )
+        expect(pastTheTrigger).toEqual({ code: foreignKeyViolation, constraint: key })
+      } finally {
+        await client.query('rollback')
+        client.release()
+      }
+    },
+  )
 })
 
 /** One record of each kind that points at another, all of one business. */
@@ -989,6 +1038,8 @@ interface Planted {
   readonly site: string
   readonly siteContact: string
   readonly installation: string
+  /** A battery that belongs to the PV system above and hangs at its inverter. */
+  readonly companion: string
   readonly job: string
   readonly document: string
   readonly line: string
@@ -1095,6 +1146,11 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     "insert into pv_strings (tenant_id, inverter_id, designation) values ($1, $2, 'String 1')",
     [tenant, inverter],
   )
+  const companion = await one(
+    `insert into installations (tenant_id, site_id, kind, designation, pv_system_id, inverter_id)
+       values ($1, $2, 'battery', 'Speicher', $3, $4)`,
+    [tenant, site, installation, inverter],
+  )
   const board = await one(
     "insert into distribution_boards (tenant_id, installation_id, kind, designation) values ($1, $2, 'sub_distribution', 'AC-Verteiler')",
     [tenant, installation],
@@ -1118,6 +1174,7 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       [tenant, site],
     ),
     installation,
+    companion,
     job,
     document,
     line: await one(

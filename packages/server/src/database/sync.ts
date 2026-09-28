@@ -29,7 +29,7 @@ import { versionFileRefusal } from '../attachments/versions.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
-import { sectionRefusal, structureProblem } from '../electrical/structure.js'
+import { pvLinkRefusal, sectionRefusal, structureProblem } from '../electrical/structure.js'
 import { tradeForms } from '../forms/registry.js'
 import { reportFieldsProblem } from '../forms/report-fields.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
@@ -580,8 +580,9 @@ async function applyOne(
   // parent it would take. A contact that names none at all is missing the
   // one it must have, like any record created without it, and a conflict as
   // well, with both fields; left to the check in the database, it took the
-  // whole transmission along. Then the one pairing the keys cannot say alone,
-  // the section of a circuit on the circuit's board.
+  // whole transmission along. Then the pairings the keys cannot say alone:
+  // the section of a circuit on the circuit's board, and the PV system and
+  // inverter an installation belongs to, at its own site (#300).
   const missing =
     operation.kind === 'delete'
       ? null
@@ -590,7 +591,8 @@ async function applyOne(
     ? { reason: 'record_missing' as const, fields: [missing.field] }
     : parent === 'none'
       ? { reason: 'record_missing' as const, fields: ['customerId', 'siteId'] }
-      : await sectionRefusal(tx, operation, values, current)
+      : ((await sectionRefusal(tx, operation, values, current)) ??
+        (await pvLinkRefusal(tx, operation, values, current)))
 
   if (misplaced) {
     return await record(tx, tenantId, operation, {

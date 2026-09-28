@@ -247,6 +247,7 @@ export const auditReferences: Readonly<Record<string, string>> = {
   circuit_id: 'circuits',
   inverter_id: 'inverters',
   pv_string_id: 'pv_strings',
+  pv_system_id: 'installations',
   attachment_id: 'attachments',
   task_id: 'tasks',
   deadline_id: 'deadlines',
