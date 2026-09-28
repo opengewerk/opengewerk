@@ -397,8 +397,8 @@ function LineForm({
 
                 if (priced) {
                   setPrice(article.priceCents === null ? '' : centsAsInput(article.priceCents))
-                  // A selling price of an article is for one unit so far.
-                  setBase('1')
+                  // The price with the units it is for (#456).
+                  setBase(String(article.priceBase))
                 }
               }}
             />

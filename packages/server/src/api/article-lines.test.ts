@@ -41,6 +41,7 @@ let customerId = ''
 let cable = ''
 let breaker = ''
 let foreign = ''
+let ties = ''
 
 const office = as(north.id, 'office')
 const technician = JSON.stringify({ userId: 'max', tenantId: north.id, roles: ['technician'] })
@@ -177,6 +178,15 @@ beforeAll(async () => {
       as(south.id, 'office'),
     )
   ).id
+  // Priced the way a wholesaler prices it, per 100 (#456).
+  ties = (
+    await post('/articles', {
+      number: '5010',
+      designation: 'Kabelbinder 200 × 4,8 mm, schwarz',
+      unit: 'piece',
+      price: { unitPriceCents: 350, validFrom: '2026-01-01', priceBase: 100 },
+    })
+  ).id
 })
 
 afterAll(async () => {
@@ -199,6 +209,18 @@ describe('the choice of an article', () => {
 
     expect((before.body as { rows: { priceCents: number }[] }).rows[0]?.priceCents).toBe(89)
     expect((after.body as { rows: { priceCents: number }[] }).rows[0]?.priceCents).toBe(92)
+  })
+
+  it('names the price unit of the price of the day (#456)', async () => {
+    const answer = await http()
+      .get('/articles?search=5010&on=2026-09-28')
+      .set('x-test-identity', office)
+      .expect(200)
+
+    expect((answer.body as { rows: unknown[] }).rows[0]).toMatchObject({
+      priceCents: 350,
+      priceBase: 100,
+    })
   })
 
   it('is refused for a day that is not in the calendar', async () => {
@@ -288,6 +310,61 @@ describe('an invoice made from a report', () => {
     // 12,5 m at 0,92 €, the price of the invoice's date and not of the report's.
     expect(taken).toMatchObject({ articleId: cable, unitPriceCents: 92, netCents: 1150 })
     expect(typed).toMatchObject({ articleId: null, unitPriceCents: 0, netCents: 0 })
+  })
+
+  it('takes the price unit with the price of the article (#456)', async () => {
+    const document = await post('/documents', {
+      customerId,
+      kind: 'time_and_material_report',
+      documentDate: '2026-09-20',
+    })
+
+    await post(`/documents/${document.id}/lines`, {
+      designation: 'Kabelbinder 200 × 4,8 mm, schwarz',
+      quantityMilli: 300_000,
+      unit: 'piece',
+      unitPriceCents: 0,
+      articleId: ties,
+    })
+    await post(`/documents/${document.id}/issue`, {})
+
+    const invoice = await post(`/documents/${document.id}/successors`, {
+      kind: 'final_invoice',
+      documentDate: '2026-09-28',
+    })
+
+    // 300 cable ties at 3,50 € per 100 are 10,50 €, not 1.050,00 €.
+    expect(await linesOf(invoice.id)).toMatchObject([
+      { articleId: ties, unitPriceCents: 350, priceBase: 100, netCents: 1050 },
+    ])
+  })
+
+  it('leaves a line to be priced by hand once it is counted in another unit (#456)', async () => {
+    const document = await post('/documents', {
+      customerId,
+      kind: 'time_and_material_report',
+      documentDate: '2026-09-20',
+    })
+
+    // Taken from the cable, which is priced per metre, and then counted in
+    // pieces: the price of a metre says nothing about a piece.
+    await post(`/documents/${document.id}/lines`, {
+      designation: 'Mantelleitung, Reste',
+      quantityMilli: 2000,
+      unit: 'piece',
+      unitPriceCents: 0,
+      articleId: cable,
+    })
+    await post(`/documents/${document.id}/issue`, {})
+
+    const invoice = await post(`/documents/${document.id}/successors`, {
+      kind: 'final_invoice',
+      documentDate: '2026-09-28',
+    })
+
+    expect(await linesOf(invoice.id)).toMatchObject([
+      { articleId: cable, unit: 'piece', unitPriceCents: 0, priceBase: 1, netCents: 0 },
+    ])
   })
 
   it('does the same when it collects the reports of a job', async () => {
