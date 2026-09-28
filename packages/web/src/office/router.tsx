@@ -7,6 +7,12 @@ import { InstanceSettingsScreen } from './instance/settings.js'
 import { InstanceTenantsScreen } from './instance/tenants.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
+import {
+  ArticleListScreen,
+  ArticleScreen,
+  EditArticleScreen,
+  NewArticleScreen,
+} from './screens/articles.js'
 import { AuditLogScreen } from './screens/audit-log.js'
 import { BackupScreen } from './screens/backup.js'
 import {
@@ -32,6 +38,12 @@ import { ReportFieldsScreen } from './screens/report-fields.js'
 import { SettingsScreen } from './screens/settings.js'
 import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
+import {
+  EditSupplierScreen,
+  NewSupplierScreen,
+  SupplierList,
+  SupplierScreen,
+} from './screens/suppliers.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
 import { SyncScreen } from './screens/sync.js'
@@ -138,6 +150,36 @@ const routes = [
   createRoute({ getParentRoute: () => office, path: '/aufgaben', component: TaskListScreen }),
   createRoute({ getParentRoute: () => office, path: '/fristen', component: DeadlineListScreen }),
   createRoute({ getParentRoute: () => office, path: '/zeiten', component: TimeScreen }),
+  // The catalogue and who sells it (#296). A new one and a change each have a
+  // page of their own, as for a customer.
+  createRoute({ getParentRoute: () => office, path: '/artikel', component: ArticleListScreen }),
+  createRoute({ getParentRoute: () => office, path: '/artikel/neu', component: NewArticleScreen }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/artikel/$articleId',
+    component: ArticleScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/artikel/$articleId/bearbeiten',
+    component: EditArticleScreen,
+  }),
+  createRoute({ getParentRoute: () => office, path: '/lieferanten', component: SupplierList }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/lieferanten/neu',
+    component: NewSupplierScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/lieferanten/$supplierId',
+    component: SupplierScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/lieferanten/$supplierId/bearbeiten',
+    component: EditSupplierScreen,
+  }),
   createRoute({ getParentRoute: () => office, path: '/belege', component: DocumentList }),
   createRoute({
     getParentRoute: () => office,

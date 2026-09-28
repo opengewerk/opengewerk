@@ -1,9 +1,8 @@
 import { defaultResponsibleLabel, leadProblem, sourceWords } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Check, ChevronDown, RotateCcw } from 'lucide-react'
-import { useId, useMemo, useState } from 'react'
+import { Check, RotateCcw } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 import {
   Button,
@@ -28,7 +27,7 @@ import {
   reopenDeadline,
 } from '../../session/deadlines.js'
 import { RequestRefused } from '../../sync/transport.js'
-import { Chip, Empty, PageHead, Screen } from '../kit.js'
+import { Chip, Empty, FilterSelect, PageHead, Screen } from '../kit.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -237,54 +236,6 @@ export function DeadlineListScreen() {
         </>
       )}
     </Screen>
-  )
-}
-
-/**
- * A choice in the row of filters, `select_filter()` of the canvas: as low as
- * the chips beside it, its label heard and not shown.
- */
-function FilterSelect({
-  label,
-  width,
-  value,
-  options,
-  onChange,
-}: {
-  readonly label: string
-  readonly width: string
-  readonly value: string
-  readonly options: readonly { readonly value: string; readonly label: string }[]
-  readonly onChange: (value: string) => void
-}) {
-  const id = useId()
-
-  return (
-    <div className={clsx('relative max-lg:w-full', width)}>
-      <label htmlFor={id} className="sr-only">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => {
-          onChange(event.target.value)
-        }}
-        className="h-8 w-full cursor-pointer appearance-none rounded-control border border-line-strong bg-surface pr-7 pl-2.5 text-[13px] text-ink max-lg:h-10 max-lg:text-[15px]"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        size={14}
-        strokeWidth={2.2}
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ink-muted"
-      />
-    </div>
   )
 }
 

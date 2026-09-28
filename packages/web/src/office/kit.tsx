@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Info } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 
 /**
  * The pieces every office screen is built from, one for each building block
@@ -338,6 +338,54 @@ export function NoteBox({
           {action}
         </>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * A choice in the row of filters, `select_filter()` of the canvas: as low as
+ * the chips beside it, its label heard and not shown.
+ */
+export function FilterSelect({
+  label,
+  width,
+  value,
+  options,
+  onChange,
+}: {
+  readonly label: string
+  readonly width: string
+  readonly value: string
+  readonly options: readonly { readonly value: string; readonly label: string }[]
+  readonly onChange: (value: string) => void
+}) {
+  const id = useId()
+
+  return (
+    <div className={clsx('relative max-lg:w-full', width)}>
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value)
+        }}
+        className="h-8 w-full cursor-pointer appearance-none rounded-control border border-line-strong bg-surface pr-7 pl-2.5 text-[13px] text-ink max-lg:h-10 max-lg:text-[15px]"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        size={14}
+        strokeWidth={2.2}
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-ink-muted"
+      />
     </div>
   )
 }

@@ -135,11 +135,12 @@ export class TestServer implements SyncTransport, DirectWriter {
     return Promise.resolve()
   }
 
-  patch() {
+  /** A change at the route never arrives here; a test that needs one overrides this. */
+  patch(_entity: string, _id: string, _values: Readonly<Row>): Promise<unknown> {
     return Promise.reject(new TypeError('Failed to fetch'))
   }
 
-  remove() {
+  remove(_entity: string, _id: string): Promise<unknown> {
     return Promise.reject(new TypeError('Failed to fetch'))
   }
 }

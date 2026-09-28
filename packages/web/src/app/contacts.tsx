@@ -11,13 +11,24 @@ import { RecordForm, asTextOrNull } from './record-form.js'
 import type { FormField } from './record-form.js'
 
 /**
- * What a contact hangs on: one customer or one site, never both (#121).
+ * What a contact hangs on: one customer or one site (#121), or since #296 one
+ * supplier, never two.
  *
  * The type says it before the rule does. A form gets its parent from the
- * screen it stands on, the customer's or the site's, and has no field for the
- * other one, so there is nothing a person could fill in twice.
+ * screen it stands on, the customer's, the site's or the supplier's, and has
+ * no field for another one, so there is nothing a person could fill in twice.
  */
-export type ContactParent = { readonly customerId: string } | { readonly siteId: string }
+export type ContactParent =
+  { readonly customerId: string } | { readonly siteId: string } | { readonly supplierId: string }
+
+/** The field of a contact that names its parent, and the id in it. */
+export function parentField(parent: ContactParent): readonly [string, string] {
+  if ('customerId' in parent) {
+    return ['customerId', parent.customerId]
+  }
+
+  return 'siteId' in parent ? ['siteId', parent.siteId] : ['supplierId', parent.supplierId]
+}
 
 export const contactFields: readonly FormField[] = [
   { name: 'givenName', label: 'Vorname' },
