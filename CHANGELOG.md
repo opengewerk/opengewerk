@@ -146,6 +146,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Browser: angemeldet die Anlage, sonst die Anmeldung mit einem Satz, was danach kommt. Den Code
   liest die App unabhängig vom Host, ein Umzug der Instanz lässt gedruckte Etiketten also in der
   App gelten. Migration 0057.
+- Artikel und Lieferanten (#296, erster Teil), damit das Material nicht in jedem Beleg neu getippt
+  wird und der DATANORM-Import, das Lager und der Lieferschein etwas haben, woran sie hängen. Im Büro
+  stehen unter "Material" die Artikel, mit eigener Nummer, EAN mit geprüfter Prüfziffer, Einheit,
+  Warengruppe und Beschreibung, und ihren Verkaufspreisen je ab einem Tag: ein neuer Preis löst den
+  alten zum Tag ab und ändert keinen Beleg, der den Artikel schon hat. Die Liste sucht und blättert
+  auf dem Server, weil ein Katalog aus DATANORM leicht hunderttausend Artikel hat. Lieferanten sind
+  Stammdaten wie Kunden, mit Anschrift, der eigenen Kundennummer dort und Ansprechpartnern, und
+  liegen auf jedem Gerät; am Artikel steht je Lieferant seine Artikelnummer und der Einkaufspreis ab
+  einem Tag, den nur Inhaber und Büro sehen, so entschieden von Moritz am 27.09.2026. Auf den Geräten
+  liegen die Artikel, die der Betrieb als häufig markiert, mit ihren Preisen. Die Übernahme eines
+  Artikels in eine Position und in den Regiebericht kommt im zweiten Teil. Neue Rechte
+  `article.read`, `supplier.read` für alle Rollen und `article.write`, `supplier.write`,
+  `purchase.read`, `purchase.write` für Inhaber und Büro, Migration 0058.
 
 ### Geändert
 
