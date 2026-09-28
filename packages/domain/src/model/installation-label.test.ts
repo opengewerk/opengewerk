@@ -93,6 +93,22 @@ describe('reading a label from a scan', () => {
     expect(labelCodeFromScan('https://example.de/a/7K2M 9QX4TBA3HW8P')).toBeNull()
     expect(labelCodeFromScan('')).toBeNull()
   })
+
+  it('reads a long run of slashes in one pass', () => {
+    // Trimmed with /\/+$/, slashes before an x took the square of their length
+    // (CodeQL, js/polynomial-redos); synchronous, so only the clock tells.
+    const slashes = '/'.repeat(100_000)
+    const started = Date.now()
+
+    expect(labelCodeFromScan(`https://example.de/a/${slashes}x`)).toBeNull()
+    expect(Date.now() - started).toBeLessThan(500)
+    expect(labelCodeFromScan(`https://example.de/a/7K2M9QX4TBA3HW8P${slashes}`)).toBe(
+      '7K2M9QX4TBA3HW8P',
+    )
+    expect(labelAddress(`https://msk.opengewerk.de${slashes}`, '7K2M9QX4TBA3HW8P')).toBe(
+      'https://msk.opengewerk.de/a/7K2M9QX4TBA3HW8P',
+    )
+  })
 })
 
 describe('a print of labels', () => {

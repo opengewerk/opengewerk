@@ -82,7 +82,22 @@ export function printedLabelCode(code: string): string {
 
 /** The address a label carries: the instance, then the code. */
 export function labelAddress(origin: string, code: string): string {
-  return `${origin.replace(/\/+$/, '')}${labelPath}${code}`
+  return `${withoutTrailingSlashes(origin)}${labelPath}${code}`
+}
+
+/**
+ * The text without the slashes at its end. A loop and not `/\/+$/`: that
+ * expression starts again at every slash of a long run of them and so takes
+ * the square of its length, and what a scan reads comes from outside.
+ */
+function withoutTrailingSlashes(text: string): string {
+  let end = text.length
+
+  while (end > 0 && text.charAt(end - 1) === '/') {
+    end -= 1
+  }
+
+  return text.slice(0, end)
 }
 
 /**
@@ -111,9 +126,7 @@ export function labelCodeFromScan(text: string): string | null {
     return null
   }
 
-  const code = path
-    .slice(at + labelPath.length)
-    .replace(/\/+$/, '')
+  const code = withoutTrailingSlashes(path.slice(at + labelPath.length))
     .toUpperCase()
     .replaceAll('-', '')
     .replaceAll(/[IL]/g, '1')
