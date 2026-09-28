@@ -303,6 +303,9 @@ export function InstallationScreen() {
             {editing ? (
               <RecordForm
                 fields={fields}
+                // One column in the side column from 1024 pixels on, as the form of the
+                // canvas stands there; two squeezed the lists of a battery to a word.
+                columns="lg:grid-cols-1"
                 record={installation}
                 submitLabel="Speichern"
                 onCancel={() => {

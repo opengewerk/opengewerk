@@ -1035,7 +1035,7 @@ function ModulesTable({
   const serialCell = (module: RecordState) => {
     const serial = maybeText(module, 'serialNumber')
 
-    return serial ?? <span className="font-semibold text-waiting">fehlt</span>
+    return serial ?? <span className="text-waiting">fehlt</span>
   }
 
   const power = (module: RecordState) => {
