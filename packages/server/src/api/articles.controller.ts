@@ -62,11 +62,25 @@ const articleOfRow = sql`${sql.identifier('articles')}.${sql.identifier('id')}`
 /** The most rows one page of the list carries. */
 const pageMax = 100
 
-/** Texts as a form sends them: trimmed, and an empty optional one as nothing. */
-function tidied(values: Partial<Record<string, unknown>>): Partial<Record<string, unknown>> {
-  const tidy: Record<string, unknown> = {}
+/**
+ * The fields of a request as a form sends them: trimmed, and an empty optional
+ * text as nothing. Only the named fields are read and written, never a key the
+ * request brings along (CodeQL, js/remote-property-injection).
+ */
+function tidied<Field extends string>(
+  body: unknown,
+  fields: readonly Field[],
+): Partial<Record<Field, unknown>> {
+  const values = pick(body, fields)
+  const tidy: Partial<Record<Field, unknown>> = {}
 
-  for (const [field, value] of Object.entries(values)) {
+  for (const field of fields) {
+    if (!(field in values)) {
+      continue
+    }
+
+    const value = values[field]
+
     if (typeof value !== 'string') {
       tidy[field] = value
       continue
@@ -300,7 +314,7 @@ export class ArticlesController {
   @Post()
   @RequiresPermission('article.write')
   async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
-    const values = tidied(pick(body, writableFields))
+    const values = tidied(body, writableFields)
     requireNoProblem(
       articleProblems({
         number: values['number'],
@@ -343,7 +357,7 @@ export class ArticlesController {
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
-    const values = tidied(pick(body, writableFields))
+    const values = tidied(body, writableFields)
     requireSomething(values)
     requireNoProblem(articleProblems(values))
 
@@ -457,7 +471,7 @@ export class ArticlesController {
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
-    const values = tidied(pick(body, ['supplierId', 'supplierNumber'] as const))
+    const values = tidied(body, ['supplierId', 'supplierNumber'] as const)
 
     if (typeof values['supplierId'] !== 'string' || !isUuid(values['supplierId'])) {
       throw new BadRequestException('Pflichtangaben fehlen: supplierId')
@@ -521,7 +535,7 @@ export class ArticlesController {
     @Param('linkId') linkId: string,
     @Body() body: unknown,
   ) {
-    const values = tidied(pick(body, ['supplierNumber'] as const))
+    const values = tidied(body, ['supplierNumber'] as const)
     requireSomething(values)
     const numberProblem = supplierNumberProblem(values['supplierNumber'])
 

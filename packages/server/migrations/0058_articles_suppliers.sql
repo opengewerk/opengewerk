@@ -176,14 +176,19 @@ BEGIN
 		RETURN NULL;
 	END IF;
 
+	-- Every statement names the business as well, like the triggers of 0030
+	-- and 0054: the keys already bind these rows to it, and the condition
+	-- still holds should a later migration lift FORCE on one of the tables.
 	IF tg_table_name = 'articles' THEN
 		UPDATE public.article_prices SET deleted_at = new.deleted_at
-		 WHERE article_id = new.id AND deleted_at IS NULL;
-		DELETE FROM public.supplier_articles WHERE article_id = new.id;
+		 WHERE tenant_id = new.tenant_id AND article_id = new.id AND deleted_at IS NULL;
+		DELETE FROM public.supplier_articles
+		 WHERE tenant_id = new.tenant_id AND article_id = new.id;
 	ELSIF tg_table_name = 'suppliers' THEN
-		DELETE FROM public.supplier_articles WHERE supplier_id = new.id;
+		DELETE FROM public.supplier_articles
+		 WHERE tenant_id = new.tenant_id AND supplier_id = new.id;
 		UPDATE public.contacts SET deleted_at = new.deleted_at
-		 WHERE supplier_id = new.id AND deleted_at IS NULL;
+		 WHERE tenant_id = new.tenant_id AND supplier_id = new.id AND deleted_at IS NULL;
 	END IF;
 
 	RETURN NULL;
