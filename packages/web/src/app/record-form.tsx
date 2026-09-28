@@ -50,9 +50,15 @@ function choicesOf(field: FormField, values: Readonly<Record<string, string>>) {
 
 /**
  * The values as the form hands them back: a field that does not stand is
- * empty, and a choice the list no longer offers is the list's first, so that
- * a battery that stops being one does not keep its PV system, and an inverter
- * of the PV system chosen before does not go with the one chosen now.
+ * empty, and a choice its list for these values no longer offers is the
+ * list's first, so that a battery that stops being one does not keep its PV
+ * system, and an inverter of the PV system chosen before does not go with the
+ * one chosen now.
+ *
+ * Only for the lists that depend on the values. A fixed list keeps a value it
+ * does not offer, as it always did: a record written somewhere else, a
+ * country the list lacks, goes back as it came instead of quietly becoming
+ * the first choice.
  */
 function settled(
   fields: readonly FormField[],
@@ -66,7 +72,7 @@ function settled(
       continue
     }
 
-    const choices = choicesOf(field, result)
+    const choices = field.optionsFor?.(result)
 
     if (choices && !choices.some((choice) => choice.value === result[field.name])) {
       result[field.name] = choices[0]?.value ?? ''
