@@ -1,7 +1,7 @@
 import type { RecordState } from '@opengewerk/domain'
 import { inverterProblems, pvStringProblems } from '@opengewerk/domain'
-import { Link, useParams } from '@tanstack/react-router'
-import { ChevronRight, Pencil, Plus } from 'lucide-react'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { ChevronRight, Pencil, Plus, ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button, Panel } from '../../components/index.js'
@@ -361,7 +361,12 @@ export function SiteInverterScreen() {
  * to add a row of them.
  */
 export function SitePvStringScreen() {
-  const { stringId } = useParams({ strict: false }) as { stringId?: string }
+  const { jobId, inverterId, stringId } = useParams({ strict: false }) as {
+    jobId?: string
+    inverterId?: string
+    stringId?: string
+  }
+  const navigate = useNavigate()
   const client = useSync()
   const pvString = useRecord('pv_strings', stringId)
   const inverter = useRecord('inverters', maybeText(pvString, 'inverterId') ?? undefined)
@@ -453,10 +458,26 @@ export function SitePvStringScreen() {
             />
           </Panel>
 
+          {/* The camera for the serial numbers, while a module has none (#300). */}
           {missing ? (
-            <SiteText muted size={15}>
-              {missing}
-            </SiteText>
+            <>
+              <Button
+                tone="primary"
+                wide
+                height={52}
+                icon={ScanBarcode}
+                onClick={() => {
+                  void navigate({
+                    to: `/auftraege/${jobId ?? ''}/wechselrichter/${inverterId ?? ''}/strings/${stringId}/scannen`,
+                  })
+                }}
+              >
+                Seriennummern scannen
+              </Button>
+              <SiteText muted size={15}>
+                {`${missing} Jede gescannte Nummer geht an das nächste Modul ohne.`}
+              </SiteText>
+            </>
           ) : null}
 
           <Button

@@ -15,6 +15,8 @@ import {
   pvModuleProblems,
   pvStringProblems,
   pvSystemLinkProblem,
+  serialFromCode,
+  serialNumberProblem,
 } from './photovoltaic.js'
 
 describe('the figures of an inverter', () => {
@@ -131,5 +133,23 @@ describe('the order of modules on a string', () => {
     ]
 
     expect([...modules].sort(inModuleOrder).map((module) => module.id)).toEqual(['b', 'a', 'c'])
+  })
+})
+
+describe('a serial number from a label', () => {
+  it('is what the code says, trimmed, capitals kept', () => {
+    expect(serialFromCode(`  JA2404118780${String.fromCharCode(10)}`)).toBe('JA2404118780')
+    expect(serialFromCode('ja2404118780')).toBe('ja2404118780')
+  })
+
+  it('is none when the code is empty or longer than a serial number', () => {
+    expect(serialFromCode('   ')).toBeNull()
+    expect(serialFromCode(`https://example.com/${'x'.repeat(80)}`)).toBeNull()
+  })
+
+  it('says what is missing when typed by hand', () => {
+    expect(serialNumberProblem(' ')).toBe('Die Nummer, wie sie auf dem Etikett steht.')
+    expect(serialNumberProblem('x'.repeat(65))).toBe('Eine Seriennummer hat höchstens 64 Zeichen.')
+    expect(serialNumberProblem('JA2404118780')).toBeNull()
   })
 })

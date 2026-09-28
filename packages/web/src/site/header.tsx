@@ -31,6 +31,9 @@ export function useWayBack(): { readonly to: string; readonly label: string } | 
   const onString = matchRoute({
     to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId',
   })
+  const onScanner = matchRoute({
+    to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId/scannen',
+  })
   const onEntry =
     matchRoute({ to: '/zeiten/$day/nachtragen' }) ||
     matchRoute({ to: '/zeiten/$day/korrigieren/$entryId' })
@@ -47,6 +50,13 @@ export function useWayBack(): { readonly to: string; readonly label: string } | 
     return {
       to: `/auftraege/${onCircuit.jobId}/verteiler/${onCircuit.boardId}`,
       label: 'Zurück zum Verteiler',
+    }
+  }
+
+  if (onScanner) {
+    return {
+      to: `/auftraege/${onScanner.jobId}/wechselrichter/${onScanner.inverterId}/strings/${onScanner.stringId}`,
+      label: 'Zurück zum String',
     }
   }
 

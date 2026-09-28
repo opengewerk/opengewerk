@@ -276,7 +276,12 @@ describe('a string on site', () => {
       'Modul 2Seriennummer fehlt',
       'Modul 3Seriennummer fehlt',
     ])
-    expect(screen.getByText('2 von 3 Modulen ohne Seriennummer.')).toBeDefined()
+    expect(
+      screen.getByText(
+        '2 von 3 Modulen ohne Seriennummer. Jede gescannte Nummer geht an das nächste Modul ohne.',
+      ),
+    ).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Seriennummern scannen' })).toBeDefined()
   })
 
   it('takes a row of modules without a network', async () => {

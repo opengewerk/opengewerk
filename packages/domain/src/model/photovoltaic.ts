@@ -229,3 +229,30 @@ export function inModuleOrder(
 
 /** How many modules one "Module anlegen" may add at once. */
 export const moduleBatchMax = 100
+
+/** The longest serial number a module label carries, with room to spare. */
+export const serialNumberMax = 64
+
+/**
+ * The serial number in what a label's code says, or null when it is none:
+ * empty, or longer than a serial number, as a QR code with an address in it
+ * would be. Trimmed, and otherwise as the label has it, capitals included.
+ */
+export function serialFromCode(text: string): string | null {
+  const serial = text.trim()
+
+  return serial.length === 0 || serial.length > serialNumberMax ? null : serial
+}
+
+/** What is wrong with a serial number typed by hand, as the sentence of its field. */
+export function serialNumberProblem(input: string): string | null {
+  const serial = input.trim()
+
+  if (serial.length === 0) {
+    return 'Die Nummer, wie sie auf dem Etikett steht.'
+  }
+
+  return serial.length > serialNumberMax
+    ? `Eine Seriennummer hat höchstens ${String(serialNumberMax)} Zeichen.`
+    : null
+}
