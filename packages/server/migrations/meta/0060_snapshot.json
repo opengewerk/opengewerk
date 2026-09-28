@@ -3447,6 +3447,10 @@
         "document_lines_price_base_known": {
           "name": "document_lines_price_base_known",
           "value": "\"document_lines\".\"price_base\" in (1, 10, 100, 1000)"
+        },
+        "document_lines_lump_sum_per_one": {
+          "name": "document_lines_lump_sum_per_one",
+          "value": "\"document_lines\".\"unit\" <> 'flat_rate' or \"document_lines\".\"price_base\" = 1"
         }
       },
       "isRLSEnabled": false

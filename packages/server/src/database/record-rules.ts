@@ -11,6 +11,7 @@ import {
   inverterLinkProblem,
   jobNoteProblem,
   linePositionProblem,
+  lumpSumPriceBaseProblem,
   priceBaseProblem,
   noteTimeProblem,
   type Operation,
@@ -110,6 +111,10 @@ const rules: Readonly<Record<string, readonly RecordRule[]>> = {
     {
       fields: ['priceBase'],
       problem: (at) => (at('priceBase') === undefined ? null : priceBaseProblem(at('priceBase'))),
+    },
+    {
+      fields: ['unit', 'priceBase'],
+      problem: (at) => lumpSumPriceBaseProblem({ unit: at('unit'), priceBase: at('priceBase') }),
     },
     {
       fields: ['kind', 'quantityMilli', 'unitPriceCents'],

@@ -61,6 +61,21 @@ export function priceBaseProblem(value: unknown): string | null {
     : 'Ein Preis gilt je 1, 10, 100 oder 1000 Einheiten.'
 }
 
+/**
+ * What is wrong with the price unit of a lump sum, or null when nothing is
+ * (#456). A lump sum is one of itself, and "je 100 psch." would say nothing;
+ * the check `document_lines_lump_sum_per_one` holds it. Left out, a price
+ * unit is one, as the column gives it.
+ */
+export function lumpSumPriceBaseProblem(line: {
+  readonly unit?: unknown
+  readonly priceBase?: unknown
+}): string | null {
+  return line.unit === 'flat_rate' && line.priceBase !== undefined && line.priceBase !== 1
+    ? 'Eine Pauschale hat keine Preiseinheit.'
+    : null
+}
+
 /** The price unit a value stands for, one where it names none of the four. */
 export function priceBaseOf(value: unknown): PriceBase {
   return priceBases.find((base) => base === value) ?? 1

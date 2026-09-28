@@ -1515,6 +1515,31 @@ describe('a document line from a device', () => {
     expect(refused.body.message).toContain('Ein Preis gilt je 1, 10, 100 oder 1000 Einheiten.')
   })
 
+  it('refuses a lump sum per 100 from a device as well (#456)', async () => {
+    const document = await draftDocument()
+
+    const refused = await http()
+      .post('/sync')
+      .set('x-test-identity', technician())
+      .send({
+        deviceId: 'tablet-1',
+        operations: [
+          change({
+            entity: 'document_lines',
+            recordId: newId<'document-line'>(),
+            kind: 'create',
+            patches: [
+              ...linePatches({ unit: 'flat_rate', quantityMilli: 1000, priceBase: 100 }),
+              { field: 'documentId', from: null, to: document.id },
+            ],
+          }),
+        ],
+      })
+      .expect(400)
+
+    expect(refused.body.message).toContain('Eine Pauschale hat keine Preiseinheit.')
+  })
+
   it('is refused once the document is issued, with the reason the document gets', async () => {
     // One line already on it, because an invoice without one is not issued.
     const document = { id: await issuableDraft(app, office(), customerId) }

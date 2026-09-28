@@ -228,6 +228,74 @@ describe('a position', () => {
     expect(cheaper.body).toMatchObject({ priceBase: 10, netCents: 9000 })
   })
 
+  it('keeps a lump sum for one of itself, on creating and on changing (#456)', async () => {
+    const document = await draft()
+
+    const refused = await http()
+      .post(`/documents/${document.id}/lines`)
+      .set('x-test-identity', office())
+      .send({
+        designation: 'Anfahrt',
+        quantityMilli: 1000,
+        unit: 'flat_rate',
+        unitPriceCents: 4500,
+        priceBase: 100,
+      })
+      .expect(400)
+
+    expect((refused.body as { message: string }).message).toBe(
+      'Eine Pauschale hat keine Preiseinheit.',
+    )
+
+    const ties = await addLine(document.id, {
+      designation: 'Kabelbinder',
+      quantityMilli: 300_000,
+      unit: 'piece',
+      unitPriceCents: 350,
+      priceBase: 100,
+    })
+
+    // The unit alone would leave a lump sum per 100.
+    await http()
+      .patch(`/documents/${document.id}/lines/${ties.id}`)
+      .set('x-test-identity', office())
+      .send({ unit: 'flat_rate' })
+      .expect(400)
+
+    // With the price unit it goes through.
+    const lumpSum = await http()
+      .patch(`/documents/${document.id}/lines/${ties.id}`)
+      .set('x-test-identity', office())
+      .send({ unit: 'flat_rate', priceBase: 1 })
+      .expect(200)
+
+    expect(lumpSum.body).toMatchObject({ unit: 'flat_rate', priceBase: 1 })
+  })
+
+  it('becomes a title for one of nothing, whatever its price unit was (#456)', async () => {
+    const document = await draft()
+    const ties = await addLine(document.id, {
+      designation: 'Kabelbinder',
+      quantityMilli: 300_000,
+      unit: 'piece',
+      unitPriceCents: 350,
+      priceBase: 100,
+    })
+
+    const title = await http()
+      .patch(`/documents/${document.id}/lines/${ties.id}`)
+      .set('x-test-identity', office())
+      .send({ kind: 'title' })
+      .expect(200)
+
+    expect(title.body).toMatchObject({
+      kind: 'title',
+      unit: 'flat_rate',
+      priceBase: 1,
+      netCents: 0,
+    })
+  })
+
   it('is refused with a price unit that is none of the four steps (#456)', async () => {
     const document = await draft()
 
@@ -572,6 +640,28 @@ describe('the stored line total', () => {
     })
 
     expect(line.netCents).toBe(1)
+  })
+
+  it('keeps a lump sum for one of itself in the database as well (#456)', async () => {
+    const document = await draft()
+
+    const refused = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx.insert(documentLines).values({
+          tenantId: north.id,
+          documentId: document.id as never,
+          position: 1,
+          designation: 'Anfahrt',
+          quantityMilli: 1000,
+          unit: 'flat_rate',
+          unitPriceCents: 4500,
+          priceBase: 100,
+          netCents: 45,
+        }),
+      ),
+    )
+
+    expect(refused).toEqual({ code: checkViolation, constraint: 'document_lines_lump_sum_per_one' })
   })
 
   it('agrees with the domain on half a cent per hundred (#456)', async () => {

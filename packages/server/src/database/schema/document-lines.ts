@@ -123,5 +123,10 @@ export const documentLines = pgTable(
       'document_lines_price_base_known',
       sql`${table.priceBase} in (${sql.raw(priceBases.join(', '))})`,
     ),
+    // A lump sum is one of itself; "je 100 psch." would say nothing.
+    check(
+      'document_lines_lump_sum_per_one',
+      sql`${table.unit} <> 'flat_rate' or ${table.priceBase} = 1`,
+    ),
   ],
 )
