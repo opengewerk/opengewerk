@@ -75,8 +75,9 @@ const country: RecordRule = {
 const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   customers: [country],
   sites: [country],
-  // A supplier is master data a device may create (#296): its name and the
-  // customer number there, as `supplierProblems` and the checks hold them.
+  // A supplier is master data a device may create (#296): its name, the
+  // customer number there and its short code, as `supplierProblems` and the
+  // checks hold them.
   suppliers: [
     country,
     {
@@ -87,6 +88,11 @@ const rules: Readonly<Record<string, readonly RecordRule[]>> = {
       fields: ['customerNumber'],
       problem: (at) =>
         supplierProblems({ customerNumber: at('customerNumber') })['customerNumber'] ?? null,
+    },
+    // The short code an import appends to a number that is taken (#297).
+    {
+      fields: ['shortCode'],
+      problem: (at) => supplierProblems({ shortCode: at('shortCode') })['shortCode'] ?? null,
     },
   ],
   installations: [

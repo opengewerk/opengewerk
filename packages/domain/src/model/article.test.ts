@@ -10,7 +10,7 @@ import {
   priceStanding,
   supplierNumberProblem,
 } from './article.js'
-import { supplierProblems } from './supplier.js'
+import { shortCodeFrom, supplierProblems } from './supplier.js'
 
 describe('the EAN of an article', () => {
   it('takes 13 and 8 digits with the right check digit', () => {
@@ -161,5 +161,25 @@ describe('the fields of a supplier', () => {
       customerNumber: 'Eine Kundennummer hat höchstens 40 Zeichen.',
     })
     expect(supplierProblems({ customerNumber: '448120' })).toEqual({})
+  })
+
+  it('hold the short code to a few capitals or digits, as the check does (#297)', () => {
+    const wrong = { shortCode: 'Ein Kürzel hat bis zu 8 Großbuchstaben oder Ziffern.' }
+
+    for (const fine of ['HAN', 'MÜL', 'E2', 'ABCDEFGH', null]) {
+      expect(supplierProblems({ shortCode: fine })).toEqual({})
+    }
+
+    for (const bad of ['', 'han', 'HA N', 'HAN-1', 'ABCDEFGHI']) {
+      expect(supplierProblems({ shortCode: bad })).toEqual(wrong)
+    }
+  })
+
+  it('give a short code from the name when the supplier has none', () => {
+    expect(shortCodeFrom('Hansa Elektrogroßhandel')).toBe('HAN')
+    expect(shortCodeFrom('Müller & Söhne')).toBe('MÜL')
+    expect(shortCodeFrom('3E Großhandel')).toBe('3EG')
+    expect(shortCodeFrom('E.ON')).toBe('EON')
+    expect(shortCodeFrom('& + /')).toBe('LIEF')
   })
 })

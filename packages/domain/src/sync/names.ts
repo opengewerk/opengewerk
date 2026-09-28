@@ -70,6 +70,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   siteId: 'Objekt',
   supplierId: 'Lieferant',
   customerNumber: 'Kundennummer',
+  shortCode: 'Kürzel',
   articleId: 'Artikel',
   validFrom: 'Gültig ab',
   ean: 'EAN',

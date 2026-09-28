@@ -17,6 +17,11 @@ export interface Supplier extends Synced, Address {
   readonly name: string
   /** The business's customer number at the supplier, as an order names it. */
   readonly customerNumber: string | null
+  /**
+   * A few letters for the supplier (#297), which an import from DATANORM
+   * appends to an article number the business already uses: "1042-HAN".
+   */
+  readonly shortCode: string | null
   readonly email: string | null
   readonly phone: string | null
   readonly notes: string | null
@@ -26,7 +31,11 @@ export interface Supplier extends Synced, Address {
 export const supplierLimits = {
   name: 200,
   customerNumber: 40,
+  shortCode: 8,
 } as const
+
+/** Capitals and digits, as a short code stands behind a number. */
+const shortCodeShape = /^[A-ZÄÖÜ0-9]+$/
 
 /**
  * What is wrong with the fields of a supplier, by field, as the form shows it
@@ -48,6 +57,18 @@ export function supplierProblems(
     }
   }
 
+  const shortCode = supplier['shortCode']
+
+  // No short code is null, as the check of the database says; an empty field
+  // is turned into null by the form before it asks.
+  if (
+    typeof shortCode === 'string' &&
+    (shortCode.length > supplierLimits.shortCode || !shortCodeShape.test(shortCode))
+  ) {
+    problems['shortCode'] =
+      `Ein Kürzel hat bis zu ${String(supplierLimits.shortCode)} Großbuchstaben oder Ziffern.`
+  }
+
   const number = supplier['customerNumber']
 
   if (typeof number === 'string' && number.trim().length > supplierLimits.customerNumber) {
@@ -56,4 +77,15 @@ export function supplierProblems(
   }
 
   return problems
+}
+
+/**
+ * The short code an import appends when the supplier has none of its own:
+ * the first three letters or digits of its name, in capitals, "HAN" for
+ * "Hansa Elektrogroßhandel", or "LIEF" when the name has none.
+ */
+export function shortCodeFrom(name: string): string {
+  const letters = name.toLocaleUpperCase('de').replace(/[^A-ZÄÖÜ0-9]/g, '')
+
+  return letters.slice(0, 3) || 'LIEF'
 }

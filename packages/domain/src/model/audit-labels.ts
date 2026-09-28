@@ -54,6 +54,22 @@ interface TableWords {
 }
 
 export const auditTables: Readonly<Record<string, TableWords>> = {
+  article_imports: {
+    label: 'Import aus DATANORM',
+    fields: {
+      supplier_id: 'Lieferant',
+      status: 'Stand',
+      files: 'Dateien',
+      charset: 'Zeichensatz',
+      valid_from: 'Preise gültig ab',
+      list_as_selling: 'Listenpreis als Verkaufspreis',
+      summary: 'Ergebnis',
+      problem: 'Problem',
+      created_by: 'Eingelesen von',
+      applied_by: 'Übernommen von',
+      applied_at: 'Übernommen am',
+    },
+  },
   article_prices: {
     label: 'Verkaufspreis',
     fields: {
@@ -61,6 +77,7 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       valid_from: 'Gültig ab',
       unit_price_cents: 'Preis',
       price_base: 'Preiseinheit',
+      import_id: 'Import',
     },
   },
   articles: {
@@ -72,6 +89,7 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       unit: 'Einheit',
       group_of_goods: 'Warengruppe',
       frequent: 'Häufig',
+      import_id: 'Import',
     },
   },
   attachment_versions: {
@@ -303,6 +321,16 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       logo_file_id: 'Logo',
     },
   },
+  list_prices: {
+    label: 'Listenpreis',
+    fields: {
+      supplier_article_id: 'Artikel eines Lieferanten',
+      valid_from: 'Gültig ab',
+      unit_price_cents: 'Preis',
+      price_base: 'Preiseinheit',
+      import_id: 'Import',
+    },
+  },
   location_consents: { label: 'Einwilligung zum Standort', fields: { given: 'Erteilt' } },
   mail_outbox: {
     label: 'E-Mail',
@@ -357,6 +385,7 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       valid_from: 'Gültig ab',
       unit_price_cents: 'Preis',
       price_base: 'Preiseinheit',
+      import_id: 'Import',
     },
   },
   push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },
@@ -422,9 +451,14 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       article_id: 'Artikel',
       supplier_id: 'Lieferant',
       supplier_number: 'Artikelnummer des Lieferanten',
+      discount_group: 'Rabattgruppe',
+      import_id: 'Import',
     },
   },
-  suppliers: { label: 'Lieferant', fields: { customer_number: 'Kundennummer' } },
+  suppliers: {
+    label: 'Lieferant',
+    fields: { customer_number: 'Kundennummer', short_code: 'Kürzel' },
+  },
   tags: { label: 'Tag' },
   tasks: {
     label: 'Aufgabe',
