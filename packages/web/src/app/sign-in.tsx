@@ -1,6 +1,6 @@
-import type { TenantId } from '@opengewerk/domain'
+import { labelCodeFromScan, type TenantId } from '@opengewerk/domain'
 import clsx from 'clsx'
-import { FingerprintPattern } from 'lucide-react'
+import { FingerprintPattern, ScanLine } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -131,7 +131,7 @@ export function SignInScreen({
   }
 
   return (
-    <Gate title="Anmelden">
+    <Gate title="Anmelden" before={<ScannedLabelNote />}>
       <form
         className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
@@ -439,5 +439,31 @@ export function TenantScreen({
 
       {trouble ? <GateTrouble>{trouble}</GateTrouble> : null}
     </Gate>
+  )
+}
+
+/**
+ * Over the sign-in after the camera of a phone opened the address of a QR
+ * label (#308): what comes once signed in. Read from the address of the page,
+ * which the router behind the gate keeps and opens next.
+ */
+function ScannedLabelNote() {
+  if (labelCodeFromScan(globalThis.location.href) === null) {
+    return null
+  }
+
+  return (
+    <div
+      role="note"
+      className="flex max-w-[560px] items-start gap-2.5 rounded-[6px] border border-line bg-surface px-3.5 py-3 text-[15px] leading-[1.45]"
+    >
+      <ScanLine
+        size={18}
+        strokeWidth={2.2}
+        aria-hidden="true"
+        className="mt-px shrink-0 text-ink-muted"
+      />
+      <span>Du hast das Etikett einer Anlage gescannt. Nach der Anmeldung öffnet sie sich.</span>
+    </div>
   )
 }
