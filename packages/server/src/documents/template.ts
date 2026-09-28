@@ -785,7 +785,7 @@ function footer(content: DocumentContent): string {
 export function printJob(
   content: DocumentContent,
   assets: PrintAssets,
-): Required<Omit<PrintJob, 'landscape'>> {
+): Required<Omit<PrintJob, 'landscape' | 'size'>> {
   // Without a number a document is a draft, unless a customer signed it: a
   // signed report is final in what it says and waits only for its number, and
   // the copy the customer takes away must not call itself a draft.
@@ -886,7 +886,7 @@ export function instructionSheet(
   content: DocumentContent,
   index: number,
   assets: PrintAssets,
-): Required<Omit<PrintJob, 'landscape'>> {
+): Required<Omit<PrintJob, 'landscape' | 'size'>> {
   const instruction = content.instructions[index]
 
   if (!instruction) {

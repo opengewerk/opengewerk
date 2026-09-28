@@ -20,11 +20,17 @@ import { BrandMark, GateProvider } from '../components/index.js'
 export function Gate({
   title,
   width = 560,
+  before,
   children,
 }: {
   readonly title: string
   /** The width of the card: 560, or wider for a choice side by side or a code to scan. */
   readonly width?: 560 | 600 | 640
+  /**
+   * A line above the card, as the board "Nach dem Scan im Browser, nicht
+   * angemeldet" draws it: what happens once this is done (#308).
+   */
+  readonly before?: ReactNode
   readonly children: ReactNode
 }) {
   const headingId = useId()
@@ -44,6 +50,7 @@ export function Gate({
 
         <main className="flex min-w-0 grow flex-col gap-4 px-4 py-[18px] lg:gap-[22px] lg:px-14 lg:py-11">
           <Connected className="hidden lg:flex" />
+          {before}
           <section
             aria-labelledby={headingId}
             className={clsx(

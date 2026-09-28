@@ -207,7 +207,7 @@ function footer(chart: CircuitChart): string {
   </div>`
 }
 
-export function circuitChartJob(chart: CircuitChart): Required<PrintJob> {
+export function circuitChartJob(chart: CircuitChart): Required<Omit<PrintJob, 'size'>> {
   const html = `<!doctype html>
 <html lang="de">
 <head>

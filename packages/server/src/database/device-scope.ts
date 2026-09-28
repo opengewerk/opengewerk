@@ -83,6 +83,7 @@ export const scopedEntities: readonly string[] = [
   'sites',
   'site_tags',
   'installations',
+  'installation_labels',
   'distribution_boards',
   'board_sections',
   'circuits',
@@ -155,6 +156,9 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
     sites: sql`${column('id')} in ${sites}`,
     site_tags: sql`(${column('site_id')} in ${sites} or ${column('site_id')} in ${createdBy('sites')})`,
     installations: sql`${column('id')} in ${installations}`,
+    // The labels of the installations the device holds (#308), so that a scan
+    // opens one of them without a network, and says nothing of any other.
+    installation_labels: sql`${column('installation_id')} in ${installations}`,
     distribution_boards: sql`${column('id')} in ${boards}`,
     board_sections: sql`${column('distribution_board_id')} in ${boards}`,
     circuits: sql`${column('id')} in ${circuits}`,

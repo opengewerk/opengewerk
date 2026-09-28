@@ -237,6 +237,9 @@ export function permissionFor(
     inverters: 'installation.write',
     pv_strings: 'installation.write',
     pv_modules: 'installation.write',
+    // The labels of an installation (#308) are made and blocked at its
+    // routes; the policy refuses every write from a device.
+    installation_labels: 'installation.write',
     jobs: 'job.write',
     documents: 'document.write',
     // A position is not a subject of its own. Whoever may write the document

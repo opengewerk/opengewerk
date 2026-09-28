@@ -752,6 +752,14 @@ die Anmeldung und jede Änderung, während `curl` durchgeht. Wer die Oberfläche
 Vite gegen einen eigenen Server entwickelt, trägt die Adresse von Vite dazu ein,
 etwa `http://localhost:5173`; die Vorschau kennt sie von selbst.
 
+Der erste Eintrag aus `TRUSTED_ORIGINS` steht auch auf jedem QR-Etikett einer
+Anlage (#308), gedruckt, für die zehn Jahre, die ein Aufkleber im Zählerschrank
+hängt. Zieht die Instanz auf eine andere Adresse um, öffnet ein altes Etikett
+seine Anlage in der App weiter, denn die liest nur den Code; die Kamera eines
+Telefons öffnet dagegen die alte Adresse im Browser, und die braucht dann eine
+Weiterleitung auf die neue, `/a/<code>` auf `/a/<code>`. Wer das nicht will,
+sperrt die alten Etiketten im Büro und druckt neue.
+
 `SESSION_SECRET` gehört in die Sicherung der Installation. Wird es getauscht,
 sind alle abgemeldet und jeder schon eingerichtete zweite Faktor ist nicht mehr
 lesbar.

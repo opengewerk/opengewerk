@@ -320,7 +320,7 @@ function footer(protocol: PrintedProtocol): string {
   </div>`
 }
 
-export function protocolPrintJob(protocol: PrintedProtocol): Required<PrintJob> {
+export function protocolPrintJob(protocol: PrintedProtocol): Required<Omit<PrintJob, 'size'>> {
   const html = `<!doctype html>
 <html lang="de">
 <head>

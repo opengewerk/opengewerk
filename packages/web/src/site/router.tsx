@@ -4,6 +4,8 @@ import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteInverterScreen, SitePvStringScreen } from './screens/pv.js'
 import { SiteScannerScreen } from './screens/scanner.js'
+import { SiteInstallationScreen } from './screens/installation.js'
+import { SiteLabelScanScreen } from './screens/label-scanner.js'
 import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
@@ -18,7 +20,9 @@ import { SiteShell } from './shell.js'
  * The boards and circuits hang below the job, although they belong to the
  * installation: on site they are reached from the job somebody is working
  * on, and the way back has to lead there. The test protocols do the same, and
- * so do the inverters and strings of a PV system (#300).
+ * so do the inverters and strings of a PV system (#300). An installation a QR
+ * label opened (#308) has the same structure below itself, since there may be
+ * no job to hang it under; `structureRoutes` makes both sets from one list.
  *
  * `basepath` is what makes this a second application at `/m` rather than a
  * section of the first. The two are separate documents with separate bundles,
@@ -37,6 +41,37 @@ const root = createRootRoute({ component: SiteShell })
  */
 const jobs = createRoute({ getParentRoute: () => root, id: 'jobs', component: SiteJobsLayout })
 
+/** The screens of an installation's structure, below a job or below the installation itself. */
+function structureRoutes(prefix: '/auftraege/$jobId' | '/anlagen/$installationId') {
+  return [
+    createRoute({
+      getParentRoute: () => root,
+      path: `${prefix}/verteiler/$boardId`,
+      component: SiteBoardScreen,
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: `${prefix}/verteiler/$boardId/stromkreise/$circuitId`,
+      component: SiteCircuitScreen,
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: `${prefix}/wechselrichter/$inverterId`,
+      component: SiteInverterScreen,
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: `${prefix}/wechselrichter/$inverterId/strings/$stringId`,
+      component: SitePvStringScreen,
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: `${prefix}/wechselrichter/$inverterId/strings/$stringId/scannen`,
+      component: SiteScannerScreen,
+    }),
+  ]
+}
+
 const routes = [
   jobs.addChildren([
     createRoute({ getParentRoute: () => jobs, path: '/', component: SiteJobList }),
@@ -51,31 +86,15 @@ const routes = [
     path: '/auftraege/$jobId/berichte/$documentId',
     component: SiteReportScreen,
   }),
+  ...structureRoutes('/auftraege/$jobId'),
+  // The tab "Scannen" and the installation a QR label opens (#308).
+  createRoute({ getParentRoute: () => root, path: '/scannen', component: SiteLabelScanScreen }),
   createRoute({
     getParentRoute: () => root,
-    path: '/auftraege/$jobId/verteiler/$boardId',
-    component: SiteBoardScreen,
+    path: '/anlagen/$installationId',
+    component: SiteInstallationScreen,
   }),
-  createRoute({
-    getParentRoute: () => root,
-    path: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
-    component: SiteCircuitScreen,
-  }),
-  createRoute({
-    getParentRoute: () => root,
-    path: '/auftraege/$jobId/wechselrichter/$inverterId',
-    component: SiteInverterScreen,
-  }),
-  createRoute({
-    getParentRoute: () => root,
-    path: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId',
-    component: SitePvStringScreen,
-  }),
-  createRoute({
-    getParentRoute: () => root,
-    path: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId/scannen',
-    component: SiteScannerScreen,
-  }),
+  ...structureRoutes('/anlagen/$installationId'),
   createRoute({
     getParentRoute: () => root,
     path: '/auftraege/$jobId/pruefprotokolle/$recordId',

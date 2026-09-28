@@ -151,6 +151,27 @@ describe('the recovery codes under "Konto"', () => {
   })
 })
 
+describe('the sign in after the scan of a QR label (#308)', () => {
+  afterEach(() => {
+    globalThis.history.replaceState(null, '', '/')
+  })
+
+  it('says over the card that the installation opens afterwards', () => {
+    globalThis.history.replaceState(null, '', '/a/7K2M9QX4TBA3HW8P')
+    render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)
+
+    expect(screen.getByRole('note').textContent).toBe(
+      'Du hast das Etikett einer Anlage gescannt. Nach der Anmeldung öffnet sie sich.',
+    )
+  })
+
+  it('says nothing of a label anywhere else', () => {
+    render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)
+
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+})
+
 describe('a forgotten password', () => {
   it('asks for a link for the address in the field, and says the same either way', async () => {
     render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)

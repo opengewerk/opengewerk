@@ -38,6 +38,7 @@ export const syncEntityNames: Readonly<Record<string, string>> = {
   site_tags: 'Tag an einem Objekt',
   site_accesses: 'Zugang zum Objekt',
   site_access_reveals: 'Anzeige eines Zugangs',
+  installation_labels: 'Etikett einer Anlage',
 }
 
 export const syncFieldNames: Readonly<Record<string, string>> = {
@@ -133,6 +134,8 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   mppInput: 'MPP-Eingang',
   azimuthDeg: 'Ausrichtung',
   tiltDeg: 'Neigung',
+  code: 'Code',
+  blockedAt: 'Gesperrt am',
   paymentTermDays: 'Zahlungsziel',
   fieldsVersion: 'Fassung der eigenen Felder',
   fieldValues: 'Eigene Felder',

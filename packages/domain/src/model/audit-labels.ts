@@ -226,6 +226,10 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       with_document: 'Geht mit dem Beleg hinaus',
     },
   },
+  installation_labels: {
+    label: 'QR-Etikett',
+    fields: { code: 'Code', blocked_at: 'Gesperrt am' },
+  },
   inverters: {
     label: 'Wechselrichter',
     fields: { rated_power_w: 'Nennleistung in W', mpp_inputs: 'MPP-Eingänge' },

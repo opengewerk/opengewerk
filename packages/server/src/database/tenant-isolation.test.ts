@@ -854,6 +854,14 @@ const crossings: readonly {
       repoint('push_outbox', 'subscription_id', own.pushMessage, other.pushDevice),
   },
   {
+    // A label names the installation it opens (#308): never one of another
+    // business, whatever code it carries.
+    key: 'installation_labels_installation_in_tenant',
+    write: (own, other) =>
+      sql`insert into installation_labels (tenant_id, installation_id, code)
+            values (${own.tenant}, ${other.installation}, '7K2M9QX4TBA3HW8P')`,
+  },
+  {
     key: 'inverters_installation_in_tenant',
     write: (own, other) =>
       repoint('inverters', 'installation_id', own.inverter, other.installation),

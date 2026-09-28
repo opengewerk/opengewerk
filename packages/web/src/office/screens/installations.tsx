@@ -28,6 +28,7 @@ import {
   useCompanionFields,
   usePvSystemFacts,
 } from './pv-system.js'
+import { LabelPanel } from './installation-label.js'
 import { asCompanion, useInverters } from '../../app/photovoltaic.js'
 import { ChangesButton } from './audit-log.js'
 
@@ -299,84 +300,88 @@ export function InstallationScreen() {
           </>
         }
         side={
-          <Panel title="Anlage">
-            {editing ? (
-              <RecordForm
-                fields={fields}
-                // One column in the side column from 1024 pixels on, as the form of the
-                // canvas stands there; two squeezed the lists of a battery to a word.
-                columns="lg:grid-cols-1"
-                record={installation}
-                submitLabel="Speichern"
-                onCancel={() => {
-                  setEditing(false)
-                }}
-                onSubmit={async (values) => {
-                  const saved = await client.update('installations', installationId, {
-                    ...asInstallation(values),
-                    ...asCompanion(values),
-                  })
-
-                  if (saved.outcome === 'queued') {
+          <>
+            <Panel title="Anlage">
+              {editing ? (
+                <RecordForm
+                  fields={fields}
+                  // One column in the side column from 1024 pixels on, as the form of the
+                  // canvas stands there; two squeezed the lists of a battery to a word.
+                  columns="lg:grid-cols-1"
+                  record={installation}
+                  submitLabel="Speichern"
+                  onCancel={() => {
                     setEditing(false)
-                  }
+                  }}
+                  onSubmit={async (values) => {
+                    const saved = await client.update('installations', installationId, {
+                      ...asInstallation(values),
+                      ...asCompanion(values),
+                    })
 
-                  return saved
-                }}
-              />
-            ) : (
-              <FactList
-                keyWidth={110}
-                facts={[
-                  {
-                    label: 'Objekt',
-                    value: site ? (
-                      <Link
-                        to={`/objekte/${String(site['id'])}`}
-                        className="text-copper-text underline underline-offset-2"
-                      >
-                        {text(site, 'designation')}
-                      </Link>
-                    ) : null,
-                  },
-                  ...(pv ? pvFacts : []),
-                  ...(companion
-                    ? [
-                        {
-                          label: 'Gehört zu',
-                          value: (
-                            <LinkTo
-                              to={`/anlagen/${maybeText(installation, 'pvSystemId') ?? ''}`}
-                              record={pvSystem}
-                            />
-                          ),
-                        },
-                        {
-                          label: 'Am Wechselrichter',
-                          value: atInverter ? (
-                            <LinkTo
-                              to={`/wechselrichter/${String(atInverter['id'])}`}
-                              record={atInverter}
-                            />
-                          ) : null,
-                        },
-                      ]
-                    : []),
-                  { label: 'Hersteller', value: maybeText(installation, 'manufacturer') },
-                  { label: 'Typ', value: maybeText(installation, 'model') },
-                  { label: 'Seriennummer', value: maybeText(installation, 'serialNumber') },
-                  {
-                    label: 'In Betrieb seit',
-                    value: maybeText(installation, 'commissionedOn')
-                      ? date(installation['commissionedOn'])
-                      : null,
-                  },
-                  { label: 'Gewährleistung', value: warrantyText(installation) },
-                  { label: 'Notizen', value: maybeText(installation, 'notes') },
-                ]}
-              />
-            )}
-          </Panel>
+                    if (saved.outcome === 'queued') {
+                      setEditing(false)
+                    }
+
+                    return saved
+                  }}
+                />
+              ) : (
+                <FactList
+                  keyWidth={110}
+                  facts={[
+                    {
+                      label: 'Objekt',
+                      value: site ? (
+                        <Link
+                          to={`/objekte/${String(site['id'])}`}
+                          className="text-copper-text underline underline-offset-2"
+                        >
+                          {text(site, 'designation')}
+                        </Link>
+                      ) : null,
+                    },
+                    ...(pv ? pvFacts : []),
+                    ...(companion
+                      ? [
+                          {
+                            label: 'Gehört zu',
+                            value: (
+                              <LinkTo
+                                to={`/anlagen/${maybeText(installation, 'pvSystemId') ?? ''}`}
+                                record={pvSystem}
+                              />
+                            ),
+                          },
+                          {
+                            label: 'Am Wechselrichter',
+                            value: atInverter ? (
+                              <LinkTo
+                                to={`/wechselrichter/${String(atInverter['id'])}`}
+                                record={atInverter}
+                              />
+                            ) : null,
+                          },
+                        ]
+                      : []),
+                    { label: 'Hersteller', value: maybeText(installation, 'manufacturer') },
+                    { label: 'Typ', value: maybeText(installation, 'model') },
+                    { label: 'Seriennummer', value: maybeText(installation, 'serialNumber') },
+                    {
+                      label: 'In Betrieb seit',
+                      value: maybeText(installation, 'commissionedOn')
+                        ? date(installation['commissionedOn'])
+                        : null,
+                    },
+                    { label: 'Gewährleistung', value: warrantyText(installation) },
+                    { label: 'Notizen', value: maybeText(installation, 'notes') },
+                  ]}
+                />
+              )}
+            </Panel>
+            {/* Under the facts, as the board "Anlagenakte mit QR-Etikett" has it (#308). */}
+            <LabelPanel installationId={installationId} />
+          </>
         }
       />
     </Screen>

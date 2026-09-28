@@ -19,6 +19,7 @@ import type {
   FormDefinitionRecord,
   FormRecord,
   Installation,
+  InstallationLabel,
   Instruction,
   Inverter,
   Job,
@@ -65,6 +66,7 @@ import type {
   documentSnapshots,
   equipment,
   files,
+  installationLabels,
   installations,
   instructions,
   inverters,
@@ -122,6 +124,9 @@ export type AttachmentVersionMatches = Assert<
 >
 export type SiteMatches = Assert<Exact<typeof sites.$inferSelect, Site>>
 export type InstallationMatches = Assert<Exact<typeof installations.$inferSelect, Installation>>
+export type InstallationLabelMatches = Assert<
+  Exact<typeof installationLabels.$inferSelect, InstallationLabel>
+>
 export type DistributionBoardMatches = Assert<
   Exact<typeof distributionBoards.$inferSelect, DistributionBoard>
 >

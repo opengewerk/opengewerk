@@ -204,8 +204,19 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
  * the dark on light contrast, and in a dark theme the page behind it is not
  * white.
  */
-export function QrCode({ text, label }: { readonly text: string; readonly label: string }) {
-  const { size, data } = encode(text)
+export function QrCode({
+  text,
+  label,
+  ecc,
+  className,
+}: {
+  readonly text: string
+  readonly label: string
+  /** How much of the code may go missing; a label in a cabinet takes Q (#308). */
+  readonly ecc?: 'L' | 'M' | 'Q' | 'H'
+  readonly className?: string
+}) {
+  const { size, data } = encode(text, ecc === undefined ? {} : { ecc })
   // Four modules of quiet zone, which is what the specification asks for.
   const quiet = 4
   const edge = size + quiet * 2
@@ -215,7 +226,7 @@ export function QrCode({ text, label }: { readonly text: string; readonly label:
       viewBox={`0 0 ${String(edge)} ${String(edge)}`}
       role="img"
       aria-label={label}
-      className="h-auto w-full rounded-[6px] border border-line"
+      className={className ?? 'h-auto w-full rounded-[6px] border border-line'}
       // Blocks, not smoothed. A scaled up QR code with interpolation between
       // the modules is one a camera has to work at.
       style={{ imageRendering: 'pixelated' }}

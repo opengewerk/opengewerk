@@ -1,17 +1,18 @@
 import { serialFromCode, serialNumberProblem } from '@opengewerk/domain'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Camera, Check, Pencil, X } from 'lucide-react'
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Button, Field } from '../../components/index.js'
-import { openCamera, openCodeReader, type CodeReader } from '../../app/barcode.js'
 import { inModules, usePvModules } from '../../app/photovoltaic.js'
 import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteActionBar } from '../action-bar.js'
+import { useCodeReading } from '../camera.js'
 import { SiteHeader } from '../header.js'
+import { useStructureBase } from '../structure-base.js'
 import { SiteScreen, SiteText } from '../kit.js'
 
 /**
@@ -33,22 +34,8 @@ import { SiteScreen, SiteText } from '../kit.js'
  * refuse a true one.
  */
 
-/**
- * Where the camera and the reader come from, and how often a frame is read.
- * The tests put their own in; a browser without a camera has none to give.
- */
-export interface Scanning {
-  readonly openReader: () => Promise<CodeReader | null>
-  readonly openCamera: () => Promise<MediaStream>
-  /** Milliseconds between two frames. */
-  readonly interval: number
-}
-
-export const ScanningContext = createContext<Scanning>({
-  openReader: openCodeReader,
-  openCamera,
-  interval: 250,
-})
+// Where they came from before the label scanner of #308 shared them.
+export { type Scanning, ScanningContext } from '../camera.js'
 
 /** A number the camera keeps seeing after it was taken is the same label, not a new one. */
 const sameLabelFor = 3_000
@@ -56,11 +43,11 @@ const sameLabelFor = 3_000
 type Taken = { readonly number: number; readonly serial: string }
 
 export function SiteScannerScreen() {
-  const { jobId, inverterId, stringId } = useParams({ strict: false }) as {
-    jobId?: string
+  const { inverterId, stringId } = useParams({ strict: false }) as {
     inverterId?: string
     stringId?: string
   }
+  const base = useStructureBase()
   const navigate = useNavigate()
   const client = useSync()
   const pvString = useRecord('pv_strings', stringId)
@@ -76,7 +63,7 @@ export function SiteScannerScreen() {
   const lastLabel = useRef<{ readonly serial: string; readonly at: number } | null>(null)
   const busy = useRef(false)
 
-  const back = `/auftraege/${jobId ?? ''}/wechselrichter/${inverterId ?? ''}/strings/${stringId ?? ''}`
+  const back = `${base ?? ''}/wechselrichter/${inverterId ?? ''}/strings/${stringId ?? ''}`
   const index = modules.findIndex((module) => maybeText(module, 'serialNumber') === null)
   const target = index < 0 ? null : modules[index]
   const where = [text(pvString, 'designation'), text(inverter, 'designation')]
@@ -152,7 +139,7 @@ export function SiteScannerScreen() {
     }
   }
 
-  if (!pvString || !stringId || !jobId || !inverterId) {
+  if (!pvString || !stringId || !base || !inverterId) {
     return (
       <SiteScreen>
         <SiteHeader title="Nicht gefunden" />
@@ -225,103 +212,12 @@ function CameraScreen({
   readonly onClose: () => void
   readonly onHand: () => void
 }) {
-  const scanning = useContext(ScanningContext)
-  const video = useRef<HTMLVideoElement>(null)
-  const [trouble, setTrouble] = useState<string | null>(null)
-  const latestCode = useRef(onCode)
-
-  // The handler of the last render, which knows the module that is next.
-  useEffect(() => {
-    latestCode.current = onCode
+  // No camera once every module has its number: nothing left to read.
+  const { video, trouble } = useCodeReading(!done, onCode, {
+    noReader: 'Dieses Gerät liest keine Strichcodes. Die Nummern lassen sich von Hand eingeben.',
+    noCamera:
+      'Die Kamera lässt sich nicht öffnen, sie ist nicht freigegeben oder nicht da. Die Nummern lassen sich von Hand eingeben.',
   })
-
-  useEffect(() => {
-    // No camera once every module has its number: nothing left to read.
-    if (done) {
-      return
-    }
-
-    let stopped = false
-    let stream: MediaStream | null = null
-    let timer: ReturnType<typeof setTimeout> | undefined
-
-    const release = () => {
-      for (const track of stream?.getTracks() ?? []) {
-        track.stop()
-      }
-    }
-
-    void (async () => {
-      const reader = await scanning.openReader()
-
-      if (stopped) {
-        return
-      }
-
-      if (!reader) {
-        setTrouble(
-          'Dieses Gerät liest keine Strichcodes. Die Nummern lassen sich von Hand eingeben.',
-        )
-
-        return
-      }
-
-      const element = video.current
-
-      try {
-        stream = await scanning.openCamera()
-
-        if (stopped || !element) {
-          release()
-
-          return
-        }
-
-        element.srcObject = stream
-      } catch {
-        // Refused, not there, or a stream the picture does not take: the same
-        // for whoever stands on the roof.
-        release()
-
-        if (!stopped) {
-          setTrouble(
-            'Die Kamera lässt sich nicht öffnen, sie ist nicht freigegeben oder nicht da. Die Nummern lassen sich von Hand eingeben.',
-          )
-        }
-
-        return
-      }
-
-      try {
-        await element.play()
-      } catch {
-        // A picture that does not start is read all the same, or not at all;
-        // either way the frames below say so.
-      }
-
-      const next = async () => {
-        if (stopped) {
-          return
-        }
-
-        const code = await reader.read(element).catch(() => null)
-
-        if (code !== null && !stopped) {
-          latestCode.current(code)
-        }
-
-        timer = setTimeout(() => void next(), scanning.interval)
-      }
-
-      void next()
-    })()
-
-    return () => {
-      stopped = true
-      clearTimeout(timer)
-      release()
-    }
-  }, [done, scanning])
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-camera text-camera-ink">

@@ -196,6 +196,11 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       designation: 'Zählerschrank Keller',
     }),
   )
+  // Its QR label (#308): the first went onto the wrong door and is blocked,
+  // the second is the one on the cabinet now.
+  const wrongDoor = idOf(await post(`/installations/${cabinet}/labels`, {}))
+  await post(`/installations/${cabinet}/labels/${wrongDoor}/block`, {})
+  await post(`/installations/${cabinet}/labels`, {})
 
   const renewal = idOf(
     await post('/jobs', {
@@ -671,6 +676,7 @@ async function plantPhotovoltaic(
       notes: 'Zwei Dachflächen, Süd und West.',
     }),
   )
+  await post(`/installations/${system}/labels`, {})
 
   await post('/jobs', {
     customerId: berg,

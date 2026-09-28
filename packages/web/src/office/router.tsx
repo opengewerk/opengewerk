@@ -20,6 +20,7 @@ import { DeadlineListScreen } from './screens/deadlines.js'
 import { DocumentList } from './screens/document-list.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationList, InstallationScreen } from './screens/installations.js'
+import { LabelLandingScreen } from './screens/label-landing.js'
 import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
@@ -105,6 +106,8 @@ const routes = [
     path: '/anlagen/$installationId',
     component: InstallationScreen,
   }),
+  // The address on a QR label (#308), which a phone's camera opens here.
+  createRoute({ getParentRoute: () => office, path: '/a/$code', component: LabelLandingScreen }),
   createRoute({
     getParentRoute: () => office,
     path: '/verteiler/$boardId',

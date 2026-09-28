@@ -133,6 +133,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Seriennummern der Module liest ein Monteur auf der Baustelle mit der Kamera vom Etikett, als
   Strichcode oder QR-Code und der Reihe nach für jedes Modul ohne Nummer, auch ohne Netz; wo kein
   Etikett zu lesen ist, tippt er sie ab. Leistungen stehen in ganzen Watt. Migration 0056.
+- Das QR-Etikett je Anlage (#308), ein Aufkleber im Zählerschrank oder am Wechselrichter, dessen
+  Scan die Anlage öffnet, statt dass jemand im Keller nach Kunde und Objekt sucht. Im Büro trägt
+  jede Anlage unter ihren Angaben die Karte "QR-Etikett": anlegen, als PDF drucken, für einen
+  Etikettendrucker mit 62 × 29 mm oder einen Bogen A4 mit 24 Feldern ab dem ersten freien, und
+  sperren, wenn ein Etikett verloren geht oder an der falschen Anlage klebt. Das Etikett trägt die
+  Adresse der Instanz mit einem zufälligen Code und nicht die Kennung der Anlage, damit niemand
+  aus einer Adresse die nächste errät; je Anlage gilt höchstens eines, und ein gesperrtes öffnet
+  nichts mehr. Auf der Baustelle liest der neue Reiter "Scannen" das Etikett und öffnet die
+  Anlage mit ihren Verteilern, Wechselrichtern und Aufträgen, auch ohne Netz, wenn sie auf dem
+  Gerät liegt, und sagt sonst, warum nicht. Die Kamera eines Telefons öffnet dieselbe Adresse im
+  Browser: angemeldet die Anlage, sonst die Anmeldung mit einem Satz, was danach kommt. Den Code
+  liest die App unabhängig vom Host, ein Umzug der Instanz lässt gedruckte Etiketten also in der
+  App gelten. Migration 0057.
 
 ### Geändert
 
