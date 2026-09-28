@@ -484,6 +484,63 @@ describe('a quote with titles', () => {
     expect(await screen.findAllByText(/3\.086,40\s€/)).not.toHaveLength(0)
   })
 
+  it('takes a price for a hundred, and counts it as a hundred (#456)', async () => {
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByLabelText('Bezeichnung'), 'Kabelbinder 200 × 4,8 mm')
+    await person.clear(screen.getByLabelText('Menge'))
+    await person.type(screen.getByLabelText('Menge'), '300')
+    await person.type(screen.getByLabelText('Einzelpreis in Euro'), '3,50')
+    await person.selectOptions(screen.getByLabelText('Preis je'), '100')
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      quantityMilli: 300_000,
+      unit: 'piece',
+      unitPriceCents: 350,
+      priceBase: 100,
+    })
+
+    // 300 at 3,50 per 100 are 10,50, and the table says what the price is for.
+    const table = within(await screen.findByRole('table', { name: 'Positionen des Belegs' }))
+    const row = table.getByText('Kabelbinder 200 × 4,8 mm').closest('tr')
+
+    expect(row?.textContent).toContain('3,50je 100 Stk.')
+    expect(row?.textContent).toContain('10,50')
+  })
+
+  it('offers no price unit for a lump sum, which is for one of it (#456)', async () => {
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+
+    expect(screen.getByLabelText('Preis je')).toBeDefined()
+
+    await person.selectOptions(screen.getByLabelText('Einheit'), 'flat_rate')
+
+    expect(screen.queryByLabelText('Preis je')).toBeNull()
+
+    await person.type(screen.getByLabelText('Bezeichnung'), 'Anfahrt')
+    await person.type(screen.getByLabelText('Einzelpreis in Euro'), '45')
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      unit: 'flat_rate',
+      priceBase: 1,
+    })
+  })
+
   it('takes a position from an article, with the selling price of the document date', async () => {
     // #296: the choice asks the catalogue for the price of the document's
     // date, 21.09.2026, and the line keeps which article it came from.

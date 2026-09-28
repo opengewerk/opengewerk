@@ -72,6 +72,7 @@ interface LineRow {
   readonly designation: string
   readonly quantityMilli: number
   readonly unitPriceCents: number
+  readonly priceBase: number
   readonly netCents: number
 }
 
@@ -281,6 +282,37 @@ describe('cancelling an invoice', () => {
     })
     expect(mirror?.billed.grossCents).toBe(-(original?.billed.grossCents ?? 0))
     expect((original?.billed.taxCents ?? 0) + (mirror?.billed.taxCents ?? 0)).toBe(0)
+  })
+
+  it('mirrors a price per hundred with its price unit (#456)', async () => {
+    const invoice = await draft('final_invoice', period)
+
+    await add(invoice.id, cabinet)
+    // Seven ferrules at 3,50 euros per 100: 24,5 cents, rounded to 25.
+    await add(invoice.id, {
+      designation: 'Aderendhülsen 1,5 mm²',
+      quantityMilli: 7000,
+      unit: 'piece',
+      unitPriceCents: 350,
+      priceBase: 100,
+    })
+    await issue(invoice.id)
+
+    const answer = await cancel(invoice.id).expect(201)
+    const storno = answer.body as DocumentRow
+
+    expect(
+      (await linesOf(storno.id)).map((line) => [line.quantityMilli, line.priceBase, line.netCents]),
+    ).toEqual([
+      [-1000, 1, -124_000],
+      [-7000, 100, -25],
+    ])
+
+    const original = await snapshotOf(invoice.id)
+    const mirror = await snapshotOf(storno.id)
+
+    expect(mirror?.lines.map((line) => line.priceBase)).toEqual([1, 100])
+    expect(mirror?.billed.grossCents).toBe(-(original?.billed.grossCents ?? 0))
   })
 
   it('says why it refuses what it cannot cancel', async () => {

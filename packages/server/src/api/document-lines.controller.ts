@@ -16,6 +16,8 @@ import {
   lineKinds,
   lineNetCents,
   lineUnits,
+  lumpSumPriceBaseProblem,
+  priceBaseProblem,
   shippedRules,
   totalsFor,
   vatRates,
@@ -38,6 +40,8 @@ const writableFields = [
   'quantityMilli',
   'unit',
   'unitPriceCents',
+  // How many units the price is for (#456), one when left out.
+  'priceBase',
   'vatRate',
   // The article a line was taken from (#296), checked below to be one of
   // this business and not deleted.
@@ -56,12 +60,35 @@ function totalOf(
   from?: {
     quantityMilli: number
     unitPriceCents: number
+    priceBase: number
   },
 ): number {
   return lineNetCents({
     quantityMilli: Number(values.quantityMilli ?? from?.quantityMilli ?? 0),
     unitPriceCents: Number(values.unitPriceCents ?? from?.unitPriceCents ?? 0),
+    priceBase: Number(values.priceBase ?? from?.priceBase ?? 1),
   })
+}
+
+/**
+ * Refuses a price unit that is not one of the four, and one other than one on
+ * a lump sum, before the checks in the database do. `current` is the line as
+ * it stands, for a change that names only one of the two.
+ */
+function knownPriceBase(
+  values: { readonly unit?: unknown; readonly priceBase?: unknown },
+  current?: { readonly unit: unknown; readonly priceBase: unknown },
+): void {
+  const problem =
+    (values.priceBase === undefined ? null : priceBaseProblem(values.priceBase)) ??
+    lumpSumPriceBaseProblem({
+      unit: values.unit ?? current?.unit,
+      priceBase: values.priceBase ?? current?.priceBase,
+    })
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
 }
 
 /**
@@ -79,7 +106,7 @@ function withoutAmountForTitle(
     return values
   }
 
-  return { quantityMilli: 0, unitPriceCents: 0, unit: 'flat_rate', ...values }
+  return { quantityMilli: 0, unitPriceCents: 0, unit: 'flat_rate', priceBase: 1, ...values }
 }
 
 /** Refuses a value that is not one of the ones the column knows. */
@@ -169,6 +196,7 @@ export class DocumentLinesController {
     oneOf('kind', values.kind, lineKinds)
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
+    knownPriceBase(values)
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)
@@ -205,6 +233,7 @@ export class DocumentLinesController {
     oneOf('kind', values.kind, lineKinds)
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
+    knownPriceBase(values)
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)
@@ -224,6 +253,10 @@ export class DocumentLinesController {
       if (!existing) {
         throw new NotFoundException()
       }
+
+      // A change of the unit alone must not turn a price per 100 into a lump
+      // sum per 100 (#456).
+      knownPriceBase(values, existing)
 
       const [updated] = await tx
         .update(documentLines)

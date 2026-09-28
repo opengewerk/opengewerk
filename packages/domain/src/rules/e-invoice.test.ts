@@ -63,6 +63,7 @@ function position(netCents: number): LineContent {
     quantityMilli: 1000,
     unit: 'flat_rate',
     unitPriceCents: netCents,
+    priceBase: 1,
     vatRate: 'standard',
     netCents,
   }

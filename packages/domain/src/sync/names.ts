@@ -90,6 +90,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   quantityMilli: 'Menge',
   unit: 'Einheit',
   unitPriceCents: 'Einzelpreis',
+  priceBase: 'Preiseinheit',
   netCents: 'Netto',
   vatRate: 'Steuersatz',
   taxTreatment: 'Steuerfall',

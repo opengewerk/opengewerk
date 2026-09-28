@@ -49,6 +49,7 @@ interface Line {
   readonly quantityMilli?: number
   readonly unit?: string
   readonly unitPriceCents?: number
+  readonly priceBase?: number
   readonly articleId?: string
 }
 
@@ -234,14 +235,16 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     }),
   )
 
-  await post('/jobs', {
-    customerId: berg,
-    siteId: house,
-    kind: 'service',
-    status: 'draft',
-    designation: 'Wallbox in der Garage',
-    predecessorJobId: basement,
-  })
+  const wallbox = idOf(
+    await post('/jobs', {
+      customerId: berg,
+      siteId: house,
+      kind: 'service',
+      status: 'draft',
+      designation: 'Wallbox in der Garage',
+      predecessorJobId: basement,
+    }),
+  )
 
   for (const snippet of [
     {
@@ -659,10 +662,8 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   }
 
   // A report of today still in draft, with material taken from an article
-  // (#296). The newest document of all, so that the walk of the check of
-  // widths meets it first and opens "Position hinzufügen" in the office and
-  // "Material eintragen" on site on it; its article counts as used lately on
-  // every device.
+  // (#296): the walk of the check of widths opens "Material eintragen" on it
+  // on site, and its article counts as used lately on every device.
   await document(
     {
       customerId: berg,
@@ -678,6 +679,26 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
         ...item('FI/LS-Schalter 4-polig, B16, Typ A, 30 mA', 1000, 'piece', 0),
         articleId: circuitBreaker,
       },
+    ],
+  )
+
+  // And the newest document of all, a quote in draft with material at a
+  // wholesaler's price per 100 (#456). The walk of the check of widths meets
+  // the newest first: it measures the table of a priced document with "je 100
+  // Stk." under a price, and opens "Position hinzufügen" with "Preis je".
+  await document(
+    {
+      customerId: berg,
+      jobId: wallbox,
+      siteId: house,
+      kind: 'quote',
+      subject: 'Wallbox in der Garage anschließen',
+    },
+    [
+      item('Wallbox 11 kW, lastmanagementfähig', 1000, 'piece', 118_000),
+      item('Zuleitung NYM-J 5 × 6 mm²', 20_000, 'metre', 980),
+      { ...item('Kabelbinder 200 × 4,8 mm, schwarz', 300_000, 'piece', 350), priceBase: 100 },
+      item('Montage und Inbetriebnahme', 4000, 'hour', 6800),
     ],
   )
 }

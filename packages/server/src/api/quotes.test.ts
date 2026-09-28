@@ -49,6 +49,7 @@ interface LineRow {
   readonly description: string | null
   readonly quantityMilli: number
   readonly unitPriceCents: number
+  readonly priceBase: number
   readonly netCents: number
 }
 
@@ -426,6 +427,30 @@ describe('an order confirmation out of a quote', () => {
       })),
     )
     expect(copied.map((line) => line.kind)).toEqual(['title', 'item', 'item', 'title', 'item'])
+    expect(await totalsOf(confirmation.id)).toEqual(await totalsOf(quote.id))
+  })
+
+  it('carries the price unit of each position with its price (#456)', async () => {
+    const quote = await draft()
+
+    await add(quote.id, item('Leitungsschutzschalter B16', 890, 6000))
+    await add(quote.id, { ...item('Kabelbinder 200 × 4,8 mm', 350, 300_000), priceBase: 100 })
+    await issue(quote.id)
+
+    const created = await successor(quote.id, { kind: 'order_confirmation' }).expect(201)
+    const confirmation = created.body as DocumentRow
+
+    expect(
+      (await linesOf(confirmation.id)).map((line) => [
+        line.designation,
+        line.unitPriceCents,
+        line.priceBase,
+        line.netCents,
+      ]),
+    ).toEqual([
+      ['Leitungsschutzschalter B16', 890, 1, 5340],
+      ['Kabelbinder 200 × 4,8 mm', 350, 100, 1050],
+    ])
     expect(await totalsOf(confirmation.id)).toEqual(await totalsOf(quote.id))
   })
 

@@ -1,4 +1,4 @@
-import { quantityFactor } from '@opengewerk/domain'
+import { type PriceBase, priceBases, quantityFactor } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, integer, pgTable, text } from 'drizzle-orm/pg-core'
 
@@ -53,7 +53,15 @@ export const documentLines = pgTable(
     /** In thousandths, see `quantityFactor` in the domain. */
     quantityMilli: integer('quantity_milli').notNull(),
     unit: lineUnit('unit').notNull(),
+    /** The price of `price_base` units. */
     unitPriceCents: integer('unit_price_cents').notNull(),
+    /**
+     * How many units the price is for (#456): one, ten, a hundred or a
+     * thousand, as a wholesaler prices cable ties per 100 pieces. One for every
+     * line written before, and what a device that does not know the column
+     * leaves.
+     */
+    priceBase: integer('price_base').$type<PriceBase>().notNull().default(1),
     vatRate: vatRate('vat_rate').notNull().default('standard'),
     netCents: integer('net_cents').notNull(),
     /**
@@ -107,7 +115,18 @@ export const documentLines = pgTable(
     check(
       'document_lines_net_matches_quantity',
       sql`${table.netCents} = sign(${table.quantityMilli}::numeric * ${table.unitPriceCents})
-        * round(abs(${table.quantityMilli}::numeric * ${table.unitPriceCents}) / ${sql.raw(String(quantityFactor))})`,
+        * round(abs(${table.quantityMilli}::numeric * ${table.unitPriceCents})
+          / (${sql.raw(String(quantityFactor))} * ${table.priceBase}))`,
+    ),
+    // The four steps of `priceBases`, which the forms and the routes ask first.
+    check(
+      'document_lines_price_base_known',
+      sql`${table.priceBase} in (${sql.raw(priceBases.join(', '))})`,
+    ),
+    // A lump sum is one of itself; "je 100 psch." would say nothing.
+    check(
+      'document_lines_lump_sum_per_one',
+      sql`${table.unit} <> 'flat_rate' or ${table.priceBase} = 1`,
     ),
   ],
 )

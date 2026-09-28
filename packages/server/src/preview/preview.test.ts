@@ -196,18 +196,22 @@ describe('the sample data', () => {
       reports.filter((report) => report.status === 'signed' && report.number === null),
     ).toHaveLength(1)
     expect(reports.filter((report) => report.status === 'issued')).toHaveLength(2)
-    // And today's report still in draft, the newest document, with material
-    // from an article (#296): the check of widths opens "Position hinzufügen"
-    // and "Material eintragen" on it, and the article counts as used lately.
-    const [newest] = [...documents].sort((left, right) => right.id.localeCompare(left.id))
+    // The newest two: a quote in draft with a price per 100 (#456), on which
+    // the check of widths opens "Position hinzufügen", and today's report in
+    // draft with material from an article (#296), on which it opens "Material
+    // eintragen" on site, and whose article counts as used lately.
+    const [newest, second] = [...documents].sort((left, right) => right.id.localeCompare(left.id))
 
-    expect(newest).toMatchObject({ kind: 'time_and_material_report', status: 'draft' })
+    expect(newest).toMatchObject({ kind: 'quote', status: 'draft' })
+    expect(second).toMatchObject({ kind: 'time_and_material_report', status: 'draft' })
 
-    const drafted = await read<{ articleId: string | null }[]>(
-      `/documents/${newest?.id ?? ''}/lines`,
+    const quoted = await read<{ priceBase: number }[]>(`/documents/${newest?.id ?? ''}/lines`)
+    const reported = await read<{ articleId: string | null }[]>(
+      `/documents/${second?.id ?? ''}/lines`,
     )
 
-    expect(drafted.filter((line) => line.articleId !== null)).toHaveLength(1)
+    expect(quoted.map((line) => line.priceBase)).toContain(100)
+    expect(reported.filter((line) => line.articleId !== null)).toHaveLength(1)
     // One chain that does not branch (#129): the invoices out of the confirmation.
     expect(byKind.get('progress_invoice')).toMatchObject({
       status: 'issued',

@@ -28,6 +28,7 @@ const lineFields = [
   'quantityMilli',
   'unit',
   'unitPriceCents',
+  'priceBase',
   'vatRate',
 ] as const
 

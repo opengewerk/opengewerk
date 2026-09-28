@@ -8,6 +8,7 @@ import {
   type IssuerContent,
   type IsoDate,
   type LineContent,
+  lineNetCents,
   receivedShare,
   type RecipientContent,
   shippedRules,
@@ -97,6 +98,7 @@ function title(designation: string): LineContent {
     quantityMilli: 0,
     unit: 'flat_rate',
     unitPriceCents: 0,
+    priceBase: 1,
     vatRate: 'standard',
     netCents: 0,
   }
@@ -109,7 +111,7 @@ export function item(
   over: Partial<LineContent> = {},
 ): LineContent {
   lastPosition += 1
-  const exact = quantityMilli * unitPriceCents
+  const priceBase = over.priceBase ?? 1
 
   return {
     kind: 'item',
@@ -119,9 +121,9 @@ export function item(
     quantityMilli,
     unit: 'piece',
     unitPriceCents,
+    priceBase,
     vatRate: 'standard',
-    // Half away from zero, as `lineNetCents` rounds.
-    netCents: Math.sign(exact) * Math.round(Math.abs(exact) / 1000),
+    netCents: lineNetCents({ quantityMilli, unitPriceCents, priceBase }),
     ...over,
   }
 }
@@ -358,6 +360,26 @@ export const photovoltaics = content(
   },
 )
 
+/**
+ * Material priced the way a wholesaler prices it (#456): cable ties and
+ * ferrules per 100 pieces, cable per 100 metres, next to a price for one
+ * piece. The e-invoice carries the base quantity of each price (BT-149) with
+ * the unit of the line (BT-150), and the net amount of a line is quantity
+ * times price divided by it; seven ferrules at 3,50 euros per 100 round half
+ * away from zero to 25 cents.
+ */
+export const perHundred = content(
+  { number: 'RE-2026-0013', subject: 'Unterverteilung Keller' },
+  {
+    lines: [
+      item('Kabelbinder 200 × 4,8 mm, schwarz', 300_000, 350, { priceBase: 100 }),
+      item('Mantelleitung NYM-J 3 × 1,5 mm²', 25_000, 9200, { unit: 'metre', priceBase: 100 }),
+      item('Leitungsschutzschalter B16, 1-polig', 6000, 890),
+      item('Aderendhülsen 1,5 mm²', 7000, 350, { priceBase: 100 }),
+    ],
+  },
+)
+
 export const samples: readonly {
   readonly name: string
   readonly profile: EInvoiceProfile
@@ -377,4 +399,6 @@ export const samples: readonly {
   { name: 'cash-accounting-xrechnung', profile: 'xrechnung', content: cashAccounting },
   { name: 'photovoltaics-xrechnung', profile: 'xrechnung', content: photovoltaics },
   { name: 'photovoltaics-en16931', profile: 'en16931', content: photovoltaics },
+  { name: 'per-hundred-xrechnung', profile: 'xrechnung', content: perHundred },
+  { name: 'per-hundred-en16931', profile: 'en16931', content: perHundred },
 ]

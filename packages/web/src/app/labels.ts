@@ -7,6 +7,7 @@ import type {
   JobStatus,
   LineKind,
   LineUnit,
+  PriceBase,
   RecordState,
   RoleKey,
   SnippetPurpose,
@@ -144,6 +145,22 @@ export const lineUnitShort: Readonly<Record<LineUnit, string>> = {
   litre: 'l',
   package: 'Pkg.',
   flat_rate: 'psch.',
+}
+
+const wholeNumbers = new Intl.NumberFormat('de-DE')
+
+/** How many units a price is for, as a choice says it: "100 Stk." (#456). */
+export function priceBaseLabel(base: PriceBase, unit: LineUnit): string {
+  return `${wholeNumbers.format(base)} ${lineUnitShort[unit]}`
+}
+
+/**
+ * The words under a unit price that is for more than one unit, "je 100 Stk.",
+ * as the printed document writes them; nothing for a price for one unit, which
+ * stands alone as it always did.
+ */
+export function priceBaseText(base: PriceBase, unit: LineUnit): string | null {
+  return base > 1 ? `je ${priceBaseLabel(base, unit)}` : null
 }
 
 /**

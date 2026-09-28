@@ -40,6 +40,48 @@ export type LineUnit = (typeof lineUnits)[number]
 export const quantityFactor = 1000
 
 /**
+ * How many units a unit price is for (#456): one, ten, a hundred or a
+ * thousand, as a wholesaler prices cable per 100 metres and cable ties per
+ * 100 pieces. Kept with the price instead of dividing it down to one unit,
+ * because the cent a price of 3,50 euros per 100 pieces would round to is 14
+ * per cent off, and a document of a hundred of them would say 4,00 euros.
+ *
+ * The four steps of DATANORM's price unit and nothing in between, so that
+ * "je 100 Stk." is a figure a person reads without doing sums. In the
+ * e-invoice it is the base quantity of the price (BT-149).
+ */
+export const priceBases = [1, 10, 100, 1000] as const
+
+export type PriceBase = (typeof priceBases)[number]
+
+/** What is wrong with a price unit, or null when nothing is. */
+export function priceBaseProblem(value: unknown): string | null {
+  return priceBases.some((base) => base === value)
+    ? null
+    : 'Ein Preis gilt je 1, 10, 100 oder 1000 Einheiten.'
+}
+
+/**
+ * What is wrong with the price unit of a lump sum, or null when nothing is
+ * (#456). A lump sum is one of itself, and "je 100 psch." would say nothing;
+ * the check `document_lines_lump_sum_per_one` holds it. Left out, a price
+ * unit is one, as the column gives it.
+ */
+export function lumpSumPriceBaseProblem(line: {
+  readonly unit?: unknown
+  readonly priceBase?: unknown
+}): string | null {
+  return line.unit === 'flat_rate' && line.priceBase !== undefined && line.priceBase !== 1
+    ? 'Eine Pauschale hat keine Preiseinheit.'
+    : null
+}
+
+/** The price unit a value stands for, one where it names none of the four. */
+export function priceBaseOf(value: unknown): PriceBase {
+  return priceBases.find((base) => base === value) ?? 1
+}
+
+/**
  * What a line is: a position with a quantity and a price, or the title of a
  * section the positions after it belong to.
  *
@@ -84,14 +126,17 @@ export interface DocumentLine extends Synced {
   /** The quantity, in thousandths. See `quantityFactor`. */
   readonly quantityMilli: number
   readonly unit: LineUnit
+  /** The price of `priceBase` units, in cents. */
   readonly unitPriceCents: number
+  /** How many units the price is for, see `priceBases`. One on every line from before #456. */
+  readonly priceBase: PriceBase
   /**
    * Which rate applies to this line, not the rate itself. The figure comes
    * from the rule engine with the document's date, so a line written in 2020
    * still carries sixteen percent in 2030.
    */
   readonly vatRate: VatRate
-  /** Quantity times unit price, rounded. Held by a check constraint. */
+  /** Quantity times unit price, divided by the price unit, rounded. Held by a check constraint. */
   readonly netCents: number
   /**
    * The article the line was taken from (#296), or null when it was typed.

@@ -11,6 +11,8 @@ import {
   inverterLinkProblem,
   jobNoteProblem,
   linePositionProblem,
+  lumpSumPriceBaseProblem,
+  priceBaseProblem,
   noteTimeProblem,
   type Operation,
   pvSystemLinkProblem,
@@ -105,6 +107,15 @@ const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   ],
   document_lines: [
     { fields: ['position'], problem: (at) => linePositionProblem(at('position')) },
+    // Left out, the column gives one: a device of a version before #456 sends none.
+    {
+      fields: ['priceBase'],
+      problem: (at) => (at('priceBase') === undefined ? null : priceBaseProblem(at('priceBase'))),
+    },
+    {
+      fields: ['unit', 'priceBase'],
+      problem: (at) => lumpSumPriceBaseProblem({ unit: at('unit'), priceBase: at('priceBase') }),
+    },
     {
       fields: ['kind', 'quantityMilli', 'unitPriceCents'],
       problem: (at) =>

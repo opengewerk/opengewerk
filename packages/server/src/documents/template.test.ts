@@ -50,6 +50,7 @@ function line(position: number, netCents: number, over: Partial<LineContent> = {
     quantityMilli: 1000,
     unit: 'flat_rate',
     unitPriceCents: netCents,
+    priceBase: 1,
     vatRate: 'standard',
     netCents,
     ...over,
@@ -269,6 +270,41 @@ describe('titles and document texts', () => {
     expect(html).toMatch(/Summe Titel 2: Außenbeleuchtung<\/td>\s*<td class="figure">450,00\s€/)
     // A title is a heading, and the total is what the positions add up to.
     expect(html).toMatch(/Summe netto<\/td><td class="figure">1\.950,00\s€/)
+  })
+
+  it('prints under a unit price how many units it is for, when that is more than one (#456)', () => {
+    const { html } = page(quote, {
+      lines: [
+        // 300 cable ties at 3,50 euros per 100.
+        line(1, 1050, {
+          designation: 'Kabelbinder',
+          quantityMilli: 300_000,
+          unit: 'piece',
+          unitPriceCents: 350,
+          priceBase: 100,
+        }),
+        line(2, 5340, {
+          designation: 'Leitungsschutzschalter',
+          quantityMilli: 6000,
+          unit: 'piece',
+          unitPriceCents: 890,
+        }),
+        line(3, 115, {
+          designation: 'Kabel',
+          quantityMilli: 12_500,
+          unit: 'metre',
+          unitPriceCents: 9200,
+          priceBase: 1000,
+        }),
+      ],
+    })
+
+    expect(html).toMatch(
+      /<td class="figure">3,50\s€<div class="price-base">je 100 Stk\.<\/div><\/td>/,
+    )
+    expect(html).toMatch(/<td class="figure">8,90\s€<\/td>/)
+    expect(html).toMatch(/<div class="price-base">je 1\.000 m<\/div>/)
+    expect(html.match(/class="price-base"/g)).toHaveLength(2)
   })
 
   it('numbers a document without titles plainly and prints no section sums', () => {

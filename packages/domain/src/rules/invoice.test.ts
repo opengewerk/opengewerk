@@ -47,6 +47,21 @@ describe('a line total', () => {
   it('handles the quantity a lump sum carries', () => {
     expect(lineNetCents({ quantityMilli: 1000, unitPriceCents: 249900 })).toBe(249900)
   })
+
+  it('divides by the price unit once, at the end (#456)', () => {
+    // 300 cable ties at 3,50 euros per 100: 10,50 euros, not three times a
+    // rounded cent.
+    expect(lineNetCents({ quantityMilli: 300_000, unitPriceCents: 350, priceBase: 100 })).toBe(1050)
+    // 50 clamps at 23,50 euros per 100: 11,75 euros.
+    expect(lineNetCents({ quantityMilli: 50_000, unitPriceCents: 2350, priceBase: 100 })).toBe(1175)
+    // 7 pieces at 3,50 euros per 100 are 24,5 cents, rounded half away from zero.
+    expect(lineNetCents({ quantityMilli: 7000, unitPriceCents: 350, priceBase: 100 })).toBe(25)
+    expect(lineNetCents({ quantityMilli: -7000, unitPriceCents: 350, priceBase: 100 })).toBe(-25)
+    // 12,5 metres of cable at 92,00 euros per 1000 metres.
+    expect(lineNetCents({ quantityMilli: 12_500, unitPriceCents: 9200, priceBase: 1000 })).toBe(115)
+    // A price for one unit is what every line was before.
+    expect(lineNetCents({ quantityMilli: 2500, unitPriceCents: 5800, priceBase: 1 })).toBe(14500)
+  })
 })
 
 describe('the totals of a document', () => {

@@ -211,8 +211,20 @@ interface Line {
   readonly quantityMilli: number
   readonly unitCode: string
   readonly priceCents: number
+  /**
+   * How many units the price is for (#456), BT-149, in the unit of the line
+   * (BT-150, which EN 16931 wants the same as BT-130). Written only above one:
+   * left out, the standard reads one, and every invoice before stays as it was.
+   */
+  readonly priceBase: number
   readonly totalCents: number
   readonly category: Category
+}
+
+function basisQuantity(line: Line): string {
+  return line.priceBase > 1
+    ? `<ram:BasisQuantity unitCode="${line.unitCode}">${quantity(line.priceBase * quantityFactor)}</ram:BasisQuantity>`
+    : ''
 }
 
 function lineItem(line: Line): string {
@@ -221,7 +233,7 @@ function lineItem(line: Line): string {
     `<ram:AssociatedDocumentLineDocument>${element('ram:LineID', line.id)}</ram:AssociatedDocumentLineDocument>` +
     `<ram:SpecifiedTradeProduct>${element('ram:Name', line.name)}${element('ram:Description', line.description)}</ram:SpecifiedTradeProduct>` +
     '<ram:SpecifiedLineTradeAgreement><ram:NetPriceProductTradePrice>' +
-    `<ram:ChargeAmount>${amount(line.priceCents)}</ram:ChargeAmount>` +
+    `<ram:ChargeAmount>${amount(line.priceCents)}</ram:ChargeAmount>${basisQuantity(line)}` +
     '</ram:NetPriceProductTradePrice></ram:SpecifiedLineTradeAgreement>' +
     '<ram:SpecifiedLineTradeDelivery>' +
     `<ram:BilledQuantity unitCode="${line.unitCode}">${quantity(line.quantityMilli)}</ram:BilledQuantity>` +
@@ -261,6 +273,7 @@ function positions(content: DocumentContent, rates: ReadonlyMap<string, number>)
         quantityMilli: turned ? -line.quantityMilli : line.quantityMilli,
         unitCode: unitCodes[line.unit],
         priceCents: Math.abs(line.unitPriceCents),
+        priceBase: line.priceBase,
         totalCents: line.netCents,
         category: categoryOf(content.taxTreatment, rates.get(line.vatRate) ?? 0),
       },
@@ -318,6 +331,7 @@ function deductionLines(content: DocumentContent): Line[] {
           quantityMilli: (part.netCents > 0 ? -1 : 1) * quantityFactor,
           unitCode: unitOne,
           priceCents: Math.abs(part.netCents),
+          priceBase: 1,
           totalCents: -part.netCents,
           category: categoryOf(content.taxTreatment, part.basisPoints),
         }))

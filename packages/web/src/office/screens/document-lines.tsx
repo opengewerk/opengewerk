@@ -5,6 +5,7 @@ import type {
   DocumentTotals,
   IsoDate,
   LineKind,
+  PriceBase,
   RecordState,
   TaxTreatment,
   VatRate,
@@ -17,6 +18,8 @@ import {
   lineUnits,
   movedInOutline,
   outlineRows,
+  priceBaseOf,
+  priceBases,
   RuleError,
   shippedRules,
   showsPrices,
@@ -56,6 +59,8 @@ import {
   lineUnitLabel,
   lineUnitOf,
   lineUnitShort,
+  priceBaseLabel,
+  priceBaseText,
   taxTreatmentOf,
   vatRateLabel,
   vatRateOf,
@@ -104,6 +109,7 @@ export function inOrder(records: readonly RecordState[]): readonly ShownLine[] {
       netCents: lineNetCents({
         quantityMilli: count(record, 'quantityMilli'),
         unitPriceCents: count(record, 'unitPriceCents'),
+        priceBase: priceBaseOf(record['priceBase']),
       }),
       vatRate: vatRateOf(record),
     }))
@@ -157,6 +163,16 @@ function billedOrRefusal(
 
     throw error
   }
+}
+
+/**
+ * Under a unit price for more than one unit, how many it is for (#456), as the
+ * printed document has it: "je 100 Stk." A price for one unit stands alone.
+ */
+function PriceBaseNote({ record }: { readonly record: RecordState }) {
+  const per = priceBaseText(priceBaseOf(record['priceBase']), lineUnitOf(record))
+
+  return per ? <span className="block text-[12px] text-ink-faint">{per}</span> : null
 }
 
 /**
@@ -236,6 +252,8 @@ type LineValues = {
   readonly quantityMilli: number
   readonly unit: string
   readonly unitPriceCents: number
+  /** How many units the price is for (#456). */
+  readonly priceBase: PriceBase
   readonly vatRate: string
   /** The article the line was taken from, or null when it was typed (#296). */
   readonly articleId: string | null
@@ -243,6 +261,14 @@ type LineValues = {
 
 const unitOptions = lineUnits.map((unit) => ({ value: unit, label: lineUnitLabel[unit] }))
 const rateOptions = vatRates.map((rate) => ({ value: rate, label: vatRateLabel[rate] }))
+
+/** The columns of the row of figures, however many of them a form shows. */
+const figureColumns: Readonly<Record<number, string>> = {
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-5',
+}
 
 /**
  * One line, new or changed. A title asks for its heading and nothing else:
@@ -280,12 +306,20 @@ function LineForm({
   const [quantity, setQuantity] = useState(record ? amount(count(record, 'quantityMilli')) : '1')
   const [unit, setUnit] = useState<string>(record ? lineUnitOf(record) : 'piece')
   const [price, setPrice] = useState(record ? centsAsInput(count(record, 'unitPriceCents')) : '')
+  const [base, setBase] = useState<string>(String(priceBaseOf(record?.['priceBase'])))
   const [rate, setRate] = useState<string>(record ? vatRateOf(record) : 'standard')
   const [articleId, setArticleId] = useState<string | null>(maybeText(record ?? null, 'articleId'))
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const item = kind === 'item'
+  // A lump sum is for one of it; "je 100 psch." would say nothing (#456).
+  const perUnits = item && priced && unit !== 'flat_rate'
+  const baseOptions = priceBases.map((step) => ({
+    value: String(step),
+    label: priceBaseLabel(step, lineUnitOf({ unit })),
+  }))
+  const shown = 2 + (priced ? 1 : 0) + (perUnits ? 1 : 0) + (priced && taxed ? 1 : 0)
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -293,6 +327,7 @@ function LineForm({
     const found: Record<string, string> = {}
     const quantityMilli = item ? parseQuantity(quantity) : 0
     const unitPriceCents = item && priced ? parseEuros(price) : 0
+    const priceBase = perUnits ? priceBaseOf(Number(base)) : 1
 
     if (designation.trim() === '') {
       found['designation'] = 'Eine Bezeichnung braucht es.'
@@ -306,7 +341,7 @@ function LineForm({
       found['price'] = 'Ein Betrag mit höchstens zwei Nachkommastellen, zum Beispiel 49,90.'
     } else if (
       quantityMilli !== null &&
-      Math.abs(lineNetCents({ quantityMilli, unitPriceCents })) > largestStored
+      Math.abs(lineNetCents({ quantityMilli, unitPriceCents, priceBase })) > largestStored
     ) {
       found['price'] = 'Menge mal Preis ergibt mehr, als ein Beleg fassen kann.'
     }
@@ -328,6 +363,7 @@ function LineForm({
         quantityMilli,
         unit: item ? unit : 'flat_rate',
         unitPriceCents,
+        priceBase,
         vatRate: item ? rate : 'standard',
         articleId: item ? articleId : null,
       })
@@ -361,6 +397,8 @@ function LineForm({
 
                 if (priced) {
                   setPrice(article.priceCents === null ? '' : centsAsInput(article.priceCents))
+                  // A selling price of an article is for one unit so far.
+                  setBase('1')
                 }
               }}
             />
@@ -411,7 +449,7 @@ function LineForm({
         }}
       />
       {item ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={clsx('grid gap-3 sm:grid-cols-2', figureColumns[shown])}>
           <Field
             label="Menge"
             inputMode="decimal"
@@ -433,6 +471,15 @@ function LineForm({
               onChange={(event) => {
                 setPrice(event.target.value)
               }}
+            />
+          ) : null}
+          {perUnits ? (
+            <SelectField
+              label="Preis je"
+              value={base}
+              options={baseOptions}
+              onChange={setBase}
+              hint="Für wie viele Einheiten der Einzelpreis gilt, wie beim Großhandel."
             />
           ) : null}
           {priced && taxed ? (
@@ -628,6 +675,13 @@ export function LinesPanel({
 
   const quantityOf = (line: ShownLine) =>
     `${amount(count(line.record, 'quantityMilli'))} ${lineUnitShort[lineUnitOf(line.record)]}`
+  // "je 3,50 €" for one unit, "3,50 € je 100 Stk." for more (#456).
+  const pricePerUnits = (line: ShownLine) => {
+    const price = euros(count(line.record, 'unitPriceCents'))
+    const per = priceBaseText(priceBaseOf(line.record['priceBase']), lineUnitOf(line.record))
+
+    return per ? `${price} ${per}` : `je ${price}`
+  }
   const rateText = (line: ShownLine) =>
     rateOf.has(line.vatRate) ? percent(rateOf.get(line.vatRate) ?? 0) : vatRateLabel[line.vatRate]
 
@@ -675,7 +729,7 @@ export function LinesPanel({
       title: heading,
       sub: [
         quantityOf(line),
-        ...(priced ? [`je ${euros(count(line.record, 'unitPriceCents'))}`] : []),
+        ...(priced ? [pricePerUnits(line)] : []),
         ...(taxed ? [rateText(line)] : []),
       ].join(' · '),
       ...(priced
@@ -867,7 +921,10 @@ export function LinesPanel({
                   <>
                     <Cell numeric>{quantityOf(line)}</Cell>
                     {priced ? (
-                      <Cell numeric>{centsAsInput(count(line.record, 'unitPriceCents'))}</Cell>
+                      <Cell numeric>
+                        {centsAsInput(count(line.record, 'unitPriceCents'))}
+                        <PriceBaseNote record={line.record} />
+                      </Cell>
                     ) : null}
                     {taxed ? <Cell numeric>{rateText(line)}</Cell> : null}
                     {priced ? (

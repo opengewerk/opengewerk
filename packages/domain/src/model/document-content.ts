@@ -2,7 +2,7 @@ import type { BilledAmount, DocumentTotals } from '../rules/invoice.js'
 import type { VatRate } from '../rules/tax.js'
 import type { Address } from './address.js'
 import type { DocumentKind, TaxTreatment } from './document.js'
-import type { LineKind, LineUnit } from './document-line.js'
+import type { LineKind, LineUnit, PriceBase } from './document-line.js'
 import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from './identifier.js'
 import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
 
@@ -33,9 +33,10 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * version 7 the payment term, version 8 the instructions that went with it,
  * version 9 the number of the job it belongs to, version 10 what came in on
  * the progress invoices it takes off, version 11 the fields a business gives
- * its reports, version 12 the graphic an instruction is printed as.
+ * its reports, version 12 the graphic an instruction is printed as, version 13
+ * how many units the price of a line is for.
  */
-export const documentContentVersion = 12
+export const documentContentVersion = 13
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -95,7 +96,10 @@ export interface LineContent {
   readonly description: string | null
   readonly quantityMilli: number
   readonly unit: LineUnit
+  /** The price of `priceBase` units. */
   readonly unitPriceCents: number
+  /** One on every line of a document issued before version 13. */
+  readonly priceBase: PriceBase
   readonly vatRate: VatRate
   readonly netCents: number
 }
@@ -297,8 +301,14 @@ export interface ReportFieldContent {
   readonly text: string
 }
 
+/** The twelfth shape, from #431: the graphic of an instruction, and every price for one unit. */
+export interface DocumentContentV12 extends Omit<DocumentContent, 'version' | 'lines'> {
+  readonly version: 12
+  readonly lines: readonly Omit<LineContent, 'priceBase'>[]
+}
+
 /** The eleventh shape, from #78: the report fields, and instructions printed as text only. */
-export interface DocumentContentV11 extends Omit<DocumentContent, 'version' | 'instructions'> {
+export interface DocumentContentV11 extends Omit<DocumentContentV12, 'version' | 'instructions'> {
   readonly version: 11
   readonly instructions: readonly Omit<InstructionContent, 'graphic'>[]
 }
@@ -363,12 +373,13 @@ export interface DocumentContentV1 extends Omit<
   'version' | 'introText' | 'closingText' | 'lines'
 > {
   readonly version: 1
-  readonly lines: readonly Omit<LineContent, 'kind'>[]
+  readonly lines: readonly Omit<LineContent, 'kind' | 'priceBase'>[]
 }
 
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV12
   | DocumentContentV11
   | DocumentContentV10
   | DocumentContentV9

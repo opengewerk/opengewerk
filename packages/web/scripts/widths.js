@@ -117,8 +117,9 @@ function kindOf(path) {
  * of its own, with the button pressed. Found like the pages, by its name,
  * so that the next form with the same button is checked as well. The new
  * position of a document and the material of a report open the choice of an
- * article (#296), and the preview plants a report in draft for them, the
- * newest document, so that the walk meets it among the first of its kind.
+ * article (#296). The preview plants a quote and a report in draft as its
+ * newest documents, so that the walk meets them among the first of their
+ * kind: the quote with a price per 100 (#456), the report on site.
  */
 const openers = ['Bearbeiten', 'Position hinzufügen', 'Material eintragen']
 
