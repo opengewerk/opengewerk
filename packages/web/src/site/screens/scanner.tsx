@@ -22,9 +22,15 @@ import { SiteScreen, SiteText } from '../kit.js'
  *
  * Every number goes to the next module of the string that has none, in the
  * order of the string, and through the outbox like anything else on site: a
- * roof has no network more often than not. A number that another module
- * already has is refused with the module's name, since the same label read
- * twice is the likelier story than two modules with one number.
+ * roof has no network more often than not. A number that another module on
+ * this device already has is refused with the module's name, since the same
+ * label read twice is the likelier story than two modules with one number.
+ *
+ * That check sees what this device holds and nothing more (pr-review on
+ * #451): two devices without a network do not see each other, and the server
+ * does not hold a serial number to be unique, because one is unique only for
+ * its manufacturer, and a key that refused a second maker's number would
+ * refuse a true one.
  */
 
 /**
