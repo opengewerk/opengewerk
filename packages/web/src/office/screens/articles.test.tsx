@@ -270,6 +270,57 @@ describe('an article', () => {
     expect(within(prices).getByText('Gilt')).toBeTruthy()
   })
 
+  it('opens one supplier over the table to change its number and its purchase prices', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, {
+      ...cable,
+      suppliers: [
+        ...cable.suppliers,
+        {
+          id: 'l-2',
+          supplierId: 's-2',
+          supplierName: 'Kurpfalz Elektrohandel KG',
+          supplierNumber: 'NYM315-100',
+          purchasePrices: [{ id: 'e-2', validFrom: '2026-06-15', unitPriceCents: 57 }],
+        },
+      ],
+    })
+    serverSays('PATCH', /^\/articles\/a-1\/suppliers\/l-2$/, { id: 'l-2' })
+    serverSays('DELETE', /^\/articles\/a-1\/suppliers\/l-2\/prices\/e-2$/, { id: 'e-2' })
+    await mount('/artikel/a-1')
+
+    const suppliers = await screen.findByRole('table', { name: 'Lieferanten und Einkaufspreise' })
+
+    // The lower price of today stands out where two suppliers have one.
+    expect(within(suppliers).getByText('0,54 €').className).toContain('font-semibold')
+    expect(within(suppliers).getByText('0,57 €').className).not.toContain('font-semibold')
+
+    await userEvent.click(
+      within(suppliers).getByRole('button', { name: 'Kurpfalz Elektrohandel KG ändern' }),
+    )
+
+    const form = await screen.findByRole('region', { name: 'Kurpfalz Elektrohandel KG ändern' })
+    const number = within(form).getByLabelText('Artikelnummer dort')
+
+    await userEvent.clear(number)
+    await userEvent.type(number, 'NYM315-50')
+    await userEvent.click(within(form).getByRole('button', { name: 'Nummer speichern' }))
+    await userEvent.click(
+      within(form).getByRole('button', { name: 'Einkaufspreis ab 15.06.2026 entfernen' }),
+    )
+
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === 'DELETE')).toBe(true)
+    })
+    expect(calls.find((call) => call.method === 'PATCH')).toMatchObject({
+      path: '/articles/a-1/suppliers/l-2',
+      body: { supplierNumber: 'NYM315-50' },
+    })
+    expect(calls.find((call) => call.method === 'DELETE')?.path).toBe(
+      '/articles/a-1/suppliers/l-2/prices/e-2',
+    )
+  })
+
   it('shows a technician the suppliers without a purchase price, and nothing to change', async () => {
     signedInAs('technician')
     serverSays('GET', /^\/articles\/a-1$/, {

@@ -5,9 +5,11 @@ import {
   lineUnits,
   priceProblems,
   priceStanding,
+  supplierNumberProblem,
 } from '@opengewerk/domain'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, type ReactNode, useDeferredValue, useState } from 'react'
 
@@ -17,6 +19,7 @@ import {
   Column,
   Confirm,
   Field,
+  IconButton,
   Panel,
   SelectField,
   Status,
@@ -52,6 +55,7 @@ import { text } from '../../sync/fields.js'
 import { useRecords } from '../../sync/provider.js'
 import { RequestRefused } from '../../sync/transport.js'
 import { Chip, Empty, FactList, FilterSelect, PageHead, RecordColumns, Screen } from '../kit.js'
+import { SortChoice } from '../list.js'
 import { ChangesButton } from './audit-log.js'
 
 /** What a refusal says, or a sentence for a request that never got an answer. */
@@ -99,7 +103,7 @@ export function PageFooter({
       <span className="numeric">
         {total === 0
           ? 'Keine Treffer'
-          : `${String(first)} bis ${String(last)} von ${total.toLocaleString('de-DE')}`}
+          : `${first.toLocaleString('de-DE')} bis ${last.toLocaleString('de-DE')} von ${total.toLocaleString('de-DE')}`}
       </span>
       <div className="grow" />
       <Button
@@ -171,7 +175,9 @@ export function ArticleListScreen() {
     }
 
   return (
-    <Screen>
+    // As tall as the window, so that the pages of the list stand at its foot
+    // as they do under every other list.
+    <Screen className="grow">
       <PageHead
         title="Artikel"
         {...(list.isSuccess ? { count: `${total.toLocaleString('de-DE')} Einträge` } : {})}
@@ -243,19 +249,19 @@ export function ArticleListScreen() {
               ]}
             />
             <div className="grow max-lg:hidden" />
-            <FilterSelect
-              label="Sortieren nach"
-              width="w-[170px]"
-              value={sort}
-              onChange={(value) => {
-                setSort(value === 'designation' ? 'designation' : 'number')
-                setPage(0)
-              }}
-              options={[
-                { value: 'number', label: 'Nach Nummer' },
-                { value: 'designation', label: 'Nach Bezeichnung' },
-              ]}
-            />
+            <div className="max-lg:hidden">
+              <SortChoice
+                options={[
+                  { id: 'number', label: 'Nummer' },
+                  { id: 'designation', label: 'Bezeichnung' },
+                ]}
+                value={sort}
+                onChange={(value) => {
+                  setSort(value === 'designation' ? 'designation' : 'number')
+                  setPage(0)
+                }}
+              />
+            </div>
           </div>
 
           {list.isPending ? (
@@ -462,7 +468,8 @@ function Standing({
 
 /**
  * The selling prices, newest first. A position takes the one of its date; a
- * new price changes no document that has the article already.
+ * new price changes no document that has the article already. The price that
+ * holds and the one to come stand out, as on the board.
  */
 function SalePrices({ article }: { readonly article: ArticleView }) {
   const writes = useMay('article.write')
@@ -483,6 +490,26 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
       setTrouble(saidWhy(error, 'Der Preis ließ sich nicht entfernen. Keine Verbindung.'))
     }
   }
+
+  const removeButton = (price: PriceView) => (
+    <IconButton
+      label={`Preis ab ${date(price.validFrom)} entfernen`}
+      onClick={() => {
+        setRemoving(price)
+      }}
+    >
+      <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+    </IconButton>
+  )
+  const figure = (price: PriceView) => (
+    <span
+      className={clsx(
+        priceStanding(price, article.prices, today()) !== 'earlier' && 'font-semibold',
+      )}
+    >
+      {priceText(price.unitPriceCents)}
+    </span>
+  )
 
   return (
     <>
@@ -520,21 +547,9 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
         cards={article.prices.map((price) => ({
           key: price.id,
           title: `ab ${date(price.validFrom)}`,
-          right: <span className="numeric">{priceText(price.unitPriceCents)}</span>,
+          right: <span className="numeric">{figure(price)}</span>,
           sub: <Standing price={price} prices={article.prices} />,
-          actions: writes ? (
-            <Button
-              size="small"
-              tone="quiet"
-              icon={Trash2}
-              aria-label={`Preis ab ${date(price.validFrom)} entfernen`}
-              onClick={() => {
-                setRemoving(price)
-              }}
-            >
-              Entfernen
-            </Button>
-          ) : null,
+          actions: writes ? removeButton(price) : null,
         }))}
         cardsEmpty="Noch kein Preis."
         note="Eine Position nimmt den Preis, der an ihrem Belegdatum gilt. Ein neuer Preis ändert keinen Beleg, der den Artikel schon hat."
@@ -542,13 +557,13 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
         <thead>
           <tr>
             <Column className="w-[130px] min-w-[110px]">Gültig ab</Column>
-            <Column numeric className="min-w-[140px]">
+            <Column numeric className="min-w-[120px]">
               Preis je {unit}
             </Column>
-            <Column className="w-[140px] min-w-[110px]">Stand</Column>
+            <Column className="w-[150px] min-w-[110px]">Stand</Column>
             {writes ? (
-              <Column numeric className="w-[130px] min-w-[120px]">
-                <span className="sr-only">Ändern</span>
+              <Column numeric className="w-[56px] min-w-[56px]">
+                <span className="sr-only">Entfernen</span>
               </Column>
             ) : null}
           </tr>
@@ -564,25 +579,11 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
             article.prices.map((price) => (
               <tr key={price.id}>
                 <Cell>{date(price.validFrom)}</Cell>
-                <Cell numeric>{priceText(price.unitPriceCents)}</Cell>
+                <Cell numeric>{figure(price)}</Cell>
                 <Cell>
                   <Standing price={price} prices={article.prices} />
                 </Cell>
-                {writes ? (
-                  <Cell numeric>
-                    <Button
-                      size="small"
-                      tone="quiet"
-                      icon={Trash2}
-                      aria-label={`Preis ab ${date(price.validFrom)} entfernen`}
-                      onClick={() => {
-                        setRemoving(price)
-                      }}
-                    >
-                      Entfernen
-                    </Button>
-                  </Cell>
-                ) : null}
+                {writes ? <Cell numeric>{removeButton(price)}</Cell> : null}
               </tr>
             ))
           )}
@@ -620,11 +621,14 @@ function PriceForm({
   onSave,
   onCancel,
   extra,
+  className = 'border-b border-line px-3.5 py-3',
 }: {
   readonly submitLabel: string
   readonly onSave: (price: PriceFields) => Promise<void>
   readonly onCancel: () => void
   readonly extra?: ReactNode
+  /** The frame around it: a strip over a table, or nothing inside another form. */
+  readonly className?: string
 }) {
   const [amount, setAmount] = useState('')
   const [day, setDay] = useState<IsoDate>(today())
@@ -658,7 +662,7 @@ function PriceForm({
 
   return (
     <form
-      className="flex flex-col gap-3 border-b border-line px-3.5 py-3"
+      className={clsx('flex flex-col gap-3', className)}
       onSubmit={(event) => {
         void save(event)
       }}
@@ -703,28 +707,40 @@ function PriceForm({
   )
 }
 
+/** The purchase price of today among the prices of one supplier. */
+function priceOnDay(prices: readonly PriceView[]): PriceView | undefined {
+  const day = today()
+
+  return prices
+    .filter((price) => price.validFrom <= day)
+    .sort((left, right) => (left.validFrom < right.validFrom ? 1 : -1))[0]
+}
+
 /**
  * Who sells the article, under which number, and for how much: the purchase
  * prices only for whoever may read them, and the column is not even there for
- * anybody else.
+ * anybody else. Where two suppliers have a price today, the lower one stands
+ * out, as on the board. "Ändern" opens the supplier's number, its purchase
+ * prices and its removal over the table, one supplier at a time.
  */
 function Suppliers({ article }: { readonly article: ArticleView }) {
   const writes = useMay('article.write')
   const readsPurchase = useMay('purchase.read')
-  const keepsPurchase = useMay('purchase.write')
   const client = useQueryClient()
   const suppliers = useRecords('suppliers')
   const [adding, setAdding] = useState(false)
   const [supplierId, setSupplierId] = useState('')
   const [number, setNumber] = useState('')
-  const [pricing, setPricing] = useState<string | null>(null)
+  const [changing, setChanging] = useState<string | null>(null)
   const [removing, setRemoving] = useState<SupplierLinkView | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const keepsPurchase = useMay('purchase.write')
   const linked = new Set(article.suppliers.map((link) => link.supplierId))
   const choices = suppliers
     .filter((record) => !linked.has(text(record, 'id')))
     .map((record) => ({ value: text(record, 'id'), label: text(record, 'name') }))
     .sort((left, right) => left.label.localeCompare(right.label, 'de'))
+  const changed = article.suppliers.find((link) => link.id === changing) ?? null
 
   const refresh = () => client.invalidateQueries({ queryKey: ['articles'] })
 
@@ -734,6 +750,7 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
     try {
       await removeArticleSupplier(article.id, link.id)
       setTrouble(null)
+      setChanging(null)
       await refresh()
     } catch (error) {
       setTrouble(saidWhy(error, 'Der Lieferant ließ sich nicht entfernen. Keine Verbindung.'))
@@ -742,6 +759,33 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
 
   const current = (link: SupplierLinkView) =>
     link.purchasePrices === null ? null : (priceOnDay(link.purchasePrices) ?? null)
+  const priced = article.suppliers
+    .map((link) => current(link)?.unitPriceCents)
+    .filter((cents): cents is number => cents !== undefined)
+  const lowest = priced.length > 1 ? Math.min(...priced) : null
+  const purchase = (link: SupplierLinkView) => {
+    const price = current(link)
+
+    return price ? (
+      <span className={clsx(price.unitPriceCents === lowest && 'font-semibold')}>
+        {priceText(price.unitPriceCents)}
+      </span>
+    ) : (
+      ''
+    )
+  }
+  const changeButton = (link: SupplierLinkView) => (
+    <Button
+      size="small"
+      aria-label={`${link.supplierName} ändern`}
+      onClick={() => {
+        setAdding(false)
+        setChanging(link.id)
+      }}
+    >
+      Ändern
+    </Button>
+  )
 
   return (
     <>
@@ -755,6 +799,7 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
               icon={Plus}
               disabled={choices.length === 0}
               onClick={() => {
+                setChanging(null)
                 setAdding(true)
                 setSupplierId(choices[0]?.value ?? '')
               }}
@@ -798,16 +843,14 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
                 await refresh()
               }}
             />
-          ) : pricing ? (
-            <PriceForm
-              submitLabel="Einkaufspreis anlegen"
-              onCancel={() => {
-                setPricing(null)
-              }}
-              onSave={async (price) => {
-                await addPurchasePrice(article.id, pricing, price)
-                setPricing(null)
-                await refresh()
+          ) : changed ? (
+            <SupplierLinkForm
+              key={changed.id}
+              articleId={article.id}
+              link={changed}
+              onRemove={setRemoving}
+              onClose={() => {
+                setChanging(null)
               }}
             />
           ) : null
@@ -816,18 +859,8 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
           key: link.id,
           title: <Link to={`/lieferanten/${link.supplierId}`}>{link.supplierName}</Link>,
           sub: link.supplierNumber ? `Artikelnummer dort: ${link.supplierNumber}` : undefined,
-          right: readsPurchase ? (
-            <span className="numeric">{priceText(current(link)?.unitPriceCents ?? null)}</span>
-          ) : undefined,
-          actions: writes ? (
-            <SupplierActions
-              link={link}
-              keepsPurchase={keepsPurchase}
-              onPrice={setPricing}
-              onRemove={setRemoving}
-              articleId={article.id}
-            />
-          ) : null,
+          right: readsPurchase ? <span className="numeric">{purchase(link)}</span> : undefined,
+          actions: writes ? changeButton(link) : null,
         }))}
         cardsEmpty="Noch kein Lieferant."
         note={
@@ -838,18 +871,18 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
       >
         <thead>
           <tr>
-            <Column className="min-w-[200px]">Lieferant</Column>
-            <Column className="w-[170px] min-w-[140px]">Artikelnummer dort</Column>
+            <Column className="min-w-[180px]">Lieferant</Column>
+            <Column className="w-[150px] min-w-[120px]">Artikelnummer dort</Column>
             {readsPurchase ? (
               <>
-                <Column numeric className="w-[120px] min-w-[104px]">
+                <Column numeric className="w-[110px] min-w-[100px]">
                   Einkaufspreis
                 </Column>
-                <Column className="w-[110px] min-w-[96px]">Gültig ab</Column>
+                <Column className="w-[100px] min-w-[96px]">Gültig ab</Column>
               </>
             ) : null}
             {writes ? (
-              <Column numeric className="w-[230px] min-w-[210px]">
+              <Column numeric className="w-[88px] min-w-[88px]">
                 <span className="sr-only">Ändern</span>
               </Column>
             ) : null}
@@ -877,21 +910,11 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
                   <Cell>{link.supplierNumber ?? ''}</Cell>
                   {readsPurchase ? (
                     <>
-                      <Cell numeric>{price ? priceText(price.unitPriceCents) : ''}</Cell>
+                      <Cell numeric>{purchase(link)}</Cell>
                       <Cell>{price ? date(price.validFrom) : ''}</Cell>
                     </>
                   ) : null}
-                  {writes ? (
-                    <Cell numeric>
-                      <SupplierActions
-                        link={link}
-                        keepsPurchase={keepsPurchase}
-                        onPrice={setPricing}
-                        onRemove={setRemoving}
-                        articleId={article.id}
-                      />
-                    </Cell>
-                  ) : null}
+                  {writes ? <Cell numeric>{changeButton(link)}</Cell> : null}
                 </tr>
               )
             })
@@ -923,122 +946,171 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
   )
 }
 
-/** The purchase price of today among the prices of one supplier. */
-function priceOnDay(prices: readonly PriceView[]): PriceView | undefined {
-  const day = today()
-
-  return prices
-    .filter((price) => price.validFrom <= day)
-    .sort((left, right) => (left.validFrom < right.validFrom ? 1 : -1))[0]
-}
-
-/** The buttons of a supplier of an article: the number, a purchase price, away with it. */
-function SupplierActions({
-  link,
-  keepsPurchase,
-  onPrice,
-  onRemove,
+/**
+ * One supplier of the article, opened over the table: its number for the
+ * article, its purchase prices from a day on for whoever keeps them, and the
+ * way to take it off the article.
+ */
+function SupplierLinkForm({
   articleId,
+  link,
+  onRemove,
+  onClose,
 }: {
-  readonly link: SupplierLinkView
-  readonly keepsPurchase: boolean
-  readonly onPrice: (linkId: string) => void
-  readonly onRemove: (link: SupplierLinkView) => void
   readonly articleId: string
+  readonly link: SupplierLinkView
+  readonly onRemove: (link: SupplierLinkView) => void
+  readonly onClose: () => void
 }) {
   const client = useQueryClient()
-  const [numbering, setNumbering] = useState(false)
+  const keepsPurchase = useMay('purchase.write')
   const [number, setNumber] = useState(link.supplierNumber ?? '')
+  const [problem, setProblem] = useState<string | null>(null)
+  const [pricing, setPricing] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
-  const coming = link.purchasePrices?.filter((price) => price.validFrom > today()) ?? []
+  const prices = link.purchasePrices ?? []
 
-  if (numbering) {
-    return (
-      <form
-        className="flex flex-wrap items-end justify-end gap-2"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void updateArticleSupplier(articleId, link.id, number)
-            .then(async () => {
-              setNumbering(false)
-              await client.invalidateQueries({ queryKey: ['articles'] })
-            })
-            .catch((error: unknown) => {
-              setTrouble(saidWhy(error, 'Keine Verbindung.'))
-            })
-        }}
-      >
-        <Field
-          label={`Artikelnummer bei ${link.supplierName}`}
-          value={number}
-          problem={trouble ?? undefined}
-          onChange={(event) => {
-            setNumber(event.target.value)
-          }}
-        />
-        <Button type="submit" size="small" icon={Check}>
-          Speichern
-        </Button>
-      </form>
-    )
+  const refresh = () => client.invalidateQueries({ queryKey: ['articles'] })
+
+  async function saveNumber(event: FormEvent) {
+    event.preventDefault()
+
+    const found = supplierNumberProblem(number)
+
+    setProblem(found)
+
+    if (found) {
+      return
+    }
+
+    try {
+      await updateArticleSupplier(articleId, link.id, number)
+      await refresh()
+    } catch (error) {
+      setProblem(saidWhy(error, 'Die Nummer ließ sich nicht speichern. Keine Verbindung.'))
+    }
+  }
+
+  async function removePrice(price: PriceView) {
+    try {
+      await removePurchasePrice(articleId, link.id, price.id)
+      setTrouble(null)
+      await refresh()
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Der Preis ließ sich nicht entfernen. Keine Verbindung.'))
+    }
   }
 
   return (
-    <span className="inline-flex flex-wrap justify-end gap-1.5">
-      <Button
-        size="small"
-        tone="quiet"
-        icon={Pencil}
-        aria-label={`Artikelnummer bei ${link.supplierName} ändern`}
-        onClick={() => {
-          setNumbering(true)
+    <section
+      aria-label={`${link.supplierName} ändern`}
+      className="flex flex-col gap-3 border-b border-line px-3.5 py-3"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-[15px] font-semibold">{link.supplierName}</h3>
+        <div className="grow" />
+        <Button size="small" tone="quiet" onClick={onClose}>
+          Schließen
+        </Button>
+      </div>
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          void saveNumber(event)
         }}
       >
-        Nummer
-      </Button>
+        <div className="min-w-[200px] grow">
+          <Field
+            label="Artikelnummer dort"
+            value={number}
+            problem={problem ?? undefined}
+            onChange={(event) => {
+              setNumber(event.target.value)
+            }}
+          />
+        </div>
+        <Button type="submit" size="small" icon={Check}>
+          Nummer speichern
+        </Button>
+      </form>
       {keepsPurchase ? (
+        <div className="flex flex-col gap-2">
+          <h4 className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+            Einkaufspreise
+          </h4>
+          {prices.length === 0 ? (
+            <p className="text-[13px] text-ink-muted">Noch kein Einkaufspreis.</p>
+          ) : (
+            <ul className="flex flex-col">
+              {prices.map((price) => (
+                <li
+                  key={price.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-row py-1 text-[14px] last:border-b-0"
+                >
+                  <span className="numeric w-[96px]">ab {date(price.validFrom)}</span>
+                  <span className="numeric w-[96px] text-right">
+                    {priceText(price.unitPriceCents)}
+                  </span>
+                  <Standing price={price} prices={prices} />
+                  <div className="grow" />
+                  <IconButton
+                    label={`Einkaufspreis ab ${date(price.validFrom)} entfernen`}
+                    onClick={() => {
+                      void removePrice(price)
+                    }}
+                  >
+                    <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
+          )}
+          {pricing ? (
+            <PriceForm
+              className=""
+              submitLabel="Einkaufspreis anlegen"
+              onCancel={() => {
+                setPricing(false)
+              }}
+              onSave={async (price) => {
+                await addPurchasePrice(articleId, link.id, price)
+                setPricing(false)
+                await refresh()
+              }}
+            />
+          ) : (
+            <div>
+              <Button
+                size="small"
+                icon={Plus}
+                onClick={() => {
+                  setPricing(true)
+                }}
+              >
+                Neuer Einkaufspreis
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null}
+      {trouble ? (
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+      <div>
         <Button
           size="small"
-          tone="quiet"
-          icon={Plus}
-          aria-label={`Einkaufspreis bei ${link.supplierName} anlegen`}
+          tone="danger"
+          icon={Trash2}
           onClick={() => {
-            onPrice(link.id)
+            onRemove(link)
           }}
         >
-          Preis
+          Lieferant entfernen
         </Button>
-      ) : null}
-      {keepsPurchase && coming.length > 0 ? (
-        <Button
-          size="small"
-          tone="quiet"
-          aria-label={`Kommenden Einkaufspreis bei ${link.supplierName} entfernen`}
-          onClick={() => {
-            const [next] = coming
-
-            if (next) {
-              void removePurchasePrice(articleId, link.id, next.id).then(() =>
-                client.invalidateQueries({ queryKey: ['articles'] }),
-              )
-            }
-          }}
-        >
-          Kommenden entfernen
-        </Button>
-      ) : null}
-      <Button
-        size="small"
-        tone="quiet"
-        icon={Trash2}
-        aria-label={`${link.supplierName} entfernen`}
-        onClick={() => {
-          onRemove(link)
-        }}
-      >
-        Entfernen
-      </Button>
-    </span>
+      </div>
+    </section>
   )
 }
 
