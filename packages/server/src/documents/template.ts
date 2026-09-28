@@ -300,6 +300,17 @@ function information(content: DocumentContent): string {
     .join('')}</table>`
 }
 
+/**
+ * Under the unit price, how many units it is for, when that is more than one
+ * (#456): "je 100 Stk.", in the short unit the quantity is written in. A price
+ * for one unit stands alone, as on every document before.
+ */
+function priceBaseOf(line: LineContent): string {
+  return line.priceBase > 1
+    ? `<div class="price-base">je ${quantities.format(line.priceBase)} ${units[line.unit]}</div>`
+    : ''
+}
+
 /** The small grey text under a designation, line breaks as they were typed. */
 function descriptionOf(line: LineContent): string {
   return present(line.description) ? `<div class="description">${text(line.description)}</div>` : ''
@@ -360,7 +371,7 @@ function lines(content: DocumentContent): string {
         <td class="position">${row.number}</td>
         <td>${text(line.designation)}${descriptionOf(line)}</td>
         <td class="figure">${quantities.format(line.quantityMilli / quantityFactor)} ${units[line.unit]}</td>
-        <td class="figure">${euros(line.unitPriceCents)}</td>
+        <td class="figure">${euros(line.unitPriceCents)}${priceBaseOf(line)}</td>
         ${taxed ? `<td class="figure">${rate === undefined ? '' : percent(rate)}</td>` : ''}
         <td class="figure">${euros(line.netCents)}</td>
       </tr>`
@@ -557,6 +568,7 @@ const pageStyle = `
   .description {
     font-size: 8.5pt; font-weight: 400; color: #5b6573; white-space: pre-line; margin-top: 0.8mm;
   }
+  .price-base { font-size: 8.5pt; color: #5b6573; margin-top: 0.4mm; }
   .totals {
     margin: 4mm 0 0 auto; width: 88mm; border-collapse: collapse; break-inside: avoid;
   }

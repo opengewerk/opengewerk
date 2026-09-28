@@ -14,6 +14,7 @@ import {
   content,
   finalInvoice,
   item,
+  perHundred,
   photovoltaics,
   reverseCharge,
   samples,
@@ -240,6 +241,23 @@ describe('an e-invoice', () => {
     expect(read(xml, `${group}/ram:CalculatedAmount`)).toEqual(['169.10', '0.00'])
     expect(read(xml, `${group}/ram:ExemptionReason`)).toEqual([])
     expect(read(xml, `${group}/ram:ExemptionReasonCode`)).toEqual([])
+  })
+
+  it('states a price per hundred with its base quantity, and a price per piece without one (#456)', () => {
+    const xml = ciiInvoice(perHundred, 'xrechnung')
+    const price = '//ram:SpecifiedLineTradeAgreement/ram:NetPriceProductTradePrice'
+    const lines = '//ram:IncludedSupplyChainTradeLineItem'
+
+    expect(read(xml, `${price}/ram:ChargeAmount`)).toEqual(['3.50', '92.00', '8.90', '3.50'])
+    // BT-149 and BT-150 only where the price is for more than one unit, in
+    // the unit of the line.
+    expect(read(xml, `${lines}[1]//ram:BasisQuantity`)).toEqual(['100'])
+    expect(read(xml, `${lines}[1]//ram:BasisQuantity/@unitCode`)).toEqual(['H87'])
+    expect(read(xml, `${lines}[2]//ram:BasisQuantity/@unitCode`)).toEqual(['MTR'])
+    expect(read(xml, `${lines}[3]//ram:BasisQuantity`)).toEqual([])
+    // Quantity times price divided by the base: 10,50, 23,00, 53,40 and 0,25.
+    expect(read(xml, `${lines}//ram:LineTotalAmount`)).toEqual(['10.50', '23.00', '53.40', '0.25'])
+    expect(read(xml, `${summation}/ram:LineTotalAmount`)).toEqual(['87.15'])
   })
 
   it('says from 2028 that the tax is calculated on what is received, as a note of the invoice', () => {
