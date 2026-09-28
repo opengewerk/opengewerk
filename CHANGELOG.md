@@ -167,6 +167,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   häufigen und denen, die eine Position in den letzten 90 Tagen genommen hat. Eine Rechnung aus
   einem Regiebericht gibt einer Position aus einem Artikel den Verkaufspreis ihres eigenen Datums,
   weil der Bericht keine Preise trägt. Migration 0059.
+- Die Preiseinheit an Positionen (#456, erster Teil), damit Material zu Großhandelspreisen richtig
+  rechnet: ein Einzelpreis gilt je 1, 10, 100 oder 1000 Einheiten, wie der Großhandel Kabel je
+  100 m und Kabelbinder je 100 Stück auszeichnet. Bisher galt jeder Preis je Einheit und rundete
+  auf den Cent, aus 3,50 € je 100 Stück wurden 0,04 € je Stück, 14 % zu viel. Im Büro steht
+  "Preis je" neben dem Einzelpreis, außer bei einer Pauschale; gedruckt steht "je 100 Stk." unter
+  dem Einzelpreis, in der E-Rechnung die Basismenge des Preises (BT-149). Folgebeleg, Storno und
+  der Abgleich nehmen sie mit, ein Gerät einer älteren Fassung schickt keine und bekommt eins.
+  Migration 0060, Fassung 13 des eingefrorenen Stands.
 
 ### Geändert
 
