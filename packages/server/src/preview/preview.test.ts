@@ -196,6 +196,18 @@ describe('the sample data', () => {
       reports.filter((report) => report.status === 'signed' && report.number === null),
     ).toHaveLength(1)
     expect(reports.filter((report) => report.status === 'issued')).toHaveLength(2)
+    // And today's report still in draft, the newest document, with material
+    // from an article (#296): the check of widths opens "Position hinzufügen"
+    // and "Material eintragen" on it, and the article counts as used lately.
+    const [newest] = [...documents].sort((left, right) => right.id.localeCompare(left.id))
+
+    expect(newest).toMatchObject({ kind: 'time_and_material_report', status: 'draft' })
+
+    const drafted = await read<{ articleId: string | null }[]>(
+      `/documents/${newest?.id ?? ''}/lines`,
+    )
+
+    expect(drafted.filter((line) => line.articleId !== null)).toHaveLength(1)
     // One chain that does not branch (#129): the invoices out of the confirmation.
     expect(byKind.get('progress_invoice')).toMatchObject({
       status: 'issued',

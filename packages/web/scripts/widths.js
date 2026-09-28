@@ -115,9 +115,12 @@ function kindOf(path) {
  * person can remove, and the walk, which follows links, never saw them
  * (Greptile on #446). A page that has one is checked a second time as a kind
  * of its own, with the button pressed. Found like the pages, by its name,
- * so that the next form with the same button is checked as well.
+ * so that the next form with the same button is checked as well. The new
+ * position of a document and the material of a report open the choice of an
+ * article (#296), and the preview plants a report in draft for them, the
+ * newest document, so that the walk meets it among the first of its kind.
  */
-const openers = ['Bearbeiten']
+const openers = ['Bearbeiten', 'Position hinzufügen', 'Material eintragen']
 
 /** The first button of that name on the page. */
 function opener(page, name) {

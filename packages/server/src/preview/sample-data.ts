@@ -49,6 +49,7 @@ interface Line {
   readonly quantityMilli?: number
   readonly unit?: string
   readonly unitPriceCents?: number
+  readonly articleId?: string
 }
 
 const title = (designation: string, description?: string): Line => ({
@@ -649,7 +650,36 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await plantBoards(post, cabinet, today)
   await plantPhotovoltaic(post, berg, house)
-  await plantMaterial(post, today)
+
+  const catalogue = await plantMaterial(post, today)
+  const circuitBreaker = catalogue.get('2140')
+
+  if (circuitBreaker === undefined) {
+    throw new Error('The sample catalogue has no article 2140.')
+  }
+
+  // A report of today still in draft, with material taken from an article
+  // (#296). The newest document of all, so that the walk of the check of
+  // widths meets it first and opens "Position hinzufügen" in the office and
+  // "Material eintragen" on site on it; its article counts as used lately on
+  // every device.
+  await document(
+    {
+      customerId: berg,
+      jobId: renewal,
+      siteId: house,
+      installationId: cabinet,
+      kind: 'time_and_material_report',
+      subject: 'Zählerschrank erneuern, Nacharbeiten',
+    },
+    [
+      item('Arbeitszeit Elektriker', 1500, 'hour', 0),
+      {
+        ...item('FI/LS-Schalter 4-polig, B16, Typ A, 30 mA', 1000, 'piece', 0),
+        articleId: circuitBreaker,
+      },
+    ],
+  )
 }
 
 /**
@@ -658,12 +688,12 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
  * number, and twelve articles, some marked as frequent, each with a selling
  * price. The cable has three prices, one of them to come, and two suppliers
  * with their numbers and purchase prices, so that the page of an article shows
- * every state a price can be in.
+ * every state a price can be in. Answers the articles by their numbers.
  */
 async function plantMaterial(
   post: (path: string, body: unknown) => Promise<Answer>,
   today: IsoDate,
-): Promise<void> {
+): Promise<Map<string, string>> {
   const supplier = async (values: Record<string, unknown>) =>
     idOf(await post('/suppliers', { country: 'DE', ...values }))
 
@@ -801,6 +831,7 @@ async function plantMaterial(
     ],
   ] as const
   const since = addDays(today, -210)
+  const planted = new Map<string, string>()
 
   for (const [
     number,
@@ -832,6 +863,8 @@ async function plantMaterial(
       }),
     )
 
+    planted.set(number, article)
+
     // Purchase prices at about three fifths of the selling price, as a
     // wholesaler's list would have them.
     await post(`/articles/${article}/suppliers`, {
@@ -853,6 +886,8 @@ async function plantMaterial(
       })
     }
   }
+
+  return planted
 }
 
 /**
