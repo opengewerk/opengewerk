@@ -309,6 +309,7 @@ describe('an article', () => {
     expect(within(prices).getByRole('columnheader', { name: 'Preis' })).toBeTruthy()
     expect(within(prices).getByText('je 100 m')).toBeTruthy()
     expect(within(prices).getByText('je 1 m')).toBeTruthy()
+    expect(screen.getByText(/gilt, mit seiner Preiseinheit\./)).toBeTruthy()
 
     const suppliers = screen.getByRole('table', { name: 'Lieferanten und Einkaufspreise' })
 

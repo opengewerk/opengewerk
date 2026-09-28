@@ -687,7 +687,7 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
           actions: writes ? removeButton(price) : null,
         }))}
         cardsEmpty="Noch kein Preis."
-        note="Eine Position nimmt den Preis, der an ihrem Belegdatum gilt. Ein neuer Preis ändert keinen Beleg, der den Artikel schon hat."
+        note="Eine Position nimmt den Preis, der an ihrem Belegdatum gilt, mit seiner Preiseinheit. Ein neuer Preis ändert keinen Beleg, der den Artikel schon hat."
       >
         <thead>
           <tr>
