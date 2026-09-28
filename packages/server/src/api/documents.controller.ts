@@ -36,6 +36,7 @@ import {
   paymentTermProblem,
   RuleError,
   shippedRules,
+  showsPrices,
   successorsOf,
   type TaxTreatment,
   whyFixed,
@@ -53,6 +54,7 @@ import {
   numberRanges,
   payments,
 } from '../database/schema/index.js'
+import { articlePricesOn, pricedFromArticle } from '../documents/article-prices.js'
 import { contentAndGapsOf, issuerOf } from '../documents/content.js'
 import { deductionsFor } from '../documents/deductions.js'
 import { choicesOf } from '../documents/instructions.js'
@@ -606,21 +608,37 @@ export class DocumentsController {
         .where(and(eq(documentLines.documentId, predecessor.id), isNull(documentLines.deletedAt)))
         .orderBy(asc(documentLines.position), asc(documentLines.id))
 
+      // A report carries no prices. The invoice made out of it gives a line
+      // taken from an article the price of the invoice's date (#296); every
+      // other successor keeps the prices of its predecessor.
+      const prices = showsPrices(predecessor.kind)
+        ? new Map<string, number>()
+        : await articlePricesOn(
+            tx,
+            lines.map((line) => line.articleId),
+            created.documentDate,
+          )
+
       if (lines.length > 0) {
         await tx.insert(documentLines).values(
-          lines.map((line) => ({
-            tenantId: identity.tenantId,
-            documentId: created.id,
-            kind: line.kind,
-            position: line.position,
-            designation: line.designation,
-            description: line.description,
-            quantityMilli: line.quantityMilli,
-            unit: line.unit,
-            unitPriceCents: line.unitPriceCents,
-            vatRate: line.vatRate,
-            netCents: line.netCents,
-          })),
+          lines.map((original) => {
+            const line = pricedFromArticle(original, prices)
+
+            return {
+              tenantId: identity.tenantId,
+              documentId: created.id,
+              kind: line.kind,
+              position: line.position,
+              designation: line.designation,
+              description: line.description,
+              quantityMilli: line.quantityMilli,
+              unit: line.unit,
+              unitPriceCents: line.unitPriceCents,
+              vatRate: line.vatRate,
+              netCents: line.netCents,
+              articleId: line.articleId,
+            }
+          }),
         )
       }
 

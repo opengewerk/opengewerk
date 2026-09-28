@@ -313,9 +313,9 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   installation_labels: { create: false, change: 'never' },
   /**
    * The articles a device holds (#296), whatever its role: the frequent ones
-   * with their selling prices, and those used lately once positions name their
-   * article. Kept at the routes of the office, where the whole catalogue is; a
-   * device reads them to take one into a position or a report and writes none.
+   * and those a line took in the last 90 days, with their selling prices. Kept
+   * at the routes of the office, where the whole catalogue is; a device reads
+   * them to take one into a position or a report and writes none.
    */
   articles: { create: false, change: 'never' },
   article_prices: { create: false, change: 'never' },

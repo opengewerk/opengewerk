@@ -17,6 +17,7 @@ import {
   documentSources,
   jobs,
 } from '../database/schema/index.js'
+import { articlePricesOn, pricedFromArticle } from './article-prices.js'
 import { choicesOf } from './instructions.js'
 
 type DocumentRow = typeof documents.$inferSelect
@@ -40,6 +41,7 @@ type CopiedLine = Pick<
   | 'unitPriceCents'
   | 'vatRate'
   | 'netCents'
+  | 'articleId'
 >
 
 /**
@@ -64,6 +66,7 @@ function underItsTitle(report: DocumentRow, lines: readonly LineRow[]): CopiedLi
             unitPriceCents: 0,
             vatRate: 'standard',
             netCents: 0,
+            articleId: null,
           },
         ]
 
@@ -226,11 +229,18 @@ export async function makeCollectiveInvoice(
     )
     .orderBy(asc(documentLines.position), asc(documentLines.id))
 
+  // A report carries no prices; a line taken from an article gets the price
+  // of the invoice's date (#296), the others are priced in the office.
+  const prices = await articlePricesOn(
+    tx,
+    lines.map((line) => line.articleId),
+    created.documentDate,
+  )
   const copied = reports.flatMap((report) =>
     underItsTitle(
       report,
       lines.filter((line) => line.documentId === report.id),
-    ),
+    ).map((line) => pricedFromArticle(line, prices)),
   )
 
   if (copied.length > 0) {
@@ -247,6 +257,7 @@ export async function makeCollectiveInvoice(
         unitPriceCents: line.unitPriceCents,
         vatRate: line.vatRate,
         netCents: line.netCents,
+        articleId: line.articleId,
       })),
     )
   }

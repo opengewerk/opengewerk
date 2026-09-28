@@ -894,6 +894,12 @@ const crossings: readonly {
             values (${own.tenant}, ${other.supplierArticle}, '2026-03-01', 54)`,
   },
   {
+    // The article a line was taken from (#296); the line's document is a
+    // draft, so the trigger of the lines lets the change through to the key.
+    key: 'document_lines_article_in_tenant',
+    write: (own, other) => repoint('document_lines', 'article_id', own.line, other.article),
+  },
+  {
     key: 'inverters_installation_in_tenant',
     write: (own, other) =>
       repoint('inverters', 'installation_id', own.inverter, other.installation),

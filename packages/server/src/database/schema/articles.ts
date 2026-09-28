@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
-import { lineUnit } from './document-lines.js'
+import { lineUnit } from './line-enums.js'
 import { tenantIsolation } from './rls.js'
 import { suppliers } from './suppliers.js'
 import { tenantColumn } from './tenants.js'

@@ -28,6 +28,7 @@ import { documentLines, documents } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+import { requireReferences } from './references.js'
 
 const writableFields = [
   'kind',
@@ -38,6 +39,9 @@ const writableFields = [
   'unit',
   'unitPriceCents',
   'vatRate',
+  // The article a line was taken from (#296), checked below to be one of
+  // this business and not deleted.
+  'articleId',
 ] as const
 
 /**
@@ -168,6 +172,8 @@ export class DocumentLinesController {
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)
+      // Only the article is asked here; the document came from the path.
+      await requireReferences(tx, documentLines, { articleId: values.articleId }, false)
 
       const [created] = await tx
         .insert(documentLines)
@@ -202,6 +208,7 @@ export class DocumentLinesController {
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)
+      await requireReferences(tx, documentLines, { articleId: values.articleId }, false)
 
       const [existing] = await tx
         .select()

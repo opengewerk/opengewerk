@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-import { closedJobsStayDays } from '@opengewerk/domain'
+import { closedJobsStayDays, recentlyUsedDays } from '@opengewerk/domain'
 import { type SQL, sql } from 'drizzle-orm'
 
 import type { TenantTransaction } from './database.js'
@@ -61,8 +61,14 @@ export async function deviceScope(
 
 /**
  * The articles every device holds (#296), the office's included: the ones
- * marked as frequent, with their selling prices. A catalogue from DATANORM has
- * a hundred thousand, and those stay at the routes of the office.
+ * marked as frequent, and those a line of a document or a report took in the
+ * last `recentlyUsedDays`, with their selling prices. A catalogue from
+ * DATANORM has a hundred thousand, and those stay at the routes of the office.
+ *
+ * Used lately is counted from when the line was written, not from the date of
+ * its document: a report of last year copied today into an invoice uses its
+ * material today. A line marked as deleted counts no more, one of any
+ * document does, a draft as much as an issued one.
  *
  * Not narrowed by who asks but by what the articles are, and `value` is what
  * the pull names for them: when an article joins or leaves the set, a device
@@ -77,7 +83,13 @@ export interface ArticlesOnDevices {
 
 export async function articlesOnDevices(tx: TenantTransaction): Promise<ArticlesOnDevices> {
   const { rows } = await tx.execute<{ id: string }>(sql`
-    select id from articles where frequent and deleted_at is null order by id`)
+    select id from articles
+    where deleted_at is null
+      and (frequent or id in (
+        select article_id from document_lines
+        where article_id is not null and deleted_at is null
+          and created_at >= now() - make_interval(days => ${recentlyUsedDays})))
+    order by id`)
   const articleIds = rows.map((row) => row.id)
 
   return { articleIds, value: `articles:${digest(articleIds)}` }
