@@ -188,7 +188,7 @@ describe('the ways into the site of a job', () => {
       (server.operations()[0]?.patches ?? []).map((patch) => [patch.field, patch.to]),
     )
 
-    expect(written).toMatchObject({ siteAccessId: 'a-1' })
+    expect(written).toMatchObject({ siteAccessId: 'a-1', valueSetAt: safe.valueSetAt })
     expect(Number.isNaN(Date.parse(String(written['revealedAt'])))).toBe(false)
     expect(written).not.toHaveProperty('userId')
 

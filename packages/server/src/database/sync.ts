@@ -4,7 +4,6 @@ import {
   type CustomerId,
   decideMerge,
   formRecordProblem,
-  type Identity,
   inOutboxOrder,
   type IsoDate,
   lineNetCents,
@@ -25,6 +24,7 @@ import {
 import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull, type SQL } from 'drizzle-orm'
 import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
+import type { FoundIdentity } from '../api/identity.js'
 import { versionFileRefusal } from '../attachments/versions.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
@@ -279,7 +279,7 @@ export async function applyOperations(
   tx: TenantTransaction,
   tenantId: TenantId,
   operations: readonly Operation[],
-  sender: Identity,
+  sender: FoundIdentity,
 ): Promise<readonly OperationReceipt[]> {
   const receipts: OperationReceipt[] = []
 
@@ -300,7 +300,7 @@ async function applyOne(
   tx: TenantTransaction,
   tenantId: TenantId,
   operation: Operation,
-  sender: Identity,
+  sender: FoundIdentity,
 ): Promise<OperationReceipt> {
   const seen = await tx
     .select({ outcome: syncOperations.outcome })

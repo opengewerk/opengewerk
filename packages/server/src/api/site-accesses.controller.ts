@@ -260,6 +260,8 @@ export class SiteAccessesController {
           // Written over by the database from the request.
           userId: identity.userId,
           revealedAt: new Date(),
+          // Which value was opened, so that the log says which code was seen.
+          valueSetAt: access.valueSetAt,
         })
       }
 

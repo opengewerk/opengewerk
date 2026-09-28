@@ -292,9 +292,9 @@ export function permissionFor(
  * value (#286): whether there is one and whether it opens, `valueState`, and
  * the value itself for the sites in `valued`, the ones of the open jobs of
  * the technician whose device asked. Nothing else in any answer carries it,
- * and every value handed out is recorded for `recipient` the first time, in
- * `site_access_deliveries`, which is what a showing from that device is
- * measured against.
+ * and every value handed out is recorded the first time it reaches that
+ * device, in `site_access_deliveries`, with the person, the device and when
+ * the value was set: what a showing from that device is measured against.
  */
 async function withAccessStates(
   tx: TenantTransaction,
@@ -302,7 +302,7 @@ async function withAccessStates(
   tenantId: TenantId,
   changes: readonly ChangedRows[],
   valued: ReadonlySet<string> | null,
-  recipient: string,
+  recipient: { readonly userId: string; readonly deviceId: string } | null,
 ): Promise<readonly ChangedRows[]> {
   const rows = changes.find((change) => change.entity === 'site_accesses')?.rows ?? []
   const live = rows.filter((row) => row['deletedAt'] === null)
@@ -318,7 +318,7 @@ async function withAccessStates(
     live.map((row) => row['id'] as SiteAccessId),
   )
 
-  const delivered: SiteAccessId[] = []
+  const delivered: { readonly siteAccessId: SiteAccessId; readonly valueSetAt: Date }[] = []
   const answered = changes.map((change) =>
     change.entity !== 'site_accesses'
       ? change
@@ -331,8 +331,16 @@ async function withAccessStates(
 
             const stored = values.get(row['id'] as SiteAccessId) ?? { state: 'none' as const }
 
-            if (valued?.has(String(row['siteId'])) && stored.state === 'readable') {
-              delivered.push(row['id'] as SiteAccessId)
+            if (
+              recipient &&
+              valued?.has(String(row['siteId'])) &&
+              stored.state === 'readable' &&
+              row['valueSetAt'] !== null
+            ) {
+              delivered.push({
+                siteAccessId: row['id'] as SiteAccessId,
+                valueSetAt: new Date(row['valueSetAt'] as string | Date),
+              })
 
               return { ...row, valueState: stored.state, value: stored.value }
             }
@@ -342,15 +350,25 @@ async function withAccessStates(
         },
   )
 
-  if (delivered.length > 0) {
+  if (recipient && delivered.length > 0) {
     await tx
       .insert(siteAccessDeliveries)
-      .values(delivered.map((siteAccessId) => ({ tenantId, siteAccessId, userId: recipient })))
+      .values(
+        delivered.map(({ siteAccessId, valueSetAt }) => ({
+          tenantId,
+          siteAccessId,
+          userId: recipient.userId,
+          deviceId: recipient.deviceId,
+          valueSetAt,
+        })),
+      )
       .onConflictDoNothing({
         target: [
           siteAccessDeliveries.tenantId,
           siteAccessDeliveries.siteAccessId,
           siteAccessDeliveries.userId,
+          siteAccessDeliveries.deviceId,
+          siteAccessDeliveries.valueSetAt,
         ],
       })
   }
@@ -451,8 +469,10 @@ export class SyncController {
     // without a network. Whoever keeps them gets no value here, whatever the
     // request says: the parameter is the client's to choose, the right is not
     // (Greptile on #445).
+    // A value goes only to a device the session names, since what it was
+    // handed is recorded for that device and a showing is taken only from it.
     const keepsAccess = isAllowed(identity, 'site.access')
-    const withValues = access === 'values' && !keepsAccess
+    const withValues = access === 'values' && !keepsAccess && identity.deviceId !== undefined
     const { answer, scope, sites } = await this.database.forTenant(identity, async (tx) => {
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
       const sites = scope !== null && !keepsAccess ? await sitesWithOpenJobs(tx, scope) : null
@@ -479,7 +499,9 @@ export class SyncController {
             identity.tenantId,
             found.changes,
             withValues ? (sites?.siteIds ?? null) : null,
-            identity.userId,
+            identity.deviceId === undefined
+              ? null
+              : { userId: identity.userId, deviceId: identity.deviceId },
           )
         : found.changes
 

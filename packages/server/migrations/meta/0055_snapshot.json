@@ -1,5 +1,5 @@
 {
-  "id": "f10dcdc9-14d4-45f1-b496-3506ae1290c6",
+  "id": "d195cdeb-b54b-4b54-b838-2de5c054fa8a",
   "prevId": "2bea6176-6dda-4028-809e-f4eccedba49c",
   "version": "7",
   "dialect": "postgresql",
@@ -8988,6 +8988,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value_set_at": {
+          "name": "value_set_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -9057,7 +9069,9 @@
           "columns": [
             "tenant_id",
             "site_access_id",
-            "user_id"
+            "user_id",
+            "device_id",
+            "value_set_at"
           ]
         }
       },
@@ -9110,6 +9124,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "value_set_at": {
+          "name": "value_set_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

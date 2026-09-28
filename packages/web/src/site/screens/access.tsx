@@ -88,6 +88,9 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
         .create('site_access_reveals', {
           siteAccessId: id,
           revealedAt: new Date().toISOString(),
+          // Which value it was: the server takes the showing only for a
+          // value this device was handed.
+          valueSetAt: maybeText(access, 'valueSetAt'),
         })
         .catch(() => null)
 

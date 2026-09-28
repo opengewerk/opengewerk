@@ -566,14 +566,14 @@ const crossings: readonly {
   {
     key: 'site_access_deliveries_access_in_tenant',
     write: (own, other) =>
-      sql`insert into site_access_deliveries (tenant_id, site_access_id, user_id)
-            values (${own.tenant}, ${other.siteAccess}, ${own.user})`,
+      sql`insert into site_access_deliveries (tenant_id, site_access_id, user_id, device_id, value_set_at)
+            values (${own.tenant}, ${other.siteAccess}, ${own.user}, 'phone', now())`,
   },
   {
     key: 'site_access_deliveries_person_works_here',
     write: (own, other) =>
-      sql`insert into site_access_deliveries (tenant_id, site_access_id, user_id)
-            values (${own.tenant}, ${own.siteAccess}, ${other.user})`,
+      sql`insert into site_access_deliveries (tenant_id, site_access_id, user_id, device_id, value_set_at)
+            values (${own.tenant}, ${own.siteAccess}, ${other.user}, 'phone', now())`,
   },
   {
     // An insert and not a repoint: a follow-up names the job before it when it

@@ -68,6 +68,10 @@ export const siteAccessReveals = pgTable(
     siteAccessId: reference<'site-access'>('site_access_id').notNull(),
     userId: text('user_id').notNull(),
     revealedAt: timestamp('revealed_at', { withTimezone: true }).notNull(),
+    // Which value was shown, by when it was set: the route writes the one it
+    // opened, a device the one it held. Empty only on a showing from somebody
+    // who keeps the ways in and wrote it without saying (#286).
+    valueSetAt: timestamp('value_set_at', { withTimezone: true }),
     ...timestamps,
     ...syncColumns,
   },
@@ -89,12 +93,14 @@ export const siteAccessReveals = pgTable(
 )
 
 /**
- * Which person got the value of which access on a device (#286): a row the
- * first time a pull hands a value to that person, never changed after. A
- * showing written on a device is taken only for an access its person got
- * this way (`revealRefusal`), whatever became of the job since, moved to
- * another site or closed long ago; and the audit log says which devices
- * held which code. Written by the pull and by nothing else, not in the sync.
+ * Which device got which value of which access, for which person (#286): a
+ * row the first time a pull hands that value to that device, never changed
+ * after. The value is named by when it was set, the device by the session
+ * the pull came with. A showing written on a device is taken only for a value
+ * that device got this way (`revealRefusal`), whatever became of the job
+ * since, moved to another site or closed long ago, and not for a newer value
+ * it never held; and the audit log says which devices held which code.
+ * Written by the pull and by nothing else, not in the sync.
  */
 export const siteAccessDeliveries = pgTable(
   'site_access_deliveries',
@@ -103,6 +109,8 @@ export const siteAccessDeliveries = pgTable(
     ...tenantColumn,
     siteAccessId: reference<'site-access'>('site_access_id').notNull(),
     userId: text('user_id').notNull(),
+    deviceId: text('device_id').notNull(),
+    valueSetAt: timestamp('value_set_at', { withTimezone: true }).notNull(),
     ...timestamps,
   },
   (table) => [
@@ -117,6 +125,12 @@ export const siteAccessDeliveries = pgTable(
       foreignColumns: [memberships.tenantId, memberships.userId],
       name: 'site_access_deliveries_person_works_here',
     }).onDelete('restrict'),
-    unique('site_access_deliveries_once').on(table.tenantId, table.siteAccessId, table.userId),
+    unique('site_access_deliveries_once').on(
+      table.tenantId,
+      table.siteAccessId,
+      table.userId,
+      table.deviceId,
+      table.valueSetAt,
+    ),
   ],
 )

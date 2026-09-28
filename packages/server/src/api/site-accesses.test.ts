@@ -49,7 +49,19 @@ function as(tenantId: TenantId, userId: string, ...roles: RoleKey[]): string {
 }
 
 const office = () => as(north.id, 'britta', 'office')
-const technician = () => as(north.id, 'max', 'technician')
+/**
+ * The technician, from the phone the session names (`deviceId`), or from a
+ * session that names none. The device a value goes to and a showing comes
+ * from is the session's, whatever the body of a transmission says.
+ */
+function technician(deviceId: string | null = 'phone-max'): string {
+  return JSON.stringify({
+    userId: 'max',
+    tenantId: north.id,
+    roles: ['technician'],
+    ...(deviceId === null ? {} : { deviceId }),
+  })
+}
 const neighbour = () => as(south.id, 'susi', 'office')
 
 async function post(path: string, body: Record<string, unknown>, who = office()) {
@@ -212,6 +224,13 @@ describe('an access to a site', () => {
     )
 
     expect(rows).toEqual([{ user_id: 'britta' }])
+
+    const { rows: opened } = await admin.query<{ value_set_at: Date }>(
+      'select value_set_at from site_access_reveals where site_access_id = $1',
+      [access['id']],
+    )
+
+    expect(opened[0]?.value_set_at.toISOString()).toBe(access['valueSetAt'])
 
     const { rows: logged } = await admin.query<{ count: number }>(
       "select count(*)::int as count from audit_entries where table_name = 'site_access_reveals'",
@@ -470,6 +489,7 @@ describe('an access on the device of a technician', () => {
     const answer = await push(app, technician(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
         siteAccessId: String(access['id']),
+        valueSetAt: String(access['valueSetAt']),
         revealedAt,
       }),
     ])
@@ -513,6 +533,7 @@ describe('an access on the device of a technician', () => {
     const answer = await push(app, technician(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
         siteAccessId: String(access['id']),
+        valueSetAt: String(access['valueSetAt']),
         revealedAt: '2026-09-27T10:00:00.000Z',
       }),
     ])
@@ -549,6 +570,7 @@ describe('an access on the device of a technician', () => {
     const answer = await push(app, technician(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
         siteAccessId: String(access['id']),
+        valueSetAt: String(access['valueSetAt']),
         revealedAt: '2026-09-27T10:05:00.000Z',
       }),
     ])
@@ -573,10 +595,12 @@ describe('an access on the device of a technician', () => {
     const answer = await push(app, technician(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
         siteAccessId: String(notMine['id']),
+        valueSetAt: String(notMine['valueSetAt']),
         revealedAt: '2026-09-27T10:01:00.000Z',
       }),
       created('site_access_reveals', newId<'site-access-reveal'>(), {
         siteAccessId: String(mine['id']),
+        valueSetAt: String(mine['valueSetAt']),
         revealedAt: '2026-09-27T10:02:00.000Z',
       }),
     ])
@@ -584,7 +608,7 @@ describe('an access on the device of a technician', () => {
     expect(
       answer.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields]),
     ).toEqual([
-      ['conflict', 'record_missing', ['siteAccessId']],
+      ['conflict', 'record_missing', ['siteAccessId', 'valueSetAt']],
       ['applied', null, []],
     ])
 
@@ -615,12 +639,25 @@ describe('an access on the device of a technician', () => {
     await pull(technician())
     await pull(office(), true)
 
-    const { rows } = await admin.query<{ site_access_id: string; user_id: string }>(
-      'select site_access_id, user_id from site_access_deliveries where site_access_id = any($1)',
+    const { rows } = await admin.query<{
+      site_access_id: string
+      user_id: string
+      device_id: string
+      value_set_at: Date
+    }>(
+      `select site_access_id, user_id, device_id, value_set_at
+         from site_access_deliveries where site_access_id = any($1)`,
       [[mine['id'], notMine['id']]],
     )
 
-    expect(rows).toEqual([{ site_access_id: mine['id'], user_id: 'max' }])
+    expect(rows.map((row) => ({ ...row, value_set_at: row.value_set_at.toISOString() }))).toEqual([
+      {
+        site_access_id: mine['id'],
+        user_id: 'max',
+        device_id: 'phone-max',
+        value_set_at: mine['valueSetAt'],
+      },
+    ])
 
     // In the log as one change, the insert, with the person it went to.
     const { rows: logged } = await admin.query<{
@@ -646,11 +683,83 @@ describe('an access on the device of a technician', () => {
     const answer = await push(app, office(), [
       created('site_access_reveals', newId<'site-access-reveal'>(), {
         siteAccessId: String(access['id']),
+        valueSetAt: String(access['valueSetAt']),
         revealedAt: '2026-09-27T10:06:00.000Z',
       }),
     ])
 
     expect(answer.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
+  })
+
+  it('takes a showing only from the device that got the value, and only of that value', async () => {
+    const { site, job } = await siteWithJob('Herkunft')
+    const first = await addAccess(site, { designation: 'Tiefgarage', value: 'Code 4545' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+    await pull(technician(), true)
+
+    // The office puts in a new code; the phone was not online since.
+    const changed = await http()
+      .patch(`/sites/${site}/accesses/${String(first['id'])}`)
+      .set('x-test-identity', office())
+      .send({ value: 'Code 4646' })
+      .expect(200)
+    const newer = String((changed.body as { valueSetAt: string }).valueSetAt)
+    const showing = (valueSetAt: string, revealedAt: string) =>
+      created('site_access_reveals', newId<'site-access-reveal'>(), {
+        siteAccessId: String(first['id']),
+        valueSetAt,
+        revealedAt,
+      })
+
+    // The same person on a second device that never pulled, the new code on
+    // the phone that never got it, and the old code on the phone that had it.
+    const fromTablet = await push(app, technician('tablet-max'), [
+      showing(String(first['valueSetAt']), '2026-09-27T10:10:00.000Z'),
+    ])
+    const newerOnPhone = await push(app, technician(), [showing(newer, '2026-09-27T10:11:00.000Z')])
+    const olderOnPhone = await push(app, technician(), [
+      showing(String(first['valueSetAt']), '2026-09-27T10:12:00.000Z'),
+    ])
+
+    expect(
+      [fromTablet, newerOnPhone, olderOnPhone].map(({ receipts }) => [
+        receipts[0]?.outcome,
+        receipts[0]?.fields,
+      ]),
+    ).toEqual([
+      ['conflict', ['siteAccessId', 'valueSetAt']],
+      ['conflict', ['siteAccessId', 'valueSetAt']],
+      ['applied', []],
+    ])
+  })
+
+  it('hands no value to a session that names no device', async () => {
+    const { site, job } = await siteWithJob('Ohne Gerät')
+    const access = await addAccess(site, { designation: 'Nebentür', value: 'Code 4747' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+
+    const pulled = await pull(technician(null), true)
+    const row = accessesOf(pulled).find((candidate) => candidate['id'] === access['id'])
+
+    expect(row).toMatchObject({ valueState: 'readable' })
+    expect(row?.['value']).toBeUndefined()
+
+    const { rows } = await admin.query(
+      'select id from site_access_deliveries where site_access_id = $1',
+      [access['id']],
+    )
+
+    expect(rows).toEqual([])
   })
 
   it('follows a job that moves to another site', async () => {

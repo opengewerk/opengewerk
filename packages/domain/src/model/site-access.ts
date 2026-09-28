@@ -29,8 +29,8 @@ export interface SiteAccess extends Synced {
  * that showed it, through the outbox and so also without a network, before
  * the value appears, or by the route that hands the value to the owner or the
  * office. Who it was the database writes from the request. The server takes
- * one from a device only for an access that device can have held, and also
- * when the access was deleted since: the showing happened.
+ * one from a device only for a value that device was handed, named by when it
+ * was set, and also when the access was deleted since: the showing happened.
  */
 export interface SiteAccessReveal extends Synced {
   readonly id: Id<'site-access-reveal'>
@@ -38,6 +38,8 @@ export interface SiteAccessReveal extends Synced {
   readonly userId: string
   /** When the value was shown, on the clock of the device that showed it. */
   readonly revealedAt: Date
+  /** Which value was shown, by when it was set. */
+  readonly valueSetAt: Date | null
 }
 
 /**
