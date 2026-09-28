@@ -421,6 +421,13 @@
       "when": 1790571794243,
       "tag": "0059_document_line_article",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1790580102703,
+      "tag": "0060_line_price_base",
+      "breakpoints": true
     }
   ]
 }

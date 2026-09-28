@@ -61,6 +61,7 @@ export function pricedFromArticle<
     readonly articleId: string | null
     readonly quantityMilli: number
     readonly unitPriceCents: number
+    readonly priceBase: number
     readonly netCents: number
   },
 >(line: Line, prices: ReadonlyMap<string, number>): Line {
@@ -74,9 +75,12 @@ export function pricedFromArticle<
     return line
   }
 
+  // A selling price of an article is for one unit until the articles carry
+  // a price unit of their own (#456).
   return {
     ...line,
     unitPriceCents,
-    netCents: lineNetCents({ quantityMilli: line.quantityMilli, unitPriceCents }),
+    priceBase: 1,
+    netCents: lineNetCents({ quantityMilli: line.quantityMilli, unitPriceCents, priceBase: 1 }),
   }
 }

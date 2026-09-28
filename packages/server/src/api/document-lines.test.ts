@@ -69,7 +69,7 @@ async function addLine(documentId: string, over: Record<string, unknown> = {}, e
     })
     .expect(expected)
 
-  return created.body as { id: string; position: number; netCents: number }
+  return created.body as { id: string; position: number; netCents: number; priceBase: number }
 }
 
 async function totalsOf(documentId: string) {
@@ -188,6 +188,60 @@ describe('a position', () => {
     const document = await draft()
 
     await addLine(document.id, { unit: 'Stunden' }, 400)
+  })
+
+  it('is priced for one unit when nobody names a price unit (#456)', async () => {
+    const document = await draft()
+    const line = await addLine(document.id)
+
+    expect(line.priceBase).toBe(1)
+  })
+
+  it('divides by the price unit, and follows it when it is corrected (#456)', async () => {
+    const document = await draft()
+    // 300 cable ties at 3,50 euros per 100 are 10,50 euros.
+    const line = await addLine(document.id, {
+      designation: 'Kabelbinder 200 × 4,8 mm, schwarz',
+      quantityMilli: 300_000,
+      unit: 'piece',
+      unitPriceCents: 350,
+      priceBase: 100,
+    })
+
+    expect(line).toMatchObject({ priceBase: 100, netCents: 1050 })
+
+    const perTen = await http()
+      .patch(`/documents/${document.id}/lines/${line.id}`)
+      .set('x-test-identity', office())
+      .send({ priceBase: 10 })
+      .expect(200)
+
+    expect(perTen.body).toMatchObject({ priceBase: 10, netCents: 10500 })
+
+    // A new price alone keeps the price unit it had.
+    const cheaper = await http()
+      .patch(`/documents/${document.id}/lines/${line.id}`)
+      .set('x-test-identity', office())
+      .send({ unitPriceCents: 300 })
+      .expect(200)
+
+    expect(cheaper.body).toMatchObject({ priceBase: 10, netCents: 9000 })
+  })
+
+  it('is refused with a price unit that is none of the four steps (#456)', async () => {
+    const document = await draft()
+
+    for (const priceBase of [0, 50, 10_000, '100']) {
+      await addLine(document.id, { priceBase }, 400)
+    }
+
+    const line = await addLine(document.id)
+
+    await http()
+      .patch(`/documents/${document.id}/lines/${line.id}`)
+      .set('x-test-identity', office())
+      .send({ priceBase: 5 })
+      .expect(400)
   })
 })
 
@@ -471,6 +525,36 @@ describe('the stored line total', () => {
     })
   })
 
+  it('divides by the price unit in the database as well (#456)', async () => {
+    const document = await draft()
+    const write = (values: { priceBase: number; netCents: number }) =>
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx.insert(documentLines).values({
+          tenantId: north.id,
+          documentId: document.id as never,
+          position: 1,
+          designation: 'Kabelbinder',
+          quantityMilli: 300_000,
+          unit: 'piece',
+          unitPriceCents: 350,
+          priceBase: values.priceBase as never,
+          netCents: values.netCents,
+        }),
+      )
+
+    // Quantity times price without the division: a hundred times too much.
+    expect(await refusedBy(write({ priceBase: 100, netCents: 105_000 }))).toEqual({
+      code: checkViolation,
+      constraint: 'document_lines_net_matches_quantity',
+    })
+    expect(await refusedBy(write({ priceBase: 50, netCents: 2100 }))).toEqual({
+      code: checkViolation,
+      constraint: 'document_lines_price_base_known',
+    })
+    // And the right figure goes in.
+    await write({ priceBase: 100, netCents: 1050 })
+  })
+
   /**
    * The rounding of the database and the rounding of the domain have to be the
    * same rounding, or the constraint refuses rows the application considers
@@ -488,5 +572,20 @@ describe('the stored line total', () => {
     })
 
     expect(line.netCents).toBe(1)
+  })
+
+  it('agrees with the domain on half a cent per hundred (#456)', async () => {
+    const document = await draft()
+
+    // 7 ferrules at 3,50 euros per 100 are 24,5 cents, commercially 25.
+    const line = await addLine(document.id, {
+      designation: 'Aderendhülsen 1,5 mm²',
+      quantityMilli: 7000,
+      unit: 'piece',
+      unitPriceCents: 350,
+      priceBase: 100,
+    })
+
+    expect(line.netCents).toBe(25)
   })
 })

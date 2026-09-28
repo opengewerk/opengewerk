@@ -12,10 +12,14 @@ import { vatOn } from './tax.js'
 export interface Priceable {
   readonly quantityMilli: number
   readonly unitPriceCents: number
+  /** How many units the price is for (#456). Left out, it is one. */
+  readonly priceBase?: number
 }
 
 /**
- * Quantity times unit price, in whole cents.
+ * Quantity times unit price, divided by the price unit, in whole cents.
+ * Divided once, at the end, so that 300 pieces at 3,50 euros per 100 are
+ * exactly 10,50 euros and not three times a rounded cent.
  *
  * Rounded the way `applyRate` rounds, half away from zero, and for the same
  * reason: a credit note mirrors the invoice it corrects instead of drifting a
@@ -28,8 +32,9 @@ export interface Priceable {
  */
 export function lineNetCents(line: Priceable): number {
   const exact = line.quantityMilli * line.unitPriceCents
+  const divisor = quantityFactor * (line.priceBase ?? 1)
 
-  return withoutNegativeZero(Math.sign(exact) * Math.round(Math.abs(exact) / quantityFactor))
+  return withoutNegativeZero(Math.sign(exact) * Math.round(Math.abs(exact) / divisor))
 }
 
 /** One rate on a document, with everything that falls under it. */

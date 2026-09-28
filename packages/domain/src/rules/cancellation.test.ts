@@ -58,6 +58,7 @@ function line(
     quantityMilli,
     unit: 'piece',
     unitPriceCents: netCents,
+    priceBase: 1,
     vatRate,
     netCents,
   }

@@ -39,6 +39,7 @@ type CopiedLine = Pick<
   | 'quantityMilli'
   | 'unit'
   | 'unitPriceCents'
+  | 'priceBase'
   | 'vatRate'
   | 'netCents'
   | 'articleId'
@@ -64,6 +65,7 @@ function underItsTitle(report: DocumentRow, lines: readonly LineRow[]): CopiedLi
             quantityMilli: 0,
             unit: 'piece',
             unitPriceCents: 0,
+            priceBase: 1,
             vatRate: 'standard',
             netCents: 0,
             articleId: null,
@@ -255,6 +257,7 @@ export async function makeCollectiveInvoice(
         quantityMilli: line.quantityMilli,
         unit: line.unit,
         unitPriceCents: line.unitPriceCents,
+        priceBase: line.priceBase,
         vatRate: line.vatRate,
         netCents: line.netCents,
         articleId: line.articleId,

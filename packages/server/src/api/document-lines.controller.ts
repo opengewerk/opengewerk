@@ -16,6 +16,7 @@ import {
   lineKinds,
   lineNetCents,
   lineUnits,
+  priceBaseProblem,
   shippedRules,
   totalsFor,
   vatRates,
@@ -38,6 +39,8 @@ const writableFields = [
   'quantityMilli',
   'unit',
   'unitPriceCents',
+  // How many units the price is for (#456), one when left out.
+  'priceBase',
   'vatRate',
   // The article a line was taken from (#296), checked below to be one of
   // this business and not deleted.
@@ -56,12 +59,23 @@ function totalOf(
   from?: {
     quantityMilli: number
     unitPriceCents: number
+    priceBase: number
   },
 ): number {
   return lineNetCents({
     quantityMilli: Number(values.quantityMilli ?? from?.quantityMilli ?? 0),
     unitPriceCents: Number(values.unitPriceCents ?? from?.unitPriceCents ?? 0),
+    priceBase: Number(values.priceBase ?? from?.priceBase ?? 1),
   })
+}
+
+/** Refuses a price unit that is not one of the four, before the check in the database does. */
+function knownPriceBase(value: unknown): void {
+  const problem = value === undefined ? null : priceBaseProblem(value)
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
 }
 
 /**
@@ -169,6 +183,7 @@ export class DocumentLinesController {
     oneOf('kind', values.kind, lineKinds)
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
+    knownPriceBase(values.priceBase)
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)
@@ -205,6 +220,7 @@ export class DocumentLinesController {
     oneOf('kind', values.kind, lineKinds)
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
+    knownPriceBase(values.priceBase)
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)

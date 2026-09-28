@@ -19,6 +19,7 @@ import type {
   DocumentContentV9,
   DocumentContentV10,
   DocumentContentV11,
+  DocumentContentV12,
   InstructionContent,
   IssuerContent,
   LineContent,
@@ -167,6 +168,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       quantityMilli: line.quantityMilli,
       unit: line.unit,
       unitPriceCents: line.unitPriceCents,
+      priceBase: line.priceBase,
       vatRate: line.vatRate,
       netCents: line.netCents,
     }))
@@ -253,12 +255,21 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 11:
+    case 12:
       return {
         ...stored,
         version: documentContentVersion,
+        lines: stored.lines.map((line) => ({ ...line, priceBase: 1 as const })),
+      }
+    case 11: {
+      const twelfth: DocumentContentV12 = {
+        ...stored,
+        version: 12,
         instructions: stored.instructions.map((instruction) => ({ ...instruction, graphic: null })),
       }
+
+      return currentContent(twelfth)
+    }
     case 10: {
       const eleventh: DocumentContentV11 = { ...stored, version: 11, reportFields: [] }
 

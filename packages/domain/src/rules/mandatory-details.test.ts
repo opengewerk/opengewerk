@@ -62,6 +62,7 @@ function position(position: number, netCents: number, designation = 'Untervertei
     quantityMilli: 1000,
     unit: 'flat_rate',
     unitPriceCents: netCents,
+    priceBase: 1,
     vatRate: 'standard',
     netCents,
   } satisfies LineContent
@@ -422,6 +423,7 @@ describe('the content record', () => {
         'kind',
         'netCents',
         'position',
+        'priceBase',
         'quantityMilli',
         'unit',
         'unitPriceCents',

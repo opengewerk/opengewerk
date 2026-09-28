@@ -74,6 +74,7 @@ function message(kind: DocumentKind, deductions: readonly DeductionContent[] = [
         quantityMilli: 1000,
         unit: 'flat_rate',
         unitPriceCents: 100000,
+        priceBase: 1,
         vatRate: 'standard',
         netCents: 100000,
       },

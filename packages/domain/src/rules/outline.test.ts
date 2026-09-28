@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   DocumentContentV1,
   DocumentContentV11,
+  DocumentContentV12,
   LineContent,
 } from '../model/document-content.js'
 import { continuesChain, deducts, documentKinds, successorsOf } from '../model/document.js'
@@ -25,6 +26,7 @@ function item(designation: string, netCents: number): LineContent {
     quantityMilli: 1000,
     unit: 'flat_rate',
     unitPriceCents: netCents,
+    priceBase: 1,
     vatRate: 'standard',
     netCents,
   }
@@ -232,11 +234,11 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(12)
+    expect(read.version).toBe(13)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
-    expect(read.lines).toEqual([{ ...plain, kind: 'item' }])
+    expect(read.lines).toEqual([{ ...plain, kind: 'item', priceBase: 1 }])
     // The figures are carried over, not worked out again.
     expect(read.totals).toBe(first.totals)
     // Nothing was deducted before version 4, so it billed what it totalled,
@@ -283,6 +285,16 @@ describe('a snapshot written in the first shape', () => {
     expect(currentContent(eleventh).instructions).toEqual([
       { ...eleventh.instructions[0], graphic: null },
     ])
+
+    // Before version 13 every price was for one unit; the price unit came
+    // with #456, and a line of an older document reads as one per unit.
+    const twelfth = {
+      ...read,
+      version: 12 as const,
+      lines: [{ ...plain, kind: 'item' as const }],
+    } satisfies DocumentContentV12
+
+    expect(currentContent(twelfth).lines).toEqual([{ ...plain, kind: 'item', priceBase: 1 }])
   })
 })
 

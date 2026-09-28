@@ -153,8 +153,11 @@ function withLineTotal(
 
   const quantityMilli = Number(values['quantityMilli'] ?? current?.['quantityMilli'] ?? 0)
   const unitPriceCents = Number(values['unitPriceCents'] ?? current?.['unitPriceCents'] ?? 0)
+  // A device of a version before #456 sends no price unit, and the column's
+  // default is one.
+  const priceBase = Number(values['priceBase'] ?? current?.['priceBase'] ?? 1)
 
-  return { ...values, netCents: lineNetCents({ quantityMilli, unitPriceCents }) }
+  return { ...values, netCents: lineNetCents({ quantityMilli, unitPriceCents, priceBase }) }
 }
 
 /**

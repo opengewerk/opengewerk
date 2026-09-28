@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { linePositionProblem, titleAmountProblem } from './document-line.js'
+import {
+  linePositionProblem,
+  priceBaseOf,
+  priceBaseProblem,
+  titleAmountProblem,
+} from './document-line.js'
 
 describe('the place of a line', () => {
   it('is counted from one', () => {
@@ -33,5 +38,23 @@ describe('the amount on a title', () => {
       titleAmountProblem({ kind: 'item', quantityMilli: 2000, unitPriceCents: 5000 }),
     ).toBeNull()
     expect(titleAmountProblem({ quantityMilli: 2000, unitPriceCents: 5000 })).toBeNull()
+  })
+})
+
+describe('the price unit of a line (#456)', () => {
+  it('is one of the four steps of a wholesaler', () => {
+    for (const base of [1, 10, 100, 1000]) {
+      expect(priceBaseProblem(base)).toBeNull()
+    }
+
+    for (const base of [0, 5, 50, 10_000, -100, 1.5, '100', null, undefined]) {
+      expect(priceBaseProblem(base)).toBe('Ein Preis gilt je 1, 10, 100 oder 1000 Einheiten.')
+    }
+  })
+
+  it('reads as one where a value names none of them', () => {
+    expect(priceBaseOf(100)).toBe(100)
+    expect(priceBaseOf(undefined)).toBe(1)
+    expect(priceBaseOf('100')).toBe(1)
   })
 })
