@@ -107,6 +107,25 @@ function perUnit(price: {
   return price.unitPriceCents / price.priceBase
 }
 
+/**
+ * The price unit of the newest of some prices, which the next one most likely
+ * has as well: a form that starts at one would turn a price per 100 into one
+ * per piece whenever somebody overlooks the choice (#456).
+ */
+function newestBase(
+  prices: readonly { readonly validFrom: IsoDate; readonly priceBase: PriceBase }[],
+): PriceBase {
+  let newest = prices[0]
+
+  for (const price of prices) {
+    if (newest === undefined || price.validFrom > newest.validFrom) {
+      newest = price
+    }
+  }
+
+  return newest?.priceBase ?? 1
+}
+
 /** The choices of "Preis je" for a unit: "1 Stk." to "1.000 Stk.". */
 function baseOptions(unit: LineUnit) {
   return priceBases.map((base) => ({ value: String(base), label: priceBaseLabel(base, unit) }))
@@ -668,6 +687,7 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
             <PriceForm
               submitLabel="Preis anlegen"
               unit={article.unit}
+              startBase={newestBase(article.prices)}
               onCancel={() => {
                 setAdding(false)
               }}
@@ -754,6 +774,7 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
 function PriceForm({
   submitLabel,
   unit,
+  startBase = 1,
   onSave,
   onCancel,
   extra,
@@ -762,6 +783,8 @@ function PriceForm({
   readonly submitLabel: string
   /** What the article is counted in, which "Preis je" names (#456). */
   readonly unit: LineUnit
+  /** The price unit "Preis je" starts at, that of the newest price. */
+  readonly startBase?: PriceBase
   readonly onSave: (price: PriceFields) => Promise<void>
   readonly onCancel: () => void
   readonly extra?: ReactNode
@@ -769,7 +792,7 @@ function PriceForm({
   readonly className?: string
 }) {
   const [amount, setAmount] = useState('')
-  const [base, setBase] = useState('1')
+  const [base, setBase] = useState(String(startBase))
   const [day, setDay] = useState<IsoDate>(today())
   // A lump sum is for one of it, as on a position.
   const perUnits = unit !== 'flat_rate'
@@ -847,10 +870,10 @@ function PriceForm({
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="small" icon={Check} disabled={working}>
+        <Button type="submit" tone="primary" icon={Check} disabled={working}>
           {working ? 'Wird gespeichert' : submitLabel}
         </Button>
-        <Button size="small" tone="quiet" disabled={working} onClick={onCancel}>
+        <Button tone="quiet" disabled={working} onClick={onCancel}>
           Abbrechen
         </Button>
       </div>
@@ -1231,6 +1254,7 @@ function SupplierLinkForm({
               className=""
               submitLabel="Einkaufspreis anlegen"
               unit={unit}
+              startBase={newestBase(prices)}
               onCancel={() => {
                 setPricing(false)
               }}

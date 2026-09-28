@@ -317,6 +317,27 @@ describe('an article', () => {
       'font-semibold',
     )
     expect(within(suppliers).getByText('0,55 €').className).not.toContain('font-semibold')
+
+    // A new price starts at the unit of the newest one, so a price per 100
+    // does not become one per metre because nobody looked at "Preis je".
+    await userEvent.click(screen.getByRole('button', { name: 'Neuer Preis' }))
+
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('100')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Kurpfalz Elektrohandel KG ändern' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Neuer Einkaufspreis' }))
+
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('100')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Schließen' }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Elektro-Großhandel Rhein-Neckar GmbH ändern' }),
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Neuer Einkaufspreis' }))
+
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('1')
   })
 
   it('takes a new price for a hundred units (#456)', async () => {
