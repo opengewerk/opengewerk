@@ -354,6 +354,88 @@ describe('an article kept by the office', () => {
     expect(twice.message).toBe('Dieser Lieferant führt den Artikel schon.')
   })
 
+  it('keeps the price unit of a selling and a purchase price (#456)', async () => {
+    const ties = await post('/articles', {
+      number: '5010',
+      designation: 'Kabelbinder 200 × 4,8 mm, schwarz',
+      unit: 'piece',
+      price: { unitPriceCents: 350, validFrom: '2026-01-01', priceBase: 100 },
+    })
+    const sold = await post(`/articles/${ties.id}/suppliers`, {
+      supplierId: wholesaler,
+      supplierNumber: '5709912',
+      price: { unitPriceCents: 210, validFrom: '2026-01-01', priceBase: 100 },
+    })
+
+    await post(`/articles/${ties.id}/prices`, { unitPriceCents: 37, validFrom: '2026-11-01' })
+    await post(
+      `/articles/${ties.id}/prices`,
+      { unitPriceCents: 3700, validFrom: '2026-11-02', priceBase: 50 },
+      office,
+      400,
+    )
+
+    const article = await get(`/articles/${ties.id}`)
+    const prices = article['prices'] as { unitPriceCents: number; priceBase: number }[]
+    const [link] = article['suppliers'] as {
+      id: string
+      purchasePrices: { unitPriceCents: number; priceBase: number }[]
+    }[]
+
+    // Newest first; a price that names no unit is for one.
+    expect(prices.map((price) => [price.unitPriceCents, price.priceBase])).toEqual([
+      [37, 1],
+      [350, 100],
+    ])
+    expect(link?.id).toBe(sold.id)
+    expect(link?.purchasePrices.map((price) => [price.unitPriceCents, price.priceBase])).toEqual([
+      [210, 100],
+    ])
+
+    await http().delete(`/articles/${ties.id}`).set('x-test-identity', office).expect(200)
+  })
+
+  it('prices a lump sum for one of itself, as a position does (#456)', async () => {
+    const lumpSum = { number: '8001', designation: 'Anfahrt', unit: 'flat_rate' }
+    const refused = await post(
+      '/articles',
+      { ...lumpSum, price: { unitPriceCents: 4500, validFrom: '2026-01-01', priceBase: 100 } },
+      office,
+      400,
+    )
+
+    expect(refused.message).toBe('Eine Pauschale hat keine Preiseinheit.')
+
+    const article = await post('/articles', lumpSum)
+
+    await post(
+      `/articles/${article.id}/prices`,
+      { unitPriceCents: 4500, validFrom: '2026-01-01', priceBase: 10 },
+      office,
+      400,
+    )
+    await post(
+      `/articles/${article.id}/suppliers`,
+      {
+        supplierId: wholesaler,
+        price: { unitPriceCents: 3000, validFrom: '2026-01-01', priceBase: 10 },
+      },
+      office,
+      400,
+    )
+
+    const sold = await post(`/articles/${article.id}/suppliers`, { supplierId: wholesaler })
+
+    await post(
+      `/articles/${article.id}/suppliers/${sold.id}/prices`,
+      { unitPriceCents: 3000, validFrom: '2026-01-01', priceBase: 100 },
+      office,
+      400,
+    )
+    await post(`/articles/${article.id}/prices`, { unitPriceCents: 4500, validFrom: '2026-01-01' })
+    await http().delete(`/articles/${article.id}`).set('x-test-identity', office).expect(200)
+  })
+
   it('takes its prices and who sells it along when it is deleted', async () => {
     const socket = await post('/articles', {
       number: '5001',

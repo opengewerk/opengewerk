@@ -18,8 +18,11 @@ import {
   articleProblems,
   isAllowed,
   isCalendarDay,
+  lumpSumPriceBaseProblem,
   missingPermission,
   type PurchasePriceId,
+  type PriceBase,
+  priceBaseOf,
   priceProblems,
   type SupplierArticleId,
   type SupplierId,
@@ -104,12 +107,35 @@ function requireNoProblem(problems: Readonly<Record<string, string>>): void {
   }
 }
 
-/** A price from a day on out of a request body, or a refusal with the sentence of the rule. */
-function priceFrom(body: unknown): { unitPriceCents: number; validFrom: string } {
-  const values = pick(body, ['unitPriceCents', 'validFrom'] as const)
+/**
+ * A price from a day on out of a request body, or a refusal with the sentence
+ * of the rule. Its price unit is one when the body names none (#456).
+ */
+function priceFrom(body: unknown): {
+  unitPriceCents: number
+  validFrom: string
+  priceBase: PriceBase
+} {
+  const values = pick(body, ['unitPriceCents', 'validFrom', 'priceBase'] as const)
   requireNoProblem(priceProblems(values))
 
-  return { unitPriceCents: values.unitPriceCents as number, validFrom: values.validFrom as string }
+  return {
+    unitPriceCents: values.unitPriceCents as number,
+    validFrom: values.validFrom as string,
+    priceBase: priceBaseOf(values.priceBase),
+  }
+}
+
+/**
+ * Refuses a price for several units of an article counted as a lump sum
+ * (#456), the rule a position has as well: "je 100 psch." says nothing.
+ */
+function perOneForLumpSum(unit: unknown, priceBase: number): void {
+  const problem = lumpSumPriceBaseProblem({ unit, priceBase })
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
 }
 
 /** `%` and `_` of a search as themselves, not as the wildcards of LIKE. */
@@ -231,6 +257,11 @@ export class ArticlesController {
           priceCents: sql<number | null>`(select p.unit_price_cents from article_prices p
             where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
             order by p.valid_from desc limit 1)`,
+          // The price unit of that same price (#456); one price a day, so both
+          // questions find the same row.
+          priceBase: sql<PriceBase | null>`(select p.price_base from article_prices p
+            where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
+            order by p.valid_from desc limit 1)`,
           supplierName: sql<string | null>`(select s.name from supplier_articles sa
             join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
             where sa.article_id = ${articleOfRow} order by sa.created_at, sa.id limit 1)`,
@@ -339,6 +370,10 @@ export class ArticlesController {
         ? priceFrom(body.price)
         : null
 
+    if (first) {
+      perOneForLumpSum(values['unit'], first.priceBase)
+    }
+
     try {
       return await this.database.forTenant(identity, async (tx) => {
         const [created] = await tx
@@ -423,6 +458,9 @@ export class ArticlesController {
     try {
       return await this.database.forTenant(identity, async (tx) => {
         const article = await articleOf(tx, id, true)
+
+        perOneForLumpSum(article.unit, price.priceBase)
+
         const [created] = await tx
           .insert(articlePrices)
           .values({ ...price, articleId: article.id, tenantId: identity.tenantId })
@@ -506,6 +544,11 @@ export class ArticlesController {
     try {
       return await this.database.forTenant(identity, async (tx) => {
         const article = await articleOf(tx, id, true)
+
+        if (first) {
+          perOneForLumpSum(article.unit, first.priceBase)
+        }
+
         await requireReferences(
           tx,
           supplierArticles,
@@ -602,6 +645,9 @@ export class ArticlesController {
     try {
       return await this.database.forTenant(identity, async (tx) => {
         const link = await linkOf(tx, id, linkId)
+
+        perOneForLumpSum(link.articleUnit, price.priceBase)
+
         const [created] = await tx
           .insert(purchasePrices)
           .values({ ...price, supplierArticleId: link.id, tenantId: identity.tenantId })
@@ -695,5 +741,6 @@ async function linkOf(tx: TenantTransaction, id: string, linkId: string) {
     throw new NotFoundException()
   }
 
-  return link
+  // What the article is counted in, which a purchase price's unit depends on.
+  return { ...link, articleUnit: article.unit }
 }
