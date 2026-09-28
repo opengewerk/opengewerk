@@ -1413,8 +1413,8 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
                 <span className="text-[14px] leading-[1.4]">
                   Häufig
                   <span className="block text-[13px] text-ink-muted">
-                    Liegt auf jedem Gerät, auch ohne Netz. Ohne die Markierung liegt ein Artikel auf
-                    keinem Gerät und ist auf der Baustelle nur mit Netz zu finden.
+                    Liegt auf jedem Gerät, auch ohne Netz. Ohne die Markierung nur, wenn der Artikel
+                    in den letzten 90 Tagen in einem Beleg oder Regiebericht stand.
                   </span>
                 </span>
               </label>

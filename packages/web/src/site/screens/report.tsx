@@ -39,6 +39,7 @@ import { refusalFor } from '../../sync/client.js'
 import { count, maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRelated, useSync } from '../../sync/provider.js'
 import { SiteActionBar, SiteNoTabs } from '../action-bar.js'
+import { ArticleChoice } from '../article-choice.js'
 import { SiteHeader } from '../header.js'
 import { SiteScreen, SiteText, SiteTrouble } from '../kit.js'
 import { SignaturePad } from '../signature-pad.js'
@@ -387,6 +388,7 @@ function WritingStep({
     readonly designation: string
     readonly quantityMilli: number
     readonly unit: LineUnit
+    readonly articleId: string | null
   }): Promise<EditResult> {
     const made = await client.create('document_lines', {
       documentId: reportId,
@@ -396,9 +398,12 @@ function WritingStep({
       description: null,
       quantityMilli: values.quantityMilli,
       unit: values.unit,
-      // A report carries no prices; the invoice made from it does. The column
-      // wants a figure, and zero is the one that says "not priced here".
+      // A report carries no prices; the invoice made from it does, and takes
+      // the article's price of its own date where the line has one (#296).
+      // The column wants a figure, and zero is the one that says "not priced
+      // here".
       unitPriceCents: 0,
+      articleId: values.articleId,
     })
 
     if (made.outcome === 'queued') {
@@ -427,7 +432,12 @@ function WritingStep({
         ? quantityMilli === 0
           ? await client.remove('document_lines', String(hoursLine['id']))
           : await client.update('document_lines', String(hoursLine['id']), { quantityMilli })
-        : await addLine({ designation: 'Arbeitszeit', quantityMilli, unit: 'hour' })
+        : await addLine({
+            designation: 'Arbeitszeit',
+            quantityMilli,
+            unit: 'hour',
+            articleId: null,
+          })
 
       if (result.outcome === 'refused') {
         setTrouble(refusalFor(result))
@@ -445,6 +455,7 @@ function WritingStep({
         <LineForm
           key={editor}
           editor={editor}
+          day={text(report, 'documentDate')}
           onSave={addLine}
           onCancel={() => {
             setEditor(null)
@@ -691,17 +702,24 @@ function WorkDoneForm({
  * its own over the list. Two variants of one form rather than one form with a
  * kind field: on site "Arbeitszeit eintragen" is a different action from
  * "Material eintragen", and hours have a unit nobody should have to pick.
+ *
+ * Material starts with the choice of an article (#296): one tap fills
+ * material and unit, and the line keeps which article it came from.
  */
 function LineForm({
   editor,
+  day,
   onSave,
   onCancel,
 }: {
   readonly editor: 'hours' | 'material'
+  /** The date of the report. */
+  readonly day: string
   readonly onSave: (values: {
     readonly designation: string
     readonly quantityMilli: number
     readonly unit: LineUnit
+    readonly articleId: string | null
   }) => Promise<EditResult>
   readonly onCancel: () => void
 }) {
@@ -709,6 +727,7 @@ function LineForm({
   const [designation, setDesignation] = useState(hours ? 'Arbeitszeit' : '')
   const [quantity, setQuantity] = useState(hours ? '' : '1')
   const [unit, setUnit] = useState<string>('piece')
+  const [articleId, setArticleId] = useState<string | null>(null)
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
@@ -744,6 +763,7 @@ function LineForm({
         designation: designation.trim(),
         quantityMilli,
         unit: hours ? 'hour' : (lineUnits.find((known) => known === unit) ?? 'piece'),
+        articleId: hours ? null : articleId,
       })
 
       if (saved.outcome === 'refused') {
@@ -762,6 +782,19 @@ function LineForm({
           void save(event)
         }}
       >
+        {hours ? null : (
+          <ArticleChoice
+            day={day}
+            onPick={(article) => {
+              setDesignation(article.designation)
+              setArticleId(article.id)
+
+              if (materialUnits.some((known) => known.value === article.unit)) {
+                setUnit(article.unit)
+              }
+            }}
+          />
+        )}
         <Field
           label={hours ? 'Bezeichnung' : 'Material'}
           value={designation}
@@ -769,8 +802,9 @@ function LineForm({
           hint={
             hours
               ? 'Wie es im Bericht steht, zum Beispiel Arbeitszeit Geselle.'
-              : 'Was verbaut wurde, zum Beispiel Leitungsschutzschalter B16.'
+              : 'Ein Artikel füllt Material und Einheit aus.'
           }
+          placeholder={hours ? undefined : 'Zum Beispiel Leitungsschutzschalter B16'}
           onChange={(event) => {
             setDesignation(event.target.value)
           }}

@@ -15,10 +15,11 @@ export interface ArticleRow {
   readonly id: string
   readonly number: string
   readonly designation: string
+  readonly description: string | null
   readonly unit: LineUnit
   readonly groupOfGoods: string | null
   readonly frequent: boolean
-  /** The selling price of today, or null without one. */
+  /** The selling price of today, or of the day asked for, or null without one. */
   readonly priceCents: number | null
   /** The first supplier, and how many there are in all. */
   readonly supplierName: string | null
@@ -37,6 +38,8 @@ export interface ArticleQuery {
   readonly sort: 'number' | 'designation'
   readonly offset: number
   readonly limit: number
+  /** The day of the selling price, today when left out: a position's document date. */
+  readonly on?: IsoDate
 }
 
 /** A price from a day on, selling or purchase. */
@@ -113,6 +116,10 @@ export function articlePage(query: ArticleQuery): Promise<ArticlePage> {
 
   if (query.group !== '') {
     parameters.set('group', query.group)
+  }
+
+  if (query.on !== undefined) {
+    parameters.set('on', query.on)
   }
 
   return request<ArticlePage>(`/articles?${parameters.toString()}`)

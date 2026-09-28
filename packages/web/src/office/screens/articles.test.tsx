@@ -135,6 +135,7 @@ function aPage(total: number, from: number, count: number): ArticlePage {
       id: `a-${String(from + index)}`,
       number: String(1000 + from + index),
       designation: `Mantelleitung ${String(from + index)}`,
+      description: null,
       unit: 'metre' as const,
       groupOfGoods: 'Kabel und Leitungen',
       frequent: index === 0,

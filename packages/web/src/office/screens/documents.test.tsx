@@ -484,6 +484,60 @@ describe('a quote with titles', () => {
     expect(await screen.findAllByText(/3\.086,40\s€/)).not.toHaveLength(0)
   })
 
+  it('takes a position from an article, with the selling price of the document date', async () => {
+    // #296: the choice asks the catalogue for the price of the document's
+    // date, 21.09.2026, and the line keeps which article it came from.
+    serverSays('GET', '/articles?offset=0&limit=8&sort=number&search=nym&on=2026-09-21', () => ({
+      status: 200,
+      body: {
+        total: 1,
+        rows: [
+          {
+            id: 'a-1042',
+            number: '1042',
+            designation: 'Mantelleitung NYM-J 3 × 1,5 mm²',
+            description: 'Grau, im Ring zu 100 m.',
+            unit: 'metre',
+            groupOfGoods: 'Kabel und Leitungen',
+            frequent: true,
+            priceCents: 92,
+            supplierName: null,
+            suppliers: 0,
+          },
+        ],
+      },
+    }))
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByRole('combobox', { name: 'Position aus Artikel' }), 'nym')
+
+    const option = await screen.findByRole('option', { name: /Mantelleitung NYM-J 3 × 1,5 mm²/ })
+
+    expect(option.textContent).toMatch(/0,92\s€ je Meter/)
+
+    await person.click(option)
+
+    expect((screen.getByLabelText('Bezeichnung') as HTMLInputElement).value).toBe(
+      'Mantelleitung NYM-J 3 × 1,5 mm²',
+    )
+    expect((screen.getByLabelText('Einzelpreis in Euro') as HTMLInputElement).value).toBe('0,92')
+
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      articleId: 'a-1042',
+      description: 'Grau, im Ring zu 100 m.',
+      unit: 'metre',
+      unitPriceCents: 92,
+    })
+  })
+
   it('offers the zero rate for photovoltaics, and names its conditions when it is chosen', async () => {
     // #127, section 12 (3) UStG. Whether a line meets the conditions is the
     // business's to judge, so the form says what they are.
