@@ -175,6 +175,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   dem Einzelpreis, in der E-Rechnung die Basismenge des Preises (BT-149). Folgebeleg, Storno und
   der Abgleich nehmen sie mit, ein Gerät einer älteren Fassung schickt keine und bekommt eins.
   Migration 0060, Fassung 13 des eingefrorenen Stands.
+- Die Preiseinheit an Verkaufs- und Einkaufspreisen der Artikel (#456, zweiter Teil), damit ein
+  Preis des Großhandels je 100 Stück ohne Rundung ankommt. Das Formular eines Preises fragt
+  "Preis je", die Listen nennen "je 100 Stk." unter einem solchen Preis, und eine Position aus
+  einem Artikel übernimmt die Preiseinheit mit dem Preis, im Büro wie in der Rechnung aus einem
+  Regiebericht. Dort nur, solange die Position noch in der Einheit des Artikels zählt: ein Preis
+  je Meter sagt nichts über Stück, und das Büro preist die Position dann selbst. Der niedrigste
+  Einkaufspreis an einem Artikel wird je Einheit verglichen, 2,10 € je 100 Stück ist billiger als
+  0,03 € je Stück. Eine Pauschale hat auch als Artikel keine Preiseinheit. Migration 0061.
 
 ### Geändert
 
