@@ -5,7 +5,6 @@ import { useDeferredValue, useState } from 'react'
 import { Field } from '../components/index.js'
 import { type FoundArticle, useArticleSearch } from '../app/article-search.js'
 import { lineUnitLabel } from '../app/labels.js'
-import { useSyncStatus } from '../sync/provider.js'
 import { SiteLabel, SiteText } from './kit.js'
 
 /** How many hits, and how many articles of each group, stand as buttons. */
@@ -76,7 +75,6 @@ export function ArticleChoice({
   readonly day: IsoDate
   readonly onPick: (article: FoundArticle) => void
 }) {
-  const status = useSyncStatus()
   const [search, setSearch] = useState('')
   const wanted = useDeferredValue(search)
   const found = useArticleSearch(wanted, day, shownHits)
@@ -102,7 +100,7 @@ export function ArticleChoice({
           setSearch(event.target.value)
         }}
       />
-      {status.online ? null : (
+      {held.offline ? (
         <div className="flex gap-2.5 rounded-[6px] border border-waiting-edge bg-waiting-fill px-3 py-2.5 text-[15px] leading-[1.45] text-ink">
           <WifiOff
             size={18}
@@ -115,7 +113,7 @@ export function ArticleChoice({
             ganzen Katalog mit Netz.
           </span>
         </div>
-      )}
+      ) : null}
       {searching ? (
         found.pending ? (
           <SiteText muted size={15}>

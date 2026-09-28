@@ -34,6 +34,14 @@ export interface ArticleSearch {
    */
   readonly where: 'catalogue' | 'device'
   readonly pending: boolean
+  /**
+   * Whether the device is without a connection as far as it knows: the
+   * browser says so, or the last exchange with the server failed. The flag of
+   * the browser alone says online on a network that answers nothing, and a
+   * search would then wait for an answer that never comes; the header says
+   * "Offline" on the same grounds.
+   */
+  readonly offline: boolean
 }
 
 function unitOf(record: RecordState): LineUnit {
@@ -96,6 +104,7 @@ function matches(article: FoundArticle, ean: string | null, wanted: string): boo
  */
 export function useArticleSearch(search: string, day: IsoDate, limit: number): ArticleSearch {
   const status = useSyncStatus()
+  const offline = !status.online || status.trouble !== null
   const articles = useRecords('articles')
   const prices = useRecords('article_prices')
   const wanted = search.trim()
@@ -111,7 +120,7 @@ export function useArticleSearch(search: string, day: IsoDate, limit: number): A
         limit,
         on: day,
       }),
-    enabled: status.online && wanted !== '',
+    enabled: !offline && wanted !== '',
     staleTime: 30_000,
     retry: false,
   })
@@ -125,7 +134,7 @@ export function useArticleSearch(search: string, day: IsoDate, limit: number): A
     )
   }, [articles, prices, day, wanted])
 
-  if (wanted !== '' && status.online && !remote.isError) {
+  if (wanted !== '' && !offline && !remote.isError) {
     return {
       found: (remote.data?.rows ?? []).map((row) => ({
         id: row.id,
@@ -139,8 +148,15 @@ export function useArticleSearch(search: string, day: IsoDate, limit: number): A
       total: remote.data?.total ?? 0,
       where: 'catalogue',
       pending: remote.isPending,
+      offline,
     }
   }
 
-  return { found: local.slice(0, limit), total: local.length, where: 'device', pending: false }
+  return {
+    found: local.slice(0, limit),
+    total: local.length,
+    where: 'device',
+    pending: false,
+    offline,
+  }
 }
