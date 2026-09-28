@@ -16,6 +16,7 @@ import {
   pvStringProblems,
   pvSystemLinkProblem,
   serialFromCode,
+  serialNumberMax,
   serialNumberProblem,
 } from './photovoltaic.js'
 
@@ -63,6 +64,15 @@ describe('the figures of a module', () => {
     expect(pvModuleProblems({ ratedPowerW: pvLimits.moduleRatedPowerW + 1 })).toHaveProperty(
       'ratedPowerW',
     )
+  })
+
+  it('take a serial number of the length a label carries, whichever way it is written', () => {
+    expect(pvModuleProblems({ serialNumber: 'JA2404118771' })).toEqual({})
+    expect(pvModuleProblems({ serialNumber: null })).toEqual({})
+    expect(pvModuleProblems({ serialNumber: 'X'.repeat(serialNumberMax) })).toEqual({})
+    expect(pvModuleProblems({ serialNumber: 'X'.repeat(serialNumberMax + 1) })).toEqual({
+      serialNumber: 'Eine Seriennummer hat höchstens 64 Zeichen.',
+    })
   })
 })
 

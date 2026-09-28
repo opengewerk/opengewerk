@@ -147,7 +147,12 @@ export function pvStringProblems(
   return problems
 }
 
-/** What is wrong with the figures of a module, one sentence per field. */
+/**
+ * What is wrong with the figures of a module, one sentence per field. The
+ * serial number is asked here as well as at the scanner: the office writes it
+ * with the pencil, the site with the camera or by hand, and one field has one
+ * rule whichever way it is written (pr-review on #451).
+ */
 export function pvModuleProblems(
   pvModule: Readonly<Record<string, unknown>>,
 ): Readonly<Record<string, string>> {
@@ -155,6 +160,12 @@ export function pvModuleProblems(
 
   if (!wholeFromTo(pvModule['ratedPowerW'], 1, pvLimits.moduleRatedPowerW)) {
     problems['ratedPowerW'] = 'Die Leistung eines Moduls ist größer als 0 und höchstens 2000 Wp.'
+  }
+
+  const serial = pvModule['serialNumber']
+
+  if (typeof serial === 'string' && serial.trim().length > serialNumberMax) {
+    problems['serialNumber'] = `Eine Seriennummer hat höchstens ${String(serialNumberMax)} Zeichen.`
   }
 
   return problems
