@@ -183,8 +183,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   aus einem Regiebericht. Dort nur, solange die Position noch in der Einheit des Artikels zählt:
   ein Preis je Meter sagt nichts über Stück, und das Büro preist die Position dann selbst. Der
   niedrigste Einkaufspreis an einem Artikel wird je Einheit verglichen, 2,10 € je 100 Stück ist
-  billiger als 0,03 € je Stück. Eine Pauschale hat auch als Artikel keine Preiseinheit. Migration
-  0061.
+  billiger als 0,03 € je Stück. Eine Pauschale hat auch als Artikel keine Preiseinheit, und ein
+  Artikel mit einem Preis je 100 wird erst eine Pauschale, wenn dieser Preis entfernt ist.
+  Migration 0061.
 
 ### Geändert
 
