@@ -1,6 +1,6 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Calendar, Clock, Menu, RefreshCw } from 'lucide-react'
+import { Calendar, Clock, Menu, RefreshCw, ScanLine } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 
@@ -94,8 +94,9 @@ interface Tab {
 }
 
 /**
- * Three places and the menu, as on the boards. "Aufträge" stays lit on every
- * screen of a job, which is where the way back leads. Everybody records their
+ * Four places and the menu, as on the boards. "Aufträge" stays lit on every
+ * screen of a job, which is where the way back leads, and "Scannen" on the
+ * installation a QR label opened and below it (#308). Everybody records their
  * own time, so "Zeiten" is there for every role.
  */
 function useTabs(): readonly Tab[] {
@@ -108,6 +109,12 @@ function useTabs(): readonly Tab[] {
       label: 'Aufträge',
       icon: Calendar,
       active: path === '/' || path.startsWith('/auftraege'),
+    },
+    {
+      to: '/scannen',
+      label: 'Scannen',
+      icon: ScanLine,
+      active: path.startsWith('/scannen') || path.startsWith('/anlagen'),
     },
     { to: '/zeiten', label: 'Zeiten', icon: Clock, active: path.startsWith('/zeiten') },
     {

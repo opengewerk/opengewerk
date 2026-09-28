@@ -28,6 +28,7 @@ import { RecordForm } from '../../app/record-form.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
+import { useStructureBase } from '../structure-base.js'
 import { NotSent, SiteFacts, SiteLabel, SiteRow, SiteRows, SiteScreen, SiteText } from '../kit.js'
 
 /**
@@ -40,12 +41,15 @@ import { NotSent, SiteFacts, SiteLabel, SiteRow, SiteRows, SiteScreen, SiteText 
  * with twelve circuits in it.
  */
 
-/** The boards of the job's installation, in its card on the job's screen. */
+/**
+ * The boards of an installation, in its card on the screen of a job or of the
+ * installation a label opened (#308). `base` is where the structure hangs.
+ */
 export function InstallationBoards({
-  jobId,
+  base,
   installationId,
 }: {
-  readonly jobId: string
+  readonly base: string
   readonly installationId: string
 }) {
   const client = useSync()
@@ -74,7 +78,7 @@ export function InstallationBoards({
               return (
                 <SiteRow
                   key={id}
-                  to={`/auftraege/${jobId}/verteiler/${id}`}
+                  to={`${base}/verteiler/${id}`}
                   title={text(board, 'designation')}
                   meta={
                     <>
@@ -151,11 +155,11 @@ function groupOf(circuits: readonly RecordState[], section: string | null): read
  * feeds, how it is protected and wired, and the chevron that opens it.
  */
 function CircuitCard({
-  jobId,
+  base,
   boardId,
   circuit,
 }: {
-  readonly jobId: string
+  readonly base: string
   readonly boardId: string
   readonly circuit: RecordState
 }) {
@@ -167,7 +171,7 @@ function CircuitCard({
   return (
     <li>
       <Link
-        to={`/auftraege/${jobId}/verteiler/${boardId}/stromkreise/${id}`}
+        to={`${base}/verteiler/${boardId}/stromkreise/${id}`}
         className="flex min-h-16 items-center gap-2.5 rounded-[6px] border border-line bg-surface px-3 py-2.5 text-ink no-underline"
       >
         <span className="shrink-0 rounded-[4px] bg-top px-2 py-[3px] font-condensed text-[17px] font-semibold text-top-ink">
@@ -204,7 +208,8 @@ function CircuitCard({
  * section by section, and the way to add one at the top.
  */
 export function SiteBoardScreen() {
-  const { jobId, boardId } = useParams({ strict: false }) as { jobId?: string; boardId?: string }
+  const { boardId } = useParams({ strict: false }) as { boardId?: string }
+  const base = useStructureBase()
   const client = useSync()
   const board = useRecord('distribution_boards', boardId)
   const sections = useSections(boardId)
@@ -214,7 +219,7 @@ export function SiteBoardScreen() {
   // picked once and not twelve times.
   const [lastSection, setLastSection] = useState<string | null>(null)
 
-  if (!board || !boardId || !jobId) {
+  if (!board || !boardId || !base) {
     return (
       <SiteScreen>
         <SiteHeader title="Nicht gefunden" />
@@ -315,7 +320,7 @@ export function SiteBoardScreen() {
                     {group.circuits.map((circuit) => (
                       <CircuitCard
                         key={String(circuit['id'])}
-                        jobId={jobId}
+                        base={base}
                         boardId={boardId}
                         circuit={circuit}
                       />

@@ -37,6 +37,7 @@ import {
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
+import { useStructureBase } from '../structure-base.js'
 import { NotSent, SiteFacts, SiteLabel, SiteRow, SiteRows, SiteScreen, SiteText } from '../kit.js'
 
 /**
@@ -48,15 +49,16 @@ import { NotSent, SiteFacts, SiteLabel, SiteRow, SiteRows, SiteScreen, SiteText 
  */
 
 /**
- * The card "Anlage" of a job at a PV system, `site_pv_anlage_card()` of the
- * canvas: the inverters where a cabinet has its boards, the way to one more,
- * and what belongs to the system.
+ * The card "Anlage" at a PV system, `site_pv_anlage_card()` of the canvas: the
+ * inverters where a cabinet has its boards, the way to one more, and what
+ * belongs to the system. On the screen of a job, or of the installation a
+ * label opened (#308); `base` is where the structure hangs.
  */
 export function InstallationInverters({
-  jobId,
+  base,
   installationId,
 }: {
-  readonly jobId: string
+  readonly base: string
   readonly installationId: string
 }) {
   const client = useSync()
@@ -82,7 +84,7 @@ export function InstallationInverters({
               return (
                 <SiteRow
                   key={id}
-                  to={`/auftraege/${jobId}/wechselrichter/${id}`}
+                  to={`${base}/wechselrichter/${id}`}
                   title={text(inverter, 'designation')}
                   meta={
                     <>
@@ -245,10 +247,8 @@ function StringCard({
 
 /** One inverter on site, the board "Wechselrichter mit seinen Strings". */
 export function SiteInverterScreen() {
-  const { jobId, inverterId } = useParams({ strict: false }) as {
-    jobId?: string
-    inverterId?: string
-  }
+  const { inverterId } = useParams({ strict: false }) as { inverterId?: string }
+  const base = useStructureBase()
   const client = useSync()
   const inverter = useRecord('inverters', inverterId)
   const system = useRecord('installations', maybeText(inverter, 'installationId') ?? undefined)
@@ -256,7 +256,7 @@ export function SiteInverterScreen() {
   const modules = useRecords('pv_modules')
   const [adding, setAdding] = useState(false)
 
-  if (!inverter || !inverterId || !jobId) {
+  if (!inverter || !inverterId || !base) {
     return <Missing what="Diesen Wechselrichter" />
   }
 
@@ -341,7 +341,7 @@ export function SiteInverterScreen() {
                 return (
                   <StringCard
                     key={id}
-                    to={`/auftraege/${jobId}/wechselrichter/${inverterId}/strings/${id}`}
+                    to={`${base}/wechselrichter/${inverterId}/strings/${id}`}
                     pvString={pvString}
                     modules={modules.filter((module) => text(module, 'pvStringId') === id)}
                   />
@@ -361,11 +361,11 @@ export function SiteInverterScreen() {
  * to add a row of them.
  */
 export function SitePvStringScreen() {
-  const { jobId, inverterId, stringId } = useParams({ strict: false }) as {
-    jobId?: string
+  const { inverterId, stringId } = useParams({ strict: false }) as {
     inverterId?: string
     stringId?: string
   }
+  const base = useStructureBase()
   const navigate = useNavigate()
   const client = useSync()
   const pvString = useRecord('pv_strings', stringId)
@@ -468,7 +468,7 @@ export function SitePvStringScreen() {
                 icon={ScanBarcode}
                 onClick={() => {
                   void navigate({
-                    to: `/auftraege/${jobId ?? ''}/wechselrichter/${inverterId ?? ''}/strings/${stringId}/scannen`,
+                    to: `${base ?? ''}/wechselrichter/${inverterId ?? ''}/strings/${stringId}/scannen`,
                   })
                 }}
               >

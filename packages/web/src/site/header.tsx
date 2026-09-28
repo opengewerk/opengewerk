@@ -15,60 +15,87 @@ const HeaderSlot = createContext<HTMLElement | null>(null)
 
 export const HeaderSlotProvider = HeaderSlot.Provider
 
-/** One step up from wherever this is, or nothing on the three screens of the tabs. */
+/** Where the structure a match names hangs: under its job, or under its installation (#308). */
+function baseOf(match: { readonly jobId?: string; readonly installationId?: string }): string {
+  return match.jobId ? `/auftraege/${match.jobId}` : `/anlagen/${match.installationId ?? ''}`
+}
+
+/** One step up from wherever this is, or nothing on the screens of the tabs. */
 export function useWayBack(): { readonly to: string; readonly label: string } | null {
   const matchRoute = useMatchRoute()
   const onJob = matchRoute({ to: '/auftraege/$jobId' })
   const onReport = matchRoute({ to: '/auftraege/$jobId/berichte/$documentId' })
-  const onBoard = matchRoute({ to: '/auftraege/$jobId/verteiler/$boardId' })
   const onProtocol = matchRoute({ to: '/auftraege/$jobId/pruefprotokolle/$recordId' })
   const onFiles = matchRoute({ to: '/auftraege/$jobId/dateien' })
   const onNote = matchRoute({ to: '/auftraege/$jobId/notiz' })
-  const onCircuit = matchRoute({
-    to: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
-  })
-  const onInverter = matchRoute({ to: '/auftraege/$jobId/wechselrichter/$inverterId' })
-  const onString = matchRoute({
-    to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId',
-  })
-  const onScanner = matchRoute({
-    to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId/scannen',
-  })
+  const onInstallation = matchRoute({ to: '/anlagen/$installationId' })
+  // The structure below a job, and the same below an installation a QR label
+  // opened (#308).
+  const board =
+    matchRoute({ to: '/auftraege/$jobId/verteiler/$boardId' }) ||
+    matchRoute({ to: '/anlagen/$installationId/verteiler/$boardId' })
+  const circuit =
+    matchRoute({ to: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId' }) ||
+    matchRoute({ to: '/anlagen/$installationId/verteiler/$boardId/stromkreise/$circuitId' })
+  const inverter =
+    matchRoute({ to: '/auftraege/$jobId/wechselrichter/$inverterId' }) ||
+    matchRoute({ to: '/anlagen/$installationId/wechselrichter/$inverterId' })
+  const pvString =
+    matchRoute({ to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId' }) ||
+    matchRoute({ to: '/anlagen/$installationId/wechselrichter/$inverterId/strings/$stringId' })
+  const scanner =
+    matchRoute({ to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId/scannen' }) ||
+    matchRoute({
+      to: '/anlagen/$installationId/wechselrichter/$inverterId/strings/$stringId/scannen',
+    })
   const onEntry =
     matchRoute({ to: '/zeiten/$day/nachtragen' }) ||
     matchRoute({ to: '/zeiten/$day/korrigieren/$entryId' })
-  // The circuit goes back to its board and the string to its inverter,
-  // everything else below a job back to the job, the job back to the list.
-  const underJob = onReport || onBoard || onInverter || onProtocol || onFiles || onNote
 
   // A late entry or a correction goes back to its day.
   if (onEntry) {
     return { to: `/zeiten/${onEntry.day}`, label: 'Zurück zu den Zeiten' }
   }
 
-  if (onCircuit) {
-    return {
-      to: `/auftraege/${onCircuit.jobId}/verteiler/${onCircuit.boardId}`,
-      label: 'Zurück zum Verteiler',
-    }
+  // The circuit goes back to its board, the scanner to its string and the
+  // string to its inverter, below a job and below an installation alike.
+  if (circuit) {
+    return { to: `${baseOf(circuit)}/verteiler/${circuit.boardId}`, label: 'Zurück zum Verteiler' }
   }
 
-  if (onScanner) {
+  if (scanner) {
     return {
-      to: `/auftraege/${onScanner.jobId}/wechselrichter/${onScanner.inverterId}/strings/${onScanner.stringId}`,
+      to: `${baseOf(scanner)}/wechselrichter/${scanner.inverterId}/strings/${scanner.stringId}`,
       label: 'Zurück zum String',
     }
   }
 
-  if (onString) {
+  if (pvString) {
     return {
-      to: `/auftraege/${onString.jobId}/wechselrichter/${onString.inverterId}`,
+      to: `${baseOf(pvString)}/wechselrichter/${pvString.inverterId}`,
       label: 'Zurück zum Wechselrichter',
     }
   }
 
+  // A board or an inverter back to what it hangs under.
+  const top = board || inverter
+
+  if (top) {
+    return 'jobId' in top
+      ? { to: baseOf(top), label: 'Zurück zum Auftrag' }
+      : { to: baseOf(top), label: 'Zurück zur Anlage' }
+  }
+
+  // Everything else below a job back to the job, the job back to the list,
+  // and the installation a label opened back to the camera.
+  const underJob = onReport || onProtocol || onFiles || onNote
+
   if (underJob) {
     return { to: `/auftraege/${underJob.jobId}`, label: 'Zurück zum Auftrag' }
+  }
+
+  if (onInstallation) {
+    return { to: '/scannen', label: 'Zurück zum Scannen' }
   }
 
   return onJob ? { to: '/', label: 'Zurück zu den Aufträgen' } : null
