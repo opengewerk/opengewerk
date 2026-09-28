@@ -7,10 +7,12 @@ import {
   Clock,
   File,
   House,
+  Package,
   RefreshCw,
   Settings,
   SquareCheck,
   TextAlignStart,
+  Truck,
   Users,
   X,
   Zap,
@@ -76,6 +78,8 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
   const readsTasks = useMay('task.read')
   const readsDeadlines = useMay('deadline.read')
   const readsTime = useMay('time.read')
+  const readsArticles = useMay('article.read')
+  const readsSuppliers = useMay('supplier.read')
   const mine = useOpenTasksOfMine()
   const drafts = useRecords('documents').filter(
     (document) => documentStatusOf(document) === 'draft',
@@ -145,6 +149,15 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
         ...(readsTime ? [{ to: '/zeiten', label: 'Zeiterfassung', icon: Clock }] : []),
       ],
     },
+    // The articles and where they come from (#296), a group of their own as
+    // the module "Material" of the concept, which the store joins later.
+    {
+      title: 'Material',
+      entries: [
+        ...(readsArticles ? [{ to: '/artikel', label: 'Artikel', icon: Package }] : []),
+        ...(readsSuppliers ? [{ to: '/lieferanten', label: 'Lieferanten', icon: Truck }] : []),
+      ],
+    },
   ]
 
   const foot: Entry[] = [
@@ -169,7 +182,8 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
       : []),
   ]
 
-  return { groups, foot }
+  // A group without an entry this access may use is left out with its title.
+  return { groups: groups.filter((group) => group.entries.length > 0), foot }
 }
 
 /**

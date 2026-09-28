@@ -10,6 +10,7 @@ import {
   contactName,
   dialable,
   NewContactForm,
+  parentField,
 } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
@@ -18,13 +19,14 @@ import { maybeText } from '../../sync/fields.js'
 import { useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 
 /**
- * The contacts at a customer or at a site, on its screen in the office
- * (#121), as `contacts_card()` of the canvas draws them (#219): the name, the
+ * The contacts at a customer, a site or a supplier (#296), on its screen in
+ * the office (#121), as `contacts_card()` of the canvas draws them (#219): the name, the
  * role under it, phone and e-mail to tap, and a pencil to change a contact.
  * Removing one is in the form behind the pencil, with a question first.
  *
  * Creating is the customer's right to create, changing and removing its right
- * to write, the same pair the sync asks for a contact. Changing and removing
+ * to write, the same pair the sync asks for a contact; at a supplier both are
+ * the right to keep suppliers. Changing and removing
  * go straight to the server, since master data is corrected with a connection
  * (ADR 0005), and a form that cannot be sent says so before anybody fills it.
  */
@@ -37,10 +39,15 @@ export function ContactsSection({
 }) {
   const client = useSync()
   const status = useSyncStatus()
-  const creates = useMay('customer.create')
-  const corrects = useMay('customer.write')
-  const [field, id] =
-    'customerId' in parent ? ['customerId', parent.customerId] : ['siteId', parent.siteId]
+  // The people of a supplier are the supplier's (#296): whoever keeps the
+  // suppliers adds and corrects them, not whoever may add a customer on site.
+  const ofSupplier = 'supplierId' in parent
+  const createsForCustomers = useMay('customer.create')
+  const correctsForCustomers = useMay('customer.write')
+  const keepsSuppliers = useMay('supplier.write')
+  const creates = ofSupplier ? keepsSuppliers : createsForCustomers
+  const corrects = ofSupplier ? keepsSuppliers : correctsForCustomers
+  const [field, id] = parentField(parent)
   const contacts = useRelated('contacts', field, id)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)

@@ -1,4 +1,6 @@
 import type {
+  Article,
+  ArticlePrice,
   Attachment,
   AttachmentVersion,
   AuditChain,
@@ -28,6 +30,7 @@ import type {
   Letterhead,
   Membership,
   NumberRange,
+  PurchasePrice,
   PvModule,
   PvString,
   Site,
@@ -35,6 +38,8 @@ import type {
   SiteAccessReveal,
   SiteTag,
   StoredFile,
+  Supplier,
+  SupplierArticle,
   SyncConflict,
   SyncOperation,
   SyncSequence,
@@ -49,6 +54,8 @@ import type {
 } from '@opengewerk/domain'
 
 import type {
+  articlePrices,
+  articles,
   attachments,
   attachmentVersions,
   auditChains,
@@ -79,12 +86,15 @@ import type {
   letterheads,
   memberships,
   numberRanges,
+  purchasePrices,
   pvModules,
   pvStrings,
   siteAccesses,
   siteAccessReveals,
   sites,
   siteTags,
+  supplierArticles,
+  suppliers,
   syncConflicts,
   syncOperations,
   syncSequences,
@@ -118,6 +128,13 @@ export type TenantParameterMatches = Assert<
 >
 export type CustomerMatches = Assert<Exact<typeof customers.$inferSelect, Customer>>
 export type ContactMatches = Assert<Exact<typeof contacts.$inferSelect, Contact>>
+export type SupplierMatches = Assert<Exact<typeof suppliers.$inferSelect, Supplier>>
+export type ArticleMatches = Assert<Exact<typeof articles.$inferSelect, Article>>
+export type ArticlePriceMatches = Assert<Exact<typeof articlePrices.$inferSelect, ArticlePrice>>
+export type SupplierArticleMatches = Assert<
+  Exact<typeof supplierArticles.$inferSelect, SupplierArticle>
+>
+export type PurchasePriceMatches = Assert<Exact<typeof purchasePrices.$inferSelect, PurchasePrice>>
 export type AttachmentMatches = Assert<Exact<typeof attachments.$inferSelect, Attachment>>
 export type AttachmentVersionMatches = Assert<
   Exact<typeof attachmentVersions.$inferSelect, AttachmentVersion>

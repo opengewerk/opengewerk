@@ -185,6 +185,14 @@ export const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'contacts', column: 'customer_id' },
     { table: 'customer_tags', column: 'customer_id' },
   ],
+  suppliers: [{ table: 'contacts', column: 'supplier_id' }],
+  // An article with its prices and where it comes from (#296), walked down to
+  // the purchase prices at each supplier.
+  articles: [
+    { table: 'article_prices', column: 'article_id' },
+    { table: 'supplier_articles', column: 'article_id' },
+  ],
+  supplier_articles: [{ table: 'purchase_prices', column: 'supplier_article_id' }],
   sites: [
     { table: 'contacts', column: 'site_id' },
     { table: 'site_tags', column: 'site_id' },
@@ -226,6 +234,8 @@ export const auditRecordTables = [
   'installations',
   'jobs',
   'documents',
+  'articles',
+  'suppliers',
 ] as const
 
 /**
@@ -248,6 +258,9 @@ export const auditReferences: Readonly<Record<string, string>> = {
   circuit_id: 'circuits',
   inverter_id: 'inverters',
   pv_string_id: 'pv_strings',
+  article_id: 'articles',
+  supplier_id: 'suppliers',
+  supplier_article_id: 'supplier_articles',
   pv_system_id: 'installations',
   attachment_id: 'attachments',
   task_id: 'tasks',
@@ -298,6 +311,12 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   pv_modules: ['model', 'serial_number'],
   // A label is told apart by its code, the one thing it says (#308).
   installation_labels: ['code'],
+  // An article by what it is called, a price by the day it begins, and what a
+  // supplier sells by the supplier, which the page names (#296).
+  articles: ['designation', 'number'],
+  article_prices: ['valid_from'],
+  purchase_prices: ['valid_from'],
+  supplier_articles: ['supplier_id'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],
   deadlines: ['source_label'],

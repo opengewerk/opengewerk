@@ -1,13 +1,16 @@
 import type { ContactId, CustomerId, SiteId, Synced } from './identifier.js'
+import type { SupplierId } from './supplier.js'
 
 /**
- * A person to talk to. Hangs off a customer (site manager, accounting) or off
- * a single site (tenant, caretaker), never off both, and never off neither.
+ * A person to talk to. Hangs off a customer (site manager, accounting), off a
+ * single site (tenant, caretaker) or, since #296, off a supplier (the desk
+ * that takes orders): off exactly one of them, never off none.
  */
 export interface Contact extends Synced {
   readonly id: ContactId
   readonly customerId: CustomerId | null
   readonly siteId: SiteId | null
+  readonly supplierId: SupplierId | null
   readonly givenName: string | null
   readonly familyName: string
   /** Free text such as `Bauleiter` or `Hausmeister`, not a fixed list. */
@@ -17,29 +20,29 @@ export interface Contact extends Synced {
 }
 
 /** The two ways a contact can miss the one place the model gives it. */
-export type ContactParentProblem = 'none' | 'both'
+export type ContactParentProblem = 'none' | 'several'
 
 /**
- * Whether a contact hangs on exactly one customer or one site, judged from
- * the two fields as they stand; null when it does.
+ * Whether a contact hangs on exactly one customer, site or supplier, judged
+ * from the three fields as they stand; null when it does.
  *
- * One function for a form, the sync and any route to come, so that all of them
- * read the rule the check `contacts_belong_to_customer_or_site` holds in the
- * database the same way. An empty string counts as empty, the way a form hands
- * over a field nobody filled in.
+ * One function for a form, the sync and the routes, so that all of them read
+ * the rule the check `contacts_belong_to_one_parent` holds in the database the
+ * same way. An empty string counts as empty, the way a form hands over a field
+ * nobody filled in.
  */
 export function contactParentProblem(contact: {
   readonly customerId?: unknown
   readonly siteId?: unknown
+  readonly supplierId?: unknown
 }): ContactParentProblem | null {
-  const onCustomer = named(contact.customerId)
-  const onSite = named(contact.siteId)
+  const parents = [contact.customerId, contact.siteId, contact.supplierId].filter(named).length
 
-  if (onCustomer && onSite) {
-    return 'both'
+  if (parents > 1) {
+    return 'several'
   }
 
-  return onCustomer || onSite ? null : 'none'
+  return parents === 1 ? null : 'none'
 }
 
 function named(value: unknown): boolean {
@@ -48,6 +51,7 @@ function named(value: unknown): boolean {
 
 /** The sentence for each, as a form shows it and the sync refuses with it. */
 export const contactParentText: Readonly<Record<ContactParentProblem, string>> = {
-  none: 'Ein Kontakt gehört zu einem Kunden oder zu einem Objekt, dieser zu keinem von beiden.',
-  both: 'Ein Kontakt gehört zu einem Kunden oder zu einem Objekt, nicht zu beiden zugleich.',
+  none: 'Ein Kontakt gehört zu einem Kunden, einem Objekt oder einem Lieferanten, dieser zu keinem davon.',
+  several:
+    'Ein Kontakt gehört zu einem Kunden, einem Objekt oder einem Lieferanten, nicht zu mehreren zugleich.',
 }

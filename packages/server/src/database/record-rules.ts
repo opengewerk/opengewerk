@@ -17,6 +17,7 @@ import {
   type RecordState,
   servicePeriodProblem,
   signerNameProblem,
+  supplierProblems,
   titleAmountProblem,
 } from '@opengewerk/domain'
 
@@ -72,6 +73,20 @@ const country: RecordRule = {
 const rules: Readonly<Record<string, readonly RecordRule[]>> = {
   customers: [country],
   sites: [country],
+  // A supplier is master data a device may create (#296): its name and the
+  // customer number there, as `supplierProblems` and the checks hold them.
+  suppliers: [
+    country,
+    {
+      fields: ['name'],
+      problem: (at) => supplierProblems({ name: at('name') })['name'] ?? null,
+    },
+    {
+      fields: ['customerNumber'],
+      problem: (at) =>
+        supplierProblems({ customerNumber: at('customerNumber') })['customerNumber'] ?? null,
+    },
+  ],
   installations: [
     {
       fields: ['kind', 'pvSystemId'],

@@ -60,6 +60,8 @@ export default defineConfig({
         '/auth',
         '/customers',
         '/contacts',
+        '/suppliers',
+        '/articles',
         '/sites',
         '/installations',
         '/jobs',

@@ -389,6 +389,8 @@ export function recordHref(table: string, id: string): string | null {
     inverters: '/wechselrichter/',
     pv_strings: '/strings/',
     form_records: '/pruefprotokolle/',
+    articles: '/artikel/',
+    suppliers: '/lieferanten/',
   }
   const start = screens[table]
 
@@ -408,6 +410,8 @@ export function recordLinkWords(table: string): string {
     inverters: 'Zum Wechselrichter',
     pv_strings: 'Zum String',
     form_records: 'Zum Protokoll',
+    articles: 'Zum Artikel',
+    suppliers: 'Zum Lieferanten',
   }
 
   return words[table] ?? 'Zum Datensatz'

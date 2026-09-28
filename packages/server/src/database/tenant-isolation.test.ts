@@ -862,6 +862,38 @@ const crossings: readonly {
             values (${own.tenant}, ${other.installation}, '7K2M9QX4TBA3HW8P')`,
   },
   {
+    // The people of a supplier (#296), like those of a customer.
+    key: 'contacts_supplier_in_tenant',
+    write: (own, other) => repoint('contacts', 'supplier_id', own.supplierContact, other.supplier),
+  },
+  {
+    // A price, a supplier's number and a purchase price hang on an article
+    // or a supplier of the same business (#296). Inserted, since a price is
+    // never changed and the application may not move one.
+    key: 'article_prices_article_in_tenant',
+    write: (own, other) =>
+      sql`insert into article_prices (tenant_id, article_id, valid_from, unit_price_cents)
+            values (${own.tenant}, ${other.article}, '2026-03-01', 92)`,
+  },
+  {
+    key: 'supplier_articles_article_in_tenant',
+    write: (own, other) =>
+      sql`insert into supplier_articles (tenant_id, article_id, supplier_id)
+            values (${own.tenant}, ${other.article}, ${own.supplier})`,
+  },
+  {
+    key: 'supplier_articles_supplier_in_tenant',
+    write: (own, other) =>
+      sql`insert into supplier_articles (tenant_id, article_id, supplier_id)
+            values (${own.tenant}, ${own.article}, ${other.supplier})`,
+  },
+  {
+    key: 'purchase_prices_supplier_article_in_tenant',
+    write: (own, other) =>
+      sql`insert into purchase_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents)
+            values (${own.tenant}, ${other.supplierArticle}, '2026-03-01', 54)`,
+  },
+  {
     key: 'inverters_installation_in_tenant',
     write: (own, other) =>
       repoint('inverters', 'installation_id', own.inverter, other.installation),
@@ -1074,6 +1106,10 @@ interface Planted {
   readonly equipment: string
   readonly tag: string
   readonly siteAccess: string
+  readonly supplier: string
+  readonly supplierContact: string
+  readonly article: string
+  readonly supplierArticle: string
 }
 
 /**
@@ -1167,6 +1203,13 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     "insert into circuits (tenant_id, distribution_board_id, designation) values ($1, $2, 'F1')",
     [tenant, board],
   )
+  const supplier = await one("insert into suppliers (tenant_id, name) values ($1, 'Großhandel')", [
+    tenant,
+  ])
+  const article = await one(
+    "insert into articles (tenant_id, number, designation, unit) values ($1, '1042', 'NYM-J 3 × 1,5 mm²', 'metre')",
+    [tenant],
+  )
 
   return {
     tenant,
@@ -1251,6 +1294,16 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     equipment: await one(
       "insert into equipment (tenant_id, circuit_id, designation) values ($1, $2, 'Wallbox')",
       [tenant, circuit],
+    ),
+    supplier,
+    supplierContact: await one(
+      "insert into contacts (tenant_id, supplier_id, family_name) values ($1, $2, 'Innendienst')",
+      [tenant, supplier],
+    ),
+    article,
+    supplierArticle: await one(
+      "insert into supplier_articles (tenant_id, article_id, supplier_id, supplier_number) values ($1, $2, $3, '5700123')",
+      [tenant, article, supplier],
     ),
   }
 }

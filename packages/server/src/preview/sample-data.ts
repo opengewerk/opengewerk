@@ -1,5 +1,5 @@
 import type { IsoDate } from '@opengewerk/domain'
-import { lineUnits, signedContentFingerprint } from '@opengewerk/domain'
+import { addDays, lineUnits, signedContentFingerprint } from '@opengewerk/domain'
 
 import { newId } from '../database/identifier.js'
 import { previewUser } from './preview-database.js'
@@ -649,6 +649,210 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await plantBoards(post, cabinet, today)
   await plantPhotovoltaic(post, berg, house)
+  await plantMaterial(post, today)
+}
+
+/**
+ * The catalogue of the business (#296), as the boards of the canvas draw it:
+ * four suppliers, one with a person in its office and one without a customer
+ * number, and twelve articles, some marked as frequent, each with a selling
+ * price. The cable has three prices, one of them to come, and two suppliers
+ * with their numbers and purchase prices, so that the page of an article shows
+ * every state a price can be in.
+ */
+async function plantMaterial(
+  post: (path: string, body: unknown) => Promise<Answer>,
+  today: IsoDate,
+): Promise<void> {
+  const supplier = async (values: Record<string, unknown>) =>
+    idOf(await post('/suppliers', { country: 'DE', ...values }))
+
+  const hansa = await supplier({
+    name: 'Elektro-Großhandel Hansa GmbH & Co. KG',
+    customerNumber: '448120',
+    street: 'Billstraße',
+    houseNumber: '80',
+    postalCode: '20539',
+    city: 'Hamburg',
+    phone: '040 318 40-0',
+    email: 'bestellung@egh-hansa.example',
+    notes: 'Abholung bis 16 Uhr, Lieferung am nächsten Werktag.',
+  })
+  const nordlicht = await supplier({
+    name: 'Nordlicht Elektrohandel KG',
+    customerNumber: 'K-20417',
+    street: 'Kieler Straße',
+    houseNumber: '301',
+    postalCode: '22525',
+    city: 'Hamburg',
+    phone: '040 54 70 90',
+  })
+  const solar = await supplier({
+    name: 'Solar-Direkt Nord GmbH',
+    customerNumber: '7730-11',
+    postalCode: '24103',
+    city: 'Kiel',
+  })
+  await supplier({ name: 'Leuchten Wagner GmbH', postalCode: '21073', city: 'Hamburg' })
+
+  await post('/contacts', {
+    supplierId: hansa,
+    givenName: 'Jörg',
+    familyName: 'Stein',
+    role: 'Innendienst',
+    phone: '040 318 40-12',
+    email: 'j.stein@egh-hansa.example',
+  })
+
+  // number, designation, group of goods, unit, selling price, frequent, supplier, its number
+  const catalogue = [
+    [
+      '1042',
+      'Mantelleitung NYM-J 3 × 1,5 mm²',
+      'Kabel und Leitungen',
+      'metre',
+      92,
+      true,
+      hansa,
+      '5700123',
+    ],
+    [
+      '1043',
+      'Mantelleitung NYM-J 5 × 2,5 mm²',
+      'Kabel und Leitungen',
+      'metre',
+      235,
+      false,
+      hansa,
+      '5700131',
+    ],
+    [
+      '1044',
+      'Mantelleitung NYM-J 5 × 6 mm²',
+      'Kabel und Leitungen',
+      'metre',
+      980,
+      false,
+      hansa,
+      '5700158',
+    ],
+    [
+      '2101',
+      'Leitungsschutzschalter B16, 1-polig',
+      'Schutzgeräte',
+      'piece',
+      890,
+      true,
+      nordlicht,
+      'LS-B16-1',
+    ],
+    [
+      '2140',
+      'FI/LS-Schalter 4-polig, B16, Typ A, 30 mA',
+      'Schutzgeräte',
+      'piece',
+      18900,
+      false,
+      nordlicht,
+      'FILS-4-B16',
+    ],
+    [
+      '3010',
+      'Wallbox 11 kW, lastmanagementfähig',
+      'Ladetechnik',
+      'piece',
+      118000,
+      false,
+      nordlicht,
+      'WB-11-LM',
+    ],
+    ['4020', 'LED-Wannenleuchte 1,2 m', 'Leuchten', 'piece', 6450, false, hansa, '6120044'],
+    ['4031', 'Bewegungsmelder 180°', 'Installationsgeräte', 'piece', 3890, true, hansa, '6310907'],
+    ['5001', 'Abzweigdose AP, IP65', 'Installationsmaterial', 'piece', 340, true, hansa, '4404112'],
+    [
+      '5002',
+      'Verbindungsklemme 3-polig, 50 Stück',
+      'Installationsmaterial',
+      'package',
+      2490,
+      true,
+      nordlicht,
+      'VK3-50',
+    ],
+    [
+      '6001',
+      'Kabelkanal 40 × 60 mm, 2 m',
+      'Installationsmaterial',
+      'piece',
+      1120,
+      false,
+      hansa,
+      '8810240',
+    ],
+    [
+      '7001',
+      'Solarmodul 430 Wp, Glas-Glas',
+      'Photovoltaik',
+      'piece',
+      18900,
+      false,
+      solar,
+      'SM-430-GG',
+    ],
+  ] as const
+  const since = addDays(today, -210)
+
+  for (const [
+    number,
+    designation,
+    groupOfGoods,
+    unit,
+    cents,
+    frequent,
+    from,
+    theirs,
+  ] of catalogue) {
+    const cable = number === '1042'
+    const article = idOf(
+      await post('/articles', {
+        number,
+        designation,
+        groupOfGoods,
+        unit,
+        frequent,
+        // The one EAN from the range GS1 keeps for use inside a business, so
+        // that it is no real product's number.
+        ...(cable
+          ? {
+              ean: '2001042000018',
+              description: 'Für die feste Verlegung, grau, im Ring zu 100 m.',
+            }
+          : {}),
+        price: { unitPriceCents: cable ? 89 : cents, validFrom: addDays(since, -180) },
+      }),
+    )
+
+    // Purchase prices at about three fifths of the selling price, as a
+    // wholesaler's list would have them.
+    await post(`/articles/${article}/suppliers`, {
+      supplierId: from,
+      supplierNumber: theirs,
+      price: { unitPriceCents: Math.round(cents * 0.6), validFrom: since },
+    })
+
+    if (cable) {
+      await post(`/articles/${article}/prices`, { unitPriceCents: cents, validFrom: since })
+      await post(`/articles/${article}/prices`, {
+        unitPriceCents: 98,
+        validFrom: addDays(today, 3),
+      })
+      await post(`/articles/${article}/suppliers`, {
+        supplierId: nordlicht,
+        supplierNumber: 'NYM315-100',
+        price: { unitPriceCents: 57, validFrom: addDays(today, -105) },
+      })
+    }
+  }
 }
 
 /**

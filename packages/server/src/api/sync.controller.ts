@@ -29,6 +29,8 @@ import { eq, sql } from 'drizzle-orm'
 import { Database, type TenantTransaction } from '../database/database.js'
 import {
   accessesOfOpenJobs,
+  articlesNarrowedTo,
+  articlesOnDevices,
   deviceScope,
   narrowedTo,
   scopedEntities,
@@ -183,6 +185,11 @@ function parseOperation(entry: unknown, index: number, deviceId: string): Operat
   }
 }
 
+/** Whether an operation sets a field to a value, as a create sets every field it has. */
+function setsField(patches: Operation['patches'], field: string): boolean {
+  return patches.some((patch) => patch.field === field && patch.to !== null && patch.to !== '')
+}
+
 /**
  * What an operation needs beyond the right to sync at all.
  *
@@ -211,6 +218,14 @@ export function permissionFor(
   kind: OperationKind,
   patches: Operation['patches'] = [],
 ): Permission | null {
+  // A contact of a supplier is the supplier's (#296), which a technician, who
+  // may add a customer's contact on site, may not keep. Creating one names the
+  // supplier; a change to a contact asks `customer.write`, which a technician
+  // lacks, and the route asks for the supplier's right on top.
+  if (entity === 'contacts' && kind === 'create' && setsField(patches, 'supplierId')) {
+    return 'supplier.write'
+  }
+
   if ((entity === 'customers' || entity === 'contacts') && kind === 'create') {
     return 'customer.create'
   }
@@ -228,6 +243,11 @@ export function permissionFor(
   const subject: Record<string, Permission> = {
     customers: 'customer.write',
     contacts: 'customer.write',
+    suppliers: 'supplier.write',
+    // Kept at the routes of the office (#296); the policy refuses every write
+    // from a device, and this names the right that keeps them.
+    articles: 'article.write',
+    article_prices: 'article.write',
     sites: 'site.write',
     installations: 'installation.write',
     distribution_boards: 'installation.write',
@@ -476,8 +496,9 @@ export class SyncController {
     // handed is recorded for that device and a showing is taken only from it.
     const keepsAccess = isAllowed(identity, 'site.access')
     const withValues = access === 'values' && !keepsAccess && identity.deviceId !== undefined
-    const { answer, scope, sites } = await this.database.forTenant(identity, async (tx) => {
+    const { answer, scope, sites, held } = await this.database.forTenant(identity, async (tx) => {
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
+      const held = await articlesOnDevices(tx)
       const sites = scope !== null && !keepsAccess ? await sitesWithOpenJobs(tx, scope) : null
       const found = await changesSince(tx, from, undefined, (entity) => {
         if (entity === 'time_entries' && ownTimeOnly) {
@@ -487,6 +508,12 @@ export class SyncController {
         // Who saw which value is for the audit log; a device gets its own.
         if (entity === 'site_access_reveals') {
           return eq(siteAccessReveals.userId, identity.userId)
+        }
+
+        // The catalogue does not fit on a device (#296): every device, the
+        // office's too, holds the frequent articles and their prices.
+        if (entity === 'articles' || entity === 'article_prices') {
+          return articlesNarrowedTo(held, entity)
         }
 
         if (entity === 'site_accesses') {
@@ -508,7 +535,7 @@ export class SyncController {
           )
         : found.changes
 
-      return { answer: { ...found, changes }, scope, sites }
+      return { answer: { ...found, changes }, scope, sites, held }
     })
 
     // What the answer was narrowed to, per entity whose rows depend on who
@@ -534,6 +561,10 @@ export class SyncController {
             ? `${sites.value}:${withValues ? 'values' : 'bare'}`
             : 'none',
         site_access_reveals: `user:${identity.userId}`,
+        // The articles every device holds, which change with the articles and
+        // not with who asks (#296).
+        articles: held.value,
+        article_prices: held.value,
       },
     }
   }

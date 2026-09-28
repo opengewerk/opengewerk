@@ -648,7 +648,6 @@ function SearchRow({
   readonly hint: boolean
 }) {
   const searchId = useId()
-  const sortSelectId = useId()
   const choiceSelectId = useId()
   const narrow = band === 'S' || band === 'M'
 
@@ -737,35 +736,54 @@ function SearchRow({
         </span>
       ) : null}
       {sorts.length > 0 && !narrow ? (
-        <span className="flex items-center gap-2 text-[13px] text-ink-faint">
-          <label htmlFor={sortSelectId}>Sortiert nach</label>
-          {/* Drawn as the small button of the board, the arrow in front, and
-              still the native list underneath. */}
-          <span className="relative inline-flex">
-            <ChevronDown
-              size={13}
-              strokeWidth={2.3}
-              aria-hidden="true"
-              className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-ink"
-            />
-            <select
-              id={sortSelectId}
-              value={sortId ?? ''}
-              onChange={(event) => {
-                onSort(event.target.value)
-              }}
-              className="h-[27px] cursor-pointer appearance-none rounded-control border border-control bg-ground pr-[9px] pl-[27px] text-[13px] text-ink"
-            >
-              {sorts.map((sort) => (
-                <option key={sort.id} value={sort.id}>
-                  {sort.label}
-                </option>
-              ))}
-            </select>
-          </span>
-        </span>
+        <SortChoice options={sorts} value={sortId ?? ''} onChange={onSort} />
       ) : null}
     </div>
+  )
+}
+
+/**
+ * "Sortiert nach" and the order beside it, as the list boards draw it: the
+ * small button with the arrow in front, and still the native list underneath.
+ * Also for a list the server pages, the articles (#296).
+ */
+export function SortChoice({
+  options,
+  value,
+  onChange,
+}: {
+  readonly options: readonly { readonly id: string; readonly label: string }[]
+  readonly value: string
+  readonly onChange: (id: string) => void
+}) {
+  const id = useId()
+
+  return (
+    <span className="flex items-center gap-2 text-[13px] text-ink-faint">
+      <label htmlFor={id}>Sortiert nach</label>
+      <span className="relative inline-flex">
+        <ChevronDown
+          size={13}
+          strokeWidth={2.3}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-[9px] -translate-y-1/2 text-ink"
+        />
+        <select
+          id={id}
+          value={value}
+          onChange={(event) => {
+            onChange(event.target.value)
+          }}
+          className="h-[27px] cursor-pointer appearance-none rounded-control border border-control bg-ground pr-[9px] pl-[27px] text-[13px] text-ink"
+        >
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </span>
+    </span>
   )
 }
 

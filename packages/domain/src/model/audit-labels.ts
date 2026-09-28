@@ -54,6 +54,21 @@ interface TableWords {
 }
 
 export const auditTables: Readonly<Record<string, TableWords>> = {
+  article_prices: {
+    label: 'Verkaufspreis',
+    fields: { article_id: 'Artikel', valid_from: 'Gültig ab', unit_price_cents: 'Preis' },
+  },
+  articles: {
+    label: 'Artikel',
+    fields: {
+      number: 'Nummer',
+      description: 'Beschreibung',
+      ean: 'EAN',
+      unit: 'Einheit',
+      group_of_goods: 'Warengruppe',
+      frequent: 'Häufig',
+    },
+  },
   attachment_versions: {
     label: 'Fassung einer Datei',
     fields: {
@@ -90,7 +105,12 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
   contacts: {
     label: 'Ansprechpartner',
-    fields: { given_name: 'Vorname', family_name: 'Nachname', role: 'Funktion' },
+    fields: {
+      given_name: 'Vorname',
+      family_name: 'Nachname',
+      role: 'Funktion',
+      supplier_id: 'Lieferant',
+    },
   },
   customer_tags: { label: 'Tag an einem Kunden', fields: { tag_id: 'Tag' } },
   customers: {
@@ -323,6 +343,14 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
     label: 'Zahlungseingang',
     fields: { amount_cents: 'Betrag', received_on: 'Eingegangen am' },
   },
+  purchase_prices: {
+    label: 'Einkaufspreis',
+    fields: {
+      supplier_article_id: 'Artikel eines Lieferanten',
+      valid_from: 'Gültig ab',
+      unit_price_cents: 'Preis',
+    },
+  },
   push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },
   push_outbox: {
     label: 'Push-Nachricht',
@@ -380,6 +408,15 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
   site_tags: { label: 'Tag an einem Objekt', fields: { tag_id: 'Tag' } },
   sites: { label: 'Objekt' },
+  supplier_articles: {
+    label: 'Artikel eines Lieferanten',
+    fields: {
+      article_id: 'Artikel',
+      supplier_id: 'Lieferant',
+      supplier_number: 'Artikelnummer des Lieferanten',
+    },
+  },
+  suppliers: { label: 'Lieferant', fields: { customer_number: 'Kundennummer' } },
   tags: { label: 'Tag' },
   tasks: {
     label: 'Aufgabe',
