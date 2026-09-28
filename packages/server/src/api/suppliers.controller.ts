@@ -23,6 +23,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 const writableFields = [
   'name',
   'customerNumber',
+  'shortCode',
   'email',
   'phone',
   'street',

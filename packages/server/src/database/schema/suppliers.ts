@@ -20,6 +20,8 @@ export const suppliers = pgTable(
     name: text('name').notNull(),
     /** The business's customer number at the supplier. */
     customerNumber: text('customer_number'),
+    /** A few capitals an import appends to a number the business already uses (#297). */
+    shortCode: text('short_code'),
     email: text('email'),
     phone: text('phone'),
 
@@ -46,6 +48,10 @@ export const suppliers = pgTable(
     check(
       'suppliers_customer_number_fits',
       sql`char_length(${table.customerNumber}) <= ${sql.raw(String(supplierLimits.customerNumber))}`,
+    ),
+    check(
+      'suppliers_short_code_shaped',
+      sql`${table.shortCode} ~ ${sql.raw(`'^[A-ZÄÖÜ0-9]{1,${String(supplierLimits.shortCode)}}$'`)}`,
     ),
   ],
 )

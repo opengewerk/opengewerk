@@ -1,3 +1,4 @@
+import type { ArticleImportId } from './article-import.js'
 import {
   lineUnits,
   type LineUnit,
@@ -12,6 +13,7 @@ export type ArticleId = Id<'article'>
 export type ArticlePriceId = Id<'article-price'>
 export type SupplierArticleId = Id<'supplier-article'>
 export type PurchasePriceId = Id<'purchase-price'>
+export type ListPriceId = Id<'list-price'>
 
 /**
  * An article of the business (#296): what it is called, what it is counted
@@ -41,6 +43,11 @@ export interface Article extends Synced {
   readonly groupOfGoods: string | null
   /** Held by every device, with or without a network. */
   readonly frequent: boolean
+  /**
+   * The import from DATANORM that created the article (#297), whose stored
+   * files prove what it came with; null for one the office entered.
+   */
+  readonly importId: ArticleImportId | null
 }
 
 /** A selling price from a day on. The price of a day is the latest that began by then. */
@@ -55,6 +62,8 @@ export interface ArticlePrice extends Synced {
    * per 100. A position that takes the price takes it with its price unit.
    */
   readonly priceBase: PriceBase
+  /** The import the price came with (#297), null for one entered by hand. */
+  readonly importId: ArticleImportId | null
 }
 
 /**
@@ -69,6 +78,14 @@ export interface SupplierArticle extends TenantOwned {
   readonly supplierId: SupplierId
   /** The supplier's number for the article, as its catalogue writes it. */
   readonly supplierNumber: string | null
+  /**
+   * The supplier's discount group of the article (#297), as DATANORM names
+   * it. Kept, and reckoned in with purchasing and costing in Phase 4
+   * (decided on 27.09.2026).
+   */
+  readonly discountGroup: string | null
+  /** The import that last set the link (#297), null for one entered by hand. */
+  readonly importId: ArticleImportId | null
 }
 
 /**
@@ -84,6 +101,24 @@ export interface PurchasePrice extends TenantOwned {
   readonly unitPriceCents: number
   /** How many units the price is for (#456), as the supplier's catalogue prices it. */
   readonly priceBase: PriceBase
+  /** The import the price came with (#297), null for one entered by hand. */
+  readonly importId: ArticleImportId | null
+}
+
+/**
+ * The supplier's list price from a day on (#297): what its catalogue asks
+ * before the business's discount, as DATANORM gives it with the price flag
+ * 1. Read like a purchase price by the owner and the office only; an import
+ * may take it over as the selling price as well.
+ */
+export interface ListPrice extends TenantOwned {
+  readonly id: ListPriceId
+  readonly supplierArticleId: SupplierArticleId
+  readonly validFrom: IsoDate
+  /** The price of `priceBase` units. */
+  readonly unitPriceCents: number
+  readonly priceBase: PriceBase
+  readonly importId: ArticleImportId | null
 }
 
 /**
@@ -100,6 +135,7 @@ export const articleLimits = {
   designation: 200,
   groupOfGoods: 80,
   supplierNumber: 40,
+  discountGroup: 20,
 } as const
 
 /** The most a price may be, in cents: 999.999,99 euros for one unit. */

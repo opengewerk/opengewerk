@@ -894,6 +894,48 @@ const crossings: readonly {
             values (${own.tenant}, ${other.supplierArticle}, '2026-03-01', 54)`,
   },
   {
+    // An import reads the files of a supplier of its own business (#297), and
+    // the rows it writes name an import of the same business. Inserted where
+    // the application may only add a row, moved where it may change the column.
+    key: 'article_imports_supplier_in_tenant',
+    write: (own, other) =>
+      sql`insert into article_imports (tenant_id, supplier_id, status, files, valid_from)
+            values (${own.tenant}, ${other.supplier}, 'ready', '[]', '2026-10-01')`,
+  },
+  {
+    key: 'articles_import_in_tenant',
+    write: (own, other) => repoint('articles', 'import_id', own.article, other.articleImport),
+  },
+  {
+    key: 'article_prices_import_in_tenant',
+    write: (own, other) =>
+      sql`insert into article_prices (tenant_id, article_id, valid_from, unit_price_cents, import_id)
+            values (${own.tenant}, ${own.article}, '2026-03-02', 92, ${other.articleImport})`,
+  },
+  {
+    key: 'supplier_articles_import_in_tenant',
+    write: (own, other) =>
+      repoint('supplier_articles', 'import_id', own.supplierArticle, other.articleImport),
+  },
+  {
+    key: 'purchase_prices_import_in_tenant',
+    write: (own, other) =>
+      sql`insert into purchase_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents, import_id)
+            values (${own.tenant}, ${own.supplierArticle}, '2026-03-02', 54, ${other.articleImport})`,
+  },
+  {
+    key: 'list_prices_supplier_article_in_tenant',
+    write: (own, other) =>
+      sql`insert into list_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents)
+            values (${own.tenant}, ${other.supplierArticle}, '2026-03-01', 120)`,
+  },
+  {
+    key: 'list_prices_import_in_tenant',
+    write: (own, other) =>
+      sql`insert into list_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents, import_id)
+            values (${own.tenant}, ${own.supplierArticle}, '2026-03-01', 120, ${other.articleImport})`,
+  },
+  {
     // The article a line was taken from (#296); the line's document is a
     // draft, so the trigger of the lines lets the change through to the key.
     key: 'document_lines_article_in_tenant',
@@ -1116,6 +1158,8 @@ interface Planted {
   readonly supplierContact: string
   readonly article: string
   readonly supplierArticle: string
+  /** An import of DATANORM from the supplier above, read and waiting (#297). */
+  readonly articleImport: string
 }
 
 /**
@@ -1310,6 +1354,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     supplierArticle: await one(
       "insert into supplier_articles (tenant_id, article_id, supplier_id, supplier_number) values ($1, $2, $3, '5700123')",
       [tenant, article, supplier],
+    ),
+    articleImport: await one(
+      "insert into article_imports (tenant_id, supplier_id, status, files, valid_from) values ($1, $2, 'ready', '[]', '2026-10-01')",
+      [tenant, supplier],
     ),
   }
 }

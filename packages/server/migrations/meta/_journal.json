@@ -435,6 +435,13 @@
       "when": 1790583065244,
       "tag": "0061_article_price_base",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1790592117841,
+      "tag": "0062_article_imports",
+      "breakpoints": true
     }
   ]
 }

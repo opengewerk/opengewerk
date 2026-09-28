@@ -30,6 +30,7 @@ import type {
   Letterhead,
   Membership,
   NumberRange,
+  ListPrice,
   PurchasePrice,
   PvModule,
   PvString,
@@ -86,6 +87,7 @@ import type {
   letterheads,
   memberships,
   numberRanges,
+  listPrices,
   purchasePrices,
   pvModules,
   pvStrings,
@@ -135,6 +137,7 @@ export type SupplierArticleMatches = Assert<
   Exact<typeof supplierArticles.$inferSelect, SupplierArticle>
 >
 export type PurchasePriceMatches = Assert<Exact<typeof purchasePrices.$inferSelect, PurchasePrice>>
+export type ListPriceMatches = Assert<Exact<typeof listPrices.$inferSelect, ListPrice>>
 export type AttachmentMatches = Assert<Exact<typeof attachments.$inferSelect, Attachment>>
 export type AttachmentVersionMatches = Assert<
   Exact<typeof attachmentVersions.$inferSelect, AttachmentVersion>

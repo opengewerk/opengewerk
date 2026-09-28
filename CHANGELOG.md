@@ -186,6 +186,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   billiger als 0,03 € je Stück. Eine Pauschale hat auch als Artikel keine Preiseinheit, und ein
   Artikel mit einem Preis je 100 wird erst eine Pauschale, wenn dieser Preis entfernt ist.
   Migration 0061.
+- Der Import aus DATANORM 4 (#297), serverseitig, damit ein Betrieb den Katalog seines Großhändlers
+  nicht Artikel für Artikel abtippen muss. Die Dateien einer Lieferung, einzeln oder als ZIP, gehen
+  wie jede Datei hoch und werden unter `POST /suppliers/:id/imports` genannt; gelesen wird im
+  Hintergrund, in CP850, Windows-1252 oder UTF-8, und heraus kommt eine Vorschau mit neuen, über die
+  EAN verknüpften, geänderten und entfernten Artikeln, Beispielen und den Zeilen, die nicht zu lesen
+  waren. Einen Artikel, den der Lieferant schon führt, findet der Import an dessen Nummer und ändert
+  nur Preise und Rabattgruppe, nie die Texte des Betriebs; ist die Nummer eines neuen Artikels
+  vergeben, hängt er das Kürzel des Lieferanten an. Der Listenpreis wird der Listenpreis des
+  Lieferanten und auf Wunsch der Verkaufspreis, ein Nettopreis der Einkaufspreis, gültig ab dem Tag
+  der Dateien und nie rückwirkend; ein Löschsatz nimmt dem Artikel nur den Lieferanten. Übernommen
+  wird ganz oder gar nicht, im Hintergrund mit Fortschritt, und das Änderungsprotokoll hält einen
+  Import als einen Eintrag fest, weil ein Katalog Feld für Feld Millionen Einträge wären
+  (entschieden von Moritz am 28.09.2026); die Dateien bleiben gespeichert und belegen jeden Wert.
+  Die Nummern des Abgleichs holt sich die Übernahme erst am Ende am Stück, damit Geräte und Büro
+  während eines langen Imports nicht warten. Neu sind die Listenpreise je Lieferant, die Rabattgruppe
+  an der Verknüpfung und das Kürzel des Lieferanten (Migration 0062). Die Oberfläche folgt in einem
+  eigenen Pull Request.
 
 ### Geändert
 

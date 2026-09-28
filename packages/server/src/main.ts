@@ -23,6 +23,7 @@ import { passkeyNotices } from './mail/passkey-notice.js'
 import { passwordResetMails } from './mail/password-reset.js'
 import { reachableOnly } from './mail/reach.js'
 import { smtpTransport } from './mail/transport.js'
+import { endInterruptedImports } from './datanorm/imports.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { httpsPost } from './push/post.js'
@@ -237,6 +238,16 @@ async function start(): Promise<void> {
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.once(signal, (received: NodeJS.Signals) => {
       void stop(received)
+    })
+  }
+
+  // An import cut off by the last stop still says it runs, and would keep the
+  // next out (#297). Ended before the first request, so that none started
+  // after this start is ended with them. An instance whose database cannot
+  // answer yet says so in the log and starts all the same.
+  if (!configuration.closed) {
+    await endInterruptedImports(database).catch((error: unknown) => {
+      console.error('Unterbrochene Importe ließen sich nicht beenden.', error)
     })
   }
 

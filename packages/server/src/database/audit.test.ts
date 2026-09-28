@@ -674,3 +674,250 @@ describe('the chain over the entries', () => {
     expect(seenByOther.checked).toBe(0)
   })
 })
+
+/**
+ * The one exception to the log (#297, decided on 28.09.2026): while an import
+ * of DATANORM is taken over, the rows it writes into the article tables are
+ * held by the import's own record and not logged field by field, and the
+ * stamp of the sync passes over them as well. What these tests hold is how
+ * narrow that is: those tables and no other, an import of this business that
+ * is being taken over and no other, and the import's own row in the log as
+ * always.
+ */
+describe('an import of articles', () => {
+  let supplier: string
+
+  beforeAll(async () => {
+    supplier = await plantedId(
+      "insert into suppliers (tenant_id, name) values ($1, 'Großhandel Nord') returning id",
+      [tenant.id],
+    )
+  })
+
+  async function plantedId(statement: string, values: unknown[]): Promise<string> {
+    const { rows } = await admin.query<{ id: string }>(statement, values)
+    const id = rows[0]?.id
+
+    if (!id) {
+      throw new Error('Nothing was planted')
+    }
+
+    return id
+  }
+
+  /** An import in the given state, planted past the application. */
+  function importIn(status: string, tenantId: string = tenant.id, supplierId = supplier) {
+    return plantedId(
+      `insert into article_imports (tenant_id, supplier_id, status, files, valid_from)
+       values ($1, $2, $3, '[]', '2026-10-01') returning id`,
+      [tenantId, supplierId, status],
+    )
+  }
+
+  /** What the database said when it refused, through the wrapper of drizzle. */
+  async function refusal(write: Promise<unknown>): Promise<string> {
+    try {
+      await write
+    } catch (error) {
+      const cause = (error as { cause?: unknown }).cause
+
+      return cause instanceof Error ? cause.message : String(error)
+    }
+
+    throw new Error('The database accepted what it should have refused')
+  }
+
+  /** One running import per business, so every test ends its own. */
+  async function end(id: string) {
+    await admin.query("update article_imports set status = 'applied' where id = $1", [id])
+  }
+
+  it('passes over the rows of the article tables, and of no other', async () => {
+    // Asked of the catalog, like the trigger itself: a condition that crept
+    // onto the trigger of another table would silence that table as well.
+    const { rows } = await admin.query<{ name: string; definition: string }>(
+      `select t.tgname || ' ' || c.relname as name, pg_get_triggerdef(t.oid) as definition
+         from pg_trigger t
+         join pg_class c on c.oid = t.tgrelid
+        where t.tgname in ('audit_changes', 'stamp_sync_columns')
+          and t.tgqual is not null
+        order by t.tgname, c.relname`,
+    )
+
+    expect(rows.map((row) => row.name)).toEqual([
+      'audit_changes article_prices',
+      'audit_changes articles',
+      'audit_changes list_prices',
+      'audit_changes purchase_prices',
+      'audit_changes supplier_articles',
+      'stamp_sync_columns article_prices',
+      'stamp_sync_columns articles',
+    ])
+
+    for (const row of rows) {
+      expect(row.definition).toMatch(/WHEN \(\(NOT (public\.)?article_import_writing\(\)\)\)/)
+    }
+  })
+
+  it('keeps what an import writes out of the log while it is taken over, and nothing else', async () => {
+    const running = await importIn('applying')
+
+    try {
+      const written = await database.forTenant(clerk, async (tx) => {
+        await tx.execute(sql`select set_config('app.article_import', ${running}, true)`)
+
+        const [article] = await tx
+          .insert(schema.articles)
+          .values({
+            tenantId: tenant.id,
+            number: 'DN-1',
+            designation: 'Abzweigdose',
+            unit: 'piece',
+            importId: running as never,
+          })
+          .returning({ id: schema.articles.id })
+        // In the same transaction, and logged all the same.
+        const [customer] = await tx
+          .insert(schema.customers)
+          .values({ tenantId: tenant.id, kind: 'business', name: 'Neukunde während des Imports' })
+          .returning({ id: schema.customers.id })
+        await tx
+          .update(schema.articleImports)
+          .set({ problem: 'Probe', updatedAt: new Date() })
+          .where(eq(schema.articleImports.id, running as never))
+
+        return { article: article?.id ?? '', customer: customer?.id ?? '' }
+      })
+
+      expect(await entriesFor(written.article)).toEqual([])
+      expect(await entriesFor(written.customer)).not.toEqual([])
+      expect((await entriesFor(running)).map((entry) => entry.field)).toContain('problem')
+    } finally {
+      await end(running)
+    }
+  })
+
+  it('logs as always when the import named is not taken over or not of this business', async () => {
+    const ready = await importIn('ready')
+    const southern = await plantedId(
+      "insert into suppliers (tenant_id, name) values ($1, 'Großhandel Süd') returning id",
+      [other.id],
+    )
+    const elsewhere = await importIn('applying', other.id, southern)
+
+    try {
+      for (const [index, named] of [ready, elsewhere, newId<'article-import'>()].entries()) {
+        const article = await database.forTenant(clerk, async (tx) => {
+          await tx.execute(sql`select set_config('app.article_import', ${named}, true)`)
+
+          const [inserted] = await tx
+            .insert(schema.articles)
+            .values({
+              tenantId: tenant.id,
+              number: `DN-NAMED-${String(index)}`,
+              designation: 'Abzweigdose',
+              unit: 'piece',
+            })
+            .returning({ id: schema.articles.id })
+
+          return inserted?.id ?? ''
+        })
+
+        expect(await entriesFor(article)).not.toEqual([])
+      }
+    } finally {
+      await end(elsewhere)
+    }
+  })
+
+  it('lets the import write the stamp itself and hands it its numbers only at once', async () => {
+    const reserve = sql`select reserve_sync_sequences(2) as first`
+
+    // No run of numbers without an import that is taken over.
+    expect(await refusal(database.forTenant(clerk, (tx) => tx.execute(reserve)))).toMatch(
+      /nur für einen Import, der übernommen wird/,
+    )
+
+    const ready = await importIn('ready')
+    expect(
+      await refusal(
+        database.forTenant(clerk, async (tx) => {
+          await tx.execute(sql`select set_config('app.article_import', ${ready}, true)`)
+
+          return tx.execute(reserve)
+        }),
+      ),
+    ).toMatch(/nur für einen Import, der übernommen wird/)
+
+    const running = await importIn('applying')
+
+    try {
+      const taken = await database.forTenant(clerk, async (tx) => {
+        await tx.execute(sql`select set_config('app.article_import', ${running}, true)`)
+
+        // The five columns as the import writes them, the number a placeholder
+        // below zero that the stamp would otherwise have replaced.
+        const [article] = await tx
+          .insert(schema.articles)
+          .values({
+            tenantId: tenant.id,
+            number: 'DN-STAMP',
+            designation: 'Wago-Klemme',
+            unit: 'piece',
+            importId: running as never,
+            updatedBy: clerk.userId,
+            changeSequence: -1,
+          })
+          .returning({ id: schema.articles.id })
+
+        if (!article) {
+          throw new Error('No article came back')
+        }
+
+        const articleId = article.id
+        await tx.insert(schema.articlePrices).values({
+          tenantId: tenant.id,
+          articleId,
+          validFrom: '2026-10-01',
+          unitPriceCents: 120,
+          importId: running as never,
+          updatedBy: clerk.userId,
+          changeSequence: -2,
+        })
+
+        const placeholders = await tx.execute(sql`
+          select (select change_sequence from articles where id = ${articleId}) as article,
+                 (select change_sequence from article_prices where article_id = ${articleId}) as price`)
+
+        const first = Number((await tx.execute(reserve)).rows[0]?.['first'])
+
+        for (const table of ['articles', 'article_prices']) {
+          await tx.execute(sql`
+            update ${sql.identifier(table)} set change_sequence = ${first - 1} - change_sequence
+             where tenant_id = ${tenant.id} and change_sequence < 0`)
+        }
+
+        return { articleId, first, placeholders: placeholders.rows[0] }
+      })
+
+      expect(taken.placeholders).toEqual({ article: '-1', price: '-2' })
+
+      const { rows } = await admin.query<{ article: string; price: string }>(
+        `select (select change_sequence from articles where id = $1) as article,
+                (select change_sequence from article_prices where article_id = $1) as price`,
+        [taken.articleId],
+      )
+      expect(rows[0]).toEqual({ article: String(taken.first), price: String(taken.first + 1) })
+
+      // What is written after the import gets a number after its run.
+      const later = await createCustomer('Nach dem Import')
+      const { rows: after } = await admin.query<{ change_sequence: string }>(
+        'select change_sequence from customers where id = $1',
+        [later],
+      )
+      expect(Number(after[0]?.change_sequence)).toBeGreaterThan(taken.first + 1)
+    } finally {
+      await end(running)
+    }
+  })
+})

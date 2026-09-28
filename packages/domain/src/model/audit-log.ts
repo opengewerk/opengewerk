@@ -111,6 +111,8 @@ const reasonWords: Readonly<Record<string, string>> = {
   notification: 'Von selbst, Benachrichtigungen',
   mail: 'Von selbst, E-Mail-Versand',
   push: 'Von selbst, Push-Versand',
+  'article.import': 'Import aus DATANORM',
+  'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
   'session.start': 'Anmeldung',
   'session.end': 'Abmeldung',
   'session.revoke': 'Gerät abgemeldet',
@@ -270,6 +272,7 @@ export const auditReferences: Readonly<Record<string, string>> = {
   subscription_id: 'push_subscriptions',
   tag_id: 'tags',
   site_access_id: 'site_accesses',
+  import_id: 'article_imports',
 }
 
 /** Fields that hold the id of a person. */
@@ -317,6 +320,10 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   article_prices: ['valid_from'],
   purchase_prices: ['valid_from'],
   supplier_articles: ['supplier_id'],
+  // A list price like a purchase price; an import of DATANORM by the supplier
+  // it came from, which the page names (#297).
+  list_prices: ['valid_from'],
+  article_imports: ['supplier_id'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],
   deadlines: ['source_label'],

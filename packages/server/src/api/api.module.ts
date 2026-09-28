@@ -14,9 +14,11 @@ import { AuthenticationController } from '../authentication/authentication.contr
 import { PasskeysController } from '../authentication/passkeys.controller.js'
 import { RecoveryCodesController } from '../authentication/recovery-codes.controller.js'
 import { Database } from '../database/database.js'
+import { ArticleImports } from '../datanorm/imports.js'
 import type { SecretKey } from '../secrets/key.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
+import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
 import { AuthorizationGuard } from './authorization.js'
@@ -211,6 +213,7 @@ export class ApiModule implements NestModule {
         TagsController,
         ContactsController,
         SuppliersController,
+        ArticleImportsController,
         ArticlesController,
         SitesController,
         SiteAccessesController,
@@ -263,6 +266,7 @@ export class ApiModule implements NestModule {
         { provide: SECRETS, useValue: options.secrets ?? mail?.key ?? null },
         ...(options.instance ? [{ provide: INSTANCE, useValue: options.instance }] : []),
         DocumentFiles,
+        ArticleImports,
         ...(authentication
           ? [
               { provide: AUTHENTICATION, useValue: authentication },
