@@ -27,6 +27,7 @@ import { JobFiles } from './files.js'
 import { JobNotes } from './notes.js'
 import { InstallationProtocols } from './protocol.js'
 import { shownStatus } from './report.js'
+import { SiteAccessPanel } from './access.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
@@ -466,6 +467,15 @@ export function SiteJobScreen() {
     </Panel>
   )
 
+  // The ways into the site, when this device holds them (#286).
+  // Only at an open job, as it stands on the device: a job closed here
+  // without a network takes the ways in off the screen at once, not at the
+  // next exchange (Greptile on #445).
+  const access =
+    site && (status === 'active' || status === 'draft') ? (
+      <SiteAccessPanel siteId={String(site['id'])} />
+    ) : null
+
   const plant = installation ? (
     <Panel title="Anlage">
       <div className="flex flex-col gap-2.5">
@@ -585,6 +595,7 @@ export function SiteJobScreen() {
         <div className="grid grid-cols-1 items-start gap-3 @min-[40rem]:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-3">
             {where}
+            {access}
             {plant}
             {contacts}
             {lineage}
@@ -617,6 +628,7 @@ export function SiteJobScreen() {
       />
 
       {where}
+      {access}
       {contacts}
       {lineage}
       {plant}

@@ -143,7 +143,15 @@ export class SessionIdentitySource implements IdentitySource {
       )
     }
 
-    return { userId: found.user.id, tenantId, roles, sessionId: found.session.id }
+    const deviceId = (found.session as { deviceId?: string | null }).deviceId
+
+    return {
+      userId: found.user.id,
+      tenantId,
+      roles,
+      sessionId: found.session.id,
+      ...(deviceId ? { deviceId } : {}),
+    }
   }
 }
 

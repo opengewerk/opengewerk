@@ -292,6 +292,19 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   tags: { create: false, change: 'never' },
   customer_tags: { create: false, change: 'never' },
   site_tags: { create: false, change: 'never' },
+  /**
+   * The ways into a site (#286), kept in the office at the routes of the
+   * site. The value is not a field of the row but sealed apart; the pull adds
+   * it for the device of a technician on an open job there (ADR 0005).
+   */
+  site_accesses: { create: false, change: 'never' },
+  /**
+   * That somebody saw the value of an access: written by the device that
+   * showed it, also without a network, and never changed. Whose it is the
+   * database writes from the request, and the server refuses one for an
+   * access the device cannot have held (`revealRefusal`).
+   */
+  site_access_reveals: { create: true, change: 'never', reserved: ['userId'] },
 }
 
 /**

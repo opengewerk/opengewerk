@@ -339,6 +339,22 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
   pv_modules: { label: 'PV-Modul', fields: { pv_string_id: 'String' } },
   pv_strings: { label: 'String', fields: { inverter_id: 'Wechselrichter' } },
+  site_access_deliveries: {
+    label: 'Zugang auf einem Gerät',
+    fields: { site_access_id: 'Zugang', value_set_at: 'Wert gesetzt am' },
+  },
+  site_access_reveals: {
+    label: 'Anzeige eines Zugangs',
+    fields: {
+      site_access_id: 'Zugang',
+      revealed_at: 'Angezeigt am',
+      value_set_at: 'Wert gesetzt am',
+    },
+  },
+  site_accesses: {
+    label: 'Zugang zum Objekt',
+    fields: { hint: 'Hinweis', value_set_at: 'Wert gesetzt am' },
+  },
   site_tags: { label: 'Tag an einem Objekt', fields: { tag_id: 'Tag' } },
   sites: { label: 'Objekt' },
   tags: { label: 'Tag' },

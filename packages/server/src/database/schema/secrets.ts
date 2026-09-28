@@ -1,11 +1,14 @@
-import { pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
+import { pgEnum, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
-/** What a secret opens. One value so far: the login to the mail server of a business. */
-export const secretPurpose = pgEnum('secret_purpose', ['smtp_password'])
+/**
+ * What a secret opens: the login to the mail server of a business, once per
+ * business, and the value of a way into a site (#286), once per access.
+ */
+export const secretPurpose = pgEnum('secret_purpose', ['smtp_password', 'site_access'])
 
 /**
  * Credentials of somebody else a business hands the instance, sealed.
@@ -31,12 +34,20 @@ export const secrets = pgTable(
     id: primaryId<'secret'>(),
     ...tenantColumn,
     purpose: secretPurpose('purpose').notNull(),
+    /**
+     * The record a secret belongs to, for a purpose with one per record: the
+     * access to a site (#286). Empty for the one secret of a business, the
+     * mail password, which the key below keeps once per business.
+     */
+    recordId: uuid('record_id'),
     /** `v1:<iv>:<tag>:<ciphertext>`, each part base64url. Never the value itself. */
     sealed: text('sealed').notNull(),
     ...timestamps,
   },
   (table) => [
     tenantIsolation(table.tenantId),
-    unique('secrets_one_per_purpose').on(table.tenantId, table.purpose),
+    unique('secrets_one_per_record')
+      .on(table.tenantId, table.purpose, table.recordId)
+      .nullsNotDistinct(),
   ],
 )

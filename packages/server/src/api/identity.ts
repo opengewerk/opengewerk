@@ -32,9 +32,15 @@ export interface SignedInUser {
  * is one. The session is what a device is signed in with, so that something
  * bound to it, a push subscription (#284), ends when the device is signed out.
  * The preview and the tests have none.
+ *
+ * `deviceId` is the device the session was signed in on, as it named itself
+ * when it chose the business, and not what a request says about itself: the
+ * value of a way into a site is handed to a device and a showing is taken
+ * from the device that held it, both measured by this (#286).
  */
 export interface FoundIdentity extends Identity {
   readonly sessionId?: string
+  readonly deviceId?: string
 }
 
 export interface IdentitySource {

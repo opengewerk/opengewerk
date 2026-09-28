@@ -96,6 +96,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   kürzt sich in seiner Pille, statt am Telefon über den Rand zu laufen, und die Beispieldaten der
   Vorschau tragen einen an jedem Kunden und Objekt, damit die Prüfung der Breiten ihn misst, auch in
   den Formularen. Migration 0053.
+- Der Zugang zum Objekt (#286), damit der Code des Schlüsseltresors oder der Alarmanlage dort steht,
+  wo er gebraucht wird, und nicht auf einem Zettel im Auto. Inhaber und Büro tragen unter einem
+  Objekt jeden Zugang mit Bezeichnung, Wert und Hinweis ein (Recht `site.access`). Der Wert liegt
+  versiegelt in `secrets`, gebunden an Betrieb und Eintrag, und steht nie im Änderungsprotokoll, das
+  nur nennt, dass einer gesetzt wurde. Inhaber und Büro sehen ihn auf Klick über die Route und mit
+  Verbindung, auch auf der Baustelle, und jedes Anzeigen wird festgehalten; auf ihrem Gerät liegt
+  keiner, gleich was eine Anfrage verlangt. Auf dem Gerät eines Monteurs liegt der Wert, solange er
+  einem offenen Auftrag am Objekt zugeordnet ist, damit er auch ohne Netz vor der Tür steht. Die
+  Karte "Zugang zum Objekt" steht nur an einem offenen Auftrag, ein Anzeigen dort wird erst im
+  Postausgang festgehalten und dann gezeigt, und zwei schnelle Klicks ergeben ein Anzeigen. Welchem
+  Gerät ein Abruf welchen Stand eines Werts gab, steht einmal in `site_access_deliveries` und im
+  Änderungsprotokoll; daran misst der Server ein Anzeigen vom Gerät, das den gezeigten Stand nennt,
+  gleich ob der Auftrag inzwischen umgezogen, lange abgeschlossen oder der Zugang gelöscht ist. Das
+  Gerät ist das der Sitzung, und eine Sitzung ohne Gerät bekommt keinen Wert. Nach dem Abschluss
+  verschwindet der Zugang vom Gerät, ein gelöschtes Objekt nimmt seine Zugänge samt Wert mit, und
+  ein gezeigter Wert, der sich inzwischen geändert hat, wird wieder verdeckt. Ändert sich
+  `SESSION_SECRET`, sagt die Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern.
+  Migrationen 0054 und 0055.
 
 ### Geändert
 

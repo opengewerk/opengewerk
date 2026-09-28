@@ -36,6 +36,8 @@ export const syncEntityNames: Readonly<Record<string, string>> = {
   tags: 'Tag',
   customer_tags: 'Tag an einem Kunden',
   site_tags: 'Tag an einem Objekt',
+  site_accesses: 'Zugang zum Objekt',
+  site_access_reveals: 'Anzeige eines Zugangs',
 }
 
 export const syncFieldNames: Readonly<Record<string, string>> = {
@@ -63,6 +65,10 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   customerId: 'Kunde',
   siteId: 'Objekt',
   tagId: 'Tag',
+  hint: 'Hinweis',
+  valueSetAt: 'Wert gesetzt am',
+  siteAccessId: 'Zugang',
+  revealedAt: 'Angezeigt am',
   jobId: 'Auftrag',
   title: 'Titel',
   dueOn: 'Fällig am',

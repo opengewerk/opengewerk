@@ -27,6 +27,13 @@ export const permissions = [
   'customer.write',
   'site.read',
   'site.write',
+  /**
+   * The ways into a site (#286): seeing the value of a key safe or an alarm
+   * code on request, and keeping them. The owner and the office have it; a
+   * technician sees the value of a site only on the device, while an open
+   * job there is theirs, and never keeps one.
+   */
+  'site.access',
   'installation.read',
   'installation.write',
   'job.read',
@@ -188,6 +195,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'customer.write': 'Kunden ändern',
   'site.read': 'Objekte ansehen',
   'site.write': 'Objekte bearbeiten',
+  'site.access': 'Zugang zu Objekten sehen und pflegen',
   'installation.read': 'Anlagen ansehen',
   'installation.write': 'Anlagen bearbeiten',
   'job.read': 'Aufträge ansehen',
@@ -254,6 +262,7 @@ const officePermissions: readonly Permission[] = [
   'customer.write',
   'site.read',
   'site.write',
+  'site.access',
   'installation.read',
   'installation.write',
   'job.read',

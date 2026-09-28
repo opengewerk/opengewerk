@@ -24,6 +24,7 @@ import {
 import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull, type SQL } from 'drizzle-orm'
 import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
+import type { FoundIdentity } from '../api/identity.js'
 import { versionFileRefusal } from '../attachments/versions.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
@@ -32,6 +33,7 @@ import { sectionRefusal, structureProblem } from '../electrical/structure.js'
 import { tradeForms } from '../forms/registry.js'
 import { reportFieldsProblem } from '../forms/report-fields.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
+import { revealRefusal } from '../secrets/reveal.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
 import type { TenantTransaction } from './database.js'
 import { assignNumber } from './number-ranges.js'
@@ -277,12 +279,13 @@ export async function applyOperations(
   tx: TenantTransaction,
   tenantId: TenantId,
   operations: readonly Operation[],
+  sender: FoundIdentity,
 ): Promise<readonly OperationReceipt[]> {
   const receipts: OperationReceipt[] = []
 
   for (const operation of inOutboxOrder(operations)) {
     try {
-      receipts.push(await applyOne(tx, tenantId, operation))
+      receipts.push(await applyOne(tx, tenantId, operation, sender))
     } catch (error) {
       // Whatever stops one operation still stops the transmission. Which one
       // it was travels with it, so that the answer can say.
@@ -297,6 +300,7 @@ async function applyOne(
   tx: TenantTransaction,
   tenantId: TenantId,
   operation: Operation,
+  sender: FoundIdentity,
 ): Promise<OperationReceipt> {
   const seen = await tx
     .select({ outcome: syncOperations.outcome })
@@ -415,6 +419,23 @@ async function applyOne(
   // about this one operation.
   if (operation.entity === 'tasks' && operation.kind !== 'delete') {
     const refusal = await assigneeRefusal(tx, tenantId, operation.kind === 'create', values)
+
+    if (refusal) {
+      return await record(tx, tenantId, operation, {
+        outcome: 'conflict',
+        reason: refusal.reason,
+        fields: refusal.fields,
+        current,
+      })
+    }
+  }
+
+  // A showing names a value its device can have shown (#286): whoever keeps
+  // the ways in sees any at the route, anybody else only a value a pull once
+  // handed them (`site_access_deliveries`). Any other would be a trace of
+  // something that never was.
+  if (operation.entity === 'site_access_reveals' && operation.kind === 'create') {
+    const refusal = await revealRefusal(tx, sender, values)
 
     if (refusal) {
       return await record(tx, tenantId, operation, {

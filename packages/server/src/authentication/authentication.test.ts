@@ -673,6 +673,22 @@ describe('how long a session lasts', () => {
     expect(desk.left).toBeLessThanOrEqual(12 * hour)
   })
 
+  it('names the device of the session in the identity, not what a request says', async () => {
+    // The value of a way into a site goes to this device and a showing is
+    // taken from it (#286); the office at a desk registered none.
+    const deviceId = newId<'device'>()
+    const source = new SessionIdentitySource(authentication, database)
+    const device = await inBusiness(office.email, deviceId)
+    const desk = await inBusiness(office.email)
+
+    expect((await source.identify({ headers: { cookie: withCookies(device) } }))?.deviceId).toBe(
+      deviceId,
+    )
+    expect(
+      (await source.identify({ headers: { cookie: withCookies(desk) } }))?.deviceId,
+    ).toBeUndefined()
+  })
+
   it('renews a session in use to a full lifetime from now, by its kind', async () => {
     const desk = await inBusiness(office.email)
     const device = await inBusiness(office.email, newId<'device'>())

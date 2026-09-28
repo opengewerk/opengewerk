@@ -14,7 +14,7 @@ import type { Entry } from '../entry/entry.js'
 import { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
-import { directWrite, httpTransport, workIn } from '../sync/transport.js'
+import { directWrite, httpTransport, siteTransport, workIn } from '../sync/transport.js'
 import { unreachable } from '../session/remembered.js'
 import { deviceIdentity } from './device.js'
 import { Gate, GateText, GateWaiting, InstanceVersion } from './gate.js'
@@ -163,7 +163,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
       const store = await openLocalStore(tenantId)
       const running = await SyncClient.start({
         store,
-        transport: httpTransport,
+        transport: entry === 'site' ? siteTransport() : httpTransport,
         writer: directWrite,
         deviceId,
         entities: syncEntities,
@@ -194,7 +194,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
       setClient(null)
       setStalled(false)
     }
-  }, [tenantId, deviceId, signedOut, round])
+  }, [tenantId, deviceId, signedOut, round, entry])
 
   if (token) {
     return <InvitationScreen token={token} />

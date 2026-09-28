@@ -15,6 +15,11 @@ export interface DeviceScope {
   readonly userId: string
   readonly jobIds: readonly string[]
   /**
+   * Of these the ones still open, draft or active: the jobs whose sites the
+   * device holds the ways into (#286), which go when the job is closed.
+   */
+  readonly openJobIds: readonly string[]
+  /**
    * What the answer of a pull names as narrowed for each entity it narrows.
    * It changes whenever the jobs change, and a device that finds a different
    * value drops what it holds and asks from the start: a job it lost has to
@@ -34,8 +39,8 @@ export async function deviceScope(
   now: Date = new Date(),
 ): Promise<DeviceScope> {
   const since = new Date(now.getTime() - closedJobsStayDays * 24 * 60 * 60 * 1000)
-  const { rows } = await tx.execute<{ id: string }>(sql`
-    select j.id
+  const { rows } = await tx.execute<{ id: string; open: boolean }>(sql`
+    select j.id, j.status in ('draft', 'active') as open
       from jobs j
       join job_assignments a on a.job_id = j.id and a.tenant_id = j.tenant_id
      where a.user_id = ${userId}
@@ -44,9 +49,27 @@ export async function deviceScope(
        and (j.status in ('draft', 'active') or j.closed_at >= ${since.toISOString()})
      order by j.id`)
   const jobIds = rows.map((row) => row.id)
-  const digest = createHash('sha256').update(jobIds.join(',')).digest('hex').slice(0, 16)
+  const openJobIds = rows.filter((row) => row.open).map((row) => row.id)
 
-  return { userId, jobIds, value: `jobs:${digest}` }
+  return {
+    userId,
+    jobIds,
+    value: `jobs:${digest(jobIds)}`,
+    openJobIds,
+  }
+}
+
+/** A short fingerprint of a sorted list, for the value an answer names. */
+function digest(ids: readonly string[]): string {
+  return createHash('sha256').update(ids.join(',')).digest('hex').slice(0, 16)
+}
+
+/** A list of ids as a parameter, an empty one included. */
+function uuidArray(ids: readonly string[]): SQL {
+  return sql`array[${sql.join(
+    ids.map((id) => sql`${id}`),
+    sql`, `,
+  )}]::uuid[]`
 }
 
 /** The entities whose rows a scope narrows; every other entity is sent whole. */
@@ -157,4 +180,43 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
   const condition = own[entity]
 
   return condition ? sql`(${condition} or ${created})` : undefined
+}
+
+/**
+ * The ways into a site (#286) on a device without `site.access`: the sites of
+ * its open jobs, and nothing of a closed one, which `closedJobsStayDays` keeps
+ * for everything else. A device with the right holds them all, without a
+ * value, and asks the route for one when it is needed.
+ */
+export function accessesOfOpenJobs(scope: DeviceScope): SQL {
+  return sql`"site_accesses"."site_id" in (select site_id from jobs
+    where id = any(${uuidArray(scope.openJobIds)}) and site_id is not null)`
+}
+
+/**
+ * The sites whose ways in the device of a technician holds, with their values
+ * on site (#286): those with a way in and an open job the person is assigned
+ * to. `value` changes with the list and goes into the answer, so that a device
+ * lets go of the ways into a site whose last open job was closed, and fetches
+ * those of a site that got one or that one of its jobs moved to. A site
+ * without a way in stays out of the list: a job there changes nothing on the
+ * device, and the device would fetch its part anew for nothing.
+ */
+export async function sitesWithOpenJobs(
+  tx: TenantTransaction,
+  scope: DeviceScope,
+): Promise<{ readonly siteIds: ReadonlySet<string>; readonly value: string }> {
+  const { rows } = await tx.execute<{ site_id: string }>(sql`
+    select distinct j.site_id
+      from jobs j
+     where j.id = any(${uuidArray(scope.openJobIds)})
+       and j.site_id is not null
+       and exists (select 1 from sites s
+                    where s.id = j.site_id and s.deleted_at is null)
+       and exists (select 1 from site_accesses a
+                    where a.site_id = j.site_id and a.deleted_at is null)
+     order by j.site_id`)
+  const ids = rows.map((row) => row.site_id)
+
+  return { siteIds: new Set(ids), value: `sites:${digest(ids)}` }
 }

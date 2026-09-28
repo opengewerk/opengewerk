@@ -22,6 +22,7 @@ import { ContactsSection } from './contacts.js'
 import { placeOf, tagsChanged } from './customers.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
+import { AccessPanel } from './site-access.js'
 import { TasksSection } from './tasks.js'
 import { ChangesButton } from './audit-log.js'
 
@@ -509,6 +510,7 @@ export function SiteScreen() {
                 />
               )}
             </Panel>
+            <AccessPanel siteId={siteId} />
             <ContactsSection
               parent={{ siteId }}
               empty="Noch kein Ansprechpartner am Objekt. Etwa ein Mieter oder der Hausmeister."

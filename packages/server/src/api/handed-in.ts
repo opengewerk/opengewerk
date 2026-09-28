@@ -65,6 +65,14 @@ export const VERSION = Symbol('Version')
  */
 export const MAIL = Symbol('Mail')
 
+/**
+ * The key values are sealed with that are not a login to something outside:
+ * the ways into a site (#286). The same key as the mail password's, from
+ * `SESSION_SECRET`; null in a test that seals nothing, and every route that
+ * would seal then says so.
+ */
+export const SECRETS = Symbol('Secrets')
+
 export interface MailContext {
   /** The first trusted origin, the address a link in a message points to. */
   readonly origin: string
