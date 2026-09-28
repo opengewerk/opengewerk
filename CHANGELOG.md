@@ -203,6 +203,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   während eines langen Imports nicht warten. Neu sind die Listenpreise je Lieferant, die Rabattgruppe
   an der Verknüpfung und das Kürzel des Lieferanten (Migration 0062). Die Oberfläche folgt in einem
   eigenen Pull Request.
+- Die README verlinkt das Subreddit r/OpenGewerk neben dem Discord-Server. Es ist für den
+  Austausch unter Betrieben gedacht, Erfahrungen und Vergleiche, die im Chat untergehen würden
 
 ### Geändert
 
