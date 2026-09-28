@@ -17,6 +17,7 @@ import { Database } from '../database/database.js'
 import type { SecretKey } from '../secrets/key.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
+import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
 import { AuthorizationGuard } from './authorization.js'
 import { BackupStatusController } from './backup-status.controller.js'
@@ -64,6 +65,7 @@ import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
+import { SuppliersController } from './suppliers.controller.js'
 import { SyncController } from './sync.controller.js'
 import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
@@ -208,6 +210,8 @@ export class ApiModule implements NestModule {
         CustomersController,
         TagsController,
         ContactsController,
+        SuppliersController,
+        ArticlesController,
         SitesController,
         SiteAccessesController,
         InstallationsController,

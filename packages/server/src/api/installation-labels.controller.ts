@@ -39,6 +39,7 @@ import {
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { labelPrintJob } from '../labels/label-print.js'
 import { RequiresPermission } from './authorization.js'
+import { isUniqueViolation } from './database-errors.js'
 import { RENDERER, TRUSTED_ORIGINS } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -83,23 +84,6 @@ async function labelOf(
   const [found] = lock ? await query.for('update') : await query
 
   return found
-}
-
-/**
- * Whether the database refused a row for the named unique index. The driver
- * names the index of a unique violation; Drizzle keeps the driver's error as
- * the cause.
- */
-function isUniqueViolation(error: unknown, index: string): boolean {
-  for (const candidate of [error, (error as { cause?: unknown } | undefined)?.cause]) {
-    const found = candidate as { code?: unknown; constraint?: unknown } | undefined
-
-    if (found?.code === '23505' && found.constraint === index) {
-      return true
-    }
-  }
-
-  return false
 }
 
 /** A whole number from the query, or NaN for anything else, which the check refuses. */

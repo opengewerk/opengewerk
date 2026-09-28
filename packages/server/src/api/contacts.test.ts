@@ -132,7 +132,7 @@ describe('contacts', () => {
       .send({ familyName: 'Niemand' })
       .expect(400)
 
-    expect((both.body as { message: string }).message).toBe(contactParentText.both)
+    expect((both.body as { message: string }).message).toBe(contactParentText.several)
     expect((neither.body as { message: string }).message).toBe(contactParentText.none)
   })
 
@@ -185,7 +185,7 @@ describe('contacts', () => {
       .send({ siteId })
       .expect(400)
 
-    expect((both.body as { message: string }).message).toBe(contactParentText.both)
+    expect((both.body as { message: string }).message).toBe(contactParentText.several)
 
     // Moving over takes both fields at once, and that is one parent again.
     const moved = await http()

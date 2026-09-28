@@ -59,6 +59,45 @@ export async function deviceScope(
   }
 }
 
+/**
+ * The articles every device holds (#296), the office's included: the ones
+ * marked as frequent, with their selling prices. A catalogue from DATANORM has
+ * a hundred thousand, and those stay at the routes of the office.
+ *
+ * Not narrowed by who asks but by what the articles are, and `value` is what
+ * the pull names for them: when an article joins or leaves the set, a device
+ * finds a different value, drops what it holds and fetches the set anew.
+ * Without that, an article no longer frequent would stay on every device,
+ * since its change is exactly the one the narrowed pull leaves out.
+ */
+export interface ArticlesOnDevices {
+  readonly articleIds: readonly string[]
+  readonly value: string
+}
+
+export async function articlesOnDevices(tx: TenantTransaction): Promise<ArticlesOnDevices> {
+  const { rows } = await tx.execute<{ id: string }>(sql`
+    select id from articles where frequent and deleted_at is null order by id`)
+  const articleIds = rows.map((row) => row.id)
+
+  return { articleIds, value: `articles:${digest(articleIds)}` }
+}
+
+/** The condition that keeps the pull of an article or its prices to that set. */
+export function articlesNarrowedTo(held: ArticlesOnDevices, entity: string): SQL | undefined {
+  const ids = uuidArray(held.articleIds)
+
+  if (entity === 'articles') {
+    return sql`${sql.identifier('articles')}.${sql.identifier('id')} = any(${ids})`
+  }
+
+  if (entity === 'article_prices') {
+    return sql`${sql.identifier('article_prices')}.${sql.identifier('article_id')} = any(${ids})`
+  }
+
+  return undefined
+}
+
 /** A short fingerprint of a sorted list, for the value an answer names. */
 function digest(ids: readonly string[]): string {
   return createHash('sha256').update(ids.join(',')).digest('hex').slice(0, 16)
@@ -152,7 +191,11 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
     // created without a job among them.
     customer_tags: sql`(${column('customer_id')} in ${customers}
       or ${column('customer_id')} in ${createdBy('customers')})`,
-    contacts: sql`(${column('customer_id')} in ${customers} or ${column('site_id')} in ${sites})`,
+    // The people of every supplier as well (#296): the suppliers go to every
+    // device whole, and the desk that holds the material ready is who a
+    // technician calls on the way.
+    contacts: sql`(${column('customer_id')} in ${customers} or ${column('site_id')} in ${sites}
+      or ${column('supplier_id')} is not null)`,
     sites: sql`${column('id')} in ${sites}`,
     site_tags: sql`(${column('site_id')} in ${sites} or ${column('site_id')} in ${createdBy('sites')})`,
     installations: sql`${column('id')} in ${installations}`,

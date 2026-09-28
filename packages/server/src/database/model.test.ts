@@ -265,7 +265,7 @@ describe('the structure below an installation', () => {
     expect(left).toEqual([])
   })
 
-  it('makes a contact belong to a customer or a site, never both and never neither', async () => {
+  it('makes a contact belong to one customer, site or supplier, never two and never none', async () => {
     const tenant = await createTenant('Elektro Kontakt GmbH')
     const customerId = newId<'customer'>()
     await db.insert(schema.customers).values({
@@ -306,7 +306,7 @@ describe('the structure below an installation', () => {
     )
     expect(belongsToBoth).toEqual({
       code: checkViolation,
-      constraint: 'contacts_belong_to_customer_or_site',
+      constraint: 'contacts_belong_to_one_parent',
     })
 
     const belongsToNeither = await refusedBy(
@@ -314,7 +314,7 @@ describe('the structure below an installation', () => {
     )
     expect(belongsToNeither).toEqual({
       code: checkViolation,
-      constraint: 'contacts_belong_to_customer_or_site',
+      constraint: 'contacts_belong_to_one_parent',
     })
   })
 })

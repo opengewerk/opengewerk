@@ -238,6 +238,11 @@ describe('the tables', () => {
     // the pull that handed the value out and asked when a showing arrives; a
     // device that held a copy could answer for itself what the server has to
     // answer against it.
+    //
+    // Who sells an article under which number, and for how much (#296), is
+    // kept in the office: the purchase prices are for the owner and the office
+    // alone, and a pull would carry any table with sync columns to every
+    // device.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -264,7 +269,9 @@ describe('the tables', () => {
       name === 'push_opt_outs' ||
       name === 'push_outbox' ||
       name === 'member_passkeys' ||
-      name === 'site_access_deliveries'
+      name === 'site_access_deliveries' ||
+      name === 'supplier_articles' ||
+      name === 'purchase_prices'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows
@@ -1052,7 +1059,7 @@ describe('a contact from a device', () => {
     // No form can make one: a contact is made on the screen of what it
     // belongs to. So this is a client that needs fixing, and the sentence
     // says what to fix, where the database only said that something is wrong.
-    expect(refused.message).toBe(contactParentText.both)
+    expect(refused.message).toBe(contactParentText.several)
 
     const { rows } = await admin.query('select id from contacts where id = $1', [doubled])
     expect(rows).toEqual([])
@@ -1804,7 +1811,7 @@ describe('a transmission refused over one operation', () => {
 
     const refused = await transmit(app, office(), [waiting, doubled], 400)
 
-    expect(refused.message).toBe(contactParentText.both)
+    expect(refused.message).toBe(contactParentText.several)
     expect(refused.operationId).toBe(doubled.id)
 
     // Refused as a whole, as before: the site in front of it waits with it

@@ -407,6 +407,13 @@
       "when": 1790562725163,
       "tag": "0057_installation_labels",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1790568478120,
+      "tag": "0058_articles_suppliers",
+      "breakpoints": true
     }
   ]
 }

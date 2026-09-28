@@ -70,6 +70,24 @@ function databaseMessage(error: unknown, fallback: string): string {
 }
 
 /**
+ * Whether the database refused a row for the named unique index. The driver
+ * names the index of a unique violation; Drizzle keeps the driver's error as
+ * the cause. For the routes that answer a duplicate with a sentence of their
+ * own: a second valid label (#308), a second article with a number (#296).
+ */
+export function isUniqueViolation(error: unknown, index: string): boolean {
+  for (const candidate of [error, (error as { cause?: unknown } | undefined)?.cause]) {
+    const found = candidate as { code?: unknown; constraint?: unknown } | undefined
+
+    if (found?.code === '23505' && found.constraint === index) {
+      return true
+    }
+  }
+
+  return false
+}
+
+/**
  * Turns database errors into answers a caller can act on. Without this a
  * missing field comes back as a 500, which tells the caller that we broke
  * rather than that they did.

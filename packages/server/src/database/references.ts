@@ -172,6 +172,9 @@ const called: Readonly<Record<string, string>> = {
   distribution_boards: 'Den Verteiler',
   board_sections: 'Das Feld',
   circuits: 'Den Stromkreis',
+  suppliers: 'Den Lieferanten',
+  articles: 'Den Artikel',
+  supplier_articles: 'Den Lieferanten des Artikels',
 }
 
 /** The sentence a route refuses a missing reference with: "Den Kunden aus customerId gibt es in diesem Betrieb nicht." */

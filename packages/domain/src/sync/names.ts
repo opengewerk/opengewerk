@@ -11,6 +11,7 @@
 export const syncEntityNames: Readonly<Record<string, string>> = {
   customers: 'Kunde',
   contacts: 'Ansprechpartner',
+  suppliers: 'Lieferant',
   sites: 'Objekt',
   installations: 'Anlage',
   distribution_boards: 'Verteiler',
@@ -39,6 +40,8 @@ export const syncEntityNames: Readonly<Record<string, string>> = {
   site_accesses: 'Zugang zum Objekt',
   site_access_reveals: 'Anzeige eines Zugangs',
   installation_labels: 'Etikett einer Anlage',
+  articles: 'Artikel',
+  article_prices: 'Verkaufspreis',
 }
 
 export const syncFieldNames: Readonly<Record<string, string>> = {
@@ -65,6 +68,13 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   warrantyEndsOn: 'Gewährleistung bis',
   customerId: 'Kunde',
   siteId: 'Objekt',
+  supplierId: 'Lieferant',
+  customerNumber: 'Kundennummer',
+  articleId: 'Artikel',
+  validFrom: 'Gültig ab',
+  ean: 'EAN',
+  groupOfGoods: 'Warengruppe',
+  frequent: 'Häufig',
   tagId: 'Tag',
   hint: 'Hinweis',
   valueSetAt: 'Wert gesetzt am',

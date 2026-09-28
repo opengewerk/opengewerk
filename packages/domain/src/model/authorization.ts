@@ -36,6 +36,24 @@ export const permissions = [
   'site.access',
   'installation.read',
   'installation.write',
+  /**
+   * The articles and suppliers of the business (#296). Reading them is for
+   * everybody: a technician takes an article into a report and wants to know
+   * where the material comes from. Keeping them is for the owner and the
+   * office, who answer for what the business sells and at which price.
+   */
+  'article.read',
+  'article.write',
+  'supplier.read',
+  'supplier.write',
+  /**
+   * What the business pays a supplier (#296), apart from the articles: only
+   * the owner and the office see a purchase price, decided on 27.09.2026. A
+   * technician works with what the business sells, and the difference is the
+   * business's margin, which is nobody else's to read.
+   */
+  'purchase.read',
+  'purchase.write',
   'job.read',
   'job.write',
   /**
@@ -198,6 +216,12 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'site.access': 'Zugang zu Objekten sehen und pflegen',
   'installation.read': 'Anlagen ansehen',
   'installation.write': 'Anlagen bearbeiten',
+  'article.read': 'Artikel ansehen',
+  'article.write': 'Artikel pflegen',
+  'supplier.read': 'Lieferanten ansehen',
+  'supplier.write': 'Lieferanten pflegen',
+  'purchase.read': 'Einkaufspreise ansehen',
+  'purchase.write': 'Einkaufspreise pflegen',
   'job.read': 'Aufträge ansehen',
   'job.write': 'Aufträge bearbeiten',
   'job.progress': 'Aufträge abschließen und Notizen schreiben',
@@ -265,6 +289,12 @@ const officePermissions: readonly Permission[] = [
   'site.access',
   'installation.read',
   'installation.write',
+  'article.read',
+  'article.write',
+  'supplier.read',
+  'supplier.write',
+  'purchase.read',
+  'purchase.write',
   'job.read',
   'job.write',
   'job.progress',
@@ -309,6 +339,9 @@ const technicianPermissions: readonly Permission[] = [
   'site.read',
   'installation.read',
   'installation.write',
+  // The material of a report, and where it comes from; not what it costs.
+  'article.read',
+  'supplier.read',
   'job.read',
   // Finishing the job and writing down what happened, not what it is.
   'job.progress',

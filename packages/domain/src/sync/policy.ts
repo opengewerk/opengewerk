@@ -111,6 +111,12 @@ const fieldWork: SyncPolicy = { create: true, change: 'merge' }
 export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   customers: masterData,
   contacts: masterData,
+  /**
+   * A supplier is master data like a customer (#296): on every device, created
+   * through the outbox and corrected at its route. What it sells and at which
+   * price never travels, those are the office's routes.
+   */
+  suppliers: masterData,
   sites: masterData,
   installations: fieldWork,
   distribution_boards: fieldWork,
@@ -305,6 +311,14 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * and says so when its label is blocked, and writes none.
    */
   installation_labels: { create: false, change: 'never' },
+  /**
+   * The articles a device holds (#296), whatever its role: the frequent ones
+   * with their selling prices, and those used lately once positions name their
+   * article. Kept at the routes of the office, where the whole catalogue is; a
+   * device reads them to take one into a position or a report and writes none.
+   */
+  articles: { create: false, change: 'never' },
+  article_prices: { create: false, change: 'never' },
   /**
    * That somebody saw the value of an access: written by the device that
    * showed it, also without a network, and never changed. Whose it is the

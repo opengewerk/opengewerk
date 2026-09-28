@@ -492,23 +492,27 @@ async function applyOne(
     throw new UnknownFieldError(figures)
   }
 
-  // A contact hangs on one customer or on one site, which the check in the
-  // database holds as well, judged as it would stand afterwards: what the
-  // operation sets, over the row it lands on. The two ways to miss that are
-  // not the same kind of mistake. On both, it is one only the client can
-  // make: a form makes a contact on the screen of what it belongs to and has
-  // no way to name the other as well, so the answer is the sentence of the
-  // rule, the way a circuit is refused whose curve does not go with its
-  // device. On neither, it is a record without the parent it must have, and
-  // that is the question of the references below, which gets their answer.
+  // A contact hangs on one customer, one site or one supplier, which the
+  // check in the database holds as well, judged as it would stand afterwards:
+  // what the operation sets, over the row it lands on. The two ways to miss
+  // that are not the same kind of mistake. On several, it is one only the
+  // client can make: a form makes a contact on the screen of what it belongs
+  // to and has no way to name another as well, so the answer is the sentence
+  // of the rule, the way a circuit is refused whose curve does not go with its
+  // device. On none, it is a record without the parent it must have, and that
+  // is the question of the references below, which gets their answer.
   const standing = (field: string) => (field in values ? values[field] : current?.[field])
   const parent =
     operation.entity === 'contacts' && operation.kind !== 'delete'
-      ? contactParentProblem({ customerId: standing('customerId'), siteId: standing('siteId') })
+      ? contactParentProblem({
+          customerId: standing('customerId'),
+          siteId: standing('siteId'),
+          supplierId: standing('supplierId'),
+        })
       : null
 
-  if (parent === 'both') {
-    throw new UnknownFieldError(contactParentText.both)
+  if (parent === 'several') {
+    throw new UnknownFieldError(contactParentText.several)
   }
 
   // The checks on the fields of one record that nothing above asks: the

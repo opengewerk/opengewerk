@@ -3,13 +3,20 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
   Patch,
   Post,
 } from '@nestjs/common'
-import { type ContactId, contactParentProblem, contactParentText } from '@opengewerk/domain'
+import {
+  type ContactId,
+  contactParentProblem,
+  contactParentText,
+  isAllowed,
+  missingPermission,
+} from '@opengewerk/domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { Database } from '../database/database.js'
@@ -22,6 +29,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 const writableFields = [
   'customerId',
   'siteId',
+  'supplierId',
   'givenName',
   'familyName',
   'role',
@@ -42,12 +50,16 @@ function requireFamilyName(values: Partial<Record<string, unknown>>): void {
 }
 
 /**
- * A contact hangs on one customer or on one site, judged as it would stand
- * afterwards, and the refusal is the sentence the form shows. The sync asks
- * `contactParentProblem` the same way, and the check in the database holds
- * the same rule for every other way in.
+ * A contact hangs on one customer, one site or one supplier, judged as it
+ * would stand afterwards, and the refusal is the sentence the form shows. The
+ * sync asks `contactParentProblem` the same way, and the check in the database
+ * holds the same rule for every other way in.
  */
-function requireOneParent(standing: { readonly customerId: unknown; readonly siteId: unknown }) {
+function requireOneParent(standing: {
+  readonly customerId: unknown
+  readonly siteId: unknown
+  readonly supplierId: unknown
+}) {
   const problem = contactParentProblem(standing)
 
   if (problem) {
@@ -56,7 +68,19 @@ function requireOneParent(standing: { readonly customerId: unknown; readonly sit
 }
 
 /**
- * The people to talk to at a customer or at a site (#121).
+ * The people of a supplier are the supplier's (#296): whoever may keep the
+ * suppliers keeps them, and a technician, who may add a contact to a customer
+ * on site, may not add one to a supplier.
+ */
+function requireSupplierRight(identity: RequestIdentity, supplierId: unknown): void {
+  if (supplierId !== null && supplierId !== undefined && !isAllowed(identity, 'supplier.write')) {
+    throw new ForbiddenException(missingPermission('supplier.write'))
+  }
+}
+
+/**
+ * The people to talk to at a customer or at a site (#121), and since #296 at
+ * a supplier, where the rights are the supplier's (`requireSupplierRight`).
  *
  * The rights are the customer's. A contact is part of it, the way the sync
  * treats it as well: writing down who opens the door is the same act as
@@ -85,7 +109,12 @@ export class ContactsController {
   async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFamilyName(values)
-    requireOneParent({ customerId: values.customerId, siteId: values.siteId })
+    requireOneParent({
+      customerId: values.customerId,
+      siteId: values.siteId,
+      supplierId: values.supplierId,
+    })
+    requireSupplierRight(identity, values.supplierId)
 
     const [created] = await this.database.forTenant(identity, async (tx) => {
       await requireReferences(tx, contacts, values, true)
@@ -125,11 +154,14 @@ export class ContactsController {
 
       // Moving a contact from a customer to a site takes both fields in one
       // request, one set and one emptied. Judged field by field, the first
-      // would already be refused as "both".
+      // would already be refused as several.
       requireOneParent({
         customerId: 'customerId' in values ? values.customerId : current.customerId,
         siteId: 'siteId' in values ? values.siteId : current.siteId,
+        supplierId: 'supplierId' in values ? values.supplierId : current.supplierId,
       })
+      requireSupplierRight(identity, current.supplierId)
+      requireSupplierRight(identity, values.supplierId)
       await requireReferences(tx, contacts, values, false)
 
       return tx
@@ -157,13 +189,25 @@ export class ContactsController {
   @Delete(':id')
   @RequiresPermission('customer.write')
   async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
-    const [removed] = await this.database.forTenant(identity, (tx) =>
-      tx
+    const [removed] = await this.database.forTenant(identity, async (tx) => {
+      const [current] = await tx
+        .select({ supplierId: contacts.supplierId })
+        .from(contacts)
+        .where(and(eq(contacts.id, id as ContactId), isNull(contacts.deletedAt)))
+        .for('no key update')
+
+      if (!current) {
+        return []
+      }
+
+      requireSupplierRight(identity, current.supplierId)
+
+      return tx
         .update(contacts)
         .set({ deletedAt: new Date() })
         .where(and(eq(contacts.id, id as ContactId), isNull(contacts.deletedAt)))
-        .returning(),
-    )
+        .returning()
+    })
 
     if (!removed) {
       throw new NotFoundException()
