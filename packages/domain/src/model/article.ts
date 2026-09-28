@@ -1,4 +1,10 @@
-import { lineUnits, type LineUnit, type PriceBase, priceBaseProblem } from './document-line.js'
+import {
+  lineUnits,
+  type LineUnit,
+  lumpSumPriceBaseProblem,
+  type PriceBase,
+  priceBaseProblem,
+} from './document-line.js'
 import type { Id, IsoDate, Synced, TenantOwned } from './identifier.js'
 import type { SupplierId } from './supplier.js'
 
@@ -206,6 +212,19 @@ export function priceProblems(price: {
   }
 
   return problems
+}
+
+/**
+ * What is wrong with counting an article in a unit, given the widest price
+ * unit among its selling and purchase prices, or null (#456). A lump sum is
+ * one of itself, as each of its prices is when it is written; an article with
+ * a price for several units becomes one only once those prices are gone.
+ */
+export function articleUnitProblem(unit: unknown, widestPriceBase: PriceBase): string | null {
+  return lumpSumPriceBaseProblem({ unit, priceBase: widestPriceBase }) === null
+    ? null
+    : 'Eine Pauschale hat keine Preiseinheit, und der Artikel hat Preise für mehrere Einheiten. ' +
+        'Erst ohne sie wird er eine Pauschale.'
 }
 
 /** Whether a value is a day as ISO 8601 writes it, and one the calendar has. */

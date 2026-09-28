@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   articleProblems,
+  articleUnitProblem,
   eanProblem,
   isCalendarDay,
   priceOn,
@@ -106,6 +107,12 @@ describe('a price from a day on', () => {
     expect(priceProblems({ unitPriceCents: 350, validFrom: '2026-03-01', priceBase: 50 })).toEqual({
       priceBase: 'Ein Preis gilt je 1, 10, 100 oder 1000 Einheiten.',
     })
+  })
+
+  it('keeps an article with a price for several units from becoming a lump sum (#456)', () => {
+    expect(articleUnitProblem('flat_rate', 100)).toMatch(/^Eine Pauschale hat keine Preiseinheit/)
+    expect(articleUnitProblem('flat_rate', 1)).toBeNull()
+    expect(articleUnitProblem('piece', 100)).toBeNull()
   })
 
   it('knows the days of the calendar', () => {

@@ -16,6 +16,7 @@ import {
   type ArticleId,
   type ArticlePriceId,
   articleProblems,
+  articleUnitProblem,
   isAllowed,
   isCalendarDay,
   lumpSumPriceBaseProblem,
@@ -28,7 +29,20 @@ import {
   type SupplierId,
   supplierNumberProblem,
 } from '@opengewerk/domain'
-import { and, asc, count, desc, eq, ilike, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  max,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
@@ -409,7 +423,12 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const article = await articleOf(tx, id)
+        const article = await articleOf(tx, id, 'unit' in values ? 'update' : null)
+
+        if ('unit' in values) {
+          await unitKeepsPrices(tx, article.id, values['unit'])
+        }
+
         const [updated] = await tx
           .update(articles)
           .set(values as Partial<typeof articles.$inferInsert>)
@@ -457,7 +476,7 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const article = await articleOf(tx, id, true)
+        const article = await articleOf(tx, id, 'share')
 
         perOneForLumpSum(article.unit, price.priceBase)
 
@@ -543,7 +562,7 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const article = await articleOf(tx, id, true)
+        const article = await articleOf(tx, id, 'share')
 
         if (first) {
           perOneForLumpSum(article.unit, first.priceBase)
@@ -644,7 +663,7 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const link = await linkOf(tx, id, linkId)
+        const link = await linkOf(tx, id, linkId, 'share')
 
         perOneForLumpSum(link.articleUnit, price.priceBase)
 
@@ -698,9 +717,15 @@ export class ArticlesController {
 /**
  * The article of the path, not deleted, or a 404, the same for one of another
  * business. Held with FOR SHARE where a row is about to hang on it, so that it
- * is not deleted between the look and the write.
+ * is not deleted or made a lump sum between the look and the write, and with
+ * FOR UPDATE where its unit changes, so that no price for several units comes
+ * in between the look at its prices and the change (#456).
  */
-async function articleOf(tx: TenantTransaction, id: string, hold = false) {
+async function articleOf(
+  tx: TenantTransaction,
+  id: string,
+  hold: 'share' | 'update' | null = null,
+) {
   if (!isUuid(id)) {
     throw new NotFoundException()
   }
@@ -709,7 +734,7 @@ async function articleOf(tx: TenantTransaction, id: string, hold = false) {
     .select()
     .from(articles)
     .where(and(eq(articles.id, id as ArticleId), isNull(articles.deletedAt)))
-  const [article] = hold ? await query.for('share') : await query
+  const [article] = hold === null ? await query : await query.for(hold)
 
   if (!article) {
     throw new NotFoundException()
@@ -718,9 +743,17 @@ async function articleOf(tx: TenantTransaction, id: string, hold = false) {
   return article
 }
 
-/** The supplier of an article by the id of the link, both of the path, or a 404. */
-async function linkOf(tx: TenantTransaction, id: string, linkId: string) {
-  const article = await articleOf(tx, id)
+/**
+ * The supplier of an article by the id of the link, both of the path, or a
+ * 404, with the article held as `articleOf` holds it.
+ */
+async function linkOf(
+  tx: TenantTransaction,
+  id: string,
+  linkId: string,
+  hold: 'share' | null = null,
+) {
+  const article = await articleOf(tx, id, hold)
 
   if (!isUuid(linkId)) {
     throw new NotFoundException()
@@ -743,4 +776,39 @@ async function linkOf(tx: TenantTransaction, id: string, linkId: string) {
 
   // What the article is counted in, which a purchase price's unit depends on.
   return { ...link, articleUnit: article.unit }
+}
+
+/**
+ * Refuses a unit an article's prices do not allow (#456): an article with a
+ * price for several units, selling or purchase, does not become a lump sum,
+ * since "je 100 psch." says nothing and an invoice from a report would take
+ * such a price into a line the database refuses. The article is held FOR
+ * UPDATE by then, and every new price holds it FOR SHARE.
+ */
+async function unitKeepsPrices(
+  tx: TenantTransaction,
+  articleId: ArticleId,
+  unit: unknown,
+): Promise<void> {
+  if (unit !== 'flat_rate') {
+    return
+  }
+
+  const [selling] = await tx
+    .select({ widest: max(articlePrices.priceBase) })
+    .from(articlePrices)
+    .where(and(eq(articlePrices.articleId, articleId), isNull(articlePrices.deletedAt)))
+  const [purchase] = await tx
+    .select({ widest: max(purchasePrices.priceBase) })
+    .from(purchasePrices)
+    .innerJoin(supplierArticles, eq(supplierArticles.id, purchasePrices.supplierArticleId))
+    .where(eq(supplierArticles.articleId, articleId))
+  const problem = articleUnitProblem(
+    unit,
+    priceBaseOf(Math.max(selling?.widest ?? 1, purchase?.widest ?? 1)),
+  )
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
 }

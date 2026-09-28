@@ -436,6 +436,55 @@ describe('an article kept by the office', () => {
     await http().delete(`/articles/${article.id}`).set('x-test-identity', office).expect(200)
   })
 
+  it('does not make an article with a price for several units a lump sum (#456)', async () => {
+    const ties = await post('/articles', {
+      number: '8002',
+      designation: 'Kabelbinder',
+      unit: 'piece',
+      price: { unitPriceCents: 350, validFrom: '2026-01-01', priceBase: 100 },
+    })
+    const change = async (unit: string, status: number) => {
+      const answer = await http()
+        .patch(`/articles/${ties.id}`)
+        .set('x-test-identity', office)
+        .send({ unit })
+        .expect(status)
+
+      return answer.body as { message?: string }
+    }
+
+    expect((await change('flat_rate', 400)).message).toMatch(
+      /^Eine Pauschale hat keine Preiseinheit, und der Artikel hat Preise/,
+    )
+
+    // Another unit takes the price as one for 100 of it.
+    await change('metre', 200)
+
+    // A purchase price for several units keeps it just as well, once the
+    // selling price is gone.
+    const { prices } = (await get(`/articles/${ties.id}`)) as { prices: { id: string }[] }
+
+    await http()
+      .delete(`/articles/${ties.id}/prices/${prices[0]?.id ?? ''}`)
+      .set('x-test-identity', office)
+      .expect(200)
+
+    const sold = await post(`/articles/${ties.id}/suppliers`, {
+      supplierId: wholesaler,
+      price: { unitPriceCents: 210, validFrom: '2026-01-01', priceBase: 100 },
+    })
+
+    await change('flat_rate', 400)
+    await http()
+      .delete(`/articles/${ties.id}/suppliers/${sold.id}`)
+      .set('x-test-identity', office)
+      .expect(200)
+
+    // Without them it becomes one.
+    await change('flat_rate', 200)
+    await http().delete(`/articles/${ties.id}`).set('x-test-identity', office).expect(200)
+  })
+
   it('takes its prices and who sells it along when it is deleted', async () => {
     const socket = await post('/articles', {
       number: '5001',

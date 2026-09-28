@@ -1,5 +1,6 @@
 import {
   articleProblems,
+  articleUnitProblem,
   type IsoDate,
   type LineUnit,
   lineUnits,
@@ -124,6 +125,22 @@ function newestBase(
   }
 
   return newest?.priceBase ?? 1
+}
+
+/**
+ * The widest price unit among the selling and purchase prices of an article,
+ * which decides whether it may become a lump sum (#456). Purchase prices a
+ * role does not read are left to the server, which asks the same rule.
+ */
+function widestBase(article: ArticleView): PriceBase {
+  const bases = [
+    ...article.prices.map((price) => price.priceBase),
+    ...article.suppliers.flatMap((link) =>
+      (link.purchasePrices ?? []).map((price) => price.priceBase),
+    ),
+  ]
+
+  return priceBaseOf(Math.max(1, ...bases))
 }
 
 /** The choices of "Preis je" for a unit: "1 Stk." to "1.000 Stk.". */
@@ -1393,6 +1410,11 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
     const values: Readonly<Record<string, unknown>> = { ...fields }
     const found: Record<string, string> = { ...articleProblems(values) }
     const cents = amount.trim() === '' ? null : parseEuros(amount)
+    const unitProblem = article ? articleUnitProblem(fields.unit, widestBase(article)) : null
+
+    if (unitProblem) {
+      found['unit'] = unitProblem
+    }
 
     if (!article && amount.trim() !== '') {
       Object.assign(
@@ -1505,6 +1527,7 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
                   label="Einheit"
                   value={draft.unit}
                   options={unitOptions}
+                  problem={problems['unit']}
                   onChange={(value) => {
                     set('unit')(lineUnits.find((unit) => unit === value) ?? 'piece')
                   }}

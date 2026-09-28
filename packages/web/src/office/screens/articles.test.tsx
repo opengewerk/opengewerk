@@ -507,6 +507,32 @@ describe('an article', () => {
     })
     expect(patch?.body).not.toHaveProperty('price')
   })
+
+  it('keeps an article with a purchase price per 100 from becoming a lump sum (#456)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, {
+      ...cable,
+      suppliers: [
+        {
+          ...cable.suppliers[0],
+          purchasePrices: [
+            { id: 'e-1', validFrom: '2026-03-01', unitPriceCents: 5400, priceBase: 100 },
+          ],
+        },
+      ],
+    })
+    serverSays('PATCH', /^\/articles\/a-1$/, { id: 'a-1' })
+    await mount('/artikel/a-1/bearbeiten')
+
+    await screen.findByRole('heading', { name: 'Mantelleitung NYM-J 3 × 1,5 mm² bearbeiten' })
+    await userEvent.selectOptions(screen.getByLabelText('Einheit'), 'flat_rate')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(
+      await screen.findByText(/^Eine Pauschale hat keine Preiseinheit, und der Artikel hat Preise/),
+    ).toBeTruthy()
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false)
+  })
 })
 
 describe('a new article', () => {
