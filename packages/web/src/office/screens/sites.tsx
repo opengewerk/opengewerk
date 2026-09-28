@@ -25,6 +25,8 @@ import { NewJobForm } from './jobs.js'
 import { AccessPanel } from './site-access.js'
 import { TasksSection } from './tasks.js'
 import { ChangesButton } from './audit-log.js'
+import { useCompanionFields } from './pv-system.js'
+import { asCompanion } from '../../app/photovoltaic.js'
 
 const siteFields: readonly FormField[] = [
   {
@@ -212,6 +214,8 @@ export function SiteScreen() {
   // Null until somebody changes the tags, as in the form of a customer.
   const [chosen, setChosen] = useState<ChosenTags | null>(null)
   const [adding, setAdding] = useState<'installation' | 'job' | null>(null)
+  // A battery, a meter or a wallbox says where it belongs from the start (#300).
+  const linkFields = useCompanionFields(siteId)
   const navigate = useNavigate()
 
   if (!site || !siteId) {
@@ -231,13 +235,21 @@ export function SiteScreen() {
   const installationForm =
     adding === 'installation' ? (
       <RecordForm
-        fields={installationFields}
+        fields={[
+          ...installationFields.slice(0, -1),
+          ...linkFields,
+          ...installationFields.slice(-1),
+        ]}
         submitLabel="Anlage anlegen"
         onCancel={() => {
           setAdding(null)
         }}
         onSubmit={async (values) => {
-          const made = await client.create('installations', { ...asInstallation(values), siteId })
+          const made = await client.create('installations', {
+            ...asInstallation(values),
+            ...asCompanion(values),
+            siteId,
+          })
 
           if (made.outcome === 'queued') {
             setAdding(null)

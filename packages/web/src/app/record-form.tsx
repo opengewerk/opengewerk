@@ -27,6 +27,59 @@ export interface FormField {
   readonly hint?: string
   /** Amounts and measured values, for tabular figures. */
   readonly numeric?: boolean
+  /**
+   * Whether the field stands in the form for what is filled in so far: the PV
+   * system a battery belongs to, only for a battery, a meter or a wallbox
+   * (#300). A field that does not stand is handed back empty.
+   */
+  readonly shownWhen?: (values: Readonly<Record<string, string>>) => boolean
+  /**
+   * The choices for what is filled in so far, in place of `options`: the
+   * inverters of the PV system chosen above. A choice that is no longer among
+   * them is handed back as the first.
+   */
+  readonly optionsFor?: (
+    values: Readonly<Record<string, string>>,
+  ) => readonly { readonly value: string; readonly label: string }[]
+}
+
+/** The choices a field offers for these values, or none when it is typed. */
+function choicesOf(field: FormField, values: Readonly<Record<string, string>>) {
+  return field.optionsFor?.(values) ?? field.options
+}
+
+/**
+ * The values as the form hands them back: a field that does not stand is
+ * empty, and a choice its list for these values no longer offers is the
+ * list's first, so that a battery that stops being one does not keep its PV
+ * system, and an inverter of the PV system chosen before does not go with the
+ * one chosen now.
+ *
+ * Only for the lists that depend on the values. A fixed list keeps a value it
+ * does not offer, as it always did: a record written somewhere else, a
+ * country the list lacks, goes back as it came instead of quietly becoming
+ * the first choice.
+ */
+function settled(
+  fields: readonly FormField[],
+  values: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const result: Record<string, string> = { ...values }
+
+  for (const field of fields) {
+    if (field.shownWhen && !field.shownWhen(result)) {
+      result[field.name] = ''
+      continue
+    }
+
+    const choices = field.optionsFor?.(result)
+
+    if (choices && !choices.some((choice) => choice.value === result[field.name])) {
+      result[field.name] = choices[0]?.value ?? ''
+    }
+  }
+
+  return result
 }
 
 /**
@@ -128,7 +181,8 @@ export function RecordForm({
     setTrouble(null)
     setWrongFields([])
 
-    const problem = check?.(values) ?? null
+    const handed = settled(fields, values)
+    const problem = check?.(handed) ?? null
 
     if (problem !== null) {
       setTrouble(problem)
@@ -139,7 +193,7 @@ export function RecordForm({
     setWorking(true)
 
     try {
-      const result = await onSubmit(values)
+      const result = await onSubmit(handed)
 
       if (result.outcome === 'refused') {
         setTrouble(refusalFor(result))
@@ -164,12 +218,18 @@ export function RecordForm({
       ) : null}
 
       <div className={clsx('grid gap-3 sm:grid-cols-2', columns)}>
-        {fields.map((field) =>
-          field.options ? (
+        {fields.map((field) => {
+          if (field.shownWhen && !field.shownWhen(values)) {
+            return null
+          }
+
+          const choices = choicesOf(field, values)
+
+          return choices ? (
             <SelectField
               key={field.name}
               label={field.label}
-              options={field.options}
+              options={choices}
               required={field.required}
               hint={field.hint}
               value={values[field.name] ?? ''}
@@ -192,8 +252,8 @@ export function RecordForm({
                 setValues((current) => ({ ...current, [field.name]: event.target.value }))
               }}
             />
-          ),
-        )}
+          )
+        })}
       </div>
 
       {after}

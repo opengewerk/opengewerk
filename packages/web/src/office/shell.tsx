@@ -11,12 +11,14 @@ import { PathSlot, TopBar } from './top-bar.js'
 
 /**
  * The screens one works in rather than passes through: the structure of an
- * installation. From 1024 pixels they take the width of the navigation and
+ * installation, electrical or PV (#300). From 1024 pixels they take the width of the navigation and
  * put their path into the header, as `structure_page()` of the canvas does;
  * narrower, nothing changes, the navigation is behind "Menü" anyway.
  */
 function isFocus(path: string): boolean {
-  return path.startsWith('/verteiler/') || path.startsWith('/stromkreise/')
+  return ['/verteiler/', '/stromkreise/', '/wechselrichter/', '/strings/'].some((start) =>
+    path.startsWith(start),
+  )
 }
 
 /**

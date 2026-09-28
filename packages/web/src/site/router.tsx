@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 
 import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
+import { SiteInverterScreen, SitePvStringScreen } from './screens/pv.js'
 import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
@@ -15,7 +16,8 @@ import { SiteShell } from './shell.js'
  *
  * The boards and circuits hang below the job, although they belong to the
  * installation: on site they are reached from the job somebody is working
- * on, and the way back has to lead there. The test protocols do the same.
+ * on, and the way back has to lead there. The test protocols do the same, and
+ * so do the inverters and strings of a PV system (#300).
  *
  * `basepath` is what makes this a second application at `/m` rather than a
  * section of the first. The two are separate documents with separate bundles,
@@ -57,6 +59,16 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
     component: SiteCircuitScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/wechselrichter/$inverterId',
+    component: SiteInverterScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId',
+    component: SitePvStringScreen,
   }),
   createRoute({
     getParentRoute: () => root,

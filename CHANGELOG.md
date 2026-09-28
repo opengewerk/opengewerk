@@ -114,6 +114,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ein gezeigter Wert, der sich inzwischen geändert hat, wird wieder verdeckt. Ändert sich
   `SESSION_SECRET`, sagt die Karte, dass ein Wert nicht mehr lesbar ist, statt zu scheitern.
   Migrationen 0054 und 0055.
+- Die PV-Struktur unter einer PV-Anlage (#300), damit Stringplan, Komponentenliste und später das
+  Protokoll nach VDE-AR-N 4105 aus dem entstehen, was erfasst ist, und nicht aus einer Tabelle
+  daneben. Im Büro hat eine PV-Anlage ihre Wechselrichter, wo ein Zählerschrank seine Verteiler
+  hat, mit ihrer Leistung in kWp und der Summe ihrer Wechselrichter, und "Anlagenstruktur öffnen"
+  führt in einen Baum aus Wechselrichtern und Strings: Wechselrichter mit Hersteller, Modell,
+  Seriennummer, Nennleistung und MPP-Eingängen, Strings mit MPP-Eingang, Ausrichtung und Neigung,
+  und an jedem String seine Module mit Leistung und Seriennummer. Module entstehen bis zu hundert
+  auf einmal, mit Hersteller, Modell und Leistung der Module, die schon am String stehen; die
+  Seriennummer steht in der Liste, und wo sie fehlt, sagt die Liste es. Auf der Baustelle zeigt die
+  Karte "Anlage" eines Auftrags an einer PV-Anlage ihre Leistung und ihre Wechselrichter, und ein
+  Monteur trägt ohne Netz einen Wechselrichter, einen String oder eine Reihe Module nach. Speicher,
+  Zähler und Wallbox bleiben eigene Anlagen am Objekt und sagen unter "Bearbeiten", zu welcher
+  PV-Anlage sie gehören und an welchem Wechselrichter sie hängen; die PV-Anlage listet sie unter
+  "Dazu gehören", ein Wechselrichter unter "Daran angeschlossen". Löschen nimmt mit, was darunter
+  hängt, auch unter einer PV-Anlage und einem Wechselrichter, und eine PV-Anlage, die gelöscht, zu
+  etwas anderem oder an ein anderes Objekt verlegt wird, lässt los, was zu ihr gehörte. Leistungen
+  stehen in ganzen Watt. Migration 0056.
 
 ### Geändert
 

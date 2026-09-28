@@ -643,6 +643,142 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   }
 
   await plantBoards(post, cabinet, today)
+  await plantPhotovoltaic(post, berg, house)
+}
+
+/**
+ * The Bergs' PV system (#300), as the boards of the canvas draw it: one
+ * inverter, two strings of twelve modules on two roofs, the last three of the
+ * second still without a serial number, a battery at the inverter and a
+ * wallbox that belongs to the system, and a job at it that is under way, so
+ * that the site shows the structure too.
+ *
+ * The system and what belongs to it through their routes, the structure
+ * through the outbox, as a device writes it.
+ */
+async function plantPhotovoltaic(
+  post: (path: string, body: unknown) => Promise<Answer>,
+  berg: string,
+  house: string,
+): Promise<void> {
+  const system = idOf(
+    await post('/installations', {
+      siteId: house,
+      kind: 'pv_system',
+      designation: 'PV-Anlage Dach',
+      commissionedOn: '2022-05-17',
+      warrantyEndsOn: '2032-05-17',
+      notes: 'Zwei Dachflächen, Süd und West.',
+    }),
+  )
+
+  await post('/jobs', {
+    customerId: berg,
+    siteId: house,
+    installationId: system,
+    kind: 'service',
+    status: 'active',
+    designation: 'Wartung PV-Anlage',
+  })
+
+  const inverter = newId<'inverter'>()
+  const south = newId<'pv-string'>()
+  const west = newId<'pv-string'>()
+  const module = { manufacturer: 'JA Solar', model: 'JAM54S30-400/MR', ratedPowerW: 400 }
+  const modules = (pvStringId: string, first: number, withSerial: number) =>
+    Array.from({ length: 12 }, (_, index): [string, string, Record<string, unknown>] => [
+      'pv_modules',
+      newId<'pv-module'>(),
+      {
+        ...module,
+        pvStringId,
+        position: index,
+        ...(index < withSerial ? { serialNumber: `JA24041187${String(first + index)}` } : {}),
+      },
+    ])
+  const parts: readonly [string, string, Record<string, unknown>][] = [
+    [
+      'inverters',
+      inverter,
+      {
+        installationId: system,
+        designation: 'WR 1',
+        manufacturer: 'Fronius',
+        model: 'Symo GEN24 10.0 Plus',
+        serialNumber: '34125009',
+        ratedPowerW: 10_000,
+        mppInputs: 2,
+        position: 0,
+      },
+    ],
+    [
+      'pv_strings',
+      south,
+      {
+        inverterId: inverter,
+        designation: 'String 1',
+        mppInput: 1,
+        azimuthDeg: 180,
+        tiltDeg: 30,
+        position: 0,
+      },
+    ],
+    [
+      'pv_strings',
+      west,
+      {
+        inverterId: inverter,
+        designation: 'String 2',
+        mppInput: 2,
+        azimuthDeg: 270,
+        tiltDeg: 30,
+        position: 1,
+      },
+    ],
+    ...modules(south, 59, 12),
+    ...modules(west, 71, 9),
+  ]
+
+  const sent = await post('/sync', {
+    deviceId: 'vorschau-rechner',
+    operations: parts.map(([entity, recordId, values]) => ({
+      id: newId<'operation'>(),
+      entity,
+      recordId,
+      kind: 'create',
+      baseVersion: null,
+      patches: Object.entries(values).map(([field, to]) => ({ field, from: null, to })),
+      recordedAt: new Date().toISOString(),
+    })),
+  })
+  const refused = (
+    (sent['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+  ).filter((taken) => taken.outcome !== 'applied')
+
+  if (refused.length > 0) {
+    throw new Error(`The sample PV structure was not all taken: ${JSON.stringify(refused)}`)
+  }
+
+  await post('/installations', {
+    siteId: house,
+    kind: 'battery',
+    designation: 'Speicher Technikraum',
+    manufacturer: 'BYD',
+    model: 'Battery-Box HVS 7.7',
+    serialNumber: 'P031W020A12345',
+    commissionedOn: '2025-03-03',
+    warrantyEndsOn: '2035-03-03',
+    pvSystemId: system,
+    inverterId: inverter,
+  })
+  await post('/installations', {
+    siteId: house,
+    kind: 'wallbox',
+    designation: 'Wallbox Garage',
+    manufacturer: 'Mennekes',
+    model: 'Amtron 4Business',
+    pvSystemId: system,
+  })
 }
 
 /**

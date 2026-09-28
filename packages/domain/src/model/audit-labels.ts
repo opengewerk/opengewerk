@@ -207,7 +207,12 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
   },
   installations: {
     label: 'Anlage',
-    fields: { commissioned_on: 'In Betrieb seit', warranty_ends_on: 'Gewährleistung bis' },
+    fields: {
+      commissioned_on: 'In Betrieb seit',
+      warranty_ends_on: 'Gewährleistung bis',
+      pv_system_id: 'Gehört zu PV-Anlage',
+      inverter_id: 'Am Wechselrichter',
+    },
   },
   instructions: {
     label: 'Belehrung',
@@ -221,7 +226,10 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       with_document: 'Geht mit dem Beleg hinaus',
     },
   },
-  inverters: { label: 'Wechselrichter' },
+  inverters: {
+    label: 'Wechselrichter',
+    fields: { rated_power_w: 'Nennleistung in W', mpp_inputs: 'MPP-Eingänge' },
+  },
   invitations: {
     label: 'Einladung',
     fields: {
@@ -337,8 +345,19 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       auth: 'Geheimnis des Browsers',
     },
   },
-  pv_modules: { label: 'PV-Modul', fields: { pv_string_id: 'String' } },
-  pv_strings: { label: 'String', fields: { inverter_id: 'Wechselrichter' } },
+  pv_modules: {
+    label: 'PV-Modul',
+    fields: { pv_string_id: 'String', rated_power_w: 'Leistung in Wp' },
+  },
+  pv_strings: {
+    label: 'String',
+    fields: {
+      inverter_id: 'Wechselrichter',
+      mpp_input: 'MPP-Eingang',
+      azimuth_deg: 'Ausrichtung in Grad',
+      tilt_deg: 'Neigung in Grad',
+    },
+  },
   site_access_deliveries: {
     label: 'Zugang auf einem Gerät',
     fields: { site_access_id: 'Zugang', value_set_at: 'Wert gesetzt am' },

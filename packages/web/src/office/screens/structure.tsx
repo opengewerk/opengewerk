@@ -82,7 +82,7 @@ const lastSection = new Map<string, string | null>()
  * sight; the links of the tree carry it as their hash there, and the router
  * scrolls to it, 72 pixels short of it for the header that stays on top.
  */
-const detailAnchor = 'auswahl'
+export const detailAnchor = 'auswahl'
 
 type Making = { readonly kind: 'board' } | { readonly kind: 'circuit'; readonly boardId: string }
 
@@ -124,7 +124,7 @@ export function CircuitScreen() {
   )
 }
 
-function Missing({ what }: { readonly what: string }) {
+export function Missing({ what }: { readonly what: string }) {
   return (
     <Screen>
       <PageHead title="Nicht gefunden" crumbs={[{ to: '/anlagen', label: 'Anlagen' }]} />
@@ -133,28 +133,16 @@ function Missing({ what }: { readonly what: string }) {
   )
 }
 
-function StructureScreen({
-  installationId,
-  boardId,
-  circuitId,
-}: {
-  readonly installationId: string
-  readonly boardId: string
-  readonly circuitId: string | null
-}) {
+/**
+ * The path to the installation, in the header from 1024 pixels on, as the
+ * boards draw it; below that the header is a phone's, and the path stands on
+ * the page. Shared with the PV structure (#300).
+ */
+export function StructurePath({ installationId }: { readonly installationId: string }) {
   const installation = useRecord('installations', installationId)
   const site = useRecord('sites', maybeText(installation, 'siteId') ?? undefined)
   const customer = useRecord('customers', maybeText(site, 'customerId') ?? undefined)
-  const writes = useMay('installation.write')
-  const [making, setMaking] = useState<Making | null>(null)
   const slot = useContext(PathSlot)
-  const narrow = isNarrow(useBand())
-
-  useEffect(() => {
-    if (making && narrow) {
-      document.getElementById(detailAnchor)?.scrollIntoView({ block: 'start' })
-    }
-  }, [making, narrow])
 
   const path = [
     ...(customer
@@ -164,31 +152,8 @@ function StructureScreen({
   ]
   const here = text(installation, 'designation')
 
-  const detail =
-    making?.kind === 'board' ? (
-      <NewBoard
-        installationId={installationId}
-        onDone={() => {
-          setMaking(null)
-        }}
-      />
-    ) : making?.kind === 'circuit' ? (
-      <NewCircuit
-        boardId={making.boardId}
-        onDone={() => {
-          setMaking(null)
-        }}
-      />
-    ) : circuitId ? (
-      <CircuitDetail key={circuitId} circuitId={circuitId} />
-    ) : (
-      <BoardDetail key={boardId} boardId={boardId} />
-    )
-
   return (
-    <Screen className="lg:grow">
-      {/* In the header from 1024 pixels on, as the boards draw it; below
-          that the header is a phone's, and the path stands on the page. */}
+    <>
       {slot
         ? createPortal(
             <nav aria-label="Pfad" className="flex min-w-0 items-center gap-2 text-[13px]">
@@ -227,6 +192,61 @@ function StructureScreen({
           ]}
         />
       </div>
+    </>
+  )
+}
+
+/** Below 1024 pixels the detail is under the tree: a new part scrolls to it, or it opens out of sight. */
+export function useScrollToDetail(making: unknown) {
+  const narrow = isNarrow(useBand())
+
+  useEffect(() => {
+    if (making && narrow) {
+      document.getElementById(detailAnchor)?.scrollIntoView({ block: 'start' })
+    }
+  }, [making, narrow])
+
+  return narrow
+}
+
+function StructureScreen({
+  installationId,
+  boardId,
+  circuitId,
+}: {
+  readonly installationId: string
+  readonly boardId: string
+  readonly circuitId: string | null
+}) {
+  const installation = useRecord('installations', installationId)
+  const writes = useMay('installation.write')
+  const [making, setMaking] = useState<Making | null>(null)
+  const narrow = useScrollToDetail(making)
+
+  const detail =
+    making?.kind === 'board' ? (
+      <NewBoard
+        installationId={installationId}
+        onDone={() => {
+          setMaking(null)
+        }}
+      />
+    ) : making?.kind === 'circuit' ? (
+      <NewCircuit
+        boardId={making.boardId}
+        onDone={() => {
+          setMaking(null)
+        }}
+      />
+    ) : circuitId ? (
+      <CircuitDetail key={circuitId} circuitId={circuitId} />
+    ) : (
+      <BoardDetail key={boardId} boardId={boardId} />
+    )
+
+  return (
+    <Screen className="lg:grow">
+      <StructurePath installationId={installationId} />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-[24px] font-semibold text-ink">Anlagenstruktur</h1>
@@ -462,7 +482,7 @@ function StructureTree({
 
 const indents = ['pl-2.5', 'pl-7', 'pl-[46px]'] as const
 
-function TreeItem({
+export function TreeItem({
   to,
   hash,
   level,
@@ -548,7 +568,7 @@ function CircuitItem({
 }
 
 /** The frame of what is selected: its name and a line, what can be done, and the rest. */
-function Detail({
+export function Detail({
   title,
   sub,
   actions,
@@ -577,7 +597,7 @@ function Detail({
 }
 
 /** "Verteiler löschen", a little lower than a button of the head, as the board draws it. */
-function RemoveButton({
+export function RemoveButton({
   onClick,
   children,
 }: {
