@@ -1,4 +1,5 @@
 import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain'
+import { quantityFactor } from '@opengewerk/domain'
 import { Check, Clock, RefreshCw, Server, Smartphone, TriangleAlert, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useId, useState } from 'react'
@@ -61,6 +62,10 @@ function shown(field: string, value: SyncValue | undefined): string {
     return euros(value)
   }
 
+  if (typeof value === 'number' && field === 'priceBase') {
+    return `je ${amount(value * quantityFactor)}`
+  }
+
   if (typeof value === 'string' && field === 'unit' && Object.hasOwn(lineUnitLabel, value)) {
     return lineUnitLabel[value as keyof typeof lineUnitLabel]
   }
@@ -98,6 +103,7 @@ const documentOrder = [
   'quantityMilli',
   'unit',
   'unitPriceCents',
+  'priceBase',
   'vatRate',
 ]
 
