@@ -271,7 +271,11 @@ describe('the tables', () => {
       name === 'member_passkeys' ||
       name === 'site_access_deliveries' ||
       name === 'supplier_articles' ||
-      name === 'purchase_prices'
+      name === 'purchase_prices' ||
+      // An import of DATANORM and the list prices it writes, read at the
+      // routes of the supplier by whoever may read purchase prices (#297).
+      name === 'article_imports' ||
+      name === 'list_prices'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

@@ -315,10 +315,11 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * The articles a device holds (#296), whatever its role: the frequent ones
    * and those a line took in the last 90 days, with their selling prices. Kept
    * at the routes of the office, where the whole catalogue is; a device reads
-   * them to take one into a position or a report and writes none.
+   * them to take one into a position or a report and writes none. Which
+   * import wrote a row only the import itself writes (#297).
    */
-  articles: { create: false, change: 'never' },
-  article_prices: { create: false, change: 'never' },
+  articles: { create: false, change: 'never', reserved: ['importId'] },
+  article_prices: { create: false, change: 'never', reserved: ['importId'] },
   /**
    * That somebody saw the value of an access: written by the device that
    * showed it, also without a network, and never changed. Whose it is the
