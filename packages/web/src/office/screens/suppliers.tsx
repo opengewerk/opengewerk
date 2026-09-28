@@ -16,7 +16,7 @@ import {
   TablePanel,
   TextArea,
 } from '../../components/index.js'
-import { addressLine, countryOptions, euros } from '../../app/format.js'
+import { addressLine, countryOptions } from '../../app/format.js'
 import { lineUnitShort } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
@@ -32,7 +32,7 @@ import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provid
 import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import { lastChanged, ListCard, ListScreen } from '../list.js'
 import type { ListColumn } from '../list.js'
-import { Frequent, PageFooter, pageSize, saidWhy } from './articles.js'
+import { Frequent, PageFooter, pageSize, PriceWithBase, saidWhy } from './articles.js'
 import { ChangesButton } from './audit-log.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf } from './customers.js'
@@ -283,8 +283,17 @@ function SupplierArticles({
     )
   }
 
+  // With the units the price is for, "je 100 Stk." under it (#456).
   const purchase = (row: (typeof rows)[number]) =>
-    row.purchase ? euros(row.purchase.unitPriceCents) : ''
+    row.purchase ? (
+      <PriceWithBase
+        cents={row.purchase.unitPriceCents}
+        base={row.purchase.priceBase}
+        unit={row.unit}
+      />
+    ) : (
+      ''
+    )
 
   return (
     <TablePanel

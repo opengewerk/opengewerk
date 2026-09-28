@@ -3,6 +3,9 @@ import {
   type IsoDate,
   type LineUnit,
   lineUnits,
+  type PriceBase,
+  priceBaseOf,
+  priceBases,
   priceOn,
   priceProblems,
   priceStanding,
@@ -30,7 +33,7 @@ import {
 } from '../../components/index.js'
 import { useBand } from '../../components/band.js'
 import { date, euros, parseEuros, today } from '../../app/format.js'
-import { lineUnitLabel, lineUnitShort } from '../../app/labels.js'
+import { lineUnitLabel, lineUnitShort, priceBaseLabel, priceBaseText } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {
   addArticlePrice,
@@ -68,6 +71,45 @@ export function saidWhy(error: unknown, fallback: string): string {
 /** "0,92 €", or a word where there is no price. */
 export function priceText(cents: number | null): string {
   return cents === null ? 'kein Preis' : euros(cents)
+}
+
+/**
+ * A price and, under it, how many units it is for when that is more than one
+ * (#456): "3,50 €" over "je 100 Stk.". With `always` a price for one unit
+ * names its unit as well, where prices for different units share a column.
+ */
+export function PriceWithBase({
+  cents,
+  base,
+  unit,
+  always = false,
+}: {
+  readonly cents: number
+  readonly base: PriceBase
+  readonly unit: LineUnit
+  readonly always?: boolean
+}) {
+  const per = always ? `je ${priceBaseLabel(base, unit)}` : priceBaseText(base, unit)
+
+  return (
+    <>
+      {priceText(cents)}
+      {per ? <span className="block text-[12px] font-normal text-ink-faint">{per}</span> : null}
+    </>
+  )
+}
+
+/** What one unit costs at a price for several, for comparing two prices (#456). */
+function perUnit(price: {
+  readonly unitPriceCents: number
+  readonly priceBase: PriceBase
+}): number {
+  return price.unitPriceCents / price.priceBase
+}
+
+/** The choices of "Preis je" for a unit: "1 Stk." to "1.000 Stk.". */
+function baseOptions(unit: LineUnit) {
+  return priceBases.map((base) => ({ value: String(base), label: priceBaseLabel(base, unit) }))
 }
 
 /** The mark beside a frequent article, as the tags stand beside a customer. */
@@ -485,7 +527,9 @@ function PricesToRead({ article }: { readonly article: ArticleView }) {
             <li key={price.id} className="flex items-baseline justify-between gap-2.5">
               <span className="text-[14px]">{words}</span>
               <b className="numeric text-[16px] font-semibold">
-                {`${priceText(price.unitPriceCents)} je ${unit}`}
+                {`${priceText(price.unitPriceCents)} je ${
+                  price.priceBase > 1 ? priceBaseLabel(price.priceBase, article.unit) : unit
+                }`}
               </b>
             </li>
           ))}
@@ -560,6 +604,9 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
   const [removing, setRemoving] = useState<PriceView | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
   const unit = lineUnitLabel[article.unit]
+  // Prices for more than one unit say for how many, each in its cell; as
+  // long as every price is for one, the column says it once (#456).
+  const mixed = article.prices.some((price) => price.priceBase > 1)
 
   async function remove(price: PriceView) {
     setRemoving(null)
@@ -589,7 +636,12 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
         priceStanding(price, article.prices, today()) !== 'earlier' && 'font-semibold',
       )}
     >
-      {priceText(price.unitPriceCents)}
+      <PriceWithBase
+        cents={price.unitPriceCents}
+        base={price.priceBase}
+        unit={article.unit}
+        always={mixed}
+      />
     </span>
   )
 
@@ -615,6 +667,7 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
           adding ? (
             <PriceForm
               submitLabel="Preis anlegen"
+              unit={article.unit}
               onCancel={() => {
                 setAdding(false)
               }}
@@ -640,7 +693,7 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
           <tr>
             <Column className="w-[130px] min-w-[110px]">Gültig ab</Column>
             <Column numeric className="min-w-[120px]">
-              Preis je {unit}
+              {mixed ? 'Preis' : `Preis je ${unit}`}
             </Column>
             <Column className="w-[150px] min-w-[110px]">Stand</Column>
             {writes ? (
@@ -700,12 +753,15 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
 /** A price from a day on: the amount and the day, today unless somebody says otherwise. */
 function PriceForm({
   submitLabel,
+  unit,
   onSave,
   onCancel,
   extra,
   className = 'border-b border-line px-3.5 py-3',
 }: {
   readonly submitLabel: string
+  /** What the article is counted in, which "Preis je" names (#456). */
+  readonly unit: LineUnit
   readonly onSave: (price: PriceFields) => Promise<void>
   readonly onCancel: () => void
   readonly extra?: ReactNode
@@ -713,7 +769,10 @@ function PriceForm({
   readonly className?: string
 }) {
   const [amount, setAmount] = useState('')
+  const [base, setBase] = useState('1')
   const [day, setDay] = useState<IsoDate>(today())
+  // A lump sum is for one of it, as on a position.
+  const perUnits = unit !== 'flat_rate'
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -722,7 +781,8 @@ function PriceForm({
     event.preventDefault()
 
     const cents = parseEuros(amount)
-    const found = priceProblems({ unitPriceCents: cents ?? Number.NaN, validFrom: day })
+    const priceBase = perUnits ? priceBaseOf(Number(base)) : 1
+    const found = priceProblems({ unitPriceCents: cents ?? Number.NaN, validFrom: day, priceBase })
 
     setProblems(found)
 
@@ -734,7 +794,7 @@ function PriceForm({
     setTrouble(null)
 
     try {
-      await onSave({ unitPriceCents: cents, validFrom: day })
+      await onSave({ unitPriceCents: cents, priceBase, validFrom: day })
     } catch (error) {
       setTrouble(saidWhy(error, 'Der Preis ließ sich nicht speichern. Keine Verbindung.'))
     } finally {
@@ -750,9 +810,9 @@ function PriceForm({
       }}
     >
       {extra}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={clsx('grid gap-3', perUnits ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
         <Field
-          label="Preis je Einheit in Euro"
+          label="Preis in Euro"
           inputMode="decimal"
           numeric
           value={amount}
@@ -761,6 +821,15 @@ function PriceForm({
             setAmount(event.target.value)
           }}
         />
+        {perUnits ? (
+          <SelectField
+            label="Preis je"
+            value={base}
+            options={baseOptions(unit)}
+            onChange={setBase}
+            hint="Für wie viele Einheiten der Preis gilt."
+          />
+        ) : null}
         <Field
           label="Gültig ab"
           type="date"
@@ -841,16 +910,18 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
 
   const current = (link: SupplierLinkView) =>
     link.purchasePrices === null ? null : (priceOnDay(link.purchasePrices) ?? null)
+  // Compared per unit: 2,10 € per 100 is less than 0,03 € per piece (#456).
   const priced = article.suppliers
-    .map((link) => current(link)?.unitPriceCents)
-    .filter((cents): cents is number => cents !== undefined)
+    .map((link) => current(link))
+    .filter((price): price is PriceView => price !== null)
+    .map(perUnit)
   const lowest = priced.length > 1 ? Math.min(...priced) : null
   const purchase = (link: SupplierLinkView) => {
     const price = current(link)
 
     return price ? (
-      <span className={clsx(price.unitPriceCents === lowest && 'font-semibold')}>
-        {priceText(price.unitPriceCents)}
+      <span className={clsx(perUnit(price) === lowest && 'font-semibold')}>
+        <PriceWithBase cents={price.unitPriceCents} base={price.priceBase} unit={article.unit} />
       </span>
     ) : (
       ''
@@ -894,6 +965,7 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
           adding ? (
             <PriceForm
               submitLabel="Lieferant hinzufügen"
+              unit={article.unit}
               extra={
                 <div className="grid gap-3 sm:grid-cols-2">
                   <SelectField
@@ -929,6 +1001,7 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
             <SupplierLinkForm
               key={changed.id}
               articleId={article.id}
+              unit={article.unit}
               link={changed}
               onRemove={setRemoving}
               onClose={() => {
@@ -1035,11 +1108,13 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
  */
 function SupplierLinkForm({
   articleId,
+  unit,
   link,
   onRemove,
   onClose,
 }: {
   readonly articleId: string
+  readonly unit: LineUnit
   readonly link: SupplierLinkView
   readonly onRemove: (link: SupplierLinkView) => void
   readonly onClose: () => void
@@ -1131,7 +1206,11 @@ function SupplierLinkForm({
                 >
                   <span className="numeric w-[96px]">ab {date(price.validFrom)}</span>
                   <span className="numeric w-[96px] text-right">
-                    {priceText(price.unitPriceCents)}
+                    <PriceWithBase
+                      cents={price.unitPriceCents}
+                      base={price.priceBase}
+                      unit={unit}
+                    />
                   </span>
                   <Standing price={price} prices={prices} />
                   <div className="grow" />
@@ -1151,6 +1230,7 @@ function SupplierLinkForm({
             <PriceForm
               className=""
               submitLabel="Einkaufspreis anlegen"
+              unit={unit}
               onCancel={() => {
                 setPricing(false)
               }}
@@ -1235,11 +1315,14 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
   })
   const [draft, setDraft] = useState<ArticleDraft>(() => draftOf(article))
   const [amount, setAmount] = useState('')
+  const [base, setBase] = useState('1')
   const [day, setDay] = useState<IsoDate>(today())
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const listId = 'artikel-warengruppen'
+  // The first price is for as many units as chosen, one for a lump sum (#456).
+  const priceBase = draft.unit === 'flat_rate' ? 1 : priceBaseOf(Number(base))
 
   const set =
     <Field extends keyof ArticleDraft>(field: Field) =>
@@ -1259,7 +1342,7 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
 
     const created = await createArticle(
       fields,
-      cents === null ? null : { unitPriceCents: cents, validFrom: day },
+      cents === null ? null : { unitPriceCents: cents, priceBase, validFrom: day },
     )
 
     return created.id
@@ -1274,7 +1357,10 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
     const cents = amount.trim() === '' ? null : parseEuros(amount)
 
     if (!article && amount.trim() !== '') {
-      Object.assign(found, priceProblems({ unitPriceCents: cents ?? Number.NaN, validFrom: day }))
+      Object.assign(
+        found,
+        priceProblems({ unitPriceCents: cents ?? Number.NaN, validFrom: day, priceBase }),
+      )
     }
 
     setProblems(found)
@@ -1432,7 +1518,7 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
               </p>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Field
-                  label="Preis je Einheit in Euro"
+                  label="Preis in Euro"
                   inputMode="decimal"
                   numeric
                   value={amount}
@@ -1441,6 +1527,15 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
                     setAmount(event.target.value)
                   }}
                 />
+                {draft.unit === 'flat_rate' ? null : (
+                  <SelectField
+                    label="Preis je"
+                    value={base}
+                    options={baseOptions(draft.unit)}
+                    onChange={setBase}
+                    hint="Für wie viele Einheiten der Preis gilt."
+                  />
+                )}
                 <Field
                   label="Gültig ab"
                   type="date"

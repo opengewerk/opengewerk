@@ -1,4 +1,4 @@
-import type { IsoDate, LineUnit } from '@opengewerk/domain'
+import type { IsoDate, LineUnit, PriceBase } from '@opengewerk/domain'
 
 import { request } from '../sync/transport.js'
 
@@ -21,6 +21,8 @@ export interface ArticleRow {
   readonly frequent: boolean
   /** The selling price of today, or of the day asked for, or null without one. */
   readonly priceCents: number | null
+  /** How many units that price is for (#456), null without a price. */
+  readonly priceBase: PriceBase | null
   /** The first supplier, and how many there are in all. */
   readonly supplierName: string | null
   readonly suppliers: number
@@ -46,7 +48,10 @@ export interface ArticleQuery {
 export interface PriceView {
   readonly id: string
   readonly validFrom: IsoDate
+  /** The price of `priceBase` units. */
   readonly unitPriceCents: number
+  /** How many units the price is for (#456). */
+  readonly priceBase: PriceBase
 }
 
 export interface SupplierLinkView {
@@ -84,6 +89,7 @@ export interface ArticleFields {
 
 export interface PriceFields {
   readonly unitPriceCents: number
+  readonly priceBase: PriceBase
   readonly validFrom: IsoDate
 }
 
@@ -96,7 +102,11 @@ export interface SupplierArticleRow {
   readonly designation: string
   readonly unit: LineUnit
   readonly frequent: boolean
-  readonly purchase: { readonly unitPriceCents: number; readonly validFrom: IsoDate } | null
+  readonly purchase: {
+    readonly unitPriceCents: number
+    readonly priceBase: PriceBase
+    readonly validFrom: IsoDate
+  } | null
 }
 
 export function articlePage(query: ArticleQuery): Promise<ArticlePage> {
