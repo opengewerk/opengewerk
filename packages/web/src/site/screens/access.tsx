@@ -24,9 +24,9 @@ interface Shown {
  * reaches the server with the next exchange; when it cannot be written, the
  * value stays hidden.
  *
- * Whoever keeps the ways in, the owner and the office, holds no value on any
- * device and asks the route for one, with a connection, as in the office; the
- * route keeps who saw it.
+ * The owner and the office hold the values of the sites of the open jobs they
+ * are assigned to in the same way (#447), and ask the route for any other,
+ * with a connection, as in the office; the route keeps who saw it.
  */
 export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
   const client = useSync()
@@ -119,7 +119,7 @@ export function SiteAccessPanel({ siteId }: { readonly siteId: string }) {
       setTrouble(
         error instanceof RequestRefused
           ? error.message
-          : 'Keine Verbindung. Inhaber und Büro sehen einen Wert nur mit Verbindung, dabei wird festgehalten, wer ihn gesehen hat.',
+          : 'Keine Verbindung. Auf dem Gerät liegen nur die Werte der offenen Aufträge, denen du zugeordnet bist. Jeden anderen Wert zeigt die Verbindung, dabei wird festgehalten, wer ihn gesehen hat.',
       )
     }
   }

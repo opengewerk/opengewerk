@@ -244,8 +244,9 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
 /**
  * The ways into a site (#286) on a device without `site.access`: the sites of
  * its open jobs, and nothing of a closed one, which `closedJobsStayDays` keeps
- * for everything else. A device with the right holds them all, without a
- * value, and asks the route for one when it is needed.
+ * for everything else. A device with the right holds them all, with a value
+ * only for the sites of its person's own open jobs (#447), and asks the route
+ * for any other.
  */
 export function accessesOfOpenJobs(scope: DeviceScope): SQL {
   return sql`"site_accesses"."site_id" in (select site_id from jobs
@@ -253,13 +254,15 @@ export function accessesOfOpenJobs(scope: DeviceScope): SQL {
 }
 
 /**
- * The sites whose ways in the device of a technician holds, with their values
- * on site (#286): those with a way in and an open job the person is assigned
- * to. `value` changes with the list and goes into the answer, so that a device
- * lets go of the ways into a site whose last open job was closed, and fetches
- * those of a site that got one or that one of its jobs moved to. A site
- * without a way in stays out of the list: a job there changes nothing on the
- * device, and the device would fetch its part anew for nothing.
+ * The sites whose values the device of a person holds on site (#286): those
+ * with a way in and an open job the person is assigned to, whatever their
+ * role (#447). For a technician they are also the sites whose ways in the
+ * device holds at all. `value` changes with the list and goes into the
+ * answer, so that a device lets go of the ways into a site whose last open
+ * job was closed, and fetches those of a site that got one or that one of its
+ * jobs moved to. A site without a way in stays out of the list: a job there
+ * changes nothing on the device, and the device would fetch its part anew for
+ * nothing.
  */
 export async function sitesWithOpenJobs(
   tx: TenantTransaction,

@@ -313,11 +313,12 @@ export function permissionFor(
 /**
  * The rows of the ways into a site with what the device may know of their
  * value (#286): whether there is one and whether it opens, `valueState`, and
- * the value itself for the sites in `valued`, the ones of the open jobs of
- * the technician whose device asked. Nothing else in any answer carries it,
- * and every value handed out is recorded the first time it reaches that
- * device, in `site_access_deliveries`, with the person, the device and when
- * the value was set: what a showing from that device is measured against.
+ * the value itself for the sites in `valued`, the ones of the open jobs the
+ * person whose device asked is assigned to, whatever their role (#447).
+ * Nothing else in any answer carries it, and every value handed out is
+ * recorded the first time it reaches that device, in `site_access_deliveries`,
+ * with the person, the device and when the value was set: what a showing from
+ * that device is measured against.
  */
 async function withAccessStates(
   tx: TenantTransaction,
@@ -484,22 +485,28 @@ export class SyncController {
     // (#140): the jobs they are on, with what hangs on them.
     const ownTimeOnly = !isAllowed(identity, 'time.read')
     const wholeBusiness = isAllowed(identity, 'job.read.all')
-    // The ways into a site (#286): all of them, without a value, for whoever
-    // keeps them, who asks the route for a value when it is needed and leaves
-    // a trace there; the ones of the sites of their open jobs for a
-    // technician, with the value when the device asks for it, which the site
-    // does and the office does not, so that it opens the door in a cellar
-    // without a network. Whoever keeps them gets no value here, whatever the
-    // request says: the parameter is the client's to choose, the right is not
-    // (Greptile on #445).
+    // The ways into a site (#286): all of them for whoever keeps them, the
+    // ones of the sites of their open jobs for a technician. A value comes
+    // with a row only when the device asks for it, which the site does and
+    // the office does not, so that it opens the door in a cellar without a
+    // network, and only for a site of an open job the person is assigned to,
+    // whatever their role (#447): the owner who drives out holds the code of
+    // their own job, and nobody holds one more than a technician on that job
+    // would. Any other value the owner and the office ask the route for, which
+    // leaves a trace there. The parameter is the client's to choose, the
+    // assignment is not (Greptile on #445).
     // A value goes only to a device the session names, since what it was
     // handed is recorded for that device and a showing is taken only from it.
     const keepsAccess = isAllowed(identity, 'site.access')
-    const withValues = access === 'values' && !keepsAccess && identity.deviceId !== undefined
+    const withValues = access === 'values' && identity.deviceId !== undefined
     const { answer, scope, sites, held } = await this.database.forTenant(identity, async (tx) => {
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
       const held = await articlesOnDevices(tx)
-      const sites = scope !== null && !keepsAccess ? await sitesWithOpenJobs(tx, scope) : null
+      // The jobs of the person are asked for this alone where they hold the
+      // whole business, and only when the device wants values.
+      const own = scope ?? (withValues ? await deviceScope(tx, identity.userId) : null)
+      const sites =
+        own !== null && (withValues || !keepsAccess) ? await sitesWithOpenJobs(tx, own) : null
       const found = await changesSince(tx, from, undefined, (entity) => {
         if (entity === 'time_entries' && ownTimeOnly) {
           return eq(timeEntries.userId, identity.userId)
@@ -554,9 +561,12 @@ export class SyncController {
         ),
         // Changes with the sites of the open jobs, so that a closed job takes
         // the ways into its site off the device, and with whether values were
-        // asked for.
+        // asked for. For whoever keeps them all, only while some carry a value
+        // (#447): a device that holds none has nothing to let go of.
         site_accesses: keepsAccess
-          ? 'all'
+          ? withValues && sites && sites.siteIds.size > 0
+            ? `all:${sites.value}:values`
+            : 'all'
           : scope && sites
             ? `${sites.value}:${withValues ? 'values' : 'bare'}`
             : 'none',

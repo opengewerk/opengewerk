@@ -189,6 +189,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Inhaber und Büro haben auf der Baustelle die Werte der Zugänge von offenen Aufträgen, denen sie
+  selbst zugeordnet sind, auch ohne Netz, wie ein Monteur (#447). Wer als Inhaber selbst
+  hinausfährt, stand im Keller bisher ohne den Code da, denn Inhaber und Büro sahen einen Wert nur
+  mit Verbindung. Jeden anderen Wert zeigt weiter die Route, die jedes Anzeigen festhält.
 - Die Prüfung "Breiten und Auflösungen" drückt auf jeder Seite, die einen Knopf "Bearbeiten"
   hat, diesen Knopf und misst das Formular dahinter als eigene Art von Seite, in jeder Stufe der
   Breite neu geöffnet. Sie folgt nur Links, und die Formulare von Kunde und Objekt, in denen sich

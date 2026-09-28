@@ -23,8 +23,8 @@ import { SiteJobScreen } from './jobs.js'
  * "Zugang zum Objekt" at an open job on site (#286), the board "Auftrag:
  * Zugang zum Objekt": each value hidden until tapped, shown from the device
  * also without a network once its showing is in the outbox, and hidden again
- * when the value changes. The owner and the office, who hold no value on any
- * device, ask for one at the route.
+ * when the value changes. The owner and the office hold the values of their
+ * own open jobs the same way (#447) and ask the route for any other.
  */
 
 let server: TestServer
@@ -308,6 +308,20 @@ describe('the ways into the site of a job', () => {
     expect(within(card).queryByRole('button', { name: /anzeigen$/ })).toBeNull()
   })
 
+  it('show the owner a value on the device the same way, without the route (#447)', async () => {
+    roles = ['owner']
+    await mount([safe])
+    await rolesKnown()
+    const user = userEvent.setup()
+    const card = await screen.findByRole('region', { name: 'Zugang zum Objekt' })
+
+    server.offline = true
+    await user.click(within(card).getByRole('button', { name: 'Schlüsseltresor Hof anzeigen' }))
+
+    expect(await within(card).findByText('4711')).toBeTruthy()
+    expect(calls.filter((call) => call.startsWith('POST'))).toEqual([])
+  })
+
   it('are not there at a site without one', async () => {
     await mount([])
     await rolesKnown()
@@ -317,7 +331,7 @@ describe('the ways into the site of a job', () => {
 })
 
 describe('a way in whose value is not on the device', () => {
-  // The row without the value, as the owner and the office always hold it.
+  // The row without the value, as a device holds it for a job its person is not on.
   const withoutValue = {
     id: 'a-3',
     siteId: 's-1',
@@ -354,7 +368,7 @@ describe('a way in whose value is not on the device', () => {
 
     expect(
       await within(card).findByText(
-        'Keine Verbindung. Inhaber und Büro sehen einen Wert nur mit Verbindung, dabei wird festgehalten, wer ihn gesehen hat.',
+        'Keine Verbindung. Auf dem Gerät liegen nur die Werte der offenen Aufträge, denen du zugeordnet bist. Jeden anderen Wert zeigt die Verbindung, dabei wird festgehalten, wer ihn gesehen hat.',
       ),
     ).toBeTruthy()
     expect(within(card).queryByText('2468')).toBeNull()

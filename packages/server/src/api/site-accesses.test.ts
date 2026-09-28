@@ -23,7 +23,8 @@ import { created, push } from './test-structure.js'
  * The ways into a site (#286): kept by the office, the value sealed apart,
  * never in the audit log and never in an answer that does not ask for it;
  * shown to the office on request, which leaves a trace, and held on the
- * device of a technician for the sites of their open jobs only.
+ * device of whoever is on an open job there, a technician or, since #447,
+ * the owner and the office, for the sites of those jobs only.
  */
 
 const north = { id: newId<'tenant'>() as TenantId, name: 'Elektro Nord GmbH' }
@@ -59,6 +60,15 @@ function technician(deviceId: string | null = 'phone-max'): string {
     userId: 'max',
     tenantId: north.id,
     roles: ['technician'],
+    ...(deviceId === null ? {} : { deviceId }),
+  })
+}
+/** The office from the device the session names, or from a session that names none. */
+function officeOn(deviceId: string | null = 'desk-britta'): string {
+  return JSON.stringify({
+    userId: 'britta',
+    tenantId: north.id,
+    roles: ['office'],
     ...(deviceId === null ? {} : { deviceId }),
   })
 }
@@ -812,16 +822,17 @@ describe('an access on the device of a technician', () => {
   })
 })
 
-describe('an access on a device of the office', () => {
-  it('never comes with its value, whatever the request asks for', async () => {
+describe('an access on a device of the owner or the office', () => {
+  it('never comes with its value for a job they are not on, whatever the request asks for', async () => {
     const { site } = await siteWithJob('Offen')
     const access = await addAccess(site, { designation: 'Hoftor', value: 'Code 9753' })
 
-    // The office opens the site as well, and the site asks for values. The
-    // office asks the route instead, which keeps who saw a value; a request
-    // it builds itself gets no further (Greptile on #445).
+    // The office opens the site as well, and the site asks for values. For a
+    // job it is not on, the office asks the route instead, which keeps who
+    // saw a value; a request it builds itself gets no further (Greptile on
+    // #445).
     for (const asked of [true, false]) {
-      const pulled = await pull(office(), asked)
+      const pulled = await pull(officeOn(), asked)
       const row = accessesOf(pulled).find((candidate) => candidate['id'] === access['id'])
 
       expect(row).toMatchObject({ valueState: 'readable' })
@@ -829,6 +840,60 @@ describe('an access on a device of the office', () => {
       expect(JSON.stringify(pulled)).not.toContain('Code 9753')
       expect(pulled.narrowed['site_accesses']).toBe('all')
     }
+  })
+
+  it('comes with its value on site for an open job they are on, as for a technician (#447)', async () => {
+    const theirs = await siteWithJob('Büro vor Ort')
+    const others = await siteWithJob('Büro am Schreibtisch')
+    const mine = await addAccess(theirs.site, { designation: 'Haustür', value: 'Code 3131' })
+    const notMine = await addAccess(others.site, { designation: 'Keller', value: 'Code 3232' })
+
+    await http()
+      .put(`/jobs/${theirs.job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['britta'] })
+      .expect(200)
+
+    const onSite = await pull(officeOn(), true)
+
+    expect(accessesOf(onSite).find((row) => row['id'] === mine['id'])).toMatchObject({
+      valueState: 'readable',
+      value: 'Code 3131',
+    })
+    // Every other way in stays on the device as it was, without its value.
+    expect(accessesOf(onSite).find((row) => row['id'] === notMine['id'])).toMatchObject({
+      valueState: 'readable',
+    })
+    expect(JSON.stringify(onSite)).not.toContain('Code 3232')
+    expect(onSite.narrowed['site_accesses']).not.toBe('all')
+
+    // The office entry of the same device, and a session that names no
+    // device: no value, and the answer says so.
+    const atTheDesk = await pull(officeOn())
+
+    expect(JSON.stringify(atTheDesk)).not.toContain('Code 3131')
+    expect(atTheDesk.narrowed['site_accesses']).toBe('all')
+    expect(JSON.stringify(await pull(officeOn(null), true))).not.toContain('Code 3131')
+
+    // Handed out once, to this device, as to the phone of a technician.
+    const { rows } = await admin.query<{ user_id: string; device_id: string }>(
+      'select user_id, device_id from site_access_deliveries where site_access_id = $1',
+      [mine['id']],
+    )
+
+    expect(rows).toEqual([{ user_id: 'britta', device_id: 'desk-britta' }])
+
+    // And off the device again once the job is closed.
+    await http()
+      .patch(`/jobs/${theirs.job}`)
+      .set('x-test-identity', office())
+      .send({ status: 'completed' })
+      .expect(200)
+
+    const closed = await pull(officeOn(), true)
+
+    expect(closed.narrowed['site_accesses']).toBe('all')
+    expect(JSON.stringify(closed)).not.toContain('Code 3131')
   })
 })
 
