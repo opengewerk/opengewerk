@@ -26,9 +26,17 @@ export interface PageMargin {
   readonly left: string
 }
 
+/** A page of its own size, as CSS lengths: a label of `62mm` by `29mm`. */
+export interface PageSize {
+  readonly width: string
+  readonly height: string
+}
+
 export interface RendererOptions {
   /** Paper format the service understands. A4 unless somebody says otherwise. */
   readonly format?: string
+  /** A page of its own size in place of the format, for a label printer (#308). */
+  readonly size?: PageSize
   /** How long to wait before giving up, in milliseconds. */
   readonly timeoutMs?: number
   /**
@@ -120,7 +128,9 @@ export async function renderPdf(
       body: JSON.stringify({
         html,
         options: {
-          format: options.format ?? 'A4',
+          ...(options.size === undefined
+            ? { format: options.format ?? 'A4' }
+            : { width: options.size.width, height: options.size.height }),
           printBackground: true,
           ...footer,
           ...(options.margin === undefined ? {} : { margin: options.margin }),
@@ -151,6 +161,7 @@ export interface PrintJob {
   readonly footerHtml?: string
   readonly margin?: PageMargin
   readonly landscape?: boolean
+  readonly size?: PageSize
 }
 
 /**
@@ -167,5 +178,6 @@ export function rendererFor(configuration: RendererConfiguration): Renderer {
       ...(job.footerHtml === undefined ? {} : { footerHtml: job.footerHtml }),
       ...(job.margin === undefined ? {} : { margin: job.margin }),
       ...(job.landscape === undefined ? {} : { landscape: job.landscape }),
+      ...(job.size === undefined ? {} : { size: job.size }),
     })
 }

@@ -299,6 +299,13 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    */
   site_accesses: { create: false, change: 'never' },
   /**
+   * The QR labels of the installations (#308). Made and blocked in the office
+   * at the routes of the installation, where the server draws the code; a
+   * device reads them, so that a scan opens an installation without a network
+   * and says so when its label is blocked, and writes none.
+   */
+  installation_labels: { create: false, change: 'never' },
+  /**
    * That somebody saw the value of an access: written by the device that
    * showed it, also without a network, and never changed. Whose it is the
    * database writes from the request, and the server refuses one for an

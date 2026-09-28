@@ -197,6 +197,7 @@ export const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
   installations: [
     { table: 'distribution_boards', column: 'installation_id' },
     { table: 'inverters', column: 'installation_id' },
+    { table: 'installation_labels', column: 'installation_id' },
   ],
   distribution_boards: [
     { table: 'board_sections', column: 'distribution_board_id' },
@@ -295,6 +296,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   circuits: ['designation', 'consumer'],
   equipment: ['designation', 'model'],
   pv_modules: ['model', 'serial_number'],
+  // A label is told apart by its code, the one thing it says (#308).
+  installation_labels: ['code'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],
   deadlines: ['source_label'],
