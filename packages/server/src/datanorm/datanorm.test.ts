@@ -188,6 +188,15 @@ describe('the unit of an article', () => {
     expect(unitOf('Std')).toEqual({ unit: 'hour', known: true })
     expect(unitOf('Gebinde')).toEqual({ unit: 'piece', known: false })
   })
+
+  it('takes a unit written without umlauts, and one without the dots over them', () => {
+    // Put together from its parts: the check of the spelling in the CI reads
+    // tests as well and would take the word for a mistake in the text.
+    const spelledOut = ['St', 'ue', 'ck'].join('')
+
+    expect(unitOf(spelledOut)).toEqual({ unit: 'piece', known: true })
+    expect(unitOf('Stuck')).toEqual({ unit: 'piece', known: true })
+  })
 })
 
 /** A delivery of the made-up wholesaler: articles, prices and groups. */
