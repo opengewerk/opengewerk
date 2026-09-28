@@ -386,6 +386,8 @@ export function recordHref(table: string, id: string): string | null {
     documents: '/belege/',
     distribution_boards: '/verteiler/',
     circuits: '/stromkreise/',
+    inverters: '/wechselrichter/',
+    pv_strings: '/strings/',
     form_records: '/pruefprotokolle/',
   }
   const start = screens[table]
@@ -403,6 +405,8 @@ export function recordLinkWords(table: string): string {
     documents: 'Zum Beleg',
     distribution_boards: 'Zum Verteiler',
     circuits: 'Zum Stromkreis',
+    inverters: 'Zum Wechselrichter',
+    pv_strings: 'Zum String',
     form_records: 'Zum Protokoll',
   }
 

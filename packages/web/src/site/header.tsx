@@ -27,12 +27,16 @@ export function useWayBack(): { readonly to: string; readonly label: string } | 
   const onCircuit = matchRoute({
     to: '/auftraege/$jobId/verteiler/$boardId/stromkreise/$circuitId',
   })
+  const onInverter = matchRoute({ to: '/auftraege/$jobId/wechselrichter/$inverterId' })
+  const onString = matchRoute({
+    to: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId',
+  })
   const onEntry =
     matchRoute({ to: '/zeiten/$day/nachtragen' }) ||
     matchRoute({ to: '/zeiten/$day/korrigieren/$entryId' })
-  // The circuit goes back to its board, everything else below a job back to
-  // the job, the job back to the list.
-  const underJob = onReport || onBoard || onProtocol || onFiles || onNote
+  // The circuit goes back to its board and the string to its inverter,
+  // everything else below a job back to the job, the job back to the list.
+  const underJob = onReport || onBoard || onInverter || onProtocol || onFiles || onNote
 
   // A late entry or a correction goes back to its day.
   if (onEntry) {
@@ -43,6 +47,13 @@ export function useWayBack(): { readonly to: string; readonly label: string } | 
     return {
       to: `/auftraege/${onCircuit.jobId}/verteiler/${onCircuit.boardId}`,
       label: 'Zurück zum Verteiler',
+    }
+  }
+
+  if (onString) {
+    return {
+      to: `/auftraege/${onString.jobId}/wechselrichter/${onString.inverterId}`,
+      label: 'Zurück zum Wechselrichter',
     }
   }
 

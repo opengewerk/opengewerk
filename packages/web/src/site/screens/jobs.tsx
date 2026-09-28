@@ -22,6 +22,8 @@ import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { InstallationBoards } from './boards.js'
+import { InstallationInverters, usePvSystemPeak } from './pv.js'
+import { useBoards } from '../../app/electrical.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
 import { JobNotes } from './notes.js'
@@ -401,6 +403,13 @@ export function SiteJobScreen() {
     'installations',
     job?.['installationId'] ? String(job['installationId']) : undefined,
   )
+  const installationId = installation ? String(installation['id']) : undefined
+  // A PV system shows its inverters where a cabinet shows its boards, and a
+  // battery, meter or wallbox where it belongs (#300).
+  const peak = usePvSystemPeak(installationId)
+  const boards = useBoards(installationId)
+  const pvSystem = useRecord('installations', maybeText(installation, 'pvSystemId') ?? undefined)
+  const atInverter = useRecord('inverters', maybeText(installation, 'inverterId') ?? undefined)
   const [trouble, setTrouble] = useState<string | null>(null)
   // Closing a job asks first (#222): it leaves the list, and after 30 days the devices.
   const [closing, setClosing] = useState(false)
@@ -476,6 +485,7 @@ export function SiteJobScreen() {
       <SiteAccessPanel siteId={String(site['id'])} />
     ) : null
 
+  const pv = installation ? installationKindOf(installation) === 'pv_system' : false
   const plant = installation ? (
     <Panel title="Anlage">
       <div className="flex flex-col gap-2.5">
@@ -493,12 +503,32 @@ export function SiteJobScreen() {
                   },
                 ]
               : []),
+            ...(pv && peak ? [{ label: 'Leistung', value: peak }] : []),
+            ...(pvSystem
+              ? [
+                  {
+                    label: 'Gehört zu',
+                    value: [
+                      text(pvSystem, 'designation'),
+                      atInverter ? `am ${text(atInverter, 'designation')}` : null,
+                    ]
+                      .filter((part): part is string => part !== null)
+                      .join(', '),
+                  },
+                ]
+              : []),
             ...(maybeText(installation, 'commissionedOn')
               ? [{ label: 'In Betrieb seit', value: date(installation['commissionedOn']) }]
               : []),
           ]}
         />
-        <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
+        {pv ? (
+          <InstallationInverters jobId={jobId} installationId={String(installation['id'])} />
+        ) : null}
+        {/* A PV system written down with boards before #300 keeps them in sight. */}
+        {!pv || boards.length > 0 ? (
+          <InstallationBoards jobId={jobId} installationId={String(installation['id'])} />
+        ) : null}
         <InstallationProtocols jobId={jobId} installationId={String(installation['id'])} />
       </div>
     </Panel>

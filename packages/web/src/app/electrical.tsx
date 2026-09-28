@@ -285,7 +285,7 @@ function wholeAsInput(value: number | null): string {
 /** The cable types a list offers, the ones in nearly every board. Anything else may be typed. */
 const cableTypes = ['NYM-J', 'NYM-O', 'NYY-J', 'NYY-O', 'H07V-K', 'H07V-U', 'H07RN-F', 'NYCWY']
 
-type Read = { readonly value: number | null } | { readonly problem: string }
+export type Read = { readonly value: number | null } | { readonly problem: string }
 
 /**
  * A figure somebody typed, in units of a given number of places, or what is
@@ -295,7 +295,7 @@ type Read = { readonly value: number | null } | { readonly problem: string }
  * breaker says, and refusing it as no number would be refusing the right
  * answer. Only the unit of the field, and only at the end.
  */
-function readFigure(input: string, places: number, units: readonly string[] = []): Read {
+export function readFigure(input: string, places: number, units: readonly string[] = []): Read {
   const trimmed = input.trim()
   const unit = units.find((candidate) => trimmed.endsWith(candidate))
   const bare = unit === undefined ? trimmed : trimmed.slice(0, -unit.length).trim()
@@ -695,14 +695,14 @@ export function CircuitForm({
 }
 
 /** The problem of a field as the prop a field takes, or nothing at all. */
-function problemOf(problems: Readonly<Record<string, string>>, field: string) {
+export function problemOf(problems: Readonly<Record<string, string>>, field: string) {
   const problem = problems[field]
 
   return problem === undefined ? {} : { problem }
 }
 
 /** The columns of the boxes, as the canvas lays them out. */
-const groupColumns = {
+export const groupColumns = {
   protection: 'sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]',
   two: 'sm:grid-cols-2',
   cable: 'sm:grid-cols-4',
@@ -714,7 +714,7 @@ const groupColumns = {
  * the office a box on the page colour, as the canvas draws it; on site a line
  * above it.
  */
-function Group({
+export function Group({
   title,
   columns,
   below,
@@ -763,7 +763,7 @@ function Group({
  * current, cores and cross section. In the office they are two more columns
  * of the box, so there it is nothing but its children.
  */
-function Pair({ children }: { readonly children: ReactNode }) {
+export function Pair({ children }: { readonly children: ReactNode }) {
   const entry = useEntry()
 
   return entry === 'site' ? (

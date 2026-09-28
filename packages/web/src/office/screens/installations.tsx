@@ -1,4 +1,5 @@
 import type { RecordState } from '@opengewerk/domain'
+import { belongsToPvSystemKind } from '@opengewerk/domain'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Pencil, Plus, Zap } from 'lucide-react'
 import { useState } from 'react'
@@ -20,6 +21,14 @@ import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
 import { asInstallation, installationFields, warrantyText } from './sites.js'
+import {
+  CompanionsSection,
+  InvertersSection,
+  LinkTo,
+  useCompanionFields,
+  usePvSystemFacts,
+} from './pv-system.js'
+import { asCompanion, useInverters } from '../../app/photovoltaic.js'
 import { ChangesButton } from './audit-log.js'
 
 /**
@@ -135,8 +144,10 @@ export function InstallationList() {
  * files at the left, its facts at the right, and the way into the structure
  * of boards, sections and circuits in the head.
  *
- * The PV structure below a PV system, inverters and strings, is not on this
- * screen yet: it arrives with phase 2.
+ * A PV system has its inverters where a meter cabinet has its boards, and
+ * the batteries, meters and wallboxes that belong to it (#300); one of those
+ * says in its facts which system it belongs to and at which inverter it
+ * hangs, and changes that in its form.
  */
 export function InstallationScreen() {
   const { installationId } = useParams({ strict: false }) as { installationId?: string }
@@ -146,6 +157,14 @@ export function InstallationScreen() {
   const customer = useRecord('customers', site ? String(site['customerId']) : undefined)
   const jobs = useRelated('jobs', 'installationId', installationId)
   const boards = useBoards(installationId ?? '')
+  const inverters = useInverters(installationId)
+  const pvFacts = usePvSystemFacts(installationId ?? '')
+  const pvSystem = useRecord('installations', maybeText(installation, 'pvSystemId') ?? undefined)
+  const atInverter = useRecord('inverters', maybeText(installation, 'inverterId') ?? undefined)
+  const linkFields = useCompanionFields(
+    maybeText(installation, 'siteId') ?? undefined,
+    installationId,
+  )
   const writes = useMay('installation.write')
   const createsJobs = useMay('job.write')
   const [editing, setEditing] = useState(false)
@@ -161,7 +180,26 @@ export function InstallationScreen() {
     )
   }
 
+  const kind = installationKindOf(installation)
+  const pv = kind === 'pv_system'
+  const companion = belongsToPvSystemKind(kind)
   const firstBoard = boards[0]
+  const firstInverter = inverters[0]
+  // A PV system opens its structure at its first inverter, anything else at its first board.
+  const structure = pv
+    ? firstInverter
+      ? `/wechselrichter/${String(firstInverter['id'])}`
+      : null
+    : firstBoard
+      ? `/verteiler/${String(firstBoard['id'])}`
+      : null
+  // Where a battery belongs stands before the notes, as the form of the canvas has it; the two
+  // fields show themselves only for the kinds that belong to a PV system.
+  const fields = [
+    ...installationFields.slice(0, -1),
+    ...linkFields,
+    ...installationFields.slice(-1),
+  ]
 
   return (
     <Screen>
@@ -176,9 +214,7 @@ export function InstallationScreen() {
             ? [{ to: `/objekte/${String(site['id'])}`, label: text(site, 'designation') }]
             : []),
         ]}
-        badges={
-          <Status tone="neutral">{installationKindLabel[installationKindOf(installation)]}</Status>
-        }
+        badges={<Status tone="neutral">{installationKindLabel[kind]}</Status>}
         actions={
           <>
             <ChangesButton table="installations" id={installationId} />
@@ -193,12 +229,12 @@ export function InstallationScreen() {
                 Bearbeiten
               </Button>
             ) : null}
-            {firstBoard ? (
+            {structure ? (
               <Button
                 tone="primary"
                 icon={Zap}
                 onClick={() => {
-                  void navigate({ to: `/verteiler/${String(firstBoard['id'])}` })
+                  void navigate({ to: structure })
                 }}
               >
                 Anlagenstruktur öffnen
@@ -211,7 +247,16 @@ export function InstallationScreen() {
       <RecordColumns
         main={
           <>
-            <BoardsSection installationId={installationId} />
+            {pv ? (
+              <>
+                <InvertersSection installationId={installationId} />
+                <CompanionsSection installationId={installationId} />
+                {/* A PV system written down with boards before #300 keeps them in sight. */}
+                {boards.length > 0 ? <BoardsSection installationId={installationId} /> : null}
+              </>
+            ) : (
+              <BoardsSection installationId={installationId} />
+            )}
             <ProtocolsSection installationId={installationId} />
             <JobsPanel
               caption="Aufträge an der Anlage"
@@ -257,18 +302,17 @@ export function InstallationScreen() {
           <Panel title="Anlage">
             {editing ? (
               <RecordForm
-                fields={installationFields}
+                fields={fields}
                 record={installation}
                 submitLabel="Speichern"
                 onCancel={() => {
                   setEditing(false)
                 }}
                 onSubmit={async (values) => {
-                  const saved = await client.update(
-                    'installations',
-                    installationId,
-                    asInstallation(values),
-                  )
+                  const saved = await client.update('installations', installationId, {
+                    ...asInstallation(values),
+                    ...asCompanion(values),
+                  })
 
                   if (saved.outcome === 'queued') {
                     setEditing(false)
@@ -292,6 +336,29 @@ export function InstallationScreen() {
                       </Link>
                     ) : null,
                   },
+                  ...(pv ? pvFacts : []),
+                  ...(companion
+                    ? [
+                        {
+                          label: 'Gehört zu',
+                          value: (
+                            <LinkTo
+                              to={`/anlagen/${maybeText(installation, 'pvSystemId') ?? ''}`}
+                              record={pvSystem}
+                            />
+                          ),
+                        },
+                        {
+                          label: 'Am Wechselrichter',
+                          value: atInverter ? (
+                            <LinkTo
+                              to={`/wechselrichter/${String(atInverter['id'])}`}
+                              record={atInverter}
+                            />
+                          ) : null,
+                        },
+                      ]
+                    : []),
                   { label: 'Hersteller', value: maybeText(installation, 'manufacturer') },
                   { label: 'Typ', value: maybeText(installation, 'model') },
                   { label: 'Seriennummer', value: maybeText(installation, 'serialNumber') },

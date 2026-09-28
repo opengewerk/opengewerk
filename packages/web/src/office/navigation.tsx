@@ -91,7 +91,7 @@ function useEntries(): { readonly groups: readonly Group[]; readonly foot: reado
           to: '/anlagen',
           label: 'Anlagen',
           icon: Zap,
-          also: ['/verteiler', '/stromkreise', '/pruefprotokolle'],
+          also: ['/verteiler', '/stromkreise', '/wechselrichter', '/strings', '/pruefprotokolle'],
         },
         ...(readsDocuments
           ? [{ to: '/textbausteine', label: 'Textbausteine', icon: TextAlignStart }]

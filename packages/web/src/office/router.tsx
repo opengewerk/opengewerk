@@ -32,6 +32,7 @@ import { SettingsScreen } from './screens/settings.js'
 import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
+import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
 import { SyncScreen } from './screens/sync.js'
 import { TaskListScreen } from './screens/tasks.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
@@ -113,6 +114,16 @@ const routes = [
     getParentRoute: () => office,
     path: '/stromkreise/$circuitId',
     component: CircuitScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/wechselrichter/$inverterId',
+    component: InverterScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/strings/$stringId',
+    component: PvStringScreen,
   }),
   createRoute({
     getParentRoute: () => office,
