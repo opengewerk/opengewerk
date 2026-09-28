@@ -3,6 +3,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteInverterScreen, SitePvStringScreen } from './screens/pv.js'
+import { SiteScannerScreen } from './screens/scanner.js'
 import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
@@ -69,6 +70,11 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId',
     component: SitePvStringScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/wechselrichter/$inverterId/strings/$stringId/scannen',
+    component: SiteScannerScreen,
   }),
   createRoute({
     getParentRoute: () => root,

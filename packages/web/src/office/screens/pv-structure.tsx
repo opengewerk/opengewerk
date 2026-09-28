@@ -275,7 +275,8 @@ function PvTree({
         ) : null}
       </ul>
       <p className="border-t border-line px-3.5 py-2.5 text-[13px] leading-[1.4] text-ink-muted">
-        Die Module stehen an ihrem String, dort auch ihre Seriennummern.
+        Die Module stehen an ihrem String, dort auch ihre Seriennummern: auf der Baustelle vom
+        Etikett gescannt oder hier von Hand.
       </p>
     </section>
   )
@@ -906,7 +907,7 @@ function StringDetail({ stringId }: { readonly stringId: string }) {
             note={(inputs) => {
               const count = batchCount(inputs)
 
-              return `Legt ${count === null ? 'die Module' : modulesInWords(count)} mit denselben Angaben am Ende des Strings an. Die Seriennummern kommen danach, hier von Hand.`
+              return `Legt ${count === null ? 'die Module' : modulesInWords(count)} mit denselben Angaben am Ende des Strings an. Die Seriennummern kommen danach, auf der Baustelle vom Etikett gescannt oder hier von Hand.`
             }}
             submitLabel={(inputs) => {
               const count = batchCount(inputs)
@@ -1079,7 +1080,11 @@ function ModulesTable({
       }
       cards={cards}
       cardsEmpty="Noch kein Modul an diesem String."
-      note={missing ? `${missing} Sie werden über den Bleistift eingetragen.` : undefined}
+      note={
+        missing
+          ? `${missing} Gescannt wird auf der Baustelle, hier trägt man sie über den Bleistift ein.`
+          : undefined
+      }
     >
       <thead>
         <tr>

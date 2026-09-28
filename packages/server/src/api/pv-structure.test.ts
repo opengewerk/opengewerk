@@ -235,6 +235,14 @@ describe('a PV system written down in the office', () => {
       { ratedPowerW: [400, 5_000] },
       'Die Leistung eines Moduls ist größer als 0 und höchstens 2000 Wp.',
     ],
+    [
+      // The office writes it with the pencil, the site with the scanner, and
+      // both forms ask the same rule (pr-review on #451).
+      'a serial number longer than a label carries',
+      'pv_modules',
+      { serialNumber: 'X'.repeat(65) },
+      'Eine Seriennummer hat höchstens 64 Zeichen.',
+    ],
   ])('refuses %s with the sentence of its form', async (_, entity, figures, sentence) => {
     const { inverterId, stringId, moduleId } = await inverterOf(system, 'WR Probe')
     const id = { inverters: inverterId, pv_strings: stringId, pv_modules: moduleId }[entity] ?? ''

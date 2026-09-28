@@ -129,8 +129,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   PV-Anlage sie gehören und an welchem Wechselrichter sie hängen; die PV-Anlage listet sie unter
   "Dazu gehören", ein Wechselrichter unter "Daran angeschlossen". Löschen nimmt mit, was darunter
   hängt, auch unter einer PV-Anlage und einem Wechselrichter, und eine PV-Anlage, die gelöscht, zu
-  etwas anderem oder an ein anderes Objekt verlegt wird, lässt los, was zu ihr gehörte. Leistungen
-  stehen in ganzen Watt. Migration 0056.
+  etwas anderem oder an ein anderes Objekt verlegt wird, lässt los, was zu ihr gehörte. Die
+  Seriennummern der Module liest ein Monteur auf der Baustelle mit der Kamera vom Etikett, als
+  Strichcode oder QR-Code und der Reihe nach für jedes Modul ohne Nummer, auch ohne Netz; wo kein
+  Etikett zu lesen ist, tippt er sie ab. Leistungen stehen in ganzen Watt. Migration 0056.
 
 ### Geändert
 
