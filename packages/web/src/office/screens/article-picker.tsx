@@ -5,7 +5,7 @@ import { type KeyboardEvent, useDeferredValue, useId, useState } from 'react'
 import { Field } from '../../components/index.js'
 import { type FoundArticle, useArticleSearch } from '../../app/article-search.js'
 import { euros } from '../../app/format.js'
-import { lineUnitLabel } from '../../app/labels.js'
+import { lineUnitShort } from '../../app/labels.js'
 
 /** How many articles the list under the field offers. */
 const offered = 8
@@ -133,7 +133,7 @@ export function ArticlePicker({
               <span className="min-w-0 grow">{article.designation}</span>
               {priced && article.priceCents !== null ? (
                 <span className="numeric whitespace-nowrap text-ink-muted">
-                  {euros(article.priceCents)} je {lineUnitLabel[article.unit]}
+                  {euros(article.priceCents)} je {lineUnitShort[article.unit]}
                 </span>
               ) : null}
             </li>

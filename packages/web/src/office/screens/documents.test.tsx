@@ -515,7 +515,7 @@ describe('a quote with titles', () => {
 
     const option = await screen.findByRole('option', { name: /Mantelleitung NYM-J 3 × 1,5 mm²/ })
 
-    expect(option.textContent).toMatch(/0,92\s€ je Meter/)
+    expect(option.textContent).toMatch(/0,92\s€ je m$/)
 
     await person.click(option)
 
