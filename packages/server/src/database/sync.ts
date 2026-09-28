@@ -431,8 +431,9 @@ async function applyOne(
   }
 
   // A showing names a value its device can have shown (#286): whoever keeps
-  // the ways in sees any at the route, anybody else only those of the sites
-  // of their jobs. Any other would be a trace of something that never was.
+  // the ways in sees any at the route, anybody else only a value a pull once
+  // handed them (`site_access_deliveries`). Any other would be a trace of
+  // something that never was.
   if (operation.entity === 'site_access_reveals' && operation.kind === 'create') {
     const refusal = await revealRefusal(tx, sender, values)
 
