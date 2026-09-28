@@ -59,9 +59,27 @@ function heightFor(width) {
 
 /**
  * Where the walk starts: the office, the site, and the account, which is
- * behind the menu under the name and not behind a link on any page.
+ * behind the menu under the name and not behind a link on any page. And the
+ * page the browser of a phone opens for a label (#308), which only a scan
+ * reaches, here with a code no label has, so that it says so.
  */
-const entries = ['/', '/m/', '/konto']
+const entries = ['/', '/m/', '/konto', `/a/${'0'.repeat(16)}`]
+
+/**
+ * Pages only a scan reaches, found through a link to the same record: the
+ * installation a label opens on the site (#308) is the one the office links
+ * to under `/anlagen/<id>`. From there the walk follows its links as usual.
+ */
+const scannedOnly = [[/^\/anlagen\/([^/]+)$/, (id) => `/m/anlagen/${id}`]]
+
+/** The pages a link to this one stands for as well. */
+function alsoReached(path) {
+  return scannedOnly.flatMap(([pattern, address]) => {
+    const match = pattern.exec(path)
+
+    return match && identifier.test(match[1]) ? [address(match[1])] : []
+  })
+}
 
 /**
  * How many pages of one kind the walk looks at for links. One is not enough:
@@ -192,7 +210,7 @@ async function linksOn(page, queued, looked) {
   const fresh = new Set()
   const taken = new Map()
 
-  for (const path of paths) {
+  for (const path of [...paths, ...paths.flatMap(alsoReached)]) {
     const kind = kindOf(path)
     const count = (looked.get(kind) ?? 0) + (taken.get(kind) ?? 0)
 
