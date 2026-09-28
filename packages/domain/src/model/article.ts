@@ -1,4 +1,10 @@
-import { lineUnits, type LineUnit } from './document-line.js'
+import {
+  lineUnits,
+  type LineUnit,
+  lumpSumPriceBaseProblem,
+  type PriceBase,
+  priceBaseProblem,
+} from './document-line.js'
 import type { Id, IsoDate, Synced, TenantOwned } from './identifier.js'
 import type { SupplierId } from './supplier.js'
 
@@ -42,7 +48,13 @@ export interface ArticlePrice extends Synced {
   readonly id: ArticlePriceId
   readonly articleId: ArticleId
   readonly validFrom: IsoDate
+  /** The price of `priceBase` units. */
   readonly unitPriceCents: number
+  /**
+   * How many units the price is for (#456), as a wholesaler prices cable ties
+   * per 100. A position that takes the price takes it with its price unit.
+   */
+  readonly priceBase: PriceBase
 }
 
 /**
@@ -68,7 +80,10 @@ export interface PurchasePrice extends TenantOwned {
   readonly id: PurchasePriceId
   readonly supplierArticleId: SupplierArticleId
   readonly validFrom: IsoDate
+  /** The price of `priceBase` units. */
   readonly unitPriceCents: number
+  /** How many units the price is for (#456), as the supplier's catalogue prices it. */
+  readonly priceBase: PriceBase
 }
 
 /**
@@ -170,11 +185,14 @@ export function supplierNumberProblem(value: unknown): string | null {
 
 /**
  * What is wrong with a price from a day on, by field, or nothing: a whole
- * number of cents from nothing to `priceCentsMax`, and a day of the calendar.
+ * number of cents from nothing to `priceCentsMax`, a day of the calendar,
+ * and a price unit of the four steps, when one is given (#456); left out,
+ * a price is for one unit.
  */
 export function priceProblems(price: {
   readonly unitPriceCents?: unknown
   readonly validFrom?: unknown
+  readonly priceBase?: unknown
 }): Readonly<Record<string, string>> {
   const problems: Record<string, string> = {}
   const cents = price.unitPriceCents
@@ -187,7 +205,26 @@ export function priceProblems(price: {
     problems['validFrom'] = 'Ein Preis gilt ab einem Tag des Kalenders.'
   }
 
+  const base = price.priceBase === undefined ? null : priceBaseProblem(price.priceBase)
+
+  if (base) {
+    problems['priceBase'] = base
+  }
+
   return problems
+}
+
+/**
+ * What is wrong with counting an article in a unit, given the widest price
+ * unit among its selling and purchase prices, or null (#456). A lump sum is
+ * one of itself, as each of its prices is when it is written; an article with
+ * a price for several units becomes one only once those prices are gone.
+ */
+export function articleUnitProblem(unit: unknown, widestPriceBase: PriceBase): string | null {
+  return lumpSumPriceBaseProblem({ unit, priceBase: widestPriceBase }) === null
+    ? null
+    : 'Eine Pauschale hat keine Preiseinheit, und der Artikel hat Preise für mehrere Einheiten. ' +
+        'Erst ohne sie wird er eine Pauschale.'
 }
 
 /** Whether a value is a day as ISO 8601 writes it, and one the calendar has. */

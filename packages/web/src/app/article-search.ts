@@ -2,6 +2,8 @@ import {
   type IsoDate,
   type LineUnit,
   lineUnits,
+  type PriceBase,
+  priceBaseOf,
   priceOn,
   type RecordState,
 } from '@opengewerk/domain'
@@ -21,6 +23,8 @@ export interface FoundArticle {
   readonly unit: LineUnit
   /** The selling price on the day asked for, or null without one. */
   readonly priceCents: number | null
+  /** How many units that price is for (#456); one without a price. */
+  readonly priceBase: PriceBase
   readonly frequent: boolean
 }
 
@@ -54,7 +58,10 @@ function held(
   prices: readonly RecordState[],
   day: IsoDate,
 ): FoundArticle[] {
-  const byArticle = new Map<string, { validFrom: IsoDate; unitPriceCents: number }[]>()
+  const byArticle = new Map<
+    string,
+    { validFrom: IsoDate; unitPriceCents: number; priceBase: PriceBase }[]
+  >()
 
   for (const price of prices) {
     const key = text(price, 'articleId')
@@ -63,6 +70,7 @@ function held(
     list.push({
       validFrom: text(price, 'validFrom'),
       unitPriceCents: typeof price['unitPriceCents'] === 'number' ? price['unitPriceCents'] : 0,
+      priceBase: priceBaseOf(price['priceBase']),
     })
     byArticle.set(key, list)
   }
@@ -70,6 +78,7 @@ function held(
   return articles
     .map((article) => {
       const id = text(article, 'id')
+      const price = priceOn(byArticle.get(id) ?? [], day)
 
       return {
         id,
@@ -77,7 +86,8 @@ function held(
         designation: text(article, 'designation'),
         description: maybeText(article, 'description'),
         unit: unitOf(article),
-        priceCents: priceOn(byArticle.get(id) ?? [], day)?.unitPriceCents ?? null,
+        priceCents: price?.unitPriceCents ?? null,
+        priceBase: price?.priceBase ?? 1,
         frequent: article['frequent'] === true,
       }
     })
@@ -143,6 +153,7 @@ export function useArticleSearch(search: string, day: IsoDate, limit: number): A
         description: row.description,
         unit: row.unit,
         priceCents: row.priceCents,
+        priceBase: row.priceBase ?? 1,
         frequent: row.frequent,
       })),
       total: remote.data?.total ?? 0,

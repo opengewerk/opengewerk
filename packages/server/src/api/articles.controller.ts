@@ -16,16 +16,33 @@ import {
   type ArticleId,
   type ArticlePriceId,
   articleProblems,
+  articleUnitProblem,
   isAllowed,
   isCalendarDay,
+  lumpSumPriceBaseProblem,
   missingPermission,
   type PurchasePriceId,
+  type PriceBase,
+  priceBaseOf,
   priceProblems,
   type SupplierArticleId,
   type SupplierId,
   supplierNumberProblem,
 } from '@opengewerk/domain'
-import { and, asc, count, desc, eq, ilike, inArray, isNull, or, type SQL, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  max,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 
 import { Database, type TenantTransaction } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
@@ -104,12 +121,35 @@ function requireNoProblem(problems: Readonly<Record<string, string>>): void {
   }
 }
 
-/** A price from a day on out of a request body, or a refusal with the sentence of the rule. */
-function priceFrom(body: unknown): { unitPriceCents: number; validFrom: string } {
-  const values = pick(body, ['unitPriceCents', 'validFrom'] as const)
+/**
+ * A price from a day on out of a request body, or a refusal with the sentence
+ * of the rule. Its price unit is one when the body names none (#456).
+ */
+function priceFrom(body: unknown): {
+  unitPriceCents: number
+  validFrom: string
+  priceBase: PriceBase
+} {
+  const values = pick(body, ['unitPriceCents', 'validFrom', 'priceBase'] as const)
   requireNoProblem(priceProblems(values))
 
-  return { unitPriceCents: values.unitPriceCents as number, validFrom: values.validFrom as string }
+  return {
+    unitPriceCents: values.unitPriceCents as number,
+    validFrom: values.validFrom as string,
+    priceBase: priceBaseOf(values.priceBase),
+  }
+}
+
+/**
+ * Refuses a price for several units of an article counted as a lump sum
+ * (#456), the rule a position has as well: "je 100 psch." says nothing.
+ */
+function perOneForLumpSum(unit: unknown, priceBase: number): void {
+  const problem = lumpSumPriceBaseProblem({ unit, priceBase })
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
 }
 
 /** `%` and `_` of a search as themselves, not as the wildcards of LIKE. */
@@ -231,6 +271,11 @@ export class ArticlesController {
           priceCents: sql<number | null>`(select p.unit_price_cents from article_prices p
             where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
             order by p.valid_from desc limit 1)`,
+          // The price unit of that same price (#456); one price a day, so both
+          // questions find the same row.
+          priceBase: sql<PriceBase | null>`(select p.price_base from article_prices p
+            where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
+            order by p.valid_from desc limit 1)`,
           supplierName: sql<string | null>`(select s.name from supplier_articles sa
             join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
             where sa.article_id = ${articleOfRow} order by sa.created_at, sa.id limit 1)`,
@@ -339,6 +384,10 @@ export class ArticlesController {
         ? priceFrom(body.price)
         : null
 
+    if (first) {
+      perOneForLumpSum(values['unit'], first.priceBase)
+    }
+
     try {
       return await this.database.forTenant(identity, async (tx) => {
         const [created] = await tx
@@ -374,7 +423,12 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const article = await articleOf(tx, id)
+        const article = await articleOf(tx, id, 'unit' in values ? 'update' : null)
+
+        if ('unit' in values) {
+          await unitKeepsPrices(tx, article.id, values['unit'])
+        }
+
         const [updated] = await tx
           .update(articles)
           .set(values as Partial<typeof articles.$inferInsert>)
@@ -422,7 +476,10 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const article = await articleOf(tx, id, true)
+        const article = await articleOf(tx, id, 'share')
+
+        perOneForLumpSum(article.unit, price.priceBase)
+
         const [created] = await tx
           .insert(articlePrices)
           .values({ ...price, articleId: article.id, tenantId: identity.tenantId })
@@ -505,7 +562,12 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const article = await articleOf(tx, id, true)
+        const article = await articleOf(tx, id, 'share')
+
+        if (first) {
+          perOneForLumpSum(article.unit, first.priceBase)
+        }
+
         await requireReferences(
           tx,
           supplierArticles,
@@ -601,7 +663,10 @@ export class ArticlesController {
 
     try {
       return await this.database.forTenant(identity, async (tx) => {
-        const link = await linkOf(tx, id, linkId)
+        const link = await linkOf(tx, id, linkId, 'share')
+
+        perOneForLumpSum(link.articleUnit, price.priceBase)
+
         const [created] = await tx
           .insert(purchasePrices)
           .values({ ...price, supplierArticleId: link.id, tenantId: identity.tenantId })
@@ -652,9 +717,15 @@ export class ArticlesController {
 /**
  * The article of the path, not deleted, or a 404, the same for one of another
  * business. Held with FOR SHARE where a row is about to hang on it, so that it
- * is not deleted between the look and the write.
+ * is not deleted or made a lump sum between the look and the write, and with
+ * FOR UPDATE where its unit changes, so that no price for several units comes
+ * in between the look at its prices and the change (#456).
  */
-async function articleOf(tx: TenantTransaction, id: string, hold = false) {
+async function articleOf(
+  tx: TenantTransaction,
+  id: string,
+  hold: 'share' | 'update' | null = null,
+) {
   if (!isUuid(id)) {
     throw new NotFoundException()
   }
@@ -663,7 +734,7 @@ async function articleOf(tx: TenantTransaction, id: string, hold = false) {
     .select()
     .from(articles)
     .where(and(eq(articles.id, id as ArticleId), isNull(articles.deletedAt)))
-  const [article] = hold ? await query.for('share') : await query
+  const [article] = hold === null ? await query : await query.for(hold)
 
   if (!article) {
     throw new NotFoundException()
@@ -672,9 +743,17 @@ async function articleOf(tx: TenantTransaction, id: string, hold = false) {
   return article
 }
 
-/** The supplier of an article by the id of the link, both of the path, or a 404. */
-async function linkOf(tx: TenantTransaction, id: string, linkId: string) {
-  const article = await articleOf(tx, id)
+/**
+ * The supplier of an article by the id of the link, both of the path, or a
+ * 404, with the article held as `articleOf` holds it.
+ */
+async function linkOf(
+  tx: TenantTransaction,
+  id: string,
+  linkId: string,
+  hold: 'share' | null = null,
+) {
+  const article = await articleOf(tx, id, hold)
 
   if (!isUuid(linkId)) {
     throw new NotFoundException()
@@ -695,5 +774,41 @@ async function linkOf(tx: TenantTransaction, id: string, linkId: string) {
     throw new NotFoundException()
   }
 
-  return link
+  // What the article is counted in, which a purchase price's unit depends on.
+  return { ...link, articleUnit: article.unit }
+}
+
+/**
+ * Refuses a unit an article's prices do not allow (#456): an article with a
+ * price for several units, selling or purchase, does not become a lump sum,
+ * since "je 100 psch." says nothing and an invoice from a report would take
+ * such a price into a line the database refuses. The article is held FOR
+ * UPDATE by then, and every new price holds it FOR SHARE.
+ */
+async function unitKeepsPrices(
+  tx: TenantTransaction,
+  articleId: ArticleId,
+  unit: unknown,
+): Promise<void> {
+  if (unit !== 'flat_rate') {
+    return
+  }
+
+  const [selling] = await tx
+    .select({ widest: max(articlePrices.priceBase) })
+    .from(articlePrices)
+    .where(and(eq(articlePrices.articleId, articleId), isNull(articlePrices.deletedAt)))
+  const [purchase] = await tx
+    .select({ widest: max(purchasePrices.priceBase) })
+    .from(purchasePrices)
+    .innerJoin(supplierArticles, eq(supplierArticles.id, purchasePrices.supplierArticleId))
+    .where(eq(supplierArticles.articleId, articleId))
+  const problem = articleUnitProblem(
+    unit,
+    priceBaseOf(Math.max(selling?.widest ?? 1, purchase?.widest ?? 1)),
+  )
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
 }

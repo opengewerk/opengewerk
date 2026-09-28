@@ -201,13 +201,17 @@ export class SuppliersController {
         .offset(from)
         .limit(size)
 
-      const prices = new Map<string, { unitPriceCents: number; validFrom: string }>()
+      const prices = new Map<
+        string,
+        { unitPriceCents: number; priceBase: number; validFrom: string }
+      >()
 
       if (readsPurchase && rows.length > 0) {
         const found = await tx
           .select({
             supplierArticleId: purchasePrices.supplierArticleId,
             unitPriceCents: purchasePrices.unitPriceCents,
+            priceBase: purchasePrices.priceBase,
             validFrom: purchasePrices.validFrom,
           })
           .from(purchasePrices)
@@ -226,6 +230,7 @@ export class SuppliersController {
           if (!prices.has(price.supplierArticleId)) {
             prices.set(price.supplierArticleId, {
               unitPriceCents: price.unitPriceCents,
+              priceBase: price.priceBase,
               validFrom: price.validFrom,
             })
           }

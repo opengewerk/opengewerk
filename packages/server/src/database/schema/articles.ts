@@ -1,4 +1,4 @@
-import { articleLimits, priceCentsMax } from '@opengewerk/domain'
+import { articleLimits, type PriceBase, priceBases, priceCentsMax } from '@opengewerk/domain'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -23,6 +23,9 @@ const fits = (column: unknown, limit: number) =>
   sql`char_length(${column}) between 1 and ${sql.raw(String(limit))}`
 
 const prices = (column: unknown) => sql`${column} between 0 and ${sql.raw(String(priceCentsMax))}`
+
+/** The four steps of `priceBases` (#456), which the forms and the routes ask first. */
+const knownBase = (column: unknown) => sql`${column} in (${sql.raw(priceBases.join(', '))})`
 
 /**
  * An article of the business (#296): the own number, what it is called and
@@ -85,7 +88,10 @@ export const articlePrices = pgTable(
     ...tenantColumn,
     articleId: reference<'article'>('article_id').notNull(),
     validFrom: date('valid_from').notNull(),
+    /** The price of `price_base` units. */
     unitPriceCents: integer('unit_price_cents').notNull(),
+    /** How many units the price is for (#456), one for every price from before. */
+    priceBase: integer('price_base').$type<PriceBase>().notNull().default(1),
     ...timestamps,
     ...syncColumns,
   },
@@ -101,6 +107,7 @@ export const articlePrices = pgTable(
       .on(table.tenantId, table.articleId, table.validFrom)
       .where(sql`${table.deletedAt} is null`),
     check('article_prices_in_range', prices(table.unitPriceCents)),
+    check('article_prices_price_base_known', knownBase(table.priceBase)),
   ],
 )
 
@@ -158,7 +165,10 @@ export const purchasePrices = pgTable(
     ...tenantColumn,
     supplierArticleId: reference<'supplier-article'>('supplier_article_id').notNull(),
     validFrom: date('valid_from').notNull(),
+    /** The price of `price_base` units. */
     unitPriceCents: integer('unit_price_cents').notNull(),
+    /** How many units the price is for (#456), as the supplier's catalogue prices it. */
+    priceBase: integer('price_base').$type<PriceBase>().notNull().default(1),
     ...timestamps,
   },
   (table) => [
@@ -175,5 +185,6 @@ export const purchasePrices = pgTable(
       table.validFrom,
     ),
     check('purchase_prices_in_range', prices(table.unitPriceCents)),
+    check('purchase_prices_price_base_known', knownBase(table.priceBase)),
   ],
 )

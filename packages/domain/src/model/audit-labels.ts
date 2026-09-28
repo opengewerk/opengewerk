@@ -56,7 +56,12 @@ interface TableWords {
 export const auditTables: Readonly<Record<string, TableWords>> = {
   article_prices: {
     label: 'Verkaufspreis',
-    fields: { article_id: 'Artikel', valid_from: 'Gültig ab', unit_price_cents: 'Preis' },
+    fields: {
+      article_id: 'Artikel',
+      valid_from: 'Gültig ab',
+      unit_price_cents: 'Preis',
+      price_base: 'Preiseinheit',
+    },
   },
   articles: {
     label: 'Artikel',
@@ -351,6 +356,7 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       supplier_article_id: 'Artikel eines Lieferanten',
       valid_from: 'Gültig ab',
       unit_price_cents: 'Preis',
+      price_base: 'Preiseinheit',
     },
   },
   push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },

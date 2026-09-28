@@ -140,6 +140,7 @@ function aPage(total: number, from: number, count: number): ArticlePage {
       groupOfGoods: 'Kabel und Leitungen',
       frequent: index === 0,
       priceCents: 92,
+      priceBase: 1 as const,
       supplierName: 'Elektro-Großhandel Rhein-Neckar GmbH',
       suppliers: 1,
     })),
@@ -156,9 +157,9 @@ const cable: ArticleView = {
   groupOfGoods: 'Kabel und Leitungen',
   frequent: true,
   prices: [
-    { id: 'p-3', validFrom: '2026-10-01', unitPriceCents: 98 },
-    { id: 'p-2', validFrom: '2026-03-01', unitPriceCents: 92 },
-    { id: 'p-1', validFrom: '2025-09-01', unitPriceCents: 89 },
+    { id: 'p-3', validFrom: '2026-10-01', unitPriceCents: 98, priceBase: 1 },
+    { id: 'p-2', validFrom: '2026-03-01', unitPriceCents: 92, priceBase: 1 },
+    { id: 'p-1', validFrom: '2025-09-01', unitPriceCents: 89, priceBase: 1 },
   ],
   suppliers: [
     {
@@ -166,7 +167,7 @@ const cable: ArticleView = {
       supplierId: 's-1',
       supplierName: 'Elektro-Großhandel Rhein-Neckar GmbH',
       supplierNumber: '5700123',
-      purchasePrices: [{ id: 'e-1', validFrom: '2026-03-01', unitPriceCents: 54 }],
+      purchasePrices: [{ id: 'e-1', validFrom: '2026-03-01', unitPriceCents: 54, priceBase: 1 }],
     },
   ],
 }
@@ -245,6 +246,34 @@ describe('the list of articles', () => {
     expect(listCalls()).toContain('25 25')
   })
 
+  it('names the units a price is for when they are more than one (#456)', async () => {
+    signedInAs('office')
+
+    const page = aPage(2, 0, 2)
+
+    serverSays('GET', /^\/articles\?/, {
+      ...page,
+      rows: [
+        page.rows[0],
+        {
+          ...page.rows[1],
+          designation: 'Kabelbinder 200 × 4,8 mm',
+          unit: 'piece',
+          priceCents: 350,
+          priceBase: 100,
+        },
+      ],
+    })
+    await mount('/artikel')
+
+    const table = await screen.findByRole('table', { name: 'Artikel' })
+    const ties = within(table).getByText('Kabelbinder 200 × 4,8 mm').closest('tr')
+    const cable = within(table).getByText('Mantelleitung 0').closest('tr')
+
+    expect(ties?.textContent).toMatch(/3,50\s€je 100 Stk\./)
+    expect(cable?.textContent).not.toContain('je ')
+  })
+
   it('says what an empty catalogue is for, and offers a new article only to whoever keeps them', async () => {
     signedInAs('technician')
     await mount('/artikel')
@@ -271,6 +300,92 @@ describe('an article', () => {
     expect(within(prices).getByText('Gilt')).toBeTruthy()
   })
 
+  it('shows prices per hundred with their unit, and compares purchase prices per unit (#456)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, {
+      ...cable,
+      prices: [
+        { id: 'p-2', validFrom: '2026-03-01', unitPriceCents: 9200, priceBase: 100 },
+        { id: 'p-1', validFrom: '2025-09-01', unitPriceCents: 89, priceBase: 1 },
+      ],
+      suppliers: [
+        {
+          ...cable.suppliers[0],
+          // 0,55 € per metre.
+          purchasePrices: [
+            { id: 'e-1', validFrom: '2026-03-01', unitPriceCents: 55, priceBase: 1 },
+          ],
+        },
+        {
+          id: 'l-2',
+          supplierId: 's-2',
+          supplierName: 'Kurpfalz Elektrohandel KG',
+          supplierNumber: 'NYM315-100',
+          // 54,00 € per 100 metres, 0,54 € a metre: the lower one, although
+          // its figure is the larger.
+          purchasePrices: [
+            { id: 'e-2', validFrom: '2026-06-15', unitPriceCents: 5400, priceBase: 100 },
+          ],
+        },
+      ],
+    })
+    await mount('/artikel/a-1')
+
+    const prices = await screen.findByRole('table', { name: 'Verkaufspreis' })
+
+    // Prices for different units: the column names none, each price its own.
+    expect(within(prices).getByRole('columnheader', { name: 'Preis' })).toBeTruthy()
+    expect(within(prices).getByText('je 100 m')).toBeTruthy()
+    expect(within(prices).getByText('je 1 m')).toBeTruthy()
+    expect(screen.getByText(/gilt, mit seiner Preiseinheit\./)).toBeTruthy()
+
+    const suppliers = screen.getByRole('table', { name: 'Lieferanten und Einkaufspreise' })
+
+    expect(within(suppliers).getByText('54,00 €').closest('span')?.className).toContain(
+      'font-semibold',
+    )
+    expect(within(suppliers).getByText('0,55 €').className).not.toContain('font-semibold')
+
+    // A new price starts at the unit of the newest one, so a price per 100
+    // does not become one per metre because nobody looked at "Preis je".
+    await userEvent.click(screen.getByRole('button', { name: 'Neuer Preis' }))
+
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('100')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Kurpfalz Elektrohandel KG ändern' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Neuer Einkaufspreis' }))
+
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('100')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Schließen' }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Elektro-Großhandel Rhein-Neckar GmbH ändern' }),
+    )
+    await userEvent.click(await screen.findByRole('button', { name: 'Neuer Einkaufspreis' }))
+
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('1')
+  })
+
+  it('takes a new price for a hundred units (#456)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, cable)
+    serverSays('POST', /^\/articles\/a-1\/prices$/, { id: 'p-4' })
+    await mount('/artikel/a-1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Neuer Preis' }))
+    await userEvent.type(screen.getByLabelText('Preis in Euro'), '92,00')
+    await userEvent.selectOptions(screen.getByLabelText('Preis je'), '100')
+    await userEvent.click(screen.getByRole('button', { name: 'Preis anlegen' }))
+
+    await waitFor(() => {
+      expect(
+        calls.find((call) => call.method === 'POST' && call.path === '/articles/a-1/prices')?.body,
+      ).toMatchObject({ unitPriceCents: 9200, priceBase: 100 })
+    })
+  })
+
   it('opens one supplier over the table to change its number and its purchase prices', async () => {
     signedInAs('office')
     serverSays('GET', /^\/articles\/a-1$/, {
@@ -282,7 +397,9 @@ describe('an article', () => {
           supplierId: 's-2',
           supplierName: 'Kurpfalz Elektrohandel KG',
           supplierNumber: 'NYM315-100',
-          purchasePrices: [{ id: 'e-2', validFrom: '2026-06-15', unitPriceCents: 57 }],
+          purchasePrices: [
+            { id: 'e-2', validFrom: '2026-06-15', unitPriceCents: 57, priceBase: 1 },
+          ],
         },
       ],
     })
@@ -390,6 +507,32 @@ describe('an article', () => {
     })
     expect(patch?.body).not.toHaveProperty('price')
   })
+
+  it('keeps an article with a purchase price per 100 from becoming a lump sum (#456)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, {
+      ...cable,
+      suppliers: [
+        {
+          ...cable.suppliers[0],
+          purchasePrices: [
+            { id: 'e-1', validFrom: '2026-03-01', unitPriceCents: 5400, priceBase: 100 },
+          ],
+        },
+      ],
+    })
+    serverSays('PATCH', /^\/articles\/a-1$/, { id: 'a-1' })
+    await mount('/artikel/a-1/bearbeiten')
+
+    await screen.findByRole('heading', { name: 'Mantelleitung NYM-J 3 × 1,5 mm² bearbeiten' })
+    await userEvent.selectOptions(screen.getByLabelText('Einheit'), 'flat_rate')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(
+      await screen.findByText(/^Eine Pauschale hat keine Preiseinheit, und der Artikel hat Preise/),
+    ).toBeTruthy()
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false)
+  })
 })
 
 describe('a new article', () => {
@@ -408,7 +551,7 @@ describe('a new article', () => {
 
     await userEvent.clear(screen.getByLabelText('EAN'))
     await userEvent.type(screen.getByLabelText('EAN'), '2001042000018')
-    await userEvent.type(screen.getByLabelText('Preis je Einheit in Euro'), '1,34')
+    await userEvent.type(screen.getByLabelText('Preis in Euro'), '1,34')
     await userEvent.click(screen.getByRole('button', { name: 'Artikel anlegen' }))
 
     await waitFor(() => {

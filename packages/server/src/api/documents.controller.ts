@@ -54,7 +54,7 @@ import {
   numberRanges,
   payments,
 } from '../database/schema/index.js'
-import { articlePricesOn, pricedFromArticle } from '../documents/article-prices.js'
+import { articlePricesOn, type PriceOfDay, pricedFromArticle } from '../documents/article-prices.js'
 import { contentAndGapsOf, issuerOf } from '../documents/content.js'
 import { deductionsFor } from '../documents/deductions.js'
 import { choicesOf } from '../documents/instructions.js'
@@ -612,7 +612,7 @@ export class DocumentsController {
       // taken from an article the price of the invoice's date (#296); every
       // other successor keeps the prices of its predecessor.
       const prices = showsPrices(predecessor.kind)
-        ? new Map<string, number>()
+        ? new Map<string, PriceOfDay>()
         : await articlePricesOn(
             tx,
             lines.map((line) => line.articleId),

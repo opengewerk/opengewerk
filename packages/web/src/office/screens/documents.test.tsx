@@ -558,6 +558,7 @@ describe('a quote with titles', () => {
             groupOfGoods: 'Kabel und Leitungen',
             frequent: true,
             priceCents: 92,
+            priceBase: 1,
             supplierName: null,
             suppliers: 0,
           },
@@ -592,6 +593,59 @@ describe('a quote with titles', () => {
       description: 'Grau, im Ring zu 100 m.',
       unit: 'metre',
       unitPriceCents: 92,
+    })
+  })
+
+  it('takes a price per 100 from an article with the units it is for (#456)', async () => {
+    serverSays('GET', '/articles?offset=0&limit=8&sort=number&search=kabelb&on=2026-09-21', () => ({
+      status: 200,
+      body: {
+        total: 1,
+        rows: [
+          {
+            id: 'a-5010',
+            number: '5010',
+            designation: 'Kabelbinder 200 × 4,8 mm, schwarz',
+            description: null,
+            unit: 'piece',
+            groupOfGoods: 'Installationsmaterial',
+            frequent: false,
+            priceCents: 350,
+            priceBase: 100,
+            supplierName: null,
+            suppliers: 0,
+          },
+        ],
+      },
+    }))
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByRole('combobox', { name: 'Position aus Artikel' }), 'kabelb')
+
+    const option = await screen.findByRole('option', { name: /Kabelbinder 200 × 4,8 mm/ })
+
+    expect(option.textContent).toMatch(/3,50\s€ je 100 Stk\.$/)
+
+    await person.click(option)
+
+    expect((screen.getByLabelText('Einzelpreis in Euro') as HTMLInputElement).value).toBe('3,50')
+    expect((screen.getByLabelText('Preis je') as HTMLSelectElement).value).toBe('100')
+
+    await person.clear(screen.getByLabelText('Menge'))
+    await person.type(screen.getByLabelText('Menge'), '300')
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    expect(valuesOf(server.operationsOn('document_lines')[0])).toMatchObject({
+      articleId: 'a-5010',
+      quantityMilli: 300_000,
+      unitPriceCents: 350,
+      priceBase: 100,
     })
   })
 

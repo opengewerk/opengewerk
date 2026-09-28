@@ -656,9 +656,10 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   const catalogue = await plantMaterial(post, today)
   const circuitBreaker = catalogue.get('2140')
+  const cableTies = catalogue.get('5010')
 
-  if (circuitBreaker === undefined) {
-    throw new Error('The sample catalogue has no article 2140.')
+  if (circuitBreaker === undefined || cableTies === undefined) {
+    throw new Error('The sample catalogue has no article 2140 or 5010.')
   }
 
   // A report of today still in draft, with material taken from an article
@@ -697,7 +698,11 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     [
       item('Wallbox 11 kW, lastmanagementfähig', 1000, 'piece', 118_000),
       item('Zuleitung NYM-J 5 × 6 mm²', 20_000, 'metre', 980),
-      { ...item('Kabelbinder 200 × 4,8 mm, schwarz', 300_000, 'piece', 350), priceBase: 100 },
+      {
+        ...item('Kabelbinder 200 × 4,8 mm, schwarz', 300_000, 'piece', 350),
+        priceBase: 100,
+        articleId: cableTies,
+      },
       item('Montage und Inbetriebnahme', 4000, 'hour', 6800),
     ],
   )
@@ -706,8 +711,8 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 /**
  * The catalogue of the business (#296), as the boards of the canvas draw it:
  * four suppliers, one with a person in its office and one without a customer
- * number, and twelve articles, some marked as frequent, each with a selling
- * price. The cable has three prices, one of them to come, and two suppliers
+ * number, and thirteen articles, some marked as frequent, each with a selling
+ * price, the cable ties per 100. The cable has three prices, one of them to come, and two suppliers
  * with their numbers and purchase prices, so that the page of an article shows
  * every state a price can be in. Answers the articles by their numbers.
  */
@@ -907,6 +912,28 @@ async function plantMaterial(
       })
     }
   }
+
+  // Cable ties, priced the way the wholesaler prices them: per 100 (#456),
+  // as the board "Artikel mit Preisen je 100 Stück" draws them.
+  const ties = idOf(
+    await post('/articles', {
+      number: '5010',
+      designation: 'Kabelbinder 200 × 4,8 mm, schwarz',
+      description: 'UV-beständig, Beutel zu 100 Stück.',
+      groupOfGoods: 'Installationsmaterial',
+      unit: 'piece',
+      frequent: false,
+      price: { unitPriceCents: 320, validFrom: addDays(since, -180), priceBase: 100 },
+    }),
+  )
+
+  await post(`/articles/${ties}/prices`, { unitPriceCents: 350, validFrom: since, priceBase: 100 })
+  await post(`/articles/${ties}/suppliers`, {
+    supplierId: hansa,
+    supplierNumber: '5709912',
+    price: { unitPriceCents: 210, validFrom: since, priceBase: 100 },
+  })
+  planted.set('5010', ties)
 
   return planted
 }

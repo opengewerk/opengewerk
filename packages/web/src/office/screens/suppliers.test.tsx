@@ -152,7 +152,9 @@ function sold(offset: number, purchase: boolean): SupplierArticlePage {
       designation: `Mantelleitung ${String(offset + index)}`,
       unit: 'metre' as const,
       frequent: false,
-      purchase: purchase ? { unitPriceCents: 54, validFrom: '2026-03-01' } : null,
+      purchase: purchase
+        ? { unitPriceCents: 54, priceBase: 1 as const, validFrom: '2026-03-01' }
+        : null,
     })),
   }
 }
