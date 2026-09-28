@@ -80,6 +80,13 @@ export const documentLines = pgTable(
       name: 'document_lines_article_in_tenant',
     }),
     index('document_lines_article_idx').on(table.tenantId, table.articleId),
+    // The articles used lately (`articlesOnDevices`) are asked for at every
+    // pull of every device. This keeps the question to the lines of the last
+    // 90 days, not every line that ever took an article in the life of the
+    // business.
+    index('document_lines_recent_articles_idx')
+      .on(table.tenantId, table.createdAt)
+      .where(sql`${table.articleId} is not null and ${table.deletedAt} is null`),
     check('document_lines_position_positive', sql`${table.position} >= 1`),
     // A title is a heading and nothing else. With an amount on it, a total
     // would contain a figure nobody sees as a position.

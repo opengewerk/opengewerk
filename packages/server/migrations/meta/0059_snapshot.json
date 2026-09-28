@@ -3341,6 +3341,28 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "document_lines_recent_articles_idx": {
+          "name": "document_lines_recent_articles_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"document_lines\".\"article_id\" is not null and \"document_lines\".\"deleted_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
