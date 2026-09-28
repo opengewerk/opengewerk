@@ -360,7 +360,13 @@ export function ArticleListScreen() {
                 sub: [row.number, row.groupOfGoods, row.supplierName].filter(Boolean).join(' · '),
                 right: (
                   <span className="numeric">
-                    {row.priceCents === null ? '' : euros(row.priceCents)}
+                    {row.priceCents === null ? null : (
+                      <PriceWithBase
+                        cents={row.priceCents}
+                        base={row.priceBase ?? 1}
+                        unit={row.unit}
+                      />
+                    )}
                   </span>
                 ),
               }))}
@@ -391,7 +397,15 @@ export function ArticleListScreen() {
                     </Cell>
                     <Cell className="text-ink-muted">{row.groupOfGoods ?? ''}</Cell>
                     <Cell className="text-ink-muted">{lineUnitShort[row.unit]}</Cell>
-                    <Cell numeric>{row.priceCents === null ? '' : euros(row.priceCents)}</Cell>
+                    <Cell numeric>
+                      {row.priceCents === null ? null : (
+                        <PriceWithBase
+                          cents={row.priceCents}
+                          base={row.priceBase ?? 1}
+                          unit={row.unit}
+                        />
+                      )}
+                    </Cell>
                     <Cell className="text-ink-muted">
                       {row.supplierName ?? ''}
                       {row.suppliers > 1 ? (

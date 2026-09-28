@@ -246,6 +246,34 @@ describe('the list of articles', () => {
     expect(listCalls()).toContain('25 25')
   })
 
+  it('names the units a price is for when they are more than one (#456)', async () => {
+    signedInAs('office')
+
+    const page = aPage(2, 0, 2)
+
+    serverSays('GET', /^\/articles\?/, {
+      ...page,
+      rows: [
+        page.rows[0],
+        {
+          ...page.rows[1],
+          designation: 'Kabelbinder 200 × 4,8 mm',
+          unit: 'piece',
+          priceCents: 350,
+          priceBase: 100,
+        },
+      ],
+    })
+    await mount('/artikel')
+
+    const table = await screen.findByRole('table', { name: 'Artikel' })
+    const ties = within(table).getByText('Kabelbinder 200 × 4,8 mm').closest('tr')
+    const cable = within(table).getByText('Mantelleitung 0').closest('tr')
+
+    expect(ties?.textContent).toMatch(/3,50\s€je 100 Stk\./)
+    expect(cable?.textContent).not.toContain('je ')
+  })
+
   it('says what an empty catalogue is for, and offers a new article only to whoever keeps them', async () => {
     signedInAs('technician')
     await mount('/artikel')
