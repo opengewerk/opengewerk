@@ -337,6 +337,29 @@ describe('an article', () => {
     expect(screen.queryByRole('button', { name: 'Neuer Preis' })).toBeNull()
   })
 
+  it('gives a technician on a phone the article to read, as the board draws it', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    signedInAs('technician')
+    serverSays('GET', /^\/articles\/a-1$/, {
+      ...cable,
+      suppliers: cable.suppliers.map((link) => ({ ...link, purchasePrices: null })),
+    })
+    await mount('/artikel/a-1')
+
+    expect(await screen.findByText('Gilt seit 01.03.2026')).toBeTruthy()
+    expect(screen.getByText('Ab 01.10.2026')).toBeTruthy()
+    expect(screen.getByText('0,92 € je Meter')).toBeTruthy()
+    // What held before is no business of whoever reads it on site.
+    expect(screen.queryByText('0,89 € je Meter')).toBeNull()
+    expect(screen.getByText('Artikelnummer dort: 5700123')).toBeTruthy()
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+
   it('opens the form on a page of its own and sends only the article', async () => {
     signedInAs('office')
     serverSays('GET', /^\/articles\/a-1$/, cable)

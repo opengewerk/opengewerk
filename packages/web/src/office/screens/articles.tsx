@@ -3,6 +3,7 @@ import {
   type IsoDate,
   type LineUnit,
   lineUnits,
+  priceOn,
   priceProblems,
   priceStanding,
   supplierNumberProblem,
@@ -27,6 +28,7 @@ import {
   TextArea,
   useButtonLook,
 } from '../../components/index.js'
+import { useBand } from '../../components/band.js'
 import { date, euros, parseEuros, today } from '../../app/format.js'
 import { lineUnitLabel, lineUnitShort } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -354,6 +356,7 @@ export function ArticleListScreen() {
 export function ArticleScreen() {
   const { articleId } = useParams({ strict: false }) as { articleId?: string }
   const writes = useMay('article.write')
+  const phone = useBand() === 'S'
   const navigate = useNavigate()
   const found = useQuery({
     queryKey: ['articles', 'one', articleId],
@@ -384,6 +387,10 @@ export function ArticleScreen() {
   }
 
   const article = found.data
+  // On a phone, whoever only reads the article gets it to read, as the board
+  // "Artikel am Telefon" draws it for a technician: the price that holds and
+  // the one to come, and where it comes from.
+  const reading = phone && !writes
 
   return (
     <Screen>
@@ -413,10 +420,17 @@ export function ArticleScreen() {
       />
       <RecordColumns
         main={
-          <>
-            <SalePrices article={article} />
-            <Suppliers article={article} />
-          </>
+          reading ? (
+            <>
+              <PricesToRead article={article} />
+              <SuppliersToRead article={article} />
+            </>
+          ) : (
+            <>
+              <SalePrices article={article} />
+              <Suppliers article={article} />
+            </>
+          )
         }
         side={<ArticleFacts article={article} />}
       />
@@ -441,6 +455,74 @@ function ArticleFacts({ article }: { readonly article: ArticleView }) {
           { label: 'Beschreibung', value: article.description ?? '' },
         ]}
       />
+    </Panel>
+  )
+}
+
+/**
+ * The selling price to read, `artikel_telefon()` of the canvas: the one that
+ * holds and the ones to come, each with its day, and none of the earlier ones.
+ */
+function PricesToRead({ article }: { readonly article: ArticleView }) {
+  const day = today()
+  const holding = priceOn(article.prices, day)
+  const coming = article.prices
+    .filter((price) => price.validFrom > day)
+    .sort((left, right) => (left.validFrom < right.validFrom ? -1 : 1))
+  const unit = lineUnitLabel[article.unit]
+  const shown = [
+    ...(holding ? [{ price: holding, words: `Gilt seit ${date(holding.validFrom)}` }] : []),
+    ...coming.map((price) => ({ price, words: `Ab ${date(price.validFrom)}` })),
+  ]
+
+  return (
+    <Panel title="Verkaufspreis">
+      {shown.length === 0 ? (
+        <p className="text-[13px] text-ink-muted">Noch kein Preis.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {shown.map(({ price, words }) => (
+            <li key={price.id} className="flex items-baseline justify-between gap-2.5">
+              <span className="text-[14px]">{words}</span>
+              <b className="numeric text-[16px] font-semibold">
+                {`${priceText(price.unitPriceCents)} je ${unit}`}
+              </b>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  )
+}
+
+/** Where the article comes from, to read: each supplier and its number for it. */
+function SuppliersToRead({ article }: { readonly article: ArticleView }) {
+  return (
+    <Panel title="Lieferanten">
+      {article.suppliers.length === 0 ? (
+        <p className="text-[13px] text-ink-muted">Noch kein Lieferant.</p>
+      ) : (
+        <ul>
+          {article.suppliers.map((link) => (
+            <li key={link.id} className="border-b border-row py-2">
+              <Link
+                to={`/lieferanten/${link.supplierId}`}
+                className="text-[14px] text-copper-text underline underline-offset-2"
+              >
+                {link.supplierName}
+              </Link>
+              {link.supplierNumber ? (
+                <div className="text-[13px] text-ink-faint">
+                  Artikelnummer dort: {link.supplierNumber}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[13px] leading-[1.45] text-ink-faint">
+        Einkaufspreise sehen Inhaber und Büro.
+      </p>
     </Panel>
   )
 }
