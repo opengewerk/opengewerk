@@ -98,6 +98,16 @@ describe('a price from a day on', () => {
     )
   })
 
+  it('is for one, ten, a hundred or a thousand units, and for one when none is named (#456)', () => {
+    for (const priceBase of [1, 10, 100, 1000]) {
+      expect(priceProblems({ unitPriceCents: 350, validFrom: '2026-03-01', priceBase })).toEqual({})
+    }
+
+    expect(priceProblems({ unitPriceCents: 350, validFrom: '2026-03-01', priceBase: 50 })).toEqual({
+      priceBase: 'Ein Preis gilt je 1, 10, 100 oder 1000 Einheiten.',
+    })
+  })
+
   it('knows the days of the calendar', () => {
     expect(isCalendarDay('2028-02-29')).toBe(true)
     expect(isCalendarDay('2027-02-29')).toBe(false)

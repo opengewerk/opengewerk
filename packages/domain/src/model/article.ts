@@ -1,4 +1,4 @@
-import { lineUnits, type LineUnit } from './document-line.js'
+import { lineUnits, type LineUnit, type PriceBase, priceBaseProblem } from './document-line.js'
 import type { Id, IsoDate, Synced, TenantOwned } from './identifier.js'
 import type { SupplierId } from './supplier.js'
 
@@ -42,7 +42,13 @@ export interface ArticlePrice extends Synced {
   readonly id: ArticlePriceId
   readonly articleId: ArticleId
   readonly validFrom: IsoDate
+  /** The price of `priceBase` units. */
   readonly unitPriceCents: number
+  /**
+   * How many units the price is for (#456), as a wholesaler prices cable ties
+   * per 100. A position that takes the price takes it with its price unit.
+   */
+  readonly priceBase: PriceBase
 }
 
 /**
@@ -68,7 +74,10 @@ export interface PurchasePrice extends TenantOwned {
   readonly id: PurchasePriceId
   readonly supplierArticleId: SupplierArticleId
   readonly validFrom: IsoDate
+  /** The price of `priceBase` units. */
   readonly unitPriceCents: number
+  /** How many units the price is for (#456), as the supplier's catalogue prices it. */
+  readonly priceBase: PriceBase
 }
 
 /**
@@ -170,11 +179,14 @@ export function supplierNumberProblem(value: unknown): string | null {
 
 /**
  * What is wrong with a price from a day on, by field, or nothing: a whole
- * number of cents from nothing to `priceCentsMax`, and a day of the calendar.
+ * number of cents from nothing to `priceCentsMax`, a day of the calendar,
+ * and a price unit of the four steps, when one is given (#456); left out,
+ * a price is for one unit.
  */
 export function priceProblems(price: {
   readonly unitPriceCents?: unknown
   readonly validFrom?: unknown
+  readonly priceBase?: unknown
 }): Readonly<Record<string, string>> {
   const problems: Record<string, string> = {}
   const cents = price.unitPriceCents
@@ -185,6 +197,12 @@ export function priceProblems(price: {
 
   if (!isCalendarDay(price.validFrom)) {
     problems['validFrom'] = 'Ein Preis gilt ab einem Tag des Kalenders.'
+  }
+
+  const base = price.priceBase === undefined ? null : priceBaseProblem(price.priceBase)
+
+  if (base) {
+    problems['priceBase'] = base
   }
 
   return problems
