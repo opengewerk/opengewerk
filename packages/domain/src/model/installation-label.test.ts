@@ -94,14 +94,14 @@ describe('reading a label from a scan', () => {
     expect(labelCodeFromScan('')).toBeNull()
   })
 
-  it('reads a long run of slashes in one pass', () => {
-    // Trimmed with /\/+$/, slashes before an x took the square of their length
-    // (CodeQL, js/polynomial-redos); synchronous, so only the clock tells.
+  // Trimmed with /\/+$/, slashes before an x took the square of their length
+  // (CodeQL, js/polynomial-redos), three seconds for these. Domain reads no
+  // clock, not even in a test, so the limit of the test tells: Vitest fails a
+  // synchronous test that ran past it once it returns.
+  it('reads a long run of slashes in one pass', { timeout: 1_000 }, () => {
     const slashes = '/'.repeat(100_000)
-    const started = Date.now()
 
     expect(labelCodeFromScan(`https://example.de/a/${slashes}x`)).toBeNull()
-    expect(Date.now() - started).toBeLessThan(500)
     expect(labelCodeFromScan(`https://example.de/a/7K2M9QX4TBA3HW8P${slashes}`)).toBe(
       '7K2M9QX4TBA3HW8P',
     )
