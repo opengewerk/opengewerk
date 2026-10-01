@@ -19,3 +19,7 @@ export * from './database/tenant-checks.js'
 // them asks of whoever calls it.
 export * from './api/routes.js'
 export * from './api/test-identity.js'
+
+// What somebody holds in their hand when they sign in: the app that shows a
+// code, and a device with a passkey.
+export * from './authentication/test-authenticator.js'

@@ -1,9 +1,10 @@
 import { BadRequestException, ConflictException, GoneException } from '@nestjs/common'
-import type { RoleKey, TenantId } from '@opengewerk/domain'
-import type { Database, StraddlingTransaction } from '@opengewerk/platform-server'
+import type { TenantId } from '@opengewerk/platform-domain'
 import { eq, sql } from 'drizzle-orm'
 
-import { authUsers, invitations } from '../database/schema/index.js'
+import type { Database, StraddlingTransaction } from '../database/database.js'
+import { authUsers, invitations } from '../schema.js'
+import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
 import { hashToken } from './invitation.js'
 import { shortestPassword } from './password.js'
@@ -15,17 +16,17 @@ import { createAccount, grantMembership } from './staff.js'
  *
  * Everything here happens without a session, which is what makes it different
  * from the rest of the user administration and is the whole reason it is a
- * file of its own. The caller cannot be identified, has no business, and
+ * file of its own. The caller cannot be identified, has no tenant, and
  * therefore sees nothing at all under the ordinary policies. What stands in
  * for an identity is the token, and the one thing it proves is that whoever
- * holds it was given it by the office of one particular business.
+ * holds it was given it by somebody in one particular tenant.
  *
  * The lookup goes through `invitation_for`, which runs as the owner of the
  * tables. It has to: `tenant_isolation` on `invitations` compares a row
- * against a business that has not been chosen, so from out here the table is
- * empty on every instance. The token is what names the business, and something
+ * against a tenant that has not been chosen, so from out here the table is
+ * empty on every instance. The token is what names the tenant, and something
  * has to be able to read it to find that out. Everything after the lookup
- * happens under the ordinary policies, inside the business the token named.
+ * happens under the ordinary policies, inside the tenant the token named.
  */
 
 /** What became of an invitation, and therefore what the screen should say. */
@@ -43,11 +44,11 @@ export interface InvitationOffer {
    * It decides what the screen asks for. A new account needs a password; one
    * that exists keeps the one it has, and asking for a new one would either
    * silently do nothing or quietly change somebody's password from a link
-   * their office made, which is worse.
+   * somebody else made, which is worse.
    *
    * Handing this out to somebody holding a token is not a way of asking the
-   * instance who has an account: the token names one address, the one the
-   * office typed, and the office already knew it.
+   * instance who has an account: the token names one address, the one that
+   * was typed into the invitation, and whoever typed it already knew it.
    */
   readonly knownAccount: boolean
 }
@@ -105,7 +106,7 @@ export async function offerOf(database: Database, token: string): Promise<Invita
 /**
  * Turns a link into a way in.
  *
- * One transaction, from outside any business into the one the token named. The
+ * One transaction, from outside any tenant into the one the token named. The
  * account is created first because the `auth_` tables are in reach only out
  * there, then the step inside, then the invitation is marked used, then the
  * membership. That order is not cosmetic: marking it is the concurrency guard,
@@ -119,11 +120,12 @@ export async function offerOf(database: Database, token: string): Promise<Invita
  * changed is what turns that into a refusal.
  *
  * An address that already has an account keeps its password. The alternative
- * would be a link made by an office that sets a password on an account the
- * office has nothing to do with, and on a shared instance that account might
- * belong to the company next door.
+ * would be a link made in one tenant that sets a password on an account the
+ * tenant has nothing to do with, and on a shared instance that account might
+ * belong to the tenant next door.
  */
 export async function redeemInvitation(
+  access: Pick<AccessRules, 'sentences'>,
   authentication: Authentication,
   database: Database,
   token: string,
@@ -139,7 +141,9 @@ export async function redeemInvitation(
   const state = stateOf(row)
 
   if (state !== 'open') {
-    throw new GoneException(unusable[state])
+    // Each of the three with its own sentence, and each says where to ask for
+    // a new link, which is why they are the application's.
+    throw new GoneException(access.sentences.unusableLink[state])
   }
 
   if (!knownAccount) {
@@ -153,7 +157,7 @@ export async function redeemInvitation(
 
   const context = await authentication.$context
   const tenantId = row.business as TenantId
-  const roles = row.invited_roles as RoleKey[]
+  const roles = row.invited_roles
 
   const created = await database.forInstanceAndTenant(
     'invitation.redeem',
@@ -167,8 +171,8 @@ export async function redeemInvitation(
         password: password ?? '',
       })
 
-      // Inside the business from here on, as the person who is joining it. So
-      // both rows below land in this company's audit log with their name on
+      // Inside the tenant from here on, as the person who is joining it. So
+      // both rows below land in this tenant's audit log with their name on
       // them, which is the honest answer to "how did this person get in".
       await enter(tenantId, account.userId)
 
@@ -198,17 +202,10 @@ export async function redeemInvitation(
   return { tenantId, company: row.company, email: row.invited_email, created }
 }
 
-/** The sentence for each state a link can be in that is not usable. */
-const unusable: Record<Exclude<InvitationState, 'open'>, string> = {
-  redeemed: 'Dieser Link wurde schon benutzt. Bitte im Betrieb einen neuen anfordern.',
-  revoked: 'Dieser Link wurde zurückgezogen. Bitte im Betrieb nachfragen.',
-  expired: 'Dieser Link ist abgelaufen. Bitte im Betrieb einen neuen anfordern.',
-}
-
 /**
  * The invitation a token names, and whether its address is already an account.
  *
- * Both in one transaction outside any business, which is where each of them is
+ * Both in one transaction outside any tenant, which is where each of them is
  * answerable: the first through the function that runs as the owner, the
  * second because the `auth_` tables are in reach exactly here.
  */

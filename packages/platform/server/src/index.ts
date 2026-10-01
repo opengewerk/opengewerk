@@ -45,8 +45,31 @@ export * from './api/security-headers.js'
 // What is on the internet and what is inside a network.
 export * from './network/internal-address.js'
 
-// The code the first run of an instance asks for.
+// The authentication: accounts on the instance, memberships per tenant, and
+// a session that works in one tenant at a time. Signing in with a password, a
+// second factor and passkeys, the first run of an instance, the one time link
+// somebody new comes in through, and the commands that are the way back. The
+// application names itself, its roles and its words.
+export * from './authentication/access.js'
+export * from './authentication/authentication.controller.js'
+export * from './authentication/authentication.js'
+export * from './authentication/commands.js'
+export * from './authentication/invitation.controller.js'
+export * from './authentication/invitation.js'
+export * from './authentication/module.js'
+export * from './authentication/notices.js'
+export * from './authentication/passkeys.controller.js'
+export * from './authentication/passkeys.js'
+export * from './authentication/password.js'
+export * from './authentication/reconfirmation.js'
+export * from './authentication/recovery-codes.controller.js'
+export * from './authentication/redemption.js'
+export * from './authentication/session-identity.js'
+export * from './authentication/session-lifetime.js'
 export * from './authentication/setup-code.js'
+export * from './authentication/setup.controller.js'
+export * from './authentication/setup.js'
+export * from './authentication/staff.js'
 
 // Addresses and host names as a mail server takes them.
 export * from './mail/configuration.js'

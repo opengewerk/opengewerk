@@ -1,17 +1,22 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
-import {
-  hasSecondFactor,
-  requiresSecondFactor,
-  type RoleKey,
-  type TenantId,
-} from '@opengewerk/domain'
-import type { Database } from '@opengewerk/platform-server'
+import { hasSecondFactor, type TenantId, type TenantIdentity } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 
 import type { FoundIdentity, IdentitySource, SignedInUser } from '../api/identity.js'
-import { memberships } from '../database/schema/index.js'
+import type { Database } from '../database/database.js'
+import { memberships } from '../schema.js'
+import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
 import { renewSession } from './session-lifetime.js'
+
+/**
+ * Somebody at work in a tenant, with the roles their membership gives them
+ * there. What the roles allow is the application's to say; this is what the
+ * session and the membership say about a request.
+ */
+export interface MemberIdentity<Role extends string = string> extends TenantIdentity {
+  readonly roles: readonly Role[]
+}
 
 /** What a request has to carry for a session to be found in it. */
 interface RequestWithHeaders {
@@ -25,25 +30,28 @@ interface RequestWithHeaders {
  *
  * 1. **Who is this?** better-auth answers it from the session cookie. No
  *    answer means no identity, and the guard turns that into 401.
- * 2. **Which business?** From the session row, never from the request. There
+ * 2. **Which tenant?** From the session row, never from the request. There
  *    is a test older than this file that puts a tenant in a body and expects
  *    to be ignored; reading it from anywhere a client can reach would be the
  *    one mistake nothing downstream could catch, because row level security
- *    would then faithfully isolate the wrong company.
+ *    would then faithfully isolate the wrong tenant.
  * 3. **What may they do here?** From the membership, read fresh on every
- *    request. Not from the session, and not cached: rights taken away in the
- *    office have to stop working now and not when a session happens to expire.
- *    The same row says whether this person is blocked in this business, which
+ *    request. Not from the session, and not cached: rights taken away have
+ *    to stop working now and not when a session happens to expire.
+ *    The same row says whether this person is blocked in this tenant, which
  *    is the same question asked as sharply as it can be.
  *
  * The cost is one query per request, and it buys the property that a
  * revocation takes effect immediately. That is the right side to err on for a
  * table that is read far more often than it is written.
  */
-export class SessionIdentitySource implements IdentitySource {
+export class SessionIdentitySource<Role extends string = string> implements IdentitySource<
+  MemberIdentity<Role>
+> {
   constructor(
     private readonly authentication: Authentication,
     private readonly database: Database,
+    private readonly access: AccessRules<Role>,
   ) {}
 
   async authenticate(request: unknown): Promise<SignedInUser | null> {
@@ -69,7 +77,7 @@ export class SessionIdentitySource implements IdentitySource {
     return found
   }
 
-  async identify(request: unknown): Promise<FoundIdentity | null> {
+  async identify(request: unknown): Promise<FoundIdentity<MemberIdentity<Role>> | null> {
     const found = await this.session(request)
 
     if (!found) {
@@ -82,12 +90,10 @@ export class SessionIdentitySource implements IdentitySource {
     const tenantId = found.session.activeTenantId as TenantId | null | undefined
 
     if (!tenantId) {
-      // Signed in, but no business chosen yet. Still a 401, because there is
+      // Signed in, but no tenant chosen yet. Still a 401, because there is
       // no identity to work with, and a message of its own because the way out
-      // is different: not "sign in" but "pick a company".
-      throw new UnauthorizedException(
-        'Es ist noch kein Betrieb gewählt. Bitte zuerst einen Betrieb auswählen.',
-      )
+      // is different: not "sign in" but "pick a tenant".
+      throw new UnauthorizedException(this.access.sentences.noTenantChosen)
     }
 
     const membership = await this.database.forTenant({ tenantId }, async (tx) => {
@@ -101,36 +107,36 @@ export class SessionIdentitySource implements IdentitySource {
     })
 
     if (!membership) {
-      // The session names a business this person is no longer part of. The
+      // The session names a tenant this person is no longer part of. The
       // session itself is still good, so this is a 403 and not a 401: signing
       // in again would change nothing.
-      throw new ForbiddenException('Kein Zugang zu diesem Betrieb.')
+      throw new ForbiddenException(this.access.sentences.noAccessToTenant)
     }
 
     if (membership.blockedAt) {
       // Blocking already deletes the sessions that were working in this
-      // business, so in practice nobody arrives here. It is checked anyway,
+      // tenant, so in practice nobody arrives here. It is checked anyway,
       // because "the sessions were all found" is a promise the delete makes
       // and this one is a property of the row: a session created in the moment
       // between the two, or one that somehow survived, still gets nowhere.
       // Read fresh on every request like the roles next to it, for the same
       // reason.
-      throw new ForbiddenException(
-        'Dieser Zugang ist im Betrieb gesperrt. Der Inhaber kann ihn wieder freigeben.',
-      )
+      throw new ForbiddenException(this.access.sentences.blockedInTenant)
     }
 
-    const roles = membership.roles as readonly RoleKey[]
+    // Whatever the column holds was written through the rules of this
+    // application, which is what the cast says.
+    const roles = membership.roles as readonly Role[]
 
     if (
-      requiresSecondFactor(roles) &&
+      this.access.requiresSecondFactor(roles) &&
       !hasSecondFactor({
         twoFactorEnabled: found.user.twoFactorEnabled,
         signInMethod: found.session.signInMethod,
       })
     ) {
       // ADR 0006 hangs this on the role and not on a setting, so it is checked
-      // here rather than at sign in: somebody made an owner an hour ago is
+      // here rather than at sign in: somebody given such a role an hour ago is
       // stopped at the next request, without anybody having to remember to
       // re-check them.
       //

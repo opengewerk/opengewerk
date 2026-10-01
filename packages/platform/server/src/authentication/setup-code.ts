@@ -3,10 +3,10 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 /**
  * The code the first run of an instance asks for (#215).
  *
- * Until it existed, an instance with no business and no account took its first
+ * Until it existed, an instance with no tenant and no account took its first
  * run from whoever reached the address first, and between the first start and
  * the first run an instance usually stands open on the internet. Whoever came
- * first became the owner. The code lives in `docker/.env` on the server, next
+ * first led its first tenant. The code lives in `docker/.env` on the server, next
  * to the passwords of the database, so whoever can read it can get at the
  * server, and that is exactly the person who is meant to set the instance up.
  *

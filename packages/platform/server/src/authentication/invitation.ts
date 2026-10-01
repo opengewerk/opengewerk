@@ -7,17 +7,17 @@ import { createHash, randomBytes } from 'node:crypto'
  * behind is its SHA-256, so the table of invitations is a list of who was
  * invited rather than a ring of keys, and a backup of it opens nothing.
  *
- * Why a link at all, rather than a password the office types in and passes on:
+ * Why a link at all, rather than a password somebody types in and passes on:
  * the issue this was built for puts it in one sentence, and it is the whole
  * argument. A password a colleague knows and that then stays for three years
  * is worse than one nobody knows. Whoever opens the link sets their own, and
  * from that moment the only person who knows it is the person it belongs to.
  *
- * What a link is not is a secret channel. It travels by whatever the office
+ * What a link is not is a secret channel. It travels by whatever the tenant
  * uses, a message, a note on a desk, a sentence in a corridor, and anybody who
  * reads it on the way can use it. Three things make that bearable and they are
  * the reason for each of the three columns next to the hash: it works once, it
- * stops working after a week, and the office can call it back. A password
+ * stops working after a week, and whoever made it can call it back. A password
  * handed over the same way has none of the three.
  */
 
@@ -32,7 +32,7 @@ import { createHash, randomBytes } from 'node:crypto'
 const tokenBytes = 32
 
 export interface MintedToken {
-  /** Shown once, to the office, and never stored anywhere. */
+  /** Shown once, to whoever invites, and never stored anywhere. */
   readonly token: string
   /** What goes in the database. */
   readonly hash: string

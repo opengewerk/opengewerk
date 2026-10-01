@@ -5,13 +5,13 @@
 export { ApiModule } from './api/api.module.js'
 export { ClosedIdentitySource } from '@opengewerk/platform-server'
 export { IDENTITY_SOURCE, type IdentitySource, type SignedInUser } from './api/identity.js'
+export { type Authentication, authenticationPath } from '@opengewerk/platform-server'
 export {
-  type Authentication,
-  authenticationPath,
+  addStaffMember,
   createAuthentication,
-} from './authentication/authentication.js'
-export { SessionIdentitySource } from './authentication/session-identity.js'
-export { addStaffMember, type StaffMember } from './authentication/staff.js'
+  SessionIdentitySource,
+  type StaffMember,
+} from './authentication/access.js'
 export type { Configuration } from '@opengewerk/platform-server'
 export { readConfiguration } from './configuration.js'
 export { Database } from '@opengewerk/platform-server'

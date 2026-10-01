@@ -336,6 +336,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Rechten und einer Route jeder Art. Der Gang über alle Routen eines Moduls, der eine Route ohne
   Recht findet, und die Identität aus einem Kopf für Tests kommen aus
   `@opengewerk/platform-server/testing`.
+- Die Anmeldung gehört zum Fundament (`@opengewerk/platform-server`, ADR 0010), wie sie ist: Konten
+  mit Passwort, zweitem Faktor und Passkeys, die erneute Bestätigung vor einem neuen Passkey,
+  Sitzungen je Gerät, die Wahl des Mandanten, die Ersteinrichtung mit Einrichtungscode, das
+  Einlösen eines Einmal-Links und die Befehle `add-staff` und `reset-password`. In diesem Teil
+  lagen alle fünf bisher veröffentlichten Advisories, und eine weitere Anwendung soll ihn nicht
+  abschreiben. Was eine Anwendung nennt, kommt als Argument herein: ihr Name, wie er in der
+  Authenticator-App und in der Abfrage eines Passkeys steht, ihre Rollen, die Rolle, die das erste
+  Konto bekommt, welche Rollen einen zweiten Faktor brauchen, die Regel für den Namen eines
+  Mandanten und die Sätze, die einen Mandanten oder eine Rolle beim Namen nennen. Wie eine Mail zum
+  neuen Passwort oder zu einem neuen Passkey hinausgeht, bleibt bei der Anwendung; das Fundament
+  sagt nur, wann sie fällig ist. Die Handwerkersoftware bindet das in `authentication/access.ts`,
+  und an ihrem Verhalten ändert sich nichts, bis zum Wortlaut der Befehle. Die Variable, aus der ein
+  Befehl im Skript ein Passwort liest, nennt die Anwendung; hier bleibt es `OPENGEWERK_PASSWORD`.
+  Die Tests ziehen mit um und laufen im Fundament mit einer Anwendung, die niemandem gehört, über
+  einer Datenbank, die nichts als das Fundament trägt: 116 Tests zu Anmeldung, Passkeys, Passwort,
+  Ersteinrichtung, Einmal-Link und Befehlen. Bei der Handwerkersoftware bleibt, was ihre Kunden,
+  ihre Mails und den Bereich der Instanz braucht. Ein Test im Fundament hält fest, dass dort weder
+  ein Produktname noch eine Rolle als Literal steht. Der Authenticator für Passkeys, den die Tests
+  benutzen, kommt aus `@opengewerk/platform-server/testing`.
 
 ## [0.4.0] - 2026-09-27
 

@@ -33,6 +33,7 @@ const application: ServerApplication = {
   name: 'Probewerk',
   port: 24680,
   versionVariable: 'PROBEWERK_VERSION',
+  passwordVariable: 'PROBEWERK_PASSWORD',
   exampleOrigin: 'https://probewerk.example.de',
   exampleDatabase: 'probewerk',
 }

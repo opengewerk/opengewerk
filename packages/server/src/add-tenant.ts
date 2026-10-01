@@ -1,9 +1,12 @@
-import { ConfigurationError, Database } from '@opengewerk/platform-server'
+import {
+  accountExists,
+  ConfigurationError,
+  Database,
+  readNewPassword,
+} from '@opengewerk/platform-server'
 
-import { createAuthentication } from './authentication/authentication.js'
-import { readNewPassword } from './authentication/password.js'
-import { accountExists } from './authentication/staff.js'
-import { readConfiguration } from './configuration.js'
+import { createAuthentication } from './authentication/access.js'
+import { application, readConfiguration } from './configuration.js'
 import { createTenantWithOwner } from './instance/tenants.js'
 
 /**
@@ -43,10 +46,11 @@ async function main(): Promise<void> {
 
     const password = (await accountExists(database, email))
       ? null
-      : await readNewPassword(process.env['OPENGEWERK_PASSWORD'], {
-          input: process.stdin,
-          output: process.stdout,
-        })
+      : await readNewPassword(
+          process.env[application.passwordVariable],
+          { input: process.stdin, output: process.stdout },
+          application.passwordVariable,
+        )
 
     const authentication = createAuthentication({
       database,

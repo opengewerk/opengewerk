@@ -13,3 +13,17 @@
  * the check is the same check.
  */
 export const TRUSTED_ORIGINS = Symbol('TrustedOrigins')
+
+/**
+ * The authentication handle, an interface of better-auth's and therefore not
+ * injectable by its type. Handed in only while the instance is open: the
+ * controllers that need it are left out of a closed one.
+ */
+export const AUTHENTICATION = Symbol('Authentication')
+
+/**
+ * The code the first run asks for, from `SETUP_CODE`, or null where the
+ * instance has none: then the first run is refused with the sentence saying
+ * how to get one. Read by the setup controller and by nothing else.
+ */
+export const SETUP_CODE = Symbol('SetupCode')

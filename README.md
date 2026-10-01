@@ -85,7 +85,7 @@ Vite liefert dann beide Einstiege aus, `/` und `/m`, und reicht jeden Pfad, der 
 | Paket | Inhalt |
 | --- | --- |
 | [`packages/platform/domain`](packages/platform/domain) | Das Fundament ohne I/O, auf dem jede Anwendung der Organisation steht (ADR 0010): Kennungen, Regel-Engine, Vorgänge des Abgleichs. Kennt weder Kunde noch Beleg |
-| [`packages/platform/server`](packages/platform/server) | Die Serverseite des Fundaments: Datenbankzugriff unter einem Mandanten, Migrationslauf, Konfiguration beim Start, der Guard vor jeder Route mit Herkunftsprüfung und Sicherheits-Headern, die Tabellen für Mandanten, Konten, Zugehörigkeiten, Audit-Log und Abgleich, die Bausteine für Spalten und Policies und unter `sql/` alles, was `drizzle-kit` nicht schreibt. Die Migrationen und die Namen bringt die Anwendung mit |
+| [`packages/platform/server`](packages/platform/server) | Die Serverseite des Fundaments: Datenbankzugriff unter einem Mandanten, Migrationslauf, Konfiguration beim Start, die Anmeldung mit zweitem Faktor, Passkeys, Ersteinrichtung und Einmal-Link, der Guard vor jeder Route mit Herkunftsprüfung und Sicherheits-Headern, die Tabellen für Mandanten, Konten, Zugehörigkeiten, Audit-Log und Abgleich, die Bausteine für Spalten und Policies und unter `sql/` alles, was `drizzle-kit` nicht schreibt. Die Migrationen und die Namen bringt die Anwendung mit |
 | [`packages/domain`](packages/domain) | Schemas, Berechnungen, Regeln, Fristen. Kein I/O, keine Frameworks |
 | [`packages/server`](packages/server) | NestJS, Drizzle, Auth, Sync-Endpunkte |
 | [`packages/web`](packages/web) | React und Vite, eine Codebasis, Einstiege `/` für das Büro und `/m` für die Baustelle, Abgleich-Client und PWA |

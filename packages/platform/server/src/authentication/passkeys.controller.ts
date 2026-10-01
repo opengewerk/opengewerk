@@ -8,11 +8,12 @@ import {
   Param,
   Patch,
 } from '@nestjs/common'
-import { type PasskeyEntry, passkeyNameProblem } from '@opengewerk/domain'
-import { Database, pick } from '@opengewerk/platform-server'
+import { type PasskeyEntry, passkeyNameProblem } from '@opengewerk/platform-domain'
 
 import { RequiresSession } from '../api/authorization.js'
+import { pick } from '../api/body.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
+import { Database } from '../database/database.js'
 import { passkeysOf, removePasskey, renamePasskey } from './passkeys.js'
 
 /** One answer for a passkey that is not there and one that is somebody else's. */
@@ -23,13 +24,13 @@ const notFound = 'Diesen Passkey gibt es für dieses Konto nicht.'
  *
  * Here and not in better-auth's plugin, which has routes for the same three
  * things and has them switched off (`authentication.ts`): a change to a
- * passkey belongs in the log of every business the account works in, and
+ * passkey belongs in the log of every tenant the account works in, and
  * only this side of the server can write there. Each route works on the
  * account of the session and on nothing else, so nobody lists, renames or
  * deletes a passkey of somebody else, whatever key they send.
  *
  * `@RequiresSession` and no right, like the rest of what belongs to an
- * account rather than a business: the passkeys are the person's own, whatever
+ * account rather than a tenant: the passkeys are the person's own, whatever
  * their roles.
  */
 @Controller('auth/passkeys')

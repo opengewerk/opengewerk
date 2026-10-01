@@ -1,13 +1,13 @@
 import { getAuthenticatorName } from '@better-auth/passkey'
-import type { PasskeyEntry, TenantId } from '@opengewerk/domain'
-import type { Database } from '@opengewerk/platform-server'
+import type { PasskeyEntry, TenantId } from '@opengewerk/platform-domain'
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 
-import { authPasskeys, memberPasskeys, memberships } from '../database/schema/index.js'
+import type { Database } from '../database/database.js'
+import { authPasskeys, memberPasskeys, memberships } from '../schema.js'
 
 /**
  * The passkeys of an account (#167, #248): the list under "Konto", renaming
- * and deleting one, and the record of each in the businesses the account
+ * and deleting one, and the record of each in the tenants the account
  * works in.
  *
  * Adding one is not here. That is better-auth's passkey plugin, behind the
@@ -22,11 +22,11 @@ interface Recorded {
 }
 
 /**
- * Every business the account works in, blocked or not. A passkey opens none
- * of the blocked ones, but it is the person's all the same, and the owner of
- * a business who blocked somebody may want to know what keys they hold.
+ * Every tenant the account works in, blocked or not. A passkey opens none
+ * of the blocked ones, but it is the person's all the same, and a tenant
+ * that blocked somebody may want to know what keys they hold.
  */
-async function businessesOf(database: Database, userId: string): Promise<readonly TenantId[]> {
+async function tenantsOf(database: Database, userId: string): Promise<readonly TenantId[]> {
   const rows = await database.forInstance(
     (tx) =>
       tx
@@ -41,8 +41,8 @@ async function businessesOf(database: Database, userId: string): Promise<readonl
 }
 
 /**
- * Writes the new passkey into every business of the account, where the audit
- * trigger puts it in the log. One transaction per business, because each is
+ * Writes the new passkey into every tenant of the account, where the audit
+ * trigger puts it in the log. One transaction per tenant, because each is
  * one: a failure in the third leaves the first two with a passkey that then
  * does not exist, which says too much rather than too little, and the caller
  * takes the passkey back (`authentication.ts`).
@@ -52,7 +52,7 @@ export async function recordAdded(
   userId: string,
   passkey: Recorded,
 ): Promise<void> {
-  for (const tenantId of await businessesOf(database, userId)) {
+  for (const tenantId of await tenantsOf(database, userId)) {
     await database.forTenant({ tenantId, userId, reason: 'passkey.add' }, (tx) =>
       tx
         .insert(memberPasskeys)
@@ -63,8 +63,8 @@ export async function recordAdded(
 }
 
 /**
- * Writes a change into every business, as an update of the row where there
- * is one and a new row where there is not: a business the person joined after
+ * Writes a change into every tenant, as an update of the row where there
+ * is one and a new row where there is not: a tenant the person joined after
  * the passkey was added learns of it from here on.
  */
 async function recordChange(
@@ -74,7 +74,7 @@ async function recordChange(
   reason: string,
   removedAt: Date | null,
 ): Promise<void> {
-  for (const tenantId of await businessesOf(database, userId)) {
+  for (const tenantId of await tenantsOf(database, userId)) {
     await database.forTenant({ tenantId, userId, reason }, (tx) =>
       tx
         .insert(memberPasskeys)
@@ -123,8 +123,8 @@ export async function passkeysOf(database: Database, userId: string): Promise<Pa
 /**
  * Renames one of the account's own passkeys. Null when there is none by that
  * key for this account, which is one answer for "not yours" and "not there".
- * Should the record in a business fail, the same request again brings every
- * business to the new name.
+ * Should the record in a tenant fail, the same request again brings every
+ * tenant to the new name.
  */
 export async function renamePasskey(
   database: Database,
@@ -154,8 +154,8 @@ export async function renamePasskey(
 }
 
 /**
- * Marks a passkey removed in every business that has it on record and not as
- * removed yet, and says how many did. Only rows that are there: a business
+ * Marks a passkey removed in every tenant that has it on record and not as
+ * removed yet, and says how many did. Only rows that are there: a tenant
  * that never learnt of the passkey does not learn of it by its removal.
  */
 export async function recordWithdrawn(
@@ -165,7 +165,7 @@ export async function recordWithdrawn(
 ): Promise<number> {
   let closed = 0
 
-  for (const tenantId of await businessesOf(database, userId)) {
+  for (const tenantId of await tenantsOf(database, userId)) {
     const rows = await database.forTenant({ tenantId, userId, reason: 'passkey.remove' }, (tx) =>
       tx
         .update(memberPasskeys)
@@ -193,9 +193,9 @@ export async function recordWithdrawn(
  * it as before (#248). Null as for renaming.
  *
  * The key goes first, because a key that is meant to be gone must stop
- * working whatever happens next. Should the record in a business then fail,
+ * working whatever happens next. Should the record in a tenant then fail,
  * the route answers with an error and the same request again finishes it:
- * the key is gone, but businesses still holding it as present are closed, and
+ * the key is gone, but tenants still holding it as present are closed, and
  * only when there is nothing left to close is the answer "not there".
  */
 export async function removePasskey(

@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline/promises'
 import { Writable } from 'node:stream'
 import type { Readable } from 'node:stream'
 
-import { ConfigurationError } from '@opengewerk/platform-server'
+import { ConfigurationError } from '../configuration.js'
 
 /**
  * The shortest password anybody may choose for themselves.
@@ -13,7 +13,7 @@ import { ConfigurationError } from '@opengewerk/platform-server'
  * whose whole value is that it is the same one.
  *
  * Why twelve and not eight: these accounts are set up once and used for years,
- * and the thing on the other side of them is a company's books. It says
+ * and the thing on the other side of them is a tenant's books. It says
  * nothing about capitals or punctuation, because a rule about those buys a
  * predictable password with a capital at the front.
  */
@@ -30,22 +30,26 @@ export interface Terminal {
  * shown, like `passwd`.
  *
  * It appears nowhere: not on the screen, not in the process list, not in the
- * history of the shell. From a script, without a terminal, it comes from
- * `OPENGEWERK_PASSWORD` instead. Nothing is made up here. `add-staff` used to
- * make one up when none was given and print it once (#64), and a printed
- * password stays in the scrollback of whoever ran the command, valid until
- * somebody replaces it; code scanning rightly called that clear-text logging.
+ * history of the shell. From a script, without a terminal, it comes from a
+ * variable of the environment instead, the one the application names
+ * (`ServerApplication.passwordVariable`); `variable` is that name, for the
+ * sentences, and `given` what it holds. Nothing is made up here. `add-staff`
+ * used to make one up when none was given and print it once (#64), and a
+ * printed password stays in the scrollback of whoever ran the command, valid
+ * until somebody replaces it; code scanning rightly called that clear-text
+ * logging.
  */
 export async function readNewPassword(
   given: string | undefined,
   terminal: Terminal,
+  variable: string,
 ): Promise<string> {
   if (given !== undefined) {
     const password = given.trim()
 
     if (password.length < shortestPassword) {
       throw new ConfigurationError(
-        `OPENGEWERK_PASSWORD ist kürzer als ${String(shortestPassword)} Zeichen. Kurze ` +
+        `${variable} ist kürzer als ${String(shortestPassword)} Zeichen. Kurze ` +
           'Passwörter sind bei der Anmeldung die teure Stelle, weil sie einmal gesetzt und ' +
           'jahrelang benutzt werden.',
       )
@@ -57,7 +61,7 @@ export async function readNewPassword(
   if (!terminal.input.isTTY) {
     throw new ConfigurationError(
       'Kein Terminal, das nach dem Passwort fragen könnte. Aus einem Skript heraus kommt es ' +
-        'aus der Umgebungsvariable OPENGEWERK_PASSWORD.',
+        `aus der Umgebungsvariable ${variable}.`,
     )
   }
 

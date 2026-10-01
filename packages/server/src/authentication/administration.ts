@@ -7,7 +7,12 @@ import {
   roleKeys,
   type TenantId,
 } from '@opengewerk/domain'
-import { type Database, newId, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  type Database,
+  mintToken,
+  newId,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, count, eq, inArray, isNull, max, ne, sql } from 'drizzle-orm'
 
 import {
@@ -18,7 +23,6 @@ import {
   tenantSessions,
 } from '../database/schema/index.js'
 import { type InvitationMail, invitationMails } from '../notifications/invitation-mail.js'
-import { mintToken } from './invitation.js'
 
 /**
  * Who works in one business, and everything the office can do about it.

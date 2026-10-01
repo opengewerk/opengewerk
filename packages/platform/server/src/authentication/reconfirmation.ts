@@ -1,11 +1,11 @@
 import { createOTP } from '@better-auth/utils/otp'
-import type { Database } from '@opengewerk/platform-server'
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import { symmetricDecrypt } from 'better-auth/crypto'
 import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm'
 
-import { authAccounts, authSessions, authTwoFactors } from '../database/schema/index.js'
+import type { Database } from '../database/database.js'
+import { authAccounts, authSessions, authTwoFactors } from '../schema.js'
 
 /**
  * How long a confirmation holds, in seconds: long enough to name a passkey
@@ -66,7 +66,7 @@ export async function claimReconfirmation(database: Database, sessionId: string)
  * Confirming again, with the password and, where the account has one, the
  * code from the app (#167).
  *
- * Adding a passkey hands out a way into every business of the account, and a
+ * Adding a passkey hands out a way into every tenant of the account, and a
  * session alone is not enough for that: it may be one left open on somebody
  * else's desk, or one taken from a browser. So adding asks first for what
  * only the person knows and has, as the sign in did, and this is where it is
@@ -81,7 +81,7 @@ export async function claimReconfirmation(database: Database, sessionId: string)
  *
  * The password is checked before the code, and a wrong password costs the
  * code nothing: whoever does not know it never reaches the counter of wrong
- * codes, which would otherwise hold the account's real owner out.
+ * codes, which would otherwise hold out the person the account belongs to.
  */
 export function reconfirmation(database: Database): BetterAuthPlugin {
   return {
