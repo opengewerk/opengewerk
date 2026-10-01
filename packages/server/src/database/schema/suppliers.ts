@@ -1,9 +1,8 @@
 import { supplierLimits } from '@opengewerk/domain'
+import { primaryId, syncColumns, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import { check, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
-import { primaryId, syncColumns, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**

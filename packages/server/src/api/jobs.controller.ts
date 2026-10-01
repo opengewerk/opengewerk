@@ -12,9 +12,9 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import type { JobId } from '@opengewerk/domain'
+import { Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
-import { Database, type TenantTransaction } from '../database/database.js'
 import { assignNumber } from '../database/number-ranges.js'
 import { jobAssignments, jobs, memberships } from '../database/schema/index.js'
 import { followUpRefusal } from '../jobs/follow-up.js'

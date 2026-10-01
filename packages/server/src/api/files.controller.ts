@@ -12,11 +12,11 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { attachmentSizeProblem, fileHashProblem } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 import type { Request } from 'express'
 
 import { storedMediaType } from '../attachments/media-type.js'
-import { Database } from '../database/database.js'
 import { files } from '../database/schema/index.js'
 import type { FileStorage } from '../storage/file-store.js'
 import { fileRowFor } from '../storage/files.js'

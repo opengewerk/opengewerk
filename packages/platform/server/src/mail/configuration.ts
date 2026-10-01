@@ -1,4 +1,4 @@
-import type { SmtpSecurity } from '@opengewerk/domain'
+import type { SmtpSecurity } from '@opengewerk/platform-domain'
 
 /**
  * How one business reaches its mail server, as the job and the check need it:

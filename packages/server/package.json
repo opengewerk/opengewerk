@@ -32,6 +32,7 @@
     "@node-rs/argon2": "2.2.1",
     "@opengewerk/domain": "workspace:*",
     "@opengewerk/gewerk-elektro": "workspace:*",
+    "@opengewerk/platform-server": "workspace:*",
     "better-auth": "1.7.6",
     "drizzle-orm": "0.45.2",
     "express": "5.2.1",

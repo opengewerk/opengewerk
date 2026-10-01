@@ -1,7 +1,7 @@
 import type { TenantId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { secrets } from '../database/schema/index.js'
 import type { SecretKey } from './key.js'
 

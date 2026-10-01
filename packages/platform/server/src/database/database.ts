@@ -1,4 +1,4 @@
-import type { TenantId } from '@opengewerk/domain'
+import type { TenantId } from '@opengewerk/platform-domain'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { Pool, type PoolClient } from 'pg'
 
@@ -136,9 +136,9 @@ export class Database {
    * This is the second way to the data and the only one, and it is worth being
    * plain about why it does not undo what `forTenant` promises. It sets no
    * tenant, so every policy that compares a row against `app.tenant_id`
-   * compares it against nothing and matches nothing: inside here, `customers`
-   * is empty however it is queried, and so is every other table that carries a
-   * business. What is in reach is exactly the set of tables whose policy asks
+   * compares it against nothing and matches nothing: inside here, a table that
+   * carries a business is empty however it is queried, every one of them.
+   * What is in reach is exactly the set of tables whose policy asks
    * for the opposite, the `auth_` ones, plus the caller's own memberships.
    *
    * So the two halves are disjoint by the same mechanism that keeps two

@@ -25,10 +25,10 @@ import {
   remindOn,
   type TenantId,
 } from '@opengewerk/domain'
+import { Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, sql } from 'drizzle-orm'
 
 import { accountsOf } from '../authentication/administration.js'
-import { Database, type TenantTransaction } from '../database/database.js'
 import {
   customers,
   deadlines,

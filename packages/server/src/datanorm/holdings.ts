@@ -1,7 +1,7 @@
 import type { IsoDate, LineUnit, PriceBase, SupplierId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import type { HeldArticle, HeldLink, HeldPrice, Holdings } from './plan.js'
 
 /**

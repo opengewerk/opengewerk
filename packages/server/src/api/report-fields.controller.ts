@@ -7,8 +7,8 @@ import {
   reportFieldsOf,
   reportFieldsProblems,
 } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import { formDefinitions } from '../database/schema/index.js'
 import { currentReportDefinition } from '../forms/report-fields.js'
 import { RequiresPermission } from './authorization.js'

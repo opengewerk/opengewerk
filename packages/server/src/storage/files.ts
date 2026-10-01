@@ -1,7 +1,7 @@
 import type { FileId, TenantId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { files } from '../database/schema/index.js'
 import type { StoredBlob } from './file-store.js'
 

@@ -1,8 +1,8 @@
 import { backupTimeProblem, type InstanceSettingsView, mailHostProblem } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
+import type { Database } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
 import { instanceSettings } from '../database/schema/index.js'
 
 /**

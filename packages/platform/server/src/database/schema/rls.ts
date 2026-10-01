@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm'
 import { type PgColumn, pgPolicy, pgRole } from 'drizzle-orm/pg-core'
 
+import { applicationRoleName } from '../roles.js'
+
 /**
  * The role the application connects as. It owns nothing and is not a
  * superuser, because both of those walk straight past row level security: a
@@ -9,7 +11,7 @@ import { type PgColumn, pgPolicy, pgRole } from 'drizzle-orm/pg-core'
  * Declared as existing because drizzle-kit does not create roles. It is
  * created in the migration that turns the isolation on.
  */
-export const applicationRole = pgRole('opengewerk_app').existing()
+export const applicationRole = pgRole(applicationRoleName).existing()
 
 /**
  * The only thing a row has to prove: it belongs to the tenant of this
@@ -106,8 +108,8 @@ export function ownTenantsOutsideTenant(id: PgColumn) {
  * remember. `Database.forTenant` always sets a tenant and `forInstance` never
  * does, so the two reach disjoint halves of the schema: business data only
  * from inside a business, accounts only from outside one. A controller that
- * tried to join a customer against the user table would not leak, it would
- * come back empty, and the test that puts a row on each side says so.
+ * tried to join a record of a business against the user table would not leak,
+ * it would come back empty, and the test that puts a row on each side says so.
  */
 export function outsideAnyTenant() {
   const noTenantInThisTransaction = sql`nullif(current_setting('app.tenant_id', true), '') is null`

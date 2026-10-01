@@ -10,11 +10,10 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import { type FormRecordStatus, type IsoDate, readFormValues } from '@opengewerk/domain'
+import { Database, isUuid } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
-import { Database } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import {
   formRecords,
   installations,

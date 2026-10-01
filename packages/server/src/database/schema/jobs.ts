@@ -1,4 +1,11 @@
 import { jobKinds, jobStatuses } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import {
   check,
@@ -11,8 +18,6 @@ import {
   unique,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { installations } from './installations.js'

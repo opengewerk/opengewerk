@@ -1,7 +1,8 @@
 import { lookup } from 'node:dns/promises'
 import { BlockList, isIP } from 'node:net'
 
-import type { MailConfiguration } from './configuration.js'
+import type { MailConfiguration } from '@opengewerk/platform-server'
+
 import { MailDeliveryError, type MailTransport } from './transport.js'
 
 /**

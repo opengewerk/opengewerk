@@ -19,9 +19,9 @@ import {
   wordingAt,
   wordingIsFixed,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { asc, eq, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { documentInstructionChoices, instructions } from '../database/schema/index.js'
 
 export type InstructionRow = typeof instructions.$inferSelect

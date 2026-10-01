@@ -1,6 +1,6 @@
 import type { DeadlineSetting } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 
-import type { TenantTransaction } from '../database/database.js'
 import { deadlineSettings } from '../database/schema/index.js'
 
 /** What a business has set for each kind of deadline, by kind. */

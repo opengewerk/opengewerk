@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
+import { isMailAddress } from '@opengewerk/platform-server'
 import { describe, expect, it } from 'vitest'
 
-import { isMailAddress } from './configuration.js'
 import { type MailServerInput, validMailServer } from './server-settings.js'
 
 /**

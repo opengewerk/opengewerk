@@ -1,15 +1,13 @@
 import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
+import { type Database, everyTenant, type VapidKeys } from '@opengewerk/platform-server'
 import { eq, isNotNull } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
-import { everyTenant } from '../database/every-tenant.js'
 import { pushSubscriptions } from '../database/schema/index.js'
 import { dueDeadlines, dueTasks } from '../notifications/notify.js'
 import { notifyPush, signedIn } from '../notifications/push.js'
 import { deliver } from './deliver.js'
 import { claimDuePush, giveUpLatePush, markPushFailed, markPushSent } from './outbox.js'
 import type { PushPost } from './post.js'
-import type { VapidKeys } from './web-push.js'
 
 /** What the job needs, handed in so that a test can bring a push service and a clock of its own. */
 export interface PushJob {

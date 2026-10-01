@@ -8,13 +8,18 @@ import {
   type TenantId,
   unknownPlaceholders,
 } from '@opengewerk/domain'
+import {
+  type Database,
+  isHostName,
+  isMailAddress,
+  type MailConfiguration,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
-import type { Database, TenantTransaction } from '../database/database.js'
 import { mailSettings } from '../database/schema/index.js'
 import type { SecretKey } from '../secrets/key.js'
 import { forgetSecret, keepSecret, readSecret, type StoredSecret } from '../secrets/store.js'
-import { isHostName, isMailAddress, type MailConfiguration } from './configuration.js'
 import { giveUpPending } from './outbox.js'
 
 /**

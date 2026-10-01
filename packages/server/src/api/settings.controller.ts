@@ -6,8 +6,8 @@ import {
   tenantParameterKeys,
   tenantParameterUnits,
 } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import {
   ParameterError,
   parameterAt,

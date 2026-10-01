@@ -28,10 +28,10 @@ import {
   wordingAt,
   wordingIsFixed,
 } from '@opengewerk/domain'
+import { Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { eq, max } from 'drizzle-orm'
 import type { Response } from 'express'
 
-import { Database, type TenantTransaction } from '../database/database.js'
 import { instructions } from '../database/schema/index.js'
 import {
   isLegalGraphic,

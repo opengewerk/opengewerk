@@ -10,10 +10,9 @@ import {
   taskTitleOf,
   type TenantId,
 } from '@opengewerk/domain'
+import { type Database, everyTenant, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm'
 
-import type { Database, TenantTransaction } from '../database/database.js'
-import { everyTenant } from '../database/every-tenant.js'
 import { assignNumber } from '../database/number-ranges.js'
 import { deadlines, jobs, tasks } from '../database/schema/index.js'
 import { berlinClock, dueTasksFromMinute } from '../notifications/notify.js'

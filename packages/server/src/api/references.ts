@@ -1,7 +1,7 @@
 import { UnprocessableEntityException } from '@nestjs/common'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import type { PgTable } from 'drizzle-orm/pg-core'
 
-import type { TenantTransaction } from '../database/database.js'
 import { missingReference, missingReferenceText } from '../database/references.js'
 
 /**

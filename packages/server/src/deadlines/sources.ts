@@ -7,9 +7,9 @@ import type {
   JobId,
   SiteId,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { documents } from '../database/schema/index.js'
 import { berlinClock } from '../notifications/notify.js'
 

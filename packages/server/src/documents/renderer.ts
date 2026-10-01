@@ -13,9 +13,9 @@
  * a crash.
  */
 
-import { refusePlaceholder } from '../configuration.js'
-
 /** What a caller gets instead of a PDF, phrased for whoever reads the log. */
+import { refusePlaceholder } from '@opengewerk/platform-server'
+
 export class RendererUnavailableError extends Error {}
 
 /** The four margins of a page, as CSS lengths: `20mm`. */

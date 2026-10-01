@@ -276,6 +276,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nennt `turbo.json` die Konfigurationsdateien an der Wurzel als Abhängigkeit jeder Aufgabe:
   bisher blieb ein Lint-Ergebnis im lokalen Zwischenspeicher gültig, wenn sich nur die Regeln
   geändert hatten.
+- Das Fundament hat sein zweites Paket, `@opengewerk/platform-server` unter
+  `packages/platform/server` (ADR 0010). Dorthin ziehen der Datenbankzugriff unter einem
+  Mandanten, der Migrationslauf mit seinen Prüfungen, das Lesen der Konfiguration beim Start,
+  die Bausteine für Spalten und Policies, das Lesen der Verweise aus den Fremdschlüsseln, die
+  Übersetzung von Datenbankfehlern in Antworten, der Einrichtungscode, die Prüfung von
+  Mailadressen und Web-Push. Was nur eine Anwendung weiß, gibt sie hinein: ihren Namen, ihren
+  Port und die Variable ihrer Fassung für die Sätze der Konfiguration, den Ordner ihrer
+  Migrationen, die Namen ihrer Datensätze für den Satz über einen fehlenden Verweis, die
+  Fehlerklassen ihrer eigenen Trigger. Die Handwerkersoftware bindet das an den Stellen, an
+  denen die Dateien bisher lagen; am Verhalten ändert sich nichts, und `drizzle-kit` findet am
+  Schema keine Änderung. Die Testhilfen für die Datenbank kommen als eigener Einstieg
+  `@opengewerk/platform-server/testing`, damit eine weitere Anwendung ihre Migrationen auf
+  demselben Weg prüft: als Eigentümer der Tabellen und nie als Superuser.
+- Die Tests des Fundaments, die eine Datenbank brauchen, laufen vor denen des Servers und nie
+  daneben, festgelegt in `turbo.json`: beide leeren dieselbe Testdatenbank. `pnpm run preview`
+  und der CI-Job der E-Rechnung bauen vorher alles, wovon der Server abhängt, nicht mehr nur
+  `domain`.
 
 ## [0.4.0] - 2026-09-27
 

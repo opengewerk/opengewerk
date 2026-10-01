@@ -1,6 +1,6 @@
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { mailOutbox } from '../database/schema/index.js'
 import type { MailDeliveryError } from './transport.js'
 

@@ -51,7 +51,7 @@ export default configuration(
   // here too, and this rule is again the one that says why.
   mayNotImport(['packages/platform/**/*.{ts,tsx}'], [...above, ...applications]),
 
-  runsInNode(['packages/server/**/*.ts']),
+  runsInNode(['packages/server/**/*.ts', 'packages/platform/server/**/*.ts']),
   runsInBrowser(['packages/web/**/*.{ts,tsx}']),
 
   // Everything else that runs in Node rather than in a browser: the shared

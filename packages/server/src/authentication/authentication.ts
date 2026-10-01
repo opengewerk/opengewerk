@@ -1,13 +1,13 @@
 import { passkey } from '@better-auth/passkey'
 import { hash, verify } from '@node-rs/argon2'
 import { passkeyNameProblem } from '@opengewerk/domain'
+import type { Database } from '@opengewerk/platform-server'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api'
 import { twoFactor } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
 import {
   authAccounts,
   authPasskeys,

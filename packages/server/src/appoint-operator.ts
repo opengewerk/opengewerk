@@ -1,5 +1,6 @@
-import { ConfigurationError, readConfiguration } from './configuration.js'
-import { Database } from './database/database.js'
+import { ConfigurationError, Database } from '@opengewerk/platform-server'
+
+import { readConfiguration } from './configuration.js'
 import { appointOperator } from './instance/operators.js'
 
 /**

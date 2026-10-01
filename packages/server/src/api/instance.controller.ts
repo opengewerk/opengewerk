@@ -18,8 +18,8 @@ import type {
   InstanceTenantView,
   OperatorView,
 } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import { readInstanceLog } from '../instance/log.js'
 import {
   appointOperator,

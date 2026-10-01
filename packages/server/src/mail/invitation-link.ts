@@ -1,8 +1,8 @@
+import type { Database } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
 import { stillOpen } from '../authentication/administration.js'
 import { mintToken } from '../authentication/invitation.js'
-import type { Database } from '../database/database.js'
 import { invitations } from '../database/schema/index.js'
 import type { OutboxRow } from './outbox.js'
 import { MailDeliveryError } from './transport.js'

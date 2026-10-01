@@ -21,6 +21,7 @@ import {
   type TenantId,
   toSyncValue,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, getTableColumns, getTableName, gt, is, isNull, type SQL } from 'drizzle-orm'
 import { PgTable, type PgColumn } from 'drizzle-orm/pg-core'
 
@@ -35,7 +36,6 @@ import { reportFieldsProblem } from '../forms/report-fields.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
 import { revealRefusal } from '../secrets/reveal.js'
 import { assigneeRefusal } from '../tasks/assignee.js'
-import type { TenantTransaction } from './database.js'
 import { assignNumber } from './number-ranges.js'
 import { ruleRefusal } from './record-rules.js'
 import { missingReference } from './references.js'

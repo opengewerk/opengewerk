@@ -1,8 +1,8 @@
 import { getAuthenticatorName } from '@better-auth/passkey'
 import type { PasskeyEntry, TenantId } from '@opengewerk/domain'
+import type { Database } from '@opengewerk/platform-server'
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
 import { authPasskeys, memberPasskeys, memberships } from '../database/schema/index.js'
 
 /**

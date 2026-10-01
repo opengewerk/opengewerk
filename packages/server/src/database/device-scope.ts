@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto'
 
 import { closedJobsStayDays, recentlyUsedDays } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { type SQL, sql } from 'drizzle-orm'
-
-import type { TenantTransaction } from './database.js'
 
 /**
  * The part of the business the device of one person holds (#140), for a

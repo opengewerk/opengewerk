@@ -1,4 +1,4 @@
-import type { TenantId } from '@opengewerk/domain'
+import type { TenantId } from '@opengewerk/platform-domain'
 import { sql } from 'drizzle-orm'
 
 import type { Database } from './database.js'

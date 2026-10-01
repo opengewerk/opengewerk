@@ -1,13 +1,13 @@
 import type { Id } from '@opengewerk/domain'
-import { pgTable, text, uuid } from 'drizzle-orm/pg-core'
-
-import { primaryId, timestamps } from './columns.js'
 import {
   createdBySetupOnly,
   ownTenantOnly,
   ownTenantsOutsideTenant,
+  primaryId,
   readableByTheOwner,
-} from './rls.js'
+  timestamps,
+} from '@opengewerk/platform-server'
+import { pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 /** One company on the instance. Several can share a server (ADR 0006). */
 export const tenants = pgTable(

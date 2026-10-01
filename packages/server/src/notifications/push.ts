@@ -1,8 +1,7 @@
 import type { DeadlineRegistry, PushEntry, PushOccasion, TenantId } from '@opengewerk/domain'
+import { type Database, newId } from '@opengewerk/platform-server'
 import { and, eq, gt, inArray } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   authSessions,
   pushOptOuts,

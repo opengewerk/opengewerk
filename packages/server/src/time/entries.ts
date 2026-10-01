@@ -1,6 +1,6 @@
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { desc, eq, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { locationConsents, timeEntries } from '../database/schema/index.js'
 
 /** Why a time entry from a device cannot land, in the shape of a sync conflict. */

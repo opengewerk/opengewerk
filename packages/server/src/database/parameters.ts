@@ -6,9 +6,9 @@ import {
   tenantParameterNames,
   tenantParameterUnits,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, desc, eq, isNull, lte, or, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from './database.js'
 import { tenantParameters } from './schema/index.js'
 
 /** An ISO day as a person in Germany writes it: 2026-01-01 is 01.01.2026. */

@@ -1,7 +1,7 @@
+import type { MailConfiguration } from '@opengewerk/platform-server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkMailServer } from './check.js'
-import type { MailConfiguration } from './configuration.js'
 import { closedPort, type FakeSmtpServer, fakeSmtpServer } from './test-smtp.js'
 import { MailDeliveryError, type OutgoingMail, smtpTransport } from './transport.js'
 

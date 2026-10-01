@@ -8,9 +8,9 @@ import {
   type ReportFieldContent,
   valuesProblem,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, desc, eq } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { formDefinitions } from '../database/schema/index.js'
 
 /**

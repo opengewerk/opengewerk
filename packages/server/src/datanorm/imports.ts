@@ -20,13 +20,16 @@ import {
   type TenantId,
   validFromProblem,
 } from '@opengewerk/domain'
+import {
+  Database,
+  everyTenant,
+  isUniqueViolation,
+  newId,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import { isUniqueViolation } from '../api/database-errors.js'
 import { FILE_STORE } from '../api/handed-in.js'
-import { Database, type TenantTransaction } from '../database/database.js'
-import { everyTenant } from '../database/every-tenant.js'
-import { newId } from '../database/identifier.js'
 import { articleImports, files, suppliers } from '../database/schema/index.js'
 import {
   type FileStorage,

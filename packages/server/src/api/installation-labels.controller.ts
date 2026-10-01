@@ -24,11 +24,15 @@ import {
   labelPrintProblem,
   type TenantId,
 } from '@opengewerk/domain'
+import {
+  Database,
+  isUniqueViolation,
+  isUuid,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
-import { Database, type TenantTransaction } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import {
   installationLabels,
   installations,
@@ -39,7 +43,6 @@ import {
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { labelPrintJob } from '../labels/label-print.js'
 import { RequiresPermission } from './authorization.js'
-import { isUniqueViolation } from './database-errors.js'
 import { RENDERER, TRUSTED_ORIGINS } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

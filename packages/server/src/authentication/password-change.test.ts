@@ -1,14 +1,13 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { TenantId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { ApiModule } from '../api/api.module.js'
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,

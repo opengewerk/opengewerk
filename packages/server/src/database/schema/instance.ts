@@ -1,10 +1,14 @@
+import {
+  outsideAnyTenant,
+  primaryId,
+  timestamps,
+  writtenByTriggerOutsideAnyTenant,
+} from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import { check, index, pgTable, smallint, text, time, timestamp, uuid } from 'drizzle-orm/pg-core'
 
 import { auditOperation } from './audit.js'
 import { authUsers } from './authentication.js'
-import { primaryId, timestamps } from './columns.js'
-import { outsideAnyTenant, writtenByTriggerOutsideAnyTenant } from './rls.js'
 
 /**
  * What belongs to the instance and to no business (#188): who runs it, what

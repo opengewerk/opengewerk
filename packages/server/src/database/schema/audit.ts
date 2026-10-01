@@ -1,4 +1,5 @@
 import { auditOperations } from '@opengewerk/domain'
+import { primaryId, timestamps, writtenByTriggerOnly } from '@opengewerk/platform-server'
 import {
   bigint,
   index,
@@ -11,8 +12,6 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, timestamps } from './columns.js'
-import { writtenByTriggerOnly } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 export const auditOperation = pgEnum('audit_operation', auditOperations)

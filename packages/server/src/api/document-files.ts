@@ -20,9 +20,9 @@ import {
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
+import { type Actor, Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { type Actor, Database, type TenantTransaction } from '../database/database.js'
 import { documentFiles, documents, files } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'

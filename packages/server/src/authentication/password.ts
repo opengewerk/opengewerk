@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline/promises'
 import { Writable } from 'node:stream'
 import type { Readable } from 'node:stream'
 
-import { ConfigurationError } from '../configuration.js'
+import { ConfigurationError } from '@opengewerk/platform-server'
 
 /**
  * The shortest password anybody may choose for themselves.

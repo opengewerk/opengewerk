@@ -1,78 +1,17 @@
-import { and, eq, getTableColumns, getTableName, isNull, type SQL } from 'drizzle-orm'
-import { getTableConfig, type PgColumn, type PgTable } from 'drizzle-orm/pg-core'
+import { referenceChecks } from '@opengewerk/platform-server'
 
-import type { TenantTransaction } from './database.js'
-import { isUuid } from './identifier.js'
-
-/**
- * One field of a table that names a record of the same business: the field,
- * and the table the record is kept in.
- */
-export interface Reference {
-  readonly field: string
-  readonly target: PgTable
-  /** Whether the column may be empty. A record that must have a parent and names none has none. */
-  readonly required: boolean
-}
-
-const known = new Map<PgTable, readonly Reference[]>()
-
-/**
- * The references of a table, read off its foreign keys rather than listed
- * beside them.
- *
- * Only the keys that run over the tenant and one more column, onto tenant and
- * id of another table: exactly the ones that tie a record to a parent of its
- * own business, since 0030 and 0031 every one of them. A list kept by hand
- * would agree with the schema until the next table, and forgetting it there
- * would look exactly like a reference nobody needed to check.
- *
- * Three keys fall outside on purpose. The person of a task points at the
- * membership by user and not by id, and `assigneeRefusal` asks the question
- * that goes with it, whether that person may still be given work. The key
- * from a circuit to its section pairs the section with the board and carries
- * no tenant; the board's own key holds the business, and the section's check
- * lives with the structure. A version of an attachment names its file by hash,
- * which a device knows before any row exists, and `versionFileRefusal` asks
- * whether the upload arrived.
- */
-export function referencesOf(table: PgTable): readonly Reference[] {
-  const cached = known.get(table)
-
-  if (cached) {
-    return cached
-  }
-
-  const fields = new Map(
-    Object.entries(getTableColumns(table) as Record<string, PgColumn>).map(([field, column]) => [
-      column.name,
-      field,
-    ]),
-  )
-  const references: Reference[] = []
-
-  for (const key of getTableConfig(table).foreignKeys) {
-    const { columns, foreignColumns, foreignTable } = key.reference()
-    const [tenant, pointer] = columns
-    const [foreignTenant, foreignId] = foreignColumns
-    const field = pointer ? fields.get(pointer.name) : undefined
-
-    if (
-      columns.length === 2 &&
-      tenant?.name === 'tenant_id' &&
-      foreignTenant?.name === 'tenant_id' &&
-      foreignId?.name === 'id' &&
-      pointer &&
-      field !== undefined
-    ) {
-      references.push({ field, target: foreignTable, required: pointer.notNull })
-    }
-  }
-
-  known.set(table, references)
-
-  return references
-}
+// The check is the foundation's (ADR 0010): it reads the references of a table
+// off its foreign keys. What it cannot read off a schema is in this file, the
+// two lists of this application and the words of its sentence.
+//
+// Three keys fall outside the check on purpose. The person of a task points
+// at the membership by user and not by id, and `assigneeRefusal` asks the
+// question that goes with it, whether that person may still be given work. The
+// key from a circuit to its section pairs the section with the board and
+// carries no tenant; the board's own key holds the business, and the section's
+// check lives with the structure. A version of an attachment names its file by
+// hash, which a device knows before any row exists, and `versionFileRefusal`
+// asks whether the upload arrived.
 
 /**
  * The references that may name a record marked as deleted, per table. A
@@ -83,77 +22,6 @@ export function referencesOf(table: PgTable): readonly Reference[] {
  */
 const mayNameDeleted: Readonly<Record<string, readonly string[]>> = {
   site_access_reveals: ['siteAccessId'],
-}
-
-/** A reference that names nothing this business may hang a record on. */
-export interface MissingReference {
-  readonly field: string
-  /** The table it points into, `customers`, `sites`. */
-  readonly target: string
-}
-
-/**
- * The first reference among these values that names no record of this
- * business, or null when every one of them does.
- *
- * Only the references the values set: a change that leaves a customer alone
- * is not held to a customer somebody else deleted in the meantime. An empty
- * one passes where the column may be empty. A new record that leaves out a
- * parent it must have is missing that parent, which in the sync is a conflict
- * about one operation and not a column refused for the whole transmission.
- *
- * Asked under row level security, so a record of another business is not
- * there, which is the answer it deserves. A record marked as deleted is not
- * there either: the key would take it, the row exists, and the new record
- * would hang on something no list shows any more. Only a trace of what
- * happened may, in `mayNameDeleted`.
- */
-export async function missingReference(
-  tx: TenantTransaction,
-  table: PgTable,
-  values: Readonly<Record<string, unknown>>,
-  creating: boolean,
-): Promise<MissingReference | null> {
-  const deletedToo = mayNameDeleted[getTableName(table)] ?? []
-
-  for (const { field, target, required } of referencesOf(table)) {
-    const value = values[field]
-
-    if (value === null || value === undefined) {
-      if (creating && required) {
-        return { field, target: getTableName(target) }
-      }
-
-      continue
-    }
-
-    if (!isUuid(value) || !(await exists(tx, target, value, deletedToo.includes(field)))) {
-      return { field, target: getTableName(target) }
-    }
-  }
-
-  return null
-}
-
-async function exists(
-  tx: TenantTransaction,
-  target: PgTable,
-  id: string,
-  deletedToo: boolean,
-): Promise<boolean> {
-  const columns = getTableColumns(target) as Record<string, PgColumn>
-  const key = columns['id']
-  const deletedAt = columns['deletedAt']
-
-  if (!key) {
-    throw new Error(`The table ${getTableName(target)} has no id to find a record by`)
-  }
-
-  const condition: SQL | undefined =
-    deletedAt && !deletedToo ? and(eq(key, id), isNull(deletedAt)) : eq(key, id)
-  const found = await tx.select({ id: key }).from(target).where(condition)
-
-  return found.length > 0
 }
 
 /** What a record of each table is called in a sentence, with its article. */
@@ -177,7 +45,15 @@ const called: Readonly<Record<string, string>> = {
   supplier_articles: 'Den Lieferanten des Artikels',
 }
 
-/** The sentence a route refuses a missing reference with: "Den Kunden aus customerId gibt es in diesem Betrieb nicht." */
-export function missingReferenceText(missing: MissingReference): string {
-  return `${called[missing.target] ?? 'Den Datensatz'} aus ${missing.field} gibt es in diesem Betrieb nicht.`
-}
+/**
+ * `missingReference`: the first reference among some values that names no
+ * record of this business, or null when every one of them does.
+ *
+ * `missingReferenceText`: the sentence a route refuses it with, "Den Kunden
+ * aus customerId gibt es in diesem Betrieb nicht."
+ */
+export const { missingReference, missingReferenceText } = referenceChecks({
+  mayNameDeleted,
+  called,
+  within: 'in diesem Betrieb',
+})

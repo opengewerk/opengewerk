@@ -4,6 +4,13 @@ import {
   type ImportedFile,
   type ImportSummary,
 } from '@opengewerk/domain'
+import {
+  primaryId,
+  readableByTheOwner,
+  reference,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -19,8 +26,6 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
-import { readableByTheOwner, tenantIsolation } from './rls.js'
 import { suppliers } from './suppliers.js'
 import { tenantColumn } from './tenants.js'
 

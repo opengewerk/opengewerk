@@ -1,16 +1,11 @@
 import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { MigrationHistoryError, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { newId } from './identifier.js'
-import {
-  MigrationHistoryError,
-  migrationsFolder,
-  readMigrationIndex,
-  runMigrations,
-} from './migrations.js'
+import { migrationsFolder, readMigrationIndex, runMigrations } from './migrations.js'
 import type { AddedMigration } from './test-database.js'
 import {
   appliedMigrationCount,

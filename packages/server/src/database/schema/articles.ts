@@ -1,4 +1,11 @@
 import { articleLimits, type PriceBase, priceBases, priceCentsMax } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -14,9 +21,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { articleImports } from './article-imports.js'
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { lineUnit } from './line-enums.js'
-import { tenantIsolation } from './rls.js'
 import { suppliers } from './suppliers.js'
 import { tenantColumn } from './tenants.js'
 

@@ -10,8 +10,8 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import type { DocumentId } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import {
   openAmounts,
   PaymentRefused,

@@ -11,9 +11,9 @@ import {
   type SiteContent,
   type TenantId,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import { reportFieldContent } from '../forms/report-fields.js'
 import { deductionsFor } from './deductions.js'

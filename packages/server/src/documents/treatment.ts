@@ -1,7 +1,7 @@
 import { type CustomerId, type IsoDate, type TaxTreatment, treatmentFor } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import { customers } from '../database/schema/index.js'
 

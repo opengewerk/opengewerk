@@ -1,7 +1,7 @@
 import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common'
+import { Database } from '@opengewerk/platform-server'
 import type { Response } from 'express'
 
-import { Database } from '../database/database.js'
 import { PublicRoute } from './authorization.js'
 import { VERSION } from './handed-in.js'
 

@@ -1,386 +1,62 @@
-import { generateKeyPairSync } from 'node:crypto'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
+import { applicationRoleName, type Environment } from '@opengewerk/platform-server'
 import { describe, expect, it } from 'vitest'
 
-import {
-  type AccessCheck,
-  applicationRole,
-  ConfigurationError,
-  directoryIsWritable,
-  type Environment,
-  migrationRole,
-  readConfiguration,
-} from './configuration.js'
+import { application, readConfiguration } from './configuration.js'
 import { readRendererConfiguration } from './documents/renderer.js'
 
-/**
- * The configuration is the only thing between a deployment and a running
- * instance, and the mistakes it can make are the quiet kind: a wrong role
- * that works until two tenants notice each other, a port that silently
- * becomes 23700 while the proxy waits on 8080.
- */
-
-const secret = 'a'.repeat(64)
+// The checks themselves are the foundation's and are tested there, against an
+// application of their own. What is held here is what this application hands
+// in: its name, its port, the variable its version arrives in.
 
 const valid: Environment = {
-  DATABASE_URL: `postgres://${applicationRole}:geheim@db:5432/opengewerk`,
+  DATABASE_URL: `postgres://${applicationRoleName}:geheim@db:5432/opengewerk`,
   STORAGE_PATH: '/var/lib/opengewerk/storage',
-  SESSION_SECRET: secret,
+  SESSION_SECRET: 'a'.repeat(64),
   TRUSTED_ORIGINS: 'https://opengewerk.example.de',
 }
 
 /** Every directory is fine, so that the other checks are what fails. */
-const writable: AccessCheck = () => null
+const writable = () => null
 
-/** The valid environment minus one variable, to see what its absence does. */
-function without(name: keyof typeof valid): Environment {
-  const environment = { ...valid }
-  delete environment[name]
-
-  return environment
-}
-
-describe('the configuration', () => {
-  it('reads what an instance needs', () => {
-    const configuration = readConfiguration({ ...valid, PORT: '8080', HOST: '127.0.0.1' }, writable)
-
-    expect(configuration).toEqual({
-      databaseUrl: `postgres://${applicationRole}:geheim@db:5432/opengewerk`,
-      storagePath: '/var/lib/opengewerk/storage',
-      sessionSecret: secret,
-      trustedOrigins: ['https://opengewerk.example.de'],
-      setupCode: null,
-      backupStatusPath: null,
-      closed: false,
-      mailInternalHosts: [],
-      version: null,
-      vapidPrivateKey: null,
-      port: 8080,
-      host: '127.0.0.1',
-    })
+describe('the configuration of this application', () => {
+  it('listens on 23700 when no port is given, far from the 3000 everything else takes', () => {
+    expect(application.port).toBe(23700)
+    expect(readConfiguration(valid, writable).port).toBe(23700)
+    expect(readConfiguration({ ...valid, PORT: '8080' }, writable).port).toBe(8080)
   })
 
   /**
    * Handed over by the Compose file, where a release kit carries its version
-   * in place of "source" (#259). Only a version is taken: the sign in shows
-   * it, and "source", "latest" or a typo there would mean nothing to anybody.
+   * in place of "source" (#259).
    */
-  it('reads the version a release hands over, and none for a checkout or anything else', () => {
-    const versionOf = (value: string | undefined) =>
-      readConfiguration({ ...valid, OPENGEWERK_VERSION: value }, writable).version
-
-    expect(versionOf('0.2.0')).toBe('0.2.0')
-    expect(versionOf(' 1.10.3 ')).toBe('1.10.3')
-    expect(versionOf('0.3.0-rc.1')).toBe('0.3.0-rc.1')
-
-    for (const nothing of [undefined, '', 'source', 'latest', 'v0.2.0', '0.2', '0.2.0 # alt']) {
-      expect(versionOf(nothing), String(nothing)).toBe(null)
-    }
-  })
-
-  /**
-   * Set by the Compose file, which mounts the record of the last backup there
-   * (#130). Without it the office is told nothing about backups, which is the
-   * truth on a machine that makes none.
-   */
-  it('reads where the backups record their last run, and nothing when it is not given', () => {
-    expect(
-      readConfiguration(
-        { ...valid, BACKUP_STATUS_PATH: ' /var/lib/opengewerk/backup-status ' },
-        writable,
-      ).backupStatusPath,
-    ).toBe('/var/lib/opengewerk/backup-status')
-    expect(
-      readConfiguration({ ...valid, BACKUP_STATUS_PATH: '  ' }, writable).backupStatusPath,
-    ).toBe(null)
-  })
-
-  /**
-   * The code the first run asks for (#215), kept the way it is compared. Its
-   * absence does not stop the start: an instance that was set up long ago
-   * never needs it again, and without one the first run is refused instead.
-   */
-  it('reads the setup code the way it is compared, and nothing when it is not given', () => {
-    expect(readConfiguration({ ...valid, SETUP_CODE: ' k7q4-9pxm ' }, writable).setupCode).toBe(
-      'K7Q49PXM',
+  it('reads its version from OPENGEWERK_VERSION', () => {
+    expect(readConfiguration({ ...valid, OPENGEWERK_VERSION: '0.4.0' }, writable).version).toBe(
+      '0.4.0',
     )
-    expect(readConfiguration(valid, writable).setupCode).toBe(null)
-    expect(readConfiguration({ ...valid, SETUP_CODE: '   ' }, writable).setupCode).toBe(null)
-  })
-
-  /**
-   * The two ways a code can be there and still hold nobody off: the value of
-   * the template, which everybody who has read it knows, and one short enough
-   * to guess. Neither sentence repeats what was set.
-   */
-  it('refuses a setup code from the template or too short to hold anybody off', () => {
-    for (const [code, sentence] of [
-      ['bitte-ersetzen-6', 'Platzhalter aus der Vorlage'],
-      ['K7Q-4PX', 'zu kurz'],
-      ['- - - -', 'zu kurz'],
-    ] as const) {
-      let said = ''
-
-      try {
-        readConfiguration({ ...valid, SETUP_CODE: code }, writable)
-      } catch (error) {
-        said = error instanceof ConfigurationError ? error.message : ''
-      }
-
-      expect(said).toContain('SETUP_CODE')
-      expect(said).toContain(sentence)
-      expect(said).toContain('sh docker/start.sh')
-      expect(said).not.toContain(code)
-    }
-  })
-
-  /**
-   * The key for push (#284). Missing is push switched off, like the setup
-   * code: an instance from before #284 starts without it. A value that cannot
-   * sign stops the start, with a sentence that does not repeat it.
-   */
-  it('reads the key for push, and nothing when it is not given', () => {
-    const key = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
-      .privateKey.export({ format: 'der', type: 'pkcs8' })
-      .toString('base64')
-
-    expect(readConfiguration({ ...valid, VAPID_PRIVATE_KEY: key }, writable).vapidPrivateKey).toBe(
-      key,
-    )
-    expect(readConfiguration(valid, writable).vapidPrivateKey).toBe(null)
-  })
-
-  it('refuses a key for push from the template or not on P-256', () => {
-    const otherCurve = generateKeyPairSync('ec', { namedCurve: 'secp384r1' })
-      .privateKey.export({ format: 'der', type: 'pkcs8' })
-      .toString('base64')
-
-    for (const [key, sentence] of [
-      ['bitte-ersetzen-7', 'Platzhalter aus der Vorlage'],
-      [otherCurve, 'P-256'],
-      ['kein Schlüssel', 'P-256'],
-    ] as const) {
-      let said = ''
-
-      try {
-        readConfiguration({ ...valid, VAPID_PRIVATE_KEY: key }, writable)
-      } catch (error) {
-        said = error instanceof ConfigurationError ? error.message : ''
-      }
-
-      expect(said).toContain('VAPID_PRIVATE_KEY')
-      expect(said).toContain(sentence)
-      expect(said).not.toContain(key)
-    }
-  })
-
-  /**
-   * Empty unless the operator says so: a business reaches mail servers on the
-   * internet and nothing in the network the instance runs in.
-   */
-  it('reads the mail servers of the own network an operator allows, and nothing else', () => {
-    expect(
-      readConfiguration({ ...valid, MAIL_INTERNAL_HOSTS: ' mail.lan , 192.168.1.20 ' }, writable)
-        .mailInternalHosts,
-    ).toEqual(['mail.lan', '192.168.1.20'])
-    expect(() =>
-      readConfiguration({ ...valid, MAIL_INTERNAL_HOSTS: 'smtp://mail.lan:25' }, writable),
-    ).toThrow(/MAIL_INTERNAL_HOSTS/)
-  })
-
-  it('binds every interface unless told otherwise, because a container has to', () => {
-    expect(readConfiguration(valid, writable).host).toBe('0.0.0.0')
-  })
-
-  it('listens on 23700 when no port is given, far from the 3000 everything else takes', () => {
-    expect(readConfiguration(valid, writable).port).toBe(23700)
-  })
-
-  it('refuses to start without a database', () => {
-    expect(() => readConfiguration({}, writable)).toThrow(ConfigurationError)
-    expect(() => readConfiguration({ ...valid, DATABASE_URL: '   ' }, writable)).toThrow(
-      /DATABASE_URL/,
+    expect(readConfiguration({ ...valid, OPENGEWERK_VERSION: 'source' }, writable).version).toBe(
+      null,
     )
   })
 
-  it('refuses an address that is not a database address', () => {
+  it('says its own name where a sentence needs one', () => {
+    expect(() => readConfiguration({ ...valid, SESSION_SECRET: undefined }, writable)).toThrow(
+      'Ohne sie startet OpenGewerk nicht.',
+    )
     expect(() =>
       readConfiguration({ ...valid, DATABASE_URL: 'db 5432 opengewerk' }, writable),
-    ).toThrow(/Verbindungsadresse/)
-    expect(() =>
-      readConfiguration({ ...valid, DATABASE_URL: 'mysql://user:pw@db:3306/opengewerk' }, writable),
-    ).toThrow(/PostgreSQL/)
-  })
-
-  it('refuses to start without a cookie secret, and without a short one', () => {
-    expect(() => readConfiguration(without('SESSION_SECRET'), writable)).toThrow(/SESSION_SECRET/)
-    // Long enough to look deliberate, short enough to be somebody typing.
-    expect(() =>
-      readConfiguration({ ...valid, SESSION_SECRET: 'geheimes-passwort-1' }, writable),
-    ).toThrow(/mindestens 32 Zeichen/)
-  })
-
-  /**
-   * The origin list is the CSRF defence, so the ways it can be present and
-   * useless matter more than the way it can be absent. A trailing slash is the
-   * one somebody writes without thinking: it never matches what a browser puts
-   * in the Origin header, so the entry looks configured and protects nothing.
-   */
-  it('refuses an origin list that would never match a browser', () => {
-    expect(() => readConfiguration(without('TRUSTED_ORIGINS'), writable)).toThrow(/TRUSTED_ORIGINS/)
-    expect(() =>
-      readConfiguration({ ...valid, TRUSTED_ORIGINS: 'https://opengewerk.example.de/' }, writable),
-    ).toThrow(/ohne Pfad/)
-    expect(() =>
-      readConfiguration(
-        { ...valid, TRUSTED_ORIGINS: 'https://opengewerk.example.de/app' },
-        writable,
-      ),
-    ).toThrow(/ohne Pfad/)
+    ).toThrow('postgres://benutzer:passwort@host:5432/opengewerk')
     expect(() =>
       readConfiguration({ ...valid, TRUSTED_ORIGINS: 'opengewerk.example.de' }, writable),
-    ).toThrow(/gültige Adresse/)
-  })
-
-  it('takes several origins, because an instance can answer under more than one name', () => {
-    const configuration = readConfiguration(
-      {
-        ...valid,
-        TRUSTED_ORIGINS: 'https://opengewerk.example.de, https://app.example.de:8443',
-      },
-      writable,
-    )
-
-    expect(configuration.trustedOrigins).toEqual([
-      'https://opengewerk.example.de',
-      'https://app.example.de:8443',
-    ])
+    ).toThrow('etwa https://opengewerk.example.de')
   })
 
   /**
-   * A flag that opens or closes an instance is one where a typo must not be
-   * read as "no". `CLOSED=ture` meaning false would be the quiet kind of
-   * mistake this whole file exists to prevent.
+   * The renderer reads its own two variables and refuses a placeholder of the
+   * template like every other key: the same sentence, from the same check.
    */
-  it('reads the closed flag strictly, so that a typo is not silently a no', () => {
-    expect(readConfiguration(valid, writable).closed).toBe(false)
-    expect(readConfiguration({ ...valid, CLOSED: 'true' }, writable).closed).toBe(true)
-    expect(readConfiguration({ ...valid, CLOSED: '1' }, writable).closed).toBe(true)
-    expect(readConfiguration({ ...valid, CLOSED: 'false' }, writable).closed).toBe(false)
-    expect(() => readConfiguration({ ...valid, CLOSED: 'ture' }, writable)).toThrow(/CLOSED/)
-  })
-
-  it('accepts either spelling of the postgres scheme', () => {
-    const url = `postgresql://${applicationRole}:geheim@db:5432/opengewerk`
-
-    expect(readConfiguration({ ...valid, DATABASE_URL: url }, writable).databaseUrl).toBe(url)
-  })
-
-  /**
-   * The check this file exists for. Row level security never applies to a
-   * superuser and applies to the owner of a table only through FORCE, so an
-   * instance connecting as either has an isolation that looks like one and is
-   * not. The failure is invisible until it is a data leak, which is why it
-   * has to be a refusal at startup.
-   */
-  it('refuses to connect as a role that row level security would not apply to', () => {
-    for (const role of ['postgres', migrationRole]) {
-      expect(() =>
-        readConfiguration(
-          { ...valid, DATABASE_URL: `postgres://${role}:geheim@db:5432/opengewerk` },
-          writable,
-        ),
-      ).toThrow(new RegExp(role))
-    }
-  })
-
-  it('refuses a port that is not one', () => {
-    for (const port of ['0', '70000', 'achttausend', '80.5']) {
-      expect(() => readConfiguration({ ...valid, PORT: port }, writable)).toThrow(
-        ConfigurationError,
-      )
-    }
-  })
-
-  /**
-   * A .env copied by hand and not finished. The instance would run, with a
-   * database password everybody who has read the template knows. The sentence
-   * points to the script that fills it in, and it never repeats the value: in
-   * a connection string the value is the password.
-   */
-  it('refuses a placeholder of the template, and says how to fill it in without repeating it', () => {
-    const cases: Environment[] = [
-      { ...valid, SESSION_SECRET: 'bitte-ersetzen-5' },
-      {
-        ...valid,
-        DATABASE_URL: `postgres://${applicationRole}:bitte-ersetzen-3@db:5432/opengewerk`,
-      },
-    ]
-
-    for (const environment of cases) {
-      let said = ''
-
-      try {
-        readConfiguration(environment, writable)
-      } catch (error) {
-        said = error instanceof ConfigurationError ? error.message : ''
-      }
-
-      expect(said).toContain('Platzhalter aus der Vorlage')
-      expect(said).toContain('sh docker/start.sh')
-      expect(said).not.toContain('bitte-ersetzen')
-    }
-
+  it('refuses a placeholder of the template for the renderer as well', () => {
     expect(() => readRendererConfiguration({ RENDERER_TOKEN: 'bitte-ersetzen-4' })).toThrow(
       /RENDERER_TOKEN enthält noch einen Platzhalter/,
     )
-  })
-})
-
-describe('the file store', () => {
-  it('has to be named, because there is no sensible default for it', () => {
-    const withoutStorage = { ...valid, STORAGE_PATH: undefined }
-
-    expect(() => readConfiguration(withoutStorage, writable)).toThrow(/STORAGE_PATH/)
-  })
-
-  /**
-   * The check that earns its keep. A wrong mount and a missing permission look
-   * identical from outside: the instance starts and serves every page, right
-   * up to the first upload. Refusing at startup costs a restart; finding out
-   * later costs the photo somebody took on a roof.
-   */
-  it('refuses to start when it cannot be written to', () => {
-    const denied: AccessCheck = () => 'permission denied'
-
-    expect(() => readConfiguration(valid, denied)).toThrow(ConfigurationError)
-    expect(() => readConfiguration(valid, denied)).toThrow(/permission denied/)
-    expect(() => readConfiguration(valid, denied)).toThrow(/\/var\/lib\/opengewerk\/storage/)
-  })
-
-  /**
-   * Against the real file system, because the interesting part of this check
-   * is what the operating system answers, and a stub would only repeat what
-   * the test already assumes.
-   */
-  it('really looks at the file system, not only at a stub', () => {
-    const temporary = mkdtempSync(join(tmpdir(), 'opengewerk-storage-'))
-
-    try {
-      expect(directoryIsWritable(temporary)).toBeNull()
-      expect(directoryIsWritable(join(temporary, 'gibt-es-nicht'))).toMatch(/ENOENT/)
-
-      // The same message on Linux and on Windows. Asking about permissions
-      // first would give EACCES on one and pass on the other, and a wrong
-      // mount would then be reported differently depending on the machine.
-      const file = join(temporary, 'keine-mappe')
-      writeFileSync(file, 'x')
-      expect(directoryIsWritable(file)).toBe('es ist kein Verzeichnis')
-    } finally {
-      rmSync(temporary, { recursive: true, force: true })
-    }
   })
 })

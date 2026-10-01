@@ -3,6 +3,7 @@ import { createOTP } from '@better-auth/utils/otp'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { TenantId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -12,8 +13,6 @@ import type { Authentication } from '../authentication/authentication.js'
 import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
 import { SessionIdentitySource } from '../authentication/session-identity.js'
 import { addStaffMember } from '../authentication/staff.js'
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
