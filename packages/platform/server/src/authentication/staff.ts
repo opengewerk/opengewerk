@@ -1,38 +1,38 @@
-import type { RoleKey, TenantId } from '@opengewerk/domain'
-import type {
-  Database,
-  StraddlingTransaction,
-  TenantTransaction,
-} from '@opengewerk/platform-server'
+import type { TenantId } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 
-import { authAccounts, authSessions, authUsers, memberships } from '../database/schema/index.js'
+import type { Database, StraddlingTransaction, TenantTransaction } from '../database/database.js'
+import { authAccounts, authSessions, authUsers, memberships } from '../schema.js'
 import type { Authentication } from './authentication.js'
 
 /** What better-auth hands out once it has read its own configuration. */
 export type AuthenticationContext = Awaited<Authentication['$context']>
 
-export interface StaffMember {
+/**
+ * Somebody to put into a tenant. The roles are the application's; one that
+ * wants its own checked by the compiler binds the type to them.
+ */
+export interface StaffMember<Role extends string = string> {
   readonly email: string
   readonly name: string
   readonly password: string
   readonly tenantId: TenantId
-  readonly roles: readonly RoleKey[]
+  readonly roles: readonly Role[]
 }
 
 /**
  * An account on the instance, with a password against it.
  *
- * Runs outside any business, which is where the `auth_` tables are in reach at
- * all, and returns an existing account unchanged: the same person can be the
- * owner of one company and the bookkeeper of another, and a second account for
- * the second company would be a second password to forget.
+ * Runs outside any tenant, which is where the `auth_` tables are in reach at
+ * all, and returns an existing account unchanged: the same person can lead
+ * one tenant and hold a lesser role with another, and a second account for
+ * the second tenant would be a second password to forget.
  *
  * The rows are written here rather than through better-auth's own adapter, and
  * that is the one thing worth saying out loud. The adapter works on a handle
  * of its own and cannot be put inside a transaction somebody else opened, so
- * going through it would mean the account, the business and the membership are
+ * going through it would mean the account, the tenant and the membership are
  * three commits with two gaps between them. What it does for our configuration
  * is an insert and nothing else: there are no database hooks, and signing up
  * is switched off, so no validation runs either.
@@ -78,9 +78,9 @@ export async function createAccount(
 }
 
 /**
- * What somebody may do in one business.
+ * What somebody may do in one tenant.
  *
- * Runs inside that business, so the insert lands in its audit log with the
+ * Runs inside that tenant, so the insert lands in its audit log with the
  * user and the reason the caller set. That is where ADR 0006 gets its "a
  * change of rights is in the log" from, without a line written for the
  * purpose.
@@ -90,7 +90,7 @@ export async function createAccount(
  * `add-staff`, which #63 left in place as the way back when somebody has shut
  * themselves out. Leaving the block in place would make that way back a
  * command that reports success and changes nothing anybody notices. Changing
- * roles in the office does not come through here, precisely so that it cannot
+ * roles on the screen does not come through here, precisely so that it cannot
  * unblock somebody as a side effect.
  */
 export async function grantMembership(
@@ -98,7 +98,7 @@ export async function grantMembership(
   grant: {
     readonly tenantId: TenantId
     readonly userId: string
-    readonly roles: readonly RoleKey[]
+    readonly roles: readonly string[]
   },
 ): Promise<void> {
   await tx
@@ -111,7 +111,7 @@ export async function grantMembership(
 }
 
 /**
- * Puts a person into a business and gives them a way in.
+ * Puts a person into a tenant and gives them a way in.
  *
  * Signing up is switched off (`disableSignUp`), so an account only ever comes
  * into being through here or through the first run setup, which uses the same
@@ -123,7 +123,7 @@ export async function grantMembership(
  * reach nothing, which is a confusing half state to leave somebody in; a
  * membership without a user cannot exist, the foreign key sees to that. One
  * transaction is what makes the first half true as well, and it is the reason
- * this walks from the instance into the business rather than opening two.
+ * this walks from the instance into the tenant rather than opening two.
  *
  * `created` says whether the account came into being here or was already on
  * the instance. It matters to the caller: an account that was already there
@@ -171,12 +171,13 @@ export async function accountExists(database: Database, email: string): Promise<
 /**
  * A new password for an account that exists, from the command line (#126).
  *
- * The way back without a mail: for somebody whose business sends none, and
- * for the owner who has forgotten theirs and is the only one who could have
+ * The way back without a mail: for somebody whose tenant sends none, and
+ * for the one who has forgotten theirs and is the only one who could have
  * sent a link. Hashed by better-auth's hasher like every other password, and
  * every session of the account is ended, because whoever knew the old
  * password must not stay signed in with it. The second factor stays as it
- * was: an owner still needs it after this, and so does anybody who set one up.
+ * was: whoever needs one still needs it after this, and so does anybody who
+ * set one up.
  *
  * Says whether there was such an account, and does nothing when there was not.
  */
@@ -207,9 +208,9 @@ export async function replacePassword(
       .returning({ id: authAccounts.id })
 
     if (changed.length === 0) {
-      // An account without a password of its own, which OpenGewerk does not
-      // make. One is added rather than leaving the command to report success
-      // that changes nothing.
+      // An account without a password of its own, which nothing here makes.
+      // One is added rather than leaving the command to report success that
+      // changes nothing.
       await tx.insert(authAccounts).values({
         id: uuidv7(),
         userId: user.id,

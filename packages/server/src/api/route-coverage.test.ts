@@ -1,8 +1,8 @@
-import { Database } from '@opengewerk/platform-server'
+import { authenticationPath, Database } from '@opengewerk/platform-server'
 import { routesOf, undeclared } from '@opengewerk/platform-server/testing'
 import { describe, expect, it } from 'vitest'
 
-import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
+import { createAuthentication } from '../authentication/access.js'
 import { ApiModule } from './api.module.js'
 import { noIdentities } from './test-identity.js'
 

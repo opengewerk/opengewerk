@@ -3,16 +3,22 @@ import { createOTP } from '@better-auth/utils/otp'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { TenantId } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import {
+  type Authentication,
+  authenticationPath,
+  Database,
+  newId,
+} from '@opengewerk/platform-server'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Authentication } from '../authentication/authentication.js'
-import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
-import { SessionIdentitySource } from '../authentication/session-identity.js'
-import { addStaffMember } from '../authentication/staff.js'
+import {
+  addStaffMember,
+  createAuthentication,
+  SessionIdentitySource,
+} from '../authentication/access.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,

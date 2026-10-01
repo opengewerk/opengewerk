@@ -1,13 +1,14 @@
 import { passkey } from '@better-auth/passkey'
 import { hash, verify } from '@node-rs/argon2'
-import { passkeyNameProblem } from '@opengewerk/domain'
-import type { Database } from '@opengewerk/platform-server'
+import { passkeyNameProblem } from '@opengewerk/platform-domain'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api'
 import { twoFactor } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
+import type { ServerApplication } from '../configuration.js'
+import type { Database } from '../database/database.js'
 import {
   authAccounts,
   authPasskeys,
@@ -16,10 +17,9 @@ import {
   authTwoFactors,
   authUsers,
   authVerifications,
-} from '../database/schema/index.js'
-import type { PasskeyNotice } from '../mail/passkey-notice.js'
-import type { PasswordResetMail } from '../mail/password-reset.js'
-import { passwordResetLifetime } from '../mail/password-reset.js'
+} from '../schema.js'
+import type { AccessRules } from './access.js'
+import { type PasskeyNotice, type PasswordResetMail, passwordResetLifetime } from './notices.js'
 import { markUsed, recordAdded, recordWithdrawn } from './passkeys.js'
 import { shortestPassword } from './password.js'
 import {
@@ -58,6 +58,13 @@ const argon2Parameters = {
 export const authenticationPath = '/api/auth'
 
 export interface AuthenticationOptions {
+  /**
+   * The application, for its name: what an authenticator app lists the account
+   * under, and what a device names when it asks about a passkey.
+   */
+  readonly application: Pick<ServerApplication, 'name'>
+  /** The words of the application, for the one sentence here that names its tenants. */
+  readonly access: Pick<AccessRules, 'sentences'>
   readonly database: Database
   /** Signs cookies and encrypts the TOTP secrets. */
   readonly secret: string
@@ -78,16 +85,14 @@ export interface AuthenticationOptions {
    */
   readonly rateLimited?: boolean
   /**
-   * Sends the link to a new password (#126), through the mail server of a
-   * business the account works in. Left out, as on a closed instance or in
-   * the preview, a request for one is answered all the same and nothing is
-   * sent.
+   * Sends the link to a new password (#126), see `notices.ts`. Left out, as
+   * on a closed instance or in a preview, a request for one is answered all
+   * the same and nothing is sent.
    */
   readonly passwordResetMail?: PasswordResetMail
   /**
-   * Tells an account about a passkey added to it (#167), through the outbox
-   * of a business it works in. Left out, as for the link to a new password,
-   * nothing is sent.
+   * Tells an account about a passkey added to it (#167). Left out, as for
+   * the link to a new password, nothing is sent.
    */
   readonly passkeyNotice?: PasskeyNotice
 }
@@ -134,7 +139,57 @@ function isStoredPasskey(
   )
 }
 
-export type Authentication = ReturnType<typeof createAuthentication>
+/** A session as better-auth finds it behind a cookie, with the columns of ours. */
+export interface FoundSession {
+  readonly session: {
+    readonly id: string
+    readonly expiresAt: Date
+    /** The tenant the session works in, once one is chosen. */
+    readonly activeTenantId?: string | null | undefined
+    /** The device, where the session was registered as one. */
+    readonly deviceId?: string | null | undefined
+    readonly longLived?: boolean | null | undefined
+    /** With what the session was signed in, the password or a passkey. */
+    readonly signInMethod?: string | null | undefined
+  }
+  readonly user: {
+    readonly id: string
+    readonly twoFactorEnabled?: boolean | null | undefined
+  }
+}
+
+/**
+ * What the rest of a server asks of the authentication.
+ *
+ * better-auth's own object carries every route of every plugin in its type,
+ * down to the types of the libraries those are built on, and no declaration
+ * file of this package could name it. This is the part that is used, written
+ * out: the handler its routes are mounted with, the two questions asked of it
+ * from our side, and the hasher.
+ *
+ * It also keeps an application from reaching into better-auth past what is
+ * here. Whatever else is needed of it gets a line here first.
+ */
+export interface Authentication {
+  /** better-auth's own routes, for `toNodeHandler`, in front of the body parser. */
+  readonly handler: (request: Request) => Promise<Response>
+  readonly api: {
+    /** The session a request carries, or null. */
+    getSession(context: { readonly headers: Headers }): Promise<FoundSession | null>
+    /** The recovery codes an account has left. Throws for one without a second factor. */
+    viewBackupCodes(context: {
+      readonly body: { readonly userId: string }
+    }): Promise<{ readonly backupCodes: readonly string[] }>
+  }
+  /**
+   * What better-auth hands out once it has read its own configuration: the
+   * hasher every password goes through, so that there is one and not two that
+   * could drift apart.
+   */
+  readonly $context: Promise<{
+    readonly password: { hash(password: string): Promise<string> }
+  }>
+}
 
 /**
  * The authentication, as ADR 0006 cut it: better-auth's core with sessions,
@@ -146,22 +201,27 @@ export type Authentication = ReturnType<typeof createAuthentication>
  * magic link, because that is the way into the customer portal and it is the
  * one better-auth had an account takeover advisory about in June 2026; it
  * arrives with the portal and with the security review ADR 0006 puts in front
- * of it. No OIDC client, no organisation plugin: a business here is a tenant
- * with row level security under it, not a row in somebody's plugin, and a
- * second notion of membership would be a second answer to the same question.
+ * of it. No OIDC client, no organisation plugin: a tenant here has row level
+ * security under it and is not a row in somebody's plugin, and a second notion
+ * of membership would be a second answer to the same question.
+ *
+ * The application names itself and brings its words (ADR 0010); nothing else
+ * about it is known here.
  */
 export function createAuthentication({
+  application,
+  access,
   database,
   secret,
   trustedOrigins,
   rateLimited = true,
   passwordResetMail,
   passkeyNotice,
-}: AuthenticationOptions) {
+}: AuthenticationOptions): Authentication {
   const party = relyingParty(trustedOrigins)
 
   const authentication = betterAuth({
-    appName: 'OpenGewerk',
+    appName: application.name,
     secret,
     trustedOrigins: [...trustedOrigins],
     database: drizzleAdapter(database.authenticationHandle(), {
@@ -181,7 +241,7 @@ export function createAuthentication({
     }),
     emailAndPassword: {
       enabled: true,
-      // Nobody signs themselves up. A business adds its staff, and an instance
+      // Nobody signs themselves up. A tenant adds its staff, and an instance
       // that let a stranger create an account would hand out a foothold on the
       // login rate limits at the very least.
       disableSignUp: true,
@@ -211,12 +271,12 @@ export function createAuthentication({
       // The cookie lives as long as the longest session, and the row decides
       // (#124). better-auth writes this lifetime into the cookie, and a
       // shorter one there would log a device out while its row still has
-      // weeks: the office lifetime did exactly that to every device after
-      // twelve hours. A new row starts as an office session, see
+      // weeks: the short lifetime did exactly that to every device after
+      // twelve hours. A new row starts as an ordinary session, see
       // `databaseHooks`, and `chooseTenant` makes it a device's.
       expiresIn: sessionLifetimes.registeredDevice,
       // Renewing is ours, `renewSession`: better-auth renews every session to
-      // the one lifetime above, which would turn an office session into a
+      // the one lifetime above, which would turn an ordinary session into a
       // month.
       disableSessionRefresh: true,
       // better-auth's "fresh session", a session younger than a day, is not
@@ -230,9 +290,9 @@ export function createAuthentication({
        * The four columns a session of ours has beyond better-auth's.
        *
        * Every one of them is `input: false`, and on the first that is not a
-       * detail: it is what keeps the chosen business out of anything a client
+       * detail: it is what keeps the chosen tenant out of anything a client
        * sends. Left writable, a request could put a tenant in the body of an
-       * ordinary session update and be inside another company a moment later,
+       * ordinary session update and be inside another tenant a moment later,
        * which is precisely the attack the guard's oldest test describes. They
        * are set by this server, in `chooseTenant`, after it has checked that
        * there is a membership.
@@ -253,7 +313,7 @@ export function createAuthentication({
         create: {
           // Every session starts short. Only a device registered in
           // `chooseTenant` gets the long lifetime, and a session that has not
-          // chosen a business yet is not one.
+          // chosen a tenant yet is not one.
           //
           // And every session says how it began (#167). Only the route that
           // signs in with a passkey makes a passkey session; every other way
@@ -262,7 +322,7 @@ export function createAuthentication({
           before: async (session, context) => ({
             data: {
               ...session,
-              expiresAt: new Date(Date.now() + sessionLifetimes.office * 1000),
+              expiresAt: new Date(Date.now() + sessionLifetimes.ordinary * 1000),
               signInMethod: context?.path === passkeySignIn ? 'passkey' : 'password',
             },
           }),
@@ -396,7 +456,7 @@ export function createAuthentication({
     // Routes of better-auth that are not used here, off so that nothing can
     // reach them. The plugin's own list, rename and delete of passkeys, which
     // are routes of ours instead because a change to a passkey belongs in the
-    // log of every business of the account (`passkeys.controller.ts`); and
+    // log of every tenant of the account (`passkeys.controller.ts`); and
     // the list of sessions, which answered with the token of every session of
     // the account and asked only for a young session, since `freshAge` is 0
     // not even that. The devices of an account are `/auth/devices`.
@@ -419,7 +479,7 @@ export function createAuthentication({
     },
     plugins: [
       twoFactor({
-        issuer: 'OpenGewerk',
+        issuer: application.name,
       }),
       /**
        * Passkeys (#167, #248), back since they can be listed, renamed and
@@ -437,7 +497,7 @@ export function createAuthentication({
        */
       passkey({
         rpID: party.id,
-        rpName: 'OpenGewerk',
+        rpName: application.name,
         origin: party.origins,
         authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
         registration: {
@@ -447,7 +507,7 @@ export function createAuthentication({
                 code: 'USER_VERIFICATION_REQUIRED',
                 message:
                   'Ohne Bestätigung am Gerät, mit Fingerabdruck, Gesicht oder PIN, legt ' +
-                  'OpenGewerk keinen Passkey an.',
+                  `${application.name} keinen Passkey an.`,
               })
             }
 
@@ -475,15 +535,15 @@ export function createAuthentication({
 
   /**
    * What happens once a passkey is stored: it goes into the log of every
-   * business of the account, and the account is told by mail.
+   * tenant of the account, and the account is told by mail.
    *
    * Both before the registration answers. The mail is a row in the outbox of
-   * a business, which the job sends and tries again; written after the answer,
+   * a tenant, which the job sends and tries again; written after the answer,
    * a process stopped in between would leave a key nobody was told of.
    *
    * A passkey that cannot be put into the log, or told of, does not stay. A key
    * nobody can see come is the very thing the log is there to prevent, so it
-   * is taken back, what some businesses already wrote down is closed as
+   * is taken back, what some tenants already wrote down is closed as
    * removed, and the registration answers with an error.
    */
   async function afterRegistration(
@@ -516,9 +576,7 @@ export function createAuthentication({
 
       throw new APIError('INTERNAL_SERVER_ERROR', {
         code: 'PASSKEY_NOT_RECORDED',
-        message:
-          'Der Passkey ließ sich nicht im Protokoll der Betriebe festhalten und ist deshalb ' +
-          'nicht angelegt. Bitte noch einmal versuchen.',
+        message: access.sentences.passkeyNotRecorded,
       })
     }
   }

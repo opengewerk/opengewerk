@@ -8,7 +8,7 @@ import type {
   RoleKey,
   TenantId,
 } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, hashToken, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -21,7 +21,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { hashToken } from '../authentication/invitation.js'
 import { ApiModule } from './api.module.js'
 import { testIdentities as identities } from './test-identity.js'
 

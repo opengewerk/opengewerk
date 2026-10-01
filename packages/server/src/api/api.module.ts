@@ -8,6 +8,8 @@ import {
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { largestAttachmentBytes, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
 import {
+  type Authentication,
+  authenticationParts,
   AUTHORIZATION,
   Database,
   SameOriginGuard,
@@ -15,10 +17,7 @@ import {
 } from '@opengewerk/platform-server'
 import { raw } from 'express'
 
-import type { Authentication } from '../authentication/authentication.js'
-import { AuthenticationController } from '../authentication/authentication.controller.js'
-import { PasskeysController } from '../authentication/passkeys.controller.js'
-import { RecoveryCodesController } from '../authentication/recovery-codes.controller.js'
+import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
 import type { SecretKey } from '../secrets/key.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
@@ -55,18 +54,14 @@ import { NumberRangesController } from './number-ranges.controller.js'
 import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
 import {
-  AUTHENTICATION,
   BACKUP_STATUS,
   FILE_STORE,
   MAIL,
   type MailContext,
   RENDERER,
   SECRETS,
-  SETUP_CODE,
   VERSION,
 } from './handed-in.js'
-import { InvitationController } from './invitation.controller.js'
-import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
@@ -201,16 +196,17 @@ export class ApiModule implements NestModule {
       push = null,
     } = options
 
+    // The authentication is the foundation's, with the roles and the words of
+    // this application. Its ways in, the first run and the one time link, are
+    // there only while the authentication is handed in, which is what leaves
+    // them out on a closed instance.
+    const signingIn = authenticationParts({ access, authentication, setupCode })
+
     return {
       module: ApiModule,
       controllers: [
         HealthController,
-        // All three need the authentication handed in and are left out on a
-        // closed instance, which is what leaving the authentication out does.
-        // The first two answer without an identity.
-        ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
-        AuthenticationController,
-        PasskeysController,
+        ...signingIn.controllers,
         StaffController,
         CustomersController,
         TagsController,
@@ -270,12 +266,7 @@ export class ApiModule implements NestModule {
         ...(options.instance ? [{ provide: INSTANCE, useValue: options.instance }] : []),
         DocumentFiles,
         ArticleImports,
-        ...(authentication
-          ? [
-              { provide: AUTHENTICATION, useValue: authentication },
-              { provide: SETUP_CODE, useValue: setupCode },
-            ]
-          : []),
+        ...signingIn.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

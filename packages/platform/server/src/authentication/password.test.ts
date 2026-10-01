@@ -1,7 +1,8 @@
 import { PassThrough, Writable } from 'node:stream'
-import { ConfigurationError } from '@opengewerk/platform-server'
+
 import { describe, expect, it } from 'vitest'
 
+import { ConfigurationError } from '../configuration.js'
 import { readNewPassword } from './password.js'
 
 /**
@@ -12,6 +13,9 @@ import { readNewPassword } from './password.js'
  */
 
 const password = 'ein-langes-passwort'
+
+/** The variable the application of this test reads a password from in a script. */
+const variable = 'PROBEWERK_PASSWORD'
 
 /**
  * A terminal with somebody at it, who types the next of `keys` whenever a
@@ -57,22 +61,22 @@ describe('a password on the command line', () => {
   it('is asked for twice and never shown', async () => {
     const { terminal, screen } = somebodyTyping([`${password}\r`, `${password}\r`])
 
-    expect(await readNewPassword(undefined, terminal)).toBe(password)
+    expect(await readNewPassword(undefined, terminal, variable)).toBe(password)
     expect(screen()).toBe('Passwort: \nNoch einmal: \n')
   })
 
   it('is not taken when the two entries differ or the first is too short', async () => {
     const differing = somebodyTyping([`${password}\r`, 'ein-anderes-passwort\r'])
 
-    expect((await refusalOf(readNewPassword(undefined, differing.terminal))).message).toContain(
-      'nicht gleich',
-    )
+    expect(
+      (await refusalOf(readNewPassword(undefined, differing.terminal, variable))).message,
+    ).toContain('nicht gleich')
 
     const short = somebodyTyping(['kurz\r'])
 
-    expect((await refusalOf(readNewPassword(undefined, short.terminal))).message).toContain(
-      'mindestens 12 Zeichen',
-    )
+    expect(
+      (await refusalOf(readNewPassword(undefined, short.terminal, variable))).message,
+    ).toContain('mindestens 12 Zeichen')
     // Not asked a second time for a password that could not be taken.
     expect(short.screen()).toBe('Passwort: \n')
   })
@@ -81,24 +85,24 @@ describe('a password on the command line', () => {
     for (const key of ['\u0003', '\u0004']) {
       const { terminal } = somebodyTyping([key])
 
-      expect((await refusalOf(readNewPassword(undefined, terminal))).message).toContain(
+      expect((await refusalOf(readNewPassword(undefined, terminal, variable))).message).toContain(
         'Abgebrochen',
       )
     }
   })
 
-  it('comes from OPENGEWERK_PASSWORD in a script, and only there', async () => {
+  it('comes from the variable the application names in a script, and only there', async () => {
     const script = somebodyTyping([], false)
 
-    expect(await readNewPassword(` ${password} `, script.terminal)).toBe(password)
+    expect(await readNewPassword(` ${password} `, script.terminal, variable)).toBe(password)
     expect(script.screen()).toBe('')
-    expect((await refusalOf(readNewPassword('kurz', script.terminal))).message).toContain(
-      'OPENGEWERK_PASSWORD',
+    expect((await refusalOf(readNewPassword('kurz', script.terminal, variable))).message).toContain(
+      'PROBEWERK_PASSWORD ist kürzer',
     )
     // Without a terminal and without the variable there is nobody to ask,
     // and nothing is made up instead.
-    expect((await refusalOf(readNewPassword(undefined, script.terminal))).message).toContain(
-      'OPENGEWERK_PASSWORD',
-    )
+    expect(
+      (await refusalOf(readNewPassword(undefined, script.terminal, variable))).message,
+    ).toContain('aus der Umgebungsvariable PROBEWERK_PASSWORD')
   })
 })

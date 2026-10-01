@@ -12,23 +12,19 @@ import {
   Req,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import { businessNameProblem, type TenantId } from '@opengewerk/domain'
-import {
-  clientAddress,
-  Database,
-  normalizeSetupCode,
-  pick,
-  requireFields,
-  SetupAttempts,
-  setupCodesMatch,
-} from '@opengewerk/platform-server'
+import type { TenantId } from '@opengewerk/platform-domain'
 import type { Request } from 'express'
 
-import type { Authentication } from '../authentication/authentication.js'
-import { shortestPassword } from '../authentication/password.js'
-import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
-import { PublicRoute } from './authorization.js'
-import { AUTHENTICATION, SETUP_CODE } from './handed-in.js'
+import { PublicRoute } from '../api/authorization.js'
+import { pick, requireFields } from '../api/body.js'
+import { clientAddress } from '../api/client-address.js'
+import { AUTHENTICATION, SETUP_CODE } from '../api/handed-in.js'
+import { Database } from '../database/database.js'
+import { ACCESS_RULES, type AccessRules } from './access.js'
+import type { Authentication } from './authentication.js'
+import { shortestPassword } from './password.js'
+import { instanceIsEmpty, setUpInstance } from './setup.js'
+import { normalizeSetupCode, SetupAttempts, setupCodesMatch } from './setup-code.js'
 
 /** How long a caller waits after a first run that failed before the next one. */
 const restAfterFailure = 2000
@@ -36,14 +32,14 @@ const restAfterFailure = 2000
 /**
  * The way into an instance that has never been used.
  *
- * Public, which is exactly two routes in this application and was one until
- * now. It has to be: there is nobody to authenticate before the first account
- * exists, and that is the whole problem being solved. What keeps it from being
- * a way in for anybody else is that it answers at all only while the instance
- * is empty, which is a question asked of the database and not a setting, and
- * since #215 that it asks for the setup code from the `.env` on the server.
- * Without the code, whoever reached a freshly started instance first became
- * its owner.
+ * Public, which few routes of the authentication are. It has to be: there is
+ * nobody to authenticate before the first account exists, and that is the
+ * whole problem being solved. What keeps it from being a way in for anybody
+ * else is that it answers at all only while the instance is empty, which is a
+ * question asked of the database and not a setting, and since #215 that it
+ * asks for the setup code from the `.env` on the server.
+ * Without the code, whoever reached a freshly started instance first led its
+ * first tenant.
  *
  * It is registered only when the instance is open. `CLOSED=true` leaves the
  * controller out of the module, so the routes are not there to be found: a
@@ -80,6 +76,7 @@ export class SetupController {
     private readonly database: Database,
     @Inject(AUTHENTICATION) private readonly authentication: Authentication,
     @Inject(SETUP_CODE) private readonly setupCode: string | null,
+    @Inject(ACCESS_RULES) private readonly access: AccessRules,
   ) {}
 
   /**
@@ -96,11 +93,11 @@ export class SetupController {
   }
 
   /**
-   * The first business, the first account, and the membership between them.
+   * The first tenant, the first account, and the membership between them.
    *
    * The refusal for a second run comes from the database and not from the
    * check above: `create_first_tenant` takes a lock and then asks, so two
-   * people who open this screen at the same moment end up with one business
+   * people who open this screen at the same moment end up with one tenant
    * between them. The check above is for the interface, which needs an answer
    * before it draws anything.
    *
@@ -122,8 +119,9 @@ export class SetupController {
     const email = text(values.email, 'email')
     const password = text(values.password, 'password')
 
-    // The same rule as when the owner changes the name later (#276).
-    const nameProblem = businessNameProblem(company)
+    // The same rule as when the name is changed later (#276), which is why
+    // the application brings it.
+    const nameProblem = this.access.tenantNameProblem(company)
 
     if (nameProblem !== null) {
       throw new BadRequestException(nameProblem)
@@ -151,7 +149,7 @@ export class SetupController {
     this.running = true
 
     try {
-      const { tenantId } = await setUpInstance(this.authentication, this.database, {
+      const { tenantId } = await setUpInstance(this.access, this.authentication, this.database, {
         company,
         name,
         email,

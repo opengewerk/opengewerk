@@ -1,5 +1,5 @@
 import type { TenantId } from '@opengewerk/domain'
-import type { Database } from '@opengewerk/platform-server'
+import type { Database, PasswordResetMail } from '@opengewerk/platform-server'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import type { MailContext } from '../api/handed-in.js'
@@ -7,21 +7,9 @@ import { memberships, tenants } from '../database/schema/index.js'
 import { passwordResetMessage } from '../notifications/templates.js'
 import { connectionOf } from './server-settings.js'
 
-/** Who asked for a new password, as better-auth hands them over. */
-export interface ResetRequester {
-  readonly id: string
-  readonly email: string
-  readonly name: string
-}
-
-/** Sends the link, or does nothing when there is nobody to send it through. */
-export type PasswordResetMail = (requester: ResetRequester, token: string) => Promise<void>
-
-/** How long a link to a new password works, in seconds. */
-export const passwordResetLifetime = 60 * 60
-
 /**
- * The mail with the link to a new password (#126).
+ * The mail with the link to a new password (#126), the way this application
+ * sends what the authentication only says is due.
  *
  * An account belongs to the instance and to no business, but every mail
  * server belongs to a business: each sets up its own under

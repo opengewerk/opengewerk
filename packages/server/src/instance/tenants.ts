@@ -6,13 +6,18 @@ import {
   type TenantId,
 } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
-import { type Database, newId, type StraddlingTransaction } from '@opengewerk/platform-server'
+import {
+  type Authentication,
+  createAccount,
+  type Database,
+  grantMembership,
+  mintToken,
+  newId,
+  type StraddlingTransaction,
+} from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
 import { accountsOf, normalise } from '../authentication/administration.js'
-import { mintToken } from '../authentication/invitation.js'
-import type { Authentication } from '../authentication/authentication.js'
-import { createAccount, grantMembership } from '../authentication/staff.js'
 import { invitations } from '../database/schema/index.js'
 
 /**

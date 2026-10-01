@@ -8,6 +8,7 @@ import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Identity } from '@opengewerk/domain'
 import {
+  authenticationPath,
   type Database,
   mailInternalHosts,
   readJsonBodiesOnly,
@@ -16,7 +17,6 @@ import {
 } from '@opengewerk/platform-server'
 
 import { ApiModule } from '../api/api.module.js'
-import { authenticationPath } from '../authentication/authentication.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
 import { interfacePath, serveInterface } from '../interface.js'
 import { reachableOnly } from '../mail/reach.js'

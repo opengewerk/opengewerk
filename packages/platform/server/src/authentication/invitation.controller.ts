@@ -1,25 +1,22 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post } from '@nestjs/common'
-import { Database, pick } from '@opengewerk/platform-server'
 
-import type { Authentication } from '../authentication/authentication.js'
-import { looksLikeAToken } from '../authentication/invitation.js'
-import {
-  type InvitationOffer,
-  offerOf,
-  type Redeemed,
-  redeemInvitation,
-} from '../authentication/redemption.js'
-import { PublicRoute } from './authorization.js'
-import { AUTHENTICATION } from './handed-in.js'
+import { PublicRoute } from '../api/authorization.js'
+import { pick } from '../api/body.js'
+import { AUTHENTICATION } from '../api/handed-in.js'
+import { Database } from '../database/database.js'
+import { ACCESS_RULES, type AccessRules } from './access.js'
+import type { Authentication } from './authentication.js'
+import { looksLikeAToken } from './invitation.js'
+import { type InvitationOffer, offerOf, type Redeemed, redeemInvitation } from './redemption.js'
 
 /**
  * The far end of a one time link.
  *
- * Public, and the second pair of routes in this application that is. It has to
- * be: the person opening the link has no account yet, which is the whole point
- * of the link, so there is nobody to authenticate. What stands in for an
- * identity is the token, 32 random bytes that the office of one business made
- * and handed over, and the state of the invitation it names: used once, called
+ * Public, and the second pair of routes of the authentication that is. It has
+ * to be: the person opening the link has no account yet, which is the whole
+ * point of the link, so there is nobody to authenticate. What stands in for an
+ * identity is the token, 32 random bytes that somebody in one tenant made and
+ * handed over, and the state of the invitation it names: used once, called
  * back, or run out, and it answers nothing.
  *
  * Registered only while the instance is open, like the first run setup and for
@@ -39,12 +36,13 @@ export class InvitationController {
   constructor(
     private readonly database: Database,
     @Inject(AUTHENTICATION) private readonly authentication: Authentication,
+    @Inject(ACCESS_RULES) private readonly access: Pick<AccessRules, 'sentences'>,
   ) {}
 
   /**
    * What this link is an invitation to.
    *
-   * Reading only, so that the screen can name the business and say what is
+   * Reading only, so that the screen can name the tenant and say what is
    * being asked for before anybody types anything. A link that has been used,
    * called back or has run out answers with which of the three it is: "this
    * was already used" and "this never existed" call for different sentences,
@@ -70,7 +68,7 @@ export class InvitationController {
 
   /**
    * Uses the link: an account with a password nobody else knows, and a place
-   * in the business it was made for.
+   * in the tenant it was made for.
    *
    * Signing in afterwards is a separate call, exactly as it is after a first
    * run. It is the ordinary sign in, with the ordinary cookie and the ordinary
@@ -87,6 +85,6 @@ export class InvitationController {
     const values = pick(body, ['password'] as const)
     const password = typeof values.password === 'string' ? values.password : undefined
 
-    return redeemInvitation(this.authentication, this.database, token, password)
+    return redeemInvitation(this.access, this.authentication, this.database, token, password)
   }
 }

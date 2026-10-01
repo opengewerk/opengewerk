@@ -3,9 +3,11 @@ import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import {
+  authenticationPath,
   ClosedIdentitySource,
   ConfigurationError,
   Database,
+  instanceIsEmpty,
   readJsonBodiesOnly,
   sendSecurityHeaders,
   vapidKeysFrom,
@@ -14,9 +16,7 @@ import {
 import { toNodeHandler } from 'better-auth/node'
 
 import { ApiModule } from './api/api.module.js'
-import { authenticationPath, createAuthentication } from './authentication/authentication.js'
-import { SessionIdentitySource } from './authentication/session-identity.js'
-import { instanceIsEmpty } from './authentication/setup.js'
+import { createAuthentication, SessionIdentitySource } from './authentication/access.js'
 import { readConfiguration } from './configuration.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'

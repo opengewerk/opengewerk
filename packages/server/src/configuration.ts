@@ -21,6 +21,7 @@ export const application: ServerApplication = {
   // already, and below the range Linux hands out for outgoing connections.
   port: 23700,
   versionVariable: 'OPENGEWERK_VERSION',
+  passwordVariable: 'OPENGEWERK_PASSWORD',
   exampleOrigin: 'https://opengewerk.example.de',
   exampleDatabase: 'opengewerk',
 }

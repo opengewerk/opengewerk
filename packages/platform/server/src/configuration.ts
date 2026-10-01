@@ -15,12 +15,20 @@ import { vapidKeysFrom } from './push/web-push.js'
  * that differ between two of them.
  */
 export interface ServerApplication {
-  /** The name a person reads in a message, "OpenGewerk". */
+  /**
+   * The name a person reads: in a message, in an authenticator app, and where
+   * a device asks about a passkey.
+   */
   readonly name: string
   /** The port the application listens on when none is given. */
   readonly port: number
   /** The variable the Compose file hands the version of a release over in. */
   readonly versionVariable: string
+  /**
+   * The variable a command reads a new password from when it is started from
+   * a script, without a terminal to ask on.
+   */
+  readonly passwordVariable: string
   /** An address an instance could be reached under, for the examples in a message. */
   readonly exampleOrigin: string
   /** The name of the database in the example of a connection address. */
