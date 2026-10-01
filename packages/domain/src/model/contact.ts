@@ -1,4 +1,5 @@
-import type { ContactId, CustomerId, SiteId, Synced } from './identifier.js'
+import type { Synced } from '@opengewerk/platform-domain'
+import type { ContactId, CustomerId, SiteId } from './identifier.js'
 import type { SupplierId } from './supplier.js'
 
 /**

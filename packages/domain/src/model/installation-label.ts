@@ -1,4 +1,5 @@
-import type { Id, InstallationId, Synced } from './identifier.js'
+import type { Id, Synced } from '@opengewerk/platform-domain'
+import type { InstallationId } from './identifier.js'
 
 export type InstallationLabelId = Id<'installation-label'>
 

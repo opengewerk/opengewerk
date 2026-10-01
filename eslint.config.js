@@ -5,6 +5,40 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
+// What a package underneath the others may not reach up into. A value, because
+// two blocks below need the same list.
+const layersAbove = [
+  {
+    group: ['@opengewerk/server', '@opengewerk/server/*'],
+    message: 'domain is the layer underneath. Pass what it needs in as an argument.',
+  },
+  {
+    group: ['@opengewerk/web', '@opengewerk/web/*'],
+    message: 'domain is the layer underneath. Pass what it needs in as an argument.',
+  },
+  {
+    // The relative way out, at whatever depth. Deliberately not `../../*`:
+    // from `src/rules/data` that is an ordinary path to a sibling folder
+    // inside the package.
+    group: ['../**/server/**', '../**/web/**'],
+    message: 'A path leading into another package leaves the boundary as well.',
+  },
+]
+
+// The packages of an application, seen from the foundation (ADR 0010).
+const applications = [
+  {
+    group: [
+      '@opengewerk/domain',
+      '@opengewerk/domain/*',
+      '@opengewerk/gewerk-*',
+      '@opengewerk/gewerk-*/*',
+    ],
+    message:
+      'The foundation knows no application (ADR 0010). What only one of them knows comes in as an argument.',
+  },
+]
+
 export default tseslint.config(
   {
     // Nothing generated or vendored is worth linting.
@@ -39,7 +73,10 @@ export default tseslint.config(
     // The domain package computes; it does not talk to the outside world.
     // ADR 0009 keeps Node and DOM types out of its tsconfig, and this rule
     // catches the remaining way in: a runtime global that needs no import.
-    files: ['packages/domain/**/*.ts'],
+    //
+    // The same holds for the part of it that every application shares, which
+    // ADR 0010 moved into the foundation: it computes on both sides as well.
+    files: ['packages/domain/**/*.ts', 'packages/platform/domain/**/*.ts'],
     languageOptions: {
       globals: {},
     },
@@ -73,33 +110,26 @@ export default tseslint.config(
         },
       ],
       // The package boundary ADR 0002 promises. Three things already make an
-      // import from here fail: the package declares no runtime dependency,
-      // pnpm therefore cannot resolve one, and `rootDir` keeps the build
-      // inside `src`. All three fail as a missing module, which reads like a
-      // broken install rather than like a rule. This one says what the rule
-      // is, and it says it in the editor instead of in CI.
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['@opengewerk/server', '@opengewerk/server/*'],
-              message: 'domain is the layer underneath. Pass what it needs in as an argument.',
-            },
-            {
-              group: ['@opengewerk/web', '@opengewerk/web/*'],
-              message: 'domain is the layer underneath. Pass what it needs in as an argument.',
-            },
-            {
-              // The relative way out, at whatever depth. Deliberately not
-              // `../../*`: from `src/rules/data` that is an ordinary path to a
-              // sibling folder inside the package.
-              group: ['../**/server/**', '../**/web/**'],
-              message: 'A path leading into another package leaves the boundary as well.',
-            },
-          ],
-        },
-      ],
+      // import from here fail: the package declares no runtime dependency but
+      // the foundation, pnpm therefore cannot resolve another, and `rootDir`
+      // keeps the build inside `src`. All three fail as a missing module,
+      // which reads like a broken install rather than like a rule. This one
+      // says what the rule is, and it says it in the editor instead of in CI.
+      'no-restricted-imports': ['error', { patterns: layersAbove }],
+    },
+  },
+
+  {
+    // The foundation of ADR 0010 knows no application. Its packages depend on
+    // none of them, so an import the wrong way round fails as a missing module
+    // here too, and this rule is again the one that says why.
+    //
+    // A block of its own with the whole list, not an addition to the one
+    // above: a later block replaces the options of a rule, it does not add to
+    // them.
+    files: ['packages/platform/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [...layersAbove, ...applications] }],
     },
   },
 

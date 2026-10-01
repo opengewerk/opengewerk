@@ -1,4 +1,4 @@
-import type { SyncValue } from './operation.js'
+import type { SyncValue } from '@opengewerk/platform-domain'
 
 /**
  * What a device may do with an entity while it is offline.

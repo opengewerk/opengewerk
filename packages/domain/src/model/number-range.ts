@@ -1,5 +1,6 @@
 import type { DocumentKind } from './document.js'
-import type { NumberRangeId, TenantOwned } from './identifier.js'
+import type { TenantOwned } from '@opengewerk/platform-domain'
+import type { NumberRangeId } from './identifier.js'
 
 /**
  * Which counter a document draws from. Not one per document kind: every kind

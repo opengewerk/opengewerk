@@ -1,4 +1,4 @@
-import type { AuditOperation, ChainVerification } from './audit.js'
+import type { AuditOperation, ChainVerification } from '@opengewerk/platform-domain'
 import { type Permission, permissionLabel, permissions } from './authorization.js'
 
 /**

@@ -1,4 +1,5 @@
-import type { JobId, JobNoteId, Synced } from './identifier.js'
+import type { Synced } from '@opengewerk/platform-domain'
+import type { JobId, JobNoteId } from './identifier.js'
 
 /** The most a note may say, as much as a text in a form (#78). */
 export const longestJobNote = 4000

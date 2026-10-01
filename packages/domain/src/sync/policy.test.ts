@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { sameValue } from './operation.js'
+import { sameValue } from '@opengewerk/platform-domain'
 import { policyFor, syncPolicies } from './policy.js'
 
 /**

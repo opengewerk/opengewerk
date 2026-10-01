@@ -2,7 +2,7 @@ import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
 import type { TaxTreatment } from '../model/document.js'
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import type { BilledAmount, Deducted } from './invoice.js'
 import {
   billedAfter,
@@ -13,7 +13,7 @@ import {
   totalsFor,
   treatmentFor,
 } from './invoice.js'
-import { RuleError } from './rule.js'
+import { RuleError } from '@opengewerk/platform-domain'
 import { type VatRate, vatRates } from './tax.js'
 import { shippedRules } from './shipped.js'
 

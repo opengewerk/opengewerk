@@ -1,4 +1,5 @@
-import type { Id, SiteId, Synced } from './identifier.js'
+import type { Id, Synced } from '@opengewerk/platform-domain'
+import type { SiteId } from './identifier.js'
 
 export type SiteAccessId = Id<'site-access'>
 

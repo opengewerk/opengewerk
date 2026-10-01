@@ -1,6 +1,6 @@
 import type { DocumentKind } from './document.js'
 import type { PaymentTermContent } from './document-content.js'
-import type { IsoDate } from './identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 
 /**
  * The payment term of a document: how many days after its date the customer

@@ -33,7 +33,7 @@ import { documentContentVersion } from '../model/document-content.js'
 import type { DocumentLine } from '../model/document-line.js'
 import { billedAfter, billedOf, totalsFor } from './invoice.js'
 import { paymentTermOf } from './payment.js'
-import type { RuleSet } from './rule.js'
+import type { RuleSet } from '@opengewerk/platform-domain'
 
 /** What a document is put together from. Gathering it is the caller's work. */
 export interface ContentSources {

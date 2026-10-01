@@ -4,9 +4,9 @@ import type {
   DocumentContent,
   IssuerContent,
 } from '../model/document-content.js'
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import type { BilledAmount, DocumentTotals } from './invoice.js'
-import { RuleError, withoutNegativeZero } from './rule.js'
+import { RuleError, withoutNegativeZero } from '@opengewerk/platform-domain'
 
 function opposite(value: number): number {
   return withoutNegativeZero(-value)

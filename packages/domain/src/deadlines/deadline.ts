@@ -1,13 +1,12 @@
+import type { IsoDate, TenantId } from '@opengewerk/platform-domain'
 import type {
   CustomerId,
   DeadlineId,
   DocumentId,
   InstallationId,
-  IsoDate,
   JobId,
   SiteId,
   TaskId,
-  TenantId,
 } from '../model/identifier.js'
 import { addDays } from '../rules/payment.js'
 

@@ -1,6 +1,6 @@
 import type { DocumentKind } from '../model/document.js'
 import type { InstructionContent, IssuerContent } from '../model/document-content.js'
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import {
   type ContractBlocks,
   type DocumentFacts,

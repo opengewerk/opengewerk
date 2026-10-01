@@ -1,5 +1,5 @@
-import type { IsoDate } from '../model/identifier.js'
-import { applyRate, type RuleSet } from './rule.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
+import { applyRate, type RuleSet } from '@opengewerk/platform-domain'
 
 /**
  * The rates a line can be taxed at, by name. The figure behind each comes

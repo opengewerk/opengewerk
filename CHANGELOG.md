@@ -260,6 +260,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   noch lief, ging bisher an `http://localhost:3000`, und jeder Lauf schrieb Dutzende
   `ECONNREFUSED` ins Protokoll, zwischen denen ein echter Fehler leicht unterging. Seitdem lehnt
   `fetch` außerhalb eines Tests ab wie ein Netz, das nicht da ist.
+- Das Fundament hat sein erstes eigenes Paket, `@opengewerk/platform-domain` unter
+  `packages/platform/domain` (ADR 0010). Dorthin ziehen die Teile von `domain`, die keine
+  Fachlichkeit kennen: die Kennungen mit ihrer Marke, die Spalten eines Datensatzes im Abgleich,
+  der Eintrag des Audit-Logs, die gespeicherte Datei, die Angaben zu Passkey, Mailserver und
+  Sicherung, die Regel-Engine und der Vorgang, den ein Gerät schickt. `@opengewerk/domain`
+  exportiert sie weiter, Server und Oberfläche ändern sich nicht, und am Verhalten ändert sich
+  nichts. Damit eine weitere Anwendung das Fundament einbinden kann, ohne die Handwerkersoftware
+  mitzunehmen, hängt es von keinem ihrer Pakete ab; eine Lint-Regel sagt das im Editor, und ein
+  Test liest dafür die `package.json` des Pakets.
 
 ## [0.4.0] - 2026-09-27
 

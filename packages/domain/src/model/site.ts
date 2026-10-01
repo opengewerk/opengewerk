@@ -1,5 +1,6 @@
 import type { Address } from './address.js'
-import type { CustomerId, SiteId, Synced } from './identifier.js'
+import type { Synced } from '@opengewerk/platform-domain'
+import type { CustomerId, SiteId } from './identifier.js'
 
 /**
  * A building, an estate, a location. One customer can have many: the property

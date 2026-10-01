@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import {
   correctionProblem,
   effectiveEntries,

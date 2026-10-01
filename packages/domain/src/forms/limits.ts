@@ -1,6 +1,11 @@
 import type { TripCharacteristic } from '../model/electrical.js'
-import type { IsoDate } from '../model/identifier.js'
-import { RuleError, type RuleRecord, type RuleSet, type RuleUnit } from '../rules/rule.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
+import {
+  RuleError,
+  type RuleRecord,
+  type RuleSet,
+  type RuleUnit,
+} from '@opengewerk/platform-domain'
 import type { MeasurementField, MeasurementUnit } from './definition.js'
 import { measurementUnitSign } from './definition.js'
 

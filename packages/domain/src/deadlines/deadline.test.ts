@@ -1,7 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import { addDays } from '../rules/payment.js'
 import { coreDeadlineKinds } from './core.js'
 import {

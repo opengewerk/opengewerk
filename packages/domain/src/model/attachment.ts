@@ -1,4 +1,5 @@
-import { sha256Pattern } from './file.js'
+import { sha256Pattern } from '@opengewerk/platform-domain'
+import type { Synced } from '@opengewerk/platform-domain'
 import type {
   AttachmentId,
   AttachmentVersionId,
@@ -6,7 +7,6 @@ import type {
   InstallationId,
   JobId,
   SiteId,
-  Synced,
 } from './identifier.js'
 
 /**

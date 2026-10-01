@@ -1,4 +1,5 @@
-import type { JobId, LocationConsentId, Synced, TenantOwned, TimeEntryId } from './identifier.js'
+import type { Synced, TenantOwned } from '@opengewerk/platform-domain'
+import type { JobId, LocationConsentId, TimeEntryId } from './identifier.js'
 
 /**
  * What a stretch of time was (#76, 4.4). Travel and breaks are kinds of their

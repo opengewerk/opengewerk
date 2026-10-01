@@ -11,7 +11,7 @@ import type {
 import { cancellationOf } from './cancellation.js'
 import { documentContent } from './document-content.js'
 import { missingDetails } from './mandatory-details.js'
-import { RuleError } from './rule.js'
+import { RuleError } from '@opengewerk/platform-domain'
 import { shippedRules } from './shipped.js'
 import { type VatRate, vatRates } from './tax.js'
 

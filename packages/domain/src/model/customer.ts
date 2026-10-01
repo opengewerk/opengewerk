@@ -1,5 +1,6 @@
 import type { Address } from './address.js'
-import type { CustomerId, IsoDate, Synced } from './identifier.js'
+import type { IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { CustomerId } from './identifier.js'
 
 /**
  * The four kinds the concept distinguishes. They differ in how a job reaches

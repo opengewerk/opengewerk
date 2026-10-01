@@ -1,4 +1,4 @@
-import type { TenantId } from './identifier.js'
+import type { TenantId } from '@opengewerk/platform-domain'
 
 /**
  * One company on an instance. Several of them can share a server: number

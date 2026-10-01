@@ -1,4 +1,5 @@
-import type { Id, InstallationId, IsoDate, JobId, Synced } from '../model/identifier.js'
+import type { Id, IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { InstallationId, JobId } from '../model/identifier.js'
 import type { FormRegistry } from './definition.js'
 import { longestFormValues, readFormValues, sealProblems, valuesProblem } from './values.js'
 

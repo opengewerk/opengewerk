@@ -2,9 +2,9 @@ import type { DocumentLine, LineKind, LineUnit } from '../model/document-line.js
 import { quantityFactor } from '../model/document-line.js'
 import type { TaxTreatment } from '../model/document.js'
 import { taxNotes } from '../model/document.js'
-import type { IsoDate } from '../model/identifier.js'
-import type { RuleSet } from './rule.js'
-import { RuleError, withoutNegativeZero } from './rule.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
+import type { RuleSet } from '@opengewerk/platform-domain'
+import { RuleError, withoutNegativeZero } from '@opengewerk/platform-domain'
 import type { TaxedAmount, VatRate } from './tax.js'
 import { vatOn } from './tax.js'
 

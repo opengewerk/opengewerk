@@ -1,4 +1,5 @@
-import type { CustomerId, IsoDate, JobId, SiteId, Synced, TaskId } from './identifier.js'
+import type { IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { CustomerId, JobId, SiteId, TaskId } from './identifier.js'
 
 /**
  * Open or done, and nothing in between. A task that is "in progress" says

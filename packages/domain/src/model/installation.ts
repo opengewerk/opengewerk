@@ -1,4 +1,5 @@
-import type { InstallationId, InverterId, IsoDate, SiteId, Synced } from './identifier.js'
+import type { IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { InstallationId, InverterId, SiteId } from './identifier.js'
 
 /**
  * What stands in a building and needs looking after. The inverter of a PV

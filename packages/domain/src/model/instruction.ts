@@ -1,13 +1,8 @@
 import type { Address } from './address.js'
 import type { DocumentKind } from './document.js'
 import type { IssuerContent } from './document-content.js'
-import type {
-  DocumentId,
-  DocumentInstructionChoicesId,
-  InstructionId,
-  IsoDate,
-  TenantOwned,
-} from './identifier.js'
+import type { IsoDate, TenantOwned } from '@opengewerk/platform-domain'
+import type { DocumentId, DocumentInstructionChoicesId, InstructionId } from './identifier.js'
 
 /**
  * The instructions OpenGewerk ships, one key per wording.

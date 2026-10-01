@@ -1,9 +1,9 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import { addDays, daysInYear, lateFrom, lateInterestOn, longPaymentTermNotice } from './payment.js'
-import { applyRate, RuleError, type RuleRecord, ruleSet } from './rule.js'
+import { applyRate, RuleError, type RuleRecord, ruleSet } from '@opengewerk/platform-domain'
 import { tenantParameterKeys, tenantParameterUnits } from './parameter.js'
 import { rulePackages, shippedRules } from './shipped.js'
 import { vatOn, withinSmallBusinessLimits } from './tax.js'

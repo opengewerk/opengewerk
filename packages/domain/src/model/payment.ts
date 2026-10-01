@@ -1,5 +1,6 @@
 import type { DocumentKind } from './document.js'
-import type { DocumentId, IsoDate } from './identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
+import type { DocumentId } from './identifier.js'
 
 /**
  * A payment that came in on an invoice (#189): a gross amount and the day it

@@ -1,5 +1,6 @@
 import type { InstallationKind } from './installation.js'
-import type { InstallationId, InverterId, PvModuleId, PvStringId, Synced } from './identifier.js'
+import type { Synced } from '@opengewerk/platform-domain'
+import type { InstallationId, InverterId, PvModuleId, PvStringId } from './identifier.js'
 
 /**
  * The photovoltaic structure below an installation: inverter, string, module.

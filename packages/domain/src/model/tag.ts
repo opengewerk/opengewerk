@@ -1,4 +1,5 @@
-import type { CustomerId, Id, SiteId, Synced } from './identifier.js'
+import type { Id, Synced } from '@opengewerk/platform-domain'
+import type { CustomerId, SiteId } from './identifier.js'
 import type { JobStatus } from './job.js'
 
 export type TagId = Id<'tag'>

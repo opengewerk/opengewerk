@@ -1,8 +1,8 @@
 import { isInvoice } from '../model/document.js'
 import type { DocumentContent } from '../model/document-content.js'
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import { detailsRegime } from './mandatory-details.js'
-import type { RuleSet } from './rule.js'
+import type { RuleSet } from '@opengewerk/platform-domain'
 
 /**
  * How an invoice leaves the house: as an electronic invoice in the sense of
