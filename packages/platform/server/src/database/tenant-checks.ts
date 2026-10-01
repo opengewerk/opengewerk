@@ -1,0 +1,369 @@
+import type { Pool } from 'pg'
+
+import { applicationRoleName } from './roles.js'
+
+// The questions every application has to ask its own database about the
+// separation of tenants, asked of the catalogue rather than of a list. A list
+// is complete on the day it is written and quietly short one entry afterwards;
+// the catalogue knows the table a later migration added.
+//
+// They are part of the foundation because what they guard is: a table that
+// forgets FORCE, a policy that compares against the wrong setting or a key
+// that leaves the tenant out is a leak nobody notices, in any application, as
+// everything still works. An application runs them over its own database and
+// names what it has of its own: the tables outside the log, the policies that
+// reach outside a tenant, and why.
+
+/**
+ * The record of the migration runner, where an application keeps it in
+ * `public`. It is nobody's data and belongs to no tenant, so the questions
+ * below pass it over.
+ */
+const runnersRecord = ['__drizzle_migrations']
+
+/** A table as the application role meets it. */
+export interface TableProtection {
+  readonly table: string
+  readonly enabled: boolean
+  readonly forced: boolean
+  readonly policies: number
+  readonly granted: boolean
+}
+
+/**
+ * Every table in `public` with the four things it needs: row level security
+ * on, forced, at least one policy, and a grant.
+ *
+ * All of them come back, the sound ones included, so that a test can also say
+ * how many it expected. A query that finds no table must not pass as "no table
+ * unprotected".
+ */
+export async function tableProtections(
+  pool: Pool,
+  except: readonly string[] = runnersRecord,
+): Promise<TableProtection[]> {
+  const { rows } = await pool.query<{
+    table_name: string
+    enabled: boolean
+    forced: boolean
+    policies: string
+    granted: boolean
+  }>(
+    `select c.relname as table_name,
+            c.relrowsecurity as enabled,
+            c.relforcerowsecurity as forced,
+            (select count(*) from pg_policy p where p.polrelid = c.oid) as policies,
+            has_table_privilege($1, c.oid, 'SELECT') as granted
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind = 'r'
+        and c.relname <> all ($2::text[])
+      order by c.relname`,
+    [applicationRoleName, [...except]],
+  )
+
+  return rows.map((row) => ({
+    table: row.table_name,
+    enabled: row.enabled,
+    forced: row.forced,
+    policies: Number(row.policies),
+    granted: row.granted,
+  }))
+}
+
+/** The ones a tenant is not kept out of, or nobody gets into. */
+export function unprotected(tables: readonly TableProtection[]): TableProtection[] {
+  return tables.filter(
+    (table) => !table.enabled || !table.forced || table.policies === 0 || !table.granted,
+  )
+}
+
+/**
+ * The policies of the foundation that open a table outside a tenant, each
+ * with its reason. An application adds its own to the list it hands in.
+ *
+ * `tenants.created_by_setup`, the open policy the first run inserts through,
+ * is deliberately not among them. It needs no excuse: the restrictive
+ * `no_application_insert` beside it fences every insert of the application,
+ * and the reading below sees that. Listed here it would be excused whether
+ * the fence stands or not, and a migration that dropped the fence would pass.
+ */
+export const foundationPoliciesOutsideATenant: Readonly<Record<string, string>> = {
+  'memberships.own_membership_outside_tenant':
+    'the chooser after a sign in reads its own memberships, outside any tenant',
+  'tenants.own_tenants_outside_tenant':
+    'the chooser reads the names of the tenants somebody belongs to',
+}
+
+/** What reading the policies came to. */
+export interface PolicyReading {
+  /** How many tables carry a tenant, so a test can say how many it expected. */
+  readonly tables: number
+  /** Policies that let the application past the tenant of the transaction. */
+  readonly violations: readonly string[]
+  /** Entries of the list of exceptions that name no policy any more. */
+  readonly stale: readonly string[]
+}
+
+/**
+ * Reads the expression of every policy the application falls under and holds
+ * it against the one comparison that is allowed: the tenant of the row against
+ * the tenant of the transaction.
+ *
+ * `tableProtections` asks whether a table has a policy, not what the policy
+ * says. One with `using (true)`, or one that compares against the wrong
+ * setting, passes it and opens the table to every tenant.
+ *
+ * A restrictive policy with that comparison covers a table on its own,
+ * because it is ANDed with whatever else there is; that is how the audit log
+ * and the change sequence let their trigger write while nobody else can. A
+ * restrictive policy of an application narrows further and is not looked at.
+ * Anything that opens a table outside a tenant has to be in `outsideATenant`
+ * with its reason, and the list is checked against the catalogue as well, so
+ * an entry cannot outlive its policy.
+ */
+export async function readPolicies(
+  pool: Pool,
+  outsideATenant: Readonly<Record<string, string>> = foundationPoliciesOutsideATenant,
+): Promise<PolicyReading> {
+  const { rows } = await pool.query<{
+    table_name: string
+    policy: string
+    permissive: boolean
+    command: string
+    applies: boolean
+    using: string | null
+    checking: string | null
+    has_tenant: boolean
+  }>(
+    `select c.relname as table_name,
+            p.polname as policy,
+            p.polpermissive as permissive,
+            p.polcmd as command,
+            (p.polroles = '{0}' or $1::regrole = any(p.polroles)) as applies,
+            pg_get_expr(p.polqual, p.polrelid) as using,
+            pg_get_expr(p.polwithcheck, p.polrelid) as checking,
+            exists (
+              select 1 from pg_attribute a
+               where a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
+            ) as has_tenant
+       from pg_policy p
+       join pg_class c on c.oid = p.polrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'`,
+    [applicationRoleName],
+  )
+
+  const comparison = (column: string) =>
+    `(${column} = (NULLIF(current_setting('app.tenant_id'::text, true), ''::text))::uuid)`
+  const tables = new Set(
+    rows
+      .filter((row) => row.has_tenant || row.table_name === 'tenants')
+      .map((row) => row.table_name),
+  )
+  const violations: string[] = []
+
+  for (const table of tables) {
+    const expected = comparison(table === 'tenants' ? 'id' : 'tenant_id')
+    const policies = rows.filter((row) => row.table_name === table && row.applies)
+    const restrictive = policies.filter((row) => !row.permissive)
+    const reads = (command: string) => ['*', 'r', 'w', 'd'].includes(command)
+    const writes = (command: string) => ['*', 'a', 'w'].includes(command)
+    const readsFenced = restrictive.some((row) => row.command === '*' && row.using === expected)
+    const writesFenced = restrictive.some(
+      (row) =>
+        (row.command === '*' || row.command === 'a') &&
+        (row.checking === expected || row.checking === 'false'),
+    )
+
+    for (const row of policies.filter((policy) => policy.permissive)) {
+      if (`${table}.${row.policy}` in outsideATenant) {
+        continue
+      }
+
+      if (reads(row.command) && !readsFenced && row.using !== expected) {
+        violations.push(`${table}.${row.policy} reads: ${String(row.using)}`)
+      }
+
+      if (writes(row.command) && !writesFenced && row.checking !== expected) {
+        violations.push(`${table}.${row.policy} writes: ${String(row.checking)}`)
+      }
+    }
+  }
+
+  const listed = new Set(rows.map((row) => `${row.table_name}.${row.policy}`))
+
+  return {
+    tables: tables.size,
+    violations,
+    stale: Object.keys(outsideATenant).filter((entry) => !listed.has(entry)),
+  }
+}
+
+/** A foreign key between two tables that both carry a tenant. */
+export interface TenantKey {
+  readonly key: string
+  /** The columns on the side that points, in the order of the key. */
+  readonly columns: string
+  /** The columns it points at. */
+  readonly target: string
+}
+
+/**
+ * Every foreign key between two tables of a tenant.
+ *
+ * A foreign key is checked past row level security: the database looks the
+ * parent up as the owner of its table, so a key on the id alone finds the
+ * record of any tenant, and a record of this one could be hung on a record of
+ * the next. Between two tables of a tenant the tenant therefore comes first on
+ * both sides, and `withoutTheTenant` names the keys where it does not.
+ */
+export async function keysBetweenTenantTables(pool: Pool): Promise<TenantKey[]> {
+  const { rows } = await pool.query<TenantKey>(
+    `select c.conname as key,
+            (select string_agg(a.attname, ',' order by k.ord)
+               from unnest(c.conkey) with ordinality k(attnum, ord)
+               join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum) as columns,
+            (select string_agg(a.attname, ',' order by k.ord)
+               from unnest(c.confkey) with ordinality k(attnum, ord)
+               join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum) as target
+       from pg_constraint c
+      where c.contype = 'f'
+        and c.connamespace = 'public'::regnamespace
+        and exists (select 1 from pg_attribute a
+                     where a.attrelid = c.conrelid and a.attname = 'tenant_id' and not a.attisdropped)
+        and exists (select 1 from pg_attribute a
+                     where a.attrelid = c.confrelid and a.attname = 'tenant_id' and not a.attisdropped)
+      order by c.conname`,
+  )
+
+  return rows
+}
+
+export function withoutTheTenant(keys: readonly TenantKey[]): TenantKey[] {
+  return keys.filter(
+    (key) => !key.columns.startsWith('tenant_id,') || !key.target.startsWith('tenant_id,'),
+  )
+}
+
+/**
+ * The columns of an audit entry, and they are frozen.
+ *
+ * The chain is hashed over the whole row. Measured, not assumed: adding a
+ * single column makes every existing entry disagree with its own fingerprint,
+ * and a chain that was sound reports a break at entry one. On an installation
+ * that has been running, an update with one extra column here would tell the
+ * tenant its audit log had been tampered with.
+ *
+ * So this list is not a duplicate of the schema, it is the promise, and it is
+ * the same in every application (ADR 0010, point 9). If a column really has to
+ * be added, the way through is a second fingerprint that old entries keep
+ * being measured by, not a quiet ALTER TABLE.
+ */
+export const auditEntryColumns: readonly string[] = [
+  'change_id',
+  'changed_at',
+  'database_role',
+  'field',
+  'hash',
+  'id',
+  'new_value',
+  'old_value',
+  'operation',
+  'previous_hash',
+  'reason',
+  'record_id',
+  'sequence',
+  'table_name',
+  'tenant_id',
+  'user_id',
+]
+
+/** The tables that stay out of the audit log. */
+export interface OutsideTheLog {
+  /** Families of tables, by the beginning of their name, so the next one is covered. */
+  readonly prefixes: readonly string[]
+  /** Single tables, each a decision of its own. */
+  readonly tables: readonly string[]
+}
+
+/**
+ * What of the foundation stays out, matched by prefix rather than by name so
+ * that the next table of a family is covered as well.
+ *
+ * The log and the sync layer are what the log is made of and what it already
+ * describes: the log would record its own recording. The accounts are out for
+ * a different reason worth keeping straight. Logging them is not redundant but
+ * impossible: an entry needs a tenant, these rows belong to the instance and
+ * have none, and the trigger would fail rather than write a wrong one. What a
+ * tenant may see of somebody signing in is `tenant_sessions`, which carries
+ * the trigger like everything else.
+ */
+export const foundationOutsideTheLog: OutsideTheLog = {
+  prefixes: ['audit_', 'sync_', 'auth_'],
+  tables: [],
+}
+
+/** Which tables the audit trigger watches, held against which it should. */
+export interface LogCoverage {
+  readonly watched: readonly string[]
+  /** Tables of a tenant without the trigger: their changes leave no trace. */
+  readonly unwatched: readonly string[]
+  /** Tables that should stay out and carry it all the same. */
+  readonly watchedAgainstTheList: readonly string[]
+}
+
+export async function logCoverage(
+  pool: Pool,
+  outside: OutsideTheLog = foundationOutsideTheLog,
+  except: readonly string[] = runnersRecord,
+): Promise<LogCoverage> {
+  const { rows } = await pool.query<{ table_name: string; watched: boolean }>(
+    `select c.relname as table_name,
+            exists (select 1 from pg_trigger t
+                     where t.tgrelid = c.oid and t.tgname = 'audit_changes') as watched
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind = 'r'
+        and c.relname <> all ($1::text[])
+      order by c.relname`,
+    [[...except]],
+  )
+
+  const staysOut = (table: string) =>
+    outside.tables.includes(table) || outside.prefixes.some((prefix) => table.startsWith(prefix))
+
+  return {
+    watched: rows.filter((row) => row.watched).map((row) => row.table_name),
+    unwatched: rows
+      .filter((row) => !row.watched && !staysOut(row.table_name))
+      .map((row) => row.table_name),
+    watchedAgainstTheList: rows
+      .filter((row) => row.watched && staysOut(row.table_name))
+      .map((row) => row.table_name),
+  }
+}
+
+/**
+ * Tables that carry the sync columns without the trigger that keeps them
+ * true. A row there would travel with a version that never moves, and the
+ * next device to change it would overwrite without a conflict.
+ */
+export async function unstampedTables(pool: Pool): Promise<string[]> {
+  const { rows } = await pool.query<{ table_name: string }>(
+    `select c.relname as table_name
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       join pg_attribute a on a.attrelid = c.oid
+        and a.attname = 'change_sequence' and not a.attisdropped
+      where n.nspname = 'public'
+        and c.relkind = 'r'
+        and not exists (select 1 from pg_trigger t
+                         where t.tgrelid = c.oid and t.tgname = 'stamp_sync_columns')
+      order by c.relname`,
+  )
+
+  return rows.map((row) => row.table_name)
+}

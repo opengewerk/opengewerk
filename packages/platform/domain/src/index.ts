@@ -16,5 +16,8 @@ export * from './model/passkey.js'
 // come from. Which rules there are is the application's business.
 export * from './rules/rule.js'
 
-// What travels between a device and the server.
+// What travels between a device and the server, and what the server keeps of
+// it. Which records travel, and under which rules, the application says.
+export * from './sync/conflict.js'
 export * from './sync/operation.js'
+export * from './sync/record.js'

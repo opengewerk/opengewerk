@@ -1,15 +1,20 @@
-import type { Id } from '@opengewerk/domain'
+import type { Id } from '@opengewerk/platform-domain'
+import { pgTable, text, uuid } from 'drizzle-orm/pg-core'
+
+import { primaryId, timestamps } from './columns.js'
 import {
   createdBySetupOnly,
   ownTenantOnly,
   ownTenantsOutsideTenant,
-  primaryId,
   readableByTheOwner,
-  timestamps,
-} from '@opengewerk/platform-server'
-import { pgTable, text, uuid } from 'drizzle-orm/pg-core'
+} from './rls.js'
 
-/** One company on the instance. Several can share a server (ADR 0006). */
+/**
+ * One tenant of the instance: a business in one application, an operator of
+ * buildings in another. Several can share a server (ADR 0006). What it is
+ * called on a screen is the application's word; here and in the database it
+ * is the tenant.
+ */
 export const tenants = pgTable(
   'tenants',
   {
@@ -17,10 +22,10 @@ export const tenants = pgTable(
     name: text('name').notNull(),
     ...timestamps,
   },
-  // The second one arrived with the authentication: a company has to be
-  // readable by name from outside any company, or nobody could ever pick one
+  // The second one arrived with the authentication: a tenant has to be
+  // readable by name from outside any tenant, or nobody could ever pick one
   // after signing in. The last two arrived with the first run setup, which
-  // creates the one business an empty instance needs, and has to ask first
+  // creates the one tenant an empty instance needs, and has to ask first
   // whether there is one, both from a function that runs as the owner of the
   // tables.
   (table) => [

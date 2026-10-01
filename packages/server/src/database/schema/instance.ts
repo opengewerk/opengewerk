@@ -4,11 +4,9 @@ import {
   timestamps,
   writtenByTriggerOutsideAnyTenant,
 } from '@opengewerk/platform-server'
+import { auditOperation, authUsers } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, index, pgTable, smallint, text, time, timestamp, uuid } from 'drizzle-orm/pg-core'
-
-import { auditOperation } from './audit.js'
-import { authUsers } from './authentication.js'
 
 /**
  * What belongs to the instance and to no business (#188): who runs it, what

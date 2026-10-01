@@ -6,11 +6,11 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { documents } from './documents.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * A customer's signature on a document, made on the device on site.

@@ -1,26 +1,9 @@
-import type { Operation, SyncValue } from '@opengewerk/platform-domain'
+import type { ConflictReason, Operation, SyncValue } from '@opengewerk/platform-domain'
 import { sameValue } from '@opengewerk/platform-domain'
 import { policyFor } from './policy.js'
 
 /** The record as it stands on the server, field by field, already flattened. */
 export type RecordState = Readonly<Record<string, SyncValue>>
-
-export const conflictReasons = [
-  /** Somebody changed one of these fields while the device was away. */
-  'changed_elsewhere',
-  /** The record left the state in which offline changes are allowed. */
-  'record_is_fixed',
-  /** This kind of record is only changed with a connection. */
-  'online_only',
-  /** The record is not there, or not any more. */
-  'record_missing',
-  /** Nothing on this instance knows this entity. */
-  'unknown_entity',
-  /** A field only the server writes, such as the number on a document. */
-  'set_by_server',
-] as const
-
-export type ConflictReason = (typeof conflictReasons)[number]
 
 export type MergeResult =
   | { readonly outcome: 'apply'; readonly values: RecordState }

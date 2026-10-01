@@ -1,8 +1,7 @@
 import { ruleUnits, tenantParameterKeys } from '@opengewerk/domain'
 import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { date, integer, pgEnum, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
-
-import { tenantColumn } from './tenants.js'
 
 export const ruleUnit = pgEnum('rule_unit', ruleUnits)
 export const tenantParameterKey = pgEnum('tenant_parameter_key', tenantParameterKeys)

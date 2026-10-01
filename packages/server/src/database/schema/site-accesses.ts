@@ -6,12 +6,11 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
-import { memberships } from './memberships.js'
 import { sites } from './sites.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * The ways into a site (#286): the key safe, the code of the alarm, the

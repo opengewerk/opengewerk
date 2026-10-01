@@ -6,6 +6,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -23,7 +24,6 @@ import {
 import { articleImports } from './article-imports.js'
 import { lineUnit } from './line-enums.js'
 import { suppliers } from './suppliers.js'
-import { tenantColumn } from './tenants.js'
 
 const fits = (column: unknown, limit: number) =>
   sql`char_length(${column}) between 1 and ${sql.raw(String(limit))}`

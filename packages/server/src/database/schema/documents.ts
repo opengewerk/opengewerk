@@ -12,6 +12,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import {
   check,
   date,
@@ -28,7 +29,6 @@ import {
 
 import { sql } from 'drizzle-orm'
 
-import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'

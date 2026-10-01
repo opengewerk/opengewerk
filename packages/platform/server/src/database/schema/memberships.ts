@@ -1,30 +1,24 @@
-import type { RoleKey } from '@opengewerk/domain'
-import {
-  membershipVisibility,
-  primaryId,
-  readableByTheOwner,
-  tenantIsolation,
-  timestamps,
-} from '@opengewerk/platform-server'
 import { foreignKey, index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 import { authUsers, signInMethod } from './authentication.js'
+import { primaryId, timestamps } from './columns.js'
+import { membershipVisibility, readableByTheOwner, tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**
- * What somebody is in one business.
+ * What somebody is in one tenant.
  *
  * This is the join between a user of the instance and a tenant, and it is
- * where the roles live. Not on the user, because the same person can be the
- * owner of one company and only the office of another; not on the session,
+ * where the roles live. Not on the user, because the same person can hold one
+ * role with one tenant and a lesser one with another; not on the session,
  * because a session outlives a change of rights and would go on claiming one
  * that was taken away an hour ago.
  *
  * It carries a tenant, so it is an ordinary table in every respect: the audit
  * trigger watches it, and that is how ADR 0006 gets its "audit log for a
  * change of rights" without a line of code written for the purpose. Granting
- * somebody the owner role shows up in that company's log, field by field, with
- * the right the route declared as the reason.
+ * somebody a role shows up in the log of that tenant, field by field, with the
+ * right the route declared as the reason.
  */
 export const memberships = pgTable(
   'memberships',
@@ -35,19 +29,22 @@ export const memberships = pgTable(
       .notNull()
       .references(() => authUsers.id, { onDelete: 'restrict' }),
     /**
-     * The roles, as an array rather than a table of its own. A row per role
-     * would be the tidier shape on paper and a worse one here: the roles are a
-     * fixed list in `domain` today (ADR 0006 keeps them out of the database
-     * until a trade package registers rights of its own), so a join table would
-     * be a second place to look with nothing extra in it.
+     * The roles, as an array of their keys rather than a table of its own. A
+     * row per role would be the tidier shape on paper and a second place to
+     * look with nothing extra in it.
+     *
+     * Plain strings here. Which keys there are is the application's list
+     * (ADR 0010), and it reads them back through that list: a key the
+     * database holds and the application no longer knows must come out as
+     * "no such role" and not as a right.
      */
-    roles: text('roles').array().notNull().$type<readonly RoleKey[]>(),
+    roles: text('roles').array().notNull().$type<readonly string[]>(),
     /**
-     * When this person was shut out of this business, null while they work in
+     * When this person was shut out of this tenant, null while they work in
      * it.
      *
-     * Here and not on the account, because a business may shut somebody out of
-     * itself and may not shut them out of the company next door on the same
+     * Here and not on the account, because a tenant may shut somebody out of
+     * itself and may not shut them out of the tenant next door on the same
      * instance. The same reason the roles are here.
      *
      * A timestamp rather than a flag: "since when" is the question somebody
@@ -60,23 +57,24 @@ export const memberships = pgTable(
   (table) => [
     unique('memberships_one_per_user').on(table.tenantId, table.userId),
     ...membershipVisibility(table.tenantId, table.userId),
-    // For `instance_tenants()` (#188), which counts the people and names the
-    // owners of every business for the operators and hands out nothing else.
+    // For a function that runs as the owner of the tables and counts the
+    // people of every tenant for whoever runs the instance (#188). It hands
+    // out nothing else.
     readableByTheOwner(),
   ],
 )
 
 /**
- * One stretch of somebody working in one business.
+ * One stretch of somebody working in one tenant.
  *
  * The reason this exists rather than a column on the session: the audit log is
  * per tenant and its `tenant_id` cannot be null, so an event without a
- * business has nowhere to go. Signing in to the instance is such an event, and
- * choosing a business is the moment it stops being one. This row is written
+ * tenant has nowhere to go. Signing in to the instance is such an event, and
+ * choosing a tenant is the moment it stops being one. This row is written
  * then, the trigger puts it in that tenant's log, and closing it on sign out
  * is a change to the same row and lands there too.
  *
- * What that buys: a company can see who worked in it and when, and cannot see
+ * What that buys: a tenant can see who worked in it and when, and cannot see
  * where else those people work. Both halves of that are the point.
  */
 export const tenantSessions = pgTable(
@@ -98,9 +96,9 @@ export const tenantSessions = pgTable(
     /** Set on signing out or on the device being revoked. */
     endedAt: timestamp('ended_at', { withTimezone: true }),
     /**
-     * With what the session was signed in, taken from it when the business is
+     * With what the session was signed in, taken from it when the tenant is
      * chosen (#167). This is where a sign in with a passkey shows in the log
-     * of the business.
+     * of the tenant.
      */
     signInMethod: signInMethod('sign_in_method').notNull().default('password'),
     ...timestamps,
@@ -109,21 +107,21 @@ export const tenantSessions = pgTable(
 )
 
 /**
- * The passkeys of somebody who works in this business, as the business sees
+ * The passkeys of somebody who works in this tenant, as the tenant sees
  * them (#167, #248).
  *
  * A passkey belongs to the account and lives in `auth_passkeys`, on the
- * instance, where no audit trigger can reach it. But it opens this business
+ * instance, where no audit trigger can reach it. But it opens this tenant
  * as much as the password does, so the owner should see it come and go. This
- * table is how: a row per passkey and business the account works in, written
+ * table is how: a row per passkey and tenant the account works in, written
  * when the passkey is added, renamed along with it and marked when it is
  * deleted. The audit trigger watches it like every other table, which puts
- * all three into the log of every business the person works in, without a
+ * all three into the log of every tenant the person works in, without a
  * line of the log written by hand. The same way `tenant_sessions` brings a
  * sign in into the log.
  *
  * Never deleted: a passkey that is gone keeps its row with `removed_at` set,
- * so that "which keys did this person ever have" has an answer. A business
+ * so that "which keys did this person ever have" has an answer. A tenant
  * the person joins later learns of a passkey from its next change on.
  */
 export const memberPasskeys = pgTable(
@@ -150,7 +148,7 @@ export const memberPasskeys = pgTable(
 )
 
 /**
- * An offer of a way into this business, handed over as a link.
+ * An offer of a way into this tenant, handed over as a link.
  *
  * A tenant bound table like any other, so the audit trigger watches it: who
  * was invited, by whom, when it was used. That is where the record of a new
@@ -164,7 +162,7 @@ export const memberPasskeys = pgTable(
  *
  * Two policies. The ordinary isolation is what the office works through. The
  * second one is for the function that redeems a link: it runs as the owner of
- * the tables, the caller has no session and therefore no business, and without
+ * the tables, the caller has no session and therefore no tenant, and without
  * a policy the owner can pass it would find no row on an instance full of
  * invitations. See `readableByTheOwner`, and `0012` for why the writing half
  * of the redemption does not need the same thing.
@@ -176,7 +174,7 @@ export const invitations = pgTable(
     ...tenantColumn,
     email: text('email').notNull(),
     name: text('name').notNull(),
-    roles: text('roles').array().notNull().$type<readonly RoleKey[]>(),
+    roles: text('roles').array().notNull().$type<readonly string[]>(),
     /** Hex SHA-256 of the token in the link. Unique, so a lookup is one index hit. */
     tokenHash: text('token_hash').notNull(),
     invitedBy: text('invited_by')

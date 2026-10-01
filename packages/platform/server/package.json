@@ -4,12 +4,21 @@
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "sql"
   ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./migration": {
+      "types": "./dist/migration.d.ts",
+      "default": "./dist/migration.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "default": "./dist/schema.js"
     },
     "./testing": {
       "types": "./dist/testing.d.ts",
@@ -35,6 +44,7 @@
     "@types/express": "5.0.6",
     "@types/node": "24.13.5",
     "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
     "vitest": "5.0.1"
   }
 }

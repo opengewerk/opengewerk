@@ -11,6 +11,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -27,7 +28,6 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { suppliers } from './suppliers.js'
-import { tenantColumn } from './tenants.js'
 
 export const articleImportStatus = pgEnum('article_import_status', articleImportStatuses)
 

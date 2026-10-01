@@ -4,13 +4,7 @@ import {
   operationOutcomes,
   type OperationId,
   type SyncValue,
-} from '@opengewerk/domain'
-import {
-  primaryId,
-  tenantIsolation,
-  timestamps,
-  writtenByTriggerOnly,
-} from '@opengewerk/platform-server'
+} from '@opengewerk/platform-domain'
 import {
   bigint,
   index,
@@ -23,6 +17,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { primaryId, timestamps } from './columns.js'
+import { tenantIsolation, writtenByTriggerOnly } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 export const operationOutcome = pgEnum('operation_outcome', operationOutcomes)

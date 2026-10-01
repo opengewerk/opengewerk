@@ -6,6 +6,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   check,
@@ -19,7 +20,6 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { installations } from './installations.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * The QR labels of the installations (#308), one row for each label that was

@@ -6,6 +6,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   check,
@@ -20,7 +21,6 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { inverters } from './photovoltaic.js'
-import { tenantColumn } from './tenants.js'
 import { sites } from './sites.js'
 
 export const installationKind = pgEnum('installation_kind', installationKinds)
