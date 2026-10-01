@@ -3,6 +3,11 @@ packages:
   # Trades are packages of their own under ADR 0008. The folder comes with the
   # first trade; until then this pattern matches nothing and does no harm.
   - packages/gewerke/*
+  # The foundation every application of the organisation is built on
+  # (ADR 0010). Packages of their own, so that the direction of the
+  # dependency is a property of the package graph: nothing in there depends
+  # on an application.
+  - packages/platform/*
 
 # pnpm holds back freshly published versions until they have been out for a
 # while. That is the protection against a hijacked npm account, where the

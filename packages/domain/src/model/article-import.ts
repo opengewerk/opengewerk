@@ -1,6 +1,6 @@
 import { isCalendarDay } from './article.js'
 import type { LineUnit, PriceBase } from './document-line.js'
-import type { Id, IsoDate } from './identifier.js'
+import type { Id, IsoDate } from '@opengewerk/platform-domain'
 import type { SupplierId } from './supplier.js'
 
 export type ArticleImportId = Id<'article-import'>

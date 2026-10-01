@@ -1,5 +1,5 @@
 import type { Address } from './address.js'
-import type { Id, Synced } from './identifier.js'
+import type { Id, Synced } from '@opengewerk/platform-domain'
 
 export type SupplierId = Id<'supplier'>
 

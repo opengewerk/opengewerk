@@ -1,4 +1,4 @@
-import type { TenantId } from './identifier.js'
+import type { TenantId } from '@opengewerk/platform-domain'
 
 /**
  * What somebody is allowed to do. Rights are cut along actions, not along

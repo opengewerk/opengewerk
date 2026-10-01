@@ -381,7 +381,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Domäne bauen
-        run: pnpm --filter @opengewerk/domain run build
+        run: pnpm --filter "@opengewerk/domain..." run build
 
       - name: Auf den Renderer warten
         run: |

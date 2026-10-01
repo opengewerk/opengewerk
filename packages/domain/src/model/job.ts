@@ -1,4 +1,5 @@
-import type { CustomerId, Id, InstallationId, JobId, SiteId, Synced } from './identifier.js'
+import type { Id, Synced } from '@opengewerk/platform-domain'
+import type { CustomerId, InstallationId, JobId, SiteId } from './identifier.js'
 
 /**
  * A job is either a project or a service call. The concept keeps them apart

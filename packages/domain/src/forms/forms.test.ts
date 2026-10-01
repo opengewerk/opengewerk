@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ruleSet } from '../rules/rule.js'
+import { ruleSet } from '@opengewerk/platform-domain'
 import type { FormDefinition, MeasurementField } from './definition.js'
 import { definitionProblems, formRegistry } from './definition.js'
 import { formatMeasured, limitVerdict, measuredNumber } from './limits.js'

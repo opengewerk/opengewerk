@@ -3,7 +3,7 @@ import cashAccounting from './data/cash-accounting.json' with { type: 'json' }
 import eInvoice from './data/e-invoice.json' with { type: 'json' }
 import invoice from './data/invoice.json' with { type: 'json' }
 import payment from './data/payment.json' with { type: 'json' }
-import { type RuleRecord, ruleSet, type RuleSet } from './rule.js'
+import { type RuleRecord, ruleSet, type RuleSet } from '@opengewerk/platform-domain'
 import smallBusiness from './data/small-business.json' with { type: 'json' }
 import vat from './data/vat.json' with { type: 'json' }
 import workingTime from './data/working-time.json' with { type: 'json' }

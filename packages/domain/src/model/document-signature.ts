@@ -1,5 +1,6 @@
 import type { LineKind, LineUnit } from './document-line.js'
-import type { DocumentId, DocumentSignatureId, Synced } from './identifier.js'
+import type { Synced } from '@opengewerk/platform-domain'
+import type { DocumentId, DocumentSignatureId } from './identifier.js'
 
 /**
  * The box a signature is drawn in, in units of its own. The pad on a device

@@ -1,10 +1,10 @@
+import type { Synced } from '@opengewerk/platform-domain'
 import type {
   BoardSectionId,
   CircuitId,
   DistributionBoardId,
   EquipmentId,
   InstallationId,
-  Synced,
 } from './identifier.js'
 
 /**

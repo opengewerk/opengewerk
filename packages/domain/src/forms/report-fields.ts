@@ -1,5 +1,5 @@
 import type { ReportFieldContent } from '../model/document-content.js'
-import type { Id, Synced } from '../model/identifier.js'
+import type { Id, Synced } from '@opengewerk/platform-domain'
 import type {
   BlockField,
   ChoiceField,

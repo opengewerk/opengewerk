@@ -2,7 +2,7 @@ import type { Address } from '../model/address.js'
 import type { DocumentKind } from '../model/document.js'
 import { isInvoice } from '../model/document.js'
 import type { DocumentContent } from '../model/document-content.js'
-import type { RuleSet } from './rule.js'
+import type { RuleSet } from '@opengewerk/platform-domain'
 
 /**
  * Which list of mandatory details an invoice has to satisfy.

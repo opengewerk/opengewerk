@@ -1,7 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import type { IssuerContent, LineContent, RecipientContent } from '../model/document-content.js'
 import { type ContentSources, documentContent } from './document-content.js'
 import { compactVatId, eInvoiceDuty, eInvoiceGaps, formatFor, supplyDateOf } from './e-invoice.js'

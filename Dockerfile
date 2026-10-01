@@ -14,6 +14,7 @@ RUN corepack enable
 # install layer stays cached, and that is the difference between a twenty
 # second build and a three minute one.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json tsconfig.base.json ./
+COPY packages/platform/domain/package.json packages/platform/domain/
 COPY packages/domain/package.json packages/domain/
 COPY packages/gewerke/elektro/package.json packages/gewerke/elektro/
 COPY packages/server/package.json packages/server/

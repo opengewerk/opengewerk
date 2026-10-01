@@ -1,9 +1,9 @@
 import type { DocumentKind } from '../model/document.js'
 import type { PaymentTermContent } from '../model/document-content.js'
-import type { IsoDate } from '../model/identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import { carriesDueDate, statesPaymentTerm } from '../model/payment-term.js'
 import type { BilledAmount } from './invoice.js'
-import { applyRate, type RuleSet, withoutNegativeZero } from './rule.js'
+import { applyRate, type RuleSet, withoutNegativeZero } from '@opengewerk/platform-domain'
 
 /**
  * The days of a calendar year when interest is worked out: 366 in a leap year,

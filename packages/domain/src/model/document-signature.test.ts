@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { printedNotes } from '../rules/document-content.js'
 import { decideMerge } from '../sync/merge.js'
-import type { Operation, OperationId } from '../sync/operation.js'
+import type { Operation, OperationId } from '@opengewerk/platform-domain'
 import { showsPrices, whyFixed } from './document.js'
 import {
   deviceInfoProblem,

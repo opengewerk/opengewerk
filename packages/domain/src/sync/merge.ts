@@ -1,5 +1,5 @@
-import type { Operation, SyncValue } from './operation.js'
-import { sameValue } from './operation.js'
+import type { Operation, SyncValue } from '@opengewerk/platform-domain'
+import { sameValue } from '@opengewerk/platform-domain'
 import { policyFor } from './policy.js'
 
 /** The record as it stands on the server, field by field, already flattened. */

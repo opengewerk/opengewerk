@@ -6,7 +6,7 @@ import {
   type PriceBase,
   priceBaseProblem,
 } from './document-line.js'
-import type { Id, IsoDate, Synced, TenantOwned } from './identifier.js'
+import type { Id, IsoDate, Synced, TenantOwned } from '@opengewerk/platform-domain'
 import type { SupplierId } from './supplier.js'
 
 export type ArticleId = Id<'article'>

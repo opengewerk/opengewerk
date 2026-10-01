@@ -201,6 +201,10 @@ importers:
         version: 5.0.1(@types/node@24.13.5)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
 
   packages/domain:
+    dependencies:
+      '@opengewerk/platform-domain':
+        specifier: workspace:*
+        version: link:../platform/domain
     devDependencies:
       fast-check:
         specifier: 4.10.1
@@ -214,6 +218,12 @@ importers:
       '@opengewerk/domain':
         specifier: workspace:*
         version: link:../../domain
+    devDependencies:
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@24.13.5)(happy-dom@20.14.5)(vite@8.3.0(@types/node@24.13.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.13))
+
+  packages/platform/domain:
     devDependencies:
       vitest:
         specifier: 5.0.1

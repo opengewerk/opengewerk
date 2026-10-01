@@ -1,6 +1,7 @@
 import type { VatRate } from '../rules/tax.js'
 import type { ArticleId } from './article.js'
-import type { DocumentId, DocumentLineId, Synced } from './identifier.js'
+import type { Synced } from '@opengewerk/platform-domain'
+import type { DocumentId, DocumentLineId } from './identifier.js'
 
 /**
  * What a position is counted in.

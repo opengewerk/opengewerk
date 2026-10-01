@@ -1,6 +1,6 @@
-import type { Id, TenantId } from '../model/identifier.js'
+import type { Id, TenantId } from '@opengewerk/platform-domain'
 import type { ConflictReason } from './merge.js'
-import type { DeviceId, OperationId, SyncValue } from './operation.js'
+import type { DeviceId, OperationId, SyncValue } from '@opengewerk/platform-domain'
 
 export type SyncConflictId = Id<'sync-conflict'>
 

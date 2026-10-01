@@ -1,6 +1,7 @@
 import type { RoleKey } from './authorization.js'
-import type { InvitationId, MembershipId, TenantId, TenantSessionId } from './identifier.js'
-import type { SignInMethod } from './passkey.js'
+import type { TenantId } from '@opengewerk/platform-domain'
+import type { InvitationId, MembershipId, TenantSessionId } from './identifier.js'
+import type { SignInMethod } from '@opengewerk/platform-domain'
 
 /**
  * What a person is in one business. A user belongs to the instance, a

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { IsoDate } from './identifier.js'
+import type { IsoDate } from '@opengewerk/platform-domain'
 import { paymentProblem, receivesPayments } from './payment.js'
 
 const today = '2026-09-24' as IsoDate

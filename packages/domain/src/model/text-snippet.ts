@@ -1,4 +1,5 @@
-import type { TenantOwned, TextSnippetId } from './identifier.js'
+import type { TenantOwned } from '@opengewerk/platform-domain'
+import type { TextSnippetId } from './identifier.js'
 
 /**
  * Where a snippet goes: into a position, or into the text above or below the

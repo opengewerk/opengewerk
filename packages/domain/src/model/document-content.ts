@@ -3,7 +3,8 @@ import type { VatRate } from '../rules/tax.js'
 import type { Address } from './address.js'
 import type { DocumentKind, TaxTreatment } from './document.js'
 import type { LineKind, LineUnit, PriceBase } from './document-line.js'
-import type { DocumentId, DocumentSnapshotId, FileId, IsoDate, TenantId } from './identifier.js'
+import type { FileId, IsoDate, TenantId } from '@opengewerk/platform-domain'
+import type { DocumentId, DocumentSnapshotId } from './identifier.js'
 import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
 
 /**

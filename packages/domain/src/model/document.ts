@@ -1,12 +1,5 @@
-import type {
-  CustomerId,
-  DocumentId,
-  InstallationId,
-  IsoDate,
-  JobId,
-  SiteId,
-  Synced,
-} from './identifier.js'
+import type { IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { CustomerId, DocumentId, InstallationId, JobId, SiteId } from './identifier.js'
 
 /**
  * The document types of section 4.2. Estimate and quote are separate on

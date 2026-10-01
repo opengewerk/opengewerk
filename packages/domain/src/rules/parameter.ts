@@ -1,5 +1,5 @@
-import type { Id, IsoDate, TenantId } from '../model/identifier.js'
-import type { RuleUnit } from './rule.js'
+import type { Id, IsoDate, TenantId } from '@opengewerk/platform-domain'
+import type { RuleUnit } from '@opengewerk/platform-domain'
 
 export type TenantParameterId = Id<'tenant-parameter'>
 

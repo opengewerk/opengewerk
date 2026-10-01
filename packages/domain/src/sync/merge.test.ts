@@ -9,7 +9,7 @@ import {
   type OperationId,
   sameValue,
   toSyncValue,
-} from './operation.js'
+} from '@opengewerk/platform-domain'
 
 function operation(over: Partial<Operation> = {}): Operation {
   return {

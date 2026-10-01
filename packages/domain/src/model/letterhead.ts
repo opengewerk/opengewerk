@@ -1,5 +1,6 @@
 import type { Address } from './address.js'
-import type { FileId, LetterheadId, TenantOwned } from './identifier.js'
+import type { FileId, TenantOwned } from '@opengewerk/platform-domain'
+import type { LetterheadId } from './identifier.js'
 
 /**
  * What a business puts at the top and the bottom of every document it sends.
