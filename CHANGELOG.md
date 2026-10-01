@@ -208,6 +208,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- ADR 0010 legt fest, wie eine weitere Anwendung das Fundament bezieht: Mandantentrennung,
+  Anmeldung, Rechte, Abgleich, Audit-Log und die Engines werden unter `packages/platform/` in
+  eigene Pakete herausgelöst, Fachliches kommt über Register, und OpenGewerk Haustechnik bindet
+  einen festen Stand davon als Git-Submodul ein, statt den Code abzuschreiben. So gibt es eine
+  Fassung des Fundaments, und eine Sicherheitskorrektur erreicht jede Anwendung. Herausgelöst
+  wird in Raten; die Handwerkersoftware bleibt dabei in jedem Schritt, wie sie ist. ADR 0001
+  und ADR 0009 tragen den Zeiger `amended-by: 0010`.
 - Inhaber und Büro haben auf der Baustelle die Werte der Zugänge von offenen Aufträgen, denen sie
   selbst zugeordnet sind, auch ohne Netz, wie ein Monteur (#447). Wer als Inhaber selbst
   hinausfährt, stand im Keller bisher ohne den Code da, denn Inhaber und Büro sahen einen Wert nur

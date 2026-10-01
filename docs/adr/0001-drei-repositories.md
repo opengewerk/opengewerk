@@ -1,5 +1,6 @@
 ---
 status: angenommen
+amended-by: 0010
 date: 2026-09-17
 decision-makers: Projektleitung OpenGewerk
 consulted: Konzept "Feature-Gliederung Handwerkersoftware" v2.2, Konzept "OpenGewerk Kanzlei" v1.1
