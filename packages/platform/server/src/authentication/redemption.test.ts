@@ -83,6 +83,28 @@ async function rolesIn(tenantId: TenantId, email: string): Promise<readonly stri
   return rows[0]?.roles
 }
 
+/** Waits until this many sessions stand in line for a row somebody else holds. */
+async function standingInLine(sessions: number): Promise<void> {
+  const deadline = Date.now() + 10_000
+
+  for (;;) {
+    const { rows } = await admin.query<{ waiting: number }>(
+      `select count(*)::int as waiting from pg_stat_activity
+        where datname = current_database() and wait_event_type = 'Lock'`,
+    )
+
+    if ((rows[0]?.waiting ?? 0) >= sessions) {
+      return
+    }
+
+    if (Date.now() > deadline) {
+      throw new Error(`Fewer than ${String(sessions)} sessions came to wait for the row.`)
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}
+
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
@@ -287,6 +309,11 @@ describe('using a link', () => {
    * on the instance already: the update that marks the link used is the
    * guard, the second one finds nothing left to mark and takes everything it
    * wrote back with it.
+   *
+   * The row is held until both have read the link as open and stand in line
+   * to mark it. Left to chance, the second one reads the link on a quicker
+   * machine only after the first is through and is turned away a step earlier,
+   * with a 410, and the guard is never asked.
    */
   it('works once when it is used twice at the same moment', async () => {
     await addStaffMember(instance.authentication, instance.database, {
@@ -298,13 +325,30 @@ describe('using a link', () => {
     })
 
     const token = await invite({ email: 'doppelt@example.de', name: 'Dora Doppelt' })
-    const answers = await Promise.all([redeem(token), redeem(token)])
+    const holder = await admin.connect()
 
-    expect(answers.map((answer) => answer.status).sort()).toEqual([201, 409])
-    expect(answers.find((answer) => answer.status === 409)?.body.message).toBe(
-      'Dieser Link wurde gerade eben schon benutzt.',
-    )
-    expect(await rolesIn(north.id, 'doppelt@example.de')).toEqual(['member'])
+    try {
+      await holder.query('begin')
+      await holder.query(`select id from invitations where email = 'doppelt@example.de' for update`)
+
+      const both = Promise.all([redeem(token), redeem(token)])
+
+      await standingInLine(2)
+      await holder.query('commit')
+
+      const answers = await both
+
+      expect(answers.map((answer) => answer.status).sort()).toEqual([201, 409])
+      expect(answers.find((answer) => answer.status === 409)?.body.message).toBe(
+        'Dieser Link wurde gerade eben schon benutzt.',
+      )
+      expect(await rolesIn(north.id, 'doppelt@example.de')).toEqual(['member'])
+    } finally {
+      // A notice and nothing else after the commit. After a failure above it
+      // lets the two requests go, so that the test ends.
+      await holder.query('rollback')
+      holder.release()
+    }
   })
 
   /**
