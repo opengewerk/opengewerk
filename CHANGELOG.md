@@ -308,6 +308,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   etwas ab, ist der Baustein falsch und nicht die Migration, denn die ist auf einer Installation
   gelaufen. Die Rollen einer Zugehörigkeit und einer Einladung sind im Fundament Zeichenketten;
   welche es gibt, bleibt die Liste der Anwendung.
+- Die Testdatenbank aus `docker/compose.test.yaml` trägt einen eigenen Compose-Projektnamen,
+  `opengewerk-test`. Ohne ihn heißt das Projekt nach seinem Ordner, also `docker`, wie bei jedem
+  Repository, das seine Dateien so ablegt, und das Starten der Testdatenbank eines zweiten
+  Repositorys ersetzte diesen Container kommentarlos; so geschehen mit der von OpenGewerk
+  Haustechnik. Wer den Container schon unter dem alten Projekt laufen hat, entfernt ihn einmal
+  mit `docker rm -f opengewerk-test-db`, sonst meldet der nächste Start, der Name sei vergeben.
 - Die Katalogfragen zur Mandantentrennung sind Teil von `@opengewerk/platform-server/testing`,
   damit jede Anwendung sie über ihre eigene Datenbank stellt, statt sie abzuschreiben: jede
   Tabelle mit `FORCE`, Policy und Recht, jede Policy mit dem einen erlaubten Vergleich, jeder
