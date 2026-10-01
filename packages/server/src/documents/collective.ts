@@ -7,9 +7,9 @@ import {
   RuleError,
   type TenantId,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import {
   documentInstructionChoices,
   documentLines,

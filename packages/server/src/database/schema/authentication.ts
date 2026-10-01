@@ -1,4 +1,5 @@
 import { signInMethods, type TenantId } from '@opengewerk/domain'
+import { outsideAnyTenant, readableByTheOwner } from '@opengewerk/platform-server'
 import {
   bigint,
   boolean,
@@ -10,7 +11,6 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-import { outsideAnyTenant, readableByTheOwner } from './rls.js'
 import { tenants } from './tenants.js'
 
 /**

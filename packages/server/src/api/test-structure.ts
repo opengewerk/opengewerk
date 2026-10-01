@@ -1,8 +1,8 @@
 import type { INestApplication } from '@nestjs/common'
 import type { TenantId } from '@opengewerk/domain'
+import { newId } from '@opengewerk/platform-server'
 import request from 'supertest'
 
-import { newId } from '../database/identifier.js'
 import { as } from './test-identity.js'
 
 /**

@@ -1,9 +1,14 @@
 import type { RoleKey } from '@opengewerk/domain'
+import {
+  membershipVisibility,
+  primaryId,
+  readableByTheOwner,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
 import { foreignKey, index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 import { authUsers, signInMethod } from './authentication.js'
-import { primaryId, timestamps } from './columns.js'
-import { membershipVisibility, readableByTheOwner, tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**

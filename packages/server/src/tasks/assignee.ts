@@ -1,7 +1,7 @@
 import type { ConflictReason, TenantId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { memberships } from '../database/schema/index.js'
 
 /** Why a task may not land with the person it names, in the shape of a sync conflict. */

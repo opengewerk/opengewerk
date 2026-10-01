@@ -6,9 +6,9 @@ import {
   receivedShare,
   RuleError,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { documents, documentSnapshots } from '../database/schema/index.js'
 import { receivedOn } from '../payments/payments.js'
 

@@ -1,4 +1,5 @@
 import { smtpSecurities } from '@opengewerk/domain'
+import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import {
   foreignKey,
   index,
@@ -11,11 +12,9 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
 import { deadlines } from './deadlines.js'
 import { documents } from './documents.js'
 import { invitations } from './memberships.js'
-import { tenantIsolation } from './rls.js'
 import { tasks } from './tasks.js'
 import { tenantColumn } from './tenants.js'
 

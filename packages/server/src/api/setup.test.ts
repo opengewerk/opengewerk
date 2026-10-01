@@ -3,6 +3,7 @@ import { createOTP } from '@better-auth/utils/otp'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { TenantId } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 import { toNodeHandler } from 'better-auth/node'
 import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
@@ -13,7 +14,6 @@ import type { Authentication } from '../authentication/authentication.js'
 import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
 import { SessionIdentitySource } from '../authentication/session-identity.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
-import { Database } from '../database/database.js'
 import {
   auditEntries,
   authUsers,

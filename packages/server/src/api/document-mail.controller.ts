@@ -20,13 +20,12 @@ import {
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
+import { Database, isMailAddress } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 import { accountsOf } from '../authentication/administration.js'
-import { Database } from '../database/database.js'
 import { customers, documents, memberships } from '../database/schema/index.js'
 import { contentOf, frozenContent } from '../documents/content.js'
-import { isMailAddress } from '../mail/configuration.js'
 import { requireMailServer } from '../mail/server-settings.js'
 import {
   type DocumentMailRow,

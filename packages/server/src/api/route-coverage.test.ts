@@ -1,10 +1,10 @@
 import { RequestMethod } from '@nestjs/common'
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
 import type { Permission } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 import { describe, expect, it } from 'vitest'
 
 import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
-import { Database } from '../database/database.js'
 import { ApiModule } from './api.module.js'
 import {
   OPERATOR_METADATA,

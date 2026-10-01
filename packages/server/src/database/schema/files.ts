@@ -1,8 +1,7 @@
+import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import { bigint, check, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
-import { primaryId, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**

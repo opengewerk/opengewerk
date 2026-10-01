@@ -5,10 +5,10 @@ import {
   type RoleKey,
   type TenantId,
 } from '@opengewerk/domain'
+import type { Database } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
 import type { FoundIdentity, IdentitySource, SignedInUser } from '../api/identity.js'
-import type { Database } from '../database/database.js'
 import { memberships } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
 import { renewSession } from './session-lifetime.js'

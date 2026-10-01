@@ -1,8 +1,9 @@
+import { ConfigurationError, Database } from '@opengewerk/platform-server'
+
 import { createAuthentication } from './authentication/authentication.js'
 import { readNewPassword } from './authentication/password.js'
 import { accountExists } from './authentication/staff.js'
-import { ConfigurationError, readConfiguration } from './configuration.js'
-import { Database } from './database/database.js'
+import { readConfiguration } from './configuration.js'
 import { createTenantWithOwner } from './instance/tenants.js'
 
 /**

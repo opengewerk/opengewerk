@@ -1,10 +1,10 @@
 import type { CustomerId, SiteId } from '@opengewerk/domain'
+import { newId } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { newId } from './identifier.js'
 import * as schema from './schema/index.js'
 import {
   applyMigrations,

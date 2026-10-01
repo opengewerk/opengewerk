@@ -1,4 +1,4 @@
-import type { Id } from '@opengewerk/domain'
+import type { Id } from '@opengewerk/platform-domain'
 import { sql } from 'drizzle-orm'
 import { bigint, integer, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 
@@ -21,7 +21,7 @@ export function primaryId<Entity extends string>() {
 
 /**
  * A foreign key column. Carries the branded id type of the table it points at,
- * so that a site id cannot end up in a column that wants a customer id.
+ * so that the key of one entity cannot end up in a column that wants another.
  */
 export function reference<Entity extends string>(name: string) {
   return uuid(name).$type<Id<Entity>>()

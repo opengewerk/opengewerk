@@ -7,9 +7,9 @@ import {
   receivesPayments,
   type TenantId,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { documents, documentSnapshots, payments } from '../database/schema/index.js'
 
 /** A payment that is not recorded, with the sentence saying why. */

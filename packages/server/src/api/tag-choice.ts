@@ -8,9 +8,9 @@ import {
   tagName,
   tagNameProblem,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { customerTags, siteTags, tags } from '../database/schema/index.js'
 import { pick } from './body.js'
 

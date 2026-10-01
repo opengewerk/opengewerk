@@ -8,10 +8,10 @@ import {
   patternProblem,
   type TenantId,
 } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { yearInGermany } from '../today.js'
-import type { TenantTransaction } from './database.js'
 import { numberRanges } from './schema/index.js'
 
 /**

@@ -1,6 +1,6 @@
+import type { Database } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
 import { authSessions } from '../database/schema/index.js'
 
 /**

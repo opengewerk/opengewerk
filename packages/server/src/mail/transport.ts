@@ -1,6 +1,5 @@
+import type { MailConfiguration } from '@opengewerk/platform-server'
 import { createTransport } from 'nodemailer'
-
-import type { MailConfiguration } from './configuration.js'
 
 /** A file that goes along with a message. */
 export interface MailAttachment {

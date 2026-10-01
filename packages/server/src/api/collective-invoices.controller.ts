@@ -1,7 +1,7 @@
 import { Body, ConflictException, Controller, NotFoundException, Param, Post } from '@nestjs/common'
 import { type IsoDate, type JobId, RuleError } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import { makeCollectiveInvoice } from '../documents/collective.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'

@@ -1,7 +1,7 @@
 import type { DocumentId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, desc, eq } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { mailOutbox } from '../database/schema/index.js'
 
 /** One message about a document, as the screen of the document lists it. */

@@ -1,6 +1,6 @@
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, gt, inArray, lte, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { pushOutbox, pushSubscriptions } from '../database/schema/index.js'
 
 export type PushRow = typeof pushOutbox.$inferSelect

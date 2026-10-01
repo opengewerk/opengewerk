@@ -1,9 +1,9 @@
 import { createServer, type Server } from 'node:net'
 
+import type { MailConfiguration } from '@opengewerk/platform-server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkMailServer } from './check.js'
-import type { MailConfiguration } from './configuration.js'
 import { destinationOf, isInternalAddress, reachableOnly } from './reach.js'
 import { MailDeliveryError, type MailTransport, smtpTransport } from './transport.js'
 

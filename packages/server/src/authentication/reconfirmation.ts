@@ -1,10 +1,10 @@
 import { createOTP } from '@better-auth/utils/otp'
+import type { Database } from '@opengewerk/platform-server'
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import { symmetricDecrypt } from 'better-auth/crypto'
 import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm'
 
-import type { Database } from '../database/database.js'
 import { authAccounts, authSessions, authTwoFactors } from '../database/schema/index.js'
 
 /**

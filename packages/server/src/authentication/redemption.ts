@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, GoneException } from '@nestjs/common'
 import type { RoleKey, TenantId } from '@opengewerk/domain'
+import type { Database, StraddlingTransaction } from '@opengewerk/platform-server'
 import { eq, sql } from 'drizzle-orm'
 
-import type { Database, StraddlingTransaction } from '../database/database.js'
 import { authUsers, invitations } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
 import { hashToken } from './invitation.js'

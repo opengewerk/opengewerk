@@ -1,4 +1,4 @@
-import type { Id } from '@opengewerk/domain'
+import type { Id } from '@opengewerk/platform-domain'
 import { uuidv7 } from 'uuidv7'
 
 /**
@@ -9,7 +9,7 @@ import { uuidv7 } from 'uuidv7'
  * The database mints its own for rows written server side. This is the other
  * half, for rows that arrive with an id already on them. The browser mints its
  * own in the sync client, with the same library in the same version, and a
- * test in `identifier.test.ts` holds the two versions together.
+ * test in the application holds the two versions together.
  *
  * There is deliberately no shared home in `domain` (#151). Minting a key is
  * drawing randomness, an effect like reading the clock, and `domain` answers

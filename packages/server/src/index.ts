@@ -12,8 +12,9 @@ export {
 } from './authentication/authentication.js'
 export { SessionIdentitySource } from './authentication/session-identity.js'
 export { addStaffMember, type StaffMember } from './authentication/staff.js'
-export { readConfiguration, type Configuration } from './configuration.js'
-export { Database } from './database/database.js'
+export type { Configuration } from '@opengewerk/platform-server'
+export { readConfiguration } from './configuration.js'
+export { Database } from '@opengewerk/platform-server'
 export { runMigrations } from './database/migrations.js'
 export {
   readRendererConfiguration,

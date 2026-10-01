@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post } from '@nestjs/common'
+import { Database } from '@opengewerk/platform-server'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { looksLikeAToken } from '../authentication/invitation.js'
@@ -8,7 +9,6 @@ import {
   type Redeemed,
   redeemInvitation,
 } from '../authentication/redemption.js'
-import { Database } from '../database/database.js'
 import { PublicRoute } from './authorization.js'
 import { AUTHENTICATION } from './handed-in.js'
 import { pick } from './body.js'

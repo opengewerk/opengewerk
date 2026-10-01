@@ -1,7 +1,7 @@
 import type { RoleKey, TenantId } from '@opengewerk/domain'
+import type { Database, StraddlingTransaction } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
-import type { Database, StraddlingTransaction } from '../database/database.js'
 import { instanceOperators } from '../database/schema/index.js'
 import type { Authentication } from './authentication.js'
 import { createAccount, grantMembership } from './staff.js'

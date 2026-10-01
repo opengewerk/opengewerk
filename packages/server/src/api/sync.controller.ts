@@ -24,9 +24,9 @@ import {
   type TenantId,
 } from '@opengewerk/domain'
 
+import { Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { eq, sql } from 'drizzle-orm'
 
-import { Database, type TenantTransaction } from '../database/database.js'
 import {
   accessesOfOpenJobs,
   articlesNarrowedTo,

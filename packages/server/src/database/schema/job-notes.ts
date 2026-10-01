@@ -1,8 +1,13 @@
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
 import { foreignKey, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { jobs } from './jobs.js'
-import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**

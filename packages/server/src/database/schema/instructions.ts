@@ -1,4 +1,5 @@
 import { type DocumentKind, instructionTemplates, withdrawalVariants } from '@opengewerk/domain'
+import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -13,9 +14,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
 import { documentKind, documents } from './documents.js'
-import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 export const instructionTemplate = pgEnum('instruction_template', instructionTemplates)

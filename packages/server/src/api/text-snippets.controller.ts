@@ -10,9 +10,9 @@ import {
   Post,
 } from '@nestjs/common'
 import { type SnippetPurpose, snippetPurposes, type TextSnippetId } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 import { asc, eq } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
 import { textSnippets } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireFields, requireSomething } from './body.js'

@@ -6,13 +6,12 @@ import { PDFDocument } from '@cantoo/pdf-lib'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DocumentContent, EInvoiceStatus } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { XmlDocument } from 'libxml2-wasm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,

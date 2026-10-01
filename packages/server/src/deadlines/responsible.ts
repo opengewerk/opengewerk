@@ -1,7 +1,7 @@
 import type { DeadlineKind, DeadlineSetting, TenantId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { memberships } from '../database/schema/index.js'
 
 /** What of a deadline decides who answers for it. */

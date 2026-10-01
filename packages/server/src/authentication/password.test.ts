@@ -1,7 +1,7 @@
 import { PassThrough, Writable } from 'node:stream'
+import { ConfigurationError } from '@opengewerk/platform-server'
 import { describe, expect, it } from 'vitest'
 
-import { ConfigurationError } from '../configuration.js'
 import { readNewPassword } from './password.js'
 
 /**

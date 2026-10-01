@@ -7,10 +7,9 @@ import {
   roleKeys,
   type TenantId,
 } from '@opengewerk/domain'
+import { type Database, newId, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, count, eq, inArray, isNull, max, ne, sql } from 'drizzle-orm'
 
-import type { Database, TenantTransaction } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   authSessions,
   authUsers,

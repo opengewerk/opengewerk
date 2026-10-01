@@ -1,7 +1,7 @@
 import type { IsoDate } from '@opengewerk/domain'
 import { addDays, lineUnits, signedContentFingerprint } from '@opengewerk/domain'
+import { newId } from '@opengewerk/platform-server'
 
-import { newId } from '../database/identifier.js'
 import { previewUser } from './preview-database.js'
 
 type Answer = Record<string, unknown>

@@ -41,9 +41,9 @@ import {
   type TaxTreatment,
   whyFixed,
 } from '@opengewerk/domain'
+import { Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
 import {
   documentInstructionChoices,

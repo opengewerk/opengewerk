@@ -1,6 +1,6 @@
 import { Body, Controller, Post } from '@nestjs/common'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import { createOwnTenant } from '../instance/tenants.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'

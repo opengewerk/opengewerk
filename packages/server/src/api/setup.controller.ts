@@ -13,17 +13,21 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { businessNameProblem, type TenantId } from '@opengewerk/domain'
+import {
+  Database,
+  normalizeSetupCode,
+  SetupAttempts,
+  setupCodesMatch,
+} from '@opengewerk/platform-server'
 import type { Request } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { shortestPassword } from '../authentication/password.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
-import { normalizeSetupCode, SetupAttempts, setupCodesMatch } from '../authentication/setup-code.js'
 import { PublicRoute } from './authorization.js'
 import { clientAddress } from './client-address.js'
 import { AUTHENTICATION, SETUP_CODE } from './handed-in.js'
 import { pick, requireFields } from './body.js'
-import { Database } from '../database/database.js'
 
 /** How long a caller waits after a first run that failed before the next one. */
 const restAfterFailure = 2000

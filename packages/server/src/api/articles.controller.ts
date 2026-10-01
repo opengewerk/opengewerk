@@ -30,6 +30,12 @@ import {
   supplierNumberProblem,
 } from '@opengewerk/domain'
 import {
+  Database,
+  isUniqueViolation,
+  isUuid,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
+import {
   and,
   asc,
   count,
@@ -44,8 +50,6 @@ import {
   sql,
 } from 'drizzle-orm'
 
-import { Database, type TenantTransaction } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import {
   articlePrices,
   articles,
@@ -56,7 +60,6 @@ import {
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
 import { pick, requireSomething } from './body.js'
-import { isUniqueViolation } from './database-errors.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { requireReferences } from './references.js'
 

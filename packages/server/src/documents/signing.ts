@@ -1,7 +1,7 @@
 import { type ConflictReason, type DocumentId, signedContentFingerprint } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { documentLines, documents } from '../database/schema/index.js'
 
 /** Why a signature may not land, in the shape a sync conflict records. */

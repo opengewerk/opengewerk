@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { isAllowed, missingPermission, type Permission, workingInHeader } from '@opengewerk/domain'
+import { Database } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
 import { operatorAccess } from '../instance/operators.js'
 import {
   IDENTITY_SOURCE,

@@ -1,7 +1,7 @@
 import type { InvitationId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { desc, inArray } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { mailOutbox } from '../database/schema/index.js'
 
 /** Where the message with an invitation stands. */

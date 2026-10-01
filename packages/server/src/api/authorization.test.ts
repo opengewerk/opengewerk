@@ -1,12 +1,11 @@
 import { Test } from '@nestjs/testing'
 import type { INestApplication } from '@nestjs/common'
+import { Database, newId } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import { auditEntries } from '../database/schema/index.js'
 import {
   allowApplicationLogin,

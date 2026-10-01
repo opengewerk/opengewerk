@@ -1,9 +1,14 @@
+// The role the policies are written for. It comes from the foundation
+// (ADR 0010), like the columns and policies every table here is put together
+// from, and is handed on because drizzle-kit reads the schema from this file:
+// a role it does not find here is one it would try to manage.
+export { applicationRole } from '@opengewerk/platform-server'
+
 export * from './article-imports.js'
 export * from './articles.js'
 export * from './attachments.js'
 export * from './audit.js'
 export * from './authentication.js'
-export * from './columns.js'
 export * from './contacts.js'
 export * from './customers.js'
 export * from './deadlines.js'
@@ -31,7 +36,6 @@ export * from './parameters.js'
 export * from './payments.js'
 export * from './photovoltaic.js'
 export * from './push.js'
-export * from './rls.js'
 export * from './secrets.js'
 export * from './site-accesses.js'
 export * from './sites.js'

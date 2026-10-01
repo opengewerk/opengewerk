@@ -1,12 +1,10 @@
 import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
+import { type Database, everyTenant, type MailConfiguration } from '@opengewerk/platform-server'
 
-import type { Database } from '../database/database.js'
-import { everyTenant } from '../database/every-tenant.js'
 import { dueDeadlines, dueTasks, notify, signedReports } from '../notifications/notify.js'
 import { invitationLink } from '../notifications/templates.js'
 import type { SecretKey } from '../secrets/key.js'
 import type { AttachmentSource } from './attachments.js'
-import type { MailConfiguration } from './configuration.js'
 import type { InvitationLinkSource } from './invitation-link.js'
 import { claimDue, markFailed, markSent, type OutboxRow } from './outbox.js'
 import { connectionOf } from './server-settings.js'

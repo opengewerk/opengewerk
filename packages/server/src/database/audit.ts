@@ -1,7 +1,6 @@
 import type { ChainVerification, TenantId } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
-
-import type { TenantTransaction } from './database.js'
 
 /**
  * Walks a tenant's chain and says whether it still fits together.

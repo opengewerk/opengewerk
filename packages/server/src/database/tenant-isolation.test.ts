@@ -1,12 +1,11 @@
 import { createHash } from 'node:crypto'
 
 import type { TenantId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { type SQL, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from './database.js'
-import { newId } from './identifier.js'
 import * as schema from './schema/index.js'
 import {
   allowApplicationLogin,

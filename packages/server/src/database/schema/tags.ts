@@ -1,10 +1,15 @@
 import { tagNameMaxLength } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { customers } from './customers.js'
-import { tenantIsolation } from './rls.js'
 import { sites } from './sites.js'
 import { tenantColumn } from './tenants.js'
 
