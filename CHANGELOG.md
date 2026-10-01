@@ -269,6 +269,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nichts. Damit eine weitere Anwendung das Fundament einbinden kann, ohne die Handwerkersoftware
   mitzunehmen, hängt es von keinem ihrer Pakete ab; eine Lint-Regel sagt das im Editor, und ein
   Test liest dafür die `package.json` des Pakets.
+- Die Regeln der Lint-Konfiguration stehen in `eslint.shared.js`, getrennt von der Angabe, wo
+  die Pakete dieses Repositorys liegen. Eine weitere Anwendung, die das Fundament einbindet
+  (ADR 0010), baut ihre Konfiguration aus denselben Bausteinen, statt die Regeln abzuschreiben;
+  für die Handwerkersoftware ergibt sich für jede Datei dieselbe Konfiguration wie zuvor. Dazu
+  nennt `turbo.json` die Konfigurationsdateien an der Wurzel als Abhängigkeit jeder Aufgabe:
+  bisher blieb ein Lint-Ergebnis im lokalen Zwischenspeicher gültig, wenn sich nur die Regeln
+  geändert hatten.
 
 ## [0.4.0] - 2026-09-27
 
