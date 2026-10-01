@@ -71,6 +71,22 @@ export interface AccessSentences {
   readonly noAccessToTenant: string
   /** A membership that is blocked, and who can lift that. */
   readonly blockedInTenant: string
+  /** An invitation for an address that already works in the tenant. */
+  readonly alreadyWorksHere: string
+  /**
+   * One answer for an account that is not in this tenant and one that is not
+   * on the instance at all. Telling them apart would turn the administration
+   * into a way of asking who has an account here.
+   */
+  readonly notAMember: string
+  /** A session that is not working in this tenant, or is not there at all. */
+  readonly noSuchSessionHere: string
+  /**
+   * The refusal that keeps a tenant from locking itself out: the leading role
+   * is not taken from the last one who holds it and can still get in, and
+   * that person is not shut out.
+   */
+  readonly lastLead: string
   /**
    * The three ends of a one time link that can no longer be used, each with
    * where to ask for a new one: used, called back, run out.
@@ -100,3 +116,19 @@ export interface AccessSentences {
 
 /** The rules of the application, for the controllers of the authentication. */
 export const ACCESS_RULES = Symbol('AccessRules')
+
+/**
+ * The rights the routes of the administration ask for: seeing who works in a
+ * tenant, and changing it.
+ *
+ * Rights of the foundation, because the routes are. An application carries
+ * both in its catalogue of rights and says which of its roles hold them.
+ * Whoever can hand out roles can hand themselves the leading one, so they
+ * belong to that role and to no other.
+ */
+export const accessRights = {
+  read: 'membership.read',
+  write: 'membership.write',
+} as const
+
+export type AccessRight = (typeof accessRights)[keyof typeof accessRights]

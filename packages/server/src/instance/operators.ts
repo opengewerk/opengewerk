@@ -1,9 +1,8 @@
 import { hasSecondFactor, type InstanceAccess, type OperatorView } from '@opengewerk/domain'
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
-import type { Database } from '@opengewerk/platform-server'
+import { type Database, normalise } from '@opengewerk/platform-server'
 import { and, asc, eq, sql } from 'drizzle-orm'
 
-import { normalise } from '../authentication/administration.js'
 import { authSessions, authUsers, instanceOperators } from '../database/schema/index.js'
 
 /**

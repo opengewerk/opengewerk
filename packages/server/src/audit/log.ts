@@ -12,10 +12,9 @@ import {
   type AuditTitle,
   type TenantId,
 } from '@opengewerk/domain'
-import type { Database, TenantTransaction } from '@opengewerk/platform-server'
+import { accountsOf, type Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, inArray, isNotNull, type SQL, sql } from 'drizzle-orm'
 
-import { accountsOf } from '../authentication/administration.js'
 import { verifyAuditChain } from '../database/audit.js'
 import { authSessions } from '../database/schema/index.js'
 

@@ -40,19 +40,20 @@ import { foundationMigration } from '../database/foundation-migration.js'
 import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { allowApplicationLogin, type TestDatabase } from '../database/test-database.js'
 import { memberships } from '../schema.js'
-import type { AccessRules } from './access.js'
+import { type AccessRight, accessRights, type AccessRules } from './access.js'
 import {
   type Authentication,
   type AuthenticationOptions,
   authenticationPath,
   createAuthentication,
 } from './authentication.js'
+import type { InvitationMailing } from './invitation-mailing.js'
 import { authenticationParts } from './module.js'
 import { type MemberIdentity, SessionIdentitySource } from './session-identity.js'
 import { type AuthenticatorSite, TestAuthenticator } from './test-authenticator.js'
 
 // The application the authentication is tested with, and it is nobody's: its
-// own name, two roles and two rights of its own, and one controller with what
+// own name, three roles and two rights of its own, and one controller with what
 // an application would keep behind the guard. A test that passed with the
 // name or a role of a real application here would pass just as well with that
 // name written into the foundation, which is what these tests are there to
@@ -76,13 +77,19 @@ export const probeSite: AuthenticatorSite = {
   origin: probeOrigin,
 }
 
-export const probeRoles = ['lead', 'member'] as const
+export const probeRoles = ['lead', 'member', 'guest'] as const
 
-/** Two roles: one leads a tenant and needs a second factor, the other works in it. */
+/**
+ * Three roles: one leads a tenant and needs a second factor, one works in it,
+ * and one only looks.
+ */
 export type ProbeRole = (typeof probeRoles)[number]
 
-/** Two rights, one that reads and one that writes. Both roles hold both. */
-export type ProbeRight = 'members.read' | 'notes.write'
+/**
+ * The rights the foundation asks for, and two of its own: one that reads and
+ * one that writes.
+ */
+export type ProbeRight = AccessRight | 'members.read' | 'notes.write'
 
 export type ProbeIdentity = MemberIdentity<ProbeRole>
 
@@ -109,6 +116,12 @@ export const probeAccess: AccessRules<ProbeRole> = {
     noTenantChosen: 'Es ist noch kein Mandant gewählt. Bitte zuerst einen Mandanten auswählen.',
     noAccessToTenant: 'Kein Zugang zu diesem Mandanten.',
     blockedInTenant: 'Dieser Zugang ist bei diesem Mandanten gesperrt.',
+    alreadyWorksHere: 'Diese Adresse arbeitet schon bei diesem Mandanten.',
+    notAMember: 'Dieses Konto arbeitet nicht bei diesem Mandanten.',
+    noSuchSessionHere: 'Diese Sitzung gibt es bei diesem Mandanten nicht.',
+    lastLead:
+      'Das ist die letzte Leitung dieses Mandanten. Erst eine zweite einsetzen, sonst ' +
+      'verwaltet niemand mehr seine Zugänge.',
     unusableLink: {
       redeemed: 'Dieser Link wurde schon benutzt. Bitte beim Mandanten einen neuen anfordern.',
       revoked: 'Dieser Link wurde zurückgezogen. Bitte beim Mandanten nachfragen.',
@@ -129,9 +142,19 @@ export const probeAccess: AccessRules<ProbeRole> = {
   },
 }
 
-/** What the guard is told about this application: both roles hold both rights. */
+/**
+ * What each role may do. Whoever leads a tenant holds everything, the
+ * administration of its people included, and nobody else holds that.
+ */
+const probeRights: Record<ProbeRole, readonly ProbeRight[]> = {
+  lead: [accessRights.read, accessRights.write, 'members.read', 'notes.write'],
+  member: ['members.read', 'notes.write'],
+  guest: ['members.read'],
+}
+
+/** What the guard is told about this application. */
 export const probeAuthorization: Authorization<ProbeIdentity, ProbeRight> = {
-  isAllowed: (identity) => identity.roles.length > 0,
+  isAllowed: (identity, right) => identity.roles.some((role) => probeRights[role].includes(right)),
   missingPermission: (right) => `Das Recht ${right} fehlt diesem Zugang.`,
   // Nobody runs an instance of this application; the guard's part of that is
   // tested where the guard is (`api/authorization.test.ts`).
@@ -189,6 +212,8 @@ export interface ProbeModuleOptions {
   readonly authentication?: Authentication
   readonly setupCode?: string | null
   readonly trustedOrigins?: readonly string[]
+  /** What sends an invitation by mail. Left out, this application hands out links. */
+  readonly invitationMailing?: InvitationMailing | null
 }
 
 @Module({})
@@ -203,6 +228,7 @@ export class ProbeModule {
       access: probeAccess,
       authentication: options.authentication,
       setupCode: options.setupCode,
+      invitationMailing: options.invitationMailing,
     })
 
     return {
@@ -248,6 +274,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly setupCode?: string | null
   /** A closed instance recognises nobody and mounts no sign in. */
   readonly closed?: boolean
+  /** What sends an invitation by mail. Left out, this application hands out links. */
+  readonly invitationMailing?: InvitationMailing | null
 }
 
 /** A running instance of the probe application, and what a test asks of it. */
@@ -289,7 +317,13 @@ export async function probeInstance(
   databaseUrl: string,
   options: ProbeInstanceOptions = {},
 ): Promise<ProbeInstance> {
-  const { secret = 'z'.repeat(64), setupCode, closed = false, ...authenticationOptions } = options
+  const {
+    secret = 'z'.repeat(64),
+    setupCode,
+    closed = false,
+    invitationMailing = null,
+    ...authenticationOptions
+  } = options
   const database = Database.connect(databaseUrl)
   const authentication = probeAuthentication({
     database,
@@ -307,8 +341,13 @@ export async function probeInstance(
         database,
         closed ? new ClosedIdentitySource() : probeIdentities(authentication, database),
         closed
-          ? { trustedOrigins: [probeOrigin] }
-          : { authentication, setupCode: setupCode ?? null, trustedOrigins: [probeOrigin] },
+          ? { trustedOrigins: [probeOrigin], invitationMailing }
+          : {
+              authentication,
+              setupCode: setupCode ?? null,
+              trustedOrigins: [probeOrigin],
+              invitationMailing,
+            },
       ),
     ],
   }).compile()

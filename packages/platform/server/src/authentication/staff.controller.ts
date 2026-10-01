@@ -11,9 +11,12 @@ import {
   Put,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import type { RoleKey } from '@opengewerk/domain'
-import { Database, pick, requireFields } from '@opengewerk/platform-server'
 
+import { RequiresPermission } from '../api/authorization.js'
+import { pick, requireFields } from '../api/body.js'
+import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
+import { Database } from '../database/database.js'
+import { ACCESS_RULES, type AccessRules, accessRights } from './access.js'
 import {
   changeRoles,
   devicesOf,
@@ -27,29 +30,24 @@ import {
   setBlocked,
   type StaffDevice,
   type StaffEntry,
-} from '../authentication/administration.js'
-import { requireMailServer } from '../mail/server-settings.js'
-import { notify } from '../notifications/notify.js'
-import { RequiresPermission } from './authorization.js'
-import { MAIL, type MailContext } from './handed-in.js'
-import { CurrentIdentity, type RequestIdentity } from './identity.js'
+} from './administration.js'
+import { INVITATION_MAILING, type InvitationMailing } from './invitation-mailing.js'
 
 /**
- * Who works in this business, for the office.
+ * Who works in this tenant, for whoever administers it.
  *
  * Until #63 an account came into being only through `add-staff` on the command
- * line. For the very first owner that is still right and stays: they have to
- * exist before anybody can sign in to create them. For everybody after that it
- * was never a decision, only something nobody had got to, and a pilot with one
- * office worker and one technician does not open an SSH session to put
- * somebody on holiday.
+ * line. For the very first one that was right: it has to exist before anybody
+ * can sign in to create it. For everybody after that it was never a decision,
+ * only something nobody had got to, and a tenant with a handful of people
+ * does not open an SSH session to put somebody on holiday.
  *
- * Every route asks for `membership.read` or `membership.write`, which only the
- * owner has. Not the office, although this screen lives in the office
- * application: somebody who can hand out roles can hand themselves the owner
- * role, and a right that whoever holds it can widen is not a boundary.
+ * Every route asks for `membership.read` or `membership.write`, which an
+ * application gives to the role that leads a tenant and to no other:
+ * somebody who can hand out roles can hand themselves the leading one, and a
+ * right that whoever holds it can widen is not a boundary.
  *
- * Nothing here reaches past this business, and that is a property of how the
+ * Nothing here reaches past this tenant, and that is a property of how the
  * questions are asked rather than a rule somebody has to keep. See the note at
  * the top of `administration.ts`.
  */
@@ -57,11 +55,12 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 export class StaffController {
   constructor(
     private readonly database: Database,
-    @Inject(MAIL) private readonly mail: MailContext | null,
+    @Inject(ACCESS_RULES) private readonly access: AccessRules,
+    @Inject(INVITATION_MAILING) private readonly mailing: InvitationMailing | null,
   ) {}
 
   @Get()
-  @RequiresPermission('membership.read')
+  @RequiresPermission(accessRights.read)
   list(@CurrentIdentity() identity: RequestIdentity): Promise<StaffEntry[]> {
     return listStaff(this.database, identity)
   }
@@ -69,19 +68,19 @@ export class StaffController {
   /**
    * Invites somebody, and hands back the link once, or sends it by mail.
    *
-   * Passed on by the office, the token is in the answer and nowhere else:
+   * Passed on by hand, the token is in the answer and nowhere else:
    * what the database keeps is its hash. So this is the only moment it can be
    * shown, and the screen says so rather than offering it again later. The
    * address the link starts with is not put together here, the browser that
    * asked is looking at the instance already and knows it.
    *
-   * Sent by mail (`send: "mail"`), the answer carries no token at all. The job
-   * that sends the message makes one at that moment, and the link in the mail
-   * starts with the first trusted origin, like every link in a message. The
-   * office sees the message under the invitation, not the link.
+   * Sent by mail (`send: "mail"`), the answer carries no token at all.
+   * Whatever sends the message makes one at that moment and knows the address
+   * its link starts with. Whoever invited sees the message under the
+   * invitation, not the link.
    */
   @Post()
-  @RequiresPermission('membership.write')
+  @RequiresPermission(accessRights.write)
   async invite(
     @CurrentIdentity() identity: RequestIdentity,
     @Body() body: unknown,
@@ -95,19 +94,21 @@ export class StaffController {
     }
 
     const byMail = values.send === 'mail'
+    const sender = byMail ? (this.mailing?.sender ?? null) : null
 
-    if (byMail && this.mail === null) {
+    if (byMail && sender === null) {
       throw new ServiceUnavailableException(
         'Diese Instanz verschickt keine E-Mails, die Einladung lässt sich deshalb nicht per ' +
           'E-Mail schicken. Der Link zum Weitergeben geht trotzdem.',
       )
     }
 
-    if (byMail) {
-      await requireMailServer(this.database, identity)
-    }
+    // Whether this tenant can send one at all, asked before there is an
+    // invitation that would wait for a mail server nobody set up.
+    await sender?.ready(identity)
 
     const issued = await inviteStaff(
+      this.access,
       this.database,
       identity,
       {
@@ -118,30 +119,23 @@ export class StaffController {
       { byMail },
     )
 
-    // Sent by mail, the invitation is a cause like a due task: the message is
-    // written now and goes out with the job, which makes the link as it sends.
-    if (byMail && this.mail !== null) {
-      await notify(
-        this.database,
-        identity.tenantId,
-        { kind: 'invitation', invitationId: issued.id, requestedBy: identity.userId },
-        { origin: this.mail.origin },
-      )
-    }
+    // Sent by mail, the invitation is handed to whatever sends it, which
+    // makes the link at the moment the message leaves.
+    await sender?.send(identity, issued.id)
 
     return issued
   }
 
-  /** The links of this business that can still be used. */
+  /** The links of this tenant that can still be used. */
   @Get('invitations')
-  @RequiresPermission('membership.read')
+  @RequiresPermission(accessRights.read)
   invitations(@CurrentIdentity() identity: RequestIdentity): Promise<InvitationEntry[]> {
-    return listInvitations(this.database, identity)
+    return listInvitations(this.database, identity, this.mailing)
   }
 
   /** Calls a link back, for the invitation that went to the wrong address. */
   @Delete('invitations/:invitationId')
-  @RequiresPermission('membership.write')
+  @RequiresPermission(accessRights.write)
   async withdraw(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('invitationId') invitationId: string,
@@ -154,21 +148,27 @@ export class StaffController {
   /**
    * Changes what somebody may do here.
    *
-   * The warning that the owner role brings a second factor with it belongs on
-   * the screen and not here: by the time this route answers, the person has
-   * already been made an owner and would meet the wall at their next request.
-   * What this route does is refuse to take the last owner away, which is the
-   * half no screen can be trusted with.
+   * The warning that a role brings a second factor with it belongs on the
+   * screen and not here: by the time this route answers, the person already
+   * has the role and would meet the wall at their next request. What this
+   * route does is refuse to take away the last one who leads the tenant,
+   * which is the half no screen can be trusted with.
    */
   @Patch(':userId')
-  @RequiresPermission('membership.write')
+  @RequiresPermission(accessRights.write)
   async setRoles(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('userId') userId: string,
     @Body() body: unknown,
-  ): Promise<{ userId: string; roles: readonly RoleKey[] }> {
+  ): Promise<{ userId: string; roles: readonly string[] }> {
     const values = pick(body, ['roles'] as const)
-    const roles = await changeRoles(this.database, identity, userId, rolesFrom(values.roles))
+    const roles = await changeRoles(
+      this.access,
+      this.database,
+      identity,
+      userId,
+      rolesFrom(values.roles),
+    )
 
     return { userId, roles }
   }
@@ -181,51 +181,51 @@ export class StaffController {
    * can resolve is worse than one naming somebody who no longer works here.
    */
   @Put(':userId/block')
-  @RequiresPermission('membership.write')
+  @RequiresPermission(accessRights.write)
   async block(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('userId') userId: string,
   ): Promise<{ userId: string; blocked: true }> {
-    await setBlocked(this.database, identity, userId, true)
+    await setBlocked(this.access, this.database, identity, userId, true)
 
     return { userId, blocked: true }
   }
 
   @Delete(':userId/block')
-  @RequiresPermission('membership.write')
+  @RequiresPermission(accessRights.write)
   async unblock(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('userId') userId: string,
   ): Promise<{ userId: string; blocked: false }> {
-    await setBlocked(this.database, identity, userId, false)
+    await setBlocked(this.access, this.database, identity, userId, false)
 
     return { userId, blocked: false }
   }
 
-  /** The devices this person is signed in on, in this business and no other. */
+  /** The devices this person is signed in on, in this tenant and no other. */
   @Get(':userId/devices')
-  @RequiresPermission('membership.read')
+  @RequiresPermission(accessRights.read)
   devices(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('userId') userId: string,
   ): Promise<StaffDevice[]> {
-    return devicesOf(this.database, identity, userId)
+    return devicesOf(this.access, this.database, identity, userId)
   }
 
   /**
-   * Cuts one of them off, for the phone in the van that was broken into.
+   * Cuts one of them off, for the phone that was stolen.
    *
    * The person whose phone it is can already do this from another device. This
    * is for the case where the phone was the other device.
    */
   @Delete(':userId/devices/:sessionId')
-  @RequiresPermission('membership.write')
+  @RequiresPermission(accessRights.write)
   async revoke(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('userId') userId: string,
     @Param('sessionId') sessionId: string,
   ): Promise<{ revoked: string }> {
-    await revokeDeviceOf(this.database, identity, userId, sessionId)
+    await revokeDeviceOf(this.access, this.database, identity, userId, sessionId)
 
     return { revoked: sessionId }
   }
@@ -246,7 +246,7 @@ function text(value: unknown, field: string): string {
  * Which of them exist is checked where the change happens, so that the answer
  * is the same whichever route asked and names the roles there are.
  */
-function rolesFrom(value: unknown): readonly RoleKey[] {
+function rolesFrom(value: unknown): readonly string[] {
   if (!Array.isArray(value)) {
     throw new BadRequestException('roles fehlt oder ist keine Liste.')
   }
@@ -255,5 +255,5 @@ function rolesFrom(value: unknown): readonly RoleKey[] {
     throw new BadRequestException('roles enthält etwas, das kein Text ist.')
   }
 
-  return value as readonly RoleKey[]
+  return value as readonly string[]
 }

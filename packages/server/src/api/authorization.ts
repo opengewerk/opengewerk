@@ -1,5 +1,6 @@
 import { isAllowed, missingPermission, type Identity, type Permission } from '@opengewerk/domain'
 import {
+  accessRights,
   type Authorization,
   RequiresPermission as requiresPermission,
 } from '@opengewerk/platform-server'
@@ -26,6 +27,15 @@ export {
  * in one is found by the compiler and not by a refused request.
  */
 export const RequiresPermission = (permission: Permission) => requiresPermission(permission)
+
+/**
+ * The rights the foundation asks for on the routes that are its own: who works
+ * in a business, and changing that. They are rights of this application under
+ * the same names. A catalogue that lost one of them does not compile here,
+ * where otherwise every such route would answer 403 to everybody.
+ */
+export const administrationRights: Readonly<Record<keyof typeof accessRights, Permission>> =
+  accessRights
 
 /** What the guard is told about this application. */
 export const authorization: Authorization<Identity, Permission> = {

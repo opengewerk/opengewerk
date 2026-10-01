@@ -117,7 +117,7 @@ describe('putting somebody into a tenant from the command line', () => {
     const message = await refusal(said(adding, [north.id, 'neu@example.de']))
 
     expect(message).toContain('Aufruf: add-staff <mandant> <e-mail> "<name>" <rolle> [<rolle> ...]')
-    expect(message).toContain('Mögliche Rollen: lead, member')
+    expect(message).toContain('Mögliche Rollen: lead, member, guest')
     // The variable a script hands the password over in is the application's.
     expect(message).toContain('der Umgebungsvariable PROBEWERK_PASSWORD')
   })
@@ -127,7 +127,7 @@ describe('putting somebody into a tenant from the command line', () => {
       said(adding, [north.id, 'neu@example.de', 'Nina Neu', 'member', 'chief'], first),
     )
 
-    expect(message).toBe('Unbekannte Rolle: chief. Möglich sind: lead, member')
+    expect(message).toBe('Unbekannte Rolle: chief. Möglich sind: lead, member, guest')
     expect(await instance.signIn('neu@example.de', first)).toBe('')
   })
 

@@ -355,6 +355,27 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ihre Mails und den Bereich der Instanz braucht. Ein Test im Fundament hält fest, dass dort weder
   ein Produktname noch eine Rolle als Literal steht. Der Authenticator für Passkeys, den die Tests
   benutzen, kommt aus `@opengewerk/platform-server/testing`.
+- Wer in einem Mandanten arbeitet, gehört zum Fundament (`@opengewerk/platform-server`, ADR 0010):
+  die Liste der Leute, die Einladung mit Einmal-Link, das Ändern der Rollen, das Sperren mit
+  sofortiger Wirkung, die Geräte einer Person und die Weigerung, einem Mandanten die letzte Person
+  zu nehmen, die ihn führt. Damit ist die Anmeldung dort vollständig, und eine weitere Anwendung
+  bekommt die Verwaltung ihrer Zugänge, ohne sie abzuschreiben. Die Routen unter `/staff` fragen
+  nach zwei Rechten, die das Fundament selbst nennt, `membership.read` und `membership.write`; eine
+  Anwendung führt beide in ihrem Katalog und sagt, welche ihrer Rollen sie hält. Welche es gibt und
+  welche einen Mandanten führt, kommt weiter aus den Regeln der Anwendung, und vier Sätze, die einen
+  Mandanten oder diese Rolle nennen, bringt sie als ganze Sätze mit. Wie eine Einladung per E-Mail
+  hinausgeht, bleibt bei der Anwendung: das Fundament fragt, ob der Mandant verschicken kann, bevor
+  es die Einladung schreibt, übergibt sie danach und liest, wie die Nachricht steht. Die
+  Handwerkersoftware bindet das an ihren Postausgang, und an ihrem Verhalten ändert sich nichts.
+  Die Kennungen von Zugehörigkeit, Einladung und Sitzung im Mandanten und die Gültigkeit eines
+  Links stehen in `@opengewerk/platform-domain`. Die Tests ziehen mit um und laufen im Fundament mit
+  der Anwendung, die niemandem gehört; sie hat dafür eine dritte Rolle bekommen. Dazu kommt, was
+  bisher nicht gemessen war: Wer gesperrt ist, zählt nicht als jemand, der führt. Eine Sitzung
+  derselben Person im Mandanten nebenan ist weder zu sehen noch zu beenden, auch nicht beim Namen
+  genannt. Eine Einladung sieht und widerruft nur der Mandant, der sie gemacht hat, und eine zweite
+  an dieselbe Adresse zieht die erste zurück. Bei der Handwerkersoftware bleibt, was nur sie falsch
+  machen kann: dass allein der Inhaber die Zugänge erreicht, dass ihre Rollen öffnen, was sie hier
+  öffnen, und dass eine Ablehnung von Betrieb und Inhaber spricht.
 
 ## [0.4.0] - 2026-09-27
 

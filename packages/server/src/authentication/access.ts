@@ -22,11 +22,12 @@ import { application } from '../configuration.js'
 import { instanceOperators } from '../database/schema/index.js'
 
 // The authentication is the foundation's (ADR 0010): accounts, sessions, the
-// second factor and passkeys, the first run and the one time link. What it
-// cannot know is which roles this application has, which of them leads a
-// business, and what a business and its owner are called. This is where it is
-// told, and where what needs telling is bound, so that the rest of the server
-// asks one module and gets the roles of this application.
+// second factor and passkeys, the first run, the one time link, and who works
+// in a business. What it cannot know is which roles this application has,
+// which of them leads a business, and what a business and its owner are
+// called. This is where it is told, and where what needs telling is bound, so
+// that the rest of the server asks one module and gets the roles of this
+// application.
 
 /** What the authentication is told about this application. */
 export const access: AccessRules<RoleKey> = {
@@ -46,6 +47,12 @@ export const access: AccessRules<RoleKey> = {
     noAccessToTenant: 'Kein Zugang zu diesem Betrieb.',
     blockedInTenant:
       'Dieser Zugang ist im Betrieb gesperrt. Der Inhaber kann ihn wieder freigeben.',
+    alreadyWorksHere: 'Diese Adresse arbeitet schon in diesem Betrieb.',
+    notAMember: 'Dieses Konto arbeitet nicht in diesem Betrieb.',
+    noSuchSessionHere: 'Diese Sitzung gibt es in diesem Betrieb nicht.',
+    lastLead:
+      'Das ist der letzte Inhaber dieses Betriebs. Erst einen zweiten Inhaber einsetzen, ' +
+      'sonst kann niemand mehr Zugänge verwalten.',
     unusableLink: {
       redeemed: 'Dieser Link wurde schon benutzt. Bitte im Betrieb einen neuen anfordern.',
       revoked: 'Dieser Link wurde zurückgezogen. Bitte im Betrieb nachfragen.',

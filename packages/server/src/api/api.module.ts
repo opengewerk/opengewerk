@@ -19,6 +19,7 @@ import { raw } from 'express'
 
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
+import { invitationMailing } from '../notifications/invitation-mail.js'
 import type { SecretKey } from '../secrets/key.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
@@ -62,7 +63,6 @@ import {
   SECRETS,
   VERSION,
 } from './handed-in.js'
-import { StaffController } from './staff.controller.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SuppliersController } from './suppliers.controller.js'
@@ -199,15 +199,20 @@ export class ApiModule implements NestModule {
     // The authentication is the foundation's, with the roles and the words of
     // this application. Its ways in, the first run and the one time link, are
     // there only while the authentication is handed in, which is what leaves
-    // them out on a closed instance.
-    const signingIn = authenticationParts({ access, authentication, setupCode })
+    // them out on a closed instance. Who works in a business is part of it,
+    // and an invitation by mail goes out the way every message here does.
+    const signingIn = authenticationParts({
+      access,
+      authentication,
+      setupCode,
+      invitationMailing: invitationMailing(database, mail),
+    })
 
     return {
       module: ApiModule,
       controllers: [
         HealthController,
         ...signingIn.controllers,
-        StaffController,
         CustomersController,
         TagsController,
         ContactsController,
