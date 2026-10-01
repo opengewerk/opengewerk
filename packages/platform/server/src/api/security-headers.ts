@@ -1,15 +1,15 @@
 import type { Express, NextFunction, Request, Response } from 'express'
 
 /**
- * The Content-Security-Policy of the two shells (#131, ADR 0006).
+ * The Content-Security-Policy of the shells of an interface (#131, ADR 0006).
  *
  * Everything from this origin and nothing from anywhere else. The built shells
  * carry no inline script and no inline style, so neither needs a hash or a
  * nonce; React sets the one style it does set through the CSSOM, which the
  * policy does not govern. The service worker, the manifest, the fonts and the
- * icons all come from here as well. Pictures may also come from `blob:`: the
- * previews of the files in the records are drawn from the device's own store
- * (#77), the photo taken in a cellar that no server has seen yet included.
+ * icons all come from here as well. Pictures may also come from `blob:`: a
+ * preview of a file is drawn from the device's own store, the photo taken in
+ * a cellar that no server has seen yet included.
  *
  * On the shells and not on every answer. The shells are the documents script
  * runs in; an answer from the API is JSON or a PDF, and a policy on a PDF only
@@ -31,8 +31,8 @@ export const shellPolicy = [
 ].join('; ')
 
 /**
- * The headers every answer carries, the API's, the interface's and
- * better-auth's alike (#131).
+ * The headers every answer carries, the API's, the interface's and those of
+ * the authentication alike (#131).
  *
  * - `nosniff`, so that a file is what its type says and a browser does not
  *   guess a script out of an upload.
@@ -43,9 +43,9 @@ export const shellPolicy = [
  *   `frame-ancestors`.
  * - HSTS for a year. A browser honours it only over TLS, which is how an
  *   instance runs. Whether it should last longer or cover the subdomains is
- *   the operator's to decide for their domain, and the proxy then replaces
- *   the value rather than sending a second header: a browser reads only the
- *   first.
+ *   for whoever runs the instance to decide for their domain, and the proxy
+ *   then replaces the value rather than sending a second header: a browser
+ *   reads only the first.
  * - The window and the resources to this origin (`COOP`, `CORP`).
  *
  * Set here and not in the proxy, so that an instance behind any proxy has

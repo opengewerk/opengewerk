@@ -28,7 +28,13 @@ import {
   wordingAt,
   wordingIsFixed,
 } from '@opengewerk/domain'
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  Database,
+  pick,
+  requireFields,
+  requireSomething,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { eq, max } from 'drizzle-orm'
 import type { Response } from 'express'
 
@@ -47,7 +53,6 @@ import {
   shownTitle,
 } from '../documents/instructions.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { todayInGermany } from '../today.js'
 

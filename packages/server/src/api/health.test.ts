@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { Database } from '@opengewerk/platform-server'
+import { ClosedIdentitySource, Database } from '@opengewerk/platform-server'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -12,7 +12,6 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { ClosedIdentitySource } from './closed-identity.js'
 
 /**
  * The health check and the identity source an instance runs with before the

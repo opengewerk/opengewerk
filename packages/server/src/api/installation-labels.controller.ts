@@ -29,6 +29,7 @@ import {
   isUniqueViolation,
   isUuid,
   type TenantTransaction,
+  TRUSTED_ORIGINS,
 } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
@@ -43,7 +44,7 @@ import {
 import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { labelPrintJob } from '../labels/label-print.js'
 import { RequiresPermission } from './authorization.js'
-import { RENDERER, TRUSTED_ORIGINS } from './handed-in.js'
+import { RENDERER } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** An installation that is not deleted, held until the transaction ends when `lock` says so. */

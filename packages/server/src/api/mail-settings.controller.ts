@@ -14,7 +14,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import { type SmtpSecurity } from '@opengewerk/domain'
-import { Database, type MailConfiguration } from '@opengewerk/platform-server'
+import { Database, type MailConfiguration, pick } from '@opengewerk/platform-server'
 
 import { checkMailServer, type MailServerCheck } from '../mail/check.js'
 import {
@@ -29,7 +29,6 @@ import {
   saveMailServer,
 } from '../mail/server-settings.js'
 import { RequiresPermission } from './authorization.js'
-import { pick } from './body.js'
 import { MAIL, type MailContext } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

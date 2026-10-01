@@ -2,10 +2,11 @@
  * What the module hands to the controllers that cannot get it from a
  * constructor type.
  *
- * `Database` is a class, so Nest can inject it by its type. These two are not:
- * `Authentication` is an interface of better-auth's and the trusted origins
- * are an array of strings. Both need a token to be injected by, and a token is
- * a symbol.
+ * `Database` is a class, so Nest can inject it by its type. These are not:
+ * `Authentication` is an interface of better-auth's, and the others are
+ * values. Each needs a token to be injected by, and a token is a symbol. The
+ * token of the trusted origins is the foundation's, which reads them in its
+ * guard.
  *
  * They sit in a file of their own rather than next to the first controller
  * that needed them. Two controllers use them now, the first run setup and the
@@ -27,13 +28,6 @@ export const AUTHENTICATION = Symbol('Authentication')
  * how to get one. Read by the setup controller and by nothing else.
  */
 export const SETUP_CODE = Symbol('SetupCode')
-
-/**
- * The addresses a browser may send a request that changes something from,
- * read by `SameOriginGuard`. The same list better-auth gets, because the check
- * is the same check.
- */
-export const TRUSTED_ORIGINS = Symbol('TrustedOrigins')
 
 /**
  * The content addressed file store. An interface of its own rather than the

@@ -24,7 +24,7 @@ import {
   type LogoMediaType,
   type TenantId,
 } from '@opengewerk/domain'
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import { AcceptsBody, Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, ne } from 'drizzle-orm'
 import type { Request } from 'express'
 
@@ -34,7 +34,6 @@ import { fileRowFor } from '../storage/files.js'
 import { RequiresPermission } from './authorization.js'
 import { FILE_STORE } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
-import { AcceptsBody } from './origin.js'
 
 /** The longest a single field may be. A letterhead line, not a letter. */
 const longestField = 300

@@ -2,21 +2,25 @@ import 'reflect-metadata'
 
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import { ConfigurationError, Database, vapidKeysFrom } from '@opengewerk/platform-server'
+import {
+  ClosedIdentitySource,
+  ConfigurationError,
+  Database,
+  readJsonBodiesOnly,
+  sendSecurityHeaders,
+  vapidKeysFrom,
+} from '@opengewerk/platform-server'
 
 import { toNodeHandler } from 'better-auth/node'
 
 import { ApiModule } from './api/api.module.js'
-import { ClosedIdentitySource } from './api/closed-identity.js'
 import { authenticationPath, createAuthentication } from './authentication/authentication.js'
 import { SessionIdentitySource } from './authentication/session-identity.js'
 import { instanceIsEmpty } from './authentication/setup.js'
 import { readConfiguration } from './configuration.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
-import { readJsonBodiesOnly } from './api/origin.js'
 import { interfacePath, serveInterface } from './interface.js'
-import { sendSecurityHeaders } from './security-headers.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
 import { passkeyNotices } from './mail/passkey-notice.js'

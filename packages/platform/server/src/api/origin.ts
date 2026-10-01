@@ -31,9 +31,10 @@ const json: Accepted = {
 }
 
 /**
- * Marks the one kind of route whose body is not JSON, today the logo, with
- * the types it takes and what to say about any other. The types have to be
- * ones a form cannot send; an image is, a form only knows three encodings.
+ * Marks the one kind of route whose body is not JSON, an image or the bytes of
+ * a file, with the types it takes and what to say about any other. The types
+ * have to be ones a form cannot send; an image is, a form only knows three
+ * encodings.
  */
 export const AcceptsBody = (mediaTypes: readonly string[], refusal: string) =>
   SetMetadata(ACCEPTS_METADATA, { mediaTypes, refusal } satisfies Accepted)
@@ -105,13 +106,13 @@ export function refusalOf(
  * The defence against a form on somebody else's page, in front of every route
  * of ours that changes something (ADR 0006).
  *
- * better-auth checks the origin of its own routes under `/api/auth`. Until
- * GHSA-r7rq-234g-3jx8 the rest of the application relied on the session
- * cookie being `SameSite=Lax`. That keeps a foreign site out in a current
- * browser, but not a page on another subdomain of the same site: a browser
- * counts it as the same site and sends the cookie along. Only the first run
- * setup and the redemption of an invitation checked for themselves, the two
- * routes that write without anybody signed in.
+ * The authentication checks the origin of its own routes. Until
+ * GHSA-r7rq-234g-3jx8 the rest of an application relied on the session cookie
+ * being `SameSite=Lax`. That keeps a foreign site out in a current browser,
+ * but not a page on another subdomain of the same site: a browser counts it
+ * as the same site and sends the cookie along. Only the first run setup and
+ * the redemption of an invitation checked for themselves, the two routes that
+ * write without anybody signed in.
  *
  * A guard and not a check in each route, so that the next route cannot be
  * written without it. It runs before the guard that asks who is calling, so a
@@ -161,17 +162,18 @@ export const largestTransmissionBytes = 8 * 1024 * 1024
  * Nest reads JSON and form bodies unless it is told otherwise. A form body is
  * the one thing a page on another site can send, no route here takes one, and
  * the guard above refuses it anyway; not parsing it at all is the same answer
- * with a parser less. The logo reads its raw bytes through a middleware of its
- * own, on its route alone. For an application created with `bodyParser: false`.
+ * with a parser less. A route that takes raw bytes reads them through a
+ * middleware of its own, on that route alone. For an application created with
+ * `bodyParser: false`.
  *
  * The outbox at `POST /sync` is read first, with a limit of its own; a body
  * read there counts as read, and the parser for everything else passes it by.
  * Until #202 it had the 100 kB of every route, and a device over that was
  * refused with an answer that named no operation, so its outbox hung for good.
  *
- * Called after better-auth is mounted, never before: Express reads a body
- * once, and a parser in front would leave the sign in with an empty one, which
- * looks exactly like a wrong password.
+ * Called after the authentication is mounted, never before: Express reads a
+ * body once, and a parser in front would leave the sign in with an empty one,
+ * which looks exactly like a wrong password.
  */
 export function readJsonBodiesOnly(application: NestExpressApplication): void {
   const outbox = readJson({ limit: largestTransmissionBytes })

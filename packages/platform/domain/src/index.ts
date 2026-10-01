@@ -9,6 +9,7 @@ export * from './model/audit.js'
 export * from './model/backup.js'
 export * from './model/file.js'
 export * from './model/identifier.js'
+export * from './model/identity.js'
 export * from './model/mail-server.js'
 export * from './model/passkey.js'
 

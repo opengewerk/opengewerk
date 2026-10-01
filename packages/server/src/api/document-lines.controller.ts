@@ -23,12 +23,17 @@ import {
   vatRates,
   whyFixed,
 } from '@opengewerk/domain'
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  Database,
+  pick,
+  requireFields,
+  requireSomething,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import { documentLines, documents } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { requireReferences } from './references.js'
 

@@ -9,11 +9,10 @@ import {
   Post,
 } from '@nestjs/common'
 import type { RoleKey, TenantId } from '@opengewerk/domain'
-import { Database, isUuid } from '@opengewerk/platform-server'
+import { Database, isUuid, pick } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { RequiresSession } from '../api/authorization.js'
-import { pick } from '../api/body.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { authSessions, memberships, tenants, tenantSessions } from '../database/schema/index.js'
 import { sessionLifetimes } from './session-lifetime.js'

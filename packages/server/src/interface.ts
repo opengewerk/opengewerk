@@ -1,10 +1,9 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, posix, resolve } from 'node:path'
 
+import { shellPolicy } from '@opengewerk/platform-server'
 import express from 'express'
 import type { Express, Request, Response } from 'express'
-
-import { shellPolicy } from './security-headers.js'
 
 /**
  * Serves the built interface from the same process that serves the API.

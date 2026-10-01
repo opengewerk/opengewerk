@@ -1,4 +1,4 @@
-import { isInternalAddress } from '../mail/reach.js'
+import { isInternalAddress } from '../network/internal-address.js'
 
 /** The parts of a request the address is read from. */
 export interface AddressedRequest {
