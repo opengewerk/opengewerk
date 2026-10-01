@@ -12,7 +12,7 @@ import {
   UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { attachmentSizeProblem, fileHashProblem } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { AcceptsBody, Database } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 import type { Request } from 'express'
 
@@ -23,7 +23,6 @@ import { fileRowFor } from '../storage/files.js'
 import { RequiresPermission } from './authorization.js'
 import { FILE_STORE } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
-import { AcceptsBody } from './origin.js'
 
 /** How a file travels: as bytes, with a type a form cannot send. */
 export const fileUploadType = 'application/octet-stream'

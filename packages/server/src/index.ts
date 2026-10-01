@@ -3,7 +3,7 @@
 // has an entry point of its own, and so that a later consumer of the server
 // has somewhere to import from.
 export { ApiModule } from './api/api.module.js'
-export { ClosedIdentitySource } from './api/closed-identity.js'
+export { ClosedIdentitySource } from '@opengewerk/platform-server'
 export { IDENTITY_SOURCE, type IdentitySource, type SignedInUser } from './api/identity.js'
 export {
   type Authentication,

@@ -324,6 +324,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   erlaubten Policies, obwohl die restriktive Policy daneben sie einzäunt. Auf der Liste wäre sie
   auch dann durchgegangen, wenn eine Migration den Zaun entfernt hätte; jetzt wird der Test dann
   rot.
+- Was zwischen einer Anfrage und einer Route steht, gehört zum Fundament
+  (`@opengewerk/platform-server`, ADR 0010), damit eine weitere Anwendung es nicht nachbaut: der
+  Guard, der klärt, wer fragt und ob er darf, die Identität einer Anfrage, die Prüfung von
+  Herkunft und Inhaltstyp, die Sicherheits-Header mit der Content-Security-Policy, die Adresse
+  eines Clients hinter einem Proxy, die geschlossene Instanz und die Frage, ob eine Adresse im
+  Internet liegt. Der Guard kennt den Mechanismus. Was ein Recht ist, wer es hat, wer die Instanz
+  betreibt und was eine Ablehnung in den Worten der Anwendung sagt, gibt die Anwendung hinein; die
+  Handwerkersoftware bindet das in `api/authorization.ts`, und an ihrem Verhalten ändert sich
+  nichts. Im Fundament prüft ein Test den Guard an einer Anwendung, die niemandem gehört, mit zwei
+  Rechten und einer Route jeder Art. Der Gang über alle Routen eines Moduls, der eine Route ohne
+  Recht findet, und die Identität aus einem Kopf für Tests kommen aus
+  `@opengewerk/platform-server/testing`.
 
 ## [0.4.0] - 2026-09-27
 

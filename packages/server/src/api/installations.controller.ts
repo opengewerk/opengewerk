@@ -15,13 +15,18 @@ import {
   pvSystemLinkProblem,
   type RecordState,
 } from '@opengewerk/domain'
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  Database,
+  pick,
+  requireFields,
+  requireSomething,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { installations } from '../database/schema/index.js'
 import { pvLinkMisfit } from '../electrical/structure.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireFields, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

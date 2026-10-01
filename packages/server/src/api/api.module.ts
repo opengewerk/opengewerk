@@ -7,7 +7,12 @@ import {
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { largestAttachmentBytes, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import {
+  AUTHORIZATION,
+  Database,
+  SameOriginGuard,
+  TRUSTED_ORIGINS,
+} from '@opengewerk/platform-server'
 import { raw } from 'express'
 
 import type { Authentication } from '../authentication/authentication.js'
@@ -21,7 +26,7 @@ import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
-import { AuthorizationGuard } from './authorization.js'
+import { authorization, AuthorizationGuard } from './authorization.js'
 import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
 import { InstallationLabelsController } from './installation-labels.controller.js'
@@ -58,11 +63,9 @@ import {
   RENDERER,
   SECRETS,
   SETUP_CODE,
-  TRUSTED_ORIGINS,
   VERSION,
 } from './handed-in.js'
 import { InvitationController } from './invitation.controller.js'
-import { SameOriginGuard } from './origin.js'
 import { SetupController } from './setup.controller.js'
 import { StaffController } from './staff.controller.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
@@ -275,6 +278,8 @@ export class ApiModule implements NestModule {
           : []),
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
+        // What a right is and who holds it, for the guard of the foundation.
+        { provide: AUTHORIZATION, useValue: authorization },
         // In this order, which is the order Nest runs them in: a form from a
         // foreign page is refused before anybody asks whose session it carries.
         { provide: APP_GUARD, useClass: SameOriginGuard },

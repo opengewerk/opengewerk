@@ -27,7 +27,7 @@ import {
   type WithdrawalVariant,
   withdrawalVariants,
 } from '@opengewerk/domain'
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import { Database, pick, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
@@ -41,7 +41,6 @@ import {
 } from '../documents/instructions.js'
 import { headingOf } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
-import { pick } from './body.js'
 import { DocumentFiles } from './document-files.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

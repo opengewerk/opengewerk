@@ -1,80 +1,18 @@
-import { RequestMethod } from '@nestjs/common'
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
-import type { Permission } from '@opengewerk/domain'
 import { Database } from '@opengewerk/platform-server'
+import { routesOf, undeclared } from '@opengewerk/platform-server/testing'
 import { describe, expect, it } from 'vitest'
 
 import { authenticationPath, createAuthentication } from '../authentication/authentication.js'
 import { ApiModule } from './api.module.js'
-import {
-  OPERATOR_METADATA,
-  PERMISSION_METADATA,
-  PUBLIC_METADATA,
-  SESSION_METADATA,
-} from './authorization.js'
 import { noIdentities } from './test-identity.js'
 
 /**
  * Walks every route the module registers and reports the ones that declare no
  * right. Not a list kept by hand: the controllers come out of the module
  * itself, so a controller added later is included whether or not anybody
- * remembers this file.
+ * remembers this file. The walk is the foundation's (ADR 0010); the lists
+ * below are this application's.
  */
-
-const writingMethods = new Map<RequestMethod, string>([
-  [RequestMethod.POST, 'POST'],
-  [RequestMethod.PUT, 'PUT'],
-  [RequestMethod.PATCH, 'PATCH'],
-  [RequestMethod.DELETE, 'DELETE'],
-])
-
-interface Route {
-  readonly name: string
-  readonly writes: boolean
-  readonly permission: Permission | undefined
-  readonly isPublic: boolean
-  readonly needsSessionOnly: boolean
-  readonly needsOperator: boolean
-}
-
-function routesOf(controllers: readonly unknown[]): Route[] {
-  const routes: Route[] = []
-
-  for (const controller of controllers) {
-    const prototype = (controller as { prototype: Record<string, unknown> }).prototype
-    const base = Reflect.getMetadata(PATH_METADATA, controller as object) as string
-
-    for (const name of Object.getOwnPropertyNames(prototype)) {
-      if (name === 'constructor') {
-        continue
-      }
-
-      const handler = prototype[name]
-      if (typeof handler !== 'function') {
-        continue
-      }
-
-      const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod | undefined
-      if (method === undefined) {
-        continue
-      }
-
-      const path = Reflect.getMetadata(PATH_METADATA, handler) as string
-      const verb = writingMethods.get(method)
-
-      routes.push({
-        name: `${verb ?? 'GET'} /${base}${path === '/' ? '' : `/${path}`}`,
-        writes: verb !== undefined,
-        permission: Reflect.getMetadata(PERMISSION_METADATA, handler) as Permission | undefined,
-        isPublic: Reflect.getMetadata(PUBLIC_METADATA, handler) === true,
-        needsSessionOnly: Reflect.getMetadata(SESSION_METADATA, handler) === true,
-        needsOperator: Reflect.getMetadata(OPERATOR_METADATA, handler) === true,
-      })
-    }
-  }
-
-  return routes
-}
 
 const database = Database.connect('postgres://unused')
 
@@ -107,17 +45,7 @@ describe('every route', () => {
   })
 
   it('declares the right it needs, writing ones above all', () => {
-    const undeclared = routesOf(controllers)
-      .filter(
-        (route) =>
-          route.permission === undefined &&
-          !route.isPublic &&
-          !route.needsSessionOnly &&
-          !route.needsOperator,
-      )
-      .map((route) => route.name)
-
-    expect(undeclared).toEqual([])
+    expect(undeclared(routesOf(controllers)).map((route) => route.name)).toEqual([])
   })
 
   /**

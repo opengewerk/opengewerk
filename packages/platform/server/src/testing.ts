@@ -14,3 +14,8 @@ export * from './database/foundation-migration.js'
 // The questions about the separation of tenants every application asks of
 // its own catalogue.
 export * from './database/tenant-checks.js'
+
+// An identity out of a header, and the routes of a module with what each of
+// them asks of whoever calls it.
+export * from './api/routes.js'
+export * from './api/test-identity.js'

@@ -12,14 +12,13 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import { accessProblem, type SiteAccessId, type SiteId } from '@opengewerk/domain'
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import { Database, pick, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { siteAccesses, siteAccessReveals, sites } from '../database/schema/index.js'
 import { forgetAccessValue, keepAccessValue, readAccessValue } from '../secrets/site-access.js'
 import type { SecretKey } from '../secrets/key.js'
 import { RequiresPermission } from './authorization.js'
-import { pick } from './body.js'
 import { SECRETS } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

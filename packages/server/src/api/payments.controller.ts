@@ -10,7 +10,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import type { DocumentId } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { Database, pick } from '@opengewerk/platform-server'
 
 import {
   openAmounts,
@@ -21,7 +21,6 @@ import {
 } from '../payments/payments.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
-import { pick } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**

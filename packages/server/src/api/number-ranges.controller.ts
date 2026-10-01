@@ -8,7 +8,7 @@ import {
   Put,
 } from '@nestjs/common'
 import { type NumberRangeKey, numberRangeKeys } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { Database, pick } from '@opengewerk/platform-server'
 
 import {
   changeNumberRange,
@@ -17,7 +17,6 @@ import {
   type NumberRangeView,
 } from '../database/number-ranges.js'
 import { RequiresPermission } from './authorization.js'
-import { pick } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**

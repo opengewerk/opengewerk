@@ -30,6 +30,21 @@ export * from './database/schema/rls.js'
 // What a refusal of the database becomes on its way to the caller.
 export * from './api/database-errors.js'
 
+// What stands between a request and a handler: who is asking, whether they
+// may, where the request comes from, and what every answer carries. Which
+// rights there are and who holds them, the application says.
+export * from './api/authorization.js'
+export * from './api/body.js'
+export * from './api/client-address.js'
+export * from './api/closed-identity.js'
+export * from './api/handed-in.js'
+export * from './api/identity.js'
+export * from './api/origin.js'
+export * from './api/security-headers.js'
+
+// What is on the internet and what is inside a network.
+export * from './network/internal-address.js'
+
 // The code the first run of an instance asks for.
 export * from './authentication/setup-code.js'
 

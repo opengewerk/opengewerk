@@ -14,8 +14,11 @@ import {
 } from '@nestjs/common'
 import { businessNameProblem, type TenantId } from '@opengewerk/domain'
 import {
+  clientAddress,
   Database,
   normalizeSetupCode,
+  pick,
+  requireFields,
   SetupAttempts,
   setupCodesMatch,
 } from '@opengewerk/platform-server'
@@ -25,9 +28,7 @@ import type { Authentication } from '../authentication/authentication.js'
 import { shortestPassword } from '../authentication/password.js'
 import { instanceIsEmpty, setUpInstance } from '../authentication/setup.js'
 import { PublicRoute } from './authorization.js'
-import { clientAddress } from './client-address.js'
 import { AUTHENTICATION, SETUP_CODE } from './handed-in.js'
-import { pick, requireFields } from './body.js'
 
 /** How long a caller waits after a first run that failed before the next one. */
 const restAfterFailure = 2000

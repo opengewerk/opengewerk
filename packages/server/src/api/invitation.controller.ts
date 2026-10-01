@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Post } from '@nestjs/common'
-import { Database } from '@opengewerk/platform-server'
+import { Database, pick } from '@opengewerk/platform-server'
 
 import type { Authentication } from '../authentication/authentication.js'
 import { looksLikeAToken } from '../authentication/invitation.js'
@@ -11,7 +11,6 @@ import {
 } from '../authentication/redemption.js'
 import { PublicRoute } from './authorization.js'
 import { AUTHENTICATION } from './handed-in.js'
-import { pick } from './body.js'
 
 /**
  * The far end of a one time link.

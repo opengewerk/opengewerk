@@ -20,7 +20,7 @@ import {
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
-import { Database, isMailAddress } from '@opengewerk/platform-server'
+import { Database, isMailAddress, pick } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 import { accountsOf } from '../authentication/administration.js'
@@ -35,7 +35,6 @@ import {
 import { notify } from '../notifications/notify.js'
 import type { DocumentAttachment } from '../notifications/templates.js'
 import { RequiresPermission } from './authorization.js'
-import { pick } from './body.js'
 import { dutyOf } from './e-invoice.controller.js'
 import { MAIL, type MailContext } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'

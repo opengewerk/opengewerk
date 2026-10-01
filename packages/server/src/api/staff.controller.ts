@@ -12,7 +12,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import type { RoleKey } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { Database, pick, requireFields } from '@opengewerk/platform-server'
 
 import {
   changeRoles,
@@ -31,7 +31,6 @@ import {
 import { requireMailServer } from '../mail/server-settings.js'
 import { notify } from '../notifications/notify.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireFields } from './body.js'
 import { MAIL, type MailContext } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

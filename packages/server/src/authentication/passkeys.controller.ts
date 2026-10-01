@@ -9,10 +9,9 @@ import {
   Patch,
 } from '@nestjs/common'
 import { type PasskeyEntry, passkeyNameProblem } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { Database, pick } from '@opengewerk/platform-server'
 
 import { RequiresSession } from '../api/authorization.js'
-import { pick } from '../api/body.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { passkeysOf, removePasskey, renamePasskey } from './passkeys.js'
 
