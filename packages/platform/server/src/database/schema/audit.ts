@@ -1,5 +1,4 @@
-import { auditOperations } from '@opengewerk/domain'
-import { primaryId, timestamps, writtenByTriggerOnly } from '@opengewerk/platform-server'
+import { auditOperations } from '@opengewerk/platform-domain'
 import {
   bigint,
   index,
@@ -12,6 +11,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { primaryId, timestamps } from './columns.js'
+import { writtenByTriggerOnly } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 export const auditOperation = pgEnum('audit_operation', auditOperations)
@@ -25,9 +26,10 @@ export const auditOperation = pgEnum('audit_operation', auditOperations)
  * sixteenth place, and nobody notices, because a missing entry looks exactly
  * like a change that never happened.
  *
- * The trigger, the grants and the append-only rule live in the migration.
- * drizzle-kit knows none of the three, so this table is one of the places
- * where the file next to the schema is the real source.
+ * The trigger, the grants and the append-only rule are not here. drizzle-kit
+ * knows none of the three, so they are written by hand: in the migrations of
+ * an application, and for a new one in the building blocks under `sql/`
+ * (ADR 0010), which a test holds against the database.
  */
 export const auditEntries = pgTable(
   'audit_entries',
@@ -62,7 +64,7 @@ export const auditEntries = pgTable(
     ...writtenByTriggerOnly(table.tenantId),
     // The history of one record, which is the question the log gets asked.
     index('audit_entries_record_idx').on(table.tenantId, table.tableName, table.recordId),
-    // And the other one: what happened in this company last week.
+    // And the other one: what happened in this tenant last week.
     index('audit_entries_time_idx').on(table.tenantId, table.changedAt),
     // The chain is walked in this order, and no number may appear twice: a
     // second entry claiming a taken place is a fork, not a chain.
@@ -75,8 +77,9 @@ export const auditEntries = pgTable(
  *
  * Its row is locked for the rest of the transaction as soon as a change is
  * logged, which is what gives concurrent changes a defined order. The price is
- * that two transactions writing for the same company wait for each other. For
- * a trades business that is nothing; it would be something at ten thousand
+ * that two transactions writing for the same tenant wait for each other. For
+ * a tenant of the size these applications are built for that is nothing; it
+ * would be something at ten thousand
  * changes a minute, and then the question would be whether a chain is still
  * the right instrument, not whether the lock can go.
  *

@@ -6,10 +6,10 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, integer, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
-import { tenantColumn } from './tenants.js'
 import { installations } from './installations.js'
 
 /**

@@ -1,14 +1,13 @@
-// The role the policies are written for. It comes from the foundation
-// (ADR 0010), like the columns and policies every table here is put together
-// from, and is handed on because drizzle-kit reads the schema from this file:
-// a role it does not find here is one it would try to manage.
-export { applicationRole } from '@opengewerk/platform-server'
+// What every application carries comes from the foundation (ADR 0010): the
+// role the policies are written for, and the tables for tenants, accounts,
+// memberships, the audit log and the sync layer. They are handed on here
+// because drizzle-kit reads the schema from this file: a table it does not
+// find here is one it would drop, a role one it would try to manage.
+export * from '@opengewerk/platform-server/schema'
 
 export * from './article-imports.js'
 export * from './articles.js'
 export * from './attachments.js'
-export * from './audit.js'
-export * from './authentication.js'
 export * from './contacts.js'
 export * from './customers.js'
 export * from './deadlines.js'
@@ -30,7 +29,6 @@ export * from './job-notes.js'
 export * from './jobs.js'
 export * from './letterheads.js'
 export * from './mail.js'
-export * from './memberships.js'
 export * from './number-ranges.js'
 export * from './parameters.js'
 export * from './payments.js'
@@ -40,9 +38,7 @@ export * from './secrets.js'
 export * from './site-accesses.js'
 export * from './sites.js'
 export * from './suppliers.js'
-export * from './sync.js'
 export * from './tags.js'
 export * from './tasks.js'
-export * from './tenants.js'
 export * from './text-snippets.js'
 export * from './time.js'

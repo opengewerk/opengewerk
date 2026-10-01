@@ -1,5 +1,6 @@
 import { smtpSecurities } from '@opengewerk/domain'
 import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { invitations, tenantColumn } from '@opengewerk/platform-server/schema'
 import {
   foreignKey,
   index,
@@ -14,9 +15,7 @@ import {
 
 import { deadlines } from './deadlines.js'
 import { documents } from './documents.js'
-import { invitations } from './memberships.js'
 import { tasks } from './tasks.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * What a message is about. One kind per cause the notifications know, and one

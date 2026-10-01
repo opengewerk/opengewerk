@@ -20,6 +20,8 @@ export const {
   revertMigration,
   revertAllMigrations,
   migrationsFolderUpTo,
+  applyFoundation,
+  foundationDeviations,
 } = testDatabase({
   migrationsFolder,
   defaultUrl: 'postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test',

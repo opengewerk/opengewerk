@@ -1,9 +1,8 @@
 import { customerKinds } from '@opengewerk/domain'
 import { primaryId, syncColumns, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { boolean, check, date, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
-
-import { tenantColumn } from './tenants.js'
 
 export const customerKind = pgEnum('customer_kind', customerKinds)
 

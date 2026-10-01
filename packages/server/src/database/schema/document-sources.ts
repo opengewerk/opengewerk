@@ -5,6 +5,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   check,
@@ -17,7 +18,6 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { documents } from './documents.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * Which reports a collective invoice was made out of (#135), one row each, in

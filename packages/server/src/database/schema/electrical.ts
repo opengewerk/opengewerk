@@ -12,6 +12,7 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   check,
@@ -24,7 +25,6 @@ import {
   unique,
 } from 'drizzle-orm/pg-core'
 
-import { tenantColumn } from './tenants.js'
 import { installations } from './installations.js'
 
 export const distributionBoardKind = pgEnum('distribution_board_kind', distributionBoardKinds)

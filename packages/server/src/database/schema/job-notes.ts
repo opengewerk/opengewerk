@@ -5,10 +5,10 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { foreignKey, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { jobs } from './jobs.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * The notes from the site about a job (#220), one per row: what happened,

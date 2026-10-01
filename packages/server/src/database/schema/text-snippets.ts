@@ -1,8 +1,7 @@
 import { snippetPurposes } from '@opengewerk/domain'
 import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
-
-import { tenantColumn } from './tenants.js'
 
 export const snippetPurpose = pgEnum('snippet_purpose', snippetPurposes)
 

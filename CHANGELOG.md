@@ -293,6 +293,31 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   daneben, festgelegt in `turbo.json`: beide leeren dieselbe Testdatenbank. `pnpm run preview`
   und der CI-Job der E-Rechnung bauen vorher alles, wovon der Server abhängt, nicht mehr nur
   `domain`.
+- Das Fundament bringt mit, woraus die erste Migration einer weiteren Anwendung entsteht
+  (ADR 0010, Punkt 9), damit sie nicht aus 63 Migrationen abgeschrieben wird. Die Tabellen für
+  Mandanten, Konten und Sitzungen, Zugehörigkeiten und Einladungen, Audit-Log und Abgleich liegen
+  als Schema-Module in `@opengewerk/platform-server` (Einstieg `/schema`). Was `drizzle-kit`
+  nicht schreibt, liegt als SQL-Dateien unter `packages/platform/server/sql`: die Rolle der
+  Anwendung, die Funktionen und Trigger des Audit-Logs, des Abgleichs und der Ersteinrichtung.
+  Der Einstieg `/migration` setzt sie um die erste Migration einer Anwendung, gibt jeder Tabelle
+  `FORCE`, ihre Rechte und ihre Trigger und schreibt die Rücknahme dazu. Für die
+  Handwerkersoftware ändert sich nichts: keine neue Migration, keine geänderte, und `drizzle-kit`
+  findet an ihrem Schema keine Änderung. Dass die Bausteine sagen, was ihre Migrationen
+  hinterlassen haben, hält ein neuer Test am Katalog der Datenbank fest: Spalten, Schlüssel,
+  Policies, Rechte, Trigger, Enums und Funktionen samt der Frage, wer sie aufrufen darf. Weicht
+  etwas ab, ist der Baustein falsch und nicht die Migration, denn die ist auf einer Installation
+  gelaufen. Die Rollen einer Zugehörigkeit und einer Einladung sind im Fundament Zeichenketten;
+  welche es gibt, bleibt die Liste der Anwendung.
+- Die Katalogfragen zur Mandantentrennung sind Teil von `@opengewerk/platform-server/testing`,
+  damit jede Anwendung sie über ihre eigene Datenbank stellt, statt sie abzuschreiben: jede
+  Tabelle mit `FORCE`, Policy und Recht, jede Policy mit dem einen erlaubten Vergleich, jeder
+  Schlüssel zwischen zwei Tabellen eines Mandanten über den Mandanten, der Audit-Trigger an jeder
+  Tabelle eines Mandanten und die eingefrorenen Spalten eines Audit-Eintrags. Die Tests der
+  Handwerkersoftware fragen seitdem dort. Dabei ist eine Ausnahme weggefallen, die nichts
+  entschuldigte: die offene Policy der Ersteinrichtung an `tenants` stand auf der Liste der
+  erlaubten Policies, obwohl die restriktive Policy daneben sie einzäunt. Auf der Liste wäre sie
+  auch dann durchgegangen, wenn eine Migration den Zaun entfernt hätte; jetzt wird der Test dann
+  rot.
 
 ## [0.4.0] - 2026-09-27
 

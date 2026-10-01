@@ -1,9 +1,11 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { Pool } from 'pg'
 
+import { catalogueDeviations, type OwnAdditions, readCatalogue } from './catalogue.js'
+import { foundationMigration } from './foundation-migration.js'
 import { type MigrationHistory, runMigrations } from './migrations.js'
 import { applicationRoleName, migrationRole } from './roles.js'
 
@@ -193,6 +195,50 @@ export async function columnNames(pool: Pool, table: string): Promise<string[]> 
   return result.rows.map((row) => row.column_name)
 }
 
+/** One migration of a folder built for a test. */
+export interface WrittenMigration {
+  readonly tag: string
+  readonly sql: string
+  /** The timestamp in the journal. The runner orders by it. */
+  readonly when: number
+}
+
+/**
+ * A migrations folder as drizzle-kit would have written it: the files, and the
+ * journal that names them in order. In the temporary directory; whoever asked
+ * for it removes it again.
+ */
+export function writeMigrationsFolder(migrations: readonly WrittenMigration[]): string {
+  const folder = mkdtempSync(join(tmpdir(), 'opengewerk-platform-migrations-'))
+  mkdirSync(join(folder, 'meta'))
+
+  for (const migration of migrations) {
+    writeFileSync(join(folder, `${migration.tag}.sql`), migration.sql, 'utf8')
+  }
+
+  writeFileSync(
+    join(folder, 'meta', '_journal.json'),
+    JSON.stringify(
+      {
+        version: '7',
+        dialect: 'postgresql',
+        entries: migrations.map((migration, idx) => ({
+          idx,
+          version: '7',
+          when: migration.when,
+          tag: migration.tag,
+          breakpoints: true,
+        })),
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  )
+
+  return folder
+}
+
 /** What a test kit has to be told about the application it is for. */
 export interface TestDatabaseOptions {
   /** The migrations of the application, the folder its image carries. */
@@ -255,6 +301,29 @@ export interface TestDatabase {
    * for it removes it again.
    */
   migrationsFolderUpTo(count: number, ...added: AddedMigration[]): string
+  /**
+   * Builds the foundation alone in the database, from its building blocks, the
+   * way the first migration of a new application does. Through the same
+   * runner and as the same role as every migration.
+   */
+  applyFoundation(database?: string): Promise<void>
+  /**
+   * Where the database of this application departs from the building blocks
+   * of the foundation: every table, key, policy, right, function and trigger
+   * of the foundation has to be there exactly as a database built from the
+   * blocks alone has it.
+   *
+   * Empties the database twice on the way, once for the blocks and once for
+   * the migrations of the application, and leaves it migrated. Nothing listed
+   * is the answer that is wanted. Something listed means a block is wrong, or
+   * a migration changed the foundation without the block following: the
+   * migration has run on somebody's installation, so it is the block that
+   * moves.
+   *
+   * `own` names what the application has hung on tables of the foundation, a
+   * trigger or an index of its own.
+   */
+  foundationDeviations(pool: Pool, own?: OwnAdditions): Promise<string[]>
 }
 
 export function testDatabase(options: TestDatabaseOptions): TestDatabase {
@@ -402,6 +471,29 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
     return folder
   }
 
+  async function applyFoundation(database: string = testDatabaseUrl()): Promise<void> {
+    const { up } = await foundationMigration(history)
+    const folder = writeMigrationsFolder([{ tag: '0000_foundation', sql: up, when: 1 }])
+
+    try {
+      await runMigrations(ownerDatabaseUrl(database), folder, history)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  }
+
+  async function foundationDeviations(pool: Pool, own: OwnAdditions = {}): Promise<string[]> {
+    await resetSchema(pool)
+    await applyFoundation()
+    const fromTheBlocks = await readCatalogue(pool)
+
+    await resetSchema(pool)
+    await applyMigrations()
+    const fromTheMigrations = await readCatalogue(pool)
+
+    return catalogueDeviations(fromTheBlocks, fromTheMigrations, own)
+  }
+
   return {
     testDatabaseUrl,
     connect,
@@ -412,5 +504,7 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
     revertMigration,
     revertAllMigrations,
     migrationsFolderUpTo,
+    applyFoundation,
+    foundationDeviations,
   }
 }

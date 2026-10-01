@@ -1,7 +1,6 @@
 import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { pgEnum, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
-
-import { tenantColumn } from './tenants.js'
 
 /**
  * What a secret opens: the login to the mail server of a business, once per

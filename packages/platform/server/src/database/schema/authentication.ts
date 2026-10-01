@@ -1,5 +1,4 @@
-import { signInMethods, type TenantId } from '@opengewerk/domain'
-import { outsideAnyTenant, readableByTheOwner } from '@opengewerk/platform-server'
+import { signInMethods, type TenantId } from '@opengewerk/platform-domain'
 import {
   bigint,
   boolean,
@@ -11,6 +10,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { outsideAnyTenant, readableByTheOwner } from './rls.js'
 import { tenants } from './tenants.js'
 
 /**
@@ -18,19 +18,19 @@ import { tenants } from './tenants.js'
  *
  * Three things about them are different from every other table here, and all
  * three follow from one fact: a user belongs to the instance, not to a
- * business. The same person can be the owner of one company and the bookkeeper
- * of another, so there is no tenant to put in a column.
+ * tenant. The same person can hold one role with one tenant and a different
+ * one with the next, so there is no tenant to put in a column.
  *
- * 1. **No `tenant_id`.** What ties a user to a business is a membership, and
+ * 1. **No `tenant_id`.** What ties a user to a tenant is a membership, and
  *    that is a table of its own, with a tenant, in `memberships.ts`.
  * 2. **No audit trigger.** The trigger takes the tenant from the row and puts
  *    it in a column that cannot be null, so a row without one would make every
- *    sign up fail. What a business may see of a sign in is in `tenantSessions`
+ *    sign up fail. What a tenant may see of a sign in is in `tenantSessions`
  *    instead, which does have a tenant and is watched like everything else.
  * 3. **A policy that turns the usual one around.** Everywhere else a row is
  *    visible while a tenant is set; here a row is visible only while none is.
  *    The two are mutually exclusive, so a request that is working inside a
- *    business cannot read the list of everybody on the instance, and it cannot
+ *    tenant cannot read the list of everybody on the instance, and it cannot
  *    do so by accident either. See `outsideAnyTenant`.
  *
  * The field names are better-auth's, because its adapter looks a column up by
@@ -68,7 +68,7 @@ export const authUsers = pgTable(
  * How a session came to be (#167): with the password, and the code from the
  * app where one is set up, or with a passkey confirmed on the device. Kept on
  * the session because the second factor is asked on every request, and on the
- * stretch of work in a business, where the owner reads it.
+ * stretch of work with a tenant, where its log shows it.
  */
 export const signInMethod = pgEnum('sign_in_method', signInMethods)
 
@@ -76,7 +76,7 @@ export const signInMethod = pgEnum('sign_in_method', signInMethods)
  * One sign in on one device.
  *
  * `activeTenantId` is the whole reason a session of ours is not just
- * better-auth's: the business is chosen after signing in and is then read from
+ * better-auth's: the tenant is chosen after signing in and is then read from
  * here on every request. It never comes from the request body, and the test
  * that says so has been in place since before there was anything to sign in
  * to.
@@ -93,7 +93,7 @@ export const authSessions = pgTable(
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
     /**
-     * The business this session is working in, chosen after signing in. Null
+     * The tenant this session is working in, chosen after signing in. Null
      * until it is, and a request in that state is refused: guessing a tenant
      * for somebody who belongs to two would be the one mistake that cannot be
      * noticed from the outside.

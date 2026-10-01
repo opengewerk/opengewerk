@@ -5,12 +5,11 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
+import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { foreignKey, index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { jobs } from './jobs.js'
-import { memberships } from './memberships.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * A person on a job (#140), assigned in the office.
