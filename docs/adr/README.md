@@ -17,6 +17,7 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0007](0007-dateispeicher-dokumente-und-pdf.md) | Dateispeicher, Dokumentenerzeugung und E-Rechnung | angenommen |
 | [0008](0008-plugin-system-fuer-gewerke.md) | Plugin-System für Gewerke und Erweiterungen | angenommen |
 | [0009](0009-werkzeuge-und-repo-struktur.md) | Werkzeuge und Repo-Struktur | angenommen |
+| [0010](0010-fundament-als-pakete.md) | Das Fundament als eigene Pakete für weitere Anwendungen | angenommen |
 
 ## Der Tech-Stack auf einen Blick
 
@@ -32,6 +33,7 @@ Die ADRs 0002 bis 0008 wurden am 18.09.2026 gemeinsam entschieden, nachdem sie e
 | 0007 | Inhaltsadressierter Dateispeicher (Dateisystem oder S3), PDF über Chromium in einem eigenen Container, E-Rechnung in TypeScript mit KoSIT-Validierung, Mustang als Notausgang |
 | 0008 | Gewerke als Datenpakete plus Compile-Time-Module im Monorepo, Elektro/PV als erstes Paket |
 | 0009 | pnpm Workspaces mit Turborepo, Node 24, TypeScript 7, Vitest mit fast-check, ESLint mit Prettier, PostgreSQL 18 |
+| 0010 | Das Fundament in eigenen Paketen unter `packages/platform/`, Fachliches über Register; weitere Anwendungen binden einen festen Stand als Git-Submodul ein |
 
 Drei Punkte, an denen die Entscheidung von der ursprünglichen Vorlage abweicht:
 
@@ -52,6 +54,6 @@ Immer dann, wenn eine Entscheidung schwer umkehrbar ist oder mehrere Module betr
 5. Die Tabelle in dieser Datei ergänzen.
 6. Als Pull Request einreichen. Die Diskussion findet im Pull Request statt, nicht im Dokument.
 
-ADR 0009 ist der erste Fall der zweiten Art: Es stößt 0002 nicht um, sondern schließt dessen offene Enden (Paketmanager, Node-Version, endgültige Paketliste) und legt Test-, Lint- und Formatierwerkzeug fest. Deshalb trägt 0002 den Zeiger `amended-by`, nicht `überholt durch`.
+ADR 0009 ist der erste Fall der zweiten Art: Es stößt 0002 nicht um, sondern schließt dessen offene Enden (Paketmanager, Node-Version, endgültige Paketliste) und legt Test-, Lint- und Formatierwerkzeug fest. Deshalb trägt 0002 den Zeiger `amended-by`, nicht `überholt durch`. ADR 0010 ist der zweite: Es lässt den Schnitt der Repositories aus 0001 stehen und ergänzt die Paketliste aus 0009 um die Pakete des Fundaments, also tragen beide den Zeiger auf 0010.
 
 Ein angenommenes ADR wird nicht mehr inhaltlich umgeschrieben. Ändert sich die Entscheidung, entsteht ein neues ADR, und das alte bekommt den Status `überholt durch` mit Verweis auf das neue. So bleibt die Historie lesbar.

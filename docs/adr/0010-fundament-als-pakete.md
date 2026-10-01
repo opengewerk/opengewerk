@@ -1,0 +1,185 @@
+---
+status: angenommen
+date: 2026-10-01
+decision-makers: Projektleitung OpenGewerk
+consulted: Planungskonzept "OpenGewerk Haustechnik" v0.2, Inventar des Fundaments vom 01.10.2026, ADR 0001, 0008 und 0009
+informed: Mitwirkende der Organisation opengewerk
+---
+
+# Das Fundament als eigene Pakete für weitere Anwendungen
+
+## Kontext und Problemstellung
+
+Mit OpenGewerk Haustechnik kommt eine weitere Anwendung in die Organisation: Software für Betreiber von Gebäuden und ihre Haustechnik, im eigenen Repository `opengewerk-haustechnik`. Sie führt andere Dinge als die Handwerkersoftware, nämlich Liegenschaft, Gebäude, Raum, Anlage, Pflicht und Nachweis statt Kunde, Auftrag und Beleg. Sie braucht aber dasselbe Fundament: Mandantentrennung über Row-Level Security, Anmeldung, Rechte, Abgleich ohne Netz, Audit-Log mit Hashkette, Regel-, Fristen- und Formular-Engine, Dateispeicher, PDF, Benachrichtigungen, Betrieb über Docker Compose. Der Kanzlei-Hub steht vor derselben Frage; sein Planungskonzept nennt denselben Stack, "damit Domänenpakete, Auth-Muster und Betriebsweise geteilt werden können".
+
+Das Fundament ist heute kein eigenes Stück Code. Gemessen am 01.10.2026 auf `main`: rund 109.000 Zeilen in drei Paketen. Davon sind 31 Prozent Fundament ohne Fachbezug (199 Dateien), 21 Prozent Fundament, das Fachentitäten aufzählt oder Fachsymbole importiert (76 Dateien), 19 Prozent Fachentitäten, die beide Anwendungen brauchen könnten, und 28 Prozent reine Handwerker-Fachlichkeit. Von 63 Migrationen nennen 12 keine Fachtabelle. Am stärksten verflochten sind der Abgleich mit Zweigen je Entität, die Formular-Engine, die Stromkreise kennt, die Fristen-Engine, deren einzige Quelle das Angebot ist, und die Benachrichtigungen mit Beleg und Regiebericht als Anlässen.
+
+Drei Beobachtungen bestimmen die Antwort:
+
+- **Sicherheit liegt im Fundament.** Alle fünf bisher veröffentlichten Advisories betreffen es.
+- **Abschriften laufen auseinander.** Die Prüfung "Schreibweise" ist in fünf Repositories "dieselbe" und trägt in einem davon seit dem 25.09.2026 drei Stämme mehr als in den anderen.
+- **Die Dateien, die ein Schnitt umbauen muss, sind die meistgeänderten des Repositorys.** Ein Umbau neben laufender Arbeit an denselben Dateien wäre teuer. Die Entscheidung fällt zu einem Zeitpunkt, an dem die Arbeit an Phase 2 der Handwerkersoftware ruht und die Haustechnik Vorrang hat.
+
+Daraus folgt die Frage: Wie bezieht eine weitere Anwendung das Fundament, ohne dass eine Sicherheitskorrektur an ihr vorbeigeht und ohne dass zwei Fassungen desselben Codes entstehen?
+
+## Entscheidungstreiber
+
+- Eine Sicherheitskorrektur im Fundament muss jede Anwendung erreichen, und es muss sich prüfen lassen, ob sie angekommen ist.
+- Es gibt genau eine Fassung des Fundaments. Keine Anwendung hält eine eigene.
+- Anwendungen verschiedener Betreiber veröffentlichen unabhängig (ADR 0001).
+- Was fachlich ist, darf das Fundament nicht kennen: weder Kunde noch Beleg, weder Liegenschaft noch Pflicht.
+- Eine gemergte Migration wird nicht angefasst, und laufende Instanzen kennen ihre Hashes.
+- Eine Änderung am Fundament muss sich in der einbindenden Anwendung prüfen lassen, bevor irgendetwas veröffentlicht wird.
+
+## Betrachtete Optionen
+
+Für den Schnitt:
+
+1. **Abschrift**: das Fundament einmal kopieren, danach pflegt jede Anwendung ihre Fassung.
+2. **Übernahme mit Herkunftsnachweis**: Kopie von einem benannten Commit, jede übernommene Datei bleibt über eine Herkunftsdatei und eine Prüfung in der CI an ihre Quelle gebunden, die verflochtenen Dateien werden in der Kopie angepasst.
+3. **Ein Monorepo**: die Haustechnik als weitere Anwendung im Repository `opengewerk`.
+4. **Eigene Pakete im Hauptrepository**: das Fundament wird unter `packages/platform/` herausgelöst, jede weitere Anwendung bindet einen festen Stand davon ein.
+5. **Ein eigenes Repository für das Fundament.**
+
+Für die Einbindung der Pakete in eine Anwendung mit eigenem Repository:
+
+- A. **Git-Submodul**, die Pakete werden im Arbeitsbereich der Anwendung mitgebaut.
+- B. **Archiv am Release**, die Anwendung nennt eine Fassung.
+- C. **Registry** (npm oder GitHub Packages).
+- D. **Git-Abhängigkeit** des Paketmanagers auf ein Unterverzeichnis.
+
+## Entscheidung
+
+Gewählt wurden **Option 4**, eigene Pakete im Hauptrepository, und für die Einbindung **A**, das Git-Submodul.
+
+**Die Pakete**
+
+1. Das Fundament liegt unter `packages/platform/` in drei Paketen, entlang derselben Grenze wie die Anwendung. Die Paketliste aus ADR 0009 wird damit ergänzt:
+
+   ```
+   opengewerk/
+     packages/
+       platform/
+         domain/        # Fundament ohne I/O: Mandant, Zugehörigkeit, Rechte, Abgleich, Regel-, Fristen- und Formular-Engine
+         server/        # Datenbankzugriff, Migrationslauf, Anmeldung, Guard, Audit-Log, Dateispeicher, Renderer, Versand
+         web/           # Abgleich-Client, Sitzung, Tor, Bausteine, Tokens, Hülle
+       domain/          # Fachlichkeit der Handwerkersoftware
+       server/
+       web/
+       gewerke/<name>/  # wie bisher (ADR 0008)
+   ```
+
+   Die Pakete heißen `@opengewerk/platform-domain`, `@opengewerk/platform-server` und `@opengewerk/platform-web`.
+
+2. **Die Richtung der Abhängigkeit ist eine Eigenschaft des Paketgraphen.** Ein Paket des Fundaments hängt von keinem Paket einer Anwendung ab. Ein Import in die falsche Richtung scheitert deshalb als fehlendes Modul, und eine Lint-Regel sagt dazu, welche Regel das ist. Ein Test liest die `package.json` der drei Pakete und wird rot, wenn dort eine Abhängigkeit auf ein Anwendungspaket auftaucht.
+
+3. **Was fachlich ist, kommt über Register.** Das Fundament kennt den Mechanismus, die Anwendung die Liste: welche Entitäten abgleichen und nach welchen Regeln, welche Rechte es gibt, welche Rollen, wie eine Tabelle im Änderungsprotokoll heißt, welche Nummernkreise und Einstellungen es gibt, woraus Fristen entstehen, welche Formulare ein Paket mitbringt, welche Anlässe benachrichtigen, was in der Navigation steht. Rollen führt das Fundament als Daten und nicht als feste Liste; damit ist der Schritt aus dem Nachtrag vom 24.09.2026 in ADR 0008 vorgezogen, der dort für das zweite Gewerk vorgesehen war.
+
+4. **Herausgelöst wird in Raten**, in der Reihenfolge, in der die Haustechnik etwas braucht: zuerst, was keine Fachlichkeit kennt, danach ein verflochtener Teil nach dem anderen, sobald seine Naht gebaut ist. `@opengewerk/domain` exportiert weiter alles, was es bisher exportiert hat, damit die Importe der Handwerkersoftware nicht in einem Zug umziehen müssen. Was noch nicht herausgelöst ist, bleibt, wo es ist; eine Abschrift entsteht in keinem Schritt.
+
+**Die Einbindung**
+
+5. Eine Anwendung mit eigenem Repository bindet `opengewerk` als Git-Submodul unter `upstream/opengewerk` ein, auf einen festen Commit. Die Verzeichnisse `upstream/opengewerk/packages/platform/*` sind Mitglieder ihres pnpm-Arbeitsbereichs: ihre Abhängigkeiten stehen in der Lockdatei der Anwendung, und Turborepo baut sie vor den Paketen, die sie brauchen. Es wird nichts veröffentlicht, es braucht kein Konto und keinen Schlüssel.
+
+6. **Gegengeprüft am 01.10.2026** mit pnpm 12.4.2, Turborepo 2.10.13 und TypeScript 7.0.2: pnpm führt ein Paket aus dem Submodul als Mitglied des Arbeitsbereichs, die Lockdatei bekommt dafür einen eigenen Eintrag, Turborepo baut es zuerst, und das Ergebnis läuft. Die Datei `pnpm-workspace.yaml` im Submodul stört nicht, weil pnpm die des Verzeichnisses nimmt, in dem es gestartet wird.
+
+7. **Angehoben wird der Stand mit einem Pull Request** in der Anwendung, der den Commit des Submoduls und die Lockdatei bewegt. Dependabot schlägt ihn wöchentlich vor. Die CI der Anwendung prüft sie dabei gegen den neuen Stand.
+
+8. Die einbindende Anwendung übersetzt die Pakete mit ihrem eigenen Werkzeug. Sie hält deshalb dieselben Reihen wie ADR 0009: Node, pnpm, TypeScript.
+
+**Was daneben gilt**
+
+9. **Jede Anwendung hat ihren eigenen Migrationsstrom.** Die Handwerkersoftware behält ihre Migrationen unverändert. Das Fundament liefert die Schema-Module und die SQL-Bausteine für Rollen, Policies, Funktionen und Trigger; eine neue Anwendung beginnt mit einer Ausgangsmigration, die daraus entsteht. Die Spalten von `audit_entries` und der Fingerabdruck der Hashkette sind in jeder Anwendung dieselben; der Test, der die Spalten festhält, gehört zum Fundament.
+
+10. **Zwei Anwendungen laufen nebeneinander**, jede mit eigenem Compose-Projekt, eigenem PostgreSQL-Container, eigenem Port und eigenem Hostnamen. Die Datenbankrollen heißen in beiden gleich; das störte nur in einem gemeinsamen Cluster, und den gibt es nicht. Was ein Mensch sieht oder was nach außen einen Namen trägt (Produktname, Abbild, Compose-Projekt, Port), nennt die Anwendung und nicht das Fundament.
+
+11. **Eine Sicherheitskorrektur im Fundament** erscheint wie bisher als Fassung der Handwerkersoftware. Jede einbindende Anwendung hebt danach ihren Stand an und veröffentlicht ihrerseits. Das Advisory nennt alle betroffenen Anwendungen, und die `SECURITY.md` der Organisation beschreibt den Weg.
+
+### Konsequenzen
+
+Gut:
+
+- Es gibt eine Fassung des Fundaments. Eine Korrektur dort kommt in jeder Anwendung an, sobald sie ihren Stand anhebt, und am Commit des Submoduls lässt sich ablesen, ob das geschehen ist.
+- Die Nähte, die die Haustechnik braucht, sind dieselben, die das zweite Gewerk und der Kanzlei-Hub brauchen. Sie entstehen einmal.
+- ADR 0001 bleibt, wie es ist: jede Anwendung hat ihr Repository, ihre Fassung und ihre Betreiber.
+- Eine Änderung am Fundament lässt sich in der Haustechnik prüfen, bevor sie gemergt ist: der Arbeitsbaum des Submoduls ist ein gewöhnlicher Klon.
+
+Schlecht:
+
+- Der Umbau fasst die meistgeänderten Dateien an. Solange er läuft, ist parallele Arbeit an der Handwerkersoftware teurer als sonst.
+- Eine Änderung am Fundament, die die Haustechnik braucht, hat zwei Schritte in fester Reihenfolge: erst hier mergen, dann dort den Stand anheben. Das ist das Schlechte aus ADR 0001, hier für das Fundament.
+- Ein Submodul ist unbequem. Wer klont, braucht `--recurse-submodules`; wer aus dem Quelltext installiert, braucht den Schritt in `start.sh`. Ein Release-Paket braucht ihn nicht, es zieht fertige Abbilder.
+- Die Tests des Fundaments benutzen heute Kunden, Objekte und Belege als Material und bleiben deshalb zunächst bei der Handwerkersoftware. Bis sie neutrales Material haben und mit umziehen, prüft die CI der Haustechnik das Fundament nur mittelbar.
+- Die Nähte entstehen aus zunächst zwei Verbrauchern. Ein dritter kann zeigen, dass eine davon falsch geschnitten ist.
+
+## Bestätigung
+
+Die Entscheidung gilt als umgesetzt, wenn
+
+- `packages/platform/domain`, `packages/platform/server` und `packages/platform/web` bestehen und keines davon von einem Anwendungspaket abhängt, was ein Test festhält,
+- `opengewerk-haustechnik` in seiner CI gegen einen festen Commit dieser Pakete baut und testet,
+- die Handwerkersoftware dabei in jedem Schritt grün geblieben ist, mit allen Prüfungen aus ADR 0009,
+- und die `SECURITY.md` der Organisation den Weg einer Korrektur durch beide Anwendungen nennt.
+
+## Vor- und Nachteile der Optionen
+
+### Option 1: Abschrift
+
+- Gut: geringster Aufwand am Anfang, im Hauptrepository keiner.
+- Schlecht: jede Änderung zweimal, und nichts meldet, wenn eine fehlt.
+- Schlecht: jede Sicherheitskorrektur von Hand in zwei Repositories.
+
+### Option 2: Übernahme mit Herkunftsnachweis
+
+- Gut: schnellster Start, und die unverändert übernommenen Dateien können nicht still abweichen.
+- Schlecht: die angepassten Dateien sind ein Fork. Ruht das Hauptrepository, entwickelt sich das Fundament in der Kopie weiter, und die Zusammenführung kostet später mehr als der Umbau jetzt.
+- Schlecht: zwei Stellen, an denen ein Fehler im Fundament behoben werden kann.
+
+Diese Option war die Empfehlung für den Fall, dass Phase 2 der Handwerkersoftware parallel weiterläuft. Der Fall ist nicht eingetreten.
+
+### Option 3: Ein Monorepo
+
+- Gut: nichts muss eingebunden werden, eine Korrektur schließt beide.
+- Schlecht: der Einwand aus ADR 0001 gilt wörtlich. Anwendungen verschiedener Betreiber hingen an einem Repository, einem Issue-Tracker und einer Versionsnummer.
+- Schlecht: das Repository `opengewerk-haustechnik` gibt es bereits, mit eigenem Konzept und eigener Zielgruppe.
+
+### Option 4: Eigene Pakete im Hauptrepository
+
+- Gut: siehe Konsequenzen.
+- Schlecht: siehe Konsequenzen.
+
+### Option 5: Ein eigenes Repository für das Fundament
+
+- Gut: die sauberste Trennung, eigene Fassungen.
+- Schlecht: Fundament und Fachlichkeit ändern sich zusammen. 103 von 150 Commits mit Code fassten bisher beides an; jeder davon wären zwei Pull Requests in fester Reihenfolge gewesen.
+
+### Einbindung A: Git-Submodul
+
+- Gut: fester Commit, keine Veröffentlichung, kein Konto. Eine Änderung lässt sich vor dem Merge in der Anwendung prüfen.
+- Schlecht: die Unbequemlichkeit eines Submoduls, siehe Konsequenzen.
+
+### Einbindung B: Archiv am Release
+
+- Gut: anonym beziehbar, unveränderlich, passt zum vorhandenen Weg mit Prüfsumme und Signatur.
+- Schlecht: jede Änderung am Fundament bräuchte eine Veröffentlichung, bevor die Anwendung sie prüfen kann. Ein Tag ist hier eine bewusste Entscheidung und kein Zwischenschritt.
+
+Bleibt die Wahl für den Tag, an dem Dritte das Fundament ohne Git beziehen sollen.
+
+### Einbindung C: Registry
+
+- Gut: der übliche Weg, mit Versionsbereichen und Werkzeugen, die ihn kennen.
+- Schlecht: braucht ein Konto und einen Schlüssel, und GitHub Packages verlangt auch für öffentliche Pakete eine Anmeldung, was die Installation aus dem Quelltext und den Bau des Abbilds träfe.
+- Schlecht: pnpm hält frisch veröffentlichte Fassungen zurück. Eine Sicherheitskorrektur käme mit Verzögerung an oder bräuchte eine Ausnahme.
+
+### Einbindung D: Git-Abhängigkeit auf ein Unterverzeichnis
+
+- Gut: kein Konto, Commit in der Lockdatei.
+- Schlecht: die Pakete des Fundaments verweisen mit `workspace:` aufeinander, und das löst außerhalb eines Arbeitsbereichs nicht auf.
+
+## Weitere Informationen
+
+- ADR 0001, Drei Repositories statt eines Monorepos
+- ADR 0008, Plugin-System für Gewerke und Erweiterungen, Nachtrag vom 24.09.2026
+- ADR 0009, Werkzeuge und Repo-Struktur, Abschnitt "Die Paketliste, abschließend"
+- Planungskonzept OpenGewerk Haustechnik v0.2, Abschnitt 0, Leitentscheidung 7, und Abschnitt 2.1, im Repository `opengewerk-haustechnik`
+- Planungskonzept OpenGewerk Kanzlei, Abschnitt 0, Leitentscheidung 7

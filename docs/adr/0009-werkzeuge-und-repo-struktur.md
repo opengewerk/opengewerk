@@ -1,5 +1,6 @@
 ---
 status: angenommen
+amended-by: 0010
 date: 2026-09-18
 decision-makers: Projektleitung OpenGewerk
 consulted: ADR 0002 bis 0008, Konzept "Feature-Gliederung Handwerkersoftware" v2.5, Abschnitte 4.8 und 10
