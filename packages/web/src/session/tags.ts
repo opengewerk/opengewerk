@@ -1,4 +1,4 @@
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The tags of the business (#314), made, renamed and deleted at their route,

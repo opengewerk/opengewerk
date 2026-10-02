@@ -5,8 +5,7 @@ import type {
   DeadlineStatus,
   IsoDate,
 } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The deadlines of the business (#283), read and changed straight at the

@@ -10,6 +10,15 @@ import {
   TablePanel,
   cardLink,
 } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { ArrowDown, ArrowUp, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -42,9 +51,6 @@ import {
   usePvStrings,
 } from '../../app/photovoltaic.js'
 import { useMay } from '../../app/queries.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { FactList, Screen } from '../kit.js'
 import { Reorder, SmallIcon } from './boards.js'
 import {

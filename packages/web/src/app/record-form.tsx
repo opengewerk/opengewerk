@@ -1,12 +1,11 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Field, SelectField, useEntry } from '@opengewerk/platform-web'
+import { refusalFor } from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-
-import { refusalFor } from '../sync/client.js'
-import type { EditResult } from '../sync/client.js'
 
 /**
  * One field of a form, described rather than written out.

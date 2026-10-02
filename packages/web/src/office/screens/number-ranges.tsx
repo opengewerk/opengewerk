@@ -1,5 +1,6 @@
 import { numberFromPattern, type NumberRangeKey, patternProblem } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useId, useState } from 'react'
@@ -11,7 +12,6 @@ import {
   numberRanges,
   type NumberRangeView,
 } from '../../session/number-ranges.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {

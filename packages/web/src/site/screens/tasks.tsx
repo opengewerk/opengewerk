@@ -1,13 +1,12 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Panel } from '@opengewerk/platform-web'
+import { maybeText, text, useRecords, useRelated } from '@opengewerk/platform-web/sync'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { taskStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, usePeople } from '../../app/tasks.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecords, useRelated } from '../../sync/provider.js'
 
 /**
  * What is open for whoever holds the device, on the first screen.

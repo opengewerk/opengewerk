@@ -8,14 +8,13 @@ import {
   tagNameProblem,
 } from '@opengewerk/domain'
 import { Field } from '@opengewerk/platform-web'
+import { text, useRecords } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Tag as TagIcon, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 
 import { jobStatusOf } from '../app/labels.js'
-import { text } from '../sync/fields.js'
-import { useRecords } from '../sync/provider.js'
 
 /**
  * The tags of the business on customers and sites (#314), as the office shows

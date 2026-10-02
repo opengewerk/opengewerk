@@ -1,6 +1,5 @@
 import type { IsoDate, LineUnit, PriceBase } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The articles of the business (#296), read and kept straight at the routes:

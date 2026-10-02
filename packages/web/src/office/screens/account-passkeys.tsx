@@ -1,5 +1,6 @@
 import { type PasskeyEntry, passkeyNameMaxLength, passkeyNameProblem } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FingerprintPattern, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -17,7 +18,6 @@ import {
   removePasskey,
   renamePasskey,
 } from '../../session/passkeys.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { SettingsText } from '../settings-frame.js'
 
 /** "Heute, 08:12" for today, the day and the time for any other, "Noch nie" for never. */

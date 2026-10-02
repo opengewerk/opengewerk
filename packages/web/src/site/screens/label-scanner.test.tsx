@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -15,9 +17,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { CodeReader } from '../../app/barcode.js'
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { ScanningContext } from '../camera.js'
 import { SiteBoardScreen } from './boards.js'
 import { SiteInstallationScreen } from './installation.js'

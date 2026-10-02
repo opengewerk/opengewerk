@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState, RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import type { DirectWriter, PullResult, SyncTransport } from '@opengewerk/platform-web/sync'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -15,12 +17,8 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { inWorkingOrder, isOverdue, responsibleFor } from '../../app/tasks.js'
-import type { DirectWriter } from '../../sync/client.js'
-import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import type { PullResult, SyncTransport } from '../../sync/transport.js'
 import { MyTasks } from '../../site/screens/tasks.js'
+import { SyncClient } from '../../sync/client.js'
 import { JobScreen } from './jobs.js'
 import { TaskListScreen } from './tasks.js'
 import { aTenantChoice } from '../../session/test-tenants.js'

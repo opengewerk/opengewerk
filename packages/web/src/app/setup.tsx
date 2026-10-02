@@ -1,10 +1,10 @@
 import { businessNameMaxLength } from '@opengewerk/domain'
 import { Button, Field, FieldLabel, useInGate } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { encode } from 'uqr'
 
-import { RequestRefused } from '../sync/transport.js'
 import { Gate, GateText } from './gate.js'
 import {
   runSetup,

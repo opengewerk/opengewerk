@@ -4,8 +4,7 @@ import type {
   IsoDate,
   WithdrawalVariant,
 } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The instructions of the business, as the server keeps them.

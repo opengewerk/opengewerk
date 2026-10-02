@@ -1,12 +1,12 @@
-import type { Operation, OperationId, RecordState, SyncConflict } from '@opengewerk/domain'
+import type { Operation, OperationId, RecordState, SyncConflict } from '@opengewerk/platform-domain'
 
 /**
  * Where a device keeps what it knows while it has no network.
  *
  * IndexedDB and not `localStorage`: the latter is synchronous, capped at a few
- * megabytes, and stores strings, so every read of a customer list would parse
- * the whole list again on the main thread. A basement with four hundred
- * circuits is not a corner case here, it is a Tuesday.
+ * megabytes, and stores strings, so every read of a list would parse the
+ * whole list again on the main thread. Four hundred rows of one kind are not
+ * a corner case here, they are a Tuesday.
  *
  * The shape is deliberately small. Records as they came off the wire, the
  * outbox, the conflicts and two pieces of bookkeeping. Anything derived is
@@ -169,12 +169,19 @@ function upgrade(database: IDBDatabase): void {
   }
 }
 
-/** What the name of every store of this application starts with. */
+/**
+ * What the name of every store starts with: the organisation, in small
+ * letters, as in the roles of the database. The same in every application on
+ * purpose. A browser keeps its databases by the address a page came from,
+ * and each application has its own; and a device of an installation that
+ * found its store under another name after an update would have lost its
+ * outbox.
+ */
 const storePrefix = 'opengewerk.'
 
 /**
- * The businesses whose store is on this device, by tenant, and the ones named.
- * A browser that cannot list its databases gets only the named ones.
+ * The tenants whose store is on this device, and the ones named. A browser
+ * that cannot list its databases gets only the named ones.
  */
 export async function storesOnDevice(named: readonly string[] = []): Promise<string[]> {
   const listed =
@@ -188,7 +195,7 @@ export async function storesOnDevice(named: readonly string[] = []): Promise<str
   return [...new Set([...listed, ...named])]
 }
 
-/** How many changes wait in the store of a business and have not reached the server. */
+/** How many changes wait in the store of a tenant and have not reached the server. */
 export async function waitingIn(tenantId: string): Promise<number> {
   const store = await openLocalStore(tenantId)
 
@@ -200,9 +207,9 @@ export async function waitingIn(tenantId: string): Promise<number> {
 }
 
 /**
- * The store of a business, gone from this device (#186). Waits until every
- * connection has let go; the stores of this application close theirs when
- * asked, so that takes a moment and not until a tab is closed.
+ * The store of a tenant, gone from this device (#186). Waits until every
+ * connection has let go; the stores opened here close theirs when asked, so
+ * that takes a moment and not until a tab is closed.
  */
 export function deleteLocalStore(tenantId: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -218,10 +225,10 @@ export function deleteLocalStore(tenantId: string): Promise<void> {
 }
 
 /**
- * Opens the store for one business on this device.
+ * Opens the store for one tenant on this device.
  *
  * The name carries the tenant, which is the isolation on the device: two
- * businesses on one laptop get two databases, and there is no query that could
+ * tenants on one laptop get two databases, and there is no query that could
  * accidentally reach across. The server has row level security for the same
  * job; here the boundary is the file.
  */

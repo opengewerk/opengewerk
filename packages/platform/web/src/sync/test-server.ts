@@ -1,4 +1,4 @@
-import type { Operation, OperationReceipt, RecordState } from '@opengewerk/domain'
+import type { Operation, OperationReceipt, RecordState } from '@opengewerk/platform-domain'
 
 import type { DirectWriter } from './client.js'
 import type { PullResult, SyncTransport } from './transport.js'
@@ -26,8 +26,8 @@ export class TestServer implements SyncTransport, DirectWriter {
   offline = false
   /**
    * What the answer says the rows were narrowed to (#76, #140). Unset, it says
-   * nothing, as an older server did; `{ jobs: 'all' }` is a device that holds
-   * every job of the business.
+   * nothing, as an older server did; `{ notes: 'all' }` is a device that holds
+   * every note of the tenant.
    */
   narrowed: Readonly<Record<string, string>> | undefined = undefined
   private readonly tables = new Map<string, Map<string, Row>>()

@@ -6,6 +6,13 @@ import {
   type RecordState,
 } from '@opengewerk/domain'
 import { Button, ButtonLink, Confirm, Field, Panel, SelectField } from '@opengewerk/platform-web'
+import {
+  RequestRefused,
+  maybeText,
+  text,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import { Ban, Plus, Printer } from 'lucide-react'
 import { useState } from 'react'
 
@@ -18,9 +25,6 @@ import {
 } from '../../app/installation-labels.js'
 import { useMay } from '../../app/queries.js'
 import { QrCode } from '../../app/setup.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useSync, useSyncStatus } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 
 const formats: readonly { readonly value: LabelFormat; readonly label: string }[] = [
   { value: 'roll', label: 'Etikettendrucker, 62 × 29 mm' },

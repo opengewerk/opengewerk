@@ -1,6 +1,5 @@
 import type { SmtpSecurity } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /** Whether the business sends mail, and from which address. */
 export interface MailStatus {

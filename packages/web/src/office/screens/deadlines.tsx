@@ -8,6 +8,7 @@ import {
   SelectField,
   TablePanel,
 } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, RotateCcw } from 'lucide-react'
@@ -26,7 +27,6 @@ import {
   markDeadlineDone,
   reopenDeadline,
 } from '../../session/deadlines.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { Chip, Empty, FilterSelect, PageHead, Screen } from '../kit.js'
 
 function saidWhy(error: unknown, fallback: string): string {

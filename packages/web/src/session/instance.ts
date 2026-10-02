@@ -6,8 +6,7 @@ import type {
   OperatorView,
   TenantId,
 } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The area of the instance (#188) and further businesses (#142), read straight

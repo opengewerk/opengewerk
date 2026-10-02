@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto'
 
 import { createHash } from 'node:crypto'
 
+import { syncRules } from '@opengewerk/platform-domain'
+import { probePolicies } from '@opengewerk/platform-domain/testing'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SyncClient } from './client.js'
@@ -11,42 +13,45 @@ import { RequestRefused } from './transport.js'
 
 /**
  * The files of #77 on their way through the sync client: kept on the device,
- * sent ahead of the version that names them, and kept waiting without a
+ * sent ahead of the record that names them, and kept waiting without a
  * network like everything else made in a cellar.
  */
+
+const rules = syncRules(probePolicies)
 
 let server: TestServer
 let counter = 0
 
 async function start() {
   return await SyncClient.start({
-    store: await openLocalStore(`dateien${String((counter += 1))}`),
+    store: await openLocalStore(`files${String((counter += 1))}`),
     transport: server,
     writer: server,
-    deviceId: 'handy',
-    entities: ['attachments', 'attachment_versions'],
+    rules,
+    deviceId: 'phone',
+    entities: ['notes', 'parcels'],
     onSignedOut: () => {},
   })
 }
 
-const photo = new TextEncoder().encode('ein Foto vom Typenschild').buffer as ArrayBuffer
+const photo = new TextEncoder().encode('a photo of a label').buffer as ArrayBuffer
 
 function hashOf(bytes: ArrayBuffer): string {
   return createHash('sha256').update(new Uint8Array(bytes)).digest('hex')
 }
 
-/** An attachment at a job with one version of the file, as the screens make them. */
+/** A note and a parcel that names the file, the way a screen makes two records for one photo. */
 async function attach(client: SyncClient, sha256: string, sizeBytes: number) {
-  const attachment = await client.create('attachments', { jobId: 'j-1', title: 'Typenschild' })
+  const note = await client.create('notes', { title: 'Label' })
 
-  if (attachment.outcome !== 'queued') {
-    throw new Error('The attachment was refused on the device.')
+  if (note.outcome !== 'queued') {
+    throw new Error('The note was refused on the device.')
   }
 
-  await client.create('attachment_versions', {
-    attachmentId: attachment.id,
+  await client.create('parcels', {
+    noteId: note.id,
     sha256,
-    fileName: 'Typenschild.jpg',
+    fileName: 'label.jpg',
     mediaType: 'image/jpeg',
     sizeBytes,
   })
@@ -66,7 +71,7 @@ describe('a file made on the device', () => {
     })
   })
 
-  it('goes up ahead of the version that names it', async () => {
+  it('goes up ahead of the record that names it', async () => {
     const client = await start()
     const { sha256, sizeBytes } = await client.keepFile(photo, 'image/jpeg')
 
@@ -116,10 +121,7 @@ describe('a file made on the device', () => {
     await attach(client, sha256, sizeBytes)
     await client.synchronise()
 
-    expect(server.operations().map((operation) => operation.entity)).toEqual([
-      'attachments',
-      'attachment_versions',
-    ])
+    expect(server.operations().map((operation) => operation.entity)).toEqual(['notes', 'parcels'])
 
     // Not tried again: the answer would be the same.
     server.refuseUploads = null
@@ -130,14 +132,14 @@ describe('a file made on the device', () => {
   it('stays on the device over a 403, which refuses the request and not the file (#254)', async () => {
     const client = await start()
 
-    server.refuseUploads = new RequestRefused(403, 'Kein Zugang zu diesem Betrieb.', {})
+    server.refuseUploads = new RequestRefused(403, 'Kein Zugang zu diesem Mandanten.', {})
 
     const { sha256, sizeBytes } = await client.keepFile(photo, 'image/jpeg')
 
     await attach(client, sha256, sizeBytes)
     await client.synchronise()
 
-    expect(client.status().trouble).toBe('Kein Zugang zu diesem Betrieb.')
+    expect(client.status().trouble).toBe('Kein Zugang zu diesem Mandanten.')
     expect(server.sent).toEqual([])
 
     server.refuseUploads = null
@@ -147,10 +149,40 @@ describe('a file made on the device', () => {
     expect(client.status().pending).toBe(0)
   })
 
+  it('stays on the device over a 401 as well, and the session is asked for again', async () => {
+    let signedOut = 0
+    const client = await SyncClient.start({
+      store: await openLocalStore(`files${String((counter += 1))}`),
+      transport: server,
+      writer: server,
+      rules,
+      deviceId: 'phone',
+      entities: ['notes', 'parcels'],
+      onSignedOut: () => {
+        signedOut += 1
+      },
+    })
+
+    server.refuseUploads = new RequestRefused(401, 'Keine gültige Anmeldung.', {})
+
+    const { sha256, sizeBytes } = await client.keepFile(photo, 'image/jpeg')
+
+    await attach(client, sha256, sizeBytes)
+    await client.synchronise()
+
+    expect(signedOut).toBeGreaterThan(0)
+    expect(server.sent).toEqual([])
+
+    server.refuseUploads = null
+    await client.synchronise()
+
+    expect([...server.uploaded.keys()]).toEqual([sha256])
+  })
+
   it('is read back from the device, made here or fetched once', async () => {
     const client = await start()
     const { sha256 } = await client.keepFile(photo, 'image/jpeg')
-    const preview = new TextEncoder().encode('kleines Bild').buffer as ArrayBuffer
+    const preview = new TextEncoder().encode('a small picture').buffer as ArrayBuffer
 
     await client.rememberFile(hashOf(preview), preview, 'image/jpeg')
 
@@ -168,7 +200,7 @@ describe('a file made on the device', () => {
 
 describe('the store on a device from before the files', () => {
   it('keeps its records and gains the files', async () => {
-    const name = 'vor-den-dateien'
+    const name = 'before-the-files'
 
     // Version 1 as it was: records, outbox, conflicts and the meta store.
     await new Promise<void>((resolve, reject) => {
@@ -183,10 +215,10 @@ describe('the store on a device from before the files', () => {
         database.createObjectStore('conflicts', { keyPath: 'id' })
         database.createObjectStore('meta', { keyPath: 'key' })
         records.put({
-          key: 'customers::c-1',
-          entity: 'customers',
-          id: 'c-1',
-          values: { id: 'c-1', name: 'Familie Berg', version: 1, deletedAt: null },
+          key: 'shelves::s-1',
+          entity: 'shelves',
+          id: 's-1',
+          values: { id: 's-1', name: 'Hall', version: 1, deletedAt: null },
         })
       }
       request.onsuccess = () => {
@@ -200,8 +232,8 @@ describe('the store on a device from before the files', () => {
 
     const store = await openLocalStore(name)
 
-    expect(await store.readAll('customers')).toEqual([
-      { id: 'c-1', name: 'Familie Berg', version: 1, deletedAt: null },
+    expect(await store.readAll('shelves')).toEqual([
+      { id: 's-1', name: 'Hall', version: 1, deletedAt: null },
     ])
 
     await store.keepFile({ sha256: hashOf(photo), bytes: photo, mediaType: 'image/jpeg' }, true)
@@ -209,5 +241,31 @@ describe('the store on a device from before the files', () => {
     expect((await store.waitingFiles()).map((file) => file.sha256)).toEqual([hashOf(photo)])
 
     store.close()
+  })
+})
+
+describe('the stores on a device', () => {
+  it('are named after the tenant, under the name every installation already has', async () => {
+    // The name is what a device finds its outbox under after an update. One
+    // that changed would leave what somebody wrote in a cellar behind in a
+    // database nothing opens any more.
+    const store = await openLocalStore('named-tenant')
+
+    await store.writeMeta('cursor', 3)
+    store.close()
+
+    const opened = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('opengewerk.named-tenant')
+
+      request.onsuccess = () => {
+        resolve(request.result)
+      }
+      request.onerror = () => {
+        reject(request.error ?? new Error('the store did not open'))
+      }
+    })
+
+    expect([...opened.objectStoreNames]).toContain('outbox')
+    opened.close()
   })
 })

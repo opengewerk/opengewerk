@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -15,9 +17,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SupplierArticlePage } from '../../session/articles.js'
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { EditSupplierScreen, NewSupplierScreen, SupplierList, SupplierScreen } from './suppliers.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 

@@ -12,16 +12,22 @@ import {
   pvModuleProblems,
 } from '@opengewerk/domain'
 import { Button, Field, SelectField, useEntry } from '@opengewerk/platform-web'
+import {
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useRelated,
+} from '@opengewerk/platform-web/sync'
+import type { Draft, EditResult } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { SiteActionBar } from '../site/action-bar.js'
-import { refusalFor } from '../sync/client.js'
-import type { Draft, EditResult, SyncClient } from '../sync/client.js'
-import { count, maybeText, text } from '../sync/fields.js'
-import { useRecords, useRelated } from '../sync/provider.js'
+import type { SyncClient } from '../sync/client.js'
 import { Group, nextPosition, ordered, problemOf, readFigure } from './electrical.js'
 import type { FormField } from './record-form.js'
 

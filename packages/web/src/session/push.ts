@@ -1,6 +1,5 @@
 import type { PushEntry, PushOccasion } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * Push on one's own devices (#284), straight at its routes like the account:

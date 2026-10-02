@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto'
 
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { createHash } from 'node:crypto'
 
 import { largestAttachmentBytes, type RecordState, type RoleKey } from '@opengewerk/domain'
@@ -20,9 +22,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AttachmentsSection } from '../office/screens/attachments.js'
 import { JobFiles, SiteFilesScreen } from '../site/screens/files.js'
 import { SyncClient } from '../sync/client.js'
-import { SyncProvider } from '../sync/provider.js'
-import { openLocalStore } from '../sync/store.js'
-import { TestServer } from '../sync/test-server.js'
 import { aTenantChoice } from '../session/test-tenants.js'
 
 /**

@@ -1,4 +1,5 @@
 import type { PasskeyEntry } from '@opengewerk/domain'
+import { RequestRefused, request } from '@opengewerk/platform-web/sync'
 import {
   browserSupportsWebAuthn,
   type PublicKeyCredentialCreationOptionsJSON,
@@ -7,8 +8,6 @@ import {
   startRegistration,
   WebAuthnError,
 } from '@simplewebauthn/browser'
-
-import { request, RequestRefused } from '../sync/transport.js'
 
 /**
  * Passkeys (#167, #248): the list under "Konto", renaming and deleting one,

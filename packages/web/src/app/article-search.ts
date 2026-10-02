@@ -7,12 +7,11 @@ import {
   priceOn,
   type RecordState,
 } from '@opengewerk/domain'
+import { maybeText, text, useRecords, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import { articlePage } from '../session/articles.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useRecords, useSyncStatus } from '../sync/provider.js'
 
 /** An article a search found, as a line takes it over (#296). */
 export interface FoundArticle {

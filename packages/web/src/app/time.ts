@@ -9,13 +9,14 @@ import {
   type TimeEntryKind,
   timeEntryProblem,
 } from '@opengewerk/domain'
+import { maybeText, refusalFor, text, useRecords, useSync } from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 
 import { locationConsent } from '../session/time.js'
-import { type EditResult, refusalFor, type SyncClient } from '../sync/client.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useRecords, useSync } from '../sync/provider.js'
+import { stopwatchName } from '../sync/client.js'
+import type { SyncClient } from '../sync/client.js'
 import { accountQuery } from './queries.js'
 
 /** A place in millionths of a degree, as an entry keeps it. */
@@ -121,7 +122,9 @@ export function useMe(): string | null {
 export function useStopwatch(): Stopwatch | null {
   const client = useSync()
   const me = useMe()
-  const stored = useSyncExternalStore(client.subscribe, client.stopwatch, client.stopwatch)
+  // The stopwatch is what this application has a device keep for itself.
+  const read = useCallback(() => client.kept(stopwatchName), [client])
+  const stored = useSyncExternalStore(client.subscribe, read, read)
 
   return useMemo(() => parseStopwatch(stored, me), [stored, me])
 }
@@ -221,14 +224,14 @@ export async function stopStopwatch({
   consent,
   now = new Date(),
 }: Timing): Promise<string | null> {
-  const running = parseStopwatch(client.stopwatch(), me)
+  const running = parseStopwatch(client.kept(stopwatchName), me)
 
   if (!running) {
     return null
   }
 
   if (now.getTime() - Date.parse(running.startedAt) < shortest) {
-    await client.setStopwatch(null)
+    await client.keep(stopwatchName, null)
 
     return null
   }
@@ -261,7 +264,7 @@ export async function stopStopwatch({
     return refusalFor(made)
   }
 
-  await client.setStopwatch(null)
+  await client.keep(stopwatchName, null)
 
   return null
 }
@@ -285,7 +288,8 @@ export async function startStopwatch(
 
   const place = timing.consent ? await placeNow() : null
 
-  await timing.client.setStopwatch(
+  await timing.client.keep(
+    stopwatchName,
     JSON.stringify({
       ...activity,
       userId: timing.me,
@@ -303,7 +307,7 @@ export async function startStopwatch(
  * forgotten over night, whose real end goes in as a late entry instead.
  */
 export function discardStopwatch(client: SyncClient): Promise<void> {
-  return client.setStopwatch(null)
+  return client.keep(stopwatchName, null)
 }
 
 /** What an entry typed in by hand says, before it is checked. */

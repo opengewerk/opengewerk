@@ -1,5 +1,6 @@
 import { accessProblem, type RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel } from '@opengewerk/platform-web'
+import { RequestRefused, maybeText, text, useRelated, useSync } from '@opengewerk/platform-web/sync'
 import { Check, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
@@ -14,9 +15,6 @@ import {
   type Revealed,
   valueStampOf,
 } from '../../session/site-access.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRelated, useSync } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

@@ -10,6 +10,7 @@ import {
 } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, SelectField, TablePanel } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { maybeText, text, useRecords } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft } from 'lucide-react'
@@ -30,8 +31,6 @@ import {
 } from '../../app/time.js'
 import { timePeople } from '../../session/time.js'
 import type { Assignee } from '../../session/tasks.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecords } from '../../sync/provider.js'
 import { PageHead, Screen } from '../kit.js'
 
 /** The people of the business by name, for whoever reads the time of the others. */

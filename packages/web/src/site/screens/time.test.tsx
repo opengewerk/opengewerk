@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState, RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -18,9 +20,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { consentQuery } from '../../app/time.js'
 import { TimeScreen } from '../../office/screens/time.js'
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { JobTime, SiteTimeEntryScreen, SiteTimeScreen, StopwatchBar } from './time.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 

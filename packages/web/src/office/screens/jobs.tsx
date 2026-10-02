@@ -12,6 +12,16 @@ import {
   useBand,
 } from '@opengewerk/platform-web'
 import type { StatusTone } from '@opengewerk/platform-web'
+import {
+  RequestRefused,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Calendar, Pencil, UserRound } from 'lucide-react'
@@ -26,10 +36,6 @@ import { RecordForm, asTextOrNull } from '../../app/record-form.js'
 import type { FormField } from '../../app/record-form.js'
 import { usePeople } from '../../app/tasks.js'
 import { assignToJob } from '../../session/jobs.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
 import { lastChanged, ListCard, ListScreen } from '../list.js'
 import type { ListColumn } from '../list.js'

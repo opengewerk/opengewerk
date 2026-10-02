@@ -1,4 +1,4 @@
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * Sets who is on a job (#140), as the whole list: whoever is in it and was

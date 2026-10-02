@@ -23,6 +23,14 @@ import {
   useButtonLook,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronRight, Eye, File, Lock, Pencil } from 'lucide-react'
@@ -43,8 +51,6 @@ import {
   pdfAddress,
 } from '../../session/documents.js'
 import type { Assignee } from '../../session/tasks.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import {
   ChainCard,

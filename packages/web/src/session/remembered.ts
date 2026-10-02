@@ -5,8 +5,8 @@ import {
   shippedRoles,
   type TenantId,
 } from '@opengewerk/domain'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 
-import { RequestRefused } from '../sync/transport.js'
 import type { Account, TenantChoice } from './session.js'
 
 /**

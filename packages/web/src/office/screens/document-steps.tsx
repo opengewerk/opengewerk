@@ -1,5 +1,6 @@
 import type { DeductionContent, DocumentKind, MissingDetail } from '@opengewerk/domain'
 import { Button } from '@opengewerk/platform-web'
+import { RequestRefused, useSync } from '@opengewerk/platform-web/sync'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Ban, Lock, TriangleAlert } from 'lucide-react'
@@ -13,8 +14,6 @@ import {
   missingFrom,
   unconfirmedFrom,
 } from '../../session/documents.js'
-import { useSync } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { NoteBox } from '../kit.js'
 import { StepPanel, StepText } from './document-frame.js'
 import { confirmationKey, PaymentConfirmation } from './document-payments.js'

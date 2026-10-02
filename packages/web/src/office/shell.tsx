@@ -1,10 +1,11 @@
 import { Shell } from '@opengewerk/platform-web'
+import { SyncStatusBar } from '@opengewerk/platform-web/sync'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 
 import { usePushRefresh } from '../app/push-state.js'
-import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'
+import { UpdateBar } from '../app/update-bar.js'
 import { Drawer, Sidebar } from './navigation.js'
 import { BackupBar } from './screens/backup.js'
 import { PathSlot, TopBar } from './top-bar.js'

@@ -11,6 +11,16 @@ import {
   TextArea,
   cardLink,
 } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Check, Pencil, Trash2, Truck } from 'lucide-react'
@@ -25,10 +35,6 @@ import {
   type SupplierArticlePage,
   supplierArticles,
 } from '../../session/articles.js'
-import { refusalFor } from '../../sync/client.js'
-import type { EditResult } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import { lastChanged, ListCard, ListScreen } from '../list.js'
 import type { ListColumn } from '../list.js'

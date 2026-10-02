@@ -1,6 +1,14 @@
 import type { RecordState } from '@opengewerk/domain'
 import { belongsToPvSystemKind } from '@opengewerk/domain'
 import { Button, Panel, Status } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Pencil, Plus, Zap } from 'lucide-react'
 import { useState } from 'react'
@@ -9,8 +17,6 @@ import { date } from '../../app/format.js'
 import { installationKindLabel, installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
 import { lastChanged, ListCard, ListScreen } from '../list.js'
 import type { ListColumn } from '../list.js'

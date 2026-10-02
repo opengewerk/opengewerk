@@ -1,8 +1,8 @@
 import type { Permission } from '@opengewerk/domain'
+import { isForbidden, isUnauthenticated } from '@opengewerk/platform-web/sync'
 import { QueryClient, QueryClientProvider, queryOptions, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
-import { isForbidden, isUnauthenticated } from '../sync/transport.js'
 import { availableTenants, currentAccount } from '../session/session.js'
 
 /**

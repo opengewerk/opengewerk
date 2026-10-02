@@ -1,5 +1,6 @@
 import type { RecordState, WithdrawalVariant } from '@opengewerk/domain'
 import { Panel, SelectField } from '@opengewerk/platform-web'
+import { RequestRefused, maybeText } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useId } from 'react'
@@ -14,8 +15,6 @@ import {
   instructionSheetAddress,
   type PrintedInstruction,
 } from '../../session/instructions.js'
-import { maybeText } from '../../sync/fields.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { NoteBox } from '../kit.js'
 
 const variantOptions: readonly { readonly value: WithdrawalVariant; readonly label: string }[] = [

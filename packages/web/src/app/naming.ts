@@ -1,6 +1,5 @@
 import { type RecordState, syncEntityNames, syncFieldNames } from '@opengewerk/domain'
-
-import { maybeText } from '../sync/fields.js'
+import { maybeText } from '@opengewerk/platform-web/sync'
 
 /**
  * What a kind of record and a field are called in German.

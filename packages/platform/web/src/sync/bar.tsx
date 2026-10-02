@@ -1,20 +1,18 @@
-import { Strip, stripAction, useEntry } from '@opengewerk/platform-web'
-import { RotateCw, TriangleAlert, WifiOff } from 'lucide-react'
-import { useSyncExternalStore } from 'react'
+import { TriangleAlert, WifiOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { useSync, useSyncStatus } from '../sync/provider.js'
-import { applyUpdate, subscribeToUpdates, updateWaiting } from './updates.js'
+import { Strip, stripAction } from '../components/strip.js'
+import { useEntry } from '../components/surface.js'
+import { useSync, useSyncStatus } from './provider.js'
 
 /**
  * The strip over every screen on both entries, when there is something to do.
  *
  * A person who left the cellar has to be able to tell at a glance whether
  * what they wrote down has arrived, and a conflict has to be in the way until
- * somebody decides it. Everything arrived is no strip at all: the office says
- * so quietly under "Abgleich" in the navigation, the site on its conflict
- * screen (#217). A strip that is always there teaches people to stop reading
- * strips.
+ * somebody decides it. Everything arrived is no strip at all: an application
+ * says so quietly where it shows the state of the sync (#217). A strip that
+ * is always there teaches people to stop reading strips.
  *
  * `conflictsLink` draws the way to the conflicts with the classes it is
  * handed, because the two entries route there each in their own router.
@@ -104,40 +102,4 @@ export function SyncStatusBar({
   }
 
   return null
-}
-
-/**
- * The offer to take the new version, once the service worker has one ready.
- *
- * Its own strip rather than a corner toast, for the same reason as above: on a
- * phone held in one hand a toast in a corner is a thing that appears and
- * vanishes while somebody is looking at a meter.
- */
-export function UpdateBar() {
-  const waiting = useSyncExternalStore(subscribeToUpdates, updateWaiting, () => false)
-  const entry = useEntry()
-
-  if (!waiting) {
-    return null
-  }
-
-  return (
-    <Strip
-      tone="info"
-      // The site board draws this strip without a symbol; the office one with
-      // the arrow of a reload.
-      icon={entry === 'site' ? undefined : RotateCw}
-      actions={
-        <button
-          type="button"
-          className={stripAction('primary', 'info', entry)}
-          onClick={applyUpdate}
-        >
-          Jetzt übernehmen
-        </button>
-      }
-    >
-      Eine neue Fassung liegt bereit.
-    </Strip>
-  )
 }

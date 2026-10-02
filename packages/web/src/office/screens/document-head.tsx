@@ -11,6 +11,7 @@ import {
   taxTreatments,
 } from '@opengewerk/domain'
 import { Button, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { maybeText, refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useId, useState } from 'react'
@@ -21,9 +22,6 @@ import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/lab
 import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { parameterHistory } from '../../session/parameters.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useSync } from '../../sync/provider.js'
 import type { Fact } from '../kit.js'
 import { FactList, NoteBox } from '../kit.js'
 import { daysFrom, paymentTermOn } from './payment-term.js'

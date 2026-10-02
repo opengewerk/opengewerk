@@ -1,4 +1,5 @@
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
+
 import type { Assignee } from './tasks.js'
 
 /**

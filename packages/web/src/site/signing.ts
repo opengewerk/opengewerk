@@ -1,8 +1,8 @@
 import type { RecordState, SignedContent } from '@opengewerk/domain'
 import { signatureBox } from '@opengewerk/domain'
+import { count } from '@opengewerk/platform-web/sync'
 
 import { lineKindOf, lineUnitOf } from '../app/labels.js'
-import { count } from '../sync/fields.js'
 
 /** A point in the box a signature is drawn in, in whole units. */
 export interface Point {

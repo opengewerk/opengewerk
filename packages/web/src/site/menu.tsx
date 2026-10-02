@@ -1,4 +1,5 @@
 import { ThemeSwitch } from '@opengewerk/platform-web'
+import { useSync } from '@opengewerk/platform-web/sync'
 import { Monitor, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
@@ -6,7 +7,6 @@ import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'
 import { useWho } from '../app/who.js'
 import { entryPath, rememberEntry } from '../entry/entry.js'
-import { useSync } from '../sync/provider.js'
 import { SitePush } from './push.js'
 
 /**

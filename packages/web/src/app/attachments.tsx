@@ -12,14 +12,20 @@ import {
 } from '@opengewerk/domain'
 import { Button, Confirm } from '@opengewerk/platform-web'
 import type { SiteHeight } from '@opengewerk/platform-web'
+import {
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useSync,
+  workingInHeaders,
+} from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { refusalFor, type SyncClient } from '../sync/client.js'
-import { workingInHeaders } from '../sync/transport.js'
-import { count, maybeText, text } from '../sync/fields.js'
-import { useRecords, useSync } from '../sync/provider.js'
+import type { SyncClient } from '../sync/client.js'
 import { fileSize, moment } from './format.js'
 import { shrinkPicture } from './pictures.js'
 import { SiteRow, SiteRows } from '../site/kit.js'

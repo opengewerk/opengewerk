@@ -1,4 +1,5 @@
 import { BrandMark, ThemeSwitch } from '@opengewerk/platform-web'
+import { useSync } from '@opengewerk/platform-web/sync'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, Menu, Server, User } from 'lucide-react'
@@ -8,7 +9,6 @@ import { accountQuery } from '../app/queries.js'
 import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'
 import { instanceAccess } from '../session/instance.js'
-import { useSync } from '../sync/provider.js'
 import { useWho } from '../app/who.js'
 import { BusinessMenu } from './businesses.js'
 

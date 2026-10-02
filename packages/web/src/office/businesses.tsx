@@ -1,4 +1,5 @@
 import type { TenantId } from '@opengewerk/domain'
+import { useSync } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -9,7 +10,6 @@ import { rolesInWords } from '../app/labels.js'
 import { accountQuery, useMay } from '../app/queries.js'
 import { availableTenants, chooseTenant, type TenantChoice } from '../session/session.js'
 import type { SyncClient } from '../sync/client.js'
-import { useSync } from '../sync/provider.js'
 
 /**
  * The businesses of the person signed in, and the switch between them without

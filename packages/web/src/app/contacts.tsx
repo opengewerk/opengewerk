@@ -1,11 +1,9 @@
 import { contactParentProblem, contactParentText, type RecordState } from '@opengewerk/domain'
 import { Button, IconButton } from '@opengewerk/platform-web'
+import { maybeText, refusalFor, text, useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { Mail, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
-import { refusalFor } from '../sync/client.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useSync, useSyncStatus } from '../sync/provider.js'
 import { personName } from './naming.js'
 import { RecordForm, asTextOrNull } from './record-form.js'
 import type { FormField } from './record-form.js'

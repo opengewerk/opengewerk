@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, TenantId } from '@opengewerk/domain'
+import { openLocalStore, text, useRecords, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
@@ -15,9 +16,6 @@ import {
 } from '../session/remembered.js'
 import { currentAccount } from '../session/session.js'
 import { SyncClient } from '../sync/client.js'
-import { text } from '../sync/fields.js'
-import { useRecords, useSyncStatus } from '../sync/provider.js'
-import { openLocalStore } from '../sync/store.js'
 import { Boot } from './boot.js'
 import { useMay } from './queries.js'
 import { useWho } from './who.js'
