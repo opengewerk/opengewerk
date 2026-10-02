@@ -1,14 +1,19 @@
 import { contactParentProblem, contactParentText, type RecordState } from '@opengewerk/domain'
+import { Button, IconButton } from '@opengewerk/platform-web'
+import {
+  RecordForm,
+  asTextOrNull,
+  maybeText,
+  refusalFor,
+  text,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { FormField } from '@opengewerk/platform-web/sync'
 import { Mail, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, IconButton } from '../components/index.js'
-import { refusalFor } from '../sync/client.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useSync, useSyncStatus } from '../sync/provider.js'
 import { personName } from './naming.js'
-import { RecordForm, asTextOrNull } from './record-form.js'
-import type { FormField } from './record-form.js'
 
 /**
  * What a contact hangs on: one customer or one site (#121), or since #296 one

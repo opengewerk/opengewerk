@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // Vite's own types, for what the tests need: `import.meta.glob`, and the
+    // declaration that makes a `?raw` import a string. Node types stay out:
+    // this package runs in a browser.
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "resolveJsonModule": true
+  },
+  "include": ["src", "vitest.config.ts", "test-setup.ts"]
+}

@@ -1,6 +1,5 @@
 import type { BackupStatus } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * When the last backup of the instance finished, and whether that is too long

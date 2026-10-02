@@ -1,4 +1,4 @@
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * One person of the business, as a task sees them: a name, and whether a new

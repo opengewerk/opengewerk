@@ -1,19 +1,23 @@
 import { serialFromCode, serialNumberProblem } from '@opengewerk/domain'
+import { Button, Field } from '@opengewerk/platform-web'
+import { SiteActionBar, SiteScreen, SiteText } from '@opengewerk/platform-web/site'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Camera, Check, Pencil, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field } from '../../components/index.js'
 import { inModules, usePvModules } from '../../app/photovoltaic.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync } from '../../sync/provider.js'
-import { SiteActionBar } from '../action-bar.js'
 import { useCodeReading } from '../camera.js'
 import { SiteHeader } from '../header.js'
 import { useStructureBase } from '../structure-base.js'
-import { SiteScreen, SiteText } from '../kit.js'
 
 /**
  * Serial numbers from the labels of a string's modules (#300), as the boards

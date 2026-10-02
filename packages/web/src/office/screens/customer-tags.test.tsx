@@ -1,5 +1,8 @@
 import 'fake-indexeddb/auto'
 
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import type { DirectWriter } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -12,12 +15,10 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { type DirectWriter, SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
+import { SyncClient } from '../../sync/client.js'
 import { CustomerList, CustomerScreen, EditCustomerScreen } from './customers.js'
 import { SiteScreen } from './sites.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The tags at customers and sites (#314), as the boards "Kunden, nach einem
@@ -177,7 +178,7 @@ beforeEach(() => {
           session: { activeTenantId: 't-1' },
         },
       ],
-      ['GET /auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }]],
+      ['GET /auth/tenants', [aTenantChoice(roles)]],
     ])
     const key = `${method} ${path}`
     const put = method === 'PUT' && path.endsWith('/tags')

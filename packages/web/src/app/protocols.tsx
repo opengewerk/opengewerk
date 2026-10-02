@@ -27,29 +27,37 @@ import {
   tripCharacteristics,
 } from '@opengewerk/domain'
 import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
-import { Link } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Copy, Eye, Plus } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
   Field,
   FieldLabel,
   SelectField,
   Status,
-  statusIcons,
   TextArea,
+  statusIcons,
   useEntry,
-} from '../components/index.js'
-import { type EditResult, refusalFor, type SyncClient } from '../sync/client.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useRecords, useRelated, useSync, useSyncStatus } from '../sync/provider.js'
+} from '@opengewerk/platform-web'
+import { amount, date, scaledNumber, today } from '@opengewerk/platform-web/format'
+import { NotSent, SiteRow, SiteRows } from '@opengewerk/platform-web/site'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
+import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Copy, Eye, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
+import type { SyncClient } from '../sync/client.js'
 import { ordered, useBoards } from './electrical.js'
-import { amount, date, scaledNumber, today } from './format.js'
 import { SignaturePicture } from './signature.js'
-import { NotSent, SiteRow, SiteRows } from '../site/kit.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.

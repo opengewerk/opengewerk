@@ -1,39 +1,31 @@
-import { requiresSecondFactor, roleKeys } from '@opengewerk/domain'
-import type { RoleKey } from '@opengewerk/domain'
+import type { RoleDefinition } from '@opengewerk/domain'
+import { Button, Cell, Column, Confirm, Field, Panel, TablePanel } from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { date, moment } from '@opengewerk/platform-web/format'
+import { SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
+import {
+  accountQuery,
+  deviceName,
+  invite,
+  openInvitations,
+  revokeStaffDevice,
+  rolesInWords,
+  setBlocked,
+  setRoles,
+  staff,
+  staffDevices,
+  staffRoles,
+  withdrawInvitation,
+} from '@opengewerk/platform-web/session'
+import type { InvitationMail, StaffEntry } from '@opengewerk/platform-web/session'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Copy, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import {
-  Button,
-  Cell,
-  Column,
-  Confirm,
-  Field,
-  Panel,
-  TablePanel,
-  type TableCard,
-} from '../../components/index.js'
-import { deviceName } from '../../app/devices.js'
-import { date, moment } from '../../app/format.js'
-import { roleLabel, rolesInWords } from '../../app/labels.js'
-import { accountQuery } from '../../app/queries.js'
 import { mailStatus } from '../../session/mail.js'
-import { RequestRefused } from '../../sync/transport.js'
-import {
-  invite,
-  openInvitations,
-  revokeStaffDevice,
-  setBlocked,
-  setRoles,
-  staff,
-  staffDevices,
-  withdrawInvitation,
-} from '../../session/session.js'
-import type { InvitationMail, StaffEntry } from '../../session/session.js'
-import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -63,6 +55,11 @@ function saidWhy(error: unknown, fallback: string): string {
  * server does not and should not refuse the change; this warning is what turns
  * a 403 nobody expected into something somebody chose.
  *
+ * The roles on offer are the ones this business has, as the server lists them
+ * (ADR 0010): their names, and which of them ask for a second factor. Not a
+ * list in this code, which would offer what the server refuses the day a
+ * business has a role of its own.
+ *
  * Nobody is deleted. A deleted account takes its name off everything the
  * person ever wrote, and an audit log pointing at an identifier nobody can
  * resolve is worse than one naming somebody who left.
@@ -70,6 +67,7 @@ function saidWhy(error: unknown, fallback: string): string {
 export function StaffScreen() {
   const queries = useQueryClient()
   const people = useQuery({ queryKey: ['staff'], queryFn: staff })
+  const known = useQuery({ queryKey: ['staff-roles'], queryFn: staffRoles })
   const invitations = useQuery({ queryKey: ['invitations'], queryFn: openInvitations })
   const mail = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
   const account = useQuery(accountQuery)
@@ -88,8 +86,10 @@ export function StaffScreen() {
     void queries.invalidateQueries({ queryKey: ['invitations'] })
   }
 
+  const available = known.data ?? []
+
   const roles = useMutation({
-    mutationFn: ({ userId, wanted }: { userId: string; wanted: readonly RoleKey[] }) =>
+    mutationFn: ({ userId, wanted }: { userId: string; wanted: readonly string[] }) =>
       setRoles(userId, wanted),
     onSuccess: refresh,
     onError: (error) => {
@@ -128,6 +128,7 @@ export function StaffScreen() {
     return (
       <RolePicker
         person={person}
+        roles={available}
         inBox={inBox}
         disabled={roles.isPending}
         onPick={(wanted) => {
@@ -181,7 +182,7 @@ export function StaffScreen() {
         <Who name={person.name} email={person.email} you={person.userId === you} inBox />
         {rolesOf(person, true)}
         <span className="text-[13px] text-ink-muted">
-          <StateOf person={person} />
+          <StateOf person={person} roles={available} />
           {' · '}
           {person.lastSignInAt ? moment(person.lastSignInAt) : 'Noch nie'}
         </span>
@@ -195,7 +196,8 @@ export function StaffScreen() {
     title: entry.name,
     sub: (
       <>
-        {entry.email} · {rolesInWords(entry.roles)} · bis {date(entry.expiresAt)}
+        {entry.email} · {rolesInWords(namesOf(entry.roles, available))} · bis{' '}
+        {date(entry.expiresAt)}
         <span className="mt-0.5 block">{deliveryInWords(entry.mail)}</span>
       </>
     ),
@@ -224,7 +226,9 @@ export function StaffScreen() {
         <Button
           tone="primary"
           icon={Plus}
-          disabled={inviting}
+          // Not before the roles of the business are known: the form offers
+          // them, and one without any could invite nobody.
+          disabled={inviting || !known.data}
           onClick={() => {
             setTrouble(null)
             setLink(null)
@@ -245,6 +249,7 @@ export function StaffScreen() {
       {inviting ? (
         <Panel title="Neuer Zugang" roomy>
           <InviteForm
+            roles={available}
             byMail={mail.data?.configured === true}
             onDone={(made) => {
               setInviting(false)
@@ -263,10 +268,12 @@ export function StaffScreen() {
       {link ? <NewLink link={link} onDone={() => setLink(null)} /> : null}
       {mailedTo ? <MailedInvitation email={mailedTo} onDone={() => setMailedTo(null)} /> : null}
 
-      {people.isPending ? (
+      {people.isPending || known.isPending ? (
         <SettingsText muted>Wird geladen.</SettingsText>
       ) : people.isError ? (
         <SettingsText muted>{saidWhy(people.error, 'Die Liste kam nicht an.')}</SettingsText>
+      ) : known.isError ? (
+        <SettingsText muted>{saidWhy(known.error, 'Die Rollen kamen nicht an.')}</SettingsText>
       ) : (
         <TablePanel
           title="Konten"
@@ -281,7 +288,7 @@ export function StaffScreen() {
             question, and the state column answers that one, in red, on their
             own row.
           */
-          note="Die Rolle Inhaber verlangt einen zweiten Faktor. Wer sie bekommt, kommt ab dem nächsten Aufruf nicht weiter und wird zuerst zu dessen Einrichtung geführt."
+          note={secondFactorNote(available)}
         >
           <thead>
             <tr>
@@ -302,7 +309,7 @@ export function StaffScreen() {
                 </Cell>
                 <Cell>{rolesOf(person)}</Cell>
                 <Cell className="text-[13px]">
-                  <StateOf person={person} />
+                  <StateOf person={person} roles={available} />
                 </Cell>
                 <Cell className="text-[13px]">
                   {person.lastSignInAt ? moment(person.lastSignInAt) : 'Noch nie'}
@@ -354,7 +361,7 @@ export function StaffScreen() {
                 <Cell>
                   <Who name={entry.name} email={entry.email} />
                 </Cell>
-                <Cell className="text-[13px]">{rolesInWords(entry.roles)}</Cell>
+                <Cell className="text-[13px]">{rolesInWords(namesOf(entry.roles, available))}</Cell>
                 <Cell className="text-[13px]">{date(entry.expiresAt)}</Cell>
                 <Cell className="text-[13px]">{deliveryInWords(entry.mail)}</Cell>
                 <Cell numeric>
@@ -443,8 +450,53 @@ function Who({
   )
 }
 
+/**
+ * What the business calls these roles, in the order it lists them. A key it
+ * has no role for keeps its key: it stands in a membership or an invitation,
+ * and leaving it out would hide that.
+ */
+function namesOf(keys: readonly string[], roles: readonly RoleDefinition[]): readonly string[] {
+  return [
+    ...roles.filter((role) => keys.includes(role.key)).map((role) => role.label),
+    ...keys.filter((key) => !roles.some((role) => role.key === key)),
+  ]
+}
+
+/** Whether one of these roles works only with a second factor, as the business has them. */
+function asksSecondFactor(keys: readonly string[], roles: readonly RoleDefinition[]): boolean {
+  return roles.some((role) => role.secondFactor && keys.includes(role.key))
+}
+
+/**
+ * Which roles ask for a second factor, said above the table and before a box
+ * is ticked. Nothing where no role does.
+ */
+function secondFactorNote(roles: readonly RoleDefinition[]): string | null {
+  const names = roles.filter((role) => role.secondFactor).map((role) => role.label)
+  const [first, ...more] = names
+
+  if (first === undefined) {
+    return null
+  }
+
+  if (more.length === 0) {
+    return `Die Rolle ${first} verlangt einen zweiten Faktor. Wer sie bekommt, kommt ab dem nächsten Aufruf nicht weiter und wird zuerst zu dessen Einrichtung geführt.`
+  }
+
+  const last = more[more.length - 1] ?? ''
+  const listed = [first, ...more.slice(0, -1)].join(', ')
+
+  return `Die Rollen ${listed} und ${last} verlangen einen zweiten Faktor. Wer eine davon bekommt, kommt ab dem nächsten Aufruf nicht weiter und wird zuerst zu dessen Einrichtung geführt.`
+}
+
 /** Whether somebody can work, in the words of the column "Zustand". */
-function StateOf({ person }: { readonly person: StaffEntry }) {
+function StateOf({
+  person,
+  roles,
+}: {
+  readonly person: StaffEntry
+  readonly roles: readonly RoleDefinition[]
+}) {
   if (person.blockedAt) {
     return <b className="font-semibold text-conflict">Gesperrt seit {moment(person.blockedAt)}</b>
   }
@@ -455,7 +507,7 @@ function StateOf({ person }: { readonly person: StaffEntry }) {
     return <>Aktiv, zweiter Faktor eingerichtet</>
   }
 
-  return requiresSecondFactor(person.roles) ? (
+  return asksSecondFactor(person.roles, roles) ? (
     <b className="font-semibold text-conflict">Zweiter Faktor fehlt</b>
   ) : (
     <>Aktiv</>
@@ -563,11 +615,14 @@ function MailedInvitation({
 
 /** Name, address and roles. The password is deliberately not here. */
 function InviteForm({
+  roles,
   byMail,
   onDone,
   onCancel,
   onTrouble,
 }: {
+  /** The roles this business has. */
+  readonly roles: readonly RoleDefinition[]
   /** Whether the business sends mail, which offers the second way. */
   readonly byMail: boolean
   readonly onDone: (made: { link: string | null; email: string }) => void
@@ -576,7 +631,11 @@ function InviteForm({
 }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [chosen, setChosen] = useState<readonly RoleKey[]>(['technician'])
+  // A new colleague is a technician more often than anything else, so that
+  // box starts ticked. What goes out is only what the business has a role
+  // for, should it ever have none of that name.
+  const [ticked, setTicked] = useState<readonly string[]>(['technician'])
+  const chosen = ticked.filter((key) => roles.some((role) => role.key === key))
   // Which way is being worked on, for the button that says so.
   const [working, setWorking] = useState<'link' | 'mail' | null>(null)
   // Which of the two buttons submitted the form. A ref and not state: the
@@ -639,28 +698,28 @@ function InviteForm({
           Rollen
         </legend>
         <div className="flex flex-wrap gap-x-3.5 gap-y-2">
-          {roleKeys.map((role) => (
+          {roles.map((role) => (
             <label
-              key={role}
+              key={role.key}
               className="inline-flex min-h-6 items-center gap-[5px] text-[14px] max-lg:min-h-tap"
             >
               <input
                 type="checkbox"
                 className="size-[15px] accent-copper-solid max-lg:size-5"
-                checked={chosen.includes(role)}
+                checked={chosen.includes(role.key)}
                 onChange={(event) => {
-                  setChosen(
+                  setTicked(
                     event.target.checked
-                      ? [...chosen, role]
-                      : chosen.filter((picked) => picked !== role),
+                      ? [...chosen, role.key]
+                      : chosen.filter((picked) => picked !== role.key),
                   )
                 }}
               />
-              {roleLabel[role]}
+              {role.label}
             </label>
           ))}
         </div>
-        <OwnerWarning roles={chosen} />
+        <SecondFactorWarning needed={asksSecondFactor(chosen, roles)} />
       </fieldset>
 
       <div className="flex flex-wrap gap-2">
@@ -710,16 +769,24 @@ function InviteForm({
  */
 function RolePicker({
   person,
+  roles,
   disabled,
   inBox = false,
   onPick,
 }: {
   readonly person: StaffEntry
+  /** The roles this business has. */
+  readonly roles: readonly RoleDefinition[]
   readonly disabled: boolean
   /** In a box on a phone, where the three may wrap; in the table they stay in a line. */
   readonly inBox?: boolean
-  readonly onPick: (roles: readonly RoleKey[]) => void
+  readonly onPick: (roles: readonly string[]) => void
 }) {
+  // What goes out is what the business has a role for. A key in the
+  // membership without one names nothing, and the server would refuse a
+  // change that carried it along.
+  const held = person.roles.filter((key) => roles.some((role) => role.key === key))
+
   return (
     <div
       className={clsx(
@@ -727,17 +794,17 @@ function RolePicker({
         inBox ? 'flex-wrap' : 'flex-nowrap',
       )}
     >
-      {roleKeys.map((role) => (
-        <label key={role} className="inline-flex items-center gap-[5px] max-lg:min-h-tap">
+      {roles.map((role) => (
+        <label key={role.key} className="inline-flex items-center gap-[5px] max-lg:min-h-tap">
           <input
             type="checkbox"
             className="size-[15px] accent-copper-solid max-lg:size-5"
             disabled={disabled}
-            checked={person.roles.includes(role)}
+            checked={held.includes(role.key)}
             onChange={(event) => {
               const wanted = event.target.checked
-                ? [...person.roles, role]
-                : person.roles.filter((picked) => picked !== role)
+                ? [...held, role.key]
+                : held.filter((picked) => picked !== role.key)
 
               if (wanted.length === 0) {
                 return
@@ -746,7 +813,7 @@ function RolePicker({
               onPick(wanted)
             }}
           />
-          {roleLabel[role]}
+          {role.label}
         </label>
       ))}
     </div>
@@ -756,13 +823,13 @@ function RolePicker({
 /**
  * The sentence that turns a 403 nobody expected into something somebody chose.
  *
- * `requiresSecondFactor` comes from `domain`, so this says the same thing the
- * server checks rather than a second opinion about it. The day the bookkeeping
- * role joins that list, this warning covers it without anybody editing a
- * screen.
+ * Whether a role asks for a second factor is in the row of the role, which is
+ * what the server checks, so this says the same thing rather than a second
+ * opinion about it. The day another role asks for one, this warning covers it
+ * without anybody editing a screen.
  */
-function OwnerWarning({ roles }: { readonly roles: readonly RoleKey[] }) {
-  if (!requiresSecondFactor(roles)) {
+function SecondFactorWarning({ needed }: { readonly needed: boolean }) {
+  if (!needed) {
     return null
   }
 

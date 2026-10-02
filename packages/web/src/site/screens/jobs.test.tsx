@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState, RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -14,11 +16,9 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './jobs.js'
 import { SiteNoteScreen } from './notes.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * A job on site, seen by the technician who works on it (#128).
@@ -55,7 +55,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'max@nord.example.de', name: 'Max Monteur' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 async function mount(

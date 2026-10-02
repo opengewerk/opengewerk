@@ -1,34 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
-import { Link, Outlet, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
-import { createContext, useContext, useMemo, useState } from 'react'
-
-import { Button, Confirm, DocumentState, Panel, useBand } from '../../components/index.js'
-import { addressLine, date, today } from '../../app/format.js'
-import {
-  documentKindOf,
-  documentStatusOf,
-  jobKindLabel,
-  jobKindOf,
-  jobStatusLabel,
-  jobStatusOf,
-} from '../../app/labels.js'
-import { useMay } from '../../app/queries.js'
-import { clockOf, useStopwatch } from '../../app/time.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
-import { InstallationPanel } from './installation.js'
-import { JobContacts } from './contacts.js'
-import { JobFiles } from './files.js'
-import { JobNotes } from './notes.js'
-import { InstallationProtocols } from './protocol.js'
-import { shownStatus } from './report.js'
-import { SiteAccessPanel } from './access.js'
-import { JobTasks, MyTasks } from './tasks.js'
-import { JobTime, TodayTime } from './time.js'
-import { SiteHeader } from '../header.js'
+import { Button, Confirm, Panel, useBand } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
 import {
   NotSent,
   SiteAnchor,
@@ -41,7 +13,43 @@ import {
   SiteTrouble,
   TitleCount,
   TopTitle,
-} from '../kit.js'
+} from '@opengewerk/platform-web/site'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
+import { Link, Outlet, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
+import { createContext, useContext, useMemo, useState } from 'react'
+
+import { DocumentState } from '../../app/document-state.js'
+import { addressLine } from '../../app/format.js'
+import {
+  documentKindOf,
+  documentStatusOf,
+  jobKindLabel,
+  jobKindOf,
+  jobStatusLabel,
+  jobStatusOf,
+} from '../../app/labels.js'
+import { useMay } from '../../app/queries.js'
+import { clockOf, useStopwatch } from '../../app/time.js'
+import { InstallationPanel } from './installation.js'
+import { JobContacts } from './contacts.js'
+import { JobFiles } from './files.js'
+import { JobNotes } from './notes.js'
+import { InstallationProtocols } from './protocol.js'
+import { shownStatus } from './report.js'
+import { SiteAccessPanel } from './access.js'
+import { JobTasks, MyTasks } from './tasks.js'
+import { JobTime, TodayTime } from './time.js'
+import { SiteHeader } from '../header.js'
 
 /**
  * The jobs this device is meant to work through.

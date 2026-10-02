@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto'
 
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -13,10 +15,8 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { CustomerList, CustomerScreen, NewCustomerScreen } from './customers.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The customers as the canvas draws them (#219): the list at every width of
@@ -113,7 +113,7 @@ beforeEach(() => {
           session: { activeTenantId: 't-1' },
         },
       ],
-      ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
+      ['/auth/tenants', [aTenantChoice(['office'])]],
     ])
 
     return Promise.resolve(

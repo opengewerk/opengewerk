@@ -84,7 +84,9 @@ Vite liefert dann beide Einstiege aus, `/` und `/m`, und reicht jeden Pfad, der 
 
 | Paket | Inhalt |
 | --- | --- |
-| [`packages/platform/domain`](packages/platform/domain) | Das Fundament ohne I/O, auf dem jede Anwendung der Organisation steht (ADR 0010): Kennungen, Regel-Engine, Vorgänge des Abgleichs. Kennt weder Kunde noch Beleg |
+| [`packages/platform/domain`](packages/platform/domain) | Das Fundament ohne I/O, auf dem jede Anwendung der Organisation steht (ADR 0010): Kennungen, Rechte als Katalog, Regel-Engine, Vorgänge des Abgleichs und seine Regeln als Fabrik über die Richtlinien einer Anwendung, das Muster eines Nummernkreises. Kennt weder Kunde noch Beleg |
+| [`packages/platform/server`](packages/platform/server) | Die Serverseite des Fundaments: Datenbankzugriff unter einem Mandanten, Migrationslauf, Konfiguration beim Start, die Anmeldung mit zweitem Faktor, Passkeys, Ersteinrichtung und Einmal-Link, die Verwaltung der Zugänge eines Mandanten, der Bereich der Instanz, der Guard vor jeder Route mit Herkunftsprüfung und Sicherheits-Headern, die Tabellen für Mandanten, Konten, Zugehörigkeiten, Rollen, Audit-Log, Abgleich und Instanz, versiegelte Zugangsdaten, Einstellungen mit Gültigkeitszeitraum und Nummernkreise als Tabellen, die eine Anwendung mit ihrer eigenen Liste anlegt, die Bausteine für Spalten und Policies und unter `sql/` alles, was `drizzle-kit` nicht schreibt. Die Migrationen und die Namen bringt die Anwendung mit |
+| [`packages/platform/web`](packages/platform/web) | Die Oberfläche des Fundaments, bisher die Design-Tokens, das Stylesheet eines Einstiegs mit den Schriften, die Bausteine, aus denen jede Anwendung ihre Bildschirme baut, unter `/sync` der Abgleich auf dem Gerät: Client, lokale Ablage, Postausgang und die Leiste über jedem Bildschirm, unter `/session` die Sitzung: wer angemeldet ist, in welchem Mandanten und mit welchen Rechten, und was ein Gerät davon ohne Netz behält, unter `/gate` das Tor: alles zwischen dem Öffnen einer Anwendung und ihrem ersten Bildschirm, von der Ersteinrichtung über die Anmeldung bis zur Wahl des Mandanten, und das Abmelden, und unter `/office`, `/site`, `/shell` und `/format` die Hülle der beiden Einstiege und die Teile, aus denen ein Bildschirm besteht: Kopfleiste, Navigation, Wechsel des Mandanten, Reiter und Menü, Rahmen, Kopf, Liste mit Suche und Vorschau, der Rahmen der Einstellungen, der Bildschirm "Konto" mit der Karte "Passkeys", die Teile für das Gerät in der Hand, der Vorschlag des passenden Einstiegs, das Angebot einer neuen Fassung, Zahlen und Tage. Wird als Quelltext eingebunden und von der Anwendung mit übersetzt, einen eigenen Bau hat es nicht. Kennt keinen Produktnamen und kein Wort, mit dem eine Anwendung ihre Mandanten, Rollen oder Datensätze nennt: wie sie heißt und was sie dazu sagt, gibt eine Anwendung einmal als Wert über ihrem ganzen Baum an |
 | [`packages/domain`](packages/domain) | Schemas, Berechnungen, Regeln, Fristen. Kein I/O, keine Frameworks |
 | [`packages/server`](packages/server) | NestJS, Drizzle, Auth, Sync-Endpunkte |
 | [`packages/web`](packages/web) | React und Vite, eine Codebasis, Einstiege `/` für das Büro und `/m` für die Baustelle, Abgleich-Client und PWA |
@@ -425,7 +427,7 @@ Abschnitt 2 der Feature-Gliederung sieht Benachrichtigungen aus genau zwei Quell
 
 **Push auf die eigenen Geräte** (#284). Dieselben Anlässe gehen auch als Push-Nachricht an die Geräte der Leute im Betrieb, als zweiter Kanal im selben Weg: `notifications/push.ts` entscheidet wie `notify` für die E-Mail, wem was gesagt wird, und `taskStillDue` und `deadlineStillDue` beantworten die Frage für beide gleich. Ein Modul meldet weiter nur seinen Anlass. Unter "Konto" im Büro und im Menü der Baustelle schaltet jede Person Push auf dem Gerät ein, auf dem sie gerade ist; der Browser fragt dabei selbst nach der Erlaubnis. Welche Anlässe sie als Push will, wählt sie dort für alle ihre Geräte, und jeder ist an, bis sie ihn abschaltet (`push_opt_outs`). Bisher sind das die fällige Aufgabe am Morgen und die Erinnerung einer Frist, deren Art erinnert. Eine Probenachricht geht auf Knopfdruck sofort an alle Geräte.
 
-**Die Nachricht sagt nur, was ansteht.** Sie geht verschlüsselt nach RFC 8291 über den Push-Dienst des Browserherstellers und trägt einen Titel, eine Zeile und den Weg, wohin ein Tippen führt: "Heute fällig", "Eine Aufgabe ist heute für dich fällig." Keinen Namen, keine Anschrift und nicht den Text einer Aufgabe, denn der ist, was jemand hineingeschrieben hat; was es ist, zeigt das Gerät nach dem Tippen aus seinen eigenen Daten. Signiert wird jede Anfrage nach RFC 8292 mit dem Schlüssel aus `VAPID_PRIVATE_KEY`, den `docker/setup.sh` beim Start anlegt und nie ausgibt; ein Browser nimmt nur Nachrichten an, die mit dem Schlüssel signiert sind, mit dem er sich angemeldet hat. Beides steht ohne Paket in `push/web-push.ts` und wird gegen das Beispiel aus RFC 8291 Byte für Byte geprüft. Fehlt der Schlüssel, verschickt die Instanz keine Push-Nachrichten, und "Konto" sagt das.
+**Die Nachricht sagt nur, was ansteht.** Sie geht verschlüsselt nach RFC 8291 über den Push-Dienst des Browserherstellers und trägt einen Titel, eine Zeile und den Weg, wohin ein Tippen führt: "Heute fällig", "Eine Aufgabe ist heute für dich fällig." Keinen Namen, keine Anschrift und nicht den Text einer Aufgabe, denn der ist, was jemand hineingeschrieben hat; was es ist, zeigt das Gerät nach dem Tippen aus seinen eigenen Daten. Signiert wird jede Anfrage nach RFC 8292 mit dem Schlüssel aus `VAPID_PRIVATE_KEY`, den `docker/setup.sh` beim Start anlegt und nie ausgibt; ein Browser nimmt nur Nachrichten an, die mit dem Schlüssel signiert sind, mit dem er sich angemeldet hat. Beides steht ohne Paket in `push/web-push.ts` im Fundament (`packages/platform/server`) und wird gegen das Beispiel aus RFC 8291 Byte für Byte geprüft. Fehlt der Schlüssel, verschickt die Instanz keine Push-Nachrichten, und "Konto" sagt das.
 
 **Ein Gerät, das abgemeldet ist, bekommt nichts mehr.** Ein Abonnement gehört einer Person in einem Betrieb und ist an die Sitzung gebunden, mit der das Gerät angemeldet ist. Endet sie, beim Abmelden, über "Angemeldete Geräte" von einem anderen Gerät aus oder mit einem neuen Passwort, geht keine Nachricht mehr hin, und der nächste Lauf nimmt das Gerät aus der Liste. Beim Abmelden meldet sich das Gerät zudem selbst ab. Bei jedem Start mit eingeschaltetem Push schreibt es sein Abonnement neu, gebunden an die Sitzung von jetzt, und meldet sich neu an, wenn der Schlüssel der Instanz ein anderer ist. Die Adresse des Push-Dienstes muss im Internet liegen und über HTTPS erreichbar sein, wie der Mailserver eines Betriebs; der Name wird bei jeder Verbindung geprüft.
 
@@ -786,7 +788,13 @@ Dort stehen die Betriebe der Instanz, die Mailserver im eigenen Netz, die ein
 Betrieb benutzen darf, die Uhrzeit der nächtlichen Sicherung, wer die Instanz
 betreibt, und ein Protokoll jeder Änderung daran. Aus einem Betrieb sieht der
 Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber und die Zahl der
-Zugänge, nichts, was in ihm steht.
+Zugänge, nichts, was in ihm steht. Wer einen Betrieb führt, liest die Liste
+aus den Rollen des Betriebs: Inhaber ist dort, wer eine Rolle hält, die den
+Betrieb führt, wie immer sie heißt.
+
+Der Bereich selbst gehört zum Fundament (ADR 0010) und ist in jeder Anwendung
+der Organisation derselbe. Was diese Anwendung dazu sagt, sind ihre Wörter:
+"Betreiber" für den, der die Instanz betreibt, "Betrieb" und "Inhaber".
 
 **Betreiber ist das Konto der Ersteinrichtung**, in derselben Transaktion wie
 Betrieb und Konto. Auf einer Instanz, die schon vorher lief, findet Migration
@@ -1195,7 +1203,7 @@ Organisation.
   zweites Mal.** Jede Antwort trägt `X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options`, `Strict-Transport-Security` und die beiden
   `Cross-Origin`-Header, die Hüllen dazu die `Content-Security-Policy`
-  (`packages/server/src/security-headers.ts`). Doppelt gilt nicht einfach der
+  (`packages/platform/server/src/api/security-headers.ts`). Doppelt gilt nicht einfach der
   strengere Wert: von zwei HSTS-Headern liest ein Browser nur den ersten, von
   zwei Referrer-Policies die letzte, und eine zweite Content-Security-Policy aus
   dem Proxy kann nur noch verbieten, was die Anwendung braucht. Setzt der Proxy

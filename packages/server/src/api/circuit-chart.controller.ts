@@ -11,11 +11,10 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import { type InstallationId, inStructureOrder, type TenantId } from '@opengewerk/domain'
+import { Database, isUuid, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
-import { Database, type TenantTransaction } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import {
   boardSections,
   circuits,

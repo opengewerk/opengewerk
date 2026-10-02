@@ -9,12 +9,23 @@ export * from './model/audit.js'
 export * from './model/backup.js'
 export * from './model/file.js'
 export * from './model/identifier.js'
+export * from './model/identity.js'
+export * from './model/instance.js'
+export * from './model/invitation.js'
 export * from './model/mail-server.js'
+export * from './model/number-range.js'
 export * from './model/passkey.js'
+export * from './model/rights.js'
 
 // The rule engine: records with a period of validity and the paragraph they
 // come from. Which rules there are is the application's business.
 export * from './rules/rule.js'
 
-// What travels between a device and the server.
+// What travels between a device and the server, what the server keeps of it,
+// and what a rule about it means. Which records travel, and under which
+// rules, the application says, and makes its rules from that list.
+export * from './sync/conflict.js'
 export * from './sync/operation.js'
+export * from './sync/policy.js'
+export * from './sync/record.js'
+export * from './sync/rules.js'

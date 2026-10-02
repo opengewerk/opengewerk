@@ -1,21 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
-import { useParams } from '@tanstack/react-router'
-import { MapPin } from 'lucide-react'
-import type { ReactNode } from 'react'
-
-import { Panel } from '../../components/index.js'
-import { useBoards } from '../../app/electrical.js'
-import { addressLine, date } from '../../app/format.js'
-import {
-  installationKindLabel,
-  installationKindOf,
-  jobStatusLabel,
-  jobStatusOf,
-} from '../../app/labels.js'
-import { definitionOf, useProtocols } from '../../app/protocols.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useHoldsAll, useRecord, useRecords, useRelated } from '../../sync/provider.js'
-import { SiteHeader } from '../header.js'
+import { Panel } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
 import {
   SiteAnchor,
   SiteFacts,
@@ -24,7 +9,29 @@ import {
   SiteRows,
   SiteScreen,
   SiteText,
-} from '../kit.js'
+} from '@opengewerk/platform-web/site'
+import {
+  maybeText,
+  text,
+  useHoldsAll,
+  useRecord,
+  useRecords,
+  useRelated,
+} from '@opengewerk/platform-web/sync'
+import { useParams } from '@tanstack/react-router'
+import { MapPin } from 'lucide-react'
+import type { ReactNode } from 'react'
+
+import { useBoards } from '../../app/electrical.js'
+import { addressLine } from '../../app/format.js'
+import {
+  installationKindLabel,
+  installationKindOf,
+  jobStatusLabel,
+  jobStatusOf,
+} from '../../app/labels.js'
+import { definitionOf, useProtocols } from '../../app/protocols.js'
+import { SiteHeader } from '../header.js'
 import { InstallationBoards } from './boards.js'
 import { InstallationInverters, usePvSystemPeak } from './pv.js'
 

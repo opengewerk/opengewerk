@@ -1,13 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { Identity, RoleKey, TenantId } from '@opengewerk/domain'
+import type { RoleKey, TenantId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
 import { deviceScope } from '../database/device-scope.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -16,7 +15,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { testIdentities as identities } from './test-identity.js'
+import { type Somebody, testIdentities as identities } from './test-identity.js'
 import { created, push } from './test-structure.js'
 
 /**
@@ -50,7 +49,7 @@ function as(person: Person): string {
     userId: person,
     tenantId: north.id,
     roles: [...people[person].roles] as RoleKey[],
-  } satisfies Identity)
+  } satisfies Somebody)
 }
 
 async function post(path: string, body: Record<string, unknown>, who: Person = 'britta') {

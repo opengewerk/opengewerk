@@ -11,13 +11,12 @@ import {
   Query,
 } from '@nestjs/common'
 import { isAllowed, type SupplierId, supplierProblems } from '@opengewerk/domain'
+import { Database, pick, requireSomething } from '@opengewerk/platform-server'
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
 import { articles, purchasePrices, supplierArticles, suppliers } from '../database/schema/index.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = [

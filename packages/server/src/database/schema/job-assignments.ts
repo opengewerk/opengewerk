@@ -1,11 +1,15 @@
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { foreignKey, index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { jobs } from './jobs.js'
-import { memberships } from './memberships.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * A person on a job (#140), assigned in the office.

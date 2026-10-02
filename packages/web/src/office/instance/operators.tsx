@@ -1,8 +1,4 @@
 import type { OperatorView } from '@opengewerk/domain'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, TriangleAlert } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
-
 import {
   Button,
   Cell,
@@ -12,14 +8,17 @@ import {
   Panel,
   Status,
   TablePanel,
-  type TableCard,
-} from '../../components/index.js'
-import { date } from '../../app/format.js'
-import { accountQuery } from '../../app/queries.js'
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { SettingsText } from '@opengewerk/platform-web/office'
+import { accountQuery, instanceAccessQuery } from '@opengewerk/platform-web/session'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, TriangleAlert } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
+
 import { appointOperator, operators, removeOperator } from '../../session/instance.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { SettingsText } from '../settings-frame.js'
-import { instanceAccessQuery } from '../top-bar.js'
 import { InstancePage } from './shell.js'
 
 function saidWhy(error: unknown, fallback: string): string {

@@ -1,15 +1,15 @@
 import type { InvitationId } from '@opengewerk/domain'
+import type {
+  Database,
+  InvitationMail,
+  InvitationMailing,
+  TenantTransaction,
+} from '@opengewerk/platform-server'
 import { desc, inArray } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { mailOutbox } from '../database/schema/index.js'
-
-/** Where the message with an invitation stands. */
-export interface InvitationMail {
-  readonly status: 'pending' | 'sent' | 'failed'
-  readonly sentAt: Date | null
-  readonly lastError: string | null
-}
+import { requireMailServer } from '../mail/server-settings.js'
+import { notify } from './notify.js'
 
 /**
  * The message each of these invitations went out with, where one did.
@@ -50,4 +50,35 @@ export async function invitationMails(
   }
 
   return found
+}
+
+/**
+ * How this application sends an invitation by mail, for the administration of
+ * a business. That is the foundation's (ADR 0010) and knows neither a mail
+ * server nor an outbox, only that there may be something that sends.
+ *
+ * An invitation is a cause like a due task: the message is written when the
+ * invitation is made and goes out with the job, which makes the link as it
+ * sends. The link starts with the address every link in a message starts
+ * with, so there is a sender only where the instance has that address to
+ * give. How a message stands is read either way.
+ */
+export function invitationMailing(
+  database: Database,
+  mail: { readonly origin: string } | null,
+): InvitationMailing {
+  return {
+    sender: mail && {
+      ready: (identity) => requireMailServer(database, identity),
+      send: async (identity, invitationId) => {
+        await notify(
+          database,
+          identity.tenantId,
+          { kind: 'invitation', invitationId, requestedBy: identity.userId },
+          { origin: mail.origin },
+        )
+      },
+    },
+    mailsOf: invitationMails,
+  }
 }

@@ -1,19 +1,23 @@
 import type { ChainVerification, CustomerId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { eq, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { verifyAuditChain } from './audit.js'
-import { Database } from './database.js'
-import { newId } from './identifier.js'
 import * as schema from './schema/index.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
   applicationRole,
   applyMigrations,
+  auditEntryColumns,
+  columnNames,
   connect,
+  foundationOutsideTheLog,
+  instanceLogCoverage,
   insufficientPrivilege,
+  logCoverage,
   refusedBy,
   resetSchema,
 } from './test-database.js'
@@ -30,6 +34,15 @@ const other = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
 
 let admin: Pool
 let database: Database
+
+/**
+ * What stays out of the log in this application, beyond what the foundation
+ * keeps out everywhere: the log itself, the sync layer and the accounts.
+ */
+const outsideTheLog = {
+  prefixes: [...foundationOutsideTheLog.prefixes],
+  tables: ['secrets'],
+}
 
 /** The log's own error class. */
 const logIsAppendOnly = 'OG002'
@@ -111,57 +124,25 @@ describe('the tables', () => {
     // when a password was set from `mail_settings`, which it does watch.
     //
     // The `instance_` tables (#188) belong to the instance and to no business,
-    // like the accounts, and have a log of their own; the test below holds
-    // that one.
-    const { rows } = await admin.query<{ table_name: string; triggers: string }>(
-      `select c.relname as table_name,
-              (select count(*) from pg_trigger t
-                where t.tgrelid = c.oid and t.tgname = 'audit_changes') as triggers
-         from pg_class c
-         join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'public'
-          and c.relkind = 'r'
-          and c.relname not like 'audit\\_%'
-          and c.relname not like 'sync\\_%'
-          and c.relname not like 'auth\\_%'
-          and c.relname not like 'instance\\_%'
-          and c.relname <> 'secrets'
-          and c.relname <> '__drizzle_migrations'
-        order by c.relname`,
-    )
+    // like the accounts, and have a log of their own. Both are the
+    // foundation's, which keeps them out of this log and holds theirs.
+    const coverage = await logCoverage(admin, outsideTheLog)
 
-    expect(rows.length).toBeGreaterThanOrEqual(15)
-
-    const unwatched = rows.filter((row) => Number(row.triggers) === 0)
-    expect(unwatched).toEqual([])
+    expect(coverage.watched.length).toBeGreaterThanOrEqual(15)
+    expect(coverage.unwatched).toEqual([])
   })
 
   it('leave the log itself alone, so that it does not log its own logging', async () => {
-    const { rows } = await admin.query<{ count: string }>(
-      `select count(*) from pg_trigger t
-         join pg_class c on c.oid = t.tgrelid
-        where (c.relname like 'audit\\_%' or c.relname like 'sync\\_%'
-               or c.relname like 'auth\\_%' or c.relname like 'instance\\_%'
-               or c.relname = 'secrets')
-          and t.tgname = 'audit_changes'`,
-    )
+    const coverage = await logCoverage(admin, outsideTheLog)
 
-    expect(Number(rows[0]?.count)).toBe(0)
+    expect(coverage.watchedAgainstTheList).toEqual([])
   })
 
   it('give the tables of the instance a log of their own, and the businesses too', async () => {
     // The operators and the settings of the instance, and `tenants` for a
     // business being created or removed; the log of the instance itself is
     // what is written, so it carries no writer.
-    const { rows } = await admin.query<{ table_name: string }>(
-      `select c.relname as table_name
-         from pg_trigger t
-         join pg_class c on c.oid = t.tgrelid
-        where t.tgname = 'instance_changes'
-        order by c.relname`,
-    )
-
-    expect(rows.map((row) => row.table_name)).toEqual([
+    expect(await instanceLogCoverage(admin)).toEqual([
       'instance_operators',
       'instance_settings',
       'tenants',
@@ -180,30 +161,10 @@ describe('the shape of an entry', () => {
     // So this list is not a duplicate of the schema, it is the promise. If a
     // column really has to be added, the way through is a second fingerprint
     // that old entries keep being measured by, not a quiet ALTER TABLE.
-    const { rows } = await admin.query<{ column_name: string }>(
-      `select column_name from information_schema.columns
-        where table_schema = 'public' and table_name = 'audit_entries'
-        order by column_name`,
-    )
-
-    expect(rows.map((row) => row.column_name)).toEqual([
-      'change_id',
-      'changed_at',
-      'database_role',
-      'field',
-      'hash',
-      'id',
-      'new_value',
-      'old_value',
-      'operation',
-      'previous_hash',
-      'reason',
-      'record_id',
-      'sequence',
-      'table_name',
-      'tenant_id',
-      'user_id',
-    ])
+    //
+    // The list is the foundation's (ADR 0010, point 9): the columns and the
+    // fingerprint are the same in every application that carries the log.
+    expect(await columnNames(admin, 'audit_entries')).toEqual(auditEntryColumns)
   })
 })
 

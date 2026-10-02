@@ -1,10 +1,9 @@
 import type { TaskId, TenantId } from '@opengewerk/domain'
+import { Database, newId, SecretKey } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import { mailOutbox, tasks } from '../database/schema/index.js'
 import {
   allowApplicationLogin,
@@ -13,7 +12,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { SecretKey } from '../secrets/key.js'
 import { maximumAttempts } from './outbox.js'
 import { saveMailServer } from './server-settings.js'
 import { aMailServer, testKey } from './test-mail-server.js'
@@ -399,7 +397,7 @@ describe('the way out', () => {
   it('is a real SMTP conversation with the login of the business, end to end', async () => {
     await aTask('britta')
     const server = await fakeSmtpServer({ credentials: { user: 'rechnung', password: 'richtig' } })
-    const owner = { userId: 'britta', tenantId: north, roles: ['owner' as const] }
+    const owner = { userId: 'britta', tenantId: north }
 
     await saveMailServer(database, owner, testKey, {
       host: '127.0.0.1',

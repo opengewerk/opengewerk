@@ -26,12 +26,12 @@ import {
   type DocumentStatus,
   type EInvoiceGap,
   type InstructionGap,
-  formatDocumentNumber,
   isCancellable,
   type IsoDate,
   type MissingDetail,
   missingDetails,
   noInstructionChoices,
+  numberFromPattern,
   numberRangeOf,
   paymentTermProblem,
   RuleError,
@@ -41,9 +41,15 @@ import {
   type TaxTreatment,
   whyFixed,
 } from '@opengewerk/domain'
+import {
+  Database,
+  pick,
+  requireFields,
+  requireSomething,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import { Database, type TenantTransaction } from '../database/database.js'
 import { assignDocumentNumber } from '../database/number-ranges.js'
 import {
   documentInstructionChoices,
@@ -61,7 +67,6 @@ import { choicesOf } from '../documents/instructions.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireFields, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
 import { eInvoiceRefusals } from './e-invoice.controller.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -943,7 +948,7 @@ export class DocumentsController {
       const counter = range?.nextValue ?? 1
 
       return {
-        preview: formatDocumentNumber(pattern, { counter, year: yearInGermany() }),
+        preview: numberFromPattern(pattern, { counter, year: yearInGermany() }),
         pattern,
       }
     })

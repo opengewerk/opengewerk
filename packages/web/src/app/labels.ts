@@ -28,8 +28,7 @@ import {
   taxTreatments,
   vatRates,
 } from '@opengewerk/domain'
-
-import { oneOf } from '../sync/fields.js'
+import { oneOf } from '@opengewerk/platform-web/sync'
 
 /**
  * What the words on the screen are.
@@ -75,20 +74,15 @@ export const taskStatusLabel: Readonly<Record<TaskStatus, string>> = {
   done: 'Erledigt',
 }
 
+/**
+ * The three roles a business starts with, by key, for the one place that has
+ * a key and no business to ask: an old value in the log of changes. Everywhere
+ * else a role is called what its business calls it, which the server says.
+ */
 export const roleLabel: Readonly<Record<RoleKey, string>> = {
   owner: 'Inhaber',
   office: 'Büro',
   technician: 'Monteur',
-}
-
-/**
- * Several roles in one line, for a table cell and for a sentence.
- *
- * A comma and not a slash: somebody with two roles has both, and a slash reads
- * like a choice between them.
- */
-export function rolesInWords(roles: readonly RoleKey[]): string {
-  return roles.map((role) => roleLabel[role]).join(', ')
 }
 
 export const documentKindLabel: Readonly<Record<DocumentKind, string>> = {

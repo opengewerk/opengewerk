@@ -1,11 +1,16 @@
 import { longestSignaturePath } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { documents } from './documents.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * A customer's signature on a document, made on the device on site.

@@ -22,14 +22,12 @@ import {
   pushOccasionWords,
   type PushSubscriptionId,
 } from '@opengewerk/domain'
+import { Database, subscriptionKeysProblem, type VapidKeys } from '@opengewerk/platform-server'
 import { and, asc, eq } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
 import { pushOptOuts, pushSubscriptions } from '../database/schema/index.js'
 import { signedIn, writeTestPush } from '../notifications/push.js'
 import { endpointReachable, type PushPost } from '../push/post.js'
-import type { VapidKeys } from '../push/web-push.js'
-import { subscriptionKeysProblem } from '../push/web-push.js'
 import { sendDuePush } from '../push/worker.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'

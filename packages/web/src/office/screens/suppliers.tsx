@@ -1,12 +1,6 @@
 import { type RecordState, supplierProblems } from '@opengewerk/domain'
-import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { Check, Pencil, Trash2, Truck } from 'lucide-react'
-import { type FormEvent, type ReactNode, useState } from 'react'
-
 import {
   Button,
-  cardLink,
   Cell,
   Column,
   Confirm,
@@ -15,23 +9,44 @@ import {
   SelectField,
   TablePanel,
   TextArea,
-} from '../../components/index.js'
+  cardLink,
+} from '@opengewerk/platform-web'
+import {
+  Empty,
+  FactList,
+  ListCard,
+  ListScreen,
+  NoteBox,
+  PageHead,
+  RecordColumns,
+  Screen,
+  lastChanged,
+} from '@opengewerk/platform-web/office'
+import type { ListColumn } from '@opengewerk/platform-web/office'
+import {
+  asTextOrNull,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
+import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { Check, Pencil, Trash2, Truck } from 'lucide-react'
+import { type FormEvent, type ReactNode, useState } from 'react'
+
 import { addressLine, countryOptions } from '../../app/format.js'
 import { lineUnitShort } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { asTextOrNull } from '../../app/record-form.js'
 import {
   supplierArticleCounts,
   type SupplierArticlePage,
   supplierArticles,
 } from '../../session/articles.js'
-import { refusalFor } from '../../sync/client.js'
-import type { EditResult } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
-import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
-import { lastChanged, ListCard, ListScreen } from '../list.js'
-import type { ListColumn } from '../list.js'
 import { Frequent, PageFooter, pageSize, PriceWithBase, saidWhy } from './articles.js'
 import { ChangesButton } from './audit-log.js'
 import { ContactsSection } from './contacts.js'

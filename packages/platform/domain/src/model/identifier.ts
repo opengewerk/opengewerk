@@ -18,6 +18,10 @@ export type IsoDate = string
  * confused either.
  */
 export type TenantId = Id<'tenant'>
+export type MembershipId = Id<'membership'>
+export type TenantSessionId = Id<'tenant-session'>
+export type InvitationId = Id<'invitation'>
+export type TenantRoleId = Id<'tenant-role'>
 export type AuditEntryId = Id<'audit-entry'>
 export type FileId = Id<'file'>
 

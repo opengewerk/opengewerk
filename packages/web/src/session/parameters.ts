@@ -1,6 +1,5 @@
 import type { IsoDate, TenantParameterKey } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * One period of a setting the business made about its own taxation.

@@ -1,4 +1,12 @@
 import { articleLimits, type PriceBase, priceBases, priceCentsMax } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -14,11 +22,8 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { articleImports } from './article-imports.js'
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { lineUnit } from './line-enums.js'
-import { tenantIsolation } from './rls.js'
 import { suppliers } from './suppliers.js'
-import { tenantColumn } from './tenants.js'
 
 const fits = (column: unknown, limit: number) =>
   sql`char_length(${column}) between 1 and ${sql.raw(String(limit))}`

@@ -1,10 +1,9 @@
 import type { CustomerId, TenantId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from './database.js'
-import { newId } from './identifier.js'
 import { assignDocumentNumber } from './number-ranges.js'
 import * as schema from './schema/index.js'
 import {
@@ -132,6 +131,24 @@ describe('numbers issued at the same moment', () => {
 
     expect(numbers.invoice).toMatch(/^RE-\d{4}-\d{4}$/)
     expect(numbers.quote).toBe('AN-2026-0001')
+  })
+})
+
+describe('a number range', () => {
+  /**
+   * A range that is gone begins again at one, and the next invoice would
+   * carry a number an invoice already has. No route removes one, and since
+   * migration 0064 the database does not let the application do it either.
+   */
+  it('cannot be removed by the application', async () => {
+    const before = await nextCounter()
+    expect(before).toBeGreaterThan(1)
+
+    await expect(
+      database.forTenant({ tenantId: tenant.id }, (tx) => tx.delete(schema.numberRanges)),
+    ).rejects.toMatchObject({ cause: { code: '42501' } })
+
+    expect(await nextCounter()).toBe(before)
   })
 })
 

@@ -1,18 +1,11 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import {
-  type Identity,
-  type IsoDate,
-  retentionEndsOn,
-  type RoleKey,
-  shippedRules,
-} from '@opengewerk/domain'
+import { type IsoDate, retentionEndsOn, type RoleKey, shippedRules } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -22,7 +15,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { testIdentities as identities } from './test-identity.js'
+import { type Somebody, testIdentities as identities } from './test-identity.js'
 
 /**
  * Working time (#76): recorded by the person it belongs to, through the outbox
@@ -57,7 +50,7 @@ function as(person: Person): string {
     userId: person,
     tenantId: tenant,
     roles: [...roles] as RoleKey[],
-  } satisfies Identity)
+  } satisfies Somebody)
 }
 
 type Values = Record<string, string | number | boolean | null>

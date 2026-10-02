@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState, RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -13,11 +16,9 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { type EditResult, SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
+import { SyncClient } from '../../sync/client.js'
 import { SiteJobScreen } from './jobs.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * "Zugang zum Objekt" at an open job on site (#286), the board "Auftrag:
@@ -145,7 +146,7 @@ beforeEach(() => {
     }
 
     if (key === 'GET /auth/tenants') {
-      return answer([{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+      return answer([aTenantChoice(roles)])
     }
 
     if (key === 'GET /tasks/assignees') {

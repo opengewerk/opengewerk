@@ -6,6 +6,14 @@ import {
   taxTreatments,
 } from '@opengewerk/domain'
 import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
+import {
   check,
   date,
   foreignKey,
@@ -21,9 +29,6 @@ import {
 
 import { sql } from 'drizzle-orm'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'

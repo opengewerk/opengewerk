@@ -2,21 +2,29 @@ import 'reflect-metadata'
 
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
+import {
+  authenticationPath,
+  ClosedIdentitySource,
+  completeRoles,
+  ConfigurationError,
+  Database,
+  instanceIsEmpty,
+  InstanceSettingsCache,
+  readJsonBodiesOnly,
+  SecretKey,
+  sendSecurityHeaders,
+  takeOverFromEnvironment,
+  vapidKeysFrom,
+} from '@opengewerk/platform-server'
 
 import { toNodeHandler } from 'better-auth/node'
 
 import { ApiModule } from './api/api.module.js'
-import { ClosedIdentitySource } from './api/closed-identity.js'
-import { authenticationPath, createAuthentication } from './authentication/authentication.js'
-import { SessionIdentitySource } from './authentication/session-identity.js'
-import { instanceIsEmpty } from './authentication/setup.js'
-import { ConfigurationError, readConfiguration } from './configuration.js'
-import { Database } from './database/database.js'
+import { access, createAuthentication, SessionIdentitySource } from './authentication/access.js'
+import { readConfiguration } from './configuration.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
-import { readJsonBodiesOnly } from './api/origin.js'
 import { interfacePath, serveInterface } from './interface.js'
-import { sendSecurityHeaders } from './security-headers.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
 import { passkeyNotices } from './mail/passkey-notice.js'
@@ -27,10 +35,7 @@ import { endInterruptedImports } from './datanorm/imports.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { httpsPost } from './push/post.js'
-import { vapidKeysFrom } from './push/web-push.js'
-import { InstanceSettingsCache, takeOverFromEnvironment } from './instance/settings.js'
 import { startPushWorker } from './push/worker.js'
-import { SecretKey } from './secrets/key.js'
 import { FileStore } from './storage/file-store.js'
 
 /**
@@ -249,6 +254,25 @@ async function start(): Promise<void> {
     await endInterruptedImports(database).catch((error: unknown) => {
       console.error('Unterbrochene Importe ließen sich nicht beenden.', error)
     })
+  }
+
+  // A business without a single role is one nobody can work in (ADR 0010).
+  // The version from before the roles were rows goes on running between the
+  // migration and this start, and a business it creates in that moment has
+  // none. It gets the ones a business starts with here, before the first
+  // request. Not on a closed instance, which writes nothing.
+  if (!configuration.closed) {
+    await completeRoles(database, access)
+      .then((completed) => {
+        for (const tenantId of completed) {
+          console.info(
+            `Der Betrieb ${tenantId} hatte keine Rollen und hat Inhaber, Büro und Monteur bekommen.`,
+          )
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Die Rollen der Betriebe ließen sich nicht prüfen.', error)
+      })
   }
 
   await application.listen(configuration.port, configuration.host)

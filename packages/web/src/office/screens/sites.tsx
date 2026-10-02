@@ -1,22 +1,39 @@
 import { installationKinds, type RecordState } from '@opengewerk/domain'
+import { Button, Cell, Column, Panel, TablePanel, cardLink } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import {
+  Empty,
+  FactList,
+  ListCard,
+  ListScreen,
+  PageHead,
+  RecordColumns,
+  Screen,
+  lastChanged,
+} from '@opengewerk/platform-web/office'
+import type { ListColumn } from '@opengewerk/platform-web/office'
+import {
+  RecordForm,
+  RequestRefused,
+  asTextOrNull,
+  maybeText,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { FormField } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { House, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, cardLink, Cell, Column, Panel, TablePanel } from '../../components/index.js'
-import { addressLine, countryOptions, date } from '../../app/format.js'
+import { addressLine, countryOptions } from '../../app/format.js'
 import { installationKindLabel, installationKindOf, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm, asTextOrNull } from '../../app/record-form.js'
-import type { FormField } from '../../app/record-form.js'
 import { setTags } from '../../session/tags.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { useRecord, useRecords, useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
-import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
 import { type ChosenTags, TagPicker, TagPill, useTagsBy } from '../tags.js'
-import { lastChanged, ListCard, ListScreen } from '../list.js'
-import type { ListColumn } from '../list.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf, tagsChanged } from './customers.js'

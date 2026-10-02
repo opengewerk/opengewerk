@@ -6,11 +6,13 @@ import {
   letterheadFieldLabels,
   logoMediaTypes,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField } from '@opengewerk/platform-web'
+import { SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 
-import { Button, Confirm, Field, Panel, SelectField } from '../../components/index.js'
 import { countryOptions } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -21,8 +23,6 @@ import {
   saveLetterhead,
   uploadLogo,
 } from '../../session/letterhead.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

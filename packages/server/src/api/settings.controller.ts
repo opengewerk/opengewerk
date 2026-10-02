@@ -1,19 +1,13 @@
 import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common'
 import {
   type IsoDate,
-  paymentTermProblem,
   type TenantParameterKey,
   tenantParameterKeys,
   tenantParameterUnits,
 } from '@opengewerk/domain'
+import { Database, ParameterError } from '@opengewerk/platform-server'
 
-import { Database } from '../database/database.js'
-import {
-  ParameterError,
-  parameterAt,
-  parameterHistory,
-  setParameter,
-} from '../database/parameters.js'
+import { parameterAt, parameterHistory, setParameter } from '../database/parameters.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -92,17 +86,10 @@ export class SettingsController {
       )
     }
 
-    // The payment term goes onto every document that states none of its own,
-    // so the range a document may state is the range the setting may have,
-    // refused with the same sentence the forms show.
-    if (key === 'invoice.payment_term_days') {
-      const problem = paymentTermProblem(value)
-
-      if (problem !== null) {
-        throw new BadRequestException(problem)
-      }
-    }
-
+    // What the value has to be for this setting is asked where it is stored
+    // (`tenantParameterProblem` in `domain`): the payment term has the range a
+    // document may state, a yes or no is a 1 or a 0. The refusal comes back
+    // from there with its sentence.
     const note = fields['note']
 
     try {

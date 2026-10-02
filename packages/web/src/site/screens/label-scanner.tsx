@@ -1,15 +1,15 @@
 import { labelCodeFromScan } from '@opengewerk/domain'
+import { Button } from '@opengewerk/platform-web'
+import { SiteScreen, SiteText } from '@opengewerk/platform-web/site'
+import { useSync } from '@opengewerk/platform-web/sync'
 import { useNavigate } from '@tanstack/react-router'
 import { Ban, Info, ScanLine, TriangleAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { Button } from '../../components/index.js'
 import { labelMessages, useLabelLookup } from '../../app/installation-labels.js'
-import { useSync } from '../../sync/provider.js'
 import { useCodeReading } from '../camera.js'
 import { SiteHeader } from '../header.js'
-import { SiteScreen, SiteText } from '../kit.js'
 
 /**
  * The tab "Scannen" (#308), the boards "Etikett scannen" and the three that

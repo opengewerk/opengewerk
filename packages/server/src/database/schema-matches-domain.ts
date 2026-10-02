@@ -34,6 +34,7 @@ import type {
   PurchasePrice,
   PvModule,
   PvString,
+  RoleKey,
   Site,
   SiteAccess,
   SiteAccessReveal,
@@ -124,6 +125,19 @@ type Exact<Row, Model> = [Row] extends [Model] ? ([Model] extends [Row] ? true :
 
 type Assert<Matches extends true> = Matches
 
+/**
+ * A row of the foundation that names roles, read through this application's
+ * list of them.
+ *
+ * The table belongs to the foundation (ADR 0010) and keeps the keys as plain
+ * strings, because which roles there are is the application's business. The
+ * model here says `RoleKey`, and that is the one column where the two differ
+ * on purpose: every other column of the row has to match as it stands.
+ */
+type WithRoles<Row extends { readonly roles: readonly string[] }> = Omit<Row, 'roles'> & {
+  readonly roles: readonly RoleKey[]
+}
+
 export type TenantMatches = Assert<Exact<typeof tenants.$inferSelect, Tenant>>
 export type TenantParameterMatches = Assert<
   Exact<typeof tenantParameters.$inferSelect, TenantParameter>
@@ -197,7 +211,9 @@ export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, Au
 export type SyncSequenceMatches = Assert<Exact<typeof syncSequences.$inferSelect, SyncSequence>>
 export type SyncOperationMatches = Assert<Exact<typeof syncOperations.$inferSelect, SyncOperation>>
 export type SyncConflictMatches = Assert<Exact<typeof syncConflicts.$inferSelect, SyncConflict>>
-export type MembershipMatches = Assert<Exact<typeof memberships.$inferSelect, Membership>>
+export type MembershipMatches = Assert<
+  Exact<WithRoles<typeof memberships.$inferSelect>, Membership>
+>
 export type TenantSessionMatches = Assert<Exact<typeof tenantSessions.$inferSelect, TenantSession>>
 
 // The `auth_*` tables are not on this list, and that is the one deliberate gap

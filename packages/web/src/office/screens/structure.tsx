@@ -11,6 +11,36 @@ import {
   rcdTypeLabel,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
+import {
+  Button,
+  Cell,
+  Column,
+  Confirm,
+  Panel,
+  PanelLabel,
+  TablePanel,
+  cardLink,
+  isNarrow,
+  useBand,
+} from '@opengewerk/platform-web'
+import {
+  Crumbs,
+  Empty,
+  FactList,
+  PageHead,
+  PathSlot,
+  Screen,
+} from '@opengewerk/platform-web/office'
+import {
+  RecordForm,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Printer } from 'lucide-react'
@@ -18,18 +48,6 @@ import { useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-import {
-  Button,
-  cardLink,
-  Cell,
-  Column,
-  Confirm,
-  isNarrow,
-  Panel,
-  PanelLabel,
-  TablePanel,
-  useBand,
-} from '../../components/index.js'
 import {
   asBoard,
   asEquipment,
@@ -53,12 +71,6 @@ import {
 } from '../../app/electrical.js'
 import { installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
-import { Crumbs, Empty, FactList, PageHead, Screen } from '../kit.js'
-import { PathSlot } from '../top-bar.js'
 import { Reorder, SmallIcon } from './boards.js'
 
 /**

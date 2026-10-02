@@ -9,6 +9,7 @@ import { InRouter } from '../../app/in-router.js'
 import type { DeadlineKindView, DeadlineView } from '../../session/deadlines.js'
 import { DeadlineSettingsScreen } from './deadline-settings.js'
 import { DeadlineListScreen } from './deadlines.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The two screens of the deadline engine (#283): the list "Fristen" in the
@@ -44,7 +45,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'britta@nord.example.de', name: 'Britta Büro' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('GET', '/auth/tenants', [aTenantChoice(roles)])
 }
 
 const followUp: DeadlineKindView = {

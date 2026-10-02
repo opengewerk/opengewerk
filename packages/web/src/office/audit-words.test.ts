@@ -1,7 +1,7 @@
 import type { AuditChange, AuditPage } from '@opengewerk/domain'
+import { euros } from '@opengewerk/platform-web/format'
 import { describe, expect, it } from 'vitest'
 
-import { euros } from '../app/format.js'
 import { auditValue, changeSummary, deviceWords, recordKind, recordTitle } from './audit-words.js'
 
 /**
@@ -65,6 +65,18 @@ describe('the values of the change log', () => {
     expect(auditValue('customers', 'is_business', 'true', page)).toBe('Ja')
     expect(auditValue('customers', 'is_business', 'false', page)).toBe('Nein')
     expect(auditValue('number_ranges', 'key', 'invoice', page)).toBe('Rechnungen')
+  })
+
+  it('writes what a role may do in the words of the rights', () => {
+    expect(auditValue('tenant_roles', 'rights', '{customer.read,job.progress}', page)).toBe(
+      'Kunden ansehen, Aufträge abschließen und Notizen schreiben',
+    )
+    // A right another version wrote stays readable, and no right is no value.
+    expect(auditValue('tenant_roles', 'rights', '["customer.read","shelf.burn"]', page)).toBe(
+      'Kunden ansehen, shelf.burn',
+    )
+    expect(auditValue('tenant_roles', 'rights', '{}', page)).toBeNull()
+    expect(auditValue('tenant_roles', 'leads', 'true', page)).toBe('Ja')
   })
 
   it('writes roles in either form the database keeps a list', () => {

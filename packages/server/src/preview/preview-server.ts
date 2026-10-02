@@ -7,20 +7,22 @@ import type { INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Identity } from '@opengewerk/domain'
+import {
+  authenticationPath,
+  type Database,
+  mailInternalHosts,
+  readJsonBodiesOnly,
+  SecretKey,
+  sendSecurityHeaders,
+  vapidKeysFrom,
+} from '@opengewerk/platform-server'
 
 import { ApiModule } from '../api/api.module.js'
-import { readJsonBodiesOnly } from '../api/origin.js'
-import { authenticationPath } from '../authentication/authentication.js'
-import type { Database } from '../database/database.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
 import { interfacePath, serveInterface } from '../interface.js'
-import { sendSecurityHeaders } from '../security-headers.js'
-import { mailInternalHosts } from '../configuration.js'
 import { reachableOnly } from '../mail/reach.js'
 import { httpsPost } from '../push/post.js'
-import { vapidKeysFrom } from '../push/web-push.js'
 import { smtpTransport } from '../mail/transport.js'
-import { SecretKey } from '../secrets/key.js'
 import { FileStore } from '../storage/file-store.js'
 import { previewPort, previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'

@@ -1,13 +1,18 @@
 import { type PriceBase, priceBases, quantityFactor } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, integer, pgTable, text } from 'drizzle-orm/pg-core'
 
 import { articles } from './articles.js'
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { documents } from './documents.js'
 import { lineKind, lineUnit, vatRate } from './line-enums.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 export { lineKind, lineUnit, vatRate } from './line-enums.js'
 

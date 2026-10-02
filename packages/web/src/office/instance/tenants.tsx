@@ -3,25 +3,17 @@ import {
   businessNameProblem,
   type InstanceTenantView,
 } from '@opengewerk/domain'
+import { Button, Cell, Column, Field, Panel, TablePanel } from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { SettingsText } from '@opengewerk/platform-web/office'
+import { accountQuery, invitationPath } from '@opengewerk/platform-web/session'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import {
-  Button,
-  Cell,
-  Column,
-  Field,
-  Panel,
-  TablePanel,
-  type TableCard,
-} from '../../components/index.js'
-import { date } from '../../app/format.js'
-import { accountQuery } from '../../app/queries.js'
 import { createTenantFor, instanceTenants } from '../../session/instance.js'
-import { invitationPath } from '../../session/session.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { SettingsText } from '../settings-frame.js'
 import { InstancePage } from './shell.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -149,8 +141,8 @@ function Owners({
 }) {
   const breaks = inBox ? '[overflow-wrap:anywhere]' : 'whitespace-nowrap'
 
-  if (tenant.owners.length === 0) {
-    const invited = tenant.invitedOwners[0]
+  if (tenant.leads.length === 0) {
+    const invited = tenant.invitedLeads[0]
 
     return invited ? (
       <>
@@ -164,7 +156,7 @@ function Owners({
 
   return (
     <>
-      {tenant.owners.map((owner) => (
+      {tenant.leads.map((owner) => (
         <span key={owner.email} className="block">
           <span className={`block text-[14px] font-medium ${breaks}`}>
             {owner.name}

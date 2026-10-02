@@ -6,8 +6,9 @@ import {
   randomBytes,
 } from 'node:crypto'
 
+import { toBase64Url, type VapidKeys, vapidKeysFrom } from '@opengewerk/platform-server'
+
 import type { PushAnswer, PushPost } from './post.js'
-import { toBase64Url, vapidKeysFrom, type VapidKeys } from './web-push.js'
 
 /**
  * A browser for the tests of push (#284): the keys it subscribes with, and

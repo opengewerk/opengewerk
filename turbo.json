@@ -4,6 +4,12 @@
   "remoteCache": {
     "enabled": false
   },
+  "globalDependencies": [
+    "eslint.config.js",
+    "eslint.shared.js",
+    "tsconfig.base.json",
+    "vitest.shared.ts"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -17,6 +23,9 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "@opengewerk/server#test": {
+      "dependsOn": ["^build", "@opengewerk/platform-server#test"]
     }
   }
 }

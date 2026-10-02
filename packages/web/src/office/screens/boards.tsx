@@ -1,11 +1,20 @@
 import { distributionBoardKindLabel } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
+import {
+  RecordForm,
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ArrowDown, ArrowUp, Pencil, Plus, Printer, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import {
   asBoard,
   boardFields,
@@ -18,10 +27,6 @@ import {
   useBoards,
 } from '../../app/electrical.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
 
 /**
  * The circuit chart as a button with a printer on it, as the head of the

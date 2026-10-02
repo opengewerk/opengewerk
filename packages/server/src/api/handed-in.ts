@@ -2,37 +2,19 @@
  * What the module hands to the controllers that cannot get it from a
  * constructor type.
  *
- * `Database` is a class, so Nest can inject it by its type. These two are not:
- * `Authentication` is an interface of better-auth's and the trusted origins
- * are an array of strings. Both need a token to be injected by, and a token is
- * a symbol.
+ * `Database` is a class, so Nest can inject it by its type. These are not:
+ * they are values, each needs a token to be injected by, and a token is a
+ * symbol. The tokens of what the foundation's own parts read, the trusted
+ * origins, the authentication and the setup code, are the foundation's.
  *
  * They sit in a file of their own rather than next to the first controller
- * that needed them. Two controllers use them now, the first run setup and the
- * redemption of an invitation link, and the second importing from the first
- * would say the two belong together when what they share is only this.
+ * that needed them: a controller importing from another would say the two
+ * belong together when what they share is only this.
  */
 
-import type { MailConfiguration } from '../mail/configuration.js'
+import type { MailConfiguration, SecretKey } from '@opengewerk/platform-server'
+
 import type { MailTransport } from '../mail/transport.js'
-import type { SecretKey } from '../secrets/key.js'
-
-/** The authentication handle, handed in only while the instance is open. */
-export const AUTHENTICATION = Symbol('Authentication')
-
-/**
- * The code the first run asks for (#215), from `SETUP_CODE`, or null where the
- * instance has none: then the first run is refused with the sentence saying
- * how to get one. Read by the setup controller and by nothing else.
- */
-export const SETUP_CODE = Symbol('SetupCode')
-
-/**
- * The addresses a browser may send a request that changes something from,
- * read by `SameOriginGuard`. The same list better-auth gets, because the check
- * is the same check.
- */
-export const TRUSTED_ORIGINS = Symbol('TrustedOrigins')
 
 /**
  * The content addressed file store. An interface of its own rather than the

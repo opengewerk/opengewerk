@@ -1,6 +1,8 @@
 import type { Id, IsoDate, TenantId } from '@opengewerk/platform-domain'
 import type { RuleUnit } from '@opengewerk/platform-domain'
 
+import { paymentTermProblem } from '../model/payment-term.js'
+
 export type TenantParameterId = Id<'tenant-parameter'>
 
 /**
@@ -81,6 +83,29 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'e_invoice.transition_claimed': 'flag',
   'cash_accounting.permitted': 'flag',
   'report.mail_on_signature': 'flag',
+}
+
+/**
+ * What is wrong with a value for a setting, as a sentence for the screen, or
+ * null when nothing is.
+ *
+ * Asked where a setting is stored (`tenantParameterStore`, ADR 0010), so that
+ * no way in writes a value the others would refuse. The payment term has the
+ * range a document may state, with the sentence the forms show. Everything
+ * else a business sets is a yes or a no, and a flag is a zero or a one: the
+ * code that reads one asks whether it is 1, so any other number would stand
+ * in the history as a yes that never applied.
+ */
+export function tenantParameterProblem(key: TenantParameterKey, value: number): string | null {
+  if (key === 'invoice.payment_term_days') {
+    return paymentTermProblem(value)
+  }
+
+  if (tenantParameterUnits[key] === 'flag' && value !== 0 && value !== 1) {
+    return 'Diese Einstellung ist an oder aus: der Wert ist 1 oder 0.'
+  }
+
+  return null
 }
 
 /**

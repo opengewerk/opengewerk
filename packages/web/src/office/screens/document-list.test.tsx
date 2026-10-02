@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto'
 
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -13,10 +15,8 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { DocumentList } from './document-list.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The list of all documents, which the office did not have until #219: a
@@ -95,7 +95,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
+    ['/auth/tenants', [aTenantChoice(['office'])]],
     ['/payments/open', [{ documentId: 'd-1', billedCents: 41_876, receivedCents: 20_000 }]],
   ])
 

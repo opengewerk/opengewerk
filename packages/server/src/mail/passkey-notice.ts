@@ -1,27 +1,15 @@
 import type { TenantId } from '@opengewerk/domain'
+import type { Database, PasskeyNotice } from '@opengewerk/platform-server'
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import type { MailContext } from '../api/handed-in.js'
-import type { Database } from '../database/database.js'
 import { mailOutbox, memberships, tenants } from '../database/schema/index.js'
 import { passkeyAddedMessage } from '../notifications/templates.js'
 import { connectionOf } from './server-settings.js'
 
-/** The account a passkey was added to, as better-auth hands it over. */
-export interface PasskeyOwner {
-  readonly id: string
-  readonly email: string
-  readonly name: string
-}
-
-/** Writes the notice about a new passkey, or nothing when no business sends mail. */
-export type PasskeyNotice = (
-  owner: PasskeyOwner,
-  passkey: { readonly id: string; readonly name: string },
-) => Promise<void>
-
 /**
- * The mail to an account about a passkey added to it (#167).
+ * The mail to an account about a passkey added to it (#167), the way this
+ * application sends what the authentication only says is due.
  *
  * An account belongs to no business and every mail server to one, so the
  * notice goes through the business the account joined first, is not blocked

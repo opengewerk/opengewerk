@@ -1,6 +1,5 @@
 import type { RecordState } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The ways into a site (#286), kept by the office at the routes of the site.

@@ -1,54 +1,48 @@
-import type { Identity, RoleKey, TenantId } from '@opengewerk/domain'
+import { type Identity, permissionsOfRoles, type RoleKey, type TenantId } from '@opengewerk/domain'
+import { headerIdentities } from '@opengewerk/platform-server/testing'
 
-import type { IdentitySource, SignedInUser } from './identity.js'
+import type { IdentitySource } from './identity.js'
+
+// The stand in for the authentication is the foundation's (ADR 0010): it reads
+// an identity out of a header, which is exactly what a real one must never do.
+// Here is the one thing this application adds, the header for somebody with
+// its roles.
+
+export { noIdentities } from '@opengewerk/platform-server/testing'
 
 /**
- * The stand in for the authentication, and it lives in a file of its own
- * rather than in the server: it reads the identity straight out of a header,
- * which is exactly what a real one must never do. The server ships without any
- * implementation, so it cannot start until a genuine one is handed in.
+ * Somebody as a test names them: who, in which business, with which of the
+ * three roles a business starts with. The rights follow from the roles.
+ */
+export type Somebody = Omit<Identity, 'rights' | 'roles'> & { readonly roles: readonly RoleKey[] }
+
+const believed = headerIdentities<Identity>()
+
+/**
+ * Believes the header `x-test-identity`, with the roles of this application
+ * in it.
  *
- * It is here rather than copied into each test file because there were four
- * copies of it by the time the authentication arrived, and a fifth would have
- * been written the next time somebody added a controller test. One copy also
- * means one place to change when the interface grows again.
+ * A header names roles and no rights. A real session reads the rights from
+ * the rows of the business; here they are what those of the three shipped
+ * roles add up to as the code defines them, which is the same for a business
+ * that has the roles it started with. `roles.test.ts` holds the rows against
+ * that definition. A header that carries rights of its own is taken at its
+ * word.
  */
 export const testIdentities: IdentitySource = {
-  identify: async (request: unknown) => {
-    const header = headerOf(request)
+  identify: async (request) => {
+    const identity = await believed.identify(request)
 
-    return header ? (JSON.parse(header) as Identity) : null
-  },
-
-  /**
-   * The same header, read for the half of it that a route before the choice of
-   * business needs. A test that wants somebody signed in but in no company
-   * sends an identity without a tenant.
-   */
-  authenticate: async (request: unknown): Promise<SignedInUser | null> => {
-    const header = headerOf(request)
-
-    if (!header) {
-      return null
+    if (identity === null || Array.isArray(identity.rights)) {
+      return identity
     }
 
-    const identity = JSON.parse(header) as Identity
-
-    return { userId: identity.userId, sessionId: `test-session-${identity.userId}` }
+    return { ...identity, rights: [...permissionsOfRoles(identity.roles as readonly RoleKey[])] }
   },
-}
-
-/** An identity source that recognises nobody, for the tests that want none. */
-export const noIdentities: IdentitySource = {
-  identify: async () => null,
-  authenticate: async () => null,
+  authenticate: (request) => believed.authenticate(request),
 }
 
 /** The header value for somebody in one business with these roles. */
 export function as(tenantId: TenantId, ...roles: RoleKey[]): string {
-  return JSON.stringify({ userId: 'test', tenantId, roles } satisfies Identity)
-}
-
-function headerOf(request: unknown): string | undefined {
-  return (request as { headers?: Record<string, string> }).headers?.['x-test-identity']
+  return JSON.stringify({ userId: 'test', tenantId, roles } satisfies Somebody)
 }

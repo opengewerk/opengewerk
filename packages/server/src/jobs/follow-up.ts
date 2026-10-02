@@ -1,7 +1,7 @@
 import { type ConflictReason, followUpProblem, type JobStatus } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull, ne } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { jobs } from '../database/schema/index.js'
 
 /**

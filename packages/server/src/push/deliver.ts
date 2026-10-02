@@ -1,10 +1,11 @@
-import type { PushPost } from './post.js'
 import {
   encryptMessage,
   type SubscriptionKeys,
   vapidAuthorization,
   type VapidKeys,
-} from './web-push.js'
+} from '@opengewerk/platform-server'
+
+import type { PushPost } from './post.js'
 
 /** What a device shows: a title, one line, where a tap leads, and the tag that replaces an older one. */
 export interface PushMessage {

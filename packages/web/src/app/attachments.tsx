@@ -10,18 +10,25 @@ import {
   previewQuality,
   type RecordState,
 } from '@opengewerk/domain'
+import { Button, Confirm } from '@opengewerk/platform-web'
+import type { SiteHeight } from '@opengewerk/platform-web'
+import { fileSize, moment } from '@opengewerk/platform-web/format'
+import { SiteRow, SiteRows } from '@opengewerk/platform-web/site'
+import {
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useSync,
+  workingInHeaders,
+} from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Button, Confirm, type SiteHeight } from '../components/index.js'
-import { refusalFor, type SyncClient } from '../sync/client.js'
-import { workingInHeaders } from '../sync/transport.js'
-import { count, maybeText, text } from '../sync/fields.js'
-import { useRecords, useSync } from '../sync/provider.js'
-import { fileSize, moment } from './format.js'
+import type { SyncClient } from '../sync/client.js'
 import { shrinkPicture } from './pictures.js'
-import { SiteRow, SiteRows } from '../site/kit.js'
 
 /**
  * Where a new file hangs (#77): the places of the screen it is added on. A

@@ -1,7 +1,15 @@
+import { Button, Confirm, Panel } from '@opengewerk/platform-web'
+import {
+  RecordForm,
+  maybeText,
+  refusalFor,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import { Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Confirm, Panel } from '../../components/index.js'
 import {
   byName,
   contactFields,
@@ -13,10 +21,6 @@ import {
   parentField,
 } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText } from '../../sync/fields.js'
-import { useRelated, useSync, useSyncStatus } from '../../sync/provider.js'
 
 /**
  * The contacts at a customer, a site or a supplier (#296), on its screen in

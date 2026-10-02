@@ -1,8 +1,12 @@
 import { BadRequestException, Body, Controller, Get, Put } from '@nestjs/common'
+import {
+  type Colleague,
+  Database,
+  listColleagues,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { desc, eq } from 'drizzle-orm'
 
-import { type Colleague, listColleagues } from '../authentication/administration.js'
-import { Database, type TenantTransaction } from '../database/database.js'
 import { locationConsents } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'

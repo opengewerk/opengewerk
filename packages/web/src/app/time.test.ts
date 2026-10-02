@@ -1,11 +1,11 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState } from '@opengewerk/domain'
+import { openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { describe, expect, it } from 'vitest'
 
 import { SyncClient } from '../sync/client.js'
-import { openLocalStore } from '../sync/store.js'
-import { TestServer } from '../sync/test-server.js'
 import {
   entriesOf,
   instantOf,

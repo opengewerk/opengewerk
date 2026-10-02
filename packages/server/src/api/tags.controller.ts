@@ -10,10 +10,9 @@ import {
   Post,
 } from '@nestjs/common'
 import type { TagId } from '@opengewerk/domain'
+import { Database, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, isNull, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
-import { Database } from '../database/database.js'
 import { customerTags, siteTags, tags } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'

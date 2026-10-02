@@ -7,21 +7,27 @@ import {
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { largestAttachmentBytes, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
+import {
+  type Authentication,
+  authenticationParts,
+  AUTHORIZATION,
+  Database,
+  type InstanceSettingsCache,
+  SameOriginGuard,
+  type SecretKey,
+  TRUSTED_ORIGINS,
+} from '@opengewerk/platform-server'
 import { raw } from 'express'
 
-import type { Authentication } from '../authentication/authentication.js'
-import { AuthenticationController } from '../authentication/authentication.controller.js'
-import { PasskeysController } from '../authentication/passkeys.controller.js'
-import { RecoveryCodesController } from '../authentication/recovery-codes.controller.js'
-import { Database } from '../database/database.js'
+import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
-import type { SecretKey } from '../secrets/key.js'
+import { invitationMailing } from '../notifications/invitation-mail.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
-import { AuthorizationGuard } from './authorization.js'
+import { authorization, AuthorizationGuard } from './authorization.js'
 import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
 import { InstallationLabelsController } from './installation-labels.controller.js'
@@ -50,21 +56,14 @@ import { NumberRangesController } from './number-ranges.controller.js'
 import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
 import {
-  AUTHENTICATION,
   BACKUP_STATUS,
   FILE_STORE,
   MAIL,
   type MailContext,
   RENDERER,
   SECRETS,
-  SETUP_CODE,
-  TRUSTED_ORIGINS,
   VERSION,
 } from './handed-in.js'
-import { InvitationController } from './invitation.controller.js'
-import { SameOriginGuard } from './origin.js'
-import { SetupController } from './setup.controller.js'
-import { StaffController } from './staff.controller.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SuppliersController } from './suppliers.controller.js'
@@ -74,7 +73,6 @@ import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { PUSH, PushController, type PushContext } from './push.controller.js'
 import { AuditController } from './audit.controller.js'
-import { INSTANCE, InstanceController, type InstanceContext } from './instance.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
@@ -146,7 +144,7 @@ export interface ApiOptions {
    * its area reaches the mail check at once. Left out, the area reads and
    * writes the database and nothing is kept.
    */
-  readonly instance?: InstanceContext | null
+  readonly instance?: { readonly settings: InstanceSettingsCache } | null
 }
 
 /**
@@ -198,17 +196,25 @@ export class ApiModule implements NestModule {
       push = null,
     } = options
 
+    // The authentication is the foundation's, with the roles and the words of
+    // this application. Its ways in, the first run and the one time link, are
+    // there only while the authentication is handed in, which is what leaves
+    // them out on a closed instance. Who works in a business is part of it,
+    // and an invitation by mail goes out the way every message here does. The
+    // area of the instance (#188) comes with it.
+    const signingIn = authenticationParts({
+      access,
+      authentication,
+      setupCode,
+      invitationMailing: invitationMailing(database, mail),
+      instanceSettings: options.instance?.settings,
+    })
+
     return {
       module: ApiModule,
       controllers: [
         HealthController,
-        // All three need the authentication handed in and are left out on a
-        // closed instance, which is what leaving the authentication out does.
-        // The first two answer without an identity.
-        ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
-        AuthenticationController,
-        PasskeysController,
-        StaffController,
+        ...signingIn.controllers,
         CustomersController,
         TagsController,
         ContactsController,
@@ -228,7 +234,6 @@ export class ApiModule implements NestModule {
         DeadlineSettingsController,
         PushController,
         AuditController,
-        InstanceController,
         TenantsController,
         FilesController,
         AttachmentsController,
@@ -264,17 +269,13 @@ export class ApiModule implements NestModule {
         { provide: VERSION, useValue: version },
         { provide: PUSH, useValue: push },
         { provide: SECRETS, useValue: options.secrets ?? mail?.key ?? null },
-        ...(options.instance ? [{ provide: INSTANCE, useValue: options.instance }] : []),
         DocumentFiles,
         ArticleImports,
-        ...(authentication
-          ? [
-              { provide: AUTHENTICATION, useValue: authentication },
-              { provide: SETUP_CODE, useValue: setupCode },
-            ]
-          : []),
+        ...signingIn.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
+        // What a right is and who holds it, for the guard of the foundation.
+        { provide: AUTHORIZATION, useValue: authorization },
         // In this order, which is the order Nest runs them in: a form from a
         // foreign page is refused before anybody asks whose session it carries.
         { provide: APP_GUARD, useClass: SameOriginGuard },

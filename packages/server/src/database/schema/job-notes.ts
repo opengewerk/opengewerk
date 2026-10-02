@@ -1,9 +1,14 @@
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { foreignKey, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { jobs } from './jobs.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * The notes from the site about a job (#220), one per row: what happened,

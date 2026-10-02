@@ -1,7 +1,12 @@
+import type {
+  InvitationId,
+  MembershipId,
+  SignInMethod,
+  TenantId,
+  TenantSessionId,
+} from '@opengewerk/platform-domain'
+
 import type { RoleKey } from './authorization.js'
-import type { TenantId } from '@opengewerk/platform-domain'
-import type { InvitationId, MembershipId, TenantSessionId } from './identifier.js'
-import type { SignInMethod } from '@opengewerk/platform-domain'
 
 /**
  * What a person is in one business. A user belongs to the instance, a
@@ -66,17 +71,6 @@ export interface Invitation {
 }
 
 /**
- * How long a link is good for.
- *
- * Long enough to survive a weekend and a forgotten message, short enough that
- * a link in an old chat is not a way in months later. Days rather than hours
- * because the office hands these over by hand, sometimes on paper, and an
- * expiry that runs out before the person is back from a site is a link that
- * gets reissued until somebody stops bothering with the expiry.
- */
-export const invitationDays = 7
-
-/**
  * One stretch of somebody working in one business.
  *
  * A session belongs to the instance and knows nothing of tenants; this row is
@@ -110,19 +104,4 @@ export interface TenantSession {
   readonly signInMethod: SignInMethod
   readonly createdAt: Date
   readonly updatedAt: Date
-}
-
-/**
- * The roles that may not work without a second factor.
- *
- * ADR 0006 puts it on the role and not on a setting, and that is the point: a
- * switch somebody can turn off is not a requirement. Bookkeeping is named
- * there too and is missing here because the role itself does not exist yet; it
- * joins this list on the day it does, not later.
- */
-export const secondFactorRoles: readonly RoleKey[] = ['owner']
-
-/** Whether this set of roles may only work with a second factor in place. */
-export function requiresSecondFactor(roles: readonly RoleKey[]): boolean {
-  return roles.some((role) => secondFactorRoles.includes(role))
 }

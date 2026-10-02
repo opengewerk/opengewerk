@@ -1,24 +1,24 @@
 import type { TenantId } from '@opengewerk/domain'
-import { and, eq, isNull } from 'drizzle-orm'
+import {
+  type SecretKey,
+  secretStore,
+  type StoredSecret,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 
-import type { TenantTransaction } from '../database/database.js'
 import { secrets } from '../database/schema/index.js'
-import type { SecretKey } from './key.js'
+
+/**
+ * The sealed credentials of the businesses of this application. How they are
+ * sealed, kept and opened is the foundation's (`secretStore`, ADR 0010); this
+ * binds it to the table with the purposes of this application, and is the one
+ * place outside the schema that names the table.
+ */
+export const secretsOfBusinesses = secretStore(secrets)
 
 export type SecretPurpose = (typeof secrets.$inferSelect)['purpose']
 
-/** What is known about one secret of one business. */
-export type StoredSecret =
-  | { readonly state: 'none' }
-  /** There is one, and the key of this instance does not open it. */
-  | { readonly state: 'unreadable' }
-  | { readonly state: 'readable'; readonly value: string }
-
-function contextOf(tenantId: TenantId, purpose: SecretPurpose): string {
-  return `${tenantId}:${purpose}`
-}
-
-/** Seals a value and keeps it, in place of whatever was there for the same purpose. */
+/** Seals a value and keeps it, in place of whatever a business had for the same purpose. */
 export async function keepSecret(
   tx: TenantTransaction,
   key: SecretKey,
@@ -26,38 +26,17 @@ export async function keepSecret(
   purpose: SecretPurpose,
   value: string,
 ): Promise<void> {
-  const sealed = key.seal(contextOf(tenantId, purpose), value)
-
-  await tx
-    .insert(secrets)
-    .values({ tenantId, purpose, sealed })
-    .onConflictDoUpdate({
-      target: [secrets.tenantId, secrets.purpose, secrets.recordId],
-      set: { sealed, updatedAt: new Date() },
-    })
+  await secretsOfBusinesses.keep(tx, key, { tenantId, purpose }, value)
 }
 
-/** Reads and opens a secret. Nothing here ever hands out the sealed value itself. */
-export async function readSecret(
+/** Reads and opens the one secret a business has of a purpose. */
+export function readSecret(
   tx: TenantTransaction,
   key: SecretKey,
   tenantId: TenantId,
   purpose: SecretPurpose,
 ): Promise<StoredSecret> {
-  const [row] = await tx
-    .select({ sealed: secrets.sealed })
-    .from(secrets)
-    .where(
-      and(eq(secrets.tenantId, tenantId), eq(secrets.purpose, purpose), isNull(secrets.recordId)),
-    )
-
-  if (!row) {
-    return { state: 'none' }
-  }
-
-  const value = key.unseal(contextOf(tenantId, purpose), row.sealed)
-
-  return value === null ? { state: 'unreadable' } : { state: 'readable', value }
+  return secretsOfBusinesses.read(tx, key, { tenantId, purpose })
 }
 
 /** Removes a secret, for a login the business no longer uses. */
@@ -66,9 +45,5 @@ export async function forgetSecret(
   tenantId: TenantId,
   purpose: SecretPurpose,
 ): Promise<void> {
-  await tx
-    .delete(secrets)
-    .where(
-      and(eq(secrets.tenantId, tenantId), eq(secrets.purpose, purpose), isNull(secrets.recordId)),
-    )
+  await secretsOfBusinesses.forget(tx, { tenantId, purpose })
 }

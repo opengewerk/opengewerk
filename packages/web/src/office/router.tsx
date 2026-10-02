@@ -1,3 +1,4 @@
+import { SettingsScreen } from '@opengewerk/platform-web/office'
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 
 import { InstanceShell } from './instance/shell.js'
@@ -35,7 +36,6 @@ import { PaymentTermScreen } from './screens/payment-term.js'
 import { TagsScreen } from './screens/tags.js'
 import { ProtocolScreen } from './screens/protocols.js'
 import { ReportFieldsScreen } from './screens/report-fields.js'
-import { SettingsScreen } from './screens/settings.js'
 import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
 import {

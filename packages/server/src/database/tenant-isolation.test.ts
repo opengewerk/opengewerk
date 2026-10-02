@@ -1,24 +1,29 @@
 import { createHash } from 'node:crypto'
 
 import type { TenantId } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { type SQL, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from './database.js'
-import { newId } from './identifier.js'
 import * as schema from './schema/index.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
-  applicationRole,
   applyMigrations,
   checkViolation,
   connect,
   foreignKeyViolation,
+  foundationDefinerFunctions,
   insufficientPrivilege,
+  keysBetweenTenantTables,
+  readDefinerFunctions,
+  readPolicies,
   refusedBy,
   resetSchema,
+  tableProtections,
+  unprotected,
+  withoutTheTenant,
 } from './test-database.js'
 
 /**
@@ -79,37 +84,17 @@ describe('the tables', () => {
     // The check that keeps this working. A table added by a later migration
     // that forgets any of the three is a leak nobody would notice, because
     // everything still works: the rows are simply visible to everyone.
-    const { rows } = await admin.query<{
-      table_name: string
-      enabled: boolean
-      forced: boolean
-      policies: string
-      granted: boolean
-    }>(
-      `select c.relname as table_name,
-              c.relrowsecurity as enabled,
-              c.relforcerowsecurity as forced,
-              (select count(*) from pg_policy p where p.polrelid = c.oid) as policies,
-              has_table_privilege($1, c.oid, 'SELECT') as granted
-         from pg_class c
-         join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'public'
-          and c.relkind = 'r'
-          and c.relname <> '__drizzle_migrations'
-        order by c.relname`,
-      [applicationRole],
-    )
+    //
+    // The question itself is the foundation's (ADR 0010): every application
+    // asks it of its own catalogue.
+    const tables = await tableProtections(admin)
 
     // The floor moves with the schema and is only here so that a query which
     // returns nothing cannot pass as "no table unprotected". It stood at 14,
     // the count right after the first migration, while five migrations have
     // been added since.
-    expect(rows.length).toBeGreaterThanOrEqual(21)
-
-    const unprotected = rows.filter(
-      (row) => !row.enabled || !row.forced || Number(row.policies) === 0 || !row.granted,
-    )
-    expect(unprotected).toEqual([])
+    expect(tables.length).toBeGreaterThanOrEqual(21)
+    expect(unprotected(tables)).toEqual([])
   })
 
   /**
@@ -123,92 +108,44 @@ describe('the tables', () => {
    * A restrictive policy with that comparison covers a table on its own,
    * because it is ANDed with whatever else there is; that is how the audit log
    * and the change sequence let their trigger write while nobody else can.
-   * Anything else that opens a table outside a business is listed below with
-   * its reason, and the list is checked against the catalogue as well, so an
-   * entry cannot outlive its policy.
+   * Anything else that opens a table outside a business is on a list with its
+   * reason, and the list is checked against the catalogue as well, so an entry
+   * cannot outlive its policy.
+   *
+   * Since the foundation was taken out (ADR 0010) the reading and the list are
+   * its own. The open policy the first run inserts through is no longer on
+   * that list: the restrictive one beside it fences it, the reading sees that,
+   * and listed it would have been excused whether the fence stands or not.
    */
   it('let the application reach a row only through the tenant of the transaction', async () => {
-    const outsideABusiness: Readonly<Record<string, string>> = {
-      'memberships.own_membership_outside_tenant':
-        'the chooser after a sign in reads its own memberships, outside any business',
-      'tenants.own_tenants_outside_tenant':
-        'the chooser reads the names of the businesses somebody belongs to',
-      'tenants.created_by_setup':
-        'the first run setup; no_application_insert keeps the application out of it',
-    }
-
-    const { rows } = await admin.query<{
-      table_name: string
-      policy: string
-      permissive: boolean
-      command: string
-      applies: boolean
-      using: string | null
-      checking: string | null
-      has_tenant: boolean
-    }>(
-      `select c.relname as table_name,
-              p.polname as policy,
-              p.polpermissive as permissive,
-              p.polcmd as command,
-              (p.polroles = '{0}' or $1::regrole = any(p.polroles)) as applies,
-              pg_get_expr(p.polqual, p.polrelid) as using,
-              pg_get_expr(p.polwithcheck, p.polrelid) as checking,
-              exists (
-                select 1 from pg_attribute a
-                 where a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped
-              ) as has_tenant
-         from pg_policy p
-         join pg_class c on c.oid = p.polrelid
-         join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'public'`,
-      [applicationRole],
-    )
-
-    const comparison = (column: string) =>
-      `(${column} = (NULLIF(current_setting('app.tenant_id'::text, true), ''::text))::uuid)`
-    const tables = new Set(
-      rows
-        .filter((row) => row.has_tenant || row.table_name === 'tenants')
-        .map((row) => row.table_name),
-    )
-    const violations: string[] = []
-
-    for (const table of tables) {
-      const expected = comparison(table === 'tenants' ? 'id' : 'tenant_id')
-      const policies = rows.filter((row) => row.table_name === table && row.applies)
-      const restrictive = policies.filter((row) => !row.permissive)
-      const reads = (command: string) => ['*', 'r', 'w', 'd'].includes(command)
-      const writes = (command: string) => ['*', 'a', 'w'].includes(command)
-      const readsFenced = restrictive.some((row) => row.command === '*' && row.using === expected)
-      const writesFenced = restrictive.some(
-        (row) =>
-          (row.command === '*' || row.command === 'a') &&
-          (row.checking === expected || row.checking === 'false'),
-      )
-
-      for (const row of policies.filter((policy) => policy.permissive)) {
-        if (`${table}.${row.policy}` in outsideABusiness) {
-          continue
-        }
-
-        if (reads(row.command) && !readsFenced && row.using !== expected) {
-          violations.push(`${table}.${row.policy} reads: ${String(row.using)}`)
-        }
-
-        if (writes(row.command) && !writesFenced && row.checking !== expected) {
-          violations.push(`${table}.${row.policy} writes: ${String(row.checking)}`)
-        }
-      }
-    }
+    // The exceptions are the two of the foundation, the chooser after a sign
+    // in, which reads its memberships and the names of its businesses outside
+    // any business. This application has added none of its own.
+    const reading = await readPolicies(admin)
 
     // Floor, for the same reason as above: 37 tables carried a tenant on
     // 23.09.2026, and a query that finds none must not pass as "all fenced".
-    expect(tables.size).toBeGreaterThanOrEqual(37)
-    expect(violations).toEqual([])
+    expect(reading.tables).toBeGreaterThanOrEqual(37)
+    expect(reading.violations).toEqual([])
+    expect(reading.stale).toEqual([])
+  })
 
-    const listed = new Set(rows.map((row) => `${row.table_name}.${row.policy}`))
-    expect(Object.keys(outsideABusiness).filter((entry) => !listed.has(entry))).toEqual([])
+  /**
+   * A function that runs as its definer runs as the owner of the tables,
+   * whoever calls it, and so walks past every policy above. Each is a way
+   * that was opened on purpose for one question, and each is on a list with
+   * its reason: the ones of the foundation there, the one of this application
+   * here. A migration that adds one, or leaves one behind it meant to
+   * replace, turns this red.
+   */
+  it('let a function past them only where a list says why', async () => {
+    const reading = await readDefinerFunctions(admin, {
+      ...foundationDefinerFunctions,
+      'reserve_sync_sequences(amount integer)':
+        'an import takes its block of change numbers at its very end, in one step (#297)',
+    })
+
+    expect(reading).toEqual({ unexplained: [], stale: [] })
   })
 })
 
@@ -1008,37 +945,19 @@ describe('a reference to a record of another business', () => {
     // migration that forgets the tenant is exactly the key nobody writes a
     // test for. Between two tables of a business the tenant comes first on
     // both sides, which is how 0030 and 0031 build every one of them.
-    const { rows } = await admin.query<{ key: string; columns: string; target: string }>(
-      `select c.conname as key,
-              (select string_agg(a.attname, ',' order by k.ord)
-                 from unnest(c.conkey) with ordinality k(attnum, ord)
-                 join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum) as columns,
-              (select string_agg(a.attname, ',' order by k.ord)
-                 from unnest(c.confkey) with ordinality k(attnum, ord)
-                 join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum) as target
-         from pg_constraint c
-        where c.contype = 'f'
-          and c.connamespace = 'public'::regnamespace
-          and exists (select 1 from pg_attribute a
-                       where a.attrelid = c.conrelid and a.attname = 'tenant_id' and not a.attisdropped)
-          and exists (select 1 from pg_attribute a
-                       where a.attrelid = c.confrelid and a.attname = 'tenant_id' and not a.attisdropped)
-        order by c.conname`,
-    )
+    const rows = await keysBetweenTenantTables(admin)
 
     // A floor, so that a query which finds nothing cannot pass as "no key
     // without the tenant". 35 is the count after 0031.
     expect(rows.length).toBeGreaterThanOrEqual(35)
 
-    const withoutTheTenant = rows.filter(
-      (row) => !row.columns.startsWith('tenant_id,') || !row.target.startsWith('tenant_id,'),
-    )
-
     // The one exception, and why it holds anyway: the key from a circuit to
     // its section pairs the section with the board, and the board's own key
     // runs over the tenant. The section belongs to that board, the board to
     // the business of the circuit, so the section does as well.
-    expect(withoutTheTenant.map((row) => row.key)).toEqual(['circuits_section_belongs_to_board'])
+    expect(withoutTheTenant(rows).map((row) => row.key)).toEqual([
+      'circuits_section_belongs_to_board',
+    ])
 
     // And every one of them has its case below, so that none is only claimed.
     const tested = new Set([

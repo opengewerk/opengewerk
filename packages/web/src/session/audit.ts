@@ -1,6 +1,5 @@
 import type { AuditChainReport, AuditPage } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The change log of the business (#285), read straight at the routes like the

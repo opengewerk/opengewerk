@@ -7,6 +7,8 @@ import type {
   InstanceTenantView,
   OperatorView,
 } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -21,14 +23,12 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { InstanceLogScreen } from './log.js'
 import { OperatorsScreen } from './operators.js'
 import { InstanceSettingsScreen } from './settings.js'
 import { InstanceShell } from './shell.js'
 import { InstanceTenantsScreen } from './tenants.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The area of the instance (#188) with its screens, as the boards "Instanz:
@@ -122,7 +122,7 @@ beforeEach(() => {
     },
     session: { activeTenantId: 't-1' },
   })
-  answer('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Kohm GmbH', roles: ['owner'] }])
+  answer('GET', '/auth/tenants', [aTenantChoice(['owner'], { name: 'Elektro Kohm GmbH' })])
   answer('GET', '/instance/access', { operator: true, secondFactor: true })
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
@@ -189,17 +189,17 @@ const tenants: readonly InstanceTenantView[] = [
     id: 't-1',
     name: 'Elektro Kohm GmbH',
     createdAt: '2026-09-24T18:12:00.000Z',
-    owners: [{ name: 'Moritz Kohm', email: 'moritz@kohm.example.de' }],
+    leads: [{ name: 'Moritz Kohm', email: 'moritz@kohm.example.de' }],
     members: 4,
-    invitedOwners: [],
+    invitedLeads: [],
   },
   {
     id: 't-3',
     name: 'Elektro Weber OHG',
     createdAt: '2026-09-27T14:31:00.000Z',
-    owners: [],
+    leads: [],
     members: 0,
-    invitedOwners: ['anna@elektro-weber.de'],
+    invitedLeads: ['anna@elektro-weber.de'],
   },
 ]
 
@@ -247,8 +247,8 @@ describe('the businesses on the instance', () => {
     expect(await screen.findByText('Elektro Weber OHG ist angelegt.')).toBeTruthy()
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
       name: 'Elektro Weber OHG',
-      ownerName: 'Anna Weber',
-      ownerEmail: 'anna@elektro-weber.de',
+      leadName: 'Anna Weber',
+      leadEmail: 'anna@elektro-weber.de',
     })
     expect((screen.getByLabelText('Einladungslink') as HTMLInputElement).value).toBe(
       `${globalThis.location.origin}/einladung/k7Qm2vXnR4tB9sLw`,

@@ -442,6 +442,27 @@
       "when": 1790592117841,
       "tag": "0062_article_imports",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790899491916,
+      "tag": "0063_tenant_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790907465620,
+      "tag": "0064_number_ranges_kept",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1790910696264,
+      "tag": "0065_tenants_with_leads",
+      "breakpoints": true
     }
   ]
 }

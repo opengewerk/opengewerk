@@ -8,11 +8,10 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import type { AttachmentVersionId } from '@opengewerk/domain'
+import { Database, isUuid } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { shownInPlace } from '../attachments/media-type.js'
-import { Database } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import { attachments, attachmentVersions, files } from '../database/schema/index.js'
 import type { FileStorage } from '../storage/file-store.js'
 import { RequiresPermission } from './authorization.js'

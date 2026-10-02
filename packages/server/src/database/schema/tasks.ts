@@ -1,13 +1,17 @@
 import { taskStatuses } from '@opengewerk/domain'
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import { date, foreignKey, index, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { customers } from './customers.js'
 import { jobs } from './jobs.js'
-import { memberships } from './memberships.js'
-import { tenantIsolation } from './rls.js'
 import { sites } from './sites.js'
-import { tenantColumn } from './tenants.js'
 
 export const taskStatus = pgEnum('task_status', taskStatuses)
 

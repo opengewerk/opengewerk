@@ -8,11 +8,10 @@ import {
   tagName,
   tagNameProblem,
 } from '@opengewerk/domain'
+import { pick, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { customerTags, siteTags, tags } from '../database/schema/index.js'
-import { pick } from './body.js'
 
 /** A name for a tag from a request body, shaped as the tag will carry it, or a sentence why not. */
 export function tagNameFrom(body: unknown): string {

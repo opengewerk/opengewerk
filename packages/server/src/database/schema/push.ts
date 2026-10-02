@@ -1,3 +1,5 @@
+import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import {
   foreignKey,
   index,
@@ -8,11 +10,6 @@ import {
   timestamp,
   unique,
 } from 'drizzle-orm/pg-core'
-
-import { primaryId, reference, timestamps } from './columns.js'
-import { memberships } from './memberships.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /** Which entry a device opens OpenGewerk in, and so where a tap on a message leads. */
 export const pushEntry = pgEnum('push_entry', ['office', 'site'])

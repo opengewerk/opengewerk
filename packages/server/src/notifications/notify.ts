@@ -10,10 +10,14 @@ import {
   type TaskId,
   type TenantId,
 } from '@opengewerk/domain'
+import {
+  accountsOf,
+  type Database,
+  stillOpen,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, gte, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 
-import { accountsOf, stillOpen } from '../authentication/administration.js'
-import type { Database, TenantTransaction } from '../database/database.js'
 import { parameterAt } from '../database/parameters.js'
 import {
   customers,

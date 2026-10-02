@@ -1,10 +1,7 @@
 import type { SiteAccessId, TenantId } from '@opengewerk/domain'
-import { and, eq, inArray } from 'drizzle-orm'
+import type { SecretKey, StoredSecret, TenantTransaction } from '@opengewerk/platform-server'
 
-import type { TenantTransaction } from '../database/database.js'
-import { secrets } from '../database/schema/index.js'
-import type { SecretKey } from './key.js'
-import type { StoredSecret } from './store.js'
+import { secretsOfBusinesses } from './store.js'
 
 /**
  * The values of the ways into a site (#286), one sealed row of `secrets` each,
@@ -13,8 +10,8 @@ import type { StoredSecret } from './store.js'
  * does not open.
  */
 
-function contextOf(tenantId: TenantId, accessId: SiteAccessId): string {
-  return `${tenantId}:site_access:${accessId}`
+function placeOf(tenantId: TenantId, accessId: SiteAccessId) {
+  return { tenantId, purpose: 'site_access', recordId: accessId } as const
 }
 
 /** Seals a value and keeps it, in place of the one the access had. */
@@ -25,25 +22,17 @@ export async function keepAccessValue(
   accessId: SiteAccessId,
   value: string,
 ): Promise<void> {
-  const sealed = key.seal(contextOf(tenantId, accessId), value)
-
-  await tx
-    .insert(secrets)
-    .values({ tenantId, purpose: 'site_access', recordId: accessId, sealed })
-    .onConflictDoUpdate({
-      target: [secrets.tenantId, secrets.purpose, secrets.recordId],
-      set: { sealed, updatedAt: new Date() },
-    })
+  await secretsOfBusinesses.keep(tx, key, placeOf(tenantId, accessId), value)
 }
 
 /** Reads and opens the value of one access. */
-export async function readAccessValue(
+export function readAccessValue(
   tx: TenantTransaction,
   key: SecretKey,
   tenantId: TenantId,
   accessId: SiteAccessId,
 ): Promise<StoredSecret> {
-  return (await readAccessValues(tx, key, tenantId, [accessId])).get(accessId) ?? { state: 'none' }
+  return secretsOfBusinesses.read(tx, key, placeOf(tenantId, accessId))
 }
 
 /** Reads and opens the values of several accesses at once, for the pull. */
@@ -53,31 +42,15 @@ export async function readAccessValues(
   tenantId: TenantId,
   accessIds: readonly SiteAccessId[],
 ): Promise<ReadonlyMap<SiteAccessId, StoredSecret>> {
-  const found = new Map<SiteAccessId, StoredSecret>()
+  const found = await secretsOfBusinesses.readOf(
+    tx,
+    key,
+    { tenantId, purpose: 'site_access' },
+    accessIds,
+  )
 
-  if (accessIds.length === 0) {
-    return found
-  }
-
-  const rows = await tx
-    .select({ recordId: secrets.recordId, sealed: secrets.sealed })
-    .from(secrets)
-    .where(
-      and(
-        eq(secrets.tenantId, tenantId),
-        eq(secrets.purpose, 'site_access'),
-        inArray(secrets.recordId, [...accessIds]),
-      ),
-    )
-
-  for (const row of rows) {
-    const accessId = row.recordId as SiteAccessId
-    const value = key.unseal(contextOf(tenantId, accessId), row.sealed)
-
-    found.set(accessId, value === null ? { state: 'unreadable' } : { state: 'readable', value })
-  }
-
-  return found
+  // The same map, read by the ids it was asked with.
+  return found as ReadonlyMap<SiteAccessId, StoredSecret>
 }
 
 /** Forgets the value of an access that is deleted. */
@@ -86,13 +59,5 @@ export async function forgetAccessValue(
   tenantId: TenantId,
   accessId: SiteAccessId,
 ): Promise<void> {
-  await tx
-    .delete(secrets)
-    .where(
-      and(
-        eq(secrets.tenantId, tenantId),
-        eq(secrets.purpose, 'site_access'),
-        eq(secrets.recordId, accessId),
-      ),
-    )
+  await secretsOfBusinesses.forget(tx, placeOf(tenantId, accessId))
 }

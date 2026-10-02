@@ -1,18 +1,18 @@
-import { formatDocumentNumber, type NumberRangeKey, patternProblem } from '@opengewerk/domain'
+import { numberFromPattern, type NumberRangeKey, patternProblem } from '@opengewerk/domain'
+import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
+import { SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useId, useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
 
-import { Button, Cell, Column, Panel, TablePanel, useBand } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import {
   changeNumberRange,
   numberRanges,
   type NumberRangeView,
 } from '../../session/number-ranges.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -242,7 +242,7 @@ function NumberRangeRow({
         : null
   const preview =
     problem === null && counterProblem === null
-      ? formatDocumentNumber(pattern.trim(), { counter, year: new Date().getFullYear() })
+      ? numberFromPattern(pattern.trim(), { counter, year: new Date().getFullYear() })
       : null
   const changed = pattern.trim() !== range.pattern || counterMoved
 

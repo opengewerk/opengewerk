@@ -17,12 +17,11 @@ import {
   isAllowed,
   missingPermission,
 } from '@opengewerk/domain'
+import { Database, pick, requireSomething } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
 import { contacts } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireSomething } from './body.js'
 import { requireReferences } from './references.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

@@ -7,6 +7,8 @@ import {
   type RecordState,
   type RoleKey,
 } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import type { DirectWriter, PullResult, SyncTransport } from '@opengewerk/platform-web/sync'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -22,13 +24,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CustomerScreen } from '../office/screens/customers.js'
 import { SiteJobScreen } from '../site/screens/jobs.js'
-import type { DirectWriter } from '../sync/client.js'
 import { SyncClient } from '../sync/client.js'
-import { SyncProvider } from '../sync/provider.js'
-import { openLocalStore } from '../sync/store.js'
-import type { PullResult, SyncTransport } from '../sync/transport.js'
 import { NewContactForm } from './contacts.js'
 import { titleOf } from './naming.js'
+import { aTenantChoice } from '../session/test-tenants.js'
 
 /**
  * The contacts of #121 on screen: at the customer and the site in the office,
@@ -153,7 +152,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'u-1@nord.example.de', name: 'u-1' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 function contact(id: string, over: Row): Row {

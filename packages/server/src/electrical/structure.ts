@@ -9,10 +9,9 @@ import {
   pvStringProblems,
   type RecordState,
 } from '@opengewerk/domain'
+import { isUuid, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import { boardSections, installations, inverters } from '../database/schema/index.js'
 
 /** Why a part of the structure may not land where it says, in the shape of a sync conflict. */

@@ -8,6 +8,14 @@
 # it does not. These tests clean up before they start, and that is not to cost
 # anybody their development data.
 
+# A project name of its own, and that is not decoration. Without one, Compose
+# names the project after the folder this file lies in, `docker`, as it does
+# for every repository that keeps its files in a folder of that name. Two such
+# files are then one project to Compose, and starting the other one replaces
+# this container without a word. Seen on 01.10.2026 with the test database of
+# OpenGewerk Haustechnik beside this one.
+name: opengewerk-test
+
 services:
   postgres:
     image: postgres:18-alpine

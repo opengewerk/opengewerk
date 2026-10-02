@@ -10,6 +10,29 @@ import {
   supplyDateOf,
   whyFixed,
 } from '@opengewerk/domain'
+import {
+  Button,
+  ButtonLink,
+  Cell,
+  Column,
+  Panel,
+  TablePanel,
+  cardLink,
+  statusIcons,
+  useBand,
+  useButtonLook,
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { date, euros, moment, today } from '@opengewerk/platform-web/format'
+import { NoteBox, PageHead, RecordColumns, Screen } from '@opengewerk/platform-web/office'
+import {
+  maybeText,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronRight, Eye, File, Lock, Pencil } from 'lucide-react'
@@ -17,21 +40,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import {
-  Button,
-  ButtonLink,
-  cardLink,
-  Cell,
-  Column,
-  DocumentState,
-  Panel,
-  statusIcons,
-  TablePanel,
-  useBand,
-  useButtonLook,
-} from '../../components/index.js'
-import type { TableCard } from '../../components/index.js'
-import { date, euros, moment, today } from '../../app/format.js'
+import { DocumentState } from '../../app/document-state.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'
@@ -43,9 +52,6 @@ import {
   pdfAddress,
 } from '../../session/documents.js'
 import type { Assignee } from '../../session/tasks.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
-import { NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import {
   ChainCard,
   documentName,

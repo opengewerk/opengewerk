@@ -1,9 +1,8 @@
 import { type ConflictReason, isAllowed, type SiteAccessId } from '@opengewerk/domain'
+import { isUuid, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
 import type { FoundIdentity } from '../api/identity.js'
-import type { TenantTransaction } from '../database/database.js'
-import { isUuid } from '../database/identifier.js'
 import { siteAccessDeliveries } from '../database/schema/index.js'
 
 /** Why a showing from a device may not land, in the shape of a sync conflict. */

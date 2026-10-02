@@ -1,14 +1,14 @@
 import type { IsoDate } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import { Saved, SettingsPage, SettingsState, SettingsText } from '@opengewerk/platform-web/office'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
-import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { mailStatus } from '../../session/mail.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { Saved, SettingsPage, SettingsState, SettingsText } from '../settings-frame.js'
 import { MailServerSection } from './mail-server.js'
 import { History, latestPeriod, proposedFrom } from './taxes.js'
 

@@ -1,13 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { contactParentText, missingPermission, syncEntities } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import { changesSince } from '../database/sync.js'
 import {
   allowApplicationLogin,
@@ -243,6 +242,11 @@ describe('the tables', () => {
     // kept in the office: the purchase prices are for the owner and the office
     // alone, and a pull would carry any table with sync columns to every
     // device.
+    //
+    // The roles of a business (ADR 0010) say what somebody may do, and are
+    // read live for the same reason as a membership: a device answering from
+    // a copy would go on allowing what was taken away an hour ago. What a
+    // screen may offer it is told with the business.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -269,6 +273,7 @@ describe('the tables', () => {
       name === 'push_opt_outs' ||
       name === 'push_outbox' ||
       name === 'member_passkeys' ||
+      name === 'tenant_roles' ||
       name === 'site_access_deliveries' ||
       name === 'supplier_articles' ||
       name === 'purchase_prices' ||

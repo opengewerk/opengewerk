@@ -6,23 +6,35 @@ import {
   signerNameProblem,
   whyFixed,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { amount, date, moment, parseQuantity } from '@opengewerk/platform-web/format'
+import {
+  SiteActionBar,
+  SiteNoTabs,
+  SiteScreen,
+  SiteText,
+  SiteTrouble,
+} from '@opengewerk/platform-web/site'
+import {
+  asTextOrNull,
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { useParams } from '@tanstack/react-router'
 import { Camera, Check, Pencil, Plus, Signature, X } from 'lucide-react'
 import { useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import {
-  Button,
-  Confirm,
-  DocumentState,
-  Field,
-  Panel,
-  SelectField,
-  TextArea,
-} from '../../components/index.js'
 import { addAttachment } from '../../app/attachments.js'
+import { DocumentState } from '../../app/document-state.js'
+import { useMay } from '../../app/queries.js'
 import { ReportFieldsForm, ReportFieldsText } from '../../app/report-fields.js'
-import { amount, date, moment, parseQuantity } from '../../app/format.js'
 import {
   documentKindOf,
   documentStatusOf,
@@ -31,17 +43,9 @@ import {
   lineUnitOf,
   lineUnitShort,
 } from '../../app/labels.js'
-import { useMay } from '../../app/queries.js'
-import { asTextOrNull } from '../../app/record-form.js'
 import { SignaturePicture } from '../../app/signature.js'
-import type { EditResult } from '../../sync/client.js'
-import { refusalFor } from '../../sync/client.js'
-import { count, maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRelated, useSync } from '../../sync/provider.js'
-import { SiteActionBar, SiteNoTabs } from '../action-bar.js'
 import { ArticleChoice } from '../article-choice.js'
 import { SiteHeader } from '../header.js'
-import { SiteScreen, SiteText, SiteTrouble } from '../kit.js'
 import { SignaturePad } from '../signature-pad.js'
 import { signedContentOf } from '../signing.js'
 

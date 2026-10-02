@@ -1,13 +1,13 @@
 import { backupTimeProblem, type InstanceSettingsView, mailHostProblem } from '@opengewerk/domain'
+import { Button, Field, Panel, TextArea } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { Saved, SettingsText } from '@opengewerk/platform-web/office'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import { Button, Field, Panel, TextArea } from '../../components/index.js'
-import { date } from '../../app/format.js'
 import { instanceSettings, saveInstanceSettings } from '../../session/instance.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { Saved, SettingsText } from '../settings-frame.js'
 import { InstancePage } from './shell.js'
 
 function saidWhy(error: unknown, fallback: string): string {

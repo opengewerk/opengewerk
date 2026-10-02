@@ -1,9 +1,7 @@
+import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { bigint, check, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
-
-import { primaryId, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * The files a business keeps, as far as the database knows them. The bytes

@@ -2,13 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { sendSecurityHeaders, shellPolicy } from '@opengewerk/platform-server'
 import express from 'express'
 import type { Express } from 'express'
 import request from 'supertest'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { interfacePath, serveInterface } from './interface.js'
-import { sendSecurityHeaders, shellPolicy } from './security-headers.js'
 
 /**
  * A built interface, as small as one can be and still have two shells.

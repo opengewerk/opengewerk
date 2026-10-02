@@ -1,14 +1,13 @@
 import type { AddressInfo } from 'node:net'
 
 import type { INestApplication } from '@nestjs/common'
-import type { Identity } from '@opengewerk/domain'
+import { permissions } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import express from 'express'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -20,9 +19,9 @@ import {
   admitPreviewUser,
   defaultPreviewDatabaseUrl,
   previewDatabaseUrl,
+  previewIdentity,
   previewPort,
   PreviewRefused,
-  previewRoles,
   previewUser,
   refuseProduction,
 } from './preview-database.js'
@@ -89,11 +88,7 @@ describe('the fences around the preview', () => {
 })
 
 describe('the question who is signed in', () => {
-  const identity: Identity = {
-    userId: previewUser.id,
-    tenantId: newId<'tenant'>(),
-    roles: previewRoles,
-  }
+  const identity = previewIdentity(newId<'tenant'>())
   const answering = express().use('/api/auth', previewSession(identity, previewUser))
 
   it('is answered with the preview person, the business already chosen', async () => {
@@ -117,7 +112,7 @@ describe('the question who is signed in', () => {
 
 describe('the sample data', () => {
   const tenant = { id: newId<'tenant'>(), name: 'Elektro Nord GmbH (Vorschau)' }
-  const identity: Identity = { userId: previewUser.id, tenantId: tenant.id, roles: previewRoles }
+  const identity = previewIdentity(tenant.id)
 
   let admin: Pool
   let database: Database
@@ -157,7 +152,14 @@ describe('the sample data', () => {
 
   it('goes in through the real routes, and the business is the only one on offer', async () => {
     expect(await read('/auth/tenants')).toEqual([
-      { id: tenant.id, name: tenant.name, roles: ['owner'] },
+      {
+        id: tenant.id,
+        name: tenant.name,
+        roles: ['owner'],
+        roleLabels: ['Inhaber'],
+        rights: permissions,
+        secondFactor: true,
+      },
     ])
   })
 

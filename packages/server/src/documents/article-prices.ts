@@ -1,7 +1,7 @@
 import { type IsoDate, lineNetCents, type LineUnit, type PriceBase } from '@opengewerk/domain'
+import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm'
 
-import type { TenantTransaction } from '../database/database.js'
 import { articlePrices, articles } from '../database/schema/index.js'
 
 /**

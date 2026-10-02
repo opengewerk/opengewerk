@@ -1,4 +1,6 @@
 import { deadlineStatuses, longestIntervalDays, longestLeadDays } from '@opengewerk/domain'
+import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   check,
@@ -13,16 +15,12 @@ import {
   unique,
 } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
 import { customers } from './customers.js'
 import { documents } from './documents.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'
-import { memberships } from './memberships.js'
-import { tenantIsolation } from './rls.js'
 import { sites } from './sites.js'
 import { tasks } from './tasks.js'
-import { tenantColumn } from './tenants.js'
 
 export const deadlineStatus = pgEnum('deadline_status', deadlineStatuses)
 

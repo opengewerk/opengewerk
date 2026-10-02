@@ -1,8 +1,17 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Confirm, Panel } from '@opengewerk/platform-web'
+import { fileSize } from '@opengewerk/platform-web/format'
+import {
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Image, Upload, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
-import { Button, Confirm, Panel } from '../../components/index.js'
 import {
   addAttachment,
   addVersion,
@@ -13,10 +22,6 @@ import {
   versionLine,
 } from '../../app/attachments.js'
 import { useMay } from '../../app/queries.js'
-import { refusalFor } from '../../sync/client.js'
-import { count, maybeText, text } from '../../sync/fields.js'
-import { useRelated, useSync } from '../../sync/provider.js'
-import { fileSize } from '../../app/format.js'
 
 /**
  * The files at a customer, a site, an installation or a job, on its screen in

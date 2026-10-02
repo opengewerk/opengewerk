@@ -1,6 +1,5 @@
 import type { FormDefinition, ReportField } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The fields a business gives its reports (#78), at the route that keeps them.

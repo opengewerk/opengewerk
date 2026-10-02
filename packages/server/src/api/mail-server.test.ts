@@ -1,11 +1,10 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import { Database, type MailConfiguration, newId, SecretKey } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -13,10 +12,8 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import type { MailConfiguration } from '../mail/configuration.js'
 import { testKey } from '../mail/test-mail-server.js'
 import { MailDeliveryError, type MailTransport } from '../mail/transport.js'
-import { SecretKey } from '../secrets/key.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
 

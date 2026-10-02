@@ -1,7 +1,6 @@
 import { Controller, Get } from '@nestjs/common'
+import { type Colleague, Database, listColleagues } from '@opengewerk/platform-server'
 
-import { type Colleague, listColleagues } from '../authentication/administration.js'
-import { Database } from '../database/database.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 

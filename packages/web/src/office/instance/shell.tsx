@@ -1,16 +1,13 @@
+import { BrandMark, Shell } from '@opengewerk/platform-web'
+import { PageHead, PersonMenu, Screen, SettingsText } from '@opengewerk/platform-web/office'
+import { instanceAccessQuery, useWho } from '@opengewerk/platform-web/session'
+import { UpdateBar } from '@opengewerk/platform-web/shell'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronLeft, History, House, Menu, Server, Settings, Shield, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-
-import { BrandMark, Shell } from '../../components/index.js'
-import { UpdateBar } from '../../app/sync-bar.js'
-import { useWho } from '../../app/who.js'
-import { PageHead, Screen } from '../kit.js'
-import { SettingsText } from '../settings-frame.js'
-import { instanceAccessQuery, PersonMenu } from '../top-bar.js'
 
 interface Entry {
   readonly to: string
@@ -87,14 +84,14 @@ function BackToOffice({ large = false }: { readonly large?: boolean }) {
         <ChevronLeft size={large ? 20 : 16} strokeWidth={1.9} aria-hidden="true" />
         Zurück zum Büro
       </Link>
-      {who.business ? (
+      {who.tenant ? (
         <div
           className={clsx(
             '-mt-[3px] pr-2.5 pb-1.5 text-[12px] text-ink-faint',
             large ? 'pl-[46px]' : 'pl-[35px]',
           )}
         >
-          {who.business}
+          {who.tenant}
         </div>
       ) : null}
     </>

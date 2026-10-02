@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -14,11 +16,9 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { InstallationScreen } from './installations.js'
 import { BoardScreen, CircuitScreen } from './structure.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * #70 in the office: a board written down with its sections and circuits,
@@ -174,7 +174,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
+    ['/auth/tenants', [aTenantChoice(['office'])]],
   ])
 
   vi.stubGlobal('fetch', (path: string) =>

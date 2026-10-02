@@ -1,18 +1,24 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, useEntry } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import { accountQuery } from '@opengewerk/platform-web/session'
+import {
+  RecordForm,
+  asTextOrNull,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { useState } from 'react'
 
-import { Button, useEntry } from '../components/index.js'
 import { type Assignee, assignees } from '../session/tasks.js'
-import { refusalFor } from '../sync/client.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useRecord, useSync } from '../sync/provider.js'
-import { date, today } from './format.js'
 import { taskStatusOf } from './labels.js'
-import { accountQuery, useMay } from './queries.js'
-import { RecordForm, asTextOrNull } from './record-form.js'
+import { useMay } from './queries.js'
 
 /**
  * Who is looking, and the names of everybody a task can name.

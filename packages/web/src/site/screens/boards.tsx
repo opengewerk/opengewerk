@@ -1,10 +1,27 @@
 import type { RecordState } from '@opengewerk/domain'
 import { distributionBoardKindLabel } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
+import {
+  NotSent,
+  SiteFacts,
+  SiteLabel,
+  SiteRow,
+  SiteRows,
+  SiteScreen,
+  SiteText,
+} from '@opengewerk/platform-web/site'
+import {
+  RecordForm,
+  maybeText,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, useParams } from '@tanstack/react-router'
 import { ChevronRight, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import {
   asBoard,
   asEquipment,
@@ -24,12 +41,8 @@ import {
   useEquipment,
   useSections,
 } from '../../app/electrical.js'
-import { RecordForm } from '../../app/record-form.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
 import { useStructureBase } from '../structure-base.js'
-import { NotSent, SiteFacts, SiteLabel, SiteRow, SiteRows, SiteScreen, SiteText } from '../kit.js'
 
 /**
  * The structure of an installation on site: read it, and add what is missing.

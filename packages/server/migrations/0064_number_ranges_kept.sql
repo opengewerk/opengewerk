@@ -1,0 +1,18 @@
+-- The application role no longer removes a number range (ADR 0010).
+--
+-- Migration 0002 granted DELETE on `number_ranges` along with everything
+-- else, and nothing ever used it: a range is created the first time a number
+-- is drawn from it, and from then on its counter only moves forward. A range
+-- that is gone begins again at one, and the next invoice would carry a number
+-- an invoice already has. That was never possible through a route, and now
+-- the database says so as well: a right nothing needs is a right somebody
+-- can only misuse.
+--
+-- The occasion is the move of the number ranges into the foundation. There a
+-- table is described once, with what it needs, and every application built
+-- on the foundation gets exactly that; the description says "never deleted",
+-- and this is the migration that makes it true here.
+--
+-- Nothing is written and no row is touched. A version of the application
+-- from before this migration runs on unchanged, it never deleted a range.
+REVOKE DELETE ON "number_ranges" FROM "opengewerk_app";

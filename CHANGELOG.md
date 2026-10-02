@@ -269,6 +269,316 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nichts. Damit eine weitere Anwendung das Fundament einbinden kann, ohne die Handwerkersoftware
   mitzunehmen, hängt es von keinem ihrer Pakete ab; eine Lint-Regel sagt das im Editor, und ein
   Test liest dafür die `package.json` des Pakets.
+- Die Regeln der Lint-Konfiguration stehen in `eslint.shared.js`, getrennt von der Angabe, wo
+  die Pakete dieses Repositorys liegen. Eine weitere Anwendung, die das Fundament einbindet
+  (ADR 0010), baut ihre Konfiguration aus denselben Bausteinen, statt die Regeln abzuschreiben;
+  für die Handwerkersoftware ergibt sich für jede Datei dieselbe Konfiguration wie zuvor. Dazu
+  nennt `turbo.json` die Konfigurationsdateien an der Wurzel als Abhängigkeit jeder Aufgabe:
+  bisher blieb ein Lint-Ergebnis im lokalen Zwischenspeicher gültig, wenn sich nur die Regeln
+  geändert hatten.
+- Das Fundament hat sein zweites Paket, `@opengewerk/platform-server` unter
+  `packages/platform/server` (ADR 0010). Dorthin ziehen der Datenbankzugriff unter einem
+  Mandanten, der Migrationslauf mit seinen Prüfungen, das Lesen der Konfiguration beim Start,
+  die Bausteine für Spalten und Policies, das Lesen der Verweise aus den Fremdschlüsseln, die
+  Übersetzung von Datenbankfehlern in Antworten, der Einrichtungscode, die Prüfung von
+  Mailadressen und Web-Push. Was nur eine Anwendung weiß, gibt sie hinein: ihren Namen, ihren
+  Port und die Variable ihrer Fassung für die Sätze der Konfiguration, den Ordner ihrer
+  Migrationen, die Namen ihrer Datensätze für den Satz über einen fehlenden Verweis, die
+  Fehlerklassen ihrer eigenen Trigger. Die Handwerkersoftware bindet das an den Stellen, an
+  denen die Dateien bisher lagen; am Verhalten ändert sich nichts, und `drizzle-kit` findet am
+  Schema keine Änderung. Die Testhilfen für die Datenbank kommen als eigener Einstieg
+  `@opengewerk/platform-server/testing`, damit eine weitere Anwendung ihre Migrationen auf
+  demselben Weg prüft: als Eigentümer der Tabellen und nie als Superuser.
+- Die Tests des Fundaments, die eine Datenbank brauchen, laufen vor denen des Servers und nie
+  daneben, festgelegt in `turbo.json`: beide leeren dieselbe Testdatenbank. `pnpm run preview`
+  und der CI-Job der E-Rechnung bauen vorher alles, wovon der Server abhängt, nicht mehr nur
+  `domain`.
+- Das Fundament bringt mit, woraus die erste Migration einer weiteren Anwendung entsteht
+  (ADR 0010, Punkt 9), damit sie nicht aus 63 Migrationen abgeschrieben wird. Die Tabellen für
+  Mandanten, Konten und Sitzungen, Zugehörigkeiten und Einladungen, Audit-Log und Abgleich liegen
+  als Schema-Module in `@opengewerk/platform-server` (Einstieg `/schema`). Was `drizzle-kit`
+  nicht schreibt, liegt als SQL-Dateien unter `packages/platform/server/sql`: die Rolle der
+  Anwendung, die Funktionen und Trigger des Audit-Logs, des Abgleichs und der Ersteinrichtung.
+  Der Einstieg `/migration` setzt sie um die erste Migration einer Anwendung, gibt jeder Tabelle
+  `FORCE`, ihre Rechte und ihre Trigger und schreibt die Rücknahme dazu. Für die
+  Handwerkersoftware ändert sich nichts: keine neue Migration, keine geänderte, und `drizzle-kit`
+  findet an ihrem Schema keine Änderung. Dass die Bausteine sagen, was ihre Migrationen
+  hinterlassen haben, hält ein neuer Test am Katalog der Datenbank fest: Spalten, Schlüssel,
+  Policies, Rechte, Trigger, Enums und Funktionen samt der Frage, wer sie aufrufen darf. Weicht
+  etwas ab, ist der Baustein falsch und nicht die Migration, denn die ist auf einer Installation
+  gelaufen. Die Rollen einer Zugehörigkeit und einer Einladung sind im Fundament Zeichenketten;
+  welche es gibt, bleibt die Liste der Anwendung.
+- Die Testdatenbank aus `docker/compose.test.yaml` trägt einen eigenen Compose-Projektnamen,
+  `opengewerk-test`. Ohne ihn heißt das Projekt nach seinem Ordner, also `docker`, wie bei jedem
+  Repository, das seine Dateien so ablegt, und das Starten der Testdatenbank eines zweiten
+  Repositorys ersetzte diesen Container kommentarlos; so geschehen mit der von OpenGewerk
+  Haustechnik. Wer den Container schon unter dem alten Projekt laufen hat, entfernt ihn einmal
+  mit `docker rm -f opengewerk-test-db`, sonst meldet der nächste Start, der Name sei vergeben.
+- Die Katalogfragen zur Mandantentrennung sind Teil von `@opengewerk/platform-server/testing`,
+  damit jede Anwendung sie über ihre eigene Datenbank stellt, statt sie abzuschreiben: jede
+  Tabelle mit `FORCE`, Policy und Recht, jede Policy mit dem einen erlaubten Vergleich, jeder
+  Schlüssel zwischen zwei Tabellen eines Mandanten über den Mandanten, der Audit-Trigger an jeder
+  Tabelle eines Mandanten und die eingefrorenen Spalten eines Audit-Eintrags. Die Tests der
+  Handwerkersoftware fragen seitdem dort. Dabei ist eine Ausnahme weggefallen, die nichts
+  entschuldigte: die offene Policy der Ersteinrichtung an `tenants` stand auf der Liste der
+  erlaubten Policies, obwohl die restriktive Policy daneben sie einzäunt. Auf der Liste wäre sie
+  auch dann durchgegangen, wenn eine Migration den Zaun entfernt hätte; jetzt wird der Test dann
+  rot.
+- Was zwischen einer Anfrage und einer Route steht, gehört zum Fundament
+  (`@opengewerk/platform-server`, ADR 0010), damit eine weitere Anwendung es nicht nachbaut: der
+  Guard, der klärt, wer fragt und ob er darf, die Identität einer Anfrage, die Prüfung von
+  Herkunft und Inhaltstyp, die Sicherheits-Header mit der Content-Security-Policy, die Adresse
+  eines Clients hinter einem Proxy, die geschlossene Instanz und die Frage, ob eine Adresse im
+  Internet liegt. Der Guard kennt den Mechanismus. Was ein Recht ist, wer es hat, wer die Instanz
+  betreibt und was eine Ablehnung in den Worten der Anwendung sagt, gibt die Anwendung hinein; die
+  Handwerkersoftware bindet das in `api/authorization.ts`, und an ihrem Verhalten ändert sich
+  nichts. Im Fundament prüft ein Test den Guard an einer Anwendung, die niemandem gehört, mit zwei
+  Rechten und einer Route jeder Art. Der Gang über alle Routen eines Moduls, der eine Route ohne
+  Recht findet, und die Identität aus einem Kopf für Tests kommen aus
+  `@opengewerk/platform-server/testing`.
+- Die Anmeldung gehört zum Fundament (`@opengewerk/platform-server`, ADR 0010), wie sie ist: Konten
+  mit Passwort, zweitem Faktor und Passkeys, die erneute Bestätigung vor einem neuen Passkey,
+  Sitzungen je Gerät, die Wahl des Mandanten, die Ersteinrichtung mit Einrichtungscode, das
+  Einlösen eines Einmal-Links und die Befehle `add-staff` und `reset-password`. In diesem Teil
+  lagen alle fünf bisher veröffentlichten Advisories, und eine weitere Anwendung soll ihn nicht
+  abschreiben. Was eine Anwendung nennt, kommt als Argument herein: ihr Name, wie er in der
+  Authenticator-App und in der Abfrage eines Passkeys steht, ihre Rollen, die Rolle, die das erste
+  Konto bekommt, welche Rollen einen zweiten Faktor brauchen, die Regel für den Namen eines
+  Mandanten und die Sätze, die einen Mandanten oder eine Rolle beim Namen nennen. Wie eine Mail zum
+  neuen Passwort oder zu einem neuen Passkey hinausgeht, bleibt bei der Anwendung; das Fundament
+  sagt nur, wann sie fällig ist. Die Handwerkersoftware bindet das in `authentication/access.ts`,
+  und an ihrem Verhalten ändert sich nichts, bis zum Wortlaut der Befehle. Die Variable, aus der ein
+  Befehl im Skript ein Passwort liest, nennt die Anwendung; hier bleibt es `OPENGEWERK_PASSWORD`.
+  Die Tests ziehen mit um und laufen im Fundament mit einer Anwendung, die niemandem gehört, über
+  einer Datenbank, die nichts als das Fundament trägt: 116 Tests zu Anmeldung, Passkeys, Passwort,
+  Ersteinrichtung, Einmal-Link und Befehlen. Bei der Handwerkersoftware bleibt, was ihre Kunden,
+  ihre Mails und den Bereich der Instanz braucht. Ein Test im Fundament hält fest, dass dort weder
+  ein Produktname noch eine Rolle als Literal steht. Der Authenticator für Passkeys, den die Tests
+  benutzen, kommt aus `@opengewerk/platform-server/testing`.
+- Wer in einem Mandanten arbeitet, gehört zum Fundament (`@opengewerk/platform-server`, ADR 0010):
+  die Liste der Leute, die Einladung mit Einmal-Link, das Ändern der Rollen, das Sperren mit
+  sofortiger Wirkung, die Geräte einer Person und die Weigerung, einem Mandanten die letzte Person
+  zu nehmen, die ihn führt. Damit ist die Anmeldung dort vollständig, und eine weitere Anwendung
+  bekommt die Verwaltung ihrer Zugänge, ohne sie abzuschreiben. Die Routen unter `/staff` fragen
+  nach zwei Rechten, die das Fundament selbst nennt, `membership.read` und `membership.write`; eine
+  Anwendung führt beide in ihrem Katalog und sagt, welche ihrer Rollen sie hält. Welche es gibt und
+  welche einen Mandanten führt, kommt weiter aus den Regeln der Anwendung, und vier Sätze, die einen
+  Mandanten oder diese Rolle nennen, bringt sie als ganze Sätze mit. Wie eine Einladung per E-Mail
+  hinausgeht, bleibt bei der Anwendung: das Fundament fragt, ob der Mandant verschicken kann, bevor
+  es die Einladung schreibt, übergibt sie danach und liest, wie die Nachricht steht. Die
+  Handwerkersoftware bindet das an ihren Postausgang, und an ihrem Verhalten ändert sich nichts.
+  Die Kennungen von Zugehörigkeit, Einladung und Sitzung im Mandanten und die Gültigkeit eines
+  Links stehen in `@opengewerk/platform-domain`. Die Tests ziehen mit um und laufen im Fundament mit
+  der Anwendung, die niemandem gehört; sie hat dafür eine dritte Rolle bekommen. Dazu kommt, was
+  bisher nicht gemessen war: Wer gesperrt ist, zählt nicht als jemand, der führt. Eine Sitzung
+  derselben Person im Mandanten nebenan ist weder zu sehen noch zu beenden, auch nicht beim Namen
+  genannt. Eine Einladung sieht und widerruft nur der Mandant, der sie gemacht hat, und eine zweite
+  an dieselbe Adresse zieht die erste zurück. Bei der Handwerkersoftware bleibt, was nur sie falsch
+  machen kann: dass allein der Inhaber die Zugänge erreicht, dass ihre Rollen öffnen, was sie hier
+  öffnen, und dass eine Ablehnung von Betrieb und Inhaber spricht.
+- Was jemand in einem Betrieb darf, steht nicht mehr im Code, sondern in Zeilen des Betriebs (ADR
+  0010, `opengewerk-haustechnik#8`). Die Tabelle `tenant_roles` führt je Rolle den Schlüssel, den
+  eine Zugehörigkeit nennt, die Bezeichnung, die Rechte und zwei Angaben, die keine Rechte sind: ob
+  die Rolle den Betrieb führt und ob sie einen zweiten Faktor verlangt. Eine weitere Anwendung hat
+  andere Rechte und andere Rollen, und ein Mandant soll später eigene Rollen anlegen; beides geht
+  nicht mit einer Liste im Code. Inhaber, Büro und Monteur sind die Zeilen, mit denen ein Betrieb
+  beginnt. Migration 0063 legt sie für jeden bestehenden Betrieb an, Recht für Recht wie bisher,
+  sodass jede Person nach dem Update darf, was sie davor durfte. Zwei Tests halten das fest: einer
+  hält die Zeilen eines Betriebs von vor der Migration gegen die Rollen im Code, alle drei Rollen
+  gegen alle Rechte, der andere fragt die Sitzung jeder Rolle nach jedem Recht und prüft, dass ein
+  Betrieb seine Zeilen hat, gleich ob ihn die Ersteinrichtung, ein weiterer Betrieb des Inhabers,
+  der Bereich der Instanz oder die Kommandozeile anlegt. Die Identität einer Anfrage trägt die
+  Rechte, zu denen sich die Rollen ihrer Zugehörigkeit in diesem Moment addieren, und Guard,
+  Abgleich und Routen fragen nur noch diese. Die letzte Leitung und die Pflicht zum zweiten Faktor
+  hängen an den Angaben der Rolle und an keinem Recht, das eine Rolle verlieren könnte; wer führt,
+  verwaltet die Zugänge, was immer die Zeile sagt. Eine Änderung an den Rechten einer Rolle steht
+  damit im Änderungsprotokoll des Betriebs, auch wenn ein Update sie bringt: ein neues Recht für
+  eine der drei Rollen ist von jetzt an eine Migration, die es in die Zeilen schreibt. Die Anwendung
+  darf die Tabelle lesen und beim Anlegen eines Betriebs füllen; ändern und löschen darf sie nichts,
+  solange es keine eigenen Rollen gibt. Im Fundament kommen dafür `rightsCatalogue` und
+  `RoleDefinition` in `@opengewerk/platform-domain` dazu, `AccessRules` nennt den Katalog und die
+  mitgelieferten Rollen statt einer Rollenliste, und `writeRoles` schreibt sie an jeder Stelle, an
+  der ein Mandant entsteht. `add-staff` prüft gegen die Rollen, die der Betrieb hat, und sagt bei
+  einer unbekannten Kennung, dass es den Betrieb nicht gibt, statt mit einem Fehler der Datenbank zu
+  enden. Beim Start bekommt ein Betrieb ohne eine einzige Rolle die drei mitgelieferten
+  (`completeRoles`): zwischen Migration und Start läuft bei einem Update die Fassung davor weiter,
+  und ein Betrieb, den sie in diesem Moment anlegt, hätte sonst keine und niemanden, der in ihm
+  etwas darf. Wer den Betrieb führt, wird überall an derselben Angabe erkannt (`leadsItsTenant`):
+  beim Zählen der letzten Leitung und bei der Frist, für die sonst niemand einsteht und die bisher
+  nach dem Namen der Rolle `owner` fragte.
+- Die Oberfläche fragt die Rechte, die der Server aus den Zeilen des Betriebs auflöst, und nicht
+  mehr die drei Rollen im Code (ADR 0010, `opengewerk-haustechnik#8`). Ein Bildschirm, der eine
+  Liste im Code fragte, böte weiter an, was der Server ablehnt, sobald ein Betrieb ändert, was eine
+  Rolle darf. `GET /auth/tenants` nennt deshalb je Betrieb neben den Schlüsseln der Rollen ihre
+  Namen im Betrieb, die Rechte, zu denen sie sich dort addieren, und ob eine von ihnen einen zweiten
+  Faktor verlangt, aufgelöst wie die Identität einer Anfrage. Danach richten sich die Navigation und
+  jeder Knopf hinter einem Recht, das Tor vor der Wahl des Betriebs und die Namen der Rollen in
+  Kopfzeile, Betriebswahl und Konto. Der Bildschirm "Zugänge" bietet die Rollen an, die der Betrieb
+  hat (`GET /staff/roles`, nur für die Leitung), mit ihren Namen und dem Hinweis auf den zweiten
+  Faktor aus der Zeile der Rolle; ein Schlüssel ohne Rolle wird gezeigt und bei der nächsten
+  Änderung weggelassen, die der Server sonst ganz ablehnte. Ein Gerät, das diese Fassung ohne Netz
+  übernimmt, hat noch die Liste der Fassung davor, ohne Rechte. Sie wird einmal über die drei
+  mitgelieferten Rollen gelesen, bis der Server antwortet, sonst zeigte die Baustelle im Keller
+  wieder keine Aufgabe und kein Foto (#184). Das Änderungsprotokoll schreibt die Rechte einer Rolle
+  in Worten. `rolesAllow`, `requiresSecondFactor` und `secondFactorRoles` in `@opengewerk/domain`
+  entfallen, `TenantChoice` in `@opengewerk/platform-domain` ist die eine Form der Antwort für
+  Server und Oberfläche.
+- Versiegelte Zugangsdaten, Einstellungen mit Gültigkeitszeitraum und Nummernkreise gehören zum
+  Fundament (`@opengewerk/platform-server`, ADR 0010, `opengewerk-haustechnik#9`), damit eine
+  weitere Anwendung sie nicht nachbaut. Alle drei sind Tabellen, deren Aufzählung in der Datenbank
+  die Liste einer Anwendung ist: was versiegelt wird, welche Einstellungen ein Mandant hat und in
+  welcher Einheit sie zählen, welche Kreise es gibt. Im Fundament sind sie deshalb Funktionen, die
+  aus der Liste der Anwendung Tabelle und Aufzählung machen (`secretsSchema`,
+  `tenantParametersSchema`, `numberRangesSchema`), dazu je ein Speicher über der Tabelle
+  (`secretStore`, `tenantParameterStore`, `numberRangeStore`) und eine Beschreibung, was die
+  Tabelle an Rechten und Triggern braucht. Die Handwerkersoftware nennt ihre Listen und behält ihre
+  Aufzählungen, wie sie sind; `drizzle-kit` findet keinen Unterschied zum Stand davor, und der
+  Vergleich am Katalog zwischen Bausteinen und Migrationen schließt die drei Tabellen ein. Der Test,
+  dass außerhalb des Speichers niemand die Tabelle der Zugangsdaten anfasst, ist als Baukasten
+  mitgezogen (`secretsTouchedIn`), und die Tests der drei Speicher laufen im Fundament mit Listen,
+  die niemandem gehören, darunter Nummern aus Kreisen, die die Handwerkersoftware nicht kennt. Wie
+  ein Muster geschrieben wird und was aus einem Zähler darin wird, steht jetzt in
+  `@opengewerk/platform-domain` (`patternProblem`, und `numberFromPattern` statt
+  `formatDocumentNumber`). Ein Vorgabemuster, das keines ist, hält den Start der Anwendung auf und
+  nicht erst die erste Nummer. Der Satz zu einem Muster ohne `{number}` spricht nicht mehr vom
+  Beleg, denn auch ein Auftrag bekommt seine Nummer aus einem Kreis. Neu ist ein Test, der eine
+  Änderung am Zähler zwischen Lesen und Schreiben anhält: sie sperrt die Zeile, bevor sie liest, und
+  eine Nummer, die in diesem Moment gezogen wird, wartet, statt ein zweites Mal vergeben zu werden.
+  Was der Wert einer Einstellung sein darf, nennt die Anwendung dem Speicher, und er fragt, bevor
+  etwas geschrieben wird, gleich auf welchem Weg der Wert kommt. Bei der Handwerkersoftware ist das
+  `tenantParameterProblem` in `domain`: das Zahlungsziel wie bisher, und eine Einstellung mit Ja
+  oder Nein nimmt nur noch 1 oder 0. Bisher nahm die Route dafür jede ganze Zahl an; kein Bildschirm
+  schickt eine andere, aber sie stünde im Verlauf als ein Ja, das nie galt.
+- Die Anwendungsrolle darf einen Nummernkreis nicht mehr löschen (Migration 0064). Migration 0002
+  hatte das Recht mit allen anderen vergeben, und benutzt hat es nie etwas: ein Kreis, der weg ist,
+  beginnt wieder bei eins, und die nächste Rechnung trüge eine Nummer, die es schon gibt. Anlass
+  ist der Umzug ins Fundament, wo eine Tabelle einmal beschrieben ist und jede weitere Anwendung
+  genau das bekommt; die Beschreibung soll sagen, was die Tabelle braucht, und nicht, was eine
+  frühe Migration vergeben hat. Geschrieben wird dabei nichts.
+- Der Bereich der Instanz gehört zum Fundament (`@opengewerk/platform-server`, ADR 0010,
+  `opengewerk-haustechnik#9`): wer die Instanz betreibt, ihre Einstellungen, ihr Protokoll, die
+  Liste der Betriebe, der Weg zu einem weiteren Betrieb und die Befehle `appoint-operator` und
+  `add-tenant`. Er hat keine Liste einer Anwendung und zieht um, wie er ist, mit drei
+  Unterschieden. Wer einen Betrieb führt, liest die Liste der Betriebe aus den Rollen des Betriebs
+  und nicht mehr am Namen `owner` (`tenants_with_leads()` statt `instance_tenants()`, Migration
+  0065): ein Betrieb, der seine führende Rolle anders nennt, stünde sonst ohne Inhaber da. Jeder
+  Satz, der einen Betrieb, seinen Inhaber oder den Betreiber einer Instanz nennt, kommt ganz aus
+  der Anwendung (`AccessRules.sentences.instance`), denn die nächste Anwendung nennt alle drei
+  anders, und ein Test hält fest, dass im Fundament keines dieser Wörter in einem Satz steht. Und
+  zwei Nähte fallen weg: wer die Instanz betreibt, fragt der Guard selbst, und die Ersteinrichtung
+  benennt das erste Konto selbst. `GET /instance/tenants` nennt dafür `leads` und `invitedLeads`
+  statt `owners` und `invitedOwners`, `POST /instance/tenants` nimmt `leadName` und `leadEmail`.
+  Der Bereich ist in keiner Fassung erschienen, es gibt also keinen installierten Client und keine
+  laufende ältere Anwendung, die das trifft; deshalb entfernt die Migration die alte Funktion im
+  selben Schritt. `create_tenant` lehnt einen fehlenden Namen mit einem Satz ab, der keinen Betrieb
+  nennt. Die Tests des Bereichs laufen im Fundament mit echter Anmeldung über eine Anwendung, die
+  niemandem gehört. Bei der Handwerkersoftware bleibt, was nur sie falsch machen kann: dass Inhaber
+  sein dort nichts öffnet, dass ihre Ablehnungen von Betreiber, Betrieb und Inhaber sprechen, dass
+  ein Inhaber einen weiteren Betrieb für sich anlegt und das Büro nicht, und dass ein neuer Betrieb
+  keinen Kunden des ersten hat. Der weitere Betrieb für einen selbst (`POST /tenants` hinter
+  `tenant.create`) bleibt eine Route dieser Anwendung.
+- Jede Funktion der Datenbank, die als ihr Eigentümer läuft, steht mit ihrem Grund auf einer Liste,
+  und ein Test hält die Liste gegen den Katalog (`readDefinerFunctions` im Baukasten der Tests).
+  Eine solche Funktion geht an jeder Policy vorbei, mit Absicht und für genau eine Frage. Eine
+  weitere ist damit eine Entscheidung, und eine, die eine Migration zurücklässt, fällt auf. Anlass
+  war eine Gegenprobe: blieb die alte Listenfunktion der Betriebe stehen, merkte es kein Test.
+- Die Bausteine der Oberfläche gehören zum Fundament (`@opengewerk/platform-web`, ADR 0010,
+  `opengewerk-haustechnik#12`, erster Teil), damit eine weitere Anwendung dieselben Knöpfe, Felder,
+  Tabellen und Farben benutzt, statt sie abzuzeichnen: die Design-Tokens, das Stylesheet eines
+  Einstiegs mit den Schriften und alles, was unter `components/` lag. An der Oberfläche der
+  Handwerkersoftware ändert sich nichts, ihr Stylesheet ist nach dem Umzug Byte für Byte dasselbe.
+  Das Paket wird als Quelltext übergeben und hat keinen eigenen Bau: die Anwendung übersetzt es mit
+  ihren Bildschirmen. Sein Stylesheet nennt das Paket selbst als Ort, an dem Tailwind Klassen
+  sucht; ohne die Zeile fehlte jede Klasse, die nur ein Baustein benutzt, und nichts meldete es.
+  Der Status eines Belegs bleibt bei der Handwerkersoftware, weil seine Zustände ihre sind. Die
+  Prüfung, ob eine Klasse einen Token nennt, den es gibt, ist ein Werkzeug des Fundaments
+  (`tokenUsage` im Einstieg `@opengewerk/platform-web/testing`): das Paket fragt damit seine
+  Bausteine und jede Anwendung ihre Bildschirme, und ob jede Farbe benutzt wird, fragt weiter die
+  Anwendung. Ein Test im Paket hält fest, dass es von keiner Anwendung abhängt und außerhalb der
+  Kommentare weder ihre Wörter für Mandant, Rolle und Datensatz kennt noch, auch im Kommentar
+  nicht, einen Produktnamen. Abgleich-Client, Sitzung, Tor und Hülle folgen in eigenen Schritten.
+- Der Abgleich auf dem Gerät gehört zum Fundament (`@opengewerk/platform-web/sync`, ADR 0010,
+  `opengewerk-haustechnik#12`, zweiter Teil): der Client mit lokaler Ablage, Postausgang und
+  Projektion, der Transport und die Leiste über jedem Bildschirm, damit eine weitere Anwendung
+  ohne Netz arbeitet, ohne ihn nachzubauen. Dafür sind die Regeln des Abgleichs eine Fabrik in
+  `@opengewerk/platform-domain`: `syncRules` macht aus den Richtlinien einer Anwendung, was Server
+  und Gerät fragen, und der Client bekommt sie beim Start, statt eine globale Liste zu lesen. Die
+  Handwerkersoftware bindet ihre Liste und exportiert `decideMerge`, `policyFor`, `isSetByServer`
+  und `syncEntities` unter den bisherigen Namen; an ihrem Verhalten ändert sich nichts, ihre Tests
+  des Abgleichs laufen unverändert. Eine Liste, die sich widerspricht, lehnt die Fabrik beim Laden
+  ab, etwa eine Sperre auf einem Feld des Servers ohne Anfangswert: das hielt bisher ein Test an
+  der Liste dieser Anwendung fest, jetzt gilt es für jede. Eine Entität wird nur in dem gesucht,
+  was die Liste selbst hält; `constructor` galt bisher als bekannte Entität, die nur mit
+  Verbindung zu ändern ist, statt als unbekannte. Was ein Gerät für sich behält, nennt die
+  Anwendung beim Start (`keeps`, `keep`, `kept`): die laufende Stoppuhr ist kein Feld des Clients
+  mehr, liegt aber unter demselben Schlüssel, und eine laufende Stoppuhr übersteht das Update. Die
+  Tests des Clients und der Leiste laufen im Fundament mit Richtlinien, die keiner Anwendung
+  gehören (`@opengewerk/platform-domain/testing`); hier bleibt ein Test der Bindung. Der Server
+  des Abgleichs und der Konfliktbildschirm folgen.
+- Die Sitzung der Oberfläche gehört zum Fundament (`@opengewerk/platform-web/session`, ADR 0010,
+  `opengewerk-haustechnik#12`, dritter Teil): wer angemeldet ist, in welchen Mandanten und mit
+  welchen Rechten, auf welchen Geräten, wer in einem Mandanten arbeitet, Passkeys, und was ein
+  Gerät davon für den Start ohne Netz behält. Ein Recht ist dort ein Name (`useRight`); diese
+  Anwendung bindet die Frage an ihren Katalog, `useMay` bleibt mit seinem Typ. Die Liste der
+  Betriebe, die eine Fassung vor den Rollen als Zeilen auf einem Gerät behalten hat, schreibt die
+  Handwerkersoftware beim Start einmal in die heutige Form um (`upgradeKeptTenants`), statt dass
+  das Fundament ihre drei Rollen kennt; für ein Gerät, das ohne Netz aktualisiert, ändert sich
+  nichts. Der Satz über einen unbekannten Passkey nennt die Anwendung mit dem Namen, den sie
+  angibt, und lautet hier wie bisher. Was im Browser liegt, heißt wie bisher. An der Oberfläche
+  ändert sich nichts.
+- Das Tor vor der Anmeldung gehört zum Fundament (`@opengewerk/platform-web/gate`, ADR 0010,
+  `opengewerk-haustechnik#12`, vierter Teil): der Rahmen, Anmelden mit Passwort oder Passkey, der
+  zweite Faktor, die Wahl des Betriebs, die Ersteinrichtung, der Einladungslink, der Link zu einem
+  neuen Passwort und das Abmelden, dazu der QR-Code als Baustein. Was das Tor über die Anwendung
+  und über einen Betrieb sagt, steht nicht mehr in den Bildschirmen, sondern an einer Stelle
+  (`app/application.tsx`): der Name, der Satz neben dem Tor, die Lizenz, jeder Satz, der einen
+  Betrieb oder den Inhaber nennt, wie der Abgleich je Einstieg startet, die Notiz nach dem Scan
+  eines Etiketts und das Abmelden von Push vor dem Ende der Sitzung. Das Fundament fragt diesen
+  Wert, den `Root` über beide Einstiege legt, und nennt selbst kein Produkt und keinen Betrieb.
+  Die Sätze lauten Wort für Wort wie bisher: 72 Zustände der Bildschirme sind vor und nach dem
+  Umzug aufgenommen, und was ein Browser bekommt, ist Byte für Byte dasselbe, ebenso das
+  Stylesheet. Die Tests des Tors laufen im Fundament mit einer Anwendung, die niemandem gehört;
+  hier hält ein Test jeden Satz dieser Anwendung im Tor wörtlich fest.
+- Die Bausteine der Bildschirme gehören zum Fundament (ADR 0010, `opengewerk-haustechnik#12`,
+  fünfter Teil), damit eine weitere Anwendung ihre Bildschirme aus denselben Teilen baut: unter
+  `@opengewerk/platform-web/office` der Rahmen eines Bildschirms, sein Kopf, die Angaben eines
+  Datensatzes, die Liste mit Suche, Auswahl, Reihenfolge und Vorschau und der Rahmen der
+  Einstellungen, unter `/site` die Teile eines Bildschirms der Baustelle mit der Aktionsleiste,
+  unter `/shell` der Vorschlag des passenden Einstiegs und das Angebot einer neuen Fassung, unter
+  `/format` Zahlen und Tage, unter `/sync` das Formular über einem Datensatz. Welche
+  Einstellungen ein Betrieb hat, steht seitdem als Liste an einer Stelle
+  (`office/application.tsx`), je Eintrag mit dem Recht, das ihn öffnet, statt in einer Funktion,
+  die drei Rechte abfragt; Übersicht und Liste daneben zeichnet das Fundament daraus und lässt
+  weg, was jemand nicht lesen darf. Nur das Büro übergibt sie: die Baustelle zeigt keine
+  Einstellungen und lädt die Liste nicht. Wie die zwei Einstiege heißen, sagt die Anwendung in
+  ganzen Sätzen, das Fundament nennt keine Baustelle. An der Oberfläche ändert sich nichts: 37
+  Zustände der Bausteine sind vor und nach dem Umzug aufgenommen, und was ein Browser bekommt,
+  ist Byte für Byte dasselbe, ebenso das Stylesheet. Die Liste, das Formular, die Teile der
+  beiden Einstiege und der Rahmen der Einstellungen waren bisher nur über die Bildschirme
+  geprüft und haben jetzt eigene Tests.
+- Die Hülle der beiden Einstiege gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#12`,
+  sechster Teil), damit eine weitere Anwendung in demselben Rahmen steht: im Büro die Kopfleiste
+  mit Betrieb und Person, die Navigation neben dem Bildschirm und hinter "Menü" am Telefon und der
+  Wechsel des Betriebs (`OfficeFrame`), auf der Baustelle die Reiter, das Menü und der Kopf eines
+  Bildschirms (`SiteFrame`, `SiteHeader`). Diese Anwendung übergibt, was ihr gehört: die Einträge
+  ihrer Navigation, die Bildschirme, in denen gearbeitet wird, die Leiste der Sicherung, ihre
+  Reiter, die Stoppuhr, Push im Menü und den Weg zurück von jedem Bildschirm. "Abgleich",
+  "Einstellungen" und "Konflikte" trägt das Fundament selbst ein. An der Oberfläche ändert sich
+  nichts: 38 Zustände der beiden Hüllen sind vor und nach dem Umzug aufgenommen, und was ein
+  Browser bekommt, ist Byte für Byte dasselbe, ebenso das Stylesheet.
+- `@opengewerk/platform-web` nennt seine Module frei von Seiteneffekten (`sideEffects`). Ohne die
+  Angabe legte der Bundler jedes Modul, das beide Einstiege erreichen, in den gemeinsamen Teil,
+  und das Büro lud den Rahmen der Baustelle mit: 329,8 statt 331,4 kB für das Büro.
+- Der Bildschirm "Konto" gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#12`, siebter
+  Teil), damit eine weitere Anwendung ihn nicht nachbaut: Darstellung, zweiter Faktor,
+  Wiederherstellungscodes, Passkeys, Passwort und angemeldete Geräte (`AccountScreen`,
+  `PasskeysPanel`). Diese Anwendung reicht ihre zwei Karten herein, die Betriebe und die
+  Benachrichtigungen, und sagt, wie ihre Einstiege heißen und für welche Rolle der zweite Faktor
+  Pflicht ist. An der Oberfläche ändert sich nichts: 36 Zustände des Bildschirms sind vor und
+  nach dem Umzug aufgenommen, und was ein Browser bekommt, ist Byte für Byte dasselbe. Die Karte
+  "Passkeys" hat dabei Tests für das bekommen, was bisher keiner prüfte: eine Liste, die lädt,
+  nicht ankommt oder leer ist, ein Name, den der Server ablehnt, ein Löschen, das scheitert, und
+  eine Bestätigung, die abgelaufen ist, bis der Name steht.
 
 ## [0.4.0] - 2026-09-27
 

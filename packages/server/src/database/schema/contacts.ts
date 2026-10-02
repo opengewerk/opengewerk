@@ -1,9 +1,14 @@
+import {
+  primaryId,
+  reference,
+  syncColumns,
+  tenantIsolation,
+  timestamps,
+} from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, pgTable, text } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, syncColumns, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 import { customers } from './customers.js'
 import { sites } from './sites.js'
 import { suppliers } from './suppliers.js'

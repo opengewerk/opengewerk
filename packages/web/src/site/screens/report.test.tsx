@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState } from '@opengewerk/domain'
 import { signaturePathIsValid, signedContentFingerprint } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import type { DirectWriter, PullResult, SyncTransport } from '@opengewerk/platform-web/sync'
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -14,11 +16,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DirectWriter } from '../../sync/client.js'
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import type { PullResult, SyncTransport } from '../../sync/transport.js'
 import { SiteJobScreen } from './jobs.js'
 import { SiteReportScreen } from './report.js'
 

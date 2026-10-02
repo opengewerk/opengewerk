@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState, RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -18,10 +20,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { consentQuery } from '../../app/time.js'
 import { TimeScreen } from '../../office/screens/time.js'
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { JobTime, SiteTimeEntryScreen, SiteTimeScreen, StopwatchBar } from './time.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The working time of #76 on screen: started at a job and stopped into one
@@ -50,7 +50,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'max@nord.example.de', name: 'Max' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 /** A moment on the 21st of September 2026, in Germany. */

@@ -4,22 +4,22 @@ import {
   paymentTermLabel,
   paymentTermProblem,
 } from '@opengewerk/domain'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check } from 'lucide-react'
-import { useState } from 'react'
-
-import { Button, Field, Panel } from '../../components/index.js'
-import { date, today } from '../../app/format.js'
-import { useMay } from '../../app/queries.js'
-import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
-import { RequestRefused } from '../../sync/transport.js'
+import { Button, Field, Panel } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
 import {
   Saved,
   SettingsHistory,
   SettingsPage,
   SettingsState,
   SettingsText,
-} from '../settings-frame.js'
+} from '@opengewerk/platform-web/office'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check } from 'lucide-react'
+import { useState } from 'react'
+
+import { useMay } from '../../app/queries.js'
+import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
 import { latestPeriod, proposedFrom } from './taxes.js'
 
 /** The setting this screen changes: the payment term of every document without its own. */

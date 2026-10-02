@@ -1,10 +1,9 @@
 import type { RecordState } from '@opengewerk/domain'
 import { showsPrices } from '@opengewerk/domain'
+import { maybeText, text, useRecords } from '@opengewerk/platform-web/sync'
 import { useMemo } from 'react'
 
 import { documentKindOf } from '../../app/labels.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecords } from '../../sync/provider.js'
 import { inOrder, totalsOf } from './document-lines.js'
 
 /**

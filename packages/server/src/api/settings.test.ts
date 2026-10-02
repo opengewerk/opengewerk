@@ -1,12 +1,11 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { type IsoDate, shippedRules, vatOn } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -170,5 +169,29 @@ describe('a setting a business makes', () => {
       .set('x-test-identity', owner())
       .send({ key: 'invoice.payment_term_days', from: '2027-01-01', value: 14.5 })
       .expect(400)
+  })
+
+  /**
+   * A yes or no is a 1 or a 0. The screens send nothing else, and the code
+   * that reads a setting asks whether it is 1: any other number would stand
+   * in the history as a yes that never applied. Asked where the setting is
+   * stored, so the route needs no rule of its own for it.
+   */
+  it('refuses a yes or no that is neither, and writes nothing', async () => {
+    const before = await http().get('/settings/parameters').set('x-test-identity', owner())
+
+    for (const value of [2, -1]) {
+      const refused = await http()
+        .post('/settings/parameters')
+        .set('x-test-identity', owner())
+        .send({ key: 'cash_accounting.permitted', from: '2031-01-01', value })
+        .expect(400)
+
+      expect(refused.body.message).toBe('Diese Einstellung ist an oder aus: der Wert ist 1 oder 0.')
+    }
+
+    const after = await http().get('/settings/parameters').set('x-test-identity', owner())
+
+    expect(after.body).toEqual(before.body)
   })
 })

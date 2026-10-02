@@ -1,10 +1,20 @@
 import type { RecordState } from '@opengewerk/domain'
 import { inverterProblems, pvStringProblems } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
+import {
+  NotSent,
+  SiteFacts,
+  SiteLabel,
+  SiteRow,
+  SiteRows,
+  SiteScreen,
+  SiteText,
+} from '@opengewerk/platform-web/site'
+import { maybeText, text, useRecord, useRecords, useSync } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { ChevronRight, Pencil, Plus, ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import { nextPosition } from '../../app/electrical.js'
 import { installationKindLabel, installationKindOf } from '../../app/labels.js'
 import {
@@ -34,11 +44,8 @@ import {
   withoutSerial,
   addModules,
 } from '../../app/photovoltaic.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
 import { useStructureBase } from '../structure-base.js'
-import { NotSent, SiteFacts, SiteLabel, SiteRow, SiteRows, SiteScreen, SiteText } from '../kit.js'
 
 /**
  * The PV structure of a job's PV system on site (#300): read it, and add what

@@ -1,20 +1,26 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import {
   defaultSmtpPorts,
-  type Identity,
   signatureMaxLength,
   type SmtpSecurity,
   smtpSecurities,
   type TenantId,
+  type TenantIdentity,
   unknownPlaceholders,
 } from '@opengewerk/domain'
+import {
+  type Database,
+  isHostName,
+  isMailAddress,
+  type MailConfiguration,
+  type SecretKey,
+  type StoredSecret,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
-import type { Database, TenantTransaction } from '../database/database.js'
 import { mailSettings } from '../database/schema/index.js'
-import type { SecretKey } from '../secrets/key.js'
-import { forgetSecret, keepSecret, readSecret, type StoredSecret } from '../secrets/store.js'
-import { isHostName, isMailAddress, type MailConfiguration } from './configuration.js'
+import { forgetSecret, keepSecret, readSecret } from '../secrets/store.js'
 import { giveUpPending } from './outbox.js'
 
 /**
@@ -170,7 +176,7 @@ export function validMailServer(wanted: MailServerInput): MailServerInput {
 /** The mail server of a business, or null when it has none. */
 export async function readMailServer(
   database: Database,
-  identity: Identity,
+  identity: TenantIdentity,
   key: SecretKey,
 ): Promise<MailServerView | null> {
   return database.forTenant(identity, async (tx) => {
@@ -190,7 +196,7 @@ export async function readMailServer(
  */
 export async function saveMailServer(
   database: Database,
-  identity: Identity,
+  identity: TenantIdentity,
   key: SecretKey,
   wanted: MailServerInput,
 ): Promise<MailServerView> {
@@ -258,7 +264,10 @@ export async function saveMailServer(
  * go out whenever a server is set up again: a reminder for a task that was due
  * three weeks ago is not what somebody switching mail back on wants to send.
  */
-export async function removeMailServer(database: Database, identity: Identity): Promise<void> {
+export async function removeMailServer(
+  database: Database,
+  identity: TenantIdentity,
+): Promise<void> {
   await database.forTenant(identity, async (tx) => {
     const removed = await tx
       .delete(mailSettings)
@@ -279,7 +288,10 @@ export async function removeMailServer(database: Database, identity: Identity): 
 }
 
 /** Whether a business sends mail and from which address, for anybody who reads the settings. */
-export async function mailStatusOf(database: Database, identity: Identity): Promise<MailStatus> {
+export async function mailStatusOf(
+  database: Database,
+  identity: TenantIdentity,
+): Promise<MailStatus> {
   const row = await database.forTenant(identity, (tx) => settingsOf(tx, identity.tenantId))
 
   return { configured: row !== null, from: row?.fromAddress ?? null }
@@ -290,7 +302,10 @@ export async function mailStatusOf(database: Database, identity: Identity): Prom
  * sentence that says where one is set up. A message written anyway would wait
  * for a server nobody set up, and the office would take it for sent.
  */
-export async function requireMailServer(database: Database, identity: Identity): Promise<void> {
+export async function requireMailServer(
+  database: Database,
+  identity: TenantIdentity,
+): Promise<void> {
   if (!(await mailStatusOf(database, identity)).configured) {
     throw new ConflictException(
       'Für diesen Betrieb ist kein Mailserver eingerichtet, deshalb verschickt er keine ' +
@@ -373,7 +388,7 @@ export async function sameConnection(
  */
 export async function configurationToTry(
   database: Database,
-  identity: Identity,
+  identity: TenantIdentity,
   key: SecretKey,
   wanted: MailServerInput,
 ): Promise<MailConfiguration> {

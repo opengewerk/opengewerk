@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import { type GroupBlock, readFormValues, type RecordState } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -14,11 +16,9 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { SiteJobScreen } from './jobs.js'
 import { SiteProtocolScreen } from './protocol.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * #79 as it happens on site, over the steps of the boards "Prüfprotokoll,
@@ -183,7 +183,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['technician'] }]],
+    ['/auth/tenants', [aTenantChoice(['technician'])]],
     ['/tasks/assignees', []],
   ])
 

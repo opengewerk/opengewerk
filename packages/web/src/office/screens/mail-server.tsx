@@ -6,13 +6,15 @@ import {
   smtpSecurities,
   unknownPlaceholders,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { moment } from '@opengewerk/platform-web/format'
+import { Saved, SettingsText } from '@opengewerk/platform-web/office'
+import { accountQuery } from '@opengewerk/platform-web/session'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
-import { moment } from '../../app/format.js'
-import { accountQuery } from '../../app/queries.js'
 import { letterhead, type LetterheadView } from '../../session/letterhead.js'
 import {
   checkMailServer,
@@ -24,8 +26,6 @@ import {
   type SavedMailServer,
   saveMailServer,
 } from '../../session/mail.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { Saved, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

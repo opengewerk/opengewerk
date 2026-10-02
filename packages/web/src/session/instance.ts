@@ -1,13 +1,11 @@
 import type {
-  InstanceAccess,
   InstanceLogPage,
   InstanceSettingsView,
   InstanceTenantView,
   OperatorView,
   TenantId,
 } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /**
  * The area of the instance (#188) and further businesses (#142), read straight
@@ -15,11 +13,6 @@ import { request } from '../sync/transport.js'
  * belongs to the instance and not to a business, and it is looked after in the
  * office.
  */
-
-/** Whether the person signed in runs the instance, for the entry under the name. */
-export function instanceAccess(): Promise<InstanceAccess> {
-  return request<InstanceAccess>('/instance/access')
-}
 
 export function instanceSettings(): Promise<InstanceSettingsView> {
   return request<InstanceSettingsView>('/instance/settings')
@@ -67,6 +60,11 @@ export interface CreatedForSomebody {
   readonly expiresAt: string
 }
 
+/**
+ * A business for somebody else, who is invited to be its owner. The route
+ * calls that person whoever leads the tenant: it is the foundation's, and the
+ * role that leads is an owner only in this application.
+ */
 export function createTenantFor(wanted: {
   readonly name: string
   readonly ownerName: string
@@ -74,7 +72,11 @@ export function createTenantFor(wanted: {
 }): Promise<CreatedForSomebody> {
   return request<CreatedForSomebody>('/instance/tenants', {
     method: 'POST',
-    body: JSON.stringify(wanted),
+    body: JSON.stringify({
+      name: wanted.name,
+      leadName: wanted.ownerName,
+      leadEmail: wanted.ownerEmail,
+    }),
   })
 }
 

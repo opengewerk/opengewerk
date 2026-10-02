@@ -1,10 +1,9 @@
+import { primaryId, reference, tenantIsolation } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, date, foreignKey, index, integer, pgTable, timestamp } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference } from './columns.js'
 import { documents } from './documents.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * A payment that came in on an invoice (#189), as the office records it.

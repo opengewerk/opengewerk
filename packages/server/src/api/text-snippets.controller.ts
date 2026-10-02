@@ -10,12 +10,11 @@ import {
   Post,
 } from '@nestjs/common'
 import { type SnippetPurpose, snippetPurposes, type TextSnippetId } from '@opengewerk/domain'
+import { Database, pick, requireFields, requireSomething } from '@opengewerk/platform-server'
 import { asc, eq } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
 import { textSnippets } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
-import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = ['purpose', 'title', 'text'] as const

@@ -10,6 +10,32 @@ import {
   type TimeEntryKind,
   workingTimeWarnings,
 } from '@opengewerk/domain'
+import {
+  Button,
+  Field,
+  Panel,
+  SelectField,
+  TextArea,
+  useButtonLook,
+} from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import {
+  SiteActionBar,
+  SiteLink,
+  SiteScreen,
+  SiteText,
+  SiteTrouble,
+  TopTitle,
+} from '@opengewerk/platform-web/site'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 
@@ -18,15 +44,6 @@ import { Check, ChevronLeft, ChevronRight, Play, Plus } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { ButtonHTMLAttributes } from 'react'
 
-import {
-  Button,
-  Field,
-  Panel,
-  SelectField,
-  TextArea,
-  useButtonLook,
-} from '../../components/index.js'
-import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
   type Activity,
@@ -54,12 +71,7 @@ import {
   withdrawEntry,
 } from '../../app/time.js'
 import { answerLocationConsent } from '../../session/time.js'
-import { refusalFor, type EditResult } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync } from '../../sync/provider.js'
-import { SiteActionBar } from '../action-bar.js'
 import { SiteHeader } from '../header.js'
-import { SiteLink, SiteScreen, SiteText, SiteTrouble, TopTitle } from '../kit.js'
 
 /** What a form or a button says back: nothing, or the sentence that went wrong. */
 function outcomeText(result: EditResult | string | null): string | null {

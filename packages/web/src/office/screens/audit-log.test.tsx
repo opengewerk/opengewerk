@@ -1,13 +1,14 @@
 import type { AuditChainReport, AuditChange, AuditPage, RoleKey } from '@opengewerk/domain'
+import { clockTime, moment } from '@opengewerk/platform-web/format'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clockTime, moment } from '../../app/format.js'
 import { InRouter } from '../../app/in-router.js'
 import { AuditLogScreen, ChangesButton } from './audit-log.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The change log for the owner (#285), as the boards "Änderungsprotokoll" of
@@ -28,7 +29,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'olga', email: 'olga@nord.example.de', name: 'Olga Owner' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('/auth/tenants', [aTenantChoice(roles)])
 }
 
 function inQueries(node: ReactNode, at = '/einstellungen/protokoll') {

@@ -11,19 +11,24 @@ import {
   pvLimits,
   pvModuleProblems,
 } from '@opengewerk/domain'
+import { Button, Field, SelectField, useEntry } from '@opengewerk/platform-web'
+import { SiteActionBar } from '@opengewerk/platform-web/site'
+import {
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useRelated,
+} from '@opengewerk/platform-web/sync'
+import type { Draft, EditResult, FormField } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Field, SelectField, useEntry } from '../components/index.js'
-import { SiteActionBar } from '../site/action-bar.js'
-import { refusalFor } from '../sync/client.js'
-import type { Draft, EditResult, SyncClient } from '../sync/client.js'
-import { count, maybeText, text } from '../sync/fields.js'
-import { useRecords, useRelated } from '../sync/provider.js'
+import type { SyncClient } from '../sync/client.js'
 import { Group, nextPosition, ordered, problemOf, readFigure } from './electrical.js'
-import type { FormField } from './record-form.js'
 
 /**
  * The PV structure below a PV system as both entries show it (#300): inverter,

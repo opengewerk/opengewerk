@@ -26,12 +26,6 @@ import {
   totalsFor,
   vatRates,
 } from '@opengewerk/domain'
-import { useQuery } from '@tanstack/react-query'
-import clsx from 'clsx'
-import { Check, Plus } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
   Cell,
@@ -41,8 +35,8 @@ import {
   SelectField,
   TablePanel,
   TextArea,
-} from '../../components/index.js'
-import type { TableCard } from '../../components/index.js'
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
 import {
   amount,
   centsAsInput,
@@ -52,7 +46,25 @@ import {
   parseEuros,
   parseQuantity,
   percent,
-} from '../../app/format.js'
+} from '@opengewerk/platform-web/format'
+import {
+  RequestRefused,
+  asTextOrNull,
+  count,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
+import { useQuery } from '@tanstack/react-query'
+import clsx from 'clsx'
+import { Check, Plus } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
 import {
   documentKindOf,
   lineKindOf,
@@ -65,13 +77,7 @@ import {
   vatRateLabel,
   vatRateOf,
 } from '../../app/labels.js'
-import { asTextOrNull } from '../../app/record-form.js'
 import { deductionsOf } from '../../session/documents.js'
-import { refusalFor } from '../../sync/client.js'
-import type { EditResult } from '../../sync/client.js'
-import { count, maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRelated, useSync } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { ArticlePicker } from './article-picker.js'
 import { Reorder } from './boards.js'
 import { SnippetPicker } from './snippet-picker.js'

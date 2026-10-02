@@ -1,13 +1,12 @@
+import { Button, Panel } from '@opengewerk/platform-web'
+import { PageHead, Screen } from '@opengewerk/platform-web/office'
+import { text, useRecords, useRelated } from '@opengewerk/platform-web/sync'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import { taskStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, type TaskLinks, usePeople } from '../../app/tasks.js'
-import { text } from '../../sync/fields.js'
-import { useRecords, useRelated } from '../../sync/provider.js'
-import { PageHead, Screen } from '../kit.js'
 
 /**
  * The tasks that hang on one customer, site or job, on that record's screen.

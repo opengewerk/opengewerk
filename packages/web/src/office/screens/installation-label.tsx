@@ -5,11 +5,26 @@ import {
   printedLabelCode,
   type RecordState,
 } from '@opengewerk/domain'
+import {
+  Button,
+  ButtonLink,
+  Confirm,
+  Field,
+  Panel,
+  QrCode,
+  SelectField,
+} from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import {
+  RequestRefused,
+  maybeText,
+  text,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import { Ban, Plus, Printer } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, ButtonLink, Confirm, Field, Panel, SelectField } from '../../components/index.js'
-import { date } from '../../app/format.js'
 import {
   blockLabel,
   createLabel,
@@ -17,10 +32,6 @@ import {
   useInstallationLabels,
 } from '../../app/installation-labels.js'
 import { useMay } from '../../app/queries.js'
-import { QrCode } from '../../app/setup.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useSync, useSyncStatus } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 
 const formats: readonly { readonly value: LabelFormat; readonly label: string }[] = [
   { value: 'roll', label: 'Etikettendrucker, 62 × 29 mm' },

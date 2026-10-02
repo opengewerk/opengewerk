@@ -1,13 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { Identity, RoleKey } from '@opengewerk/domain'
+import type { RoleKey } from '@opengewerk/domain'
+import { Database, newId } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { Database } from '../database/database.js'
-import { newId } from '../database/identifier.js'
 import { tasks } from '../database/schema/index.js'
 import {
   allowApplicationLogin,
@@ -19,7 +18,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { testIdentities as identities } from './test-identity.js'
+import { type Somebody, testIdentities as identities } from './test-identity.js'
 
 /**
  * The tasks of #80, on the server.
@@ -63,7 +62,7 @@ function as(person: Person): string {
     userId: person,
     tenantId: tenant,
     roles: [...roles] as RoleKey[],
-  } satisfies Identity)
+  } satisfies Somebody)
 }
 
 type Values = Record<string, string | number | boolean | null>

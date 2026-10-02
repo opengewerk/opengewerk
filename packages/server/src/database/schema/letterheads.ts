@@ -1,9 +1,8 @@
+import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { foreignKey, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
-import { primaryId, reference, timestamps } from './columns.js'
 import { files } from './files.js'
-import { tenantIsolation } from './rls.js'
-import { tenantColumn } from './tenants.js'
 
 /**
  * What a business prints at the top and the bottom of its documents. One row

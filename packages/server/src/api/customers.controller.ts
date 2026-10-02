@@ -10,13 +10,12 @@ import {
   Put,
 } from '@nestjs/common'
 import type { CustomerId } from '@opengewerk/domain'
+import { Database, pick, requireFields, requireSomething } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { Database } from '../database/database.js'
 import { customers, customerTags } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { setTags, tagChoiceFrom } from './tag-choice.js'
-import { pick, requireFields, requireSomething } from './body.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const writableFields = [

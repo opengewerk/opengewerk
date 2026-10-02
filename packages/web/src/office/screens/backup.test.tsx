@@ -13,6 +13,8 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BackupBar, BackupScreen } from './backup.js'
+import { InApplication } from '../../app/in-application.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The backups of the instance in the office (#130): the screen "Sicherung",
@@ -35,7 +37,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 function backup(status: BackupStatus) {
@@ -54,7 +56,9 @@ function mount(content: ReactNode) {
 
   render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={router} />
+      <InApplication>
+        <RouterProvider router={router} />
+      </InApplication>
     </QueryClientProvider>,
   )
 }

@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState, RoleKey } from '@opengewerk/domain'
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -14,10 +16,8 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SyncProvider } from '../../sync/provider.js'
-import { openLocalStore } from '../../sync/store.js'
-import { TestServer } from '../../sync/test-server.js'
 import { SiteScreen } from './sites.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * "Zugang" at a site in the office (#286), the boards "Objekt mit Zugang:
@@ -129,7 +129,7 @@ beforeEach(() => {
     }
 
     if (key === 'GET /auth/tenants') {
-      return answer([{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+      return answer([aTenantChoice(roles)])
     }
 
     if (key.startsWith('POST /sites/s-1/accesses/') && key.endsWith('/reveal')) {

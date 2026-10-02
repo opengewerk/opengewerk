@@ -1,11 +1,13 @@
 import type { SnippetPurpose } from '@opengewerk/domain'
 import { snippetPurposes } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { PageHead, Screen } from '@opengewerk/platform-web/office'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { snippetPurposeLabel } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -15,8 +17,6 @@ import {
   updateSnippet,
 } from '../../session/documents.js'
 import type { SnippetValues, TextSnippet } from '../../session/documents.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { PageHead, Screen } from '../kit.js'
 
 const purposeOptions = snippetPurposes.map((purpose) => ({
   value: purpose,
