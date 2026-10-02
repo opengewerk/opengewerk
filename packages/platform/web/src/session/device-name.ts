@@ -3,7 +3,7 @@
  * iPhone", from the user agent the session was signed in with (#223).
  *
  * The raw string is a line of vendor names and version numbers that nobody
- * reads, and it was what the device lists under "Konto" and "Zugänge" showed.
+ * reads, and it was what the lists of devices showed.
  * A browser that no pattern matches is still some browser on some system, so
  * the parts fall back one by one rather than the whole name at once.
  */

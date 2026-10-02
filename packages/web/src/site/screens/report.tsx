@@ -24,6 +24,7 @@ import type { FormEvent } from 'react'
 
 import { addAttachment } from '../../app/attachments.js'
 import { DocumentState } from '../../app/document-state.js'
+import { useMay } from '../../app/queries.js'
 import { ReportFieldsForm, ReportFieldsText } from '../../app/report-fields.js'
 import { amount, date, moment, parseQuantity } from '../../app/format.js'
 import {
@@ -34,7 +35,6 @@ import {
   lineUnitOf,
   lineUnitShort,
 } from '../../app/labels.js'
-import { useMay } from '../../app/queries.js'
 import { asTextOrNull } from '../../app/record-form.js'
 import { SignaturePicture } from '../../app/signature.js'
 import { SiteActionBar, SiteNoTabs } from '../action-bar.js'

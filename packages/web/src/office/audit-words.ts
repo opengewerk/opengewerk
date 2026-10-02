@@ -19,8 +19,8 @@ import {
 } from '@opengewerk/domain'
 
 import { elektroRegistry } from '@opengewerk/gewerk-elektro'
+import { deviceName } from '@opengewerk/platform-web/session'
 
-import { deviceName } from '../app/devices.js'
 import { documentStateLabel } from '../app/document-state.js'
 import { amount, date, euros, moment } from '../app/format.js'
 import {

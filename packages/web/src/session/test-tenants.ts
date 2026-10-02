@@ -1,6 +1,5 @@
 import { permissionCatalogue, shippedRoles, type TenantId } from '@opengewerk/domain'
-
-import type { TenantChoice } from './session.js'
+import type { TenantChoice } from '@opengewerk/platform-web/session'
 
 /**
  * A business as `/auth/tenants` answers it for somebody who holds these of

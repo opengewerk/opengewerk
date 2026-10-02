@@ -20,8 +20,8 @@ import {
   useVersions,
   versionLine,
 } from '../../app/attachments.js'
-import { useMay } from '../../app/queries.js'
 import { fileSize } from '../../app/format.js'
+import { useMay } from '../../app/queries.js'
 
 /**
  * The files at a customer, a site, an installation or a job, on its screen in

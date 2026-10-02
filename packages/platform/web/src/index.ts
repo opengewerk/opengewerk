@@ -14,5 +14,7 @@
 //   points they know: the office, with a mouse, and the site, with a finger
 // - `/sync`, the offline data layer: the sync client, its local store and the
 //   strip over every screen
+// - `/session`, who is signed in, in which tenant and with which rights, and
+//   what a device keeps of that for a start without a network
 // - `/testing`, what the tests of an application stand on
 export * from './components/index.js'

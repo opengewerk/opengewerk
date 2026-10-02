@@ -1,11 +1,5 @@
 import { businessNameMaxLength } from '@opengewerk/domain'
 import { Button, Field, FieldLabel, useInGate } from '@opengewerk/platform-web'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { encode } from 'uqr'
-
-import { Gate, GateText } from './gate.js'
 import {
   runSetup,
   secretFrom,
@@ -13,7 +7,13 @@ import {
   signIn,
   startSecondFactor,
   verifySecondFactor,
-} from './../session/session.js'
+} from '@opengewerk/platform-web/session'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { encode } from 'uqr'
+
+import { Gate, GateText } from './gate.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

@@ -1,5 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
 import { useEntry } from '@opengewerk/platform-web'
+import { useWho } from '@opengewerk/platform-web/session'
 import { text, useRelated, useSync } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { useMemo } from 'react'
@@ -8,7 +9,6 @@ import { NotSent } from '../site/kit.js'
 import { date, today } from './format.js'
 import { usePeople } from './tasks.js'
 import { clockOf } from './time.js'
-import { useWho } from './who.js'
 
 /**
  * The notes from the site about a job (#220), the newest first, for both

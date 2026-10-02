@@ -1,12 +1,12 @@
 import {
   isSignInMethod,
-  type Permission,
   type RoleDefinition,
   type SignInMethod,
   type TenantChoice as ChoiceOf,
   type TenantId,
-} from '@opengewerk/domain'
-import { request } from '@opengewerk/platform-web/sync'
+} from '@opengewerk/platform-domain'
+
+import { request } from '../sync/transport.js'
 
 import {
   forgetAccount,
@@ -22,12 +22,11 @@ import {
  * The three steps between opening the application and being able to work,
  * exactly as ADR 0006 cuts them.
  *
- * Who are you, which business, and only then what may you do. The middle step
+ * Who are you, which tenant, and only then what may you do. The middle step
  * is the one that is easy to skip and impossible to add later: a session that
- * carries no business would have to be given one by every request, and then
- * the answer to "which business" comes from the caller instead of from the
- * session. Row level security would isolate that business perfectly, for
- * whoever asked.
+ * carries no tenant would have to be given one by every request, and then the
+ * answer to "which tenant" comes from the caller instead of from the session.
+ * Row level security would isolate that tenant perfectly, for whoever asked.
  */
 
 /** Where better-auth's own routes are mounted, in front of the API. */
@@ -48,7 +47,7 @@ export interface Account {
   readonly userId: string
   readonly email: string
   readonly name: string
-  /** Null until a business has been chosen for this session. */
+  /** Null until a tenant has been chosen for this session. */
   readonly tenantId: TenantId | null
   /**
    * Whether a second factor is set up. Whether one is required follows from
@@ -64,12 +63,15 @@ export interface Account {
 }
 
 /**
- * One of the businesses this account works in, as the server tells it: the
- * keys of the roles, what the business calls them, and the rights they add up
- * to there at the moment of asking (ADR 0010). The screens decide by these
+ * One of the tenants this account works in, as the server tells it: the keys
+ * of the roles, what the tenant calls them, and the rights they add up to
+ * there at the moment of asking (ADR 0010). The screens decide by these
  * rights what to offer, which are the ones the guard asks on every request.
+ *
+ * Which rights there are is the catalogue of the application; to this code a
+ * right is a string, and a screen asks for one by its name.
  */
-export type TenantChoice = ChoiceOf<Permission>
+export type TenantChoice<Right extends string = string> = ChoiceOf<Right>
 
 export interface DeviceEntry {
   readonly sessionId: string
@@ -83,7 +85,8 @@ export interface DeviceEntry {
 
 /**
  * What signing in produced. `second-factor` is not a failure: the password was
- * right and the account has TOTP switched on, which for an owner it must.
+ * right and the account has TOTP switched on, which whoever leads a tenant
+ * must.
  */
 export type SignInOutcome = 'signed-in' | 'second-factor'
 
@@ -105,10 +108,10 @@ export async function currentAccount(): Promise<Account | null> {
     answer = await request<SessionAnswer | null>(`${authentication}/get-session`)
   } catch (error) {
     // Nobody answered, which is not the same as "nobody is signed in". The
-    // device then works with who was signed in here last, so that the site
-    // opens the day's jobs in a basement (#123); the server decides again at
-    // the first request that reaches it. With nobody kept, the failure stays
-    // a failure and the gate says the device needs a network once.
+    // device then works with who was signed in here last, so that it opens
+    // the day's work in a basement (#123); the server decides again at the
+    // first request that reaches it. With nobody kept, the failure stays a
+    // failure and the gate says the device needs a network once.
     const kept = unreachable(error) ? rememberedAccount() : null
 
     if (kept) {
@@ -181,7 +184,7 @@ export interface FirstRun {
 }
 
 /**
- * The first business, the first account and the membership between them.
+ * The first tenant, the first account and the membership between them.
  *
  * Signing in afterwards is a separate call and deliberately so: it is the
  * ordinary sign in, with the ordinary cookie and the ordinary rate limit, and
@@ -253,7 +256,7 @@ export async function verifySecondFactor(code: string): Promise<void> {
     method: 'POST',
     // `trustDevice` is deliberately not sent. It would let a browser skip the
     // second factor next time, and the second factor is the one thing between
-    // a stolen password and a business's books.
+    // a stolen password and everything a tenant keeps.
     body: JSON.stringify({ code }),
   })
 }
@@ -294,9 +297,9 @@ export async function newRecoveryCodes(password: string): Promise<readonly strin
 }
 
 /**
- * The businesses of this account and what its roles add up to in each.
- * Without a network, the ones kept from the last answer (#184), so that a
- * device opened in a basement shows the screens its rights allow; the server
+ * The tenants of this account and what its roles add up to in each. Without
+ * a network, the ones kept from the last answer (#184), so that a device
+ * opened in a basement shows the screens its rights allow; the server
  * decides again at the first request that reaches it, as with the account.
  */
 export async function availableTenants(): Promise<readonly TenantChoice[]> {
@@ -318,14 +321,14 @@ export async function availableTenants(): Promise<readonly TenantChoice[]> {
 }
 
 /**
- * Picks the business this session works in.
+ * Picks the tenant this session works in.
  *
  * The device id goes along on the site entry and not in the office, and that
  * is what decides the length of the session: thirty days on a registered
  * device, twelve hours at a desk somebody walks away from.
  */
 export async function chooseTenant(tenantId: TenantId, deviceId?: string): Promise<void> {
-  // The business this device opens without a network changes with it; until
+  // The tenant this device opens without a network changes with it; until
   // the new one has been opened, it opens none (#123).
   forgetAccount()
   await request('/auth/tenant', {
@@ -350,22 +353,22 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Who works in this business, and what the office may do about it.
+ * Who works in this tenant, and what can be done about it at a desk.
  *
- * Behind `membership.read` and `membership.write`, which only the owner has.
- * The screen that uses them lives in the office application because that is
- * where a desk is, not because the office role reaches it.
+ * Behind `membership.read` and `membership.write`, which whoever leads the
+ * tenant has. The screen that uses them lives in the office entry because
+ * that is where a desk is.
  */
 
 export interface StaffEntry {
   readonly userId: string
   readonly name: string
   readonly email: string
-  /** The keys of the roles, as the business has them (`staffRoles`). */
+  /** The keys of the roles, as the tenant has them (`staffRoles`). */
   readonly roles: readonly string[]
   /** Null while they work here, a moment in time once they were shut out. */
   readonly blockedAt: string | null
-  /** When this business last saw them start work, not the instance. */
+  /** When this tenant last saw them start work, not the instance. */
   readonly lastSignInAt: string | null
   readonly twoFactorEnabled: boolean
   /** Whether the account has a passkey, a second factor as well (#167). */
@@ -386,7 +389,7 @@ export interface InvitationEntry {
   readonly roles: readonly string[]
   readonly expiresAt: string
   readonly invitedBy: string
-  /** Null for a link the office passed on itself. */
+  /** Null for a link somebody passed on themselves. */
   readonly mail: InvitationMail | null
 }
 
@@ -395,11 +398,10 @@ export function staff(): Promise<readonly StaffEntry[]> {
 }
 
 /**
- * The roles this business has, in the order it made them: what the screen
+ * The roles this tenant has, in the order it made them: what the screen
  * offers when somebody is invited or given a role, what it calls them, and
- * which of them ask for a second factor. From the rows of the business and
- * not from a list in this code, because those are the roles the server
- * accepts.
+ * which of them ask for a second factor. From the rows of the tenant and not
+ * from a list in any code, because those are the roles the server accepts.
  */
 export function staffRoles(): Promise<readonly RoleDefinition[]> {
   return request<readonly RoleDefinition[]>('/staff/roles')
@@ -412,7 +414,7 @@ export function openInvitations(): Promise<readonly InvitationEntry[]> {
 /**
  * Invites somebody, and hands the link back once, or has it sent by mail.
  *
- * For a link the office passes on, the address is put together here rather
+ * For a link somebody passes on, the address is put together here rather
  * than on the server, out of the one the browser is already looking at. The
  * server would have to be told an address, and a wrong one would produce links
  * that lead nowhere on exactly the installations nobody tested.
@@ -471,9 +473,9 @@ export async function revokeStaffDevice(userId: string, sessionId: string): Prom
  * The far end of the link, which is a screen somebody reaches before they have
  * an account at all.
  *
- * The path is the one thing both halves have to agree on: the office builds a
- * link with it and the gate recognises one by it. So it is written once, here,
- * rather than as a string in each of the two places.
+ * The path is the one thing both halves have to agree on: the screen that
+ * invites builds a link with it and the gate recognises one by it. So it is
+ * written once, here, rather than as a string in each of the two places.
  */
 export const invitationPath = '/einladung'
 
@@ -507,7 +509,7 @@ export async function changePassword(current: string, next: string): Promise<voi
 /**
  * Asks for a link to a new password. The answer is the same whether the
  * address has an account or not, and whether a mail goes out depends on
- * whether a business it works in sends mail at all.
+ * whether a tenant it works in sends mail at all.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   await request(`${authentication}/request-password-reset`, {

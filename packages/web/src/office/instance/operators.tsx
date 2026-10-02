@@ -10,13 +10,13 @@ import {
   TablePanel,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { accountQuery } from '@opengewerk/platform-web/session'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, TriangleAlert } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
 import { date } from '../../app/format.js'
-import { accountQuery } from '../../app/queries.js'
 import { appointOperator, operators, removeOperator } from '../../session/instance.js'
 import { SettingsText } from '../settings-frame.js'
 import { instanceAccessQuery } from '../top-bar.js'

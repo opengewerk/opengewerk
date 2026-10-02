@@ -1,3 +1,4 @@
+import { invitationToken } from '@opengewerk/platform-web/session'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
@@ -5,7 +6,6 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InvitationScreen } from './invitation.js'
-import { invitationToken } from './../session/session.js'
 
 /**
  * The screen at the far end of a one time link, and the piece of the address

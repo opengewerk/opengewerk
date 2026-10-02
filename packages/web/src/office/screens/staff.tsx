@@ -1,6 +1,21 @@
 import type { RoleDefinition } from '@opengewerk/domain'
 import { Button, Cell, Column, Confirm, Field, Panel, TablePanel } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import {
+  accountQuery,
+  deviceName,
+  invite,
+  openInvitations,
+  revokeStaffDevice,
+  rolesInWords,
+  setBlocked,
+  setRoles,
+  staff,
+  staffDevices,
+  staffRoles,
+  withdrawInvitation,
+} from '@opengewerk/platform-web/session'
+import type { InvitationMail, StaffEntry } from '@opengewerk/platform-web/session'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
@@ -8,23 +23,8 @@ import { Copy, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { deviceName } from '../../app/devices.js'
 import { date, moment } from '../../app/format.js'
-import { rolesInWords } from '../../app/labels.js'
-import { accountQuery } from '../../app/queries.js'
 import { mailStatus } from '../../session/mail.js'
-import {
-  invite,
-  openInvitations,
-  revokeStaffDevice,
-  setBlocked,
-  setRoles,
-  staff,
-  staffDevices,
-  staffRoles,
-  withdrawInvitation,
-} from '../../session/session.js'
-import type { InvitationMail, StaffEntry } from '../../session/session.js'
 import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {

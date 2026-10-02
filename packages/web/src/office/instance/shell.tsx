@@ -1,4 +1,5 @@
 import { BrandMark, Shell } from '@opengewerk/platform-web'
+import { useWho } from '@opengewerk/platform-web/session'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -7,7 +8,6 @@ import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
 import { UpdateBar } from '../../app/update-bar.js'
-import { useWho } from '../../app/who.js'
 import { PageHead, Screen } from '../kit.js'
 import { SettingsText } from '../settings-frame.js'
 import { instanceAccessQuery, PersonMenu } from '../top-bar.js'
@@ -87,14 +87,14 @@ function BackToOffice({ large = false }: { readonly large?: boolean }) {
         <ChevronLeft size={large ? 20 : 16} strokeWidth={1.9} aria-hidden="true" />
         Zurück zum Büro
       </Link>
-      {who.business ? (
+      {who.tenant ? (
         <div
           className={clsx(
             '-mt-[3px] pr-2.5 pb-1.5 text-[12px] text-ink-faint',
             large ? 'pl-[46px]' : 'pl-[35px]',
           )}
         >
-          {who.business}
+          {who.tenant}
         </div>
       ) : null}
     </>

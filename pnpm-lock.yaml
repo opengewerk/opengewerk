@@ -313,6 +313,12 @@ importers:
       '@opengewerk/platform-domain':
         specifier: workspace:*
         version: link:../domain
+      '@simplewebauthn/browser':
+        specifier: 14.0.0
+        version: 14.0.0
+      '@tanstack/react-query':
+        specifier: 5.103.1
+        version: 5.103.1(react@19.3.0)
       clsx:
         specifier: 2.1.1
         version: 2.1.1

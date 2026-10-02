@@ -1,6 +1,17 @@
 import { hasSecondFactor, syncEntities, type TenantId } from '@opengewerk/domain'
 import { Button } from '@opengewerk/platform-web'
 import {
+  accountQuery,
+  availableTenants,
+  deviceIdentity,
+  instanceVersion,
+  invitationToken,
+  passwordResetToken,
+  setupNeeded,
+  unreachable,
+} from '@opengewerk/platform-web/session'
+import type { Account } from '@opengewerk/platform-web/session'
+import {
   SyncProvider,
   directWrite,
   httpTransport,
@@ -13,24 +24,14 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { Entry } from '../entry/entry.js'
-import { unreachable } from '../session/remembered.js'
+import { upgradeKeptTenants } from '../session/older-tenants.js'
 import { SyncClient } from '../sync/client.js'
 import { siteTransport } from '../sync/transport.js'
-import { deviceIdentity } from './device.js'
 import { Gate, GateText, GateWaiting, InstanceVersion } from './gate.js'
 import { InvitationScreen } from './invitation.js'
 import { PasswordResetScreen } from './password-reset.js'
-import { accountQuery } from './queries.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
-import {
-  availableTenants,
-  instanceVersion,
-  invitationToken,
-  passwordResetToken,
-  setupNeeded,
-} from './../session/session.js'
-import type { Account } from './../session/session.js'
 
 /**
  * Everything between opening the application and being able to work.
@@ -59,6 +60,14 @@ import type { Account } from './../session/session.js'
 type Step = 'second-factor' | 'asking' | 'working'
 
 export function Boot({ entry, children }: { readonly entry: Entry; readonly children: ReactNode }) {
+  // Once, before the first question that could read it: a list of businesses
+  // an earlier version kept, put into the form this one reads.
+  useState(() => {
+    upgradeKeptTenants()
+
+    return true
+  })
+
   // Asked once per start and kept: the version does not change while the page
   // is open, and without an answer the foot of the gate shows the licence
   // alone (#259).

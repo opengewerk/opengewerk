@@ -85,17 +85,6 @@ export const roleLabel: Readonly<Record<RoleKey, string>> = {
   technician: 'Monteur',
 }
 
-/**
- * Several roles in one line, by the names their business gives them, for a
- * table cell and for a sentence.
- *
- * A comma and not a slash: somebody with two roles has both, and a slash reads
- * like a choice between them.
- */
-export function rolesInWords(labels: readonly string[]): string {
-  return labels.join(', ')
-}
-
 export const documentKindLabel: Readonly<Record<DocumentKind, string>> = {
   cost_estimate: 'Kostenvoranschlag',
   quote: 'Angebot',

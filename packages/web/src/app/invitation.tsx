@@ -1,16 +1,16 @@
 import { Button, Field } from '@opengewerk/platform-web'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-
-import { Gate, GateText, GateWaiting } from './gate.js'
 import {
   invitationOffer,
   redeemInvitation,
   shortestPassword,
   signIn,
-} from './../session/session.js'
-import type { InvitationState } from './../session/session.js'
+} from '@opengewerk/platform-web/session'
+import type { InvitationState } from '@opengewerk/platform-web/session'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+
+import { Gate, GateText, GateWaiting } from './gate.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

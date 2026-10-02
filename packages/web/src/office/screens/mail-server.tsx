@@ -7,13 +7,13 @@ import {
   unknownPlaceholders,
 } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { accountQuery } from '@opengewerk/platform-web/session'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 
 import { moment } from '../../app/format.js'
-import { accountQuery } from '../../app/queries.js'
 import { letterhead, type LetterheadView } from '../../session/letterhead.js'
 import {
   checkMailServer,

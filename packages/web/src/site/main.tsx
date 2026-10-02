@@ -1,9 +1,9 @@
+import { QueryProvider, queries } from '@opengewerk/platform-web/session'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { Boot } from '../app/boot.js'
-import { queries, QueryProvider } from '../app/queries.js'
 import { startTheme } from '../app/theme.js'
 import { startServiceWorker } from '../entry/register.js'
 import { siteRouter } from './router.js'
