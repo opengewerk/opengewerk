@@ -1,6 +1,5 @@
 import { countryChoices, type RecordState } from '@opengewerk/domain'
-
-import { maybeText } from '../sync/fields.js'
+import { maybeText } from '@opengewerk/platform-web/sync'
 
 /**
  * Numbers and dates the way they are written in Germany, and nowhere else in

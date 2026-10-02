@@ -1,7 +1,11 @@
 import type { LabelFormat, RecordState } from '@opengewerk/domain'
-
-import { useHoldsAll, useRelated, useRecords, useSyncStatus } from '../sync/provider.js'
-import { request } from '../sync/transport.js'
+import {
+  request,
+  useHoldsAll,
+  useRecords,
+  useRelated,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 
 /**
  * The QR labels of an installation (#308), as both entries need them: the

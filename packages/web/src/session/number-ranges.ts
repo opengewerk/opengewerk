@@ -1,6 +1,5 @@
 import type { NumberRangeKey } from '@opengewerk/domain'
-
-import { request } from '../sync/transport.js'
+import { request } from '@opengewerk/platform-web/sync'
 
 /** One sequence of the business, as the server keeps it. */
 export interface NumberRangeView {

@@ -7,6 +7,7 @@ import {
   normalizedWording,
 } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, TextArea } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check as Tick, Pencil, Plus, RotateCcw } from 'lucide-react'
 import { useId, useState } from 'react'
@@ -24,7 +25,6 @@ import {
   restoreInstruction,
   updateInstruction,
 } from '../../session/instructions.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { NoteBox } from '../kit.js'
 import { SettingsPage, SettingsText } from '../settings-frame.js'
 

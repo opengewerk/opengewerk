@@ -1,7 +1,7 @@
 import type { SyncConflict } from '@opengewerk/domain'
+import { maybeText, refusalFor } from '@opengewerk/platform-web/sync'
 
-import { refusalFor, type SyncClient } from '../sync/client.js'
-import { maybeText } from '../sync/fields.js'
+import type { SyncClient } from '../sync/client.js'
 import { today } from './format.js'
 import { documentKindLabel, documentKindOf } from './labels.js'
 

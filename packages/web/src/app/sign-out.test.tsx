@@ -1,14 +1,14 @@
 import 'fake-indexeddb/auto'
 
 import type { OperationId } from '@opengewerk/domain'
+import { deleteLocalStore, openLocalStore, storesOnDevice } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { rememberAccount } from '../session/remembered.js'
 import { SyncClient } from '../sync/client.js'
-import { deleteLocalStore, openLocalStore, storesOnDevice } from '../sync/store.js'
-import { TestServer } from '../sync/test-server.js'
 import { SignOutButton } from './sign-out.js'
 
 /**

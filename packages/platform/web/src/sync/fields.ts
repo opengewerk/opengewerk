@@ -1,4 +1,4 @@
-import type { RecordState, SyncValue } from '@opengewerk/domain'
+import type { RecordState, SyncValue } from '@opengewerk/platform-domain'
 
 /**
  * Reading a field off a record that came over the wire.
@@ -47,9 +47,9 @@ export function flag(record: RecordState | null | undefined, field: string): boo
 /**
  * A value narrowed to one of a known set, falling back to the first.
  *
- * The lists come from `domain`, so a kind added there widens this without
- * anybody touching the screens, and a record carrying something no build knows
- * shows the fallback instead of an empty cell.
+ * The lists come from the model of the application, so a kind added there
+ * widens this without anybody touching the screens, and a record carrying
+ * something no build knows shows the fallback instead of an empty cell.
  */
 export function oneOf<Value extends string>(
   record: RecordState | null | undefined,

@@ -1,5 +1,7 @@
 import 'fake-indexeddb/auto'
 
+import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
@@ -7,9 +9,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AccountScreen } from '../office/screens/account.js'
 import { SyncClient } from '../sync/client.js'
-import { SyncProvider } from '../sync/provider.js'
-import { openLocalStore } from '../sync/store.js'
-import { TestServer } from '../sync/test-server.js'
 import { PasswordResetScreen } from './password-reset.js'
 import { SecondFactorScreen, SignInScreen } from './sign-in.js'
 

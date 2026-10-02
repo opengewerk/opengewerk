@@ -1,8 +1,8 @@
 import { Button, Field } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { RequestRefused } from '../sync/transport.js'
 import { Gate, GateText, GateWaiting } from './gate.js'
 import {
   invitationOffer,

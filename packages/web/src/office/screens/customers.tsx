@@ -11,6 +11,19 @@ import {
   cardLink,
   useThreeColumns,
 } from '@opengewerk/platform-web'
+import {
+  RequestRefused,
+  maybeText,
+  refusalFor,
+  text,
+  useHoldsAll,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { ArrowRight, Check, Clock, Pencil, Plus, Tag, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -27,18 +40,6 @@ import {
 import { useMay } from '../../app/queries.js'
 import { RecordForm, asBoolean, asTextOrNull, yesOrNo } from '../../app/record-form.js'
 import { setTags } from '../../session/tags.js'
-import { refusalFor } from '../../sync/client.js'
-import type { EditResult } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { RequestRefused } from '../../sync/transport.js'
-import {
-  useHoldsAll,
-  useRecord,
-  useRecords,
-  useRelated,
-  useSync,
-  useSyncStatus,
-} from '../../sync/provider.js'
 import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import { ListCard, ListScreen } from '../list.js'
 import type { ListColumn, ListFilter } from '../list.js'

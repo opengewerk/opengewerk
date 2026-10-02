@@ -8,6 +8,10 @@ import tokens from './styles/tokens.css?raw'
 export { tokenUsage } from './styles/usage.js'
 export type { TokenUsage, TokenUsageOptions } from './styles/usage.js'
 
+// A stand in for the server, for the tests of screens that write through the
+// outbox.
+export { TestServer } from './sync/test-server.js'
+
 /** The design tokens as text, the way the checks of colours and classes read them. */
 export const designTokens: string = tokens
 

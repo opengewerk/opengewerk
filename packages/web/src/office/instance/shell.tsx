@@ -6,7 +6,7 @@ import { ChevronLeft, History, House, Menu, Server, Settings, Shield, X } from '
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-import { UpdateBar } from '../../app/sync-bar.js'
+import { UpdateBar } from '../../app/update-bar.js'
 import { useWho } from '../../app/who.js'
 import { PageHead, Screen } from '../kit.js'
 import { SettingsText } from '../settings-frame.js'

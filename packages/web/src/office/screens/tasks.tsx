@@ -1,12 +1,11 @@
 import { Button, Panel } from '@opengewerk/platform-web'
+import { text, useRecords, useRelated } from '@opengewerk/platform-web/sync'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { taskStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, type TaskLinks, usePeople } from '../../app/tasks.js'
-import { text } from '../../sync/fields.js'
-import { useRecords, useRelated } from '../../sync/provider.js'
 import { PageHead, Screen } from '../kit.js'
 
 /**

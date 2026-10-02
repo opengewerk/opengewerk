@@ -7,6 +7,7 @@ import {
   unknownPlaceholders,
 } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
@@ -24,7 +25,6 @@ import {
   type SavedMailServer,
   saveMailServer,
 } from '../../session/mail.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { Saved, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {

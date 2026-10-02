@@ -6,6 +6,7 @@ import {
   sourceWords,
 } from '@opengewerk/domain'
 import { Button, Field, Panel, SelectField, Status } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
@@ -17,7 +18,6 @@ import {
   deadlineSettings,
   setDeadlineSetting,
 } from '../../session/deadlines.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { NoteBox } from '../kit.js'
 import { Saved, SettingsPage, SettingsText } from '../settings-frame.js'
 

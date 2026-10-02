@@ -1,5 +1,14 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Panel, useBand } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useRelated,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { Link, Outlet, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
@@ -17,9 +26,6 @@ import {
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { clockOf, useStopwatch } from '../../app/time.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useRelated, useSync } from '../../sync/provider.js'
 import { InstallationPanel } from './installation.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'

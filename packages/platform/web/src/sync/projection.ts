@@ -1,5 +1,5 @@
-import type { Operation, RecordState } from '@opengewerk/domain'
-import { inOutboxOrder, policyFor } from '@opengewerk/domain'
+import type { Operation, RecordState, SyncRules } from '@opengewerk/platform-domain'
+import { inOutboxOrder } from '@opengewerk/platform-domain'
 
 /** The key a record has in the outbox index. */
 export function recordKey(entity: string, id: string): string {
@@ -28,6 +28,8 @@ export function project(
   pending: readonly Operation[],
   /** Minted on the device, so a record that has never been sent still has one. */
   recordId: string,
+  /** The policies of the application, for what a record made here starts as. */
+  policyFor: SyncRules['policyFor'],
 ): RecordState | null {
   let current = server
 
@@ -48,9 +50,9 @@ export function project(
     // the operation's `recordId` instead, which is where this one comes from.
     //
     // Under it go the fields the server fills in on creating, as the policy
-    // says it will. A document made on this device is a draft before the
-    // server has said so, and the gates that ask for its status get an answer
-    // instead of a refusal.
+    // says it will. A record made on this device is in its first state before
+    // the server has said so, and the gates that ask for that state get an
+    // answer instead of a refusal.
     current =
       operation.kind === 'create'
         ? { ...policyFor(operation.entity)?.createdAs, ...values, id: recordId }
@@ -64,7 +66,7 @@ export function project(
  * Groups an outbox by the record each operation belongs to.
  *
  * Built once per change rather than searched per row. A list of four hundred
- * circuits would otherwise walk the whole outbox four hundred times, and it
+ * rows would otherwise walk the whole outbox four hundred times, and it
  * would do it inside a render.
  */
 export function byRecord(operations: readonly Operation[]): ReadonlyMap<string, Operation[]> {

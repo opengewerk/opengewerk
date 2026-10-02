@@ -8,8 +8,7 @@ import type {
   RecordState,
   SnippetPurpose,
 } from '@opengewerk/domain'
-
-import { RequestRefused, request } from '../sync/transport.js'
+import { RequestRefused, request } from '@opengewerk/platform-web/sync'
 
 /**
  * The calls about documents that go straight to the server instead of into

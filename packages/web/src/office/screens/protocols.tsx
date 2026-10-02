@@ -32,6 +32,7 @@ import {
   statusIcons,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { text, useRecord } from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Check, Plus } from 'lucide-react'
@@ -57,8 +58,6 @@ import {
 } from '../../app/protocols.js'
 import type { ProtocolDraft } from '../../app/protocols.js'
 import { SignaturePicture } from '../../app/signature.js'
-import { text } from '../../sync/fields.js'
-import { useRecord } from '../../sync/provider.js'
 import { Chip, Empty, NoteBox, PageHead, Screen } from '../kit.js'
 import type { Crumb } from '../kit.js'
 import { Section } from '../layout.js'

@@ -28,8 +28,7 @@ import {
   taxTreatments,
   vatRates,
 } from '@opengewerk/domain'
-
-import { oneOf } from '../sync/fields.js'
+import { oneOf } from '@opengewerk/platform-web/sync'
 
 /**
  * What the words on the screen are.

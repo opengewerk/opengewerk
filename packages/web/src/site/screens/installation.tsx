@@ -1,5 +1,13 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Panel } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  text,
+  useHoldsAll,
+  useRecord,
+  useRecords,
+  useRelated,
+} from '@opengewerk/platform-web/sync'
 import { useParams } from '@tanstack/react-router'
 import { MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -13,8 +21,6 @@ import {
   jobStatusOf,
 } from '../../app/labels.js'
 import { definitionOf, useProtocols } from '../../app/protocols.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useHoldsAll, useRecord, useRecords, useRelated } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
 import {
   SiteAnchor,

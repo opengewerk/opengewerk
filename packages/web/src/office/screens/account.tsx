@@ -10,6 +10,7 @@ import {
   ThemeSwitch,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { RequestRefused, useSync } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Key, Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -31,8 +32,6 @@ import {
   shortestPassword,
 } from '../../session/session.js'
 import { createOwnTenant } from '../../session/instance.js'
-import { useSync } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { switchBusiness, useBusinesses } from '../businesses.js'
 import { PageHead, Screen } from '../kit.js'
 import { PasskeysPanel } from './account-passkeys.js'

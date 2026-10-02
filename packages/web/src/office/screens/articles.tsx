@@ -27,6 +27,7 @@ import {
   useBand,
   useButtonLook,
 } from '@opengewerk/platform-web'
+import { RequestRefused, text, useRecords } from '@opengewerk/platform-web/sync'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -57,9 +58,6 @@ import {
   updateArticle,
   updateArticleSupplier,
 } from '../../session/articles.js'
-import { text } from '../../sync/fields.js'
-import { useRecords } from '../../sync/provider.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { Chip, Empty, FactList, FilterSelect, PageHead, RecordColumns, Screen } from '../kit.js'
 import { SortChoice } from '../list.js'
 import { ChangesButton } from './audit-log.js'

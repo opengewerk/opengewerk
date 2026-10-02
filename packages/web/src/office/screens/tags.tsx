@@ -1,14 +1,12 @@
 import { tagName, tagNameMaxLength, tagNameProblem, type RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
+import { RequestRefused, text, useSync } from '@opengewerk/platform-web/sync'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { useMay } from '../../app/queries.js'
 import { createTag, removeTag, renameTag } from '../../session/tags.js'
-import { RequestRefused } from '../../sync/transport.js'
-import { text } from '../../sync/fields.js'
-import { useSync } from '../../sync/provider.js'
 import { SettingsPage, SettingsText } from '../settings-frame.js'
 import { TagPill, useTagCounts, useTags } from '../tags.js'
 

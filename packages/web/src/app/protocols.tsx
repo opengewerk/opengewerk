@@ -37,15 +37,23 @@ import {
   statusIcons,
   useEntry,
 } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecords,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Copy, Eye, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { type EditResult, refusalFor, type SyncClient } from '../sync/client.js'
-import { maybeText, text } from '../sync/fields.js'
-import { useRecords, useRelated, useSync, useSyncStatus } from '../sync/provider.js'
+import type { SyncClient } from '../sync/client.js'
 import { ordered, useBoards } from './electrical.js'
 import { amount, date, scaledNumber, today } from './format.js'
 import { SignaturePicture } from './signature.js'

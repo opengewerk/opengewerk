@@ -1,4 +1,5 @@
 import type { PushEntry, PushOccasion } from '@opengewerk/domain'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
@@ -9,7 +10,6 @@ import {
   sendTestPush,
   setOccasion,
 } from '../session/push.js'
-import { RequestRefused } from '../sync/transport.js'
 import {
   browserSubscription,
   type PushBlocker,

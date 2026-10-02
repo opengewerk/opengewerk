@@ -18,6 +18,15 @@ import {
   TextArea,
   useButtonLook,
 } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+} from '@opengewerk/platform-web/sync'
+import type { EditResult } from '@opengewerk/platform-web/sync'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 
@@ -54,9 +63,6 @@ import {
   withdrawEntry,
 } from '../../app/time.js'
 import { answerLocationConsent } from '../../session/time.js'
-import { refusalFor, type EditResult } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync } from '../../sync/provider.js'
 import { SiteActionBar } from '../action-bar.js'
 import { SiteHeader } from '../header.js'
 import { SiteLink, SiteScreen, SiteText, SiteTrouble, TopTitle } from '../kit.js'

@@ -5,13 +5,13 @@ import {
   type TenantParameterKey,
 } from '@opengewerk/domain'
 import { Button, Field, Panel, TextArea } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
-import { RequestRefused } from '../../sync/transport.js'
 import { Saved, SettingsPage, SettingsState, SettingsText } from '../settings-frame.js'
 
 /** The claim of section 27 (38) number 2 UStG, the transition of 2027. */

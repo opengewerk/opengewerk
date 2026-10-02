@@ -1,8 +1,8 @@
 import { Button, Panel } from '@opengewerk/platform-web'
+import { useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { RefreshCw } from 'lucide-react'
 
 import { NothingToDecide, SyncStateCard, useDecisions } from '../../app/conflicts.js'
-import { useSync, useSyncStatus } from '../../sync/provider.js'
 import { PageHead, RecordColumns, Screen } from '../kit.js'
 
 /**

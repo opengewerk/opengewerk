@@ -5,6 +5,7 @@ import {
   paymentTermProblem,
 } from '@opengewerk/domain'
 import { Button, Field, Panel } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
@@ -12,7 +13,6 @@ import { useState } from 'react'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
-import { RequestRefused } from '../../sync/transport.js'
 import {
   Saved,
   SettingsHistory,

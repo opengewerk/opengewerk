@@ -1,11 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Panel } from '@opengewerk/platform-web'
+import { maybeText, text, useRecord, useRelated } from '@opengewerk/platform-web/sync'
 import { useParams } from '@tanstack/react-router'
 
 import { AddFiles, AttachmentList } from '../../app/attachments.js'
 import { useMay } from '../../app/queries.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRelated } from '../../sync/provider.js'
 import { SiteHeader } from '../header.js'
 import { SiteScreen, SiteText } from '../kit.js'
 

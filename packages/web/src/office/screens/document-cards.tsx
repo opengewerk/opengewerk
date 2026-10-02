@@ -1,6 +1,7 @@
 import type { DocumentKind, DocumentStatus, EInvoiceGap, RecordState } from '@opengewerk/domain'
 import { invoiceFormats } from '@opengewerk/domain'
 import { Button, ButtonLink, Field, Panel } from '@opengewerk/platform-web'
+import { maybeText, text, useRelated } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Download, Mail } from 'lucide-react'
@@ -20,8 +21,6 @@ import {
   xrechnungAddress,
   zugferdAddress,
 } from '../../session/documents.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRelated } from '../../sync/provider.js'
 import type { Fact } from '../kit.js'
 import { FactList } from '../kit.js'
 import { reasonOf } from './document-steps.js'

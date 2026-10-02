@@ -1,10 +1,9 @@
+import { useSyncStatus } from '@opengewerk/platform-web/sync'
 import { Link, useMatchRoute } from '@tanstack/react-router'
 import { ChevronLeft, WifiOff } from 'lucide-react'
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-
-import { useSyncStatus } from '../sync/provider.js'
 
 /**
  * Where the header of a screen goes: a place in the shell between the strips

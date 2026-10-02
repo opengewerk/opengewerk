@@ -1,12 +1,11 @@
 import 'fake-indexeddb/auto'
 
 import { workingInHeader } from '@opengewerk/domain'
+import { openLocalStore, request, workIn } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../sync/client.js'
-import { openLocalStore } from '../sync/store.js'
-import { TestServer } from '../sync/test-server.js'
-import { request, workIn } from '../sync/transport.js'
 import { switchBusiness } from './businesses.js'
 
 /**

@@ -497,6 +497,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Anwendung. Ein Test im Paket hält fest, dass es von keiner Anwendung abhängt und außerhalb der
   Kommentare weder ihre Wörter für Mandant, Rolle und Datensatz kennt noch, auch im Kommentar
   nicht, einen Produktnamen. Abgleich-Client, Sitzung, Tor und Hülle folgen in eigenen Schritten.
+- Der Abgleich auf dem Gerät gehört zum Fundament (`@opengewerk/platform-web/sync`, ADR 0010,
+  `opengewerk-haustechnik#12`, zweiter Teil): der Client mit lokaler Ablage, Postausgang und
+  Projektion, der Transport und die Leiste über jedem Bildschirm, damit eine weitere Anwendung
+  ohne Netz arbeitet, ohne ihn nachzubauen. Dafür sind die Regeln des Abgleichs eine Fabrik in
+  `@opengewerk/platform-domain`: `syncRules` macht aus den Richtlinien einer Anwendung, was Server
+  und Gerät fragen, und der Client bekommt sie beim Start, statt eine globale Liste zu lesen. Die
+  Handwerkersoftware bindet ihre Liste und exportiert `decideMerge`, `policyFor`, `isSetByServer`
+  und `syncEntities` unter den bisherigen Namen; an ihrem Verhalten ändert sich nichts, ihre Tests
+  des Abgleichs laufen unverändert. Eine Liste, die sich widerspricht, lehnt die Fabrik beim Laden
+  ab, etwa eine Sperre auf einem Feld des Servers ohne Anfangswert: das hielt bisher ein Test an
+  der Liste dieser Anwendung fest, jetzt gilt es für jede. Eine Entität wird nur in dem gesucht,
+  was die Liste selbst hält; `constructor` galt bisher als bekannte Entität, die nur mit
+  Verbindung zu ändern ist, statt als unbekannte. Was ein Gerät für sich behält, nennt die
+  Anwendung beim Start (`keeps`, `keep`, `kept`): die laufende Stoppuhr ist kein Feld des Clients
+  mehr, liegt aber unter demselben Schlüssel, und eine laufende Stoppuhr übersteht das Update. Die
+  Tests des Clients und der Leiste laufen im Fundament mit Richtlinien, die keiner Anwendung
+  gehören (`@opengewerk/platform-domain/testing`); hier bleibt ein Test der Bindung. Der Server
+  des Abgleichs und der Konfliktbildschirm folgen.
 
 ## [0.4.0] - 2026-09-27
 

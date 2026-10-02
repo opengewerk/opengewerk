@@ -1,11 +1,11 @@
 import { labelCodeFromScan, type TenantId } from '@opengewerk/domain'
 import { Button, Field } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { FingerprintPattern, ScanLine } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { RequestRefused } from '../sync/transport.js'
 import type { Entry } from '../entry/entry.js'
 import { Gate, GateText } from './gate.js'
 import { rolesInWords } from './labels.js'

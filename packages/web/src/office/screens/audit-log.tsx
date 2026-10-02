@@ -15,6 +15,7 @@ import {
   useBand,
   useButtonLook,
 } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -24,7 +25,6 @@ import { type ReactNode, useId, useMemo, useState } from 'react'
 import { clockTime, moment } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../../session/audit.js'
-import { RequestRefused } from '../../sync/transport.js'
 import {
   type AuditNames,
   auditValue,

@@ -23,6 +23,15 @@ import {
   isNarrow,
   useBand,
 } from '@opengewerk/platform-web'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Printer } from 'lucide-react'
@@ -54,9 +63,6 @@ import {
 import { installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { RecordForm } from '../../app/record-form.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useRecords, useSync, useSyncStatus } from '../../sync/provider.js'
 import { Crumbs, Empty, FactList, PageHead, Screen } from '../kit.js'
 import { PathSlot } from '../top-bar.js'
 import { Reorder, SmallIcon } from './boards.js'

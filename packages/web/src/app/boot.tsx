@@ -1,16 +1,21 @@
 import { hasSecondFactor, syncEntities, type TenantId } from '@opengewerk/domain'
 import { Button } from '@opengewerk/platform-web'
+import {
+  SyncProvider,
+  directWrite,
+  httpTransport,
+  openLocalStore,
+  workIn,
+} from '@opengewerk/platform-web/sync'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import type { Entry } from '../entry/entry.js'
-import { SyncClient } from '../sync/client.js'
-import { SyncProvider } from '../sync/provider.js'
-import { openLocalStore } from '../sync/store.js'
-import { directWrite, httpTransport, siteTransport, workIn } from '../sync/transport.js'
 import { unreachable } from '../session/remembered.js'
+import { SyncClient } from '../sync/client.js'
+import { siteTransport } from '../sync/transport.js'
 import { deviceIdentity } from './device.js'
 import { Gate, GateText, GateWaiting, InstanceVersion } from './gate.js'
 import { InvitationScreen } from './invitation.js'

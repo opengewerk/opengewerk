@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./sync": "./src/sync/index.ts",
     "./testing": "./src/testing.ts",
     "./styles/index.css": "./src/styles/index.css",
     "./styles/tokens.css": "./src/styles/tokens.css"
@@ -17,11 +18,13 @@
   "dependencies": {
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
+    "@opengewerk/platform-domain": "workspace:*",
     "clsx": "2.1.1",
     "lucide-react": "1.47.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "tailwindcss": "4.3.3"
+    "tailwindcss": "4.3.3",
+    "uuidv7": "1.2.1"
   },
   "devDependencies": {
     "@testing-library/dom": "10.4.2",
@@ -30,6 +33,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "fake-indexeddb": "6.2.5",
     "happy-dom": "20.14.5",
     "vite": "8.3.0",
     "vitest": "5.0.1"

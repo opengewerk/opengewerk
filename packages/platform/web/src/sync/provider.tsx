@@ -1,4 +1,4 @@
-import type { RecordState } from '@opengewerk/domain'
+import type { RecordState } from '@opengewerk/platform-domain'
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 
@@ -67,8 +67,8 @@ export function useRecord(entity: string, id: string | undefined): RecordState |
  * Everything of one kind whose field points at a given record.
  *
  * The one relation the screens ask for, and they ask for it everywhere: the
- * sites of a customer, the installations of a site, the jobs of a site. Doing
- * it here keeps the filter and its memoisation in one place instead of in six.
+ * records that hang on another one. Doing it here keeps the filter and its
+ * memoisation in one place instead of in six.
  */
 export function useRelated(
   entity: string,

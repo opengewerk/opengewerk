@@ -1,6 +1,7 @@
 import type { RoleDefinition } from '@opengewerk/domain'
 import { Button, Cell, Column, Confirm, Field, Panel, TablePanel } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Copy, Plus } from 'lucide-react'
@@ -12,7 +13,6 @@ import { date, moment } from '../../app/format.js'
 import { rolesInWords } from '../../app/labels.js'
 import { accountQuery } from '../../app/queries.js'
 import { mailStatus } from '../../session/mail.js'
-import { RequestRefused } from '../../sync/transport.js'
 import {
   invite,
   openInvitations,

@@ -6,8 +6,8 @@ import {
   type TenantChoice as ChoiceOf,
   type TenantId,
 } from '@opengewerk/domain'
+import { request } from '@opengewerk/platform-web/sync'
 
-import { request } from '../sync/transport.js'
 import {
   forgetAccount,
   forgetSignIn,

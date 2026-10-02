@@ -15,6 +15,7 @@ import {
   signerNameProblem,
 } from '@opengewerk/domain'
 import { Button, Field, Panel } from '@opengewerk/platform-web'
+import { maybeText, refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
@@ -52,9 +53,6 @@ import {
   valuesOf,
 } from '../../app/protocols.js'
 import { useMay } from '../../app/queries.js'
-import { refusalFor } from '../../sync/client.js'
-import { maybeText, text } from '../../sync/fields.js'
-import { useRecord, useSync } from '../../sync/provider.js'
 import { SiteActionBar } from '../action-bar.js'
 import { SiteHeader } from '../header.js'
 import { SiteLabel, SiteScreen, SiteText, SiteTrouble } from '../kit.js'
