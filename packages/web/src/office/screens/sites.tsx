@@ -1,9 +1,9 @@
 import { installationKinds, type RecordState } from '@opengewerk/domain'
+import { Button, Cell, Column, Panel, TablePanel, cardLink } from '@opengewerk/platform-web'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { House, Pencil, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, cardLink, Cell, Column, Panel, TablePanel } from '../../components/index.js'
 import { addressLine, countryOptions, date } from '../../app/format.js'
 import { installationKindLabel, installationKindOf, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

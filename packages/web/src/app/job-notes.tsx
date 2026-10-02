@@ -1,8 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
+import { useEntry } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { useMemo } from 'react'
 
-import { useEntry } from '../components/index.js'
 import { text } from '../sync/fields.js'
 import { useRelated, useSync } from '../sync/provider.js'
 import { NotSent } from '../site/kit.js'

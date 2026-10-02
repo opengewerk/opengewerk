@@ -1,8 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Panel, SelectField } from '@opengewerk/platform-web'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Panel, SelectField } from '../../components/index.js'
 import { type ContactParent, ContactList, NewContactForm } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
 import { maybeText, text } from '../../sync/fields.js'

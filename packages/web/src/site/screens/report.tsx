@@ -6,21 +6,14 @@ import {
   signerNameProblem,
   whyFixed,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
 import { useParams } from '@tanstack/react-router'
 import { Camera, Check, Pencil, Plus, Signature, X } from 'lucide-react'
 import { useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import {
-  Button,
-  Confirm,
-  DocumentState,
-  Field,
-  Panel,
-  SelectField,
-  TextArea,
-} from '../../components/index.js'
 import { addAttachment } from '../../app/attachments.js'
+import { DocumentState } from '../../app/document-state.js'
 import { ReportFieldsForm, ReportFieldsText } from '../../app/report-fields.js'
 import { amount, date, moment, parseQuantity } from '../../app/format.js'
 import {

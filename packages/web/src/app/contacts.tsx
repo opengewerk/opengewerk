@@ -1,8 +1,8 @@
 import { contactParentProblem, contactParentText, type RecordState } from '@opengewerk/domain'
+import { Button, IconButton } from '@opengewerk/platform-web'
 import { Mail, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, IconButton } from '../components/index.js'
 import { refusalFor } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'

@@ -1,9 +1,9 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Panel } from '@opengewerk/platform-web'
 import { useParams } from '@tanstack/react-router'
 import { MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { Panel } from '../../components/index.js'
 import { useBoards } from '../../app/electrical.js'
 import { addressLine, date } from '../../app/format.js'
 import {

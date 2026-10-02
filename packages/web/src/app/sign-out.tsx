@@ -1,7 +1,7 @@
+import { Button } from '@opengewerk/platform-web'
 import { LogOut } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button } from '../components/index.js'
 import { rememberedAccount } from '../session/remembered.js'
 import { signOut } from '../session/session.js'
 import type { SyncClient } from '../sync/client.js'

@@ -1,8 +1,4 @@
 import type { OperatorView } from '@opengewerk/domain'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, TriangleAlert } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
-
 import {
   Button,
   Cell,
@@ -12,8 +8,12 @@ import {
   Panel,
   Status,
   TablePanel,
-  type TableCard,
-} from '../../components/index.js'
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, TriangleAlert } from 'lucide-react'
+import { type FormEvent, useState } from 'react'
+
 import { date } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { appointOperator, operators, removeOperator } from '../../session/instance.js'

@@ -1,10 +1,10 @@
 import { jobNoteProblem, type RecordState } from '@opengewerk/domain'
+import { Button, Panel, TextArea } from '@opengewerk/platform-web'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Check, Pencil } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Panel, TextArea } from '../../components/index.js'
 import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { useMay } from '../../app/queries.js'
 import { refusalFor } from '../../sync/client.js'

@@ -1,10 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
 import { inverterPowerText, inverterProblems } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
 import { Link } from '@tanstack/react-router'
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import { moveAmong, nextPosition } from '../../app/electrical.js'
 import { installationKindOf } from '../../app/labels.js'
 import {

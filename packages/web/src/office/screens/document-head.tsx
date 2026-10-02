@@ -10,12 +10,12 @@ import {
   statesPaymentTerm,
   taxTreatments,
 } from '@opengewerk/domain'
+import { Button, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

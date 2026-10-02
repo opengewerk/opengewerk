@@ -1,20 +1,12 @@
 import type { RoleDefinition } from '@opengewerk/domain'
+import { Button, Cell, Column, Confirm, Field, Panel, TablePanel } from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Copy, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import {
-  Button,
-  Cell,
-  Column,
-  Confirm,
-  Field,
-  Panel,
-  TablePanel,
-  type TableCard,
-} from '../../components/index.js'
 import { deviceName } from '../../app/devices.js'
 import { date, moment } from '../../app/format.js'
 import { rolesInWords } from '../../app/labels.js'

@@ -1,19 +1,19 @@
 import type { RecordState } from '@opengewerk/domain'
 import { inverterProblems, pvModuleProblems, pvStringProblems } from '@opengewerk/domain'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { ArrowDown, ArrowUp, Pencil, Plus } from 'lucide-react'
-import { useState } from 'react'
-
 import {
   Button,
-  cardLink,
   Cell,
   Column,
   Confirm,
   Panel,
   PanelLabel,
   TablePanel,
-} from '../../components/index.js'
+  cardLink,
+} from '@opengewerk/platform-web'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { ArrowDown, ArrowUp, Pencil, Plus } from 'lucide-react'
+import { useState } from 'react'
+
 import { moveAmong, nextPosition, ordered } from '../../app/electrical.js'
 import { installationKindLabel, installationKindOf } from '../../app/labels.js'
 import {

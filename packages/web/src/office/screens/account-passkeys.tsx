@@ -1,4 +1,5 @@
 import { type PasskeyEntry, passkeyNameMaxLength, passkeyNameProblem } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FingerprintPattern, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -7,7 +8,6 @@ import type { FormEvent } from 'react'
 import { deviceName } from '../../app/devices.js'
 import { clockTime, date, moment } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
-import { Button, Confirm, Field, Panel, useBand } from '../../components/index.js'
 import {
   addPasskey,
   passkeys,

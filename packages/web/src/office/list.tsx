@@ -1,4 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Cell, Column, TablePanel, useBand } from '@opengewerk/platform-web'
+import type { Band } from '@opengewerk/platform-web'
 import { Link, useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
@@ -6,9 +8,6 @@ import type { LucideIcon } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 
-import { Button, Cell, Column, TablePanel } from '../components/index.js'
-import { useBand } from '../components/band.js'
-import type { Band } from '../components/band.js'
 import { text } from '../sync/fields.js'
 import { Chip, Key, PageHead } from './kit.js'
 

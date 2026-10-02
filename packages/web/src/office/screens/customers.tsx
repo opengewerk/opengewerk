@@ -1,12 +1,6 @@
 import { customerKinds, customerStandingLabel, type RecordState } from '@opengewerk/domain'
-import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { ArrowRight, Check, Clock, Pencil, Plus, Tag, Users, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
-  cardLink,
   Cell,
   Column,
   Field,
@@ -14,8 +8,14 @@ import {
   SelectField,
   Status,
   TablePanel,
-} from '../../components/index.js'
-import { useThreeColumns } from '../../components/band.js'
+  cardLink,
+  useThreeColumns,
+} from '@opengewerk/platform-web'
+import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { ArrowRight, Check, Clock, Pencil, Plus, Tag, Users, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
 import { addressLine, countryOptions, date, euros } from '../../app/format.js'
 import {
   customerKindLabel,

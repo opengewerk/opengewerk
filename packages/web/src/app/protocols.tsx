@@ -27,22 +27,22 @@ import {
   tripCharacteristics,
 } from '@opengewerk/domain'
 import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
-import { Link } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Copy, Eye, Plus } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
   Field,
   FieldLabel,
   SelectField,
   Status,
-  statusIcons,
   TextArea,
+  statusIcons,
   useEntry,
-} from '../components/index.js'
+} from '@opengewerk/platform-web'
+import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Copy, Eye, Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
 import { type EditResult, refusalFor, type SyncClient } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'
 import { useRecords, useRelated, useSync, useSyncStatus } from '../sync/provider.js'

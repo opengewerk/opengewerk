@@ -1,11 +1,5 @@
 import type { JobKind, JobStatus, RecordState } from '@opengewerk/domain'
 import { followUpProblem, jobKinds, jobStatuses } from '@opengewerk/domain'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Calendar, Pencil, UserRound } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
   Field,
@@ -13,11 +7,17 @@ import {
   Panel,
   SelectField,
   Status,
-  statusIcons,
   TextArea,
+  statusIcons,
   useBand,
-} from '../../components/index.js'
-import type { StatusTone } from '../../components/index.js'
+} from '@opengewerk/platform-web'
+import type { StatusTone } from '@opengewerk/platform-web'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Calendar, Pencil, UserRound } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
 import { date } from '../../app/format.js'
 import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { jobKindLabel, jobKindOf, jobStatusLabel, jobStatusOf } from '../../app/labels.js'

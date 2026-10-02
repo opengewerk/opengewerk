@@ -1,9 +1,4 @@
 import { businessNameMaxLength, businessNameProblem, type TenantId } from '@opengewerk/domain'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Key, Plus } from 'lucide-react'
-import { useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
   Cell,
@@ -12,9 +7,14 @@ import {
   Field,
   Panel,
   TablePanel,
-  type TableCard,
   ThemeSwitch,
-} from '../../components/index.js'
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Key, Plus } from 'lucide-react'
+import { useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
 import { deviceName } from '../../app/devices.js'
 import { moment } from '../../app/format.js'
 import { rolesInWords } from '../../app/labels.js'

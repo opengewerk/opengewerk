@@ -6,7 +6,6 @@ import { Button, IconButton } from './button.js'
 import { Confirm } from './confirm.js'
 import { Field } from './field.js'
 import { TablePanel } from './panel.js'
-import { DocumentState } from './state.js'
 import { Strip } from './strip.js'
 import { Cell, Column, Table } from './table.js'
 import { Card, Shell, TextLink } from './surface.js'
@@ -24,9 +23,9 @@ describe('a button', () => {
     // A div with an onClick renders identically, is skipped by Tab and is
     // announced as nothing. On a screen somebody operates one handed in a
     // cellar that is not a detail.
-    render(<Button tone="primary">Festschreiben</Button>)
+    render(<Button tone="primary">Speichern</Button>)
 
-    const found = screen.getByRole('button', { name: 'Festschreiben' })
+    const found = screen.getByRole('button', { name: 'Speichern' })
     expect(found.tagName).toBe('BUTTON')
     expect(found.getAttribute('type')).toBe('button')
   })
@@ -57,17 +56,17 @@ describe('a field', () => {
   it('is reachable by its label', () => {
     // The failure mode is silent: a field without a label looks finished and
     // is announced as "edit text" with no idea what for.
-    render(<Field label="Rechnungsdatum" defaultValue="19.09.2026" numeric />)
+    render(<Field label="Datum" defaultValue="19.09.2026" numeric />)
 
-    const input = screen.getByLabelText('Rechnungsdatum')
+    const input = screen.getByLabelText('Datum')
     expect(input.getAttribute('value')).toBe('19.09.2026')
     expect(input.className).toContain('numeric')
   })
 
   it('says what is wrong, where a reader will hear it', () => {
-    render(<Field label="Schleifenimpedanz" problem="Über dem Grenzwert von 2,87 Ohm" />)
+    render(<Field label="Messwert" problem="Über dem Grenzwert von 2,87 Ohm" />)
 
-    const input = screen.getByLabelText('Schleifenimpedanz')
+    const input = screen.getByLabelText('Messwert')
     const describedBy = input.getAttribute('aria-describedby')
 
     expect(input.getAttribute('aria-invalid')).toBe('true')
@@ -79,7 +78,7 @@ describe('a field', () => {
 describe('a table', () => {
   it('has a caption and column headers that point at their column', () => {
     render(
-      <Table caption="Positionen der Rechnung">
+      <Table caption="Posten der Liste">
         <thead>
           <tr>
             <Column>Bezeichnung</Column>
@@ -88,14 +87,14 @@ describe('a table', () => {
         </thead>
         <tbody>
           <tr>
-            <Cell>Arbeitszeit Monteur</Cell>
+            <Cell>Erster Posten</Cell>
             <Cell numeric>217,00</Cell>
           </tr>
         </tbody>
       </Table>,
     )
 
-    expect(screen.getByRole('table', { name: 'Positionen der Rechnung' })).toBeDefined()
+    expect(screen.getByRole('table', { name: 'Posten der Liste' })).toBeDefined()
     expect(screen.getByRole('columnheader', { name: 'Summe' }).getAttribute('scope')).toBe('col')
     expect(screen.getByRole('cell', { name: '217,00' }).className).toContain('numeric')
   })
@@ -143,7 +142,7 @@ describe('the head of a table', () => {
 
   function positions() {
     return (
-      <Table caption="Positionen der Rechnung">
+      <Table caption="Posten der Liste">
         <thead>
           <tr>
             <Column>Bezeichnung</Column>
@@ -152,7 +151,7 @@ describe('the head of a table', () => {
         </thead>
         <tbody>
           <tr>
-            <Cell>Arbeitszeit Monteur</Cell>
+            <Cell>Erster Posten</Cell>
             <Cell numeric>217,00</Cell>
           </tr>
         </tbody>
@@ -233,15 +232,15 @@ describe('a table in a card on a phone', () => {
   function objects(cards = true) {
     return (
       <TablePanel
-        title="Objekte"
-        caption="Objekte des Kunden"
+        title="Orte"
+        caption="Orte in der Übersicht"
         cards={
           cards
             ? [
                 {
                   key: 's-1',
                   title: 'Rheinstraße 12',
-                  sub: 'Rheinstraße 12, 68159 Mannheim · 3 Anlagen',
+                  sub: 'Rheinstraße 12, 68159 Mannheim · 3 Einträge',
                   right: '1 offen',
                 },
               ]
@@ -271,32 +270,23 @@ describe('a table in a card on a phone', () => {
     // "Tabellen werden Karten, eine Karte je Zeile": no table, a list under
     // the name of the table, each row with its other columns in a line.
     expect(screen.queryByRole('table')).toBeNull()
-    const list = screen.getByRole('list', { name: 'Objekte des Kunden' })
+    const list = screen.getByRole('list', { name: 'Orte in der Übersicht' })
     const [row] = within(list).getAllByRole('listitem')
-    expect(row?.textContent).toBe('Rheinstraße 12Rheinstraße 12, 68159 Mannheim · 3 Anlagen1 offen')
+    expect(row?.textContent).toBe(
+      'Rheinstraße 12Rheinstraße 12, 68159 Mannheim · 3 Einträge1 offen',
+    )
   })
 
   it('stays a table from 600 pixels on, and where it has no boxes', () => {
     windowOf(768)
     const { unmount } = render(objects())
-    expect(screen.getByRole('table', { name: 'Objekte des Kunden' })).toBeDefined()
+    expect(screen.getByRole('table', { name: 'Orte in der Übersicht' })).toBeDefined()
     unmount()
 
     // A table that brings no boxes scrolls in its frame on a phone instead.
     windowOf(390)
     render(objects(false))
-    expect(screen.getByRole('table', { name: 'Objekte des Kunden' })).toBeDefined()
-  })
-})
-
-describe('the state of a document', () => {
-  it('shows a number once there is one, and none while there is not', () => {
-    const { rerender } = render(<DocumentState status="draft" />)
-    expect(screen.getByText('Entwurf')).toBeDefined()
-
-    rerender(<DocumentState status="issued" number="RE-2026-0231" />)
-    expect(screen.getByText('Festgeschrieben')).toBeDefined()
-    expect(screen.getByText('RE-2026-0231')).toBeDefined()
+    expect(screen.getByRole('table', { name: 'Orte in der Übersicht' })).toBeDefined()
   })
 })
 
@@ -397,7 +387,7 @@ describe('the shell of an entry point', () => {
   it('writes the density and leaves light or dark to the root', () => {
     const { container } = render(
       <Shell entry="site">
-        <p>Baustelle</p>
+        <p>Unterwegs</p>
       </Shell>,
     )
 
@@ -436,15 +426,13 @@ describe('the switch between light and dark', () => {
 describe('a card and a link', () => {
   it('carry a name and an underline', () => {
     render(
-      <Card label="Anlage" tone="sunken">
-        <TextLink href="#akte">Anlagenakte öffnen</TextLink>
+      <Card label="Eintrag" tone="sunken">
+        <TextLink href="#eintrag">Eintrag öffnen</TextLink>
       </Card>,
     )
 
-    expect(screen.getByRole('region', { name: 'Anlage' })).toBeDefined()
+    expect(screen.getByRole('region', { name: 'Eintrag' })).toBeDefined()
     // Colour alone is the one distinction a colour blind reader does not get.
-    expect(screen.getByRole('link', { name: 'Anlagenakte öffnen' }).className).toContain(
-      'underline',
-    )
+    expect(screen.getByRole('link', { name: 'Eintrag öffnen' }).className).toContain('underline')
   })
 })

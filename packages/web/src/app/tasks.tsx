@@ -1,10 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, useEntry } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { useState } from 'react'
 
-import { Button, useEntry } from '../components/index.js'
 import { type Assignee, assignees } from '../session/tasks.js'
 import { refusalFor } from '../sync/client.js'
 import { maybeText, text } from '../sync/fields.js'

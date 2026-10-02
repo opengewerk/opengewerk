@@ -1,12 +1,6 @@
 import { type RecordState, supplierProblems } from '@opengewerk/domain'
-import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { Check, Pencil, Trash2, Truck } from 'lucide-react'
-import { type FormEvent, type ReactNode, useState } from 'react'
-
 import {
   Button,
-  cardLink,
   Cell,
   Column,
   Confirm,
@@ -15,7 +9,13 @@ import {
   SelectField,
   TablePanel,
   TextArea,
-} from '../../components/index.js'
+  cardLink,
+} from '@opengewerk/platform-web'
+import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { Check, Pencil, Trash2, Truck } from 'lucide-react'
+import { type FormEvent, type ReactNode, useState } from 'react'
+
 import { addressLine, countryOptions } from '../../app/format.js'
 import { lineUnitShort } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

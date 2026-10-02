@@ -6,14 +6,21 @@ import {
   auditTables,
   auditTableLabel,
 } from '@opengewerk/domain'
+import {
+  Button,
+  Cell,
+  Column,
+  Panel,
+  TablePanel,
+  useBand,
+  useButtonLook,
+} from '@opengewerk/platform-web'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronDown, ChevronRight, History, ShieldCheck, TriangleAlert, X } from 'lucide-react'
 import { type ReactNode, useId, useMemo, useState } from 'react'
 
-import { Button, Cell, Column, Panel, TablePanel, useButtonLook } from '../../components/index.js'
-import { useBand } from '../../components/band.js'
 import { clockTime, moment } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../../session/audit.js'

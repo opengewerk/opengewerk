@@ -131,15 +131,17 @@ function opener(page, name) {
 /**
  * The widths at which a screen may draw another layout and with it drop a
  * form that was open: the steps of `useBand` and of `useThreeColumns`, read
- * from `src/components/band.ts` rather than written here a second time, in
- * pixels at the 16 a rem is, since the root has no font size of its own
- * (#229). The first version knew three of the five bands and opened a form
- * once for everything from 1024 to 3840 pixels.
+ * from `components/band.ts` of the foundation (`packages/platform/web`)
+ * rather than written here a second time, in pixels at the 16 a rem is,
+ * since the root has no font size of its own (#229). The first version knew
+ * three of the five bands and opened a form once for everything from 1024 to
+ * 3840 pixels.
  */
 const steps = [
-  ...readFileSync(resolve(here, '..', 'src', 'components', 'band.ts'), 'utf8').matchAll(
-    /min-width:\s*([\d.]+)rem/g,
-  ),
+  ...readFileSync(
+    resolve(here, '..', '..', 'platform', 'web', 'src', 'components', 'band.ts'),
+    'utf8',
+  ).matchAll(/min-width:\s*([\d.]+)rem/g),
 ]
   .map((match) => Number(match[1]) * 16)
   .sort((a, b) => a - b)

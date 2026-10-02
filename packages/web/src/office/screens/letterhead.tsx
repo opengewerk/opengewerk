@@ -6,11 +6,11 @@ import {
   letterheadFieldLabels,
   logoMediaTypes,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 
-import { Button, Confirm, Field, Panel, SelectField } from '../../components/index.js'
 import { countryOptions } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {

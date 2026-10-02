@@ -1,10 +1,10 @@
 import { numberFromPattern, type NumberRangeKey, patternProblem } from '@opengewerk/domain'
+import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useId, useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
 
-import { Button, Cell, Column, Panel, TablePanel, useBand } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import {
   changeNumberRange,

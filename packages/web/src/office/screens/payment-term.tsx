@@ -4,11 +4,11 @@ import {
   paymentTermLabel,
   paymentTermProblem,
 } from '@opengewerk/domain'
+import { Button, Field, Panel } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Field, Panel } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'

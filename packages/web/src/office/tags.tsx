@@ -7,12 +7,12 @@ import {
   tagName,
   tagNameProblem,
 } from '@opengewerk/domain'
+import { Field } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { Tag as TagIcon, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 
-import { Field } from '../components/index.js'
 import { jobStatusOf } from '../app/labels.js'
 import { text } from '../sync/fields.js'
 import { useRecords } from '../sync/provider.js'

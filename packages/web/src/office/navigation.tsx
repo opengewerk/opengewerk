@@ -1,3 +1,4 @@
+import { BrandMark, ThemeSwitch } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -20,7 +21,6 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useReducer, useRef } from 'react'
 
-import { BrandMark, ThemeSwitch } from '../components/index.js'
 import { sinceThen } from '../app/format.js'
 import { documentStatusOf, taskStatusOf } from '../app/labels.js'
 import { accountQuery, useMay } from '../app/queries.js'

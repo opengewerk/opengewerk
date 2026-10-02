@@ -1,9 +1,9 @@
 import { tagName, tagNameMaxLength, tagNameProblem, type RecordState } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Confirm, Field, Panel, useBand } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { createTag, removeTag, renameTag } from '../../session/tags.js'
 import { RequestRefused } from '../../sync/transport.js'

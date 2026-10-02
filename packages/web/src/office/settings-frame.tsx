@@ -1,3 +1,4 @@
+import { PanelLabel } from '@opengewerk/platform-web'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
@@ -19,7 +20,6 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { PanelLabel } from '../components/index.js'
 import { useMay } from '../app/queries.js'
 import { PageHead, Screen } from './kit.js'
 

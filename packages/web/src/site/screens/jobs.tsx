@@ -1,10 +1,11 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Confirm, Panel, useBand } from '@opengewerk/platform-web'
 import { Link, Outlet, useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
-import { Button, Confirm, DocumentState, Panel, useBand } from '../../components/index.js'
+import { DocumentState } from '../../app/document-state.js'
 import { addressLine, date, today } from '../../app/format.js'
 import {
   documentKindOf,

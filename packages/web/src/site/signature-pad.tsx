@@ -1,8 +1,8 @@
 import { longestSignaturePath } from '@opengewerk/domain'
+import { Button } from '@opengewerk/platform-web'
 import { useId, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 
-import { Button } from '../components/index.js'
 import { signatureStroke, signatureViewBox } from '../app/signature.js'
 import { farEnough, pathOf, type Point, pointIn } from './signing.js'
 

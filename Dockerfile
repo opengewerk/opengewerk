@@ -16,6 +16,7 @@ RUN corepack enable
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json tsconfig.base.json ./
 COPY packages/platform/domain/package.json packages/platform/domain/
 COPY packages/platform/server/package.json packages/platform/server/
+COPY packages/platform/web/package.json packages/platform/web/
 COPY packages/domain/package.json packages/domain/
 COPY packages/gewerke/elektro/package.json packages/gewerke/elektro/
 COPY packages/server/package.json packages/server/

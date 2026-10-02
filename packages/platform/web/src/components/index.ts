@@ -24,9 +24,6 @@ export { GateProvider, useInGate } from './gate.js'
 export { ThemeSwitch } from './theme-switch.js'
 export type { ThemeChoice, ThemeSwitchProps } from './theme-switch.js'
 
-export { DocumentState } from './state.js'
-export type { DocumentStateProps } from './state.js'
-
 export { Strip, stripAction } from './strip.js'
 export type { StripActionKind, StripProps, StripTone } from './strip.js'
 

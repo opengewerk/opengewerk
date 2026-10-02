@@ -14,6 +14,7 @@ import {
   sealingField,
   signerNameProblem,
 } from '@opengewerk/domain'
+import { Button, Field, Panel } from '@opengewerk/platform-web'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
@@ -30,7 +31,6 @@ import type { LucideIcon } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field, Panel } from '../../components/index.js'
 import { addAttachment } from '../../app/attachments.js'
 import { amount, date, scaledNumber } from '../../app/format.js'
 import {

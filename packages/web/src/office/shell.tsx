@@ -1,7 +1,7 @@
+import { Shell } from '@opengewerk/platform-web'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 
-import { Shell } from '../components/index.js'
 import { usePushRefresh } from '../app/push-state.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'

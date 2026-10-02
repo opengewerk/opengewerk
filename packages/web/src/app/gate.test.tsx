@@ -1,7 +1,7 @@
+import { Button, Field } from '@opengewerk/platform-web'
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { Button, Field } from '../components/index.js'
 import { Gate, InstanceVersion } from './gate.js'
 
 /**

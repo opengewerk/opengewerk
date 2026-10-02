@@ -5,11 +5,11 @@ import {
   leadProblem,
   sourceWords,
 } from '@opengewerk/domain'
+import { Button, Field, Panel, SelectField, Status } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Field, Panel, SelectField, Status } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'
 import {

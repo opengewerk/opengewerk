@@ -1,9 +1,9 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
 import { Eye, EyeOff, KeyRound } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
-import { Button, Panel } from '../../components/index.js'
 import { revealAccess, valueStampOf } from '../../session/site-access.js'
 import { maybeText, text } from '../../sync/fields.js'
 import { useRelated, useSync } from '../../sync/provider.js'

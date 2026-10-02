@@ -1,11 +1,11 @@
 import { type BackupStatus, defaultBackupTime } from '@opengewerk/domain'
+import { Panel, Strip, stripAction } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Server, TriangleAlert } from 'lucide-react'
 
 import { moment } from '../../app/format.js'
-import { Panel, Strip, stripAction } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { backupStatus } from '../../session/backup.js'
 import { FactList, NoteBox } from '../kit.js'

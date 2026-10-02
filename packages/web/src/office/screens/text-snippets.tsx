@@ -1,11 +1,11 @@
 import type { SnippetPurpose } from '@opengewerk/domain'
 import { snippetPurposes } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { snippetPurposeLabel } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {

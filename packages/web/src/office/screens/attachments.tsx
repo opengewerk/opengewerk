@@ -1,8 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Confirm, Panel } from '@opengewerk/platform-web'
 import { Image, Upload, X } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
-import { Button, Confirm, Panel } from '../../components/index.js'
 import {
   addAttachment,
   addVersion,

@@ -1,10 +1,10 @@
 import type { RecordState, WithdrawalVariant } from '@opengewerk/domain'
+import { Panel, SelectField } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
 import { useId } from 'react'
 import type { ReactNode } from 'react'
 
-import { Panel, SelectField } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import {
   chooseInstructions,

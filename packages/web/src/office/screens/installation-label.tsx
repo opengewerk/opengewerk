@@ -5,10 +5,10 @@ import {
   printedLabelCode,
   type RecordState,
 } from '@opengewerk/domain'
+import { Button, ButtonLink, Confirm, Field, Panel, SelectField } from '@opengewerk/platform-web'
 import { Ban, Plus, Printer } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, ButtonLink, Confirm, Field, Panel, SelectField } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import {
   blockLabel,
