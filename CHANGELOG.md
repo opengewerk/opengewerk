@@ -597,6 +597,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   durchspielte, ist in zwei geteilt: in einem vollen Lauf auf einer ausgelasteten Maschine
   brauchte er länger, als ein Test darf.
 
+### Behoben
+
+- Am Telefon zeigt die Liste der Betriebe im Bereich der Instanz zu jedem Betrieb seinen Namen,
+  den Tag der Anlage und die Zahl der Zugänge (#490). Jeder Kasten trug bisher nur die Inhaber:
+  der Bildschirm gab der Kartenansicht seinen Inhalt an einer Stelle mit, die den ganzen Kasten
+  ersetzt, und Name und Zeile darunter wurden nie gezeichnet.
+
 ## [0.4.0] - 2026-09-27
 
 Die vierte Fassung bringt die harmonisierte Mitteilung zur gesetzlichen Gewährleistung, die seit dem
