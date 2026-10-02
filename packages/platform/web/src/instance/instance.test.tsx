@@ -277,6 +277,34 @@ describe('the tenants on the instance', () => {
     expect(screen.getByText('Alle Mandanten dieser Instanz, jeder für sich.')).toBeTruthy()
   })
 
+  /**
+   * On a phone the table becomes a box per tenant, and each box says the same
+   * as its row: which tenant it is, since when, how many people work in it,
+   * and who leads it. Until #490 a box held whoever leads and nothing else.
+   */
+  it('puts each in a box of its own on a phone, with its name, its day and its people', async () => {
+    phone()
+    server.answer('GET', '/instance/tenants', tenants)
+    await area('/instanz')
+
+    const list = await screen.findByRole('list', { name: 'Die Mandanten dieser Instanz' })
+    const boxes = within(list).getAllByRole('listitem')
+
+    expect(boxes).toHaveLength(3)
+    expect(within(boxes[0] as HTMLElement).getByText('Probewerk Nord')).toBeTruthy()
+    expect(
+      within(boxes[0] as HTMLElement).getByText('Angelegt am 24.09.2026 · 4 Zugänge'),
+    ).toBeTruthy()
+    expect(within(boxes[0] as HTMLElement).getByText('du')).toBeTruthy()
+    expect(within(boxes[1] as HTMLElement).getByText('Probewerk Süd')).toBeTruthy()
+    expect(
+      within(boxes[1] as HTMLElement).getByText('Angelegt am 27.09.2026 · 1 Zugang'),
+    ).toBeTruthy()
+    expect(within(boxes[1] as HTMLElement).getByText('Einladung offen')).toBeTruthy()
+    expect(within(boxes[2] as HTMLElement).getByText('Probewerk West')).toBeTruthy()
+    expect(within(boxes[2] as HTMLElement).getByText('Niemand')).toBeTruthy()
+  })
+
   it('makes one for somebody else and shows the link that makes them lead it, once', async () => {
     server.answer('GET', '/instance/tenants', tenants)
     server.answer('POST', '/instance/tenants', {

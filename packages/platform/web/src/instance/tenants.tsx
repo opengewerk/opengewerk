@@ -44,11 +44,24 @@ export function InstanceTenantsScreen() {
   const [made, setMade] = useState<Made | null>(null)
   const me = account.data?.email.toLowerCase() ?? null
 
+  // On a phone a box per tenant with everything in it, as the operators have
+  // theirs: whoever leads it takes more than a line, so the box is drawn here
+  // and not from a title and a line under it. A `form` stands in the place of
+  // the whole box, and with the name only in `title` the name was lost (#490).
   const cards: readonly TableCard[] = (tenants.data ?? []).map((tenant) => ({
     key: tenant.id,
-    title: tenant.name,
-    sub: `Angelegt am ${date(tenant.createdAt)} · ${String(tenant.members)} ${tenant.members === 1 ? 'Zugang' : 'Zugänge'}`,
-    form: <Leads tenant={tenant} me={me} inBox />,
+    title: '',
+    form: (
+      <div className="flex flex-col gap-2 text-[15px]">
+        <span className="block font-semibold [overflow-wrap:anywhere]">{tenant.name}</span>
+        <span className="text-[13px] text-ink-muted">
+          {`Angelegt am ${date(tenant.createdAt)} · ${String(tenant.members)} ${tenant.members === 1 ? 'Zugang' : 'Zugänge'}`}
+        </span>
+        <div>
+          <Leads tenant={tenant} me={me} inBox />
+        </div>
+      </div>
+    ),
   }))
 
   return (
