@@ -1,6 +1,6 @@
 import type { DocumentKind, DocumentStatus, EInvoiceGap, RecordState } from '@opengewerk/domain'
 import { invoiceFormats } from '@opengewerk/domain'
-import { Button, ButtonLink, Field, Panel } from '@opengewerk/platform-web'
+import { Button, ButtonLink, Field, Panel, SignaturePicture } from '@opengewerk/platform-web'
 import { moment } from '@opengewerk/platform-web/format'
 import { FactList } from '@opengewerk/platform-web/office'
 import type { Fact } from '@opengewerk/platform-web/office'
@@ -14,7 +14,6 @@ import type { ReactNode } from 'react'
 import { documentKindLabel, documentKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { useReportFieldLines } from '../../app/report-fields.js'
-import { SignaturePicture } from '../../app/signature.js'
 import {
   type DocumentMail,
   eInvoiceOf,

@@ -6,9 +6,18 @@ import {
   signerNameProblem,
   whyFixed,
 } from '@opengewerk/domain'
-import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import {
+  Button,
+  Confirm,
+  Field,
+  Panel,
+  SelectField,
+  SignaturePicture,
+  TextArea,
+} from '@opengewerk/platform-web'
 import { amount, date, moment, parseQuantity } from '@opengewerk/platform-web/format'
 import {
+  SignaturePad,
   SiteActionBar,
   SiteNoTabs,
   SiteScreen,
@@ -43,10 +52,8 @@ import {
   lineUnitOf,
   lineUnitShort,
 } from '../../app/labels.js'
-import { SignaturePicture } from '../../app/signature.js'
 import { ArticleChoice } from '../article-choice.js'
 import { SiteHeader } from '../header.js'
-import { SignaturePad } from '../signature-pad.js'
 import { signedContentOf } from '../signing.js'
 
 /** The lines in the order they stand. The id breaks a tie, as on the server. */

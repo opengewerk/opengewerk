@@ -2,17 +2,6 @@ import type { LineKind, LineUnit } from './document-line.js'
 import type { Synced } from '@opengewerk/platform-domain'
 import type { DocumentId, DocumentSignatureId } from './identifier.js'
 
-/**
- * The box a signature is drawn in, in units of its own. The pad on a device
- * keeps this aspect ratio whatever the screen, and every point is stored in
- * these units, so a signature drawn on a phone and one drawn on a tablet print
- * at the same size.
- */
-export const signatureBox = { width: 1000, height: 400 } as const
-
-/** Long enough for a signature drawn slowly, short enough for one transmission. */
-export const longestSignaturePath = 40_000
-
 /** The name of whoever signs, as the check `document_signatures_signer_named` holds it. */
 export const longestSignerName = 200
 
@@ -45,36 +34,6 @@ export function deviceInfoProblem(info: unknown): string | null {
   return typeof info === 'string' && info.length > longestDeviceInfo
     ? `Die Angabe zum Gerät hat höchstens ${String(longestDeviceInfo)} Zeichen.`
     : null
-}
-
-/**
- * Moves and lines in whole units: `M12,40L15,41L19,43M300,80L...`. Every group
- * starts with its own letter, so the pattern cannot backtrack its way into
- * trouble on a long string.
- */
-const pathShape = /^(M\d{1,4},\d{1,4}(L\d{1,4},\d{1,4})*)+$/
-
-/**
- * Whether a string is a signature as this system draws one: moves and lines
- * in whole units, inside the box, and nothing else.
- *
- * The strictness is the security of it. The path goes into an SVG on the
- * office screen and into the page the renderer prints, and a string that can
- * only hold M, L, digits and commas cannot carry anything else into either.
- * The database holds the same pattern in a check.
- */
-export function signaturePathIsValid(path: string): boolean {
-  if (path.length === 0 || path.length > longestSignaturePath || !pathShape.test(path)) {
-    return false
-  }
-
-  for (const point of path.matchAll(/(\d+),(\d+)/g)) {
-    if (Number(point[1]) > signatureBox.width || Number(point[2]) > signatureBox.height) {
-      return false
-    }
-  }
-
-  return true
 }
 
 /**

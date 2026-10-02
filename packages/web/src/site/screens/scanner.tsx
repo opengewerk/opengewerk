@@ -1,6 +1,6 @@
 import { serialFromCode, serialNumberProblem } from '@opengewerk/domain'
 import { Button, Field } from '@opengewerk/platform-web'
-import { SiteActionBar, SiteScreen, SiteText } from '@opengewerk/platform-web/site'
+import { SiteActionBar, SiteScreen, SiteText, useCodeReading } from '@opengewerk/platform-web/site'
 import {
   maybeText,
   refusalFor,
@@ -15,7 +15,6 @@ import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { inModules, usePvModules } from '../../app/photovoltaic.js'
-import { useCodeReading } from '../camera.js'
 import { SiteHeader } from '../header.js'
 import { useStructureBase } from '../structure-base.js'
 
@@ -37,9 +36,6 @@ import { useStructureBase } from '../structure-base.js'
  * its manufacturer, and a key that refused a second maker's number would
  * refuse a true one.
  */
-
-// Where they came from before the label scanner of #308 shared them.
-export { type Scanning, ScanningContext } from '../camera.js'
 
 /** A number the camera keeps seeing after it was taken is the same label, not a new one. */
 const sameLabelFor = 3_000

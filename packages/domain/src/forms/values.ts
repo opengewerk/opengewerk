@@ -1,4 +1,6 @@
-import { signaturePathIsValid, signerNameProblem } from '../model/document-signature.js'
+import { signaturePathIsValid } from '@opengewerk/platform-domain'
+
+import { signerNameProblem } from '../model/document-signature.js'
 import { tripCharacteristics } from '../model/electrical.js'
 import type {
   BlockField,

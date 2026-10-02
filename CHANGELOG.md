@@ -596,6 +596,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   dasselbe. Ein Test des Tors, der beide Ablehnungen des Einrichtungscodes nacheinander
   durchspielte, ist in zwei geteilt: in einem vollen Lauf auf einer ausgelasteten Maschine
   brauchte er länger, als ein Test darf.
+- Kamera, Scan und Unterschrift gehören zum Fundament (ADR 0010,
+  `opengewerk-haustechnik#12`, neunter Teil), weil auch die Haustechnik unterwegs Codes liest
+  und Nachweise unterschreiben lässt: die Kamera, die Seriennummern und Etiketten liest, samt
+  dem Leser in JavaScript, der erst beim Öffnen der Kamera geladen wird, das Feld, auf dem
+  jemand unterschreibt, das Bild einer Unterschrift und die Prüfung, welcher Pfad eine
+  Unterschrift sein darf. Was eine Unterschrift bedeutet, wer sie gibt und über welche Seite,
+  bleibt bei dieser Anwendung, ebenso was ihre Scanner sagen, wenn sie nicht lesen können. An
+  der Oberfläche ändert sich nichts: 46 Zustände sind vor und nach dem Umzug aufgenommen und
+  Byte für Byte dieselben. Der Scanner der Etiketten hat dabei Tests für seine Sätze ohne Leser
+  und ohne Kamera bekommen, die bisher nur der Scanner der Seriennummern hatte.
 
 ### Behoben
 

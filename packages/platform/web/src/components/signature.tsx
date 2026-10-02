@@ -1,4 +1,4 @@
-import { signatureBox, signaturePathIsValid } from '@opengewerk/domain'
+import { signatureBox, signaturePathIsValid } from '@opengewerk/platform-domain'
 
 /** The box every signature is drawn in and shown in, as an SVG view box. */
 export const signatureViewBox = `0 0 ${String(signatureBox.width)} ${String(signatureBox.height)}`
@@ -18,7 +18,7 @@ export const signatureStroke = {
 /**
  * A signature as it was drawn, scaled to the space it is given.
  *
- * A path that does not have the shape the pad writes is not drawn at all. The
+ * A path that does not have the shape the pad writes is not drawn at all. A
  * server refuses such a path on the way in, so one can only turn up here
  * through something that went around it, and a picture of it would claim a
  * signature where there is none.
@@ -30,7 +30,7 @@ export function SignaturePicture({
 }: {
   readonly path: string
   readonly label: string
-  /** The size, where the frame around it decides it: the office draws it in a box. */
+  /** The size, where the frame around it decides it, as a box on a screen of the office does. */
   readonly className?: string
 }) {
   if (!signaturePathIsValid(path)) {

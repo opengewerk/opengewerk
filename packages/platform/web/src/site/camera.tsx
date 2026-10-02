@@ -1,10 +1,11 @@
 import { createContext, type RefObject, useContext, useEffect, useRef, useState } from 'react'
 
-import { openCamera, openCodeReader, type CodeReader } from '../app/barcode.js'
+import { openCamera, openCodeReader, type CodeReader } from './barcode.js'
 
 /**
- * The camera of the site reading codes: the serial numbers of modules (#300)
- * and the QR labels of installations (#308) through the same reader.
+ * The camera on site reading codes, one reader for every screen that reads
+ * one. It was built for the serial numbers of PV modules (#300) and the QR
+ * labels of installations (#308).
  */
 
 /**
@@ -101,7 +102,7 @@ export function useCodeReading(
         element.srcObject = stream
       } catch {
         // Refused, not there, or a stream the picture does not take: the same
-        // for whoever stands in front of the cabinet.
+        // for whoever holds the device.
         release()
 
         if (!stopped) {

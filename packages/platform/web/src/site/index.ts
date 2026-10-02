@@ -39,3 +39,15 @@ export type { SiteFact } from './kit.js'
 // The bar at the foot of a form, where the thumb is, and the place in a shell
 // it is drawn into.
 export { actionBarMark, ActionSlotProvider, SiteActionBar, SiteNoTabs } from './action-bar.js'
+
+// The camera reading codes: the reader of the browser or one loaded on
+// demand, the picture, a frame every few milliseconds, and the sentences a
+// screen says when it cannot read. Where camera and reader come from is a
+// context, so that a test puts its own in.
+export { ScanningContext, useCodeReading } from './camera.js'
+export type { CameraWords, Scanning } from './camera.js'
+export type { CodeReader } from './barcode.js'
+
+// Where somebody signs, with a finger or a pen. The picture of a signature
+// is shown in both entries and sits at the root of the package.
+export { SignaturePad } from './signature-pad.js'

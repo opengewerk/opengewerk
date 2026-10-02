@@ -21,6 +21,7 @@ export type { CardProps, CardTone, Entry, ShellProps, TextLinkProps } from './su
 
 export { BrandMark } from './brand-mark.js'
 export { QrCode } from './qr-code.js'
+export { SignaturePicture } from './signature.js'
 export { GateProvider, useInGate } from './gate.js'
 export { ThemeSwitch } from './theme-switch.js'
 export type { ThemeChoice, ThemeSwitchProps } from './theme-switch.js'

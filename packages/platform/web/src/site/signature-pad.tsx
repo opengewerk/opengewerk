@@ -1,13 +1,13 @@
-import { longestSignaturePath } from '@opengewerk/domain'
-import { Button } from '@opengewerk/platform-web'
+import { longestSignaturePath } from '@opengewerk/platform-domain'
 import { useId, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 
-import { signatureStroke, signatureViewBox } from '../app/signature.js'
-import { farEnough, pathOf, type Point, pointIn } from './signing.js'
+import { Button } from '../components/button.js'
+import { signatureStroke, signatureViewBox } from '../components/signature.js'
+import { farEnough, pathOf, type Point, pointIn } from './strokes.js'
 
 /**
- * Where the customer signs, with a finger or a pen.
+ * Where somebody signs, with a finger or a pen.
  *
  * The strokes live in a ref and not in state. A finger reports its position
  * faster than React renders, and every report handled against the strokes of

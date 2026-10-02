@@ -7,47 +7,18 @@ import { showsPrices, whyFixed } from './document.js'
 import {
   deviceInfoProblem,
   longestDeviceInfo,
-  longestSignaturePath,
   longestSignerName,
   type SignedContent,
   signedContentFingerprint,
-  signaturePathIsValid,
   signerNameProblem,
 } from './document-signature.js'
 
 /**
  * The signature of #73: a picture, a name, a moment and the device, and the
- * rules that make a signed report stay what the customer signed.
+ * rules that make a signed report stay what the customer signed. Whether the
+ * picture has the shape the pad draws is a question of the foundation, and
+ * tested there (ADR 0010).
  */
-
-describe('a signature path', () => {
-  it('is moves and lines in whole units, inside the box', () => {
-    expect(signaturePathIsValid('M10,20L30,40L35,42')).toBe(true)
-    expect(signaturePathIsValid('M10,20L30,40M500,100L600,120')).toBe(true)
-    expect(signaturePathIsValid('M0,0L1000,400')).toBe(true)
-  })
-
-  it('carries nothing else, because it goes straight into an SVG', () => {
-    for (const path of [
-      '',
-      'M10,20L30,40"/><script>alert(1)</script>',
-      'm10,20l30,40',
-      'M10.5,20L30,40',
-      'M-10,20L30,40',
-      'L10,20',
-      'M10,20 L30,40',
-      'M10,20C30,40,50,60,70,80',
-    ]) {
-      expect(signaturePathIsValid(path)).toBe(false)
-    }
-  })
-
-  it('stays inside the box and below its length', () => {
-    expect(signaturePathIsValid('M1001,20L30,40')).toBe(false)
-    expect(signaturePathIsValid('M10,401L30,40')).toBe(false)
-    expect(signaturePathIsValid(`M1,1${'L1,1'.repeat(longestSignaturePath / 4)}`)).toBe(false)
-  })
-})
 
 function report(over: Partial<SignedContent> = {}): SignedContent {
   return {

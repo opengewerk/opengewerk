@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState } from '@opengewerk/domain'
+import { ScanningContext } from '@opengewerk/platform-web/site'
+import type { CodeReader, Scanning } from '@opengewerk/platform-web/site'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -15,10 +17,9 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { CodeReader } from '../../app/barcode.js'
 import { SyncClient } from '../../sync/client.js'
 import { SitePvStringScreen } from './pv.js'
-import { type Scanning, ScanningContext, SiteScannerScreen } from './scanner.js'
+import { SiteScannerScreen } from './scanner.js'
 
 /**
  * #300 on the roof: the serial numbers of a string's modules from their
@@ -218,6 +219,10 @@ describe('the scanner of a string', () => {
       await screen.findByRole('heading', { name: 'Alle Module haben eine Seriennummer' }),
     ).toBeDefined()
     expect(screen.getByText('Jedes Modul dieses Strings hat eine Seriennummer.')).toBeDefined()
+    // Nothing left to read: the camera is let go while the screen still stands.
+    await waitFor(() => {
+      expect(stopped).toBe(1)
+    })
 
     await client.synchronise()
     expect(sent()).toEqual({ 'm-2': 'JA2404118772', 'm-3': 'JA2404118773' })
