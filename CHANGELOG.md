@@ -579,6 +579,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   "Passkeys" hat dabei Tests für das bekommen, was bisher keiner prüfte: eine Liste, die lädt,
   nicht ankommt oder leer ist, ein Name, den der Server ablehnt, ein Löschen, das scheitert, und
   eine Bestätigung, die abgelaufen ist, bis der Name steht.
+- Der Renderer läuft auf `browserless/chromium` 2.57.0 statt 2.56.7, in `docker/compose.yaml`
+  und im Job "E-Rechnung gegen KoSIT und Mustang" (#465, von Dependabot). Die neue Fassung
+  bringt dasselbe Chromium 153 auf Ubuntu 26.04. Gedruckt ändert sich nichts: die acht
+  Musterrechnungen der CI kommen mit beiden Fassungen mit demselben Text und Seite für Seite
+  als dasselbe Bild heraus.
 
 ## [0.4.0] - 2026-09-27
 
