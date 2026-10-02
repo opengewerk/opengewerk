@@ -28,6 +28,10 @@ export { switchTenant, useTenants } from './tenants.js'
 export { AccountScreen } from './account.js'
 export { PasskeysPanel } from './passkeys.js'
 
+// Who works in the tenant, with which roles, on which devices, and the
+// invitations still open: a settings screen, under the key `zugaenge`.
+export { StaffScreen } from './staff.js'
+
 // The frame of a screen, its head with the path, the facts of a record, the
 // two columns of one, the chips of a list, a remark in a box.
 export {

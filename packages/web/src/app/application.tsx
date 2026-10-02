@@ -1,4 +1,9 @@
-import { businessNameMaxLength, labelCodeFromScan, syncEntities } from '@opengewerk/domain'
+import {
+  businessNameMaxLength,
+  businessNameProblem,
+  labelCodeFromScan,
+  syncEntities,
+} from '@opengewerk/domain'
 import type { InterfaceApplication } from '@opengewerk/platform-web'
 import { directWrite, httpTransport } from '@opengewerk/platform-web/sync'
 import { ScanLine } from 'lucide-react'
@@ -57,6 +62,7 @@ export const application: InterfaceApplication = {
     'Diese Instanz läuft auf Ihrem eigenen Server. Die Daten verlassen ihn nicht, und niemand außer Ihnen kann sie abschalten.',
   licence: 'AGPL-3.0',
   tenantNameMaxLength: businessNameMaxLength,
+  tenantNameProblem: businessNameProblem,
   // The office has them and hands them in itself; see above.
   settings: [],
 

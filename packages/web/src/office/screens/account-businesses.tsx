@@ -9,7 +9,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { useMay } from '../../app/queries.js'
-import { createOwnTenant } from '../../session/instance.js'
+import { createOwnTenant } from '../../session/own-tenant.js'
 
 /**
  * The businesses of this person (#142, #242), `betriebe_card()` of the

@@ -50,6 +50,7 @@ describe('the interface of the foundation', () => {
       '.': './src/index.ts',
       './format': './src/format.ts',
       './gate': './src/gate/index.ts',
+      './instance': './src/instance/index.ts',
       './office': './src/office/index.ts',
       './session': './src/session/index.ts',
       './shell': './src/shell/index.ts',
@@ -167,6 +168,8 @@ describe('what the interface of the foundation knows of an application', () => {
     expect(files).toContain('./gate/boot.tsx')
     expect(files).toContain('./gate/sign-in.tsx')
     expect(files).toContain('./office/list.tsx')
+    expect(files).toContain('./office/staff.tsx')
+    expect(files).toContain('./instance/frame.tsx')
     expect(files).toContain('./site/kit.tsx')
     expect(files).toContain('./shell/suggestion.tsx')
     expect(files).toContain('./format.ts')
