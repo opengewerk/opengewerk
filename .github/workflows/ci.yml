@@ -1218,12 +1218,37 @@ jobs:
           missing=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers where change_sequence is null")
           test "${missing}" = "0"
 
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-after.txt
-          diff /tmp/chains-before.txt /tmp/chains-after.txt
+          # The update adds to the log: migration 0063 gives every business its
+          # roles as rows, and those are changes like any other. So the head
+          # of a chain moves. What is held instead is the part that cannot be
+          # repaired afterwards: the head from before is still the entry it
+          # was, and nothing came in after it but those roles, written by the
+          # migration. That the chain goes on unbroken is the check below.
+          #
+          # Read through a descriptor of its own: a command in the loop would
+          # otherwise take the rest of the file as its input.
+          while IFS=: read -r tenant next head <&3; do
+            kept=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from audit_entries where tenant_id = '${tenant}' and sequence = ${next} - 1 and hash = '${head}'")
+            echo "Der Kopf der Kette von ${tenant} vor dem Update steht noch: ${kept}"
+            test "${kept}" = "1"
+
+            added=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select coalesce(string_agg(distinct table_name || ' (' || coalesce(reason, 'ohne Grund') || ')', ', '), 'nichts') from audit_entries where tenant_id = '${tenant}' and sequence >= ${next}")
+            echo "Seitdem dazugekommen: ${added}"
+            test "${added}" = "tenant_roles (migration)"
+          done 3< /tmp/chains-before.txt
 
           broken=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t, verify_audit_chain(t.id) v where v.broken_at is not null")
           echo "Mandanten mit gebrochener Kette: ${broken}"
           test "${broken}" = "0"
+
+          # The business that was there before the update has its roles, one
+          # that leads it among them, so that whoever worked in it still may.
+          # Which rights each role holds is the test of the migration; counted
+          # here they would break this job with the next right, with nothing
+          # actually wrong.
+          leaderless=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t where not exists (select 1 from tenant_roles r where r.tenant_id = t.id and r.leads)")
+          echo "Betriebe ohne eine Rolle, die führt: ${leaderless}"
+          test "${leaderless}" = "0"
 
           health=$(curl --silent --fail http://127.0.0.1:23700/health)
           echo "Health nach dem Update: ${health}"
