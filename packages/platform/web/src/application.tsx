@@ -40,6 +40,12 @@ export interface InterfaceApplication {
    */
   readonly settings: readonly SettingsEntry[]
   /**
+   * The way to a further tenant of one's own, where the application lets
+   * somebody make one: under the list of tenants in the header, for whoever
+   * holds the right.
+   */
+  readonly ownTenant?: OwnTenantLink
+  /**
    * Starts the sync client of the application for the tenant whose store this
    * is: with the rules made from its policies, the kinds of record it has a
    * screen for, and the way to the server its entry takes.
@@ -74,6 +80,21 @@ export interface SettingsEntry {
    * catalogue of the application: to the foundation a right is a string.
    */
   readonly right?: string
+}
+
+/**
+ * Where a further tenant of one's own is made. Whether somebody may make one
+ * for themselves, and behind which right, is the application's to decide: the
+ * route is its own, and so is the screen the link leads to.
+ */
+export interface OwnTenantLink {
+  /** The right it takes. Whoever lacks it is not offered the way. */
+  readonly right: string
+  readonly to: string
+  /** The place on that screen, where it is one card among several. */
+  readonly hash?: string
+  /** What the link says, with the application's word for a tenant. */
+  readonly label: string
 }
 
 /** What the gate hands an application to start its sync client with. */
@@ -152,6 +173,13 @@ export interface InterfaceSentences {
     readonly tenantHint: string
     /** The button that sets up. */
     readonly create: string
+  }
+  readonly tenants: {
+    /**
+     * Over the list of tenants in the header, for somebody who works in more
+     * than one: what choosing another one does.
+     */
+    readonly switch: string
   }
   readonly settings: {
     /** Over the list beside every settings screen: whose settings these are. */

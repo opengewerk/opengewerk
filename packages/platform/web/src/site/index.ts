@@ -6,6 +6,17 @@
 // application calls that entry is its own business; in the code it is the
 // site. Nothing in here is drawn for the office.
 
+// What every screen on site sits in: the strips, the header of a screen, the
+// tabs where the thumb is and the menu behind the last of them. An
+// application hands in its tabs and mounts the frame as the route over its
+// screens.
+export { SiteFrame } from './frame.js'
+export type { SiteFrameProps, SiteTab } from './frame.js'
+// The slate header of a screen below the tabs, with the way back the
+// application names.
+export { SiteHeader } from './header.js'
+export type { WayBack } from './header.js'
+
 // The content of a screen, small capitals over a value, the facts of a
 // record, links and rows to tap, the head of a screen of the tabs, and the
 // sentences of a card.

@@ -1,5 +1,5 @@
 import type { Permission } from '@opengewerk/domain'
-import type { InterfaceApplication, SettingsEntry } from '@opengewerk/platform-web'
+import type { InterfaceApplication, OwnTenantLink, SettingsEntry } from '@opengewerk/platform-web'
 import {
   CalendarClock,
   Clock,
@@ -124,9 +124,21 @@ const settings = [
 ] as const satisfies readonly (SettingsEntry & { readonly right: Permission })[]
 
 /**
- * This application as the office hands it to the foundation: what both
- * entries share, and the settings of a business, which only the office shows
- * (ADR 0010). Kept apart from the shared value so that the site does not
- * load the list.
+ * A further business for an owner (#142), under the list of businesses in the
+ * header: made on the card "Betriebe" under "Konto", behind the right this
+ * application has for it.
  */
-export const officeApplication: InterfaceApplication = { ...application, settings }
+const ownTenant = {
+  right: 'tenant.create',
+  to: '/konto',
+  hash: 'betriebe',
+  label: 'Weiteren Betrieb anlegen',
+} as const satisfies OwnTenantLink & { readonly right: Permission }
+
+/**
+ * This application as the office hands it to the foundation: what both
+ * entries share, and what only the office shows, the settings of a business
+ * and the way to a further one (ADR 0010). Kept apart from the shared value
+ * so that the site does not load either.
+ */
+export const officeApplication: InterfaceApplication = { ...application, settings, ownTenant }

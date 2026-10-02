@@ -324,9 +324,9 @@ describe('the sign in after the scan of a QR label (#308)', () => {
 
 describe('what each entry hands to the foundation', () => {
   /**
-   * The site never shows a settings screen, and a phone should not load the
-   * list of them. So the office adds the settings to what both entries share,
-   * and the site hands in the shared value as it is.
+   * The site never shows a settings screen or the list of businesses, and a
+   * phone should not load them. So the office adds both to what the entries
+   * share, and the site hands in the shared value as it is.
    */
   it('is the same application, with the settings of a business only from the office', () => {
     expect(application.settings).toEqual([])
@@ -344,7 +344,18 @@ describe('what each entry hands to the foundation', () => {
       'zugaenge',
       'protokoll',
     ])
-    expect({ ...officeApplication, settings: [] }).toEqual(application)
+    expect(application.ownTenant).toBeUndefined()
+    // A further business is made by an owner, on the card under "Konto".
+    expect(officeApplication.ownTenant).toEqual({
+      right: 'tenant.create',
+      to: '/konto',
+      hash: 'betriebe',
+      label: 'Weiteren Betrieb anlegen',
+    })
+
+    const { ownTenant: _office, ...shared } = officeApplication
+
+    expect({ ...shared, settings: [] }).toEqual(application)
   })
 
   /**
