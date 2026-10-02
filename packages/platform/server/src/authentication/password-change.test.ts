@@ -53,7 +53,7 @@ beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
   await foundation.empty(admin)
-  await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await foundation.tenants(admin, [north])
 
   instance = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
     secret: 'w'.repeat(64),

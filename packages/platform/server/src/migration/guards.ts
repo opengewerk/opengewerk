@@ -148,6 +148,9 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   and the invitations: never deleted. Who was let in, by whom and what
  *   became of it is part of the record; a person is blocked, an invitation
  *   called back, and both are changes the log keeps.
+ * - The roles of a tenant: read, and written when a tenant comes into being.
+ *   Nothing changes or removes one yet, so nothing may; the day a tenant
+ *   keeps roles of its own, that route brings the right to change with it.
  * - The audit tables and the counter of the sync layer: read only. Their one
  *   writer is a trigger that runs as its definer.
  * - The receipts of the sync layer are written once; a conflict is written
@@ -174,6 +177,7 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'tenant_sessions', grants: noDelete, audited: true, synced: false },
   { table: 'member_passkeys', grants: noDelete, audited: true, synced: false },
   { table: 'invitations', grants: noDelete, audited: true, synced: false },
+  { table: 'tenant_roles', grants: ['select', 'insert'], audited: true, synced: false },
   { table: 'audit_chains', grants: ['select'], audited: false, synced: false },
   { table: 'audit_entries', grants: ['select'], audited: false, synced: false },
   { table: 'sync_sequences', grants: ['select'], audited: false, synced: false },

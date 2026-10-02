@@ -104,7 +104,7 @@ describe('the tables of the foundation', () => {
     const tables = foundationGuards.map((guard) => guard.table)
 
     expect(new Set(tables).size).toBe(tables.length)
-    expect(tables).toHaveLength(17)
+    expect(tables).toHaveLength(18)
   })
 
   it('give the application nothing but reading on what only a trigger writes', () => {
@@ -130,6 +130,13 @@ describe('the tables of the foundation', () => {
         .filter((guard) => guard.audited)
         .map((guard) => guard.table)
         .sort(),
-    ).toEqual(['invitations', 'member_passkeys', 'memberships', 'tenant_sessions', 'tenants'])
+    ).toEqual([
+      'invitations',
+      'member_passkeys',
+      'memberships',
+      'tenant_roles',
+      'tenant_sessions',
+      'tenants',
+    ])
   })
 })

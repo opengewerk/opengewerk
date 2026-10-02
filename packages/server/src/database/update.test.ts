@@ -1,6 +1,7 @@
 import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { permissions, type RoleKey, roles, shippedRoles } from '@opengewerk/domain'
 import { MigrationHistoryError, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -98,6 +99,23 @@ async function chain(): Promise<Chain> {
   return { nextSequence: row.next_sequence, headHash: row.head_hash }
 }
 
+/** The fingerprint of one entry of the log, by its place in the chain. */
+async function entryAt(sequence: number): Promise<{ hash: string; previous: string | null }> {
+  const { rows } = await admin.query<{ hash: string; previous: string | null }>(
+    `select hash, previous_hash as previous from audit_entries
+      where tenant_id = $1 and sequence = $2`,
+    [tenant.id, sequence],
+  )
+
+  const row = rows[0]
+
+  if (!row) {
+    throw new Error(`The log has no entry ${String(sequence)}`)
+  }
+
+  return row
+}
+
 /** What the database says about its own log: null when nothing is broken. */
 async function chainProblem(): Promise<string | null> {
   const { rows } = await admin.query<{ problem: string | null }>(
@@ -168,13 +186,31 @@ describe('an update from an older release', () => {
     // The chain is the part that cannot be repaired afterwards. Its head was
     // computed over entries the update passes over, so a column added to the
     // log itself would turn up here as a forgery.
-    expect(await chain()).toEqual(before)
+    //
+    // The update adds to it: 0063 gives the business its roles as rows, and
+    // those are changes like any other. So what is held here is that every
+    // entry from before stands as it stood, that the first one after them
+    // builds on the head the chain had, and that nothing but those roles came
+    // in.
+    const lastBefore = Number(before.nextSequence) - 1
+    const after = await chain()
+
+    expect((await entryAt(lastBefore)).hash).toBe(before.headHash)
+    expect((await entryAt(lastBefore + 1)).previous).toBe(before.headHash)
     expect(await chainProblem()).toBeNull()
 
-    // And it goes on from where it stood, rather than starting again beside it.
+    const { rows: added } = await admin.query<{ table_name: string; reason: string | null }>(
+      `select distinct table_name, reason from audit_entries
+        where tenant_id = $1 and sequence > $2`,
+      [tenant.id, lastBefore],
+    )
+
+    expect(added).toEqual([{ table_name: 'tenant_roles', reason: 'migration' }])
+
+    // And it goes on from where it stands, rather than starting again beside it.
     await addCustomer('Nach dem Update')
 
-    expect(Number((await chain()).nextSequence)).toBeGreaterThan(Number(before.nextSequence))
+    expect(Number((await chain()).nextSequence)).toBeGreaterThan(Number(after.nextSequence))
     expect(await chainProblem()).toBeNull()
   })
 
@@ -529,6 +565,112 @@ describe('the operators of an instance set up before 0051', () => {
     await runMigrations(ownerDatabaseUrl())
 
     const { rows } = await admin.query('select 1 from instance_operators')
+
+    expect(rows).toEqual([])
+  })
+})
+
+/**
+ * Until 0063 what a role may do stood in the code. From 0063 on it stands in
+ * the rows of the business, and a business that was there before gets the
+ * three roles with exactly the rights the code gave them, so that everybody
+ * may do after the update what they could before it.
+ *
+ * This is the test the migration names. It holds the rows of a business from
+ * before it against the roles the code ships, every role against every right.
+ * It is also what a later change runs into: a right given to one of the three
+ * roles in the code, without a migration that writes it into the rows that
+ * are there, leaves a business from before without it, and shows here.
+ */
+describe('the businesses that were there before 0063', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0063_tenant_roles')
+  const second = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
+
+  interface RoleRow {
+    readonly key: string
+    readonly label: string
+    readonly rights: string[]
+    readonly leads: boolean
+    readonly secondFactor: boolean
+  }
+
+  async function rolesOf(tenantId: string): Promise<RoleRow[]> {
+    const { rows } = await admin.query<RoleRow>(
+      `select key, label, rights, leads, second_factor as "secondFactor"
+         from tenant_roles where tenant_id = $1 order by id`,
+      [tenantId],
+    )
+
+    return rows
+  }
+
+  it('get the three roles with the rights the code gave them, right for right', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
+      tenant.id,
+      tenant.name,
+      second.id,
+      second.name,
+    ])
+
+    await runMigrations(ownerDatabaseUrl())
+
+    for (const business of [tenant, second]) {
+      const rows = await rolesOf(business.id)
+
+      // The three, in the order a screen lists them, each with its name and
+      // the two things about it that are not rights.
+      expect(
+        rows.map(({ key, label, leads, secondFactor }) => ({ key, label, leads, secondFactor })),
+      ).toEqual(
+        shippedRoles.map(({ key, label, leads, secondFactor }) => ({
+          key,
+          label,
+          leads,
+          secondFactor,
+        })),
+      )
+
+      // Every role against every right, one at a time, so that a failure
+      // names the role and the right.
+      for (const row of rows) {
+        for (const permission of permissions) {
+          expect({ role: row.key, permission, held: row.rights.includes(permission) }).toEqual({
+            role: row.key,
+            permission,
+            held: roles[row.key as RoleKey].permissions.includes(permission),
+          })
+        }
+
+        // And nothing the code does not know.
+        expect(
+          row.rights.filter((right) => !(permissions as readonly string[]).includes(right)),
+        ).toEqual([])
+      }
+    }
+
+    // In the log of each business as something the migration did, and the
+    // chain holds.
+    const { rows: logged } = await admin.query<{ tenant_id: string; reason: string | null }>(
+      `select distinct tenant_id, reason from audit_entries
+        where table_name = 'tenant_roles' order by tenant_id`,
+    )
+
+    expect(logged).toEqual(
+      [tenant.id, second.id].sort().map((id) => ({ tenant_id: id, reason: 'migration' })),
+    )
+    expect(await chainProblem()).toBeNull()
+  })
+
+  it('leave an instance nobody set up without a row, for the first run to write them', async () => {
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query('select 1 from tenant_roles')
 
     expect(rows).toEqual([])
   })

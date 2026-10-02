@@ -20,6 +20,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 import { testIdentities as identities } from './test-identity.js'
@@ -78,6 +79,7 @@ beforeAll(async () => {
   await applyMigrations()
   await allowApplicationLogin(admin)
   await admin.query('insert into tenants (id, name) values ($1, $2)', [first, 'Elektro Nord GmbH'])
+  await shipRoles(admin, first)
 
   database = Database.connect(applicationDatabaseUrl())
 

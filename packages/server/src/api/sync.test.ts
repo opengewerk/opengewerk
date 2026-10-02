@@ -242,6 +242,11 @@ describe('the tables', () => {
     // kept in the office: the purchase prices are for the owner and the office
     // alone, and a pull would carry any table with sync columns to every
     // device.
+    //
+    // The roles of a business (ADR 0010) say what somebody may do, and are
+    // read live for the same reason as a membership: a device answering from
+    // a copy would go on allowing what was taken away an hour ago. What a
+    // screen may offer it is told with the business.
     const serverOnly = (name: string) =>
       name.startsWith('audit_') ||
       name.startsWith('sync_') ||
@@ -268,6 +273,7 @@ describe('the tables', () => {
       name === 'push_opt_outs' ||
       name === 'push_outbox' ||
       name === 'member_passkeys' ||
+      name === 'tenant_roles' ||
       name === 'site_access_deliveries' ||
       name === 'supplier_articles' ||
       name === 'purchase_prices' ||

@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 
-import type { Identity, IsoDate } from '@opengewerk/domain'
+import type { IsoDate } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
 
 import { runDeadlineCycle, startDeadlineWorker } from '../deadlines/engine.js'
@@ -10,10 +10,9 @@ import {
   admitPreviewUser,
   preparePreviewDatabase,
   previewDatabaseUrl,
+  previewIdentity,
   previewPort,
   PreviewRefused,
-  previewRoles,
-  previewUser,
   refuseProduction,
 } from './preview-database.js'
 import { openPreview } from './preview-server.js'
@@ -54,7 +53,7 @@ async function start(): Promise<void> {
     await admin.end()
   }
 
-  const identity: Identity = { userId: previewUser.id, tenantId: tenant.id, roles: previewRoles }
+  const identity = previewIdentity(tenant.id)
   const database = Database.connect(applicationDatabaseUrl(url))
   const application = await openPreview(database, identity)
 

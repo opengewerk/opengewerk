@@ -1,4 +1,8 @@
-import type { TenantId } from '@opengewerk/platform-domain'
+import {
+  type MemberIdentity,
+  rightsCatalogue,
+  type RoleDefinition,
+} from '@opengewerk/platform-domain'
 
 /**
  * What somebody is allowed to do. Rights are cut along actions, not along
@@ -203,6 +207,15 @@ export const permissions = [
 export type Permission = (typeof permissions)[number]
 
 /**
+ * The rights of this application as the foundation reads them (ADR 0010):
+ * what the roles of a business add up to is asked of this, and a right a row
+ * holds and this list does not know gives nothing. Made from the list above,
+ * and refused when it lacks the two rights the foundation asks for on its own
+ * routes, `membership.read` and `membership.write`.
+ */
+export const permissionCatalogue = rightsCatalogue(permissions)
+
+/**
  * What a right lets somebody do, in the words of the office (#271). Written as
  * the thing done, so that a refusal can say what this access may not do
  * without naming a key that nobody outside the code has ever seen.
@@ -268,6 +281,12 @@ export function missingPermission(permission: Permission): string {
  * The roles a business starts with. The full list in ADR 0006 is longer;
  * accounting, site manager and the read only role for the tax office arrive
  * with the phases that need them.
+ *
+ * Since ADR 0010 they are rows of the business, written when it comes into
+ * being (`shippedRoles`), and what somebody may do is read from those rows.
+ * This list is what a new business is given, and what the rows of an
+ * existing one are held against by a test: a right added here needs a
+ * migration that adds it to the rows that are there.
  */
 export const roleKeys = ['owner', 'office', 'technician'] as const
 
@@ -278,6 +297,19 @@ export interface Role {
   /** The German label, because this one is read by a person. */
   readonly label: string
   readonly permissions: readonly Permission[]
+  /**
+   * Whether the role leads the business: it hands out the others, and the
+   * last one who holds it and can still get in neither loses it nor is shut
+   * out. A flag and not a right, so that no role can lose it by losing one.
+   */
+  readonly leads: boolean
+  /**
+   * Whether somebody with this role works only with a second factor. ADR 0006
+   * puts it on the role and not on a setting, and that is the point: a switch
+   * somebody can turn off is not a requirement. Bookkeeping is named there
+   * too and joins on the day the role exists.
+   */
+  readonly secondFactor: boolean
 }
 
 const officePermissions: readonly Permission[] = [
@@ -368,64 +400,90 @@ export const roles: Readonly<Record<RoleKey, Role>> = {
     key: 'owner',
     label: 'Inhaber',
     permissions: permissions,
+    leads: true,
+    secondFactor: true,
   },
   office: {
     key: 'office',
     label: 'Büro',
     permissions: officePermissions,
+    leads: false,
+    secondFactor: false,
   },
   technician: {
     key: 'technician',
     label: 'Monteur',
     permissions: technicianPermissions,
+    leads: false,
+    secondFactor: false,
   },
 }
 
 /**
- * Who is asking. The tenant decides whose data is in reach, the roles decide
- * what may be done with it. Two questions, two mechanisms: row level security
- * answers the first in the database, this answers the second in the server.
+ * The three roles as the rows a business starts with, in the order a screen
+ * lists them.
  */
-export interface Identity {
-  readonly userId: string
-  readonly tenantId: TenantId
-  readonly roles: readonly RoleKey[]
-}
+export const shippedRoles: readonly RoleDefinition<Permission>[] = roleKeys.map((key) => ({
+  key,
+  label: roles[key].label,
+  rights: roles[key].permissions,
+  leads: roles[key].leads,
+  secondFactor: roles[key].secondFactor,
+}))
 
-/** Every right a set of roles adds up to. */
+/**
+ * Who is asking. The tenant decides whose data is in reach, the rights decide
+ * what may be done with it. Two questions, two mechanisms: row level security
+ * answers the first in the database, the rights answer the second in the
+ * server.
+ *
+ * The rights are what the roles of the membership add up to, resolved from
+ * the rows of the business when the request came in (ADR 0010). `roles` are
+ * the keys the membership names, kept for whoever wants to say which.
+ */
+export type Identity = MemberIdentity<Permission>
+
+/**
+ * Every right these of the three shipped roles add up to, as this version
+ * defines them.
+ *
+ * Not what somebody may do: that is read from the rows of the business, and
+ * asked through `isAllowed`. This is for where no row is at hand, a test that
+ * stands in for somebody with a role, and the interface until it is handed
+ * the rights with the business.
+ */
 export function permissionsOfRoles(keys: readonly RoleKey[]): ReadonlySet<Permission> {
-  const granted = new Set<Permission>()
-
-  for (const key of keys) {
-    for (const permission of roles[key].permissions) {
-      granted.add(permission)
-    }
-  }
-
-  return granted
+  return new Set(
+    permissionCatalogue.sumOf(shippedRoles.filter((role) => keys.includes(role.key as RoleKey)))
+      .rights,
+  )
 }
 
-/** Every right the roles of this identity add up to. */
-export function permissionsOf(identity: Identity): ReadonlySet<Permission> {
-  return permissionsOfRoles(identity.roles)
+/** Every right this identity holds. */
+export function permissionsOf(identity: Pick<Identity, 'rights'>): ReadonlySet<Permission> {
+  return new Set(identity.rights)
 }
 
 /**
- * Whether these roles carry this right.
+ * Whether these of the three shipped roles carry this right.
  *
- * The same question `isAllowed` answers, asked where there is no identity to
- * hand. The interface is such a place: it knows the roles of the business it
- * is working in, because the chooser handed them over, and it uses them to
- * decide which entries the navigation shows. That is a courtesy and not a
- * gate, and it has to be said out loud: the gate is the guard on the server,
- * which asks the same question of the membership on every request. A hidden
- * entry and a refused route are two different promises, and only the second
- * one is kept here.
+ * Asked where there is no identity to hand. The interface is such a place:
+ * it knows the roles of the business it is working in, because the chooser
+ * handed them over, and it uses them to decide which entries the navigation
+ * shows. That is a courtesy and not a gate, and it has to be said out loud:
+ * the gate is the guard on the server, which asks the rights of the
+ * membership on every request. A hidden entry and a refused route are two
+ * different promises, and only the second one is kept here.
  */
 export function rolesAllow(keys: readonly RoleKey[], permission: Permission): boolean {
   return permissionsOfRoles(keys).has(permission)
 }
 
-export function isAllowed(identity: Identity, permission: Permission): boolean {
-  return permissionsOf(identity).has(permission)
+/**
+ * Whether somebody holds a right. The one question, wherever it is asked: by
+ * the guard in front of a route, by the sync, by a route that shows more to
+ * one than to another.
+ */
+export function isAllowed(identity: Pick<Identity, 'rights'>, permission: Permission): boolean {
+  return permissionCatalogue.isAllowed(identity, permission)
 }

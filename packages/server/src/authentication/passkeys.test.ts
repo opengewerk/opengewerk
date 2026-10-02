@@ -20,6 +20,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { passkeyNotices } from '../mail/passkey-notice.js'
 import { aMailServer, testKey } from '../mail/test-mail-server.js'
@@ -135,6 +136,7 @@ beforeAll(async () => {
     south.id,
     south.name,
   ])
+  await shipRoles(admin, north.id, south.id)
 
   database = Database.connect(applicationDatabaseUrl())
 

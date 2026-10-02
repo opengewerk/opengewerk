@@ -177,6 +177,10 @@ describe('an instance nobody has used yet', () => {
    * and an account belongs to the instance, which is why the `auth_` tables
    * carry no audit trigger (ADR 0006). What a tenant sees of an account is
    * the membership, and that is what this looks for.
+   *
+   * The roles the tenant starts with are in it as well. They are rows of the
+   * tenant, and what its people may do is read from them from the first
+   * request on.
    */
   it('writes its own beginning into the audit log of the new tenant', async () => {
     await emptyInstance()
@@ -189,7 +193,7 @@ describe('an instance nobody has used yet', () => {
     )
 
     expect(new Set(entries.map((entry) => entry.tableName))).toEqual(
-      new Set(['tenants', 'memberships']),
+      new Set(['tenants', 'tenant_roles', 'memberships']),
     )
 
     for (const entry of entries) {
@@ -215,7 +219,7 @@ describe('what an application makes of its first account', () => {
 
     const { userId } = await setUpInstance(
       {
-        leadingRole: probeAccess.leadingRole,
+        shippedRoles: probeAccess.shippedRoles,
         firstAccount: async (tx, account) => {
           seen.push(account)
           // The accounts are in reach only outside a tenant, which is where
@@ -246,7 +250,7 @@ describe('what an application makes of its first account', () => {
     await expect(
       setUpInstance(
         {
-          leadingRole: probeAccess.leadingRole,
+          shippedRoles: probeAccess.shippedRoles,
           firstAccount: () => Promise.reject(new Error('Not today.')),
         },
         instance.authentication,

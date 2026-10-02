@@ -398,7 +398,7 @@ describe('the way out', () => {
   it('is a real SMTP conversation with the login of the business, end to end', async () => {
     await aTask('britta')
     const server = await fakeSmtpServer({ credentials: { user: 'rechnung', password: 'richtig' } })
-    const owner = { userId: 'britta', tenantId: north, roles: ['owner' as const] }
+    const owner = { userId: 'britta', tenantId: north }
 
     await saveMailServer(database, owner, testKey, {
       host: '127.0.0.1',

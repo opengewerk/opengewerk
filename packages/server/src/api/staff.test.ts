@@ -24,6 +24,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 
@@ -152,6 +153,7 @@ beforeAll(async () => {
   await applyMigrations()
   await allowApplicationLogin(admin)
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await shipRoles(admin, north.id)
 
   database = Database.connect(applicationDatabaseUrl())
   authentication = createAuthentication({

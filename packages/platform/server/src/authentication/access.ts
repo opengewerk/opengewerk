@@ -1,40 +1,40 @@
+import type { RightsCatalogue, RoleDefinition } from '@opengewerk/platform-domain'
+
 import type { TenantTransaction } from '../database/database.js'
 
 /**
  * What an application says about the people in its tenants, where the
- * authentication would otherwise have to know its roles and its words.
+ * authentication would otherwise have to know its rights and its words.
  *
  * The mechanism is the foundation's and the same for every application of the
  * organisation (ADR 0010): accounts on the instance, memberships per tenant,
- * and a session that works in one tenant at a time. Which roles there are,
- * which of them leads a tenant and which may not work without a second factor
- * is the application's to say, and so is every sentence that calls a tenant or
- * a role by the name its people know it by.
+ * roles as rows of a tenant, and a session that works in one tenant at a
+ * time. Which rights there are and which roles a tenant starts with is the
+ * application's to say, and so is every sentence that calls a tenant or a
+ * role by the name its people know it by.
  *
  * Handed in as an argument wherever it is needed, and to the controllers
  * under `ACCESS_RULES`. There is no register anywhere that an application
  * writes itself into: two applications in one process, as in a test, would
- * otherwise read each other's roles.
+ * otherwise read each other's rights.
  */
-export interface AccessRules<Role extends string = string> {
+export interface AccessRules<Right extends string = string> {
   /**
-   * The roles a membership or an invitation may name. A list for now; they
-   * become rows of a tenant together with the catalogue of rights.
+   * The rights of the application. The roles of a tenant are read through
+   * it: what a role gives is what its row holds and this list knows.
    */
-  readonly roles: readonly Role[]
+  readonly catalogue: RightsCatalogue<Right>
   /**
-   * The role that leads a tenant. The first account of an instance gets it
-   * and nothing else, because it is the role that hands out the others. ADR
-   * 0006 hangs the second factor on such a role, so the first thing the new
-   * account meets is the screen that sets one up.
+   * The roles a tenant starts with, written as rows when it comes into being
+   * (`writeRoles`). The tenant's own from then on: what somebody may do is
+   * read from its rows and no longer from this list.
+   *
+   * At least one of them leads. The first account of a tenant gets the first
+   * that does, and nothing else, because it is the role that hands out the
+   * others. ADR 0006 hangs the second factor on such a role, so the first
+   * thing the new account meets is the screen that sets one up.
    */
-  readonly leadingRole: Role
-  /**
-   * Whether somebody with these roles works only with a second factor. On
-   * the role and not on a setting (ADR 0006): a switch somebody can turn off
-   * is not a requirement.
-   */
-  requiresSecondFactor(roles: readonly Role[]): boolean
+  readonly shippedRoles: readonly RoleDefinition<Right>[]
   /**
    * What is wrong with a name for a tenant, as a sentence for the screen, or
    * null. The first run asks the same question as the screen that changes the
@@ -111,24 +111,10 @@ export interface AccessSentences {
     kept(email: string, tenantId: string, roles: readonly string[]): string
     /** Said after either, when the roles given need a second factor. */
     readonly secondFactor: string
+    /** A tenant the instance does not have, by the key the command was given. */
+    noSuchTenant(tenantId: string): string
   }
 }
 
 /** The rules of the application, for the controllers of the authentication. */
 export const ACCESS_RULES = Symbol('AccessRules')
-
-/**
- * The rights the routes of the administration ask for: seeing who works in a
- * tenant, and changing it.
- *
- * Rights of the foundation, because the routes are. An application carries
- * both in its catalogue of rights and says which of its roles hold them.
- * Whoever can hand out roles can hand themselves the leading one, so they
- * belong to that role and to no other.
- */
-export const accessRights = {
-  read: 'membership.read',
-  write: 'membership.write',
-} as const
-
-export type AccessRight = (typeof accessRights)[keyof typeof accessRights]

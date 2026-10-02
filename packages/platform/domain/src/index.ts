@@ -13,6 +13,7 @@ export * from './model/identity.js'
 export * from './model/invitation.js'
 export * from './model/mail-server.js'
 export * from './model/passkey.js'
+export * from './model/rights.js'
 
 // The rule engine: records with a period of validity and the paragraph they
 // come from. Which rules there are is the application's business.

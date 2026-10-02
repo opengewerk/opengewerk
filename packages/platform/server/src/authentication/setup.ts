@@ -4,11 +4,12 @@ import { sql } from 'drizzle-orm'
 import type { Database, StraddlingTransaction } from '../database/database.js'
 import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
+import { firstRoleOf, writeRoles } from './roles.js'
 import { createAccount, grantMembership } from './staff.js'
 
 /**
- * The first run of an instance: a tenant, the person who leads it, and the
- * membership between the two.
+ * The first run of an instance: a tenant with the roles it starts with, the
+ * person who leads it, and the membership between the two.
  *
  * This is the way in that a fresh installation has and did not have before.
  * Until #62 an instance started, migrated, answered its health check and
@@ -81,7 +82,7 @@ export async function instanceIsEmpty(database: Database): Promise<boolean> {
  * is the membership, and that is there.
  */
 export async function setUpInstance(
-  access: Pick<AccessRules, 'leadingRole' | 'firstAccount'>,
+  access: Pick<AccessRules, 'shippedRoles' | 'firstAccount'>,
   authentication: Authentication,
   database: Database,
   firstRun: FirstRun,
@@ -111,12 +112,14 @@ export async function setUpInstance(
       // where that is in reach, and before the step in.
       await access.firstAccount?.(tx, userId)
 
-      // The leading role and nothing else, because it is the role that hands
-      // out the others. That it brings the second factor with it is the point
-      // of doing this here rather than leaving it to a command: the first
-      // thing the new account meets is the screen that sets one up.
+      // Inside the new tenant: the roles it starts with, as rows of its own,
+      // and then the role that leads and nothing else, because it is the role
+      // that hands out the others. That it brings the second factor with it
+      // is the point of doing this here rather than leaving it to a command:
+      // the first thing the new account meets is the screen that sets one up.
       await enter(tenantId, userId)
-      await grantMembership(tx, { tenantId, userId, roles: [access.leadingRole] })
+      await writeRoles(tx, tenantId, access.shippedRoles)
+      await grantMembership(tx, { tenantId, userId, roles: [firstRoleOf(access).key] })
 
       return { tenantId, userId }
     },

@@ -3,7 +3,7 @@ import 'reflect-metadata'
 import { Controller, Get, type INestApplication, Module, Post } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
-import type { TenantIdentity } from '@opengewerk/platform-domain'
+import type { MemberIdentity } from '@opengewerk/platform-domain'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -39,9 +39,7 @@ import { headerIdentities, testIdentityHeader } from './test-identity.js'
 
 type ProbeRight = 'probe.read' | 'probe.write'
 
-interface ProbeIdentity extends TenantIdentity {
-  readonly rights: readonly ProbeRight[]
-}
+type ProbeIdentity = MemberIdentity<ProbeRight>
 
 const instance = 'https://probe.example.org'
 const tenant = newId<'tenant'>()
@@ -53,8 +51,7 @@ const operators = new Map<string, { readonly secondFactor: boolean }>([
   ['operator-without', { secondFactor: false }],
 ])
 
-const authorization: Authorization<ProbeIdentity, ProbeRight> = {
-  isAllowed: (identity, right) => identity.rights.includes(right),
+const authorization: Authorization<ProbeRight> = {
   missingPermission: (right) => `Das Recht ${right} fehlt diesem Zugang.`,
   operatorAccess: async (_database, userId) => ({
     operator: operators.has(userId),
@@ -141,7 +138,9 @@ class ProbeModule {}
 let app: INestApplication
 
 function as(userId: string, tenantId: string | undefined, ...rights: ProbeRight[]): string {
-  return JSON.stringify({ userId, tenantId, rights })
+  // The rights, as an identity carries them. How somebody came by them, which
+  // roles of which tenant, is not the guard's question.
+  return JSON.stringify({ userId, tenantId, roles: [], rights })
 }
 
 function http() {

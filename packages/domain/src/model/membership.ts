@@ -6,7 +6,7 @@ import type {
   TenantSessionId,
 } from '@opengewerk/platform-domain'
 
-import type { RoleKey } from './authorization.js'
+import { type RoleKey, roleKeys, roles } from './authorization.js'
 
 /**
  * What a person is in one business. A user belongs to the instance, a
@@ -107,14 +107,14 @@ export interface TenantSession {
 }
 
 /**
- * The roles that may not work without a second factor.
- *
- * ADR 0006 puts it on the role and not on a setting, and that is the point: a
- * switch somebody can turn off is not a requirement. Bookkeeping is named
- * there too and is missing here because the role itself does not exist yet; it
- * joins this list on the day it does, not later.
+ * The roles that may not work without a second factor, of the three a
+ * business starts with. What decides on the server is the row of the role
+ * (`Role.secondFactor`); this is the same answer for a screen that has the
+ * keys and no row.
  */
-export const secondFactorRoles: readonly RoleKey[] = ['owner']
+export const secondFactorRoles: readonly RoleKey[] = roleKeys.filter(
+  (key) => roles[key].secondFactor,
+)
 
 /** Whether this set of roles may only work with a second factor in place. */
 export function requiresSecondFactor(roles: readonly RoleKey[]): boolean {

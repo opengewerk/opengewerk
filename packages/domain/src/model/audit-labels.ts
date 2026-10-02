@@ -480,6 +480,16 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       note: 'Anmerkung',
     },
   },
+  tenant_roles: {
+    label: 'Rolle',
+    fields: {
+      key: 'Schlüssel',
+      label: 'Bezeichnung',
+      rights: 'Rechte',
+      leads: 'Führt den Betrieb',
+      second_factor: 'Zweiter Faktor Pflicht',
+    },
+  },
   tenant_sessions: {
     label: 'Anmeldung',
     fields: {

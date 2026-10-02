@@ -3,6 +3,7 @@ import {
   type InstanceTenantView,
   invitationDays,
   type RoleKey,
+  shippedRoles,
   type TenantId,
 } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
@@ -16,6 +17,7 @@ import {
   newId,
   normalise,
   type StraddlingTransaction,
+  writeRoles,
 } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
@@ -28,8 +30,8 @@ import { invitations } from '../database/schema/index.js'
  *
  * Both go through `create_tenant` (migration 0051), which is the only way the
  * application creates a business besides the first run setup, and both write
- * the business first and then, inside it, what makes somebody its owner, so
- * that this lands in the new business's own log.
+ * the business first and then, inside it, the roles it starts with and what
+ * makes somebody its owner, so that this lands in the new business's own log.
  */
 
 const ownerRoles: readonly RoleKey[] = ['owner']
@@ -61,6 +63,21 @@ async function createTenantRow(tx: StraddlingTransaction['tx'], name: string): P
   return created as TenantId
 }
 
+/**
+ * The step into a business that was just created, and the roles it starts
+ * with. One function for every way a further business comes into being, so
+ * that none of them leaves one without its roles: in such a business nobody
+ * would hold a single right, its owner included.
+ */
+async function enterNew(
+  { tx, enter }: StraddlingTransaction,
+  tenantId: TenantId,
+  userId: string,
+): Promise<void> {
+  await enter(tenantId, userId)
+  await writeRoles(tx, tenantId, shippedRoles)
+}
+
 /** A business for the person asking, who is its owner from the first moment. */
 export async function createOwnTenant(
   database: Database,
@@ -71,10 +88,11 @@ export async function createOwnTenant(
 
   const tenantId = await database.forInstanceAndTenant(
     'tenant.create',
-    async ({ tx, enter }: StraddlingTransaction) => {
+    async (straddling: StraddlingTransaction) => {
+      const { tx } = straddling
       const created = await createTenantRow(tx, checked)
 
-      await enter(created, userId)
+      await enterNew(straddling, created, userId)
       await grantMembership(tx, { tenantId: created, userId, roles: ownerRoles })
 
       return created
@@ -112,12 +130,13 @@ export async function createTenantFor(
 
   const tenantId = await database.forInstanceAndTenant(
     'instance.tenant',
-    async ({ tx, enter }: StraddlingTransaction) => {
+    async (straddling: StraddlingTransaction) => {
+      const { tx } = straddling
       const created = await createTenantRow(tx, name)
 
       // Inside the new business as the operator, so that its log says who
       // made the invitation. No membership comes of it.
-      await enter(created, operator)
+      await enterNew(straddling, created, operator)
       await tx.insert(invitations).values({
         id: newId<'invitation'>(),
         tenantId: created,
@@ -156,22 +175,20 @@ export async function createTenantWithOwner(
   const name = checkedName(wanted.name)
   const context = await authentication.$context
 
-  return database.forInstanceAndTenant(
-    'tenant.cli',
-    async ({ tx, enter }: StraddlingTransaction) => {
-      const tenantId = await createTenantRow(tx, name)
-      const { userId, created } = await createAccount(context, tx, {
-        email: wanted.ownerEmail,
-        name: wanted.ownerName,
-        password: wanted.password,
-      })
+  return database.forInstanceAndTenant('tenant.cli', async (straddling: StraddlingTransaction) => {
+    const { tx } = straddling
+    const tenantId = await createTenantRow(tx, name)
+    const { userId, created } = await createAccount(context, tx, {
+      email: wanted.ownerEmail,
+      name: wanted.ownerName,
+      password: wanted.password,
+    })
 
-      await enter(tenantId, userId)
-      await grantMembership(tx, { tenantId, userId, roles: ownerRoles })
+    await enterNew(straddling, tenantId, userId)
+    await grantMembership(tx, { tenantId, userId, roles: ownerRoles })
 
-      return { tenantId, created }
-    },
-  )
+    return { tenantId, created }
+  })
 }
 
 /** The businesses of the instance for its operators: names, days, owners and counts. */

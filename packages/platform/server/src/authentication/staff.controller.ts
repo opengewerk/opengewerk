@@ -11,12 +11,13 @@ import {
   Put,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import { accessRights } from '@opengewerk/platform-domain'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { pick, requireFields } from '../api/body.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import { Database } from '../database/database.js'
-import { ACCESS_RULES, type AccessRules, accessRights } from './access.js'
+import { ACCESS_RULES, type AccessRules } from './access.js'
 import {
   changeRoles,
   devicesOf,

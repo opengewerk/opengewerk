@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
 import {
   defaultSmtpPorts,
-  type Identity,
   signatureMaxLength,
   type SmtpSecurity,
   smtpSecurities,
@@ -176,7 +175,7 @@ export function validMailServer(wanted: MailServerInput): MailServerInput {
 /** The mail server of a business, or null when it has none. */
 export async function readMailServer(
   database: Database,
-  identity: Identity,
+  identity: TenantIdentity,
   key: SecretKey,
 ): Promise<MailServerView | null> {
   return database.forTenant(identity, async (tx) => {
@@ -196,7 +195,7 @@ export async function readMailServer(
  */
 export async function saveMailServer(
   database: Database,
-  identity: Identity,
+  identity: TenantIdentity,
   key: SecretKey,
   wanted: MailServerInput,
 ): Promise<MailServerView> {
@@ -264,7 +263,10 @@ export async function saveMailServer(
  * go out whenever a server is set up again: a reminder for a task that was due
  * three weeks ago is not what somebody switching mail back on wants to send.
  */
-export async function removeMailServer(database: Database, identity: Identity): Promise<void> {
+export async function removeMailServer(
+  database: Database,
+  identity: TenantIdentity,
+): Promise<void> {
   await database.forTenant(identity, async (tx) => {
     const removed = await tx
       .delete(mailSettings)
@@ -385,7 +387,7 @@ export async function sameConnection(
  */
 export async function configurationToTry(
   database: Database,
-  identity: Identity,
+  identity: TenantIdentity,
   key: SecretKey,
   wanted: MailServerInput,
 ): Promise<MailConfiguration> {

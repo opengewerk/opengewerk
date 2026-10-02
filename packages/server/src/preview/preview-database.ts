@@ -1,7 +1,12 @@
-import type { RoleKey, TenantId } from '@opengewerk/domain'
+import { type Identity, permissionsOfRoles, type RoleKey, type TenantId } from '@opengewerk/domain'
 import { Pool } from 'pg'
 
-import { allowApplicationLogin, applyMigrations, resetSchema } from '../database/test-database.js'
+import {
+  allowApplicationLogin,
+  applyMigrations,
+  resetSchema,
+  shipRoles,
+} from '../database/test-database.js'
 
 /**
  * A start of the preview that was refused, with the sentence why. Its own
@@ -126,6 +131,20 @@ export const previewUser = {
 export const previewRoles: readonly RoleKey[] = ['owner']
 
 /**
+ * That person at work in a business, with what the role may do. The rights
+ * are what the rows `admitPreviewUser` writes add up to: the three roles as
+ * the code defines them.
+ */
+export function previewIdentity(tenantId: TenantId): Identity {
+  return {
+    userId: previewUser.id,
+    tenantId,
+    roles: previewRoles,
+    rights: [...permissionsOfRoles(previewRoles)],
+  }
+}
+
+/**
  * The business and the person, straight into the tables, the way the tests
  * set up theirs.
  *
@@ -155,6 +174,8 @@ export async function admitPreviewUser(
        values ($1, $2, $3, true, true)`,
       [previewUser.id, previewUser.name, previewUser.email],
     )
+    // The roles a business starts with, as a first run writes them.
+    await shipRoles(client, tenant.id)
     await client.query('insert into memberships (tenant_id, user_id, roles) values ($1, $2, $3)', [
       tenant.id,
       previewUser.id,

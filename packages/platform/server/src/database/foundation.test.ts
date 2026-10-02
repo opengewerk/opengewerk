@@ -127,15 +127,15 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(17)
+    expect(tables).toHaveLength(18)
     expect(unprotected(tables)).toEqual([])
   })
 
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The ten tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(10)
+    // The eleven tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(11)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -191,6 +191,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'invitations',
       'member_passkeys',
       'memberships',
+      'tenant_roles',
       'tenant_sessions',
       'tenants',
     ])
@@ -461,6 +462,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(17)
+    expect(await tableNames(admin)).toHaveLength(18)
   })
 })

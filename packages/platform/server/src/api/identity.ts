@@ -1,5 +1,5 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common'
-import type { TenantIdentity } from '@opengewerk/platform-domain'
+import type { MemberIdentity } from '@opengewerk/platform-domain'
 
 /**
  * Where an identity comes from: the session of the authentication on an
@@ -36,15 +36,15 @@ export interface SignedInUser {
  * `deviceId` is the device the session was signed in on, as it named itself
  * when it chose the tenant, and not what a request says about itself.
  *
- * `Who` is the identity of the application: the user and the tenant, and
- * whatever it reads a right from.
+ * `Who` is the identity of the application: the user, the tenant, the roles
+ * of the membership and the rights they add up to.
  */
-export type FoundIdentity<Who extends TenantIdentity = TenantIdentity> = Who & {
+export type FoundIdentity<Who extends MemberIdentity = MemberIdentity> = Who & {
   readonly sessionId?: string
   readonly deviceId?: string
 }
 
-export interface IdentitySource<Who extends TenantIdentity = TenantIdentity> {
+export interface IdentitySource<Who extends MemberIdentity = MemberIdentity> {
   /** Returns null when the request carries no valid identity. */
   identify(request: unknown): Promise<FoundIdentity<Who> | null>
   /**
@@ -68,7 +68,7 @@ export interface IdentitySource<Who extends TenantIdentity = TenantIdentity> {
  * hand and never forgotten: the guard refuses a route without one.
  */
 export type RequestIdentity<
-  Who extends TenantIdentity = TenantIdentity,
+  Who extends MemberIdentity = MemberIdentity,
   Right extends string = string,
 > = FoundIdentity<Who> & { readonly reason: Right }
 

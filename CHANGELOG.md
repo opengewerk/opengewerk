@@ -376,6 +376,37 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   an dieselbe Adresse zieht die erste zurück. Bei der Handwerkersoftware bleibt, was nur sie falsch
   machen kann: dass allein der Inhaber die Zugänge erreicht, dass ihre Rollen öffnen, was sie hier
   öffnen, und dass eine Ablehnung von Betrieb und Inhaber spricht.
+- Was jemand in einem Betrieb darf, steht nicht mehr im Code, sondern in Zeilen des Betriebs (ADR
+  0010, `opengewerk-haustechnik#8`). Die Tabelle `tenant_roles` führt je Rolle den Schlüssel, den
+  eine Zugehörigkeit nennt, die Bezeichnung, die Rechte und zwei Angaben, die keine Rechte sind: ob
+  die Rolle den Betrieb führt und ob sie einen zweiten Faktor verlangt. Eine weitere Anwendung hat
+  andere Rechte und andere Rollen, und ein Mandant soll später eigene Rollen anlegen; beides geht
+  nicht mit einer Liste im Code. Inhaber, Büro und Monteur sind die Zeilen, mit denen ein Betrieb
+  beginnt. Migration 0063 legt sie für jeden bestehenden Betrieb an, Recht für Recht wie bisher,
+  sodass jede Person nach dem Update darf, was sie davor durfte. Zwei Tests halten das fest: einer
+  hält die Zeilen eines Betriebs von vor der Migration gegen die Rollen im Code, alle drei Rollen
+  gegen alle Rechte, der andere fragt die Sitzung jeder Rolle nach jedem Recht und prüft, dass ein
+  Betrieb seine Zeilen hat, gleich ob ihn die Ersteinrichtung, ein weiterer Betrieb des Inhabers,
+  der Bereich der Instanz oder die Kommandozeile anlegt. Die Identität einer Anfrage trägt die
+  Rechte, zu denen sich die Rollen ihrer Zugehörigkeit in diesem Moment addieren, und Guard,
+  Abgleich und Routen fragen nur noch diese. Die letzte Leitung und die Pflicht zum zweiten Faktor
+  hängen an den Angaben der Rolle und an keinem Recht, das eine Rolle verlieren könnte; wer führt,
+  verwaltet die Zugänge, was immer die Zeile sagt. Eine Änderung an den Rechten einer Rolle steht
+  damit im Änderungsprotokoll des Betriebs, auch wenn ein Update sie bringt: ein neues Recht für
+  eine der drei Rollen ist von jetzt an eine Migration, die es in die Zeilen schreibt. Die Anwendung
+  darf die Tabelle lesen und beim Anlegen eines Betriebs füllen; ändern und löschen darf sie nichts,
+  solange es keine eigenen Rollen gibt. Im Fundament kommen dafür `rightsCatalogue` und
+  `RoleDefinition` in `@opengewerk/platform-domain` dazu, `AccessRules` nennt den Katalog und die
+  mitgelieferten Rollen statt einer Rollenliste, und `writeRoles` schreibt sie an jeder Stelle, an
+  der ein Mandant entsteht. `add-staff` prüft gegen die Rollen, die der Betrieb hat, und sagt bei
+  einer unbekannten Kennung, dass es den Betrieb nicht gibt, statt mit einem Fehler der Datenbank zu
+  enden. Beim Start bekommt ein Betrieb ohne eine einzige Rolle die drei mitgelieferten
+  (`completeRoles`): zwischen Migration und Start läuft bei einem Update die Fassung davor weiter,
+  und ein Betrieb, den sie in diesem Moment anlegt, hätte sonst keine und niemanden, der in ihm
+  etwas darf. Wer den Betrieb führt, wird überall an derselben Angabe erkannt (`leadsItsTenant`):
+  beim Zählen der letzten Leitung und bei der Frist, für die sonst niemand einsteht und die bisher
+  nach dem Namen der Rolle `owner` fragte. Die Oberfläche fragt bis zum nächsten Schritt weiter die
+  drei Rollen im Code; sie sagen dasselbe wie die Zeilen.
 
 ## [0.4.0] - 2026-09-27
 

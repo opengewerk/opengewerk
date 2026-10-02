@@ -113,6 +113,7 @@ const reasonWords: Readonly<Record<string, string>> = {
   push: 'Von selbst, Push-Versand',
   'article.import': 'Import aus DATANORM',
   'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
+  'roles.complete': 'Von selbst, Rollen beim Start ergänzt',
   'session.start': 'Anmeldung',
   'session.end': 'Abmeldung',
   'session.revoke': 'Gerät abgemeldet',
@@ -331,6 +332,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   mail_settings: ['from_address'],
   mail_outbox: ['subject'],
   invitations: ['name', 'email'],
+  // A role is called what a screen calls it, and by its key where that is gone.
+  tenant_roles: ['label', 'key'],
   instructions: ['title', 'template'],
   form_definitions: ['key'],
   form_records: ['definition_key'],
