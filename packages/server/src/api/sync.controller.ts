@@ -24,7 +24,7 @@ import {
   type TenantId,
 } from '@opengewerk/domain'
 
-import { Database, type TenantTransaction } from '@opengewerk/platform-server'
+import { Database, type SecretKey, type TenantTransaction } from '@opengewerk/platform-server'
 import { eq, sql } from 'drizzle-orm'
 
 import {
@@ -37,7 +37,6 @@ import {
   sitesWithOpenJobs,
 } from '../database/device-scope.js'
 import { siteAccessDeliveries, siteAccessReveals, timeEntries } from '../database/schema/index.js'
-import type { SecretKey } from '../secrets/key.js'
 import { readAccessValues } from '../secrets/site-access.js'
 import {
   applyOperations,

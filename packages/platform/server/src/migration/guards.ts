@@ -157,6 +157,10 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   and later marked resolved.
  *
  * None of them travels to a device, so none carries the sync columns.
+ *
+ * These are the tables that are the same in every application. The ones an
+ * application makes with a list of its own are described one by one further
+ * down, and an application names the ones it has.
  */
 export const foundationGuards: readonly TableGuard[] = [
   {
@@ -184,3 +188,60 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'sync_operations', grants: ['select', 'insert'], audited: false, synced: false },
   { table: 'sync_conflicts', grants: noDelete, audited: false, synced: false },
 ]
+
+/**
+ * The tables of the foundation an application made with a list of its own:
+ * the sealed credentials with its purposes, its settings, its sequences of
+ * numbers, and what else is a function in the schema of the foundation rather
+ * than a table. They are the foundation's
+ * in every column and every rule, and only the application can say which
+ * values their enums hold.
+ *
+ * An application describes them once, next to its schema. Its first migration
+ * is completed with the guards (`completeInitialMigration`), and the kit of
+ * its tests builds and compares the foundation with both.
+ */
+export interface MadeByTheApplication {
+  /** The tables and enums, as the schema of the application exports them. */
+  readonly schema: Readonly<Record<string, unknown>>
+  /** What each of those tables needs, from the descriptions below. */
+  readonly guards: readonly TableGuard[]
+}
+
+/**
+ * The sealed credentials (`secretsSchema`). Kept, replaced and forgotten by
+ * the store, and the one table of a tenant the audit log does not watch: the
+ * log is written once and never touched again, and a sealed value in it would
+ * be there for good.
+ */
+export const secretsGuard: TableGuard = {
+  table: 'secrets',
+  grants: everything,
+  audited: false,
+  synced: false,
+}
+
+/**
+ * The settings of a tenant with the day they apply from
+ * (`tenantParametersSchema`). Never deleted: a period that has ended is what
+ * says how something written during it is to be read.
+ */
+export const tenantParametersGuard: TableGuard = {
+  table: 'tenant_parameters',
+  grants: noDelete,
+  audited: true,
+  synced: false,
+}
+
+/**
+ * The counters of the numbers that run without holes (`numberRangesSchema`).
+ * Never deleted: a sequence that is gone begins again at one, and hands out a
+ * second time what a record already carries. Watched by the log, which is
+ * where the pattern a number was once built from can still be read.
+ */
+export const numberRangesGuard: TableGuard = {
+  table: 'number_ranges',
+  grants: noDelete,
+  audited: true,
+  synced: false,
+}

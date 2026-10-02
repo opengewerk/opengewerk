@@ -26,12 +26,12 @@ import {
   type DocumentStatus,
   type EInvoiceGap,
   type InstructionGap,
-  formatDocumentNumber,
   isCancellable,
   type IsoDate,
   type MissingDetail,
   missingDetails,
   noInstructionChoices,
+  numberFromPattern,
   numberRangeOf,
   paymentTermProblem,
   RuleError,
@@ -948,7 +948,7 @@ export class DocumentsController {
       const counter = range?.nextValue ?? 1
 
       return {
-        preview: formatDocumentNumber(pattern, { counter, year: yearInGermany() }),
+        preview: numberFromPattern(pattern, { counter, year: yearInGermany() }),
         pattern,
       }
     })

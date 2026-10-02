@@ -1,5 +1,5 @@
 import type { TaskId, TenantId } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, newId, SecretKey } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -12,7 +12,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { SecretKey } from '../secrets/key.js'
 import { maximumAttempts } from './outbox.js'
 import { saveMailServer } from './server-settings.js'
 import { aMailServer, testKey } from './test-mail-server.js'

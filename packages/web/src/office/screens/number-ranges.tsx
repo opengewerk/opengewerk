@@ -1,4 +1,4 @@
-import { formatDocumentNumber, type NumberRangeKey, patternProblem } from '@opengewerk/domain'
+import { numberFromPattern, type NumberRangeKey, patternProblem } from '@opengewerk/domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useId, useState } from 'react'
@@ -242,7 +242,7 @@ function NumberRangeRow({
         : null
   const preview =
     problem === null && counterProblem === null
-      ? formatDocumentNumber(pattern.trim(), { counter, year: new Date().getFullYear() })
+      ? numberFromPattern(pattern.trim(), { counter, year: new Date().getFullYear() })
       : null
   const changed = pattern.trim() !== range.pattern || counterMoved
 

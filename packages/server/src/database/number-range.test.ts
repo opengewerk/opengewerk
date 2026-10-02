@@ -134,6 +134,24 @@ describe('numbers issued at the same moment', () => {
   })
 })
 
+describe('a number range', () => {
+  /**
+   * A range that is gone begins again at one, and the next invoice would
+   * carry a number an invoice already has. No route removes one, and since
+   * migration 0064 the database does not let the application do it either.
+   */
+  it('cannot be removed by the application', async () => {
+    const before = await nextCounter()
+    expect(before).toBeGreaterThan(1)
+
+    await expect(
+      database.forTenant({ tenantId: tenant.id }, (tx) => tx.delete(schema.numberRanges)),
+    ).rejects.toMatchObject({ cause: { code: '42501' } })
+
+    expect(await nextCounter()).toBe(before)
+  })
+})
+
 describe('the year in a number', () => {
   it('is the year in Germany, not in the time zone of the container', async () => {
     const draft = await createDraft()

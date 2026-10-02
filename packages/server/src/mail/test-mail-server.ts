@@ -1,6 +1,5 @@
+import { SecretKey } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
-
-import { SecretKey } from '../secrets/key.js'
 
 /** The key the tests seal with, in place of one derived from SESSION_SECRET. */
 export const testKey = SecretKey.from('t'.repeat(64))

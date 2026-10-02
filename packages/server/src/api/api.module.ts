@@ -13,6 +13,7 @@ import {
   AUTHORIZATION,
   Database,
   SameOriginGuard,
+  type SecretKey,
   TRUSTED_ORIGINS,
 } from '@opengewerk/platform-server'
 import { raw } from 'express'
@@ -20,7 +21,6 @@ import { raw } from 'express'
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
-import type { SecretKey } from '../secrets/key.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { ArticleImportsController } from './article-imports.controller.js'

@@ -45,6 +45,7 @@ import type { ServerApplication } from '../configuration.js'
 import { Database } from '../database/database.js'
 import { foundationMigration } from '../database/foundation-migration.js'
 import { probeDatabase, probeMigrations } from '../database/probe-database.js'
+import { probeMade } from '../database/probe-schema.js'
 import { allowApplicationLogin, type TestDatabase } from '../database/test-database.js'
 import { memberships } from '../schema.js'
 import type { AccessRules } from './access.js'
@@ -532,12 +533,13 @@ export interface ProbeFoundation {
 
 /**
  * The kit for a database built from the building blocks of the foundation,
- * the way the first migration of a new application builds it. The migration
- * is put together once, so that a test that starts from an empty instance
- * every time does not pay for it every time.
+ * the way the first migration of a new application builds it, with the tables
+ * the probe application makes with its own lists. The migration is put
+ * together once, so that a test that starts from an empty instance every time
+ * does not pay for it every time.
  */
 export async function probeFoundation(): Promise<ProbeFoundation> {
-  const { up } = await foundationMigration()
+  const { up } = await foundationMigration(undefined, probeMade)
   const folder = probeMigrations([{ tag: '0000_foundation', sql: up, when: 1 }])
   const kit = probeDatabase(folder)
 

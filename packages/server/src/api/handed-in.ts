@@ -12,10 +12,9 @@
  * belong together when what they share is only this.
  */
 
-import type { MailConfiguration } from '@opengewerk/platform-server'
+import type { MailConfiguration, SecretKey } from '@opengewerk/platform-server'
 
 import type { MailTransport } from '../mail/transport.js'
-import type { SecretKey } from '../secrets/key.js'
 
 /**
  * The content addressed file store. An interface of its own rather than the
