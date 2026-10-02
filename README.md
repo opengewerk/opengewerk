@@ -202,7 +202,7 @@ Was diese Vorlage bewusst noch nicht kann: Skonto, Reverse Charge mit den Angabe
 Ein PDF lokal ansehen geht mit demselben Renderer wie im Betrieb:
 
 ```bash
-docker run -d --rm --name renderer -p 127.0.0.1:3999:3000 -e TOKEN=probe ghcr.io/browserless/chromium:v2.56.7@sha256:b1ba7b054af2891a8199f884d4bd249cf8c3bd2fa8a97b339077e40f92803ba8
+docker run -d --rm --name renderer -p 127.0.0.1:3999:3000 -e TOKEN=probe ghcr.io/browserless/chromium:v2.57.0@sha256:6bac628b3d8293f8fb251d3a6b63030dfc5a1cb0c7e5c39abe5efd8f4b25360b
 ```
 
 und dann `RENDERER_URL=http://127.0.0.1:3999` und `RENDERER_TOKEN=probe` für den Server. Die Tests der Route arbeiten mit einem Ersatz, der feste Bytes zurückgibt. Den echten Renderer fragen in der CI zwei Jobs: der zur E-Rechnung, der mit ihm Muster für Mustang druckt, und der Betrieb über Docker Compose, der aus dem Standardstapel ein PDF holt.
