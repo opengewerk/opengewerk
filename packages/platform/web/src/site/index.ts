@@ -51,3 +51,9 @@ export type { CodeReader } from './barcode.js'
 // Where somebody signs, with a finger or a pen. The picture of a signature
 // is shown in both entries and sits at the root of the package.
 export { SignaturePad } from './signature-pad.js'
+
+// "Konflikte": the state of the exchange, what is to decide and a way to try
+// again, the one screen of the site that may be empty. What a record is
+// called and what other way out of a conflict there is, the application says
+// in its value (`records`).
+export { ConflictScreen } from './conflicts.js'

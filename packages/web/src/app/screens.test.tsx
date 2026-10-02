@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState, SyncConflict } from '@opengewerk/domain'
+import { SyncScreen } from '@opengewerk/platform-web/office'
+import { ConflictScreen } from '@opengewerk/platform-web/site'
 import { RequestRefused, SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import type { DirectWriter, PullResult, SyncTransport } from '@opengewerk/platform-web/sync'
 import { render, screen, within } from '@testing-library/react'
@@ -8,8 +10,7 @@ import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SyncClient } from '../sync/client.js'
-import { ConflictScreen } from './conflicts.js'
-import { SyncScreen } from '../office/screens/sync.js'
+import { InApplication } from './in-application.js'
 
 /** A server that says yes and remembers what it was asked. */
 class Quiet implements SyncTransport, DirectWriter {
@@ -121,9 +122,11 @@ describe('the conflict screen', () => {
     })
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     // Three columns and not two. The third is what explains the other two:
@@ -155,9 +158,11 @@ describe('the conflict screen', () => {
     })
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     expect(await screen.findByText(/^Erfasst .* auf diesem Gerät\.$/)).toBeDefined()
@@ -173,9 +178,11 @@ describe('the conflict screen', () => {
     })
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     await userEvent.click(screen.getByRole('button', { name: 'Fassung vom Gerät übernehmen' }))
@@ -197,9 +204,11 @@ describe('the conflict screen', () => {
     })
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     await userEvent.click(screen.getByRole('button', { name: 'Stand im System behalten' }))
@@ -233,9 +242,11 @@ describe('the conflict screen', () => {
     const client = await withClient(server)
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     expect(screen.getByRole('heading', { level: 2, name: 'Erika Berg' })).toBeDefined()
@@ -271,9 +282,11 @@ describe('the conflict screen', () => {
     await client.synchronise()
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     expect(screen.getByRole('heading', { level: 2, name: 'Meyer' })).toBeDefined()
@@ -388,9 +401,11 @@ describe('the conflict screen', () => {
     const client = await withClient(server, issuedReport)
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     expect(screen.queryByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeNull()
@@ -481,9 +496,11 @@ describe('the conflict screen', () => {
     const client = await withClient(server, issuedReport)
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     const offered = screen.getAllByRole('button', { name: 'Als neuen Entwurf anlegen' })
@@ -525,9 +542,11 @@ describe('the conflict screen', () => {
     const client = await withClient(server)
 
     render(
-      <SyncProvider client={client}>
-        <ConflictScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <ConflictScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     expect(screen.getByText(/Nichts zu entscheiden/)).toBeDefined()
@@ -541,9 +560,11 @@ describe('the conflict screen', () => {
     })
 
     render(
-      <SyncProvider client={client}>
-        <SyncScreen />
-      </SyncProvider>,
+      <InApplication>
+        <SyncProvider client={client}>
+          <SyncScreen />
+        </SyncProvider>
+      </InApplication>,
     )
 
     expect(screen.getByRole('heading', { level: 1, name: 'Abgleich' })).toBeDefined()

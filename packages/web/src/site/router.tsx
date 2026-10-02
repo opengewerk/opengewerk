@@ -1,6 +1,6 @@
+import { ConflictScreen } from '@opengewerk/platform-web/site'
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
 
-import { ConflictScreen } from '../app/conflicts.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
 import { SiteInverterScreen, SitePvStringScreen } from './screens/pv.js'
 import { SiteScannerScreen } from './screens/scanner.js'

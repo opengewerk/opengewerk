@@ -37,11 +37,14 @@ export {
   useStaffSentences,
 } from './application.js'
 export type {
+  ConflictWay,
   DeviceStart,
   InstanceAreaSentences,
   InterfaceApplication,
   InterfaceSentences,
   OwnTenantLink,
+  RecordWords,
   SettingsEntry,
   StaffSentences,
+  WayTaken,
 } from './application.js'

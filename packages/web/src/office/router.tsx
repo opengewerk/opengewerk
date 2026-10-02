@@ -3,7 +3,7 @@ import {
   InstanceSettingsScreen,
   InstanceTenantsScreen,
 } from '@opengewerk/platform-web/instance'
-import { SettingsScreen } from '@opengewerk/platform-web/office'
+import { SettingsScreen, SyncScreen } from '@opengewerk/platform-web/office'
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 
 import { InstanceShell } from './instance/shell.js'
@@ -48,7 +48,6 @@ import {
 } from './screens/suppliers.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
-import { SyncScreen } from './screens/sync.js'
 import { TaskListScreen } from './screens/tasks.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'

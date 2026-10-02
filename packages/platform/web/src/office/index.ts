@@ -32,6 +32,12 @@ export { PasskeysPanel } from './passkeys.js'
 // invitations still open: a settings screen, under the key `zugaenge`.
 export { StaffScreen } from './staff.js'
 
+// "Abgleich": what is to decide about the exchange, the conflicts and the entry
+// the server refused, beside the state of the exchange. What a record is
+// called and what other way out of a conflict there is, the application says
+// in its value (`records`).
+export { SyncScreen } from './sync-screen.js'
+
 // The frame of a screen, its head with the path, the facts of a record, the
 // two columns of one, the chips of a list, a remark in a box.
 export {
