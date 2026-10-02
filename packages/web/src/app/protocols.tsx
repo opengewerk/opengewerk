@@ -32,6 +32,7 @@ import {
   Field,
   FieldLabel,
   SelectField,
+  SignaturePicture,
   Status,
   TextArea,
   statusIcons,
@@ -57,7 +58,6 @@ import type { FormEvent, ReactNode } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
 import { ordered, useBoards } from './electrical.js'
-import { SignaturePicture } from './signature.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.

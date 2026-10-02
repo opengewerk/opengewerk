@@ -322,6 +322,9 @@ importers:
       '@tanstack/react-router':
         specifier: 1.170.38
         version: 1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@zxing/browser':
+        specifier: 0.2.1
+        version: 0.2.1(@zxing/library@0.23.0)
       clsx:
         specifier: 2.1.1
         version: 2.1.1
@@ -486,9 +489,6 @@ importers:
       '@tanstack/react-router':
         specifier: 1.170.38
         version: 1.170.38(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@zxing/browser':
-        specifier: 0.2.1
-        version: 0.2.1(@zxing/library@0.23.0)
       clsx:
         specifier: 2.1.1
         version: 2.1.1

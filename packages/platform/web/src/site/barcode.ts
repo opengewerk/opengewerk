@@ -1,14 +1,15 @@
 /**
- * Reading the label of a PV module (#300): its serial number as a bar code or
- * a QR code, from a frame of the camera.
+ * Reading the code on a label from a frame of the camera: a bar code, a QR
+ * code or a Data Matrix. First read for the serial number of a PV module
+ * (#300).
  *
  * The browser's own `BarcodeDetector` where there is one, Chrome on Android;
  * everywhere else, Safari on an iPhone above all, ZXing in JavaScript, loaded
  * only when the camera opens, so that the site does not carry it on every
  * start. In JavaScript and not as WebAssembly: that would need
  * `wasm-unsafe-eval` in the policy of the shell, which allows no evaluation.
- * The service worker holds the chunk with the rest, so it reads on a roof
- * without a network as well.
+ * The service worker holds the chunk with the rest, so it reads without a
+ * network as well.
  */
 
 /** Something that reads the code in a frame. */
@@ -17,7 +18,7 @@ export interface CodeReader {
   readonly read: (frame: HTMLVideoElement) => Promise<string | null>
 }
 
-/** The codes a module label carries: bar codes of the serial, and QR or Data Matrix. */
+/** The codes a label carries: bar codes of a serial number, and QR or Data Matrix. */
 const formats = [
   'code_128',
   'code_39',

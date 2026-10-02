@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type { RecordState } from '@opengewerk/domain'
+import { ScanningContext } from '@opengewerk/platform-web/site'
+import type { CodeReader, Scanning } from '@opengewerk/platform-web/site'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -15,9 +17,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { CodeReader } from '../../app/barcode.js'
 import { SyncClient } from '../../sync/client.js'
-import { ScanningContext } from '../camera.js'
 import { SiteBoardScreen } from './boards.js'
 import { SiteInstallationScreen } from './installation.js'
 import { SiteLabelScanScreen } from './label-scanner.js'
@@ -101,7 +101,7 @@ const rows: Readonly<Record<string, RecordState[]>> = {
   ],
 }
 
-async function mount() {
+async function mount(scanning: Partial<Scanning> = {}) {
   for (const [entity, list] of Object.entries(rows)) {
     for (const row of list) {
       server.put(entity, row)
@@ -151,7 +151,12 @@ async function mount() {
   render(
     <QueryClientProvider client={queries}>
       <ScanningContext.Provider
-        value={{ openReader: () => Promise.resolve(reader), openCamera: camera, interval: 5 }}
+        value={{
+          openReader: () => Promise.resolve(reader),
+          openCamera: camera,
+          interval: 5,
+          ...scanning,
+        }}
       >
         <SyncProvider client={client}>
           <RouterProvider router={router} />
@@ -267,5 +272,31 @@ describe('the tab "Scannen"', () => {
     label = 'https://msk.opengewerk.de/a/ZZZZZZZZZZZZZZZZ'
 
     expect(await screen.findByText('Dieses Etikett kennt der Betrieb nicht')).toBeTruthy()
+  })
+
+  it('says where the device reads no QR codes, and how an installation opens then', async () => {
+    let cameras = 0
+
+    await mount({
+      openReader: () => Promise.resolve(null),
+      openCamera: () => {
+        cameras += 1
+
+        return camera()
+      },
+    })
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Dieses Gerät liest keine QR-Codes. Eine Anlage öffnet sich dann über ihren Auftrag.',
+    )
+    expect(cameras).toBe(0)
+  })
+
+  it('says where the camera does not open, and how an installation opens then', async () => {
+    await mount({ openCamera: () => Promise.reject(new Error('NotAllowedError')) })
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Die Kamera lässt sich nicht öffnen, sie ist nicht freigegeben oder nicht da. Eine Anlage öffnet sich dann über ihren Auftrag.',
+    )
   })
 })

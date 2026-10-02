@@ -17,6 +17,7 @@ import {
 import { Button, Field, Panel } from '@opengewerk/platform-web'
 import { amount, date, scaledNumber } from '@opengewerk/platform-web/format'
 import {
+  SignaturePad,
   SiteActionBar,
   SiteLabel,
   SiteScreen,
@@ -61,7 +62,6 @@ import {
 } from '../../app/protocols.js'
 import { useMay } from '../../app/queries.js'
 import { SiteHeader } from '../header.js'
-import { SignaturePad } from '../signature-pad.js'
 
 /**
  * The test protocol on site (#79), as the boards "Prüfprotokoll, Messen je

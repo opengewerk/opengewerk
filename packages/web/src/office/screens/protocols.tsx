@@ -27,6 +27,7 @@ import {
   Field,
   FieldLabel,
   Panel,
+  SignaturePicture,
   Status,
   TablePanel,
   statusIcons,
@@ -59,7 +60,6 @@ import {
   useProtocolDraft,
 } from '../../app/protocols.js'
 import type { ProtocolDraft } from '../../app/protocols.js'
-import { SignaturePicture } from '../../app/signature.js'
 import { Section } from '../layout.js'
 
 /**
