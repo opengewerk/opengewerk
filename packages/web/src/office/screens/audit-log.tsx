@@ -15,6 +15,8 @@ import {
   useBand,
   useButtonLook,
 } from '@opengewerk/platform-web'
+import { clockTime, moment } from '@opengewerk/platform-web/format'
+import { Empty, NoteBox, SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
@@ -22,7 +24,6 @@ import clsx from 'clsx'
 import { ChevronDown, ChevronRight, History, ShieldCheck, TriangleAlert, X } from 'lucide-react'
 import { type ReactNode, useId, useMemo, useState } from 'react'
 
-import { clockTime, moment } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../../session/audit.js'
 import {
@@ -37,8 +38,6 @@ import {
   shownFields,
   wayWords,
 } from '../audit-words.js'
-import { Empty, NoteBox } from '../kit.js'
-import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

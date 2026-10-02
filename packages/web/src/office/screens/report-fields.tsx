@@ -11,6 +11,7 @@ import {
   reportFieldsProblems,
 } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
+import { Saved, SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
@@ -19,7 +20,6 @@ import { useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
 import { currentReportFields, saveReportFields } from '../../session/report-fields.js'
-import { Saved, SettingsPage, SettingsText } from '../settings-frame.js'
 
 const kindLabel: Readonly<Record<ReportFieldKind, string>> = {
   text: 'Text',

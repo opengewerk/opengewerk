@@ -1,5 +1,6 @@
 import { jobNoteProblem, type RecordState } from '@opengewerk/domain'
 import { Button, Panel, TextArea } from '@opengewerk/platform-web'
+import { SiteActionBar, SiteScreen, SiteText, SiteTrouble } from '@opengewerk/platform-web/site'
 import { refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Check, Pencil } from 'lucide-react'
@@ -8,9 +9,7 @@ import type { FormEvent } from 'react'
 
 import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { useMay } from '../../app/queries.js'
-import { SiteActionBar } from '../action-bar.js'
 import { SiteHeader } from '../header.js'
-import { SiteScreen, SiteText, SiteTrouble } from '../kit.js'
 
 /**
  * Notes from the site about a job (#220), as the boards "Auftrag, ganze

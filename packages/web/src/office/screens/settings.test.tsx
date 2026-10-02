@@ -1,4 +1,5 @@
 import type { RoleKey } from '@opengewerk/domain'
+import { SettingsScreen } from '@opengewerk/platform-web/office'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -11,7 +12,7 @@ import {
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SettingsScreen } from './settings.js'
+import { InApplication } from '../../app/in-application.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
@@ -45,7 +46,9 @@ function mount() {
 
   render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={router} />
+      <InApplication>
+        <RouterProvider router={router} />
+      </InApplication>
     </QueryClientProvider>,
   )
 }
@@ -90,6 +93,12 @@ describe('the settings', () => {
     ])
   })
 
+  /**
+   * Each entry names the right it takes, and the foundation lists by them
+   * (ADR 0010). Which right that is, this application says, and with it who
+   * sees what: the settings whoever may read settings, the access list the
+   * owner, the change log whoever may read it.
+   */
   it('leave the access list and the change log out for the office', async () => {
     signedInAs('office')
     mount()
@@ -98,5 +107,18 @@ describe('the settings', () => {
 
     expect(screen.queryByRole('link', { name: /Zugänge/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Änderungsprotokoll/ })).toBeNull()
+    expect(screen.getAllByRole('link')).toHaveLength(10)
+  })
+
+  it('offer a technician none of them', async () => {
+    signedInAs('technician')
+    mount()
+
+    await screen.findByText('Was dieser Betrieb für sich festlegt.')
+    // The rights of the session have arrived by the time the business is
+    // known by name; nothing on this screen shows it, so it is waited out.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    expect(screen.queryAllByRole('link')).toEqual([])
   })
 })

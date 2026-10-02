@@ -14,6 +14,7 @@ import {
   QrCode,
   SelectField,
 } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
 import {
   RequestRefused,
   maybeText,
@@ -24,7 +25,6 @@ import {
 import { Ban, Plus, Printer } from 'lucide-react'
 import { useState } from 'react'
 
-import { date } from '../../app/format.js'
 import {
   blockLabel,
   createLabel,

@@ -11,19 +11,25 @@ import {
   taxTreatments,
 } from '@opengewerk/domain'
 import { Button, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
-import { maybeText, refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
+import { date } from '@opengewerk/platform-web/format'
+import { FactList, NoteBox } from '@opengewerk/platform-web/office'
+import type { Fact } from '@opengewerk/platform-web/office'
+import {
+  asTextOrNull,
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { date } from '../../app/format.js'
 import { documentKindOf, taxTreatmentLabel, taxTreatmentOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { asTextOrNull } from '../../app/record-form.js'
 import { parameterHistory } from '../../session/parameters.js'
-import type { Fact } from '../kit.js'
-import { FactList, NoteBox } from '../kit.js'
 import { daysFrom, paymentTermOn } from './payment-term.js'
 import { SnippetPicker, withSnippet } from './snippet-picker.js'
 

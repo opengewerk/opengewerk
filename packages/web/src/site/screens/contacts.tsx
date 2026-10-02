@@ -1,12 +1,12 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Panel, SelectField } from '@opengewerk/platform-web'
+import { SiteLabel } from '@opengewerk/platform-web/site'
 import { maybeText, text, useRecord, useRelated } from '@opengewerk/platform-web/sync'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
 import { type ContactParent, ContactList, NewContactForm } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
-import { SiteLabel } from '../kit.js'
 
 /**
  * Who to call at the customer and at the site of a job, to tap (#121), as

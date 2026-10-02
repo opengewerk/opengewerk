@@ -1,4 +1,4 @@
-import { BrandMark, ThemeSwitch } from '@opengewerk/platform-web'
+import { BrandMark, ThemeSwitch, useTheme } from '@opengewerk/platform-web'
 import { SignOutButton } from '@opengewerk/platform-web/gate'
 import { accountQuery, useWho } from '@opengewerk/platform-web/session'
 import { useSync } from '@opengewerk/platform-web/sync'
@@ -7,7 +7,6 @@ import { Link } from '@tanstack/react-router'
 import { ChevronDown, Menu, Server, User } from 'lucide-react'
 import { createContext, useEffect, useRef, useState } from 'react'
 
-import { useTheme } from '../app/theme.js'
 import { instanceAccess } from '../session/instance.js'
 import { BusinessMenu } from './businesses.js'
 

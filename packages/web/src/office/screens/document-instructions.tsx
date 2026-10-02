@@ -1,5 +1,6 @@
 import type { RecordState, WithdrawalVariant } from '@opengewerk/domain'
 import { Panel, SelectField } from '@opengewerk/platform-web'
+import { NoteBox } from '@opengewerk/platform-web/office'
 import { RequestRefused, maybeText } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { TriangleAlert } from 'lucide-react'
@@ -15,7 +16,6 @@ import {
   instructionSheetAddress,
   type PrintedInstruction,
 } from '../../session/instructions.js'
-import { NoteBox } from '../kit.js'
 
 const variantOptions: readonly { readonly value: WithdrawalVariant; readonly label: string }[] = [
   { value: 'service', label: 'Arbeiten, also eine Dienstleistung' },

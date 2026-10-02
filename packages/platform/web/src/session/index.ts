@@ -91,6 +91,13 @@ export { deviceName } from './device-name.js'
 
 // The cache for what is no synced record, and the questions every screen
 // asks through it.
-export { accountQuery, queries, QueryProvider, tenantsQuery, useRight } from './queries.js'
+export {
+  accountQuery,
+  queries,
+  QueryProvider,
+  tenantsQuery,
+  useRight,
+  useRights,
+} from './queries.js'
 export { initialsOf, rolesInWords, useWho } from './who.js'
 export type { Who } from './who.js'

@@ -1,5 +1,19 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Panel, useBand } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import {
+  NotSent,
+  SiteAnchor,
+  SiteFacts,
+  SiteLink,
+  SiteRow,
+  SiteRows,
+  SiteScreen,
+  SiteText,
+  SiteTrouble,
+  TitleCount,
+  TopTitle,
+} from '@opengewerk/platform-web/site'
 import {
   maybeText,
   refusalFor,
@@ -15,7 +29,7 @@ import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
 import { DocumentState } from '../../app/document-state.js'
-import { addressLine, date, today } from '../../app/format.js'
+import { addressLine } from '../../app/format.js'
 import {
   documentKindOf,
   documentStatusOf,
@@ -36,19 +50,6 @@ import { SiteAccessPanel } from './access.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
-import {
-  NotSent,
-  SiteAnchor,
-  SiteFacts,
-  SiteLink,
-  SiteRow,
-  SiteRows,
-  SiteScreen,
-  SiteText,
-  SiteTrouble,
-  TitleCount,
-  TopTitle,
-} from '../kit.js'
 
 /**
  * The jobs this device is meant to work through.

@@ -28,7 +28,10 @@ import {
   tripCharacteristics,
 } from '@opengewerk/domain'
 import { Button, Field, FieldLabel, SelectField, useEntry } from '@opengewerk/platform-web'
+import { scaledNumber } from '@opengewerk/platform-web/format'
+import { SiteActionBar } from '@opengewerk/platform-web/site'
 import {
+  asTextOrNull,
   count,
   maybeText,
   oneOf,
@@ -36,16 +39,13 @@ import {
   text,
   useRelated,
 } from '@opengewerk/platform-web/sync'
-import type { Draft, EditResult } from '@opengewerk/platform-web/sync'
+import type { Draft, EditResult, FormField } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
-import { scaledNumber } from './format.js'
-import { asTextOrNull, type FormField } from './record-form.js'
-import { SiteActionBar } from '../site/action-bar.js'
 
 /**
  * The structure below an installation as both entries show it: board,

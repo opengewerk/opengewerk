@@ -1,4 +1,5 @@
-import { BrandMark, ThemeSwitch } from '@opengewerk/platform-web'
+import { BrandMark, ThemeSwitch, useTheme } from '@opengewerk/platform-web'
+import { sinceThen } from '@opengewerk/platform-web/format'
 import { accountQuery, useWho } from '@opengewerk/platform-web/session'
 import { text, useRecords, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
@@ -23,10 +24,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useReducer, useRef } from 'react'
 
-import { sinceThen } from '../app/format.js'
 import { documentStatusOf, taskStatusOf } from '../app/labels.js'
 import { useMay } from '../app/queries.js'
-import { useTheme } from '../app/theme.js'
 import { DrawerBusiness } from './businesses.js'
 
 interface Entry {

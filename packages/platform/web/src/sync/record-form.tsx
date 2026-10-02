@@ -1,19 +1,22 @@
-import type { RecordState } from '@opengewerk/domain'
-import { Button, Field, SelectField, useEntry } from '@opengewerk/platform-web'
-import { refusalFor } from '@opengewerk/platform-web/sync'
-import type { EditResult } from '@opengewerk/platform-web/sync'
+import type { RecordState } from '@opengewerk/platform-domain'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+
+import { Button } from '../components/button.js'
+import { Field, SelectField } from '../components/field.js'
+import { useEntry } from '../components/surface.js'
+import { refusalFor } from './client.js'
+import type { EditResult } from './client.js'
 
 /**
  * One field of a form, described rather than written out.
  *
  * ADR 0004 names a form engine on a JSON schema renderer for later. This is
  * not that, and it deliberately stops well short of it: four kinds of input
- * and a list of choices, enough that the six forms of this issue are six
- * descriptions instead of six hand built forms that drift apart in how they
+ * and a list of choices, enough that the forms of an application are
+ * descriptions instead of hand built forms that drift apart in how they
  * label, space and announce themselves.
  */
 export interface FormField {
@@ -27,14 +30,14 @@ export interface FormField {
   /** Amounts and measured values, for tabular figures. */
   readonly numeric?: boolean
   /**
-   * Whether the field stands in the form for what is filled in so far: the PV
-   * system a battery belongs to, only for a battery, a meter or a wallbox
+   * Whether the field stands in the form for what is filled in so far: a
+   * field only some kinds of a record have, shown once that kind is chosen
    * (#300). A field that does not stand is handed back empty.
    */
   readonly shownWhen?: (values: Readonly<Record<string, string>>) => boolean
   /**
-   * The choices for what is filled in so far, in place of `options`: the
-   * inverters of the PV system chosen above. A choice that is no longer among
+   * The choices for what is filled in so far, in place of `options`: a list
+   * that another field of the form narrows. A choice that is no longer among
    * them is handed back as the first.
    */
   readonly optionsFor?: (
@@ -50,14 +53,14 @@ function choicesOf(field: FormField, values: Readonly<Record<string, string>>) {
 /**
  * The values as the form hands them back: a field that does not stand is
  * empty, and a choice its list for these values no longer offers is the
- * list's first, so that a battery that stops being one does not keep its PV
- * system, and an inverter of the PV system chosen before does not go with the
- * one chosen now.
+ * list's first, so that a record that stops being of a kind does not keep
+ * what only that kind has, and a choice made under one value does not go
+ * with another.
  *
  * Only for the lists that depend on the values. A fixed list keeps a value it
- * does not offer, as it always did: a record written somewhere else, a
- * country the list lacks, goes back as it came instead of quietly becoming
- * the first choice.
+ * does not offer, as it always did: a record written somewhere else, with a
+ * value the list lacks, goes back as it came instead of quietly becoming the
+ * first choice.
  */
 function settled(
   fields: readonly FormField[],
@@ -86,8 +89,8 @@ function settled(
  *
  * Through `String` rather than through a reader that only takes text, because
  * a record carries booleans and numbers as well, and a form that reads only
- * strings would show a customer's "Unternehmen: ja" as the first option in the
- * list, which is "nein". The edit would then quietly turn it off.
+ * strings would show a yes of the record as the first option in the list,
+ * which is "nein". The edit would then quietly turn it off.
  */
 function held(record: RecordState | null | undefined, field: FormField): string {
   const value = record?.[field.name]
@@ -149,22 +152,23 @@ export function RecordForm({
   readonly disabled?: boolean
   readonly disabledReason?: string
   /**
-   * A rule from `domain` the values have to pass before anything is sent, as
-   * the sentence the form shows, or null when they pass. Asked here and not
-   * after the fact, because the server refuses the same thing for the whole
-   * transmission, and a form is the one place that can still say which field.
+   * A rule of the application the values have to pass before anything is
+   * sent, as the sentence the form shows, or null when they pass. Asked here
+   * and not after the fact, because the server refuses the same thing for the
+   * whole transmission, and a form is the one place that can still say which
+   * field.
    */
   readonly check?: (values: Record<string, string>) => string | null
   /** A further action at the left of the buttons, "Entfernen" in a form that changes. */
   readonly extraAction?: ReactNode
-  /** More of the form after the fields, kept by the caller: the tags of a site. */
+  /** More of the form after the fields, kept by the caller. */
   readonly after?: ReactNode
   /**
    * The columns from 1024 pixels on, where a board draws the fields of a form
-   * in one row: "Neue Aufgabe" has four. Two below that, one on a phone.
+   * in one row, as a class. Two below that, one on a phone.
    */
   readonly columns?: string
-  /** A line over the buttons, as under the circuit; the new task has none. */
+  /** A line over the buttons; a form that stands in a row of its own has none. */
   readonly divided?: boolean
 }) {
   const entry = useEntry()
@@ -279,7 +283,7 @@ export function RecordForm({
         </div>
       ) : (
         // In the office the buttons stand at the right under a line, the
-        // one that saves last, as under the circuit on the canvas.
+        // one that saves last, as the canvas draws them.
         <div
           className={clsx(
             'flex flex-wrap items-center justify-end gap-2',

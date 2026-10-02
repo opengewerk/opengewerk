@@ -1,11 +1,12 @@
+import { startTheme } from '@opengewerk/platform-web'
 import { QueryProvider, queries } from '@opengewerk/platform-web/session'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { Root } from '../app/root.js'
-import { startTheme } from '../app/theme.js'
 import { startServiceWorker } from '../entry/register.js'
+import { officeApplication } from './application.js'
 import { officeRouter } from './router.js'
 import '@opengewerk/platform-web/styles/index.css'
 
@@ -30,7 +31,7 @@ startServiceWorker()
 createRoot(mount).render(
   <StrictMode>
     <QueryProvider client={queries}>
-      <Root entry="office">
+      <Root entry="office" application={officeApplication}>
         <RouterProvider router={officeRouter} />
       </Root>
     </QueryProvider>

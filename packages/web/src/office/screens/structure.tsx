@@ -23,7 +23,9 @@ import {
   isNarrow,
   useBand,
 } from '@opengewerk/platform-web'
+import { Crumbs, Empty, FactList, PageHead, Screen } from '@opengewerk/platform-web/office'
 import {
+  RecordForm,
   maybeText,
   refusalFor,
   text,
@@ -62,8 +64,6 @@ import {
 } from '../../app/electrical.js'
 import { installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
-import { Crumbs, Empty, FactList, PageHead, Screen } from '../kit.js'
 import { PathSlot } from '../top-bar.js'
 import { Reorder, SmallIcon } from './boards.js'
 

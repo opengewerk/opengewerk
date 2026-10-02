@@ -24,6 +24,8 @@ export { QrCode } from './qr-code.js'
 export { GateProvider, useInGate } from './gate.js'
 export { ThemeSwitch } from './theme-switch.js'
 export type { ThemeChoice, ThemeSwitchProps } from './theme-switch.js'
+export { applyTheme, chooseTheme, startTheme, storedTheme, useTheme } from './theme.js'
+export type { Theme } from './theme.js'
 
 export { Strip, stripAction } from './strip.js'
 export type { StripActionKind, StripProps, StripTone } from './strip.js'

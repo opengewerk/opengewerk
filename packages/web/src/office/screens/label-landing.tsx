@@ -1,8 +1,8 @@
 import { labelCodeFromScan } from '@opengewerk/domain'
+import { PageHead, Screen } from '@opengewerk/platform-web/office'
 import { Navigate } from '@tanstack/react-router'
 
 import { labelMessages, useLabelLookup } from '../../app/installation-labels.js'
-import { PageHead, Screen } from '../kit.js'
 
 /**
  * The address on a QR label, `/a/<code>` (#308), opened by the camera of a

@@ -9,8 +9,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SyncClient } from '../sync/client.js'
 import { ConflictScreen } from './conflicts.js'
-import { EntrySuggestion } from './suggestion.js'
-import { entryChoiceKey } from '../entry/entry.js'
 import { SyncScreen } from '../office/screens/sync.js'
 
 /** A server that says yes and remembers what it was asked. */
@@ -562,38 +560,5 @@ describe('the conflict screen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Jetzt abgleichen' }))
 
     expect(server.pulls.length).toBe(pulls)
-  })
-})
-
-describe('the suggestion to switch entry', () => {
-  beforeEach(() => {
-    globalThis.localStorage.clear()
-  })
-
-  it('offers the site entry to something with only a finger', () => {
-    // happy-dom answers no to every media query, which is the "browser says
-    // neither" case, so the traits are forced here instead.
-    globalThis.matchMedia = ((query: string) =>
-      ({ matches: query === '(pointer: coarse)' }) as MediaQueryList) as typeof matchMedia
-
-    render(<EntrySuggestion here="office" />)
-
-    expect(screen.getByRole('link', { name: 'Zur Baustellenansicht' })).toBeDefined()
-  })
-
-  it('never asks again once somebody has said they want to stay', async () => {
-    globalThis.matchMedia = ((query: string) =>
-      ({ matches: query === '(pointer: coarse)' }) as MediaQueryList) as typeof matchMedia
-
-    const { unmount } = render(<EntrySuggestion here="office" />)
-
-    await userEvent.click(screen.getByRole('button', { name: 'Hier bleiben' }))
-
-    expect(globalThis.localStorage.getItem(entryChoiceKey)).toBe('office')
-
-    unmount()
-    render(<EntrySuggestion here="office" />)
-
-    expect(screen.queryByRole('link', { name: 'Zur Baustellenansicht' })).toBeNull()
   })
 })

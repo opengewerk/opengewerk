@@ -1,10 +1,9 @@
 import { Button, Panel, Status } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { NoteBox, SettingsText } from '@opengewerk/platform-web/office'
 import { Bell, Send } from 'lucide-react'
 
 import { usePush } from '../../app/push-state.js'
-import { date } from '../../app/format.js'
-import { NoteBox } from '../kit.js'
-import { SettingsText } from '../settings-frame.js'
 
 /** Why this device cannot have push, in the words of the card. */
 const blocked = {

@@ -12,6 +12,8 @@ import {
 } from '@opengewerk/domain'
 import { Button, Confirm } from '@opengewerk/platform-web'
 import type { SiteHeight } from '@opengewerk/platform-web'
+import { fileSize, moment } from '@opengewerk/platform-web/format'
+import { SiteRow, SiteRows } from '@opengewerk/platform-web/site'
 import {
   count,
   maybeText,
@@ -26,9 +28,7 @@ import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
-import { fileSize, moment } from './format.js'
 import { shrinkPicture } from './pictures.js'
-import { SiteRow, SiteRows } from '../site/kit.js'
 
 /**
  * Where a new file hangs (#77): the places of the screen it is added on. A

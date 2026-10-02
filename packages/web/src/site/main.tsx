@@ -1,10 +1,11 @@
+import { startTheme } from '@opengewerk/platform-web'
 import { QueryProvider, queries } from '@opengewerk/platform-web/session'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { application } from '../app/application.js'
 import { Root } from '../app/root.js'
-import { startTheme } from '../app/theme.js'
 import { startServiceWorker } from '../entry/register.js'
 import { siteRouter } from './router.js'
 import '@opengewerk/platform-web/styles/index.css'
@@ -31,7 +32,7 @@ startServiceWorker()
 createRoot(mount).render(
   <StrictMode>
     <QueryProvider client={queries}>
-      <Root entry="site">
+      <Root entry="site" application={application}>
         <RouterProvider router={siteRouter} />
       </Root>
     </QueryProvider>

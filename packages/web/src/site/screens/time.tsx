@@ -18,6 +18,15 @@ import {
   TextArea,
   useButtonLook,
 } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import {
+  SiteActionBar,
+  SiteLink,
+  SiteScreen,
+  SiteText,
+  SiteTrouble,
+  TopTitle,
+} from '@opengewerk/platform-web/site'
 import {
   maybeText,
   refusalFor,
@@ -35,7 +44,6 @@ import { Check, ChevronLeft, ChevronRight, Play, Plus } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { ButtonHTMLAttributes } from 'react'
 
-import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
   type Activity,
@@ -63,9 +71,7 @@ import {
   withdrawEntry,
 } from '../../app/time.js'
 import { answerLocationConsent } from '../../session/time.js'
-import { SiteActionBar } from '../action-bar.js'
 import { SiteHeader } from '../header.js'
-import { SiteLink, SiteScreen, SiteText, SiteTrouble, TopTitle } from '../kit.js'
 
 /** What a form or a button says back: nothing, or the sentence that went wrong. */
 function outcomeText(result: EditResult | string | null): string | null {

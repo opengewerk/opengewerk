@@ -7,13 +7,14 @@ import {
   normalizedWording,
 } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, TextArea } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { NoteBox, SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check as Tick, Pencil, Plus, RotateCcw } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { date } from '../../app/format.js'
 import { documentKindLabel } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {
@@ -25,8 +26,6 @@ import {
   restoreInstruction,
   updateInstruction,
 } from '../../session/instructions.js'
-import { NoteBox } from '../kit.js'
-import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 const queryKey = ['instructions']
 

@@ -1,11 +1,11 @@
 import type { IsoDate } from '@opengewerk/domain'
 import { Field } from '@opengewerk/platform-web'
+import { SiteLabel, SiteText } from '@opengewerk/platform-web/site'
 import { Plus, WifiOff } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 
 import { type FoundArticle, useArticleSearch } from '../app/article-search.js'
 import { lineUnitLabel } from '../app/labels.js'
-import { SiteLabel, SiteText } from './kit.js'
 
 /** How many hits, and how many articles of each group, stand as buttons. */
 const shownHits = 8

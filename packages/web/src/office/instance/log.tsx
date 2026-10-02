@@ -1,15 +1,14 @@
 import { type AuditChange, auditTableLabel, type InstanceLogPage } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
+import { moment } from '@opengewerk/platform-web/format'
+import { Empty, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { type ReactNode, useState } from 'react'
 
-import { moment } from '../../app/format.js'
 import { instanceLog } from '../../session/instance.js'
 import { type AuditNames, changeSummary, wayWords } from '../audit-words.js'
-import { Empty } from '../kit.js'
-import { SettingsText } from '../settings-frame.js'
 import { ChangeFacts, FieldList, FieldsTable, PersonCell } from '../screens/audit-log.js'
 import { InstancePage } from './shell.js'
 

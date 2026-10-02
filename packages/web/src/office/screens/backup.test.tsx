@@ -13,6 +13,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BackupBar, BackupScreen } from './backup.js'
+import { InApplication } from '../../app/in-application.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
@@ -55,7 +56,9 @@ function mount(content: ReactNode) {
 
   render(
     <QueryClientProvider client={client}>
-      <RouterProvider router={router} />
+      <InApplication>
+        <RouterProvider router={router} />
+      </InApplication>
     </QueryClientProvider>,
   )
 }

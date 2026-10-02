@@ -1,5 +1,7 @@
 import { BrandMark, Shell } from '@opengewerk/platform-web'
+import { PageHead, Screen, SettingsText } from '@opengewerk/platform-web/office'
 import { useWho } from '@opengewerk/platform-web/session'
+import { UpdateBar } from '@opengewerk/platform-web/shell'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -7,9 +9,6 @@ import { ChevronLeft, History, House, Menu, Server, Settings, Shield, X } from '
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-import { UpdateBar } from '../../app/update-bar.js'
-import { PageHead, Screen } from '../kit.js'
-import { SettingsText } from '../settings-frame.js'
 import { instanceAccessQuery, PersonMenu } from '../top-bar.js'
 
 interface Entry {

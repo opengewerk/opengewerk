@@ -74,7 +74,7 @@ export interface PageHeadProps {
   readonly crumbs?: readonly Crumb[]
   /** Beside the title: a state, the kind, a number. */
   readonly badges?: ReactNode
-  /** On a line of their own under the title: the tags of a customer or a site. */
+  /** On a line of their own under the title: the tags of a record. */
   readonly tags?: ReactNode
   /** Beside the title in lighter figures: "248 Einträge". */
   readonly count?: string
@@ -83,8 +83,8 @@ export interface PageHeadProps {
   /** At the right, the primary action last. */
   readonly actions?: ReactNode
   /**
-   * On a phone, instead of the path: the way back to the list, "‹ Aufträge",
-   * as the board "Auftrag im Büro, Telefon" draws it.
+   * On a phone, instead of the path: the way back to the list, as the board
+   * of a record on a phone draws it.
    */
   readonly phoneBack?: Crumb
   /** On a phone the actions under the title across the whole width, two in a row. */
@@ -185,8 +185,8 @@ export function FactList({
   readonly keyWidth?: keyof typeof keyWidths
 }) {
   return (
-    // 15 pixels on a phone, as the facts of "Auftrag im Büro, Telefon" and
-    // the rule of the board "Breiten und Auflösungen" have text there.
+    // 15 pixels on a phone, as the facts of a record on the boards for a
+    // phone and the rule of the board "Breiten und Auflösungen" have text there.
     <dl
       className={clsx(
         'grid gap-x-2 gap-y-[5px] text-[13px] text-ink max-sm:text-[15px]',

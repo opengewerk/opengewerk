@@ -1,17 +1,16 @@
-import {
-  createMemoryHistory,
-  createRootRoute,
-  createRouter,
-  RouterProvider,
-} from '@tanstack/react-router'
+import { InRouter as Router } from '@opengewerk/platform-web/testing'
 import type { ReactNode } from 'react'
 
+import { InApplication } from './in-application.js'
+
 /**
- * A screen inside a router of its own, for a test that renders one screen and
- * not the whole entry. Every screen with a link needs a router around it, and
- * the settings have links at their side since #219. The router knows no route
- * but its root, which shows the screen for any address; a link leads nowhere
- * in a test, and none of them follows one.
+ * A screen of this application inside a router of its own, for a test that
+ * renders one screen and not the whole entry.
+ *
+ * The router is the foundation's helper: it knows no route but its root,
+ * which shows the screen for any address. What this adds is the application
+ * over it (ADR 0010): the frame of a settings screen lists the settings this
+ * application has, and asks the value over it which those are.
  */
 export function InRouter({
   children,
@@ -21,11 +20,9 @@ export function InRouter({
   /** The address the screen is opened at, for a screen that reads its own. */
   readonly at?: string
 }) {
-  const root = createRootRoute({ component: () => children })
-  const router = createRouter({
-    routeTree: root,
-    history: createMemoryHistory({ initialEntries: [at] }),
-  })
-
-  return <RouterProvider router={router} />
+  return (
+    <InApplication>
+      <Router at={at}>{children}</Router>
+    </InApplication>
+  )
 }

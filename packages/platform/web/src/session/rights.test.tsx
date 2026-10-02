@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useRight } from './queries.js'
+import { useRight, useRights } from './queries.js'
 import { forgetSignIn } from './remembered.js'
 import type { TenantChoice } from './session.js'
 import { initialsOf, rolesInWords, useWho } from './who.js'
@@ -154,6 +154,67 @@ describe('what a screen offers', () => {
     ask('shelf.write')
 
     expect(await screen.findByText('Probewerk Nord: Mitglied, Buchhaltung (EB)')).toBeTruthy()
+  })
+})
+
+describe('every right of a session at once', () => {
+  function Lists() {
+    const rights = useRights()
+    const { tenant } = useWho()
+
+    return (
+      <>
+        <p>{rights.length === 0 ? 'keine Rechte' : rights.join(' ')}</p>
+        {tenant ? <p>{tenant}</p> : null}
+      </>
+    )
+  }
+
+  function list(): QueryClient {
+    const client = new QueryClient()
+
+    render(
+      <QueryClientProvider client={client}>
+        <Lists />
+      </QueryClientProvider>,
+    )
+
+    return client
+  }
+
+  /**
+   * For a list that is narrowed by rights, as the settings an application
+   * lists with the right each takes. The same answer `useRight` gives one
+   * right at a time, from the same two places.
+   */
+  it('is the list the server resolved for the tenant the session works in', async () => {
+    tenants = [
+      aTenant({ id: 't-1', name: 'Probewerk Nord', rights: ['shelf.read'] }),
+      aTenant({ id: 't-2', name: 'Probewerk Süd', rights: ['shelf.read', 'shelf.settings'] }),
+    ]
+    worksIn = 't-2'
+    list()
+
+    expect(await screen.findByText('shelf.read shelf.settings')).toBeTruthy()
+  })
+
+  it('is empty until the answers are there, and for a session in no tenant of the list', async () => {
+    tenants = [aTenant({ id: 't-2', name: 'Probewerk Süd', rights: ['shelf.read'] })]
+
+    const client = list()
+
+    expect(screen.getByText('keine Rechte')).toBeTruthy()
+
+    // And stays so once they are: the tenant of the session is not among
+    // them. Waited for at the answers themselves, since the screen shows the
+    // same before and after.
+    await vi.waitFor(() => {
+      expect(client.getQueryData(['account'])).toBeTruthy()
+      expect(client.getQueryData(['tenants'])).toBeTruthy()
+    })
+
+    expect(screen.getByText('keine Rechte')).toBeTruthy()
+    expect(screen.queryByText(/Probewerk/)).toBeNull()
   })
 })
 

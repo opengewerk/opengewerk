@@ -1,8 +1,8 @@
 import type { SyncConflict } from '@opengewerk/domain'
+import { today } from '@opengewerk/platform-web/format'
 import { maybeText, refusalFor } from '@opengewerk/platform-web/sync'
 
 import type { SyncClient } from '../sync/client.js'
-import { today } from './format.js'
 import { documentKindLabel, documentKindOf } from './labels.js'
 
 /** What of a document's head the new draft takes over. */

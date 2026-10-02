@@ -1,7 +1,8 @@
-import { Strip, stripAction, useEntry } from '@opengewerk/platform-web'
 import { RotateCw } from 'lucide-react'
 import { useSyncExternalStore } from 'react'
 
+import { Strip, stripAction } from '../components/strip.js'
+import { useEntry } from '../components/surface.js'
 import { applyUpdate, subscribeToUpdates, updateWaiting } from './updates.js'
 
 /**

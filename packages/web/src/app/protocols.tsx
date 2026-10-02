@@ -37,6 +37,8 @@ import {
   statusIcons,
   useEntry,
 } from '@opengewerk/platform-web'
+import { amount, date, scaledNumber, today } from '@opengewerk/platform-web/format'
+import { NotSent, SiteRow, SiteRows } from '@opengewerk/platform-web/site'
 import {
   maybeText,
   refusalFor,
@@ -55,9 +57,7 @@ import type { FormEvent, ReactNode } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
 import { ordered, useBoards } from './electrical.js'
-import { amount, date, scaledNumber, today } from './format.js'
 import { SignaturePicture } from './signature.js'
-import { NotSent, SiteRow, SiteRows } from '../site/kit.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.

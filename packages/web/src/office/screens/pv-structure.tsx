@@ -10,6 +10,7 @@ import {
   TablePanel,
   cardLink,
 } from '@opengewerk/platform-web'
+import { FactList, Screen } from '@opengewerk/platform-web/office'
 import {
   maybeText,
   refusalFor,
@@ -51,7 +52,6 @@ import {
   usePvStrings,
 } from '../../app/photovoltaic.js'
 import { useMay } from '../../app/queries.js'
-import { FactList, Screen } from '../kit.js'
 import { Reorder, SmallIcon } from './boards.js'
 import {
   Detail,

@@ -10,13 +10,14 @@ import {
 } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, SelectField, TablePanel } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import { PageHead, Screen } from '@opengewerk/platform-web/office'
 import { maybeText, text, useRecords } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
   clockOf,
@@ -31,7 +32,6 @@ import {
 } from '../../app/time.js'
 import { timePeople } from '../../session/time.js'
 import type { Assignee } from '../../session/tasks.js'
-import { PageHead, Screen } from '../kit.js'
 
 /** The people of the business by name, for whoever reads the time of the others. */
 function usePeopleForTime(): readonly Assignee[] {

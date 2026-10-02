@@ -1,6 +1,4 @@
-import type { Entry } from '@opengewerk/platform-web'
-
-export type { Entry }
+import type { Entry } from '../components/surface.js'
 
 /** Where each entry point lives. The office is the root, the site is under it. */
 export const entryPath: Readonly<Record<Entry, string>> = {
