@@ -1,12 +1,12 @@
 import type { DeductionContent, DocumentKind, IsoDate } from '@opengewerk/domain'
 import { paymentProblem } from '@opengewerk/domain'
+import { Button, Field, Panel } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field, Panel } from '../../components/index.js'
 import { centsAsInput, date, euros, parseEuros, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { paymentsOf, recordPayment, removePayment } from '../../session/documents.js'

@@ -1,8 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
 import { Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import { taskStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { NewTaskForm, TaskList, usePeople } from '../../app/tasks.js'

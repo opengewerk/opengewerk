@@ -1,12 +1,12 @@
 import type { DocumentKind, DocumentStatus, EInvoiceGap, RecordState } from '@opengewerk/domain'
 import { invoiceFormats } from '@opengewerk/domain'
+import { Button, ButtonLink, Field, Panel } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Download, Mail } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button, ButtonLink, Field, Panel } from '../../components/index.js'
 import { moment } from '../../app/format.js'
 import { documentKindLabel, documentKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

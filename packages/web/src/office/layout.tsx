@@ -1,6 +1,5 @@
+import { Panel } from '@opengewerk/platform-web'
 import type { ReactNode } from 'react'
-
-import { Panel } from '../components/index.js'
 
 /** A named block on a detail screen, with its own heading and its own actions. */
 export function Section({

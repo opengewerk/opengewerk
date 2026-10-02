@@ -1,8 +1,8 @@
 import type { IsoDate } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { mailStatus } from '../../session/mail.js'

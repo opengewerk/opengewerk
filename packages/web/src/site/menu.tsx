@@ -1,7 +1,7 @@
+import { ThemeSwitch } from '@opengewerk/platform-web'
 import { Monitor, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
-import { ThemeSwitch } from '../components/index.js'
 import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'
 import { useWho } from '../app/who.js'

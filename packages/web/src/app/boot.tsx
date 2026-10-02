@@ -1,10 +1,10 @@
 import { hasSecondFactor, syncEntities, type TenantId } from '@opengewerk/domain'
+import { Button } from '@opengewerk/platform-web'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button } from '../components/index.js'
 import type { Entry } from '../entry/entry.js'
 import { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'

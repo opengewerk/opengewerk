@@ -1,10 +1,10 @@
+import { BrandMark, Shell } from '@opengewerk/platform-web'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Calendar, Clock, Menu, RefreshCw, ScanLine } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 
-import { BrandMark, Shell } from '../components/index.js'
 import { usePushRefresh } from '../app/push-state.js'
 import { SyncStatusBar, UpdateBar } from '../app/sync-bar.js'
 import { EntrySuggestion } from '../app/suggestion.js'

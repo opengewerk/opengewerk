@@ -10,6 +10,19 @@ import {
   supplyDateOf,
   whyFixed,
 } from '@opengewerk/domain'
+import {
+  Button,
+  ButtonLink,
+  Cell,
+  Column,
+  Panel,
+  TablePanel,
+  cardLink,
+  statusIcons,
+  useBand,
+  useButtonLook,
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronRight, Eye, File, Lock, Pencil } from 'lucide-react'
@@ -17,20 +30,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import {
-  Button,
-  ButtonLink,
-  cardLink,
-  Cell,
-  Column,
-  DocumentState,
-  Panel,
-  statusIcons,
-  TablePanel,
-  useBand,
-  useButtonLook,
-} from '../../components/index.js'
-import type { TableCard } from '../../components/index.js'
+import { DocumentState } from '../../app/document-state.js'
 import { date, euros, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

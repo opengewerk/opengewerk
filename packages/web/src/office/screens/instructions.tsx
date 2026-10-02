@@ -6,12 +6,12 @@ import {
   instructionPlaceholders,
   normalizedWording,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, TextArea } from '@opengewerk/platform-web'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check as Tick, Pencil, Plus, RotateCcw } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Confirm, Field, Panel, TextArea } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { documentKindLabel } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

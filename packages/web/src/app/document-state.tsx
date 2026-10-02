@@ -1,9 +1,7 @@
-import clsx from 'clsx'
 import type { DocumentStatus } from '@opengewerk/domain'
-
-import { Status, statusIcons } from './status.js'
-import type { StatusTone } from './status.js'
-import { useEntry } from './surface.js'
+import { Status, statusIcons, useEntry } from '@opengewerk/platform-web'
+import type { StatusTone } from '@opengewerk/platform-web'
+import clsx from 'clsx'
 
 /**
  * What a document's state looks like.

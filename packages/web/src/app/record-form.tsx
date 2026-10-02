@@ -1,10 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Button, Field, SelectField, useEntry } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Field, SelectField, useEntry } from '../components/index.js'
 import { refusalFor } from '../sync/client.js'
 import type { EditResult } from '../sync/client.js'
 

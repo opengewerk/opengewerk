@@ -26,12 +26,6 @@ import {
   totalsFor,
   vatRates,
 } from '@opengewerk/domain'
-import { useQuery } from '@tanstack/react-query'
-import clsx from 'clsx'
-import { Check, Plus } from 'lucide-react'
-import { Fragment, useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-
 import {
   Button,
   Cell,
@@ -41,8 +35,14 @@ import {
   SelectField,
   TablePanel,
   TextArea,
-} from '../../components/index.js'
-import type { TableCard } from '../../components/index.js'
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { useQuery } from '@tanstack/react-query'
+import clsx from 'clsx'
+import { Check, Plus } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+
 import {
   amount,
   centsAsInput,

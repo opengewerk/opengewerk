@@ -21,6 +21,7 @@ import {
 import { elektroRegistry } from '@opengewerk/gewerk-elektro'
 
 import { deviceName } from '../app/devices.js'
+import { documentStateLabel } from '../app/document-state.js'
 import { amount, date, euros, moment } from '../app/format.js'
 import {
   customerKindLabel,
@@ -36,7 +37,6 @@ import {
   vatRateLabel,
 } from '../app/labels.js'
 import { timeEntryKindLabel } from '../app/time.js'
-import { documentStateLabel } from '../components/state.js'
 
 /**
  * The change log in the words of the office (#285): what a value, a change,

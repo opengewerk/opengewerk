@@ -1,9 +1,8 @@
+import { BrandMark, GateProvider } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { Lock, LockOpen } from 'lucide-react'
 import { createContext, useContext, useId } from 'react'
 import type { ReactNode } from 'react'
-
-import { BrandMark, GateProvider } from '../components/index.js'
 
 /**
  * The frame of every step before working, as the boards of the page "Vor der

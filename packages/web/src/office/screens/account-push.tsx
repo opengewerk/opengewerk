@@ -1,7 +1,7 @@
+import { Button, Panel, Status } from '@opengewerk/platform-web'
 import { Bell, Send } from 'lucide-react'
 
 import { usePush } from '../../app/push-state.js'
-import { Button, Panel, Status } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { NoteBox } from '../kit.js'
 import { SettingsText } from '../settings-frame.js'

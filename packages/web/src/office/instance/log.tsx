@@ -1,10 +1,9 @@
 import { type AuditChange, auditTableLabel, type InstanceLogPage } from '@opengewerk/domain'
+import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { type ReactNode, useState } from 'react'
 
-import { Button, Cell, Column, Panel, TablePanel } from '../../components/index.js'
-import { useBand } from '../../components/band.js'
 import { moment } from '../../app/format.js'
 import { instanceLog } from '../../session/instance.js'
 import { RequestRefused } from '../../sync/transport.js'

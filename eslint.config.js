@@ -52,7 +52,7 @@ export default configuration(
   mayNotImport(['packages/platform/**/*.{ts,tsx}'], [...above, ...applications]),
 
   runsInNode(['packages/server/**/*.ts', 'packages/platform/server/**/*.ts']),
-  runsInBrowser(['packages/web/**/*.{ts,tsx}']),
+  runsInBrowser(['packages/web/**/*.{ts,tsx}', 'packages/platform/web/**/*.{ts,tsx}']),
 
   // Everything else that runs in Node rather than in a browser: the shared
   // configuration at the root, and the small scripts a package keeps beside

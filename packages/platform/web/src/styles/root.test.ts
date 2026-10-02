@@ -19,3 +19,18 @@ describe('the root of the page', () => {
     expect(block).not.toContain('font-size')
   })
 })
+
+/**
+ * Tailwind writes a rule only for a class it has seen, and it looks in the
+ * project it runs in: the application. The components here lie outside of it
+ * (ADR 0010), so the stylesheet names its own package as a place to look.
+ * Measured when the components moved: without the line the stylesheet of the
+ * trades application came out 3.6 kB shorter, with every class missing that
+ * only a component uses, and the build said nothing.
+ */
+describe('the stylesheet an entry point loads', () => {
+  it('tells Tailwind to read the components of this package for their classes', () => {
+    // From `styles/`, one level up is the source of the package.
+    expect(styles).toMatch(/^@source '\.\.';$/m)
+  })
+})

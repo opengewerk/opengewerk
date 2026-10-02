@@ -1,11 +1,11 @@
 import { distributionBoardKindLabel } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ArrowDown, ArrowUp, Pencil, Plus, Printer, X } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import {
   asBoard,
   boardFields,

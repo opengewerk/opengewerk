@@ -1,9 +1,9 @@
 import { accessProblem, type RecordState } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel } from '@opengewerk/platform-web'
 import { Check, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Confirm, Field, Panel } from '../../components/index.js'
 import { clockTime } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {

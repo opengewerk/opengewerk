@@ -12,12 +12,6 @@ import {
   priceStanding,
   supplierNumberProblem,
 } from '@opengewerk/domain'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
-import { type FormEvent, type ReactNode, useDeferredValue, useState } from 'react'
-
 import {
   Button,
   Cell,
@@ -30,9 +24,15 @@ import {
   Status,
   TablePanel,
   TextArea,
+  useBand,
   useButtonLook,
-} from '../../components/index.js'
-import { useBand } from '../../components/band.js'
+} from '@opengewerk/platform-web'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
+import { type FormEvent, type ReactNode, useDeferredValue, useState } from 'react'
+
 import { date, euros, parseEuros, today } from '../../app/format.js'
 import { lineUnitLabel, lineUnitShort, priceBaseLabel, priceBaseText } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

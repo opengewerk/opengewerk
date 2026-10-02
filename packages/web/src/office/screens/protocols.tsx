@@ -20,12 +20,6 @@ import {
   measurementUnitSign,
   sealingField,
 } from '@opengewerk/domain'
-import { useNavigate, useParams } from '@tanstack/react-router'
-import clsx from 'clsx'
-import { Check, Plus } from 'lucide-react'
-import { useId, useState } from 'react'
-import type { ReactNode } from 'react'
-
 import {
   Button,
   Cell,
@@ -34,10 +28,16 @@ import {
   FieldLabel,
   Panel,
   Status,
-  statusIcons,
   TablePanel,
-} from '../../components/index.js'
-import type { TableCard } from '../../components/index.js'
+  statusIcons,
+} from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
+import { useNavigate, useParams } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { Check, Plus } from 'lucide-react'
+import { useId, useState } from 'react'
+import type { ReactNode } from 'react'
+
 import { date } from '../../app/format.js'
 import {
   blockHeading,

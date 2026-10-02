@@ -1,9 +1,9 @@
+import { BrandMark, ThemeSwitch } from '@opengewerk/platform-web'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, Menu, Server, User } from 'lucide-react'
 import { createContext, useEffect, useRef, useState } from 'react'
 
-import { BrandMark, ThemeSwitch } from '../components/index.js'
 import { accountQuery } from '../app/queries.js'
 import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'

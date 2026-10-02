@@ -1,4 +1,4 @@
-import type { Entry } from '../components/index.js'
+import type { Entry } from '@opengewerk/platform-web'
 
 export type { Entry }
 

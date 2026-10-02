@@ -1,9 +1,9 @@
 import { businessNameMaxLength } from '@opengewerk/domain'
+import { Button, Field, FieldLabel, useInGate } from '@opengewerk/platform-web'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { encode } from 'uqr'
 
-import { Button, Field, FieldLabel, useInGate } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import { Gate, GateText } from './gate.js'
 import {

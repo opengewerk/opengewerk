@@ -27,12 +27,12 @@ import {
   tripCharacteristicLabel,
   tripCharacteristics,
 } from '@opengewerk/domain'
+import { Button, Field, FieldLabel, SelectField, useEntry } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { Button, Field, FieldLabel, SelectField, useEntry } from '../components/index.js'
 import { refusalFor } from '../sync/client.js'
 import type { Draft, EditResult, SyncClient } from '../sync/client.js'
 import { count, maybeText, oneOf, text } from '../sync/fields.js'

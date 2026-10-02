@@ -19,6 +19,15 @@
 
 @import './tokens.css';
 
+/*
+ * The classes of the components of this package. Tailwind looks for classes
+ * in the project it is run in, which is the application that loads this
+ * stylesheet, and this package lies outside of it. Without this line every
+ * class that only a component here uses is missing from the stylesheet, and
+ * nothing says so: the build is green and a button has no height.
+ */
+@source '..';
+
 @layer base {
   /*
    * No font size on the root. The tokens are in rem, and rem is the font size

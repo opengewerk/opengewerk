@@ -10,12 +10,12 @@ import {
   reportFieldsOf,
   reportFieldsProblems,
 } from '@opengewerk/domain'
+import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { ArrowDown, ArrowUp, Check, Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Confirm, Field, Panel, SelectField, TextArea } from '../../components/index.js'
 import { useMay } from '../../app/queries.js'
 import { currentReportFields, saveReportFields } from '../../session/report-fields.js'
 import { RequestRefused } from '../../sync/transport.js'

@@ -1,10 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
 import { belongsToPvSystemKind } from '@opengewerk/domain'
+import { Button, Panel, Status } from '@opengewerk/platform-web'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Pencil, Plus, Zap } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Panel, Status } from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { installationKindLabel, installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'

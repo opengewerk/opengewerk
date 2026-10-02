@@ -11,6 +11,18 @@ import {
   rcdTypeLabel,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
+import {
+  Button,
+  Cell,
+  Column,
+  Confirm,
+  Panel,
+  PanelLabel,
+  TablePanel,
+  cardLink,
+  isNarrow,
+  useBand,
+} from '@opengewerk/platform-web'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Pencil, Plus, Printer } from 'lucide-react'
@@ -18,18 +30,6 @@ import { useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-import {
-  Button,
-  cardLink,
-  Cell,
-  Column,
-  Confirm,
-  isNarrow,
-  Panel,
-  PanelLabel,
-  TablePanel,
-  useBand,
-} from '../../components/index.js'
 import {
   asBoard,
   asEquipment,

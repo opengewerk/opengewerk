@@ -1,7 +1,7 @@
+import { Strip, stripAction } from '@opengewerk/platform-web'
 import { Monitor, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
-import { Strip, stripAction } from '../components/index.js'
 import type { Entry } from '../entry/entry.js'
 import {
   entryPath,

@@ -1,10 +1,10 @@
 import { serialFromCode, serialNumberProblem } from '@opengewerk/domain'
+import { Button, Field } from '@opengewerk/platform-web'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { Camera, Check, Pencil, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field } from '../../components/index.js'
 import { inModules, usePvModules } from '../../app/photovoltaic.js'
 import { refusalFor } from '../../sync/client.js'
 import { maybeText, text } from '../../sync/fields.js'

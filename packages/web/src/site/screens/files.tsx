@@ -1,7 +1,7 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Panel } from '@opengewerk/platform-web'
 import { useParams } from '@tanstack/react-router'
 
-import { Panel } from '../../components/index.js'
 import { AddFiles, AttachmentList } from '../../app/attachments.js'
 import { useMay } from '../../app/queries.js'
 import { maybeText, text } from '../../sync/fields.js'

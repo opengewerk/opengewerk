@@ -1,8 +1,8 @@
+import { Strip, stripAction, useEntry } from '@opengewerk/platform-web'
 import { RotateCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 
-import { Strip, stripAction, useEntry } from '../components/index.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { applyUpdate, subscribeToUpdates, updateWaiting } from './updates.js'
 

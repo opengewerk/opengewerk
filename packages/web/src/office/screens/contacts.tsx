@@ -1,7 +1,7 @@
+import { Button, Confirm, Panel } from '@opengewerk/platform-web'
 import { Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Confirm, Panel } from '../../components/index.js'
 import {
   byName,
   contactFields,

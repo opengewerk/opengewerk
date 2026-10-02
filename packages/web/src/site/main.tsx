@@ -7,7 +7,7 @@ import { queries, QueryProvider } from '../app/queries.js'
 import { startTheme } from '../app/theme.js'
 import { startServiceWorker } from '../entry/register.js'
 import { siteRouter } from './router.js'
-import '../styles/index.css'
+import '@opengewerk/platform-web/styles/index.css'
 
 /**
  * The site entry point, `/m`.

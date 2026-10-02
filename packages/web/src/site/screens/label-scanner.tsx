@@ -1,10 +1,10 @@
 import { labelCodeFromScan } from '@opengewerk/domain'
+import { Button } from '@opengewerk/platform-web'
 import { useNavigate } from '@tanstack/react-router'
 import { Ban, Info, ScanLine, TriangleAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { Button } from '../../components/index.js'
 import { labelMessages, useLabelLookup } from '../../app/installation-labels.js'
 import { useSync } from '../../sync/provider.js'
 import { useCodeReading } from '../camera.js'

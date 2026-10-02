@@ -1,8 +1,8 @@
 import type { IsoDate } from '@opengewerk/domain'
+import { Field } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { type KeyboardEvent, useDeferredValue, useId, useState } from 'react'
 
-import { Field } from '../../components/index.js'
 import { type FoundArticle, useArticleSearch } from '../../app/article-search.js'
 import { euros } from '../../app/format.js'
 import { lineUnitShort, priceBaseLabel } from '../../app/labels.js'

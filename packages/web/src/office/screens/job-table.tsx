@@ -1,8 +1,8 @@
 import type { RecordState } from '@opengewerk/domain'
+import { Cell, Column, Panel, TablePanel, cardLink } from '@opengewerk/platform-web'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { cardLink, Cell, Column, Panel, TablePanel } from '../../components/index.js'
 import { jobKindLabel, jobKindOf } from '../../app/labels.js'
 import { text } from '../../sync/fields.js'
 import { useRecords } from '../../sync/provider.js'

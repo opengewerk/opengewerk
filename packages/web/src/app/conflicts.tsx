@@ -1,11 +1,11 @@
 import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain'
 import { quantityFactor } from '@opengewerk/domain'
+import { Button, Card, Cell, Column, Panel, TablePanel, useEntry } from '@opengewerk/platform-web'
 import { Check, Clock, RefreshCw, Server, Smartphone, TriangleAlert, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { Button, Card, Cell, Column, Panel, TablePanel, useEntry } from '../components/index.js'
 import { type RefusedOperation, refusalFor, refusalText } from '../sync/client.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'

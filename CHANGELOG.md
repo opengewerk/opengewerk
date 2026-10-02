@@ -482,6 +482,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Eine solche Funktion geht an jeder Policy vorbei, mit Absicht und für genau eine Frage. Eine
   weitere ist damit eine Entscheidung, und eine, die eine Migration zurücklässt, fällt auf. Anlass
   war eine Gegenprobe: blieb die alte Listenfunktion der Betriebe stehen, merkte es kein Test.
+- Die Bausteine der Oberfläche gehören zum Fundament (`@opengewerk/platform-web`, ADR 0010,
+  `opengewerk-haustechnik#12`, erster Teil), damit eine weitere Anwendung dieselben Knöpfe, Felder,
+  Tabellen und Farben benutzt, statt sie abzuzeichnen: die Design-Tokens, das Stylesheet eines
+  Einstiegs mit den Schriften und alles, was unter `components/` lag. An der Oberfläche der
+  Handwerkersoftware ändert sich nichts, ihr Stylesheet ist nach dem Umzug Byte für Byte dasselbe.
+  Das Paket wird als Quelltext übergeben und hat keinen eigenen Bau: die Anwendung übersetzt es mit
+  ihren Bildschirmen. Sein Stylesheet nennt das Paket selbst als Ort, an dem Tailwind Klassen
+  sucht; ohne die Zeile fehlte jede Klasse, die nur ein Baustein benutzt, und nichts meldete es.
+  Der Status eines Belegs bleibt bei der Handwerkersoftware, weil seine Zustände ihre sind. Die
+  Prüfung, ob eine Klasse einen Token nennt, den es gibt, ist ein Werkzeug des Fundaments
+  (`tokenUsage` im Einstieg `@opengewerk/platform-web/testing`): das Paket fragt damit seine
+  Bausteine und jede Anwendung ihre Bildschirme, und ob jede Farbe benutzt wird, fragt weiter die
+  Anwendung. Ein Test im Paket hält fest, dass es von keiner Anwendung abhängt und außerhalb der
+  Kommentare weder ihre Wörter für Mandant, Rolle und Datensatz kennt noch, auch im Kommentar
+  nicht, einen Produktnamen. Abgleich-Client, Sitzung, Tor und Hülle folgen in eigenen Schritten.
 
 ## [0.4.0] - 2026-09-27
 

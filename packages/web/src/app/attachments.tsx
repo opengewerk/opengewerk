@@ -10,11 +10,12 @@ import {
   previewQuality,
   type RecordState,
 } from '@opengewerk/domain'
+import { Button, Confirm } from '@opengewerk/platform-web'
+import type { SiteHeight } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Button, Confirm, type SiteHeight } from '../components/index.js'
 import { refusalFor, type SyncClient } from '../sync/client.js'
 import { workingInHeaders } from '../sync/transport.js'
 import { count, maybeText, text } from '../sync/fields.js'

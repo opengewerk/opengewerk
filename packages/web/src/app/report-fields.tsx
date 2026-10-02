@@ -13,9 +13,9 @@ import {
   reportFieldsOf,
   valuesProblem,
 } from '@opengewerk/domain'
+import { Panel } from '@opengewerk/platform-web'
 import { useMemo, useState } from 'react'
 
-import { Panel } from '../components/index.js'
 import { refusalFor } from '../sync/client.js'
 import { useRecords, useSync } from '../sync/provider.js'
 import { FieldInput } from './protocols.js'

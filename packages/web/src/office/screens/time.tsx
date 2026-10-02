@@ -8,13 +8,13 @@ import {
   shippedRules,
   workingTimeWarnings,
 } from '@opengewerk/domain'
+import { Button, Cell, Column, Panel, SelectField, TablePanel } from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { Button, Cell, Column, Panel, SelectField, TablePanel } from '../../components/index.js'
-import type { TableCard } from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {

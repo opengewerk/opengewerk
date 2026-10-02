@@ -1,10 +1,10 @@
 import type { RecordState } from '@opengewerk/domain'
 import { distributionBoardKindLabel } from '@opengewerk/domain'
+import { Button, Panel } from '@opengewerk/platform-web'
 import { Link, useParams } from '@tanstack/react-router'
 import { ChevronRight, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, Panel } from '../../components/index.js'
 import {
   asBoard,
   asEquipment,

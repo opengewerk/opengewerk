@@ -3,19 +3,12 @@ import {
   businessNameProblem,
   type InstanceTenantView,
 } from '@opengewerk/domain'
+import { Button, Cell, Column, Field, Panel, TablePanel } from '@opengewerk/platform-web'
+import type { TableCard } from '@opengewerk/platform-web'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import {
-  Button,
-  Cell,
-  Column,
-  Field,
-  Panel,
-  TablePanel,
-  type TableCard,
-} from '../../components/index.js'
 import { date } from '../../app/format.js'
 import { accountQuery } from '../../app/queries.js'
 import { createTenantFor, instanceTenants } from '../../session/instance.js'

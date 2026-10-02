@@ -1,9 +1,4 @@
 import { defaultResponsibleLabel, leadProblem, sourceWords } from '@opengewerk/domain'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Check, RotateCcw } from 'lucide-react'
-import { useMemo, useState } from 'react'
-
 import {
   Button,
   Cell,
@@ -12,7 +7,12 @@ import {
   Panel,
   SelectField,
   TablePanel,
-} from '../../components/index.js'
+} from '@opengewerk/platform-web'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { Check, RotateCcw } from 'lucide-react'
+import { useMemo, useState } from 'react'
+
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'

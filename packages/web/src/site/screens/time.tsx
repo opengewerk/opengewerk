@@ -10,6 +10,14 @@ import {
   type TimeEntryKind,
   workingTimeWarnings,
 } from '@opengewerk/domain'
+import {
+  Button,
+  Field,
+  Panel,
+  SelectField,
+  TextArea,
+  useButtonLook,
+} from '@opengewerk/platform-web'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 
@@ -18,14 +26,6 @@ import { Check, ChevronLeft, ChevronRight, Play, Plus } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { ButtonHTMLAttributes } from 'react'
 
-import {
-  Button,
-  Field,
-  Panel,
-  SelectField,
-  TextArea,
-  useButtonLook,
-} from '../../components/index.js'
 import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {

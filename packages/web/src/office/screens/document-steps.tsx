@@ -1,10 +1,10 @@
 import type { DeductionContent, DocumentKind, MissingDetail } from '@opengewerk/domain'
+import { Button } from '@opengewerk/platform-web'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Ban, Lock, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button } from '../../components/index.js'
 import { documentKindLabel } from '../../app/labels.js'
 import {
   cancelDocument,

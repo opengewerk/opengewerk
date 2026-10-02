@@ -1,7 +1,7 @@
+import { Button, Field } from '@opengewerk/platform-web'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Button, Field } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import { resetPassword, shortestPassword } from './../session/session.js'
 import { Gate, GateText } from './gate.js'

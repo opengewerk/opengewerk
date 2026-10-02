@@ -1,8 +1,8 @@
 import type { IsoDate } from '@opengewerk/domain'
+import { Field } from '@opengewerk/platform-web'
 import { Plus, WifiOff } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
 
-import { Field } from '../components/index.js'
 import { type FoundArticle, useArticleSearch } from '../app/article-search.js'
 import { lineUnitLabel } from '../app/labels.js'
 import { SiteLabel, SiteText } from './kit.js'

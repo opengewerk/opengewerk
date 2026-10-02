@@ -1,8 +1,8 @@
 import type { SnippetPurpose } from '@opengewerk/domain'
+import { SelectField } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import { SelectField } from '../../components/index.js'
 import { snippetPurposeLabel } from '../../app/labels.js'
 import { textSnippets } from '../../session/documents.js'
 import type { TextSnippet } from '../../session/documents.js'

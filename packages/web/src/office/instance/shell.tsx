@@ -1,3 +1,4 @@
+import { BrandMark, Shell } from '@opengewerk/platform-web'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -5,7 +6,6 @@ import { ChevronLeft, History, House, Menu, Server, Settings, Shield, X } from '
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 
-import { BrandMark, Shell } from '../../components/index.js'
 import { UpdateBar } from '../../app/sync-bar.js'
 import { useWho } from '../../app/who.js'
 import { PageHead, Screen } from '../kit.js'
