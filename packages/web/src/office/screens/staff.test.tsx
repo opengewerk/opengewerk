@@ -1,3 +1,4 @@
+import { type RoleDefinition, shippedRoles } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
@@ -6,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InRouter } from '../../app/in-router.js'
 import { StaffScreen } from './staff.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The screen the office administers accounts on.
@@ -69,13 +71,16 @@ beforeEach(() => {
   answers = new Map()
 
   serverSays('GET', '/staff', [christa, maxMonteur])
+  // The roles of the business, as the server lists them from its rows: here
+  // the three a business starts with.
+  serverSays('GET', '/staff/roles', shippedRoles)
   serverSays('GET', '/staff/invitations', [])
   // Christa is looking: the list of settings at the side asks who she is.
   serverSays('GET', '/api/auth/get-session', {
     user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['owner'] }])
+  serverSays('GET', '/auth/tenants', [aTenantChoice(['owner'])])
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     calls.push({
@@ -291,5 +296,177 @@ describe('the staff screen', () => {
     await userEvent.setup().click(office[1] as HTMLElement)
 
     expect(asked('/staff/u-2', 'PATCH')?.body).toEqual({ roles: ['technician', 'office'] })
+  })
+})
+
+/**
+ * The roles on offer are the rows of the business (ADR 0010), as the server
+ * lists them, and not a list in this code. A business that calls its owner
+ * something else, dropped the office role and made one of its own is the
+ * case a list in the code would get wrong in every line.
+ */
+describe('the roles of the business', () => {
+  const owner: RoleDefinition = {
+    key: 'owner',
+    label: 'Geschäftsführung',
+    rights: ['membership.read', 'membership.write'],
+    leads: true,
+    secondFactor: true,
+  }
+  const technician: RoleDefinition = {
+    key: 'technician',
+    label: 'Monteur',
+    rights: ['job.read'],
+    leads: false,
+    secondFactor: false,
+  }
+  const bookkeeping: RoleDefinition = {
+    key: 'bookkeeper',
+    label: 'Buchhaltung',
+    rights: ['document.read'],
+    leads: false,
+    secondFactor: true,
+  }
+  const itsOwn = [owner, technician, bookkeeping]
+
+  /** The words beside the boxes in one container, in the order they stand. */
+  function boxes(container: HTMLElement): (string | null | undefined)[] {
+    return within(container)
+      .getAllByRole('checkbox')
+      .map((box) => box.closest('label')?.textContent)
+  }
+
+  function rowOf(name: string): HTMLElement {
+    const table = screen.getByRole('table', { name: 'Konten dieses Betriebs' })
+
+    return within(table).getByText(name).closest('tr') as HTMLElement
+  }
+
+  beforeEach(() => {
+    serverSays('GET', '/staff/roles', itsOwn)
+    serverSays('GET', '/staff', [christa, { ...maxMonteur, roles: ['technician', 'bookkeeper'] }])
+  })
+
+  it('are offered by the names the business gives them, on every row', async () => {
+    render(inQueries(<StaffScreen />))
+    await screen.findByRole('table', { name: 'Konten dieses Betriebs' })
+
+    expect(boxes(rowOf('Max Monteur'))).toEqual(['Geschäftsführung', 'Monteur', 'Buchhaltung'])
+    expect(
+      within(rowOf('Max Monteur'))
+        .getAllByRole('checkbox')
+        .map((box) => (box as HTMLInputElement).checked),
+    ).toEqual([false, true, true])
+    expect(within(rowOf('Christa Chefin')).queryByLabelText('Büro')).toBeNull()
+  })
+
+  /**
+   * Which roles ask for a second factor is in their rows. The sentence over
+   * the table names them, and somebody who holds one without a factor is
+   * marked, whatever the role is called.
+   */
+  it('say which of them ask for a second factor, and who is missing one', async () => {
+    render(inQueries(<StaffScreen />))
+    await screen.findByRole('table', { name: 'Konten dieses Betriebs' })
+
+    expect(
+      screen.getByText(
+        /Die Rollen Geschäftsführung und Buchhaltung verlangen einen zweiten Faktor/,
+      ),
+    ).toBeTruthy()
+    expect(within(rowOf('Max Monteur')).getByText('Zweiter Faktor fehlt')).toBeTruthy()
+    // Christa has hers.
+    expect(within(rowOf('Christa Chefin')).queryByText('Zweiter Faktor fehlt')).toBeNull()
+  })
+
+  it('are the boxes of an invitation, with the warning for the one that asks for a factor', async () => {
+    serverSays('POST', '/staff', { token: 'c'.repeat(43), expiresAt: '2026-10-09T08:00:00.000Z' })
+
+    render(inQueries(<StaffScreen />))
+    await screen.findByRole('table', { name: 'Konten dieses Betriebs' })
+
+    const person = userEvent.setup()
+
+    await person.click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+
+    const form = screen
+      .getByRole('button', { name: 'Link erzeugen' })
+      .closest('form') as HTMLElement
+
+    expect(boxes(form)).toEqual(['Geschäftsführung', 'Monteur', 'Buchhaltung'])
+    expect(screen.queryByText(/zweiter Faktor Pflicht/)).toBeNull()
+
+    await person.click(within(form).getByLabelText('Buchhaltung'))
+    expect(screen.getByText(/zweiter Faktor Pflicht/)).toBeTruthy()
+
+    await person.type(within(form).getByLabelText('Name'), 'Berta Buch')
+    await person.type(within(form).getByLabelText('E-Mail'), 'buch@nord.example.de')
+    await person.click(within(form).getByRole('button', { name: 'Link erzeugen' }))
+
+    expect(asked('/staff', 'POST')?.body).toEqual({
+      name: 'Berta Buch',
+      email: 'buch@nord.example.de',
+      roles: ['technician', 'bookkeeper'],
+      send: 'link',
+    })
+  })
+
+  /**
+   * The form starts with the technician ticked, where the business has one.
+   * In a business without that role nothing is ticked, nothing of that name
+   * goes out, and the form waits for a choice.
+   */
+  it('tick nothing a business does not have', async () => {
+    serverSays('GET', '/staff/roles', [owner, bookkeeping])
+
+    render(inQueries(<StaffScreen />))
+    await screen.findByRole('table', { name: 'Konten dieses Betriebs' })
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+
+    const submit = screen.getByRole('button', { name: 'Link erzeugen' })
+    const form = submit.closest('form') as HTMLElement
+
+    expect(
+      within(form)
+        .getAllByRole('checkbox')
+        .map((box) => (box as HTMLInputElement).checked),
+    ).toEqual([false, false])
+    expect((submit as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  /**
+   * A membership can still name a key the business has no role for any more.
+   * It is shown, so that nobody wonders what the person holds, and it is left
+   * out of the next change, which the server would otherwise refuse whole.
+   */
+  it('leave a key without a role out of a change, and show it in an invitation', async () => {
+    serverSays('GET', '/staff', [christa, { ...maxMonteur, roles: ['technician', 'gone'] }])
+    serverSays('GET', '/staff/invitations', [
+      {
+        id: 'i-1',
+        name: 'Lina Link',
+        email: 'lina@nord.example.de',
+        roles: ['bookkeeper', 'gone', 'technician'],
+        expiresAt: '2026-10-09T08:00:00.000Z',
+        invitedBy: 'u-1',
+        mail: null,
+      },
+    ])
+
+    render(inQueries(<StaffScreen />))
+    await screen.findByRole('table', { name: 'Konten dieses Betriebs' })
+
+    const invitations = await screen.findByRole('table', {
+      name: 'Einladungen, die noch benutzt werden können',
+    })
+
+    // By the names of the business, in the order it lists its roles, and the
+    // key it has no role for as it stands.
+    expect(within(invitations).getByText('Monteur, Buchhaltung, gone')).toBeTruthy()
+
+    await userEvent.setup().click(within(rowOf('Max Monteur')).getByLabelText('Buchhaltung'))
+
+    expect(asked('/staff/u-2', 'PATCH')?.body).toEqual({ roles: ['technician', 'bookkeeper'] })
   })
 })

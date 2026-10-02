@@ -17,6 +17,7 @@ import {
   type MemberIdentity,
   rightsCatalogue,
   type RoleDefinition,
+  type TenantChoice,
   type TenantId,
 } from '@opengewerk/platform-domain'
 import { toNodeHandler } from 'better-auth/node'
@@ -123,6 +124,29 @@ export const probeRoles: readonly RoleDefinition<ProbeRight>[] = [
 ]
 
 export type ProbeIdentity = MemberIdentity<ProbeRight>
+
+/**
+ * What the list of somebody's tenants says about one of them, for somebody
+ * who holds these of the roles a tenant of this application starts with: the
+ * names of the roles and what they add up to, as a tenant has them that
+ * changed nothing about its roles.
+ */
+export function probeChoice(
+  tenant: { readonly id: string; readonly name: string },
+  roles: readonly string[],
+): TenantChoice<ProbeRight> {
+  const held = probeRoles.filter((role) => roles.includes(role.key))
+  const sum = probeCatalogue.sumOf(held)
+
+  return {
+    id: tenant.id as TenantId,
+    name: tenant.name,
+    roles,
+    roleLabels: held.map((role) => role.label),
+    rights: sum.rights,
+    secondFactor: sum.secondFactor,
+  }
+}
 
 /** The longest name a tenant of this application may have. */
 const longestTenantName = 40

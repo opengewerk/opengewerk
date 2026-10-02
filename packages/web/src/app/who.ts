@@ -1,4 +1,3 @@
-import type { RoleKey } from '@opengewerk/domain'
 import { useQuery } from '@tanstack/react-query'
 
 import { rolesInWords } from './labels.js'
@@ -37,7 +36,7 @@ export function useWho(): Who {
     email: account.data?.email ?? '',
     initials: initialsOf(name),
     business: here?.name ?? null,
-    roles: here ? rolesInWords(here.roles as readonly RoleKey[]) : '',
+    roles: here ? rolesInWords(here.roleLabels) : '',
   }
 }
 

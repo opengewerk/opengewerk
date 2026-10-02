@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InRouter } from '../../app/in-router.js'
 import { MailSettingsScreen } from './mail-settings.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The screen "E-Mail-Einstellungen": the mail server of the business, which
@@ -44,7 +45,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('GET', '/auth/tenants', [aTenantChoice(roles)])
 }
 
 function region(name: string): HTMLElement {

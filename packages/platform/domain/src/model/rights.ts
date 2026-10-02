@@ -1,3 +1,4 @@
+import type { TenantId } from './identifier.js'
 import type { TenantIdentity } from './identity.js'
 
 /**
@@ -73,6 +74,32 @@ export interface MemberIdentity<Right extends string = string> extends TenantIde
   /** The keys of the roles the membership names. */
   readonly roles: readonly string[]
   readonly rights: readonly Right[]
+}
+
+/**
+ * One of the tenants somebody may work in, as the server tells a screen.
+ *
+ * It carries what the roles of the membership add up to at the moment of
+ * asking, resolved on the server from the rows of that tenant, the same way
+ * the identity of a request is. A screen decides by these rights which
+ * entries to offer, so that it and the guard cannot come to two answers about
+ * a role a tenant has changed. The answer allows nothing by itself: every
+ * request is decided again where it arrives.
+ */
+export interface TenantChoice<Right extends string = string> {
+  readonly id: TenantId
+  readonly name: string
+  /** The keys the membership names. */
+  readonly roles: readonly string[]
+  /**
+   * What the tenant calls the roles it has a row for, in the order it made
+   * them. A key without a row is not a role and has no name.
+   */
+  readonly roleLabels: readonly string[]
+  /** In the order of the catalogue, each once. */
+  readonly rights: readonly Right[]
+  /** Whether one of the roles works only with a second factor. */
+  readonly secondFactor: boolean
 }
 
 /** The rights of one application, and the questions asked of them. */

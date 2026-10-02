@@ -23,6 +23,7 @@ import { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { TestServer } from '../sync/test-server.js'
+import { aTenantChoice } from '../session/test-tenants.js'
 
 /**
  * The files of #77 on screen: added in the office and on site, photos made
@@ -58,7 +59,7 @@ function signedInAs(...roles: RoleKey[]) {
       session: { activeTenantId: 't-1' },
     }),
   )
-  answers.set('/auth/tenants', json([{ id: 't-1', name: 'Elektro Nord GmbH', roles }]))
+  answers.set('/auth/tenants', json([aTenantChoice(roles)]))
 }
 
 const job = {

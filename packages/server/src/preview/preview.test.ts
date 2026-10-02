@@ -1,6 +1,7 @@
 import type { AddressInfo } from 'node:net'
 
 import type { INestApplication } from '@nestjs/common'
+import { permissions } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
 import express from 'express'
 import type { Pool } from 'pg'
@@ -151,7 +152,14 @@ describe('the sample data', () => {
 
   it('goes in through the real routes, and the business is the only one on offer', async () => {
     expect(await read('/auth/tenants')).toEqual([
-      { id: tenant.id, name: tenant.name, roles: ['owner'] },
+      {
+        id: tenant.id,
+        name: tenant.name,
+        roles: ['owner'],
+        roleLabels: ['Inhaber'],
+        rights: permissions,
+        secondFactor: true,
+      },
     ])
   })
 

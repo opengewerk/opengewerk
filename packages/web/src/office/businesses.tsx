@@ -113,7 +113,7 @@ function BusinessChoice({
           {tenant.name}
         </span>
         <span className={clsx('block text-ink-faint', large ? 'text-[13px]' : 'text-[12px]')}>
-          {rolesInWords(tenant.roles)}
+          {rolesInWords(tenant.roleLabels)}
         </span>
       </span>
     </button>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { rolesAllow } from './authorization.js'
+import { type Permission, permissionsOfRoles, type RoleKey } from './authorization.js'
 import { followUpProblem, isJobProgress } from './job.js'
 
 describe('the progress of a job', () => {
@@ -40,6 +40,11 @@ describe('the progress of a job', () => {
     expect(isJobProgress([])).toBe(false)
   })
 })
+
+/** Whether one of the three roles a business starts with is shipped with this right. */
+function rolesAllow(keys: readonly RoleKey[], permission: Permission): boolean {
+  return permissionsOfRoles(keys).has(permission)
+}
 
 describe('who reports the progress of a job', () => {
   it('is everybody who works in the business, the technician included', () => {

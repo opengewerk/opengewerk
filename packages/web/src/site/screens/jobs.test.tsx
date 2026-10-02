@@ -19,6 +19,7 @@ import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './jobs.js'
 import { SiteNoteScreen } from './notes.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * A job on site, seen by the technician who works on it (#128).
@@ -55,7 +56,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'max@nord.example.de', name: 'Max Monteur' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 async function mount(

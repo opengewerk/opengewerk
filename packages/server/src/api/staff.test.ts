@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { TenantId } from '@opengewerk/domain'
+import { shippedRoles, type TenantId } from '@opengewerk/domain'
 import {
   type Authentication,
   authenticationPath,
@@ -222,6 +222,29 @@ describe('the people of a business', () => {
   })
 
   /**
+   * What the screen "Zugänge" offers: the roles this business has, from its
+   * rows. For a business as it starts, the three of this application, with
+   * the names a screen calls them by and the owner as the one that asks for a
+   * second factor.
+   */
+  it('come with the roles of the business, for the owner to hand out', async () => {
+    const cookies = await workIn(chefin.email, north.id)
+    const answer = await http().get('/staff/roles').set('cookie', cookies).expect(200)
+
+    expect(answer.body).toEqual(shippedRoles)
+    expect(
+      (answer.body as { label: string; secondFactor: boolean }[]).map((role) => [
+        role.label,
+        role.secondFactor,
+      ]),
+    ).toEqual([
+      ['Inhaber', true],
+      ['Büro', false],
+      ['Monteur', false],
+    ])
+  })
+
+  /**
    * The office role is not the office application.
    *
    * Somebody who can hand out roles can hand themselves the owner role, so
@@ -235,6 +258,8 @@ describe('the people of a business', () => {
 
       const refused = await http().get('/staff').set('cookie', cookies).expect(403)
       expect(refused.body.message).toContain('Zugänge ansehen')
+
+      await http().get('/staff/roles').set('cookie', cookies).expect(403)
 
       await http()
         .post('/staff')

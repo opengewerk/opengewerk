@@ -29,6 +29,7 @@ import { openLocalStore } from '../sync/store.js'
 import type { PullResult, SyncTransport } from '../sync/transport.js'
 import { NewContactForm } from './contacts.js'
 import { titleOf } from './naming.js'
+import { aTenantChoice } from '../session/test-tenants.js'
 
 /**
  * The contacts of #121 on screen: at the customer and the site in the office,
@@ -153,7 +154,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'u-1@nord.example.de', name: 'u-1' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 function contact(id: string, over: Row): Row {

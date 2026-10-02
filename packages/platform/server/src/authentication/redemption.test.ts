@@ -8,6 +8,7 @@ import { auditEntries, invitations } from '../schema.js'
 import { mintToken } from './invitation.js'
 import {
   type ProbeFoundation,
+  probeChoice,
   probeFoundation,
   type ProbeInstance,
   probeInstance,
@@ -188,7 +189,7 @@ describe('using a link', () => {
 
     expect(cookies).not.toBe('')
     expect((await http().get('/auth/tenants').set('cookie', cookies).expect(200)).body).toEqual([
-      { id: north.id, name: north.name, roles: ['member'] },
+      probeChoice(north, ['member']),
     ])
 
     // And the link stops working, with the sentence of the application that

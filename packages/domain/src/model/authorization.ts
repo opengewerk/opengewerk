@@ -448,9 +448,9 @@ export type Identity = MemberIdentity<Permission>
  * defines them.
  *
  * Not what somebody may do: that is read from the rows of the business, and
- * asked through `isAllowed`. This is for where no row is at hand, a test that
- * stands in for somebody with a role, and the interface until it is handed
- * the rights with the business.
+ * asked through `isAllowed`. This is for where no row is at hand: a test that
+ * stands in for somebody with a role, the preview, and a list of businesses a
+ * device kept from the version before the rights travelled with it.
  */
 export function permissionsOfRoles(keys: readonly RoleKey[]): ReadonlySet<Permission> {
   return new Set(
@@ -459,30 +459,16 @@ export function permissionsOfRoles(keys: readonly RoleKey[]): ReadonlySet<Permis
   )
 }
 
-/** Every right this identity holds. */
-export function permissionsOf(identity: Pick<Identity, 'rights'>): ReadonlySet<Permission> {
-  return new Set(identity.rights)
-}
-
-/**
- * Whether these of the three shipped roles carry this right.
- *
- * Asked where there is no identity to hand. The interface is such a place:
- * it knows the roles of the business it is working in, because the chooser
- * handed them over, and it uses them to decide which entries the navigation
- * shows. That is a courtesy and not a gate, and it has to be said out loud:
- * the gate is the guard on the server, which asks the rights of the
- * membership on every request. A hidden entry and a refused route are two
- * different promises, and only the second one is kept here.
- */
-export function rolesAllow(keys: readonly RoleKey[], permission: Permission): boolean {
-  return permissionsOfRoles(keys).has(permission)
-}
-
 /**
  * Whether somebody holds a right. The one question, wherever it is asked: by
  * the guard in front of a route, by the sync, by a route that shows more to
- * one than to another.
+ * one than to another, and by a screen that decides what to offer, which is
+ * handed the rights of each business by the server (`TenantChoice`).
+ *
+ * On a screen that is a courtesy and not a gate, and it has to be said out
+ * loud: the gate is the guard on the server, which asks on every request. A
+ * hidden entry and a refused route are two different promises, and only the
+ * second one is kept.
  */
 export function isAllowed(identity: Pick<Identity, 'rights'>, permission: Permission): boolean {
   return permissionCatalogue.isAllowed(identity, permission)

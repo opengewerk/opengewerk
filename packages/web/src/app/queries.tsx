@@ -1,5 +1,4 @@
-import type { Permission, RoleKey } from '@opengewerk/domain'
-import { rolesAllow } from '@opengewerk/domain'
+import type { Permission } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider, queryOptions, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
@@ -75,26 +74,32 @@ export function QueryProvider({
  * Both answers are already asked for elsewhere and both are cached, so this
  * costs nothing on a screen that has been open for a moment. It is read from
  * the same two places the gate reads: which business the session is on, and
- * what the membership in it says.
+ * what the membership in it adds up to.
+ *
+ * The rights are the ones the server resolved from the roles of the business
+ * (ADR 0010), the same ones its guard asks. This code holds no opinion of its
+ * own about what a role allows: a business can change what a role may do, and
+ * a screen that asked a list in here would go on offering what the server
+ * refuses.
  *
  * It decides what the navigation offers and nothing else. A hidden entry is a
- * courtesy; the gate is the guard on the server, which asks the membership the
- * same question on every request. Somebody who types the address of a screen
- * they may not use reaches it and then gets a refusal from the routes behind
- * it, which is the right way round.
+ * courtesy; the gate is the guard on the server, which asks the same question
+ * on every request. Somebody who types the address of a screen they may not
+ * use reaches it and then gets a refusal from the routes behind it, which is
+ * the right way round.
  */
 export function useMay(permission: Permission): boolean {
   const account = useQuery(accountQuery)
   const tenants = useQuery({
     queryKey: ['tenants'],
     queryFn: availableTenants,
-    // The roles of a session do not change while somebody looks at a screen,
-    // and when they do the routes behind this say so at once.
+    // The rights of a session seldom change while somebody looks at a
+    // screen, and when they do the routes behind this say so at once.
     staleTime: 5 * 60_000,
     retry: false,
   })
 
   const here = tenants.data?.find((tenant) => tenant.id === account.data?.tenantId)
 
-  return here ? rolesAllow(here.roles as readonly RoleKey[], permission) : false
+  return here ? here.rights.includes(permission) : false
 }

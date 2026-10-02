@@ -16,6 +16,7 @@ import {
 import {
   probeAccess,
   type ProbeFoundation,
+  probeChoice,
   probeFoundation,
   type ProbeInstance,
   probeInstance,
@@ -142,7 +143,7 @@ describe('putting somebody into a tenant from the command line', () => {
 
     expect(cookies).not.toBe('')
     expect((await instance.http().get('/auth/tenants').set('cookie', cookies)).body).toEqual([
-      { id: north.id, name: north.name, roles: ['member'] },
+      probeChoice(north, ['member']),
     ])
   })
 

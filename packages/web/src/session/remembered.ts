@@ -1,4 +1,10 @@
-import { isSignInMethod, type TenantId } from '@opengewerk/domain'
+import {
+  isSignInMethod,
+  type Permission,
+  permissionCatalogue,
+  shippedRoles,
+  type TenantId,
+} from '@opengewerk/domain'
 
 import { RequestRefused } from '../sync/transport.js'
 import type { Account, TenantChoice } from './session.js'
@@ -73,13 +79,14 @@ export function forgetAccount(): void {
 }
 
 /**
- * The businesses of whoever is signed in here, with their roles in each (#184).
+ * The businesses of whoever is signed in here, with what their roles add up
+ * to in each (#184).
  *
- * Kept beside the account for the same reason. The screens ask the roles what
- * to show, and a device opened in a basement got no answer and showed no task,
- * no photo and no working time, with all of them on the device. What is kept
- * allows nothing: every request that reaches the server is decided there, by
- * the roles it holds now.
+ * Kept beside the account for the same reason. The screens ask the rights
+ * what to show, and a device opened in a basement got no answer and showed no
+ * task, no photo and no working time, with all of them on the device. What is
+ * kept allows nothing: every request that reaches the server is decided
+ * there, by the rows of the business as they stand then.
  *
  * Forgotten with the person and not with the business: choosing another
  * business of the same account changes nothing in the list.
@@ -113,19 +120,72 @@ export function rememberedTenants(): readonly TenantChoice[] | null {
       return null
     }
 
-    const tenants = kept.filter(
-      (tenant: unknown): tenant is TenantChoice =>
-        typeof tenant === 'object' &&
-        tenant !== null &&
-        typeof (tenant as TenantChoice).id === 'string' &&
-        typeof (tenant as TenantChoice).name === 'string' &&
-        Array.isArray((tenant as TenantChoice).roles) &&
-        (tenant as TenantChoice).roles.every((role) => typeof role === 'string'),
-    )
+    const tenants = kept.flatMap((tenant: unknown) => {
+      const choice = keptChoice(tenant)
+
+      return choice ? [choice] : []
+    })
 
     return tenants.some((tenant) => tenant.id === account.tenantId) ? tenants : null
   } catch {
     return null
+  }
+}
+
+function texts(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+}
+
+/**
+ * One entry of the kept list, or nothing when it is not one.
+ *
+ * Until the roles of a business were rows (ADR 0010), an entry held the keys
+ * of the roles and the screens asked the three roles in this code what they
+ * allow. A device that takes over this version without a network still has
+ * such a list, and would show no task and no photo until the server answers,
+ * which is the very thing the list is kept against. So an entry without
+ * rights is read once the way it was written: through the three roles a
+ * business starts with. The first answer of the server replaces it.
+ */
+function keptChoice(tenant: unknown): TenantChoice | null {
+  if (typeof tenant !== 'object' || tenant === null) {
+    return null
+  }
+
+  const kept = tenant as Partial<Record<keyof TenantChoice, unknown>>
+
+  if (typeof kept.id !== 'string' || typeof kept.name !== 'string' || !texts(kept.roles)) {
+    return null
+  }
+
+  const id = kept.id as TenantId
+  const { name, roles } = kept
+
+  if (texts(kept.rights) && texts(kept.roleLabels) && typeof kept.secondFactor === 'boolean') {
+    return {
+      id,
+      name,
+      roles,
+      roleLabels: kept.roleLabels,
+      // Only what this version knows as a right; anything else was written
+      // by another one and gives nothing here.
+      rights: kept.rights.filter((right): right is Permission =>
+        permissionCatalogue.isRight(right),
+      ),
+      secondFactor: kept.secondFactor,
+    }
+  }
+
+  const held = shippedRoles.filter((role) => roles.includes(role.key))
+  const sum = permissionCatalogue.sumOf(held)
+
+  return {
+    id,
+    name,
+    roles,
+    roleLabels: held.map((role) => role.label),
+    rights: sum.rights,
+    secondFactor: sum.secondFactor,
   }
 }
 

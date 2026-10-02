@@ -19,6 +19,7 @@ import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { SiteJobScreen } from './jobs.js'
 import { SiteProtocolScreen } from './protocol.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * #79 as it happens on site, over the steps of the boards "Prüfprotokoll,
@@ -183,7 +184,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['technician'] }]],
+    ['/auth/tenants', [aTenantChoice(['technician'])]],
     ['/tasks/assignees', []],
   ])
 

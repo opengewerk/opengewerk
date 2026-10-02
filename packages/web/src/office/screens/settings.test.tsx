@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SettingsScreen } from './settings.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The page "Einstellungen": one entry per settings screen, and only the ones
@@ -25,7 +26,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 function mount() {

@@ -18,6 +18,7 @@ import { openLocalStore } from '../sync/store.js'
 import { TestServer } from '../sync/test-server.js'
 import { AccountScreen } from './screens/account.js'
 import { OfficeShell } from './shell.js'
+import { aTenantChoice } from '../session/test-tenants.js'
 
 /**
  * The switch between businesses without signing in again (#242), in the
@@ -80,8 +81,8 @@ async function mount(path = '/') {
 }
 
 const both = [
-  { id: 't-1', name: 'Elektro Kohm GmbH', roles: ['owner'] },
-  { id: 't-2', name: 'Elektro Nord KG', roles: ['office'] },
+  aTenantChoice(['owner'], { name: 'Elektro Kohm GmbH' }),
+  aTenantChoice(['office'], { id: 't-2', name: 'Elektro Nord KG' }),
 ]
 
 beforeEach(() => {
@@ -153,7 +154,7 @@ describe('the business in the header', () => {
   })
 
   it('stays a name for somebody in one business, the owner of it too', async () => {
-    answer('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Kohm GmbH', roles: ['owner'] }])
+    answer('GET', '/auth/tenants', [aTenantChoice(['owner'], { name: 'Elektro Kohm GmbH' })])
     await mount()
 
     const header = await screen.findByRole('banner')
@@ -231,8 +232,8 @@ describe('the businesses under "Konto"', () => {
 
   it('offer nothing to create to somebody who is no owner', async () => {
     answer('GET', '/auth/tenants', [
-      { id: 't-1', name: 'Elektro Kohm GmbH', roles: ['office'] },
-      { id: 't-2', name: 'Elektro Nord KG', roles: ['office'] },
+      aTenantChoice(['office'], { name: 'Elektro Kohm GmbH' }),
+      aTenantChoice(['office'], { id: 't-2', name: 'Elektro Nord KG' }),
     ])
     await mount('/konto')
 

@@ -18,6 +18,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { JobList, JobScreen } from './jobs.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * Follow-up jobs in the office (#170): made from a finished job, for the same
@@ -63,7 +64,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'buero@nord.example.de', name: 'Britta Büro' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 async function mount(

@@ -28,6 +28,7 @@ import type { PullResult, SyncTransport } from '../../sync/transport.js'
 import { DocumentScreen } from './documents.js'
 import { JobScreen } from './jobs.js'
 import { TextSnippetScreen } from './text-snippets.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The office side of #72: a quote with titles and positions, the estimate as
@@ -165,7 +166,7 @@ function signedInAs(...roles: RoleKey[]) {
   }))
   serverSays('GET', '/auth/tenants', () => ({
     status: 200,
-    body: [{ id: 't-1', name: 'Elektro Nord GmbH', roles }],
+    body: [aTenantChoice(roles)],
   }))
 }
 

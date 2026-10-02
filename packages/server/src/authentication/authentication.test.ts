@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { workingInHeader } from '@opengewerk/domain'
+import { permissions, roles, workingInHeader } from '@opengewerk/domain'
 import {
   type Authentication,
   authenticationPath,
@@ -169,7 +169,18 @@ describe('signing in', () => {
       .get('/auth/tenants')
       .set('cookie', withCookies(cookies))
       .expect(200)
-    expect(choices.body).toEqual([{ id: north.id, name: north.name, roles: ['office'] }])
+    expect(choices.body).toEqual([
+      {
+        id: north.id,
+        name: north.name,
+        roles: ['office'],
+        // What the business calls the role and what it adds up to there, for
+        // the screens to decide by (ADR 0010): in the order of the catalogue.
+        roleLabels: ['Büro'],
+        rights: permissions.filter((permission) => roles.office.permissions.includes(permission)),
+        secondFactor: false,
+      },
+    ])
 
     // And the data still does not, because no business has been chosen. A 401
     // with its own sentence, which calls a tenant what this application calls

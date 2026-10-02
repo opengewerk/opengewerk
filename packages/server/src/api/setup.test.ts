@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import { permissions } from '@opengewerk/domain'
 import {
   type Authentication,
   authenticationPath,
@@ -150,7 +151,18 @@ describe('an instance nobody has used yet', () => {
 
     const choices = await http().get('/auth/tenants').set('cookie', cookiesOf(answer)).expect(200)
 
-    expect(choices.body).toEqual([{ id: tenantId, name: firstRun.company, roles: ['owner'] }])
+    // The owner, with what the role adds up to in the rows the first run
+    // wrote: every right there is, and the second factor it asks for.
+    expect(choices.body).toEqual([
+      {
+        id: tenantId,
+        name: firstRun.company,
+        roles: ['owner'],
+        roleLabels: ['Inhaber'],
+        rights: permissions,
+        secondFactor: true,
+      },
+    ])
   })
 
   /**
