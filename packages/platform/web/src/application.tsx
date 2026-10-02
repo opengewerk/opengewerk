@@ -33,6 +33,11 @@ export interface InterfaceApplication {
   readonly licence: string
   /** How long the name of a tenant may be, as the server takes it. */
   readonly tenantNameMaxLength: number
+  /**
+   * What is wrong with a name for a tenant, in the words the server refuses
+   * it with, or null when nothing is: so that a form refuses before it sends.
+   */
+  readonly tenantNameProblem: (name: string) => string | null
   readonly sentences: InterfaceSentences
   /**
    * The screens a tenant sets itself up with, in the order they are listed:
@@ -238,6 +243,120 @@ export interface InterfaceSentences {
      */
     readonly newAccount: (name: ReactNode, email: ReactNode) => ReactNode
   }
+  /**
+   * "Zugänge", where the people of a tenant are looked after. Only the office
+   * shows it, so only the office hands these in: an entry that never draws
+   * the screen does not load what it says.
+   */
+  readonly staff?: StaffSentences
+  /** The area of the instance, which likewise only the office shows. */
+  readonly instance?: InstanceAreaSentences
+}
+
+/** What "Zugänge" says with the application's word for a tenant, or of a place in it. */
+export interface StaffSentences {
+  /** Under the title: who is listed there. */
+  readonly what: string
+  /** The caption of the table of accounts, by which a screen reader names it. */
+  readonly accounts: string
+  /** Under the form of a new account, in a tenant that sends no mail: where that is set up. */
+  readonly noMail: string
+  /**
+   * After the facts of a link that went by mail, behind a semicolon: who
+   * among the people of the tenant does not get to see it, with the full stop.
+   */
+  readonly mailedLinkUnseen: string
+  /** In place of the devices of somebody who is signed in on none in this tenant. */
+  readonly noDevices: string
+  /** The caption of the devices of somebody: where they are signed in. */
+  readonly devicesOf: (name: string) => string
+}
+
+/**
+ * What the area of the instance says with the application's words: for a
+ * tenant, for whoever leads one, and for whoever runs the instance, which
+ * one application calls by the word the next has for a tenant.
+ */
+export interface InstanceAreaSentences {
+  /** Under the heading at the door: what the area holds. */
+  readonly what: string
+  /** The door, for somebody who does not run the instance. */
+  readonly shut: string
+  /** The door, when it could not be asked whether the person runs the instance. */
+  readonly notAsked: string
+  /**
+   * The door, for whoever runs the instance without a second factor: that the
+   * area requires one, and who else needs one. The foundation adds after a
+   * colon what a second factor is and where it is set up.
+   */
+  readonly secondFactor: string
+  /** At the foot of the navigation: the way back to where the tenant is worked in. */
+  readonly back: string
+  readonly tenants: {
+    readonly title: string
+    readonly what: string
+    /** The button that opens the form, the heading of the form, and its button. */
+    readonly create: string
+    /** The caption of the table, by which a screen reader names it. */
+    readonly caption: string
+    /** Under the table: what nobody sees of a tenant here. */
+    readonly note: string
+    /** The heads of the columns with the names of the tenants and of whoever leads each. */
+    readonly tenantColumn: string
+    readonly leadsColumn: string
+    /** The fields of the form, and what is said when the name of whoever leads is missing. */
+    readonly nameLabel: string
+    readonly leadNameLabel: string
+    readonly leadNameMissing: string
+    readonly leadEmailLabel: string
+    /** Under the address: what the link does for the person it goes to. */
+    readonly leadEmailHint: string
+    /** Beside the buttons: where a tenant of one's own is made instead. */
+    readonly forOneself: string
+    /** When the server refused without a reason, or could not be reached. */
+    readonly notCreated: string
+    /**
+     * After the facts of the link, that it is shown only now and holds once
+     * for seven days, behind an "und": what opening it does.
+     */
+    readonly linkMakes: string
+  }
+  readonly operators: {
+    readonly title: string
+    readonly caption: string
+    /** The head of the column with their names. */
+    readonly column: string
+    /**
+     * Under the table, after the foundation's sentence on the second factor:
+     * whom nobody takes off.
+     */
+    readonly whoStays: string
+    /**
+     * The button that takes somebody off, as a screen reader names it, and
+     * with a question mark the question before.
+     */
+    readonly remove: (name: string) => string
+    /** In that question: what stays of the account. */
+    readonly whatStays: string
+    /** When taking somebody off failed without a reason. */
+    readonly notRemoved: string
+    /** The card that names somebody, and what naming them does. */
+    readonly appoint: string
+    readonly appointing: string
+    /** An address in the empty field, to show what goes there. */
+    readonly exampleAddress: string
+    readonly appointed: (name: string) => string
+  }
+  readonly settings: {
+    readonly what: string
+    /**
+     * Before the foundation's sentence on mail servers in the instance's own
+     * network: how a tenant sends its mail.
+     */
+    readonly mailOwnServer: string
+    /** After it: what the rule keeps a tenant from. */
+    readonly mailNoWayIn: string
+  }
 }
 
 const Application = createContext<InterfaceApplication | null>(null)
@@ -265,4 +384,29 @@ export function useApplication(): InterfaceApplication {
   }
 
   return application
+}
+
+/**
+ * Sentences that come only with the value of the entry that shows their
+ * screen. Opened in an entry whose value has none, the screen has nothing to
+ * say and says so, as one outside of any value does.
+ */
+function handedIn<Sentences>(sentences: Sentences | undefined): Sentences {
+  if (sentences === undefined) {
+    throw new Error(
+      'Diese Ansicht braucht Sätze der Anwendung, die dieser Einstieg nicht mitbringt.',
+    )
+  }
+
+  return sentences
+}
+
+/** What "Zugänge" says in the words of the application. */
+export function useStaffSentences(): StaffSentences {
+  return handedIn(useApplication().sentences.staff)
+}
+
+/** What the area of the instance says in the words of the application. */
+export function useInstanceSentences(): InstanceAreaSentences {
+  return handedIn(useApplication().sentences.instance)
 }

@@ -85,8 +85,21 @@ export {
   signInWithPasskey,
 } from './passkeys.js'
 
-// Whether the person signed in runs the instance.
-export { instanceAccess, instanceAccessQuery } from './instance.js'
+// Whether the person signed in runs the instance, and for whoever does, the
+// area of the instance: its settings, who runs it, its log and its tenants.
+export {
+  appointOperator,
+  createTenantFor,
+  instanceAccess,
+  instanceAccessQuery,
+  instanceLog,
+  instanceSettings,
+  instanceTenants,
+  operators,
+  removeOperator,
+  saveInstanceSettings,
+} from './instance.js'
+export type { CreatedForSomebody } from './instance.js'
 
 // This device, and what a person calls one.
 export { deviceIdentity } from './device.js'

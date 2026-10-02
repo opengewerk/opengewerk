@@ -1,5 +1,11 @@
 import type { Permission } from '@opengewerk/domain'
-import type { InterfaceApplication, OwnTenantLink, SettingsEntry } from '@opengewerk/platform-web'
+import type {
+  InstanceAreaSentences,
+  InterfaceApplication,
+  OwnTenantLink,
+  SettingsEntry,
+  StaffSentences,
+} from '@opengewerk/platform-web'
 import {
   CalendarClock,
   Clock,
@@ -136,9 +142,84 @@ const ownTenant = {
 } as const satisfies OwnTenantLink & { readonly right: Permission }
 
 /**
- * This application as the office hands it to the foundation: what both
- * entries share, and what only the office shows, the settings of a business
- * and the way to a further one (ADR 0010). Kept apart from the shared value
- * so that the site does not load either.
+ * What "Zugänge" says in the words of this application: its word for a
+ * business, where the mail server is set up, and the names of its entries.
+ * The sentences the screen showed before it moved into the foundation, word
+ * for word.
  */
-export const officeApplication: InterfaceApplication = { ...application, settings, ownTenant }
+const staff = {
+  what: 'Wer in diesem Betrieb arbeitet, und womit.',
+  accounts: 'Konten dieses Betriebs',
+  noMail:
+    'Per E-Mail einladen geht, sobald unter "E-Mail-Einstellungen" ein Mailserver eingerichtet ist.',
+  mailedLinkUnseen: 'im Büro sieht ihn niemand.',
+  noDevices: 'In diesem Betrieb ist gerade kein Gerät angemeldet.',
+  devicesOf: (name) => `Geräte, auf denen ${name} in diesem Betrieb angemeldet ist`,
+} as const satisfies StaffSentences
+
+/**
+ * What the area of the instance says in the words of this application (#188):
+ * a business and its owner, and the operator for whoever runs the instance,
+ * which is the word the next application has for a tenant. Word for word what
+ * the screens said before they moved into the foundation.
+ */
+const instance = {
+  what: 'Was allen Betrieben auf dieser Instanz gemeinsam ist.',
+  shut: 'Diesen Bereich erreicht nur, wer die Instanz betreibt.',
+  notAsked: 'Ob du diese Instanz betreibst, ließ sich gerade nicht erfragen.',
+  secondFactor: 'Für diesen Bereich ist ein zweiter Faktor Pflicht, wie für die Rolle Inhaber',
+  back: 'Zurück zum Büro',
+  tenants: {
+    title: 'Betriebe',
+    what: 'Die Betriebe auf dieser Instanz. Jeder ist vom anderen getrennt wie zwei fremde.',
+    create: 'Betrieb anlegen',
+    caption: 'Die Betriebe auf dieser Instanz',
+    note: 'Was in einem Betrieb steht, sieht hier niemand, auch wer die Instanz betreibt nicht: nur sein Name, der Tag der Anlage und wer darin Inhaber ist.',
+    tenantColumn: 'Betrieb',
+    leadsColumn: 'Inhaber',
+    nameLabel: 'Name des Betriebs',
+    leadNameLabel: 'Name des Inhabers',
+    leadNameMissing: 'Der Name des Inhabers fehlt.',
+    leadEmailLabel: 'E-Mail des Inhabers',
+    leadEmailHint:
+      'Der Link macht die Person zum Inhaber. Hat sie schon ein Konto auf dieser Instanz, meldet sie sich damit an.',
+    forOneself:
+      'Einen Betrieb für dich selbst legst du unter „Konto“ an, dort bist du gleich Inhaber.',
+    notCreated: 'Der Betrieb ließ sich nicht anlegen.',
+    linkMakes: 'wer ihn öffnet, wird Inhaber des neuen Betriebs.',
+  },
+  operators: {
+    title: 'Betreiber',
+    caption: 'Die Betreiber dieser Instanz',
+    column: 'Betreiber',
+    whoStays: 'Sich selbst und den letzten Betreiber entfernt niemand.',
+    remove: (name) => `${name} als Betreiber entfernen`,
+    whatStays:
+      'Das Konto bleibt, ebenso seine Zugänge zu Betrieben; nur dieser Bereich ist danach zu.',
+    notRemoved: 'Der Betreiber ließ sich nicht entfernen.',
+    appoint: 'Betreiber benennen',
+    appointing:
+      'Betreiber wird ein Konto, das es auf dieser Instanz schon gibt. Es verwaltet dann, was allen Betrieben gemeinsam ist, und sieht die Liste der Betriebe, aber nichts, was in einem steht.',
+    exampleAddress: 'name@betrieb.de',
+    appointed: (name) => `${name} ist jetzt Betreiber.`,
+  },
+  settings: {
+    what: 'Was für alle Betriebe auf dieser Instanz gilt.',
+    mailOwnServer: 'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver.',
+    mailNoWayIn: 'So greift kein Betrieb über die Instanz in das Netz dahinter.',
+  },
+} as const satisfies InstanceAreaSentences
+
+/**
+ * This application as the office hands it to the foundation: what both
+ * entries share, and what only the office shows, the settings of a business,
+ * the way to a further one, and what "Zugänge" and the area of the instance
+ * say (ADR 0010). Kept apart from the shared value so that the site does not
+ * load any of it.
+ */
+export const officeApplication: InterfaceApplication = {
+  ...application,
+  settings,
+  ownTenant,
+  sentences: { ...application.sentences, staff, instance },
+}

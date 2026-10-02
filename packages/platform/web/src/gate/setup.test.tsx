@@ -167,17 +167,22 @@ describe('the first run screen', () => {
    * A wrong code and too many of them are the server's to say, in its own
    * words. Nobody is signed in afterwards, and the screen stays where it is,
    * with everything still filled in for the next try.
+   *
+   * One test for each, and not both in one: each types the whole form, and
+   * in a full run on a busy machine the two together took longer than a test
+   * may.
    */
-  it('shows why the server turned the code down, and signs nobody in', async () => {
-    for (const [status, sentence] of [
-      [403, 'Der Einrichtungscode stimmt nicht.'],
-      [429, 'Zu viele Versuche. Bitte in einer Viertelstunde erneut versuchen.'],
-    ] as const) {
-      calls = []
+  it.each([
+    [403, 'Der Einrichtungscode stimmt nicht.'],
+    [429, 'Zu viele Versuche. Bitte in einer Viertelstunde erneut versuchen.'],
+  ] as const)(
+    'shows why the server turned the code down (%i), and signs nobody in',
+    async (status, sentence) => {
       serverRefuses('/setup', status, sentence)
 
       const done = vi.fn()
-      const { unmount } = firstRun(done)
+
+      firstRun(done)
 
       await fillIn('K7Q4-9PXN')
       await userEvent.click(screen.getByRole('button', { name: 'Mandant anlegen' }))
@@ -190,10 +195,8 @@ describe('the first run screen', () => {
         'disabled',
         false,
       )
-
-      unmount()
-    }
-  })
+    },
+  )
 
   /**
    * Nobody can reset this password for this person: it is the only account on

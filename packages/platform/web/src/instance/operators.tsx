@@ -1,37 +1,40 @@
-import type { OperatorView } from '@opengewerk/domain'
-import {
-  Button,
-  Cell,
-  Column,
-  Confirm,
-  Field,
-  Panel,
-  Status,
-  TablePanel,
-} from '@opengewerk/platform-web'
-import type { TableCard } from '@opengewerk/platform-web'
-import { date } from '@opengewerk/platform-web/format'
-import { SettingsText } from '@opengewerk/platform-web/office'
-import { accountQuery, instanceAccessQuery } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+import type { OperatorView } from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, TriangleAlert } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import { appointOperator, operators, removeOperator } from '../../session/instance.js'
-import { InstancePage } from './shell.js'
+import { useInstanceSentences } from '../application.js'
+import { Button } from '../components/button.js'
+import { Confirm } from '../components/confirm.js'
+import { Field } from '../components/field.js'
+import { Panel, TablePanel } from '../components/panel.js'
+import type { TableCard } from '../components/panel.js'
+import { Status } from '../components/status.js'
+import { Cell, Column } from '../components/table.js'
+import { date } from '../format.js'
+import { SettingsText } from '../office/settings.js'
+import {
+  appointOperator,
+  instanceAccessQuery,
+  operators,
+  removeOperator,
+} from '../session/instance.js'
+import { accountQuery } from '../session/queries.js'
+import { RequestRefused } from '../sync/transport.js'
+import { InstancePage } from './frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
 
 /**
- * Who runs the instance (#188), `instanz_betreiber()` of the canvas. An
- * operator is an account that exists already; naming one hands it this area
- * and nothing in any business. Nobody removes themselves, and the last one
- * stays, so the instance always has somebody who can reach it.
+ * Who runs the instance (#188), `instanz_betreiber()` of the canvas. Somebody
+ * named to run it is an account that exists already; naming one hands it this
+ * area and nothing in any tenant. Nobody takes themselves off, and the last
+ * one stays, so the instance always has somebody who can reach it.
  */
-export function OperatorsScreen() {
+export function InstanceOperatorsScreen() {
+  const sentences = useInstanceSentences().operators
   const queries = useQueryClient()
   const list = useQuery({ queryKey: ['instance-operators'], queryFn: operators })
   const account = useQuery(accountQuery)
@@ -53,7 +56,7 @@ export function OperatorsScreen() {
     },
     onError: (error) => {
       setRemoving(null)
-      setTrouble(saidWhy(error, 'Der Betreiber ließ sich nicht entfernen.'))
+      setTrouble(saidWhy(error, sentences.notRemoved))
     },
   })
 
@@ -62,7 +65,7 @@ export function OperatorsScreen() {
       <Button
         size="small"
         tone="danger"
-        aria-label={`${operator.name} als Betreiber entfernen`}
+        aria-label={sentences.remove(operator.name)}
         disabled={operator.userId === you || count <= 1 || remove.isPending}
         onClick={() => {
           setTrouble(null)
@@ -88,7 +91,7 @@ export function OperatorsScreen() {
   }))
 
   return (
-    <InstancePage title="Betreiber" sub="Wer diese Instanz verwaltet.">
+    <InstancePage title={sentences.title} sub="Wer diese Instanz verwaltet.">
       {trouble ? (
         <p role="alert" className="text-[13px] font-semibold text-conflict">
           {trouble}
@@ -101,13 +104,13 @@ export function OperatorsScreen() {
         <SettingsText muted>{saidWhy(list.error, 'Die Liste kam nicht an.')}</SettingsText>
       ) : (
         <TablePanel
-          caption="Die Betreiber dieser Instanz"
+          caption={sentences.caption}
           cards={cards}
-          note="Ohne zweiten Faktor kommt niemand hierher; eingerichtet wird er unter „Konto“. Sich selbst und den letzten Betreiber entfernt niemand."
+          note={`Ohne zweiten Faktor kommt niemand hierher; eingerichtet wird er unter „Konto“. ${sentences.whoStays}`}
         >
           <thead>
             <tr>
-              <Column>Betreiber</Column>
+              <Column>{sentences.column}</Column>
               <Column className="w-[110px]">Seit</Column>
               <Column className="w-[160px]">Zweiter Faktor</Column>
               <Column numeric className="w-[120px]">
@@ -132,13 +135,13 @@ export function OperatorsScreen() {
         </TablePanel>
       )}
 
-      <Panel title="Betreiber benennen" roomy>
+      <Panel title={sentences.appoint} roomy>
         <AppointForm onAppointed={refresh} />
       </Panel>
 
       <Confirm
         open={removing !== null}
-        title={`${removing?.name ?? ''} als Betreiber entfernen?`}
+        title={`${sentences.remove(removing?.name ?? '')}?`}
         confirm="Entfernen"
         busy={remove.isPending}
         onConfirm={() => {
@@ -150,7 +153,7 @@ export function OperatorsScreen() {
           setRemoving(null)
         }}
       >
-        Das Konto bleibt, ebenso seine Zugänge zu Betrieben; nur dieser Bereich ist danach zu.
+        {sentences.whatStays}
       </Confirm>
     </InstancePage>
   )
@@ -189,6 +192,7 @@ function SecondFactor({ operator }: { readonly operator: OperatorView }) {
 }
 
 function AppointForm({ onAppointed }: { readonly onAppointed: () => void }) {
+  const sentences = useInstanceSentences().operators
   const [email, setEmail] = useState('')
   const [trouble, setTrouble] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
@@ -197,7 +201,7 @@ function AppointForm({ onAppointed }: { readonly onAppointed: () => void }) {
     mutationFn: appointOperator,
     onSuccess: (operator) => {
       setEmail('')
-      setDone(`${operator.name} ist jetzt Betreiber.`)
+      setDone(sentences.appointed(operator.name))
       onAppointed()
     },
     onError: (error) => {
@@ -221,17 +225,14 @@ function AppointForm({ onAppointed }: { readonly onAppointed: () => void }) {
 
   return (
     <form noValidate onSubmit={submit} className="flex flex-col gap-2.5">
-      <SettingsText muted>
-        Betreiber wird ein Konto, das es auf dieser Instanz schon gibt. Es verwaltet dann, was allen
-        Betrieben gemeinsam ist, und sieht die Liste der Betriebe, aber nichts, was in einem steht.
-      </SettingsText>
+      <SettingsText muted>{sentences.appointing}</SettingsText>
       <div className="flex flex-wrap items-end gap-2.5">
         <div className="w-[320px] max-sm:w-full">
           <Field
             label="E-Mail des Kontos"
             type="email"
             value={email}
-            placeholder="name@betrieb.de"
+            placeholder={sentences.exampleAddress}
             autoComplete="off"
             onChange={(event) => {
               setEmail(event.target.value)

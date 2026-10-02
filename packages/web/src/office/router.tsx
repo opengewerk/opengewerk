@@ -1,11 +1,13 @@
+import {
+  InstanceOperatorsScreen,
+  InstanceSettingsScreen,
+  InstanceTenantsScreen,
+} from '@opengewerk/platform-web/instance'
 import { SettingsScreen } from '@opengewerk/platform-web/office'
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 
 import { InstanceShell } from './instance/shell.js'
 import { InstanceLogScreen } from './instance/log.js'
-import { OperatorsScreen } from './instance/operators.js'
-import { InstanceSettingsScreen } from './instance/settings.js'
-import { InstanceTenantsScreen } from './instance/tenants.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
 import {
@@ -89,7 +91,11 @@ const instanceRoutes = [
     path: '/einstellungen',
     component: InstanceSettingsScreen,
   }),
-  createRoute({ getParentRoute: () => instance, path: '/betreiber', component: OperatorsScreen }),
+  createRoute({
+    getParentRoute: () => instance,
+    path: '/betreiber',
+    component: InstanceOperatorsScreen,
+  }),
   createRoute({ getParentRoute: () => instance, path: '/protokoll', component: InstanceLogScreen }),
 ]
 

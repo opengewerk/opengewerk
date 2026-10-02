@@ -1,14 +1,21 @@
-import { backupTimeProblem, type InstanceSettingsView, mailHostProblem } from '@opengewerk/domain'
-import { Button, Field, Panel, TextArea } from '@opengewerk/platform-web'
-import { date } from '@opengewerk/platform-web/format'
-import { Saved, SettingsText } from '@opengewerk/platform-web/office'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+import {
+  backupTimeProblem,
+  type InstanceSettingsView,
+  mailHostProblem,
+} from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import { instanceSettings, saveInstanceSettings } from '../../session/instance.js'
-import { InstancePage } from './shell.js'
+import { useApplication, useInstanceSentences } from '../application.js'
+import { Button } from '../components/button.js'
+import { Field, TextArea } from '../components/field.js'
+import { Panel } from '../components/panel.js'
+import { date } from '../format.js'
+import { Saved, SettingsText } from '../office/settings.js'
+import { instanceSettings, saveInstanceSettings } from '../session/instance.js'
+import { RequestRefused } from '../sync/transport.js'
+import { InstancePage } from './frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -27,17 +34,18 @@ function hostsOf(text: string): readonly string[] {
 }
 
 /**
- * What holds for every business on the instance (#188), `instanz_einstellungen()`
- * of the canvas: the mail servers in the own network a business may send
+ * What holds for every tenant on the instance (#188), `instanz_einstellungen()`
+ * of the canvas: the mail servers in the own network a tenant may send
  * through, and the hour of the nightly backup. Both were a line in the `.env`
  * or fixed in a script before, and both belong to the instance and to no
- * business on it; in the office of one, its owner would decide for all.
+ * tenant on it; in the settings of one, whoever leads it would decide for all.
  */
 export function InstanceSettingsScreen() {
+  const sentences = useInstanceSentences().settings
   const settings = useQuery({ queryKey: ['instance-settings'], queryFn: instanceSettings })
 
   return (
-    <InstancePage title="Einstellungen" sub="Was für alle Betriebe auf dieser Instanz gilt.">
+    <InstancePage title="Einstellungen" sub={sentences.what}>
       {settings.isPending ? (
         <SettingsText muted>Wird geladen.</SettingsText>
       ) : settings.isError ? (
@@ -65,7 +73,15 @@ function useSave() {
   })
 }
 
+/**
+ * The mail servers in the own network. That such a server is refused unless
+ * it stands here is the foundation's rule and its sentence, with the name of
+ * the application in it; how a tenant sends its mail, and what the rule keeps
+ * it from, are said in the application's word for a tenant.
+ */
 function MailHosts({ settings }: { readonly settings: InstanceSettingsView }) {
+  const { name } = useApplication()
+  const sentences = useInstanceSentences().settings
   const save = useSave()
   const [text, setText] = useState(settings.mailInternalHosts.join('\n'))
   const [saved, setSaved] = useState(false)
@@ -101,9 +117,7 @@ function MailHosts({ settings }: { readonly settings: InstanceSettingsView }) {
     <Panel title="Mailserver im eigenen Netz" roomy>
       <form noValidate onSubmit={submit} className="flex flex-col gap-3">
         <SettingsText muted>
-          Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver. Liegt der nicht im
-          Internet, sondern im Netz dieser Instanz, lehnt OpenGewerk ihn ab, außer er steht hier. So
-          greift kein Betrieb über die Instanz in das Netz dahinter.
+          {`${sentences.mailOwnServer} Liegt der nicht im Internet, sondern im Netz dieser Instanz, lehnt ${name} ihn ab, außer er steht hier. ${sentences.mailNoWayIn}`}
         </SettingsText>
         <TextArea
           label="Freigegebene Mailserver"

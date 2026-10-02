@@ -31,6 +31,12 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
     hosting: 'Diese Instanz läuft nur in Tests und gehört niemandem.',
     licence: 'Probelizenz 1.0',
     tenantNameMaxLength: 40,
+    tenantNameProblem: (name) =>
+      name.trim() === ''
+        ? 'Ein Mandant braucht einen Namen.'
+        : name.trim().length > 40
+          ? 'Mehr als vierzig Zeichen hat kein Mandant.'
+          : null,
 
     // One for whoever reads notes, one for whoever leads, one for everybody.
     settings: [
@@ -129,6 +135,58 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
             Ein Mandant hat für {name} einen Zugang mit der Adresse {email} angelegt.
           </>
         ),
+      },
+      // Whoever runs the instance is its "Aufsicht" here, and whoever leads a
+      // tenant its "Leitung": words neither application uses for either.
+      staff: {
+        what: 'Wer im Mandanten mitarbeitet.',
+        accounts: 'Konten des Mandanten',
+        noMail: 'Einladungen per E-Mail gibt es im Probewerk erst mit einem Mailserver.',
+        mailedLinkUnseen: 'am Schreibtisch des Mandanten sieht ihn keiner.',
+        noDevices: 'Im Mandanten ist gerade kein Gerät dieser Person angemeldet.',
+        devicesOf: (name) => `Wo ${name} im Mandanten angemeldet ist`,
+      },
+      instance: {
+        what: 'Was alle Mandanten dieser Instanz teilen.',
+        shut: 'Hierher kommt nur die Aufsicht der Instanz.',
+        notAsked: 'Ob du zur Aufsicht gehörst, ließ sich nicht klären.',
+        secondFactor: 'Die Aufsicht braucht hier einen zweiten Faktor, wie die Leitung',
+        back: 'Zurück zum Schreibtisch',
+        tenants: {
+          title: 'Mandanten',
+          what: 'Alle Mandanten dieser Instanz, jeder für sich.',
+          create: 'Mandant anlegen',
+          caption: 'Die Mandanten dieser Instanz',
+          note: 'Vom Inhalt eines Mandanten sieht die Aufsicht nichts.',
+          tenantColumn: 'Mandant',
+          leadsColumn: 'Leitung',
+          nameLabel: 'Name des Mandanten',
+          leadNameLabel: 'Name der Leitung',
+          leadNameMissing: 'Die Leitung braucht einen Namen.',
+          leadEmailLabel: 'Adresse der Leitung',
+          leadEmailHint: 'Wer den Link öffnet, leitet den Mandanten.',
+          forOneself: 'Einen eigenen Mandanten gibt es unter „Konto“.',
+          notCreated: 'Der Mandant kam nicht zustande.',
+          linkMakes: 'wer ihn öffnet, leitet den neuen Mandanten.',
+        },
+        operators: {
+          title: 'Aufsicht',
+          caption: 'Die Aufsicht dieser Instanz',
+          column: 'Person',
+          whoStays: 'Die letzte Aufsicht bleibt.',
+          remove: (name) => `${name} aus der Aufsicht nehmen`,
+          whatStays: 'Das Konto und seine Mandanten bleiben.',
+          notRemoved: 'Aus der Aufsicht nehmen ging nicht.',
+          appoint: 'Zur Aufsicht machen',
+          appointing: 'Zur Aufsicht wird ein Konto, das es auf dieser Instanz schon gibt.',
+          exampleAddress: 'name@probe.example',
+          appointed: (name) => `${name} gehört jetzt zur Aufsicht.`,
+        },
+        settings: {
+          what: 'Was für alle Mandanten gilt.',
+          mailOwnServer: 'Ein Mandant schickt Mails über seinen Mailserver.',
+          mailNoWayIn: 'So kommt kein Mandant in das Netz dahinter.',
+        },
       },
     },
 

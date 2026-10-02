@@ -584,6 +584,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   bringt dasselbe Chromium 153 auf Ubuntu 26.04. Gedruckt ändert sich nichts: die acht
   Musterrechnungen der CI kommen mit beiden Fassungen mit demselben Text und Seite für Seite
   als dasselbe Bild heraus.
+- "Zugänge" und der Bereich der Instanz gehören zum Fundament (ADR 0010,
+  `opengewerk-haustechnik#12`, achter Teil), damit eine weitere Anwendung sie nicht nachbaut:
+  die Konten eines Betriebs mit Rollen, Geräten und Einladungen (`StaffScreen`) und für den,
+  der die Instanz betreibt, Rahmen, Betriebe, Einstellungen und Betreiber unter dem neuen
+  Einstieg `@opengewerk/platform-web/instance`. Diese Anwendung reicht ihre Wörter herein, die
+  Navigation des Bereichs, ob ein Betrieb E-Mails verschickt und dass ein neuer Zugang als
+  Monteur beginnt. Das Protokoll der Instanz bleibt bei ihr, bis das Änderungsprotokoll
+  umzieht, aus dessen Teilen es gebaut ist. An der Oberfläche ändert sich nichts: 76 Zustände
+  sind vor und nach dem Umzug aufgenommen, und was ein Browser bekommt, ist Byte für Byte
+  dasselbe. Ein Test des Tors, der beide Ablehnungen des Einrichtungscodes nacheinander
+  durchspielte, ist in zwei geteilt: in einem vollen Lauf auf einer ausgelasteten Maschine
+  brauchte er länger, als ein Test darf.
 
 ## [0.4.0] - 2026-09-27
 

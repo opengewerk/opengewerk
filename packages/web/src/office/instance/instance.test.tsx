@@ -7,6 +7,11 @@ import type {
   InstanceTenantView,
   OperatorView,
 } from '@opengewerk/domain'
+import {
+  InstanceOperatorsScreen,
+  InstanceSettingsScreen,
+  InstanceTenantsScreen,
+} from '@opengewerk/platform-web/instance'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -18,23 +23,26 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InApplication } from '../../app/in-application.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 import { SyncClient } from '../../sync/client.js'
 import { InstanceLogScreen } from './log.js'
-import { OperatorsScreen } from './operators.js'
-import { InstanceSettingsScreen } from './settings.js'
 import { InstanceShell } from './shell.js'
-import { InstanceTenantsScreen } from './tenants.js'
-import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
- * The area of the instance (#188) with its screens, as the boards "Instanz:
- * Betriebe", "Instanz: Einstellungen", "Instanz: Betreiber" and "Instanz:
- * Protokoll" draw them: only for an operator with a second factor, and each
- * screen saying and sending what the routes behind it take.
+ * The area of the instance (#188) in this application, as the boards
+ * "Instanz: Betriebe", "Instanz: Einstellungen", "Instanz: Betreiber" and
+ * "Instanz: Protokoll" draw it.
+ *
+ * Its frame and three of its screens are the foundation's and have their
+ * tests there (ADR 0010). Here is what only this application can get wrong:
+ * the screens its navigation lists and where, the words it hands in for a
+ * business, its owner and the operators, and the log, which stays here with
+ * the change log of a business it is drawn from.
  */
 
 interface Call {
@@ -51,6 +59,13 @@ function answer(method: string, path: string, value: unknown) {
   answers.set(`${method} ${path}`, value)
 }
 
+function sent(method: string, path: string): unknown[] {
+  return calls
+    .filter((call) => call.method === method && call.path === path)
+    .map((call) => call.body)
+}
+
+/** The area as the router of the office mounts it, at one of its addresses. */
 async function mount(path: string) {
   const server = new TestServer()
   const client = await SyncClient.start({
@@ -86,7 +101,7 @@ async function mount(path: string) {
         createRoute({
           getParentRoute: () => instance,
           path: '/betreiber',
-          component: OperatorsScreen,
+          component: InstanceOperatorsScreen,
         }),
         createRoute({
           getParentRoute: () => instance,
@@ -101,9 +116,11 @@ async function mount(path: string) {
 
   render(
     <QueryClientProvider client={queries}>
-      <SyncProvider client={client}>
-        <RouterProvider router={router} />
-      </SyncProvider>
+      <InApplication>
+        <SyncProvider client={client}>
+          <RouterProvider router={router} />
+        </SyncProvider>
+      </InApplication>
     </QueryClientProvider>,
   )
 
@@ -145,42 +162,50 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('the door of the area', () => {
-  it('stays shut for somebody who does not run the instance', async () => {
+describe('the area of the instance in this application', () => {
+  it('lists the businesses, the settings, the operators and the log, and the way back to the office', async () => {
+    answer('GET', '/instance/tenants', [])
+    await mount('/instanz')
+
+    const nav = (await screen.findAllByRole('navigation', { name: 'Instanz' }))[0] as HTMLElement
+
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((link) => [link.textContent, link.getAttribute('href')]),
+    ).toEqual([
+      ['Betriebe', '/instanz'],
+      ['Einstellungen', '/instanz/einstellungen'],
+      ['Betreiber', '/instanz/betreiber'],
+      ['Protokoll', '/instanz/protokoll'],
+      ['Zurück zum Büro', '/'],
+    ])
+    expect(within(nav).getByRole('link', { name: 'Betriebe' }).getAttribute('aria-current')).toBe(
+      'page',
+    )
+    expect(await within(nav).findByText('Elektro Kohm GmbH')).toBeTruthy()
+    expect(screen.getByRole('banner').textContent).toContain('OpenGewerk')
+  })
+
+  it('says at the door who may enter, in its words', async () => {
     answer('GET', '/instance/access', { operator: false, secondFactor: true })
     await mount('/instanz')
 
     expect(
       await screen.findByText('Diesen Bereich erreicht nur, wer die Instanz betreibt.'),
     ).toBeTruthy()
-    expect(calls.some((call) => call.path === '/instance/tenants')).toBe(false)
+    expect(screen.getByText('Was allen Betrieben auf dieser Instanz gemeinsam ist.')).toBeTruthy()
   })
 
-  it('sends an operator without a second factor to "Konto"', async () => {
+  it('says at the door that the area wants a second factor, as the owner does', async () => {
     answer('GET', '/instance/access', { operator: true, secondFactor: false })
     await mount('/instanz')
 
     expect(
-      await screen.findByText(/Für diesen Bereich ist ein zweiter Faktor Pflicht/),
-    ).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Konto' }).getAttribute('href')).toBe('/konto')
-  })
-
-  it('has a navigation of its own, and the way back to the business', async () => {
-    answer('GET', '/instance/tenants', [])
-    await mount('/instanz')
-
-    const nav = (await screen.findAllByRole('navigation', { name: 'Instanz' }))[0] as HTMLElement
-
-    expect(within(nav).getByRole('link', { name: 'Betriebe' }).getAttribute('aria-current')).toBe(
-      'page',
+      (await screen.findByText(/Für diesen Bereich ist ein zweiter Faktor Pflicht/)).textContent,
+    ).toBe(
+      'Für diesen Bereich ist ein zweiter Faktor Pflicht, wie für die Rolle Inhaber: eine Authenticator-App oder die Anmeldung mit einem Passkey. Eingerichtet wird beides unter Konto.',
     )
-    expect(within(nav).getByRole('link', { name: 'Protokoll' })).toBeTruthy()
-    expect(within(nav).getByRole('link', { name: 'Zurück zum Büro' }).getAttribute('href')).toBe(
-      '/',
-    )
-    expect(await within(nav).findByText('Elektro Kohm GmbH')).toBeTruthy()
-    expect(screen.getByRole('banner').textContent).toContain('Instanz')
   })
 })
 
@@ -193,33 +218,10 @@ const tenants: readonly InstanceTenantView[] = [
     members: 4,
     invitedLeads: [],
   },
-  {
-    id: 't-3',
-    name: 'Elektro Weber OHG',
-    createdAt: '2026-09-27T14:31:00.000Z',
-    leads: [],
-    members: 0,
-    invitedLeads: ['anna@elektro-weber.de'],
-  },
 ]
 
-describe('the businesses on the instance', () => {
-  it('lists each with its day, its owners and its people, and nothing of what is in it', async () => {
-    answer('GET', '/instance/tenants', tenants)
-    await mount('/instanz')
-
-    const table = await screen.findByRole('table', { name: 'Die Betriebe auf dieser Instanz' })
-    const rows = within(table).getAllByRole('row')
-
-    expect(rows[1]?.textContent).toContain('Elektro Kohm GmbH')
-    expect(rows[1]?.textContent).toContain('24.09.2026')
-    expect(rows[1]?.textContent).toContain('Moritz Kohmdu')
-    expect(rows[1]?.textContent).toContain('4')
-    expect(rows[2]?.textContent).toContain('Einladung offen')
-    expect(rows[2]?.textContent).toContain('anna@elektro-weber.de')
-  })
-
-  it('makes one for somebody else and shows the link that makes them its owner, once', async () => {
+describe('the businesses on the instance in this application', () => {
+  it('are a business and an owner in every word, with the rule for the name of a business', async () => {
     answer('GET', '/instance/tenants', tenants)
     answer('POST', '/instance/tenants', {
       tenantId: 't-4',
@@ -229,15 +231,26 @@ describe('the businesses on the instance', () => {
     await mount('/instanz')
     const user = userEvent.setup()
 
-    await user.click(await screen.findByRole('button', { name: 'Betrieb anlegen' }))
+    const table = await screen.findByRole('table', { name: 'Die Betriebe auf dieser Instanz' })
+
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Betrieb', 'Angelegt', 'Inhaber', 'Zugänge'])
+
+    await user.click(screen.getByRole('button', { name: 'Betrieb anlegen' }))
+
     const form = screen
       .getByRole('button', { name: 'Abbrechen' })
       .closest('form') as HTMLFormElement
 
-    // Nothing goes out while a field is missing.
     await user.click(within(form).getByRole('button', { name: 'Betrieb anlegen' }))
     expect(within(form).getByText('Der Name des Betriebs fehlt.')).toBeTruthy()
-    expect(calls.some((call) => call.method === 'POST')).toBe(false)
+    expect(within(form).getByText('Der Name des Inhabers fehlt.')).toBeTruthy()
+    expect((within(form).getByLabelText('Name des Betriebs') as HTMLInputElement).maxLength).toBe(
+      120,
+    )
 
     await user.type(within(form).getByLabelText('Name des Betriebs'), 'Elektro Weber OHG')
     await user.type(within(form).getByLabelText('Name des Inhabers'), 'Anna Weber')
@@ -245,86 +258,34 @@ describe('the businesses on the instance', () => {
     await user.click(within(form).getByRole('button', { name: 'Betrieb anlegen' }))
 
     expect(await screen.findByText('Elektro Weber OHG ist angelegt.')).toBeTruthy()
-    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
-      name: 'Elektro Weber OHG',
-      leadName: 'Anna Weber',
-      leadEmail: 'anna@elektro-weber.de',
-    })
-    expect((screen.getByLabelText('Einladungslink') as HTMLInputElement).value).toBe(
-      `${globalThis.location.origin}/einladung/k7Qm2vXnR4tB9sLw`,
-    )
-    expect(screen.getByText(/Diesen Link an Anna Weber geben/)).toBeTruthy()
+    expect(sent('POST', '/instance/tenants')).toEqual([
+      { name: 'Elektro Weber OHG', leadName: 'Anna Weber', leadEmail: 'anna@elektro-weber.de' },
+    ])
+    expect(
+      screen.getByText(
+        'Diesen Link an Anna Weber geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang, und wer ihn öffnet, wird Inhaber des neuen Betriebs.',
+      ),
+    ).toBeTruthy()
   })
 })
 
 const settings: InstanceSettingsView = {
   mailInternalHosts: ['mail.intern.example'],
   backupTime: '02:30',
-  takenOverAt: '2026-09-27T14:05:00.000Z',
+  takenOverAt: null,
 }
 
-describe('the settings of the instance', () => {
-  it('say where the mail servers came from, and save them one per line', async () => {
+describe('the settings of the instance in this application', () => {
+  it('explain the mail servers in the own network with its name and its word for a business', async () => {
     answer('GET', '/instance/settings', settings)
-    answer('PUT', '/instance/settings', {
-      ...settings,
-      mailInternalHosts: ['mail.intern.example', '192.168.1.20'],
-    })
     await mount('/instanz/einstellungen')
-    const user = userEvent.setup()
-
-    const hosts = await screen.findByLabelText('Freigegebene Mailserver')
 
     expect(
-      screen.getByText(/Übernommen aus MAIL_INTERNAL_HOSTS in der .env am 27.09.2026/),
+      await screen.findByText(
+        'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver. Liegt der nicht im Internet, sondern im Netz dieser Instanz, lehnt OpenGewerk ihn ab, außer er steht hier. So greift kein Betrieb über die Instanz in das Netz dahinter.',
+      ),
     ).toBeTruthy()
-
-    await user.type(hosts, '\n 192.168.1.20 \n')
-    const panel = hosts.closest('form') as HTMLFormElement
-    await user.click(within(panel).getByRole('button', { name: 'Speichern' }))
-
-    expect(await within(panel).findByText('Gespeichert.')).toBeTruthy()
-    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
-      mailInternalHosts: ['mail.intern.example', '192.168.1.20'],
-    })
-  })
-
-  it('refuse a server with a port before anything goes out', async () => {
-    answer('GET', '/instance/settings', settings)
-    await mount('/instanz/einstellungen')
-    const user = userEvent.setup()
-
-    const hosts = await screen.findByLabelText('Freigegebene Mailserver')
-
-    await user.type(hosts, '\nmail.lan:25')
-
-    expect(screen.getByText(/„mail.lan:25“ ist kein Servername/)).toBeTruthy()
-    expect(
-      (
-        within(hosts.closest('form') as HTMLFormElement).getByRole('button', {
-          name: 'Speichern',
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true)
-  })
-
-  it('save the hour of the backup on its own', async () => {
-    answer('GET', '/instance/settings', settings)
-    answer('PUT', '/instance/settings', { ...settings, backupTime: '03:15' })
-    await mount('/instanz/einstellungen')
-    const user = userEvent.setup()
-
-    const time = await screen.findByLabelText('Uhrzeit')
-
-    await user.clear(time)
-    await user.type(time, '03:15')
-    await user.click(
-      within(time.closest('form') as HTMLFormElement).getByRole('button', { name: 'Speichern' }),
-    )
-
-    await waitFor(() => {
-      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ backupTime: '03:15' })
-    })
+    expect(screen.getByText('Was für alle Betriebe auf dieser Instanz gilt.')).toBeTruthy()
   })
 })
 
@@ -345,38 +306,8 @@ const operators: readonly OperatorView[] = [
   },
 ]
 
-describe('the operators', () => {
-  it('say who has the second factor, and remove nobody from themselves', async () => {
-    answer('GET', '/instance/operators', operators)
-    answer('DELETE', '/instance/operators/u-2', { removed: 'u-2' })
-    await mount('/instanz/betreiber')
-    const user = userEvent.setup()
-
-    const table = await screen.findByRole('table', { name: 'Die Betreiber dieser Instanz' })
-
-    expect(within(table).getAllByRole('row')[1]?.textContent).toContain('Eingerichtet')
-    expect(within(table).getAllByRole('row')[2]?.textContent).toContain('Fehlt')
-    expect(
-      (
-        within(table).getByRole('button', {
-          name: 'Moritz Kohm als Betreiber entfernen',
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true)
-
-    await user.click(
-      within(table).getByRole('button', { name: 'Anna Weber als Betreiber entfernen' }),
-    )
-    await user.click(await screen.findByRole('button', { name: 'Entfernen' }))
-
-    await waitFor(() => {
-      expect(
-        calls.some((call) => call.method === 'DELETE' && call.path === '/instance/operators/u-2'),
-      ).toBe(true)
-    })
-  })
-
-  it('name an account that exists by its address', async () => {
+describe('the operators in this application', () => {
+  it('are operators in every word', async () => {
     answer('GET', '/instance/operators', operators)
     answer('POST', '/instance/operators', {
       userId: 'u-3',
@@ -388,13 +319,31 @@ describe('the operators', () => {
     await mount('/instanz/betreiber')
     const user = userEvent.setup()
 
-    await user.type(await screen.findByLabelText('E-Mail des Kontos'), 'britta@kohm.example.de')
+    const table = await screen.findByRole('table', { name: 'Die Betreiber dieser Instanz' })
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Betreiber' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Ohne zweiten Faktor kommt niemand hierher; eingerichtet wird er unter „Konto“. Sich selbst und den letzten Betreiber entfernt niemand.',
+      ),
+    ).toBeTruthy()
+
+    await user.click(
+      within(table).getByRole('button', { name: 'Anna Weber als Betreiber entfernen' }),
+    )
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Anna Weber als Betreiber entfernen?' }),
+    ).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
+
+    const field = screen.getByLabelText('E-Mail des Kontos') as HTMLInputElement
+
+    expect(field.placeholder).toBe('name@betrieb.de')
+
+    await user.type(field, 'britta@kohm.example.de')
     await user.click(screen.getByRole('button', { name: 'Benennen' }))
 
     expect(await screen.findByText('Britta Büro ist jetzt Betreiber.')).toBeTruthy()
-    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
-      email: 'britta@kohm.example.de',
-    })
   })
 })
 
@@ -471,6 +420,8 @@ describe('the log of the instance', () => {
     expect(rows[4]?.textContent).toContain('Niemand')
     expect(rows[4]?.textContent).toContain('Übernommen aus der .env')
     expect(screen.getByText('Das sind alle.')).toBeTruthy()
+    // Inside the frame of the area, on a page of the foundation.
+    expect(screen.getByRole('heading', { level: 1, name: 'Protokoll' })).toBeTruthy()
   })
 
   it('opens a change with its fields before and after, in the words of the screen', async () => {

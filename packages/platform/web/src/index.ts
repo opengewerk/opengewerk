@@ -16,6 +16,7 @@
 // - `/gate`, everything between opening an application and working in it,
 //   and the way out again
 // - `/office` and `/site`, what the screens of each entry are built from
+// - `/instance`, the area of the instance, for whoever runs it
 // - `/shell`, what stands around the screens of both: the offer of the other
 //   entry and of a new version
 // - `/format`, numbers and dates the way they are written
@@ -29,11 +30,18 @@ export * from './components/index.js'
 // What an application is called, what it calls a tenant, and how it starts
 // its sync client: one value over its whole tree, asked by every screen here
 // that needs a word or a list of its own.
-export { ApplicationProvider, useApplication } from './application.js'
+export {
+  ApplicationProvider,
+  useApplication,
+  useInstanceSentences,
+  useStaffSentences,
+} from './application.js'
 export type {
   DeviceStart,
+  InstanceAreaSentences,
   InterfaceApplication,
   InterfaceSentences,
   OwnTenantLink,
   SettingsEntry,
+  StaffSentences,
 } from './application.js'

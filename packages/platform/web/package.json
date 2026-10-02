@@ -10,6 +10,7 @@
     ".": "./src/index.ts",
     "./format": "./src/format.ts",
     "./gate": "./src/gate/index.ts",
+    "./instance": "./src/instance/index.ts",
     "./office": "./src/office/index.ts",
     "./session": "./src/session/index.ts",
     "./shell": "./src/shell/index.ts",

@@ -1,40 +1,42 @@
-import {
-  businessNameMaxLength,
-  businessNameProblem,
-  type InstanceTenantView,
-} from '@opengewerk/domain'
-import { Button, Cell, Column, Field, Panel, TablePanel } from '@opengewerk/platform-web'
-import type { TableCard } from '@opengewerk/platform-web'
-import { date } from '@opengewerk/platform-web/format'
-import { SettingsText } from '@opengewerk/platform-web/office'
-import { accountQuery, invitationPath } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+import type { InstanceTenantView } from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import { createTenantFor, instanceTenants } from '../../session/instance.js'
-import { InstancePage } from './shell.js'
+import { useApplication, useInstanceSentences } from '../application.js'
+import { Button } from '../components/button.js'
+import { Field } from '../components/field.js'
+import { Panel, TablePanel } from '../components/panel.js'
+import type { TableCard } from '../components/panel.js'
+import { Cell, Column } from '../components/table.js'
+import { date } from '../format.js'
+import { SettingsText } from '../office/settings.js'
+import { createTenantFor, instanceTenants } from '../session/instance.js'
+import { accountQuery } from '../session/queries.js'
+import { invitationPath } from '../session/session.js'
+import { RequestRefused } from '../sync/transport.js'
+import { InstancePage } from './frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
 
-/** A business made for somebody else, and the link that makes them its owner, shown once. */
+/** A tenant made for somebody else, and the link that makes them lead it, shown once. */
 interface Made {
   readonly name: string
-  readonly owner: string
+  readonly lead: string
   readonly link: string
 }
 
 /**
- * The businesses on the instance (#142 in the area of #188), `instanz_betriebe()`
- * of the canvas: each with the day it was made, its owners and how many
+ * The tenants on the instance (#142 in the area of #188), `instanz_betriebe()`
+ * of the canvas: each with the day it was made, whoever leads it and how many
  * people work in it, and nothing of what is in it. A new one for somebody
- * else is made here, with an invitation to be its owner; one for oneself is
- * made under "Konto", where one is its owner at once.
+ * else is made here, with an invitation to lead it; one for oneself is made
+ * where the application says, where one leads it at once.
  */
 export function InstanceTenantsScreen() {
+  const sentences = useInstanceSentences().tenants
   const queries = useQueryClient()
   const tenants = useQuery({ queryKey: ['instance-tenants'], queryFn: instanceTenants })
   const account = useQuery(accountQuery)
@@ -46,13 +48,13 @@ export function InstanceTenantsScreen() {
     key: tenant.id,
     title: tenant.name,
     sub: `Angelegt am ${date(tenant.createdAt)} · ${String(tenant.members)} ${tenant.members === 1 ? 'Zugang' : 'Zugänge'}`,
-    form: <Owners tenant={tenant} me={me} inBox />,
+    form: <Leads tenant={tenant} me={me} inBox />,
   }))
 
   return (
     <InstancePage
-      title="Betriebe"
-      sub="Die Betriebe auf dieser Instanz. Jeder ist vom anderen getrennt wie zwei fremde."
+      title={sentences.title}
+      sub={sentences.what}
       actions={
         <Button
           tone="primary"
@@ -63,12 +65,12 @@ export function InstanceTenantsScreen() {
             setCreating(true)
           }}
         >
-          Betrieb anlegen
+          {sentences.create}
         </Button>
       }
     >
       {creating ? (
-        <Panel title="Betrieb anlegen" roomy>
+        <Panel title={sentences.create} roomy>
           <CreateForm
             onMade={(result) => {
               setCreating(false)
@@ -96,16 +98,12 @@ export function InstanceTenantsScreen() {
       ) : tenants.isError ? (
         <SettingsText muted>{saidWhy(tenants.error, 'Die Liste kam nicht an.')}</SettingsText>
       ) : (
-        <TablePanel
-          caption="Die Betriebe auf dieser Instanz"
-          cards={cards}
-          note="Was in einem Betrieb steht, sieht hier niemand, auch wer die Instanz betreibt nicht: nur sein Name, der Tag der Anlage und wer darin Inhaber ist."
-        >
+        <TablePanel caption={sentences.caption} cards={cards} note={sentences.note}>
           <thead>
             <tr>
-              <Column>Betrieb</Column>
+              <Column>{sentences.tenantColumn}</Column>
               <Column className="w-[110px]">Angelegt</Column>
-              <Column className="w-[240px]">Inhaber</Column>
+              <Column className="w-[240px]">{sentences.leadsColumn}</Column>
               <Column numeric className="w-[80px]">
                 Zugänge
               </Column>
@@ -117,7 +115,7 @@ export function InstanceTenantsScreen() {
                 <Cell className="font-semibold">{tenant.name}</Cell>
                 <Cell className="text-[13px]">{date(tenant.createdAt)}</Cell>
                 <Cell>
-                  <Owners tenant={tenant} me={me} />
+                  <Leads tenant={tenant} me={me} />
                 </Cell>
                 <Cell numeric>{tenant.members}</Cell>
               </tr>
@@ -129,8 +127,8 @@ export function InstanceTenantsScreen() {
   )
 }
 
-/** The owners of a business, "du" beside oneself, or the invitation still open. */
-function Owners({
+/** Whoever leads a tenant, "du" beside oneself, or the invitation still open. */
+function Leads({
   tenant,
   me,
   inBox = false,
@@ -156,15 +154,15 @@ function Owners({
 
   return (
     <>
-      {tenant.leads.map((owner) => (
-        <span key={owner.email} className="block">
+      {tenant.leads.map((lead) => (
+        <span key={lead.email} className="block">
           <span className={`block text-[14px] font-medium ${breaks}`}>
-            {owner.name}
-            {owner.email.toLowerCase() === me ? (
+            {lead.name}
+            {lead.email.toLowerCase() === me ? (
               <span className="ml-1.5 text-[12px] font-bold text-copper-text">du</span>
             ) : null}
           </span>
-          <span className={`block text-[12px] text-ink-faint ${breaks}`}>{owner.email}</span>
+          <span className={`block text-[12px] text-ink-faint ${breaks}`}>{lead.email}</span>
         </span>
       ))}
     </>
@@ -178,29 +176,31 @@ function CreateForm({
   readonly onMade: (made: Made) => void
   readonly onCancel: () => void
 }) {
+  const { tenantNameMaxLength, tenantNameProblem } = useApplication()
+  const sentences = useInstanceSentences().tenants
   const [name, setName] = useState('')
-  const [ownerName, setOwnerName] = useState('')
-  const [ownerEmail, setOwnerEmail] = useState('')
+  const [leadName, setLeadName] = useState('')
+  const [leadEmail, setLeadEmail] = useState('')
   const [tried, setTried] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
-  const nameProblem = businessNameProblem(name) ?? undefined
-  const ownerProblem = ownerName.trim() === '' ? 'Der Name des Inhabers fehlt.' : undefined
-  const mailProblem = ownerEmail.includes('@')
+  const nameProblem = tenantNameProblem(name) ?? undefined
+  const leadProblem = leadName.trim() === '' ? sentences.leadNameMissing : undefined
+  const mailProblem = leadEmail.includes('@')
     ? undefined
     : 'Die E-Mail-Adresse sieht nicht wie eine aus.'
 
   const create = useMutation({
-    mutationFn: () => createTenantFor({ name, ownerName, ownerEmail }),
+    mutationFn: () => createTenantFor({ name, leadName, leadEmail }),
     onSuccess: (answer) => {
       onMade({
         name: name.trim(),
-        owner: ownerName.trim(),
+        lead: leadName.trim(),
         link: `${globalThis.location.origin}${invitationPath}/${answer.token}`,
       })
     },
     onError: (error) => {
-      setTrouble(saidWhy(error, 'Der Betrieb ließ sich nicht anlegen.'))
+      setTrouble(saidWhy(error, sentences.notCreated))
     },
   })
 
@@ -209,7 +209,7 @@ function CreateForm({
     setTried(true)
     setTrouble(null)
 
-    if (nameProblem || ownerProblem || mailProblem) {
+    if (nameProblem || leadProblem || mailProblem) {
       return
     }
 
@@ -220,32 +220,32 @@ function CreateForm({
     <form noValidate onSubmit={submit} className="flex flex-col gap-3">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
         <Field
-          label="Name des Betriebs"
+          label={sentences.nameLabel}
           value={name}
-          maxLength={businessNameMaxLength}
+          maxLength={tenantNameMaxLength}
           {...(tried && nameProblem ? { problem: nameProblem } : {})}
           onChange={(event) => {
             setName(event.target.value)
           }}
         />
         <Field
-          label="Name des Inhabers"
-          value={ownerName}
+          label={sentences.leadNameLabel}
+          value={leadName}
           autoComplete="off"
-          {...(tried && ownerProblem ? { problem: ownerProblem } : {})}
+          {...(tried && leadProblem ? { problem: leadProblem } : {})}
           onChange={(event) => {
-            setOwnerName(event.target.value)
+            setLeadName(event.target.value)
           }}
         />
         <Field
-          label="E-Mail des Inhabers"
+          label={sentences.leadEmailLabel}
           type="email"
-          value={ownerEmail}
+          value={leadEmail}
           autoComplete="off"
-          hint="Der Link macht die Person zum Inhaber. Hat sie schon ein Konto auf dieser Instanz, meldet sie sich damit an."
+          hint={sentences.leadEmailHint}
           {...(tried && mailProblem ? { problem: mailProblem } : {})}
           onChange={(event) => {
-            setOwnerEmail(event.target.value)
+            setLeadEmail(event.target.value)
           }}
         />
       </div>
@@ -255,23 +255,28 @@ function CreateForm({
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <SettingsText muted>
-          Einen Betrieb für dich selbst legst du unter „Konto“ an, dort bist du gleich Inhaber.
-        </SettingsText>
+        <SettingsText muted>{sentences.forOneself}</SettingsText>
         <div className="grow" />
         <Button onClick={onCancel}>Abbrechen</Button>
         <Button tone="primary" type="submit" icon={Plus} disabled={create.isPending}>
-          Betrieb anlegen
+          {sentences.create}
         </Button>
       </div>
     </form>
   )
 }
 
-/** The link that makes somebody the owner, shown once, as the office shows an invitation (#63). */
+/**
+ * The link that makes somebody lead the new tenant, shown once, as an
+ * invitation into a tenant is shown (#63). That it is shown only now and
+ * holds once for seven days is the foundation's to say, what it makes of the
+ * person the application's.
+ */
 function MadeLink({ made, onDone }: { readonly made: Made; readonly onDone: () => void }) {
+  const sentences = useInstanceSentences().tenants
+
   return (
-    <Panel title="Betrieb anlegen" roomy>
+    <Panel title={sentences.create} roomy>
       <div className="flex flex-col gap-2.5">
         <p role="status" className="flex items-center gap-2 text-[14px] text-done">
           <Check size={16} strokeWidth={2.4} aria-hidden="true" className="shrink-0" />
@@ -279,7 +284,7 @@ function MadeLink({ made, onDone }: { readonly made: Made; readonly onDone: () =
         </p>
         <div className="flex flex-col gap-2 rounded-[5px] border border-line bg-surface-sunken px-3 py-2.5">
           <SettingsText small>
-            {`Diesen Link an ${made.owner} geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang, und wer ihn öffnet, wird Inhaber des neuen Betriebs.`}
+            {`Diesen Link an ${made.lead} geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang, und ${sentences.linkMakes}`}
           </SettingsText>
           <div className="flex items-end gap-2">
             <div className="min-w-0 grow">
