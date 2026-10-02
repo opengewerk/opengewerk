@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { InterfaceApplication } from '../application.js'
 import { Shell } from '../components/surface.js'
+import { clockTime, moment } from '../format.js'
 import { SyncScreen } from '../office/sync-screen.js'
 import { InProbe, probeApplication, probeRecords, probeRules } from '../probe-application.js'
 import { ConflictScreen } from '../site/conflicts.js'
@@ -108,6 +109,14 @@ class Quiet implements SyncTransport, DirectWriter {
 let counter = 0
 let server: Quiet
 
+/**
+ * The moment of every conflict here, and the clock of the device. What a
+ * screen makes of them depends on the zone of the machine, and the CI runs in
+ * UTC: the expected times are written by the formatters the screens use.
+ */
+const recordedAt = new Date('2026-09-20T07:30:00Z')
+const now = new Date('2026-10-03T08:00:00.000Z')
+
 async function client(rows: Record<string, RecordState[]> = {}) {
   server.pulls.push({
     changes: Object.entries(rows).map(([entity, entries]) => ({ entity, rows: entries })),
@@ -146,7 +155,7 @@ function conflict(part: ConflictPart = {}): SyncConflict {
     seen: { text: 'Regal drei prüfen' },
     found: { text: 'Regal drei umräumen' },
     deviceId: 'device',
-    recordedAt: new Date('2026-09-20T07:30:00Z'),
+    recordedAt,
     resolvedAt: null,
     createdAt: new Date('2026-09-20T07:30:00Z'),
     updatedAt: new Date('2026-09-20T07:30:00Z'),
@@ -217,7 +226,7 @@ function refusing(status: number, message: string) {
 beforeEach(() => {
   server = new Quiet()
   vi.useFakeTimers({ toFake: ['Date'] })
-  vi.setSystemTime(new Date('2026-10-03T08:00:00.000Z'))
+  vi.setSystemTime(now)
 })
 
 afterEach(() => {
@@ -246,14 +255,14 @@ describe('a conflict in the office', () => {
     ).toEqual(['Feld', 'Auf dem Gerät', 'Im System', 'Das Gerät sah'])
     expect(within(card).getByRole('rowheader').textContent).toBe('Text')
     expect(row(/Text/)).toEqual(['Regal drei leeren', 'Regal drei umräumen', 'Regal drei prüfen'])
-    expect(within(card).getByText('Erfasst 20.09.2026, 09:30 auf diesem Gerät.')).toBeTruthy()
+    expect(within(card).getByText(`Erfasst ${moment(recordedAt)} auf diesem Gerät.`)).toBeTruthy()
   })
 
   it('says a change came from another device without naming its key', async () => {
     server.open = [conflict({ deviceId: '0193a2b4-0000-7000-8000-000000000001' })]
     inOffice(await client({ notes: [note] }))
 
-    expect(screen.getByText('Erfasst 20.09.2026, 09:30 auf einem anderen Gerät.')).toBeTruthy()
+    expect(screen.getByText(`Erfasst ${moment(recordedAt)} auf einem anderen Gerät.`)).toBeTruthy()
   })
 
   it('writes a value as the application does, and what neither knows as it is', async () => {
@@ -609,7 +618,7 @@ describe('"Abgleich" in the office', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Abgleich' })).toBeTruthy()
     expect(state.getByText('Zuletzt abgeglichen')).toBeTruthy()
-    expect(state.getByText('10:00')).toBeTruthy()
+    expect(state.getByText(clockTime(now))).toBeTruthy()
     expect(state.getByText('Nichts wartet, nichts zu entscheiden')).toBeTruthy()
     expect(screen.getByRole('region', { name: 'Keine Konflikte' }).textContent).toContain(
       'Nichts zu entscheiden.',
@@ -766,7 +775,7 @@ describe('"Konflikte" on site', () => {
     const state = within(screen.getByRole('list', { name: 'Stand des Abgleichs' }))
 
     expect(screen.getByRole('heading', { level: 1, name: 'Konflikte' })).toBeTruthy()
-    expect(state.getByText('Zuletzt abgeglichen um 10:00.')).toBeTruthy()
+    expect(state.getByText(`Zuletzt abgeglichen um ${clockTime(now)}.`)).toBeTruthy()
     expect(screen.getByRole('region', { name: 'Keine Konflikte' })).toBeTruthy()
   })
 
@@ -837,7 +846,7 @@ describe('"Konflikte" on site', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Erneut versuchen' }))
 
     expect(await screen.findByRole('region', { name: 'Regal drei umräumen' })).toBeTruthy()
-    expect(screen.getByText('Zuletzt abgeglichen um 10:00.')).toBeTruthy()
+    expect(screen.getByText(`Zuletzt abgeglichen um ${clockTime(now)}.`)).toBeTruthy()
   })
 
   it('puts each field with the two versions one over the other', async () => {
@@ -858,7 +867,7 @@ describe('"Konflikte" on site', () => {
       'Im SystemRegal drei umräumen',
     )
     expect(card.getByText('Das Gerät sah: Regal drei prüfen')).toBeTruthy()
-    expect(card.getByText('Erfasst 20.09.2026, 09:30 auf diesem Gerät.')).toBeTruthy()
+    expect(card.getByText(`Erfasst ${moment(recordedAt)} auf diesem Gerät.`)).toBeTruthy()
 
     await userEvent
       .setup()
