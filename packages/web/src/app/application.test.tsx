@@ -9,14 +9,21 @@ import {
   SignOutButton,
   TenantScreen,
 } from '@opengewerk/platform-web/gate'
+import { SettingsPage, SettingsScreen } from '@opengewerk/platform-web/office'
+import { EntrySuggestion } from '@opengewerk/platform-web/shell'
 import { deleteLocalStore, storesOnDevice } from '@opengewerk/platform-web/sync'
+import { InRouter } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { officeApplication } from '../office/application.js'
+import officeEntry from '../office/main.tsx?raw'
 import { aTenantChoice } from '../session/test-tenants.js'
+import siteEntry from '../site/main.tsx?raw'
+import { application } from './application.js'
 import { InApplication } from './in-application.js'
 import { fakePushBrowser, forgetPushBrowser } from './test-push.js'
 
@@ -312,6 +319,128 @@ describe('the sign in after the scan of a QR label (#308)', () => {
     render(inApplication(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />))
 
     expect(screen.queryByRole('note')).toBeNull()
+  })
+})
+
+describe('what each entry hands to the foundation', () => {
+  /**
+   * The site never shows a settings screen, and a phone should not load the
+   * list of them. So the office adds the settings to what both entries share,
+   * and the site hands in the shared value as it is.
+   */
+  it('is the same application, with the settings of a business only from the office', () => {
+    expect(application.settings).toEqual([])
+    expect(officeApplication.settings.map((entry) => entry.key)).toEqual([
+      'briefkopf',
+      'steuern',
+      'nummernkreise',
+      'zahlungsziel',
+      'tags',
+      'fristen',
+      'belehrungen',
+      'regiebericht',
+      'e-mail',
+      'sicherung',
+      'zugaenge',
+      'protokoll',
+    ])
+    expect({ ...officeApplication, settings: [] }).toEqual(application)
+  })
+
+  /**
+   * Which of the two an entry hands in is one line of its `main.tsx`, and no
+   * test renders that file: it mounts into the page and starts the service
+   * worker. Handed the shared value, the office would list no settings and
+   * say nothing of it; handed the office's, a phone on site would load a list
+   * it never draws. Both would pass every other test, so the line is read.
+   */
+  it('is handed in by the entry itself, the office its own and the site the shared one', () => {
+    expect(officeEntry).toContain('<Root entry="office" application={officeApplication}>')
+    expect(siteEntry).toContain('<Root entry="site" application={application}>')
+  })
+})
+
+describe('the two entries of this application', () => {
+  /** A device with only a finger, or with a mouse: happy-dom answers no to every query. */
+  function device(coarse: boolean, fine: boolean) {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)' ? coarse : query === '(any-pointer: fine)' && fine,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  }
+
+  beforeEach(() => {
+    globalThis.localStorage.clear()
+  })
+
+  it('are the office and the site, and a phone in the office is offered the site', () => {
+    device(true, false)
+    render(inApplication(<EntrySuggestion here="office" />))
+
+    expect(screen.getByText('Das sieht nach einem Gerät für die Baustelle aus.')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Zur Baustellenansicht' }).getAttribute('href')).toBe(
+      '/m/',
+    )
+  })
+
+  it('offer a desk on site the office', () => {
+    device(false, true)
+    render(inApplication(<EntrySuggestion here="site" />))
+
+    expect(
+      screen.getByText('Das sieht nach einem Arbeitsplatz aus. Im Büro ist mehr zu sehen.'),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Zur Büroansicht' }).getAttribute('href')).toBe('/')
+  })
+})
+
+describe('the settings of a business', () => {
+  function signedInAsOwner() {
+    serverSays('GET /api/auth/get-session', {
+      user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
+      session: { activeTenantId: 't-1' },
+    })
+    serverSays('GET /auth/tenants', [aTenantChoice(['owner'])])
+  }
+
+  it('are called the business’s on the overview, and what is the account’s is said to be found under the name', async () => {
+    signedInAsOwner()
+    render(
+      inApplication(
+        <InRouter at="/einstellungen">
+          <SettingsScreen />
+        </InRouter>,
+      ),
+    )
+
+    expect(await screen.findByText('Was dieser Betrieb für sich festlegt.')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Hell oder dunkel, Passwort und zweiter Faktor gehören nicht dem Betrieb, sondern dem Konto. Sie stehen im Menü unter dem Namen oben rechts.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('stand beside every settings screen under "Dieser Betrieb"', async () => {
+    signedInAsOwner()
+    render(
+      inApplication(
+        <InRouter at="/einstellungen/zahlungsziel">
+          <SettingsPage active="zahlungsziel" title="Zahlungsziel" sub="Wie viele Tage.">
+            <p>Karte</p>
+          </SettingsPage>
+        </InRouter>,
+      ),
+    )
+
+    const beside = await screen.findByRole('navigation', { name: 'Einstellungen' })
+
+    expect(beside.textContent?.startsWith('Dieser Betrieb')).toBe(true)
+    expect(
+      (await screen.findByRole('link', { name: 'Zahlungsziel' })).getAttribute('aria-current'),
+    ).toBe('page')
   })
 })
 

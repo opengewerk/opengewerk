@@ -1,5 +1,7 @@
 import { type PasskeyEntry, passkeyNameMaxLength, passkeyNameProblem } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
+import { clockTime, date, moment } from '@opengewerk/platform-web/format'
+import { SettingsText } from '@opengewerk/platform-web/office'
 import {
   accountQuery,
   addPasskey,
@@ -18,8 +20,6 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { application } from '../../app/application.js'
-import { clockTime, date, moment } from '../../app/format.js'
-import { SettingsText } from '../settings-frame.js'
 
 /** "Heute, 08:12" for today, the day and the time for any other, "Noch nie" for never. */
 function lastUsed(value: string | null): string {

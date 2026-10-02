@@ -1,5 +1,6 @@
 import { Button, Confirm, Panel } from '@opengewerk/platform-web'
 import {
+  RecordForm,
   maybeText,
   refusalFor,
   useRelated,
@@ -20,7 +21,6 @@ import {
   parentField,
 } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
 
 /**
  * The contacts at a customer, a site or a supplier (#296), on its screen in

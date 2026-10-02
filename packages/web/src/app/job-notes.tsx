@@ -1,12 +1,12 @@
 import type { RecordState } from '@opengewerk/domain'
 import { useEntry } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
 import { useWho } from '@opengewerk/platform-web/session'
+import { NotSent } from '@opengewerk/platform-web/site'
 import { text, useRelated, useSync } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { useMemo } from 'react'
 
-import { NotSent } from '../site/kit.js'
-import { date, today } from './format.js'
 import { usePeople } from './tasks.js'
 import { clockOf } from './time.js'
 

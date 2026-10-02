@@ -36,14 +36,19 @@ function ScannedLabelNote() {
 /**
  * What this application says and does where a screen of the foundation needs
  * it (ADR 0010): what it is called, what it says of itself beside the gate,
- * every sentence before its first screen that names a business or its owner,
- * how its sync client starts, and what it does around a sign in and a sign
- * out.
+ * every sentence of the foundation's screens that names a business, its
+ * owner or one of the two entries, how its sync client starts, and what it
+ * does around a sign in and a sign out.
  *
  * The one place for all of it. The foundation names no product and has no
- * word for a business; it asks this value, which `Root` puts over both
- * entries. The sentences are the ones the gate has always shown, word for
- * word: they stood in the screens themselves until the screens moved.
+ * word for a business; it asks this value, which `Root` puts over an entry.
+ * The sentences are the ones the gate has always shown, word for word: they
+ * stood in the screens themselves until the screens moved.
+ *
+ * This is what both entries share, and the site hands it in as it is. The
+ * office adds what only it shows, the settings of a business
+ * (`office/application.tsx`): a phone on site does not load a list of screens
+ * it never draws.
  */
 export const application: InterfaceApplication = {
   name: 'OpenGewerk',
@@ -52,6 +57,8 @@ export const application: InterfaceApplication = {
     'Diese Instanz läuft auf Ihrem eigenen Server. Die Daten verlassen ihn nicht, und niemand außer Ihnen kann sie abschalten.',
   licence: 'AGPL-3.0',
   tenantNameMaxLength: businessNameMaxLength,
+  // The office has them and hands them in itself; see above.
+  settings: [],
 
   sentences: {
     signIn: {
@@ -81,6 +88,22 @@ export const application: InterfaceApplication = {
       tenantLabel: 'Betrieb',
       tenantHint: 'So wie der Betrieb auf einer Rechnung steht.',
       create: 'Betrieb anlegen',
+    },
+    settings: {
+      whose: 'Dieser Betrieb',
+      what: 'Was dieser Betrieb für sich festlegt.',
+      belongsToTheAccount:
+        'Hell oder dunkel, Passwort und zweiter Faktor gehören nicht dem Betrieb, sondern dem Konto.',
+    },
+    entry: {
+      suits: {
+        office: 'Das sieht nach einem Arbeitsplatz aus. Im Büro ist mehr zu sehen.',
+        site: 'Das sieht nach einem Gerät für die Baustelle aus.',
+      },
+      goTo: {
+        office: 'Zur Büroansicht',
+        site: 'Zur Baustellenansicht',
+      },
     },
     invitation: {
       spent: {

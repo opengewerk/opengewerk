@@ -5,15 +5,15 @@ import {
 } from '@opengewerk/domain'
 import { Button, Cell, Column, Field, Panel, TablePanel } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { SettingsText } from '@opengewerk/platform-web/office'
 import { accountQuery, invitationPath } from '@opengewerk/platform-web/session'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import { date } from '../../app/format.js'
 import { createTenantFor, instanceTenants } from '../../session/instance.js'
-import { SettingsText } from '../settings-frame.js'
 import { InstancePage } from './shell.js'
 
 function saidWhy(error: unknown, fallback: string): string {

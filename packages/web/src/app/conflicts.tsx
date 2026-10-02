@@ -1,6 +1,7 @@
 import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain'
 import { quantityFactor } from '@opengewerk/domain'
 import { Button, Card, Cell, Column, Panel, TablePanel, useEntry } from '@opengewerk/platform-web'
+import { amount, clockTime, euros, moment } from '@opengewerk/platform-web/format'
 import { refusalFor, refusalText, useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
 import type { RefusedOperation } from '@opengewerk/platform-web/sync'
 import { Check, Clock, RefreshCw, Server, Smartphone, TriangleAlert, WifiOff } from 'lucide-react'
@@ -9,7 +10,6 @@ import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'
-import { amount, clockTime, euros, moment } from './format.js'
 import { lineUnitLabel, vatRateLabel } from './labels.js'
 import { entityLabel, fieldLabel, titleOf } from './naming.js'
 

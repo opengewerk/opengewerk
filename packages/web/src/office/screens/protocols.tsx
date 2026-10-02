@@ -32,6 +32,9 @@ import {
   statusIcons,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import { Chip, Empty, NoteBox, PageHead, Screen } from '@opengewerk/platform-web/office'
+import type { Crumb } from '@opengewerk/platform-web/office'
 import { text, useRecord } from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -39,7 +42,6 @@ import { Check, Plus } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { date } from '../../app/format.js'
 import {
   blockHeading,
   blocksOf,
@@ -58,8 +60,6 @@ import {
 } from '../../app/protocols.js'
 import type { ProtocolDraft } from '../../app/protocols.js'
 import { SignaturePicture } from '../../app/signature.js'
-import { Chip, Empty, NoteBox, PageHead, Screen } from '../kit.js'
-import type { Crumb } from '../kit.js'
 import { Section } from '../layout.js'
 
 /**

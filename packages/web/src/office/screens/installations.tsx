@@ -1,7 +1,20 @@
 import type { RecordState } from '@opengewerk/domain'
 import { belongsToPvSystemKind } from '@opengewerk/domain'
 import { Button, Panel, Status } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
 import {
+  Empty,
+  FactList,
+  ListCard,
+  ListScreen,
+  PageHead,
+  RecordColumns,
+  Screen,
+  lastChanged,
+} from '@opengewerk/platform-web/office'
+import type { ListColumn } from '@opengewerk/platform-web/office'
+import {
+  RecordForm,
   maybeText,
   text,
   useRecord,
@@ -13,13 +26,8 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Pencil, Plus, Zap } from 'lucide-react'
 import { useState } from 'react'
 
-import { date } from '../../app/format.js'
 import { installationKindLabel, installationKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
-import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
-import { lastChanged, ListCard, ListScreen } from '../list.js'
-import type { ListColumn } from '../list.js'
 import { FilesPanel } from './attachments.js'
 import { useBoards } from '../../app/electrical.js'
 import { BoardsSection, ChartButton } from './boards.js'

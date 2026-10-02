@@ -15,6 +15,14 @@ import {
   signerNameProblem,
 } from '@opengewerk/domain'
 import { Button, Field, Panel } from '@opengewerk/platform-web'
+import { amount, date, scaledNumber } from '@opengewerk/platform-web/format'
+import {
+  SiteActionBar,
+  SiteLabel,
+  SiteScreen,
+  SiteText,
+  SiteTrouble,
+} from '@opengewerk/platform-web/site'
 import { maybeText, refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -33,7 +41,6 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { addAttachment } from '../../app/attachments.js'
-import { amount, date, scaledNumber } from '../../app/format.js'
 import {
   blocksOf,
   circuitProtection,
@@ -53,9 +60,7 @@ import {
   valuesOf,
 } from '../../app/protocols.js'
 import { useMay } from '../../app/queries.js'
-import { SiteActionBar } from '../action-bar.js'
 import { SiteHeader } from '../header.js'
-import { SiteLabel, SiteScreen, SiteText, SiteTrouble } from '../kit.js'
 import { SignaturePad } from '../signature-pad.js'
 
 /**

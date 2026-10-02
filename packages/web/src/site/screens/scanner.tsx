@@ -1,5 +1,6 @@
 import { serialFromCode, serialNumberProblem } from '@opengewerk/domain'
 import { Button, Field } from '@opengewerk/platform-web'
+import { SiteActionBar, SiteScreen, SiteText } from '@opengewerk/platform-web/site'
 import {
   maybeText,
   refusalFor,
@@ -14,11 +15,9 @@ import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { inModules, usePvModules } from '../../app/photovoltaic.js'
-import { SiteActionBar } from '../action-bar.js'
 import { useCodeReading } from '../camera.js'
 import { SiteHeader } from '../header.js'
 import { useStructureBase } from '../structure-base.js'
-import { SiteScreen, SiteText } from '../kit.js'
 
 /**
  * Serial numbers from the labels of a string's modules (#300), as the boards

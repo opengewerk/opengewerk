@@ -6,6 +6,7 @@ import {
   sourceWords,
 } from '@opengewerk/domain'
 import { Button, Field, Panel, SelectField, Status } from '@opengewerk/platform-web'
+import { NoteBox, Saved, SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
@@ -18,8 +19,6 @@ import {
   deadlineSettings,
   setDeadlineSetting,
 } from '../../session/deadlines.js'
-import { NoteBox } from '../kit.js'
-import { Saved, SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

@@ -1,6 +1,9 @@
 import type { DocumentKind, DocumentStatus, EInvoiceGap, RecordState } from '@opengewerk/domain'
 import { invoiceFormats } from '@opengewerk/domain'
 import { Button, ButtonLink, Field, Panel } from '@opengewerk/platform-web'
+import { moment } from '@opengewerk/platform-web/format'
+import { FactList } from '@opengewerk/platform-web/office'
+import type { Fact } from '@opengewerk/platform-web/office'
 import { maybeText, text, useRelated } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -8,7 +11,6 @@ import { Download, Mail } from 'lucide-react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { moment } from '../../app/format.js'
 import { documentKindLabel, documentKindOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { useReportFieldLines } from '../../app/report-fields.js'
@@ -21,8 +23,6 @@ import {
   xrechnungAddress,
   zugferdAddress,
 } from '../../session/documents.js'
-import type { Fact } from '../kit.js'
-import { FactList } from '../kit.js'
 import { reasonOf } from './document-steps.js'
 
 /** A document as a sentence names it: its kind and number, or that it is still a draft. */

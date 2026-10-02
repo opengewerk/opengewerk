@@ -12,8 +12,22 @@ import {
   useBand,
 } from '@opengewerk/platform-web'
 import type { StatusTone } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
 import {
+  Empty,
+  FactList,
+  ListCard,
+  ListScreen,
+  PageHead,
+  RecordColumns,
+  Screen,
+  lastChanged,
+} from '@opengewerk/platform-web/office'
+import type { ListColumn } from '@opengewerk/platform-web/office'
+import {
+  RecordForm,
   RequestRefused,
+  asTextOrNull,
   maybeText,
   refusalFor,
   text,
@@ -22,23 +36,18 @@ import {
   useRelated,
   useSync,
 } from '@opengewerk/platform-web/sync'
+import type { FormField } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Calendar, Pencil, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { date } from '../../app/format.js'
 import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { jobKindLabel, jobKindOf, jobStatusLabel, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm, asTextOrNull } from '../../app/record-form.js'
-import type { FormField } from '../../app/record-form.js'
 import { usePeople } from '../../app/tasks.js'
 import { assignToJob } from '../../session/jobs.js'
-import { Empty, FactList, PageHead, RecordColumns, Screen } from '../kit.js'
-import { lastChanged, ListCard, ListScreen } from '../list.js'
-import type { ListColumn } from '../list.js'
 import { FilesPanel } from './attachments.js'
 import { DocumentChainCard, JobDocumentsPanel, useJobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'

@@ -539,6 +539,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Umzug aufgenommen, und was ein Browser bekommt, ist Byte für Byte dasselbe, ebenso das
   Stylesheet. Die Tests des Tors laufen im Fundament mit einer Anwendung, die niemandem gehört;
   hier hält ein Test jeden Satz dieser Anwendung im Tor wörtlich fest.
+- Die Bausteine der Bildschirme gehören zum Fundament (ADR 0010, `opengewerk-haustechnik#12`,
+  fünfter Teil), damit eine weitere Anwendung ihre Bildschirme aus denselben Teilen baut: unter
+  `@opengewerk/platform-web/office` der Rahmen eines Bildschirms, sein Kopf, die Angaben eines
+  Datensatzes, die Liste mit Suche, Auswahl, Reihenfolge und Vorschau und der Rahmen der
+  Einstellungen, unter `/site` die Teile eines Bildschirms der Baustelle mit der Aktionsleiste,
+  unter `/shell` der Vorschlag des passenden Einstiegs und das Angebot einer neuen Fassung, unter
+  `/format` Zahlen und Tage, unter `/sync` das Formular über einem Datensatz. Welche
+  Einstellungen ein Betrieb hat, steht seitdem als Liste an einer Stelle
+  (`office/application.tsx`), je Eintrag mit dem Recht, das ihn öffnet, statt in einer Funktion,
+  die drei Rechte abfragt; Übersicht und Liste daneben zeichnet das Fundament daraus und lässt
+  weg, was jemand nicht lesen darf. Nur das Büro übergibt sie: die Baustelle zeigt keine
+  Einstellungen und lädt die Liste nicht. Wie die zwei Einstiege heißen, sagt die Anwendung in
+  ganzen Sätzen, das Fundament nennt keine Baustelle. An der Oberfläche ändert sich nichts: 37
+  Zustände der Bausteine sind vor und nach dem Umzug aufgenommen, und was ein Browser bekommt,
+  ist Byte für Byte dasselbe, ebenso das Stylesheet. Die Liste, das Formular, die Teile der
+  beiden Einstiege und der Rahmen der Einstellungen waren bisher nur über die Bildschirme
+  geprüft und haben jetzt eigene Tests.
 
 ## [0.4.0] - 2026-09-27
 

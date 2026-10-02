@@ -1,12 +1,12 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Panel } from '@opengewerk/platform-web'
+import { SiteScreen, SiteText } from '@opengewerk/platform-web/site'
 import { maybeText, text, useRecord, useRelated } from '@opengewerk/platform-web/sync'
 import { useParams } from '@tanstack/react-router'
 
 import { AddFiles, AttachmentList } from '../../app/attachments.js'
 import { useMay } from '../../app/queries.js'
 import { SiteHeader } from '../header.js'
-import { SiteScreen, SiteText } from '../kit.js'
 
 /** Where the photos and files of a job are, on a screen of their own. */
 export function filesPath(jobId: string): string {

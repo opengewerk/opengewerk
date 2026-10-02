@@ -15,6 +15,10 @@
 //   and what an application says of itself to every screen of the foundation
 // - `/gate`, everything between opening an application and working in it,
 //   and the way out again
+// - `/office` and `/site`, what the screens of each entry are built from
+// - `/shell`, what stands around the screens of both: the offer of the other
+//   entry and of a new version
+// - `/format`, numbers and dates the way they are written
 // - `/sync`, the offline data layer: the sync client, its local store and the
 //   strip over every screen
 // - `/session`, who is signed in, in which tenant and with which rights, and
@@ -26,4 +30,9 @@ export * from './components/index.js'
 // its sync client: one value over its whole tree, asked by every screen here
 // that needs a word or a list of its own.
 export { ApplicationProvider, useApplication } from './application.js'
-export type { DeviceStart, InterfaceApplication, InterfaceSentences } from './application.js'
+export type {
+  DeviceStart,
+  InterfaceApplication,
+  InterfaceSentences,
+  SettingsEntry,
+} from './application.js'

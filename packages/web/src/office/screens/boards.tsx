@@ -1,6 +1,7 @@
 import { distributionBoardKindLabel } from '@opengewerk/domain'
 import { Button, Panel } from '@opengewerk/platform-web'
 import {
+  RecordForm,
   maybeText,
   refusalFor,
   text,
@@ -26,7 +27,6 @@ import {
   useBoards,
 } from '../../app/electrical.js'
 import { useMay } from '../../app/queries.js'
-import { RecordForm } from '../../app/record-form.js'
 
 /**
  * The circuit chart as a button with a printer on it, as the head of the

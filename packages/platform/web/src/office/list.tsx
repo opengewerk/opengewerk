@@ -1,7 +1,4 @@
-import type { RecordState } from '@opengewerk/domain'
-import { Button, Cell, Column, TablePanel, useBand } from '@opengewerk/platform-web'
-import type { Band } from '@opengewerk/platform-web'
-import { text } from '@opengewerk/platform-web/sync'
+import type { RecordState } from '@opengewerk/platform-domain'
 import { Link, useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
@@ -9,6 +6,12 @@ import type { LucideIcon } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 
+import { useBand } from '../components/band.js'
+import type { Band } from '../components/band.js'
+import { Button } from '../components/button.js'
+import { TablePanel } from '../components/panel.js'
+import { Cell, Column } from '../components/table.js'
+import { text } from '../sync/fields.js'
 import { Chip, Key, PageHead } from './kit.js'
 
 /**
@@ -26,9 +29,12 @@ import { Chip, Key, PageHead } from './kit.js'
  * - XXL, from 2400 pixels: the list and the whole record side by side.
  *
  * Every row is a link to its record, and the whole row can be clicked, as on
- * the customer list of 19.09.2026. The name is a real link inside it, so Tab
- * reaches it, the middle button opens a second tab, and a reader hears where
- * it goes.
+ * the first list of the canvas of 19.09.2026. The name is a real link inside
+ * it, so Tab reaches it, the middle button opens a second tab, and a reader
+ * hears where it goes.
+ *
+ * What a list is of is the screen's that uses it (ADR 0010): the rows, the
+ * columns, where a row leads and what its filters are called.
  */
 
 export interface ListColumn {
@@ -47,7 +53,7 @@ export interface ListColumn {
   readonly wideOnly?: boolean
   /**
    * What follows the link in the first column, outside it: the tags of a
-   * customer, which are not part of where the row leads.
+   * record, which are not part of where the row leads.
    */
   readonly beside?: (row: RecordState) => ReactNode
 }
@@ -60,8 +66,7 @@ export interface ListFilter {
 
 /**
  * A second group of chips after the first, on or off one at a time and
- * narrowing whatever the first chose: Bestandskunde or Neukunde beside the
- * kinds of customer.
+ * narrowing whatever the first chose.
  */
 export interface ListFacets {
   /** What a reader hears the group called. */
@@ -70,7 +75,7 @@ export interface ListFacets {
 }
 
 /**
- * A choice from a list beside the chips, for as many values as a business
+ * A choice from a list beside the chips, for as many values as a tenant
  * makes: the tags. Narrows like a chip, together with every chip that is on.
  */
 export interface ListChoice {
@@ -99,10 +104,10 @@ export interface ListScreenProps {
   readonly caption: string
   readonly rows: readonly RecordState[]
   readonly columns: readonly ListColumn[]
-  /** What the search finds besides the columns: the VAT id of a customer. */
+  /** What the search finds besides the columns: a number that is shown in none. */
   readonly alsoSearched?: (row: RecordState) => string
   readonly hrefFor: (row: RecordState) => string
-  /** Hidden label of the search, "Kunden durchsuchen". */
+  /** Hidden label of the search, what is searched and the word for searching it. */
   readonly searchLabel: string
   readonly searchPlaceholder: string
   /** The chips; "Alle" comes first by itself. */
@@ -113,7 +118,7 @@ export interface ListScreenProps {
   readonly choice?: ListChoice
   /** A choice of order in the row of the search, "Sortiert nach". */
   readonly sorts?: readonly ListSort[]
-  /** The one action of the list, "Neuer Kunde". */
+  /** The one action of the list, which makes a new record. */
   readonly primary?: { readonly label: string; readonly onPress: () => void }
   /** A row as a card, on a phone. */
   readonly card: (row: RecordState) => ReactNode
@@ -744,7 +749,7 @@ function SearchRow({
 /**
  * "Sortiert nach" and the order beside it, as the list boards draw it: the
  * small button with the arrow in front, and still the native list underneath.
- * Also for a list the server pages, the articles (#296).
+ * Also for a list the server pages (#296).
  */
 export function SortChoice({
   options,
@@ -786,7 +791,7 @@ export function SortChoice({
   )
 }
 
-/** A list with nothing in it, `kunden_leer()` of the canvas. */
+/** A list with nothing in it, as the canvas draws the first one of an instance. */
 function EmptyList({
   title,
   searchLabel,
@@ -855,7 +860,7 @@ export function ListCard({
   readonly to: string
   readonly title: ReactNode
   readonly sub?: ReactNode
-  /** Under the line, the tags of a customer. */
+  /** Under the line, the tags of a record. */
   readonly below?: ReactNode
   readonly right?: ReactNode
 }) {

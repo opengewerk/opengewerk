@@ -23,6 +23,8 @@ import {
   useButtonLook,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { date, euros, moment, today } from '@opengewerk/platform-web/format'
+import { NoteBox, PageHead, RecordColumns, Screen } from '@opengewerk/platform-web/office'
 import {
   maybeText,
   text,
@@ -39,7 +41,6 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { DocumentState } from '../../app/document-state.js'
-import { date, euros, moment, today } from '../../app/format.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'
@@ -51,7 +52,6 @@ import {
   pdfAddress,
 } from '../../session/documents.js'
 import type { Assignee } from '../../session/tasks.js'
-import { NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
 import {
   ChainCard,
   documentName,

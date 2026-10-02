@@ -1,20 +1,10 @@
-import { Strip, stripAction } from '@opengewerk/platform-web'
 import { Monitor, Smartphone } from 'lucide-react'
 import { useState } from 'react'
 
-import type { Entry } from '../entry/entry.js'
-import {
-  entryPath,
-  readTraits,
-  rememberedEntry,
-  rememberEntry,
-  suggestionFor,
-} from '../entry/entry.js'
-
-const other: Readonly<Record<Entry, string>> = {
-  office: 'Büroansicht',
-  site: 'Baustellenansicht',
-}
+import { useApplication } from '../application.js'
+import { Strip, stripAction } from '../components/strip.js'
+import type { Entry } from '../components/surface.js'
+import { entryPath, readTraits, rememberedEntry, rememberEntry, suggestionFor } from './entry.js'
 
 /**
  * The offer to switch to the entry point this device actually suits.
@@ -28,8 +18,13 @@ const other: Readonly<Record<Entry, string>> = {
  * two documents. Staying is remembered as well as leaving, so nobody is asked
  * twice: being offered the site app every morning at a desk is how a
  * suggestion becomes something people learn to click away without reading.
+ *
+ * What the two entries are called is the application's (ADR 0010): the second
+ * one is named after where its people work when they are not at a desk. So
+ * both sentences and both links are its own.
  */
 export function EntrySuggestion({ here }: { readonly here: Entry }) {
+  const { entry: sentences } = useApplication().sentences
   const [suggested, setSuggested] = useState(() =>
     suggestionFor(here, readTraits(), rememberedEntry()),
   )
@@ -51,7 +46,7 @@ export function EntrySuggestion({ here }: { readonly here: Entry }) {
               rememberEntry(suggested)
             }}
           >
-            {`Zur ${other[suggested]}`}
+            {sentences.goTo[suggested]}
           </a>
           <button
             type="button"
@@ -66,9 +61,7 @@ export function EntrySuggestion({ here }: { readonly here: Entry }) {
         </>
       }
     >
-      {suggested === 'site'
-        ? 'Das sieht nach einem Gerät für die Baustelle aus.'
-        : 'Das sieht nach einem Arbeitsplatz aus. Im Büro ist mehr zu sehen.'}
+      {sentences.suits[suggested]}
     </Strip>
   )
 }

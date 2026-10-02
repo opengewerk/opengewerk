@@ -12,8 +12,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { officeApplication } from '../office/application.js'
 import { aTenantChoice } from '../session/test-tenants.js'
 import { SyncClient } from '../sync/client.js'
+import { application } from './application.js'
 import { useMay } from './queries.js'
 import { Root } from './root.js'
 
@@ -108,7 +110,7 @@ function Jobs() {
 function start(entry: 'office' | 'site' = 'site') {
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <Root entry={entry}>
+      <Root entry={entry} application={entry === 'office' ? officeApplication : application}>
         <Jobs />
       </Root>
     </QueryClientProvider>,

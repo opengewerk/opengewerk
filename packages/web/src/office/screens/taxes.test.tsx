@@ -5,7 +5,6 @@ import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { InRouter } from '../../app/in-router.js'
 import {
   cashAccountingStatementFrom,
   claimableTransitions,
@@ -15,6 +14,7 @@ import {
   proposedFrom,
   TaxScreen,
 } from './taxes.js'
+import { InRouter } from '../../app/in-router.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**

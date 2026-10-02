@@ -105,10 +105,21 @@ export const tenantsQuery = queryOptions({
  * the right way round.
  */
 export function useRight(right: string): boolean {
+  return useRights().includes(right)
+}
+
+const none: readonly string[] = []
+
+/**
+ * Every right of the person in the tenant they are working in, for a list
+ * that is narrowed by them, as the settings an application lists with the
+ * right each of them takes. Nothing until both answers are there.
+ */
+export function useRights(): readonly string[] {
   const account = useQuery(accountQuery)
   const tenants = useQuery(tenantsQuery)
 
   const here = tenants.data?.find((tenant) => tenant.id === account.data?.tenantId)
 
-  return here ? here.rights.includes(right) : false
+  return here ? here.rights : none
 }

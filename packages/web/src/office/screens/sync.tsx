@@ -1,9 +1,9 @@
 import { Button, Panel } from '@opengewerk/platform-web'
+import { PageHead, RecordColumns, Screen } from '@opengewerk/platform-web/office'
 import { useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { RefreshCw } from 'lucide-react'
 
 import { NothingToDecide, SyncStateCard, useDecisions } from '../../app/conflicts.js'
-import { PageHead, RecordColumns, Screen } from '../kit.js'
 
 /**
  * "Abgleich" in the office, the board "Abgleich und Konflikt" (#219): what is

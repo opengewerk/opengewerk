@@ -1,6 +1,8 @@
 import type { RoleDefinition } from '@opengewerk/domain'
 import { Button, Cell, Column, Confirm, Field, Panel, TablePanel } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { date, moment } from '@opengewerk/platform-web/format'
+import { SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import {
   accountQuery,
   deviceName,
@@ -23,9 +25,7 @@ import { Copy, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { date, moment } from '../../app/format.js'
 import { mailStatus } from '../../session/mail.js'
-import { SettingsPage, SettingsText } from '../settings-frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

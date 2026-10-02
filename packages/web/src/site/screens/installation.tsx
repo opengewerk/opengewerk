@@ -1,5 +1,15 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Panel } from '@opengewerk/platform-web'
+import { date } from '@opengewerk/platform-web/format'
+import {
+  SiteAnchor,
+  SiteFacts,
+  SiteLabel,
+  SiteRow,
+  SiteRows,
+  SiteScreen,
+  SiteText,
+} from '@opengewerk/platform-web/site'
 import {
   maybeText,
   text,
@@ -13,7 +23,7 @@ import { MapPin } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { useBoards } from '../../app/electrical.js'
-import { addressLine, date } from '../../app/format.js'
+import { addressLine } from '../../app/format.js'
 import {
   installationKindLabel,
   installationKindOf,
@@ -22,15 +32,6 @@ import {
 } from '../../app/labels.js'
 import { definitionOf, useProtocols } from '../../app/protocols.js'
 import { SiteHeader } from '../header.js'
-import {
-  SiteAnchor,
-  SiteFacts,
-  SiteLabel,
-  SiteRow,
-  SiteRows,
-  SiteScreen,
-  SiteText,
-} from '../kit.js'
 import { InstallationBoards } from './boards.js'
 import { InstallationInverters, usePvSystemPeak } from './pv.js'
 

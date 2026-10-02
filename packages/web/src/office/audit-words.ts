@@ -19,10 +19,10 @@ import {
 } from '@opengewerk/domain'
 
 import { elektroRegistry } from '@opengewerk/gewerk-elektro'
+import { amount, date, euros, moment } from '@opengewerk/platform-web/format'
 import { deviceName } from '@opengewerk/platform-web/session'
 
 import { documentStateLabel } from '../app/document-state.js'
-import { amount, date, euros, moment } from '../app/format.js'
 import {
   customerKindLabel,
   documentKindLabel,

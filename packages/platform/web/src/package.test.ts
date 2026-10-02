@@ -48,8 +48,12 @@ describe('the interface of the foundation', () => {
     // that pointed at a build would be one nobody makes.
     expect(manifest.exports).toEqual({
       '.': './src/index.ts',
+      './format': './src/format.ts',
       './gate': './src/gate/index.ts',
+      './office': './src/office/index.ts',
       './session': './src/session/index.ts',
+      './shell': './src/shell/index.ts',
+      './site': './src/site/index.ts',
       './sync': './src/sync/index.ts',
       './testing': './src/testing.ts',
       './styles/index.css': './src/styles/index.css',
@@ -146,6 +150,10 @@ describe('what the interface of the foundation knows of an application', () => {
     expect(files).toContain('./session/session.ts')
     expect(files).toContain('./gate/boot.tsx')
     expect(files).toContain('./gate/sign-in.tsx')
+    expect(files).toContain('./office/list.tsx')
+    expect(files).toContain('./site/kit.tsx')
+    expect(files).toContain('./shell/suggestion.tsx')
+    expect(files).toContain('./format.ts')
     expect(files).toContain('./styles/tokens.css')
     expect(files.filter((file) => file.includes('.test.'))).toEqual([])
     expect(files.length).toBeGreaterThanOrEqual(15)

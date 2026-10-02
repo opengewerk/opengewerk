@@ -1,5 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Panel } from '@opengewerk/platform-web'
+import { fileSize } from '@opengewerk/platform-web/format'
 import {
   count,
   maybeText,
@@ -20,7 +21,6 @@ import {
   useVersions,
   versionLine,
 } from '../../app/attachments.js'
-import { fileSize } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 
 /**

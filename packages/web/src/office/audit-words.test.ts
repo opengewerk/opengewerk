@@ -1,7 +1,7 @@
 import type { AuditChange, AuditPage } from '@opengewerk/domain'
+import { euros } from '@opengewerk/platform-web/format'
 import { describe, expect, it } from 'vitest'
 
-import { euros } from '../app/format.js'
 import { auditValue, changeSummary, deviceWords, recordKind, recordTitle } from './audit-words.js'
 
 /**

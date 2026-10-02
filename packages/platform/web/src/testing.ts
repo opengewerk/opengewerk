@@ -12,6 +12,10 @@ export type { TokenUsage, TokenUsageOptions } from './styles/usage.js'
 // outbox.
 export { TestServer } from './sync/test-server.js'
 
+// A router around one screen, for a test that renders a screen and not a
+// whole entry.
+export { InRouter } from './in-router.js'
+
 /** The design tokens as text, the way the checks of colours and classes read them. */
 export const designTokens: string = tokens
 

@@ -1,11 +1,11 @@
 import { accessProblem, type RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel } from '@opengewerk/platform-web'
+import { clockTime } from '@opengewerk/platform-web/format'
 import { RequestRefused, maybeText, text, useRelated, useSync } from '@opengewerk/platform-web/sync'
 import { Check, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { clockTime } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
   changeAccess,

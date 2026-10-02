@@ -38,7 +38,18 @@ import {
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
 import {
+  amount,
+  centsAsInput,
+  date,
+  euros,
+  largestStored,
+  parseEuros,
+  parseQuantity,
+  percent,
+} from '@opengewerk/platform-web/format'
+import {
   RequestRefused,
+  asTextOrNull,
   count,
   maybeText,
   refusalFor,
@@ -55,16 +66,6 @@ import { Fragment, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import {
-  amount,
-  centsAsInput,
-  date,
-  euros,
-  largestStored,
-  parseEuros,
-  parseQuantity,
-  percent,
-} from '../../app/format.js'
-import {
   documentKindOf,
   lineKindOf,
   lineUnitLabel,
@@ -76,7 +77,6 @@ import {
   vatRateLabel,
   vatRateOf,
 } from '../../app/labels.js'
-import { asTextOrNull } from '../../app/record-form.js'
 import { deductionsOf } from '../../session/documents.js'
 import { ArticlePicker } from './article-picker.js'
 import { Reorder } from './boards.js'

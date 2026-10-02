@@ -8,9 +8,12 @@ import {
   Panel,
   TablePanel,
   ThemeSwitch,
+  useTheme,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { moment } from '@opengewerk/platform-web/format'
 import { SecondFactorSetup, SignOutButton } from '@opengewerk/platform-web/gate'
+import { PageHead, Saved, Screen, SettingsText } from '@opengewerk/platform-web/office'
 import {
   accountQuery,
   changePassword,
@@ -28,15 +31,11 @@ import { Key, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { moment } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
-import { useTheme } from '../../app/theme.js'
 import { createOwnTenant } from '../../session/instance.js'
 import { switchBusiness, useBusinesses } from '../businesses.js'
-import { PageHead, Screen } from '../kit.js'
 import { PasskeysPanel } from './account-passkeys.js'
 import { PushPanel } from './account-push.js'
-import { Saved, SettingsText } from '../settings-frame.js'
 
 /**
  * What somebody can look after about their own account: the second factor,

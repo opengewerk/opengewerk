@@ -8,13 +8,14 @@ import {
   SelectField,
   TablePanel,
 } from '@opengewerk/platform-web'
+import { date, today } from '@opengewerk/platform-web/format'
+import { Chip, Empty, FilterSelect, PageHead, Screen } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, RotateCcw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
-import { date, today } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'
 import {
@@ -27,7 +28,6 @@ import {
   markDeadlineDone,
   reopenDeadline,
 } from '../../session/deadlines.js'
-import { Chip, Empty, FilterSelect, PageHead, Screen } from '../kit.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback

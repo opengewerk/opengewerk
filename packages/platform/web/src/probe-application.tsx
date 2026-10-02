@@ -1,5 +1,6 @@
 import { syncRules } from '@opengewerk/platform-domain'
 import { probePolicies } from '@opengewerk/platform-domain/testing'
+import { Archive, KeyRound, StickyNote } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { ApplicationProvider } from './application.js'
@@ -31,6 +32,33 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
     licence: 'Probelizenz 1.0',
     tenantNameMaxLength: 40,
 
+    // One for whoever reads notes, one for whoever leads, one for everybody.
+    settings: [
+      {
+        key: 'regale',
+        to: '/einstellungen/regale',
+        title: 'Regale',
+        about: 'Wie die Regale eines Mandanten heißen.',
+        icon: Archive,
+        right: 'shelf.settings',
+      },
+      {
+        key: 'zugaenge',
+        to: '/einstellungen/zugaenge',
+        title: 'Zugänge',
+        about: 'Wer in diesem Mandanten arbeitet.',
+        icon: KeyRound,
+        right: 'membership.read',
+      },
+      {
+        key: 'notizen',
+        to: '/einstellungen/notizen',
+        title: 'Notizen',
+        about: 'Was eine Notiz festhält.',
+        icon: StickyNote,
+      },
+    ],
+
     sentences: {
       signIn: {
         resetSent:
@@ -56,6 +84,21 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         tenantLabel: 'Mandant',
         tenantHint: 'So wie der Mandant heißen soll.',
         create: 'Mandant anlegen',
+      },
+      settings: {
+        whose: 'Dieser Mandant',
+        what: 'Was dieser Mandant für sich festlegt.',
+        belongsToTheAccount: 'Das Passwort gehört nicht dem Mandanten, sondern dem Konto.',
+      },
+      entry: {
+        suits: {
+          office: 'Das sieht nach einem Schreibtisch aus.',
+          site: 'Das sieht nach einem Gerät für unterwegs aus.',
+        },
+        goTo: {
+          office: 'Zum Schreibtisch',
+          site: 'Zur Ansicht für unterwegs',
+        },
       },
       invitation: {
         spent: {

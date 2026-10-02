@@ -5,10 +5,10 @@ import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 /**
- * The pieces the boards of the page "Baustelle" are built from (#219), as
- * `baustelle.py` of the canvas draws them: 17 pixels of text, rows a thumb
- * hits, small capitals over what a value is. The cards themselves are
- * `Panel`, which draws them for the site on its own.
+ * The pieces the boards of the site are built from (#219), as the canvas
+ * draws them: 17 pixels of text, rows a thumb hits, small capitals over what
+ * a value is. The cards themselves are `Panel`, which draws them for the site
+ * on its own.
  */
 
 /** The content of a screen on site: 16 pixels from the edges, the cards 12 apart. */
@@ -31,7 +31,7 @@ export function SiteScreen({
   )
 }
 
-/** Small capitals over a group inside a card, `slabel()` at 13 pixels: "Beim Kunden". */
+/** Small capitals over a group inside a card, `slabel()` at 13 pixels. */
 export function SiteLabel({
   children,
   className,
@@ -88,7 +88,7 @@ const linkLook =
 
 /**
  * A link in the copper for text, `alink()`: an address to navigate to, a
- * number to dial, a job to open. Underlined, because colour alone does not
+ * number to dial, a record to open. Underlined, because colour alone does not
  * say link to everybody.
  */
 export function SiteAnchor({

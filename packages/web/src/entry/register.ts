@@ -1,6 +1,5 @@
+import { offerUpdate } from '@opengewerk/platform-web/shell'
 import { registerSW } from 'virtual:pwa-register'
-
-import { offerUpdate } from '../app/updates.js'
 
 /**
  * Registers the service worker and, when a new build arrives, offers it.

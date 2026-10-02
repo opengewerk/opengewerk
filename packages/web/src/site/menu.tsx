@@ -1,12 +1,11 @@
-import { ThemeSwitch } from '@opengewerk/platform-web'
+import { ThemeSwitch, useTheme } from '@opengewerk/platform-web'
 import { SignOutButton } from '@opengewerk/platform-web/gate'
 import { useWho } from '@opengewerk/platform-web/session'
+import { entryPath, rememberEntry } from '@opengewerk/platform-web/shell'
 import { useSync } from '@opengewerk/platform-web/sync'
 import { Monitor, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
-import { useTheme } from '../app/theme.js'
-import { entryPath, rememberEntry } from '../entry/entry.js'
 import { SitePush } from './push.js'
 
 /**

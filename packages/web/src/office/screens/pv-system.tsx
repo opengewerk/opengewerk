@@ -2,6 +2,7 @@ import type { RecordState } from '@opengewerk/domain'
 import { inverterPowerText, inverterProblems } from '@opengewerk/domain'
 import { Button, Panel } from '@opengewerk/platform-web'
 import { refusalFor, text, useRecords, useSync } from '@opengewerk/platform-web/sync'
+import type { FormField } from '@opengewerk/platform-web/sync'
 import { Link } from '@tanstack/react-router'
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -20,7 +21,6 @@ import {
   useSystemModules,
 } from '../../app/photovoltaic.js'
 import { useMay } from '../../app/queries.js'
-import type { FormField } from '../../app/record-form.js'
 import { SmallIcon } from './boards.js'
 import { Entries } from './pv-structure.js'
 

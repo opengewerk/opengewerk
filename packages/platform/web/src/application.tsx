@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react'
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 
@@ -34,6 +35,11 @@ export interface InterfaceApplication {
   readonly tenantNameMaxLength: number
   readonly sentences: InterfaceSentences
   /**
+   * The screens a tenant sets itself up with, in the order they are listed:
+   * beside every one of them at a desk, and as tiles on the overview.
+   */
+  readonly settings: readonly SettingsEntry[]
+  /**
    * Starts the sync client of the application for the tenant whose store this
    * is: with the rules made from its policies, the kinds of record it has a
    * screen for, and the way to the server its entry takes.
@@ -51,6 +57,23 @@ export interface InterfaceApplication {
    * does or fails to do, the sign out goes on.
    */
   readonly beforeSignOut?: () => Promise<unknown>
+}
+
+/** One screen of the settings: where it is, what it is called, what it is for. */
+export interface SettingsEntry {
+  /** What a screen names itself with, to be the one that is lit. */
+  readonly key: string
+  readonly to: string
+  readonly title: string
+  /** One sentence on the overview: what is set there. */
+  readonly about: string
+  readonly icon: LucideIcon
+  /**
+   * The right it takes to read the screen. Whoever lacks it is not shown the
+   * entry; an entry without one is shown to everybody. A name out of the
+   * catalogue of the application: to the foundation a right is a string.
+   */
+  readonly right?: string
 }
 
 /** What the gate hands an application to start its sync client with. */
@@ -129,6 +152,26 @@ export interface InterfaceSentences {
     readonly tenantHint: string
     /** The button that sets up. */
     readonly create: string
+  }
+  readonly settings: {
+    /** Over the list beside every settings screen: whose settings these are. */
+    readonly whose: string
+    /** Under the title of the overview: what the settings are. */
+    readonly what: string
+    /**
+     * At the foot of the overview: what is not the tenant's to set but the
+     * account's. The foundation adds where that is found.
+     */
+    readonly belongsToTheAccount: string
+  }
+  readonly entry: {
+    /**
+     * Over a screen opened on a device the other entry suits better: what the
+     * device looks like, for each of the two.
+     */
+    readonly suits: Readonly<Record<Entry, string>>
+    /** And the link that leads to that entry. */
+    readonly goTo: Readonly<Record<Entry, string>>
   }
   readonly invitation: {
     /** Why a link is no longer good, and who to turn to, for each way it can end. */

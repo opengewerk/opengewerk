@@ -12,6 +12,19 @@ import {
   cardLink,
 } from '@opengewerk/platform-web'
 import {
+  Empty,
+  FactList,
+  ListCard,
+  ListScreen,
+  NoteBox,
+  PageHead,
+  RecordColumns,
+  Screen,
+  lastChanged,
+} from '@opengewerk/platform-web/office'
+import type { ListColumn } from '@opengewerk/platform-web/office'
+import {
+  asTextOrNull,
   maybeText,
   refusalFor,
   text,
@@ -29,15 +42,11 @@ import { type FormEvent, type ReactNode, useState } from 'react'
 import { addressLine, countryOptions } from '../../app/format.js'
 import { lineUnitShort } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { asTextOrNull } from '../../app/record-form.js'
 import {
   supplierArticleCounts,
   type SupplierArticlePage,
   supplierArticles,
 } from '../../session/articles.js'
-import { Empty, FactList, NoteBox, PageHead, RecordColumns, Screen } from '../kit.js'
-import { lastChanged, ListCard, ListScreen } from '../list.js'
-import type { ListColumn } from '../list.js'
 import { Frequent, PageFooter, pageSize, PriceWithBase, saidWhy } from './articles.js'
 import { ChangesButton } from './audit-log.js'
 import { ContactsSection } from './contacts.js'

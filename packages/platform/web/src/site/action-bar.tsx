@@ -4,10 +4,9 @@ import { createPortal } from 'react-dom'
 
 /**
  * Where the bar at the foot of a screen goes: a place in the shell above the
- * tabs, as the boards of a form on site draw it, "Regiebericht schreiben",
- * "Zeit nachtragen", "Stromkreis, Angaben ergänzen". A screen with such a bar
- * has no tabs under it on a phone; the shell hides them while the bar is
- * there, by asking the page and not by keeping count.
+ * tabs, as the boards of a form on site draw it. A screen with such a bar has
+ * no tabs under it on a phone; the shell hides them while the bar is there,
+ * by asking the page and not by keeping count.
  */
 const ActionSlot = createContext<HTMLElement | null>(null)
 
@@ -28,7 +27,7 @@ export function SiteActionBar({
 }: {
   readonly children: ReactNode
   readonly note?: ReactNode
-  /** One button over the other, as "Unterschreiben" over "Zurück zum Bericht". */
+  /** One button over the other, the one that goes on over the one that goes back. */
   readonly stacked?: boolean
 }) {
   const slot = useContext(ActionSlot)
@@ -49,8 +48,8 @@ export function SiteActionBar({
 
 /**
  * No bar and no tabs either, for a step of a flow that the board draws
- * without both, "Material eintragen": the tabs would come and go between two
- * steps of the same report otherwise.
+ * without both: the tabs would come and go between two steps of the same
+ * flow otherwise.
  */
 export function SiteNoTabs() {
   const slot = useContext(ActionSlot)
