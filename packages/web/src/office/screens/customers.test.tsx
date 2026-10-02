@@ -17,6 +17,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { CustomerList, CustomerScreen, NewCustomerScreen } from './customers.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The customers as the canvas draws them (#219): the list at every width of
@@ -113,7 +114,7 @@ beforeEach(() => {
           session: { activeTenantId: 't-1' },
         },
       ],
-      ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
+      ['/auth/tenants', [aTenantChoice(['office'])]],
     ])
 
     return Promise.resolve(

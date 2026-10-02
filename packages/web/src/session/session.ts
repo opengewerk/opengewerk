@@ -1,4 +1,11 @@
-import { isSignInMethod, type RoleKey, type SignInMethod, type TenantId } from '@opengewerk/domain'
+import {
+  isSignInMethod,
+  type Permission,
+  type RoleDefinition,
+  type SignInMethod,
+  type TenantChoice as ChoiceOf,
+  type TenantId,
+} from '@opengewerk/domain'
 
 import { request } from '../sync/transport.js'
 import {
@@ -56,11 +63,13 @@ export interface Account {
   readonly signInMethod: SignInMethod
 }
 
-export interface TenantChoice {
-  readonly id: TenantId
-  readonly name: string
-  readonly roles: readonly RoleKey[]
-}
+/**
+ * One of the businesses this account works in, as the server tells it: the
+ * keys of the roles, what the business calls them, and the rights they add up
+ * to there at the moment of asking (ADR 0010). The screens decide by these
+ * rights what to offer, which are the ones the guard asks on every request.
+ */
+export type TenantChoice = ChoiceOf<Permission>
 
 export interface DeviceEntry {
   readonly sessionId: string
@@ -285,10 +294,10 @@ export async function newRecoveryCodes(password: string): Promise<readonly strin
 }
 
 /**
- * The businesses of this account and its roles in each. Without a network,
- * the ones kept from the last answer (#184), so that a device opened in a
- * basement shows the screens its roles allow; the server decides again at the
- * first request that reaches it, as with the account.
+ * The businesses of this account and what its roles add up to in each.
+ * Without a network, the ones kept from the last answer (#184), so that a
+ * device opened in a basement shows the screens its rights allow; the server
+ * decides again at the first request that reaches it, as with the account.
  */
 export async function availableTenants(): Promise<readonly TenantChoice[]> {
   try {
@@ -352,7 +361,8 @@ export interface StaffEntry {
   readonly userId: string
   readonly name: string
   readonly email: string
-  readonly roles: readonly RoleKey[]
+  /** The keys of the roles, as the business has them (`staffRoles`). */
+  readonly roles: readonly string[]
   /** Null while they work here, a moment in time once they were shut out. */
   readonly blockedAt: string | null
   /** When this business last saw them start work, not the instance. */
@@ -373,7 +383,7 @@ export interface InvitationEntry {
   readonly id: string
   readonly email: string
   readonly name: string
-  readonly roles: readonly RoleKey[]
+  readonly roles: readonly string[]
   readonly expiresAt: string
   readonly invitedBy: string
   /** Null for a link the office passed on itself. */
@@ -382,6 +392,17 @@ export interface InvitationEntry {
 
 export function staff(): Promise<readonly StaffEntry[]> {
   return request<readonly StaffEntry[]>('/staff')
+}
+
+/**
+ * The roles this business has, in the order it made them: what the screen
+ * offers when somebody is invited or given a role, what it calls them, and
+ * which of them ask for a second factor. From the rows of the business and
+ * not from a list in this code, because those are the roles the server
+ * accepts.
+ */
+export function staffRoles(): Promise<readonly RoleDefinition[]> {
+  return request<readonly RoleDefinition[]>('/staff/roles')
 }
 
 export function openInvitations(): Promise<readonly InvitationEntry[]> {
@@ -402,7 +423,7 @@ export function openInvitations(): Promise<readonly InvitationEntry[]> {
 export async function invite(wanted: {
   readonly email: string
   readonly name: string
-  readonly roles: readonly RoleKey[]
+  readonly roles: readonly string[]
   readonly send: 'link' | 'mail'
 }): Promise<{ link: string | null; expiresAt: string }> {
   const answer = await request<{ token: string | null; expiresAt: string }>('/staff', {
@@ -423,7 +444,7 @@ export async function withdrawInvitation(invitationId: string): Promise<void> {
   await request(`/staff/invitations/${encodeURIComponent(invitationId)}`, { method: 'DELETE' })
 }
 
-export async function setRoles(userId: string, roles: readonly RoleKey[]): Promise<void> {
+export async function setRoles(userId: string, roles: readonly string[]): Promise<void> {
   await request(`/staff/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     body: JSON.stringify({ roles }),

@@ -12,6 +12,7 @@ import {
   distributionBoardKindLabel,
   type NumberRangeKey,
   overcurrentDeviceLabel,
+  permissionLabel,
   quietAuditFields,
   rcdTypeLabel,
   tripCharacteristicLabel,
@@ -219,6 +220,20 @@ export function auditValue(
     const keys = keysOf(raw)
 
     return keys ? keys.map((key) => (documentKindLabel as Words)[key] ?? key).join(', ') : raw
+  }
+
+  // What a role may do (ADR 0010), in the words a refusal uses for a right.
+  // One this version does not know stays as it is written.
+  if (table === 'tenant_roles' && field === 'rights') {
+    const keys = keysOf(raw)
+
+    if (!keys) {
+      return raw
+    }
+
+    return keys.length === 0
+      ? null
+      : keys.map((key) => (permissionLabel as Words)[key] ?? key).join(', ')
   }
 
   // The settings of the instance (#188): a list of servers, and a time the

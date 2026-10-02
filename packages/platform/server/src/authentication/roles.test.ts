@@ -1,4 +1,9 @@
-import { accessRights, type TenantId } from '@opengewerk/platform-domain'
+import {
+  accessRights,
+  type RoleDefinition,
+  type TenantChoice,
+  type TenantId,
+} from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -468,6 +473,172 @@ describe('whoever leads a tenant', () => {
       .set('origin', origin)
       .send({ roles: ['member'] })
       .expect(200)
+  })
+})
+
+describe('what a screen is told', () => {
+  /** The tenants somebody may work in, as the route before the choice answers. */
+  async function choicesOf(cookies: string): Promise<Record<string, TenantChoice>> {
+    const answer = await http().get('/auth/tenants').set('cookie', cookies).expect(200)
+
+    return Object.fromEntries((answer.body as TenantChoice[]).map((choice) => [choice.id, choice]))
+  }
+
+  /**
+   * The list of somebody's tenants carries what their roles add up to in
+   * each, resolved from the rows of that tenant. A screen decides by it what
+   * to offer, so it has to be the same answer the guard gives, and it has to
+   * be there before a tenant is chosen: it is what the chooser shows.
+   */
+  it('is, for each tenant, what the rows of that tenant say', async () => {
+    // Gus looks on in the north and keeps the door in the south, in a role
+    // only the south has.
+    await admin.query('insert into memberships (tenant_id, user_id, roles) values ($1, $2, $3)', [
+      south.id,
+      idOf(gus),
+      ['porter'],
+    ])
+    await setRole(south.id, 'porter', { rights: ['members.read', 'notes.write'] })
+
+    const asGus = await visitors.signIn(gus.email)
+
+    expect(await choicesOf(asGus)).toEqual({
+      [north.id]: {
+        id: north.id,
+        name: north.name,
+        roles: ['guest'],
+        roleLabels: ['Gast'],
+        rights: ['members.read'],
+        secondFactor: false,
+      },
+      [south.id]: {
+        id: south.id,
+        name: south.name,
+        roles: ['porter'],
+        roleLabels: ['Pforte'],
+        rights: ['members.read', 'notes.write'],
+        secondFactor: false,
+      },
+    })
+  })
+
+  /**
+   * At the next question, like the identity of a request. A right the
+   * catalogue does not know is left out here as well, and a second factor a
+   * role asks for is said: this route answers without one, which is what
+   * leads a screen to the setup instead of into a wall.
+   */
+  it('follows the rows at the next question', async () => {
+    const asGus = await visitors.signIn(gus.email)
+
+    await setRole(north.id, 'guest', {
+      rights: ['members.read', 'notes.write', 'shelf.burn'],
+      secondFactor: true,
+    })
+
+    expect((await choicesOf(asGus))[north.id]).toMatchObject({
+      rights: ['members.read', 'notes.write'],
+      secondFactor: true,
+    })
+
+    await setRole(north.id, 'guest', { rights: ['members.read'], secondFactor: false })
+
+    expect((await choicesOf(asGus))[north.id]).toMatchObject({
+      rights: ['members.read'],
+      secondFactor: false,
+    })
+  })
+
+  /**
+   * The keys as the membership names them, the names in the order the tenant
+   * made the roles, and nothing for a key without a row.
+   */
+  it('names the roles the tenant has a row for, and no other', async () => {
+    await setRolesOf(north.id, gus, ['ghost', 'scribe', 'guest', 'member'])
+
+    const asGus = await visitors.signIn(gus.email)
+
+    expect((await choicesOf(asGus))[north.id]).toMatchObject({
+      roles: ['ghost', 'scribe', 'guest', 'member'],
+      // Not the order of the keys in the membership, and not the alphabet.
+      roleLabels: ['Mitglied', 'Gast', 'Schreibkraft'],
+      rights: ['members.read', 'notes.write'],
+    })
+
+    await setRolesOf(north.id, gus, ['guest'])
+  })
+
+  it('counts the administration among the rights of whoever leads', async () => {
+    await setRole(north.id, 'lead', { rights: ['members.read'] })
+
+    const asLea = await visitors.signIn(lea.email)
+    const inNorth = (await choicesOf(asLea))[north.id]
+
+    expect(inNorth?.rights).toEqual([accessRights.read, accessRights.write, 'members.read'])
+    expect(inNorth?.secondFactor).toBe(true)
+
+    await setRole(north.id, 'lead', { rights: probeRoles[0]?.rights ?? [] })
+  })
+
+  /**
+   * The point of the whole answer: what a screen is told is what the guard
+   * then decides by, in whichever tenant the session works.
+   */
+  it('is what the identity of a request carries, in each tenant', async () => {
+    const asGus = await visitors.workIn(gus.email, north.id)
+    const choices = await choicesOf(asGus)
+
+    expect(choices[north.id]?.rights).toEqual((await carriedBy(asGus)).rights)
+
+    await instance.chooseTenant(asGus, south.id)
+
+    expect(choices[south.id]?.rights).toEqual((await carriedBy(asGus)).rights)
+    // And the two differ, so the comparison says something.
+    expect(choices[south.id]?.rights).not.toEqual(choices[north.id]?.rights)
+  })
+})
+
+describe('the roles a tenant has', () => {
+  async function listedFor(cookies: string): Promise<RoleDefinition[]> {
+    const answer = await http().get('/staff/roles').set('cookie', cookies).expect(200)
+
+    return answer.body as RoleDefinition[]
+  }
+
+  /**
+   * What a screen offers when somebody is invited or given a role. From the
+   * rows, the roles the tenant made for itself included, because those are
+   * the roles the routes beside this one accept.
+   */
+  it('are listed for whoever administers it, in the order it made them', async () => {
+    const asLea = await visitors.workIn(lea.email, north.id)
+    const listed = await listedFor(asLea)
+
+    expect(listed.map((role) => role.key)).toEqual(['lead', 'member', 'guest', 'scribe', 'chief'])
+    expect(listed[0]).toEqual(probeRoles[0])
+    expect(listed[3]).toEqual({
+      key: 'scribe',
+      label: 'Schreibkraft',
+      rights: ['notes.write'],
+      leads: false,
+      secondFactor: false,
+    })
+    expect(listed[4]).toMatchObject({ key: 'chief', leads: true })
+  })
+
+  it('and for nobody else, nor from the tenant next door', async () => {
+    const asMia = await visitors.workIn(mia.email, north.id)
+
+    await http().get('/staff/roles').set('cookie', asMia).expect(403)
+
+    const asSven = await visitors.workIn(sven.email, south.id)
+
+    expect((await listedFor(asSven)).map((role) => role.key)).toEqual([
+      'lead',
+      'member',
+      'guest',
+      'porter',
+    ])
   })
 })
 

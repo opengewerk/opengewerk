@@ -9,7 +9,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common'
-import type { TenantId } from '@opengewerk/platform-domain'
+import type { TenantChoice, TenantId } from '@opengewerk/platform-domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { RequiresSession } from '../api/authorization.js'
@@ -19,14 +19,8 @@ import { Database } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
 import { authSessions, memberships, tenants, tenantSessions } from '../schema.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
+import { rolesHeld } from './roles.js'
 import { sessionLifetimes } from './session-lifetime.js'
-
-/** One of the tenants somebody may work in. */
-interface TenantChoice {
-  readonly id: TenantId
-  readonly name: string
-  readonly roles: readonly string[]
-}
 
 /** One signed in device, as the person whose device it is sees it. */
 interface DeviceEntry {
@@ -52,7 +46,7 @@ interface DeviceEntry {
 export class AuthenticationController {
   constructor(
     private readonly database: Database,
-    @Inject(ACCESS_RULES) private readonly access: Pick<AccessRules, 'sentences'>,
+    @Inject(ACCESS_RULES) private readonly access: Pick<AccessRules, 'sentences' | 'catalogue'>,
   ) {}
 
   /**
@@ -67,11 +61,21 @@ export class AuthenticationController {
    * refused. Offering it would mean a chooser with an entry that answers 403
    * to every click, and the sentence that explains why belongs to whoever did
    * the blocking, not to a screen that can only guess.
+   *
+   * With each tenant comes what the roles of the membership add up to there
+   * (ADR 0010): the rights a screen decides its entries by, what the tenant
+   * calls the roles, and whether one of them asks for a second factor. It is
+   * resolved the way the identity of a request is, from the rows of the
+   * tenant through the catalogue of the application, so that a screen and the
+   * guard never hold two opinions about a role a tenant changed. The roles of
+   * a tenant are visible only inside it, so each one is entered for the
+   * question; the memberships read a moment before are what says this person
+   * may ask it.
    */
   @Get('tenants')
   @RequiresSession()
   async availableTenants(@CurrentUser() user: SignedInUser): Promise<TenantChoice[]> {
-    return this.database.forInstance(
+    const worksIn = await this.database.forInstance(
       (tx) =>
         tx
           .select({
@@ -84,6 +88,27 @@ export class AuthenticationController {
           .where(and(eq(memberships.userId, user.userId), isNull(memberships.blockedAt))),
       user.userId,
     )
+
+    const choices: TenantChoice[] = []
+
+    for (const tenant of worksIn) {
+      const held = await this.database.forTenant(
+        { tenantId: tenant.id, userId: user.userId },
+        (tx) => rolesHeld(tx, tenant.id, tenant.roles),
+      )
+      const sum = this.access.catalogue.sumOf(held)
+
+      choices.push({
+        id: tenant.id,
+        name: tenant.name,
+        roles: tenant.roles,
+        roleLabels: held.map((role) => role.label),
+        rights: sum.rights,
+        secondFactor: sum.secondFactor,
+      })
+    }
+
+    return choices
   }
 
   /**

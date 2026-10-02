@@ -24,6 +24,7 @@ import {
   EditArticleScreen,
   NewArticleScreen,
 } from './articles.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The catalogue in the office (#296): the list page by page from the server,
@@ -55,7 +56,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'britta@nord.example.de', name: 'Britta Büro' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', /^\/auth\/tenants$/, [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('GET', /^\/auth\/tenants$/, [aTenantChoice(roles)])
 }
 
 function makeRouter(path: string) {

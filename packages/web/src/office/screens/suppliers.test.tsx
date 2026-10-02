@@ -19,6 +19,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { EditSupplierScreen, NewSupplierScreen, SupplierList, SupplierScreen } from './suppliers.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The suppliers in the office (#296), as the boards `lieferanten_liste()`,
@@ -80,7 +81,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'britta@nord.example.de', name: 'Britta Büro' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', /^\/auth\/tenants$/, [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('GET', /^\/auth\/tenants$/, [aTenantChoice(roles)])
 }
 
 function makeRouter(path: string) {

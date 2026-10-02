@@ -19,6 +19,7 @@ import { openLocalStore } from '../sync/store.js'
 import { TestServer } from '../sync/test-server.js'
 import { SiteHeader } from './header.js'
 import { SiteShell } from './shell.js'
+import { aTenantChoice } from '../session/test-tenants.js'
 
 /**
  * The shell of the site as the boards draw it (#217): tabs at the bottom, a
@@ -96,7 +97,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['technician'] }]],
+    ['/auth/tenants', [aTenantChoice(['technician'])]],
   ])
   vi.stubGlobal('fetch', (path: string) =>
     Promise.resolve(

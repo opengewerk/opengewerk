@@ -19,6 +19,7 @@ import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { InstallationScreen } from './installations.js'
 import { BoardScreen, CircuitScreen } from './structure.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * #70 in the office: a board written down with its sections and circuits,
@@ -174,7 +175,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['office'] }]],
+    ['/auth/tenants', [aTenantChoice(['office'])]],
   ])
 
   vi.stubGlobal('fetch', (path: string) =>

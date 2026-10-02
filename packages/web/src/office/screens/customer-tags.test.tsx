@@ -18,6 +18,7 @@ import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { CustomerList, CustomerScreen, EditCustomerScreen } from './customers.js'
 import { SiteScreen } from './sites.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The tags at customers and sites (#314), as the boards "Kunden, nach einem
@@ -177,7 +178,7 @@ beforeEach(() => {
           session: { activeTenantId: 't-1' },
         },
       ],
-      ['GET /auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }]],
+      ['GET /auth/tenants', [aTenantChoice(roles)]],
     ])
     const key = `${method} ${path}`
     const put = method === 'PUT' && path.endsWith('/tags')

@@ -11,7 +11,7 @@ import {
   Put,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import { accessRights } from '@opengewerk/platform-domain'
+import { accessRights, type RoleDefinition } from '@opengewerk/platform-domain'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { pick, requireFields } from '../api/body.js'
@@ -33,6 +33,7 @@ import {
   type StaffEntry,
 } from './administration.js'
 import { INVITATION_MAILING, type InvitationMailing } from './invitation-mailing.js'
+import { rolesOfTenant } from './roles.js'
 
 /**
  * Who works in this tenant, for whoever administers it.
@@ -125,6 +126,22 @@ export class StaffController {
     await sender?.send(identity, issued.id)
 
     return issued
+  }
+
+  /**
+   * The roles this tenant has, in the order it made them: what a screen
+   * offers when somebody is invited or given a role, what it calls them, and
+   * which of them ask for a second factor.
+   *
+   * From the rows and not from a list in the code, for the reason the routes
+   * beside this one check against the rows: a role is what the tenant has a
+   * row for, and a screen that offered anything else would offer what the
+   * server refuses.
+   */
+  @Get('roles')
+  @RequiresPermission(accessRights.read)
+  roles(@CurrentIdentity() identity: RequestIdentity): Promise<RoleDefinition[]> {
+    return this.database.forTenant(identity, (tx) => rolesOfTenant(tx, identity.tenantId))
   }
 
   /** The links of this tenant that can still be used. */

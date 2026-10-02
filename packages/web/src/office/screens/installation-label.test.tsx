@@ -11,6 +11,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { LabelPanel } from './installation-label.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The card "QR-Etikett" in the office (#308), the boards "Anlagenakte mit
@@ -98,7 +99,7 @@ beforeEach(() => {
     }
 
     if (key === 'GET /auth/tenants') {
-      return answer([{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+      return answer([aTenantChoice(roles)])
     }
 
     if (key === 'POST /installations/i-1/labels') {

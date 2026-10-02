@@ -22,6 +22,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { JobTime, SiteTimeEntryScreen, SiteTimeScreen, StopwatchBar } from './time.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The working time of #76 on screen: started at a job and stopped into one
@@ -50,7 +51,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'max@nord.example.de', name: 'Max' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 /** A moment on the 21st of September 2026, in Germany. */

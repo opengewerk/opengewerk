@@ -590,7 +590,7 @@ function BusinessesPanel() {
                   {tenant.name}
                 </span>
                 <span className="block text-[12px] text-ink-faint">
-                  {rolesInWords(tenant.roles)}
+                  {rolesInWords(tenant.roleLabels)}
                 </span>
               </span>
               {tenant.id === current ? (

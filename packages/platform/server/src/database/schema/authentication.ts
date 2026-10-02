@@ -51,8 +51,9 @@ export const authUsers = pgTable(
     image: text('image'),
     /**
      * Whether a second factor is set up. Whether one is *required* is not
-     * stored: it follows from the roles of the membership, so that it cannot
-     * be switched off for an owner (ADR 0006, `requiresSecondFactor`).
+     * stored here: it follows from the roles of the membership, from the
+     * flag in the row of each (`tenant_roles.second_factor`), so that it
+     * cannot be switched off for an account (ADR 0006).
      */
     twoFactorEnabled: boolean('two_factor_enabled').default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

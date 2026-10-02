@@ -67,6 +67,18 @@ describe('the values of the change log', () => {
     expect(auditValue('number_ranges', 'key', 'invoice', page)).toBe('Rechnungen')
   })
 
+  it('writes what a role may do in the words of the rights', () => {
+    expect(auditValue('tenant_roles', 'rights', '{customer.read,job.progress}', page)).toBe(
+      'Kunden ansehen, Aufträge abschließen und Notizen schreiben',
+    )
+    // A right another version wrote stays readable, and no right is no value.
+    expect(auditValue('tenant_roles', 'rights', '["customer.read","shelf.burn"]', page)).toBe(
+      'Kunden ansehen, shelf.burn',
+    )
+    expect(auditValue('tenant_roles', 'rights', '{}', page)).toBeNull()
+    expect(auditValue('tenant_roles', 'leads', 'true', page)).toBe('Ja')
+  })
+
   it('writes roles in either form the database keeps a list', () => {
     expect(auditValue('memberships', 'roles', '["owner","office"]', page)).toBe('Inhaber, Büro')
     expect(auditValue('memberships', 'roles', '{technician}', page)).toBe('Monteur')

@@ -12,6 +12,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { TagsScreen } from './tags.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * "Tags" under the settings (#314), the board `Einst-Tags`: every tag with the
@@ -39,7 +40,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'buero@nord.example.de', name: 'Beate Büro' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('GET', '/auth/tenants', [aTenantChoice(roles)])
 }
 
 async function mount() {

@@ -8,7 +8,7 @@ import { Button, Field } from '../components/index.js'
 import { RequestRefused } from '../sync/transport.js'
 import type { Entry } from '../entry/entry.js'
 import { Gate, GateText } from './gate.js'
-import { roleLabel } from './labels.js'
+import { rolesInWords } from './labels.js'
 import { SignOutButton } from './sign-out.js'
 import { passkeysSupported, passkeyTrouble, signInWithPasskey } from './../session/passkeys.js'
 import {
@@ -430,7 +430,7 @@ export function TenantScreen({
             >
               <span className="text-[16px] font-semibold">{tenant.name}</span>
               <span className="font-condensed text-[13px] font-semibold tracking-[0.8px] text-ink-faint uppercase">
-                {tenant.roles.map((role) => roleLabel[role]).join(', ')}
+                {rolesInWords(tenant.roleLabels)}
               </span>
             </button>
           </li>

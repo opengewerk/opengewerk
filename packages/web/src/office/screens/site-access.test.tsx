@@ -18,6 +18,7 @@ import { SyncProvider } from '../../sync/provider.js'
 import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { SiteScreen } from './sites.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * "Zugang" at a site in the office (#286), the boards "Objekt mit Zugang:
@@ -129,7 +130,7 @@ beforeEach(() => {
     }
 
     if (key === 'GET /auth/tenants') {
-      return answer([{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+      return answer([aTenantChoice(roles)])
     }
 
     if (key.startsWith('POST /sites/s-1/accesses/') && key.endsWith('/reveal')) {

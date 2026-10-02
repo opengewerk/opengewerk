@@ -43,8 +43,9 @@ export async function rolesOfTenant(
 }
 
 /**
- * The rows behind the keys a membership names. A key without a row gives
- * nothing: a role that is gone takes its rights with it.
+ * The rows behind the keys a membership names, in the order the tenant made
+ * them. A key without a row gives nothing: a role that is gone takes its
+ * rights with it.
  */
 export async function rolesHeld(
   tx: TenantTransaction,
@@ -59,6 +60,7 @@ export async function rolesHeld(
     .select(definition)
     .from(tenantRoles)
     .where(and(eq(tenantRoles.tenantId, tenantId), inArray(tenantRoles.key, [...keys])))
+    .orderBy(asc(tenantRoles.id))
 }
 
 /**

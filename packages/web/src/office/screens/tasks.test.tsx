@@ -23,6 +23,7 @@ import type { PullResult, SyncTransport } from '../../sync/transport.js'
 import { MyTasks } from '../../site/screens/tasks.js'
 import { JobScreen } from './jobs.js'
 import { TaskListScreen } from './tasks.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The tasks of #80 on screen: on the job they hang on, in the office's own
@@ -127,7 +128,7 @@ function signedInAs(userId: string, ...roles: RoleKey[]) {
     user: { id: userId, email: `${userId}@nord.example.de`, name: userId },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  answers.set('/auth/tenants', [aTenantChoice(roles)])
 }
 
 const customer = {

@@ -405,8 +405,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und ein Betrieb, den sie in diesem Moment anlegt, hätte sonst keine und niemanden, der in ihm
   etwas darf. Wer den Betrieb führt, wird überall an derselben Angabe erkannt (`leadsItsTenant`):
   beim Zählen der letzten Leitung und bei der Frist, für die sonst niemand einsteht und die bisher
-  nach dem Namen der Rolle `owner` fragte. Die Oberfläche fragt bis zum nächsten Schritt weiter die
-  drei Rollen im Code; sie sagen dasselbe wie die Zeilen.
+  nach dem Namen der Rolle `owner` fragte.
+- Die Oberfläche fragt die Rechte, die der Server aus den Zeilen des Betriebs auflöst, und nicht
+  mehr die drei Rollen im Code (ADR 0010, `opengewerk-haustechnik#8`). Ein Bildschirm, der eine
+  Liste im Code fragte, böte weiter an, was der Server ablehnt, sobald ein Betrieb ändert, was eine
+  Rolle darf. `GET /auth/tenants` nennt deshalb je Betrieb neben den Schlüsseln der Rollen ihre
+  Namen im Betrieb, die Rechte, zu denen sie sich dort addieren, und ob eine von ihnen einen zweiten
+  Faktor verlangt, aufgelöst wie die Identität einer Anfrage. Danach richten sich die Navigation und
+  jeder Knopf hinter einem Recht, das Tor vor der Wahl des Betriebs und die Namen der Rollen in
+  Kopfzeile, Betriebswahl und Konto. Der Bildschirm "Zugänge" bietet die Rollen an, die der Betrieb
+  hat (`GET /staff/roles`, nur für die Leitung), mit ihren Namen und dem Hinweis auf den zweiten
+  Faktor aus der Zeile der Rolle; ein Schlüssel ohne Rolle wird gezeigt und bei der nächsten
+  Änderung weggelassen, die der Server sonst ganz ablehnte. Ein Gerät, das diese Fassung ohne Netz
+  übernimmt, hat noch die Liste der Fassung davor, ohne Rechte. Sie wird einmal über die drei
+  mitgelieferten Rollen gelesen, bis der Server antwortet, sonst zeigte die Baustelle im Keller
+  wieder keine Aufgabe und kein Foto (#184). Das Änderungsprotokoll schreibt die Rechte einer Rolle
+  in Worten. `rolesAllow`, `requiresSecondFactor` und `secondFactorRoles` in `@opengewerk/domain`
+  entfallen, `TenantChoice` in `@opengewerk/platform-domain` ist die eine Form der Antwort für
+  Server und Oberfläche.
 
 ## [0.4.0] - 2026-09-27
 

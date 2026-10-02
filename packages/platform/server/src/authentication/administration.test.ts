@@ -11,6 +11,7 @@ import {
   cookiesOf,
   probeAccess,
   type ProbeFoundation,
+  probeChoice,
   probeFoundation,
   type ProbeInstance,
   probeInstance,
@@ -408,7 +409,7 @@ describe('somebody new', () => {
     // and no other.
     const asNele = await signIn('neue@nord.example.de', chosen)
     const choices = await http().get('/auth/tenants').set('cookie', asNele).expect(200)
-    expect(choices.body).toEqual([{ id: north.id, name: north.name, roles: ['member'] }])
+    expect(choices.body).toEqual([probeChoice(north, ['member'])])
 
     await instance.chooseTenant(asNele, north.id)
     await http().get('/probe/members').set('cookie', asNele).expect(200)

@@ -19,6 +19,7 @@ import { openLocalStore } from '../../sync/store.js'
 import { TestServer } from '../../sync/test-server.js'
 import { InstallationScreen } from './installations.js'
 import { InverterScreen, PvStringScreen } from './pv-structure.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * #300 in the office: a PV system with its inverter, strings and modules,
@@ -186,7 +187,7 @@ beforeEach(() => {
         session: { activeTenantId: 't-1' },
       },
     ],
-    ['/auth/tenants', [{ id: 't-1', name: 'Solar Nord GmbH', roles: ['office'] }]],
+    ['/auth/tenants', [aTenantChoice(['office'], { name: 'Solar Nord GmbH' })]],
   ])
 
   vi.stubGlobal('fetch', (path: string) =>

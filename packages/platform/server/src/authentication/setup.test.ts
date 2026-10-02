@@ -9,6 +9,7 @@ import {
   cookiesOf,
   probeAccess,
   type ProbeFoundation,
+  probeChoice,
   probeFoundation,
   type ProbeInstance,
   probeInstance,
@@ -137,7 +138,9 @@ describe('an instance nobody has used yet', () => {
     const cookies = await instance.signIn(firstRun.email, password)
     const choices = await http().get('/auth/tenants').set('cookie', cookies).expect(200)
 
-    expect(choices.body).toEqual([{ id: tenantId, name: firstRun.company, roles: ['lead'] }])
+    // The one who set the instance up leads its first tenant, with everything
+    // that role adds up to in the rows the first run wrote.
+    expect(choices.body).toEqual([probeChoice({ id: tenantId, name: firstRun.company }, ['lead'])])
   })
 
   it('leaves a tenant, an account and a membership that belong together', async () => {

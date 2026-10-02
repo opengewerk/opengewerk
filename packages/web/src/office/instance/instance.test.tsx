@@ -29,6 +29,7 @@ import { OperatorsScreen } from './operators.js'
 import { InstanceSettingsScreen } from './settings.js'
 import { InstanceShell } from './shell.js'
 import { InstanceTenantsScreen } from './tenants.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * The area of the instance (#188) with its screens, as the boards "Instanz:
@@ -122,7 +123,7 @@ beforeEach(() => {
     },
     session: { activeTenantId: 't-1' },
   })
-  answer('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Kohm GmbH', roles: ['owner'] }])
+  answer('GET', '/auth/tenants', [aTenantChoice(['owner'], { name: 'Elektro Kohm GmbH' })])
   answer('GET', '/instance/access', { operator: true, secondFactor: true })
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {

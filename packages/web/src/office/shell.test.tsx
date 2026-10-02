@@ -18,6 +18,7 @@ import { openLocalStore } from '../sync/store.js'
 import { TestServer } from '../sync/test-server.js'
 import { OfficeShell } from './shell.js'
 import { initialsOf } from '../app/who.js'
+import { aTenantChoice } from '../session/test-tenants.js'
 
 /**
  * The shell of the office as the canvas draws it (#217): the header in slate
@@ -74,7 +75,7 @@ beforeEach(() => {
     user: { id: 'u-1', email: 'beate@nord.example.de', name: 'Beate Beispiel' },
     session: { activeTenantId: 't-1' },
   })
-  answers.set('/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles: ['owner'] }])
+  answers.set('/auth/tenants', [aTenantChoice(['owner'])])
   vi.stubGlobal('fetch', (path: string) =>
     Promise.resolve(
       new Response(JSON.stringify(answers.get(path) ?? {}), {

@@ -15,6 +15,7 @@ import {
   proposedFrom,
   TaxScreen,
 } from './taxes.js'
+import { aTenantChoice } from '../../session/test-tenants.js'
 
 /**
  * What a business states about its own taxation: the small business rule,
@@ -52,7 +53,7 @@ function signedInAs(...roles: RoleKey[]) {
     user: { id: 'u-1', email: 'chefin@nord.example.de', name: 'Christa Chefin' },
     session: { activeTenantId: 't-1' },
   })
-  serverSays('GET', '/auth/tenants', [{ id: 't-1', name: 'Elektro Nord GmbH', roles }])
+  serverSays('GET', '/auth/tenants', [aTenantChoice(roles)])
 }
 
 /** One section of the screen, by the heading it carries. */

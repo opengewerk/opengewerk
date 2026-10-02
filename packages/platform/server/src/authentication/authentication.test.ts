@@ -124,7 +124,18 @@ describe('signing in', () => {
 
     // Signed in, so the routes around the choice answer.
     const choices = await http().get('/auth/tenants').set('cookie', cookies).expect(200)
-    expect(choices.body).toEqual([{ id: north.id, name: north.name, roles: ['member'] }])
+    expect(choices.body).toEqual([
+      {
+        id: north.id,
+        name: north.name,
+        roles: ['member'],
+        // What the role is called and what it adds up to, from the rows of
+        // the tenant (`roles.test.ts`).
+        roleLabels: ['Mitglied'],
+        rights: ['members.read', 'notes.write'],
+        secondFactor: false,
+      },
+    ])
 
     // And the data still does not, because no tenant has been chosen. A 401
     // with its own sentence, in the words of the application: the way out is
