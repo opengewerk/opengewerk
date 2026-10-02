@@ -1,5 +1,5 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
-import { hasSecondFactor, type TenantId, type TenantIdentity } from '@opengewerk/platform-domain'
+import { hasSecondFactor, type MemberIdentity, type TenantId } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 
 import type { FoundIdentity, IdentitySource, SignedInUser } from '../api/identity.js'
@@ -7,16 +7,8 @@ import type { Database } from '../database/database.js'
 import { memberships } from '../schema.js'
 import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
+import { rolesHeld } from './roles.js'
 import { renewSession } from './session-lifetime.js'
-
-/**
- * Somebody at work in a tenant, with the roles their membership gives them
- * there. What the roles allow is the application's to say; this is what the
- * session and the membership say about a request.
- */
-export interface MemberIdentity<Role extends string = string> extends TenantIdentity {
-  readonly roles: readonly Role[]
-}
 
 /** What a request has to carry for a session to be found in it. */
 interface RequestWithHeaders {
@@ -35,23 +27,24 @@ interface RequestWithHeaders {
  *    to be ignored; reading it from anywhere a client can reach would be the
  *    one mistake nothing downstream could catch, because row level security
  *    would then faithfully isolate the wrong tenant.
- * 3. **What may they do here?** From the membership, read fresh on every
- *    request. Not from the session, and not cached: rights taken away have
- *    to stop working now and not when a session happens to expire.
- *    The same row says whether this person is blocked in this tenant, which
- *    is the same question asked as sharply as it can be.
+ * 3. **What may they do here?** From the membership and the roles of the
+ *    tenant it names, read fresh on every request. Not from the session, and
+ *    not cached: rights taken away, from the person or from a role, have to
+ *    stop working now and not when a session happens to expire. The same
+ *    row says whether this person is blocked in this tenant, which is the
+ *    same question asked as sharply as it can be.
  *
- * The cost is one query per request, and it buys the property that a
- * revocation takes effect immediately. That is the right side to err on for a
- * table that is read far more often than it is written.
+ * The cost is two short reads per request, and it buys the property that a
+ * revocation takes effect immediately. That is the right side to err on for
+ * tables that are read far more often than they are written.
  */
-export class SessionIdentitySource<Role extends string = string> implements IdentitySource<
-  MemberIdentity<Role>
+export class SessionIdentitySource<Right extends string = string> implements IdentitySource<
+  MemberIdentity<Right>
 > {
   constructor(
     private readonly authentication: Authentication,
     private readonly database: Database,
-    private readonly access: AccessRules<Role>,
+    private readonly access: AccessRules<Right>,
   ) {}
 
   async authenticate(request: unknown): Promise<SignedInUser | null> {
@@ -77,7 +70,7 @@ export class SessionIdentitySource<Role extends string = string> implements Iden
     return found
   }
 
-  async identify(request: unknown): Promise<FoundIdentity<MemberIdentity<Role>> | null> {
+  async identify(request: unknown): Promise<FoundIdentity<MemberIdentity<Right>> | null> {
     const found = await this.session(request)
 
     if (!found) {
@@ -103,7 +96,9 @@ export class SessionIdentitySource<Role extends string = string> implements Iden
         .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, found.user.id)))
         .limit(1)
 
-      return row
+      // The rows behind the keys the membership names, in the same
+      // transaction, so that both are read as they stand at one moment.
+      return row && { ...row, held: await rolesHeld(tx, tenantId, row.roles) }
     })
 
     if (!membership) {
@@ -124,12 +119,13 @@ export class SessionIdentitySource<Role extends string = string> implements Iden
       throw new ForbiddenException(this.access.sentences.blockedInTenant)
     }
 
-    // Whatever the column holds was written through the rules of this
-    // application, which is what the cast says.
-    const roles = membership.roles as readonly Role[]
+    // What the roles add up to, read through the catalogue of the
+    // application: a right a row holds and the catalogue does not know gives
+    // nothing, and a key without a row is not a role.
+    const sum = this.access.catalogue.sumOf(membership.held)
 
     if (
-      this.access.requiresSecondFactor(roles) &&
+      sum.secondFactor &&
       !hasSecondFactor({
         twoFactorEnabled: found.user.twoFactorEnabled,
         signInMethod: found.session.signInMethod,
@@ -154,7 +150,8 @@ export class SessionIdentitySource<Role extends string = string> implements Iden
     return {
       userId: found.user.id,
       tenantId,
-      roles,
+      roles: membership.roles,
+      rights: sum.rights,
       sessionId: found.session.id,
       ...(deviceId ? { deviceId } : {}),
     }

@@ -21,6 +21,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { addStaffMember, createAuthentication, SessionIdentitySource } from './access.js'
 
@@ -88,6 +89,7 @@ beforeAll(async () => {
     south.id,
     south.name,
   ])
+  await shipRoles(admin, north.id, south.id)
 
   database = Database.connect(applicationDatabaseUrl())
 

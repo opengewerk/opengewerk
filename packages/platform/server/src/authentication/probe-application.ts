@@ -12,7 +12,13 @@ import {
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
-import type { TenantId } from '@opengewerk/platform-domain'
+import {
+  accessRights,
+  type MemberIdentity,
+  rightsCatalogue,
+  type RoleDefinition,
+  type TenantId,
+} from '@opengewerk/platform-domain'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -40,7 +46,7 @@ import { foundationMigration } from '../database/foundation-migration.js'
 import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { allowApplicationLogin, type TestDatabase } from '../database/test-database.js'
 import { memberships } from '../schema.js'
-import { type AccessRight, accessRights, type AccessRules } from './access.js'
+import type { AccessRules } from './access.js'
 import {
   type Authentication,
   type AuthenticationOptions,
@@ -49,12 +55,14 @@ import {
 } from './authentication.js'
 import type { InvitationMailing } from './invitation-mailing.js'
 import { authenticationParts } from './module.js'
-import { type MemberIdentity, SessionIdentitySource } from './session-identity.js'
-import { type AuthenticatorSite, TestAuthenticator } from './test-authenticator.js'
+import { writeRoles } from './roles.js'
+import { SessionIdentitySource } from './session-identity.js'
+import { type AuthenticatorSite, currentCode, TestAuthenticator } from './test-authenticator.js'
 
 // The application the authentication is tested with, and it is nobody's: its
-// own name, three roles and two rights of its own, and one controller with what
-// an application would keep behind the guard. A test that passed with the
+// own name, a catalogue with two rights of its own, three roles a tenant
+// starts with, and one controller with what an application would keep behind
+// the guard. A test that passed with the
 // name or a role of a real application here would pass just as well with that
 // name written into the foundation, which is what these tests are there to
 // rule out.
@@ -77,30 +85,52 @@ export const probeSite: AuthenticatorSite = {
   origin: probeOrigin,
 }
 
-export const probeRoles = ['lead', 'member', 'guest'] as const
-
-/**
- * Three roles: one leads a tenant and needs a second factor, one works in it,
- * and one only looks.
- */
-export type ProbeRole = (typeof probeRoles)[number]
-
 /**
  * The rights the foundation asks for, and two of its own: one that reads and
  * one that writes.
  */
-export type ProbeRight = AccessRight | 'members.read' | 'notes.write'
+export const probeCatalogue = rightsCatalogue([
+  accessRights.read,
+  accessRights.write,
+  'members.read',
+  'notes.write',
+])
 
-export type ProbeIdentity = MemberIdentity<ProbeRole>
+export type ProbeRight = (typeof probeCatalogue.rights)[number]
+
+/**
+ * The roles a tenant of this application starts with: one leads it and needs
+ * a second factor, one works in it, and one only looks. Whoever leads holds
+ * everything, the administration of its people included, and nobody else
+ * holds that.
+ */
+export const probeRoles: readonly RoleDefinition<ProbeRight>[] = [
+  {
+    key: 'lead',
+    label: 'Leitung',
+    rights: [accessRights.read, accessRights.write, 'members.read', 'notes.write'],
+    leads: true,
+    secondFactor: true,
+  },
+  {
+    key: 'member',
+    label: 'Mitglied',
+    rights: ['members.read', 'notes.write'],
+    leads: false,
+    secondFactor: false,
+  },
+  { key: 'guest', label: 'Gast', rights: ['members.read'], leads: false, secondFactor: false },
+]
+
+export type ProbeIdentity = MemberIdentity<ProbeRight>
 
 /** The longest name a tenant of this application may have. */
 const longestTenantName = 40
 
-/** The roles and the words of this application, with a tenant called what the foundation calls it. */
-export const probeAccess: AccessRules<ProbeRole> = {
-  roles: probeRoles,
-  leadingRole: 'lead',
-  requiresSecondFactor: (roles) => roles.includes('lead'),
+/** The rights, the roles and the words of this application, with a tenant called what the foundation calls it. */
+export const probeAccess: AccessRules<ProbeRight> = {
+  catalogue: probeCatalogue,
+  shippedRoles: probeRoles,
   tenantNameProblem: (name) => {
     const trimmed = name.trim()
 
@@ -138,23 +168,13 @@ export const probeAccess: AccessRules<ProbeRole> = {
         `${email} gab es schon. Die Rollen beim Mandanten ${tenantId} stehen jetzt auf: ` +
         `${roles.join(', ')}.`,
       secondFactor: 'Für die Leitung eines Mandanten ist ein zweiter Faktor Pflicht.',
+      noSuchTenant: (tenantId) => `Den Mandanten ${tenantId} gibt es auf dieser Instanz nicht.`,
     },
   },
 }
 
-/**
- * What each role may do. Whoever leads a tenant holds everything, the
- * administration of its people included, and nobody else holds that.
- */
-const probeRights: Record<ProbeRole, readonly ProbeRight[]> = {
-  lead: [accessRights.read, accessRights.write, 'members.read', 'notes.write'],
-  member: ['members.read', 'notes.write'],
-  guest: ['members.read'],
-}
-
 /** What the guard is told about this application. */
-export const probeAuthorization: Authorization<ProbeIdentity, ProbeRight> = {
-  isAllowed: (identity, right) => identity.roles.some((role) => probeRights[role].includes(right)),
+export const probeAuthorization: Authorization<ProbeRight> = {
   missingPermission: (right) => `Das Recht ${right} fehlt diesem Zugang.`,
   // Nobody runs an instance of this application; the guard's part of that is
   // tested where the guard is (`api/authorization.test.ts`).
@@ -259,7 +279,7 @@ export function probeAuthentication(
 export function probeIdentities(
   authentication: Authentication,
   database: Database,
-): SessionIdentitySource<ProbeRole> {
+): SessionIdentitySource<ProbeRight> {
   return new SessionIdentitySource(authentication, database, probeAccess)
 }
 
@@ -393,11 +413,95 @@ export async function probeInstance(
   }
 }
 
+/** People signing in to an instance, each with the second factor they have. */
+export interface ProbeVisitors {
+  /** Gives an account the second factor a role asks for. */
+  setUpSecondFactor(email: string): Promise<void>
+  /**
+   * Signs in and answers the second factor where one is asked for, stopping
+   * short of the choice of tenant. The cookies as a browser would send them.
+   */
+  signIn(email: string, password?: string): Promise<string>
+  /** Signs in and chooses a tenant, which is where work actually starts. */
+  workIn(email: string, tenantId: TenantId, password?: string): Promise<string>
+}
+
+/**
+ * The people of a test at the door of an instance.
+ *
+ * Whoever has held a role that asks for a second factor has one, and it stays
+ * on the account afterwards. Written once here and not in each test that
+ * needs somebody to lead a tenant, because none of them is about that flow;
+ * the tests of the first run are.
+ */
+export function probeVisitors(instance: ProbeInstance, password: string): ProbeVisitors {
+  /** The address an authenticator app was fed, per account that has one. */
+  const secondFactors = new Map<string, string>()
+
+  const post = (path: string, cookies?: string) => {
+    const sending = instance.http().post(`${authenticationPath}${path}`).set('origin', probeOrigin)
+
+    return cookies ? sending.set('cookie', cookies) : sending
+  }
+
+  const signIn = async (email: string, secret = password): Promise<string> => {
+    const answer = await post('/sign-in/email').send({ email, password: secret }).expect(200)
+    const cookies = cookiesOf(answer)
+    const totpUri = secondFactors.get(email)
+
+    if ((answer.body as { twoFactorRedirect?: boolean }).twoFactorRedirect !== true || !totpUri) {
+      return cookies
+    }
+
+    const verified = await post('/two-factor/verify-totp', cookies)
+      .send({ code: await currentCode(totpUri) })
+      .expect(200)
+
+    return cookiesOf(verified) || cookies
+  }
+
+  return {
+    signIn,
+    async setUpSecondFactor(email) {
+      const cookies = cookiesOf(await post('/sign-in/email').send({ email, password }).expect(200))
+      const started = await post('/two-factor/enable', cookies)
+        .send({ password, method: 'totp' })
+        .expect(200)
+      const totpUri = (started.body as { totpURI: string }).totpURI
+
+      await post('/two-factor/verify-totp', cookies)
+        .send({ code: await currentCode(totpUri) })
+        .expect(200)
+
+      secondFactors.set(email, totpUri)
+    },
+    async workIn(email, tenantId, secret = password) {
+      const cookies = await signIn(email, secret)
+
+      await instance.chooseTenant(cookies, tenantId)
+
+      return cookies
+    },
+  }
+}
+
+/** A tenant of a test. */
+export interface ProbeTenant {
+  readonly id: TenantId
+  readonly name: string
+}
+
 /** A test database that carries the foundation and nothing else. */
 export interface ProbeFoundation {
   readonly kit: TestDatabase
   /** Back to the state a freshly started installation is in. */
   empty(admin: Pool): Promise<void>
+  /**
+   * Brings tenants into being the way an application does: the row, and the
+   * roles a tenant starts with. A test that wrote the row alone would have a
+   * tenant in which nobody holds a single right.
+   */
+  tenants(admin: Pool, tenants: readonly ProbeTenant[]): Promise<void>
   /** Removes the migrations folder the kit was built on. */
   remove(): void
 }
@@ -419,6 +523,26 @@ export async function probeFoundation(): Promise<ProbeFoundation> {
       await kit.resetSchema(admin)
       await kit.applyMigrations()
       await allowApplicationLogin(admin)
+    },
+    async tenants(admin, tenants) {
+      const database = Database.connect(kit.applicationDatabaseUrl())
+
+      try {
+        for (const tenant of tenants) {
+          // The row as whoever sets an instance up writes it: the application
+          // role may not, which is the point of that grant.
+          await admin.query('insert into tenants (id, name) values ($1, $2)', [
+            tenant.id,
+            tenant.name,
+          ])
+          // The roles as the application writes them, inside the tenant.
+          await database.forTenant({ tenantId: tenant.id, reason: 'setup' }, (tx) =>
+            writeRoles(tx, tenant.id, probeRoles),
+          )
+        }
+      } finally {
+        await database.close()
+      }
     },
     remove() {
       rmSync(folder, { recursive: true, force: true })

@@ -211,12 +211,7 @@ beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
   await foundation.empty(admin)
-  await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
-    north.id,
-    north.name,
-    south.id,
-    south.name,
-  ])
+  await foundation.tenants(admin, [north, south])
 
   const url = foundation.kit.applicationDatabaseUrl()
 

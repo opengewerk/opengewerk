@@ -11,6 +11,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { invitationLinks } from '../mail/invitation-link.js'
 import { aMailServer, testKey } from '../mail/test-mail-server.js'
@@ -114,6 +115,7 @@ beforeAll(async () => {
   await allowApplicationLogin(admin)
 
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await shipRoles(admin, north.id)
   await admin.query(
     `insert into letterheads (tenant_id, street, house_number, postal_code, city, phone, email)
      values ($1, 'Hafenstraße', '12', '20457', 'Hamburg', '040 1234567', 'info@elektro-nord.example')`,

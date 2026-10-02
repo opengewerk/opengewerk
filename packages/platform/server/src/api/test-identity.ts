@@ -1,4 +1,4 @@
-import type { TenantIdentity } from '@opengewerk/platform-domain'
+import type { MemberIdentity } from '@opengewerk/platform-domain'
 
 import type { IdentitySource, SignedInUser } from './identity.js'
 
@@ -17,10 +17,11 @@ function headerOf(request: unknown): string | undefined {
 /**
  * An identity source that believes what the header says.
  *
- * The header carries the identity of the application as JSON, the roles or
- * whatever else it reads a right from included; this hands it on as it is.
+ * The header carries the identity of the application as JSON, the rights it
+ * holds included; this hands it on as it is. Which rights a role of a test
+ * stands for is the application's to say when it writes the header.
  */
-export function headerIdentities<Who extends TenantIdentity>(): IdentitySource<Who> {
+export function headerIdentities<Who extends MemberIdentity>(): IdentitySource<Who> {
   return {
     identify: async (request: unknown) => {
       const header = headerOf(request)

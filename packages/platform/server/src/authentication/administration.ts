@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import {
   type InvitationId,
   invitationDays,
+  type RoleDefinition,
   type TenantId,
   type TenantIdentity,
 } from '@opengewerk/platform-domain'
@@ -13,6 +14,7 @@ import { authSessions, authUsers, invitations, memberships, tenantSessions } fro
 import type { AccessRules } from './access.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
+import { leadsItsTenant, rolesOfTenant } from './roles.js'
 
 /**
  * Who works in one tenant, and everything whoever leads it can do about it.
@@ -34,9 +36,10 @@ import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
  * names both the person, taken from the membership, and the tenant the
  * session is working in.
  *
- * What a tenant and the role that leads it are called is the application's to
- * say (`AccessRules`): which roles there are, which of them leads, and the
- * sentences that name either.
+ * Which roles there are and which of them leads is read from the rows of the
+ * tenant (`roles.ts`). What a tenant and the one who leads it are called is
+ * the application's to say, in the sentences that name either
+ * (`AccessRules`).
  */
 
 /** One person in this tenant, as whoever administers it sees them. */
@@ -143,9 +146,14 @@ export async function listColleagues(
     .sort((left, right) => left.name.localeCompare(right.name, 'de'))
 }
 
-/** Whether a membership row carries this role. */
-function carries(role: string) {
-  return sql`${memberships.roles} @> ARRAY[${role}]::text[]`
+/** The keys of the roles that lead this tenant. */
+function leadingKeys(known: readonly RoleDefinition[]): readonly string[] {
+  return known.filter((role) => role.leads).map((role) => role.key)
+}
+
+/** Whether somebody with these roles leads. */
+function leadsWith(roles: readonly string[], leading: readonly string[]): boolean {
+  return roles.some((role) => leading.includes(role))
 }
 
 /**
@@ -260,7 +268,7 @@ export async function listInvitations(
  * nowhere else: not in the outbox, not in the audit log, not on a screen.
  */
 export async function inviteStaff(
-  access: Pick<AccessRules, 'roles' | 'sentences'>,
+  access: Pick<AccessRules, 'sentences'>,
   database: Database,
   identity: TenantIdentity,
   wanted: { readonly email: string; readonly name: string; readonly roles: readonly string[] },
@@ -268,7 +276,9 @@ export async function inviteStaff(
 ): Promise<IssuedInvitation> {
   const email = normalise(wanted.email)
   const name = wanted.name.trim()
-  const roles = checkedRoles(access, wanted.roles)
+  const roles = await database.forTenant(identity, async (tx) =>
+    checkedRoles(await rolesOfTenant(tx, identity.tenantId), wanted.roles),
+  )
 
   if (!email.includes('@')) {
     throw new BadRequestException('Die E-Mail-Adresse sieht nicht wie eine aus.')
@@ -344,18 +354,19 @@ export async function revokeInvitation(
  * back is a psql prompt on a server most tenants have nobody for.
  */
 export async function changeRoles(
-  access: Pick<AccessRules, 'roles' | 'leadingRole' | 'sentences'>,
+  access: Pick<AccessRules, 'sentences'>,
   database: Database,
   identity: TenantIdentity,
   userId: string,
   wanted: readonly string[],
 ): Promise<readonly string[]> {
-  const roles = checkedRoles(access, wanted)
-
   return database.forTenant(identity, async (tx) => {
+    const known = await rolesOfTenant(tx, identity.tenantId)
+    const roles = checkedRoles(known, wanted)
+    const leading = leadingKeys(known)
     const current = await membershipOf(access, tx, identity.tenantId, userId)
 
-    if (current.roles.includes(access.leadingRole) && !roles.includes(access.leadingRole)) {
+    if (leadsWith(current.roles, leading) && !leadsWith(roles, leading)) {
       await refuseIfLastLead(access, tx, identity.tenantId, userId)
     }
 
@@ -384,16 +395,17 @@ export async function changeRoles(
  * tenant as well as the person.
  */
 export async function setBlocked(
-  access: Pick<AccessRules, 'leadingRole' | 'sentences'>,
+  access: Pick<AccessRules, 'sentences'>,
   database: Database,
   identity: TenantIdentity,
   userId: string,
   blocked: boolean,
 ): Promise<void> {
   await database.forTenant(identity, async (tx) => {
+    const leading = leadingKeys(await rolesOfTenant(tx, identity.tenantId))
     const current = await membershipOf(access, tx, identity.tenantId, userId)
 
-    if (blocked && current.roles.includes(access.leadingRole)) {
+    if (blocked && leadsWith(current.roles, leading)) {
       await refuseIfLastLead(access, tx, identity.tenantId, userId)
     }
 
@@ -593,26 +605,28 @@ async function membershipOf(
 }
 
 /**
- * Refuses when this person is the last one with the leading role who can
+ * Refuses when this person is the last one in a role that leads who can
  * still get in.
  *
  * Whoever is blocked does not count, and that is the part easiest to leave
- * out: a tenant with two people in the leading role, one of them blocked, has
- * one, and letting that one go would leave it with none.
+ * out: a tenant with two people who lead it, one of them blocked, has one,
+ * and letting that one go would leave it with none.
+ *
+ * Asked of the flag of the role and not of a right. Leading is what cannot
+ * be taken out of a tenant, and a right is something a role can lose.
  *
  * The row this is asked about is usually the asking person's own. That is not
- * an oversight, it is where the case lives. An application gives
- * `membership.write` to the leading role and to no other (`accessRights`), so
- * somebody working on another person's row is by definition not working on
- * the last one: there are two of them, the one asking and the one being
- * changed. The way a tenant really locks itself out is the one who leads it
- * deciding they do not need the role any more, and an earlier draft of this
- * file refused every operation on one's own row and thereby made the only
- * case that matters unreachable. Working on one's own row is allowed and this
- * is the fence.
+ * an oversight, it is where the case lives. Whoever leads administers who
+ * works in the tenant, and where nobody else may, somebody working on another
+ * person's row is by definition not working on the last one: there are two of
+ * them, the one asking and the one being changed. The way a tenant really
+ * locks itself out is the one who leads it deciding they do not need the role
+ * any more, and an earlier draft of this file refused every operation on
+ * one's own row and thereby made the only case that matters unreachable.
+ * Working on one's own row is allowed and this is the fence.
  */
 async function refuseIfLastLead(
-  access: Pick<AccessRules, 'leadingRole' | 'sentences'>,
+  access: Pick<AccessRules, 'sentences'>,
   tx: TenantTransaction,
   tenantId: TenantId,
   userId: string,
@@ -625,7 +639,7 @@ async function refuseIfLastLead(
         eq(memberships.tenantId, tenantId),
         ne(memberships.userId, userId),
         isNull(memberships.blockedAt),
-        carries(access.leadingRole),
+        leadsItsTenant(),
       ),
     )
 
@@ -634,16 +648,23 @@ async function refuseIfLastLead(
   }
 }
 
-/** The roles a route was given, or a refusal naming the ones that exist. */
+/**
+ * The roles a route was given, or a refusal naming the ones this tenant has.
+ *
+ * Held against the rows of the tenant and not against a list in the code: a
+ * role is what the tenant has a row for, and a key without one would be a
+ * membership that names nothing.
+ */
 function checkedRoles(
-  access: Pick<AccessRules, 'roles'>,
+  known: readonly RoleDefinition[],
   wanted: readonly string[],
 ): readonly string[] {
-  const unknown = wanted.filter((role) => !access.roles.includes(role))
+  const keys = known.map((role) => role.key)
+  const unknown = wanted.filter((role) => !keys.includes(role))
 
   if (unknown.length > 0) {
     throw new BadRequestException(
-      `Unbekannte Rollen: ${unknown.join(', ')}. Es gibt ${access.roles.join(', ')}.`,
+      `Unbekannte Rollen: ${unknown.join(', ')}. Es gibt ${keys.join(', ')}.`,
     )
   }
 

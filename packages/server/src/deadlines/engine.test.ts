@@ -17,6 +17,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { aMailServer, testKey } from '../mail/test-mail-server.js'
 import type { MailTransport, OutgoingMail } from '../mail/transport.js'
@@ -125,6 +126,9 @@ beforeAll(async () => {
     south,
     'Elektro Süd GmbH',
   ])
+  // Who answers for a deadline in the end is whoever leads the business, and
+  // that is read from the roles it has.
+  await shipRoles(admin, north, south)
 
   for (const [userId, person] of Object.entries(people)) {
     await admin.query('insert into auth_users (id, name, email) values ($1, $2, $3)', [
@@ -357,6 +361,11 @@ describe('a quote that went out', () => {
 
   it('goes to the owner when whoever issued it is blocked or nobody did', async () => {
     await admin.query(`update memberships set blocked_at = now() where user_id = 'britta'`)
+    // To the one who leads the business, not to whoever has been in it
+    // longest: Max worked here before Olga did.
+    await admin.query(
+      `update memberships set created_at = created_at - interval '1 day' where user_id = 'max'`,
+    )
     await aQuote()
     await aQuote({ number: 'A-2037-0002', issuedBy: null })
 

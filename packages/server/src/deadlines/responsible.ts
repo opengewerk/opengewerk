@@ -1,6 +1,6 @@
 import type { DeadlineKind, DeadlineSetting, TenantId } from '@opengewerk/domain'
-import type { TenantTransaction } from '@opengewerk/platform-server'
-import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { leadsItsTenant, type TenantTransaction } from '@opengewerk/platform-server'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 
 import { memberships } from '../database/schema/index.js'
 
@@ -28,7 +28,15 @@ async function worksHere(
   return member !== undefined && member.blockedAt === null
 }
 
-/** The owner who has been in the business longest and is not blocked. */
+/**
+ * The owner who has been in the business longest and is not blocked.
+ *
+ * Asked the way the administration counts the last one who leads (ADR 0010):
+ * of the flag in the row of a role and not of its name. The owner is the one
+ * role of this application that leads a business, so today the two say the
+ * same; a question asked of the name would stop being right, and say nothing,
+ * the day a business has a second role that leads.
+ */
 export async function firstOwner(
   tx: TenantTransaction,
   tenantId: TenantId,
@@ -36,13 +44,7 @@ export async function firstOwner(
   const [owner] = await tx
     .select({ userId: memberships.userId })
     .from(memberships)
-    .where(
-      and(
-        eq(memberships.tenantId, tenantId),
-        isNull(memberships.blockedAt),
-        sql`'owner' = any(${memberships.roles})`,
-      ),
-    )
+    .where(and(eq(memberships.tenantId, tenantId), isNull(memberships.blockedAt), leadsItsTenant()))
     .orderBy(asc(memberships.createdAt), asc(memberships.userId))
     .limit(1)
 

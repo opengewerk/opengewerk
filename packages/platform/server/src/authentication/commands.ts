@@ -1,4 +1,5 @@
 import type { TenantId } from '@opengewerk/platform-domain'
+import { eq } from 'drizzle-orm'
 
 import {
   ConfigurationError,
@@ -7,9 +8,12 @@ import {
   type ServerApplication,
 } from '../configuration.js'
 import { Database } from '../database/database.js'
+import { isUuid } from '../database/identifier.js'
+import { tenants } from '../schema.js'
 import type { AccessRules } from './access.js'
 import { createAuthentication } from './authentication.js'
 import { readNewPassword, type Terminal } from './password.js'
+import { rolesOfTenant } from './roles.js'
 import { accountExists, addStaffMember, replacePassword } from './staff.js'
 
 /**
@@ -110,18 +114,12 @@ export async function addStaff(
   if (!tenantId || !email || !name || roles.length === 0) {
     throw new ConfigurationError(
       `${access.sentences.addStaff.usage}\n` +
-        `Mögliche Rollen: ${access.roles.join(', ')}\n` +
+        // The roles a tenant starts with. One that has made roles of its own
+        // is told which it has when a name does not match.
+        `Mögliche Rollen: ${access.shippedRoles.map((role) => role.key).join(', ')}\n` +
         'Das Passwort fragt der Befehl verdeckt ab; aus einem Skript heraus liest er es aus ' +
         `der Umgebungsvariable ${application.passwordVariable}, nie aus einem Argument: ein ` +
         'Argument steht in der Prozessliste und im Verlauf der Shell.',
-    )
-  }
-
-  const unknown = roles.filter((role) => !access.roles.includes(role))
-
-  if (unknown.length > 0) {
-    throw new ConfigurationError(
-      `Unbekannte Rolle: ${unknown.join(', ')}. Möglich sind: ${access.roles.join(', ')}`,
     )
   }
 
@@ -129,6 +127,33 @@ export async function addStaff(
   const database = await reach(configuration.databaseUrl)
 
   try {
+    // The roles are the tenant's rows, so the tenant is asked, and a key
+    // that names no tenant is said to be one before anything else is.
+    const known = isUuid(tenantId)
+      ? await database.forTenant({ tenantId: tenantId as TenantId }, async (tx) => {
+          const [tenant] = await tx
+            .select({ id: tenants.id })
+            .from(tenants)
+            .where(eq(tenants.id, tenantId as TenantId))
+            .limit(1)
+
+          return tenant ? rolesOfTenant(tx, tenantId as TenantId) : null
+        })
+      : null
+
+    if (known === null) {
+      throw new ConfigurationError(access.sentences.addStaff.noSuchTenant(tenantId))
+    }
+
+    const unknown = roles.filter((role) => !known.some((held) => held.key === role))
+
+    if (unknown.length > 0) {
+      throw new ConfigurationError(
+        `Unbekannte Rolle: ${unknown.join(', ')}. ` +
+          `Möglich sind: ${known.map((role) => role.key).join(', ')}`,
+      )
+    }
+
     // An account that is already there keeps its password, so there is
     // nothing to ask for. Asking anyway would have somebody type a password
     // the command then throws away.
@@ -165,7 +190,7 @@ export async function addStaff(
         : access.sentences.addStaff.kept(email, tenantId, roles),
     )
 
-    if (access.requiresSecondFactor(roles)) {
+    if (known.some((role) => role.secondFactor && roles.includes(role.key))) {
       say(access.sentences.addStaff.secondFactor)
     }
   } finally {

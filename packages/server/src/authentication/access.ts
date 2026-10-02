@@ -1,8 +1,9 @@
 import {
   businessNameProblem,
-  requiresSecondFactor,
+  type Permission,
+  permissionCatalogue,
   type RoleKey,
-  roleKeys,
+  shippedRoles,
 } from '@opengewerk/domain'
 import {
   type AccessRules,
@@ -22,20 +23,20 @@ import { application } from '../configuration.js'
 import { instanceOperators } from '../database/schema/index.js'
 
 // The authentication is the foundation's (ADR 0010): accounts, sessions, the
-// second factor and passkeys, the first run, the one time link, and who works
-// in a business. What it cannot know is which roles this application has,
-// which of them leads a business, and what a business and its owner are
-// called. This is where it is told, and where what needs telling is bound, so
-// that the rest of the server asks one module and gets the roles of this
-// application.
+// second factor and passkeys, the first run, the one time link, who works in
+// a business and the roles of a business as rows. What it cannot know is
+// which rights this application has, which roles a business starts with, and
+// what a business and its owner are called. This is where it is told, and
+// where what needs telling is bound, so that the rest of the server asks one
+// module and gets the rights and the roles of this application.
 
 /** What the authentication is told about this application. */
-export const access: AccessRules<RoleKey> = {
-  roles: roleKeys,
-  // The owner is the only role that can hand out the others, so the first
-  // account gets it, and ADR 0006 hangs the second factor on it.
-  leadingRole: 'owner',
-  requiresSecondFactor,
+export const access: AccessRules<Permission> = {
+  catalogue: permissionCatalogue,
+  // The three roles a business starts with, rows of its own from the moment
+  // it comes into being. The owner leads: the first account gets that role,
+  // it hands out the others, and ADR 0006 hangs the second factor on it.
+  shippedRoles,
   // The same rule as when the owner changes the name later (#276).
   tenantNameProblem: businessNameProblem,
   // Whoever sets the instance up runs it (#188).
@@ -71,6 +72,9 @@ export const access: AccessRules<RoleKey> = {
       secondFactor:
         'Für die Rolle "Inhaber" ist ein zweiter Faktor Pflicht. Die Anwendung fragt bei der ' +
         'ersten Anmeldung danach und richtet ihn ein.',
+      noSuchTenant: (tenantId) =>
+        `Den Betrieb ${tenantId} gibt es auf dieser Instanz nicht. Die Kennung eines ` +
+        'Betriebs steht im Bereich der Instanz bei seinem Namen.',
     },
   },
 }
@@ -82,8 +86,8 @@ export function createAuthentication(
   return createFor({ ...options, application, access })
 }
 
-/** The identity of a session, with the roles of this application. */
-export class SessionIdentitySource extends SessionIdentities<RoleKey> {
+/** The identity of a session, with the rights of this application. */
+export class SessionIdentitySource extends SessionIdentities<Permission> {
   constructor(authentication: Authentication, database: Database) {
     super(authentication, database, access)
   }

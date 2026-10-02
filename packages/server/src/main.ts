@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import {
   authenticationPath,
   ClosedIdentitySource,
+  completeRoles,
   ConfigurationError,
   Database,
   instanceIsEmpty,
@@ -16,7 +17,7 @@ import {
 import { toNodeHandler } from 'better-auth/node'
 
 import { ApiModule } from './api/api.module.js'
-import { createAuthentication, SessionIdentitySource } from './authentication/access.js'
+import { access, createAuthentication, SessionIdentitySource } from './authentication/access.js'
 import { readConfiguration } from './configuration.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
@@ -252,6 +253,25 @@ async function start(): Promise<void> {
     await endInterruptedImports(database).catch((error: unknown) => {
       console.error('Unterbrochene Importe ließen sich nicht beenden.', error)
     })
+  }
+
+  // A business without a single role is one nobody can work in (ADR 0010).
+  // The version from before the roles were rows goes on running between the
+  // migration and this start, and a business it creates in that moment has
+  // none. It gets the ones a business starts with here, before the first
+  // request. Not on a closed instance, which writes nothing.
+  if (!configuration.closed) {
+    await completeRoles(database, access)
+      .then((completed) => {
+        for (const tenantId of completed) {
+          console.info(
+            `Der Betrieb ${tenantId} hatte keine Rollen und hat Inhaber, Büro und Monteur bekommen.`,
+          )
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Die Rollen der Betriebe ließen sich nicht prüfen.', error)
+      })
   }
 
   await application.listen(configuration.port, configuration.host)

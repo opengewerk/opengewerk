@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { type TenantIdentity, workingInHeader } from '@opengewerk/platform-domain'
+import { workingInHeader } from '@opengewerk/platform-domain'
 
 import { Database } from '../database/database.js'
 import {
@@ -103,16 +103,16 @@ export interface OperatorAccess {
 /**
  * What the guard has to be told by the application it guards (ADR 0010).
  *
- * The guard knows the mechanism: who is asking, in which tenant, and that a
- * route without a declared right is refused. What a right is, who holds it
- * and what a refusal says in the words of the application, it is handed.
+ * The guard knows the mechanism: who is asking, in which tenant, which rights
+ * their identity carries, and that a route without a declared right is
+ * refused. What a refusal says in the words of the application, and who runs
+ * the instance, it is handed.
+ *
+ * Whether somebody holds a right is not among the things handed in. The
+ * identity carries the rights the roles of its membership add up to, and the
+ * guard asks those, the same way for every application.
  */
-export interface Authorization<
-  Who extends TenantIdentity = TenantIdentity,
-  Right extends string = string,
-> {
-  /** Whether this identity holds the right a route declared. */
-  isAllowed(identity: Who, right: Right): boolean
+export interface Authorization<Right extends string = string> {
   /**
    * The sentence a refusal over a missing right says. In words and not as the
    * key of the right, since a screen shows it.
@@ -253,7 +253,7 @@ export class AuthorizationGuard implements CanActivate {
       throw new ForbiddenException('Diese Route deklariert kein Recht.')
     }
 
-    if (!this.authorization.isAllowed(identity, permission)) {
+    if (!identity.rights.includes(permission)) {
       throw new ForbiddenException(this.authorization.missingPermission(permission))
     }
 

@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { DocumentId, Identity, RoleKey, TenantId } from '@opengewerk/domain'
+import type { DocumentId, RoleKey, TenantId } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
@@ -18,7 +18,7 @@ import {
 import { runDeadlinesOf } from '../deadlines/engine.js'
 import { ApiModule } from './api.module.js'
 import type { DeadlineEntry, DeadlineKindEntry } from './deadlines.controller.js'
-import { testIdentities as identities } from './test-identity.js'
+import { type Somebody, testIdentities as identities } from './test-identity.js'
 
 /**
  * The routes of the deadlines, #283: the list "Fristen" and the settings of
@@ -58,7 +58,7 @@ function as(person: Person): string {
     userId: person,
     tenantId: tenant,
     roles: [...roles] as RoleKey[],
-  } satisfies Identity)
+  } satisfies Somebody)
 }
 
 async function aQuote(tenant: TenantId = north, number = 'A-2037-0001'): Promise<DocumentId> {

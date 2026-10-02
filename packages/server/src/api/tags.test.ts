@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { Identity, RoleKey, TenantId } from '@opengewerk/domain'
+import type { RoleKey, TenantId } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -14,7 +14,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { testIdentities as identities } from './test-identity.js'
+import { type Somebody, testIdentities as identities } from './test-identity.js'
 import { created, push } from './test-structure.js'
 
 /**
@@ -36,7 +36,7 @@ function http() {
 }
 
 function as(tenantId: TenantId, userId: string, ...roles: RoleKey[]): string {
-  return JSON.stringify({ userId, tenantId, roles } satisfies Identity)
+  return JSON.stringify({ userId, tenantId, roles } satisfies Somebody)
 }
 
 const office = () => as(north.id, 'britta', 'office')

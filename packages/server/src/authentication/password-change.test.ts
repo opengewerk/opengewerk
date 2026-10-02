@@ -19,6 +19,7 @@ import {
   applyMigrations,
   connect,
   resetSchema,
+  shipRoles,
 } from '../database/test-database.js'
 import { passwordResetMails } from '../mail/password-reset.js'
 import { aMailServer, testKey } from '../mail/test-mail-server.js'
@@ -86,6 +87,7 @@ beforeAll(async () => {
     quiet.id,
     quiet.name,
   ])
+  await shipRoles(admin, north.id, quiet.id)
 
   database = Database.connect(applicationDatabaseUrl())
   authentication = createAuthentication({
