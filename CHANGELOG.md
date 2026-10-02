@@ -556,6 +556,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ist Byte für Byte dasselbe, ebenso das Stylesheet. Die Liste, das Formular, die Teile der
   beiden Einstiege und der Rahmen der Einstellungen waren bisher nur über die Bildschirme
   geprüft und haben jetzt eigene Tests.
+- Die Hülle der beiden Einstiege gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#12`,
+  sechster Teil), damit eine weitere Anwendung in demselben Rahmen steht: im Büro die Kopfleiste
+  mit Betrieb und Person, die Navigation neben dem Bildschirm und hinter "Menü" am Telefon und der
+  Wechsel des Betriebs (`OfficeFrame`), auf der Baustelle die Reiter, das Menü und der Kopf eines
+  Bildschirms (`SiteFrame`, `SiteHeader`). Diese Anwendung übergibt, was ihr gehört: die Einträge
+  ihrer Navigation, die Bildschirme, in denen gearbeitet wird, die Leiste der Sicherung, ihre
+  Reiter, die Stoppuhr, Push im Menü und den Weg zurück von jedem Bildschirm. "Abgleich",
+  "Einstellungen" und "Konflikte" trägt das Fundament selbst ein. An der Oberfläche ändert sich
+  nichts: 38 Zustände der beiden Hüllen sind vor und nach dem Umzug aufgenommen, und was ein
+  Browser bekommt, ist Byte für Byte dasselbe, ebenso das Stylesheet.
+- `@opengewerk/platform-web` nennt seine Module frei von Seiteneffekten (`sideEffects`). Ohne die
+  Angabe legte der Bundler jedes Modul, das beide Einstiege erreichen, in den gemeinsamen Teil,
+  und das Büro lud den Rahmen der Baustelle mit: 329,8 statt 331,4 kB für das Büro.
 
 ## [0.4.0] - 2026-09-27
 

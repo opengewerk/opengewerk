@@ -24,8 +24,12 @@ import { aTenantChoice } from '../session/test-tenants.js'
  * The switch between businesses without signing in again (#242), in the
  * header, in the menu on a phone and under "Konto", and a further business
  * for an owner (#142), as the boards "Betrieb wechseln in der Kopfleiste",
- * "Betrieb wechseln im Menü, Telefon" and "Konto" draw them. And the way into
- * the area of the instance for the people who run it (#188).
+ * "Betrieb wechseln im Menü, Telefon" and "Konto" draw them.
+ *
+ * The switch in the header and in the menu is the foundation's and has its
+ * tests there (ADR 0010). Here is what this application hands in: that the
+ * list stands under "Betrieb wechseln", and that an owner, and nobody else,
+ * is led from it to the card under "Konto" where a further business is made.
  */
 
 interface Call {
@@ -155,6 +159,23 @@ describe('the business in the header', () => {
     expect(calls.find((call) => call.path === '/auth/tenant')?.body).toEqual({ tenantId: 't-2' })
   })
 
+  it('offers no further business to somebody who is no owner', async () => {
+    answer('GET', '/auth/tenants', [
+      aTenantChoice(['office'], { name: 'Elektro Kohm GmbH' }),
+      aTenantChoice(['technician'], { id: 't-2', name: 'Elektro Nord KG' }),
+    ])
+    await mount()
+    const user = userEvent.setup()
+    const header = await screen.findByRole('banner')
+
+    await user.click(await within(header).findByRole('button', { name: 'Elektro Kohm GmbH' }))
+
+    const menu = screen.getByRole('menu', { name: 'Betrieb wechseln' })
+
+    expect(within(menu).getAllByRole('menuitemradio')).toHaveLength(2)
+    expect(within(menu).queryByRole('menuitem')).toBeNull()
+  })
+
   it('stays a name for somebody in one business, the owner of it too', async () => {
     answer('GET', '/auth/tenants', [aTenantChoice(['owner'], { name: 'Elektro Kohm GmbH' })])
     await mount()
@@ -245,37 +266,5 @@ describe('the businesses under "Konto"', () => {
       expect(within(list).getAllByRole('listitem')).toHaveLength(2)
     })
     expect(screen.queryByText('Weiterer Betrieb')).toBeNull()
-  })
-})
-
-describe('the way into the area of the instance', () => {
-  it('is under the name for the people who run it', async () => {
-    answer('GET', '/instance/access', { operator: true, secondFactor: true })
-    await mount()
-    const user = userEvent.setup()
-
-    await user.click(
-      await screen.findByRole('button', { name: 'Moritz Kohm, Konto und Darstellung' }),
-    )
-
-    expect(
-      (await screen.findByRole('link', { name: 'Instanz verwalten' })).getAttribute('href'),
-    ).toBe('/instanz')
-  })
-
-  it('is not there for anybody else', async () => {
-    answer('GET', '/instance/access', { operator: false, secondFactor: true })
-    await mount()
-    const user = userEvent.setup()
-
-    await user.click(
-      await screen.findByRole('button', { name: 'Moritz Kohm, Konto und Darstellung' }),
-    )
-    await waitFor(() => {
-      expect(calls.some((call) => call.path === '/instance/access')).toBe(true)
-    })
-
-    expect(screen.getByRole('link', { name: 'Konto' })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Instanz verwalten' })).toBeNull()
   })
 })

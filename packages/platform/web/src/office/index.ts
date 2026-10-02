@@ -8,6 +8,20 @@
 // which has its own pieces under `/site`, so that a phone on site never loads
 // a table it will not show.
 
+// What every screen of the office sits in: the header with the tenant and the
+// person, the strips, the navigation beside the screen and behind "Menü" on a
+// phone. An application hands in its entries and mounts the frame as the
+// route over its screens.
+export { OfficeFrame } from './frame.js'
+export type { OfficeFrameProps } from './frame.js'
+export type { NavigationBadge, NavigationEntry, NavigationGroup } from './navigation.js'
+// The person with their menu, for a frame of an application's own, and the
+// place in the header a screen that is worked in puts its path into.
+export { PathSlot, PersonMenu } from './top-bar.js'
+// The tenants of the person signed in and the switch between them, for the
+// header and for a screen that lists them.
+export { switchTenant, useTenants } from './tenants.js'
+
 // The frame of a screen, its head with the path, the facts of a record, the
 // two columns of one, the chips of a list, a remark in a box.
 export {

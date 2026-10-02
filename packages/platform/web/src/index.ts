@@ -34,5 +34,6 @@ export type {
   DeviceStart,
   InterfaceApplication,
   InterfaceSentences,
+  OwnTenantLink,
   SettingsEntry,
 } from './application.js'

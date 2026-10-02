@@ -89,6 +89,9 @@ export const application: InterfaceApplication = {
       tenantHint: 'So wie der Betrieb auf einer Rechnung steht.',
       create: 'Betrieb anlegen',
     },
+    tenants: {
+      switch: 'Betrieb wechseln',
+    },
     settings: {
       whose: 'Dieser Betrieb',
       what: 'Was dieser Betrieb für sich festlegt.',

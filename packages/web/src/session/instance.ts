@@ -1,5 +1,4 @@
 import type {
-  InstanceAccess,
   InstanceLogPage,
   InstanceSettingsView,
   InstanceTenantView,
@@ -14,11 +13,6 @@ import { request } from '@opengewerk/platform-web/sync'
  * belongs to the instance and not to a business, and it is looked after in the
  * office.
  */
-
-/** Whether the person signed in runs the instance, for the entry under the name. */
-export function instanceAccess(): Promise<InstanceAccess> {
-  return request<InstanceAccess>('/instance/access')
-}
 
 export function instanceSettings(): Promise<InstanceSettingsView> {
   return request<InstanceSettingsView>('/instance/settings')

@@ -59,6 +59,14 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
       },
     ],
 
+    // For whoever may make a tenant of their own, a right no application has.
+    ownTenant: {
+      right: 'tenant.own',
+      to: '/konto',
+      hash: 'mandanten',
+      label: 'Eigenen Mandanten anlegen',
+    },
+
     sentences: {
       signIn: {
         resetSent:
@@ -84,6 +92,9 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         tenantLabel: 'Mandant',
         tenantHint: 'So wie der Mandant heißen soll.',
         create: 'Mandant anlegen',
+      },
+      tenants: {
+        switch: 'Mandant wechseln',
       },
       settings: {
         whose: 'Dieser Mandant',

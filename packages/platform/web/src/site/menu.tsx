@@ -1,17 +1,20 @@
-import { ThemeSwitch, useTheme } from '@opengewerk/platform-web'
-import { SignOutButton } from '@opengewerk/platform-web/gate'
-import { useWho } from '@opengewerk/platform-web/session'
-import { entryPath, rememberEntry } from '@opengewerk/platform-web/shell'
-import { useSync } from '@opengewerk/platform-web/sync'
 import { Monitor, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 
-import { SitePush } from './push.js'
+import { useApplication } from '../application.js'
+import { ThemeSwitch } from '../components/theme-switch.js'
+import { useTheme } from '../components/theme.js'
+import { SignOutButton } from '../gate/sign-out.js'
+import { useWho } from '../session/who.js'
+import { entryPath, rememberEntry } from '../shell/entry.js'
+import { useSync } from '../sync/provider.js'
 
 /**
- * The menu of the site, a sheet from the bottom, as the board "Baustelle:
- * Menü" draws it: who is signed in and where, light or dark on this device,
- * push on this device (#284), the way to the office view and signing out.
+ * The menu of the site, a sheet from the bottom, as the board of that menu
+ * draws it: who is signed in and where, light or dark on this device, what
+ * the application adds for this device, the way to the office view and
+ * signing out.
  *
  * From the bottom because that is where the thumb is and where the tab that
  * opens it sits. It closes on the cross, on Escape and on a tap beside it; the
@@ -20,13 +23,17 @@ import { SitePush } from './push.js'
 export function SiteMenu({
   open,
   onClose,
+  children,
 }: {
   readonly open: boolean
   readonly onClose: () => void
+  /** Rows of the application, between light and dark and the way to the office. */
+  readonly children?: ReactNode
 }) {
   const who = useWho()
   const client = useSync()
   const [theme, chooseTheme] = useTheme()
+  const { entry: sentences } = useApplication().sentences
   const close = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -98,7 +105,7 @@ export function SiteMenu({
           </p>
         </div>
         <div aria-hidden="true" className="my-1.5 h-px bg-line" />
-        <SitePush />
+        {children}
         <a
           href={entryPath.office}
           onClick={() => {
@@ -108,7 +115,7 @@ export function SiteMenu({
         >
           <Monitor size={22} strokeWidth={1.9} aria-hidden="true" className="shrink-0" />
           <span className="grow">
-            Zur Büroansicht
+            {sentences.goTo.office}
             <span className="block text-[14px] text-ink-muted">
               Mehr Übersicht, für Maus und Tastatur
             </span>
@@ -121,7 +128,7 @@ export function SiteMenu({
             // As in the office: signing out ends with the sync client stopped
             // and the local store gone, and reloading is the shortest honest
             // way to be sure of that.
-            globalThis.location.assign('/m/')
+            globalThis.location.assign(entryPath.site)
           }}
         />
       </div>

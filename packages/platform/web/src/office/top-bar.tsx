@@ -1,31 +1,23 @@
-import { BrandMark, ThemeSwitch, useTheme } from '@opengewerk/platform-web'
-import { SignOutButton } from '@opengewerk/platform-web/gate'
-import { accountQuery, useWho } from '@opengewerk/platform-web/session'
-import { useSync } from '@opengewerk/platform-web/sync'
-import { queryOptions, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, Menu, Server, User } from 'lucide-react'
 import { createContext, useEffect, useRef, useState } from 'react'
 
-import { instanceAccess } from '../session/instance.js'
-import { BusinessMenu } from './businesses.js'
-
-/**
- * Whether the person runs the instance (#188), for the entry under the name
- * and the door of its area. Asked once the account is known and kept for a
- * few minutes: the answer changes when another operator names or removes
- * somebody, and the routes of the area ask again on every request anyway.
- */
-export const instanceAccessQuery = queryOptions({
-  queryKey: ['instance-access'],
-  queryFn: instanceAccess,
-  staleTime: 5 * 60_000,
-  retry: false,
-})
+import { useApplication } from '../application.js'
+import { BrandMark } from '../components/brand-mark.js'
+import { ThemeSwitch } from '../components/theme-switch.js'
+import { useTheme } from '../components/theme.js'
+import { SignOutButton } from '../gate/sign-out.js'
+import { instanceAccessQuery } from '../session/instance.js'
+import { accountQuery } from '../session/queries.js'
+import { useWho } from '../session/who.js'
+import { entryPath } from '../shell/entry.js'
+import { useSync } from '../sync/provider.js'
+import { TenantMenu } from './tenants.js'
 
 /**
  * The header of every office screen, in slate, as on the canvas: the mark,
- * the business this session works in, and the person with their menu.
+ * the tenant this session works in, and the person with their menu.
  *
  * Below 1024 px it becomes the header of a phone: "Menü" on the left opens the
  * navigation as a drawer, the mark sits in the middle, the person on the
@@ -34,8 +26,8 @@ export const instanceAccessQuery = queryOptions({
  */
 /**
  * Where a screen that one works in puts its path into the header, from 1024
- * pixels on: the structure of an installation, as `struct_top()` of the
- * canvas draws it, with the customer and the site instead of the business.
+ * pixels on, as `struct_top()` of the canvas draws it: what it stands under,
+ * instead of the tenant.
  */
 export const PathSlot = createContext<HTMLElement | null>(null)
 
@@ -53,6 +45,7 @@ export function TopBar({
   readonly onSlot?: (element: HTMLElement | null) => void
 }) {
   const who = useWho()
+  const { name } = useApplication()
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-1 bg-top px-1.5 text-top-ink lg:h-[52px] lg:gap-5 lg:px-5">
@@ -68,14 +61,14 @@ export function TopBar({
       <div className="grow lg:hidden" />
       <Link to="/" className="flex items-center gap-[9px] text-top-ink no-underline">
         <BrandMark />
-        <span className="text-[16px] font-semibold tracking-[0.2px]">OpenGewerk</span>
+        <span className="text-[16px] font-semibold tracking-[0.2px]">{name}</span>
       </Link>
       {focus ? (
         <div ref={onSlot} className="hidden min-w-0 lg:ml-0 lg:flex" />
       ) : (
         <>
           <div aria-hidden="true" className="hidden h-[22px] w-px bg-top-line lg:block" />
-          {who.tenant ? <BusinessMenu name={who.tenant} /> : null}
+          {who.tenant ? <TenantMenu name={who.tenant} /> : null}
         </>
       )}
       <div className="grow" />
@@ -85,9 +78,9 @@ export function TopBar({
 }
 
 /**
- * The person, and behind them what belongs to them rather than to the
- * business: light or dark on this device, the account, the area of the
- * instance for those who run it (#188), signing out.
+ * The person, and behind them what belongs to them rather than to the tenant:
+ * light or dark on this device, the account, the area of the instance for
+ * those who run it (#188), signing out.
  *
  * A button that opens a panel, not an ARIA menu: the panel holds a switch and
  * links, and a menu role would promise arrow keys over them that a plain list
@@ -190,10 +183,10 @@ export function PersonMenu() {
             client={client}
             row
             onSignedOut={() => {
-              // As under "Konto": signing out ends with the sync client stopped
-              // and the local store gone, and reloading is the shortest honest
-              // way to be sure of that.
-              globalThis.location.assign('/')
+              // As under the account: signing out ends with the sync client
+              // stopped and the local store gone, and reloading is the
+              // shortest honest way to be sure of that.
+              globalThis.location.assign(entryPath.office)
             }}
           />
         </div>

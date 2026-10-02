@@ -13,7 +13,14 @@ import {
 import type { TableCard } from '@opengewerk/platform-web'
 import { moment } from '@opengewerk/platform-web/format'
 import { SecondFactorSetup, SignOutButton } from '@opengewerk/platform-web/gate'
-import { PageHead, Saved, Screen, SettingsText } from '@opengewerk/platform-web/office'
+import {
+  PageHead,
+  Saved,
+  Screen,
+  SettingsText,
+  switchTenant,
+  useTenants,
+} from '@opengewerk/platform-web/office'
 import {
   accountQuery,
   changePassword,
@@ -33,7 +40,6 @@ import type { FormEvent, ReactNode } from 'react'
 
 import { useMay } from '../../app/queries.js'
 import { createOwnTenant } from '../../session/instance.js'
-import { switchBusiness, useBusinesses } from '../businesses.js'
 import { PasskeysPanel } from './account-passkeys.js'
 import { PushPanel } from './account-push.js'
 
@@ -529,7 +535,7 @@ function BusinessesPanel() {
   const client = useSync()
   const queries = useQueryClient()
   const mayCreate = useMay('tenant.create')
-  const { list, current } = useBusinesses()
+  const { list, current } = useTenants()
   const [switching, setSwitching] = useState<string | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -555,7 +561,7 @@ function BusinessesPanel() {
   function switchTo(tenantId: TenantId) {
     setTrouble(null)
     setSwitching(tenantId)
-    switchBusiness(client, tenantId).catch(() => {
+    switchTenant(client, tenantId).catch(() => {
       setSwitching(null)
       setTrouble('Der Wechsel ging nicht. Ist der Server erreichbar?')
     })

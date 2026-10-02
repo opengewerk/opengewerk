@@ -1,0 +1,362 @@
+import { Link, useRouterState } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { RefreshCw, Settings, X } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { Fragment, useEffect, useReducer, useRef } from 'react'
+
+import { useApplication } from '../application.js'
+import { BrandMark } from '../components/brand-mark.js'
+import { ThemeSwitch } from '../components/theme-switch.js'
+import { useTheme } from '../components/theme.js'
+import { sinceThen } from '../format.js'
+import { useWho } from '../session/who.js'
+import { useSyncStatus } from '../sync/provider.js'
+import { useSettingsEntries } from './settings.js'
+import { DrawerTenant } from './tenants.js'
+
+/**
+ * One entry of the navigation: where it leads, what it is called, its symbol.
+ * Which entries there are is the application's to say (ADR 0010), with what
+ * the person may use left out already; the two at the foot are the
+ * foundation's own.
+ */
+export interface NavigationEntry {
+  readonly to: string
+  readonly label: string
+  readonly icon: LucideIcon
+  /** There when needed, quieter than the work: the entries at the foot. */
+  readonly quiet?: boolean
+  /**
+   * Further paths that light the entry: a record lights the list it is
+   * opened from, although its address does not stand under that of the list.
+   */
+  readonly also?: readonly string[]
+  readonly badge?: NavigationBadge
+}
+
+/**
+ * A number beside an entry. Shown as the bare figure, as on the canvas, and
+ * read out in words: a figure straight after the label makes the name of the
+ * link "Notizen3". The words go into the name of the link and start with the
+ * label, so a spoken label still finds it.
+ */
+export interface NavigationBadge {
+  readonly value: number
+  readonly tone: 'waiting' | 'conflict'
+  readonly spoken: string
+}
+
+/** Entries under a title. A group without an entry is left out with its title. */
+export interface NavigationGroup {
+  readonly title: string
+  readonly entries: readonly NavigationEntry[]
+}
+
+/** Where the exchange with the server is looked at, the first of the two entries at the foot. */
+const syncPath = '/konflikte'
+
+/**
+ * The two places at the foot that are visited rather than worked in: the
+ * exchange with the server, with the conflicts that wait as a figure, and the
+ * settings, for whoever may read at least one of them. A courtesy and not the
+ * gate, as everywhere in the navigation.
+ */
+function useFoot(): readonly NavigationEntry[] {
+  const { conflicts } = useSyncStatus()
+  const settings = useSettingsEntries()
+
+  return [
+    {
+      to: syncPath,
+      label: 'Abgleich',
+      icon: RefreshCw,
+      quiet: true,
+      ...(conflicts.length > 0
+        ? {
+            badge: {
+              value: conflicts.length,
+              tone: 'conflict' as const,
+              spoken:
+                conflicts.length === 1 ? 'ein Konflikt' : `${String(conflicts.length)} Konflikte`,
+            },
+          }
+        : {}),
+    },
+    ...(settings.length > 0
+      ? [{ to: '/einstellungen', label: 'Einstellungen', icon: Settings, quiet: true }]
+      : []),
+  ]
+}
+
+// Size and indent differ beside the screen and in the drawer, so they are
+// left to the caller: two font sizes on one element are decided by the order
+// of the stylesheet, not by the order of the classes.
+const groupLabel = 'font-condensed font-semibold uppercase tracking-[1.1px] text-ink-faint'
+
+/**
+ * One entry, lit on its own path and on the paths below it, and on the paths
+ * it names under `also`. `aria-current` goes with it, which is how a screen
+ * reader says "you are here".
+ */
+function EntryLink({
+  entry,
+  large = false,
+  onFollow,
+}: {
+  readonly entry: NavigationEntry
+  /** The drawer on a phone: 48 px rows and 16 px type for a thumb. */
+  readonly large?: boolean
+  readonly onFollow?: () => void
+}) {
+  const Icon = entry.icon
+  const path = useRouterState({ select: (state) => state.location.pathname })
+  // Below a path is what follows it after a slash. The first list lives at
+  // `/`, which every path starts with, and is lit there alone: nothing
+  // follows `/` after a second slash.
+  const under = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`)
+  const isActive = under(entry.to) || (entry.also ?? []).some(under)
+  // The line height of the canvas, Barlow's own: at the 1.45 of running text a
+  // row came out 34 px instead of 31, and the list 4 px longer per entry.
+  const base = clsx(
+    'flex items-center no-underline',
+    large
+      ? 'gap-3 min-h-12 px-3.5 rounded-[5px] text-[16px]'
+      : 'gap-[9px] px-2.5 py-[7px] rounded-control text-[14px] leading-[1.2]',
+  )
+  // Quiet only beside the screen, where the foot sits apart from the work. In
+  // the drawer every entry is a row for a thumb and reads the same.
+  const idle = entry.quiet && !large ? 'text-ink-muted' : 'text-ink'
+
+  return (
+    <Link
+      to={entry.to}
+      aria-current={isActive ? 'page' : undefined}
+      aria-label={entry.badge ? `${entry.label}, ${entry.badge.spoken}` : undefined}
+      // Which entry is lit is worked out above, including the paths under
+      // `also`; the router agrees on its own path and adds nothing else.
+      activeOptions={{ exact: true, includeSearch: false }}
+      className={
+        isActive
+          ? clsx(base, 'bg-ink text-ground', large ? 'font-semibold' : 'font-medium')
+          : clsx(base, idle)
+      }
+      onClick={onFollow}
+    >
+      {() => (
+        <>
+          <Icon size={large ? 20 : 16} strokeWidth={1.9} aria-hidden="true" />
+          {entry.label}
+          {entry.badge ? (
+            <span
+              aria-hidden="true"
+              className={clsx(
+                'ml-auto numeric',
+                large ? 'text-[14px] font-bold' : 'text-[12px] font-semibold',
+                isActive
+                  ? 'text-ground'
+                  : entry.badge.tone === 'conflict'
+                    ? 'text-conflict'
+                    : 'text-waiting',
+              )}
+            >
+              {entry.badge.value}
+            </span>
+          ) : null}
+        </>
+      )}
+    </Link>
+  )
+}
+
+/**
+ * The state of the outbox, quietly, under "Abgleich". The loud strip above
+ * the screen is for when something has to be done; "everything arrived" is
+ * not that, and a green bar on every screen was the first thing that looked
+ * wrong (#217).
+ */
+export function SyncNote() {
+  const status = useSyncStatus()
+  // "vor 2 Minuten" has to move on while nobody touches anything.
+  const [, tick] = useReducer((count: number) => count + 1, 0)
+
+  useEffect(() => {
+    const timer = globalThis.setInterval(tick, 60_000)
+
+    return () => {
+      globalThis.clearInterval(timer)
+    }
+  }, [])
+
+  // A conflict has its number beside "Abgleich" and the strip over the page,
+  // and the boards draw no line under the entry then.
+  if (status.state === 'conflict') {
+    return null
+  }
+
+  const text =
+    status.state === 'refused'
+      ? 'Eine Änderung abgelehnt'
+      : status.state === 'offline'
+        ? status.trouble === null
+          ? 'Wird übertragen'
+          : 'Keine Verbindung'
+        : status.lastSyncedAt
+          ? `Abgeglichen, ${sinceThen(status.lastSyncedAt)}`
+          : 'Noch nicht abgeglichen'
+
+  return (
+    <div
+      className={clsx(
+        'pl-[35px] pr-2.5 pb-1.5 -mt-[3px] text-[12px] leading-snug',
+        // Quiet while everything goes as it should, also while a change is on
+        // its way; red only when something needs somebody.
+        status.state === 'synced' || (status.state === 'offline' && status.trouble === null)
+          ? 'text-ink-faint'
+          : 'text-conflict font-semibold',
+      )}
+    >
+      {text}
+    </div>
+  )
+}
+
+function withEntries(groups: readonly NavigationGroup[]): readonly NavigationGroup[] {
+  return groups.filter((group) => group.entries.length > 0)
+}
+
+/** The navigation beside every office screen, from 1024 px on. */
+export function Sidebar({ groups }: { readonly groups: readonly NavigationGroup[] }) {
+  const foot = useFoot()
+
+  return (
+    <nav
+      aria-label="Hauptbereiche"
+      className="hidden lg:flex sticky top-[52px] h-[calc(100dvh-52px)] w-[208px] shrink-0 flex-col gap-0.5 overflow-y-auto px-2.5 py-3.5 bg-nav border-r border-line"
+    >
+      {withEntries(groups).map((group, index) => (
+        <Fragment key={group.title}>
+          <div
+            className={clsx(
+              groupLabel,
+              'px-2.5 text-label',
+              index === 0 ? 'pt-1.5 pb-1' : 'pt-3.5 pb-1',
+            )}
+          >
+            {group.title}
+          </div>
+          {group.entries.map((entry) => (
+            <EntryLink key={entry.to} entry={entry} />
+          ))}
+        </Fragment>
+      ))}
+      <div className="grow" />
+      {foot.map((entry) => (
+        <Fragment key={entry.to}>
+          <EntryLink entry={entry} />
+          {entry.to === syncPath ? <SyncNote /> : null}
+        </Fragment>
+      ))}
+    </nav>
+  )
+}
+
+/**
+ * The same navigation below 1024 px, opened from "Menü" in the header, over
+ * the screen. It closes when an entry is followed, on Escape and on a tap
+ * beside it. Light or dark sits at its foot, because on a phone this is the
+ * one place a person looks for settings of the device.
+ */
+export function Drawer({
+  open,
+  onClose,
+  groups,
+}: {
+  readonly open: boolean
+  readonly onClose: () => void
+  readonly groups: readonly NavigationGroup[]
+}) {
+  const foot = useFoot()
+  const [theme, chooseTheme] = useTheme()
+  const who = useWho()
+  const { name } = useApplication()
+  const close = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    close.current?.focus()
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', onKey)
+
+    return () => {
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open, onClose])
+
+  if (!open) {
+    return null
+  }
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Menü" className="fixed inset-0 z-40 lg:hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[rgb(15_20_27/0.45)]"
+        onClick={onClose}
+      />
+      <nav
+        aria-label="Hauptbereiche"
+        className="absolute inset-y-0 left-0 flex w-[min(320px,calc(100vw-48px))] flex-col bg-nav shadow-[4px_0_24px_rgb(15_20_27/0.25)]"
+      >
+        <div className="flex h-14 shrink-0 items-center gap-2 pl-3.5 pr-1.5 bg-top text-top-ink">
+          <BrandMark />
+          <span className="grow text-[16px] font-semibold">{name}</span>
+          <button
+            ref={close}
+            type="button"
+            aria-label="Menü schließen"
+            onClick={onClose}
+            className="flex size-11 items-center justify-center rounded-control text-top-ink cursor-pointer"
+          >
+            <X size={22} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        </div>
+        {who.tenant ? <DrawerTenant name={who.tenant} onFollow={onClose} /> : null}
+        <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
+          {withEntries(groups).map((group, index) => (
+            <Fragment key={group.title}>
+              <div
+                className={clsx(
+                  groupLabel,
+                  'px-3.5 text-[13px]',
+                  index === 0 ? 'pt-1 pb-1.5' : 'pt-4 pb-1.5',
+                )}
+              >
+                {group.title}
+              </div>
+              {group.entries.map((entry) => (
+                <EntryLink key={entry.to} entry={entry} large onFollow={onClose} />
+              ))}
+            </Fragment>
+          ))}
+          <div aria-hidden="true" className="mx-3.5 my-3 h-px bg-line" />
+          {foot.map((entry) => (
+            <EntryLink key={entry.to} entry={entry} large onFollow={onClose} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 border-t border-line p-3">
+          <div className={clsx(groupLabel, 'text-label')}>Darstellung</div>
+          <ThemeSwitch value={theme} onChoose={chooseTheme} large />
+        </div>
+      </nav>
+    </div>
+  )
+}

@@ -60,6 +60,19 @@ describe('the interface of the foundation', () => {
       './styles/tokens.css': './src/styles/tokens.css',
     })
   })
+
+  /**
+   * An entry of this package hands on many modules, and an application takes
+   * a few of them from each of its own entry points. Unless a package says
+   * that loading its modules does nothing, a bundler has to assume it does
+   * something, and puts every module that both entry points can reach into
+   * what both load. That is how the office came to load the frame of the
+   * site: a component both share takes one piece from the same entry. The
+   * build was green and the budget held; only the chunks showed it.
+   */
+  it('says that loading one of its modules does nothing, a stylesheet apart', () => {
+    expect(manifest.sideEffects).toEqual(['**/*.css'])
+  })
 })
 
 // A dependency is one way of knowing an application. The other is quieter: its
@@ -140,6 +153,9 @@ const recordLiteral =
 const recordWord =
   /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
 
+/** An import for its effect alone: no name is taken from the module. */
+const sideEffectImport = /^\s*import\s+['"]/
+
 describe('what the interface of the foundation knows of an application', () => {
   it('is looked for in the whole package', () => {
     const files = Object.keys(shipped)
@@ -182,6 +198,18 @@ describe('what the interface of the foundation knows of an application', () => {
         ),
       ),
     ).toEqual([])
+  })
+
+  /**
+   * What the manifest says of every module has to be true of every module.
+   * An import without a name is one made for what loading the module does,
+   * and a bundler that was told there is no such thing may leave it out.
+   */
+  it('imports no module for what loading it does', () => {
+    expect(found(outsideComments.filter((line) => sideEffectImport.test(line.text)))).toEqual([])
+    expect(sideEffectImport.test("import 'fake-indexeddb/auto'")).toBe(true)
+    expect(sideEffectImport.test("import { Button } from './button.js'")).toBe(false)
+    expect(sideEffectImport.test("import type { Entry } from './surface.js'")).toBe(false)
   })
 
   it('would notice any of them, as the patterns are written', () => {

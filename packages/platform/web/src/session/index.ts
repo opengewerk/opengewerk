@@ -85,6 +85,9 @@ export {
   signInWithPasskey,
 } from './passkeys.js'
 
+// Whether the person signed in runs the instance.
+export { instanceAccess, instanceAccessQuery } from './instance.js'
+
 // This device, and what a person calls one.
 export { deviceIdentity } from './device.js'
 export { deviceName } from './device-name.js'

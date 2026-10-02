@@ -1,57 +1,51 @@
-import type { TenantId } from '@opengewerk/domain'
-import {
-  accountQuery,
-  availableTenants,
-  chooseTenant,
-  rolesInWords,
-} from '@opengewerk/platform-web/session'
-import type { TenantChoice } from '@opengewerk/platform-web/session'
-import { useSync } from '@opengewerk/platform-web/sync'
+import type { TenantId } from '@opengewerk/platform-domain'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Check, ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { useMay } from '../app/queries.js'
+import { useApplication } from '../application.js'
+import type { OwnTenantLink } from '../application.js'
+import { accountQuery, tenantsQuery, useRight } from '../session/queries.js'
+import { chooseTenant } from '../session/session.js'
+import type { TenantChoice } from '../session/session.js'
+import { rolesInWords } from '../session/who.js'
+import { entryPath } from '../shell/entry.js'
 import type { SyncClient } from '../sync/client.js'
+import { useSync } from '../sync/provider.js'
 
 /**
- * The businesses of the person signed in, and the switch between them without
+ * The tenants of the person signed in, and the switch between them without
  * signing in again (#242). The list is the one the gate and every check of a
  * right read already, so asking it here costs nothing.
  */
-export function useBusinesses(): {
+export function useTenants(): {
   readonly list: readonly TenantChoice[]
   readonly current: TenantId | null
-  /** Whether there is another business to switch to, which decides between a button and a name. */
+  /** Whether there is another tenant to switch to, which decides between a button and a name. */
   readonly offersMore: boolean
 } {
   const account = useQuery(accountQuery)
-  const tenants = useQuery({
-    queryKey: ['tenants'],
-    queryFn: availableTenants,
-    staleTime: 5 * 60_000,
-    retry: false,
-  })
+  const tenants = useQuery(tenantsQuery)
   const list = tenants.data ?? []
 
-  // Only with a second business, as #242 has it: somebody in one sees its name
-  // as before, and an owner makes a second one under "Konto".
+  // Only with a second tenant, as #242 has it: somebody in one sees its name
+  // as before.
   return { list, current: account.data?.tenantId ?? null, offersMore: list.length > 1 }
 }
 
 /**
- * Moves this session into another business and starts the application again
- * in it.
+ * Moves this session into another tenant and starts the application again in
+ * it.
  *
  * What waits in the outbox goes first while there is a connection, which the
- * switch needs anyway: the outbox belongs to the business it was written in
- * and would otherwise wait on this device until somebody switches back. Then
- * the session is moved, and the page starts again, the shortest honest way to
- * a sync client and a local store of the new business, as signing out does.
+ * switch needs anyway: the outbox belongs to the tenant it was written in and
+ * would otherwise wait on this device until somebody switches back. Then the
+ * session is moved, and the page starts again, the shortest honest way to a
+ * sync client and a local store of the new tenant, as signing out does.
  */
-export async function switchBusiness(client: SyncClient | null, tenantId: TenantId): Promise<void> {
+export async function switchTenant(client: SyncClient | null, tenantId: TenantId): Promise<void> {
   try {
     await client?.synchronise()
 
@@ -62,16 +56,30 @@ export async function switchBusiness(client: SyncClient | null, tenantId: Tenant
       await client.synchronise()
     }
   } catch {
-    // What could not go out stays in the store of this business, as it does
+    // What could not go out stays in the store of this tenant, as it does
     // without a connection, and goes out after the next switch back.
   }
 
   await chooseTenant(tenantId)
-  globalThis.location.assign('/')
+  globalThis.location.assign(entryPath.office)
 }
 
-/** One business in a list to choose from: the name, the roles under it, a tick at the current one. */
-function BusinessChoice({
+/**
+ * The way to a further tenant of one's own, for whoever the application lets
+ * make one: its link and its right are the application's (ADR 0010), which
+ * has the route behind it. Nothing where it has none, or for somebody who
+ * lacks the right.
+ */
+function useOwnTenantLink(): OwnTenantLink | null {
+  const { ownTenant } = useApplication()
+  // Asked whether there is a link or not: a hook is not called now and then.
+  const may = useRight(ownTenant?.right ?? '')
+
+  return ownTenant && may ? ownTenant : null
+}
+
+/** One tenant in a list to choose from: the name, the roles under it, a tick at the current one. */
+function TenantRow({
   tenant,
   current,
   large,
@@ -125,18 +133,20 @@ function BusinessChoice({
   )
 }
 
-/** "Weiteren Betrieb anlegen", to the card under "Konto" where it is done (#142). */
-function NewBusinessLink({
+/** The link under the list, to where a further tenant of one's own is made. */
+function OwnTenant({
+  link,
   large,
   onFollow,
 }: {
+  readonly link: OwnTenantLink
   readonly large: boolean
   readonly onFollow: () => void
 }) {
   return (
     <Link
-      to="/konto"
-      hash="betriebe"
+      to={link.to}
+      {...(link.hash === undefined ? {} : { hash: link.hash })}
       role="menuitem"
       onClick={onFollow}
       className={clsx(
@@ -147,21 +157,24 @@ function NewBusinessLink({
       )}
     >
       <Plus size={large ? 18 : 16} strokeWidth={1.9} aria-hidden="true" className="shrink-0" />
-      Weiteren Betrieb anlegen
+      {link.label}
     </Link>
   )
 }
 
+/** Said under the list when the session did not move. */
+const switchTrouble = 'Der Wechsel ging nicht. Ist der Server erreichbar?'
+
 /**
- * The business in the header, from 1024 pixels on, `business_popover()` of
- * the canvas: the name, and where there is more than one business, a button
- * that opens the list under it. A person in one business sees the name as
- * before.
+ * The tenant in the header, from 1024 pixels on, `business_popover()` of the
+ * canvas: the name, and where there is more than one tenant, a button that
+ * opens the list under it. A person in one tenant sees the name as before.
  */
-export function BusinessMenu({ name }: { readonly name: string }) {
+export function TenantMenu({ name }: { readonly name: string }) {
   const client = useSync()
-  const mayCreate = useMay('tenant.create')
-  const { list, current, offersMore } = useBusinesses()
+  const own = useOwnTenantLink()
+  const { tenants: sentences } = useApplication().sentences
+  const { list, current, offersMore } = useTenants()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -215,14 +228,14 @@ export function BusinessMenu({ name }: { readonly name: string }) {
       {open ? (
         <div
           role="menu"
-          aria-label="Betrieb wechseln"
+          aria-label={sentences.switch}
           className="absolute left-0 top-full z-40 flex w-[280px] flex-col gap-0.5 rounded-[6px] border border-line bg-surface p-2 text-ink shadow-[0_8px_24px_rgb(20_26_35/0.18)]"
         >
           <div className="px-2.5 pt-1 pb-1.5 font-condensed text-label font-semibold uppercase tracking-[1.1px] text-ink-faint">
-            Betrieb wechseln
+            {sentences.switch}
           </div>
           {list.map((tenant) => (
-            <BusinessChoice
+            <TenantRow
               key={tenant.id}
               tenant={tenant}
               current={tenant.id === current}
@@ -230,9 +243,9 @@ export function BusinessMenu({ name }: { readonly name: string }) {
               busy={busy}
               onChoose={() => {
                 setBusy(true)
-                switchBusiness(client, tenant.id).catch(() => {
+                switchTenant(client, tenant.id).catch(() => {
                   setBusy(false)
-                  setTrouble('Der Wechsel ging nicht. Ist der Server erreichbar?')
+                  setTrouble(switchTrouble)
                 })
               }}
             />
@@ -242,10 +255,11 @@ export function BusinessMenu({ name }: { readonly name: string }) {
               {trouble}
             </p>
           ) : null}
-          {mayCreate ? (
+          {own ? (
             <>
               <div aria-hidden="true" className="my-1 h-px bg-line" />
-              <NewBusinessLink
+              <OwnTenant
+                link={own}
                 large={false}
                 onFollow={() => {
                   setOpen(false)
@@ -260,11 +274,11 @@ export function BusinessMenu({ name }: { readonly name: string }) {
 }
 
 /**
- * The business at the top of the menu on a phone, `business_drawer()` of the
+ * The tenant at the top of the menu on a phone, `business_drawer()` of the
  * canvas: a box with the name that opens the list under it in place, the way
  * the rest of the menu goes on below.
  */
-export function DrawerBusiness({
+export function DrawerTenant({
   name,
   onFollow,
 }: {
@@ -272,8 +286,9 @@ export function DrawerBusiness({
   readonly onFollow: () => void
 }) {
   const client = useSync()
-  const mayCreate = useMay('tenant.create')
-  const { list, current, offersMore } = useBusinesses()
+  const own = useOwnTenantLink()
+  const { tenants: sentences } = useApplication().sentences
+  const { list, current, offersMore } = useTenants()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -309,11 +324,11 @@ export function DrawerBusiness({
       {open ? (
         <div
           role="menu"
-          aria-label="Betrieb wechseln"
+          aria-label={sentences.switch}
           className="overflow-hidden rounded-b-[5px] border border-t-0 border-line"
         >
           {list.map((tenant) => (
-            <BusinessChoice
+            <TenantRow
               key={tenant.id}
               tenant={tenant}
               current={tenant.id === current}
@@ -321,9 +336,9 @@ export function DrawerBusiness({
               busy={busy}
               onChoose={() => {
                 setBusy(true)
-                switchBusiness(client, tenant.id).catch(() => {
+                switchTenant(client, tenant.id).catch(() => {
                   setBusy(false)
-                  setTrouble('Der Wechsel ging nicht. Ist der Server erreichbar?')
+                  setTrouble(switchTrouble)
                 })
               }}
             />
@@ -336,7 +351,7 @@ export function DrawerBusiness({
               {trouble}
             </p>
           ) : null}
-          {mayCreate ? <NewBusinessLink large onFollow={onFollow} /> : null}
+          {own ? <OwnTenant link={own} large onFollow={onFollow} /> : null}
         </div>
       ) : null}
     </div>

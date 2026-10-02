@@ -1,6 +1,6 @@
 import { BrandMark, Shell } from '@opengewerk/platform-web'
-import { PageHead, Screen, SettingsText } from '@opengewerk/platform-web/office'
-import { useWho } from '@opengewerk/platform-web/session'
+import { PageHead, PersonMenu, Screen, SettingsText } from '@opengewerk/platform-web/office'
+import { instanceAccessQuery, useWho } from '@opengewerk/platform-web/session'
 import { UpdateBar } from '@opengewerk/platform-web/shell'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
@@ -8,8 +8,6 @@ import clsx from 'clsx'
 import { ChevronLeft, History, House, Menu, Server, Settings, Shield, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-
-import { instanceAccessQuery, PersonMenu } from '../top-bar.js'
 
 interface Entry {
   readonly to: string
