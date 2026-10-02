@@ -7,16 +7,17 @@ import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AccountScreen } from '../office/screens/account.js'
-import { SyncClient } from '../sync/client.js'
-import { PasswordResetScreen } from './password-reset.js'
-import { SecondFactorScreen, SignInScreen } from './sign-in.js'
+import { InApplication } from '../../app/in-application.js'
+import { SyncClient } from '../../sync/client.js'
+import { AccountScreen } from './account.js'
 
 /**
- * The second step of a sign in, with the code from the app or with a recovery
- * code for somebody whose phone is gone (#125), and the recovery codes under
- * "Konto". Before, the codes were shown at the setup and could be used
- * nowhere: the sign in only knew the code from the app.
+ * What somebody looks after about their own account under "Konto": the
+ * recovery codes for a phone that is gone (#125), the password (#126), and
+ * light or dark on this device (#216).
+ *
+ * The sign in these belong to is the foundation's and is tested there
+ * (ADR 0010). The screen is this application's, and so these stay here.
  */
 
 let counter = 0
@@ -38,9 +39,11 @@ async function account() {
 
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <SyncProvider client={client}>
-        <AccountScreen />
-      </SyncProvider>
+      <InApplication>
+        <SyncProvider client={client}>
+          <AccountScreen />
+        </SyncProvider>
+      </InApplication>
     </QueryClientProvider>,
   )
 }
@@ -83,44 +86,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('the second step of a sign in', () => {
-  it('asks for the code from the app, as it always has', async () => {
-    const verified = vi.fn()
-
-    render(<SecondFactorScreen onVerified={verified} />)
-    await userEvent.type(screen.getByLabelText('Code aus der App'), '123456')
-    await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
-
-    expect(calls.map((call) => call.path)).toEqual(['/api/auth/two-factor/verify-totp'])
-    expect(verified).toHaveBeenCalledOnce()
-  })
-
-  it('takes a recovery code instead, and says how many are left before going on', async () => {
-    answers.set('/auth/recovery-codes', { left: 9 })
-
-    const verified = vi.fn()
-
-    render(<SecondFactorScreen onVerified={verified} />)
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Telefon nicht zur Hand? Wiederherstellungscode' }),
-    )
-    await userEvent.type(screen.getByLabelText('Wiederherstellungscode'), ' Ab3dE-fG7hJ ')
-    await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
-
-    expect(calls[0]).toEqual({
-      path: '/api/auth/two-factor/verify-backup-code',
-      body: { code: 'Ab3dE-fG7hJ' },
-    })
-    expect(await screen.findByText(/noch 9 Wiederherstellungscodes übrig/)).toBeTruthy()
-    // Not yet: the count is worth a moment before the application opens.
-    expect(verified).not.toHaveBeenCalled()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
-
-    expect(verified).toHaveBeenCalledOnce()
-  })
-})
-
 describe('the recovery codes under "Konto"', () => {
   it('show how many are left, and a new set only after the password', async () => {
     answers.set('/api/auth/get-session', {
@@ -147,78 +112,6 @@ describe('the recovery codes under "Konto"', () => {
     expect(
       calls.find((call) => call.path === '/api/auth/two-factor/generate-backup-codes')?.body,
     ).toEqual({ password: 'das-passwort' })
-  })
-})
-
-describe('the sign in after the scan of a QR label (#308)', () => {
-  afterEach(() => {
-    globalThis.history.replaceState(null, '', '/')
-  })
-
-  it('says over the card that the installation opens afterwards', () => {
-    globalThis.history.replaceState(null, '', '/a/7K2M9QX4TBA3HW8P')
-    render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)
-
-    expect(screen.getByRole('note').textContent).toBe(
-      'Du hast das Etikett einer Anlage gescannt. Nach der Anmeldung öffnet sie sich.',
-    )
-  })
-
-  it('says nothing of a label anywhere else', () => {
-    render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)
-
-    expect(screen.queryByRole('note')).toBeNull()
-  })
-})
-
-describe('a forgotten password', () => {
-  it('asks for a link for the address in the field, and says the same either way', async () => {
-    render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)
-
-    await userEvent.type(screen.getByLabelText('E-Mail'), ' monteur@nord.example.de ')
-    await userEvent.click(screen.getByRole('button', { name: 'Passwort vergessen?' }))
-
-    expect(calls[0]).toEqual({
-      path: '/api/auth/request-password-reset',
-      body: { email: 'monteur@nord.example.de' },
-    })
-    expect(await screen.findByRole('status')).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toContain('Er gilt eine Stunde')
-  })
-
-  it('wants the address first, before it asks for anything', async () => {
-    render(<SignInScreen onSignedIn={vi.fn()} onSecondFactor={vi.fn()} />)
-
-    await userEvent.click(screen.getByRole('button', { name: 'Passwort vergessen?' }))
-
-    expect(calls).toEqual([])
-    expect(screen.getByRole('alert').textContent).toContain('E-Mail-Adresse')
-  })
-
-  it('sets the new password behind the link, twelve characters and twice the same', async () => {
-    render(<PasswordResetScreen token="abcdefghijklmnopqrstuvwx" />)
-
-    await userEvent.type(screen.getByLabelText('Neues Passwort'), 'zu-kurz')
-    await userEvent.type(screen.getByLabelText('Neues Passwort wiederholen'), 'zu-kurz')
-    await userEvent.click(screen.getByRole('button', { name: 'Passwort setzen' }))
-
-    expect(calls).toEqual([])
-    expect(screen.getByRole('alert').textContent).toContain('12 Zeichen')
-
-    await userEvent.clear(screen.getByLabelText('Neues Passwort'))
-    await userEvent.clear(screen.getByLabelText('Neues Passwort wiederholen'))
-    await userEvent.type(screen.getByLabelText('Neues Passwort'), 'ein-neues-langes-passwort')
-    await userEvent.type(
-      screen.getByLabelText('Neues Passwort wiederholen'),
-      'ein-neues-langes-passwort',
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Passwort setzen' }))
-
-    expect(calls[0]).toEqual({
-      path: '/api/auth/reset-password',
-      body: { token: 'abcdefghijklmnopqrstuvwx', newPassword: 'ein-neues-langes-passwort' },
-    })
-    expect(await screen.findByRole('heading', { name: 'Passwort gesetzt' })).toBeTruthy()
   })
 })
 

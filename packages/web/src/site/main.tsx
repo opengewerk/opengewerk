@@ -3,7 +3,7 @@ import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { Boot } from '../app/boot.js'
+import { Root } from '../app/root.js'
 import { startTheme } from '../app/theme.js'
 import { startServiceWorker } from '../entry/register.js'
 import { siteRouter } from './router.js'
@@ -31,9 +31,9 @@ startServiceWorker()
 createRoot(mount).render(
   <StrictMode>
     <QueryProvider client={queries}>
-      <Boot entry="site">
+      <Root entry="site">
         <RouterProvider router={siteRouter} />
-      </Boot>
+      </Root>
     </QueryProvider>
   </StrictMode>,
 )

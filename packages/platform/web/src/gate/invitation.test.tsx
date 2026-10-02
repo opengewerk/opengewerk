@@ -1,10 +1,11 @@
-import { invitationToken } from '@opengewerk/platform-web/session'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InProbe } from '../probe-application.js'
+import { invitationToken } from '../session/session.js'
 import { InvitationScreen } from './invitation.js'
 
 /**
@@ -16,6 +17,9 @@ import { InvitationScreen } from './invitation.js'
  * looks finished and leads nowhere. What is measured besides is the one thing
  * the whole link exists for, that the password reaches the server from this
  * screen and from no other.
+ *
+ * Who invited is a tenant, and what that is called the application says
+ * (ADR 0010). The one in these tests belongs to nobody.
  */
 
 interface Call {
@@ -55,7 +59,24 @@ function inQueries(node: ReactNode) {
   // A client per test, so that one test's answers are not another's cache.
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-  return <QueryClientProvider client={client}>{node}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={client}>
+      <InProbe>{node}</InProbe>
+    </QueryClientProvider>
+  )
+}
+
+/** A link as the server describes it, for somebody new unless the test says otherwise. */
+function offer(over: Readonly<Record<string, unknown>> = {}) {
+  return {
+    state: 'open',
+    company: 'Probewerk Nord',
+    name: 'Nele Neu',
+    email: 'neue@nord.example.de',
+    expiresAt: new Date().toISOString(),
+    knownAccount: false,
+    ...over,
+  }
 }
 
 beforeEach(() => {
@@ -79,7 +100,7 @@ beforeEach(() => {
   })
 
   vi.stubGlobal('location', {
-    origin: 'https://opengewerk.example.de',
+    origin: 'https://probewerk.example.de',
     pathname: '/',
     assign: (to: string) => {
       went = to
@@ -95,7 +116,7 @@ describe('the token in the address', () => {
   it('is found where a link puts it and nowhere else', () => {
     expect(invitationToken(`/einladung/${token}`)).toBe(token)
     expect(invitationToken('/')).toBeNull()
-    expect(invitationToken('/kunden/abc')).toBeNull()
+    expect(invitationToken('/regale/abc')).toBeNull()
     // The right path with something that is not a token. Refused here rather
     // than sent, so that a pasted line with a word missing costs nothing.
     expect(invitationToken('/einladung/zu-kurz')).toBeNull()
@@ -103,25 +124,25 @@ describe('the token in the address', () => {
 })
 
 describe('redeeming a link', () => {
-  it('names the business, takes a password and signs the person in with it', async () => {
-    serverSays('GET', `/invitation/${token}`, {
-      state: 'open',
-      company: 'Elektro Nord GmbH',
-      name: 'Nele Neu',
-      email: 'neue@nord.example.de',
-      expiresAt: new Date().toISOString(),
-      knownAccount: false,
-    })
-
+  it('names the tenant, takes a password and signs the person in with it', async () => {
+    serverSays('GET', `/invitation/${token}`, offer())
     serverSays('POST', `/invitation/${token}`, { created: true })
 
     render(inQueries(<InvitationScreen token={token} />))
 
-    // The business has to be on the screen: somebody who was handed a link in
-    // a message has to recognise what they are joining before they type
+    // The tenant has to be on the screen: somebody who was handed a link in a
+    // message has to recognise what they are joining before they type
     // anything.
-    expect(await screen.findByText(/Elektro Nord GmbH/)).toBeTruthy()
-    expect(screen.getByText(/Nele Neu/)).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Willkommen bei Probewerk Nord' }),
+    ).toBeTruthy()
+    // Who made the account is the application's sentence, with the name and
+    // the address set into it as the foundation marks them up.
+    expect(screen.getByText('Nele Neu').tagName).toBe('STRONG')
+    expect(screen.getByText('neue@nord.example.de').tagName).toBe('STRONG')
+    expect(screen.getByText('Nele Neu').parentElement?.textContent).toBe(
+      'Ein Mandant hat für Nele Neu einen Zugang mit der Adresse neue@nord.example.de angelegt.',
+    )
 
     const person = userEvent.setup()
     const fields = screen.getAllByLabelText(/Passwort/)
@@ -147,17 +168,10 @@ describe('redeeming a link', () => {
   })
 
   it('sends nothing while the two passwords differ', async () => {
-    serverSays('GET', `/invitation/${token}`, {
-      state: 'open',
-      company: 'Elektro Nord GmbH',
-      name: 'Nele Neu',
-      email: 'neue@nord.example.de',
-      expiresAt: new Date().toISOString(),
-      knownAccount: false,
-    })
+    serverSays('GET', `/invitation/${token}`, offer())
 
     render(inQueries(<InvitationScreen token={token} />))
-    await screen.findByText(/Elektro Nord GmbH/)
+    await screen.findByRole('heading', { name: 'Willkommen bei Probewerk Nord' })
 
     const person = userEvent.setup()
     const fields = screen.getAllByLabelText(/Passwort/)
@@ -175,46 +189,51 @@ describe('redeeming a link', () => {
    * A link that has been used says so, and says it differently from one that
    * never existed. Only one of the two is worth a second look from the person
    * holding it, and telling them apart is the whole reason the server answers
-   * with a state rather than a yes or no.
+   * with a state rather than a yes or no. Who to turn to is a tenant, so each
+   * of the three is the application's to say.
    */
-  it('says which kind of nothing a spent link is', async () => {
-    serverSays('GET', `/invitation/${token}`, {
-      state: 'redeemed',
-      company: 'Elektro Nord GmbH',
-      name: 'Nele Neu',
-      email: 'neue@nord.example.de',
-      expiresAt: new Date().toISOString(),
-      knownAccount: true,
-    })
+  it.each([
+    ['redeemed', 'Er wurde schon benutzt. Der Mandant weiß mehr.'],
+    ['revoked', 'Der Mandant hat ihn zurückgezogen.'],
+    ['expired', 'Er ist abgelaufen. Der Mandant erzeugt einen neuen.'],
+  ])('says which kind of nothing a link is that was %s', async (state, sentence) => {
+    serverSays('GET', `/invitation/${token}`, offer({ state, knownAccount: true }))
 
     render(inQueries(<InvitationScreen token={token} />))
 
-    expect(await screen.findByText(/schon benutzt/)).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Dieser Link gilt nicht mehr' }),
+    ).toBeTruthy()
+    expect(screen.getByText(sentence)).toBeTruthy()
     expect(screen.queryByLabelText(/Passwort/)).toBeNull()
   })
 
   /**
    * An address that already has an account keeps its password. Asking for a
    * new one would either do nothing or change the password of an account this
-   * office has nothing to do with, and on a shared instance that account might
-   * belong to the company next door.
+   * tenant has nothing to do with, and on a shared instance that account might
+   * belong to the tenant next door.
    */
   it('asks for no password when the address already has an account', async () => {
-    serverSays('GET', `/invitation/${token}`, {
-      state: 'open',
-      company: 'Elektro Nord GmbH',
-      name: 'Ingo Inhaber',
-      email: 'ingo@example.de',
-      expiresAt: new Date().toISOString(),
-      knownAccount: true,
-    })
+    serverSays(
+      'GET',
+      `/invitation/${token}`,
+      offer({ name: 'Lea Leitung', email: 'lea@example.de', knownAccount: true }),
+    )
 
     render(inQueries(<InvitationScreen token={token} />))
 
-    expect(await screen.findByText(/behalten Ihr Passwort/)).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Beitreten zu Probewerk Nord' }),
+    ).toBeTruthy()
+    // That there is an account, the foundation says. That the password stays
+    // and the tenant is added, the application.
+    expect(screen.getByText('lea@example.de').parentElement?.textContent).toBe(
+      'Für lea@example.de gibt es auf dieser Instanz schon ein Konto. Ihr Passwort bleibt, der Mandant kommt dazu.',
+    )
     expect(screen.queryByLabelText(/Passwort/)).toBeNull()
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Betrieb übernehmen' }))
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Mandant übernehmen' }))
 
     expect(asked(`/invitation/${token}`, 'POST')).toBeDefined()
     // No sign in: the account has a password and this screen does not know it.

@@ -15,6 +15,7 @@ import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InApplication } from '../app/in-application.js'
 import { SyncClient } from '../sync/client.js'
 import { SiteHeader } from './header.js'
 import { SiteShell } from './shell.js'
@@ -76,9 +77,11 @@ async function mount(path = '/', server: TestServer = new TestServer()) {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <SyncProvider client={client}>
-        <RouterProvider router={router} />
-      </SyncProvider>
+      <InApplication>
+        <SyncProvider client={client}>
+          <RouterProvider router={router} />
+        </SyncProvider>
+      </InApplication>
     </QueryClientProvider>,
   )
 

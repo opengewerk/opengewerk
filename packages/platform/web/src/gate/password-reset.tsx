@@ -1,10 +1,11 @@
-import { Button, Field } from '@opengewerk/platform-web'
-import { resetPassword, shortestPassword } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { Gate, GateText } from './gate.js'
+import { Button } from '../components/button.js'
+import { Field } from '../components/field.js'
+import { resetPassword, shortestPassword } from '../session/session.js'
+import { RequestRefused } from '../sync/transport.js'
+import { Gate, GateText } from './frame.js'
 
 /**
  * The far end of the link in the mail, for somebody who forgot their

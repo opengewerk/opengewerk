@@ -48,6 +48,7 @@ describe('the interface of the foundation', () => {
     // that pointed at a build would be one nobody makes.
     expect(manifest.exports).toEqual({
       '.': './src/index.ts',
+      './gate': './src/gate/index.ts',
       './session': './src/session/index.ts',
       './sync': './src/sync/index.ts',
       './testing': './src/testing.ts',
@@ -143,6 +144,8 @@ describe('what the interface of the foundation knows of an application', () => {
     expect(files).toContain('./components/button.tsx')
     expect(files).toContain('./sync/client.ts')
     expect(files).toContain('./session/session.ts')
+    expect(files).toContain('./gate/boot.tsx')
+    expect(files).toContain('./gate/sign-in.tsx')
     expect(files).toContain('./styles/tokens.css')
     expect(files.filter((file) => file.includes('.test.'))).toEqual([])
     expect(files.length).toBeGreaterThanOrEqual(15)

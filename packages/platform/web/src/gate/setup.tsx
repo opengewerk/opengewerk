@@ -1,5 +1,11 @@
-import { businessNameMaxLength } from '@opengewerk/domain'
-import { Button, Field, FieldLabel, useInGate } from '@opengewerk/platform-web'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+
+import { useApplication } from '../application.js'
+import { Button } from '../components/button.js'
+import { Field, FieldLabel } from '../components/field.js'
+import { useInGate } from '../components/gate.js'
+import { QrCode } from '../components/qr-code.js'
 import {
   runSetup,
   secretFrom,
@@ -7,13 +13,9 @@ import {
   signIn,
   startSecondFactor,
   verifySecondFactor,
-} from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-import { encode } from 'uqr'
-
-import { Gate, GateText } from './gate.js'
+} from '../session/session.js'
+import { RequestRefused } from '../sync/transport.js'
+import { Gate, GateText } from './frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -38,14 +40,14 @@ function Trouble({ children }: { readonly children: string }) {
 }
 
 /**
- * The first screen a freshly installed instance shows: the business, the
- * person who owns it, and a password they choose themselves.
+ * The first screen a freshly installed instance shows: the first tenant, the
+ * person who leads it, and a password they choose themselves.
  *
  * It replaces the sign in screen while there is nothing on the instance, and
  * it is gone the moment there is. Before it existed, a new installation needed
- * a psql prompt for the business and a command for the account, and an owner
- * was then stopped at the next request for want of a second factor there was
- * no screen to set up. All three steps are in this flow now.
+ * a psql prompt for the tenant and a command for the account, and whoever led
+ * it was then stopped at the next request for want of a second factor there
+ * was no screen to set up. All three steps are in this flow now.
  *
  * The password is typed twice. Not ceremony: this is the only account on the
  * instance, nobody can reset it for this person, and a typo in it means
@@ -53,12 +55,17 @@ function Trouble({ children }: { readonly children: string }) {
  *
  * The setup code comes first (#215), with a line under it, as the canvas draws
  * it on "Tor-Einrichten": it is what lets somebody in, the rest describes the
- * business. Before it, an empty instance took its first run from whoever
- * reached the address first. The code stands in `docker/.env` on the server,
- * so only somebody who can get at the server sets up, and the hint says so in
- * those words.
+ * tenant. Before it, an empty instance took its first run from whoever
+ * reached the address first. The code stands on the server, so only somebody
+ * who can get at the server sets up, and the hint says so in those words.
+ *
+ * Where on the server is the application's to say, since it depends on how
+ * the application is installed, and so is what a tenant is called: the field
+ * for its name, the hint under it and the button (ADR 0010).
  */
 export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
+  const application = useApplication()
+  const { setup: sentences } = application.sentences
   const [setupCode, setSetupCode] = useState('')
   const [company, setCompany] = useState('')
   const [name, setName] = useState('')
@@ -98,8 +105,8 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
   return (
     <Gate title="Einrichten">
       <GateText>
-        Diese Instanz ist noch leer. Hier entstehen der Betrieb und das erste Konto. Wer dieses
-        Konto hat, legt später alle weiteren an.
+        Diese Instanz ist noch leer. {sentences.whatIsMade} Wer dieses Konto hat, legt später alle
+        weiteren an.
       </GateText>
 
       <form
@@ -119,23 +126,23 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
           onChange={(event) => {
             setSetupCode(event.target.value)
           }}
-          hint="Steht auf dem Server in der Datei docker/.env. So richtet nur ein, wer an den Server kommt."
+          hint={`${sentences.whereTheCodeIs} So richtet nur ein, wer an den Server kommt.`}
         />
         <hr className="border-0 border-t border-line" />
         <Field
-          label="Betrieb"
+          label={sentences.tenantLabel}
           // Not "organization" (#276): with it, a browser or a password
-          // manager filled in a company of its own, and the business was set
+          // manager filled in a company of its own, and the tenant was set
           // up under a name nobody had typed.
           name="business"
           autoComplete="off"
-          maxLength={businessNameMaxLength}
+          maxLength={application.tenantNameMaxLength}
           required
           value={company}
           onChange={(event) => {
             setCompany(event.target.value)
           }}
-          hint="So wie der Betrieb auf einer Rechnung steht."
+          hint={sentences.tenantHint}
         />
         <Field
           label="Ihr Name"
@@ -188,7 +195,7 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
         {trouble ? <Trouble>{trouble}</Trouble> : null}
 
         <Button type="submit" tone="primary" wide disabled={working || mismatched}>
-          {working ? 'Wird eingerichtet' : 'Betrieb anlegen'}
+          {working ? 'Wird eingerichtet' : sentences.create}
         </Button>
       </form>
     </Gate>
@@ -196,62 +203,8 @@ export function SetupScreen({ onDone }: { readonly onDone: () => void }) {
 }
 
 /**
- * The picture an authenticator app reads.
- *
- * Drawn from the matrix rather than from a string of SVG, so nothing is handed
- * to `dangerouslySetInnerHTML` and the shape can carry its own labels. The
- * white square underneath is not decoration: a reader needs the quiet zone and
- * the dark on light contrast, and in a dark theme the page behind it is not
- * white.
- */
-export function QrCode({
-  text,
-  label,
-  ecc,
-  className,
-}: {
-  readonly text: string
-  readonly label: string
-  /** How much of the code may go missing; a label in a cabinet takes Q (#308). */
-  readonly ecc?: 'L' | 'M' | 'Q' | 'H'
-  readonly className?: string
-}) {
-  const { size, data } = encode(text, ecc === undefined ? {} : { ecc })
-  // Four modules of quiet zone, which is what the specification asks for.
-  const quiet = 4
-  const edge = size + quiet * 2
-
-  return (
-    <svg
-      viewBox={`0 0 ${String(edge)} ${String(edge)}`}
-      role="img"
-      aria-label={label}
-      className={className ?? 'h-auto w-full rounded-[6px] border border-line'}
-      // Blocks, not smoothed. A scaled up QR code with interpolation between
-      // the modules is one a camera has to work at.
-      style={{ imageRendering: 'pixelated' }}
-    >
-      <rect width={edge} height={edge} fill="#ffffff" />
-      {data.map((row, y) =>
-        row.map((dark, x) =>
-          dark ? (
-            <rect
-              key={`${String(x)}-${String(y)}`}
-              x={x + quiet}
-              y={y + quiet}
-              width={1}
-              height={1}
-              fill="#000000"
-            />
-          ) : null,
-        ),
-      )}
-    </svg>
-  )
-}
-
-/**
- * Setting up a second factor, which for an owner is not optional.
+ * Setting up a second factor, which for whoever leads a tenant is not
+ * optional.
  *
  * ADR 0006 hangs the requirement on the role and checks it on every request,
  * and until this existed there was no way to meet it: the only account a new
@@ -417,16 +370,18 @@ export function SecondFactorSetup({
 /**
  * The same thing as the only thing on the screen, for the gate.
  *
- * An owner who has no second factor cannot reach a single screen inside a
- * business, so this cannot live behind the navigation: it has to be what they
- * meet instead.
+ * Somebody whose role asks for a second factor and who has none cannot reach
+ * a single screen inside a tenant, so this cannot live behind the navigation:
+ * it has to be what they meet instead. For whom it is required, the
+ * application says, in the words it has for its roles (ADR 0010).
  */
 export function SecondFactorSetupScreen({ onDone }: { readonly onDone: () => void }) {
+  const { secondFactor: sentences } = useApplication().sentences
+
   return (
     <Gate title="Zweiter Faktor" width={600}>
       <GateText>
-        Für die Rolle Inhaber ist ein zweiter Faktor Pflicht. Richten Sie ihn mit einer
-        Authenticator-App auf dem Telefon ein.
+        {sentences.required} Richten Sie ihn mit einer Authenticator-App auf dem Telefon ein.
       </GateText>
       <SecondFactorSetup onDone={onDone} />
     </Gate>
