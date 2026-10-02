@@ -12,6 +12,7 @@ export * from './model/identifier.js'
 export * from './model/identity.js'
 export * from './model/invitation.js'
 export * from './model/mail-server.js'
+export * from './model/number-range.js'
 export * from './model/passkey.js'
 export * from './model/rights.js'
 

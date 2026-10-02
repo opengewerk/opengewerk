@@ -1,30 +1,13 @@
 import { numberRangeKeys } from '@opengewerk/domain'
-import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
-import { tenantColumn } from '@opengewerk/platform-server/schema'
-import { integer, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
-
-export const numberRangeKey = pgEnum('number_range_key', numberRangeKeys)
+import { numberRangesSchema } from '@opengewerk/platform-server'
 
 /**
- * The counters. One row per tenant and sequence, and the counter lives in that
- * row rather than in a PostgreSQL sequence, which is the whole point: a
- * sequence hands out its next value outside the transaction and keeps it even
- * when the transaction rolls back. That is exactly right for a surrogate key
- * and exactly wrong here, where a hole in the numbering is the thing the law
- * asks us not to produce.
+ * The counters of the numbers that run without holes: one row per business
+ * and sequence, a job, a quote, an invoice.
+ *
+ * The table is the foundation's (`numberRangesSchema`, ADR 0010), which is
+ * where its columns and the reason for a counter in a row are described. What
+ * this application says is which sequences there are, and that list lives in
+ * `domain`, where the interface reads it as well.
  */
-export const numberRanges = pgTable(
-  'number_ranges',
-  {
-    id: primaryId<'number-range'>(),
-    ...tenantColumn,
-    key: numberRangeKey('key').notNull(),
-    pattern: text('pattern').notNull(),
-    nextValue: integer('next_value').notNull().default(1),
-    ...timestamps,
-  },
-  (table) => [
-    tenantIsolation(table.tenantId),
-    unique('number_ranges_tenant_key').on(table.tenantId, table.key),
-  ],
-)
+export const { numberRangeKey, numberRanges } = numberRangesSchema(numberRangeKeys)

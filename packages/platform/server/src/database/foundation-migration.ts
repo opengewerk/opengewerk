@@ -1,4 +1,5 @@
 import { statementBreakpoint } from '../migration/blocks.js'
+import { foundationGuards, type MadeByTheApplication } from '../migration/guards.js'
 import { completeInitialMigration, initialMigrationRollback } from '../migration/initial.js'
 import * as schema from '../schema.js'
 import { defaultMigrationHistory, type MigrationHistory } from './migrations.js'
@@ -12,7 +13,8 @@ export interface FoundationMigration {
 /**
  * The foundation alone, as the first migration of a new application carries
  * it: the tables of `@opengewerk/platform-server/schema` the way drizzle-kit
- * writes them, with the building blocks around them.
+ * writes them, the tables the application made with its own lists, and the
+ * building blocks around them.
  *
  * This is what the blocks are measured by. A test builds a database from it
  * and holds the database of an application against the result, which is how a
@@ -25,17 +27,18 @@ export interface FoundationMigration {
  */
 export async function foundationMigration(
   history: MigrationHistory = defaultMigrationHistory,
+  made: MadeByTheApplication = { schema: {}, guards: [] },
 ): Promise<FoundationMigration> {
   const { generateDrizzleJson, generateMigration } = await import('drizzle-kit/api')
 
   const statements = await generateMigration(
     generateDrizzleJson({}),
-    generateDrizzleJson({ ...schema }),
+    generateDrizzleJson({ ...schema, ...made.schema }),
   )
   const generated = statements.join(`${statementBreakpoint}\n`)
 
   return {
-    up: completeInitialMigration(generated),
+    up: completeInitialMigration(generated, { guards: [...foundationGuards, ...made.guards] }),
     down: initialMigrationRollback(generated, history),
   }
 }

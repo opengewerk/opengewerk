@@ -13,13 +13,14 @@ import {
   isHostName,
   isMailAddress,
   type MailConfiguration,
+  type SecretKey,
+  type StoredSecret,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
 import { mailSettings } from '../database/schema/index.js'
-import type { SecretKey } from '../secrets/key.js'
-import { forgetSecret, keepSecret, readSecret, type StoredSecret } from '../secrets/store.js'
+import { forgetSecret, keepSecret, readSecret } from '../secrets/store.js'
 import { giveUpPending } from './outbox.js'
 
 /**

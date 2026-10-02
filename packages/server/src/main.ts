@@ -10,6 +10,7 @@ import {
   Database,
   instanceIsEmpty,
   readJsonBodiesOnly,
+  SecretKey,
   sendSecurityHeaders,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
@@ -34,7 +35,6 @@ import { startMailWorker } from './mail/worker.js'
 import { httpsPost } from './push/post.js'
 import { InstanceSettingsCache, takeOverFromEnvironment } from './instance/settings.js'
 import { startPushWorker } from './push/worker.js'
-import { SecretKey } from './secrets/key.js'
 import { FileStore } from './storage/file-store.js'
 
 /**

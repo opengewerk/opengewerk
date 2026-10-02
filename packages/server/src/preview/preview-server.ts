@@ -12,6 +12,7 @@ import {
   type Database,
   mailInternalHosts,
   readJsonBodiesOnly,
+  SecretKey,
   sendSecurityHeaders,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
@@ -22,7 +23,6 @@ import { interfacePath, serveInterface } from '../interface.js'
 import { reachableOnly } from '../mail/reach.js'
 import { httpsPost } from '../push/post.js'
 import { smtpTransport } from '../mail/transport.js'
-import { SecretKey } from '../secrets/key.js'
 import { FileStore } from '../storage/file-store.js'
 import { previewPort, previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'

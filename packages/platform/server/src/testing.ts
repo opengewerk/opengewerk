@@ -20,6 +20,10 @@ export * from './database/tenant-checks.js'
 export * from './api/routes.js'
 export * from './api/test-identity.js'
 
+// Whether the sealed credentials of an application are touched in one
+// place only.
+export * from './secrets/boundaries.js'
+
 // What somebody holds in their hand when they sign in: the app that shows a
 // code, and a device with a passkey.
 export * from './authentication/test-authenticator.js'

@@ -2,6 +2,7 @@ import { shippedRoles } from '@opengewerk/domain'
 import { testDatabase } from '@opengewerk/platform-server/testing'
 
 import { migrationsFolder } from './migrations.js'
+import { madeWithLists } from './schema/made.js'
 
 // The kit is the foundation's (ADR 0010): an empty database, the migrations
 // run the way an installation runs them, and the two roles to look through.
@@ -27,6 +28,9 @@ export const {
   migrationsFolder,
   defaultUrl: 'postgres://opengewerk:opengewerk@127.0.0.1:5433/opengewerk_test',
   startHint: 'docker compose -f docker/compose.test.yaml up -d',
+  // The tables of the foundation with the lists of this application, so that
+  // the comparison with the building blocks covers them too.
+  made: madeWithLists,
 })
 
 /** Something a statement can be sent through: a pool, or one connection of it. */

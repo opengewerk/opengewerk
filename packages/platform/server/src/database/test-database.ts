@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { Pool } from 'pg'
 
 import { catalogueDeviations, type OwnAdditions, readCatalogue } from './catalogue.js'
+import type { MadeByTheApplication } from '../migration/guards.js'
 import { foundationMigration } from './foundation-migration.js'
 import { type MigrationHistory, runMigrations } from './migrations.js'
 import { applicationRoleName, migrationRole } from './roles.js'
@@ -252,6 +253,12 @@ export interface TestDatabaseOptions {
   readonly startHint: string
   /** Where the application's migration runner keeps its record, if not the default. */
   readonly history?: MigrationHistory
+  /**
+   * The tables of the foundation this application made with lists of its own.
+   * They are built with the foundation and compared with it; left out, the
+   * comparison would pass over them without a word.
+   */
+  readonly made?: MadeByTheApplication
 }
 
 /** The helpers that need to know the application, bound to it. */
@@ -327,7 +334,7 @@ export interface TestDatabase {
 }
 
 export function testDatabase(options: TestDatabaseOptions): TestDatabase {
-  const { migrationsFolder, defaultUrl, startHint, history } = options
+  const { migrationsFolder, defaultUrl, startHint, history, made } = options
 
   function testDatabaseUrl(): string {
     const url = process.env['DATABASE_URL'] ?? defaultUrl
@@ -472,7 +479,7 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
   }
 
   async function applyFoundation(database: string = testDatabaseUrl()): Promise<void> {
-    const { up } = await foundationMigration(history)
+    const { up } = await foundationMigration(history, made)
     const folder = writeMigrationsFolder([{ tag: '0000_foundation', sql: up, when: 1 }])
 
     try {

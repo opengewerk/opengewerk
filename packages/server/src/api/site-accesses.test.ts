@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { RoleKey, TenantId } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, newId, SecretKey } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,7 +13,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { SecretKey } from '../secrets/key.js'
 import { ApiModule } from './api.module.js'
 import { type Somebody, testIdentities as identities } from './test-identity.js'
 import { created, push } from './test-structure.js'

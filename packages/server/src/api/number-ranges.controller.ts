@@ -8,11 +8,10 @@ import {
   Put,
 } from '@nestjs/common'
 import { type NumberRangeKey, numberRangeKeys } from '@opengewerk/domain'
-import { Database, pick } from '@opengewerk/platform-server'
+import { Database, NumberRangeRefused, pick } from '@opengewerk/platform-server'
 
 import {
   changeNumberRange,
-  NumberRangeRefused,
   numberRangesOf,
   type NumberRangeView,
 } from '../database/number-ranges.js'

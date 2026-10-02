@@ -27,6 +27,21 @@ export * from './database/references.js'
 export * from './database/schema/columns.js'
 export * from './database/schema/rls.js'
 
+// Tables of the foundation an application makes with a list of its own: the
+// columns and the rules are the same everywhere, what the list holds is not.
+export * from './database/schema/number-ranges.js'
+export * from './database/schema/parameters.js'
+export * from './database/schema/secrets.js'
+
+// What a tenant sets for itself, with the day it applies from. Which settings
+// there are, the application says.
+export * from './database/parameters.js'
+
+// Numbers that run without holes, drawn inside the transaction that needs
+// one. Which sequences there are, and which year a moment falls in, the
+// application says.
+export * from './database/number-ranges.js'
+
 // What a refusal of the database becomes on its way to the caller.
 export * from './api/database-errors.js'
 
@@ -75,6 +90,12 @@ export * from './authentication/setup.controller.js'
 export * from './authentication/setup.js'
 export * from './authentication/staff.controller.js'
 export * from './authentication/staff.js'
+
+// Credentials of somebody else a tenant hands the instance: the seal, and the
+// one place the sealed values are kept and opened. The purposes are the
+// application's.
+export * from './secrets/key.js'
+export * from './secrets/store.js'
 
 // Addresses and host names as a mail server takes them.
 export * from './mail/configuration.js'

@@ -4,13 +4,14 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:cr
 const scheme = 'v1'
 
 /**
- * The key the credentials a business hands the instance are sealed with.
+ * The key the credentials a tenant hands the instance are sealed with.
  *
  * Derived from `SESSION_SECRET` rather than read from a variable of its own.
  * That secret already has to be kept, backed up and never changed lightly: a
- * new one makes every second factor unreadable, and now every stored mail
- * password as well, which the screen then says. A second variable would be a
- * second thing to lose, and the first one to be forgotten in a restore.
+ * new one makes every second factor unreadable, and every value sealed here
+ * as well, which the screen that asks for one then says. A second variable
+ * would be a second thing to lose, and the first one to be forgotten in a
+ * restore.
  *
  * HKDF with a label of its own keeps the two uses apart: nothing sealed here
  * can be opened with what the authentication makes of the same secret, and the
@@ -34,9 +35,10 @@ export class SecretKey {
   }
 
   /**
-   * Seals a value for one context, `<tenant>:<purpose>`. The context is not
+   * Seals a value for one context, `<tenant>:<purpose>` and, for a secret of
+   * a record, `:<record>` after it (`store.ts`). The context is not
    * stored with it but has to be named again to open it, so a sealed value
-   * copied to another business or another purpose opens nowhere.
+   * copied to another tenant or another purpose opens nowhere.
    */
   seal(context: string, value: string): string {
     const iv = randomBytes(12)

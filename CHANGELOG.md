@@ -423,6 +423,38 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   in Worten. `rolesAllow`, `requiresSecondFactor` und `secondFactorRoles` in `@opengewerk/domain`
   entfallen, `TenantChoice` in `@opengewerk/platform-domain` ist die eine Form der Antwort für
   Server und Oberfläche.
+- Versiegelte Zugangsdaten, Einstellungen mit Gültigkeitszeitraum und Nummernkreise gehören zum
+  Fundament (`@opengewerk/platform-server`, ADR 0010, `opengewerk-haustechnik#9`), damit eine
+  weitere Anwendung sie nicht nachbaut. Alle drei sind Tabellen, deren Aufzählung in der Datenbank
+  die Liste einer Anwendung ist: was versiegelt wird, welche Einstellungen ein Mandant hat und in
+  welcher Einheit sie zählen, welche Kreise es gibt. Im Fundament sind sie deshalb Funktionen, die
+  aus der Liste der Anwendung Tabelle und Aufzählung machen (`secretsSchema`,
+  `tenantParametersSchema`, `numberRangesSchema`), dazu je ein Speicher über der Tabelle
+  (`secretStore`, `tenantParameterStore`, `numberRangeStore`) und eine Beschreibung, was die
+  Tabelle an Rechten und Triggern braucht. Die Handwerkersoftware nennt ihre Listen und behält ihre
+  Aufzählungen, wie sie sind; `drizzle-kit` findet keinen Unterschied zum Stand davor, und der
+  Vergleich am Katalog zwischen Bausteinen und Migrationen schließt die drei Tabellen ein. Der Test,
+  dass außerhalb des Speichers niemand die Tabelle der Zugangsdaten anfasst, ist als Baukasten
+  mitgezogen (`secretsTouchedIn`), und die Tests der drei Speicher laufen im Fundament mit Listen,
+  die niemandem gehören, darunter Nummern aus Kreisen, die die Handwerkersoftware nicht kennt. Wie
+  ein Muster geschrieben wird und was aus einem Zähler darin wird, steht jetzt in
+  `@opengewerk/platform-domain` (`patternProblem`, und `numberFromPattern` statt
+  `formatDocumentNumber`). Ein Vorgabemuster, das keines ist, hält den Start der Anwendung auf und
+  nicht erst die erste Nummer. Der Satz zu einem Muster ohne `{number}` spricht nicht mehr vom
+  Beleg, denn auch ein Auftrag bekommt seine Nummer aus einem Kreis. Neu ist ein Test, der eine
+  Änderung am Zähler zwischen Lesen und Schreiben anhält: sie sperrt die Zeile, bevor sie liest, und
+  eine Nummer, die in diesem Moment gezogen wird, wartet, statt ein zweites Mal vergeben zu werden.
+  Was der Wert einer Einstellung sein darf, nennt die Anwendung dem Speicher, und er fragt, bevor
+  etwas geschrieben wird, gleich auf welchem Weg der Wert kommt. Bei der Handwerkersoftware ist das
+  `tenantParameterProblem` in `domain`: das Zahlungsziel wie bisher, und eine Einstellung mit Ja
+  oder Nein nimmt nur noch 1 oder 0. Bisher nahm die Route dafür jede ganze Zahl an; kein Bildschirm
+  schickt eine andere, aber sie stünde im Verlauf als ein Ja, das nie galt.
+- Die Anwendungsrolle darf einen Nummernkreis nicht mehr löschen (Migration 0064). Migration 0002
+  hatte das Recht mit allen anderen vergeben, und benutzt hat es nie etwas: ein Kreis, der weg ist,
+  beginnt wieder bei eins, und die nächste Rechnung trüge eine Nummer, die es schon gibt. Anlass
+  ist der Umzug ins Fundament, wo eine Tabelle einmal beschrieben ist und jede weitere Anwendung
+  genau das bekommt; die Beschreibung soll sagen, was die Tabelle braucht, und nicht, was eine
+  frühe Migration vergeben hat. Geschrieben wird dabei nichts.
 
 ## [0.4.0] - 2026-09-27
 
