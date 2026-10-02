@@ -712,6 +712,9 @@ describe('the passkeys under "Konto"', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Bitte noch einmal bestätigen.')
     expect(screen.getByLabelText('Passwort')).toBeTruthy()
     expect(screen.queryByLabelText('Name')).toBeNull()
+    // The card kept neither the password nor the code of the first time.
+    expect((screen.getByLabelText('Passwort') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('Code aus der App') as HTMLInputElement).value).toBe('')
   })
 
   it('stays at the name when the passkey could not be added for another reason', async () => {

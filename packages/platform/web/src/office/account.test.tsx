@@ -23,6 +23,7 @@ import { AccountScreen } from './account.js'
  */
 
 let server: StandIn
+let queries: QueryClient
 
 function signedIn(twoFactorEnabled: boolean) {
   server.answer('GET', '/api/auth/get-session', {
@@ -34,10 +35,10 @@ function signedIn(twoFactorEnabled: boolean) {
 async function account(children?: ReactNode) {
   const client = await probeClient()
 
+  queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
+    <QueryClientProvider client={queries}>
       <InProbe>
         <SyncProvider client={client}>
           <AccountScreen>{children}</AccountScreen>
@@ -259,17 +260,33 @@ describe('the recovery codes of the account', () => {
     expect(await screen.findByText(sentence)).toBeTruthy()
   })
 
-  it('say what they are for while the count is not known', async () => {
-    // An answer without a count, as a server that keeps none gives.
-    server.answer('GET', '/auth/recovery-codes', {})
+  const whatTheyAreFor =
+    'Die Codes sind der Weg hinein, wenn das Telefon weg ist. Jeder gilt einmal.'
+
+  it('say what they are for while the count is on its way', async () => {
+    const answering = globalThis.fetch
+
+    vi.stubGlobal('fetch', (path: string, init?: RequestInit) =>
+      path === '/auth/recovery-codes' ? new Promise<Response>(() => {}) : answering(path, init),
+    )
     await account()
     await screen.findByRole('region', { name: 'Wiederherstellungscodes' })
 
-    expect(
-      await codes().findByText(
-        'Die Codes sind der Weg hinein, wenn das Telefon weg ist. Jeder gilt einmal.',
-      ),
-    ).toBeTruthy()
+    expect(codes().getByText(whatTheyAreFor)).toBeTruthy()
+  })
+
+  it('say what they are for where the server keeps no count', async () => {
+    server.answer('GET', '/auth/recovery-codes', {})
+    await account()
+
+    // The same sentence stands while the answer is on its way, so the answer
+    // has to be there before the sentence says anything about it.
+    await waitFor(() => {
+      expect(queries.getQueryState(['recovery-codes'])?.status).toBe('success')
+    })
+    await expect(codes().findByText(/Noch .* übrig/, {}, { timeout: 250 })).rejects.toThrow()
+
+    expect(codes().getByText(whatTheyAreFor)).toBeTruthy()
   })
 
   /**
