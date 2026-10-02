@@ -526,6 +526,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nichts. Der Satz über einen unbekannten Passkey nennt die Anwendung mit dem Namen, den sie
   angibt, und lautet hier wie bisher. Was im Browser liegt, heißt wie bisher. An der Oberfläche
   ändert sich nichts.
+- Das Tor vor der Anmeldung gehört zum Fundament (`@opengewerk/platform-web/gate`, ADR 0010,
+  `opengewerk-haustechnik#12`, vierter Teil): der Rahmen, Anmelden mit Passwort oder Passkey, der
+  zweite Faktor, die Wahl des Betriebs, die Ersteinrichtung, der Einladungslink, der Link zu einem
+  neuen Passwort und das Abmelden, dazu der QR-Code als Baustein. Was das Tor über die Anwendung
+  und über einen Betrieb sagt, steht nicht mehr in den Bildschirmen, sondern an einer Stelle
+  (`app/application.tsx`): der Name, der Satz neben dem Tor, die Lizenz, jeder Satz, der einen
+  Betrieb oder den Inhaber nennt, wie der Abgleich je Einstieg startet, die Notiz nach dem Scan
+  eines Etiketts und das Abmelden von Push vor dem Ende der Sitzung. Das Fundament fragt diesen
+  Wert, den `Root` über beide Einstiege legt, und nennt selbst kein Produkt und keinen Betrieb.
+  Die Sätze lauten Wort für Wort wie bisher: 72 Zustände der Bildschirme sind vor und nach dem
+  Umzug aufgenommen, und was ein Browser bekommt, ist Byte für Byte dasselbe, ebenso das
+  Stylesheet. Die Tests des Tors laufen im Fundament mit einer Anwendung, die niemandem gehört;
+  hier hält ein Test jeden Satz dieser Anwendung im Tor wörtlich fest.
 
 ## [0.4.0] - 2026-09-27
 

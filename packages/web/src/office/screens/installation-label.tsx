@@ -5,7 +5,15 @@ import {
   printedLabelCode,
   type RecordState,
 } from '@opengewerk/domain'
-import { Button, ButtonLink, Confirm, Field, Panel, SelectField } from '@opengewerk/platform-web'
+import {
+  Button,
+  ButtonLink,
+  Confirm,
+  Field,
+  Panel,
+  QrCode,
+  SelectField,
+} from '@opengewerk/platform-web'
 import {
   RequestRefused,
   maybeText,
@@ -24,7 +32,6 @@ import {
   useInstallationLabels,
 } from '../../app/installation-labels.js'
 import { useMay } from '../../app/queries.js'
-import { QrCode } from '../../app/setup.js'
 
 const formats: readonly { readonly value: LabelFormat; readonly label: string }[] = [
   { value: 'roll', label: 'Etikettendrucker, 62 × 29 mm' },

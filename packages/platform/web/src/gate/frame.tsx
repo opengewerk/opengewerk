@@ -1,8 +1,11 @@
-import { BrandMark, GateProvider } from '@opengewerk/platform-web'
 import clsx from 'clsx'
 import { Lock, LockOpen } from 'lucide-react'
 import { createContext, useContext, useId } from 'react'
 import type { ReactNode } from 'react'
+
+import { useApplication } from '../application.js'
+import { BrandMark } from '../components/brand-mark.js'
+import { GateProvider } from '../components/gate.js'
 
 /**
  * The frame of every step before working, as the boards of the page "Vor der
@@ -33,6 +36,7 @@ export function Gate({
   readonly children: ReactNode
 }) {
   const headingId = useId()
+  const application = useApplication()
 
   return (
     <GateProvider value={true}>
@@ -42,7 +46,7 @@ export function Gate({
         <header className="bg-gate px-5 pt-[22px] pb-[18px] text-top-ink lg:hidden">
           <div className="flex items-center gap-[11px]">
             <BrandMark size={32} />
-            <span className="text-[22px] font-semibold">OpenGewerk</span>
+            <span className="text-[22px] font-semibold">{application.name}</span>
           </div>
           <Connected onSlate className="mt-3" />
         </header>
@@ -76,31 +80,29 @@ export function Gate({
 export const InstanceVersion = createContext<string | null>(null)
 
 /**
- * The brand at a desk: the mark, what OpenGewerk is in one sentence, where it
- * runs in another, and the licence and the version under a line.
+ * The brand at a desk: the mark, what the application is in one sentence,
+ * where it runs in another, and the licence and the version under a line. The
+ * words are the application's (ADR 0010); the foundation has no product to
+ * name and no claim to make for one.
  */
 function Brand() {
   const version = useContext(InstanceVersion)
+  const application = useApplication()
 
   return (
     <aside className="hidden w-[470px] shrink-0 flex-col bg-gate px-10 py-11 text-top-ink lg:flex">
       <div className="flex items-center gap-[13px]">
         <BrandMark size={42} />
-        <span className="text-[27px] font-semibold tracking-[0.2px]">OpenGewerk</span>
+        <span className="text-[27px] font-semibold tracking-[0.2px]">{application.name}</span>
       </div>
       <div className="flex grow flex-col justify-center">
-        <p className="text-[24px] leading-[1.4] font-medium">
-          Kunde, Objekt, Anlage, Auftrag, Beleg. Ein Datenmodell statt sechs Programme.
-        </p>
-        <p className="mt-5 text-[16px] leading-[1.55] text-gate-text">
-          Diese Instanz läuft auf Ihrem eigenen Server. Die Daten verlassen ihn nicht, und niemand
-          außer Ihnen kann sie abschalten.
-        </p>
+        <p className="text-[24px] leading-[1.4] font-medium">{application.claim}</p>
+        <p className="mt-5 text-[16px] leading-[1.55] text-gate-text">{application.hosting}</p>
       </div>
       {/* The board drew a way to the help as well. There is none before
           phase 2, and a link into nothing would be worse than none (#259). */}
       <p className="border-t border-gate-line pt-5 text-[13px] text-gate-faint">
-        {version ? `AGPL-3.0 · Version ${version}` : 'AGPL-3.0'}
+        {version ? `${application.licence} · Version ${version}` : application.licence}
       </p>
     </aside>
   )

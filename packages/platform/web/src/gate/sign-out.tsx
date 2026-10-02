@@ -1,11 +1,12 @@
-import { Button } from '@opengewerk/platform-web'
-import { rememberedAccount, signOut } from '@opengewerk/platform-web/session'
-import { deleteLocalStore, storesOnDevice, waitingIn } from '@opengewerk/platform-web/sync'
 import { LogOut } from 'lucide-react'
 import { useState } from 'react'
 
+import { useApplication } from '../application.js'
+import { Button } from '../components/button.js'
+import { rememberedAccount } from '../session/remembered.js'
+import { signOut } from '../session/session.js'
 import type { SyncClient } from '../sync/client.js'
-import { leavePush } from './push.js'
+import { deleteLocalStore, storesOnDevice, waitingIn } from '../sync/store.js'
 
 /** "1 Änderung" or "3 Änderungen". */
 function changes(count: number): string {
@@ -13,18 +14,34 @@ function changes(count: number): string {
 }
 
 /**
+ * Runs what an application handed in, and makes nothing of whatever goes
+ * wrong in it, thrown at once or later: it is never in the way of what comes
+ * after.
+ */
+async function quietly(task: (() => Promise<unknown>) | undefined): Promise<void> {
+  try {
+    await task?.()
+  } catch {
+    // Whatever it was, the sign out goes on.
+  }
+}
+
+/**
  * Signing out, and taking along what this device holds (#186).
  *
- * Every store of a business on this device goes: customers with their
- * addresses, documents, photos, working time. A device that is handed on,
- * sold or lost after somebody signed out would otherwise carry the business
- * on, readable to anybody who opens the developer tools of the browser.
+ * Every store of a tenant on this device goes, with every record in it and
+ * every file. A device that is handed on, sold or lost after somebody signed
+ * out would otherwise carry the tenant on, readable to anybody who opens the
+ * developer tools of the browser.
  *
  * What has not reached the server yet is sent first. When that is not
  * possible, the button says how much would be lost and signs out only once
- * that is confirmed: a sign out in a cellar must not quietly throw away the
- * report written there. The server session is ended after the data is gone,
- * so that a sign out without a network still leaves nothing behind here.
+ * that is confirmed: a sign out in a cellar must not quietly throw away what
+ * was written there. The server session is ended after the data is gone, so
+ * that a sign out without a network still leaves nothing behind here.
+ *
+ * In between, the application ends what it keeps on the server for this
+ * device (`beforeSignOut`, ADR 0010), while there is a session to do it with.
  */
 export function SignOutButton({
   client,
@@ -33,7 +50,7 @@ export function SignOutButton({
   row = false,
   icon = false,
 }: {
-  /** The running sync client, when a business is open; its outbox is sent first. */
+  /** The running sync client, when a tenant is open; its outbox is sent first. */
   readonly client: SyncClient | null
   readonly onSignedOut: () => void
   readonly wide?: boolean
@@ -45,6 +62,7 @@ export function SignOutButton({
   /** The door in front of the word, as the head of "Konto" has it. */
   readonly icon?: boolean
 }) {
+  const application = useApplication()
   const [waiting, setWaiting] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -74,11 +92,13 @@ export function SignOutButton({
       return
     }
 
-    // Push goes first, while there is a session to take this device's row
-    // off with (#284). Never longer than a few seconds and never in the way:
-    // the server sends nothing to a device whose session has ended anyway.
+    // What the application keeps on the server for this device goes first,
+    // while there is a session to take it off with, as the row a push
+    // message would be sent to (#284). Never longer than a few seconds and
+    // never in the way: a server sends nothing to a device whose session has
+    // ended anyway.
     await Promise.race([
-      leavePush().catch(() => undefined),
+      quietly(application.beforeSignOut),
       new Promise((resolve) => {
         setTimeout(resolve, 3_000)
       }),

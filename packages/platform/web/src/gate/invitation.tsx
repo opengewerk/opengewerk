@@ -1,16 +1,12 @@
-import { Button, Field } from '@opengewerk/platform-web'
-import {
-  invitationOffer,
-  redeemInvitation,
-  shortestPassword,
-  signIn,
-} from '@opengewerk/platform-web/session'
-import type { InvitationState } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Gate, GateText, GateWaiting } from './gate.js'
+import { useApplication } from '../application.js'
+import { Button } from '../components/button.js'
+import { Field } from '../components/field.js'
+import { invitationOffer, redeemInvitation, shortestPassword, signIn } from '../session/session.js'
+import { RequestRefused } from '../sync/transport.js'
+import { Gate, GateText, GateWaiting } from './frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -22,14 +18,20 @@ function saidWhy(error: unknown, fallback: string): string {
  * It sits in the gate next to the first run setup and for the same reason:
  * whoever opens it cannot reach a single screen behind the navigation, so an
  * entry in a menu would be unreachable for them. It is recognised by the path
- * rather than by the router, because the router of the office starts after
- * there is a business and a session, and here there is neither.
+ * rather than by the router, because the router of an application starts
+ * after there is a tenant and a session, and here there is neither.
  *
  * What it asks for is a password, and only a password. The name, the address
- * and the roles were decided by the office and travel with the invitation; the
- * one thing the office does not decide is the thing that lets somebody in.
+ * and the roles were decided by whoever invited and travel with the
+ * invitation; the one thing they do not decide is the thing that lets
+ * somebody in.
+ *
+ * Who invited is a tenant, and what that is called is the application's to
+ * say (ADR 0010): why a link is no longer good and who to turn to, and the
+ * two sentences that welcome somebody.
  */
 export function InvitationScreen({ token }: { readonly token: string }) {
+  const { invitation: sentences } = useApplication().sentences
   const offer = useQuery({
     queryKey: ['invitation', token],
     queryFn: () => invitationOffer(token),
@@ -58,7 +60,7 @@ export function InvitationScreen({ token }: { readonly token: string }) {
   if (offer.data.state !== 'open') {
     return (
       <Gate title="Dieser Link gilt nicht mehr">
-        <GateText muted={false}>{spent[offer.data.state]}</GateText>
+        <GateText muted={false}>{sentences.spent[offer.data.state]}</GateText>
         <Button tone="secondary" wide onClick={startOver}>
           Zur Anmeldung
         </Button>
@@ -67,14 +69,6 @@ export function InvitationScreen({ token }: { readonly token: string }) {
   }
 
   return <Accept token={token} offer={offer.data} />
-}
-
-/** Why a link is no longer good, in the words that fit each case. */
-const spent: Readonly<Record<Exclude<InvitationState, 'open'>, string>> = {
-  redeemed:
-    'Er wurde schon benutzt. Wenn das nicht Sie waren, sagen Sie dem Betrieb bitte Bescheid.',
-  revoked: 'Der Betrieb hat ihn zurückgezogen. Bitte dort nachfragen.',
-  expired: 'Er ist abgelaufen. Der Betrieb kann einen neuen erzeugen.',
 }
 
 /**
@@ -96,6 +90,7 @@ function Accept({
   readonly token: string
   readonly offer: { company: string; name: string; email: string; knownAccount: boolean }
 }) {
+  const { invitation: sentences } = useApplication().sentences
   const [password, setPassword] = useState('')
   const [repeated, setRepeated] = useState('')
   const [working, setWorking] = useState(false)
@@ -134,8 +129,8 @@ function Accept({
     return (
       <Gate title={`Beitreten zu ${offer.company}`}>
         <GateText muted={false}>
-          Für <strong>{offer.email}</strong> gibt es auf dieser Instanz schon ein Konto. Sie
-          behalten Ihr Passwort; der Betrieb kommt einfach dazu.
+          Für <strong>{offer.email}</strong> gibt es auf dieser Instanz schon ein Konto.{' '}
+          {sentences.tenantIsAdded}
         </GateText>
 
         {trouble ? (
@@ -155,7 +150,7 @@ function Accept({
             void submit()
           }}
         >
-          {working ? 'Einen Moment' : 'Betrieb übernehmen'}
+          {working ? 'Einen Moment' : sentences.join}
         </Button>
       </Gate>
     )
@@ -164,9 +159,10 @@ function Accept({
   return (
     <Gate title={`Willkommen bei ${offer.company}`}>
       <GateText>
-        Der Betrieb hat einen Zugang für <strong className="text-ink">{offer.name}</strong>{' '}
-        angelegt, mit der Adresse <strong className="text-ink">{offer.email}</strong>. Fehlt nur
-        noch ein Passwort, und das wählen Sie selbst: niemand im Betrieb bekommt es zu sehen.
+        {sentences.newAccount(
+          <strong className="text-ink">{offer.name}</strong>,
+          <strong className="text-ink">{offer.email}</strong>,
+        )}
       </GateText>
 
       <form

@@ -14,6 +14,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { InApplication } from '../app/in-application.js'
 import { SyncClient } from '../sync/client.js'
 import { AccountScreen } from './screens/account.js'
 import { OfficeShell } from './shell.js'
@@ -70,9 +71,11 @@ async function mount(path = '/') {
 
   render(
     <QueryClientProvider client={queries}>
-      <SyncProvider client={client}>
-        <RouterProvider router={router} />
-      </SyncProvider>
+      <InApplication>
+        <SyncProvider client={client}>
+          <RouterProvider router={router} />
+        </SyncProvider>
+      </InApplication>
     </QueryClientProvider>,
   )
 

@@ -10,6 +10,7 @@ import {
   ThemeSwitch,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import { SecondFactorSetup, SignOutButton } from '@opengewerk/platform-web/gate'
 import {
   accountQuery,
   changePassword,
@@ -29,8 +30,6 @@ import type { FormEvent, ReactNode } from 'react'
 
 import { moment } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
-import { SecondFactorSetup } from '../../app/setup.js'
-import { SignOutButton } from '../../app/sign-out.js'
 import { useTheme } from '../../app/theme.js'
 import { createOwnTenant } from '../../session/instance.js'
 import { switchBusiness, useBusinesses } from '../businesses.js'

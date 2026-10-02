@@ -2,7 +2,8 @@ import { render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SecondFactorSetup, SetupScreen } from './setup.js'
+import { InProbe } from '../probe-application.js'
+import { SecondFactorSetup, SecondFactorSetupScreen, SetupScreen } from './setup.js'
 
 /**
  * The two screens a fresh installation meets before it is an installation at
@@ -12,6 +13,10 @@ import { SecondFactorSetup, SetupScreen } from './setup.js'
  * the failure worth catching here is the one #62 was about: a screen that
  * looks finished and leads nowhere. What the server is asked is checked as
  * well, since that is the contract these screens keep.
+ *
+ * What a tenant is called, where the setup code stands and for whom a second
+ * factor is required are the application's to say (ADR 0010). The one in
+ * these tests belongs to nobody.
  */
 
 interface Call {
@@ -61,23 +66,33 @@ function asked(path: string): Call | undefined {
   return calls.find((call) => call.path === path)
 }
 
+function firstRun(onDone: () => void = vi.fn()) {
+  return render(
+    <InProbe>
+      <SetupScreen onDone={onDone} />
+    </InProbe>,
+  )
+}
+
 /** Everything the first run screen asks for, typed the way a person would. */
 async function fillIn(setupCode: string): Promise<void> {
   await userEvent.type(screen.getByLabelText('Einrichtungscode'), setupCode)
-  await userEvent.type(screen.getByLabelText('Betrieb'), 'Elektro Neubeginn GmbH')
+  await userEvent.type(screen.getByLabelText('Mandant'), 'Probewerk Neubeginn')
   await userEvent.type(screen.getByLabelText('Ihr Name'), 'Olga Beispiel')
-  await userEvent.type(screen.getByLabelText('E-Mail'), 'chefin@neubeginn.example.de')
+  await userEvent.type(screen.getByLabelText('E-Mail'), 'leitung@neubeginn.example.de')
   await userEvent.type(screen.getByLabelText('Passwort'), 'ein-langes-passwort')
   await userEvent.type(screen.getByLabelText('Passwort wiederholen'), 'ein-langes-passwort')
 }
 
 describe('the first run screen', () => {
   /**
-   * The code comes first, above everything that describes the business, and
+   * The code comes first, above everything that describes the tenant, and
    * says where it is (#215). Where and not what: the screen never knows it.
+   * Where is the application's to say, since it depends on how the
+   * application is installed; why it is asked for is said here.
    */
   it('asks for the setup code first and says where it is', () => {
-    render(<SetupScreen onDone={vi.fn()} />)
+    firstRun()
 
     const fields = screen.getAllByRole('textbox')
     const code = screen.getByLabelText('Einrichtungscode')
@@ -86,49 +101,62 @@ describe('the first run screen', () => {
     expect(code.getAttribute('aria-describedby')).toBeTruthy()
     expect(
       screen.getByText(
-        'Steht auf dem Server in der Datei docker/.env. So richtet nur ein, wer an den Server kommt.',
+        'Steht in der Probe auf einem Zettel. So richtet nur ein, wer an den Server kommt.',
       ),
     ).toBeDefined()
     expect(screen.getByRole('separator')).toBeDefined()
   })
 
-  /**
-   * On msk.opengewerk.de the business was set up under a name nobody had
-   * typed, most likely filled in as a company by a password manager (#276).
-   * The field no longer invites that, and stops where the settings would.
-   */
-  it('keeps the name of the business out of the reach of autofill', () => {
-    render(<SetupScreen onDone={vi.fn()} />)
+  it('says what is made in the words of the application, between what the foundation says', () => {
+    firstRun()
 
-    const business = screen.getByLabelText('Betrieb') as HTMLInputElement
-
-    expect(business.getAttribute('autocomplete')).toBe('off')
-    expect(business.name).not.toBe('organization')
-    expect(business.maxLength).toBe(120)
+    expect(
+      screen.getByText(
+        'Diese Instanz ist noch leer. Hier entstehen der erste Mandant und das erste Konto. Wer dieses Konto hat, legt später alle weiteren an.',
+      ),
+    ).toBeDefined()
   })
 
-  it('sends the code, the business and the account, and then signs the person in', async () => {
+  /**
+   * An instance was once set up under a name nobody had typed, most likely
+   * filled in as a company by a password manager (#276). The field no longer
+   * invites that, and stops where the server would, which the application
+   * says: the rule for the name of a tenant is its own.
+   */
+  it('keeps the name of the tenant out of the reach of autofill, and as short as the application takes it', () => {
+    firstRun()
+
+    const tenant = screen.getByLabelText('Mandant') as HTMLInputElement
+
+    expect(tenant.getAttribute('autocomplete')).toBe('off')
+    expect(tenant.name).not.toBe('organization')
+    expect(tenant.maxLength).toBe(40)
+    expect(tenant.getAttribute('aria-describedby')).toBeTruthy()
+    expect(screen.getByText('So wie der Mandant heißen soll.')).toBeDefined()
+  })
+
+  it('sends the code, the tenant and the account, and then signs the person in', async () => {
     serverSays('/setup', { tenantId: 'b-1' })
 
     const done = vi.fn()
-    render(<SetupScreen onDone={done} />)
+    firstRun(done)
 
     await fillIn('k7q4-9pxm')
-    await userEvent.click(screen.getByRole('button', { name: 'Betrieb anlegen' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Mandant anlegen' }))
 
     // As typed. Capitals, spaces and the dash are the server's business.
     expect(asked('/setup')?.body).toEqual({
       setupCode: 'k7q4-9pxm',
-      company: 'Elektro Neubeginn GmbH',
+      company: 'Probewerk Neubeginn',
       name: 'Olga Beispiel',
-      email: 'chefin@neubeginn.example.de',
+      email: 'leitung@neubeginn.example.de',
       password: 'ein-langes-passwort',
     })
 
     // The ordinary sign in afterwards, with the ordinary cookie. A setup that
     // handed out a session of its own would be a second way in to keep right.
     expect(asked('/api/auth/sign-in/email')?.body).toEqual({
-      email: 'chefin@neubeginn.example.de',
+      email: 'leitung@neubeginn.example.de',
       password: 'ein-langes-passwort',
     })
 
@@ -149,16 +177,16 @@ describe('the first run screen', () => {
       serverRefuses('/setup', status, sentence)
 
       const done = vi.fn()
-      const { unmount } = render(<SetupScreen onDone={done} />)
+      const { unmount } = firstRun(done)
 
       await fillIn('K7Q4-9PXN')
-      await userEvent.click(screen.getByRole('button', { name: 'Betrieb anlegen' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Mandant anlegen' }))
 
       expect((await screen.findByRole('alert')).textContent).toBe(sentence)
       expect(asked('/api/auth/sign-in/email')).toBeUndefined()
       expect(done).not.toHaveBeenCalled()
       expect(screen.getByLabelText('Einrichtungscode')).toHaveProperty('value', 'K7Q4-9PXN')
-      expect(screen.getByRole('button', { name: 'Betrieb anlegen' })).toHaveProperty(
+      expect(screen.getByRole('button', { name: 'Mandant anlegen' })).toHaveProperty(
         'disabled',
         false,
       )
@@ -173,21 +201,21 @@ describe('the first run screen', () => {
    * and the screen says so before anything is sent.
    */
   it('does not send anything while the two passwords differ', async () => {
-    render(<SetupScreen onDone={vi.fn()} />)
+    firstRun()
 
-    await userEvent.type(screen.getByLabelText('Betrieb'), 'Elektro Neubeginn GmbH')
+    await userEvent.type(screen.getByLabelText('Mandant'), 'Probewerk Neubeginn')
     await userEvent.type(screen.getByLabelText('Passwort'), 'ein-langes-passwort')
     await userEvent.type(screen.getByLabelText('Passwort wiederholen'), 'ein-langes-passwor')
 
-    expect(screen.getByRole('button', { name: 'Betrieb anlegen' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Mandant anlegen' })).toHaveProperty('disabled', true)
     expect(asked('/setup')).toBeUndefined()
   })
 })
 
 describe('setting up a second factor', () => {
   const totpUri =
-    'otpauth://totp/OpenGewerk:chefin%40neubeginn.example.de' +
-    '?secret=MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPIYDCMRTGQ2Q&issuer=OpenGewerk'
+    'otpauth://totp/Probewerk:leitung%40neubeginn.example.de' +
+    '?secret=MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPIYDCMRTGQ2Q&issuer=Probewerk'
 
   it('asks for the password, then shows the code and the way back in without a phone', async () => {
     serverSays('/api/auth/two-factor/enable', {
@@ -195,7 +223,11 @@ describe('setting up a second factor', () => {
       backupCodes: ['aaaa-bbbb', 'cccc-dddd'],
     })
 
-    render(<SecondFactorSetup onDone={vi.fn()} />)
+    render(
+      <InProbe>
+        <SecondFactorSetup onDone={vi.fn()} />
+      </InProbe>,
+    )
 
     await userEvent.type(screen.getByLabelText('Passwort'), 'ein-langes-passwort')
     await userEvent.click(screen.getByRole('button', { name: 'Einrichten' }))
@@ -227,7 +259,11 @@ describe('setting up a second factor', () => {
     serverSays('/api/auth/two-factor/enable', { totpURI: totpUri, backupCodes: ['aaaa-bbbb'] })
 
     const done = vi.fn()
-    render(<SecondFactorSetup onDone={done} />)
+    render(
+      <InProbe>
+        <SecondFactorSetup onDone={done} />
+      </InProbe>,
+    )
 
     await userEvent.type(screen.getByLabelText('Passwort'), 'ein-langes-passwort')
     await userEvent.click(screen.getByRole('button', { name: 'Einrichten' }))
@@ -243,13 +279,43 @@ describe('setting up a second factor', () => {
   })
 
   it('offers a way out only where there is one', async () => {
-    const { unmount } = render(<SecondFactorSetup onDone={vi.fn()} onCancel={vi.fn()} />)
+    const { unmount } = render(
+      <InProbe>
+        <SecondFactorSetup onDone={vi.fn()} onCancel={vi.fn()} />
+      </InProbe>,
+    )
 
     expect(screen.getByRole('button', { name: 'Später' })).toBeDefined()
 
     unmount()
-    render(<SecondFactorSetup onDone={vi.fn()} />)
+    render(
+      <InProbe>
+        <SecondFactorSetup onDone={vi.fn()} />
+      </InProbe>,
+    )
 
+    expect(screen.queryByRole('button', { name: 'Später' })).toBeNull()
+  })
+
+  /**
+   * As the only thing on the screen, for somebody who gets no further without
+   * it. For whom that is, the application says in the words it has for its
+   * roles; how it is set up is the same everywhere. And there is no way round
+   * it: the screen offers none.
+   */
+  it('says in the gate for whom it is required in the words of the application, and offers no way round', () => {
+    render(
+      <InProbe>
+        <SecondFactorSetupScreen onDone={vi.fn()} />
+      </InProbe>,
+    )
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Zweiter Faktor' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Wer einen Mandanten leitet, braucht einen zweiten Faktor. Richten Sie ihn mit einer Authenticator-App auf dem Telefon ein.',
+      ),
+    ).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Später' })).toBeNull()
   })
 })

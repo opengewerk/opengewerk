@@ -1,33 +1,28 @@
-import { hasSecondFactor, syncEntities, type TenantId } from '@opengewerk/domain'
-import { Button } from '@opengewerk/platform-web'
-import {
-  accountQuery,
-  availableTenants,
-  deviceIdentity,
-  instanceVersion,
-  invitationToken,
-  passwordResetToken,
-  setupNeeded,
-  unreachable,
-} from '@opengewerk/platform-web/session'
-import type { Account } from '@opengewerk/platform-web/session'
-import {
-  SyncProvider,
-  directWrite,
-  httpTransport,
-  openLocalStore,
-  workIn,
-} from '@opengewerk/platform-web/sync'
+import { hasSecondFactor, type TenantId } from '@opengewerk/platform-domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import type { Entry } from '../entry/entry.js'
-import { upgradeKeptTenants } from '../session/older-tenants.js'
-import { SyncClient } from '../sync/client.js'
-import { siteTransport } from '../sync/transport.js'
-import { Gate, GateText, GateWaiting, InstanceVersion } from './gate.js'
+import { useApplication } from '../application.js'
+import { Button } from '../components/button.js'
+import type { Entry } from '../components/surface.js'
+import { deviceIdentity } from '../session/device.js'
+import { accountQuery } from '../session/queries.js'
+import { unreachable } from '../session/remembered.js'
+import {
+  availableTenants,
+  instanceVersion,
+  invitationToken,
+  passwordResetToken,
+  setupNeeded,
+} from '../session/session.js'
+import type { Account } from '../session/session.js'
+import type { SyncClient } from '../sync/client.js'
+import { SyncProvider } from '../sync/provider.js'
+import { openLocalStore } from '../sync/store.js'
+import { workIn } from '../sync/transport.js'
+import { Gate, GateText, GateWaiting, InstanceVersion } from './frame.js'
 import { InvitationScreen } from './invitation.js'
 import { PasswordResetScreen } from './password-reset.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
@@ -36,10 +31,10 @@ import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
 /**
  * Everything between opening the application and being able to work.
  *
- * The three questions of ADR 0006 in order: who are you, which business, and
+ * The three questions of ADR 0006 in order: who are you, which tenant, and
  * only then anything at all. The order is the point, and it is why this is a
  * gate rather than a redirect somewhere inside the router: no screen in the
- * application is ever rendered without a business behind it, so no screen has
+ * application is ever rendered without a tenant behind it, so no screen has
  * to remember to ask.
  *
  * Three steps sit in front of the first question and all three are about
@@ -50,24 +45,22 @@ import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
  * here, because at that moment they have no account at all.
  *
  * The link is recognised by its path and before anything else is asked. Not by
- * the router: the routers start after there is a session and a business, which
+ * the router: the routers start after there is a session and a tenant, which
  * is exactly what the person holding a link does not have. And before the
  * account query, because the answer does not depend on it; somebody who is
  * already signed in on this browser can be handed a link for somebody else,
- * and the screen has to be the one the link points at rather than the office
+ * and the screen has to be the one the link points at rather than the screens
  * of whoever used the machine last.
+ *
+ * What stands behind the gate is the application's: its screens come in as
+ * children, and the sync client they read from is the one it starts
+ * (`startSync`, ADR 0010), for the tenant whose store this opens. Everything
+ * the gate says of a tenant it says in the application's words, which is why
+ * it stands inside an `ApplicationProvider`.
  */
 type Step = 'second-factor' | 'asking' | 'working'
 
 export function Boot({ entry, children }: { readonly entry: Entry; readonly children: ReactNode }) {
-  // Once, before the first question that could read it: a list of businesses
-  // an earlier version kept, put into the form this one reads.
-  useState(() => {
-    upgradeKeptTenants()
-
-    return true
-  })
-
   // Asked once per start and kept: the version does not change while the page
   // is open, and without an answer the foot of the gate shows the licence
   // alone (#259).
@@ -87,6 +80,9 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
 
 function BootSteps({ entry, children }: { readonly entry: Entry; readonly children: ReactNode }) {
   const queries = useQueryClient()
+  // What the application starts its sync client with. One value for as long
+  // as the page is open: a new one would start the client again.
+  const { startSync } = useApplication()
   // Read once and then constant, like the device identity below. The screen it
   // leads to leaves the address behind when it is done, so this never has to
   // notice a change.
@@ -124,7 +120,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
   // Set when the server turned the running client away as signed out and the
   // account came back as it was; see `signedOut`.
   const [stalled, setStalled] = useState(false)
-  // Bumped to start a client again for the same business, which the effect
+  // Bumped to start a client again for the same tenant, which the effect
   // below would otherwise never do: nothing it depends on has changed.
   const [round, setRound] = useState(0)
 
@@ -138,18 +134,18 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
    * The server answered the running client with "not signed in".
    *
    * The account is asked again, and it decides. A session that has run out
-   * takes the business with it, and the gate asks for a sign in. A session
-   * that is still good comes back with the same business, and then nothing the
+   * takes the tenant with it, and the gate asks for a sign in. A session
+   * that is still good comes back with the same tenant, and then nothing the
    * effect below depends on changes: the gate waited for a client that nothing
    * would ever start (#254). That case is shown, with a way to try again.
    * Starting a client by itself instead would loop against a server that keeps
    * saying no.
    */
   const signedOut = useCallback(
-    (business: TenantId) => {
+    (tenant: TenantId) => {
       setClient(null)
       void queries.invalidateQueries({ queryKey: accountQuery.queryKey }).then(() => {
-        if (queries.getQueryData(accountQuery.queryKey)?.tenantId === business) {
+        if (queries.getQueryData(accountQuery.queryKey)?.tenantId === tenant) {
           setStalled(true)
         }
       })
@@ -165,24 +161,25 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
     let live = true
     let started: SyncClient | null = null
 
-    // From here on every request of this page names this business (#242).
+    // From here on every request of this page names this tenant (#242).
     workIn(tenantId)
 
     void (async () => {
+      // The store is the foundation's to open and the client the
+      // application's to start: only it knows by which rules its records
+      // travel and which of them it has a screen for.
       const store = await openLocalStore(tenantId)
-      const running = await SyncClient.start({
+      const running = await startSync({
         store,
-        transport: entry === 'site' ? siteTransport() : httpTransport,
-        writer: directWrite,
         deviceId,
-        entities: syncEntities,
+        entry,
         onSignedOut: () => {
           signedOut(tenantId)
         },
       })
 
       if (!live) {
-        // The business changed while the store was opening. Closing it here
+        // The tenant changed while the store was opening. Closing it here
         // beats leaving a second client listening for the network behind the
         // one on screen.
         running.stop()
@@ -203,7 +200,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
       setClient(null)
       setStalled(false)
     }
-  }, [tenantId, deviceId, signedOut, round, entry])
+  }, [tenantId, deviceId, signedOut, round, entry, startSync])
 
   if (token) {
     return <InvitationScreen token={token} />
@@ -330,16 +327,17 @@ function ChooseTenant({
   readonly account: Account
   readonly onDone: () => void
 }) {
+  const { tenantChoice: sentences } = useApplication().sentences
   const tenants = useQuery({ queryKey: ['tenants'], queryFn: availableTenants, retry: false })
 
   if (tenants.isPending) {
-    return <GateWaiting>Die Betriebe werden geladen.</GateWaiting>
+    return <GateWaiting>{sentences.loading}</GateWaiting>
   }
 
   if (tenants.isError) {
     return (
       <Gate title="Das ging nicht">
-        <GateText muted={false}>Die Liste der Betriebe kam nicht an.</GateText>
+        <GateText muted={false}>{sentences.notLoaded}</GateText>
         <Button
           tone="secondary"
           wide
@@ -357,13 +355,13 @@ function ChooseTenant({
   /**
    * The wall from #62, and the way through it.
    *
-   * The requirement hangs on the role and is checked on every request, so an
-   * owner without a second factor gets as far as this screen and no further,
-   * whichever business they pick. Which role asks for one is said by the
-   * server with each business, from the rows of its roles (ADR 0010). Asking
-   * here rather than after the choice is deliberate: setting the factor up
-   * replaces the session, and at this point there is no business on it yet
-   * and nothing to put back.
+   * The requirement hangs on the role and is checked on every request, so
+   * somebody whose role asks for a second factor and who has none gets as far
+   * as this screen and no further, whichever tenant they pick. Which role asks
+   * for one is said by the server with each tenant, from the rows of its
+   * roles (ADR 0010). Asking here rather than after the choice is deliberate:
+   * setting the factor up replaces the session, and at this point there is no
+   * tenant on it yet and nothing to put back.
    *
    * A sign in with a passkey carries the second factor itself (#167), so it
    * goes straight on to the choice, as the server lets it.

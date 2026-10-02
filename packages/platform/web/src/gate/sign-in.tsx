@@ -1,27 +1,26 @@
-import { labelCodeFromScan, type TenantId } from '@opengewerk/domain'
-import { Button, Field } from '@opengewerk/platform-web'
-import {
-  chooseTenant,
-  passkeyTrouble,
-  passkeysSupported,
-  recoveryCodesLeft,
-  requestPasswordReset,
-  rolesInWords,
-  signIn,
-  signInWithPasskey,
-  verifyRecoveryCode,
-  verifySecondFactor,
-} from '@opengewerk/platform-web/session'
-import type { TenantChoice } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+import type { TenantId } from '@opengewerk/platform-domain'
 import clsx from 'clsx'
-import { FingerprintPattern, ScanLine } from 'lucide-react'
+import { FingerprintPattern } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import type { Entry } from '../entry/entry.js'
-import { application } from './application.js'
-import { Gate, GateText } from './gate.js'
+import { useApplication } from '../application.js'
+import { Button } from '../components/button.js'
+import { Field } from '../components/field.js'
+import type { Entry } from '../components/surface.js'
+import { passkeyTrouble, passkeysSupported, signInWithPasskey } from '../session/passkeys.js'
+import {
+  chooseTenant,
+  recoveryCodesLeft,
+  requestPasswordReset,
+  signIn,
+  verifyRecoveryCode,
+  verifySecondFactor,
+} from '../session/session.js'
+import type { TenantChoice } from '../session/session.js'
+import { rolesInWords } from '../session/who.js'
+import { RequestRefused } from '../sync/transport.js'
+import { Gate, GateText } from './frame.js'
 import { SignOutButton } from './sign-out.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -53,6 +52,11 @@ function GateTrouble({ children }: { readonly children: string }) {
  * the command line by somebody who already has one, which is the decision from
  * ADR 0006 and the reason a self hosted instance cannot be joined by whoever
  * finds it.
+ *
+ * Three sentences here are the application's (ADR 0010): when a link to a new
+ * password goes out and who helps when none arrives, and for whom the second
+ * factor is required. How long the link holds and what follows the password
+ * are the foundation's to say, and stand between and after them.
  */
 export function SignInScreen({
   onSignedIn,
@@ -61,6 +65,8 @@ export function SignInScreen({
   readonly onSignedIn: () => void
   readonly onSecondFactor: () => void
 }) {
+  const application = useApplication()
+  const { signIn: sentences } = application.sentences
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [working, setWorking] = useState(false)
@@ -136,7 +142,7 @@ export function SignInScreen({
   }
 
   return (
-    <Gate title="Anmelden" before={<ScannedLabelNote />}>
+    <Gate title="Anmelden" before={application.beforeSignIn}>
       <form
         className="flex flex-col gap-[15px]"
         onSubmit={(event) => {
@@ -214,15 +220,13 @@ export function SignInScreen({
 
         {asked ? (
           <p role="status" className="text-[15px] leading-[1.5] text-ink lg:text-[14px]">
-            Wenn es zu dieser Adresse einen Zugang gibt und ein Betrieb, in dem er arbeitet, E-Mails
-            verschickt, ist ein Link zu einem neuen Passwort unterwegs. Er gilt eine Stunde. Kommt
-            keiner an, hilft der Inhaber des Betriebs weiter.
+            {sentences.resetSent} Er gilt eine Stunde. {sentences.resetHelp}
           </p>
         ) : null}
 
         <p className="text-[15px] leading-[1.5] text-ink-muted lg:text-[13px]">
-          Für die Rolle Inhaber ist der zweite Faktor Pflicht, für alle anderen empfohlen. Nach dem
-          Passwort folgt dann der Code aus der App; ein Passkey zählt selbst als zweiter Faktor.
+          {sentences.secondFactor} Nach dem Passwort folgt dann der Code aus der App; ein Passkey
+          zählt selbst als zweiter Faktor.
         </p>
       </form>
     </Gate>
@@ -240,6 +244,7 @@ export function SignInScreen({
  * quietly became one are a way in that is about to close.
  */
 export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => void }) {
+  const { secondFactor: sentences } = useApplication().sentences
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState(false)
   const [working, setWorking] = useState(false)
@@ -271,7 +276,7 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
   if (left !== undefined) {
     return (
       <Gate title="Wiederherstellungscode eingelöst">
-        <GateText muted={false}>{codesLeftSentence(left)}</GateText>
+        <GateText muted={false}>{`${codesLeft(left)} ${sentences.newCodes}`}</GateText>
         <Button tone="primary" wide onClick={onVerified}>
           Weiter
         </Button>
@@ -345,33 +350,34 @@ export function SecondFactorScreen({ onVerified }: { readonly onVerified: () => 
   )
 }
 
-/** What is left after a recovery code, and where to get new ones. */
-function codesLeftSentence(left: number | null): string {
-  const counted =
-    left === null
-      ? 'Der Code ist eingelöst und gilt kein zweites Mal.'
-      : left === 1
-        ? 'Der Code ist eingelöst. Es ist noch ein Wiederherstellungscode übrig.'
-        : 'Der Code ist eingelöst. Es sind noch ' + String(left) + ' Wiederherstellungscodes übrig.'
-
-  return (
-    counted +
-    ' Unter "Konto" im Büro lassen sich neue erzeugen und der zweite Faktor auf einem neuen Telefon einrichten.'
-  )
+/**
+ * What is left after a recovery code. Where new ones are made is the
+ * application's to say, after this: it knows where it put the account.
+ */
+function codesLeft(left: number | null): string {
+  return left === null
+    ? 'Der Code ist eingelöst und gilt kein zweites Mal.'
+    : left === 1
+      ? 'Der Code ist eingelöst. Es ist noch ein Wiederherstellungscode übrig.'
+      : 'Der Code ist eingelöst. Es sind noch ' + String(left) + ' Wiederherstellungscodes übrig.'
 }
 
 /**
- * Which business this session works in, the board "Tor-Betrieb": one box
- * each, side by side while they fit, with the roles in small capitals.
+ * Which tenant this session works in, the board "Tor-Betrieb": one box each,
+ * side by side while they fit, with the roles in small capitals.
  *
  * Asked before anything is read and not afterwards. A session without a
- * business would have to be told which one by every request, and then the
+ * tenant would have to be told which one by every request, and then the
  * answer comes from the caller instead of from the session; row level security
- * would then isolate that business perfectly, for whoever asked.
+ * would then isolate that tenant perfectly, for whoever asked.
  *
  * On the site entry the device identity goes along, which is what makes the
  * session a long one. At a desk it does not, and the session runs out after
  * twelve hours, because a desk is a thing people walk away from.
+ *
+ * What a tenant is called is the application's (ADR 0010), and with it every
+ * sentence here: the heading, the account that belongs to none, the one that
+ * could not be chosen.
  */
 export function TenantScreen({
   entry,
@@ -386,6 +392,7 @@ export function TenantScreen({
   readonly onChosen: () => void
   readonly onSignedOut: () => void
 }) {
+  const { tenantChoice: sentences } = useApplication().sentences
   const [working, setWorking] = useState<TenantId | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
 
@@ -397,25 +404,22 @@ export function TenantScreen({
       await chooseTenant(tenant.id, entry === 'site' ? deviceId : undefined)
       onChosen()
     } catch (error) {
-      setTrouble(saidWhy(error, 'Der Betrieb ließ sich nicht auswählen.'))
+      setTrouble(saidWhy(error, sentences.notChosen))
       setWorking(null)
     }
   }
 
   if (tenants.length === 0) {
     return (
-      <Gate title="Kein Betrieb">
-        <GateText muted={false}>
-          Dieses Konto gehört zu keinem Betrieb. Wer die Instanz betreibt, legt die Zugehörigkeit
-          an.
-        </GateText>
+      <Gate title={sentences.noneTitle}>
+        <GateText muted={false}>{sentences.none}</GateText>
         <SignOutButton client={null} onSignedOut={onSignedOut} wide />
       </Gate>
     )
   }
 
   return (
-    <Gate title="Betrieb wählen" width={640}>
+    <Gate title={sentences.title} width={640}>
       <ul className="flex flex-wrap gap-2.5">
         {tenants.map((tenant) => (
           <li key={tenant.id} className="flex min-w-[12rem] grow basis-0">
@@ -444,31 +448,5 @@ export function TenantScreen({
 
       {trouble ? <GateTrouble>{trouble}</GateTrouble> : null}
     </Gate>
-  )
-}
-
-/**
- * Over the sign-in after the camera of a phone opened the address of a QR
- * label (#308): what comes once signed in. Read from the address of the page,
- * which the router behind the gate keeps and opens next.
- */
-function ScannedLabelNote() {
-  if (labelCodeFromScan(globalThis.location.href) === null) {
-    return null
-  }
-
-  return (
-    <div
-      role="note"
-      className="flex max-w-[560px] items-start gap-2.5 rounded-[6px] border border-line bg-surface px-3.5 py-3 text-[15px] leading-[1.45]"
-    >
-      <ScanLine
-        size={18}
-        strokeWidth={2.2}
-        aria-hidden="true"
-        className="mt-px shrink-0 text-ink-muted"
-      />
-      <span>Du hast das Etikett einer Anlage gescannt. Nach der Anmeldung öffnet sie sich.</span>
-    </div>
   )
 }
