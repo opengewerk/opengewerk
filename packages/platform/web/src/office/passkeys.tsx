@@ -1,25 +1,33 @@
-import { type PasskeyEntry, passkeyNameMaxLength, passkeyNameProblem } from '@opengewerk/domain'
-import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
-import { clockTime, date, moment } from '@opengewerk/platform-web/format'
-import { SettingsText } from '@opengewerk/platform-web/office'
 import {
-  accountQuery,
+  type PasskeyEntry,
+  passkeyNameMaxLength,
+  passkeyNameProblem,
+} from '@opengewerk/platform-domain'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { FingerprintPattern, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+
+import { useApplication } from '../application.js'
+import { useBand } from '../components/band.js'
+import { Button } from '../components/button.js'
+import { Confirm } from '../components/confirm.js'
+import { Field } from '../components/field.js'
+import { Panel } from '../components/panel.js'
+import { clockTime, date, moment } from '../format.js'
+import { deviceName } from '../session/device-name.js'
+import {
   addPasskey,
-  deviceName,
   passkeyTrouble,
   passkeys,
   passkeysSupported,
   reconfirm,
   removePasskey,
   renamePasskey,
-} from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FingerprintPattern, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import type { FormEvent } from 'react'
-
-import { application } from '../../app/application.js'
+} from '../session/passkeys.js'
+import { accountQuery } from '../session/queries.js'
+import { RequestRefused } from '../sync/transport.js'
+import { SettingsText } from './settings.js'
 
 /** "Heute, 08:12" for today, the day and the time for any other, "Noch nie" for never. */
 function lastUsed(value: string | null): string {
@@ -386,6 +394,7 @@ function PasskeyAdding({
   readonly onDone: () => void
   readonly onCancel: () => void
 }) {
+  const application = useApplication()
   const account = useQuery(accountQuery)
   // The server asks for the code whenever the account has the app, and says so
   // when this screen did not know of it yet, set up in another tab perhaps.
@@ -525,7 +534,7 @@ function PasskeyAdding({
             label="Name"
             maxLength={passkeyNameMaxLength}
             value={name}
-            hint="Danach fragt der Browser nach Fingerabdruck, Gesicht oder PIN. Ohne diese Bestätigung am Gerät legt OpenGewerk keinen Passkey an."
+            hint={`Danach fragt der Browser nach Fingerabdruck, Gesicht oder PIN. Ohne diese Bestätigung am Gerät legt ${application.name} keinen Passkey an.`}
             {...(tried && problem ? { problem } : {})}
             onChange={(event) => {
               setName(event.target.value)

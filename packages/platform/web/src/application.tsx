@@ -192,7 +192,26 @@ export interface InterfaceSentences {
      */
     readonly belongsToTheAccount: string
   }
+  readonly account: {
+    /**
+     * Under the choice of light or dark: where else it may be chosen
+     * otherwise. The foundation says before it that the choice holds on this
+     * device.
+     */
+    readonly themeElsewhere: string
+    /**
+     * Where no second factor is set up: for whom one is required. The
+     * foundation says before it what a second factor is good for.
+     */
+    readonly secondFactorFor: string
+  }
   readonly entry: {
+    /**
+     * What each of the two entries is called where it stands alone, as in the
+     * list of devices an account is signed in on. A label and not a part of a
+     * sentence: the foundation sets nothing around it but a comma.
+     */
+    readonly name: Readonly<Record<Entry, string>>
     /**
      * Over a screen opened on a device the other entry suits better: what the
      * device looks like, for each of the two.

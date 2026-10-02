@@ -569,6 +569,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - `@opengewerk/platform-web` nennt seine Module frei von Seiteneffekten (`sideEffects`). Ohne die
   Angabe legte der Bundler jedes Modul, das beide Einstiege erreichen, in den gemeinsamen Teil,
   und das Büro lud den Rahmen der Baustelle mit: 329,8 statt 331,4 kB für das Büro.
+- Der Bildschirm "Konto" gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#12`, siebter
+  Teil), damit eine weitere Anwendung ihn nicht nachbaut: Darstellung, zweiter Faktor,
+  Wiederherstellungscodes, Passkeys, Passwort und angemeldete Geräte (`AccountScreen`,
+  `PasskeysPanel`). Diese Anwendung reicht ihre zwei Karten herein, die Betriebe und die
+  Benachrichtigungen, und sagt, wie ihre Einstiege heißen und für welche Rolle der zweite Faktor
+  Pflicht ist. An der Oberfläche ändert sich nichts: 36 Zustände des Bildschirms sind vor und
+  nach dem Umzug aufgenommen, und was ein Browser bekommt, ist Byte für Byte dasselbe. Die Karte
+  "Passkeys" hat dabei Tests für das bekommen, was bisher keiner prüfte: eine Liste, die lädt,
+  nicht ankommt oder leer ist, ein Name, den der Server ablehnt, ein Löschen, das scheitert, und
+  eine Bestätigung, die abgelaufen ist, bis der Name steht.
 
 ## [0.4.0] - 2026-09-27
 

@@ -101,7 +101,12 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         what: 'Was dieser Mandant für sich festlegt.',
         belongsToTheAccount: 'Das Passwort gehört nicht dem Mandanten, sondern dem Konto.',
       },
+      account: {
+        themeElsewhere: 'Unterwegs lässt sich etwas anderes wählen.',
+        secondFactorFor: 'Für die Leitung ist er Pflicht.',
+      },
       entry: {
+        name: { office: 'Schreibtisch', site: 'Unterwegs' },
         suits: {
           office: 'Das sieht nach einem Schreibtisch aus.',
           site: 'Das sieht nach einem Gerät für unterwegs aus.',
