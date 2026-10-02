@@ -1,10 +1,9 @@
 import { Button } from '@opengewerk/platform-web'
+import { rememberedAccount, signOut } from '@opengewerk/platform-web/session'
 import { deleteLocalStore, storesOnDevice, waitingIn } from '@opengewerk/platform-web/sync'
 import { LogOut } from 'lucide-react'
 import { useState } from 'react'
 
-import { rememberedAccount } from '../session/remembered.js'
-import { signOut } from '../session/session.js'
 import type { SyncClient } from '../sync/client.js'
 import { leavePush } from './push.js'
 

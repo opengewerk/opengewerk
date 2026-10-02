@@ -1,11 +1,11 @@
 import { ThemeSwitch } from '@opengewerk/platform-web'
+import { useWho } from '@opengewerk/platform-web/session'
 import { useSync } from '@opengewerk/platform-web/sync'
 import { Monitor, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 import { SignOutButton } from '../app/sign-out.js'
 import { useTheme } from '../app/theme.js'
-import { useWho } from '../app/who.js'
 import { entryPath, rememberEntry } from '../entry/entry.js'
 import { SitePush } from './push.js'
 
@@ -76,7 +76,7 @@ export function SiteMenu({
           <div className="min-w-0 grow">
             <div className="text-[17px] font-semibold">{who.name}</div>
             <div className="text-[14px] text-ink-muted">
-              {[who.roles, who.business].filter(Boolean).join(' · ')}
+              {[who.roles, who.tenant].filter(Boolean).join(' · ')}
             </div>
           </div>
           <button

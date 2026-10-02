@@ -1,5 +1,4 @@
-import type { PasskeyEntry } from '@opengewerk/domain'
-import { RequestRefused, request } from '@opengewerk/platform-web/sync'
+import type { PasskeyEntry } from '@opengewerk/platform-domain'
 import {
   browserSupportsWebAuthn,
   type PublicKeyCredentialCreationOptionsJSON,
@@ -9,13 +8,15 @@ import {
   WebAuthnError,
 } from '@simplewebauthn/browser'
 
+import { RequestRefused, request } from '../sync/transport.js'
+
 /**
  * Passkeys (#167, #248): the list under "Konto", renaming and deleting one,
  * confirming again before adding one, adding it, and signing in with it.
  *
  * Adding and signing in go through better-auth's passkey plugin under
  * `/api/auth`, the rest through the server's own routes under `/auth`, which
- * write every change into the log of the businesses.
+ * write every change into the log of the tenants.
  */
 
 const authentication = '/api/auth'
@@ -94,15 +95,19 @@ export async function signInWithPasskey(): Promise<void> {
   })
 }
 
-/** Refusals of better-auth's plugin, which speaks English, in the words of the screen. */
-const pluginWords: Readonly<Record<string, string>> = {
-  CHALLENGE_NOT_FOUND:
-    'Die Anfrage an den Browser ist abgelaufen. Bitte noch einmal von vorn, sie gilt fünf Minuten.',
-  PASSKEY_NOT_FOUND:
-    'Diesen Passkey kennt OpenGewerk nicht, vielleicht wurde er gelöscht. Die Anmeldung mit dem Passwort geht weiter.',
-  AUTHENTICATION_FAILED: 'Die Anmeldung mit dem Passkey ging nicht durch.',
-  FAILED_TO_VERIFY_REGISTRATION: 'Der Passkey ließ sich nicht prüfen und ist nicht angelegt.',
-  SESSION_REQUIRED: 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.',
+/**
+ * Refusals of better-auth's plugin, which speaks English, in the words of the
+ * screen. One of them names the application, by the name it goes by.
+ */
+function pluginWords(name: string): Readonly<Record<string, string>> {
+  return {
+    CHALLENGE_NOT_FOUND:
+      'Die Anfrage an den Browser ist abgelaufen. Bitte noch einmal von vorn, sie gilt fünf Minuten.',
+    PASSKEY_NOT_FOUND: `Diesen Passkey kennt ${name} nicht, vielleicht wurde er gelöscht. Die Anmeldung mit dem Passwort geht weiter.`,
+    AUTHENTICATION_FAILED: 'Die Anmeldung mit dem Passkey ging nicht durch.',
+    FAILED_TO_VERIFY_REGISTRATION: 'Der Passkey ließ sich nicht prüfen und ist nicht angelegt.',
+    SESSION_REQUIRED: 'Die Anmeldung ist abgelaufen. Bitte neu anmelden.',
+  }
 }
 
 /** Refusals of the browser, by their reason. */
@@ -144,8 +149,15 @@ const ownCodes: ReadonlySet<string> = new Set([
  * What went wrong with a passkey, in a sentence for the screen. The server's
  * own refusals say it themselves; the plugin's and the browser's are
  * translated; anything else gets the fallback.
+ *
+ * The application says what it is called: one of the sentences names it,
+ * and the name a person reads is the application's to give (ADR 0010).
  */
-export function passkeyTrouble(error: unknown, fallback: string): string {
+export function passkeyTrouble(
+  error: unknown,
+  fallback: string,
+  application: { readonly name: string },
+): string {
   if (error instanceof WebAuthnError) {
     return browserWords[error.code] ?? fallback
   }
@@ -166,7 +178,7 @@ export function passkeyTrouble(error: unknown, fallback: string): string {
       return 'Zu viele Versuche hintereinander. Bitte in einer Minute noch einmal.'
     }
 
-    return pluginWords[code] ?? fallback
+    return pluginWords(application.name)[code] ?? fallback
   }
 
   if (error instanceof Error && error.name === 'NotAllowedError') {

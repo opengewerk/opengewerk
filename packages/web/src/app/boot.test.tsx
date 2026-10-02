@@ -1,25 +1,25 @@
 import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, TenantId } from '@opengewerk/domain'
+import {
+  currentAccount,
+  forgetSignIn,
+  rememberAccount,
+  rememberTenants,
+  rememberedAccount,
+  rememberedTenants,
+  useWho,
+} from '@opengewerk/platform-web/session'
 import { openLocalStore, text, useRecords, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  forgetSignIn,
-  rememberAccount,
-  rememberedAccount,
-  rememberedTenants,
-  rememberTenants,
-} from '../session/remembered.js'
-import { currentAccount } from '../session/session.js'
 import { SyncClient } from '../sync/client.js'
 import { Boot } from './boot.js'
-import { useMay } from './queries.js'
-import { useWho } from './who.js'
 import { aTenantChoice } from '../session/test-tenants.js'
+import { useMay } from './queries.js'
 
 /**
  * The start of the application without a network (#123).
@@ -97,7 +97,7 @@ function Jobs() {
   // The business by name, as the header shows it once the list of
   // memberships has arrived. Until then nobody may do anything, so a test
   // about something hidden waits for this first.
-  const { business } = useWho()
+  const { tenant: business } = useWho()
   // What the strip over every screen would say.
   const { trouble } = useSyncStatus()
 

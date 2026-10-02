@@ -10,27 +10,28 @@ import {
   ThemeSwitch,
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
+import {
+  accountQuery,
+  changePassword,
+  deviceName,
+  devices,
+  newRecoveryCodes,
+  recoveryCodesLeft,
+  revokeDevice,
+  rolesInWords,
+  shortestPassword,
+} from '@opengewerk/platform-web/session'
 import { RequestRefused, useSync } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Key, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { deviceName } from '../../app/devices.js'
 import { moment } from '../../app/format.js'
-import { rolesInWords } from '../../app/labels.js'
-import { accountQuery, useMay } from '../../app/queries.js'
+import { useMay } from '../../app/queries.js'
 import { SecondFactorSetup } from '../../app/setup.js'
 import { SignOutButton } from '../../app/sign-out.js'
 import { useTheme } from '../../app/theme.js'
-import {
-  changePassword,
-  devices,
-  newRecoveryCodes,
-  recoveryCodesLeft,
-  revokeDevice,
-  shortestPassword,
-} from '../../session/session.js'
 import { createOwnTenant } from '../../session/instance.js'
 import { switchBusiness, useBusinesses } from '../businesses.js'
 import { PageHead, Screen } from '../kit.js'

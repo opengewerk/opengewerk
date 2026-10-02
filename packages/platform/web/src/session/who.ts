@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { rolesInWords } from './labels.js'
-import { accountQuery } from './queries.js'
-import { availableTenants } from '../session/session.js'
+import { accountQuery, tenantsQuery } from './queries.js'
 
 /** Who is signed in and where, as the header and the menu show it. */
 export interface Who {
@@ -10,9 +8,9 @@ export interface Who {
   readonly email: string
   /** Two letters for the round badge in the header. */
   readonly initials: string
-  /** The business of this session, once the list of memberships has arrived. */
-  readonly business: string | null
-  /** "Inhaber, Büro", in words. */
+  /** The tenant of this session by name, once the list of memberships has arrived. */
+  readonly tenant: string | null
+  /** The roles there in words, by the names the tenant gives them. */
   readonly roles: string
 }
 
@@ -22,12 +20,7 @@ export interface Who {
  */
 export function useWho(): Who {
   const account = useQuery(accountQuery)
-  const tenants = useQuery({
-    queryKey: ['tenants'],
-    queryFn: availableTenants,
-    staleTime: 5 * 60_000,
-    retry: false,
-  })
+  const tenants = useQuery(tenantsQuery)
   const here = tenants.data?.find((tenant) => tenant.id === account.data?.tenantId)
   const name = account.data?.name ?? ''
 
@@ -35,12 +28,23 @@ export function useWho(): Who {
     name,
     email: account.data?.email ?? '',
     initials: initialsOf(name),
-    business: here?.name ?? null,
+    tenant: here?.name ?? null,
     roles: here ? rolesInWords(here.roleLabels) : '',
   }
 }
 
-/** "Moritz Kohm" becomes "MK", "Beate" becomes "B". */
+/**
+ * Several roles in one line, by the names their tenant gives them, for a
+ * table cell and for a sentence.
+ *
+ * A comma and not a slash: somebody with two roles has both, and a slash reads
+ * like a choice between them.
+ */
+export function rolesInWords(labels: readonly string[]): string {
+  return labels.join(', ')
+}
+
+/** "Erika Berg" becomes "EB", "Beate" becomes "B". */
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   const first = parts[0]

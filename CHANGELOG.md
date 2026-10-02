@@ -515,6 +515,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Tests des Clients und der Leiste laufen im Fundament mit Richtlinien, die keiner Anwendung
   gehören (`@opengewerk/platform-domain/testing`); hier bleibt ein Test der Bindung. Der Server
   des Abgleichs und der Konfliktbildschirm folgen.
+- Die Sitzung der Oberfläche gehört zum Fundament (`@opengewerk/platform-web/session`, ADR 0010,
+  `opengewerk-haustechnik#12`, dritter Teil): wer angemeldet ist, in welchen Mandanten und mit
+  welchen Rechten, auf welchen Geräten, wer in einem Mandanten arbeitet, Passkeys, und was ein
+  Gerät davon für den Start ohne Netz behält. Ein Recht ist dort ein Name (`useRight`); diese
+  Anwendung bindet die Frage an ihren Katalog, `useMay` bleibt mit seinem Typ. Die Liste der
+  Betriebe, die eine Fassung vor den Rollen als Zeilen auf einem Gerät behalten hat, schreibt die
+  Handwerkersoftware beim Start einmal in die heutige Form um (`upgradeKeptTenants`), statt dass
+  das Fundament ihre drei Rollen kennt; für ein Gerät, das ohne Netz aktualisiert, ändert sich
+  nichts. Der Satz über einen unbekannten Passkey nennt die Anwendung mit dem Namen, den sie
+  angibt, und lautet hier wie bisher. Was im Browser liegt, heißt wie bisher. An der Oberfläche
+  ändert sich nichts.
 
 ## [0.4.0] - 2026-09-27
 

@@ -1,23 +1,24 @@
 import { type PasskeyEntry, passkeyNameMaxLength, passkeyNameProblem } from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, useBand } from '@opengewerk/platform-web'
+import {
+  accountQuery,
+  addPasskey,
+  deviceName,
+  passkeyTrouble,
+  passkeys,
+  passkeysSupported,
+  reconfirm,
+  removePasskey,
+  renamePasskey,
+} from '@opengewerk/platform-web/session'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FingerprintPattern, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { deviceName } from '../../app/devices.js'
+import { application } from '../../app/application.js'
 import { clockTime, date, moment } from '../../app/format.js'
-import { accountQuery } from '../../app/queries.js'
-import {
-  addPasskey,
-  passkeys,
-  passkeysSupported,
-  passkeyTrouble,
-  reconfirm,
-  removePasskey,
-  renamePasskey,
-} from '../../session/passkeys.js'
 import { SettingsText } from '../settings-frame.js'
 
 /** "Heute, 08:12" for today, the day and the time for any other, "Noch nie" for never. */
@@ -415,7 +416,13 @@ function PasskeyAdding({
         void account.refetch()
       }
 
-      setTrouble(passkeyTrouble(error, 'Die Bestätigung kam nicht an. Bitte gleich noch einmal.'))
+      setTrouble(
+        passkeyTrouble(
+          error,
+          'Die Bestätigung kam nicht an. Bitte gleich noch einmal.',
+          application,
+        ),
+      )
     } finally {
       setWorking(false)
     }
@@ -440,7 +447,7 @@ function PasskeyAdding({
         setStep('confirm')
       }
 
-      setTrouble(passkeyTrouble(error, 'Der Passkey ließ sich nicht anlegen.'))
+      setTrouble(passkeyTrouble(error, 'Der Passkey ließ sich nicht anlegen.', application))
     } finally {
       setWorking(false)
     }

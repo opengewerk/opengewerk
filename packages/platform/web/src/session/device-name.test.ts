@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { deviceName } from './devices.js'
+import { deviceName } from './device-name.js'
 
 /** Real user agents, as the device lists received them. */
 const agents = {

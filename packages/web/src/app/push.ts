@@ -1,4 +1,5 @@
 import type { PushEntry } from '@opengewerk/domain'
+import { deviceName } from '@opengewerk/platform-web/session'
 
 import {
   type BrowserSubscription,
@@ -6,7 +7,6 @@ import {
   subscribeDevice,
   unsubscribeDevice,
 } from '../session/push.js'
-import { deviceName } from './devices.js'
 
 /**
  * Push in this browser (#284): whether it can take messages, asking for them,

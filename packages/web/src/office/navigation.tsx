@@ -1,4 +1,5 @@
 import { BrandMark, ThemeSwitch } from '@opengewerk/platform-web'
+import { accountQuery, useWho } from '@opengewerk/platform-web/session'
 import { text, useRecords, useSyncStatus } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
@@ -24,9 +25,8 @@ import { Fragment, useEffect, useMemo, useReducer, useRef } from 'react'
 
 import { sinceThen } from '../app/format.js'
 import { documentStatusOf, taskStatusOf } from '../app/labels.js'
-import { accountQuery, useMay } from '../app/queries.js'
+import { useMay } from '../app/queries.js'
 import { useTheme } from '../app/theme.js'
-import { useWho } from '../app/who.js'
 import { DrawerBusiness } from './businesses.js'
 
 interface Entry {
@@ -439,7 +439,7 @@ export function Drawer({
             <X size={22} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
-        {who.business ? <DrawerBusiness name={who.business} onFollow={onClose} /> : null}
+        {who.tenant ? <DrawerBusiness name={who.tenant} onFollow={onClose} /> : null}
         <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {groups.map((group, index) => (
             <Fragment key={group.title}>

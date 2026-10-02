@@ -19,8 +19,8 @@ import {
   useInverters,
   useSystemModules,
 } from '../../app/photovoltaic.js'
-import type { FormField } from '../../app/record-form.js'
 import { useMay } from '../../app/queries.js'
+import type { FormField } from '../../app/record-form.js'
 import { SmallIcon } from './boards.js'
 import { Entries } from './pv-structure.js'
 

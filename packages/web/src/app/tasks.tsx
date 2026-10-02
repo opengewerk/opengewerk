@@ -1,5 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, useEntry } from '@opengewerk/platform-web'
+import { accountQuery } from '@opengewerk/platform-web/session'
 import { maybeText, refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -9,7 +10,7 @@ import { useState } from 'react'
 import { type Assignee, assignees } from '../session/tasks.js'
 import { date, today } from './format.js'
 import { taskStatusOf } from './labels.js'
-import { accountQuery, useMay } from './queries.js'
+import { useMay } from './queries.js'
 import { RecordForm, asTextOrNull } from './record-form.js'
 
 /**

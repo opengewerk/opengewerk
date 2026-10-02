@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 
+import { initialsOf } from '@opengewerk/platform-web/session'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -16,7 +17,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../sync/client.js'
 import { OfficeShell } from './shell.js'
-import { initialsOf } from '../app/who.js'
 import { aTenantChoice } from '../session/test-tenants.js'
 
 /**

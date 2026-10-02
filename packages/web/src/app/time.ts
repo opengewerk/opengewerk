@@ -9,6 +9,7 @@ import {
   type TimeEntryKind,
   timeEntryProblem,
 } from '@opengewerk/domain'
+import { accountQuery } from '@opengewerk/platform-web/session'
 import { maybeText, refusalFor, text, useRecords, useSync } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
 import { queryOptions, useQuery } from '@tanstack/react-query'
@@ -17,7 +18,6 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { locationConsent } from '../session/time.js'
 import { stopwatchName } from '../sync/client.js'
 import type { SyncClient } from '../sync/client.js'
-import { accountQuery } from './queries.js'
 
 /** A place in millionths of a degree, as an entry keeps it. */
 export interface Place {

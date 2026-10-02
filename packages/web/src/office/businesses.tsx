@@ -1,4 +1,11 @@
 import type { TenantId } from '@opengewerk/domain'
+import {
+  accountQuery,
+  availableTenants,
+  chooseTenant,
+  rolesInWords,
+} from '@opengewerk/platform-web/session'
+import type { TenantChoice } from '@opengewerk/platform-web/session'
 import { useSync } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -6,9 +13,7 @@ import clsx from 'clsx'
 import { Check, ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { rolesInWords } from '../app/labels.js'
-import { accountQuery, useMay } from '../app/queries.js'
-import { availableTenants, chooseTenant, type TenantChoice } from '../session/session.js'
+import { useMay } from '../app/queries.js'
 import type { SyncClient } from '../sync/client.js'
 
 /**

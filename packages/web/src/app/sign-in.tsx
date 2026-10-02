@@ -1,5 +1,18 @@
 import { labelCodeFromScan, type TenantId } from '@opengewerk/domain'
 import { Button, Field } from '@opengewerk/platform-web'
+import {
+  chooseTenant,
+  passkeyTrouble,
+  passkeysSupported,
+  recoveryCodesLeft,
+  requestPasswordReset,
+  rolesInWords,
+  signIn,
+  signInWithPasskey,
+  verifyRecoveryCode,
+  verifySecondFactor,
+} from '@opengewerk/platform-web/session'
+import type { TenantChoice } from '@opengewerk/platform-web/session'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { FingerprintPattern, ScanLine } from 'lucide-react'
@@ -7,19 +20,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import type { Entry } from '../entry/entry.js'
+import { application } from './application.js'
 import { Gate, GateText } from './gate.js'
-import { rolesInWords } from './labels.js'
 import { SignOutButton } from './sign-out.js'
-import { passkeysSupported, passkeyTrouble, signInWithPasskey } from './../session/passkeys.js'
-import {
-  chooseTenant,
-  recoveryCodesLeft,
-  requestPasswordReset,
-  signIn,
-  verifyRecoveryCode,
-  verifySecondFactor,
-} from './../session/session.js'
-import type { TenantChoice } from './../session/session.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -124,7 +127,9 @@ export function SignInScreen({
       await signInWithPasskey()
       onSignedIn()
     } catch (error) {
-      setTrouble(passkeyTrouble(error, 'Die Anmeldung mit dem Passkey hat nicht geklappt.'))
+      setTrouble(
+        passkeyTrouble(error, 'Die Anmeldung mit dem Passkey hat nicht geklappt.', application),
+      )
     } finally {
       setWorking(false)
     }
