@@ -1,10 +1,9 @@
 import { Controller, Get, Inject } from '@nestjs/common'
 import type { BackupStatus } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { Database, readInstanceSettings } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 
 import { tenants } from '../database/schema/index.js'
-import { readInstanceSettings } from '../instance/settings.js'
 import { backupStatus } from '../operations/backup-status.js'
 import { RequiresPermission } from './authorization.js'
 import { BACKUP_STATUS } from './handed-in.js'

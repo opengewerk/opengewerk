@@ -14,8 +14,10 @@ import {
   checkViolation,
   connect,
   foreignKeyViolation,
+  foundationDefinerFunctions,
   insufficientPrivilege,
   keysBetweenTenantTables,
+  readDefinerFunctions,
   readPolicies,
   refusedBy,
   resetSchema,
@@ -126,6 +128,24 @@ describe('the tables', () => {
     expect(reading.tables).toBeGreaterThanOrEqual(37)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
+  })
+
+  /**
+   * A function that runs as its definer runs as the owner of the tables,
+   * whoever calls it, and so walks past every policy above. Each is a way
+   * that was opened on purpose for one question, and each is on a list with
+   * its reason: the ones of the foundation there, the one of this application
+   * here. A migration that adds one, or leaves one behind it meant to
+   * replace, turns this red.
+   */
+  it('let a function past them only where a list says why', async () => {
+    const reading = await readDefinerFunctions(admin, {
+      ...foundationDefinerFunctions,
+      'reserve_sync_sequences(amount integer)':
+        'an import takes its block of change numbers at its very end, in one step (#297)',
+    })
+
+    expect(reading).toEqual({ unexplained: [], stale: [] })
   })
 })
 

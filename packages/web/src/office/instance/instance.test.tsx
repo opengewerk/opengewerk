@@ -190,17 +190,17 @@ const tenants: readonly InstanceTenantView[] = [
     id: 't-1',
     name: 'Elektro Kohm GmbH',
     createdAt: '2026-09-24T18:12:00.000Z',
-    owners: [{ name: 'Moritz Kohm', email: 'moritz@kohm.example.de' }],
+    leads: [{ name: 'Moritz Kohm', email: 'moritz@kohm.example.de' }],
     members: 4,
-    invitedOwners: [],
+    invitedLeads: [],
   },
   {
     id: 't-3',
     name: 'Elektro Weber OHG',
     createdAt: '2026-09-27T14:31:00.000Z',
-    owners: [],
+    leads: [],
     members: 0,
-    invitedOwners: ['anna@elektro-weber.de'],
+    invitedLeads: ['anna@elektro-weber.de'],
   },
 ]
 
@@ -248,8 +248,8 @@ describe('the businesses on the instance', () => {
     expect(await screen.findByText('Elektro Weber OHG ist angelegt.')).toBeTruthy()
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
       name: 'Elektro Weber OHG',
-      ownerName: 'Anna Weber',
-      ownerEmail: 'anna@elektro-weber.de',
+      leadName: 'Anna Weber',
+      leadEmail: 'anna@elektro-weber.de',
     })
     expect((screen.getByLabelText('Einladungslink') as HTMLInputElement).value).toBe(
       `${globalThis.location.origin}/einladung/k7Qm2vXnR4tB9sLw`,

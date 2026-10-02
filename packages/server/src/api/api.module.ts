@@ -12,6 +12,7 @@ import {
   authenticationParts,
   AUTHORIZATION,
   Database,
+  type InstanceSettingsCache,
   SameOriginGuard,
   type SecretKey,
   TRUSTED_ORIGINS,
@@ -72,7 +73,6 @@ import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { PUSH, PushController, type PushContext } from './push.controller.js'
 import { AuditController } from './audit.controller.js'
-import { INSTANCE, InstanceController, type InstanceContext } from './instance.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
@@ -144,7 +144,7 @@ export interface ApiOptions {
    * its area reaches the mail check at once. Left out, the area reads and
    * writes the database and nothing is kept.
    */
-  readonly instance?: InstanceContext | null
+  readonly instance?: { readonly settings: InstanceSettingsCache } | null
 }
 
 /**
@@ -200,12 +200,14 @@ export class ApiModule implements NestModule {
     // this application. Its ways in, the first run and the one time link, are
     // there only while the authentication is handed in, which is what leaves
     // them out on a closed instance. Who works in a business is part of it,
-    // and an invitation by mail goes out the way every message here does.
+    // and an invitation by mail goes out the way every message here does. The
+    // area of the instance (#188) comes with it.
     const signingIn = authenticationParts({
       access,
       authentication,
       setupCode,
       invitationMailing: invitationMailing(database, mail),
+      instanceSettings: options.instance?.settings,
     })
 
     return {
@@ -232,7 +234,6 @@ export class ApiModule implements NestModule {
         DeadlineSettingsController,
         PushController,
         AuditController,
-        InstanceController,
         TenantsController,
         FilesController,
         AttachmentsController,
@@ -268,7 +269,6 @@ export class ApiModule implements NestModule {
         { provide: VERSION, useValue: version },
         { provide: PUSH, useValue: push },
         { provide: SECRETS, useValue: options.secrets ?? mail?.key ?? null },
-        ...(options.instance ? [{ provide: INSTANCE, useValue: options.instance }] : []),
         DocumentFiles,
         ArticleImports,
         ...signingIn.providers,

@@ -9,9 +9,11 @@ import {
   ConfigurationError,
   Database,
   instanceIsEmpty,
+  InstanceSettingsCache,
   readJsonBodiesOnly,
   SecretKey,
   sendSecurityHeaders,
+  takeOverFromEnvironment,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
 
@@ -33,7 +35,6 @@ import { endInterruptedImports } from './datanorm/imports.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { httpsPost } from './push/post.js'
-import { InstanceSettingsCache, takeOverFromEnvironment } from './instance/settings.js'
 import { startPushWorker } from './push/worker.js'
 import { FileStore } from './storage/file-store.js'
 

@@ -1,16 +1,24 @@
-import { backupTimeProblem, type InstanceSettingsView, mailHostProblem } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
-import type { Database } from '@opengewerk/platform-server'
+import {
+  backupTimeProblem,
+  type InstanceSettingsView,
+  mailHostProblem,
+} from '@opengewerk/platform-domain'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { instanceSettings } from '../database/schema/index.js'
+import type { Database } from '../database/database.js'
+import { instanceSettings } from '../schema.js'
 
 /**
- * The settings of the instance (#188), one row written by migration 0051:
- * the mail servers in the own network a business may send through, and the
- * hour of the nightly backup. Both lived in the `.env` or in a script before,
- * and both belong to the instance and to no business on it.
+ * The settings of the instance (#188), one row written with the table (the
+ * block `instance.sql`): the mail servers in the own network a tenant may
+ * send through, and the hour of the nightly backup. Both lived in the `.env`
+ * or in a script before, and both belong to the instance and to no tenant on
+ * it.
  */
+
+const missing =
+  'The settings of the instance are missing; the migration that creates the table writes them.'
 
 type Row = typeof instanceSettings.$inferSelect
 
@@ -29,13 +37,13 @@ export async function readInstanceSettings(database: Database): Promise<Instance
   )
 
   if (!row) {
-    throw new Error('The settings of the instance are missing; migration 0051 writes them.')
+    throw new Error(missing)
   }
 
   return view(row)
 }
 
-/** What an operator may change, refused in the words of the screen where it does not fit. */
+/** What may be changed, refused in the words of the screen where it does not fit. */
 export interface InstanceSettingsChange {
   readonly mailInternalHosts?: readonly string[]
   readonly backupTime?: string
@@ -106,7 +114,7 @@ export async function saveInstanceSettings(
   )
 
   if (!row) {
-    throw new Error('The settings of the instance are missing; migration 0051 writes them.')
+    throw new Error(missing)
   }
 
   return view(row)
@@ -117,8 +125,8 @@ export async function saveInstanceSettings(
  * switches off no mail server that worked before it. After that the screen
  * decides, and a later value in the `.env` changes nothing; the template says
  * so. An empty value takes nothing over and leaves the door open for a value
- * set later, and what the operators set in the meantime stays: the servers
- * from the `.env` come in next to it, never in its place.
+ * set later, and what was set on the screen in the meantime stays: the
+ * servers from the `.env` come in next to it, never in its place.
  */
 export async function takeOverFromEnvironment(
   database: Database,

@@ -18,7 +18,10 @@ import { probeDatabase, probeMigrations } from './probe-database.js'
 import {
   auditEntryColumns,
   keysBetweenTenantTables,
+  foundationDefinerFunctions,
+  instanceLogCoverage,
   logCoverage,
+  readDefinerFunctions,
   readPolicies,
   tableProtections,
   unprotected,
@@ -101,12 +104,16 @@ describe('the foundation, built from its building blocks alone', () => {
       'audit_entry_stays',
       'audit_fingerprint',
       'create_first_tenant',
+      'create_tenant',
       'every_tenant',
+      'instance_change_stays',
       'instance_is_empty',
       'invitation_for',
       'next_sync_sequence',
       'record_change',
+      'record_instance_change',
       'stamp_sync_columns',
+      'tenants_with_leads',
       'verify_audit_chain',
     ])
   })
@@ -127,7 +134,7 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(18)
+    expect(tables).toHaveLength(21)
     expect(unprotected(tables)).toEqual([])
   })
 
@@ -177,6 +184,21 @@ describe('the foundation, built from its building blocks alone', () => {
     expect(reading.stale).toEqual(['tenants.long_gone'])
   })
 
+  it('lets a function run as its definer only where the list says why', async () => {
+    expect(await readDefinerFunctions(admin)).toEqual({ unexplained: [], stale: [] })
+  })
+
+  it('finds every function that runs as its definer, when the list does not excuse it', async () => {
+    // The check itself, seen red once: without the list, these are the ways
+    // past the policies the foundation has, and with one name too many the
+    // list is said to be stale.
+    const reading = await readDefinerFunctions(admin, { 'long_gone()': 'of an earlier day' })
+
+    expect(reading.unexplained).toEqual(Object.keys(foundationDefinerFunctions).sort())
+    expect(reading.unexplained).toHaveLength(9)
+    expect(reading.stale).toEqual(['long_gone()'])
+  })
+
   it('runs every key between two tables of a tenant over the tenant', async () => {
     const keys = await keysBetweenTenantTables(admin)
 
@@ -197,6 +219,14 @@ describe('the foundation, built from its building blocks alone', () => {
     ])
     expect(coverage.unwatched).toEqual([])
     expect(coverage.watchedAgainstTheList).toEqual([])
+  })
+
+  it('gives what belongs to the instance a log of its own, and the coming and going of tenants too', async () => {
+    expect(await instanceLogCoverage(admin)).toEqual([
+      'instance_operators',
+      'instance_settings',
+      'tenants',
+    ])
   })
 
   it('has the columns of an audit entry as they are frozen', async () => {
@@ -462,6 +492,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(18)
+    expect(await tableNames(admin)).toHaveLength(21)
   })
 })

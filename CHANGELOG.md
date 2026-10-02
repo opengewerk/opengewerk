@@ -455,6 +455,33 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ist der Umzug ins Fundament, wo eine Tabelle einmal beschrieben ist und jede weitere Anwendung
   genau das bekommt; die Beschreibung soll sagen, was die Tabelle braucht, und nicht, was eine
   frühe Migration vergeben hat. Geschrieben wird dabei nichts.
+- Der Bereich der Instanz gehört zum Fundament (`@opengewerk/platform-server`, ADR 0010,
+  `opengewerk-haustechnik#9`): wer die Instanz betreibt, ihre Einstellungen, ihr Protokoll, die
+  Liste der Betriebe, der Weg zu einem weiteren Betrieb und die Befehle `appoint-operator` und
+  `add-tenant`. Er hat keine Liste einer Anwendung und zieht um, wie er ist, mit drei
+  Unterschieden. Wer einen Betrieb führt, liest die Liste der Betriebe aus den Rollen des Betriebs
+  und nicht mehr am Namen `owner` (`tenants_with_leads()` statt `instance_tenants()`, Migration
+  0065): ein Betrieb, der seine führende Rolle anders nennt, stünde sonst ohne Inhaber da. Jeder
+  Satz, der einen Betrieb, seinen Inhaber oder den Betreiber einer Instanz nennt, kommt ganz aus
+  der Anwendung (`AccessRules.sentences.instance`), denn die nächste Anwendung nennt alle drei
+  anders, und ein Test hält fest, dass im Fundament keines dieser Wörter in einem Satz steht. Und
+  zwei Nähte fallen weg: wer die Instanz betreibt, fragt der Guard selbst, und die Ersteinrichtung
+  benennt das erste Konto selbst. `GET /instance/tenants` nennt dafür `leads` und `invitedLeads`
+  statt `owners` und `invitedOwners`, `POST /instance/tenants` nimmt `leadName` und `leadEmail`.
+  Der Bereich ist in keiner Fassung erschienen, es gibt also keinen installierten Client und keine
+  laufende ältere Anwendung, die das trifft; deshalb entfernt die Migration die alte Funktion im
+  selben Schritt. `create_tenant` lehnt einen fehlenden Namen mit einem Satz ab, der keinen Betrieb
+  nennt. Die Tests des Bereichs laufen im Fundament mit echter Anmeldung über eine Anwendung, die
+  niemandem gehört. Bei der Handwerkersoftware bleibt, was nur sie falsch machen kann: dass Inhaber
+  sein dort nichts öffnet, dass ihre Ablehnungen von Betreiber, Betrieb und Inhaber sprechen, dass
+  ein Inhaber einen weiteren Betrieb für sich anlegt und das Büro nicht, und dass ein neuer Betrieb
+  keinen Kunden des ersten hat. Der weitere Betrieb für einen selbst (`POST /tenants` hinter
+  `tenant.create`) bleibt eine Route dieser Anwendung.
+- Jede Funktion der Datenbank, die als ihr Eigentümer läuft, steht mit ihrem Grund auf einer Liste,
+  und ein Test hält die Liste gegen den Katalog (`readDefinerFunctions` im Baukasten der Tests).
+  Eine solche Funktion geht an jeder Policy vorbei, mit Absicht und für genau eine Frage. Eine
+  weitere ist damit eine Entscheidung, und eine, die eine Migration zurücklässt, fällt auf. Anlass
+  war eine Gegenprobe: blieb die alte Listenfunktion der Betriebe stehen, merkte es kein Test.
 
 ## [0.4.0] - 2026-09-27
 

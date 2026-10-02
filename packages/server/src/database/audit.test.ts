@@ -15,6 +15,7 @@ import {
   columnNames,
   connect,
   foundationOutsideTheLog,
+  instanceLogCoverage,
   insufficientPrivilege,
   logCoverage,
   refusedBy,
@@ -39,7 +40,7 @@ let database: Database
  * keeps out everywhere: the log itself, the sync layer and the accounts.
  */
 const outsideTheLog = {
-  prefixes: [...foundationOutsideTheLog.prefixes, 'instance_'],
+  prefixes: [...foundationOutsideTheLog.prefixes],
   tables: ['secrets'],
 }
 
@@ -123,8 +124,8 @@ describe('the tables', () => {
     // when a password was set from `mail_settings`, which it does watch.
     //
     // The `instance_` tables (#188) belong to the instance and to no business,
-    // like the accounts, and have a log of their own; the test below holds
-    // that one.
+    // like the accounts, and have a log of their own. Both are the
+    // foundation's, which keeps them out of this log and holds theirs.
     const coverage = await logCoverage(admin, outsideTheLog)
 
     expect(coverage.watched.length).toBeGreaterThanOrEqual(15)
@@ -141,15 +142,7 @@ describe('the tables', () => {
     // The operators and the settings of the instance, and `tenants` for a
     // business being created or removed; the log of the instance itself is
     // what is written, so it carries no writer.
-    const { rows } = await admin.query<{ table_name: string }>(
-      `select c.relname as table_name
-         from pg_trigger t
-         join pg_class c on c.oid = t.tgrelid
-        where t.tgname = 'instance_changes'
-        order by c.relname`,
-    )
-
-    expect(rows.map((row) => row.table_name)).toEqual([
+    expect(await instanceLogCoverage(admin)).toEqual([
       'instance_operators',
       'instance_settings',
       'tenants',

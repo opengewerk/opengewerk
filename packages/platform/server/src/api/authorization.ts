@@ -11,6 +11,7 @@ import { Reflector } from '@nestjs/core'
 import { workingInHeader } from '@opengewerk/platform-domain'
 
 import { Database } from '../database/database.js'
+import { operatorAccess } from '../instance/access.js'
 import {
   IDENTITY_SOURCE,
   identityProperty,
@@ -93,20 +94,13 @@ export const RequiresSession = () => SetMetadata(SESSION_METADATA, true)
  */
 export const RequiresOperator = () => SetMetadata(OPERATOR_METADATA, true)
 
-/** Whether somebody may enter the area of the instance. */
-export interface OperatorAccess {
-  readonly operator: boolean
-  /** Whether the session has a second factor, which the area insists on. */
-  readonly secondFactor: boolean
-}
-
 /**
  * What the guard has to be told by the application it guards (ADR 0010).
  *
  * The guard knows the mechanism: who is asking, in which tenant, which rights
- * their identity carries, and that a route without a declared right is
- * refused. What a refusal says in the words of the application, and who runs
- * the instance, it is handed.
+ * their identity carries, who runs the instance, and that a route without a
+ * declared right is refused. What a refusal says in the words of the
+ * application, it is handed.
  *
  * Whether somebody holds a right is not among the things handed in. The
  * identity carries the rights the roles of its membership add up to, and the
@@ -118,11 +112,6 @@ export interface Authorization<Right extends string = string> {
    * key of the right, since a screen shows it.
    */
   missingPermission(right: Right): string
-  /**
-   * Whether somebody runs the instance. Read fresh on every request, like the
-   * roles of a membership, so that taking it away takes effect at once.
-   */
-  operatorAccess(database: Database, userId: string, sessionId: string): Promise<OperatorAccess>
   /** The refusals that name something the application has its own word for. */
   readonly sentences: {
     /** Somebody signed in asks for the area of the instance and does not run it. */
@@ -175,19 +164,16 @@ export class AuthorizationGuard implements CanActivate {
     ])
 
     if (needsOperator) {
-      // Who, from the session; whether they run the instance, from the
-      // application, which reads it fresh on every request.
+      // Who, from the session; whether they run the instance, from the area
+      // of the instance, read fresh on every request like the roles of a
+      // membership, so that taking it away takes effect at once.
       const user = await this.identities.authenticate(request)
 
       if (!user) {
         throw new UnauthorizedException('Keine gültige Anmeldung.')
       }
 
-      const access = await this.authorization.operatorAccess(
-        this.database,
-        user.userId,
-        user.sessionId,
-      )
+      const access = await operatorAccess(this.database, user.userId, user.sessionId)
 
       if (!access.operator) {
         throw new ForbiddenException(this.authorization.sentences.operatorsOnly)

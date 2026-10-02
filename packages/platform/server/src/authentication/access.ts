@@ -1,6 +1,6 @@
 import type { RightsCatalogue, RoleDefinition } from '@opengewerk/platform-domain'
 
-import type { TenantTransaction } from '../database/database.js'
+import type { InstanceSentences } from '../instance/sentences.js'
 
 /**
  * What an application says about the people in its tenants, where the
@@ -42,13 +42,6 @@ export interface AccessRules<Right extends string = string> {
    * would refuse.
    */
   tenantNameProblem(name: string): string | null
-  /**
-   * What else the first account of an instance becomes, beyond the leader of
-   * its tenant. Called in the transaction of the first run, outside any
-   * tenant and before the step into the new one, so that whatever it writes
-   * is there together with the account or not at all.
-   */
-  readonly firstAccount?: (tx: TenantTransaction, userId: string) => Promise<void>
   readonly sentences: AccessSentences
 }
 
@@ -114,6 +107,8 @@ export interface AccessSentences {
     /** A tenant the instance does not have, by the key the command was given. */
     noSuchTenant(tenantId: string): string
   }
+  /** The area of the instance, where a sentence names whoever runs it or a tenant. */
+  readonly instance: InstanceSentences
 }
 
 /** The rules of the application, for the controllers of the authentication. */

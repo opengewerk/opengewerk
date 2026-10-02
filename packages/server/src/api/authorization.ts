@@ -4,11 +4,9 @@ import {
   RequiresPermission as requiresPermission,
 } from '@opengewerk/platform-server'
 
-import { operatorAccess } from '../instance/operators.js'
-
 // The guard is the foundation's (ADR 0010): who is asking, in which business,
-// which rights their identity carries, and that a route without a declared
-// right is refused. What a refusal says and who runs the instance is this
+// which rights their identity carries, who runs the instance, and that a
+// route without a declared right is refused. What a refusal says is this
 // application's, and this is where the two are bound.
 
 export {
@@ -31,9 +29,6 @@ export const RequiresPermission = (permission: Permission) => requiresPermission
 /** What the guard is told about this application. */
 export const authorization: Authorization<Permission> = {
   missingPermission,
-  // Who runs the instance is read from the area of the instance (#188), fresh
-  // on every request.
-  operatorAccess,
   sentences: {
     operatorsOnly: 'Diesen Bereich erreicht nur ein Betreiber der Instanz.',
     workingInAnotherTenant:

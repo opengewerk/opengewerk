@@ -149,8 +149,8 @@ function Owners({
 }) {
   const breaks = inBox ? '[overflow-wrap:anywhere]' : 'whitespace-nowrap'
 
-  if (tenant.owners.length === 0) {
-    const invited = tenant.invitedOwners[0]
+  if (tenant.leads.length === 0) {
+    const invited = tenant.invitedLeads[0]
 
     return invited ? (
       <>
@@ -164,7 +164,7 @@ function Owners({
 
   return (
     <>
-      {tenant.owners.map((owner) => (
+      {tenant.leads.map((owner) => (
         <span key={owner.email} className="block">
           <span className={`block text-[14px] font-medium ${breaks}`}>
             {owner.name}

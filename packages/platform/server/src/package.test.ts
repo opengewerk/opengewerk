@@ -121,6 +121,16 @@ const productName = /OpenGewerk/
 const roleLiteral = /(['"`])(?:owner|office|technician)\1/
 const roleLabel = /\b(?:Inhaber|Monteur)\b/
 
+/**
+ * What an application calls a tenant and whoever runs an instance, in a
+ * sentence a person reads. The two words here are the trades application's
+ * for the two, and the second is what the next application calls a tenant:
+ * set into a sentence of the foundation, either would be wrong in one of
+ * them. Such a sentence comes whole from the application (`AccessSentences`,
+ * `InstanceSentences`).
+ */
+const tenantWord = /\b(?:Betrieb|Betriebs|Betriebe|Betrieben|Betreiber|Betreibers|Betreibern)\b/
+
 describe('what the foundation knows of an application', () => {
   const lines = shipped().flatMap(linesOf)
 
@@ -131,6 +141,10 @@ describe('what the foundation knows of an application', () => {
     expect(files).toContain('src/authentication/authentication.ts')
     expect(files).toContain('src/authentication/setup.ts')
     expect(files).toContain('sql/setup.sql')
+    // The area of the instance, where the words for a tenant and for whoever
+    // runs an instance used to stand.
+    expect(files).toContain('src/instance/operators.ts')
+    expect(files).toContain('sql/instance.sql')
     expect(files.has('src/authentication/probe-application.ts')).toBe(false)
     expect(files.size).toBeGreaterThan(50)
   })
@@ -147,7 +161,13 @@ describe('what the foundation knows of an application', () => {
     ).toEqual([])
   })
 
-  it('would notice either, as the patterns are written', () => {
+  it('is not its word for a tenant or for whoever runs an instance: no sentence says either', () => {
+    const code = lines.filter((line) => !isComment(line))
+
+    expect(found(code.filter((line) => tenantWord.test(line.text)))).toEqual([])
+  })
+
+  it('would notice any of them, as the patterns are written', () => {
     // The patterns against lines of the kind that used to be here, so that a
     // pattern that matches nothing is not mistaken for a clean package.
     expect(productName.test("    appName: 'OpenGewerk',")).toBe(true)
@@ -161,5 +181,18 @@ describe('what the foundation knows of an application', () => {
 
     expect(roleLabel.test("'Der Inhaber kann ihn wieder freigeben.'")).toBe(true)
     expect(roleLabel.test("'Für diese Rolle ist ein zweiter Faktor Pflicht.'")).toBe(false)
+
+    expect(tenantWord.test("throw new ConflictException('Der letzte Betreiber bleibt.')")).toBe(
+      true,
+    )
+    expect(tenantWord.test("RAISE EXCEPTION 'Ein Betrieb braucht einen Namen.'")).toBe(true)
+    expect(tenantWord.test("'Die Kennung eines Betriebs steht bei seinem Namen.'")).toBe(true)
+    expect(tenantWord.test("'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht.'")).toBe(
+      false,
+    )
+    // A word that only begins like one of them is none of them.
+    expect(tenantWord.test("'Die Betriebsart der Sicherung steht in den Einstellungen.'")).toBe(
+      false,
+    )
   })
 })

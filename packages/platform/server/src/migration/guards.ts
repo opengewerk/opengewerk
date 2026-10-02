@@ -155,6 +155,12 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   writer is a trigger that runs as its definer.
  * - The receipts of the sync layer are written once; a conflict is written
  *   and later marked resolved.
+ * - What belongs to the instance: an operator is named and taken away again,
+ *   and never changed. The one row of settings is changed and neither added
+ *   to nor removed. The log of the instance is read; its one writer is a
+ *   trigger that runs as its definer. None of the three has a tenant, so the
+ *   audit trigger of a tenant stays off them, and the block `instance.sql`
+ *   brings the trigger that watches them instead.
  *
  * None of them travels to a device, so none carries the sync columns.
  *
@@ -187,6 +193,14 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'sync_sequences', grants: ['select'], audited: false, synced: false },
   { table: 'sync_operations', grants: ['select', 'insert'], audited: false, synced: false },
   { table: 'sync_conflicts', grants: noDelete, audited: false, synced: false },
+  {
+    table: 'instance_operators',
+    grants: ['select', 'insert', 'delete'],
+    audited: false,
+    synced: false,
+  },
+  { table: 'instance_settings', grants: ['select', 'update'], audited: false, synced: false },
+  { table: 'instance_changes', grants: ['select'], audited: false, synced: false },
 ]
 
 /**

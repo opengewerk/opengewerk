@@ -4,15 +4,10 @@ import { PassThrough, Writable } from 'node:stream'
 import type { Pool } from 'pg'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import type { CommandSurroundings } from '../command-line.js'
 import { ConfigurationError, type Environment } from '../configuration.js'
 import { newId } from '../database/identifier.js'
-import {
-  addStaff,
-  addStaffCommand,
-  type CommandSurroundings,
-  resetPassword,
-  resetPasswordCommand,
-} from './commands.js'
+import { addStaff, addStaffCommand, resetPassword, resetPasswordCommand } from './commands.js'
 import {
   probeAccess,
   type ProbeFoundation,
