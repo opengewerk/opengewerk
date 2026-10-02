@@ -98,7 +98,12 @@ export const application: InterfaceApplication = {
       belongsToTheAccount:
         'Hell oder dunkel, Passwort und zweiter Faktor gehören nicht dem Betrieb, sondern dem Konto.',
     },
+    account: {
+      themeElsewhere: 'Auf dem Tablet im Keller lässt sich unabhängig davon dunkel wählen.',
+      secondFactorFor: 'Für die Rolle Inhaber ist er Pflicht, für alle anderen empfohlen.',
+    },
     entry: {
+      name: { office: 'Büro', site: 'Baustelle' },
       suits: {
         office: 'Das sieht nach einem Arbeitsplatz aus. Im Büro ist mehr zu sehen.',
         site: 'Das sieht nach einem Gerät für die Baustelle aus.',

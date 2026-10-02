@@ -22,6 +22,12 @@ export { PathSlot, PersonMenu } from './top-bar.js'
 // header and for a screen that lists them.
 export { switchTenant, useTenants } from './tenants.js'
 
+// What somebody looks after about their own account: light or dark, the
+// second factor, the passkeys, the password and the devices. An application
+// adds its own cards as children.
+export { AccountScreen } from './account.js'
+export { PasskeysPanel } from './passkeys.js'
+
 // The frame of a screen, its head with the path, the facts of a record, the
 // two columns of one, the chips of a list, a remark in a box.
 export {
