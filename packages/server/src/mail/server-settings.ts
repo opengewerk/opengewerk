@@ -6,6 +6,7 @@ import {
   type SmtpSecurity,
   smtpSecurities,
   type TenantId,
+  type TenantIdentity,
   unknownPlaceholders,
 } from '@opengewerk/domain'
 import {
@@ -284,7 +285,10 @@ export async function removeMailServer(database: Database, identity: Identity): 
 }
 
 /** Whether a business sends mail and from which address, for anybody who reads the settings. */
-export async function mailStatusOf(database: Database, identity: Identity): Promise<MailStatus> {
+export async function mailStatusOf(
+  database: Database,
+  identity: TenantIdentity,
+): Promise<MailStatus> {
   const row = await database.forTenant(identity, (tx) => settingsOf(tx, identity.tenantId))
 
   return { configured: row !== null, from: row?.fromAddress ?? null }
@@ -295,7 +299,10 @@ export async function mailStatusOf(database: Database, identity: Identity): Prom
  * sentence that says where one is set up. A message written anyway would wait
  * for a server nobody set up, and the office would take it for sent.
  */
-export async function requireMailServer(database: Database, identity: Identity): Promise<void> {
+export async function requireMailServer(
+  database: Database,
+  identity: TenantIdentity,
+): Promise<void> {
   if (!(await mailStatusOf(database, identity)).configured) {
     throw new ConflictException(
       'Für diesen Betrieb ist kein Mailserver eingerichtet, deshalb verschickt er keine ' +

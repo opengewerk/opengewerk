@@ -6,10 +6,8 @@ import {
   type AuditTitle,
   type InstanceLogPage,
 } from '@opengewerk/domain'
-import type { Database } from '@opengewerk/platform-server'
+import { accountsOf, type Database } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
-
-import { accountsOf } from '../authentication/administration.js'
 
 /**
  * The log of the instance (#188), in the shape of the log of a business, so

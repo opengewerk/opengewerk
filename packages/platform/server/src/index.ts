@@ -48,14 +48,17 @@ export * from './network/internal-address.js'
 // The authentication: accounts on the instance, memberships per tenant, and
 // a session that works in one tenant at a time. Signing in with a password, a
 // second factor and passkeys, the first run of an instance, the one time link
-// somebody new comes in through, and the commands that are the way back. The
-// application names itself, its roles and its words.
+// somebody new comes in through, who works in a tenant and what they may do
+// there, and the commands that are the way back. The application names
+// itself, its roles and its words.
 export * from './authentication/access.js'
+export * from './authentication/administration.js'
 export * from './authentication/authentication.controller.js'
 export * from './authentication/authentication.js'
 export * from './authentication/commands.js'
 export * from './authentication/invitation.controller.js'
 export * from './authentication/invitation.js'
+export * from './authentication/invitation-mailing.js'
 export * from './authentication/module.js'
 export * from './authentication/notices.js'
 export * from './authentication/passkeys.controller.js'
@@ -69,6 +72,7 @@ export * from './authentication/session-lifetime.js'
 export * from './authentication/setup-code.js'
 export * from './authentication/setup.controller.js'
 export * from './authentication/setup.js'
+export * from './authentication/staff.controller.js'
 export * from './authentication/staff.js'
 
 // Addresses and host names as a mail server takes them.

@@ -7,17 +7,18 @@ import {
 } from '@opengewerk/domain'
 import { BadRequestException } from '@nestjs/common'
 import {
+  accountsOf,
   type Authentication,
   createAccount,
   type Database,
   grantMembership,
   mintToken,
   newId,
+  normalise,
   type StraddlingTransaction,
 } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
-import { accountsOf, normalise } from '../authentication/administration.js'
 import { invitations } from '../database/schema/index.js'
 
 /**

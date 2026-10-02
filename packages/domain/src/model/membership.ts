@@ -1,7 +1,12 @@
+import type {
+  InvitationId,
+  MembershipId,
+  SignInMethod,
+  TenantId,
+  TenantSessionId,
+} from '@opengewerk/platform-domain'
+
 import type { RoleKey } from './authorization.js'
-import type { TenantId } from '@opengewerk/platform-domain'
-import type { InvitationId, MembershipId, TenantSessionId } from './identifier.js'
-import type { SignInMethod } from '@opengewerk/platform-domain'
 
 /**
  * What a person is in one business. A user belongs to the instance, a
@@ -64,17 +69,6 @@ export interface Invitation {
   readonly createdAt: Date
   readonly updatedAt: Date
 }
-
-/**
- * How long a link is good for.
- *
- * Long enough to survive a weekend and a forgotten message, short enough that
- * a link in an old chat is not a way in months later. Days rather than hours
- * because the office hands these over by hand, sometimes on paper, and an
- * expiry that runs out before the person is back from a site is a link that
- * gets reissued until somebody stops bothering with the expiry.
- */
-export const invitationDays = 7
 
 /**
  * One stretch of somebody working in one business.

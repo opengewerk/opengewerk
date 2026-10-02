@@ -5,9 +5,11 @@ import { ACCESS_RULES, type AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
 import { AuthenticationController } from './authentication.controller.js'
 import { InvitationController } from './invitation.controller.js'
+import { INVITATION_MAILING, type InvitationMailing } from './invitation-mailing.js'
 import { PasskeysController } from './passkeys.controller.js'
 import { RecoveryCodesController } from './recovery-codes.controller.js'
 import { SetupController } from './setup.controller.js'
+import { StaffController } from './staff.controller.js'
 
 /** What the authentication needs from the module of an application. */
 export interface AuthenticationParts {
@@ -28,6 +30,12 @@ export interface AuthenticationParts {
    * to get one. Only read where the authentication is handed in.
    */
   readonly setupCode?: string | null | undefined
+  /**
+   * How this application sends an invitation by mail. Left out, an invitation
+   * is handed over as a link and a wish for a mail is refused with the
+   * sentence saying so.
+   */
+  readonly invitationMailing?: InvitationMailing | null | undefined
 }
 
 /**
@@ -42,20 +50,23 @@ export function authenticationParts(parts: AuthenticationParts): {
   readonly controllers: Type<unknown>[]
   readonly providers: Provider[]
 } {
-  const { access, authentication, setupCode = null } = parts
+  const { access, authentication, setupCode = null, invitationMailing = null } = parts
 
   return {
     controllers: [
       // The first two answer without an identity. All three need the
       // authentication handed in and are left out on a closed instance.
       ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
-      // What lives between signing in and working, and the passkeys of the
-      // account. Behind the guard, so a closed instance answers them with 401.
+      // What lives between signing in and working, the passkeys of the
+      // account, and who works in a tenant. Behind the guard, so a closed
+      // instance answers them with 401.
       AuthenticationController,
       PasskeysController,
+      StaffController,
     ],
     providers: [
       { provide: ACCESS_RULES, useValue: access },
+      { provide: INVITATION_MAILING, useValue: invitationMailing },
       ...(authentication
         ? [
             { provide: AUTHENTICATION, useValue: authentication },

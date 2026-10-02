@@ -20,10 +20,9 @@ import {
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
-import { Database, isMailAddress, pick } from '@opengewerk/platform-server'
+import { accountsOf, Database, isMailAddress, pick } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
-import { accountsOf } from '../authentication/administration.js'
 import { customers, documents, memberships } from '../database/schema/index.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { requireMailServer } from '../mail/server-settings.js'

@@ -6,10 +6,9 @@ import {
   auditRecordTables,
   auditTables,
 } from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+import { accountsOf, Database } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
-import { accountsOf } from '../authentication/administration.js'
 import { checkAuditChain, type AuditFilter, readAuditPage } from '../audit/log.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
