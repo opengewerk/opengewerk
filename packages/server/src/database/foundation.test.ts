@@ -25,12 +25,10 @@ afterAll(async () => {
 
 describe('the foundation in this database', () => {
   it('is what its building blocks say, after every migration', async () => {
-    const deviations = await foundationDeviations(admin, {
-      // The log of the instance (#188) records a business being created or
-      // removed. The instance area is still this application's own and moves
-      // into the foundation with it.
-      triggers: ['tenants.instance_changes'],
-    })
+    // Nothing of its own hangs on a table of the foundation. The one trigger
+    // that used to be named here, the log of the instance watching `tenants`
+    // (#188), is the foundation's since the area of the instance moved there.
+    const deviations = await foundationDeviations(admin)
 
     expect(deviations).toEqual([])
   })

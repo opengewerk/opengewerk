@@ -1,12 +1,13 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type {
-  InstanceLogPage,
-  InstanceSettingsView,
-  InstanceTenantView,
-  OperatorView,
-  RoleKey,
-  TenantId,
+import {
+  businessNameProblem,
+  type InstanceLogPage,
+  type InstanceTenantView,
+  type OperatorView,
+  type RoleKey,
+  shippedRoles,
+  type TenantId,
 } from '@opengewerk/domain'
 import { Database, hashToken, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
@@ -26,11 +27,17 @@ import { ApiModule } from './api.module.js'
 import { testIdentities as identities } from './test-identity.js'
 
 /**
- * The area of the instance (#188) and further businesses (#142). What the
- * routes hold: only an operator with a second factor gets in, being an owner
- * opens nothing there, every change lands in the log of the instance, an
- * owner creates a business for himself and nobody else does, and a new
- * business is as separate from the first as a stranger's.
+ * The area of the instance (#188) and further businesses (#142), as this
+ * application has them.
+ *
+ * The area itself is the foundation's (ADR 0010) and is tested there, with an
+ * application that is nobody's: who gets in, the settings, the log, the last
+ * operator, what a further tenant begins with. What is held here is what only
+ * this application can get wrong: that being an owner opens nothing there,
+ * that its refusals speak of "Betreiber", "Betrieb" and "Inhaber", that an
+ * owner creates a further business for himself and the office does not, that
+ * whoever is put at the head of a business is its owner, and that a new
+ * business has none of the customers of the first.
  */
 
 const first = newId<'tenant'>() as TenantId
@@ -73,6 +80,8 @@ function http() {
   return request(app.getHttpServer())
 }
 
+const message = (answer: { body: unknown }) => (answer.body as { message: string }).message
+
 beforeAll(async () => {
   admin = await connect()
   await resetSchema(admin)
@@ -108,99 +117,34 @@ afterAll(async () => {
 })
 
 describe('who gets into the area of the instance', () => {
-  it('tells everybody whether they may, for the entry in the menu', async () => {
+  it('lets an operator with a second factor in, and tells an owner he is none', async () => {
     const olga = await http().get('/instance/access').set('x-test-identity', as('olga')).expect(200)
     const otto = await http().get('/instance/access').set('x-test-identity', as('otto')).expect(200)
 
     expect(olga.body).toEqual({ operator: true, secondFactor: true })
     expect(otto.body).toEqual({ operator: false, secondFactor: true })
-  })
 
-  it('lets an operator with a second factor in', async () => {
     await http().get('/instance/settings').set('x-test-identity', as('olga')).expect(200)
   })
 
-  it('refuses an owner who is no operator, and an operator without a second factor', async () => {
-    const otto = await http()
-      .get('/instance/settings')
-      .set('x-test-identity', as('otto'))
-      .expect(403)
+  it('refuses an owner who is no operator in the words of this application, and an operator without a second factor', async () => {
+    for (const path of ['/instance/settings', '/instance/operators', '/instance/log']) {
+      const refused = await http().get(path).set('x-test-identity', as('otto')).expect(403)
+
+      expect(message(refused)).toBe('Diesen Bereich erreicht nur ein Betreiber der Instanz.')
+    }
+
     const paul = await http()
       .get('/instance/settings')
       .set('x-test-identity', as('paul'))
       .expect(403)
 
-    expect((otto.body as { message: string }).message).toContain('nur ein Betreiber')
-    expect((paul.body as { message: string }).message).toContain('zweiter Faktor')
-
-    for (const path of ['/instance/operators', '/instance/log', '/instance/tenants']) {
-      await http().get(path).set('x-test-identity', as('otto')).expect(403)
-    }
-  })
-
-  it('refuses without a session', async () => {
-    await http().get('/instance/settings').expect(401)
-  })
-})
-
-describe('the settings of the instance', () => {
-  it('start with no mail server in the own network and the backup at half past two', async () => {
-    const answer = await http()
-      .get('/instance/settings')
-      .set('x-test-identity', as('olga'))
-      .expect(200)
-
-    expect(answer.body).toEqual({ mailInternalHosts: [], backupTime: '02:30', takenOverAt: null })
-  })
-
-  it('take mail servers and a time, and refuse what is neither', async () => {
-    const saved = await http()
-      .put('/instance/settings')
-      .set('x-test-identity', as('olga'))
-      .send({
-        mailInternalHosts: ['mail.intern.example', ' 192.168.1.20 ', ''],
-        backupTime: '03:15',
-      })
-      .expect(200)
-
-    expect(saved.body as InstanceSettingsView).toMatchObject({
-      mailInternalHosts: ['mail.intern.example', '192.168.1.20'],
-      backupTime: '03:15',
-    })
-
-    await http()
-      .put('/instance/settings')
-      .set('x-test-identity', as('olga'))
-      .send({ mailInternalHosts: ['smtp://mail.intern.example:25'] })
-      .expect(400)
-    await http()
-      .put('/instance/settings')
-      .set('x-test-identity', as('olga'))
-      .send({ backupTime: '25:00' })
-      .expect(400)
-  })
-
-  it('write every change into the log of the instance, with person and way', async () => {
-    const answer = await http().get('/instance/log').set('x-test-identity', as('olga')).expect(200)
-    const log = answer.body as InstanceLogPage
-    const change = log.changes.find(
-      (entry) =>
-        entry.table === 'instance_settings' &&
-        entry.fields.some((field) => field.field === 'backup_time'),
-    )
-
-    expect(change?.userId).toBe('olga')
-    expect(change?.reason).toBe('instance.settings')
-    expect(change?.fields.find((field) => field.field === 'backup_time')).toMatchObject({
-      before: '02:30:00',
-      after: '03:15:00',
-    })
-    expect(log.people['olga']).toBe('Olga Owner')
+    expect(message(paul)).toContain('zweiter Faktor')
   })
 })
 
 describe('the operators', () => {
-  it('names an account that exists, and no other, and no one twice', async () => {
+  it('are named and taken away, and a refusal calls them what this application calls them', async () => {
     const named = await http()
       .post('/instance/operators')
       .set('x-test-identity', as('olga'))
@@ -209,34 +153,31 @@ describe('the operators', () => {
 
     expect((named.body as OperatorView).userId).toBe('otto')
 
-    await http()
-      .post('/instance/operators')
-      .set('x-test-identity', as('olga'))
-      .send({ email: 'niemand@example.de' })
-      .expect(404)
-    await http()
+    const twice = await http()
       .post('/instance/operators')
       .set('x-test-identity', as('olga'))
       .send({ email: 'otto@nord.example.de' })
       .expect(409)
 
-    const list = await http()
-      .get('/instance/operators')
+    expect(message(twice)).toBe('Dieses Konto ist schon Betreiber.')
+
+    const oneself = await http()
+      .delete('/instance/operators/olga')
       .set('x-test-identity', as('olga'))
-      .expect(200)
+      .expect(409)
 
-    expect((list.body as OperatorView[]).map((operator) => operator.userId)).toEqual([
-      'olga',
-      'paul',
-      'otto',
-    ])
-  })
+    expect(message(oneself)).toBe('Sich selbst entfernt kein Betreiber; das macht ein anderer.')
 
-  it('takes the role from another, never from oneself', async () => {
-    await http().delete('/instance/operators/olga').set('x-test-identity', as('olga')).expect(409)
+    const stranger = await http()
+      .delete('/instance/operators/britta')
+      .set('x-test-identity', as('olga'))
+      .expect(404)
+
+    expect(message(stranger)).toBe('Dieses Konto ist kein Betreiber.')
+
     await http().delete('/instance/operators/otto').set('x-test-identity', as('olga')).expect(200)
 
-    // Taken away, and at once: the next request of the former operator is refused.
+    // Taken away, and at once: being an owner still opens nothing.
     await http().get('/instance/settings').set('x-test-identity', as('otto')).expect(403)
   })
 })
@@ -259,6 +200,14 @@ describe('further businesses', () => {
 
     expect(rows[0]?.roles).toEqual(['owner'])
 
+    // It begins with the three roles of this application.
+    const roles = await admin.query<{ key: string }>(
+      'select key from tenant_roles where tenant_id = $1 order by id',
+      [tenantId],
+    )
+
+    expect(roles.rows.map((row) => row.key)).toEqual(shippedRoles.map((role) => role.key))
+
     // As separate from the first as a stranger's: nothing of the first in it.
     await database.forTenant({ tenantId: first, userId: 'olga' }, (tx) =>
       tx
@@ -273,17 +222,29 @@ describe('further businesses', () => {
     expect(inside.body).toEqual([])
   })
 
-  it('refuses the office, and a business without a name', async () => {
+  it('refuses the office, and a name the rule of this application refuses', async () => {
     await http()
       .post('/tenants')
       .set('x-test-identity', as('britta'))
       .send({ name: 'Büro GmbH' })
       .expect(403)
-    await http()
+
+    const blank = await http()
       .post('/tenants')
       .set('x-test-identity', as('olga'))
       .send({ name: '   ' })
       .expect(400)
+
+    // The rule of the first run and of "Briefkopf" (#276), and its sentence.
+    expect(message(blank)).toBe(businessNameProblem('   '))
+
+    const missing = await http()
+      .post('/tenants')
+      .set('x-test-identity', as('olga'))
+      .send({})
+      .expect(400)
+
+    expect(message(missing)).toBe('Der Name des Betriebs fehlt.')
   })
 
   it('lets an operator create one for somebody else, with an invitation to be its owner', async () => {
@@ -292,8 +253,8 @@ describe('further businesses', () => {
       .set('x-test-identity', as('olga'))
       .send({
         name: 'Elektro Weber OHG',
-        ownerName: 'Anna Weber',
-        ownerEmail: 'Anna@Elektro-Weber.de',
+        leadName: 'Anna Weber',
+        leadEmail: 'Anna@Elektro-Weber.de',
       })
       .expect(201)
     const { tenantId, token } = created.body as { tenantId: string; token: string }
@@ -305,10 +266,13 @@ describe('further businesses', () => {
 
     expect(rows).toEqual([{ email: 'anna@elektro-weber.de', roles: ['owner'], invited_by: 'olga' }])
 
-    // The operator did not become a member of it.
-    const members = await admin.query('select 1 from memberships where tenant_id = $1', [tenantId])
+    const nameless = await http()
+      .post('/instance/tenants')
+      .set('x-test-identity', as('olga'))
+      .send({ name: 'Elektro Ohne OHG', leadName: '', leadEmail: 'ohne@example.de' })
+      .expect(400)
 
-    expect(members.rowCount).toBe(0)
+    expect(message(nameless)).toBe('Der Name des Inhabers fehlt.')
 
     const list = await http()
       .get('/instance/tenants')
@@ -318,14 +282,15 @@ describe('further businesses', () => {
 
     expect(weber).toMatchObject({
       name: 'Elektro Weber OHG',
-      owners: [],
+      leads: [],
       members: 0,
-      invitedOwners: ['anna@elektro-weber.de'],
+      invitedLeads: ['anna@elektro-weber.de'],
     })
 
+    // Who leads a business of this application is its owners.
     const nord = (list.body as InstanceTenantView[]).find((tenant) => tenant.id === first)
 
-    expect(nord?.owners.map((owner) => owner.name)).toEqual(['Olga Owner', 'Otto Owner'])
+    expect(nord?.leads.map((lead) => lead.name)).toEqual(['Olga Owner', 'Otto Owner'])
   })
 
   it('writes a business created into the log of the instance', async () => {
@@ -344,5 +309,6 @@ describe('further businesses', () => {
     // database, and the log says so rather than naming a way it did not take.
     expect(byName.get('Elektro Nord GmbH')?.reason).toBeNull()
     expect(byName.get('Elektro Nord GmbH')?.databaseRole).not.toBe('opengewerk_app')
+    expect(log.people['olga']).toBe('Olga Owner')
   })
 })

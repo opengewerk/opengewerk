@@ -201,6 +201,69 @@ export async function readPolicies(
   }
 }
 
+/**
+ * The functions of the foundation that run as their definer, each with its
+ * reason. An application adds its own to the list it hands in.
+ *
+ * Such a function runs as the owner of the tables, whoever calls it. It is a
+ * way past what the caller may see, on purpose and for one question each, and
+ * therefore worth a list: one more of them is a decision, and one left behind
+ * by a migration is a way nobody is looking at any more.
+ */
+export const foundationDefinerFunctions: Readonly<Record<string, string>> = {
+  'create_first_tenant(company text)':
+    'the one tenant a first run creates; the application has no insert on tenants',
+  'create_tenant(company text)':
+    'a further tenant, the only other way one is created; the server decides who may ask',
+  'every_tenant()': 'the jobs in the background work for every tenant and act for no person',
+  'instance_is_empty()': 'asked before anybody is signed in, when no membership opens a tenant',
+  'invitation_for(hash text)':
+    'a redemption arrives without a session, and only the token names the tenant',
+  'next_sync_sequence(tenant uuid)':
+    'the application may not write the counter of a tenant; the number is handed out by this alone',
+  'record_change()': 'the trigger writes the log of a tenant whoever made the change',
+  'record_instance_change()': 'the trigger writes the log of the instance whoever made the change',
+  'tenants_with_leads()':
+    'whoever runs the instance sees every tenant by name, day and who leads it, and no row of one',
+}
+
+/** What reading the functions that run as their definer came to. */
+export interface DefinerReading {
+  /** Functions that run as their definer and are on no list. */
+  readonly unexplained: readonly string[]
+  /** Entries of the list that name no such function any more. */
+  readonly stale: readonly string[]
+}
+
+/**
+ * Every function in `public` that runs as its definer, held against the list
+ * of the ones that have a reason to.
+ *
+ * `catalogueDeviations` compares the functions of the building blocks and
+ * lets an application have more: it has functions of its own. This asks the
+ * narrower question it leaves open, which of all of them walk past the
+ * policies.
+ */
+export async function readDefinerFunctions(
+  pool: Pool,
+  explained: Readonly<Record<string, string>> = foundationDefinerFunctions,
+): Promise<DefinerReading> {
+  const { rows } = await pool.query<{ signature: string }>(
+    `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as signature
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.prosecdef
+      order by 1`,
+  )
+  const found = rows.map((row) => row.signature)
+
+  return {
+    unexplained: found.filter((signature) => !(signature in explained)),
+    stale: Object.keys(explained).filter((signature) => !found.includes(signature)),
+  }
+}
+
 /** A foreign key between two tables that both carry a tenant. */
 export interface TenantKey {
   readonly key: string
@@ -299,9 +362,13 @@ export interface OutsideTheLog {
  * have none, and the trigger would fail rather than write a wrong one. What a
  * tenant may see of somebody signing in is `tenant_sessions`, which carries
  * the trigger like everything else.
+ *
+ * What belongs to the instance is out for the same reason as the accounts,
+ * and is not without a record for it: it has a log of its own, written by a
+ * trigger of its own (`instanceLogCoverage`).
  */
 export const foundationOutsideTheLog: OutsideTheLog = {
-  prefixes: ['audit_', 'sync_', 'auth_'],
+  prefixes: ['audit_', 'sync_', 'auth_', 'instance_'],
   tables: [],
 }
 
@@ -344,6 +411,23 @@ export async function logCoverage(
       .filter((row) => row.watched && staysOut(row.table_name))
       .map((row) => row.table_name),
   }
+}
+
+/**
+ * The tables the log of the instance watches: who runs it, its settings, and
+ * `tenants` for a tenant being created or removed. The log itself is what is
+ * written, so it carries no writer.
+ */
+export async function instanceLogCoverage(pool: Pool): Promise<string[]> {
+  const { rows } = await pool.query<{ table_name: string }>(
+    `select c.relname as table_name
+       from pg_trigger t
+       join pg_class c on c.oid = t.tgrelid
+      where t.tgname = 'instance_changes'
+      order by c.relname`,
+  )
+
+  return rows.map((row) => row.table_name)
 }
 
 /**

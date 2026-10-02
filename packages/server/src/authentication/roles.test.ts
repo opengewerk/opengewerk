@@ -13,6 +13,9 @@ import {
   type Authentication,
   authenticationPath,
   completeRoles,
+  createOwnTenant,
+  createTenantFor,
+  createTenantWithLead,
   Database,
   newId,
   rolesOfTenant,
@@ -32,7 +35,6 @@ import {
   resetSchema,
   shipRoles,
 } from '../database/test-database.js'
-import { createOwnTenant, createTenantFor, createTenantWithOwner } from '../instance/tenants.js'
 import {
   access,
   addStaffMember,
@@ -294,7 +296,12 @@ describe('a business, however it comes into being', () => {
       )
     ).rows
 
-    const { tenantId } = await createOwnTenant(database, owner?.id ?? '', 'Elektro Zweit GmbH')
+    const { tenantId } = await createOwnTenant(
+      database,
+      access,
+      owner?.id ?? '',
+      'Elektro Zweit GmbH',
+    )
 
     expect(await rolesIn(tenantId)).toEqual(shippedRoles)
   })
@@ -306,20 +313,20 @@ describe('a business, however it comes into being', () => {
       )
     ).rows
 
-    const { tenantId } = await createTenantFor(database, operator?.id ?? '', {
+    const { tenantId } = await createTenantFor(database, access, operator?.id ?? '', {
       name: 'Elektro Dritt GmbH',
-      ownerName: 'Dora Dritt',
-      ownerEmail: 'dora@dritt.example.de',
+      leadName: 'Dora Dritt',
+      leadEmail: 'dora@dritt.example.de',
     })
 
     expect(await rolesIn(tenantId)).toEqual(shippedRoles)
   })
 
   it('has them when it is created from the command line', async () => {
-    const { tenantId } = await createTenantWithOwner(authentication, database, {
+    const { tenantId } = await createTenantWithLead(authentication, database, access, {
       name: 'Elektro Viert GmbH',
-      ownerEmail: 'vera@viert.example.de',
-      ownerName: 'Vera Viert',
+      leadEmail: 'vera@viert.example.de',
+      leadName: 'Vera Viert',
       password,
     })
 

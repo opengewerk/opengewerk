@@ -2,6 +2,7 @@ import type { TenantId } from '@opengewerk/platform-domain'
 import { sql } from 'drizzle-orm'
 
 import type { Database, StraddlingTransaction } from '../database/database.js'
+import { instanceOperators } from '../schema.js'
 import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
 import { firstRoleOf, writeRoles } from './roles.js'
@@ -82,7 +83,7 @@ export async function instanceIsEmpty(database: Database): Promise<boolean> {
  * is the membership, and that is there.
  */
 export async function setUpInstance(
-  access: Pick<AccessRules, 'shippedRoles' | 'firstAccount'>,
+  access: Pick<AccessRules, 'shippedRoles'>,
   authentication: Authentication,
   database: Database,
   firstRun: FirstRun,
@@ -107,10 +108,10 @@ export async function setUpInstance(
       const tenantId = created as TenantId
       const { userId } = await createAccount(context, tx, firstRun)
 
-      // What else the application makes of its first account, as whoever
-      // sets an instance up also runs it (#188). Still outside any tenant,
-      // where that is in reach, and before the step in.
-      await access.firstAccount?.(tx, userId)
+      // Whoever sets an instance up also runs it (#188). Still outside any
+      // tenant, where that table is in reach, and before the step in, so that
+      // it is there together with the account or not at all.
+      await tx.insert(instanceOperators).values({ userId })
 
       // Inside the new tenant: the roles it starts with, as rows of its own,
       // and then the role that leads and nothing else, because it is the role

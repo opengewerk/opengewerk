@@ -67,6 +67,11 @@ export interface CreatedForSomebody {
   readonly expiresAt: string
 }
 
+/**
+ * A business for somebody else, who is invited to be its owner. The route
+ * calls that person whoever leads the tenant: it is the foundation's, and the
+ * role that leads is an owner only in this application.
+ */
 export function createTenantFor(wanted: {
   readonly name: string
   readonly ownerName: string
@@ -74,7 +79,11 @@ export function createTenantFor(wanted: {
 }): Promise<CreatedForSomebody> {
   return request<CreatedForSomebody>('/instance/tenants', {
     method: 'POST',
-    body: JSON.stringify(wanted),
+    body: JSON.stringify({
+      name: wanted.name,
+      leadName: wanted.ownerName,
+      leadEmail: wanted.ownerEmail,
+    }),
   })
 }
 

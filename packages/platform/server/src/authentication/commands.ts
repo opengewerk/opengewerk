@@ -1,18 +1,13 @@
 import type { TenantId } from '@opengewerk/platform-domain'
 import { eq } from 'drizzle-orm'
 
-import {
-  ConfigurationError,
-  type Environment,
-  readConfiguration,
-  type ServerApplication,
-} from '../configuration.js'
-import { Database } from '../database/database.js'
+import { type CommandSurroundings, reach, runCommand, surroundingsOf } from '../command-line.js'
+import { ConfigurationError, readConfiguration, type ServerApplication } from '../configuration.js'
 import { isUuid } from '../database/identifier.js'
 import { tenants } from '../schema.js'
 import type { AccessRules } from './access.js'
 import { createAuthentication } from './authentication.js'
-import { readNewPassword, type Terminal } from './password.js'
+import { readNewPassword } from './password.js'
 import { rolesOfTenant } from './roles.js'
 import { accountExists, addStaffMember, replacePassword } from './staff.js'
 
@@ -22,68 +17,6 @@ import { accountExists, addStaffMember, replacePassword } from './staff.js'
  * has no browser. An application starts each from a file of its own, with its
  * name and its rules; what they do is the same for every one of them.
  */
-
-/** What a command is started with. Left out, it is what the process was given. */
-export interface CommandSurroundings {
-  /** What stands after the name of the command. */
-  readonly arguments?: readonly string[]
-  readonly environment?: Environment
-  /** Where a password is asked for, and where the answer is not shown. */
-  readonly terminal?: Terminal
-  /** Where a command says what it did. The console, unless a test listens. */
-  readonly say?: (line: string) => void
-}
-
-/** The surroundings of a command, with what the process was given where nothing else is said. */
-function surroundingsOf(surroundings: CommandSurroundings): Required<CommandSurroundings> {
-  return {
-    arguments: surroundings.arguments ?? process.argv.slice(2),
-    environment: surroundings.environment ?? process.env,
-    terminal: surroundings.terminal ?? { input: process.stdin, output: process.stdout },
-    say:
-      surroundings.say ??
-      ((line) => {
-        console.info(line)
-      }),
-  }
-}
-
-/** The database of the instance, or the sentence saying why there is none to talk to. */
-async function reach(databaseUrl: string): Promise<Database> {
-  const database = Database.connect(databaseUrl)
-
-  if (!(await database.isReachable())) {
-    await database.close()
-
-    throw new ConfigurationError(
-      'Keine Verbindung zur Datenbank. Läuft PostgreSQL, und stimmen Adresse und ' +
-        'Zugangsdaten in DATABASE_URL?',
-    )
-  }
-
-  return database
-}
-
-/**
- * Runs a command and says what went wrong where it stops. A sentence that was
- * written for whoever reads the terminal is printed as it is; anything else
- * with what the command was about in front of it. A failure sets the exit
- * code and leaves the process to end on its own, so that what was written
- * reaches the terminal.
- */
-async function run(work: () => Promise<void>, failure: string): Promise<void> {
-  try {
-    await work()
-  } catch (error) {
-    if (error instanceof ConfigurationError) {
-      console.error(error.message)
-    } else {
-      console.error(failure, error)
-    }
-
-    process.exitCode = 1
-  }
-}
 
 /**
  * Puts a person into a tenant from the command line.
@@ -204,7 +137,7 @@ export async function addStaffCommand(
   access: AccessRules,
   surroundings: CommandSurroundings = {},
 ): Promise<void> {
-  await run(
+  await runCommand(
     () => addStaff(application, access, surroundings),
     'Der Zugang konnte nicht angelegt werden.',
   )
@@ -281,7 +214,7 @@ export async function resetPasswordCommand(
   access: Pick<AccessRules, 'sentences'>,
   surroundings: CommandSurroundings = {},
 ): Promise<void> {
-  await run(
+  await runCommand(
     () => resetPassword(application, access, surroundings),
     'Das Passwort konnte nicht ersetzt werden.',
   )

@@ -85,7 +85,7 @@ Vite liefert dann beide Einstiege aus, `/` und `/m`, und reicht jeden Pfad, der 
 | Paket | Inhalt |
 | --- | --- |
 | [`packages/platform/domain`](packages/platform/domain) | Das Fundament ohne I/O, auf dem jede Anwendung der Organisation steht (ADR 0010): Kennungen, Rechte als Katalog, Regel-Engine, Vorgänge des Abgleichs, das Muster eines Nummernkreises. Kennt weder Kunde noch Beleg |
-| [`packages/platform/server`](packages/platform/server) | Die Serverseite des Fundaments: Datenbankzugriff unter einem Mandanten, Migrationslauf, Konfiguration beim Start, die Anmeldung mit zweitem Faktor, Passkeys, Ersteinrichtung und Einmal-Link, die Verwaltung der Zugänge eines Mandanten, der Guard vor jeder Route mit Herkunftsprüfung und Sicherheits-Headern, die Tabellen für Mandanten, Konten, Zugehörigkeiten, Rollen, Audit-Log und Abgleich, versiegelte Zugangsdaten, Einstellungen mit Gültigkeitszeitraum und Nummernkreise als Tabellen, die eine Anwendung mit ihrer eigenen Liste anlegt, die Bausteine für Spalten und Policies und unter `sql/` alles, was `drizzle-kit` nicht schreibt. Die Migrationen und die Namen bringt die Anwendung mit |
+| [`packages/platform/server`](packages/platform/server) | Die Serverseite des Fundaments: Datenbankzugriff unter einem Mandanten, Migrationslauf, Konfiguration beim Start, die Anmeldung mit zweitem Faktor, Passkeys, Ersteinrichtung und Einmal-Link, die Verwaltung der Zugänge eines Mandanten, der Bereich der Instanz, der Guard vor jeder Route mit Herkunftsprüfung und Sicherheits-Headern, die Tabellen für Mandanten, Konten, Zugehörigkeiten, Rollen, Audit-Log, Abgleich und Instanz, versiegelte Zugangsdaten, Einstellungen mit Gültigkeitszeitraum und Nummernkreise als Tabellen, die eine Anwendung mit ihrer eigenen Liste anlegt, die Bausteine für Spalten und Policies und unter `sql/` alles, was `drizzle-kit` nicht schreibt. Die Migrationen und die Namen bringt die Anwendung mit |
 | [`packages/domain`](packages/domain) | Schemas, Berechnungen, Regeln, Fristen. Kein I/O, keine Frameworks |
 | [`packages/server`](packages/server) | NestJS, Drizzle, Auth, Sync-Endpunkte |
 | [`packages/web`](packages/web) | React und Vite, eine Codebasis, Einstiege `/` für das Büro und `/m` für die Baustelle, Abgleich-Client und PWA |
@@ -787,7 +787,13 @@ Dort stehen die Betriebe der Instanz, die Mailserver im eigenen Netz, die ein
 Betrieb benutzen darf, die Uhrzeit der nächtlichen Sicherung, wer die Instanz
 betreibt, und ein Protokoll jeder Änderung daran. Aus einem Betrieb sieht der
 Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber und die Zahl der
-Zugänge, nichts, was in ihm steht.
+Zugänge, nichts, was in ihm steht. Wer einen Betrieb führt, liest die Liste
+aus den Rollen des Betriebs: Inhaber ist dort, wer eine Rolle hält, die den
+Betrieb führt, wie immer sie heißt.
+
+Der Bereich selbst gehört zum Fundament (ADR 0010) und ist in jeder Anwendung
+der Organisation derselbe. Was diese Anwendung dazu sagt, sind ihre Wörter:
+"Betreiber" für den, der die Instanz betreibt, "Betrieb" und "Inhaber".
 
 **Betreiber ist das Konto der Ersteinrichtung**, in derselben Transaktion wie
 Betrieb und Konto. Auf einer Instanz, die schon vorher lief, findet Migration

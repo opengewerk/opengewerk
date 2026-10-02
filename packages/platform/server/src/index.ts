@@ -91,6 +91,21 @@ export * from './authentication/setup.js'
 export * from './authentication/staff.controller.js'
 export * from './authentication/staff.js'
 
+// The area of the instance: who runs it, its settings, its log, the tenants on
+// it and the ways a further one comes to be. What whoever runs it and a tenant
+// are called, the application says.
+export * from './instance/access.js'
+export * from './instance/commands.js'
+export * from './instance/instance.controller.js'
+export * from './instance/log.js'
+export * from './instance/operators.js'
+export * from './instance/sentences.js'
+export * from './instance/settings.js'
+export * from './instance/tenants.js'
+
+// What a command is started with, for a test that listens to one.
+export type { CommandSurroundings } from './command-line.js'
+
 // Credentials of somebody else a tenant hands the instance: the seal, and the
 // one place the sealed values are kept and opened. The purposes are the
 // application's.

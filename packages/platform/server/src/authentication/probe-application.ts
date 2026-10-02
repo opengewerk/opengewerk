@@ -47,6 +47,7 @@ import { foundationMigration } from '../database/foundation-migration.js'
 import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { probeMade } from '../database/probe-schema.js'
 import { allowApplicationLogin, type TestDatabase } from '../database/test-database.js'
+import type { InstanceSettingsCache } from '../instance/settings.js'
 import { memberships } from '../schema.js'
 import type { AccessRules } from './access.js'
 import {
@@ -195,17 +196,42 @@ export const probeAccess: AccessRules<ProbeRight> = {
       secondFactor: 'Für die Leitung eines Mandanten ist ein zweiter Faktor Pflicht.',
       noSuchTenant: (tenantId) => `Den Mandanten ${tenantId} gibt es auf dieser Instanz nicht.`,
     },
+    // Whoever runs an instance of this application is its "Hausmeisterei", a
+    // word no real application has for it.
+    instance: {
+      alreadyOperator: 'Dieses Konto gehört schon zur Hausmeisterei der Instanz.',
+      notAnOperator: 'Dieses Konto gehört nicht zur Hausmeisterei der Instanz.',
+      notOneself: 'Aus der Hausmeisterei nimmt sich niemand selbst heraus.',
+      lastOperator: 'Das letzte Konto der Hausmeisterei bleibt.',
+      tenantNameMissing: 'Ein Mandant braucht einen Namen.',
+      leadNameMissing: 'Der Name der Leitung fehlt.',
+      leadEmailNotOne: 'Die E-Mail-Adresse der Leitung sieht nicht wie eine aus.',
+      appointOperator: {
+        usage: 'Aufruf: appoint-operator <e-mail>',
+        appointed: (email) => `${email} gehört jetzt zur Hausmeisterei dieser Instanz.`,
+        secondFactor: 'Für die Hausmeisterei ist ein zweiter Faktor Pflicht.',
+        failed: 'Die Hausmeisterei ließ sich nicht erweitern.',
+      },
+      addTenant: {
+        usage: 'Aufruf: add-tenant "<name des mandanten>" <e-mail> "<name der leitung>"',
+        createdWithAccount: (name, tenantId, email) =>
+          `Der Mandant "${name}" ist angelegt, Kennung ${tenantId}. ${email} leitet ihn, ` +
+          'mit einem neuen Konto.',
+        createdForAccount: (name, tenantId, email) =>
+          `Der Mandant "${name}" ist angelegt, Kennung ${tenantId}. ${email} leitet ihn; ` +
+          'das Konto gab es schon.',
+        secondFactor: 'Für die Leitung eines Mandanten ist ein zweiter Faktor Pflicht.',
+        failed: 'Der Mandant konnte nicht angelegt werden.',
+      },
+    },
   },
 }
 
 /** What the guard is told about this application. */
 export const probeAuthorization: Authorization<ProbeRight> = {
   missingPermission: (right) => `Das Recht ${right} fehlt diesem Zugang.`,
-  // Nobody runs an instance of this application; the guard's part of that is
-  // tested where the guard is (`api/authorization.test.ts`).
-  operatorAccess: () => Promise.resolve({ operator: false, secondFactor: false }),
   sentences: {
-    operatorsOnly: 'Diesen Bereich erreicht nur, wer die Probewerk-Instanz betreibt.',
+    operatorsOnly: 'Diesen Bereich erreicht nur die Hausmeisterei der Instanz.',
     workingInAnotherTenant: 'Diese Seite arbeitet noch bei einem anderen Mandanten.',
   },
 }
@@ -259,6 +285,8 @@ export interface ProbeModuleOptions {
   readonly trustedOrigins?: readonly string[]
   /** What sends an invitation by mail. Left out, this application hands out links. */
   readonly invitationMailing?: InvitationMailing | null
+  /** The settings of the instance in memory, where a test keeps them there. */
+  readonly instanceSettings?: InstanceSettingsCache | null
 }
 
 @Module({})
@@ -274,6 +302,7 @@ export class ProbeModule {
       authentication: options.authentication,
       setupCode: options.setupCode,
       invitationMailing: options.invitationMailing,
+      instanceSettings: options.instanceSettings,
     })
 
     return {
@@ -321,6 +350,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly closed?: boolean
   /** What sends an invitation by mail. Left out, this application hands out links. */
   readonly invitationMailing?: InvitationMailing | null
+  /** The settings of the instance in memory, where a test keeps them there. */
+  readonly instanceSettings?: InstanceSettingsCache | null
 }
 
 /** A running instance of the probe application, and what a test asks of it. */
@@ -367,6 +398,7 @@ export async function probeInstance(
     setupCode,
     closed = false,
     invitationMailing = null,
+    instanceSettings = null,
     ...authenticationOptions
   } = options
   const database = Database.connect(databaseUrl)
@@ -386,12 +418,13 @@ export async function probeInstance(
         database,
         closed ? new ClosedIdentitySource() : probeIdentities(authentication, database),
         closed
-          ? { trustedOrigins: [probeOrigin], invitationMailing }
+          ? { trustedOrigins: [probeOrigin], invitationMailing, instanceSettings }
           : {
               authentication,
               setupCode: setupCode ?? null,
               trustedOrigins: [probeOrigin],
               invitationMailing,
+              instanceSettings,
             },
       ),
     ],

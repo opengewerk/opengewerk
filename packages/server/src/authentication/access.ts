@@ -20,7 +20,6 @@ import {
 } from '@opengewerk/platform-server'
 
 import { application } from '../configuration.js'
-import { instanceOperators } from '../database/schema/index.js'
 
 // The authentication is the foundation's (ADR 0010): accounts, sessions, the
 // second factor and passkeys, the first run, the one time link, who works in
@@ -39,10 +38,6 @@ export const access: AccessRules<Permission> = {
   shippedRoles,
   // The same rule as when the owner changes the name later (#276).
   tenantNameProblem: businessNameProblem,
-  // Whoever sets the instance up runs it (#188).
-  firstAccount: async (tx, userId) => {
-    await tx.insert(instanceOperators).values({ userId })
-  },
   sentences: {
     noTenantChosen: 'Es ist noch kein Betrieb gewählt. Bitte zuerst einen Betrieb auswählen.',
     noAccessToTenant: 'Kein Zugang zu diesem Betrieb.',
@@ -76,6 +71,43 @@ export const access: AccessRules<Permission> = {
         `Den Betrieb ${tenantId} gibt es auf dieser Instanz nicht. Die Kennung eines ` +
         'Betriebs steht im Bereich der Instanz bei seinem Namen.',
     },
+    // The area of the instance (#188) and further businesses (#142). Whoever
+    // runs an instance is its "Betreiber" here, and a tenant a "Betrieb" with
+    // an "Inhaber"; another application has other words for all three.
+    instance: {
+      alreadyOperator: 'Dieses Konto ist schon Betreiber.',
+      notAnOperator: 'Dieses Konto ist kein Betreiber.',
+      notOneself: 'Sich selbst entfernt kein Betreiber; das macht ein anderer.',
+      lastOperator: 'Der letzte Betreiber bleibt.',
+      tenantNameMissing: 'Der Name des Betriebs fehlt.',
+      leadNameMissing: 'Der Name des Inhabers fehlt.',
+      leadEmailNotOne: 'Die E-Mail-Adresse des Inhabers sieht nicht wie eine aus.',
+      appointOperator: {
+        usage:
+          'Aufruf: appoint-operator <e-mail>\n' +
+          'Das Konto muss es auf dieser Instanz schon geben. Es wird Betreiber und erreicht ' +
+          'den Bereich der Instanz, sobald ein zweiter Faktor eingerichtet ist.',
+        appointed: (email) => `${email} ist jetzt Betreiber dieser Instanz.`,
+        secondFactor:
+          'Für den Bereich der Instanz ist ein zweiter Faktor Pflicht, eine Authenticator-App ' +
+          'oder ein Passkey. Beides wird unter „Konto“ eingerichtet; bis dahin bleibt der ' +
+          'Bereich zu.',
+        failed: 'Der Betreiber konnte nicht benannt werden.',
+      },
+      addTenant: {
+        usage: 'Aufruf: add-tenant "<name des betriebs>" <e-mail> "<name des inhabers>"',
+        createdWithAccount: (name, tenantId, email) =>
+          `Der Betrieb "${name}" ist angelegt, Kennung ${tenantId}. ` +
+          `${email} ist dort Inhaber, mit einem neuen Konto.`,
+        createdForAccount: (name, tenantId, email) =>
+          `Der Betrieb "${name}" ist angelegt, Kennung ${tenantId}. ` +
+          `${email} ist dort Inhaber; das Konto gab es schon, das Passwort ist unverändert.`,
+        secondFactor:
+          'Für die Rolle "Inhaber" ist ein zweiter Faktor Pflicht. Die Anwendung fragt bei der ' +
+          'ersten Anmeldung danach und richtet ihn ein.',
+        failed: 'Der Betrieb konnte nicht angelegt werden.',
+      },
+    },
   },
 }
 
@@ -93,7 +125,10 @@ export class SessionIdentitySource extends SessionIdentities<Permission> {
   }
 }
 
-/** The first run of an instance: a business, its owner and the first operator. */
+/**
+ * The first run of an instance: a business and its owner, who also runs the
+ * instance from then on (#188).
+ */
 export function setUpInstance(
   authentication: Authentication,
   database: Database,

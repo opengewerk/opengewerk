@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { auditEntries, authUsers, memberships } from '../schema.js'
+import { auditEntries, authUsers, instanceOperators, memberships } from '../schema.js'
 import { authenticationPath } from './authentication.js'
 import {
   cookiesOf,
@@ -208,62 +208,59 @@ describe('an instance nobody has used yet', () => {
   })
 })
 
-describe('what an application makes of its first account', () => {
+describe('whoever sets an instance up', () => {
   /**
-   * An application may have more to say about the first account than its
-   * role: whoever sets an instance up usually also runs it. That is written
-   * in the same transaction, outside any tenant, so there is no moment with
-   * an instance and half of its beginning.
+   * Runs it (#188). Named in the same transaction as the account, outside any
+   * tenant, so there is no moment with an instance and nobody to run it, and
+   * the log of the instance says on which way the name came in.
    */
-  it('is written with the first run, outside any tenant', async () => {
+  it('runs it from the first moment, and the log of the instance says how that came', async () => {
     await emptyInstance()
 
-    const seen: string[] = []
-
     const { userId } = await setUpInstance(
-      {
-        shippedRoles: probeAccess.shippedRoles,
-        firstAccount: async (tx, account) => {
-          seen.push(account)
-          // The accounts are in reach only outside a tenant, which is where
-          // this runs.
-          await tx
-            .update(authUsers)
-            .set({ name: 'Vom Haken geschrieben' })
-            .where(eq(authUsers.id, account))
-        },
-      },
+      probeAccess,
       instance.authentication,
       instance.database,
       firstRun,
     )
 
-    expect(seen).toEqual([userId])
-
-    const [account] = await instance.database.forInstance((tx) =>
-      tx.select({ name: authUsers.name }).from(authUsers).where(eq(authUsers.id, userId)),
+    const running = await instance.database.forInstance((tx) =>
+      tx.select({ userId: instanceOperators.userId }).from(instanceOperators),
     )
 
-    expect(account?.name).toBe('Vom Haken geschrieben')
+    expect(running).toEqual([{ userId }])
+
+    const { rows: logged } = await admin.query<{ reason: string | null; new_value: string }>(
+      `select reason, new_value from instance_changes
+        where table_name = 'instance_operators' and field = 'user_id'`,
+    )
+
+    expect(logged).toEqual([{ reason: 'instance.setup', new_value: userId }])
   })
 
-  it('takes the whole first run back when it fails', async () => {
+  it('is taken back with the whole first run when it fails further on', async () => {
     await emptyInstance()
 
+    // An application none of whose roles leads cannot begin a tenant: the
+    // first run gets as far as the role of the first account and stops there,
+    // after the account was named to run the instance.
     await expect(
       setUpInstance(
-        {
-          shippedRoles: probeAccess.shippedRoles,
-          firstAccount: () => Promise.reject(new Error('Not today.')),
-        },
+        { shippedRoles: probeAccess.shippedRoles.filter((role) => !role.leads) },
         instance.authentication,
         instance.database,
         firstRun,
       ),
-    ).rejects.toThrow('Not today.')
+    ).rejects.toThrow('None of the roles this application ships leads a tenant.')
 
     expect(await counted()).toEqual({ tenants: 0, accounts: 0 })
     expect(await instanceIsEmpty(instance.database)).toBe(true)
+
+    const running = await instance.database.forInstance((tx) =>
+      tx.select({ userId: instanceOperators.userId }).from(instanceOperators),
+    )
+
+    expect(running).toEqual([])
   })
 })
 

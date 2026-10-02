@@ -104,11 +104,11 @@ describe('the tables of the foundation', () => {
     const tables = foundationGuards.map((guard) => guard.table)
 
     expect(new Set(tables).size).toBe(tables.length)
-    expect(tables).toHaveLength(18)
+    expect(tables).toHaveLength(21)
   })
 
   it('give the application nothing but reading on what only a trigger writes', () => {
-    const writtenByTrigger = ['audit_chains', 'audit_entries', 'sync_sequences']
+    const writtenByTrigger = ['audit_chains', 'audit_entries', 'sync_sequences', 'instance_changes']
 
     for (const table of writtenByTrigger) {
       expect(foundationGuards.find((guard) => guard.table === table)?.grants).toEqual(['select'])
@@ -119,9 +119,31 @@ describe('the tables of the foundation', () => {
     // Who was let in, by whom and what became of it is part of the record. A
     // person is blocked and an invitation called back, both changes the log
     // keeps; a row that can be removed is a record with a hole in it.
-    const ofATenant = foundationGuards.filter((guard) => !guard.table.startsWith('auth_'))
+    const ofATenant = foundationGuards.filter(
+      (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
+    )
 
+    expect(ofATenant).toHaveLength(11)
     expect(ofATenant.filter((guard) => guard.grants.includes('delete'))).toEqual([])
+  })
+
+  it('let the application name and take away who runs the instance, change its settings, and no more', () => {
+    // Who runs the instance is a row that is there or not: taking it away is
+    // the delete, and the log of the instance keeps that it happened. The
+    // settings are one row that is changed and never added to or removed,
+    // and the log is read. None of the three is watched by the trigger of a
+    // tenant: they have none, and a trigger of their own instead.
+    const ofTheInstance = Object.fromEntries(
+      foundationGuards
+        .filter((guard) => guard.table.startsWith('instance_'))
+        .map((guard) => [guard.table, { grants: guard.grants, audited: guard.audited }]),
+    )
+
+    expect(ofTheInstance).toEqual({
+      instance_operators: { grants: ['select', 'insert', 'delete'], audited: false },
+      instance_settings: { grants: ['select', 'update'], audited: false },
+      instance_changes: { grants: ['select'], audited: false },
+    })
   })
 
   it('watch what a tenant may see of its people, and nothing that has no tenant', () => {

@@ -143,7 +143,7 @@ ${separated(guards.flatMap(protectionStatements))}`,
 
     ...foundationBlocks.map(
       (block, position) =>
-        `${position === 0 ? '-- Part 4 of 5: the functions.\n\n' : ''}${readBlock(block)}`,
+        `${position === 0 ? '-- Part 4 of 5: the functions, and what a block brings with them.\n\n' : ''}${readBlock(block)}`,
     ),
   ]
 

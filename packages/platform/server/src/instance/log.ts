@@ -2,19 +2,26 @@ import {
   type AuditChange,
   type AuditOperation,
   auditPageSize,
-  auditPersonFields,
   type AuditTitle,
   type InstanceLogPage,
-} from '@opengewerk/domain'
-import { accountsOf, type Database } from '@opengewerk/platform-server'
+} from '@opengewerk/platform-domain'
 import { sql } from 'drizzle-orm'
 
+import { accountsOf } from '../authentication/administration.js'
+import type { Database } from '../database/database.js'
+
 /**
- * The log of the instance (#188), in the shape of the log of a business, so
- * that the screen shows both the same way: a change per write, its fields
+ * The log of the instance (#188), in the shape of the log of a tenant, so
+ * that a screen shows both the same way: a change per write, its fields
  * before and after, who and on which way. It is small, a handful of changes a
  * year, and read whole per page.
  */
+
+/**
+ * The fields of the tables of the instance that hold the id of a person: who
+ * was named to run it. Nothing else in these tables points at anybody.
+ */
+const personFields: ReadonlySet<string> = new Set(['user_id'])
 
 interface Row {
   readonly id: string
@@ -62,8 +69,8 @@ export async function readInstanceLog(
          sql`, `,
        )})
        order by id`)
-    // The businesses by their name today, for those still on the instance.
-    const names = await tx.execute(sql`select id::text as id, name from instance_tenants()`)
+    // The tenants by their name today, for those still on the instance.
+    const names = await tx.execute(sql`select id::text as id, name from tenants_with_leads()`)
 
     return {
       rows: entries.rows as unknown as Row[],
@@ -113,7 +120,7 @@ export async function readInstanceLog(
 
     for (const field of change.fields) {
       for (const value of [field.before, field.after]) {
-        if (value && auditPersonFields.has(field.field)) {
+        if (value && personFields.has(field.field)) {
           people.add(value)
         }
       }

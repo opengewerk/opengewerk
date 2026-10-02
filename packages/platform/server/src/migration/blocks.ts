@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 // The SQL of the foundation that no schema describes, as files under `sql/`
 // of this package: the role, and the functions and triggers of the audit log,
-// the sync layer and the first run. They are files and not strings in here so
+// the sync layer, the first run and the area of the instance. They are files and not strings in here so
 // that they read, diff and review as what they are.
 //
 // They are the state the migrations of the trades application arrived at, and
@@ -15,10 +15,10 @@ export const statementBreakpoint = '--> statement-breakpoint'
 
 /**
  * The blocks that stand on the tables, in the order they are applied: the
- * sync layer and the first run call nothing of each other, the triggers on the
- * tables call the first two.
+ * sync layer, the first run and the area of the instance call nothing of each
+ * other, the triggers on the tables call the first two.
  */
-export const foundationBlocks = ['audit', 'sync', 'setup'] as const
+export const foundationBlocks = ['audit', 'sync', 'setup', 'instance'] as const
 
 export type FoundationBlock = (typeof foundationBlocks)[number]
 

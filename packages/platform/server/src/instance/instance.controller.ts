@@ -17,34 +17,30 @@ import type {
   InstanceSettingsView,
   InstanceTenantView,
   OperatorView,
-} from '@opengewerk/domain'
-import { Database } from '@opengewerk/platform-server'
+} from '@opengewerk/platform-domain'
 
-import { readInstanceLog } from '../instance/log.js'
-import {
-  appointOperator,
-  listOperators,
-  operatorAccess,
-  removeOperator,
-} from '../instance/operators.js'
+import { RequiresOperator, RequiresSession } from '../api/authorization.js'
+import { CurrentUser, type SignedInUser } from '../api/identity.js'
+import { ACCESS_RULES, type AccessRules } from '../authentication/access.js'
+import { Database } from '../database/database.js'
+import { isUuid } from '../database/identifier.js'
+import { operatorAccess } from './access.js'
+import { readInstanceLog } from './log.js'
+import { appointOperator, listOperators, removeOperator } from './operators.js'
 import {
   checkedChange,
   type InstanceSettingsCache,
   readInstanceSettings,
   saveInstanceSettings,
-} from '../instance/settings.js'
-import { createTenantFor, listInstanceTenants } from '../instance/tenants.js'
-import { RequiresOperator, RequiresSession } from './authorization.js'
-import { CurrentUser, type SignedInUser } from './identity.js'
+} from './settings.js'
+import { createTenantFor, listInstanceTenants } from './tenants.js'
 
-/** What the server hands the area of the instance: the settings every connection reads. */
-export const INSTANCE = Symbol('Instance')
-
-export interface InstanceContext {
-  readonly settings: InstanceSettingsCache
-}
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/**
+ * The settings of the instance in memory, handed in by an application that
+ * keeps them there: a change made in the area then reaches whatever reads
+ * them on the next request, and not on the next refresh.
+ */
+export const INSTANCE_SETTINGS = Symbol('InstanceSettings')
 
 function field(body: unknown, name: string): unknown {
   return typeof body === 'object' && body !== null
@@ -53,22 +49,26 @@ function field(body: unknown, name: string): unknown {
 }
 
 /**
- * The area of the instance (#188), for its operators: the businesses on it
- * (#142), its settings, its operators and its log. Not the office of any
- * business; every route but the first asks for an operator with a second
- * factor, and nothing here reads what is in a business.
+ * The area of the instance (#188), for whoever runs it: the tenants on it
+ * (#142), its settings, the accounts that run it and its log. Not the
+ * workplace of any tenant; every route but the first asks for somebody who
+ * runs the instance and has a second factor, and nothing here reads what is
+ * in a tenant.
  */
 @Controller('instance')
 export class InstanceController {
   constructor(
     private readonly database: Database,
-    @Optional() @Inject(INSTANCE) private readonly instance?: InstanceContext,
+    @Inject(ACCESS_RULES) private readonly access: AccessRules,
+    @Optional()
+    @Inject(INSTANCE_SETTINGS)
+    private readonly settingsInMemory?: InstanceSettingsCache | null,
   ) {}
 
   /** Whether the person asking may enter, for the entry in the menu under the name. */
   @Get('access')
   @RequiresSession()
-  access(@CurrentUser() user: SignedInUser): Promise<InstanceAccess> {
+  entry(@CurrentUser() user: SignedInUser): Promise<InstanceAccess> {
     return operatorAccess(this.database, user.userId, user.sessionId)
   }
 
@@ -86,8 +86,8 @@ export class InstanceController {
   ): Promise<InstanceSettingsView> {
     const saved = await saveInstanceSettings(this.database, user.userId, checkedChange(body))
 
-    // At once for the mail server a business is checking right now, not in half a minute.
-    await this.instance?.settings.refresh()
+    // At once for the mail server a tenant is checking right now, not in half a minute.
+    await this.settingsInMemory?.refresh()
 
     return saved
   }
@@ -107,7 +107,7 @@ export class InstanceController {
       throw new BadRequestException('Die E-Mail-Adresse fehlt.')
     }
 
-    return appointOperator(this.database, user.userId, email)
+    return appointOperator(this.database, this.access.sentences.instance, user.userId, email)
   }
 
   @Delete('operators/:userId')
@@ -116,7 +116,7 @@ export class InstanceController {
     @CurrentUser() user: SignedInUser,
     @Param('userId') userId: string,
   ): Promise<{ readonly removed: string }> {
-    await removeOperator(this.database, user.userId, userId)
+    await removeOperator(this.database, this.access.sentences.instance, user.userId, userId)
 
     return { removed: userId }
   }
@@ -127,7 +127,7 @@ export class InstanceController {
     @CurrentUser() user: SignedInUser,
     @Query('before') before: unknown,
   ): Promise<InstanceLogPage> {
-    if (before !== undefined && (typeof before !== 'string' || !uuidPattern.test(before))) {
+    if (before !== undefined && (typeof before !== 'string' || !isUuid(before))) {
       throw new BadRequestException('before ist die Kennung eines Eintrags.')
     }
 
@@ -141,9 +141,9 @@ export class InstanceController {
   }
 
   /**
-   * A business for somebody else (#142): the business and an invitation to be
-   * its owner. The link is in this answer and nowhere else, as when the
-   * office invites somebody.
+   * A tenant for somebody else (#142): the tenant and an invitation to lead
+   * it. The link is in this answer and nowhere else, as when somebody is
+   * invited into a tenant.
    */
   @Post('tenants')
   @RequiresOperator()
@@ -151,10 +151,10 @@ export class InstanceController {
     @CurrentUser() user: SignedInUser,
     @Body() body: unknown,
   ): Promise<{ readonly tenantId: string; readonly token: string; readonly expiresAt: string }> {
-    const created = await createTenantFor(this.database, user.userId, {
+    const created = await createTenantFor(this.database, this.access, user.userId, {
       name: field(body, 'name'),
-      ownerName: field(body, 'ownerName'),
-      ownerEmail: field(body, 'ownerEmail'),
+      leadName: field(body, 'leadName'),
+      leadEmail: field(body, 'leadEmail'),
     })
 
     return {

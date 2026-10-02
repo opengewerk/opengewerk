@@ -1,29 +1,26 @@
-import {
-  outsideAnyTenant,
-  primaryId,
-  timestamps,
-  writtenByTriggerOutsideAnyTenant,
-} from '@opengewerk/platform-server'
-import { auditOperation, authUsers } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, index, pgTable, smallint, text, time, timestamp, uuid } from 'drizzle-orm/pg-core'
 
+import { auditOperation } from './audit.js'
+import { authUsers } from './authentication.js'
+import { primaryId, timestamps } from './columns.js'
+import { outsideAnyTenant, writtenByTriggerOutsideAnyTenant } from './rls.js'
+
 /**
- * What belongs to the instance and to no business (#188): who runs it, what
- * holds for every business on it, and the log of both.
+ * What belongs to the instance and to no tenant (#188): who runs it, what
+ * holds for every tenant on it, and the log of both.
  *
- * All three are read and written outside any business, like the accounts, and
- * for the same reason: an instance can carry several businesses, and none of
+ * All three are read and written outside any tenant, like the accounts, and
+ * for the same reason: an instance can carry several tenants, and none of
  * them decides for the others. None has a `tenant_id`, so the audit trigger of
- * a business stays off them; they have a log of their own, `instance_changes`,
- * written by a trigger of its own (migration 0051).
+ * a tenant stays off them; they have a log of their own, `instance_changes`,
+ * written by a trigger of its own (the block `instance.sql`).
  */
 
 /**
  * The accounts that run the instance. The account of the first run setup is
- * the first; on an instance set up before this table, the migration finds it
- * in the log of the first business (0051), and `appoint-operator` names one
- * on the command line where it finds none.
+ * the first; further ones are named in the area of the instance or on the
+ * command line.
  */
 export const instanceOperators = pgTable(
   'instance_operators',
@@ -47,9 +44,9 @@ export const instanceSettings = pgTable(
   {
     id: smallint('id').primaryKey().default(1),
     /**
-     * Mail servers in the instance's own network a business may send through,
+     * Mail servers in the instance's own network a tenant may send through,
      * by name or address. Anything else in that network is refused, so that no
-     * business reaches past the instance into the network behind it.
+     * tenant reaches past the instance into the network behind it.
      */
     mailInternalHosts: text('mail_internal_hosts')
       .array()
@@ -70,9 +67,9 @@ export const instanceSettings = pgTable(
 
 /**
  * The log of the instance: one row per field that changed on the operators,
- * the settings and the businesses themselves, written by a trigger as the log
- * of a business is. Append only, and without the chain a business's log has:
- * what is recorded here is how an instance is run, not the books of anybody.
+ * the settings and the tenants themselves, written by a trigger as the log of
+ * a tenant is. Append only, and without the chain a tenant's log has: what is
+ * recorded here is how an instance is run, not the books of anybody.
  */
 export const instanceChanges = pgTable(
   'instance_changes',

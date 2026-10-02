@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { boolean, check, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
+import { readableByTheOwner, tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**
@@ -54,5 +54,9 @@ export const tenantRoles = pgTable(
       sql`${table.label} = btrim(${table.label}) and char_length(${table.label}) between 1 and 80`,
     ),
     tenantIsolation(table.tenantId),
+    // For the one function that reads the roles of every tenant: who leads
+    // which, for whoever runs the instance (`tenants_with_leads`). It hands
+    // out names and counts and no row of this table. See `readableByTheOwner`.
+    readableByTheOwner(),
   ],
 )

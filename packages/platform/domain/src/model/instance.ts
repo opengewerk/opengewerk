@@ -1,27 +1,27 @@
-import type { AuditPage } from './audit-log.js'
+import type { AuditChange, AuditTitle } from './audit.js'
 
 /**
- * The instance, as opposed to a business on it (#188): who runs it, what holds
- * for every business on it, and the businesses themselves (#142).
+ * The instance, as opposed to a tenant on it: who runs it, what holds for
+ * every tenant on it, and the tenants themselves.
  *
- * An instance can carry several businesses, and none of them decides for the
- * others. What belongs to all of them is set by its operators, in an area of
- * its own that is not the office of any business.
+ * An instance can carry several tenants, and none of them decides for the
+ * others. What belongs to all of them is set by whoever runs the instance, in
+ * an area of its own that is not the workplace of any tenant.
  */
 
 /** What the person asking may do with the instance. */
 export interface InstanceAccess {
   readonly operator: boolean
   /**
-   * Whether this session carries the second factor the area needs, as the
-   * role of an owner does: the app, or a sign in with a passkey (#167).
+   * Whether this session carries the second factor the area needs, as a role
+   * that leads a tenant does: the app, or a sign in with a passkey.
    */
   readonly secondFactor: boolean
 }
 
 /** The settings of the instance as its screen reads them. */
 export interface InstanceSettingsView {
-  /** Mail servers in the instance's own network a business may send through. */
+  /** Mail servers in the instance's own network a tenant may send through. */
   readonly mailInternalHosts: readonly string[]
   /** When the nightly backup runs, "HH:MM", in the time zone of the server. */
   readonly backupTime: string
@@ -29,7 +29,7 @@ export interface InstanceSettingsView {
   readonly takenOverAt: string | null
 }
 
-/** One operator of the instance. */
+/** One of the accounts that run the instance. */
 export interface OperatorView {
   readonly userId: string
   readonly name: string
@@ -40,25 +40,30 @@ export interface OperatorView {
   readonly secondFactor: boolean
 }
 
-/** A business on the instance as its operators see it: nothing of what is in it. */
+/** A tenant on the instance as whoever runs it sees it: nothing of what is in it. */
 export interface InstanceTenantView {
   readonly id: string
   readonly name: string
   readonly createdAt: string
-  readonly owners: readonly { readonly name: string; readonly email: string }[]
+  /** Who leads it and can still get in: the people holding a role that leads. */
+  readonly leads: readonly { readonly name: string; readonly email: string }[]
   /** How many people have a membership, blocked ones included. */
   readonly members: number
-  /** Addresses invited as owner that have not taken the invitation up yet. */
-  readonly invitedOwners: readonly string[]
+  /** Addresses invited to lead it that have not taken the invitation up yet. */
+  readonly invitedLeads: readonly string[]
 }
 
-/** A page of the log of the instance, in the shape of the log of a business. */
-export interface InstanceLogPage extends Pick<
-  AuditPage,
-  'changes' | 'titles' | 'people' | 'devices'
-> {
+/** A page of the log of the instance, in the shape of the log of a tenant. */
+export interface InstanceLogPage {
+  readonly changes: readonly AuditChange[]
   /** Hand this back as `before` for the page after, null at the first change. */
   readonly next: string | null
+  /** By record id: every record on the page. */
+  readonly titles: Readonly<Record<string, AuditTitle>>
+  /** By user id: the people on the page. */
+  readonly people: Readonly<Record<string, string>>
+  /** Nothing of an instance is written from a device; here so that one screen draws both logs. */
+  readonly devices: Readonly<Record<string, string | null>>
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { AuditOperation, ChainVerification } from '@opengewerk/platform-domain'
+import type { AuditChange, AuditTitle, ChainVerification } from '@opengewerk/platform-domain'
 import { type Permission, permissionLabel, permissions } from './authorization.js'
 
 /**
@@ -10,57 +10,6 @@ import { type Permission, permissionLabel, permissions } from './authorization.j
  * the shapes the server hands over and the rules both sides share, so that the
  * server picks the same parts of a record the screen promises.
  */
-
-/** One field of one change, before and after, as the text the log holds. */
-export interface AuditFieldChange {
-  /** The column as the database spells it. */
-  readonly field: string
-  readonly before: string | null
-  readonly after: string | null
-}
-
-/**
- * One write to one record: every field that moved in it, who made it, when,
- * from which device and why. The log groups them by `change_id`, one per row
- * the trigger saw.
- */
-export interface AuditChange {
-  readonly changeId: string
-  /** ISO 8601, as the database wrote it. */
-  readonly changedAt: string
-  readonly operation: AuditOperation
-  readonly table: string
-  readonly recordId: string
-  readonly userId: string | null
-  /**
-   * The device the record says it was written from, which the log only notes
-   * when it changes: a change that does not move `device_id` came from the
-   * device of the change before it. Null for anything written in the office
-   * outside the sync, and for tables without the column.
-   */
-  readonly deviceId: string | null
-  readonly reason: string | null
-  readonly databaseRole: string
-  /** Where the change sits in the chain, so that a break can be put at its change. */
-  readonly firstSequence: number
-  readonly lastSequence: number
-  readonly fields: readonly AuditFieldChange[]
-}
-
-/** What a record on a page is called, found in the log itself. */
-export interface AuditTitle {
-  readonly table: string
-  /**
-   * The field the name came from, for the screen to write it as that field
-   * is written: a person's name for `user_id`, a date for `started_at`. Null
-   * for a contact, whose name is two fields.
-   */
-  readonly field: string | null
-  /** The name, number or designation the record last carried, or null. */
-  readonly title: string | null
-  /** Its `kind` where it has one, for a document the kind of document. */
-  readonly kind: string | null
-}
 
 /**
  * A page of the log, newest first, with the names the page needs.
@@ -87,9 +36,6 @@ export interface AuditChainReport extends ChainVerification {
   /** When the check ran. */
   readonly checkedAt: string
 }
-
-/** The most changes one page holds. */
-export const auditPageSize = 50
 
 /** The database role the application works as, and the one migrations run as. */
 export const applicationRole = 'opengewerk_app'

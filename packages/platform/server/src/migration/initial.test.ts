@@ -287,7 +287,9 @@ describe('the building blocks', () => {
     // The policies come from the code and the grants from these files. A role
     // spelled differently in one of them would be created, granted and never
     // used, and the application would find its tables closed.
-    const named = blocks.flatMap((block) => [...block.matchAll(/(?:TO|FROM) "([a-z_]+)"/g)])
+    // As words of their own: `INSERT INTO "a_table"` ends in the same two
+    // letters and names no role.
+    const named = blocks.flatMap((block) => [...block.matchAll(/\b(?:TO|FROM) "([a-z_]+)"/g)])
 
     expect(named.length).toBeGreaterThan(4)
     expect(new Set(named.map((match) => match[1]))).toEqual(new Set([applicationRoleName]))

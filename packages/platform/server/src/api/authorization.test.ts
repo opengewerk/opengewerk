@@ -45,18 +45,8 @@ const instance = 'https://probe.example.org'
 const tenant = newId<'tenant'>()
 const otherTenant = newId<'tenant'>()
 
-/** Who runs the instance in these tests, and with what. */
-const operators = new Map<string, { readonly secondFactor: boolean }>([
-  ['operator-with-code', { secondFactor: true }],
-  ['operator-without', { secondFactor: false }],
-])
-
 const authorization: Authorization<ProbeRight> = {
   missingPermission: (right) => `Das Recht ${right} fehlt diesem Zugang.`,
-  operatorAccess: async (_database, userId) => ({
-    operator: operators.has(userId),
-    secondFactor: operators.get(userId)?.secondFactor ?? false,
-  }),
   sentences: {
     operatorsOnly: 'Diesen Bereich erreicht nur, wer die Probe-Instanz betreibt.',
     workingInAnotherTenant: 'Diese Seite arbeitet noch in einem anderen Mandanten.',
@@ -251,35 +241,16 @@ describe('a route for somebody signed in who has chosen no tenant', () => {
   })
 })
 
+/**
+ * Who runs the instance the guard asks the area of the instance itself, and
+ * that is rows in a database, which this file does without. What the guard
+ * makes of the answer is held where the rows are, in
+ * `instance/instance.test.ts`: whoever runs it with a second factor gets in,
+ * whoever leads a tenant and nothing else does not, and without a second
+ * factor nobody does.
+ */
 describe('a route of the area of the instance', () => {
-  it('answers whoever runs the instance and has a second factor', async () => {
-    await http()
-      .get('/probe/instance')
-      .set(testIdentityHeader, as('operator-with-code', undefined))
-      .expect(200, { userId: 'operator-with-code' })
-  })
-
-  it('refuses whoever does not run it, in the words of the application, whatever they hold in a tenant', async () => {
-    const refused = await http()
-      .get('/probe/instance')
-      .set(testIdentityHeader, as('writer', tenant, 'probe.read', 'probe.write'))
-      .expect(403)
-
-    expect((refused.body as { message: string }).message).toBe(
-      'Diesen Bereich erreicht nur, wer die Probe-Instanz betreibt.',
-    )
-  })
-
-  it('refuses whoever runs it without a second factor, and says how to get one', async () => {
-    const refused = await http()
-      .get('/probe/instance')
-      .set(testIdentityHeader, as('operator-without', undefined))
-      .expect(403)
-
-    expect((refused.body as { message: string }).message).toContain('zweiter Faktor Pflicht')
-  })
-
-  it('refuses whoever is not signed in', async () => {
+  it('refuses whoever is not signed in, before anything is asked about them', async () => {
     await http().get('/probe/instance').expect(401)
   })
 })

@@ -1,52 +1,19 @@
-import { hasSecondFactor, type InstanceAccess, type OperatorView } from '@opengewerk/domain'
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common'
-import { type Database, normalise } from '@opengewerk/platform-server'
-import { and, asc, eq, sql } from 'drizzle-orm'
+import type { OperatorView } from '@opengewerk/platform-domain'
+import { asc, eq, sql } from 'drizzle-orm'
 
-import { authSessions, authUsers, instanceOperators } from '../database/schema/index.js'
-
-/**
- * The operators of the instance (#188): the accounts that run it, and the
- * only ones that reach its area. The account of the first run setup is the
- * first; further ones are named in the area or on the command line.
- */
+import { normalise } from '../authentication/administration.js'
+import type { Database } from '../database/database.js'
+import { authUsers, instanceOperators } from '../schema.js'
+import type { InstanceSentences } from './sentences.js'
 
 /**
- * Whether somebody is an operator, and whether this session carries the
- * second factor the area needs: the app set up, or a sign in with a passkey
- * confirmed on the device (#167), as for the role of an owner.
+ * The accounts that run the instance (#188), and the only ones that reach its
+ * area. The account of the first run setup is the first; further ones are
+ * named in the area or on the command line.
+ *
+ * Whether somebody is one is asked in `access.ts`, on every request.
  */
-export async function operatorAccess(
-  database: Database,
-  userId: string,
-  sessionId: string,
-): Promise<InstanceAccess> {
-  const [row] = await database.forInstance(
-    (tx) =>
-      tx
-        .select({
-          operator: instanceOperators.id,
-          twoFactorEnabled: authUsers.twoFactorEnabled,
-          signInMethod: authSessions.signInMethod,
-        })
-        .from(authUsers)
-        .leftJoin(instanceOperators, eq(instanceOperators.userId, authUsers.id))
-        .leftJoin(
-          authSessions,
-          and(eq(authSessions.id, sessionId), eq(authSessions.userId, authUsers.id)),
-        )
-        .where(eq(authUsers.id, userId)),
-    userId,
-  )
-
-  return {
-    operator: Boolean(row?.operator),
-    secondFactor: hasSecondFactor({
-      twoFactorEnabled: row?.twoFactorEnabled,
-      signInMethod: row?.signInMethod,
-    }),
-  }
-}
 
 /**
  * Whether an account has a second factor to sign in with: the app, or a
@@ -82,14 +49,16 @@ export async function listOperators(database: Database, asUser: string): Promise
 }
 
 /**
- * Two operators taking each other out at the same moment would leave the
- * instance with none. Every change to the list waits for the one before it.
+ * Two of them taking each other out at the same moment would leave the
+ * instance with nobody to run it. Every change to the list waits for the one
+ * before it.
  */
 const operatorsLock = sql`select pg_advisory_xact_lock(hashtext('opengewerk.instance_operators'))`
 
-/** Names an account that already exists on the instance as an operator. */
+/** Names an account that already exists on the instance to run it. */
 export async function appointOperator(
   database: Database,
+  sentences: Pick<InstanceSentences, 'alreadyOperator'>,
   byUser: string,
   email: string,
   reason = 'operator.appoint',
@@ -122,7 +91,7 @@ export async function appointOperator(
         .returning({ id: instanceOperators.id })
 
       if (inserted.length === 0) {
-        throw new ConflictException('Dieses Konto ist schon Betreiber.')
+        throw new ConflictException(sentences.alreadyOperator)
       }
 
       return account.id
@@ -141,14 +110,15 @@ export async function appointOperator(
   return found
 }
 
-/** Takes the role away. Not from oneself, and never from the last one. */
+/** Takes the instance away from an account. Not from oneself, and never from the last one. */
 export async function removeOperator(
   database: Database,
+  sentences: Pick<InstanceSentences, 'notOneself' | 'notAnOperator' | 'lastOperator'>,
   byUser: string,
   userId: string,
 ): Promise<void> {
   if (userId === byUser) {
-    throw new ConflictException('Sich selbst entfernt kein Betreiber; das macht ein anderer.')
+    throw new ConflictException(sentences.notOneself)
   }
 
   await database.forInstance(
@@ -158,11 +128,11 @@ export async function removeOperator(
       const all = await tx.select({ userId: instanceOperators.userId }).from(instanceOperators)
 
       if (!all.some((operator) => operator.userId === userId)) {
-        throw new NotFoundException('Dieses Konto ist kein Betreiber.')
+        throw new NotFoundException(sentences.notAnOperator)
       }
 
       if (all.length <= 1) {
-        throw new ConflictException('Der letzte Betreiber bleibt.')
+        throw new ConflictException(sentences.lastOperator)
       }
 
       await tx.delete(instanceOperators).where(eq(instanceOperators.userId, userId))
