@@ -14,6 +14,7 @@ import {
   AUTHORIZATION,
   backupStatusParts,
   Database,
+  deadlineParts,
   fileParts,
   type FileStorage,
   HealthController,
@@ -38,6 +39,7 @@ import { raw } from 'express'
 
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
+import { deadlineRules } from '../deadlines/routes.js'
 import { mailServersOfBusinesses } from '../mail/server-settings.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
 import { pushRules } from '../notifications/push.js'
@@ -75,7 +77,6 @@ import { SuppliersController } from './suppliers.controller.js'
 import { syncRoutes } from './sync-routes.js'
 import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
-import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
@@ -227,6 +228,19 @@ export class ApiModule implements NestModule {
     // The mail server of the business, set up by whoever may write in its name
     // (#102); whether it sends at all, for whoever reads the settings.
     const pushing = pushParts({ access, rights: { write: 'push.write' }, rules: pushRules })
+    // The deadlines of the business (#283), on the routes of the foundation
+    // (opengewerk-haustechnik#24): read and decided by whoever has the rights
+    // of deadlines, set up for each kind by whoever has those of the settings.
+    const deadlining = deadlineParts({
+      access,
+      rights: {
+        read: 'deadline.read',
+        write: 'deadline.write',
+        settingsRead: 'settings.read',
+        settingsWrite: 'settings.write',
+      },
+      rules: deadlineRules,
+    })
     const mailing = mailSettingsParts({
       access,
       rights: { status: 'settings.read', read: 'mail.read', write: 'mail.write' },
@@ -253,8 +267,7 @@ export class ApiModule implements NestModule {
         JobsController,
         CollectiveInvoicesController,
         TasksController,
-        DeadlinesController,
-        DeadlineSettingsController,
+        ...deadlining.controllers,
         ...pushing.controllers,
         ...auditing.controllers,
         TenantsController,
@@ -299,6 +312,7 @@ export class ApiModule implements NestModule {
         ...backingUp.providers,
         ...mailing.providers,
         ...pushing.providers,
+        ...deadlining.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

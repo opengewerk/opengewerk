@@ -175,6 +175,7 @@ export * from './mail/worker.js'
 
 // The mechanism that turns an occasion of an application into a message for
 // mail and for push: one table of occasions, and both jobs run over it.
+export * from './deadlines/deadlines.controller.js'
 export * from './deadlines/engine.js'
 export * from './deadlines/responsible.js'
 export * from './deadlines/runs.js'

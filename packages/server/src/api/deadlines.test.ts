@@ -17,7 +17,10 @@ import {
 } from '../database/test-database.js'
 import { runDeadlinesOf } from '../deadlines/engine.js'
 import { ApiModule } from './api.module.js'
-import type { DeadlineEntry, DeadlineKindEntry } from './deadlines.controller.js'
+import type {
+  BusinessDeadlineEntry as DeadlineEntry,
+  BusinessDeadlineKindEntry as DeadlineKindEntry,
+} from '../deadlines/routes.js'
 import { type Somebody, testIdentities as identities } from './test-identity.js'
 
 /**
@@ -411,7 +414,12 @@ describe('the settings of each kind', () => {
         leadDays: 0,
         responsible: 'source',
         actions: ['task'],
-        setting: { intervalDays: null, leadDays: null, responsibleUserId: null },
+        setting: {
+          intervalDays: null,
+          intervalMonths: null,
+          leadDays: null,
+          responsibleUserId: null,
+        },
       }),
     ])
   })
@@ -426,6 +434,7 @@ describe('the settings of each kind', () => {
     expect((answer.body as DeadlineKindEntry).setting).toEqual({
       leadDays: 2,
       intervalDays: 21,
+      intervalMonths: null,
       responsibleUserId: 'britta',
     })
 
@@ -439,6 +448,7 @@ describe('the settings of each kind', () => {
     expect((back.body as DeadlineKindEntry).setting).toEqual({
       leadDays: null,
       intervalDays: null,
+      intervalMonths: null,
       responsibleUserId: null,
     })
   })
