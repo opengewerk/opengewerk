@@ -14,7 +14,7 @@ import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import type { TenantTransaction } from '../database/database.js'
 import { syncConflicts, syncOperations } from '../database/schema/sync.js'
-import { forColumn, toRecordState } from './tables.js'
+import { carriesJson, forColumn, inJsonText, toRecordState, travellingRows } from './tables.js'
 
 /**
  * A mistake only the client can make, which refuses the whole transmission
@@ -246,7 +246,7 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
 
     const found = await tx.select().from(table).where(eq(id, reference))
 
-    return found[0] ? toRecordState(found[0] as Record<string, unknown>) : null
+    return found[0] ? toRecordState(table, found[0] as Record<string, unknown>) : null
   }
 
   /**
@@ -282,16 +282,48 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
     return picked
   }
 
+  /**
+   * The operation with what it brings for a column of JSON or a list in the
+   * text `jsonText` writes, `from` as well as `to`, so that the merge compares
+   * values and not how a device wrote them (`inJsonText`).
+   *
+   * A text that is no such value is a mistake only the client can make: the
+   * text it patches comes from the server or from `jsonText`.
+   */
+  function withJsonText(table: PgTable, operation: Operation): Operation {
+    const columns = getTableColumns(table) as Record<string, PgColumn>
+
+    return {
+      ...operation,
+      patches: operation.patches.map((patch) => {
+        const column = columns[patch.field]
+
+        if (!column || !carriesJson(column)) {
+          return patch
+        }
+
+        const from = inJsonText(column, patch.from)
+        const to = inJsonText(column, patch.to)
+
+        if (from === undefined || to === undefined) {
+          throw new UnknownFieldError(`Dieses Feld nimmt nur JSON als Text: ${patch.field}`)
+        }
+
+        return { ...patch, from, to }
+      }),
+    }
+  }
+
   async function applyOne(
     tx: TenantTransaction,
     tenantId: TenantId,
-    operation: Operation,
+    sent: Operation,
     sender: Sender,
   ): Promise<OperationReceipt> {
     const seen = await tx
       .select({ outcome: syncOperations.outcome })
       .from(syncOperations)
-      .where(eq(syncOperations.id, operation.id))
+      .where(eq(syncOperations.id, sent.id))
 
     const already = seen[0]
 
@@ -300,17 +332,17 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
       // device that lost the connection after the server committed sends its
       // queue again, and that is the ordinary case, not the exception.
       return {
-        operationId: operation.id,
+        operationId: sent.id,
         outcome: already.outcome,
         reason: 'already_seen',
         fields: [],
       }
     }
 
-    const table = tableFor(operation.entity)
+    const table = tableFor(sent.entity)
 
     if (!table) {
-      return await record(tx, tenantId, operation, {
+      return await record(tx, tenantId, sent, {
         outcome: 'conflict',
         reason: 'unknown_entity',
         fields: [],
@@ -321,8 +353,10 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
     const id = columns['id']
 
     if (!id) {
-      throw new Error(`The table ${operation.entity} has no id to find a record by`)
+      throw new Error(`The table ${sent.entity} has no id to find a record by`)
     }
+
+    const operation = withJsonText(table, sent)
 
     // Without a condition on `deletedAt`, unlike a route, and that is the
     // point: a deleted row has to be found here. It is what turns a repeated
@@ -331,7 +365,7 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
     // refuses the deleted row itself; leaving it out of the query would hide
     // it.
     const found = await tx.select().from(table).where(eq(id, operation.recordId))
-    const current = found[0] ? toRecordState(found[0] as Record<string, unknown>) : null
+    const current = found[0] ? toRecordState(table, found[0] as Record<string, unknown>) : null
     const decision = rules.decideMerge(operation, current, await parentFor(tx, operation, current))
 
     if (decision.outcome === 'skip') {
@@ -457,7 +491,7 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
           continue
         }
 
-        changes.push({ entity, rows: rows as Record<string, unknown>[] })
+        changes.push({ entity, rows: travellingRows(table, rows as Record<string, unknown>[]) })
 
         let last = since
 

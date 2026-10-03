@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type FieldPatch,
   inOutboxOrder,
+  jsonText,
   type Operation,
   type OperationId,
   sameValue,
@@ -53,8 +54,41 @@ describe('a value on its way to the server', () => {
     expect(sameValue(null, '')).toBe(false)
   })
 
-  it('refuses what a patch cannot carry', () => {
+  it('refuses what a patch cannot carry, a value of JSON among it, which travels as its text', () => {
     expect(() => toSyncValue({ deep: true })).toThrow(/patch can carry/)
+    expect(() => toSyncValue(['a'])).toThrow(/patch can carry/)
+  })
+})
+
+describe('the text a value of JSON or a list travels as', () => {
+  it('is one text for one value, whatever order its keys were written in', () => {
+    expect(jsonText({ rooms: 3, access: { via: 'Hof', key: null } })).toBe(
+      '{"access":{"key":null,"via":"Hof"},"rooms":3}',
+    )
+    expect(jsonText({ access: { key: null, via: 'Hof' }, rooms: 3 })).toBe(
+      jsonText({ rooms: 3, access: { via: 'Hof', key: null } }),
+    )
+  })
+
+  it('keeps the order of a list, which is part of its value', () => {
+    expect(jsonText(['Keller', 'Zähler'])).toBe('["Keller","Zähler"]')
+    expect(jsonText([{ b: 1, a: 2 }, 'x'])).toBe('[{"a":2,"b":1},"x"]')
+  })
+
+  it('reads the same text back from any text of the same value', () => {
+    fc.assert(
+      fc.property(fc.jsonValue(), (value) => {
+        const text = jsonText(value)
+
+        expect(jsonText(JSON.parse(text))).toBe(text)
+        expect(jsonText(JSON.parse(JSON.stringify(value, null, 2)))).toBe(text)
+      }),
+    )
+  })
+
+  it('refuses what is no value of JSON', () => {
+    expect(() => jsonText(undefined)).toThrow(/value of JSON/)
+    expect(() => jsonText(() => 1)).toThrow(/value of JSON/)
   })
 })
 

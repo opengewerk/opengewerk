@@ -14,7 +14,10 @@ import type { AuditVocabulary } from './audit-log.js'
 export const probeAuditVocabulary: AuditVocabulary = {
   tables: {
     shelves: { label: 'Regal', fields: { label: 'Beschriftung', closed: 'Geschlossen' } },
-    notes: { label: 'Notiz', fields: { shelf_id: 'Regal' } },
+    notes: {
+      label: 'Notiz',
+      fields: { shelf_id: 'Regal', tags: 'Schlagworte', details: 'Angaben' },
+    },
     letters: { label: 'Brief', fields: { subject: 'Betreff', status: 'Stand' } },
     letter_lines: {
       label: 'Briefzeile',
