@@ -23,17 +23,72 @@ import { join } from 'node:path'
  * the number from being mistaken for the whole of a first visit.
  */
 
+/**
+ * Every tag of this name in the document, from its `<` to its `>`.
+ *
+ * Read with `indexOf` and not with a regular expression: an exported function
+ * takes whatever it is handed, and a pattern like `<script[^>]+src="` backtracks
+ * without end on a string of many `<script` and no `>` (CodeQL on #496). This
+ * walks the document once and stops at the first tag that never closes.
+ */
+function tagsOf(html, name) {
+  const opening = `<${name}`
+  const tags = []
+
+  for (let from = 0; ;) {
+    const start = html.indexOf(opening, from)
+
+    if (start === -1) {
+      return tags
+    }
+
+    const end = html.indexOf('>', start)
+
+    if (end === -1) {
+      return tags
+    }
+
+    // `<scripts>` is no `<script>`.
+    if (/[\s/>]/.test(html.charAt(start + opening.length))) {
+      tags.push(html.slice(start, end + 1))
+    }
+
+    from = end + 1
+  }
+}
+
+/** The value of an attribute in double quotes, or null where the tag has none. */
+function attributeOf(tag, name) {
+  const marker = ` ${name}="`
+  const at = tag.indexOf(marker)
+
+  if (at === -1) {
+    return null
+  }
+
+  const end = tag.indexOf('"', at + marker.length)
+
+  return end === -1 ? null : tag.slice(at + marker.length, end)
+}
+
 /** Everything the document pulls in before the application starts. */
 export function referencedBy(html) {
   const references = new Set()
 
-  for (const pattern of [
-    /<script[^>]+src="([^"]+)"/g,
-    /<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g,
-    /<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g,
-  ]) {
-    for (const match of html.matchAll(pattern)) {
-      references.add(match[1])
+  for (const tag of tagsOf(html, 'script')) {
+    const source = attributeOf(tag, 'src')
+
+    if (source) {
+      references.add(source)
+    }
+  }
+
+  for (const tag of tagsOf(html, 'link')) {
+    const relation = attributeOf(tag, 'rel')
+    const target = attributeOf(tag, 'href')
+
+    if (target && (relation === 'modulepreload' || relation === 'stylesheet')) {
+      references.add(target)
     }
   }
 

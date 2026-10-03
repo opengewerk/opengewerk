@@ -376,9 +376,26 @@ function bareColumns(page) {
   )
 }
 
-/** A file name for a failure, from the kind of page, the width and the theme. */
+/**
+ * A file name for a failure, from the kind of page, the width and the theme.
+ *
+ * The slashes at both ends are cut by counting rather than with `/\/+$/`,
+ * which backtracks on a long run of slashes; an exported function takes
+ * whatever it is handed (CodeQL on #496).
+ */
 export function fileFor(report, kind, width, theme) {
-  const stem = kind.replace(/^\/+|\/+$/g, '').replace(/[/:]+/g, '-') || 'start'
+  let start = 0
+  let end = kind.length
+
+  while (start < end && kind[start] === '/') {
+    start += 1
+  }
+
+  while (end > start && kind[end - 1] === '/') {
+    end -= 1
+  }
+
+  const stem = kind.slice(start, end).replace(/[/:]+/g, '-') || 'start'
 
   return join(report, `${stem}-${String(width)}-${theme}.png`)
 }

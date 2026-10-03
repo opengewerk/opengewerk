@@ -61,6 +61,27 @@ describe('what a document pulls in', () => {
       ),
     ).toEqual(['/assets/entry.js', '/assets/shared.js', '/assets/styles.css'])
   })
+
+  it('is not what only looks like it: another tag, another attribute, a tag that never closes', () => {
+    expect(
+      referencedBy(
+        '<scripts src="/assets/not.js"></scripts>' +
+          '<script data-src="/assets/lazy.js"></script>' +
+          '<script src="/assets/open.js></script>' +
+          '<link rel="preload" href="/assets/font.woff2">' +
+          '<script src="/assets/entry.js"></script>' +
+          '<link rel="stylesheet" href="/assets/never.css"',
+      ),
+    ).toEqual(['/assets/entry.js'])
+  })
+
+  it('reads a document that never closes a tag in one pass', () => {
+    const started = performance.now()
+
+    expect(referencedBy('<script'.repeat(50_000))).toEqual([])
+    expect(referencedBy(`<link${' rel="stylesheet"'.repeat(20_000)}`)).toEqual([])
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
 })
 
 describe('the budget of an entry point', () => {

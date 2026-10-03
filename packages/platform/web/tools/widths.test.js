@@ -87,5 +87,18 @@ describe('the photograph of a failure', () => {
       join('report', 'notizen-id (Bearbeiten)-390-dark.png'),
     )
     expect(fileFor('report', '/', 1280, 'light')).toBe(join('report', 'start-1280-light.png'))
+    expect(fileFor('report', '//konto//', 320, 'light')).toBe(join('report', 'konto-320-light.png'))
+  })
+
+  it('is named in one pass, however many slashes a kind has', () => {
+    const started = performance.now()
+
+    expect(fileFor('report', `${'/'.repeat(100_000)}x`, 320, 'dark')).toBe(
+      join('report', 'x-320-dark.png'),
+    )
+    expect(fileFor('report', '/'.repeat(100_000), 320, 'dark')).toBe(
+      join('report', 'start-320-dark.png'),
+    )
+    expect(performance.now() - started).toBeLessThan(1000)
   })
 })
