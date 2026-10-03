@@ -15,6 +15,11 @@ import type { IsoDate } from '../model/identifier.js'
  * with the limits of the test protocol (#79): an insulation resistance of at
  * least one megaohm is a thousand kiloohms, a tripping time of at most 300
  * milliseconds is 300, and a breaker B trips at five times its rating.
+ * Months, tenths of a degree Celsius, kilowatts, kilograms and tonnes of CO2
+ * equivalent and a count per 100 millilitres came with the duties of whoever
+ * runs a building (opengewerk-haustechnik#16): a test every 36 months, hot
+ * water at 60.0 degrees, a heating system from 70 kilowatts, a refrigerant
+ * charge from 5 tonnes of CO2 equivalent, legionella from 100 per 100 ml.
  */
 export const ruleUnits = [
   'basis_points',
@@ -27,9 +32,70 @@ export const ruleUnits = [
   'milliseconds',
   'volts',
   'factor',
+  'months',
+  'decidegrees_celsius',
+  'kilowatts',
+  'kilograms_co2e',
+  'tonnes_co2e',
+  'count_per_100_ml',
 ] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]
+
+/**
+ * The federal states, by their codes in ISO 3166-2, in the order of the
+ * statistical offices. A rule of a state's own law applies there and nowhere
+ * else: building law is state law, and a test one state prescribes does not
+ * exist in the next.
+ */
+export const federalStates = [
+  'DE-SH',
+  'DE-HH',
+  'DE-NI',
+  'DE-HB',
+  'DE-NW',
+  'DE-HE',
+  'DE-RP',
+  'DE-BW',
+  'DE-BY',
+  'DE-SL',
+  'DE-BE',
+  'DE-BB',
+  'DE-MV',
+  'DE-SN',
+  'DE-ST',
+  'DE-TH',
+] as const
+
+export type FederalState = (typeof federalStates)[number]
+
+/** Where a rule applies: in the whole country, or in one federal state. */
+export const nationwide = 'DE'
+
+export type RuleScope = typeof nationwide | FederalState
+
+export const ruleScopes: readonly RuleScope[] = [nationwide, ...federalStates]
+
+/** What a person reads for a scope, after "für" or on its own. */
+export const ruleScopeNames: Readonly<Record<RuleScope, string>> = {
+  DE: 'bundesweit',
+  'DE-SH': 'Schleswig-Holstein',
+  'DE-HH': 'Hamburg',
+  'DE-NI': 'Niedersachsen',
+  'DE-HB': 'Bremen',
+  'DE-NW': 'Nordrhein-Westfalen',
+  'DE-HE': 'Hessen',
+  'DE-RP': 'Rheinland-Pfalz',
+  'DE-BW': 'Baden-Württemberg',
+  'DE-BY': 'Bayern',
+  'DE-SL': 'Saarland',
+  'DE-BE': 'Berlin',
+  'DE-BB': 'Brandenburg',
+  'DE-MV': 'Mecklenburg-Vorpommern',
+  'DE-SN': 'Sachsen',
+  'DE-ST': 'Sachsen-Anhalt',
+  'DE-TH': 'Thüringen',
+}
 
 /**
  * One legal parameter, for the time it was in force.
@@ -40,9 +106,14 @@ export type RuleUnit = (typeof ruleUnits)[number]
  *
  * `source` is not decoration. It is the difference between a number somebody
  * can check and a number somebody has to believe.
+ *
+ * `scope` says where it applies, the whole country when left out. Every
+ * package written before scopes existed is a package of federal law, and
+ * stays exactly what it was.
  */
 export interface RuleRecord {
   readonly key: string
+  readonly scope?: RuleScope
   readonly validFrom: IsoDate
   readonly validUntil: IsoDate | null
   readonly unit: RuleUnit
@@ -54,12 +125,23 @@ export interface RuleRecord {
 
 export class RuleError extends Error {}
 
+/**
+ * The questions a set of rules answers. Each names a day, and may name a
+ * federal state: with one, a rule of that state or of the whole country
+ * answers; without one, only a rule of the whole country does. A rule of
+ * Baden-Württemberg is never the answer for Bayern.
+ */
 export interface RuleSet {
   /** The record in force on that day, or nothing if none was. */
-  readonly at: (key: string, on: IsoDate) => RuleRecord | null
-  readonly valueAt: (key: string, unit: RuleUnit, on: IsoDate) => number
+  readonly at: (key: string, on: IsoDate, state?: FederalState) => RuleRecord | null
+  readonly valueAt: (key: string, unit: RuleUnit, on: IsoDate, state?: FederalState) => number
   readonly keys: () => readonly string[]
   readonly all: () => readonly RuleRecord[]
+}
+
+/** Where a record applies, the whole country when it does not say. */
+export function scopeOf(record: RuleRecord): RuleScope {
+  return record.scope ?? nationwide
 }
 
 function covers(record: RuleRecord, on: IsoDate): boolean {
@@ -68,28 +150,65 @@ function covers(record: RuleRecord, on: IsoDate): boolean {
   return record.validFrom <= on && (record.validUntil === null || on <= record.validUntil)
 }
 
-function overlapping(records: readonly RuleRecord[]): [RuleRecord, RuleRecord] | null {
-  const byKey = new Map<string, RuleRecord[]>()
+/** The records grouped by a function of each record, each group in order of its start. */
+function runs(
+  records: readonly RuleRecord[],
+  groupOf: (record: RuleRecord) => string,
+): RuleRecord[][] {
+  const grouped = new Map<string, RuleRecord[]>()
 
   for (const record of records) {
-    byKey.set(record.key, [...(byKey.get(record.key) ?? []), record])
+    const group = groupOf(record)
+    grouped.set(group, [...(grouped.get(group) ?? []), record])
   }
 
-  for (const sharing of byKey.values()) {
-    const ordered = [...sharing].sort((left, right) =>
-      left.validFrom.localeCompare(right.validFrom),
-    )
+  return [...grouped.values()].map((sharing) =>
+    [...sharing].sort((left, right) => left.validFrom.localeCompare(right.validFrom)),
+  )
+}
 
+/** Whether a record that starts no later than another is still in force on that one's first day. */
+function overlap(earlier: RuleRecord, later: RuleRecord): boolean {
+  return earlier.validUntil === null || later.validFrom <= earlier.validUntil
+}
+
+function overlapping(records: readonly RuleRecord[]): [RuleRecord, RuleRecord] | null {
+  for (const ordered of runs(records, (record) => `${record.key}:${scopeOf(record)}`)) {
     for (let index = 1; index < ordered.length; index += 1) {
       const earlier = ordered[index - 1]
       const later = ordered[index]
 
-      if (
-        earlier &&
-        later &&
-        (earlier.validUntil === null || later.validFrom <= earlier.validUntil)
-      ) {
+      if (earlier && later && overlap(earlier, later)) {
         return [earlier, later]
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * A rule of the whole country and one of a state for the same key on the
+ * same day, or null when there is none.
+ *
+ * Either could be meant, and an answer from either would be a guess: that the
+ * state's rule replaces the federal one, or that the federal one still holds
+ * because the state's was never entered. A key is answered for the whole
+ * country or state by state on any one day, and not both.
+ */
+function mixed(records: readonly RuleRecord[]): [RuleRecord, RuleRecord] | null {
+  for (const ordered of runs(records, (record) => record.key)) {
+    const federal = ordered.filter((record) => scopeOf(record) === nationwide)
+    const ofStates = ordered.filter((record) => scopeOf(record) !== nationwide)
+
+    for (const whole of federal) {
+      for (const state of ofStates) {
+        const [earlier, later] =
+          whole.validFrom <= state.validFrom ? [whole, state] : [state, whole]
+
+        if (overlap(earlier, later)) {
+          return [whole, state]
+        }
       }
     }
   }
@@ -111,11 +230,33 @@ function overlapping(records: readonly RuleRecord[]): [RuleRecord, RuleRecord] |
  * possible moment.
  */
 export function ruleSet(records: readonly RuleRecord[]): RuleSet {
+  for (const record of records) {
+    // A package is JSON, and a scope there is any string until it is checked.
+    if (!ruleScopes.includes(scopeOf(record))) {
+      throw new RuleError(
+        `Die Regel ${record.key} ab ${record.validFrom} nennt einen unbekannten Geltungsbereich: ${String(record.scope)}.`,
+      )
+    }
+  }
+
   const clash = overlapping(records)
 
   if (clash) {
+    const scope = scopeOf(clash[0])
+    const where = scope === nationwide ? '' : ` in ${ruleScopeNames[scope]}`
+
     throw new RuleError(
-      `Zwei Regeln zu ${clash[0].key} gelten gleichzeitig: ab ${clash[0].validFrom} und ab ${clash[1].validFrom}.`,
+      `Zwei Regeln zu ${clash[0].key} gelten gleichzeitig${where}: ab ${clash[0].validFrom} und ab ${clash[1].validFrom}.`,
+    )
+  }
+
+  const both = mixed(records)
+
+  if (both) {
+    const [whole, state] = both
+
+    throw new RuleError(
+      `Die Regel ${whole.key} gilt ab ${whole.validFrom} bundesweit und ab ${state.validFrom} in ${ruleScopeNames[scopeOf(state)]}. An einem Tag gilt ein Schlüssel bundesweit oder je Land, nicht beides.`,
     )
   }
 
@@ -131,16 +272,31 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
     }
   }
 
+  // Which records may answer for a state: its own and those of the whole
+  // country. Never another state's, which is the whole point of a scope.
+  const answers = (record: RuleRecord, state: FederalState | undefined): boolean => {
+    const scope = scopeOf(record)
+
+    return scope === nationwide || (state !== undefined && scope === state)
+  }
+
+  const find = (key: string, on: IsoDate, state: FederalState | undefined) =>
+    records.find((record) => record.key === key && answers(record, state) && covers(record, on))
+
   return {
-    at: (key, on) => records.find((record) => record.key === key && covers(record, on)) ?? null,
-    valueAt: (key, unit, on) => {
-      const record = records.find((entry) => entry.key === key && covers(entry, on))
+    at: (key, on, state) => find(key, on, state) ?? null,
+    valueAt: (key, unit, on, state) => {
+      const record = find(key, on, state)
 
       if (!record) {
         // Refused rather than guessed. A missing rule means nobody has said
         // what applied on that day, and inventing an answer is how a wrong
         // invoice leaves the house looking right.
-        throw new RuleError(`Zum ${on} ist keine Regel ${key} hinterlegt.`)
+        throw new RuleError(
+          state === undefined
+            ? `Zum ${on} ist keine Regel ${key} hinterlegt.`
+            : `Zum ${on} ist für ${ruleScopeNames[state]} keine Regel ${key} hinterlegt.`,
+        )
       }
 
       if (record.unit !== unit) {
@@ -154,6 +310,56 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
     keys: () => [...new Set(records.map((record) => record.key))].sort(),
     all: () => records,
   }
+}
+
+/** The day after, without a time zone anywhere near it. */
+function dayAfter(on: IsoDate): IsoDate {
+  const at = new Date(`${on}T00:00:00Z`)
+  at.setUTCDate(at.getUTCDate() + 1)
+
+  return at.toISOString().slice(0, 10)
+}
+
+/** Days nobody has said anything about, between two rules of one key and scope. */
+export interface RuleHole {
+  readonly key: string
+  readonly scope: RuleScope
+  /** The last day of the earlier rule. */
+  readonly after: IsoDate
+  /** The first day of the later one. */
+  readonly before: IsoDate
+}
+
+/**
+ * The holes inside the runs of a set of records, each run being one key in
+ * one scope.
+ *
+ * A hole at the end of a run is allowed, it is where knowledge stops. One in
+ * the middle is a maintenance slip, and it would show up as a question that
+ * cannot be answered on one particular day. Scopes are runs of their own: a
+ * state whose rule begins in 2026 has no hole because the whole country had a
+ * rule before, and the whole country has none because a state has one.
+ */
+export function ruleHoles(records: readonly RuleRecord[]): readonly RuleHole[] {
+  const holes: RuleHole[] = []
+
+  for (const ordered of runs(records, (record) => `${record.key}:${scopeOf(record)}`)) {
+    for (let index = 1; index < ordered.length; index += 1) {
+      const earlier = ordered[index - 1]
+      const later = ordered[index]
+
+      if (earlier?.validUntil && later && dayAfter(earlier.validUntil) < later.validFrom) {
+        holes.push({
+          key: later.key,
+          scope: scopeOf(later),
+          after: earlier.validUntil,
+          before: later.validFrom,
+        })
+      }
+    }
+  }
+
+  return holes
 }
 
 /**
