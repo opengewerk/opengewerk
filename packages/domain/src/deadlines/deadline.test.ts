@@ -1,21 +1,23 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
-import type { IsoDate } from '@opengewerk/platform-domain'
-import { addDays } from '../rules/payment.js'
+import {
+  addDays,
+  DeadlineRegistryError,
+  intervalOf,
+  intervalProblem,
+  type IsoDate,
+  leadOf,
+  leadProblem,
+  remindOn,
+} from '@opengewerk/platform-domain'
 import { coreDeadlineKinds } from './core.js'
 import {
   actionsSentence,
   type DeadlineKind,
   deadlineRegistry,
   defaultResponsibleLabel,
-  DeadlineRegistryError,
-  intervalOf,
-  intervalProblem,
   kindProblems,
-  leadOf,
-  leadProblem,
-  remindOn,
   sourceWords,
   taskTitleOf,
 } from './deadline.js'
@@ -104,15 +106,21 @@ describe('the registry', () => {
 
 describe('the lead and the interval', () => {
   it('take the deadline first, then the business, then the kind', () => {
-    const setting = { kind: followUp.key, leadDays: 3, intervalDays: 21, responsibleUserId: null }
+    const setting = {
+      kind: followUp.key,
+      leadDays: 3,
+      intervalDays: 21,
+      intervalMonths: null,
+      responsibleUserId: null,
+    }
 
     expect(leadOf(followUp, null, null)).toBe(0)
     expect(leadOf(followUp, setting, null)).toBe(3)
     expect(leadOf(followUp, setting, 7)).toBe(7)
     // Zero is a lead of its own, not "nothing set".
     expect(leadOf(followUp, setting, 0)).toBe(0)
-    expect(intervalOf(followUp, null)).toBe(14)
-    expect(intervalOf(followUp, setting)).toBe(21)
+    expect(intervalOf(followUp, null)).toEqual({ days: 14 })
+    expect(intervalOf(followUp, setting)).toEqual({ days: 21 })
   })
 
   it('has no interval where the source names the day', () => {
@@ -123,6 +131,7 @@ describe('the lead and the interval', () => {
         kind: named.key,
         leadDays: null,
         intervalDays: 30,
+        intervalMonths: null,
         responsibleUserId: null,
       }),
     ).toBeNull()
@@ -171,7 +180,7 @@ describe('the task a deadline makes', () => {
 describe('the words of the settings', () => {
   it('name the default person of a kind', () => {
     expect(defaultResponsibleLabel(followUp)).toBe('Wer das Angebot festgeschrieben hat')
-    expect(defaultResponsibleLabel({ ...followUp, responsible: 'owner' })).toBe('Der Inhaber')
+    expect(defaultResponsibleLabel({ ...followUp, responsible: 'lead' })).toBe('Der Inhaber')
   })
 
   it('say what a kind does in one sentence', () => {

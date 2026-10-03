@@ -59,6 +59,10 @@ export * from './forms/values.js'
 // falls due. The kinds are data, from the core and from the trade packages.
 export * from './deadlines/core.js'
 export * from './deadlines/deadline.js'
+// The kind, the registry and its factory share their names with the general
+// ones of the foundation; these are the ones bound to the sources, actions and
+// fields of this application, and named here so that they are the ones handed on.
+export { type DeadlineKind, type DeadlineRegistry, deadlineRegistry } from './deadlines/deadline.js'
 
 // The legal parameters. Not in the code: they sit in data packages with a
 // period of validity and the paragraph they come from, and every question to

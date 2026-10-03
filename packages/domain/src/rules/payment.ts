@@ -3,7 +3,7 @@ import type { PaymentTermContent } from '../model/document-content.js'
 import type { IsoDate } from '@opengewerk/platform-domain'
 import { carriesDueDate, statesPaymentTerm } from '../model/payment-term.js'
 import type { BilledAmount } from './invoice.js'
-import { applyRate, type RuleSet, withoutNegativeZero } from '@opengewerk/platform-domain'
+import { addDays, applyRate, type RuleSet, withoutNegativeZero } from '@opengewerk/platform-domain'
 
 /**
  * The days of a calendar year when interest is worked out: 366 in a leap year,
@@ -55,14 +55,6 @@ function yearPartsOf(from: IsoDate, days: number): number {
 export const debtorKinds = ['business', 'consumer'] as const
 
 export type DebtorKind = (typeof debtorKinds)[number]
-
-/** Adds whole days to an ISO date without dragging a time zone along. */
-export function addDays(on: IsoDate, days: number): IsoDate {
-  const at = new Date(`${on}T00:00:00Z`)
-  at.setUTCDate(at.getUTCDate() + days)
-
-  return at.toISOString().slice(0, 10) as IsoDate
-}
 
 /**
  * The payment term a document states, or null when it states none.

@@ -8,6 +8,7 @@
 export * from './model/audit.js'
 export * from './model/audit-log.js'
 export * from './model/backup.js'
+export * from './model/calendar.js'
 export * from './model/file.js'
 export * from './model/identifier.js'
 export * from './model/identity.js'
@@ -20,6 +21,11 @@ export * from './model/paths.js'
 export * from './model/push.js'
 export * from './model/rights.js'
 export * from './model/signature.js'
+
+// The deadline engine: kinds as data, checked against the sources and actions
+// an application hands in, and what a tenant sets for a kind. Which sources
+// there are and what an action does is the application's business.
+export * from './deadlines/deadline.js'
 
 // The rule engine: records with a period of validity and the paragraph they
 // come from. Which rules there are is the application's business.
