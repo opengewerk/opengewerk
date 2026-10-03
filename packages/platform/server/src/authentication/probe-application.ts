@@ -33,7 +33,8 @@ import {
 } from '../api/authorization.js'
 import { ClosedIdentitySource } from '../api/closed-identity.js'
 import { databaseErrors } from '../api/database-errors.js'
-import { TRUSTED_ORIGINS } from '../api/handed-in.js'
+import { TRUSTED_ORIGINS, VERSION } from '../api/handed-in.js'
+import { HealthController } from '../api/health.controller.js'
 import {
   CurrentIdentity,
   IDENTITY_SOURCE,
@@ -186,6 +187,9 @@ export const probeAccess: AccessRules<ProbeRight> = {
     passkeyNotRecorded:
       'Der Passkey ließ sich nicht im Protokoll der Mandanten festhalten und ist deshalb ' +
       'nicht angelegt.',
+    emptyInstance:
+      'Diese Instanz ist noch leer: im Browser steht die Ersteinrichtung, die den ' +
+      'Mandanten und den ersten Zugang anlegt.',
     addStaff: {
       usage: 'Aufruf: add-staff <mandant> <e-mail> "<name>" <rolle> [<rolle> ...]',
       added: (email, tenantId, roles) =>
@@ -287,6 +291,8 @@ export interface ProbeModuleOptions {
   readonly invitationMailing?: InvitationMailing | null
   /** The settings of the instance in memory, where a test keeps them there. */
   readonly instanceSettings?: InstanceSettingsCache | null
+  /** The version the health check names; left out, it names none, as in a checkout. */
+  readonly version?: string | null
 }
 
 @Module({})
@@ -307,11 +313,12 @@ export class ProbeModule {
 
     return {
       module: ProbeModule,
-      controllers: [ProbeController, ...signingIn.controllers],
+      controllers: [HealthController, ProbeController, ...signingIn.controllers],
       providers: [
         { provide: Database, useValue: database },
         ...signingIn.providers,
         { provide: TRUSTED_ORIGINS, useValue: options.trustedOrigins ?? [] },
+        { provide: VERSION, useValue: options.version ?? null },
         { provide: IDENTITY_SOURCE, useValue: identities },
         { provide: AUTHORIZATION, useValue: probeAuthorization },
         { provide: APP_GUARD, useClass: SameOriginGuard },

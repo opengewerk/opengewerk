@@ -33,5 +33,4 @@ export const serverPaths = [
   'payments',
   'sync',
   'settings',
-  'health',
 ] as const

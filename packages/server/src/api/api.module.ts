@@ -12,10 +12,12 @@ import {
   authenticationParts,
   AUTHORIZATION,
   Database,
+  HealthController,
   type InstanceSettingsCache,
   SameOriginGuard,
   type SecretKey,
   TRUSTED_ORIGINS,
+  VERSION,
 } from '@opengewerk/platform-server'
 import { raw } from 'express'
 
@@ -45,7 +47,6 @@ import { DocumentsController } from './documents.controller.js'
 import { EInvoiceController } from './e-invoice.controller.js'
 import { FilesController, fileUploadType } from './files.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
-import { HealthController } from './health.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
 import { InstructionsController } from './instructions.controller.js'
@@ -62,7 +63,6 @@ import {
   type MailContext,
   RENDERER,
   SECRETS,
-  VERSION,
 } from './handed-in.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'

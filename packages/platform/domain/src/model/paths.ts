@@ -1,8 +1,8 @@
 /**
  * The first segment of every path the server of the foundation answers itself
- * (ADR 0010): the authentication under `/api`, and the routes of the sign in,
- * the first run, the people of a tenant, an invitation and the area of the
- * instance.
+ * (ADR 0010): the authentication under `/api`, the routes of the sign in, the
+ * first run, the people of a tenant, an invitation and the area of the
+ * instance, and the health check.
  *
  * Three read it, each together with the paths the server of its application
  * answers: the server, which never hands a shell back for one of them; the
@@ -17,4 +17,12 @@
  * no route answers. An application holds its own list against its routes the
  * same way.
  */
-export const foundationPaths = ['api', 'auth', 'setup', 'staff', 'invitation', 'instance'] as const
+export const foundationPaths = [
+  'api',
+  'auth',
+  'setup',
+  'staff',
+  'invitation',
+  'instance',
+  'health',
+] as const

@@ -27,3 +27,10 @@ export const AUTHENTICATION = Symbol('Authentication')
  * how to get one. Read by the setup controller and by nothing else.
  */
 export const SETUP_CODE = Symbol('SetupCode')
+
+/**
+ * The version this installation runs, for the health check and the foot of
+ * the sign in, or null where there is none to name: a checkout, a preview, a
+ * test.
+ */
+export const VERSION = Symbol('Version')

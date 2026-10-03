@@ -1,7 +1,7 @@
 import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common'
-import { Database } from '@opengewerk/platform-server'
 import type { Response } from 'express'
 
+import { Database } from '../database/database.js'
 import { PublicRoute } from './authorization.js'
 import { VERSION } from './handed-in.js'
 
@@ -17,8 +17,12 @@ import { VERSION } from './handed-in.js'
  * What comes back is deliberately thin. Host names and driver errors would
  * tell somebody probing the instance more about it than the answer is worth,
  * and none of it helps the one question being asked. The version is the one
- * addition (#259): the sign in shows it in its foot, where anybody who can open
- * the page reads it anyway, and it is what an operator asks after an update.
+ * addition: the sign in shows it in its foot, where anybody who can open the
+ * page reads it anyway, and it is what an operator asks after an update.
+ *
+ * Every application has it, under the same path (`health` in
+ * `foundationPaths`), so that a Compose file and a monitor ask each of them
+ * the same way.
  */
 @Controller('health')
 export class HealthController {
