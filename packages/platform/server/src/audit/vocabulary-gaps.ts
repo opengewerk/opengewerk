@@ -75,6 +75,24 @@ export async function auditVocabularyGaps(
     }
   }
 
+  // Columns of the application's own on a table of the foundation, the outbox
+  // of the mail above all: only on a table of the foundation, only a column
+  // the table has, and never one the foundation names itself.
+  for (const [table, fields] of Object.entries(vocabulary.ownFields ?? {})) {
+    if (!(foundationAuditTables as readonly string[]).includes(table)) {
+      gaps.push(`own fields of ${table}, which is not a table of the foundation`)
+      continue
+    }
+
+    for (const column of Object.keys(fields)) {
+      if (!has(table, column)) {
+        gaps.push(`own field ${table}.${column}, which the table does not have`)
+      } else if (language.tables[table]?.fields?.[column] !== undefined) {
+        gaps.push(`own field ${table}.${column} is named by the foundation`)
+      }
+    }
+  }
+
   for (const table of instanceLog) {
     if (!(table in language.tables) && !(table in language.instanceTables)) {
       gaps.push(`table ${table} is watched by the log of the instance and has no words`)

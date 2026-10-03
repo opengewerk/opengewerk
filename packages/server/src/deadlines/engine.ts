@@ -10,7 +10,13 @@ import {
   taskTitleOf,
   type TenantId,
 } from '@opengewerk/domain'
-import { type Database, everyTenant, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  type Database,
+  everyTenant,
+  type RepeatingJob,
+  startRepeating,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm'
 
 import { assignNumber } from '../database/number-ranges.js'
@@ -408,45 +414,11 @@ export async function runDeadlineCycle(job: DeadlineJob): Promise<DeadlineReport
  * `stop` waits for a pass that is running, so that shutting down does not cut
  * a reminder off between its mark and its task.
  */
-export function startDeadlineWorker(
-  job: DeadlineJob,
-  intervalMs = 60_000,
-): { readonly stop: () => Promise<void> } {
-  let stopped = false
-  let running: Promise<void> | null = null
-  let timer: NodeJS.Timeout | null = null
-
-  const schedule = (delay: number) => {
-    timer = setTimeout(tick, delay)
-    timer.unref()
-  }
-
-  function tick() {
-    running = runDeadlineCycle(job)
-      .then(() => undefined)
-      .catch((error: unknown) => {
-        console.error('Der Abgleich der Fristen ist gescheitert.', error)
-      })
-      .finally(() => {
-        running = null
-
-        if (!stopped) {
-          schedule(intervalMs)
-        }
-      })
-  }
-
-  schedule(10_000)
-
-  return {
-    stop: async () => {
-      stopped = true
-
-      if (timer) {
-        clearTimeout(timer)
-      }
-
-      await running
-    },
-  }
+export function startDeadlineWorker(job: DeadlineJob, intervalMs = 60_000): RepeatingJob {
+  return startRepeating({
+    run: () => runDeadlineCycle(job),
+    intervalMs,
+    firstAfterMs: 10_000,
+    failure: 'Der Abgleich der Fristen ist gescheitert.',
+  })
 }

@@ -6,6 +6,7 @@ import {
   isInvoice,
   showsPrices,
 } from '@opengewerk/domain'
+import { invitationLinkPlaceholder } from '@opengewerk/platform-server'
 
 import { documentTitle, headingOf } from '../documents/template.js'
 
@@ -279,12 +280,12 @@ export function signedReportMessage(facts: {
 /**
  * Where the link of an invitation goes in its message.
  *
- * The message is written with this in place of the link, and the job puts the
- * link in when it sends: the token is made at that moment and exists in the
- * outgoing mail only. A row in the outbox, and the entries the audit log keeps
- * of it, never hold a way into the business.
+ * The message is written with this in place of the link, and the job of the
+ * foundation puts the link in when it sends (ADR 0010): the token is made at
+ * that moment and exists in the outgoing mail only. A row in the outbox, and
+ * the entries the audit log keeps of it, never hold a way into the business.
  */
-export const invitationLink = '{{link}}'
+export const invitationLink = invitationLinkPlaceholder
 
 /**
  * The message a new colleague is invited with.

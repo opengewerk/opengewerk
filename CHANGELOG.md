@@ -745,6 +745,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Absenderadresse sagt in einem eigenen Satz, dass der Name aus dem Briefkopf kommt. Die
   Datenbank bekommt keine Migration: der Vergleich der Bausteine mit den Migrationen hält die
   Tabelle seitdem mit.
+- Der Postausgang der E-Mail und der Job, der ihn verschickt, sind Teile des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#23`, vierter Teil), damit jede Anwendung ihre Nachrichten auf demselben
+  Weg und mit denselben Wiederholungen verschickt: die Tabelle `mail_outbox` als Fabrik
+  (`mailOutboxSchema`) mit den Arten der Anwendung, wann eine Nachricht fällig ist, wie oft sie
+  versucht und wann sie aufgegeben wird, der Link einer Einladung, der erst beim Versand entsteht,
+  und der Job, der je Mandant über dessen Mailserver verschickt, liegen in
+  `@opengewerk/platform-server`. Welche Anlässe es gibt, was eine Nachricht sagt und welche Datei
+  sie trägt, sagt die Anwendung: Diese behält am Postausgang ihre Spalten für Aufgabe, Beleg mit
+  Anhang und Frist, eine weitere Anwendung hat sie nicht. Ein Test im Fundament verschickt eine
+  Nachricht zu einem Anlass, den diese Anwendung nicht kennt. Mail, Push und Fristen laufen
+  seitdem im selben Takt (`startRepeating`). Diese Anwendung verschickt wie vorher, und die
+  Datenbank bekommt keine Migration: `drizzle-kit` meldet keine Änderung, und der Vergleich der
+  Bausteine mit den Migrationen hält den Postausgang seitdem mit, die eigenen Spalten als
+  ausdrücklich genannte Ausnahme. Die Wörter des Postausgangs im Änderungsprotokoll nennt jetzt
+  das Fundament, die der eigenen Spalten diese Anwendung (`ownFields`).
 
 ### Behoben
 

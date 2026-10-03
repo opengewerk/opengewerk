@@ -33,3 +33,14 @@ export const foundationPaths = [
   'files',
   'settings',
 ] as const
+
+/**
+ * The far end of the link of an invitation, which is a screen somebody reaches
+ * before they have an account at all.
+ *
+ * The path is the one thing three places have to agree on: the screen that
+ * invites builds a link with it, the gate recognises one by it, and the job
+ * that sends an invitation by mail makes its link with it as the message goes
+ * out. So it is written once, here, rather than as a string in each of them.
+ */
+export const invitationPath = '/einladung'

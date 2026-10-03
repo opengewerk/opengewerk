@@ -29,6 +29,8 @@ export * from './database/schema/rls.js'
 
 // Tables of the foundation an application makes with a list of its own: the
 // columns and the rules are the same everywhere, what the list holds is not.
+// The outbox of the mail takes columns of the application as well.
+export * from './database/schema/mail-outbox.js'
 export * from './database/schema/number-ranges.js'
 export * from './database/schema/parameters.js'
 export * from './database/schema/secrets.js'
@@ -154,15 +156,20 @@ export * from './secrets/store.js'
 
 // Mail: addresses and host names as a mail server takes them, the one
 // transport, where a mail server may be and how it is asked, the mail server
-// of a tenant and the routes of its settings. Who may see and change them,
-// and what a signature may say, the application says.
+// of a tenant and the routes of its settings, the outbox with its retries,
+// the link of an invitation made as it goes out, and the job that sends. Who
+// may see and change the settings, what a signature may say, which causes
+// there are and what a message about one says, the application says.
 export * from './mail/check.js'
 export * from './mail/configuration.js'
 export * from './mail/context.js'
+export * from './mail/invitation-link.js'
+export * from './mail/outbox.js'
 export * from './mail/reach.js'
 export * from './mail/server-settings.js'
 export * from './mail/settings.controller.js'
 export * from './mail/transport.js'
+export * from './mail/worker.js'
 
 // Web Push: encryption and signature, without a library.
 export * from './push/web-push.js'
@@ -171,5 +178,6 @@ export * from './push/web-push.js'
 // as the API, with a shell for every address that is neither a file nor the
 // server's.
 export * from './start/lifecycle.js'
+export * from './start/repeat.js'
 export * from './start/server.js'
 export * from './start/shells.js'

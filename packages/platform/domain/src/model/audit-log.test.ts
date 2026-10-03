@@ -55,6 +55,18 @@ describe('what the log calls a table and a field', () => {
     expect(language.fieldName('letters', 'nothing_names_this')).toBeNull()
   })
 
+  it("names a column of the application's own on a table of the foundation, never one the foundation names", () => {
+    const overreaching = auditLanguage({
+      ...probeAuditVocabulary,
+      ownFields: { mail_outbox: { parcel_number: 'Paketnummer', subject: 'Überschrift' } },
+    })
+
+    expect(language.fieldName('mail_outbox', 'parcel_number')).toBe('Paketnummer')
+    expect(language.fieldName('mail_outbox', 'subject')).toBe('Betreff')
+    expect(overreaching.fieldName('mail_outbox', 'subject')).toBe('Betreff')
+    expect(language.fieldName('shelves', 'parcel_number')).toBeNull()
+  })
+
   it('writes a field with its table, and a table nothing names as itself', () => {
     expect(language.fieldLabel('shelves', 'label')).toBe('Regal, Beschriftung')
     expect(language.fieldLabel('shelves', 'unnamed')).toBe('Regal, unnamed')
@@ -95,6 +107,7 @@ describe("what a record's name is", () => {
 
   it("is the foundation's own for its tables, and the common fields for a table nobody names", () => {
     expect(language.titleFields('memberships')).toEqual(['user_id'])
+    expect(language.titleFields('mail_outbox')).toEqual(['subject'])
     expect(language.titleFields('tenant_roles')).toEqual(['label', 'key'])
     expect(language.titleFrom('tenants', { name: 'Mandant Nord' })).toBe('Mandant Nord')
     expect(language.titleFrom('member_passkeys', { name: 'Laptop' })).toBe('Laptop')
@@ -107,6 +120,7 @@ describe('the fields the log treats apart', () => {
 
     expect(joined.isPersonField('user_id')).toBe(true)
     expect(joined.isPersonField('invited_by')).toBe(true)
+    expect(joined.isPersonField('requested_by')).toBe(true)
     expect(joined.isPersonField('host_id')).toBe(true)
     expect(joined.isPersonField('shelf_id')).toBe(false)
   })
@@ -122,10 +136,12 @@ describe('the fields the log treats apart', () => {
     expect(language.isQuiet('badge')).toBe(false)
   })
 
-  it('finds parts and references only where the application names them', () => {
+  it('finds parts where the application names them, and references where it or the foundation does', () => {
     expect(language.partsOf('shelves')).toEqual([{ table: 'notes', column: 'shelf_id' }])
     expect(language.partsOf('notes')).toEqual([])
     expect(language.referenceOf('letter_id')).toBe('letters')
+    // The invitation a message is about, in the outbox of every application.
+    expect(language.referenceOf('invitation_id')).toBe('invitations')
     expect(language.referenceOf('label')).toBeNull()
   })
 })

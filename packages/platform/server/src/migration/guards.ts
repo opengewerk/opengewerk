@@ -214,10 +214,12 @@ export const foundationGuards: readonly TableGuard[] = [
 /**
  * The tables of the foundation an application made with a list of its own:
  * the sealed credentials with its purposes, its settings, its sequences of
- * numbers, and what else is a function in the schema of the foundation rather
- * than a table. They are the foundation's
- * in every column and every rule, and only the application can say which
- * values their enums hold.
+ * numbers, the outbox of its mail, and what else is a function in the schema
+ * of the foundation rather than a table. They are the foundation's in every
+ * column and every rule, and only the application can say which values their
+ * enums hold. The outbox is the one an application may add columns to, for
+ * the records its messages are about; it names them to the comparison as its
+ * own, and describes the outbox here without them.
  *
  * An application describes them once, next to its schema. Its first migration
  * is completed with the guards (`completeInitialMigration`), and the kit of
@@ -263,6 +265,19 @@ export const tenantParametersGuard: TableGuard = {
  */
 export const numberRangesGuard: TableGuard = {
   table: 'number_ranges',
+  grants: noDelete,
+  audited: true,
+  synced: false,
+}
+
+/**
+ * The outbox of the mail (`mailOutboxSchema`). Written by whatever caused a
+ * message and changed by the job that sends it, never deleted: a message that
+ * went out is the record of what a tenant told somebody, and one that did not
+ * stays with the reason. Watched by the log, like every record of a tenant.
+ */
+export const mailOutboxGuard: TableGuard = {
+  table: 'mail_outbox',
   grants: noDelete,
   audited: true,
   synced: false,

@@ -128,6 +128,43 @@ describe('a database held against the foundation', () => {
     ).toEqual([])
   })
 
+  it('reports a column and a key more, unless the application names them as its own', () => {
+    // The outbox of the mail is the one table made to carry columns of an
+    // application, for the records its messages are about (#23).
+    const application = catalogue({
+      tables: {
+        probe: table({
+          columns: { ...table().columns, parcel_id: 'uuid' },
+          constraints: {
+            ...table().constraints,
+            probe_parcel_in_tenant: 'FOREIGN KEY (parcel_id) REFERENCES parcels(id)',
+          },
+        }),
+      },
+    })
+
+    expect(catalogueDeviations(blocks, application)).toEqual([
+      'table probe, column parcel_id: in the database and in no block',
+      'table probe, constraint probe_parcel_in_tenant: in the database and in no block',
+    ])
+    expect(
+      catalogueDeviations(blocks, application, {
+        columns: ['probe.parcel_id'],
+        constraints: ['probe.probe_parcel_in_tenant'],
+      }),
+    ).toEqual([])
+  })
+
+  it('reports a column of the blocks that says something else, whatever is named', () => {
+    const application = catalogue({
+      tables: { probe: table({ columns: { ...table().columns, name: 'text' } }) },
+    })
+
+    expect(catalogueDeviations(blocks, application, { columns: ['probe.name'] })).toEqual([
+      'table probe, column name: line 1: the blocks say "text not null", the database says "text"',
+    ])
+  })
+
   it('reports a trigger the blocks have and the database lacks, whatever is named', () => {
     const application = catalogue({ tables: { probe: table({ triggers: {} }) } })
 
@@ -142,10 +179,14 @@ describe('a database held against the foundation', () => {
     expect(
       catalogueDeviations(blocks, catalogue(), {
         triggers: ['probe.long_gone', 'customers.something'],
+        columns: ['probe.parcel_id'],
+        constraints: ['customers.customers_pkey'],
       }),
     ).toEqual([
+      "table probe, column parcel_id: named as the application's own and not there",
       "table probe, trigger long_gone: named as the application's own and not there",
       "customers.something: named as the application's own on a table the foundation does not have",
+      "customers.customers_pkey: named as the application's own on a table the foundation does not have",
     ])
   })
 

@@ -116,7 +116,6 @@ const auditReferences: Readonly<Record<string, string>> = {
   attachment_id: 'attachments',
   task_id: 'tasks',
   deadline_id: 'deadlines',
-  invitation_id: 'invitations',
   corrects_entry_id: 'time_entries',
   subscription_id: 'push_subscriptions',
   tag_id: 'tags',
@@ -131,7 +130,6 @@ const auditPersonFields: readonly string[] = [
   'natural_user_id',
   'created_by',
   'issued_by',
-  'requested_by',
   'closed_by',
 ]
 
@@ -174,7 +172,6 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   time_entries: ['started_at'],
   deadlines: ['source_label'],
   letterheads: ['company_name'],
-  mail_outbox: ['subject'],
   instructions: ['title', 'template'],
   form_definitions: ['key'],
   form_records: ['definition_key'],
@@ -209,6 +206,16 @@ const auditTitles: Readonly<Record<string, AuditTitleRule>> = {
 export const auditVocabulary: AuditVocabulary = {
   tables: auditTables,
   commonFields: auditCommonFields,
+  // The outbox is the foundation's table (#23); the columns for what a
+  // message of this application is about are this application's own.
+  ownFields: {
+    mail_outbox: {
+      task_id: 'Aufgabe',
+      document_id: 'Beleg',
+      attachment: 'Anhang',
+      deadline_id: 'Frist',
+    },
+  },
   foundation: {
     tenant: 'Betrieb',
     tenantParameter: 'Einstellung des Betriebs',
