@@ -16,9 +16,14 @@ import {
   signatureBox,
   type SignatureValue,
 } from '@opengewerk/domain'
-
-import type { PageMargin, PrintJob } from '../documents/renderer.js'
-import { fontFaces, present, text, typeface } from '../documents/template.js'
+import {
+  fontFaces,
+  type PageMargin,
+  present,
+  type PrintJob,
+  text,
+  typeface,
+} from '@opengewerk/platform-server'
 
 /**
  * A filled form on paper (#78), the test protocol of #79 first.

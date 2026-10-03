@@ -9,9 +9,14 @@ import {
   overcurrentText,
   rcdText,
 } from '@opengewerk/domain'
-
-import type { PageMargin, PrintJob } from '../documents/renderer.js'
-import { fontFaces, present, text, typeface } from '../documents/template.js'
+import {
+  fontFaces,
+  type PageMargin,
+  present,
+  type PrintJob,
+  text,
+  typeface,
+} from '@opengewerk/platform-server'
 
 /**
  * The circuit chart of one or more boards, the list that hangs on the inside

@@ -5,8 +5,8 @@
  * `Database` is a class, so Nest can inject it by its type. These are not:
  * they are values, each needs a token to be injected by, and a token is a
  * symbol. The tokens of what the foundation's own parts read, the trusted
- * origins, the authentication, the setup code, the file store and the record
- * of the last backup, are the foundation's.
+ * origins, the authentication, the setup code, the file store, the record of
+ * the last backup and the renderer, are the foundation's.
  *
  * They sit in a file of their own rather than next to the first controller
  * that needed them: a controller importing from another would say the two
@@ -16,9 +16,6 @@
 import type { MailConfiguration, SecretKey } from '@opengewerk/platform-server'
 
 import type { MailTransport } from '../mail/transport.js'
-
-/** What turns a print job into a PDF: the renderer service, or a stand-in. */
-export const RENDERER = Symbol('Renderer')
 
 /**
  * What the routes around mail need: where the instance is reached for the

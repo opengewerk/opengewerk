@@ -240,6 +240,9 @@ importers:
       '@better-auth/utils':
         specifier: 0.4.2
         version: 0.4.2
+      '@fontsource/barlow':
+        specifier: 5.3.0
+        version: 5.3.0
       '@nestjs/common':
         specifier: 12.0.3
         version: 12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -398,9 +401,6 @@ importers:
       '@cantoo/pdf-lib':
         specifier: 2.11.1
         version: 2.11.1(html-entities@2.6.0)
-      '@fontsource/barlow':
-        specifier: 5.3.0
-        version: 5.3.0
       '@nestjs/common':
         specifier: 12.0.3
         version: 12.0.3(reflect-metadata@0.2.2)(rxjs@7.8.2)

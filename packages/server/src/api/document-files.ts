@@ -26,6 +26,9 @@ import {
   FILE_STORE,
   fileRowFor,
   type FileStorage,
+  RENDERER,
+  type Renderer,
+  RendererUnavailableError,
   StoredFileDamagedError,
   StoredFileMissingError,
   type TenantTransaction,
@@ -36,7 +39,6 @@ import { documentFiles, documents, files } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
-import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { LegalGraphicError, legalPage, withLegalPages } from '../documents/legal-graphics.js'
 import {
   documentTitle,
@@ -47,7 +49,6 @@ import {
   printJob,
 } from '../documents/template.js'
 import { zugferdPdf } from '../documents/zugferd.js'
-import { RENDERER } from './handed-in.js'
 
 /** What the two forms are called in a sentence that says what one of them lacks. */
 const formNames: Readonly<Record<EInvoiceProfile, string>> = {

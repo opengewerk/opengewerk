@@ -1,8 +1,6 @@
 import { labelAddress, type LabelFormat, labelLayouts, printedLabelCode } from '@opengewerk/domain'
 import { encode } from 'uqr'
-
-import type { PrintJob } from '../documents/renderer.js'
-import { fontFaces, text, typeface } from '../documents/template.js'
+import { fontFaces, type PrintJob, text, typeface } from '@opengewerk/platform-server'
 
 /**
  * The QR label of an installation as it is printed (#308): the QR code at the

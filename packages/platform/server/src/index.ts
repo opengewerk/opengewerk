@@ -136,6 +136,13 @@ export * from './files/store.js'
 export * from './backup/controller.js'
 export * from './backup/status.js'
 
+// Printing: the renderer service that turns a page into a PDF, the token a
+// module hands it in under, and what every printed page is written with. What
+// a page says, the application writes.
+export * from './print/characters.js'
+export * from './print/helpers.js'
+export * from './print/renderer.js'
+
 // What a command is started with, for a test that listens to one.
 export type { CommandSurroundings } from './command-line.js'
 

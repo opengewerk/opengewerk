@@ -2,7 +2,7 @@ import { PDFDocument } from '@cantoo/pdf-lib'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DocumentContent } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, newId, type PrintJob, type Renderer } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -14,7 +14,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import type { PrintJob, Renderer } from '../documents/renderer.js'
 import { ApiModule } from './api.module.js'
 import type { DocumentInstructionsView } from './document-instructions.controller.js'
 import { binary } from './test-binary.js'

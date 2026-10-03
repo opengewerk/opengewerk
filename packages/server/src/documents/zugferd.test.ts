@@ -12,10 +12,10 @@ import {
   PDFStream,
 } from '@cantoo/pdf-lib'
 import { describe, expect, it } from 'vitest'
+import { readRendererConfiguration, rendererFor } from '@opengewerk/platform-server'
 
 import { ciiInvoice } from './cii.js'
 import { checkedCii } from './cii-schema.js'
-import { readRendererConfiguration, rendererFor } from './renderer.js'
 import { printJob } from './template.js'
 import { finalInvoice, samples } from './test-samples.js'
 import { zugferdPdf } from './zugferd.js'

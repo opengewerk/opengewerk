@@ -11,7 +11,13 @@ import {
   type ReportField,
   signedContentFingerprint,
 } from '@opengewerk/domain'
-import { Database, FileStore, newId } from '@opengewerk/platform-server'
+import {
+  Database,
+  FileStore,
+  newId,
+  type PrintJob,
+  type Renderer,
+} from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -24,7 +30,6 @@ import {
   refusedBy,
   resetSchema,
 } from '../database/test-database.js'
-import type { PrintJob, Renderer } from '../documents/renderer.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'

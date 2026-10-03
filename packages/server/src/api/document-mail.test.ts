@@ -5,7 +5,13 @@ import { join } from 'node:path'
 import { PDFDocument } from '@cantoo/pdf-lib'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { Database, FileStore, newId } from '@opengewerk/platform-server'
+import {
+  Database,
+  FileStore,
+  newId,
+  type Renderer,
+  RendererUnavailableError,
+} from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,7 +23,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { documentAttachments } from '../mail/attachments.js'
 import { aMailServer, testKey } from '../mail/test-mail-server.js'
 import { type MailTransport, type OutgoingMail, smtpTransport } from '../mail/transport.js'

@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-
 import {
   closesProgressInvoices,
   type DocumentContent,
@@ -18,9 +15,15 @@ import {
   signaturePathIsValid,
   type VatRate,
 } from '@opengewerk/domain'
-
-import { withoutUnwritable } from './characters.js'
-import type { PageMargin, PrintJob } from './renderer.js'
+import {
+  addressLines,
+  fontFaces,
+  type PageMargin,
+  present,
+  type PrintJob,
+  text,
+  typeface,
+} from '@opengewerk/platform-server'
 
 /**
  * The one letterhead template every document is printed with.
@@ -51,29 +54,9 @@ import type { PageMargin, PrintJob } from './renderer.js'
 /** What the page is printed on, measured from the edges of an A4 sheet. */
 const margin: PageMargin = { top: '15mm', right: '20mm', bottom: '32mm', left: '20mm' }
 
-/**
- * HTML escaping for anything a person typed. The characters no document
- * carries go first, the same ones the e-invoice drops, so the page and the
- * XML of one invoice say the same thing. Line breaks stay: the texts rely on
- * them.
- */
-export function text(value: string | null | undefined): string {
-  return withoutUnwritable(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
-
-export function present(value: string | null | undefined): value is string {
-  return value !== null && value !== undefined && value.trim() !== ''
-}
-
 const money = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 const quantities = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 })
 const percentages = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
-const regions = new Intl.DisplayNames(['de'], { type: 'region' })
 
 function euros(cents: number): string {
   return money.format(cents / 100)
@@ -140,85 +123,6 @@ const units: Readonly<Record<LineUnit, string>> = {
   litre: 'l',
   package: 'Pkg.',
   flat_rate: 'psch.',
-}
-
-const require = createRequire(import.meta.url)
-
-/** The faces the page uses: regular and semibold, Latin and extended Latin. */
-const faces = [
-  { weight: 400, subset: 'latin', range: latinRange() },
-  { weight: 400, subset: 'latin-ext', range: latinExtendedRange() },
-  { weight: 600, subset: 'latin', range: latinRange() },
-  { weight: 600, subset: 'latin-ext', range: latinExtendedRange() },
-] as const
-
-function latinRange(): string {
-  return (
-    'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,' +
-    'U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD'
-  )
-}
-
-function latinExtendedRange(): string {
-  return (
-    'U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,' +
-    'U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,' +
-    'U+A720-A7FF'
-  )
-}
-
-let embeddedFaces: Map<number, string> | undefined
-
-/**
- * The @font-face rules, with the fonts inside them as data.
- *
- * Embedded rather than left to the renderer's system fonts. The renderer image
- * is pulled as `latest`, and a font that changes with it changes every PDF an
- * installation produces after an update, line breaks included. Read once and
- * kept, because they are the same for every document.
- */
-export function fontFaces(weights: readonly number[]): string {
-  embeddedFaces ??= new Map(
-    faces.map((face, index) => {
-      const file = require.resolve(
-        `@fontsource/barlow/files/barlow-${face.subset}-${String(face.weight)}-normal.woff2`,
-      )
-      const data = readFileSync(file).toString('base64')
-
-      return [
-        index,
-        `@font-face{font-family:'Barlow';font-style:normal;font-weight:${String(face.weight)};` +
-          `font-display:block;src:url(data:font/woff2;base64,${data}) format('woff2');` +
-          `unicode-range:${face.range}}`,
-      ]
-    }),
-  )
-
-  return faces
-    .map((face, index) => (weights.includes(face.weight) ? embeddedFaces?.get(index) : undefined))
-    .filter((rule): rule is string => rule !== undefined)
-    .join('\n')
-}
-
-export const typeface = `'Barlow', 'Liberation Sans', Arial, sans-serif`
-
-/** An address as lines, the country only when it is not the sender's. */
-export function addressLines(
-  address: {
-    readonly street: string | null
-    readonly houseNumber: string | null
-    readonly postalCode: string | null
-    readonly city: string | null
-    readonly country: string
-  },
-  home: string,
-): string[] {
-  const street = [address.street, address.houseNumber].filter(present).join(' ')
-  const place = [address.postalCode, address.city].filter(present).join(' ')
-  const country =
-    address.country !== home ? (regions.of(address.country) ?? address.country).toUpperCase() : ''
-
-  return [street, place, country].filter(present)
 }
 
 /** The logo as a data address, so the renderer has nothing to fetch. */
