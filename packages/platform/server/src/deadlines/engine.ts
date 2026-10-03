@@ -14,7 +14,7 @@ import {
 } from '@opengewerk/platform-domain'
 import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm'
 
-import type { Database, TenantTransaction } from '../database/database.js'
+import type { Actor, Database, TenantTransaction } from '../database/database.js'
 import { everyTenant } from '../database/every-tenant.js'
 import type {
   DeadlineRow,
@@ -111,6 +111,17 @@ export interface DeadlineEngine<
   readonly complete?: (tx: TenantTransaction, now: Date) => Promise<void>
   /** The sentence the log says when the deadlines of one tenant could not be gone through. */
   readonly sentences: { readonly tenantFailed: (tenantId: TenantId) => string }
+  /**
+   * The way into a transaction of one tenant for a pass, `database.forTenant`
+   * unless the application gives another. A pass runs for nobody in
+   * particular, so an application whose tables keep more apart than the
+   * tenant, its areas for one, opens what the pass may see here; the routes
+   * of the deadlines stay on the transaction of the person who asked.
+   */
+  readonly inTenant?: <Result>(
+    actor: Actor,
+    work: (tx: TenantTransaction) => Promise<Result>,
+  ) => Promise<Result>
   readonly now?: () => Date
   /** Where a failure is said; the log, unless a test listens. */
   readonly complain?: (line: string, error: unknown) => void
@@ -334,17 +345,19 @@ export async function runDeadlinesOf<
 ): Promise<DeadlineReport> {
   const table = engine.table as unknown as DeadlinesTable
   const actor = { tenantId, reason: 'deadline' }
+  const inTenant =
+    engine.inTenant ??
+    (<Result>(who: Actor, work: (tx: TenantTransaction) => Promise<Result>) =>
+      engine.database.forTenant(who, work))
   const { day: today, minute } = berlinClock(now)
 
-  const found = await engine.database.forTenant(actor, (tx) =>
-    reconcileDeadlines(engine, tx, tenantId, now),
-  )
+  const found = await inTenant(actor, (tx) => reconcileDeadlines(engine, tx, tenantId, now))
 
   if (minute < morningMinute) {
     return { ...found, reminded: 0 }
   }
 
-  const { due, settings } = await engine.database.forTenant(actor, async (tx) => ({
+  const { due, settings } = await inTenant(actor, async (tx) => ({
     due: (await tx
       .select()
       .from(table)
@@ -374,7 +387,7 @@ export async function runDeadlinesOf<
       continue
     }
 
-    const done = await engine.database.forTenant(actor, (tx) =>
+    const done = await inTenant(actor, (tx) =>
       remindOne(engine, tx, tenantId, kind, setting, deadline, now),
     )
 

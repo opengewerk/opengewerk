@@ -817,6 +817,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   oder zuletzt scheiterte, denn eine Erinnerung, die nie kam, sieht sonst aus wie eine, die nicht
   fällig war. Eine Art, die in Monaten zählt, zeigt und nimmt ihre Frist in Monaten, auf der Karte
   einer Frist wie in den Einstellungen.
+- Der Lauf der Fristen öffnet seine Transaktionen auf dem Weg, den die Anwendung ihm gibt (ADR 0010,
+  `opengewerk-haustechnik#25`): `inTenant` an der `DeadlineEngine`, sonst wie bisher
+  `database.forTenant`. Die Haustechnik trennt ihre Liegenschaften nach Bereichen, und ein Lauf, der
+  für niemanden läuft, sähe ihre Fristen sonst nicht. Hier ändert sich nichts.
 
 ### Behoben
 
