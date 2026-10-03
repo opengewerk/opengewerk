@@ -657,6 +657,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Die zwei Mandanten der Sicherung bekommen ihre Rollen jetzt vor der Sicherung, wie jeder
   Mandant der Anwendung: bisher ergänzte die Anwendung sie erst bei ihrem nächsten Start, und
   der Vergleich nach dem Rückspielen bestand nur, weil er schneller zählte, als sie startete.
+- Der Abgleich auf dem Server ist ein Teil des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#21`, erster Teil), damit jede Anwendung die Vorgänge eines Geräts so
+  anwendet wie diese: `serverSync` in `@opengewerk/platform-server` wendet an, hält fest, was
+  aus einem Vorgang wurde, und liefert die Änderungen seitenweise nach der Änderungsnummer;
+  dazu gehören die Konflikte und die Regel, wessen Fehler ein Verstoß ist. Diese Anwendung gibt
+  ihre Regeln, ihre Tabellen, ihre vierzehn Prüfungen in der bisherigen Reihenfolge und die
+  Werte mit, die der Server ergänzt. Was ein Gerät sendet und zurückbekommt, bleibt gleich.
 
 ### Behoben
 

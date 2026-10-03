@@ -42,6 +42,14 @@ export * from './database/parameters.js'
 // application says.
 export * from './database/number-ranges.js'
 
+// The sync on the server: applying what a device queued up, recording what
+// became of it, and the pull by change sequence. Which entities travel, under
+// which rules, and what is asked of an operation before the database does,
+// the application says.
+export * from './sync/apply.js'
+export * from './sync/record-rules.js'
+export * from './sync/tables.js'
+
 // What a refusal of the database becomes on its way to the caller.
 export * from './api/database-errors.js'
 
