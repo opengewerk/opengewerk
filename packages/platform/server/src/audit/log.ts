@@ -1,34 +1,30 @@
 import {
-  type AuditChainReport,
   type AuditChange,
+  type AuditLanguage,
   type AuditOperation,
   type AuditPage,
   auditPageSize,
-  auditParts,
-  auditPersonFields,
-  auditReferences,
-  auditTitleFields,
-  auditTitleFrom,
   type AuditTitle,
   type TenantId,
-} from '@opengewerk/domain'
-import { accountsOf, type Database, type TenantTransaction } from '@opengewerk/platform-server'
+} from '@opengewerk/platform-domain'
 import { and, inArray, isNotNull, type SQL, sql } from 'drizzle-orm'
 
-import { verifyAuditChain } from '../database/audit.js'
-import { authSessions } from '../database/schema/index.js'
+import { accountsOf } from '../authentication/administration.js'
+import type { Database, TenantTransaction } from '../database/database.js'
+import { authSessions } from '../database/schema/authentication.js'
 
 /**
- * Reading the change log (#285): a page of changes with the names it needs,
- * the parts of one record, and the check of the chain.
+ * Reading the change log of a tenant (ADR 0010): a page of changes with the
+ * names it needs, and the parts of one record.
  *
- * Everything here reads `audit_entries` and nothing else of the business. The
+ * Everything here reads `audit_entries` and nothing else of the tenant. The
  * names come from the log as well, from the values a record last carried: a
  * record that is deleted, or marked so, keeps its history, and the history
- * keeps its name.
+ * keeps its name. Which tables are parts of a record, what a field points at
+ * and where a record's name is, the application says, in its vocabulary.
  */
 
-/** What the owner narrowed the log to. Every part is optional. */
+/** What the log was narrowed to. Every part is optional. */
 export interface AuditFilter {
   /** The first and last day, in Berlin, as ISO days. */
   readonly since: string | null
@@ -41,7 +37,7 @@ export interface AuditFilter {
   readonly before: number | null
 }
 
-/** A list of values as one array parameter, the way `device-scope.ts` passes its ids. */
+/** A list of values as one array parameter. */
 function textArray(values: readonly string[]): SQL {
   return values.length === 0
     ? sql`array[]::text[]`
@@ -62,15 +58,16 @@ function placeKey(place: Place): string {
 }
 
 /**
- * A record and every part of it, walked down level by level through
- * `auditParts`: a customer and its contacts, an installation and its whole
- * structure. The parts are found in the log and not in the tables, so a part
- * that is gone, or was moved to another record, is still found.
+ * A record and every part of it, walked down level by level through the parts
+ * the application names. The parts are found in the log and not in the
+ * tables, so a part that is gone, or was moved to another record, is still
+ * found.
  */
 export async function recordAndParts(
   tx: TenantTransaction,
   tenantId: TenantId,
   record: Place,
+  language: AuditLanguage,
 ): Promise<Place[]> {
   const found = new Map<string, Place>([[placeKey(record), record]])
   let level: Place[] = [record]
@@ -84,7 +81,7 @@ export async function recordAndParts(
     }
 
     for (const [table, ids] of byTable) {
-      for (const part of auditParts[table] ?? []) {
+      for (const part of language.partsOf(table)) {
         const result = await tx.execute(sql`
           select distinct record_id::text as id
             from audit_entries
@@ -321,6 +318,7 @@ async function titlesOf(
   tx: TenantTransaction,
   tenantId: TenantId,
   places: readonly Place[],
+  language: AuditLanguage,
 ): Promise<Map<string, AuditTitle>> {
   const titles = new Map<string, AuditTitle>()
 
@@ -331,7 +329,7 @@ async function titlesOf(
   const fields = new Set<string>(['kind'])
 
   for (const place of places) {
-    for (const field of auditTitleFields(place.table)) {
+    for (const field of language.titleFields(place.table)) {
       fields.add(field)
     }
   }
@@ -362,16 +360,11 @@ async function titlesOf(
 
   for (const place of places) {
     const values = latest.get(placeKey(place)) ?? {}
-    const titleField = auditTitleFields(place.table).find((field) => {
-      const value = values[field]
-
-      return typeof value === 'string' && value.trim() !== ''
-    })
 
     titles.set(place.id, {
       table: place.table,
-      field: place.table === 'contacts' ? null : (titleField ?? null),
-      title: auditTitleFrom(place.table, values),
+      field: language.titleFieldOf(place.table, values),
+      title: language.titleFrom(place.table, values),
       kind: values['kind'] ?? null,
     })
   }
@@ -387,10 +380,13 @@ export async function readAuditPage(
   database: Database,
   identity: { readonly tenantId: TenantId; readonly userId: string },
   filter: AuditFilter,
+  language: AuditLanguage,
 ): Promise<AuditPage> {
   const read = await database.forTenant(identity, async (tx) => {
     const places =
-      filter.record === null ? null : await recordAndParts(tx, identity.tenantId, filter.record)
+      filter.record === null
+        ? null
+        : await recordAndParts(tx, identity.tenantId, filter.record, language)
     const { changes, next } = await changesOf(tx, identity.tenantId, filter, places)
     const withDevice = await withDevices(tx, identity.tenantId, changes)
 
@@ -408,7 +404,7 @@ export async function readAuditPage(
       }
 
       for (const field of change.fields) {
-        const target = auditReferences[field.field]
+        const target = language.referenceOf(field.field)
 
         for (const value of [field.before, field.after]) {
           if (value === null) {
@@ -419,31 +415,36 @@ export async function readAuditPage(
             named.set(placeKey({ table: target, id: value }), { table: target, id: value })
           }
 
-          if (auditPersonFields.has(field.field)) {
+          if (language.isPersonField(field.field)) {
             people.add(value)
           }
         }
       }
     }
 
-    const titles = await titlesOf(tx, identity.tenantId, [...named.values()])
+    const titles = await titlesOf(tx, identity.tenantId, [...named.values()], language)
     // A record named after what it belongs to needs that name as well.
     const owners = new Map<string, Place>()
 
     for (const title of titles.values()) {
-      const target = title.field === null ? undefined : auditReferences[title.field]
+      const target = title.field === null ? null : language.referenceOf(title.field)
 
       if (target && title.title && !titles.has(title.title)) {
         owners.set(placeKey({ table: target, id: title.title }), { table: target, id: title.title })
       }
     }
 
-    for (const [id, title] of await titlesOf(tx, identity.tenantId, [...owners.values()])) {
+    for (const [id, title] of await titlesOf(
+      tx,
+      identity.tenantId,
+      [...owners.values()],
+      language,
+    )) {
       titles.set(id, title)
     }
 
     for (const title of titles.values()) {
-      if (title.field !== null && auditPersonFields.has(title.field) && title.title) {
+      if (title.field !== null && language.isPersonField(title.field) && title.title) {
         people.add(title.title)
       }
     }
@@ -470,7 +471,7 @@ export async function readAuditPage(
 
 /**
  * Which of these ids belonged to somebody who once had a membership in this
- * business. The log of `memberships` knows everybody who ever had one, also
+ * tenant. The log of `memberships` knows everybody who ever had one, also
  * those who have left, and it is the only list the instance is asked about.
  */
 export async function membersAmong(
@@ -494,9 +495,25 @@ export async function membersAmong(
 }
 
 /**
+ * Everybody who ever had a membership in this tenant, also those who have
+ * left: the people the log can be narrowed to.
+ */
+export async function everMembers(tx: TenantTransaction, tenantId: TenantId): Promise<string[]> {
+  const result = await tx.execute(sql`
+    select distinct new_value as user_id
+      from audit_entries
+     where tenant_id = ${tenantId}::uuid
+       and table_name = 'memberships'
+       and field = 'user_id'
+       and new_value is not null`)
+
+  return (result.rows as { user_id: string }[]).map((row) => row.user_id)
+}
+
+/**
  * The browser each device last signed in with, from the sessions that are
  * still there. A device whose sessions have all ended is known only by its
- * id. Asked only for sessions of people from this business.
+ * id. Asked only for sessions of people from this tenant.
  */
 async function agentsOf(
   database: Database,
@@ -542,69 +559,4 @@ async function agentsOf(
   }
 
   return new Map([...newest].map(([id, value]) => [id, value.agent]))
-}
-
-/**
- * The check of the chain as the owner reads it: the walk of the database
- * function, and on top what it cannot see, entries missing at the end. The
- * head of the chain says how many entries were written; fewer found means the
- * newest ones were taken away.
- */
-export async function checkAuditChain(
-  database: Database,
-  identity: { readonly tenantId: TenantId; readonly userId: string },
-  now: Date = new Date(),
-): Promise<AuditChainReport> {
-  return database.forTenant(identity, async (tx) => {
-    const verification = await verifyAuditChain(tx, identity.tenantId)
-    let { brokenAt, problem } = verification
-
-    if (brokenAt === null) {
-      const head = await tx.execute(sql`
-        select next_sequence, head_hash,
-               (select hash from audit_entries
-                 where tenant_id = ${identity.tenantId}::uuid
-                 order by sequence desc limit 1) as last_hash
-          from audit_chains
-         where tenant_id = ${identity.tenantId}::uuid`)
-      const row = head.rows[0] as
-        | { next_sequence: string | number; head_hash: string | null; last_hash: string | null }
-        | undefined
-
-      if (row) {
-        const written = Number(row.next_sequence) - 1
-
-        if (written > verification.checked) {
-          brokenAt = verification.checked + 1
-          problem =
-            written - verification.checked === 1
-              ? 'Der letzte Eintrag fehlt.'
-              : `Die letzten ${String(written - verification.checked)} Einträge fehlen.`
-        } else if (row.head_hash !== row.last_hash) {
-          brokenAt = verification.checked
-          problem = 'Der letzte Eintrag passt nicht zum Stand der Kette.'
-        }
-      }
-    }
-
-    let brokenAtTime: string | null = null
-
-    if (brokenAt !== null) {
-      const at = await tx.execute(sql`
-        select changed_at from audit_entries
-         where tenant_id = ${identity.tenantId}::uuid and sequence >= ${brokenAt}
-         order by sequence limit 1`)
-      const found = (at.rows[0] as { changed_at: string } | undefined)?.changed_at
-
-      brokenAtTime = found ? new Date(found).toISOString() : null
-    }
-
-    return {
-      checked: verification.checked,
-      brokenAt,
-      problem,
-      brokenAtTime,
-      checkedAt: now.toISOString(),
-    }
-  })
 }

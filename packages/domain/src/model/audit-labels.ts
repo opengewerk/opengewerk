@@ -1,24 +1,19 @@
+import type { AuditTableWords } from '@opengewerk/platform-domain'
+
 /**
  * What the change log calls a table and a field, in the words of the office
  * (#285): "Kunde, Straße" and not `customers.street`.
  *
- * Every table the audit trigger watches has a name here, and every one of its
- * columns has one, either its own or a common one; a test in the server holds
- * the list against the database, so a new column without a name fails there
- * rather than showing up as a column name in front of the owner.
+ * Every table of the business the audit trigger watches has a name here, and
+ * every one of its columns has one, either its own or a common one. The
+ * tables of the foundation, memberships, sign ins, roles and the like, are
+ * named there (ADR 0010); a test in the server holds both against the
+ * database, so a new column without a name fails there rather than showing up
+ * as a column name in front of the owner.
  */
 
-/** The fields many tables share, named once. */
-const commonFields: Readonly<Record<string, string>> = {
-  id: 'Kennung',
-  tenant_id: 'Betrieb',
-  created_at: 'Angelegt am',
-  updated_at: 'Geändert am',
-  version: 'Fassung',
-  updated_by: 'Geändert von',
-  device_id: 'Gerät',
-  deleted_at: 'Gelöscht am',
-  change_sequence: 'Abgleichsnummer',
+/** The fields many tables share, named once; those of the foundation it names itself. */
+export const auditCommonFields: Readonly<Record<string, string>> = {
   position: 'Reihenfolge',
   designation: 'Bezeichnung',
   manufacturer: 'Hersteller',
@@ -30,9 +25,7 @@ const commonFields: Readonly<Record<string, string>> = {
   postal_code: 'Postleitzahl',
   city: 'Ort',
   country: 'Land',
-  email: 'E-Mail',
   phone: 'Telefon',
-  name: 'Name',
   kind: 'Art',
   status: 'Status',
   customer_id: 'Kunde',
@@ -40,20 +33,14 @@ const commonFields: Readonly<Record<string, string>> = {
   installation_id: 'Anlage',
   job_id: 'Auftrag',
   document_id: 'Beleg',
-  user_id: 'Person',
   title: 'Titel',
   text: 'Text',
   body: 'Text',
   created_by: 'Angelegt von',
 }
 
-/** A table: what one of its rows is called, and the fields it names its own way. */
-interface TableWords {
-  readonly label: string
-  readonly fields?: Readonly<Record<string, string>>
-}
-
-export const auditTables: Readonly<Record<string, TableWords>> = {
+/** The tables of the business, by name. */
+export const auditTables: Readonly<Record<string, AuditTableWords>> = {
   article_imports: {
     label: 'Import aus DATANORM',
     fields: {
@@ -279,17 +266,6 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
     label: 'Wechselrichter',
     fields: { rated_power_w: 'Nennleistung in W', mpp_inputs: 'MPP-Eingänge' },
   },
-  invitations: {
-    label: 'Einladung',
-    fields: {
-      roles: 'Rollen',
-      token_hash: 'Prüfsumme des Links',
-      invited_by: 'Eingeladen von',
-      expires_at: 'Gültig bis',
-      redeemed_at: 'Eingelöst am',
-      revoked_at: 'Zurückgezogen am',
-    },
-  },
   job_assignments: { label: 'Einteilung auf einen Auftrag' },
   job_notes: {
     label: 'Notiz zu einem Auftrag',
@@ -364,15 +340,6 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       signature: 'Signatur',
       password_set_at: 'Passwort gesetzt am',
     },
-  },
-  member_passkeys: {
-    label: 'Passkey',
-    fields: { passkey_id: 'Kennung des Passkeys', removed_at: 'Gelöscht am' },
-  },
-  memberships: { label: 'Zugang', fields: { roles: 'Rollen', blocked_at: 'Gesperrt am' } },
-  number_ranges: {
-    label: 'Nummernkreis',
-    fields: { key: 'Kreis', pattern: 'Muster', next_value: 'Nächste Nummer' },
   },
   payments: {
     label: 'Zahlungseingang',
@@ -469,37 +436,6 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
       assignee_user_id: 'Verantwortlich',
     },
   },
-  tenant_parameters: {
-    label: 'Einstellung des Betriebs',
-    fields: {
-      key: 'Schlüssel',
-      valid_from: 'Gültig ab',
-      valid_until: 'Gültig bis',
-      unit: 'Einheit',
-      value: 'Wert',
-      note: 'Anmerkung',
-    },
-  },
-  tenant_roles: {
-    label: 'Rolle',
-    fields: {
-      key: 'Schlüssel',
-      label: 'Bezeichnung',
-      rights: 'Rechte',
-      leads: 'Führt den Betrieb',
-      second_factor: 'Zweiter Faktor Pflicht',
-    },
-  },
-  tenant_sessions: {
-    label: 'Anmeldung',
-    fields: {
-      session_id: 'Sitzung',
-      started_at: 'Begonnen am',
-      ended_at: 'Beendet am',
-      sign_in_method: 'Angemeldet mit',
-    },
-  },
-  tenants: { label: 'Betrieb' },
   text_snippets: { label: 'Textbaustein', fields: { purpose: 'Zweck' } },
   time_entries: {
     label: 'Arbeitszeit',
@@ -516,55 +452,3 @@ export const auditTables: Readonly<Record<string, TableWords>> = {
     },
   },
 }
-
-/**
- * The tables of the log of the instance (#188), apart from those of a
- * business: they carry the instance's own trigger and not the audit trigger,
- * and the test that holds `auditTables` against the database asks for that one.
- */
-export const instanceTables: Readonly<Record<string, TableWords>> = {
-  instance_settings: {
-    label: 'Einstellungen der Instanz',
-    fields: {
-      mail_internal_hosts: 'Freigegebene Mailserver',
-      backup_time: 'Uhrzeit der Sicherung',
-      imported_from_environment_at: 'Übernommen aus der .env am',
-    },
-  },
-  instance_operators: { label: 'Betreiber' },
-}
-
-/** What a row of this table is called, "Kunde", or the table's own name where it has none. */
-export function auditTableLabel(table: string): string {
-  return auditTables[table]?.label ?? instanceTables[table]?.label ?? table
-}
-
-/** What a field is called on its own, "Straße", or null where nothing names it. */
-export function auditFieldName(table: string, field: string): string | null {
-  return (
-    auditTables[table]?.fields?.[field] ??
-    instanceTables[table]?.fields?.[field] ??
-    commonFields[field] ??
-    null
-  )
-}
-
-/** A field with its table, "Kunde, Straße", as the change log shows it. */
-export function auditFieldLabel(table: string, field: string): string {
-  return `${auditTableLabel(table)}, ${auditFieldName(table, field) ?? field}`
-}
-
-/**
- * The fields an entry carries that say nothing about the change: the key of
- * the row, its business and when it was made, all set once when the row is
- * written. The log keeps them, as it keeps everything; the list leaves them
- * out, so that a new customer shows its name and address and not its key.
- */
-export const quietAuditFields: ReadonlySet<string> = new Set([
-  'id',
-  'tenant_id',
-  'created_at',
-  // The key of a passkey on the instance, which says as little as `id` does;
-  // the passkey is named by its name.
-  'passkey_id',
-])

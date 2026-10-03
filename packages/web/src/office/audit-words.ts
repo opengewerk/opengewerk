@@ -1,19 +1,14 @@
 import {
   type AuditChange,
   type AuditFieldChange,
-  auditFieldName,
+  auditLanguage,
   type AuditPage,
-  auditPersonFields,
-  auditReferences,
-  auditTableLabel,
-  auditTitleFields,
-  auditWay,
+  auditVocabulary,
   cableInstallationMethodLabel,
   distributionBoardKindLabel,
   type NumberRangeKey,
   overcurrentDeviceLabel,
   permissionLabel,
-  quietAuditFields,
   rcdTypeLabel,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
@@ -49,6 +44,13 @@ import { timeEntryKindLabel } from '../app/time.js'
  */
 
 type Words = Readonly<Record<string, string>>
+
+/**
+ * The change log's rules in the words of the business: what a table and a
+ * field are called, where a record's name is. The foundation holds them
+ * (ADR 0010), this application's vocabulary fills them in.
+ */
+export const audit = auditLanguage(auditVocabulary)
 
 /**
  * What a page brings along to name what its changes point at: records,
@@ -159,7 +161,7 @@ export function recordTitle(table: string, id: string, page: AuditNames): string
   const found = page.titles[id]
 
   if (!found || found.title === null) {
-    return `${auditTableLabel(table)} ohne Bezeichnung`
+    return `${audit.tableLabel(table)} ohne Bezeichnung`
   }
 
   const title =
@@ -179,7 +181,7 @@ export function recordKind(table: string, id: string, page: AuditNames): string 
     return (documentKindLabel as Words)[kind] ?? 'Beleg'
   }
 
-  return auditTableLabel(table)
+  return audit.tableLabel(table)
 }
 
 /**
@@ -248,11 +250,11 @@ export function auditValue(
     return raw.slice(0, 5)
   }
 
-  if (auditPersonFields.has(field)) {
+  if (audit.isPersonField(field)) {
     return page.people[raw] ?? 'Eine Person, die es nicht mehr gibt'
   }
 
-  const target = auditReferences[field]
+  const target = audit.referenceOf(field)
 
   if (target) {
     return recordTitle(target, raw, page)
@@ -291,7 +293,7 @@ export function auditValue(
 
 /** A field with its name, "Straße". */
 export function fieldWords(table: string, field: string): string {
-  return auditFieldName(table, field) ?? field
+  return audit.fieldName(table, field) ?? field
 }
 
 /**
@@ -304,7 +306,7 @@ export function fieldWords(table: string, field: string): string {
  * no order at all: "Käuferreferenz, Ort, Land" for a new customer.
  */
 export function shownFields(change: AuditChange): readonly AuditFieldChange[] {
-  const naming = auditTitleFields(change.table)
+  const naming = audit.titleFields(change.table)
   const rank = (field: string) => {
     const place = naming.indexOf(field)
 
@@ -312,7 +314,7 @@ export function shownFields(change: AuditChange): readonly AuditFieldChange[] {
   }
 
   return change.fields
-    .filter((field) => !quietAuditFields.has(field.field) && field.field !== 'device_id')
+    .filter((field) => !audit.isQuiet(field.field) && field.field !== 'device_id')
     .sort(
       (one, other) =>
         rank(one.field) - rank(other.field) ||
@@ -378,7 +380,7 @@ export function wayWords(
   readonly way: string
   readonly direct: boolean
 } {
-  const way = auditWay(change.reason, change.databaseRole)
+  const way = audit.way(change.reason, change.databaseRole)
 
   return {
     person:

@@ -7,3 +7,4 @@
 // interface, so that none of them needs a record of a real application to be
 // tested, and all of them mean the same records.
 export { probePolicies } from './sync/probe-policies.js'
+export { probeAuditVocabulary } from './model/probe-audit.js'

@@ -6,8 +6,14 @@ import {
   RequestMethod,
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
-import { largestAttachmentBytes, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
 import {
+  auditVocabulary,
+  largestAttachmentBytes,
+  largestLogoBytes,
+  logoMediaTypes,
+} from '@opengewerk/domain'
+import {
+  auditLogParts,
   type Authentication,
   authenticationParts,
   AUTHORIZATION,
@@ -73,7 +79,6 @@ import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
 import { PUSH, PushController, type PushContext } from './push.controller.js'
-import { AuditController } from './audit.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
@@ -216,6 +221,8 @@ export class ApiModule implements NestModule {
     // The routes a device syncs through are the foundation's; the right each
     // operation asks for and what a device holds are this application's.
     const syncing = syncParts({ access, routes: syncRoutes(secrets) })
+    // The change log of the business, read by the foundation in the words of the office.
+    const auditing = auditLogParts({ access, vocabulary: auditVocabulary })
 
     return {
       module: ApiModule,
@@ -240,7 +247,7 @@ export class ApiModule implements NestModule {
         DeadlinesController,
         DeadlineSettingsController,
         PushController,
-        AuditController,
+        ...auditing.controllers,
         TenantsController,
         FilesController,
         AttachmentsController,
@@ -280,6 +287,7 @@ export class ApiModule implements NestModule {
         ArticleImports,
         ...signingIn.providers,
         ...syncing.providers,
+        ...auditing.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

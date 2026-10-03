@@ -4,6 +4,7 @@ import {
   type AuditChainReport,
   type AuditPage,
   auditPageSize,
+  type AuditPerson,
   type RoleKey,
   type TenantId,
 } from '@opengewerk/domain'
@@ -22,7 +23,6 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import type { AuditPerson } from './audit.controller.js'
 import { testIdentities as identities } from './test-identity.js'
 
 /**

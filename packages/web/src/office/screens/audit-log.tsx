@@ -1,11 +1,4 @@
-import {
-  type AuditChainReport,
-  type AuditChange,
-  type AuditPage,
-  auditRecordTables,
-  auditTables,
-  auditTableLabel,
-} from '@opengewerk/domain'
+import type { AuditChainReport, AuditChange, AuditPage } from '@opengewerk/domain'
 import {
   Button,
   Cell,
@@ -27,6 +20,7 @@ import { type ReactNode, useId, useMemo, useState } from 'react'
 import { useMay } from '../../app/queries.js'
 import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../../session/audit.js'
 import {
+  audit,
   type AuditNames,
   auditValue,
   changeSummary,
@@ -102,7 +96,7 @@ export function AuditLogScreen() {
   const narrowed =
     typeof search.art === 'string' &&
     typeof search.datensatz === 'string' &&
-    (auditRecordTables as readonly string[]).includes(search.art)
+    audit.records.includes(search.art)
       ? { table: search.art, record: search.datensatz }
       : null
   const [since, setSince] = useState('')
@@ -140,8 +134,8 @@ export function AuditLogScreen() {
   const open = page.changes.find((change) => change.changeId === opened) ?? null
   const kinds = useMemo(
     () =>
-      Object.keys(auditTables)
-        .map((key) => ({ value: key, label: auditTableLabel(key) }))
+      Object.keys(audit.tables)
+        .map((key) => ({ value: key, label: audit.tableLabel(key) }))
         .sort((one, other) => one.label.localeCompare(other.label, 'de')),
     [],
   )
@@ -581,9 +575,7 @@ function ChangeLinks({
   const look = useButtonLook()
   const navigate = useNavigate()
   const href = recordHref(change.table, change.recordId)
-  const own =
-    (auditRecordTables as readonly string[]).includes(change.table) &&
-    narrowedTo !== change.recordId
+  const own = audit.records.includes(change.table) && narrowedTo !== change.recordId
 
   return (
     <>

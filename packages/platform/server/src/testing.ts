@@ -24,6 +24,10 @@ export * from './api/test-identity.js'
 // place only.
 export * from './secrets/boundaries.js'
 
+// Where the vocabulary of the change log does not fit the database: a table
+// or a column without a name, a rule over a column that does not exist.
+export * from './audit/vocabulary-gaps.js'
+
 // What somebody holds in their hand when they sign in: the app that shows a
 // code, and a device with a passkey.
 export * from './authentication/test-authenticator.js'
