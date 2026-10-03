@@ -32,6 +32,7 @@ export * from './database/schema/rls.js'
 // The outbox of the mail takes columns of the application as well.
 export * from './database/schema/mail-outbox.js'
 export * from './database/schema/number-ranges.js'
+export * from './database/schema/push.js'
 export * from './database/schema/parameters.js'
 export * from './database/schema/secrets.js'
 
@@ -171,8 +172,17 @@ export * from './mail/settings.controller.js'
 export * from './mail/transport.js'
 export * from './mail/worker.js'
 
-// Web Push: encryption and signature, without a library.
+// Web Push: encryption and signature without a library, the rule for the
+// address of a push service, the devices and the outbox of a tenant, the job
+// that sends and the routes of push. Which entries and occasions there are,
+// and what a message says, the application says.
+export * from './push/context.js'
+export * from './push/deliver.js'
+export * from './push/outbox.js'
+export * from './push/post.js'
+export * from './push/push.controller.js'
 export * from './push/web-push.js'
+export * from './push/worker.js'
 
 // The way in of an instance: the built interface served from the same process
 // as the API, with a shell for every address that is neither a file nor the

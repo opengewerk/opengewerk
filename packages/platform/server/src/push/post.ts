@@ -3,7 +3,7 @@ import { lookup as lookupAll } from 'node:dns/promises'
 import { request } from 'node:https'
 import { isIP } from 'node:net'
 
-import { isInternalAddress } from '@opengewerk/platform-server'
+import { isInternalAddress } from '../network/internal-address.js'
 
 /**
  * Why an endpoint a browser handed over is not one the server posts to, or

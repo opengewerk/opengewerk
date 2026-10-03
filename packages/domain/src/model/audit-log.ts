@@ -14,8 +14,6 @@ import { permissionLabel, roleKeys, roles } from './authorization.js'
 /** The reasons of the business's own work, beside those of the foundation. */
 const reasonWords: Readonly<Record<string, string>> = {
   deadline: 'Von selbst, Fristen',
-  notification: 'Von selbst, Benachrichtigungen',
-  push: 'Von selbst, Push-Versand',
   'article.import': 'Import aus DATANORM',
   'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
 }
@@ -117,7 +115,6 @@ const auditReferences: Readonly<Record<string, string>> = {
   task_id: 'tasks',
   deadline_id: 'deadlines',
   corrects_entry_id: 'time_entries',
-  subscription_id: 'push_subscriptions',
   tag_id: 'tags',
   site_access_id: 'site_accesses',
   import_id: 'article_imports',
@@ -135,14 +132,10 @@ const auditPersonFields: readonly string[] = [
 
 /**
  * The tables whose rows are best named by their person: somebody put on a job,
- * a consent, an occasion switched off. A membership and a stretch of work in
- * the business the foundation names the same way.
+ * a consent. A membership, a stretch of work in the business and an occasion
+ * switched off for push the foundation names the same way.
  */
-const auditPersonTables: readonly string[] = [
-  'job_assignments',
-  'location_consents',
-  'push_opt_outs',
-]
+const auditPersonTables: readonly string[] = ['job_assignments', 'location_consents']
 
 /**
  * Where a record's name is, field by field until one has a value. A document
@@ -178,7 +171,6 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   attachment_versions: ['file_name'],
   document_signatures: ['signer_name'],
   deadline_settings: ['kind'],
-  push_subscriptions: ['label'],
   job_notes: ['text'],
   payments: ['received_on'],
   document_files: ['purpose'],

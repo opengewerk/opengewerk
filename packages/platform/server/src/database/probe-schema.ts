@@ -4,11 +4,15 @@ import {
   type MadeByTheApplication,
   mailOutboxGuard,
   numberRangesGuard,
+  pushOptOutsGuard,
+  pushOutboxGuard,
+  pushSubscriptionsGuard,
   secretsGuard,
   tenantParametersGuard,
 } from '../migration/guards.js'
 import { mailOutboxSchema } from './schema/mail-outbox.js'
 import { numberRangesSchema } from './schema/number-ranges.js'
+import { pushSchema } from './schema/push.js'
 import { tenantParametersSchema } from './schema/parameters.js'
 import { secretsSchema } from './schema/secrets.js'
 
@@ -63,6 +67,15 @@ export const {
   constraints: (table) => [index('mail_outbox_parcel_idx').on(table.tenantId, table.parcelNumber)],
 })
 
+/**
+ * Push in the probe application: a device works at the front desk or in the
+ * back office, and a person can switch off the two occasions it tells about.
+ */
+export const probePush = pushSchema({
+  entries: ['front', 'back'],
+  occasions: ['parcel_waiting', 'visit_announced'],
+})
+
 /** The same tables as the kit is told about them. */
 export const probeMade: MadeByTheApplication = {
   schema: {
@@ -76,6 +89,15 @@ export const probeMade: MadeByTheApplication = {
     mailKind: probeMailKind,
     mailStatus: probeMailStatus,
     mailOutbox: probeMailOutbox,
+    ...probePush,
   },
-  guards: [secretsGuard, tenantParametersGuard, numberRangesGuard, mailOutboxGuard],
+  guards: [
+    secretsGuard,
+    tenantParametersGuard,
+    numberRangesGuard,
+    mailOutboxGuard,
+    pushSubscriptionsGuard,
+    pushOptOutsGuard,
+    pushOutboxGuard,
+  ],
 }

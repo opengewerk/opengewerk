@@ -214,7 +214,7 @@ export const foundationGuards: readonly TableGuard[] = [
 /**
  * The tables of the foundation an application made with a list of its own:
  * the sealed credentials with its purposes, its settings, its sequences of
- * numbers, the outbox of its mail, and what else is a function in the schema
+ * numbers, the outbox of its mail, its push, and what else is a function in the schema
  * of the foundation rather than a table. They are the foundation's in every
  * column and every rule, and only the application can say which values their
  * enums hold. The outbox is the one an application may add columns to, for
@@ -279,6 +279,40 @@ export const numberRangesGuard: TableGuard = {
 export const mailOutboxGuard: TableGuard = {
   table: 'mail_outbox',
   grants: noDelete,
+  audited: true,
+  synced: false,
+}
+
+/**
+ * The devices that take push messages (`pushSchema`). Written by a device
+ * that subscribes, removed by the person or when the browser or the session
+ * is gone. Watched by the log, like every record of a tenant.
+ */
+export const pushSubscriptionsGuard: TableGuard = {
+  table: 'push_subscriptions',
+  grants: everything,
+  audited: true,
+  synced: false,
+}
+
+/**
+ * The occasions a person switched off (`pushSchema`). A row while it is off,
+ * none once it is on again, so a row is written and removed and never changed.
+ */
+export const pushOptOutsGuard: TableGuard = {
+  table: 'push_opt_outs',
+  grants: ['select', 'insert', 'delete'],
+  audited: true,
+  synced: false,
+}
+
+/**
+ * The outbox of push (`pushSchema`). A message goes with its device: a
+ * subscription the browser dropped takes its messages with it.
+ */
+export const pushOutboxGuard: TableGuard = {
+  table: 'push_outbox',
+  grants: everything,
   audited: true,
   synced: false,
 }

@@ -1,7 +1,8 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { RoleKey, TenantId } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, newId, type PushOverview } from '@opengewerk/platform-server'
+import { aBrowser, recordingPost, testVapid } from '@opengewerk/platform-server/testing'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -13,9 +14,7 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { aBrowser, recordingPost, testVapid } from '../push/test-browser.js'
 import { ApiModule } from './api.module.js'
-import type { PushOverview } from './push.controller.js'
 import { testIdentities as identities } from './test-identity.js'
 
 /**

@@ -22,6 +22,9 @@ import {
   type MailContext,
   mailSettingsParts,
   parseFileUploads,
+  PUSH,
+  type PushContext,
+  pushParts,
   RENDERER,
   type Renderer,
   rendererFor,
@@ -37,6 +40,7 @@ import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
 import { mailServersOfBusinesses } from '../mail/server-settings.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
+import { pushRules } from '../notifications/push.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
@@ -72,7 +76,6 @@ import { syncRoutes } from './sync-routes.js'
 import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
-import { PUSH, PushController, type PushContext } from './push.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
@@ -223,6 +226,7 @@ export class ApiModule implements NestModule {
     const backingUp = backupStatusParts({ access, read: 'settings.read', directory: backupStatus })
     // The mail server of the business, set up by whoever may write in its name
     // (#102); whether it sends at all, for whoever reads the settings.
+    const pushing = pushParts({ access, rights: { write: 'push.write' }, rules: pushRules })
     const mailing = mailSettingsParts({
       access,
       rights: { status: 'settings.read', read: 'mail.read', write: 'mail.write' },
@@ -251,7 +255,7 @@ export class ApiModule implements NestModule {
         TasksController,
         DeadlinesController,
         DeadlineSettingsController,
-        PushController,
+        ...pushing.controllers,
         ...auditing.controllers,
         TenantsController,
         ...storing.controllers,
@@ -294,6 +298,7 @@ export class ApiModule implements NestModule {
         ...storing.providers,
         ...backingUp.providers,
         ...mailing.providers,
+        ...pushing.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

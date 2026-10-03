@@ -3,12 +3,16 @@ import {
   type MadeByTheApplication,
   mailOutboxGuard,
   numberRangesGuard,
+  pushOptOutsGuard,
+  pushOutboxGuard,
+  pushSubscriptionsGuard,
   secretsGuard,
   tenantParametersGuard,
 } from '@opengewerk/platform-server/migration'
 
 import { mailKinds } from './mail.js'
 import { numberRangeKey, numberRanges } from './number-ranges.js'
+import { push } from './push.js'
 import { ruleUnit, tenantParameterKey, tenantParameters } from './parameters.js'
 import { secretPurpose, secrets } from './secrets.js'
 
@@ -41,6 +45,15 @@ export const madeWithLists: MadeByTheApplication = {
     mailKind: outboxOfTheBlocks.mailKind,
     mailStatus: outboxOfTheBlocks.mailStatus,
     mailOutbox: outboxOfTheBlocks.mailOutbox,
+    ...push,
   },
-  guards: [secretsGuard, tenantParametersGuard, numberRangesGuard, mailOutboxGuard],
+  guards: [
+    secretsGuard,
+    tenantParametersGuard,
+    numberRangesGuard,
+    mailOutboxGuard,
+    pushSubscriptionsGuard,
+    pushOptOutsGuard,
+    pushOutboxGuard,
+  ],
 }

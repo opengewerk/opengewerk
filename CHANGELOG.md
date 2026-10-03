@@ -760,9 +760,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Bausteine mit den Migrationen hält den Postausgang seitdem mit, die eigenen Spalten als
   ausdrücklich genannte Ausnahme. Die Wörter des Postausgangs im Änderungsprotokoll nennt jetzt
   das Fundament, die der eigenen Spalten diese Anwendung (`ownFields`).
+- Push gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#23`, fünfter Teil), damit jede
+  Anwendung ihre Leute auf demselben Weg erreicht: die Tabellen der Geräte, der abgeschalteten
+  Anlässe und des Postausgangs als Fabrik (`pushSchema`) mit den Einstiegen und Anlässen der
+  Anwendung, das Schreiben je angemeldetem Gerät, Wiederholung und Aufgeben, die Regel für die
+  Adresse eines Push-Dienstes, der Job und die Routen unter `/push` liegen in
+  `@opengewerk/platform-server`. Diese Anwendung nennt ihre Einstiege Büro und Baustelle, ihre
+  Anlässe fällige Aufgabe und Frist mit den Wörtern von "Konto", ihr Recht `push.write` und den
+  Text der Probenachricht. Die Routen antworten wie vorher, und die Datenbank bekommt keine
+  Migration: `drizzle-kit` meldet keine Änderung, und der Vergleich der Bausteine mit den
+  Migrationen hält die drei Tabellen seitdem mit. Die Wörter der drei Tabellen und die Gründe
+  `push` und `notification` im Änderungsprotokoll nennt jetzt das Fundament.
 
 ### Behoben
 
+- Eine E-Mail oder Push-Nachricht, die der Job in einem Lauf schreibt, geht im selben Lauf
+  hinaus und nicht erst eine Minute später (`opengewerk-haustechnik#23`). Der Job las die Uhr,
+  bevor er die fälligen Anlässe schrieb, und die Datenbank stempelte die neue Zeile einen Augenblick
+  danach; für die Uhr des Laufs war sie damit noch nicht fällig. Die Tests liefen auf einer Uhr im
+  Jahr 2037 und konnten es nicht sehen, ein Test im Fundament läuft jetzt auf der Uhr der Instanz.
 - Am Telefon zeigt die Liste der Betriebe im Bereich der Instanz zu jedem Betrieb seinen Namen,
   den Tag der Anlage und die Zahl der Zugänge (#490). Jeder Kasten trug bisher nur die Inhaber:
   der Bildschirm gab der Kartenansicht seinen Inhalt an einer Stelle mit, die den ganzen Kasten

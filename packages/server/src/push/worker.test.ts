@@ -6,6 +6,7 @@ import {
   type TenantId,
 } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
+import { aBrowser, recordingPost, testVapid } from '@opengewerk/platform-server/testing'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -17,7 +18,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { aBrowser, recordingPost, testVapid } from './test-browser.js'
 import { type PushJob, runPushCycle } from './worker.js'
 
 /**

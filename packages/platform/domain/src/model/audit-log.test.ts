@@ -188,6 +188,16 @@ describe('the way a change took', () => {
     expect(foundationAuditReasons).toContain('tenant.cli')
     expect(foundationAuditReasons).not.toContain('tenant.create')
   })
+
+  it('names the jobs of the foundation that send, mail and push alike', () => {
+    // Since #23 the foundation sends mail and push and writes what is raised;
+    // a change those jobs make reads in its words in every application.
+    expect(language.way('mail', applicationRoleName).text).toBe('Von selbst, E-Mail-Versand')
+    expect(language.way('push', applicationRoleName).text).toBe('Von selbst, Push-Versand')
+    expect(language.way('notification', applicationRoleName).text).toBe(
+      'Von selbst, Benachrichtigungen',
+    )
+  })
 })
 
 describe('a day in a filter', () => {

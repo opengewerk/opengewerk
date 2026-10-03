@@ -1,11 +1,10 @@
+import type { PushPost } from './post.js'
 import {
   encryptMessage,
   type SubscriptionKeys,
   vapidAuthorization,
   type VapidKeys,
-} from '@opengewerk/platform-server'
-
-import type { PushPost } from './post.js'
+} from './web-push.js'
 
 /** What a device shows: a title, one line, where a tap leads, and the tag that replaces an older one. */
 export interface PushMessage {
@@ -21,7 +20,7 @@ export type Delivered =
   /**
    * The subscription is gone for good: the browser dropped it, or it was made
    * with another key than the one the instance signs with now. The device
-   * subscribes again the next time OpenGewerk is opened there.
+   * subscribes again the next time the application is opened there.
    */
   | { readonly kind: 'gone'; readonly reason: string }
   | { readonly kind: 'retry'; readonly reason: string; readonly afterSeconds: number | null }
