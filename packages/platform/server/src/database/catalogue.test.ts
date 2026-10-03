@@ -155,6 +155,62 @@ describe('a database held against the foundation', () => {
     ).toEqual([])
   })
 
+  it('reports a policy more, unless the application names it as its own and it is restrictive', () => {
+    // A restrictive policy can only take rows away from what the others give,
+    // the rows of the other areas of a tenant for one
+    // (opengewerk-haustechnik#25). A permissive one opens what the others
+    // close, named or not.
+    const application = catalogue({
+      tables: {
+        probe: table({
+          policies: {
+            ...table().policies,
+            within_areas:
+              'RESTRICTIVE for ALL to opengewerk_app using (area_id = ANY (session_areas()))',
+            open: 'PERMISSIVE for ALL to public using true',
+          },
+        }),
+      },
+    })
+
+    expect(catalogueDeviations(blocks, application)).toEqual([
+      'table probe, policy within_areas: in the database and in no block',
+      'table probe, policy open: in the database and in no block',
+    ])
+    expect(catalogueDeviations(blocks, application, { policies: ['probe.within_areas'] })).toEqual([
+      'table probe, policy open: in the database and in no block',
+    ])
+    expect(
+      catalogueDeviations(blocks, application, {
+        policies: ['probe.within_areas', 'probe.open'],
+      }),
+    ).toEqual([
+      "table probe, policy open: named as the application's own and permissive; only a restrictive policy may be, because a permissive one opens what the others close",
+    ])
+  })
+
+  it('reports a policy of the blocks that says something else, whatever is named', () => {
+    // Naming one that says what the blocks say changes nothing.
+    expect(
+      catalogueDeviations(blocks, catalogue(), { policies: ['probe.tenant_isolation'] }),
+    ).toEqual([])
+
+    // Even one that only narrows: the blocks say what the table promises.
+    const application = catalogue({
+      tables: {
+        probe: table({
+          policies: { tenant_isolation: 'RESTRICTIVE for ALL to opengewerk_app using (true)' },
+        }),
+      },
+    })
+
+    expect(
+      catalogueDeviations(blocks, application, { policies: ['probe.tenant_isolation'] }),
+    ).toEqual([
+      'table probe, policy tenant_isolation: line 1: the blocks say "PERMISSIVE for ALL to opengewerk_app using (true)", the database says "RESTRICTIVE for ALL to opengewerk_app using (true)"',
+    ])
+  })
+
   it('reports a column of the blocks that says something else, whatever is named', () => {
     const application = catalogue({
       tables: { probe: table({ columns: { ...table().columns, name: 'text' } }) },
@@ -181,12 +237,15 @@ describe('a database held against the foundation', () => {
         triggers: ['probe.long_gone', 'customers.something'],
         columns: ['probe.parcel_id'],
         constraints: ['customers.customers_pkey'],
+        policies: ['probe.vanished', 'customers.within_areas'],
       }),
     ).toEqual([
       "table probe, column parcel_id: named as the application's own and not there",
+      "table probe, policy vanished: named as the application's own and not there",
       "table probe, trigger long_gone: named as the application's own and not there",
       "customers.something: named as the application's own on a table the foundation does not have",
       "customers.customers_pkey: named as the application's own on a table the foundation does not have",
+      "customers.within_areas: named as the application's own on a table the foundation does not have",
     ])
   })
 

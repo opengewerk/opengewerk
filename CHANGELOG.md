@@ -821,6 +821,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `opengewerk-haustechnik#25`): `inTenant` an der `DeadlineEngine`, sonst wie bisher
   `database.forTenant`. Die Haustechnik trennt ihre Liegenschaften nach Bereichen, und ein Lauf, der
   für niemanden läuft, sähe ihre Fristen sonst nicht. Hier ändert sich nichts.
+- Der Vergleich einer Datenbank mit den Bausteinen des Fundaments nimmt eine einschränkende Policy
+  an einer Tabelle des Fundaments hin, wenn die Anwendung sie als ihre eigene nennt (ADR 0010,
+  `opengewerk-haustechnik#25`). Eine solche Policy kann nur Zeilen wegnehmen, also nichts öffnen,
+  was die Bausteine zusagen; die Haustechnik braucht sie, damit ihre Fristen den
+  Zuständigkeitsbereichen folgen. Eine erlaubende Policy bleibt eine Abweichung, auch genannt. Hier
+  ändert sich nichts.
 
 ### Behoben
 
