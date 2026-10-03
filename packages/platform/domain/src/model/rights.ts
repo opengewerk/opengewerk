@@ -28,6 +28,22 @@ export const accessRights = {
 export type AccessRight = (typeof accessRights)[keyof typeof accessRights]
 
 /**
+ * The rights the foundation asks for on the routes of the sync: taking what
+ * has changed, and sending what a device queued up.
+ *
+ * Rights of the foundation, because the routes are, but not in every
+ * catalogue: only an application whose devices work without a network
+ * registers those routes, and it carries both then. What an operation may
+ * touch beyond that is still the application's to decide, entity by entity.
+ */
+export const syncRights = {
+  read: 'sync.read',
+  write: 'sync.write',
+} as const
+
+export type SyncRight = (typeof syncRights)[keyof typeof syncRights]
+
+/**
  * A role as a tenant holds it: the key a membership names, the name a screen
  * calls it by, the rights it gives, and the two things about it that are not
  * rights.

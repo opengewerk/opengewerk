@@ -664,6 +664,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   dazu gehören die Konflikte und die Regel, wessen Fehler ein Verstoß ist. Diese Anwendung gibt
   ihre Regeln, ihre Tabellen, ihre vierzehn Prüfungen in der bisherigen Reihenfolge und die
   Werte mit, die der Server ergänzt. Was ein Gerät sendet und zurückbekommt, bleibt gleich.
+- Die Routen des Abgleichs sind ein Teil des Fundaments (ADR 0010, `opengewerk-haustechnik#21`,
+  zweiter Teil), damit jede Anwendung ihre Geräte über dieselben Routen abgleicht: `POST /sync`,
+  `GET /sync` und die Konflikte liegen in `@opengewerk/platform-server`. Diese Anwendung gibt
+  das Recht je Vorgang, ihre Worte für eine Ablehnung der Datenbank und die Auswahl je Gerät mit,
+  samt dem, was eine Antwort als eingeschränkt nennt. Was ein Gerät sendet und zurückbekommt,
+  bleibt gleich, auch der Fingerabdruck einer Auswahl, sodass kein Gerät deshalb neu abholt.
 
 ### Behoben
 

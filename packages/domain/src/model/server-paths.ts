@@ -31,6 +31,5 @@ export const serverPaths = [
   'time',
   'documents',
   'payments',
-  'sync',
   'settings',
 ] as const

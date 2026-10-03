@@ -1,13 +1,26 @@
-import { syncRules } from '@opengewerk/platform-domain'
+import {
+  type MemberIdentity,
+  type Operation,
+  type OperationKind,
+  rightsCatalogue,
+  syncRights,
+  syncRules,
+} from '@opengewerk/platform-domain'
 import { probePolicies } from '@opengewerk/platform-domain/testing'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { boolean, foreignKey, integer, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
+import { databaseErrors } from '../api/database-errors.js'
+import type { FoundIdentity } from '../api/identity.js'
+import { probeCatalogue } from '../authentication/probe-application.js'
 import { primaryId, reference, syncColumns, timestamps } from '../database/schema/columns.js'
 import { tenantIsolation } from '../database/schema/rls.js'
 import { tenantColumn } from '../database/schema/tenants.js'
 import { probeMade } from '../database/probe-schema.js'
 import type { MadeByTheApplication, TableGuard } from '../migration/guards.js'
+import type { ServerSync } from './apply.js'
+import type { SyncRoutes } from './controller.js'
+import { fingerprintOf, idArray } from './narrowing.js'
 
 // Records of the probe application that travel to devices, for the tests of
 // the sync on the server. Named the way the probe policies name them, which is
@@ -118,3 +131,125 @@ export const probeSyncMade: MadeByTheApplication = {
 
 /** A condition no row meets, for a device that may hold none of an entity. */
 export const nothing = sql`false`
+
+/**
+ * The rights of the probe application, as one whose devices work without a
+ * network: those of the sync, and one to write each kind of record beside the
+ * notes it already had.
+ */
+export const probeSyncCatalogue = rightsCatalogue([
+  ...probeCatalogue.rights,
+  syncRights.read,
+  syncRights.write,
+  'shelves.write',
+  'letters.write',
+])
+
+export type ProbeSyncRight = (typeof probeSyncCatalogue.rights)[number]
+
+/** Somebody of a tenant of the probe application, with the rights of the sync among theirs. */
+export type ProbeSyncIdentity = MemberIdentity<ProbeSyncRight>
+
+/** What the routes of the sync are told about the rights of the probe application. */
+export const probeSyncAccess = { catalogue: probeSyncCatalogue }
+
+/**
+ * The right an operation of the probe application asks for. Moving a note to
+ * another shelf is sorting the shelves, which whoever keeps them does, and
+ * not writing a note: the kind of question an application answers from what
+ * an operation does and not only from what it touches.
+ */
+export function probePermissionFor(
+  entity: string,
+  kind: OperationKind,
+  patches: Operation['patches'],
+): ProbeSyncRight | null {
+  if (
+    entity === 'notes' &&
+    kind === 'update' &&
+    patches.some((patch) => patch.field === 'shelfId')
+  ) {
+    return 'shelves.write'
+  }
+
+  const subject: Readonly<Record<string, ProbeSyncRight>> = {
+    shelves: 'shelves.write',
+    notes: 'notes.write',
+    letters: 'letters.write',
+    letter_lines: 'letters.write',
+  }
+
+  return subject[entity] ?? null
+}
+
+/**
+ * The routes of the sync of the probe application, around one of its syncs on
+ * the server.
+ *
+ * What a device holds depends on two things, the way it does in a real
+ * application: on who asks, since the letters and their lines are for whoever
+ * writes letters and a device of anybody else holds none; and on what the
+ * device asks for, since one can ask for the notes of the open shelves alone.
+ * Each note goes out with the label of its shelf, a value no column of the
+ * note holds, read in the transaction of the pull.
+ */
+export function probeSyncRoutes(
+  sync: ServerSync<FoundIdentity<ProbeSyncIdentity>>,
+  answerFor: SyncRoutes['answerFor'] = databaseErrors().answerFor,
+): SyncRoutes<ProbeSyncIdentity, ProbeSyncRight> {
+  return {
+    sync,
+    permissionFor: probePermissionFor,
+    answerFor,
+    async scope({ tx, identity, query }) {
+      const writesLetters = identity.rights.includes('letters.write')
+      const openOnly = query['shelves'] === 'open'
+      const open = openOnly
+        ? (
+            await tx
+              .select({ id: shelves.id })
+              .from(shelves)
+              .where(eq(shelves.closed, false))
+              .orderBy(shelves.id)
+          ).map((row) => row.id as string)
+        : []
+
+      return {
+        narrow(entity) {
+          if ((entity === 'letters' || entity === 'letter_lines') && !writesLetters) {
+            return nothing
+          }
+
+          return entity === 'notes' && openOnly
+            ? sql`${notes.shelfId} = any(${idArray(open)})`
+            : undefined
+        },
+        narrowed: {
+          letters: writesLetters ? 'all' : 'none',
+          letter_lines: writesLetters ? 'all' : 'none',
+          notes: openOnly ? `shelves:${fingerprintOf(open)}` : 'all',
+        },
+        async answer(changes) {
+          const labels = new Map(
+            (await tx.select({ id: shelves.id, label: shelves.label }).from(shelves)).map((row) => [
+              row.id as string,
+              row.label,
+            ]),
+          )
+
+          return changes.map((change) =>
+            change.entity !== 'notes'
+              ? change
+              : {
+                  entity: change.entity,
+                  rows: change.rows.map((row) => ({
+                    ...row,
+                    shelfLabel: labels.get(String(row['shelfId'])) ?? null,
+                  })),
+                },
+          )
+        },
+      }
+    },
+  }
+}

@@ -16,6 +16,7 @@ import {
   type InstanceSettingsCache,
   SameOriginGuard,
   type SecretKey,
+  syncParts,
   TRUSTED_ORIGINS,
   VERSION,
 } from '@opengewerk/platform-server'
@@ -67,7 +68,7 @@ import {
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SuppliersController } from './suppliers.controller.js'
-import { SyncController } from './sync.controller.js'
+import { syncRoutes } from './sync-routes.js'
 import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
 import { DeadlineSettingsController, DeadlinesController } from './deadlines.controller.js'
@@ -209,6 +210,12 @@ export class ApiModule implements NestModule {
       invitationMailing: invitationMailing(database, mail),
       instanceSettings: options.instance?.settings,
     })
+    // The key the ways into a site are sealed with (#286), the one of the mail
+    // context where none is handed in on its own.
+    const secrets = options.secrets ?? mail?.key ?? null
+    // The routes a device syncs through are the foundation's; the right each
+    // operation asks for and what a device holds are this application's.
+    const syncing = syncParts({ access, routes: syncRoutes(secrets) })
 
     return {
       module: ApiModule,
@@ -251,7 +258,7 @@ export class ApiModule implements NestModule {
         DocumentInstructionsController,
         PaymentsController,
         OpenPaymentsController,
-        SyncController,
+        ...syncing.controllers,
         SettingsController,
         ReportFieldsController,
         InstructionsController,
@@ -268,10 +275,11 @@ export class ApiModule implements NestModule {
         { provide: BACKUP_STATUS, useValue: backupStatus },
         { provide: VERSION, useValue: version },
         { provide: PUSH, useValue: push },
-        { provide: SECRETS, useValue: options.secrets ?? mail?.key ?? null },
+        { provide: SECRETS, useValue: secrets },
         DocumentFiles,
         ArticleImports,
         ...signingIn.providers,
+        ...syncing.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

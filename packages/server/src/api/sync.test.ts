@@ -16,7 +16,7 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { permissionFor } from './sync.controller.js'
+import { permissionFor } from './sync-routes.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { invoiceable, issuableDraft, readyToInvoice } from './test-invoice.js'
 import { created, push as transmit } from './test-structure.js'

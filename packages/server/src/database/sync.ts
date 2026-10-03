@@ -40,16 +40,8 @@ import * as schema from './schema/index.js'
 // operation, recording what became of it, the pull by change sequence and the
 // conflicts. What this application adds is in here: its rules and tables,
 // the questions it asks of an operation before the database does, in the
-// order they are asked, and the values the server puts in.
-
-export {
-  type ChangedRows,
-  closeConflict,
-  OperationRefused,
-  openConflicts,
-  toRecordState,
-  UnknownFieldError,
-} from '@opengewerk/platform-server'
+// order they are asked, and the values the server puts in. The routes a
+// device syncs through are bound in `api/sync-routes.ts`.
 
 type Check = SyncCheck<FoundIdentity>
 
@@ -424,7 +416,11 @@ async function withJobNumber(
   return { ...values, number: await assignNumber(tx, tenantId, 'job', new Date()) }
 }
 
-const sync = serverSync<FoundIdentity>({
+/**
+ * The sync on the server of this application, for the routes a device syncs
+ * through and for the tests that read the stream of a business.
+ */
+export const sync = serverSync<FoundIdentity>({
   rules: offlineRules,
   // The tables of the schema module itself. A map beside it would be one more
   // place to remember on the next table.
@@ -454,7 +450,7 @@ const sync = serverSync<FoundIdentity>({
     ),
 })
 
-export const { applyOperations, changesSince } = sync
+export const { changesSince } = sync
 
 export function syncTableFor(entity: string) {
   return sync.tableFor(entity)
