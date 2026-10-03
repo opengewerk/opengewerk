@@ -771,6 +771,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Migration: `drizzle-kit` meldet keine Änderung, und der Vergleich der Bausteine mit den
   Migrationen hält die drei Tabellen seitdem mit. Die Wörter der drei Tabellen und die Gründe
   `push` und `notification` im Änderungsprotokoll nennt jetzt das Fundament.
+- Der Weg vom Anlass zur Nachricht gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#23`,
+  sechster Teil): eine Tabelle der Anlässe (`occasionsOf`), je Art einer Benachrichtigung ihre
+  Ursache, was von selbst fällig wird, und wie daraus eine E-Mail und eine Push-Nachricht entstehen.
+  Die Jobs von E-Mail und Push laufen beide über diese Tabelle, und eine Art ohne ihren Anlass lässt
+  sich nicht übersetzen. Welche Anlässe es gibt, wer benachrichtigt wird und was eine Nachricht sagt,
+  bleibt bei der Anwendung: hier die fällige Aufgabe und die Frist für E-Mail und Push, der Beleg,
+  der unterschriebene Regiebericht und die Einladung für E-Mail. Verschickt wird wie vorher.
 
 ### Behoben
 
