@@ -599,6 +599,14 @@ startet dieselben Skripte gegen ihren eigenen Ordner, indem sie ihn in
 `APPLICATION_DIRECTORY` nennt, und hält ihre Variablen über deren Anfang von
 denen dieser Anwendung getrennt.
 
+Ebenso prüfen die drei CI-Läufe auf einem ganzen Stapel, "Betrieb über Docker
+Compose", "Sicherung und Rückspielen" und "Update einer laufenden Instanz",
+mit den Schritten aus `docker/test-stack.sh`. Was nur diese Anwendung weiß,
+etwa die Datensätze, die eine Sicherung zurückbringen muss, steht in
+`docker/test-material.sh`. Ein Schritt läuft auch von Hand, mit
+`sh docker/test-stack.sh <schritt>`, und zwar gegen den Stapel dieses Ordners:
+`lose-data` löscht dessen Volumes, wie es der Lauf will.
+
 Wer die `.env` lieber von Hand füllt, erzeugt jeden Schlüssel einzeln mit
 `openssl rand -hex 32`; als `SETUP_CODE` taugt jeder Code ab acht Zeichen,
 Leerzeichen und Bindestriche nicht gezählt. `VAPID_PRIVATE_KEY` ist kein
