@@ -1,9 +1,18 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { Database, newId, offerOf } from '@opengewerk/platform-server'
+import {
+  Database,
+  MailDeliveryError,
+  type MailTransport,
+  newId,
+  offerOf,
+  type OutgoingMail,
+  smtpTransport,
+} from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import {
   allowApplicationLogin,
@@ -14,13 +23,6 @@ import {
   shipRoles,
 } from '../database/test-database.js'
 import { invitationLinks } from '../mail/invitation-link.js'
-import { aMailServer, testKey } from '../mail/test-mail-server.js'
-import {
-  MailDeliveryError,
-  type MailTransport,
-  type OutgoingMail,
-  smtpTransport,
-} from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'

@@ -152,8 +152,17 @@ export type { CommandSurroundings } from './command-line.js'
 export * from './secrets/key.js'
 export * from './secrets/store.js'
 
-// Addresses and host names as a mail server takes them.
+// Mail: addresses and host names as a mail server takes them, the one
+// transport, where a mail server may be and how it is asked, the mail server
+// of a tenant and the routes of its settings. Who may see and change them,
+// and what a signature may say, the application says.
+export * from './mail/check.js'
 export * from './mail/configuration.js'
+export * from './mail/context.js'
+export * from './mail/reach.js'
+export * from './mail/server-settings.js'
+export * from './mail/settings.controller.js'
+export * from './mail/transport.js'
 
 // Web Push: encryption and signature, without a library.
 export * from './push/web-push.js'

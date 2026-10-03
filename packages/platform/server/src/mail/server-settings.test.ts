@@ -1,22 +1,43 @@
 import { BadRequestException } from '@nestjs/common'
-import { isMailAddress } from '@opengewerk/platform-server'
 import { describe, expect, it } from 'vitest'
 
-import { type MailServerInput, validMailServer } from './server-settings.js'
+import { probeSecrets } from '../database/probe-schema.js'
+import { secretStore } from '../secrets/store.js'
+import { isMailAddress } from './configuration.js'
+import { type MailServerInput, mailServers } from './server-settings.js'
 
 /**
- * The mail server as the office enters it. Every mistake that can be named
+ * The mail server as somebody enters it. Every mistake that can be named
  * before a server is asked is refused here with the field it is in; whether
- * the login is right is for the check.
+ * the login is right is for the check. What a signature may say is the
+ * application's: here the probe application's, which knows `{name}` and no
+ * other placeholder.
  */
+
+const asked: string[] = []
+
+const { validMailServer } = mailServers({
+  secrets: secretStore(probeSecrets),
+  purpose: 'mailbox',
+  signatureProblem(signature) {
+    asked.push(signature)
+
+    return /\{(?!name\})[^}]*\}/.test(signature) ? 'Nur {name} ist erlaubt.' : null
+  },
+  sentences: {
+    notConfigured: 'Kein Mailserver.',
+    noneToRemove: 'Kein Mailserver zum Entfernen.',
+    senderName: 'Den Namen gibt die Probe.',
+  },
+})
 
 const base: MailServerInput = {
   host: 'mail.example.de',
   port: null,
   security: 'starttls',
-  username: 'rechnung@nord.example.de',
+  username: 'post@nord.example.de',
   password: 'geheim',
-  fromAddress: 'rechnung@nord.example.de',
+  fromAddress: 'post@nord.example.de',
   signature: null,
 }
 
@@ -57,14 +78,15 @@ describe('a mail server', () => {
     expect(refusal({ port: 70000 })).toContain('zwischen 1 und 65535')
   })
 
-  it('sends from an address, and only the address', () => {
-    expect(refusal({ fromAddress: 'Elektro Nord <rechnung@nord.example.de>' })).toContain(
-      'keine E-Mail-Adresse',
+  it('sends from an address, and only the address, and says where the name comes from', () => {
+    expect(refusal({ fromAddress: 'Mandant Nord <post@nord.example.de>' })).toBe(
+      '"Mandant Nord <post@nord.example.de>" ist keine E-Mail-Adresse. Als Absender steht hier ' +
+        'nur die Adresse. Den Namen gibt die Probe.',
     )
-    expect(refusal({ fromAddress: 'rechnung@nord' })).toContain('keine E-Mail-Adresse')
+    expect(refusal({ fromAddress: 'post@nord' })).toContain('keine E-Mail-Adresse')
     expect(
-      validMailServer({ ...base, fromAddress: 'r.echnung@mail.nord.example.de' }).fromAddress,
-    ).toBe('r.echnung@mail.nord.example.de')
+      validMailServer({ ...base, fromAddress: 'p.ost@mail.nord.example.de' }).fromAddress,
+    ).toBe('p.ost@mail.nord.example.de')
   })
 
   /**
@@ -92,20 +114,24 @@ describe('a mail server', () => {
 })
 
 describe('a signature', () => {
-  it('knows {benutzer} and {briefkopf}, and names any other placeholder', () => {
-    expect(validMailServer({ ...base, signature: '{benutzer}\n{briefkopf}' }).signature).toBe(
-      '{benutzer}\n{briefkopf}',
-    )
-    expect(refusal({ signature: 'Grüße, {Benutzer}' })).toContain('{Benutzer}')
+  it('is asked of the application, and refused with its sentence', () => {
+    asked.length = 0
+
+    expect(validMailServer({ ...base, signature: 'Grüße\n{name}' }).signature).toBe('Grüße\n{name}')
+    expect(refusal({ signature: 'Grüße, {Name}' })).toBe('Nur {name} ist erlaubt.')
+    expect(asked).toEqual(['Grüße\n{name}', 'Grüße, {Name}'])
   })
 
-  it('is the letterhead when it is left empty', () => {
+  it('is nothing when it is left empty, and the application is not asked about it', () => {
+    asked.length = 0
+
     expect(validMailServer({ ...base, signature: '   ' }).signature).toBeNull()
+    expect(asked).toEqual([])
   })
 
   it('is kept with the line ends of this server, whatever the browser sent', () => {
-    expect(validMailServer({ ...base, signature: 'Viele Grüße\r\n{benutzer}' }).signature).toBe(
-      'Viele Grüße\n{benutzer}',
+    expect(validMailServer({ ...base, signature: 'Viele Grüße\r\n{name}' }).signature).toBe(
+      'Viele Grüße\n{name}',
     )
   })
 })

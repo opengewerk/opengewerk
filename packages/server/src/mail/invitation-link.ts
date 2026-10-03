@@ -1,9 +1,8 @@
-import { type Database, mintToken, stillOpen } from '@opengewerk/platform-server'
+import { type Database, MailDeliveryError, mintToken, stillOpen } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
 import { invitations } from '../database/schema/index.js'
 import type { OutboxRow } from './outbox.js'
-import { MailDeliveryError } from './transport.js'
 
 /** Where the link of an invitation comes from. Handed to the job, like the attachments. */
 export type InvitationLinkSource = (row: OutboxRow) => Promise<string>

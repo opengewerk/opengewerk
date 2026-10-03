@@ -6,11 +6,13 @@ import {
   authenticationPath,
   Database,
   newId,
+  type OutgoingMail,
 } from '@opengewerk/platform-server'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import { ApiModule } from '../api/api.module.js'
 import {
@@ -22,8 +24,6 @@ import {
   shipRoles,
 } from '../database/test-database.js'
 import { passwordResetMails } from '../mail/password-reset.js'
-import { aMailServer, testKey } from '../mail/test-mail-server.js'
-import type { OutgoingMail } from '../mail/transport.js'
 import { addStaffMember, createAuthentication, SessionIdentitySource } from './access.js'
 
 /**

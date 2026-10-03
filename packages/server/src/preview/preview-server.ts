@@ -10,16 +10,16 @@ import {
   type Database,
   FileStore,
   mailInternalHosts,
+  reachableOnly,
   readRendererConfiguration,
   rendererFor,
   SecretKey,
+  smtpTransport,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
 
 import { ApiModule } from '../api/api.module.js'
-import { reachableOnly } from '../mail/reach.js'
 import { httpsPost } from '../push/post.js'
-import { smtpTransport } from '../mail/transport.js'
 import { previewPort, previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'
 

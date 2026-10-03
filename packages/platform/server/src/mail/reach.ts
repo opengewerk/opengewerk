@@ -1,8 +1,8 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 
-import { isInternalAddress, type MailConfiguration } from '@opengewerk/platform-server'
-
+import { isInternalAddress } from '../network/internal-address.js'
+import type { MailConfiguration } from './configuration.js'
 import { MailDeliveryError, type MailTransport } from './transport.js'
 
 /**
@@ -12,12 +12,12 @@ import { MailDeliveryError, type MailTransport } from './transport.js'
  */
 export const mailPorts: readonly number[] = [25, 465, 587, 2465, 2525, 2587]
 
-/** Where the mail server of a business may be, beyond the internet. */
+/** Where the mail server of a tenant may be, beyond the internet. */
 export interface MailReach {
   /**
-   * Servers in the instance's own network that its operators allow, by name
-   * or by address, from the settings of the instance (#188). On any port: the
-   * operators vouch for them.
+   * Servers in the instance's own network that whoever runs it allows, by
+   * name or by address, from the settings of the instance. On any port: they
+   * vouch for them.
    */
   readonly internalHosts: readonly string[]
 }
@@ -75,8 +75,8 @@ export async function destinationOf(
     if (inside !== undefined) {
       throw new MailDeliveryError(
         `Der Mailserver "${host}" liegt nicht im Internet, sondern in einem internen Netz ` +
-          `(${inside}). Mit einem solchen verbindet sich OpenGewerk nur, wenn der Betreiber der ` +
-          'Instanz ihn freigibt, in deren Einstellungen unter „Mailserver im eigenen Netz“.',
+          `(${inside}). Mit einem solchen wird nur verbunden, wenn er in den Einstellungen der ` +
+          'Instanz unter „Mailserver im eigenen Netz“ freigegeben ist.',
         'EDESTINATION',
         null,
       )
@@ -102,9 +102,9 @@ export async function destinationOf(
 
 /**
  * A transport that only ever reaches a mail server on the internet, or one
- * the operator of the instance allows (GHSA-5664-h6fc-v729).
+ * the settings of the instance allow (GHSA-5664-h6fc-v729).
  *
- * The settings of a business name a host and a port, and without this the
+ * The settings of a tenant name a host and a port, and without this the
  * server connected to whatever they named: `localhost`, the database of the
  * instance, anything in the network it runs in. The check behind "Verbindung
  * prüfen" answered with what it found, which made it a way to look around in

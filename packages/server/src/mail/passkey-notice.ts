@@ -1,8 +1,8 @@
 import type { TenantId } from '@opengewerk/domain'
 import type { Database, PasskeyNotice } from '@opengewerk/platform-server'
 import { and, asc, eq, isNull } from 'drizzle-orm'
+import { type MailContext } from '@opengewerk/platform-server'
 
-import type { MailContext } from '../api/handed-in.js'
 import { mailOutbox, memberships, tenants } from '../database/schema/index.js'
 import { passkeyAddedMessage } from '../notifications/templates.js'
 import { connectionOf } from './server-settings.js'

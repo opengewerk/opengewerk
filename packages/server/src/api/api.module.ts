@@ -18,6 +18,9 @@ import {
   type FileStorage,
   HealthController,
   type InstanceSettingsCache,
+  MAIL,
+  type MailContext,
+  mailSettingsParts,
   parseFileUploads,
   RENDERER,
   type Renderer,
@@ -32,6 +35,7 @@ import { raw } from 'express'
 
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
+import { mailServersOfBusinesses } from '../mail/server-settings.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
@@ -57,11 +61,10 @@ import { InstallationsController } from './installations.controller.js'
 import { InstructionsController } from './instructions.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
-import { MailSettingsController } from './mail-settings.controller.js'
 import { NumberRangesController } from './number-ranges.controller.js'
 import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
-import { MAIL, type MailContext, SECRETS } from './handed-in.js'
+import { SECRETS } from './handed-in.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SuppliersController } from './suppliers.controller.js'
@@ -218,6 +221,13 @@ export class ApiModule implements NestModule {
     const storing = fileParts({ access, upload: 'attachment.write', store: files })
     // When the last backup ran, for whoever reads the settings (#130).
     const backingUp = backupStatusParts({ access, read: 'settings.read', directory: backupStatus })
+    // The mail server of the business, set up by whoever may write in its name
+    // (#102); whether it sends at all, for whoever reads the settings.
+    const mailing = mailSettingsParts({
+      access,
+      rights: { status: 'settings.read', read: 'mail.read', write: 'mail.write' },
+      servers: mailServersOfBusinesses,
+    })
 
     return {
       module: ApiModule,
@@ -264,7 +274,7 @@ export class ApiModule implements NestModule {
         SettingsController,
         ReportFieldsController,
         InstructionsController,
-        MailSettingsController,
+        ...mailing.controllers,
         NumberRangesController,
         LetterheadController,
         ...backingUp.controllers,
@@ -283,6 +293,7 @@ export class ApiModule implements NestModule {
         ...auditing.providers,
         ...storing.providers,
         ...backingUp.providers,
+        ...mailing.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

@@ -8,11 +8,13 @@ import { describe, expect, it } from 'vitest'
  * No module sends mail itself, section 2 of the concept and the last line of
  * the acceptance in #81.
  *
- * Two places are allowed and no third: `mail/` talks to the mail server, and
- * `notifications/` decides which message a cause becomes. A controller that
- * wanted a message sent would have to import one of the two things these tests
- * look for, and the test names it before a second sender, a second template
- * and a second place for a business's address have grown out of it.
+ * The transport is the foundation's since #23, and nothing here talks to a
+ * mail server past it. Two places are allowed and no third: `notifications/`
+ * decides which message a cause becomes, and `mail/` sends it through that
+ * transport. A controller that wanted a message sent would have to import one
+ * of the things these tests look for, and the test names it before a second
+ * sender, a second template and a second place for a business's address have
+ * grown out of it.
  */
 
 const source = fileURLToPath(new URL('..', import.meta.url))
@@ -39,14 +41,14 @@ function outside(paths: readonly string[], allowed: readonly string[]): string[]
 }
 
 describe('sending mail', () => {
-  it('happens in mail/ and nowhere else', () => {
+  it('goes through the transport of the foundation, and nothing here imports nodemailer', () => {
     const importing = files
       .filter((file) => /from\s+['"]nodemailer/.test(file.text))
       .map((file) => file.path)
 
-    // Found at all, or the test would pass by looking at nothing.
-    expect(importing).toContain('mail/transport.ts')
-    expect(outside(importing, ['mail/'])).toEqual([])
+    // Read at all, or the test would pass by looking at nothing.
+    expect(files.map((file) => file.path)).toContain('mail/worker.ts')
+    expect(importing).toEqual([])
   })
 
   it('is asked for through the notifications, and nothing else writes a message', () => {

@@ -1,8 +1,8 @@
 // The tables every application of the organisation carries, as an entry of
 // its own: `@opengewerk/platform-server/schema`. Tenants, accounts and
 // sessions, memberships and invitations, the roles of a tenant, the audit log,
-// the sync layer, the files a tenant keeps, and what belongs to the instance
-// and to no tenant.
+// the sync layer, the files a tenant keeps, the mail server it sends through,
+// and what belongs to the instance and to no tenant.
 //
 // An application hands this on from the file drizzle-kit reads its schema
 // from and builds its own tables next to it. Nothing but tables, enums and the
@@ -16,6 +16,7 @@ export * from './database/schema/audit.js'
 export * from './database/schema/authentication.js'
 export * from './database/schema/files.js'
 export * from './database/schema/instance.js'
+export * from './database/schema/mail-settings.js'
 export * from './database/schema/memberships.js'
 export * from './database/schema/sync.js'
 export * from './database/schema/tenant-roles.js'

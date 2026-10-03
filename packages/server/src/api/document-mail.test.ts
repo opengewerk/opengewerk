@@ -8,13 +8,17 @@ import { Test } from '@nestjs/testing'
 import {
   Database,
   FileStore,
+  type MailTransport,
   newId,
+  type OutgoingMail,
   type Renderer,
   RendererUnavailableError,
+  smtpTransport,
 } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import {
   allowApplicationLogin,
@@ -24,8 +28,6 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { documentAttachments } from '../mail/attachments.js'
-import { aMailServer, testKey } from '../mail/test-mail-server.js'
-import { type MailTransport, type OutgoingMail, smtpTransport } from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { ApiModule } from './api.module.js'
 import { DocumentFiles } from './document-files.js'

@@ -31,3 +31,8 @@ export * from './audit/vocabulary-gaps.js'
 // What somebody holds in their hand when they sign in: the app that shows a
 // code, and a device with a passkey.
 export * from './authentication/test-authenticator.js'
+
+// A mail server on this machine that takes what is sent and can refuse or
+// fall silent, the key the tests seal with, and a tenant with a mail server.
+export * from './mail/test-mail-server.js'
+export * from './mail/test-smtp.js'

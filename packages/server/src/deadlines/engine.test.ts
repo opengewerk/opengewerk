@@ -5,10 +5,11 @@ import {
   type DocumentId,
   type TenantId,
 } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, type MailTransport, newId, type OutgoingMail } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import { deadlines, jobs, mailOutbox, tasks } from '../database/schema/index.js'
 import {
@@ -19,8 +20,6 @@ import {
   resetSchema,
   shipRoles,
 } from '../database/test-database.js'
-import { aMailServer, testKey } from '../mail/test-mail-server.js'
-import type { MailTransport, OutgoingMail } from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { type DeadlineJob, type DeadlineRow, runDeadlineCycle, runDeadlinesOf } from './engine.js'
 import { deadlineKinds } from './registry.js'

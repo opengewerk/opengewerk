@@ -235,6 +235,7 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 export const foundationAuditTables = [
   'files',
   'invitations',
+  'mail_settings',
   'member_passkeys',
   'memberships',
   'number_ranges',
@@ -254,6 +255,18 @@ function foundationTables(
     files: {
       label: 'Gespeicherte Datei',
       fields: { sha256: 'Prüfsumme', size_bytes: 'Größe', media_type: 'Dateityp' },
+    },
+    mail_settings: {
+      label: 'E-Mail-Einstellungen',
+      fields: {
+        host: 'Server',
+        port: 'Port',
+        security: 'Verschlüsselung',
+        username: 'Anmeldung',
+        from_address: 'Absenderadresse',
+        signature: 'Signatur',
+        password_set_at: 'Passwort gesetzt am',
+      },
     },
     invitations: {
       label: 'Einladung',
@@ -330,9 +343,13 @@ function foundationInstanceTables(
   }
 }
 
-/** Where the records of the foundation are named: a membership and a sign in by their person, a file by its type. */
+/**
+ * Where the records of the foundation are named: a membership and a sign in by
+ * their person, a file by its type, a mail server by the address it sends from.
+ */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   files: ['media_type'],
+  mail_settings: ['from_address'],
   memberships: ['user_id'],
   tenant_sessions: ['user_id'],
   invitations: ['name', 'email'],
@@ -358,6 +375,7 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'membership.create': 'Zugang über die Kommandozeile',
   'instance.settings': 'Einstellungen der Instanz ändern',
   environment: 'Übernommen aus der .env',
+  mail: 'Von selbst, E-Mail-Versand',
   // The sync reads and writes under two rights; either way it is the sync.
   'sync.read': 'Abgleich',
   'sync.write': 'Abgleich',

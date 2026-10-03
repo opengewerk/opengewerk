@@ -11,10 +11,12 @@ import {
   FileStore,
   instanceIsEmpty,
   InstanceSettingsCache,
+  reachableOnly,
   readRendererConfiguration,
   rendererFor,
   runInstance,
   SecretKey,
+  smtpTransport,
   startupLine,
   stopOnSignals,
   takeOverFromEnvironment,
@@ -29,8 +31,6 @@ import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
 import { passkeyNotices } from './mail/passkey-notice.js'
 import { passwordResetMails } from './mail/password-reset.js'
-import { reachableOnly } from './mail/reach.js'
-import { smtpTransport } from './mail/transport.js'
 import { endInterruptedImports } from './datanorm/imports.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'

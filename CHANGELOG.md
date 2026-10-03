@@ -731,6 +731,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `@opengewerk/platform-server`. Was eine Seite sagt, schreibt weiter diese Anwendung: Belege,
   Etiketten, Prüfprotokoll und Stromkreisverzeichnis drucken wie vorher. Die Schrift Barlow ist
   dafür eine Abhängigkeit des Fundaments geworden.
+- Der Mailserver eines Betriebs ist Teil des Fundaments (ADR 0010, `opengewerk-haustechnik#23`,
+  dritter Teil), damit jede Anwendung auf demselben Weg verschickt: der Transport über
+  nodemailer, die Regel, dass ein Mailserver im Internet liegt oder in den Einstellungen der
+  Instanz freigegeben ist, die Prüfung der Verbindung, die Tabelle `mail_settings` mit dem
+  versiegelten Passwort und die Routen unter `/settings/mail` liegen in
+  `@opengewerk/platform-server`. Diese Anwendung nennt ihre Rechte (`settings.read`, `mail.read`,
+  `mail.write`), prüft ihre Signatur mit `{benutzer}` und `{briefkopf}`, gibt beim Entfernen auf,
+  was in ihrem Postausgang wartet, und spricht in ihren Sätzen vom Betrieb. Die Routen antworten
+  wie vorher, nur drei Sätze lauten anders, weil das Fundament keinen Produktnamen sagt: der zu
+  einem Mailserver im internen Netz nennt die Einstellungen der Instanz statt ihres Betreibers,
+  der zu einem Passwort ohne Benutzernamen spricht von der Anmeldung, und der zu einer falschen
+  Absenderadresse sagt in einem eigenen Satz, dass der Name aus dem Briefkopf kommt. Die
+  Datenbank bekommt keine Migration: der Vergleich der Bausteine mit den Migrationen hält die
+  Tabelle seitdem mit.
 
 ### Behoben
 
