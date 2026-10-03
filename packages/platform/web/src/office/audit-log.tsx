@@ -1,49 +1,38 @@
-import type { AuditChainReport, AuditChange, AuditPage } from '@opengewerk/domain'
 import {
-  Button,
-  Cell,
-  Column,
-  Panel,
-  TablePanel,
-  useBand,
-  useButtonLook,
-} from '@opengewerk/platform-web'
-import { clockTime, moment } from '@opengewerk/platform-web/format'
-import { Empty, NoteBox, SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+  type AuditChainReport,
+  type AuditChange,
+  type AuditPage,
+  auditRights,
+} from '@opengewerk/platform-domain'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ChevronDown, ChevronRight, History, ShieldCheck, TriangleAlert, X } from 'lucide-react'
 import { type ReactNode, useId, useMemo, useState } from 'react'
 
-import { useMay } from '../../app/queries.js'
-import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../../session/audit.js'
-import {
-  audit,
-  type AuditNames,
-  auditValue,
-  changeSummary,
-  fieldWords,
-  recordHref,
-  recordKind,
-  recordLinkWords,
-  recordTitle,
-  shownFields,
-  wayWords,
-} from '../audit-words.js'
+import { useAuditSentences } from '../application.js'
+import { useBand } from '../components/band.js'
+import { Button, useButtonLook } from '../components/button.js'
+import { Panel, TablePanel } from '../components/panel.js'
+import { Cell, Column } from '../components/table.js'
+import { clockTime, moment } from '../format.js'
+import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../session/audit.js'
+import { useRight } from '../session/queries.js'
+import { RequestRefused } from '../sync/transport.js'
+import { type AuditNames, useAuditWords } from './audit-words.js'
+import { Empty, NoteBox } from './kit.js'
+import { SettingsPage, SettingsText } from './settings.js'
+
+/**
+ * Where the change log of a tenant is opened: under the settings, at an
+ * address of its own, which the button at a record and the links of the
+ * screen itself lead to. An application lists it among its settings under
+ * the key `protokoll`.
+ */
+export const auditLogPath = '/einstellungen/protokoll'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
-}
-
-/** What the log of one record takes in beside it, for the line beside the chip. */
-const partsWords: Readonly<Record<string, string>> = {
-  customers: 'mit seinen Ansprechpartnern',
-  sites: 'mit seinen Ansprechpartnern',
-  installations: 'mit ihrer Struktur',
-  jobs: 'mit Notizen und Einteilung',
-  documents: 'mit Positionen, Unterschrift und Zahlungen',
 }
 
 const deviceDay = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' })
@@ -78,15 +67,21 @@ function breaksHere(change: AuditChange, report: AuditChainReport | undefined): 
 }
 
 /**
- * The change log of the business for its owner (#285), `protokoll()` of the
- * canvas: the check of the chain, the filters, one change opened with its
- * fields before and after, and the list, newest first, fifty at a time.
+ * The change log of a tenant for whoever may read it (ADR 0010; `protokoll()`
+ * of the canvas of the trades application): the check of the chain, the
+ * filters, one change opened with its fields before and after, and the list,
+ * newest first, fifty at a time. What its records, fields and values are
+ * called the application says in its value (`audit`), what the log holds and
+ * who reads it in its sentences (`sentences.audit`).
  *
  * Opened from a record, with `?art=` and `?datensatz=`, it shows that record
  * and its parts only, the chip above the filters says which and leads back.
  */
 export function AuditLogScreen() {
-  const reads = useMay('audit.read')
+  const words = useAuditWords()
+
+  const reads = useRight(auditRights.read)
+  const sentences = useAuditSentences()
   const band = useBand()
   const navigate = useNavigate()
   const search = useSearch({ strict: false }) as {
@@ -96,7 +91,7 @@ export function AuditLogScreen() {
   const narrowed =
     typeof search.art === 'string' &&
     typeof search.datensatz === 'string' &&
-    audit.records.includes(search.art)
+    words.language.records.includes(search.art)
       ? { table: search.art, record: search.datensatz }
       : null
   const [since, setSince] = useState('')
@@ -134,26 +129,22 @@ export function AuditLogScreen() {
   const open = page.changes.find((change) => change.changeId === opened) ?? null
   const kinds = useMemo(
     () =>
-      Object.keys(audit.tables)
-        .map((key) => ({ value: key, label: audit.tableLabel(key) }))
+      Object.keys(words.language.tables)
+        .map((key) => ({ value: key, label: words.language.tableLabel(key) }))
         .sort((one, other) => one.label.localeCompare(other.label, 'de')),
-    [],
+    [words],
   )
 
   const leaveRecord = () => {
     setOpened(null)
-    void navigate({ to: '/einstellungen/protokoll' })
+    void navigate({ to: auditLogPath })
   }
 
   return (
-    <SettingsPage
-      active="protokoll"
-      title="Änderungsprotokoll"
-      sub="Jede Änderung im Betrieb, Feld für Feld: wer, wann, auf welchem Gerät und auf welchem Weg."
-    >
+    <SettingsPage active="protokoll" title="Änderungsprotokoll" sub={sentences.what}>
       {!reads ? (
         <Panel>
-          <SettingsText muted>Das Änderungsprotokoll sieht nur der Inhaber.</SettingsText>
+          <SettingsText muted>{sentences.onlyFor}</SettingsText>
         </Panel>
       ) : (
         <>
@@ -171,9 +162,9 @@ export function AuditLogScreen() {
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="inline-flex h-8 items-center gap-1.5 rounded-control bg-ink pr-1 pl-[11px] text-[13px] font-semibold text-ground max-lg:h-10">
                   <History size={14} strokeWidth={2.3} aria-hidden="true" />
-                  {`${recordKind(narrowed.table, narrowed.record, page)} ${
+                  {`${words.recordKind(narrowed.table, narrowed.record, page)} ${
                     page.titles[narrowed.record]
-                      ? recordTitle(narrowed.table, narrowed.record, page)
+                      ? words.recordTitle(narrowed.table, narrowed.record, page)
                       : ''
                   }`.trim()}
                   <button
@@ -185,7 +176,9 @@ export function AuditLogScreen() {
                     <X size={14} strokeWidth={2.4} aria-hidden="true" />
                   </button>
                 </span>
-                <span className="text-[13px] text-ink-faint">{partsWords[narrowed.table]}</span>
+                <span className="text-[13px] text-ink-faint">
+                  {words.screen.partsWords?.[narrowed.table]}
+                </span>
               </div>
             ) : null}
             <div className="flex flex-wrap items-center gap-[9px] max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5">
@@ -464,6 +457,8 @@ export function FieldsTable({
   readonly change: AuditChange
   readonly page: AuditNames
 }) {
+  const words = useAuditWords()
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[520px] table-fixed border-collapse text-[13px] text-ink">
@@ -482,16 +477,16 @@ export function FieldsTable({
           </tr>
         </thead>
         <tbody>
-          {shownFields(change).map((field) => (
+          {words.shownFields(change).map((field) => (
             <tr key={field.field} className="border-t border-row align-top">
               <th scope="row" className="py-[7px] pr-2.5 text-left font-medium">
-                {fieldWords(change.table, field.field)}
+                {words.fieldWords(change.table, field.field)}
               </th>
               <td className="px-2.5 py-[7px] break-words text-ink-muted">
-                <Value text={auditValue(change.table, field.field, field.before, page)} />
+                <Value text={words.auditValue(change.table, field.field, field.before, page)} />
               </td>
               <td className="py-[7px] pl-2.5 break-words">
-                <Value text={auditValue(change.table, field.field, field.after, page)} />
+                <Value text={words.auditValue(change.table, field.field, field.after, page)} />
               </td>
             </tr>
           ))}
@@ -509,18 +504,22 @@ export function FieldList({
   readonly change: AuditChange
   readonly page: AuditNames
 }) {
+  const words = useAuditWords()
+
   return (
     <dl className="mt-2">
-      {shownFields(change).map((field) => (
+      {words.shownFields(change).map((field) => (
         <div key={field.field} className="border-t border-row py-2">
-          <dt className="text-[13px] font-semibold">{fieldWords(change.table, field.field)}</dt>
+          <dt className="text-[13px] font-semibold">
+            {words.fieldWords(change.table, field.field)}
+          </dt>
           <dd className="text-[14px] text-ink-muted">
             <span className="text-[12px] text-ink-faint">Vorher </span>
-            <Value text={auditValue(change.table, field.field, field.before, page)} />
+            <Value text={words.auditValue(change.table, field.field, field.before, page)} />
           </dd>
           <dd className="text-[14px]">
             <span className="text-[12px] text-ink-faint">Nachher </span>
-            <Value text={auditValue(change.table, field.field, field.after, page)} />
+            <Value text={words.auditValue(change.table, field.field, field.after, page)} />
           </dd>
         </div>
       ))}
@@ -540,7 +539,9 @@ export function ChangeFacts({
   readonly change: AuditChange
   readonly page: AuditNames
 }) {
-  const said = wayWords(change, page)
+  const words = useAuditWords()
+
+  const said = words.wayWords(change, page)
   const at = new Date(change.changedAt)
   const verb =
     change.operation === 'insert'
@@ -572,10 +573,12 @@ function ChangeLinks({
   readonly narrowedTo: string | null
   readonly wide: boolean
 }) {
+  const words = useAuditWords()
+
   const look = useButtonLook()
   const navigate = useNavigate()
-  const href = recordHref(change.table, change.recordId)
-  const own = audit.records.includes(change.table) && narrowedTo !== change.recordId
+  const href = words.recordHref(change.table, change.recordId)
+  const own = words.language.records.includes(change.table) && narrowedTo !== change.recordId
 
   return (
     <>
@@ -586,7 +589,7 @@ function ChangeLinks({
           className={wide ? 'only:col-span-2' : undefined}
           onClick={() => {
             void navigate({
-              to: '/einstellungen/protokoll',
+              to: auditLogPath,
               search: { art: change.table, datensatz: change.recordId },
             })
           }}
@@ -597,7 +600,7 @@ function ChangeLinks({
       {href ? (
         <Link to={href} className={clsx(look, wide && 'w-full only:col-span-2')}>
           <ChevronRight size={15} strokeWidth={2.3} aria-hidden="true" className="shrink-0" />
-          {recordLinkWords(change.table)}
+          {words.recordLinkWords(change.table)}
         </Link>
       ) : null}
     </>
@@ -616,9 +619,11 @@ function ChangePanel({
   readonly narrowedTo: string | null
   readonly onClose: () => void
 }) {
+  const words = useAuditWords()
+
   return (
     <Panel
-      title={`${recordKind(change.table, change.recordId, page)} ${recordTitle(change.table, change.recordId, page)}`}
+      title={`${words.recordKind(change.table, change.recordId, page)} ${words.recordTitle(change.table, change.recordId, page)}`}
     >
       <ChangeFacts change={change} page={page} />
       <FieldsTable change={change} page={page} />
@@ -639,7 +644,9 @@ export function PersonCell({
   readonly change: AuditChange
   readonly page: AuditNames
 }) {
-  const said = wayWords(change, page)
+  const words = useAuditWords()
+
+  const said = words.wayWords(change, page)
 
   return (
     <>
@@ -674,6 +681,8 @@ function ChangeTable({
   readonly onOpen: (changeId: string) => void
   readonly footer: ReactNode
 }) {
+  const words = useAuditWords()
+
   return (
     <TablePanel caption="Änderungen" footer={footer}>
       <thead>
@@ -703,13 +712,13 @@ function ChangeTable({
                 }}
                 className="cursor-pointer text-left text-ink hover:underline"
               >
-                {recordTitle(change.table, change.recordId, page)}
+                {words.recordTitle(change.table, change.recordId, page)}
               </button>
               <span className="block text-[12px] text-ink-faint">
-                {recordKind(change.table, change.recordId, page)}
+                {words.recordKind(change.table, change.recordId, page)}
               </span>
             </Cell>
-            <Cell className="text-ink-muted">{changeSummary(change)}</Cell>
+            <Cell className="text-ink-muted">{words.changeSummary(change)}</Cell>
             <Cell>
               <PersonCell change={change} page={page} />
             </Cell>
@@ -734,11 +743,13 @@ function PhoneList({
   readonly onOpen: (changeId: string | null) => void
   readonly narrowedTo: string | null
 }) {
+  const words = useAuditWords()
+
   return (
     <ul aria-label="Änderungen" className="flex flex-col gap-2">
       {page.changes.map((change) => {
         const isOpen = change.changeId === opened
-        const said = wayWords(change, page)
+        const said = words.wayWords(change, page)
 
         return (
           <li
@@ -757,14 +768,14 @@ function PhoneList({
               className="flex w-full cursor-pointer flex-col gap-0.5 text-left text-ink"
             >
               <span className="flex items-baseline gap-2 text-[13px] text-ink-faint">
-                <span>{recordKind(change.table, change.recordId, page)}</span>
+                <span>{words.recordKind(change.table, change.recordId, page)}</span>
                 <span className="grow" />
                 <span className="numeric">{moment(change.changedAt)}</span>
               </span>
               <span className="text-[16px] font-semibold [overflow-wrap:anywhere]">
-                {recordTitle(change.table, change.recordId, page)}
+                {words.recordTitle(change.table, change.recordId, page)}
               </span>
-              <span className="text-[14px] text-ink-muted">{changeSummary(change)}</span>
+              <span className="text-[14px] text-ink-muted">{words.changeSummary(change)}</span>
               <span className="text-[13px] text-ink-faint">
                 {[said.person ?? 'Niemand', said.device, said.way].filter(Boolean).join(' · ')}
               </span>
@@ -786,12 +797,13 @@ function PhoneList({
 }
 
 /**
- * "Änderungen" at the head of a record (#285): the log of this record and its
- * parts, for the owner and nobody else. Placed before the other actions, as
- * the board "Knopf „Änderungen“ an den Datensätzen" has it.
+ * "Änderungen" at the head of a record: the log of this record and its parts,
+ * for whoever may read the log and nobody else. Placed before the other
+ * actions, as the board "Knopf „Änderungen“ an den Datensätzen" of the canvas
+ * of the trades application has it.
  */
 export function ChangesButton({ table, id }: { readonly table: string; readonly id: string }) {
-  const reads = useMay('audit.read')
+  const reads = useRight(auditRights.read)
   const look = useButtonLook()
 
   if (!reads) {
@@ -799,7 +811,7 @@ export function ChangesButton({ table, id }: { readonly table: string; readonly 
   }
 
   return (
-    <Link to="/einstellungen/protokoll" search={{ art: table, datensatz: id }} className={look}>
+    <Link to={auditLogPath} search={{ art: table, datensatz: id }} className={look}>
       <History size={15} strokeWidth={2.3} aria-hidden="true" className="shrink-0" />
       Änderungen
     </Link>

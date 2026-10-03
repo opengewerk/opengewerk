@@ -8,6 +8,7 @@ import type {
   OperatorView,
 } from '@opengewerk/domain'
 import {
+  InstanceLogScreen,
   InstanceOperatorsScreen,
   InstanceSettingsScreen,
   InstanceTenantsScreen,
@@ -30,7 +31,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { InApplication } from '../../app/in-application.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 import { SyncClient } from '../../sync/client.js'
-import { InstanceLogScreen } from './log.js'
 import { InstanceShell } from './shell.js'
 
 /**
@@ -38,11 +38,10 @@ import { InstanceShell } from './shell.js'
  * "Instanz: Betriebe", "Instanz: Einstellungen", "Instanz: Betreiber" and
  * "Instanz: Protokoll" draw it.
  *
- * Its frame and three of its screens are the foundation's and have their
- * tests there (ADR 0010). Here is what only this application can get wrong:
- * the screens its navigation lists and where, the words it hands in for a
- * business, its owner and the operators, and the log, which stays here with
- * the change log of a business it is drawn from.
+ * Its frame and its screens are the foundation's and have their tests there
+ * (ADR 0010). Here is what only this application can get wrong: the screens
+ * its navigation lists and where, and the words it hands in for a business,
+ * its owner and the operators, those of the log among them.
  */
 
 interface Call {

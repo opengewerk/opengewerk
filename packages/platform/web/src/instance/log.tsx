@@ -1,16 +1,21 @@
-import type { AuditChange, InstanceLogPage } from '@opengewerk/domain'
-import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
-import { moment } from '@opengewerk/platform-web/format'
-import { InstancePage } from '@opengewerk/platform-web/instance'
-import { Empty, SettingsText } from '@opengewerk/platform-web/office'
-import { instanceLog } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+import type { AuditChange, InstanceLogPage } from '@opengewerk/platform-domain'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { type ReactNode, useState } from 'react'
 
-import { audit, type AuditNames, changeSummary, wayWords } from '../audit-words.js'
-import { ChangeFacts, FieldList, FieldsTable, PersonCell } from '../screens/audit-log.js'
+import { useInstanceSentences } from '../application.js'
+import { useBand } from '../components/band.js'
+import { Button } from '../components/button.js'
+import { Panel, TablePanel } from '../components/panel.js'
+import { Cell, Column } from '../components/table.js'
+import { moment } from '../format.js'
+import { ChangeFacts, FieldList, FieldsTable, PersonCell } from '../office/audit-log.js'
+import { type AuditNames, type AuditWords, useAuditWords } from '../office/audit-words.js'
+import { Empty } from '../office/kit.js'
+import { SettingsText } from '../office/settings.js'
+import { instanceLog } from '../session/instance.js'
+import { RequestRefused } from '../sync/transport.js'
+import { InstancePage } from './frame.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -27,11 +32,19 @@ function merged(pages: readonly InstanceLogPage[]): InstanceLogPage {
   }
 }
 
+/** What the log of the instance says in the words of the application. */
+type LogSentences = ReturnType<typeof useInstanceSentences>['log']
+
 /**
- * What a change of the instance is about: its settings, an operator by name,
- * a business by its name today or as the log last had it.
+ * What a change of the instance is about: its settings, one of those who run
+ * it by name, a tenant by its name today or as the log last had it.
  */
-export function instanceRecord(change: AuditChange, page: AuditNames): string {
+export function instanceRecord(
+  change: AuditChange,
+  page: AuditNames,
+  words: AuditWords,
+  sentences: LogSentences,
+): string {
   if (change.table === 'instance_settings') {
     return 'Einstellungen der Instanz'
   }
@@ -40,36 +53,40 @@ export function instanceRecord(change: AuditChange, page: AuditNames): string {
 
   if (change.table === 'instance_operators') {
     return title === null
-      ? 'Betreiber'
+      ? words.language.tableLabel(change.table)
       : (page.people[title] ?? 'Eine Person, die es nicht mehr gibt')
   }
 
   if (change.table === 'tenants') {
-    return title ?? 'Ein Betrieb'
+    return title ?? sentences.aTenant
   }
 
-  return audit.tableLabel(change.table)
+  return words.language.tableLabel(change.table)
 }
 
 /** The change in a few words: named where one word says it, the fields that moved otherwise. */
-export function instanceChangeSummary(change: AuditChange): string {
+export function instanceChangeSummary(
+  change: AuditChange,
+  words: AuditWords,
+  sentences: LogSentences,
+): string {
   if (change.table === 'instance_operators') {
     if (change.operation === 'insert') {
-      return 'Betreiber benannt'
+      return sentences.operatorAppointed
     }
 
     if (change.operation === 'delete') {
-      return 'Betreiber entfernt'
+      return sentences.operatorRemoved
     }
   }
 
   if (change.table === 'tenants') {
     if (change.operation === 'insert') {
-      return 'Betrieb angelegt'
+      return sentences.tenantCreated
     }
 
     if (change.operation === 'delete') {
-      return 'Betrieb entfernt'
+      return sentences.tenantRemoved
     }
   }
 
@@ -77,23 +94,24 @@ export function instanceChangeSummary(change: AuditChange): string {
     return 'Eingerichtet'
   }
 
-  return changeSummary(change)
+  return words.changeSummary(change)
 }
 
 /**
- * The log of the instance (#188), `instanz_protokoll()` of the canvas: every
- * change to its settings, its operators and the list of its businesses, who
- * made it and on which way, newest first, fifty at a time. A change in a
- * business stands in that business's own change log and not here; this one
- * holds nothing of what is in a business.
+ * The log of the instance (#188; `instanz_protokoll()` of the canvas of the
+ * trades application): every change to its settings, to who runs it and to
+ * the list of its tenants, who made it and on which way, newest first, fifty
+ * at a time. A change in a tenant stands in that tenant's own change log and
+ * not here; this one holds nothing of what is in a tenant.
  *
- * The frame of the area, the page and the question for the log are the
- * foundation's (ADR 0010). The screen stays here for as long as the change
- * log of a business does, whose pieces it is drawn from: both move into the
- * foundation together (opengewerk/opengewerk-haustechnik#22).
+ * Drawn from the pieces of the change log of a tenant, in the words of the
+ * application (ADR 0010): its vocabulary names the tables, its sentences the
+ * tenants and those who run the instance (`sentences.instance.log`).
  */
 export function InstanceLogScreen() {
   const band = useBand()
+  const words = useAuditWords()
+  const sentences = useInstanceSentences().log
   const [opened, setOpened] = useState<string | null>(null)
   const log = useInfiniteQuery({
     queryKey: ['instance-log'],
@@ -127,11 +145,7 @@ export function InstanceLogScreen() {
   )
 
   return (
-    <InstancePage
-      title="Protokoll"
-      sub="Jede Änderung an der Instanz. Was in einem Betrieb geändert wird, steht in dessen Änderungsprotokoll."
-      fill={!phone}
-    >
+    <InstancePage title="Protokoll" sub={sentences.what} fill={!phone}>
       {log.isPending ? (
         <SettingsText muted>Wird geladen.</SettingsText>
       ) : log.isError ? (
@@ -139,11 +153,17 @@ export function InstanceLogScreen() {
       ) : page === null || page.changes.length === 0 ? (
         <Empty>Noch keine Änderung.</Empty>
       ) : phone ? (
-        <PhoneList page={page} opened={opened} onOpen={setOpened} footer={footer} />
+        <PhoneList
+          page={page}
+          opened={opened}
+          onOpen={setOpened}
+          footer={footer}
+          sentences={sentences}
+        />
       ) : (
         <>
           {open ? (
-            <Panel title={instanceRecord(open, page)}>
+            <Panel title={instanceRecord(open, page, words, sentences)}>
               <ChangeFacts change={open} page={page} />
               <FieldsTable change={open} page={page} />
               <div className="mt-3 flex">
@@ -183,10 +203,12 @@ export function InstanceLogScreen() {
                       }}
                       className="cursor-pointer text-left text-ink hover:underline"
                     >
-                      {instanceRecord(change, page)}
+                      {instanceRecord(change, page, words, sentences)}
                     </button>
                   </Cell>
-                  <Cell className="text-ink-muted">{instanceChangeSummary(change)}</Cell>
+                  <Cell className="text-ink-muted">
+                    {instanceChangeSummary(change, words, sentences)}
+                  </Cell>
                   <Cell>
                     <PersonCell change={change} page={page} />
                   </Cell>
@@ -206,18 +228,22 @@ function PhoneList({
   opened,
   onOpen,
   footer,
+  sentences,
 }: {
   readonly page: InstanceLogPage
   readonly opened: string | null
   readonly onOpen: (changeId: string | null) => void
   readonly footer: ReactNode
+  readonly sentences: LogSentences
 }) {
+  const words = useAuditWords()
+
   return (
     <>
       <ul aria-label="Änderungen an der Instanz" className="flex flex-col gap-2">
         {page.changes.map((change) => {
           const isOpen = change.changeId === opened
-          const said = wayWords(change, page)
+          const said = words.wayWords(change, page)
 
           return (
             <li
@@ -239,9 +265,11 @@ function PhoneList({
                   {moment(change.changedAt)}
                 </span>
                 <span className="text-[16px] font-semibold [overflow-wrap:anywhere]">
-                  {instanceRecord(change, page)}
+                  {instanceRecord(change, page, words, sentences)}
                 </span>
-                <span className="text-[14px] text-ink-muted">{instanceChangeSummary(change)}</span>
+                <span className="text-[14px] text-ink-muted">
+                  {instanceChangeSummary(change, words, sentences)}
+                </span>
                 <span className="text-[13px] text-ink-faint">
                   {[said.person ?? 'Niemand', said.way].join(' · ')}
                 </span>

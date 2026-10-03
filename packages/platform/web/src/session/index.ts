@@ -101,6 +101,11 @@ export {
 } from './instance.js'
 export type { CreatedForSomebody } from './instance.js'
 
+// The change log of a tenant: a page of changes, the check of the chain, and
+// the people it can be narrowed to.
+export { auditChain, auditChanges, auditPeople, noAuditFilter } from './audit.js'
+export type { AuditFilterView } from './audit.js'
+
 // This device, and what a person calls one.
 export { deviceIdentity } from './device.js'
 export { deviceName } from './device-name.js'

@@ -2,14 +2,15 @@ import { installationKinds, type RecordState } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, TablePanel, cardLink } from '@opengewerk/platform-web'
 import { date } from '@opengewerk/platform-web/format'
 import {
+  ChangesButton,
   Empty,
   FactList,
+  lastChanged,
   ListCard,
   ListScreen,
   PageHead,
   RecordColumns,
   Screen,
-  lastChanged,
 } from '@opengewerk/platform-web/office'
 import type { ListColumn } from '@opengewerk/platform-web/office'
 import {
@@ -41,7 +42,6 @@ import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { AccessPanel } from './site-access.js'
 import { TasksSection } from './tasks.js'
-import { ChangesButton } from './audit-log.js'
 import { useCompanionFields } from './pv-system.js'
 import { asCompanion } from '../../app/photovoltaic.js'
 

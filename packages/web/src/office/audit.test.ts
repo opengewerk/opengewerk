@@ -1,14 +1,30 @@
 import type { AuditChange, AuditPage } from '@opengewerk/domain'
 import { euros } from '@opengewerk/platform-web/format'
+import { auditWords } from '@opengewerk/platform-web/office'
 import { describe, expect, it } from 'vitest'
 
-import { auditValue, changeSummary, deviceWords, recordKind, recordTitle } from './audit-words.js'
+import { auditScreenWords } from './audit.js'
 
 /**
  * The values of the change log in the words of the office (#285): what the
  * database wrote as `issued`, `true` or `12500` reads as "Festgeschrieben",
  * "Ja" and "125,00 €", and a key into another record as that record's name.
+ *
+ * The rules are the foundation's and tested there (ADR 0010). What is held
+ * here is what this application hands them: the words of its values, its
+ * rights and roles, where its records are opened, and the one word a document
+ * has for what happened to it.
  */
+
+const {
+  auditValue,
+  changeSummary,
+  deviceWords,
+  recordHref,
+  recordKind,
+  recordLinkWords,
+  recordTitle,
+} = auditWords(auditScreenWords)
 
 const page: AuditPage = {
   changes: [],
@@ -102,6 +118,22 @@ describe('the values of the change log', () => {
   it('writes an empty value as nothing, for the screen to say "leer"', () => {
     expect(auditValue('customers', 'phone', null, page)).toBeNull()
     expect(auditValue('customers', 'phone', '', page)).toBeNull()
+  })
+})
+
+describe('the ways from the log to a record', () => {
+  it('opens the records the office has a screen for, and names the link to each', () => {
+    expect(recordHref('customers', 'c-1')).toBe('/kunden/c-1')
+    expect(recordHref('pv_strings', 's-1')).toBe('/strings/s-1')
+    expect(recordHref('contacts', 'x-1')).toBeNull()
+    expect(recordLinkWords('installations')).toBe('Zur Anlage')
+    expect(recordLinkWords('contacts')).toBe('Zum Datensatz')
+  })
+
+  it('says what the log of a record takes in beside it', () => {
+    expect(auditScreenWords.partsWords?.['documents']).toBe(
+      'mit Positionen, Unterschrift und Zahlungen',
+    )
   })
 })
 

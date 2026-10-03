@@ -3,14 +3,15 @@ import { belongsToPvSystemKind } from '@opengewerk/domain'
 import { Button, Panel, Status } from '@opengewerk/platform-web'
 import { date } from '@opengewerk/platform-web/format'
 import {
+  ChangesButton,
   Empty,
   FactList,
+  lastChanged,
   ListCard,
   ListScreen,
   PageHead,
   RecordColumns,
   Screen,
-  lastChanged,
 } from '@opengewerk/platform-web/office'
 import type { ListColumn } from '@opengewerk/platform-web/office'
 import {
@@ -44,7 +45,6 @@ import {
 } from './pv-system.js'
 import { LabelPanel } from './installation-label.js'
 import { asCompanion, useInverters } from '../../app/photovoltaic.js'
-import { ChangesButton } from './audit-log.js'
 
 /**
  * All installations of the business, `anlagen_liste()` of the canvas (#219):

@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 
 import type {
+  AuditChange,
+  InstanceLogPage,
   InstanceSettingsView,
   InstanceTenantView,
   OperatorView,
@@ -15,6 +17,7 @@ import { aTenant, inFrame, signedIn, standInServer } from '../in-frame.js'
 import type { StandIn } from '../in-frame.js'
 import { InstanceFrame } from './frame.js'
 import type { InstanceEntry } from './frame.js'
+import { InstanceLogScreen } from './log.js'
 import { InstanceOperatorsScreen } from './operators.js'
 import { InstanceSettingsScreen } from './settings.js'
 import { InstanceTenantsScreen } from './tenants.js'
@@ -52,6 +55,7 @@ async function area(at: string) {
       '/instanz': () => <InstanceTenantsScreen />,
       '/instanz/einstellungen': () => <InstanceSettingsScreen />,
       '/instanz/aufsicht': () => <InstanceOperatorsScreen />,
+      '/instanz/protokoll': () => <InstanceLogScreen />,
     },
   })
 }
@@ -671,5 +675,189 @@ describe('whoever runs the instance', () => {
     expect(await screen.findByText('Britta Bauer gehört jetzt zur Aufsicht.')).toBeTruthy()
     expect(sent('POST', '/instance/operators')).toEqual([{ email: 'britta@nord.example.de' }])
     expect(field.value).toBe('')
+  })
+})
+
+function change(over: Partial<AuditChange>): AuditChange {
+  return {
+    changeId: 'c-1',
+    changedAt: '2026-10-03T14:42:00.000Z',
+    operation: 'update',
+    table: 'instance_settings',
+    recordId: '1',
+    userId: 'u-1',
+    deviceId: null,
+    reason: 'instance.settings',
+    databaseRole: 'opengewerk_app',
+    firstSequence: 0,
+    lastSequence: 0,
+    fields: [{ field: 'backup_time', before: '02:30:00', after: '03:15:00' }],
+    ...over,
+  }
+}
+
+const log: InstanceLogPage = {
+  changes: [
+    change({}),
+    change({
+      changeId: 'c-2',
+      operation: 'insert',
+      table: 'instance_operators',
+      recordId: 'op-2',
+      reason: 'operator.appoint',
+      fields: [{ field: 'user_id', before: null, after: 'u-2' }],
+    }),
+    change({
+      changeId: 'c-3',
+      operation: 'insert',
+      table: 'tenants',
+      recordId: 't-3',
+      reason: 'instance.tenant',
+      fields: [{ field: 'name', before: null, after: 'Probewerk Süd' }],
+    }),
+    change({
+      changeId: 'c-4',
+      userId: null,
+      reason: 'environment',
+      fields: [{ field: 'mail_internal_hosts', before: '{}', after: '{mail.lan,10.0.0.2}' }],
+    }),
+    change({
+      changeId: 'c-5',
+      operation: 'delete',
+      table: 'tenants',
+      recordId: 't-8',
+      reason: 'tenant.cli',
+      fields: [{ field: 'name', before: 'Alt', after: null }],
+    }),
+    change({
+      changeId: 'c-6',
+      operation: 'delete',
+      table: 'instance_operators',
+      recordId: 'op-0',
+      reason: 'operator.remove',
+      fields: [{ field: 'user_id', before: 'u-0', after: null }],
+    }),
+    change({
+      changeId: 'c-7',
+      operation: 'insert',
+      userId: null,
+      reason: null,
+      databaseRole: 'opengewerk_owner',
+      fields: [{ field: 'backup_time', before: null, after: '02:30:00' }],
+    }),
+  ],
+  next: null,
+  titles: {
+    'op-2': { table: 'instance_operators', field: 'user_id', title: 'u-2', kind: null },
+    'op-0': { table: 'instance_operators', field: 'user_id', title: null, kind: null },
+    't-3': { table: 'tenants', field: 'name', title: 'Probewerk Süd', kind: null },
+    't-8': { table: 'tenants', field: 'name', title: null, kind: null },
+  },
+  people: { 'u-1': 'Mia Mitglied', 'u-2': 'Anna Abel' },
+  devices: {},
+}
+
+describe('the log of the instance', () => {
+  it('names what a change is about, what happened, who and on which way, in the words of the application', async () => {
+    server.answer('GET', '/instance/log', log)
+    await area('/instanz/protokoll')
+
+    const table = await screen.findByRole('table', { name: 'Änderungen an der Instanz' })
+    const rows = within(table).getAllByRole('row')
+
+    expect(
+      screen.getByText(
+        'Was die Aufsicht an der Instanz geändert hat. Was in einem Mandanten geschieht, steht in dessen Protokoll.',
+      ),
+    ).toBeTruthy()
+    expect(rows[1]?.textContent).toContain('Einstellungen der Instanz')
+    expect(rows[1]?.textContent).toContain('Uhrzeit der Sicherung')
+    expect(rows[1]?.textContent).toContain('Einstellungen der Instanz ändern')
+    expect(rows[2]?.textContent).toContain('Anna Abel')
+    expect(rows[2]?.textContent).toContain('Zur Aufsicht gemacht')
+    expect(rows[2]?.textContent).toContain('Aufsicht benennen')
+    expect(rows[3]?.textContent).toContain('Probewerk Süd')
+    expect(rows[3]?.textContent).toContain('Mandant angelegt')
+    expect(rows[3]?.textContent).toContain('Mandant für andere anlegen')
+    expect(rows[4]?.textContent).toContain('Niemand')
+    expect(rows[4]?.textContent).toContain('Übernommen aus der .env')
+    expect(rows[5]?.textContent).toContain('Ein Mandant')
+    expect(rows[5]?.textContent).toContain('Mandant entfernt')
+    expect(rows[5]?.textContent).toContain('Mandant über die Kommandozeile')
+    // Somebody whose name the log no longer has is called what the table holds.
+    expect(rows[6]?.textContent).toContain('Aufsicht der Instanz')
+    expect(rows[6]?.textContent).toContain('Aus der Aufsicht genommen')
+    expect(rows[7]?.textContent).toContain('Eingerichtet')
+    expect(rows[7]?.textContent).toContain('Update der Anwendung')
+    expect(screen.getByText('Das sind alle.')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: 'Protokoll' })).toBeTruthy()
+  })
+
+  it('opens a change with its fields before and after', async () => {
+    server.answer('GET', '/instance/log', log)
+    await area('/instanz/protokoll')
+    const user = userEvent.setup()
+
+    const table = await screen.findByRole('table', { name: 'Änderungen an der Instanz' })
+    const buttons = within(table).getAllByRole('button', { name: 'Einstellungen der Instanz' })
+
+    await user.click(buttons[1] as HTMLElement)
+
+    const fields = screen.getByRole('table', { name: 'Felder vorher und nachher' })
+
+    expect(fields.textContent).toContain('Freigegebene Mailserver')
+    expect(fields.textContent).toContain('leer')
+    expect(fields.textContent).toContain('mail.lan, 10.0.0.2')
+
+    await user.click(buttons[0] as HTMLElement)
+
+    const time = screen.getByRole('table', { name: 'Felder vorher und nachher' })
+
+    expect(time.textContent).toContain('02:30')
+    expect(time.textContent).toContain('03:15')
+    expect(time.textContent).not.toContain('03:15:00')
+  })
+
+  it('loads further changes from where the page ended', async () => {
+    server.answer('GET', '/instance/log', { ...log, changes: log.changes.slice(0, 2), next: 'c-2' })
+    server.answer('GET', '/instance/log?before=c-2', { ...log, changes: log.changes.slice(2) })
+    await area('/instanz/protokoll')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Weitere laden' }))
+
+    await waitFor(() => {
+      expect(
+        within(screen.getByRole('table', { name: 'Änderungen an der Instanz' })).getAllByRole(
+          'row',
+        ),
+      ).toHaveLength(8)
+    })
+    expect(screen.getByText('Das sind alle.')).toBeTruthy()
+  })
+
+  it('shows a box per change on a phone and opens it in place', async () => {
+    phone()
+    server.answer('GET', '/instance/log', log)
+    await area('/instanz/protokoll')
+    const user = userEvent.setup()
+
+    const list = await screen.findByRole('list', { name: 'Änderungen an der Instanz' })
+    const boxes = within(list).getAllByRole('button')
+
+    expect(screen.queryByRole('table', { name: 'Änderungen an der Instanz' })).toBeNull()
+    expect(boxes[1]?.textContent).toContain('Anna Abel')
+    expect(boxes[1]?.textContent).toContain('Mia Mitglied · Aufsicht benennen')
+
+    await user.click(boxes[1] as HTMLElement)
+
+    expect(within(list).getByText('Person')).toBeTruthy()
+  })
+
+  it('says when there is nothing yet', async () => {
+    server.answer('GET', '/instance/log', { ...log, changes: [] })
+    await area('/instanz/protokoll')
+
+    expect(await screen.findByText('Noch keine Änderung.')).toBeTruthy()
   })
 })
