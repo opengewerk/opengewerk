@@ -1,19 +1,20 @@
 import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
 import {
   type Database,
-  everyTenant,
+  type PushJob as FoundationPushJob,
+  type PushPost,
+  type PushReport,
   type RepeatingJob,
-  startRepeating,
+  runPushCycle as runFoundationCycle,
+  startPushWorker as startFoundationWorker,
   type VapidKeys,
 } from '@opengewerk/platform-server'
-import { eq, isNotNull } from 'drizzle-orm'
 
-import { pushSubscriptions } from '../database/schema/index.js'
 import { dueDeadlines, dueTasks } from '../notifications/notify.js'
-import { notifyPush, signedIn } from '../notifications/push.js'
-import { deliver } from './deliver.js'
-import { claimDuePush, giveUpLatePush, markPushFailed, markPushSent } from './outbox.js'
-import type { PushPost } from './post.js'
+import { notifyPush } from '../notifications/push.js'
+import { pushes } from './outbox.js'
+
+export type { PushReport } from '@opengewerk/platform-server'
 
 /** What the job needs, handed in so that a test can bring a push service and a clock of its own. */
 export interface PushJob {
@@ -25,183 +26,56 @@ export interface PushJob {
   readonly now?: () => Date
 }
 
-/** What a pass did, for the tests and for nothing else. */
-export interface PushReport {
-  readonly written: number
-  readonly sent: number
-  readonly retried: number
-  readonly failed: number
-  /** Devices taken off because their browser or their session is gone. */
-  readonly forgotten: number
-}
-
-function empty(): { -readonly [Key in keyof PushReport]: PushReport[Key] } {
-  return { written: 0, sent: 0, retried: 0, failed: 0, forgotten: 0 }
+/** The sentence of the job that names a business. */
+const sentences = {
+  tenantFailed: (tenantId: TenantId) =>
+    `Die Push-Nachrichten des Betriebs ${tenantId} ließen sich nicht senden.`,
 }
 
 /**
- * Takes off the devices of this business whose session no longer exists. The
- * browser still holds its subscription, but nobody is signed in there any
- * more, and a message would tell whoever picks the telephone up next what is
- * due in the business.
+ * The job of the foundation (ADR 0010) with the occasions of this
+ * application: a task due this morning and a deadline that reminds, raised by
+ * the same functions as for mail and decided the same way.
  */
-async function forgetSignedOut(job: PushJob, tenantId: TenantId, now: Date): Promise<number> {
-  const actor = { tenantId, reason: 'push' }
-  const bound = await job.database.forTenant(actor, (tx) =>
-    tx.select().from(pushSubscriptions).where(isNotNull(pushSubscriptions.sessionId)),
-  )
+function bound(job: PushJob): FoundationPushJob<'office' | 'site', 'task_due' | 'deadline_due'> {
+  return {
+    database: job.database,
+    vapid: job.vapid,
+    post: job.post,
+    store: pushes,
+    raise: async (tenantId, now) => {
+      const raised = [
+        ...(await dueTasks(job.database, tenantId, now, 'push')),
+        ...(await dueDeadlines(job.database, tenantId, now, job.deadlineKinds, 'push')),
+      ]
+      let written = 0
 
-  if (bound.length === 0) {
-    return 0
-  }
+      for (const notification of raised) {
+        const ids = await notifyPush(job.database, tenantId, notification, {
+          now,
+          ...(job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {}),
+        })
 
-  const alive = new Set((await signedIn(job.database, bound, now)).map((device) => device.id))
-  const gone = bound.filter((device) => !alive.has(device.id))
-
-  for (const device of gone) {
-    await job.database.forTenant(actor, (tx) =>
-      tx.delete(pushSubscriptions).where(eq(pushSubscriptions.id, device.id)),
-    )
-  }
-
-  return gone.length
-}
-
-/**
- * Sends what is due in one business, or only the messages named, and writes
- * down what became of each: sent, tried again later, given up, or the device
- * taken off because its subscription is gone.
- */
-export async function sendDuePush(
-  job: PushJob,
-  tenantId: TenantId,
-  now: Date,
-  only?: readonly string[],
-): Promise<PushReport> {
-  const report = empty()
-  const actor = { tenantId, reason: 'push' }
-  const claimed = await job.database.forTenant(actor, async (tx) => {
-    report.failed += await giveUpLatePush(tx, now)
-
-    return claimDuePush(tx, now, only)
-  })
-
-  for (const { message, subscription } of claimed) {
-    const outcome = await deliver(
-      job.post,
-      subscription,
-      { title: message.title, body: message.body, url: message.url, tag: message.cause },
-      job.vapid,
-      now,
-      (message.expiresAt.getTime() - now.getTime()) / 1000,
-    )
-
-    switch (outcome.kind) {
-      case 'sent':
-        await job.database.forTenant(actor, (tx) => markPushSent(tx, message.id, now))
-        report.sent += 1
-        break
-      case 'gone':
-        // The device goes, and its messages with it. It subscribes again the
-        // next time OpenGewerk is opened there with push on.
-        await job.database.forTenant(actor, (tx) =>
-          tx.delete(pushSubscriptions).where(eq(pushSubscriptions.id, subscription.id)),
-        )
-        report.forgotten += 1
-        break
-      case 'retry':
-      case 'refused': {
-        const result = await job.database.forTenant(actor, (tx) =>
-          markPushFailed(
-            tx,
-            message,
-            {
-              reason: outcome.reason,
-              permanent: outcome.kind === 'refused',
-              afterSeconds: outcome.kind === 'retry' ? outcome.afterSeconds : null,
-            },
-            now,
-          ),
-        )
-
-        if (result === 'failed') {
-          report.failed += 1
-          console.warn(`Eine Push-Nachricht wird nicht mehr versucht: ${outcome.reason}`)
-        } else {
-          report.retried += 1
-        }
-
-        break
+        written += ids.length
       }
-    }
-  }
 
-  return report
+      return written
+    },
+    sentences,
+    ...(job.now ? { now: job.now } : {}),
+  }
 }
 
 /**
  * One pass over every business that has a device taking push messages: take
  * off the devices that were signed out, write what has become due, send what
- * is waiting. A business whose pass fails does not stop the others.
+ * is waiting. How a pass goes is the foundation's, `runPushCycle` there.
  */
-export async function runPushCycle(job: PushJob): Promise<PushReport> {
-  const clock = job.now ?? (() => new Date())
-  const total = empty()
-
-  for (const tenantId of await everyTenant(job.database)) {
-    try {
-      const [device] = await job.database.forTenant({ tenantId, reason: 'push' }, (tx) =>
-        tx.select({ id: pushSubscriptions.id }).from(pushSubscriptions).limit(1),
-      )
-
-      if (!device) {
-        continue
-      }
-
-      const now = clock()
-
-      total.forgotten += await forgetSignedOut(job, tenantId, now)
-
-      const raised = [
-        ...(await dueTasks(job.database, tenantId, now, 'push')),
-        ...(await dueDeadlines(job.database, tenantId, now, job.deadlineKinds, 'push')),
-      ]
-
-      for (const notification of raised) {
-        total.written += (
-          await notifyPush(job.database, tenantId, notification, {
-            now,
-            ...(job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {}),
-          })
-        ).length
-      }
-
-      const sent = await sendDuePush(job, tenantId, now)
-
-      total.sent += sent.sent
-      total.retried += sent.retried
-      total.failed += sent.failed
-      total.forgotten += sent.forgotten
-    } catch (error) {
-      console.error(
-        `Die Push-Nachrichten des Betriebs ${tenantId} ließen sich nicht senden.`,
-        error,
-      )
-    }
-  }
-
-  return total
+export function runPushCycle(job: PushJob): Promise<PushReport> {
+  return runFoundationCycle(bound(job))
 }
 
-/**
- * Runs the job every minute, one pass after the other and never two at once,
- * as the mail job does. `stop` waits for a pass that is running.
- */
+/** Runs the job every minute, one pass after the other and never two at once. */
 export function startPushWorker(job: PushJob, intervalMs = 60_000): RepeatingJob {
-  return startRepeating({
-    run: () => runPushCycle(job),
-    intervalMs,
-    firstAfterMs: 15_000,
-    failure: 'Der Versand von Push-Nachrichten ist gescheitert.',
-  })
+  return startFoundationWorker(bound(job), intervalMs)
 }

@@ -6,8 +6,8 @@ import { checkedLookup, endpointProblem, endpointReachable } from './post.js'
 
 /**
  * The server posts to whatever address a device subscribed with, so the
- * address is held to the internet, over HTTPS on its port (#284), like the
- * mail server of a business since GHSA-5664-h6fc-v729.
+ * address is held to the internet, over HTTPS on its port, like the mail
+ * server of a tenant since GHSA-5664-h6fc-v729.
  */
 
 describe('the address of a push service', () => {

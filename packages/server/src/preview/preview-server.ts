@@ -12,6 +12,7 @@ import {
   mailInternalHosts,
   reachableOnly,
   readRendererConfiguration,
+  httpsPost,
   rendererFor,
   SecretKey,
   smtpTransport,
@@ -19,7 +20,6 @@ import {
 } from '@opengewerk/platform-server'
 
 import { ApiModule } from '../api/api.module.js'
-import { httpsPost } from '../push/post.js'
 import { previewPort, previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'
 

@@ -318,32 +318,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       import_id: 'Import',
     },
   },
-  push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },
-  push_outbox: {
-    label: 'Push-Nachricht',
-    fields: {
-      kind: 'Anlass',
-      cause: 'Ursache',
-      subscription_id: 'Gerät',
-      url: 'Ziel',
-      attempts: 'Versuche',
-      next_attempt_at: 'Nächster Versuch',
-      expires_at: 'Gültig bis',
-      last_error: 'Letzter Fehler',
-      sent_at: 'Verschickt am',
-    },
-  },
-  push_subscriptions: {
-    label: 'Gerät mit Push',
-    fields: {
-      session_id: 'Sitzung',
-      entry: 'Einstieg',
-      label: 'Gerät',
-      endpoint: 'Adresse des Push-Dienstes',
-      p256dh: 'Schlüssel des Browsers',
-      auth: 'Geheimnis des Browsers',
-    },
-  },
   pv_modules: {
     label: 'PV-Modul',
     fields: { pv_string_id: 'String', rated_power_w: 'Leistung in Wp' },

@@ -10,6 +10,7 @@ import {
   Database,
   FileStore,
   instanceIsEmpty,
+  httpsPost,
   InstanceSettingsCache,
   invitationLinks,
   reachableOnly,
@@ -34,7 +35,6 @@ import { passwordResetMails } from './mail/password-reset.js'
 import { endInterruptedImports } from './datanorm/imports.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
-import { httpsPost } from './push/post.js'
 import { startPushWorker } from './push/worker.js'
 
 /**

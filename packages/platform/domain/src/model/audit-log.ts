@@ -220,7 +220,10 @@ export const quietAuditFields: readonly string[] = [
 const foundationPersonFields: readonly string[] = ['user_id', 'invited_by', 'requested_by']
 
 /** Fields of the foundation that point at another record, and the table they point into. */
-const foundationReferences: Readonly<Record<string, string>> = { invitation_id: 'invitations' }
+const foundationReferences: Readonly<Record<string, string>> = {
+  invitation_id: 'invitations',
+  subscription_id: 'push_subscriptions',
+}
 
 /** The fields the foundation puts on many tables, its sync columns among them. */
 function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<string, string>> {
@@ -249,6 +252,9 @@ export const foundationAuditTables = [
   'member_passkeys',
   'memberships',
   'number_ranges',
+  'push_opt_outs',
+  'push_outbox',
+  'push_subscriptions',
   'tenant_parameters',
   'tenant_roles',
   'tenant_sessions',
@@ -317,6 +323,35 @@ function foundationTables(
     number_ranges: {
       label: 'Nummernkreis',
       fields: { key: 'Kreis', pattern: 'Muster', next_value: 'Nächste Nummer' },
+    },
+    push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },
+    push_outbox: {
+      label: 'Push-Nachricht',
+      fields: {
+        kind: 'Anlass',
+        cause: 'Ursache',
+        subscription_id: 'Gerät',
+        title: 'Titel',
+        body: 'Text',
+        url: 'Ziel',
+        status: 'Status',
+        attempts: 'Versuche',
+        next_attempt_at: 'Nächster Versuch',
+        expires_at: 'Gültig bis',
+        last_error: 'Letzter Fehler',
+        sent_at: 'Verschickt am',
+      },
+    },
+    push_subscriptions: {
+      label: 'Gerät mit Push',
+      fields: {
+        session_id: 'Sitzung',
+        entry: 'Einstieg',
+        label: 'Gerät',
+        endpoint: 'Adresse des Push-Dienstes',
+        p256dh: 'Schlüssel des Browsers',
+        auth: 'Geheimnis des Browsers',
+      },
     },
     tenant_parameters: {
       label: words.tenantParameter,
@@ -389,6 +424,9 @@ const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   tenant_roles: ['label', 'key'],
   number_ranges: ['key'],
   tenant_parameters: ['key'],
+  // An occasion switched off is told apart by whose it is, a device by what it is.
+  push_opt_outs: ['user_id'],
+  push_subscriptions: ['label'],
 }
 
 /** The words of the reasons the foundation writes and may name itself. */
@@ -408,6 +446,8 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'instance.settings': 'Einstellungen der Instanz ändern',
   environment: 'Übernommen aus der .env',
   mail: 'Von selbst, E-Mail-Versand',
+  notification: 'Von selbst, Benachrichtigungen',
+  push: 'Von selbst, Push-Versand',
   // The sync reads and writes under two rights; either way it is the sync.
   'sync.read': 'Abgleich',
   'sync.write': 'Abgleich',

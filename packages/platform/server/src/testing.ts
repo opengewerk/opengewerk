@@ -36,3 +36,7 @@ export * from './authentication/test-authenticator.js'
 // fall silent, the key the tests seal with, and a tenant with a mail server.
 export * from './mail/test-mail-server.js'
 export * from './mail/test-smtp.js'
+
+// A browser that subscribes to push and reads what it was sent, a push service
+// that keeps what it is sent, and a key to sign with.
+export * from './push/test-browser.js'

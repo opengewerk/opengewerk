@@ -34,6 +34,3 @@ export const pushOccasionWords: Readonly<
 export const pushEntries = ['office', 'site'] as const
 
 export type PushEntry = (typeof pushEntries)[number]
-
-/** The longest name of a device that is kept, "Samsung Internet auf Android" and then some. */
-export const longestDeviceLabel = 80

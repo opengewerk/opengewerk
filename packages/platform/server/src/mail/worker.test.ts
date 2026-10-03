@@ -264,6 +264,25 @@ describe('a cause of the application', () => {
     expect((await messages())[0]?.status).toBe('sent')
   })
 
+  it('goes out in the same pass on the clock of the instance, not a pass later', async () => {
+    // The row carries the moment the database wrote it, a little after the
+    // moment the pass began; a pass that claimed on its first reading of the
+    // clock found it not yet due.
+    waiting.set(north.id, ['P-0042'])
+    const post = recording()
+    const onItsOwnClock: MailJob<typeof probeMailOutbox.$inferSelect> = {
+      database,
+      servers,
+      outbox,
+      connect: () => post.transport,
+      key: testKey,
+      raise,
+      sentences,
+    }
+
+    expect(await runMailCycle(onItsOwnClock)).toMatchObject({ written: 1, sent: 1 })
+  })
+
   it('is raised only for a tenant with a mail server, and nothing is written for the others', async () => {
     waiting.set(west.id, ['P-0007'])
     const post = recording()

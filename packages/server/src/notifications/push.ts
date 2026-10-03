@@ -1,14 +1,15 @@
-import type { DeadlineRegistry, PushEntry, PushOccasion, TenantId } from '@opengewerk/domain'
-import { type Database, newId } from '@opengewerk/platform-server'
-import { and, eq, gt, inArray } from 'drizzle-orm'
-
 import {
-  authSessions,
-  pushOptOuts,
-  pushOutbox,
-  pushSubscriptions,
-} from '../database/schema/index.js'
+  type DeadlineRegistry,
+  type PushEntry,
+  pushEntries,
+  type PushOccasion,
+  pushOccasionWords,
+  type TenantId,
+} from '@opengewerk/domain'
+import type { Database, PushDraft, PushRules } from '@opengewerk/platform-server'
+
 import { deadlineKinds } from '../deadlines/registry.js'
+import { pushes } from '../push/outbox.js'
 import {
   berlinClock,
   causeOf,
@@ -16,7 +17,7 @@ import {
   type Notification,
   taskStillDue,
 } from './notify.js'
-import { deadlineDuePush, type PushText, taskDuePush, testPush } from './templates.js'
+import { deadlineDuePush, taskDuePush, testPush } from './templates.js'
 
 /**
  * The second channel of the notifications (#284): push messages to the
@@ -26,10 +27,9 @@ import { deadlineDuePush, type PushText, taskDuePush, testPush } from './templat
  * way: `taskStillDue` and `deadlineStillDue` say whether there is still
  * something to tell and whom, for mail and push alike. What differs is only
  * where the message goes and how little it may say. A module never writes a
- * push message itself, as it never writes a mail.
+ * push message itself, as it never writes a mail. Writing, one message per
+ * device, and sending are the foundation's (`pushStore`, ADR 0010).
  */
-
-type SubscriptionRow = typeof pushSubscriptions.$inferSelect
 
 /** Where a tap leads, on a device that works in the office and on one on site. */
 const links: Readonly<Record<PushOccasion | 'test', Readonly<Record<PushEntry, string>>>> = {
@@ -38,19 +38,23 @@ const links: Readonly<Record<PushOccasion | 'test', Readonly<Record<PushEntry, s
   test: { office: '/konto', site: '/m/' },
 }
 
+/**
+ * What this application says about push to the routes of the foundation: a
+ * device works in the office or on site, the occasions in the words of
+ * "Konto", and the test message.
+ */
+export const pushRules: PushRules<PushEntry, PushOccasion> = {
+  store: pushes,
+  entries: pushEntries,
+  entryRefused: 'Ein Gerät arbeitet im Büro ("office") oder auf der Baustelle ("site").',
+  occasions: pushOccasionWords,
+  test: { text: testPush(), urls: links.test },
+}
+
 /** What a push message needs besides its cause: the moment, and the kinds of deadline. */
 export interface PushNotifyContext {
   readonly now: Date
   readonly deadlineKinds?: DeadlineRegistry
-}
-
-/** A message waiting to be written: for whom, about what, and until when it is any use. */
-interface PushDraft {
-  readonly kind: PushOccasion | 'test'
-  readonly cause: string
-  readonly userId: string
-  readonly text: PushText
-  readonly expiresAt: Date
 }
 
 function hoursAfter(now: Date, hours: number): Date {
@@ -62,90 +66,14 @@ function endOfDay(now: Date): Date {
   return new Date(now.getTime() + (24 * 60 - berlinClock(now).minute) * 60_000)
 }
 
-/**
- * The devices among these whose session still exists. A device is signed in
- * with a session, and a device signed out, by itself, from another one or by a
- * new password, gets nothing more; the preview has no session and keeps its
- * devices.
- */
-export async function signedIn(
-  database: Database,
-  devices: readonly SubscriptionRow[],
-  now: Date,
-): Promise<readonly SubscriptionRow[]> {
-  const sessionIds = devices.flatMap((device) => (device.sessionId ? [device.sessionId] : []))
-  const alive =
-    sessionIds.length === 0
-      ? new Set<string>()
-      : new Set(
-          (
-            await database.forInstance((tx) =>
-              tx
-                .select({ id: authSessions.id })
-                .from(authSessions)
-                .where(and(inArray(authSessions.id, sessionIds), gt(authSessions.expiresAt, now))),
-            )
-          ).map((row) => row.id),
-        )
-
-  return devices.filter((device) => device.sessionId === null || alive.has(device.sessionId))
-}
-
-/**
- * Writes one message per device of the person, unless the person switched
- * the occasion off or has no device that is still signed in. Once per cause
- * and device, like a mail once per cause.
- */
-async function writePush(
+/** Writes the message of a draft, one per signed in device of its person. */
+function writePush(
   database: Database,
   tenantId: TenantId,
-  draft: PushDraft,
+  draft: PushDraft<PushEntry, PushOccasion>,
   now: Date,
 ): Promise<readonly string[]> {
-  const actor = { tenantId, reason: 'notification' }
-  const devices = await database.forTenant(actor, async (tx) => {
-    if (draft.kind !== 'test') {
-      const [off] = await tx
-        .select({ id: pushOptOuts.id })
-        .from(pushOptOuts)
-        .where(and(eq(pushOptOuts.userId, draft.userId), eq(pushOptOuts.occasion, draft.kind)))
-
-      if (off) {
-        return []
-      }
-    }
-
-    return tx.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, draft.userId))
-  })
-
-  const live = await signedIn(database, devices, now)
-
-  if (live.length === 0) {
-    return []
-  }
-
-  const written = await database.forTenant(actor, (tx) =>
-    tx
-      .insert(pushOutbox)
-      .values(
-        live.map((device) => ({
-          tenantId,
-          kind: draft.kind,
-          cause: draft.cause,
-          subscriptionId: device.id,
-          title: draft.text.title,
-          body: draft.text.body,
-          url: links[draft.kind][device.entry],
-          expiresAt: draft.expiresAt,
-        })),
-      )
-      .onConflictDoNothing({
-        target: [pushOutbox.tenantId, pushOutbox.cause, pushOutbox.subscriptionId],
-      })
-      .returning({ id: pushOutbox.id }),
-  )
-
-  return written.map((row) => row.id)
+  return pushes.write(database, tenantId, draft, now)
 }
 
 /**
@@ -179,6 +107,7 @@ export async function notifyPush(
           cause: causeOf(notification),
           userId: task.assignee,
           text: taskDuePush(),
+          urls: links.task_due,
           // A task due today is worth a message until the day is over.
           expiresAt: endOfDay(context.now),
         },
@@ -203,6 +132,7 @@ export async function notifyPush(
           cause: causeOf(notification),
           userId: due.recipient,
           text: deadlineDuePush({ kind: due.kind.title, dueOn: due.deadline.dueOn }),
+          urls: links.deadline_due,
           // A reminder comes its lead before the day; a day late it still helps.
           expiresAt: hoursAfter(context.now, 24),
         },
@@ -214,29 +144,4 @@ export async function notifyPush(
     case 'invitation':
       return []
   }
-}
-
-/**
- * The test from "Konto": one message to every device of the person that is
- * signed in, sent at once by the route and not by the job. Ten minutes long,
- * because a test that arrives an hour later tests nothing.
- */
-export async function writeTestPush(
-  database: Database,
-  tenantId: TenantId,
-  userId: string,
-  now: Date,
-): Promise<readonly string[]> {
-  return writePush(
-    database,
-    tenantId,
-    {
-      kind: 'test',
-      cause: `test:${newId()}`,
-      userId,
-      text: testPush(),
-      expiresAt: new Date(now.getTime() + 10 * 60_000),
-    },
-    now,
-  )
 }

@@ -189,8 +189,12 @@ export async function runMailCycle<Message extends OutboxMessage>(
 
       unreadableSaid.delete(tenantId)
 
+      // The clock asked again: a message raised a moment ago carries the
+      // moment the database wrote it, a little after `now`, and would
+      // otherwise wait for the next pass.
       const actor = { tenantId, reason: 'mail' }
-      const claimed = await job.database.forTenant(actor, (tx) => job.outbox.claimDue(tx, now))
+      const due = clock()
+      const claimed = await job.database.forTenant(actor, (tx) => job.outbox.claimDue(tx, due))
 
       if (claimed.length === 0) {
         continue

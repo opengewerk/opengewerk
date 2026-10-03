@@ -6,12 +6,11 @@ import {
   randomBytes,
 } from 'node:crypto'
 
-import { toBase64Url, type VapidKeys, vapidKeysFrom } from '@opengewerk/platform-server'
-
 import type { PushAnswer, PushPost } from './post.js'
+import { toBase64Url, type VapidKeys, vapidKeysFrom } from './web-push.js'
 
 /**
- * A browser for the tests of push (#284): the keys it subscribes with, and
+ * A browser for the tests of push: the keys it subscribes with, and
  * reading a message the way a browser does, so that a test can say what a
  * device was actually shown.
  */
@@ -53,7 +52,7 @@ export function aBrowser() {
 }
 
 /** A key to sign with, made for the test. */
-export function testVapid(subject = 'https://opengewerk.example.de'): VapidKeys {
+export function testVapid(subject = 'https://probewerk.example.de'): VapidKeys {
   const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
 
   return vapidKeysFrom(
