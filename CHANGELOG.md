@@ -798,6 +798,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nichts, weil es sonst jede Minute einen Eintrag bekäme; die Anzeige im Büro folgt mit den Routen.
   Die Einstellung einer Fristart kann außerdem eine Frist in Monaten tragen. Die Wiedervorlage eines
   Angebots arbeitet wie bisher.
+- Die Routen der Fristen gehören zum Fundament (ADR 0010, `opengewerk-haustechnik#24`, dritter Teil):
+  die Liste, die Arten, ein eigener Vorlauf und eine eigene Person, erledigt und wieder offen und die
+  Einstellungen je Art. Was eine Frist hier außerdem sagt, Gewerk, Beleg oder Anlage, Kunde mit Namen,
+  Objekt, Auftrag und Aufgabe, gibt diese Anwendung dazu, ebenso was mit der Aufgabe einer Frist
+  geschieht, wenn die Person wechselt oder die Frist erledigt oder wieder geöffnet wird; die Antworten
+  bleiben, wie sie waren. Neu sagt `GET /deadlines/run`, wann der Lauf den Betrieb zuletzt
+  durchgegangen ist, wann er dabei scheiterte und ob das zu lange her ist: ein Lauf, der nicht
+  stattfand, ist damit über die Route zu sehen. Eine Einstellung nimmt ihre Frist in der Einheit der
+  Art, Tagen oder Monaten. Dabei fiel auf, dass die Routen von Mailserver und Push seit ihrem Umzug
+  nicht gegen die Pfade des Fundaments geprüft wurden und `/push` dort fehlte; `push` und
+  `deadlines` stehen jetzt unter den Pfaden des Fundaments und nicht mehr hier.
 
 ### Behoben
 
