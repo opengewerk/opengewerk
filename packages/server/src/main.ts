@@ -1,30 +1,28 @@
 import 'reflect-metadata'
 
-import { NestFactory } from '@nestjs/core'
-import type { NestExpressApplication } from '@nestjs/platform-express'
+import { serverPaths } from '@opengewerk/domain'
 import {
-  authenticationPath,
+  authenticationHandler,
   ClosedIdentitySource,
   completeRoles,
   ConfigurationError,
+  createServer,
   Database,
   instanceIsEmpty,
   InstanceSettingsCache,
-  readJsonBodiesOnly,
+  runInstance,
   SecretKey,
-  sendSecurityHeaders,
+  startupLine,
+  stopOnSignals,
   takeOverFromEnvironment,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
 
-import { toNodeHandler } from 'better-auth/node'
-
 import { ApiModule } from './api/api.module.js'
 import { access, createAuthentication, SessionIdentitySource } from './authentication/access.js'
-import { readConfiguration } from './configuration.js'
+import { application as opengewerk, readConfiguration } from './configuration.js'
 import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
-import { interfacePath, serveInterface } from './interface.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'
 import { passkeyNotices } from './mail/passkey-notice.js'
@@ -148,11 +146,16 @@ async function start(): Promise<void> {
     version: configuration.version,
   }
 
-  const application = await NestFactory.create<NestExpressApplication>(
-    // The authentication goes in only when the instance is open, and that is
-    // what puts the first run setup on the routing table at all. Closed, the
-    // controller is not registered and its two routes are simply not there.
-    // The setup code goes with it, because only the first run asks for it.
+  // The authentication goes in only when the instance is open, and that is
+  // what puts the first run setup on the routing table at all. Closed, the
+  // controller is not registered and its two routes are simply not there.
+  // The setup code goes with it, because only the first run asks for it.
+  //
+  // What stands in front of the routes, in its order, and the interface from
+  // the same process, are the foundation's (`createServer`). Absent during
+  // development, where vite serves the two entry points itself and proxies
+  // the API here; the line at the start says so out loud.
+  const { application, interfaceDirectory } = await createServer(
     ApiModule.create(
       database,
       identities,
@@ -168,83 +171,28 @@ async function start(): Promise<void> {
           },
     ),
     {
-      // The container log is the only log there is, so it carries warnings
-      // and errors and not the route table of every start. At twenty routes
-      // that table is noise; at two hundred it buries the line that matters.
-      logger: ['error', 'warn'],
-      // No parser of Nest's own: `readJsonBodiesOnly` below sets the one that
-      // is wanted, after better-auth.
-      bodyParser: false,
+      authenticationHandler: configuration.closed ? null : authenticationHandler(authentication),
+      serverPaths,
     },
   )
 
-  // First of all, so that every answer carries them, better-auth's included.
-  sendSecurityHeaders(application.getHttpAdapter().getInstance())
-
-  // Before the body parser, and that order is not a preference. Express reads
-  // the stream once; a parser in front would leave better-auth with an empty
-  // body on every sign in, and the failure looks like a wrong password.
-  if (!configuration.closed) {
-    application.use(authenticationPath, toNodeHandler(authentication))
-  }
-
-  readJsonBodiesOnly(application)
-
-  // Nothing is gained by telling every caller which framework serves them,
-  // and a scanner looking for a known weakness is told where to look.
-  application.getHttpAdapter().getInstance().disable('x-powered-by')
-
-  // The interface, from the same process. Mounted after Nest's routes, so a
-  // path the API owns is answered by the API; the fallback inside knows the
-  // same list and refuses to hand a shell to anything under it.
-  //
-  // Absent during development, where vite serves the two entry points itself
-  // and proxies the API here. Saying so out loud beats a silent 404 at the
-  // root that reads like a broken install.
-  const built = interfacePath()
-
-  if (built) {
-    serveInterface(application.getHttpAdapter().getInstance(), built)
-  }
-
-  // A container gets SIGTERM and then, a moment later, SIGKILL. Closing in
-  // between lets running transactions commit instead of being cut off, which
-  // matters most during an update: that is when a restart is most likely to
-  // land in the middle of somebody issuing an invoice.
-  //
-  // The order is the point. The server stops taking requests first, then the
-  // pool closes; the other way round the requests still in flight would lose
-  // their connection.
+  // Stopped in this order when the container runtime asks (`stopOnSignals`).
+  // The mail job first: a pass that is running finishes, so that a message
+  // is not sent and then forgotten because the pool closed before the row
+  // could say so. The deadlines likewise, a reminder that has its mark gets
+  // its task; and push, whose pass writes down what became of each message.
   let mailWorker: { readonly stop: () => Promise<void> } | null = null
   let deadlineWorker: { readonly stop: () => Promise<void> } | null = null
   let pushWorker: { readonly stop: () => Promise<void> } | null = null
 
-  const stop = async (signal: NodeJS.Signals): Promise<void> => {
-    console.info(`${signal} empfangen, OpenGewerk fährt herunter.`)
-
-    try {
-      // The mail job first. A pass that is running finishes, so that a
-      // message is not sent and then forgotten because the pool closed
-      // before the row could say so.
-      await mailWorker?.stop()
-      // The deadlines likewise: a reminder that has its mark gets its task.
-      await deadlineWorker?.stop()
-      // And push, whose pass writes down what became of each message.
-      await pushWorker?.stop()
-      stopInstanceSettings()
-      await application.close()
-      await database.close()
-    } catch (error) {
-      console.error('Beim Herunterfahren ist etwas schiefgegangen.', error)
-      process.exitCode = 1
-    }
-  }
-
-  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-    process.once(signal, (received: NodeJS.Signals) => {
-      void stop(received)
-    })
-  }
+  stopOnSignals(opengewerk.name, [
+    () => mailWorker?.stop(),
+    () => deadlineWorker?.stop(),
+    () => pushWorker?.stop(),
+    stopInstanceSettings,
+    () => application.close(),
+    () => database.close(),
+  ])
 
   // An import cut off by the last stop still says it runs, and would keep the
   // next out (#297). Ended before the first request, so that none started
@@ -315,34 +263,17 @@ async function start(): Promise<void> {
   const empty = configuration.closed ? false : await instanceIsEmpty(database).catch(() => false)
 
   console.info(
-    `OpenGewerk lauscht auf ${configuration.host}:${configuration.port}.` +
-      (built ? '' : ' Es ist keine gebaute Oberfläche dabei, nur die API.') +
-      (configuration.closed
-        ? ' Die Instanz ist über CLOSED geschlossen, jede Anfrage an die Daten wird ' +
-          'abgelehnt, die Anmeldung und die Ersteinrichtung eingeschlossen.'
-        : '') +
-      (empty
-        ? ' Diese Instanz ist noch leer: im Browser steht die Ersteinrichtung, die den ' +
-          'Betrieb und den ersten Zugang anlegt.' +
-          (configuration.setupCode
-            ? ' Sie verlangt den Einrichtungscode aus SETUP_CODE, in einer Installation ' +
-              'mit Docker steht er in docker/.env.'
-            : ' SETUP_CODE ist nicht gesetzt, deshalb nimmt sie keine Einrichtung an; ' +
-              '"sh docker/start.sh" trägt den Einrichtungscode in docker/.env ein.')
-        : ''),
+    startupLine({
+      name: opengewerk.name,
+      host: configuration.host,
+      port: configuration.port,
+      interfaceServed: interfaceDirectory !== null,
+      closed: configuration.closed,
+      empty,
+      setupCode: configuration.setupCode !== null,
+      emptyInstance: access.sentences.emptyInstance,
+    }),
   )
 }
 
-try {
-  await start()
-} catch (error) {
-  // A configuration mistake gets the sentence and nothing else. A stack trace
-  // above "DATABASE_URL fehlt" buries the one line that says what to do.
-  if (error instanceof ConfigurationError) {
-    console.error(error.message)
-  } else {
-    console.error('OpenGewerk konnte nicht starten.', error)
-  }
-
-  process.exitCode = 1
-}
+await runInstance(opengewerk.name, start)

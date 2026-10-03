@@ -1,13 +1,15 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, posix, resolve } from 'node:path'
 
-import { foundationPaths, serverPaths } from '@opengewerk/domain'
-import { shellPolicy } from '@opengewerk/platform-server'
+import { foundationPaths } from '@opengewerk/platform-domain'
 import express from 'express'
 import type { Express, Request, Response } from 'express'
 
+import { shellPolicy } from '../api/security-headers.js'
+
 /**
- * Serves the built interface from the same process that serves the API.
+ * Serves the built interface of an application from the same process that
+ * serves its API (ADR 0010).
  *
  * One process and not two. ADR 0004 turned down Next.js partly because a Node
  * server in front of a static bundle is a second process without a job, and
@@ -15,11 +17,11 @@ import type { Express, Request, Response } from 'express'
  * installation would have one more container to configure, one more place for
  * a path to be wrong, and one more thing to update.
  *
- * Two shells and not one. `/m` and everything under it is the site
- * application and has to come back with the site shell; a deep link into it
- * answered with the office shell opens a desk interface on a phone. This is
- * the same decision the service worker makes for a navigation it answers
- * offline, written twice because it has to hold in both places.
+ * Two shells and not one. `/m` and everything under it is the second entry
+ * and has to come back with its shell; a deep link into it answered with the
+ * office shell opens a desk interface on a phone. This is the same decision
+ * the service worker makes for a navigation it answers offline (`serveShell`
+ * in `platform-web`), written twice because it has to hold in both places.
  */
 
 /**
@@ -52,24 +54,6 @@ export function interfacePath(): string | null {
 }
 
 /**
- * Paths the API owns. A request for one of these never gets a shell back.
- *
- * Written out rather than derived from the router, because the fallback has to
- * answer before the router does: a shell handed back for a mistyped API path
- * looks to a client like the server returning HTML for JSON, and that is a
- * confusing hour. The list is the one the service worker and the development
- * server of the interface take as well, the foundation's and this
- * application's, and the test of the routes holds it against the controllers.
- */
-const apiPrefixes: readonly string[] = [...foundationPaths, ...serverPaths]
-
-function belongsToTheApi(path: string): boolean {
-  const first = path.split('/')[1] ?? ''
-
-  return apiPrefixes.includes(first)
-}
-
-/**
  * Whether a path names a file rather than a screen.
  *
  * No route of either entry ends in a name with an extension: they end in a
@@ -86,7 +70,28 @@ function namesAFile(path: string): boolean {
   return posix.extname(last).length > 1
 }
 
-export function serveInterface(application: Express, directory: string): void {
+/**
+ * Mounts the built interface on an application: the files as they are, and a
+ * shell for every other address that is neither a file nor the server's.
+ *
+ * `serverPaths` are the first segments of the paths the server of the
+ * application answers itself; those of the foundation are added here
+ * (`foundationPaths`). A request for one of them never gets a shell back.
+ * Written out rather than derived from the router, because the fallback has to
+ * answer before the router does: a shell handed back for a mistyped API path
+ * looks to a client like the server returning HTML for JSON, and that is a
+ * confusing hour. The service worker and the development server of the
+ * interface take the same two lists.
+ */
+export function serveInterface(
+  application: Express,
+  directory: string,
+  serverPaths: readonly string[],
+): void {
+  const ownedByTheServer = new Set<string>([...foundationPaths, ...serverPaths])
+  const belongsToTheServer = (path: string): boolean =>
+    ownedByTheServer.has(path.split('/')[1] ?? '')
+
   /**
    * Both shells, read once and kept.
    *
@@ -147,7 +152,7 @@ export function serveInterface(application: Express, directory: string): void {
     // would have reported a running installation as gone.
     const reading = request.method === 'GET' || request.method === 'HEAD'
 
-    if (!reading || belongsToTheApi(request.path) || namesAFile(request.path)) {
+    if (!reading || belongsToTheServer(request.path) || namesAFile(request.path)) {
       next()
 
       return
@@ -155,7 +160,8 @@ export function serveInterface(application: Express, directory: string): void {
 
     // `/m` and what lies under it, and nothing else that happens to start
     // with the letter: a deep link to `/material` belongs to the office. The
-    // service worker draws the same line, with /^\/m(\/|$)/.
+    // service worker draws the same line; it sees the query with the path and
+    // ends the segment at a question mark as well, this sees the path alone.
     const site = request.path === '/m' || request.path.startsWith('/m/')
 
     response.setHeader('Cache-Control', 'no-cache')

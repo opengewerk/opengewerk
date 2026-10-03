@@ -53,6 +53,7 @@ export * from './api/body.js'
 export * from './api/client-address.js'
 export * from './api/closed-identity.js'
 export * from './api/handed-in.js'
+export * from './api/health.controller.js'
 export * from './api/identity.js'
 export * from './api/origin.js'
 export * from './api/security-headers.js'
@@ -117,3 +118,10 @@ export * from './mail/configuration.js'
 
 // Web Push: encryption and signature, without a library.
 export * from './push/web-push.js'
+
+// The way in of an instance: the built interface served from the same process
+// as the API, with a shell for every address that is neither a file nor the
+// server's.
+export * from './start/lifecycle.js'
+export * from './start/server.js'
+export * from './start/shells.js'

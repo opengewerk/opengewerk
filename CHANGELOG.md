@@ -632,6 +632,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   bleibt so klein, und die Baustelle lädt die Wortlaute der Belehrungen nicht mehr mit, die sie
   nie zeigt. Der Kopf, in dem eine Seite ihren Betrieb nennt, heißt jetzt
   `x-opengewerk-tenant`; auf der Leitung ist es derselbe Kopf.
+- Der Einstieg des Servers ist ein Teil des Fundaments (ADR 0010, `opengewerk-haustechnik#14`,
+  erster Teil), damit jede Anwendung so startet, ihre Gesundheit meldet und ihre Oberfläche
+  ausliefert wie diese: die Gesundheitsprüfung, das Ausliefern der beiden Hüllen, der Server mit
+  allem, was vor den Routen steht, das Herunterfahren in fester Reihenfolge und die Zeile beim
+  Start. `main.ts` und die Vorschau dieser Anwendung nehmen sie von dort; was sie tun, bleibt
+  gleich.
 
 ### Behoben
 

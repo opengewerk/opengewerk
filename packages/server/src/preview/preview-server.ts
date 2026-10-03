@@ -4,22 +4,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
-import { NestFactory } from '@nestjs/core'
-import type { NestExpressApplication } from '@nestjs/platform-express'
-import type { Identity } from '@opengewerk/domain'
+import { type Identity, serverPaths } from '@opengewerk/domain'
 import {
-  authenticationPath,
+  createServer,
   type Database,
   mailInternalHosts,
-  readJsonBodiesOnly,
   SecretKey,
-  sendSecurityHeaders,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
 
 import { ApiModule } from '../api/api.module.js'
 import { readRendererConfiguration, rendererFor } from '../documents/renderer.js'
-import { interfacePath, serveInterface } from '../interface.js'
 import { reachableOnly } from '../mail/reach.js'
 import { httpsPost } from '../push/post.js'
 import { smtpTransport } from '../mail/transport.js'
@@ -44,7 +39,10 @@ export async function openPreview(
   identity: Identity,
 ): Promise<INestApplication> {
   const address = `http://127.0.0.1:${String(previewPort())}`
-  const application = await NestFactory.create<NestExpressApplication>(
+  // What stands in front of the routes and the interface are the
+  // foundation's, as on an instance; under the path of the authentication
+  // answers the session of the preview instead of better-auth.
+  const { application } = await createServer(
     ApiModule.create(database, new PreviewIdentitySource(identity), {
       // The address the preview is opened at, the same port under its other
       // name, vite's, which passes the page's own origin on when it serves the
@@ -89,19 +87,8 @@ export async function openPreview(
         post: httpsPost(),
       },
     }),
-    { logger: ['error', 'warn'], bodyParser: false },
+    { authenticationHandler: previewSession(identity, previewUser), serverPaths },
   )
-
-  sendSecurityHeaders(application.getHttpAdapter().getInstance())
-  application.use(authenticationPath, previewSession(identity, previewUser))
-  readJsonBodiesOnly(application)
-  application.getHttpAdapter().getInstance().disable('x-powered-by')
-
-  const built = interfacePath()
-
-  if (built) {
-    serveInterface(application.getHttpAdapter().getInstance(), built)
-  }
 
   return application
 }

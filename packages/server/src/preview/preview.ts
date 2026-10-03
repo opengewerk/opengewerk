@@ -1,11 +1,10 @@
 import 'reflect-metadata'
 
 import type { IsoDate } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, interfacePath, newId } from '@opengewerk/platform-server'
 
 import { runDeadlineCycle, startDeadlineWorker } from '../deadlines/engine.js'
 import { applicationDatabaseUrl } from '../database/test-database.js'
-import { interfacePath } from '../interface.js'
 import {
   admitPreviewUser,
   preparePreviewDatabase,

@@ -94,6 +94,11 @@ export interface AccessSentences {
    * its account, and was taken back for it.
    */
   readonly passkeyNotRecorded: string
+  /**
+   * What the log says when an instance starts that nobody has set up yet:
+   * that the browser shows the first run, and what that first run creates.
+   */
+  readonly emptyInstance: string
   /** What the command that puts somebody into a tenant says on the terminal. */
   readonly addStaff: {
     /** How it is called, the first line of its help. */

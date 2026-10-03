@@ -2,13 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { sendSecurityHeaders, shellPolicy } from '@opengewerk/platform-server'
 import express from 'express'
 import type { Express } from 'express'
 import request from 'supertest'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { interfacePath, serveInterface } from './interface.js'
+import { sendSecurityHeaders, shellPolicy } from '../api/security-headers.js'
+import { interfacePath, serveInterface } from './shells.js'
 
 /**
  * A built interface, as small as one can be and still have two shells.
@@ -18,28 +18,34 @@ import { interfacePath, serveInterface } from './interface.js'
  * and telling them apart is the one thing a single fallback cannot do.
  */
 function builtInterface(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'opengewerk-interface-'))
+  const directory = mkdtempSync(join(tmpdir(), 'shells-'))
 
   mkdirSync(join(directory, 'm'))
   mkdirSync(join(directory, 'assets'))
-  writeFileSync(join(directory, 'index.html'), '<!doctype html><title>Büro</title>')
-  writeFileSync(join(directory, 'm', 'index.html'), '<!doctype html><title>Baustelle</title>')
+  writeFileSync(join(directory, 'index.html'), '<!doctype html><title>Schreibtisch</title>')
+  writeFileSync(join(directory, 'm', 'index.html'), '<!doctype html><title>Unterwegs</title>')
   writeFileSync(join(directory, 'assets', 'office-abc123.js'), 'console.log(1)')
   writeFileSync(join(directory, 'service-worker.js'), 'self.addEventListener("fetch", () => {})')
 
   return directory
 }
 
+/**
+ * The paths the server of the application answers itself, those of an
+ * application that belongs to nobody. The foundation adds its own.
+ */
+const serverPaths = ['shelves', 'letters']
+
 let application: Express
 
 beforeAll(() => {
   application = express()
 
-  application.get('/customers', (_request, response) => {
-    response.json([{ name: 'Meyer' }])
+  application.get('/shelves', (_request, response) => {
+    response.json([{ name: 'Nord' }])
   })
 
-  serveInterface(application, builtInterface())
+  serveInterface(application, builtInterface(), serverPaths)
 })
 
 describe('where the server looks for a built interface', () => {
@@ -81,31 +87,31 @@ describe('the interface the server hands out', () => {
     const answer = await request(application).get('/')
 
     expect(answer.status).toBe(200)
-    expect(answer.text).toContain('Büro')
+    expect(answer.text).toContain('Schreibtisch')
   })
 
   it('answers a deep link into the office with the office shell', async () => {
-    // The office is a single page application: `/kunden/<id>` is a route
+    // The office is a single page application: `/regale/<id>` is a route
     // inside the document, not a file, and the server has never heard of it.
-    const answer = await request(application).get('/kunden/018f-abc')
+    const answer = await request(application).get('/regale/018f-abc')
 
-    expect(answer.text).toContain('Büro')
+    expect(answer.text).toContain('Schreibtisch')
   })
 
   it('answers anything under /m with the site shell', async () => {
-    const answer = await request(application).get('/m/auftraege/018f-abc')
+    const answer = await request(application).get('/m/regale/018f-abc')
 
     // The reason there are two fallbacks and not one. A deep link into the
     // site entry answered with the office shell opens a desk interface, with
     // 34 pixel controls, on a phone held in one hand in a cellar.
-    expect(answer.text).toContain('Baustelle')
+    expect(answer.text).toContain('Unterwegs')
   })
 
   it('answers a HEAD for a page like the GET, only without the body', async () => {
     // A monitor that checks whether the installation is up often asks with
     // HEAD. Answered with a 404, a running office looks like one that is
     // gone.
-    for (const path of ['/', '/kunden/018f-abc', '/m/', '/m/auftraege/018f-abc']) {
+    for (const path of ['/', '/regale/018f-abc', '/m/', '/m/regale/018f-abc']) {
       const answer = await request(application).head(path)
 
       expect([path, answer.status, answer.type]).toEqual([path, 200, 'text/html'])
@@ -114,7 +120,7 @@ describe('the interface the server hands out', () => {
   })
 
   it('answers /m itself with the site shell', async () => {
-    expect((await request(application).get('/m')).text).toContain('Baustelle')
+    expect((await request(application).get('/m')).text).toContain('Unterwegs')
   })
 
   it('answers an office path that merely starts with an m with the office shell', async () => {
@@ -125,7 +131,7 @@ describe('the interface the server hands out', () => {
     for (const path of ['/material', '/mitarbeiter/018f-abc', '/m-irgendwas']) {
       const answer = await request(application).get(path)
 
-      expect([path, answer.text]).toEqual([path, expect.stringContaining('Büro')])
+      expect([path, answer.text]).toEqual([path, expect.stringContaining('Schreibtisch')])
     }
   })
 
@@ -145,8 +151,8 @@ describe('the interface the server hands out', () => {
       const answer = await request(application).get(path)
 
       expect([path, answer.status]).toEqual([path, 404])
-      expect(answer.text).not.toContain('Büro')
-      expect(answer.text).not.toContain('Baustelle')
+      expect(answer.text).not.toContain('Schreibtisch')
+      expect(answer.text).not.toContain('Unterwegs')
     }
   })
 
@@ -157,13 +163,13 @@ describe('the interface the server hands out', () => {
     const token = 'Ab3-dE_5'.repeat(5) + 'xyz'
 
     for (const [path, shell] of [
-      ['/kunden/018f-abc', 'Büro'],
-      ['/einstellungen/e-mail', 'Büro'],
-      [`/einladung/${token}`, 'Büro'],
-      [`/passwort/${token}`, 'Büro'],
-      ['/v1.2/kunden', 'Büro'],
-      ['/m/', 'Baustelle'],
-      ['/m/auftraege/018f-abc/berichte/018f-def', 'Baustelle'],
+      ['/regale/018f-abc', 'Schreibtisch'],
+      ['/einstellungen/e-mail', 'Schreibtisch'],
+      [`/einladung/${token}`, 'Schreibtisch'],
+      [`/passwort/${token}`, 'Schreibtisch'],
+      ['/v1.2/regale', 'Schreibtisch'],
+      ['/m/', 'Unterwegs'],
+      ['/m/regale/018f-abc/briefe/018f-def', 'Unterwegs'],
     ] as const) {
       const answer = await request(application).get(path)
 
@@ -181,15 +187,19 @@ describe('the interface the server hands out', () => {
   it('never hands a shell to something the API owns', async () => {
     // Without this a mistyped API path comes back as HTML, and the failure
     // reads to a client like the server returning a document for JSON.
-    expect((await request(application).get('/sync')).status).toBe(404)
+    expect((await request(application).get('/letters')).status).toBe(404)
+    expect((await request(application).get('/letters/7')).status).toBe(404)
+    // And those of the foundation, which the application does not name.
     expect((await request(application).get('/api/auth/get-session')).status).toBe(404)
+    expect((await request(application).get('/staff')).status).toBe(404)
+    expect((await request(application).get('/health')).status).toBe(404)
   })
 
   it('leaves a route the API really has alone', async () => {
-    const answer = await request(application).get('/customers')
+    const answer = await request(application).get('/shelves')
 
     expect(answer.status).toBe(200)
-    expect(answer.body).toEqual([{ name: 'Meyer' }])
+    expect(answer.body).toEqual([{ name: 'Nord' }])
   })
 
   it('lets a hashed file be kept for a year and a shell for no time at all', async () => {
@@ -224,15 +234,15 @@ describe('the interface the server hands out', () => {
     const own = express()
     const directory = builtInterface()
 
-    serveInterface(own, directory)
+    serveInterface(own, directory, serverPaths)
 
     const first = await request(own).get('/')
 
     rmSync(join(directory, 'index.html'))
 
-    const afterwards = await request(own).get('/kunden/018f-abc')
+    const afterwards = await request(own).get('/regale/018f-abc')
 
-    expect(first.text).toContain('Büro')
+    expect(first.text).toContain('Schreibtisch')
     expect(afterwards.text).toBe(first.text)
   })
 
@@ -260,14 +270,7 @@ describe('the security headers (#131)', () => {
    * kept, headers and all.
    */
   it('put the policy on both shells, however they are asked for', async () => {
-    for (const path of [
-      '/',
-      '/auftraege/1',
-      '/m',
-      '/m/auftraege/1',
-      '/index.html',
-      '/m/index.html',
-    ]) {
+    for (const path of ['/', '/regale/1', '/m', '/m/regale/1', '/index.html', '/m/index.html']) {
       const answer = await request(application).get(path).expect(200)
 
       expect([path, answer.headers['content-security-policy']]).toEqual([path, shellPolicy])
