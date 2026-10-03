@@ -1,10 +1,9 @@
 import type { ChainVerification, CustomerId } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, newId, verifyAuditChain } from '@opengewerk/platform-server'
 import { eq, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { verifyAuditChain } from './audit.js'
 import * as schema from './schema/index.js'
 import {
   allowApplicationLogin,

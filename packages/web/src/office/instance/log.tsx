@@ -1,4 +1,4 @@
-import { type AuditChange, auditTableLabel, type InstanceLogPage } from '@opengewerk/domain'
+import type { AuditChange, InstanceLogPage } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, TablePanel, useBand } from '@opengewerk/platform-web'
 import { moment } from '@opengewerk/platform-web/format'
 import { InstancePage } from '@opengewerk/platform-web/instance'
@@ -9,7 +9,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { type ReactNode, useState } from 'react'
 
-import { type AuditNames, changeSummary, wayWords } from '../audit-words.js'
+import { audit, type AuditNames, changeSummary, wayWords } from '../audit-words.js'
 import { ChangeFacts, FieldList, FieldsTable, PersonCell } from '../screens/audit-log.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -48,7 +48,7 @@ export function instanceRecord(change: AuditChange, page: AuditNames): string {
     return title ?? 'Ein Betrieb'
   }
 
-  return auditTableLabel(change.table)
+  return audit.tableLabel(change.table)
 }
 
 /** The change in a few words: named where one word says it, the fields that moved otherwise. */

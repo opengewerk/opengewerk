@@ -53,6 +53,14 @@ export * from './sync/narrowing.js'
 export * from './sync/record-rules.js'
 export * from './sync/tables.js'
 
+// The change log of a tenant as a person reads it: a page of changes with the
+// names it needs, the parts of one record, the check of the chain and the
+// routes for them. What a table, a field and a reason are called the
+// application says, in its vocabulary.
+export * from './audit/chain.js'
+export * from './audit/controller.js'
+export * from './audit/log.js'
+
 // What a refusal of the database becomes on its way to the caller.
 export * from './api/database-errors.js'
 

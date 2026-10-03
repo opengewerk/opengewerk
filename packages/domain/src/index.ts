@@ -11,7 +11,6 @@
 export * from '@opengewerk/platform-domain'
 export * from './model/address.js'
 export * from './model/attachment.js'
-export * from './model/audit-labels.js'
 export * from './model/audit-log.js'
 export * from './model/authorization.js'
 export * from './model/contact.js'

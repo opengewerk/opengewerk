@@ -677,6 +677,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nichts, das Bündelbudget steht weiter bei 231,6 und 330,3 kB. Dazu wartet der Test des
   Wechsels zwischen zwei Mandanten im Fundament auf die Frage an den Server, bevor er sie
   beantwortet: kam sie auf einem langsamen Runner nach der Antwort, wartete sie für immer.
+- Das Lesen des Änderungsprotokolls ist ein Teil des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#22`, erster Teil), damit jede Anwendung ihr Protokoll so liest und
+  prüft wie diese: die Seiten mit ihren Namen, die Teile eines Datensatzes, die Prüfung der Kette
+  und die Routen unter `/audit` liegen in `@opengewerk/platform-server`. Diese Anwendung gibt ihr
+  Vokabular mit, die deutschen Namen ihrer Tabellen und Spalten, die Teile, Verweise und Gründe;
+  die Tabellen des Fundaments, Zugänge, Anmeldungen, Rollen und die Instanz, benennt das Fundament
+  selbst, mit "Betrieb" und "Betreiber" aus diesem Vokabular. Das Protokoll zeigt dieselben Namen
+  wie vorher, verglichen über jede Tabelle und Spalte der Datenbank. Der Test, der eine Spalte ohne
+  Namen meldet, prüft jetzt auch die Tabellen des Protokolls der Instanz und Namensregeln für
+  Tabellen, die es nicht gibt.
 
 ### Behoben
 
