@@ -12,15 +12,16 @@ import {
   cardLink,
 } from '@opengewerk/platform-web'
 import {
+  ChangesButton,
   Empty,
   FactList,
+  lastChanged,
   ListCard,
   ListScreen,
   NoteBox,
   PageHead,
   RecordColumns,
   Screen,
-  lastChanged,
 } from '@opengewerk/platform-web/office'
 import type { ListColumn } from '@opengewerk/platform-web/office'
 import {
@@ -48,7 +49,6 @@ import {
   supplierArticles,
 } from '../../session/articles.js'
 import { Frequent, PageFooter, pageSize, PriceWithBase, saidWhy } from './articles.js'
-import { ChangesButton } from './audit-log.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf } from './customers.js'
 

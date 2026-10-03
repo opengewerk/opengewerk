@@ -1,11 +1,13 @@
 import type { Permission } from '@opengewerk/domain'
 import type {
+  AuditSentences,
   InstanceAreaSentences,
   InterfaceApplication,
   OwnTenantLink,
   SettingsEntry,
   StaffSentences,
 } from '@opengewerk/platform-web'
+import { auditLogPath } from '@opengewerk/platform-web/office'
 import {
   CalendarClock,
   Clock,
@@ -22,6 +24,7 @@ import {
 } from 'lucide-react'
 
 import { application } from '../app/application.js'
+import { auditScreenWords } from './audit.js'
 
 /**
  * The screens a business sets itself up with, in the order of the board
@@ -121,7 +124,7 @@ const settings = [
   },
   {
     key: 'protokoll',
-    to: '/einstellungen/protokoll',
+    to: auditLogPath,
     title: 'Änderungsprotokoll',
     about: 'Wer wann was geändert hat, Feld für Feld, und ob das Protokoll unverändert ist.',
     icon: History,
@@ -208,18 +211,37 @@ const instance = {
     mailOwnServer: 'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver.',
     mailNoWayIn: 'So greift kein Betrieb über die Instanz in das Netz dahinter.',
   },
+  log: {
+    what: 'Jede Änderung an der Instanz. Was in einem Betrieb geändert wird, steht in dessen Änderungsprotokoll.',
+    aTenant: 'Ein Betrieb',
+    operatorAppointed: 'Betreiber benannt',
+    operatorRemoved: 'Betreiber entfernt',
+    tenantCreated: 'Betrieb angelegt',
+    tenantRemoved: 'Betrieb entfernt',
+  },
 } as const satisfies InstanceAreaSentences
+
+/**
+ * What the change log of a business says in the words of this application
+ * (#285): what it holds and who reads it. Word for word what the screen said
+ * before it moved into the foundation.
+ */
+const audit = {
+  what: 'Jede Änderung im Betrieb, Feld für Feld: wer, wann, auf welchem Gerät und auf welchem Weg.',
+  onlyFor: 'Das Änderungsprotokoll sieht nur der Inhaber.',
+} as const satisfies AuditSentences
 
 /**
  * This application as the office hands it to the foundation: what both
  * entries share, and what only the office shows, the settings of a business,
- * the way to a further one, and what "Zugänge" and the area of the instance
- * say (ADR 0010). Kept apart from the shared value so that the site does not
- * load any of it.
+ * the way to a further one, the words of the change log, and what "Zugänge",
+ * the area of the instance and the change log say (ADR 0010). Kept apart from
+ * the shared value so that the site does not load any of it.
  */
 export const officeApplication: InterfaceApplication = {
   ...application,
   settings,
   ownTenant,
-  sentences: { ...application.sentences, staff, instance },
+  audit: auditScreenWords,
+  sentences: { ...application.sentences, staff, instance, audit },
 }

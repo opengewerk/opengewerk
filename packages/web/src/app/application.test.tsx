@@ -354,16 +354,25 @@ describe('what each entry hands to the foundation', () => {
       label: 'Weiteren Betrieb anlegen',
     })
 
-    // What "Zugänge" and the area of the instance say comes only with the
-    // office, beside the sentences both entries share.
+    // What "Zugänge", the area of the instance and the change log say, and the
+    // words of the log, come only with the office, beside the sentences both
+    // entries share.
     expect(application.sentences.staff).toBeUndefined()
     expect(application.sentences.instance).toBeUndefined()
+    expect(application.sentences.audit).toBeUndefined()
+    expect(application.audit).toBeUndefined()
     expect(officeApplication.sentences.staff?.accounts).toBe('Konten dieses Betriebs')
     expect(officeApplication.sentences.instance?.tenants.title).toBe('Betriebe')
+    expect(officeApplication.sentences.instance?.log.tenantCreated).toBe('Betrieb angelegt')
+    expect(officeApplication.sentences.audit?.onlyFor).toBe(
+      'Das Änderungsprotokoll sieht nur der Inhaber.',
+    )
+    expect(officeApplication.audit?.vocabulary.foundation.tenant).toBe('Betrieb')
 
     const {
       ownTenant: _office,
-      sentences: { staff: _staff, instance: _instance, ...sentences },
+      audit: _audit,
+      sentences: { staff: _staff, instance: _instance, audit: _log, ...sentences },
       ...shared
     } = officeApplication
 

@@ -687,6 +687,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wie vorher, verglichen über jede Tabelle und Spalte der Datenbank. Der Test, der eine Spalte ohne
   Namen meldet, prüft jetzt auch die Tabellen des Protokolls der Instanz und Namensregeln für
   Tabellen, die es nicht gibt.
+- Der Bildschirm "Änderungsprotokoll", der Knopf "Änderungen" an einem Datensatz und das
+  Protokoll der Instanz sind Teile des Fundaments (ADR 0010, `opengewerk-haustechnik#22`,
+  zweiter Teil), damit die Haustechnik ihr Protokoll mit demselben Bildschirm zeigt. Diese
+  Anwendung gibt im Wert des Büros die Wörter ihrer Werte, die Wege zu ihren Datensätzen und
+  ihre Sätze mit, die mit "Betrieb", "Inhaber" und "Betreiber". Zu sehen ist dasselbe wie
+  vorher, verglichen am HTML von 44 Zuständen vor und nach dem Umzug. Das Büro trägt dafür
+  1,2 kB mehr (333,1 statt 331,2 kB gzip, Grenze 450), die Baustelle nichts. Der Baukasten des
+  Vokabulars meldet Worte für eine Tabelle, die kein Trigger beobachtet, nur noch bei den Tabellen
+  der Anwendung: eine Tabelle des Fundaments legt eine Anwendung erst an, wenn sie sie braucht,
+  die Einstellungen eines Mandanten etwa, wie das Anheben in der Haustechnik zeigte.
 
 ### Behoben
 

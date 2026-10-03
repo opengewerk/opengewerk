@@ -1,10 +1,11 @@
-import type { AuditChainReport, AuditPage } from '@opengewerk/domain'
-import { request } from '@opengewerk/platform-web/sync'
+import type { AuditChainReport, AuditPage, AuditPerson } from '@opengewerk/platform-domain'
+
+import { request } from '../sync/transport.js'
 
 /**
- * The change log of the business (#285), read straight at the routes like the
- * settings. Nothing of it travels to a device: it is the owner's, and it is
- * read in the office.
+ * The change log of a tenant (ADR 0010), read straight at the routes like the
+ * settings. Nothing of it travels to a device: it is for whoever may read it,
+ * and it is read at a desk.
  */
 
 /** What the log is narrowed to. An empty value is no filter. */
@@ -25,12 +26,6 @@ export const noAuditFilter: AuditFilterView = {
   person: '',
   table: '',
   record: '',
-}
-
-/** Somebody who has worked in this business, for the filter. */
-export interface AuditPersonView {
-  readonly userId: string
-  readonly name: string
 }
 
 export function auditChanges(filter: AuditFilterView, before: number | null): Promise<AuditPage> {
@@ -55,6 +50,6 @@ export function auditChain(): Promise<AuditChainReport> {
   return request<AuditChainReport>('/audit/chain')
 }
 
-export function auditPeople(): Promise<readonly AuditPersonView[]> {
-  return request<readonly AuditPersonView[]>('/audit/people')
+export function auditPeople(): Promise<readonly AuditPerson[]> {
+  return request<readonly AuditPerson[]>('/audit/people')
 }

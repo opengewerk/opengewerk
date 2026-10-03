@@ -14,14 +14,15 @@ import {
 import type { StatusTone } from '@opengewerk/platform-web'
 import { date } from '@opengewerk/platform-web/format'
 import {
+  ChangesButton,
   Empty,
   FactList,
+  lastChanged,
   ListCard,
   ListScreen,
   PageHead,
   RecordColumns,
   Screen,
-  lastChanged,
 } from '@opengewerk/platform-web/office'
 import type { ListColumn } from '@opengewerk/platform-web/office'
 import {
@@ -52,7 +53,6 @@ import { FilesPanel } from './attachments.js'
 import { DocumentChainCard, JobDocumentsPanel, useJobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'
 import { JobTimeSection } from './time.js'
-import { ChangesButton } from './audit-log.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
 const statusOptions = jobStatuses.map((status) => ({

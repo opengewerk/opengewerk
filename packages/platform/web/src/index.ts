@@ -33,10 +33,12 @@ export * from './components/index.js'
 export {
   ApplicationProvider,
   useApplication,
+  useAuditSentences,
   useInstanceSentences,
   useStaffSentences,
 } from './application.js'
 export type {
+  AuditSentences,
   ConflictWay,
   DeviceStart,
   InstanceAreaSentences,

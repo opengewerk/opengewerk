@@ -1,10 +1,11 @@
 import { syncRules } from '@opengewerk/platform-domain'
-import { probePolicies } from '@opengewerk/platform-domain/testing'
+import { probeAuditVocabulary, probePolicies } from '@opengewerk/platform-domain/testing'
 import { Archive, KeyRound, StickyNote } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { ApplicationProvider } from './application.js'
 import type { InterfaceApplication, RecordWords } from './application.js'
+import type { AuditScreenWords } from './office/audit-words.js'
 import { SyncClient } from './sync/client.js'
 import { maybeText } from './sync/fields.js'
 import { directWrite, httpTransport } from './sync/transport.js'
@@ -98,6 +99,31 @@ export const probeRecords: RecordWords = {
   },
 }
 
+/**
+ * What the change log of the application that belongs to nobody says about
+ * its values and the ways to its records: a letter goes out and is then sent,
+ * a reminder is a letter of its own kind, a shelf keeps a code that is never
+ * shown and a checksum that is shortened.
+ */
+export const probeAuditWords: AuditScreenWords = {
+  vocabulary: probeAuditVocabulary,
+  values: { letters: { status: { draft: 'Entwurf', sent: 'Verschickt' } } },
+  lists: { labels: { red: 'Rot', blue: 'Blau' } },
+  hidden: ['lock_code'],
+  fingerprints: ['checksum'],
+  summary: (change) =>
+    change.table === 'letters' &&
+    change.fields.some((field) => field.field === 'status' && field.after === 'sent')
+      ? 'Verschickt'
+      : null,
+  kindOf: (table, kind) => (table === 'letters' && kind === 'reminder' ? 'Mahnung' : null),
+  href: (table, id) =>
+    table === 'shelves' ? `/regale/${id}` : table === 'letters' ? `/briefe/${id}` : null,
+  linkWords: (table) =>
+    table === 'shelves' ? 'Zum Regal' : table === 'letters' ? 'Zum Brief' : null,
+  partsWords: { shelves: 'mit seinen Notizen', letters: 'mit seinen Zeilen' },
+}
+
 export function probeApplication(over: Partial<InterfaceApplication> = {}): InterfaceApplication {
   return {
     name: 'Probewerk',
@@ -138,6 +164,8 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         icon: StickyNote,
       },
     ],
+
+    audit: probeAuditWords,
 
     // For whoever may make a tenant of their own, a right no application has.
     ownTenant: {
@@ -261,6 +289,18 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
           mailOwnServer: 'Ein Mandant schickt Mails über seinen Mailserver.',
           mailNoWayIn: 'So kommt kein Mandant in das Netz dahinter.',
         },
+        log: {
+          what: 'Was die Aufsicht an der Instanz geändert hat. Was in einem Mandanten geschieht, steht in dessen Protokoll.',
+          aTenant: 'Ein Mandant',
+          operatorAppointed: 'Zur Aufsicht gemacht',
+          operatorRemoved: 'Aus der Aufsicht genommen',
+          tenantCreated: 'Mandant angelegt',
+          tenantRemoved: 'Mandant entfernt',
+        },
+      },
+      audit: {
+        what: 'Was im Mandanten geändert wurde, Feld für Feld.',
+        onlyFor: 'Das Protokoll sieht nur die Leitung.',
       },
     },
 

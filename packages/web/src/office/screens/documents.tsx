@@ -24,7 +24,13 @@ import {
 } from '@opengewerk/platform-web'
 import type { TableCard } from '@opengewerk/platform-web'
 import { date, euros, moment, today } from '@opengewerk/platform-web/format'
-import { NoteBox, PageHead, RecordColumns, Screen } from '@opengewerk/platform-web/office'
+import {
+  ChangesButton,
+  NoteBox,
+  PageHead,
+  RecordColumns,
+  Screen,
+} from '@opengewerk/platform-web/office'
 import {
   maybeText,
   text,
@@ -71,7 +77,6 @@ import { DocumentMarker } from './document-marker.js'
 import { PaymentsCard } from './document-payments.js'
 import { CancelPanel, IssuePanel, reasonOf } from './document-steps.js'
 import { claimableTransitions } from './taxes.js'
-import { ChangesButton } from './audit-log.js'
 
 /** Oldest first, the order the chain was written in. The id breaks a tie. */
 function byDate(left: RecordState, right: RecordState): number {

@@ -4,6 +4,7 @@ import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 
 import type { Entry } from './components/surface.js'
+import type { AuditScreenWords } from './office/audit-words.js'
 import type { InvitationState } from './session/session.js'
 import type { SyncClient } from './sync/client.js'
 import type { LocalStore } from './sync/store.js'
@@ -51,6 +52,13 @@ export interface InterfaceApplication {
    * holds the right.
    */
   readonly ownTenant?: OwnTenantLink
+  /**
+   * What the change log says about the values in the application's tables and
+   * where its records are opened, around the vocabulary its server is told as
+   * well. Only the office shows the log, so only the value of the office
+   * carries it, and an entry that never draws the log does not load its words.
+   */
+  readonly audit?: AuditScreenWords
   /**
    * Starts the sync client of the application for the tenant whose store this
    * is: with the rules made from its policies, the kinds of record it has a
@@ -328,6 +336,16 @@ export interface InterfaceSentences {
   readonly staff?: StaffSentences
   /** The area of the instance, which likewise only the office shows. */
   readonly instance?: InstanceAreaSentences
+  /** The change log of a tenant, which likewise only the office shows. */
+  readonly audit?: AuditSentences
+}
+
+/** What the change log of a tenant says in the words of the application. */
+export interface AuditSentences {
+  /** Under the heading: what the log holds. */
+  readonly what: string
+  /** For somebody without the right to read it: who reads it. */
+  readonly onlyFor: string
 }
 
 /** What "Zugänge" says with the application's word for a tenant, or of a place in it. */
@@ -434,6 +452,17 @@ export interface InstanceAreaSentences {
     /** After it: what the rule keeps a tenant from. */
     readonly mailNoWayIn: string
   }
+  readonly log: {
+    /** Under the heading: what the log holds, and where a change in a tenant stands instead. */
+    readonly what: string
+    /** A tenant whose name the log no longer has. */
+    readonly aTenant: string
+    /** A change to who runs the instance, or to its tenants, in the words that say what happened. */
+    readonly operatorAppointed: string
+    readonly operatorRemoved: string
+    readonly tenantCreated: string
+    readonly tenantRemoved: string
+  }
 }
 
 const Application = createContext<InterfaceApplication | null>(null)
@@ -486,4 +515,9 @@ export function useStaffSentences(): StaffSentences {
 /** What the area of the instance says in the words of the application. */
 export function useInstanceSentences(): InstanceAreaSentences {
   return handedIn(useApplication().sentences.instance)
+}
+
+/** What the change log of a tenant says in the words of the application. */
+export function useAuditSentences(): AuditSentences {
+  return handedIn(useApplication().sentences.audit)
 }

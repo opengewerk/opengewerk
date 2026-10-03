@@ -32,6 +32,22 @@ export { PasskeysPanel } from './passkeys.js'
 // invitations still open: a settings screen, under the key `zugaenge`.
 export { StaffScreen } from './staff.js'
 
+// The change log of a tenant, under the settings at `auditLogPath` and behind
+// the button "Änderungen" at a record, and the pieces the log of the instance
+// is drawn from as well. What its records, fields and values are called the
+// application says in its value (`audit`), the rules are made from it once.
+export {
+  auditLogPath,
+  AuditLogScreen,
+  ChangeFacts,
+  ChangesButton,
+  FieldList,
+  FieldsTable,
+  PersonCell,
+} from './audit-log.js'
+export { auditWords, useAuditWords } from './audit-words.js'
+export type { AuditNames, AuditScreenWords, AuditWords } from './audit-words.js'
+
 // "Abgleich": what is to decide about the exchange, the conflicts and the entry
 // the server refused, beside the state of the exchange. What a record is
 // called and what other way out of a conflict there is, the application says

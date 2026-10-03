@@ -1,13 +1,13 @@
 import {
+  InstanceLogScreen,
   InstanceOperatorsScreen,
   InstanceSettingsScreen,
   InstanceTenantsScreen,
 } from '@opengewerk/platform-web/instance'
-import { SettingsScreen, SyncScreen } from '@opengewerk/platform-web/office'
+import { AuditLogScreen, SettingsScreen, SyncScreen } from '@opengewerk/platform-web/office'
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
 
 import { InstanceShell } from './instance/shell.js'
-import { InstanceLogScreen } from './instance/log.js'
 import { OfficeShell } from './shell.js'
 import { AccountScreen } from './screens/account.js'
 import {
@@ -16,7 +16,6 @@ import {
   EditArticleScreen,
   NewArticleScreen,
 } from './screens/articles.js'
-import { AuditLogScreen } from './screens/audit-log.js'
 import { BackupScreen } from './screens/backup.js'
 import {
   CustomerList,

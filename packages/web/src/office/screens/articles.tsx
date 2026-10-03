@@ -29,6 +29,7 @@ import {
 } from '@opengewerk/platform-web'
 import { date, euros, parseEuros, today } from '@opengewerk/platform-web/format'
 import {
+  ChangesButton,
   Chip,
   Empty,
   FactList,
@@ -68,7 +69,6 @@ import {
   updateArticle,
   updateArticleSupplier,
 } from '../../session/articles.js'
-import { ChangesButton } from './audit-log.js'
 
 /** What a refusal says, or a sentence for a request that never got an answer. */
 export function saidWhy(error: unknown, fallback: string): string {
