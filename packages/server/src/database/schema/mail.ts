@@ -1,15 +1,5 @@
-import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
-import { invitations, tenantColumn } from '@opengewerk/platform-server/schema'
-import {
-  foreignKey,
-  index,
-  integer,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-} from 'drizzle-orm/pg-core'
+import { mailOutboxSchema, reference } from '@opengewerk/platform-server'
+import { foreignKey, index, pgEnum } from 'drizzle-orm/pg-core'
 
 import { deadlines } from './deadlines.js'
 import { documents } from './documents.js'
@@ -18,15 +8,16 @@ import { tasks } from './tasks.js'
 /**
  * What a message is about. One kind per cause the notifications know, and one
  * for the passkey added to an account (#167), which is told to the account
- * through the outbox of a business it works in.
+ * through the outbox of a business it works in. In the order the enum learnt
+ * them, which is the order they stand in the database.
  */
-export const mailKind = pgEnum('mail_kind', [
+export const mailKinds = [
   'task_due',
   'document',
   'invitation',
   'deadline_due',
   'passkey_added',
-])
+] as const
 
 /**
  * The file a message about a document carries: the PDF, or one of the two
@@ -36,59 +27,23 @@ export const mailKind = pgEnum('mail_kind', [
 export const mailAttachment = pgEnum('mail_attachment', ['pdf', 'zugferd', 'xrechnung'])
 
 /**
- * Where a message stands. `failed` is the end of trying, not the end of the
- * row: the message stays, with the last error, and nothing is ever deleted.
- */
-export const mailStatus = pgEnum('mail_status', ['pending', 'sent', 'failed'])
-
-/**
  * Every message the instance sends, before and after it went out.
  *
- * A message is written here in the transaction of whatever caused it and sent
- * afterwards, by the job in `mail/worker.ts`. A mail server that does not
- * answer for two hours therefore costs two hours and nothing else: the row
- * waits, the job tries again, and the cause that wrote it has long committed.
- * The same shape as the outbox of a device, turned round.
- *
- * What goes out is decided when the row is written, subject and text included.
- * The row is the record of what the business told somebody and when, which is
- * the question the audit log will be asked about an invoice sent by mail; a
- * text put together again at sending time could say something the row does
- * not.
- *
- * `cause` makes a message happen once per cause. A due task is caused by the
- * task and its day, so the job that looks for due tasks every minute writes
- * one row and not sixty, and a task moved to another day is a new cause.
+ * The table and how it is sent are the foundation's (`mailOutboxSchema`,
+ * ADR 0010): written in the transaction of whatever caused a message, sent
+ * by the job afterwards, once per cause. Kept here are the kinds of this
+ * application and the columns for what its messages are about: the task that
+ * is due, the document with the file it carries, and the deadline.
  */
-export const mailOutbox = pgTable(
-  'mail_outbox',
-  {
-    id: primaryId<'mail'>(),
-    ...tenantColumn,
-    kind: mailKind('kind').notNull(),
-    cause: text('cause').notNull(),
+export const { mailKind, mailStatus, mailOutbox } = mailOutboxSchema({
+  kinds: mailKinds,
+  columns: {
     taskId: reference<'task'>('task_id'),
     documentId: reference<'document'>('document_id'),
     attachment: mailAttachment('attachment'),
-    invitationId: reference<'invitation'>('invitation_id'),
     deadlineId: reference<'deadline'>('deadline_id'),
-    /** Who asked for the message, for one somebody asked for. Null for a due task. */
-    requestedBy: text('requested_by'),
-    senderName: text('sender_name').notNull(),
-    replyTo: text('reply_to'),
-    recipientAddress: text('recipient_address').notNull(),
-    recipientName: text('recipient_name'),
-    subject: text('subject').notNull(),
-    body: text('body').notNull(),
-    status: mailStatus('status').notNull().default('pending'),
-    attempts: integer('attempts').notNull().default(0),
-    nextAttemptAt: timestamp('next_attempt_at', { withTimezone: true }).notNull().defaultNow(),
-    lastError: text('last_error'),
-    sentAt: timestamp('sent_at', { withTimezone: true }),
-    ...timestamps,
   },
-  (table) => [
-    tenantIsolation(table.tenantId),
+  constraints: (table) => [
     foreignKey({
       columns: [table.tenantId, table.taskId],
       foreignColumns: [tasks.tenantId, tasks.id],
@@ -100,20 +55,12 @@ export const mailOutbox = pgTable(
       name: 'mail_outbox_document_in_tenant',
     }).onDelete('restrict'),
     foreignKey({
-      columns: [table.tenantId, table.invitationId],
-      foreignColumns: [invitations.tenantId, invitations.id],
-      name: 'mail_outbox_invitation_in_tenant',
-    }).onDelete('restrict'),
-    foreignKey({
       columns: [table.tenantId, table.deadlineId],
       foreignColumns: [deadlines.tenantId, deadlines.id],
       name: 'mail_outbox_deadline_in_tenant',
     }).onDelete('restrict'),
-    unique('mail_outbox_once_per_cause').on(table.tenantId, table.cause),
-    index('mail_outbox_due_idx').on(table.tenantId, table.status, table.nextAttemptAt),
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),
     index('mail_outbox_document_idx').on(table.tenantId, table.documentId),
-    index('mail_outbox_invitation_idx').on(table.tenantId, table.invitationId),
     index('mail_outbox_deadline_idx').on(table.tenantId, table.deadlineId),
   ],
-)
+})

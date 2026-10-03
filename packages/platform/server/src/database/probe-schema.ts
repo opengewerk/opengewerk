@@ -1,9 +1,13 @@
+import { index, text } from 'drizzle-orm/pg-core'
+
 import {
   type MadeByTheApplication,
+  mailOutboxGuard,
   numberRangesGuard,
   secretsGuard,
   tenantParametersGuard,
 } from '../migration/guards.js'
+import { mailOutboxSchema } from './schema/mail-outbox.js'
 import { numberRangesSchema } from './schema/number-ranges.js'
 import { tenantParametersSchema } from './schema/parameters.js'
 import { secretsSchema } from './schema/secrets.js'
@@ -42,6 +46,23 @@ export const {
 export const { numberRangeKey: probeNumberRangeKey, numberRanges: probeNumberRanges } =
   numberRangesSchema(['parcel', 'visit'])
 
+/**
+ * What the probe application tells people by mail: that a parcel waits at the
+ * desk, that a visit is announced, and that somebody is invited in. Its
+ * messages about a parcel carry the number of the parcel in a column of the
+ * application's own, the way an application keeps what its messages are
+ * about.
+ */
+export const {
+  mailKind: probeMailKind,
+  mailStatus: probeMailStatus,
+  mailOutbox: probeMailOutbox,
+} = mailOutboxSchema({
+  kinds: ['parcel_waiting', 'visit_announced', 'guest_invited'],
+  columns: { parcelNumber: text('parcel_number') },
+  constraints: (table) => [index('mail_outbox_parcel_idx').on(table.tenantId, table.parcelNumber)],
+})
+
 /** The same tables as the kit is told about them. */
 export const probeMade: MadeByTheApplication = {
   schema: {
@@ -52,6 +73,9 @@ export const probeMade: MadeByTheApplication = {
     tenantParameters: probeParameters,
     numberRangeKey: probeNumberRangeKey,
     numberRanges: probeNumberRanges,
+    mailKind: probeMailKind,
+    mailStatus: probeMailStatus,
+    mailOutbox: probeMailOutbox,
   },
-  guards: [secretsGuard, tenantParametersGuard, numberRangesGuard],
+  guards: [secretsGuard, tenantParametersGuard, numberRangesGuard, mailOutboxGuard],
 }

@@ -1,5 +1,11 @@
 import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
-import { type Database, everyTenant, type VapidKeys } from '@opengewerk/platform-server'
+import {
+  type Database,
+  everyTenant,
+  type RepeatingJob,
+  startRepeating,
+  type VapidKeys,
+} from '@opengewerk/platform-server'
 import { eq, isNotNull } from 'drizzle-orm'
 
 import { pushSubscriptions } from '../database/schema/index.js'
@@ -191,45 +197,11 @@ export async function runPushCycle(job: PushJob): Promise<PushReport> {
  * Runs the job every minute, one pass after the other and never two at once,
  * as the mail job does. `stop` waits for a pass that is running.
  */
-export function startPushWorker(
-  job: PushJob,
-  intervalMs = 60_000,
-): { readonly stop: () => Promise<void> } {
-  let stopped = false
-  let running: Promise<void> | null = null
-  let timer: NodeJS.Timeout | null = null
-
-  const schedule = (delay: number) => {
-    timer = setTimeout(tick, delay)
-    timer.unref()
-  }
-
-  function tick() {
-    running = runPushCycle(job)
-      .then(() => undefined)
-      .catch((error: unknown) => {
-        console.error('Der Versand von Push-Nachrichten ist gescheitert.', error)
-      })
-      .finally(() => {
-        running = null
-
-        if (!stopped) {
-          schedule(intervalMs)
-        }
-      })
-  }
-
-  schedule(15_000)
-
-  return {
-    stop: async () => {
-      stopped = true
-
-      if (timer) {
-        clearTimeout(timer)
-      }
-
-      await running
-    },
-  }
+export function startPushWorker(job: PushJob, intervalMs = 60_000): RepeatingJob {
+  return startRepeating({
+    run: () => runPushCycle(job),
+    intervalMs,
+    firstAfterMs: 15_000,
+    failure: 'Der Versand von Push-Nachrichten ist gescheitert.',
+  })
 }

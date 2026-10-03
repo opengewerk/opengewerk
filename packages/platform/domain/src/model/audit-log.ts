@@ -146,6 +146,12 @@ export interface AuditVocabulary {
   readonly tables: Readonly<Record<string, AuditTableWords>>
   /** The fields many of its tables share, named once. */
   readonly commonFields: Readonly<Record<string, string>>
+  /**
+   * Columns of its own on tables of the foundation, named by table. The
+   * outbox of the mail is the table made to carry some, for the records its
+   * messages are about (#23); the foundation names every other column.
+   */
+  readonly ownFields?: Readonly<Record<string, Readonly<Record<string, string>>>>
   /** What the foundation needs from it to name its own tables and reasons. */
   readonly foundation: FoundationAuditWords
   /**
@@ -211,7 +217,10 @@ export const quietAuditFields: readonly string[] = [
 ]
 
 /** The fields of the foundation that hold the id of a person. */
-const foundationPersonFields: readonly string[] = ['user_id', 'invited_by']
+const foundationPersonFields: readonly string[] = ['user_id', 'invited_by', 'requested_by']
+
+/** Fields of the foundation that point at another record, and the table they point into. */
+const foundationReferences: Readonly<Record<string, string>> = { invitation_id: 'invitations' }
 
 /** The fields the foundation puts on many tables, its sync columns among them. */
 function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<string, string>> {
@@ -235,6 +244,7 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 export const foundationAuditTables = [
   'files',
   'invitations',
+  'mail_outbox',
   'mail_settings',
   'member_passkeys',
   'memberships',
@@ -255,6 +265,26 @@ function foundationTables(
     files: {
       label: 'Gespeicherte Datei',
       fields: { sha256: 'Prüfsumme', size_bytes: 'Größe', media_type: 'Dateityp' },
+    },
+    mail_outbox: {
+      label: 'E-Mail',
+      fields: {
+        kind: 'Anlass',
+        cause: 'Ursache',
+        invitation_id: 'Einladung',
+        requested_by: 'Verschickt von',
+        sender_name: 'Absender',
+        reply_to: 'Antwort an',
+        recipient_address: 'Empfänger',
+        recipient_name: 'Name des Empfängers',
+        subject: 'Betreff',
+        body: 'Text',
+        status: 'Status',
+        attempts: 'Versuche',
+        next_attempt_at: 'Nächster Versuch',
+        last_error: 'Letzter Fehler',
+        sent_at: 'Verschickt am',
+      },
     },
     mail_settings: {
       label: 'E-Mail-Einstellungen',
@@ -345,10 +375,12 @@ function foundationInstanceTables(
 
 /**
  * Where the records of the foundation are named: a membership and a sign in by
- * their person, a file by its type, a mail server by the address it sends from.
+ * their person, a file by its type, a mail server by the address it sends from,
+ * a message by its subject.
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   files: ['media_type'],
+  mail_outbox: ['subject'],
   mail_settings: ['from_address'],
   memberships: ['user_id'],
   tenant_sessions: ['user_id'],
@@ -455,6 +487,7 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
 
   const fieldName = (table: string, field: string): string | null =>
     tables[table]?.fields?.[field] ??
+    vocabulary.ownFields?.[table]?.[field] ??
     instanceTables[table]?.fields?.[field] ??
     vocabulary.commonFields[field] ??
     ownCommon[field] ??
@@ -495,7 +528,7 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
     titleFieldOf,
     titleFrom,
     partsOf: (table) => vocabulary.parts[table] ?? [],
-    referenceOf: (field) => vocabulary.references[field] ?? null,
+    referenceOf: (field) => foundationReferences[field] ?? vocabulary.references[field] ?? null,
     isPersonField: (field) => personFields.has(field),
     isQuiet: (field) => quiet.has(field),
     way: (reason, databaseRole) => auditWay(vocabulary, reason, databaseRole),

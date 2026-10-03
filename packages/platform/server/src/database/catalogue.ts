@@ -246,10 +246,17 @@ function compare(
  * What an application has hung on tables of the foundation, each written
  * `table.name`. Listed so that it is a decision: a trigger the list does not
  * name is either missing from the blocks or should not be there.
+ *
+ * Columns and constraints are for the one table made to carry some of an
+ * application's own, the outbox of its mail, whose messages point at the
+ * records they are about. Named on another table they are allowed just the
+ * same, and stand in the list for everybody to see.
  */
 export interface OwnAdditions {
   readonly triggers?: readonly string[]
   readonly indexes?: readonly string[]
+  readonly columns?: readonly string[]
+  readonly constraints?: readonly string[]
 }
 
 /** The names of one table in such a list, and the entries that name nothing. */
@@ -282,9 +289,9 @@ function ownOf(
  *
  * What an application has of its own is not looked at: its tables, its types
  * and its functions. A table of the foundation is held in both directions. A
- * column, a key, a policy or a right more than the blocks gave is a deviation,
- * because each of them changes what the foundation promises about that table.
- * So is a trigger or an index more, unless the application names it as its
+ * policy or a right more than the blocks gave is a deviation, because each of
+ * them changes what the foundation promises about that table. So is a column,
+ * a key, a trigger or an index more, unless the application names it as its
  * own: that is how a trigger the blocks forgot is told from one the
  * application added.
  */
@@ -313,20 +320,29 @@ export function catalogueDeviations(
     const wholeFound = { 'row level security': found.rowSecurity, grants: found.grants }
     const triggers = ownOf(own.triggers, name, found.triggers, 'trigger')
     const indexes = ownOf(own.indexes, name, found.indexes, 'index')
+    const columns = ownOf(own.columns, name, found.columns, 'column')
+    const constraints = ownOf(own.constraints, name, found.constraints, 'constraint')
 
     deviations.push(
       ...compare(`table ${name},`, whole, wholeFound, 'exactly'),
-      ...compare(`table ${name}, column`, table.columns, found.columns, 'exactly'),
-      ...compare(`table ${name}, constraint`, table.constraints, found.constraints, 'exactly'),
+      ...compare(`table ${name}, column`, table.columns, found.columns, columns),
+      ...compare(`table ${name}, constraint`, table.constraints, found.constraints, constraints),
       ...compare(`table ${name}, policy`, table.policies, found.policies, 'exactly'),
       ...compare(`table ${name}, index`, table.indexes, found.indexes, indexes),
       ...compare(`table ${name}, trigger`, table.triggers, found.triggers, triggers),
+      ...columns.stale,
+      ...constraints.stale,
       ...indexes.stale,
       ...triggers.stale,
     )
   }
 
-  for (const entry of [...(own.triggers ?? []), ...(own.indexes ?? [])]) {
+  for (const entry of [
+    ...(own.triggers ?? []),
+    ...(own.indexes ?? []),
+    ...(own.columns ?? []),
+    ...(own.constraints ?? []),
+  ]) {
     const table = entry.slice(0, entry.indexOf('.'))
 
     if (!(table in expected.tables)) {

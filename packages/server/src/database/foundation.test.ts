@@ -25,10 +25,29 @@ afterAll(async () => {
 
 describe('the foundation in this database', () => {
   it('is what its building blocks say, after every migration', async () => {
-    // Nothing of its own hangs on a table of the foundation. The one trigger
+    // What hangs of its own on a table of the foundation is what the outbox of
+    // the mail carries for the records its messages are about (#23): the
+    // task, the document with its file, and the deadline. The one trigger
     // that used to be named here, the log of the instance watching `tenants`
     // (#188), is the foundation's since the area of the instance moved there.
-    const deviations = await foundationDeviations(admin)
+    const deviations = await foundationDeviations(admin, {
+      columns: [
+        'mail_outbox.task_id',
+        'mail_outbox.document_id',
+        'mail_outbox.attachment',
+        'mail_outbox.deadline_id',
+      ],
+      constraints: [
+        'mail_outbox.mail_outbox_task_in_tenant',
+        'mail_outbox.mail_outbox_document_in_tenant',
+        'mail_outbox.mail_outbox_deadline_in_tenant',
+      ],
+      indexes: [
+        'mail_outbox.mail_outbox_task_idx',
+        'mail_outbox.mail_outbox_document_idx',
+        'mail_outbox.mail_outbox_deadline_idx',
+      ],
+    })
 
     expect(deviations).toEqual([])
   })

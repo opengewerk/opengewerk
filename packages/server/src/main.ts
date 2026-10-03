@@ -11,6 +11,7 @@ import {
   FileStore,
   instanceIsEmpty,
   InstanceSettingsCache,
+  invitationLinks,
   reachableOnly,
   readRendererConfiguration,
   rendererFor,
@@ -28,7 +29,6 @@ import { access, createAuthentication, SessionIdentitySource } from './authentic
 import { application as opengewerk, readConfiguration } from './configuration.js'
 import { DocumentFiles } from './api/document-files.js'
 import { documentAttachments } from './mail/attachments.js'
-import { invitationLinks } from './mail/invitation-link.js'
 import { passkeyNotices } from './mail/passkey-notice.js'
 import { passwordResetMails } from './mail/password-reset.js'
 import { endInterruptedImports } from './datanorm/imports.js'

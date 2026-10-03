@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import {
   Database,
+  invitationLinks,
   MailDeliveryError,
   type MailTransport,
   newId,
@@ -22,7 +23,6 @@ import {
   resetSchema,
   shipRoles,
 } from '../database/test-database.js'
-import { invitationLinks } from '../mail/invitation-link.js'
 import { runMailCycle } from '../mail/worker.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'

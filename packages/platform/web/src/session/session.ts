@@ -1,4 +1,5 @@
 import {
+  invitationPath,
   isSignInMethod,
   type RoleDefinition,
   type SignInMethod,
@@ -469,15 +470,11 @@ export async function revokeStaffDevice(userId: string, sessionId: string): Prom
   })
 }
 
-/**
- * The far end of the link, which is a screen somebody reaches before they have
- * an account at all.
- *
- * The path is the one thing both halves have to agree on: the screen that
- * invites builds a link with it and the gate recognises one by it. So it is
- * written once, here, rather than as a string in each of the two places.
- */
-export const invitationPath = '/einladung'
+// The far end of the link, a screen somebody reaches before they have an
+// account at all. The path is the foundation's, because the job that sends an
+// invitation by mail makes its link with it as well; handed on here, where
+// the screens have always taken it from.
+export { invitationPath }
 
 export type InvitationState = 'open' | 'redeemed' | 'revoked' | 'expired'
 

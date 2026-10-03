@@ -1,11 +1,24 @@
-import { type Database, MailDeliveryError, mintToken, stillOpen } from '@opengewerk/platform-server'
+import { invitationPath } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 
-import { invitations } from '../database/schema/index.js'
-import type { OutboxRow } from './outbox.js'
+import { stillOpen } from '../authentication/administration.js'
+import { mintToken } from '../authentication/invitation.js'
+import type { Database } from '../database/database.js'
+import type { OutboxMessage } from '../database/schema/mail-outbox.js'
+import { invitations } from '../database/schema/memberships.js'
+import { MailDeliveryError } from './transport.js'
 
-/** Where the link of an invitation comes from. Handed to the job, like the attachments. */
-export type InvitationLinkSource = (row: OutboxRow) => Promise<string>
+/**
+ * Where the link stands in the text of a message about an invitation, written
+ * by the application into its text and replaced by the job as the message
+ * goes out. The row never holds a working link.
+ */
+export const invitationLinkPlaceholder = '{{link}}'
+
+/** Where the link of an invitation comes from, made as its message goes out. */
+export type InvitationLinkSource = (
+  message: Pick<OutboxMessage, 'tenantId' | 'invitationId'>,
+) => Promise<string>
 
 /**
  * The link of an invitation, made at the moment its message goes out.
@@ -21,15 +34,15 @@ export type InvitationLinkSource = (row: OutboxRow) => Promise<string>
  * no link, and the message is given up on with the reason.
  */
 export function invitationLinks(database: Database, origin: string): InvitationLinkSource {
-  return async (row) => {
-    if (row.invitationId === null) {
+  return async (message) => {
+    if (message.invitationId === null) {
       throw new MailDeliveryError('Der Nachricht fehlt die Einladung.', 'EINVITATION', null)
     }
 
-    const invitationId = row.invitationId
+    const invitationId = message.invitationId
     const { token, hash } = mintToken()
 
-    const updated = await database.forTenant({ tenantId: row.tenantId, reason: 'mail' }, (tx) =>
+    const updated = await database.forTenant({ tenantId: message.tenantId, reason: 'mail' }, (tx) =>
       tx
         .update(invitations)
         .set({ tokenHash: hash, updatedAt: new Date() })
@@ -45,6 +58,6 @@ export function invitationLinks(database: Database, origin: string): InvitationL
       )
     }
 
-    return `${origin}/einladung/${token}`
+    return `${origin}${invitationPath}/${token}`
   }
 }
