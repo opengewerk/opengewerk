@@ -1,15 +1,15 @@
 import { createServer, type Server } from 'node:net'
 
-import type { MailConfiguration } from '@opengewerk/platform-server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkMailServer } from './check.js'
+import type { MailConfiguration } from './configuration.js'
 import { destinationOf, reachableOnly } from './reach.js'
 import { MailDeliveryError, type MailTransport, smtpTransport } from './transport.js'
 
 /**
- * Where the mail server of a business may be (GHSA-5664-h6fc-v729): on the
- * internet, on a port for mail, or where the operator of the instance allows.
+ * Where the mail server of a tenant may be (GHSA-5664-h6fc-v729): on the
+ * internet, on a port for mail, or where the settings of the instance allow.
  * The names here resolve through a stand-in, so that no test depends on what
  * some resolver says today.
  */
@@ -90,7 +90,7 @@ describe('the destination of a mail server', () => {
     expect(refused.message).toContain('Port 5432')
   })
 
-  it('may be inside when the operator allows it, by name or by address, on any port', async () => {
+  it('may be inside when the instance allows it, by name or by address, on any port', async () => {
     const byName = await destinationOf(
       settings({ host: 'mail.lan', port: 1025 }),
       { internalHosts: ['MAIL.lan'] },

@@ -1,7 +1,7 @@
-import type { MailConfiguration } from '@opengewerk/platform-server'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkMailServer } from './check.js'
+import type { MailConfiguration } from './configuration.js'
 import { closedPort, type FakeSmtpServer, fakeSmtpServer } from './test-smtp.js'
 import { MailDeliveryError, type OutgoingMail, smtpTransport } from './transport.js'
 
@@ -176,5 +176,19 @@ describe('the check of a mail server', () => {
     const check = await checkMailServer(smtpTransport(configuration, short), configuration)
 
     expect(check.outcome).toBe('unreachable')
+  })
+})
+
+describe('a refusal that does not come from the server', () => {
+  it('is for good when whoever raised it says so, whatever its code', () => {
+    expect(
+      new MailDeliveryError('Die Datei fehlt.', 'EFILE', null, { permanent: true }).permanent,
+    ).toBe(true)
+    expect(new MailDeliveryError('Die Datei fehlt.', 'EFILE', null).permanent).toBe(false)
+  })
+
+  it('is for good for a destination or an invitation, which do not change by waiting', () => {
+    expect(new MailDeliveryError('Intern.', 'EDESTINATION', null).permanent).toBe(true)
+    expect(new MailDeliveryError('Abgelaufen.', 'EINVITATION', null).permanent).toBe(true)
   })
 })

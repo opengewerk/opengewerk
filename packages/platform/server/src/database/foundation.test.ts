@@ -97,6 +97,7 @@ describe('the foundation, built from its building blocks alone', () => {
     expect(await enumNames(admin)).toEqual([
       'audit_operation',
       'conflict_reason',
+      'mail_security',
       'operation_outcome',
       'sign_in_method',
     ])
@@ -122,7 +123,7 @@ describe('the foundation, built from its building blocks alone', () => {
     const inDatabase = await enumValues(admin)
     const declared = Object.values(schema).filter((entry) => isPgEnum(entry))
 
-    expect(declared).toHaveLength(4)
+    expect(declared).toHaveLength(5)
 
     for (const entry of declared) {
       expect({ [entry.enumName]: inDatabase.get(entry.enumName) }).toEqual({
@@ -134,15 +135,15 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(22)
+    expect(tables).toHaveLength(23)
     expect(unprotected(tables)).toEqual([])
   })
 
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The twelve tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(12)
+    // The thirteen tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(13)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -206,12 +207,13 @@ describe('the foundation, built from its building blocks alone', () => {
     expect(withoutTheTenant(keys)).toEqual([])
   })
 
-  it('watches what a tenant may see of its people and its files and leaves the rest out of the log', async () => {
+  it('watches what a tenant may see of its people, its files and its mail server and leaves the rest out of the log', async () => {
     const coverage = await logCoverage(admin)
 
     expect(coverage.watched).toEqual([
       'files',
       'invitations',
+      'mail_settings',
       'member_passkeys',
       'memberships',
       'tenant_roles',
@@ -493,6 +495,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(22)
+    expect(await tableNames(admin)).toHaveLength(23)
   })
 })

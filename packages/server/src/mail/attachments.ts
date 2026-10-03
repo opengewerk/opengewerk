@@ -1,9 +1,9 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 import { RuleError } from '@opengewerk/domain'
+import { type MailAttachment, MailDeliveryError } from '@opengewerk/platform-server'
 
 import type { DocumentFiles, MailedFile } from '../api/document-files.js'
 import type { OutboxRow } from './outbox.js'
-import { type MailAttachment, MailDeliveryError } from './transport.js'
 
 /** Where the files a message carries come from. Handed to the job, so a test can bring its own. */
 export type AttachmentSource = (row: OutboxRow) => Promise<readonly MailAttachment[]>
@@ -48,6 +48,7 @@ export function documentAttachments(files: DocumentFiles): AttachmentSource {
         'Der Nachricht fehlt der Beleg, den sie tragen soll.',
         'EDOCUMENT',
         null,
+        { permanent: true },
       )
     }
 
@@ -76,6 +77,7 @@ export function documentAttachments(files: DocumentFiles): AttachmentSource {
         `Der Anhang ließ sich nicht erzeugen: ${error instanceof Error ? error.message : String(error)}`,
         final ? 'EDOCUMENT' : 'EATTACHMENT',
         null,
+        { permanent: final },
       )
     }
   }

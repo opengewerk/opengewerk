@@ -2,7 +2,11 @@ import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
 import {
   type Database,
   everyTenant,
+  type MailAttachment,
   type MailConfiguration,
+  MailDeliveryError,
+  type MailTransport,
+  type OutgoingMail,
   type SecretKey,
 } from '@opengewerk/platform-server'
 
@@ -12,12 +16,6 @@ import type { AttachmentSource } from './attachments.js'
 import type { InvitationLinkSource } from './invitation-link.js'
 import { claimDue, markFailed, markSent, type OutboxRow } from './outbox.js'
 import { connectionOf } from './server-settings.js'
-import {
-  type MailAttachment,
-  MailDeliveryError,
-  type MailTransport,
-  type OutgoingMail,
-} from './transport.js'
 
 /** What the job needs, handed in so that a test can run it with a clock of its own. */
 export interface MailJob {

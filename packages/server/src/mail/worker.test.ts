@@ -1,8 +1,17 @@
 import type { TaskId, TenantId } from '@opengewerk/domain'
-import { Database, newId, SecretKey } from '@opengewerk/platform-server'
+import {
+  Database,
+  MailDeliveryError,
+  type MailTransport,
+  newId,
+  type OutgoingMail,
+  SecretKey,
+  smtpTransport,
+} from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { aMailServer, fakeSmtpServer, testKey } from '@opengewerk/platform-server/testing'
 
 import { mailOutbox, tasks } from '../database/schema/index.js'
 import {
@@ -14,14 +23,6 @@ import {
 } from '../database/test-database.js'
 import { maximumAttempts } from './outbox.js'
 import { saveMailServer } from './server-settings.js'
-import { aMailServer, testKey } from './test-mail-server.js'
-import { fakeSmtpServer } from './test-smtp.js'
-import {
-  MailDeliveryError,
-  type MailTransport,
-  type OutgoingMail,
-  smtpTransport,
-} from './transport.js'
 import { type MailJob, runMailCycle } from './worker.js'
 
 /**

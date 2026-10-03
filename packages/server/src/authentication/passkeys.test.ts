@@ -7,7 +7,7 @@ import {
   Database,
   newId,
 } from '@opengewerk/platform-server'
-import { TestAuthenticator } from '@opengewerk/platform-server/testing'
+import { aMailServer, TestAuthenticator, testKey } from '@opengewerk/platform-server/testing'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -23,7 +23,6 @@ import {
   shipRoles,
 } from '../database/test-database.js'
 import { passkeyNotices } from '../mail/passkey-notice.js'
-import { aMailServer, testKey } from '../mail/test-mail-server.js'
 import { addStaffMember, createAuthentication, SessionIdentitySource } from './access.js'
 
 /**

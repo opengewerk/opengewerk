@@ -15,7 +15,6 @@ import { permissionLabel, roleKeys, roles } from './authorization.js'
 const reasonWords: Readonly<Record<string, string>> = {
   deadline: 'Von selbst, Fristen',
   notification: 'Von selbst, Benachrichtigungen',
-  mail: 'Von selbst, E-Mail-Versand',
   push: 'Von selbst, Push-Versand',
   'article.import': 'Import aus DATANORM',
   'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
@@ -175,7 +174,6 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   time_entries: ['started_at'],
   deadlines: ['source_label'],
   letterheads: ['company_name'],
-  mail_settings: ['from_address'],
   mail_outbox: ['subject'],
   instructions: ['title', 'template'],
   form_definitions: ['key'],

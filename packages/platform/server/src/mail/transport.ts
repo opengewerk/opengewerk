@@ -1,5 +1,6 @@
-import type { MailConfiguration } from '@opengewerk/platform-server'
 import { createTransport } from 'nodemailer'
+
+import type { MailConfiguration } from './configuration.js'
 
 /** A file that goes along with a message. */
 export interface MailAttachment {
@@ -22,14 +23,22 @@ export interface OutgoingMail {
  * Why a message did not go out, with what the mail server or the connection
  * said. `code` is nodemailer's (`EAUTH`, `ETIMEDOUT`, `EDNS` and so on), and
  * `responseCode` the three digits of the server's answer when there was one.
+ *
+ * Whoever raises one while putting a message together knows sometimes that
+ * trying again cannot help, and says so with `permanent`: a file the message
+ * is about that cannot be made out of content that will not change.
  */
 export class MailDeliveryError extends Error {
+  private readonly declaredPermanent: boolean
+
   constructor(
     message: string,
     readonly code: string | null,
     readonly responseCode: number | null,
+    options: { readonly permanent?: boolean } = {},
   ) {
     super(message)
+    this.declaredPermanent = options.permanent ?? false
   }
 
   /**
@@ -40,17 +49,13 @@ export class MailDeliveryError extends Error {
    * by then, and giving up on it would lose a message over a passing fault.
    */
   get permanent(): boolean {
-    // `EDOCUMENT` is ours: the document a message is about has no file to
-    // give, a draft or one that lacks what its e-invoice needs. Trying again
-    // an hour later makes the same file out of the same frozen content.
-    // `EINVITATION` too: an invitation that was called back, used or has run
-    // out gives no link, and it does not become open again.
-    // `EDESTINATION` as well: a mail server in an internal network or on a
-    // port that is not for mail stays where it is until somebody changes the
-    // settings.
+    // `EINVITATION`: an invitation that was called back, used or has run out
+    // gives no link, and it does not become open again. `EDESTINATION`: a
+    // mail server in an internal network or on a port that is not for mail
+    // stays where it is until somebody changes the settings.
     if (
+      this.declaredPermanent ||
       this.code === 'EENVELOPE' ||
-      this.code === 'EDOCUMENT' ||
       this.code === 'EINVITATION' ||
       this.code === 'EDESTINATION'
     ) {
@@ -67,15 +72,15 @@ export class MailDeliveryError extends Error {
 }
 
 /**
- * The one thing in this code base that talks to a mail server.
+ * The one thing that talks to a mail server.
  *
- * Everything else writes a row into the outbox, and a test holds that nothing
- * outside `mail/` imports nodemailer. So there is one sender, one set of
+ * Everything else writes a row into an outbox, and a test holds that nothing
+ * but this file imports nodemailer. So there is one sender, one set of
  * timeouts and one place to look when a message did not arrive.
  */
 export interface MailTransport {
   send(mail: OutgoingMail): Promise<void>
-  /** Connects, greets and signs in, and sends nothing. For the check at startup. */
+  /** Connects, greets and signs in, and sends nothing. For the check of a connection. */
   verify(): Promise<void>
   close(): void
 }

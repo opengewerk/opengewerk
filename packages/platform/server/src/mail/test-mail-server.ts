@@ -1,13 +1,14 @@
-import { SecretKey } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
+
+import { SecretKey } from '../secrets/key.js'
 
 /** The key the tests seal with, in place of one derived from SESSION_SECRET. */
 export const testKey = SecretKey.from('t'.repeat(64))
 
 /**
- * Sets up a mail server for a business, without a login, as the superuser.
+ * Sets up a mail server for a tenant, without a login, as the superuser.
  *
- * For the tests that need a business which sends mail and do not care how it
+ * For the tests that need a tenant which sends mail and do not care how it
  * reaches its server: the job hands the settings to whatever transport the
  * test gives it, and nothing ever connects to `mail.example.de`.
  */

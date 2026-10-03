@@ -325,18 +325,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       deadline_id: 'Frist',
     },
   },
-  mail_settings: {
-    label: 'E-Mail-Einstellungen',
-    fields: {
-      host: 'Server',
-      port: 'Port',
-      security: 'Verschlüsselung',
-      username: 'Anmeldung',
-      from_address: 'Absenderadresse',
-      signature: 'Signatur',
-      password_set_at: 'Passwort gesetzt am',
-    },
-  },
   payments: {
     label: 'Zahlungseingang',
     fields: { amount_cents: 'Betrag', received_on: 'Eingegangen am' },

@@ -5,10 +5,19 @@ import { join } from 'node:path'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { signedContentFingerprint, type TenantId } from '@opengewerk/domain'
-import { Database, FileStore, newId, type Renderer } from '@opengewerk/platform-server'
+import {
+  Database,
+  FileStore,
+  type MailTransport,
+  newId,
+  type OutgoingMail,
+  type Renderer,
+  smtpTransport,
+} from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import {
   allowApplicationLogin,
@@ -19,8 +28,6 @@ import {
 } from '../database/test-database.js'
 import { documentAttachments } from '../mail/attachments.js'
 import { berlinClock } from '../notifications/notify.js'
-import { aMailServer, testKey } from '../mail/test-mail-server.js'
-import { type MailTransport, type OutgoingMail, smtpTransport } from '../mail/transport.js'
 import { runMailCycle } from '../mail/worker.js'
 import { ApiModule } from './api.module.js'
 import { DocumentFiles } from './document-files.js'

@@ -104,7 +104,7 @@ describe('the tables of the foundation', () => {
     const tables = foundationGuards.map((guard) => guard.table)
 
     expect(new Set(tables).size).toBe(tables.length)
-    expect(tables).toHaveLength(22)
+    expect(tables).toHaveLength(23)
   })
 
   it('give the application nothing but reading on what only a trigger writes', () => {
@@ -115,16 +115,20 @@ describe('the tables of the foundation', () => {
     }
   })
 
-  it('let nothing that names a tenant be deleted by the application', () => {
+  it('let nothing that names a tenant be deleted by the application, its mail server aside', () => {
     // Who was let in, by whom and what became of it is part of the record. A
     // person is blocked and an invitation called back, both changes the log
-    // keeps; a row that can be removed is a record with a hole in it.
+    // keeps; a row that can be removed is a record with a hole in it. The
+    // mail server of a tenant is a setting and no record: it is set up and
+    // removed again, and the log keeps both.
     const ofATenant = foundationGuards.filter(
       (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
     )
 
-    expect(ofATenant).toHaveLength(12)
-    expect(ofATenant.filter((guard) => guard.grants.includes('delete'))).toEqual([])
+    expect(ofATenant).toHaveLength(13)
+    expect(
+      ofATenant.filter((guard) => guard.grants.includes('delete')).map((guard) => guard.table),
+    ).toEqual(['mail_settings'])
   })
 
   it('let the application name and take away who runs the instance, change its settings, and no more', () => {
@@ -146,7 +150,7 @@ describe('the tables of the foundation', () => {
     })
   })
 
-  it('watch what a tenant may see of its people and its files, and nothing that has no tenant', () => {
+  it('watch what a tenant may see of its people, its files and its mail server, and nothing that has no tenant', () => {
     expect(
       foundationGuards
         .filter((guard) => guard.audited)
@@ -155,6 +159,7 @@ describe('the tables of the foundation', () => {
     ).toEqual([
       'files',
       'invitations',
+      'mail_settings',
       'member_passkeys',
       'memberships',
       'tenant_roles',

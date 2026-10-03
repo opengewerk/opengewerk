@@ -1,5 +1,4 @@
-import type { MailConfiguration } from '@opengewerk/platform-server'
-
+import type { MailConfiguration } from './configuration.js'
 import { MailDeliveryError, type MailTransport } from './transport.js'
 
 /** What asking a mail server found. */
@@ -37,7 +36,7 @@ function certificateTrouble(message: string): string | null {
 
 /**
  * Asks a mail server whether the settings are right: connects, greets, signs
- * in, and sends nothing. For the button "Verbindung prüfen" in the office, and
+ * in, and sends nothing. For the button "Verbindung prüfen" on the settings, and
  * before every save of the settings there.
  *
  * Two kinds of failure, and they get different sentences. A host name that

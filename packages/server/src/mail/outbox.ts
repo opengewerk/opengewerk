@@ -1,8 +1,8 @@
 import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm'
+import { type MailDeliveryError } from '@opengewerk/platform-server'
 
 import { mailOutbox } from '../database/schema/index.js'
-import type { MailDeliveryError } from './transport.js'
 
 export type OutboxRow = typeof mailOutbox.$inferSelect
 

@@ -155,6 +155,8 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   change, so neither does the row, and a file a record points at outlives
  *   every mistake; ending one at the end of a retention period is a
  *   procedure of its own.
+ * - The mail server of a tenant: all four. It is set up, changed and removed
+ *   again, and the log sees each of them; the password is not in it.
  * - The audit tables and the counter of the sync layer: read only. Their one
  *   writer is a trigger that runs as its definer.
  * - The receipts of the sync layer are written once; a conflict is written
@@ -193,6 +195,7 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'invitations', grants: noDelete, audited: true, synced: false },
   { table: 'tenant_roles', grants: ['select', 'insert'], audited: true, synced: false },
   { table: 'files', grants: ['select', 'insert'], audited: true, synced: false },
+  { table: 'mail_settings', grants: everything, audited: true, synced: false },
   { table: 'audit_chains', grants: ['select'], audited: false, synced: false },
   { table: 'audit_entries', grants: ['select'], audited: false, synced: false },
   { table: 'sync_sequences', grants: ['select'], audited: false, synced: false },
