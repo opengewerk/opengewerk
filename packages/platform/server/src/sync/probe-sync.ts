@@ -8,7 +8,7 @@ import {
 } from '@opengewerk/platform-domain'
 import { probePolicies } from '@opengewerk/platform-domain/testing'
 import { eq, sql } from 'drizzle-orm'
-import { boolean, foreignKey, integer, pgTable, text, unique } from 'drizzle-orm/pg-core'
+import { boolean, foreignKey, integer, jsonb, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { databaseErrors } from '../api/database-errors.js'
 import type { FoundIdentity } from '../api/identity.js'
@@ -45,7 +45,10 @@ export const shelves = pgTable(
   ],
 )
 
-/** What work produces: made and changed on a device, field by field. */
+/**
+ * What work produces: made and changed on a device, field by field. With a
+ * list and a value of JSON, which travel as their text.
+ */
 export const notes = pgTable(
   'notes',
   {
@@ -53,6 +56,8 @@ export const notes = pgTable(
     ...tenantColumn,
     shelfId: reference<'shelf'>('shelf_id'),
     text: text('text').notNull(),
+    tags: text('tags').array(),
+    details: jsonb('details').$type<Readonly<Record<string, unknown>>>(),
     ...syncColumns,
     ...timestamps,
   },

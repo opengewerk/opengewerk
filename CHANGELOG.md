@@ -827,6 +827,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   was die Bausteine zusagen; die Haustechnik braucht sie, damit ihre Fristen den
   Zuständigkeitsbereichen folgen. Eine erlaubende Policy bleibt eine Abweichung, auch genannt. Hier
   ändert sich nichts.
+- Eine Spalte mit JSON oder einer Liste reist im Abgleich als ihr Text (ADR 0005,
+  `opengewerk-haustechnik#27`): der Abruf sendet sie in der Form, die `jsonText` schreibt, ein
+  Gerät patcht sie so, und der Server liest jeden solchen Text in diese Form, bevor er vergleicht.
+  Bis dahin brach jede Änderung an einem Datensatz mit einer solchen Spalte mit einem Fehler des
+  Servers ab, auch wenn sie ein ganz anderes Feld betraf; die Haustechnik hat zum ersten Mal solche
+  Spalten in Tabellen, die reisen. Ein Text, der kein JSON ist, lehnt die Übertragung ab. Die
+  Handwerkersoftware hält ihre Werte aus JSON in Spalten mit Text, wie bisher; hier ändert sich
+  nichts.
 
 ### Behoben
 

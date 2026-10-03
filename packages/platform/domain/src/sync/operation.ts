@@ -16,7 +16,8 @@ export type OperationKind = (typeof operationKinds)[number]
  * Only what survives JSON unchanged. A date travels as its ISO form, which is
  * what `toSyncValue` makes of it, so that both sides compare the same thing:
  * two `Date` objects for the same moment are not equal to each other, and a
- * merge that turns on equality cannot be built on that.
+ * merge that turns on equality cannot be built on that. A value of JSON or a
+ * list travels as its text, for the same reason (`jsonText`).
  */
 export type SyncValue = string | number | boolean | null
 
@@ -35,8 +36,45 @@ export function toSyncValue(value: unknown): SyncValue {
 
   // Anything else has no place in a patch. Saying so here beats comparing two
   // objects by identity somewhere further down and always finding them
-  // different.
+  // different. A value of JSON or a list is sent as its text (`jsonText`).
   throw new Error(`Not a value a patch can carry: ${typeof value}`)
+}
+
+/**
+ * The text a value of JSON or a list travels as, for a column that holds one:
+ * JSON without spaces, the keys of every object sorted, whatever the order
+ * they were written in. (Keys that are whole numbers come first, in their
+ * numeric order: an object of JavaScript keeps them so, and it is the same for
+ * every object with those keys.)
+ *
+ * One text for one value, written the same way on both ends. The server sends
+ * such a column in this text, a device keeps it and builds the `from` of its
+ * next patch out of it, and a form that writes the field writes it with this
+ * function: so that a value nobody touched is the same text again, and a patch
+ * for it is not sent at all. PostgreSQL keeps the keys of `jsonb` in an order
+ * of its own and a form in the order they were written; the order fixed here
+ * is the one both get.
+ *
+ * The server reads every text a patch brings for such a column and writes it
+ * in this form before it compares, so a text written differently is not a
+ * change, and one that is no JSON refuses the transmission.
+ */
+export function jsonText(value: unknown): string {
+  const text = JSON.stringify(value, (_key, inner: unknown) =>
+    inner !== null && typeof inner === 'object' && !Array.isArray(inner)
+      ? Object.fromEntries(
+          Object.entries(inner).sort(([left], [right]) =>
+            left < right ? -1 : left > right ? 1 : 0,
+          ),
+        )
+      : inner,
+  ) as string | undefined
+
+  if (text === undefined) {
+    throw new Error(`Not a value of JSON: ${typeof value}`)
+  }
+
+  return text
 }
 
 export function sameValue(left: unknown, right: unknown): boolean {

@@ -578,6 +578,150 @@ describe('what the application asks of an operation', () => {
   })
 })
 
+describe('a value of JSON or a list', () => {
+  /** The details of a note as a device might write them by hand: keys unsorted, spaces. */
+  const written = '{ "rooms": 3, "access": { "via": "Hof", "key": null } }'
+  /** The same value in the text `jsonText` writes. */
+  const asJsonText = '{"access":{"key":null,"via":"Hof"},"rooms":3}'
+
+  async function noteWithDetails() {
+    const noteId = newId<'note'>()
+
+    await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        patches: [
+          { field: 'text', to: 'Zähler ablesen' },
+          { field: 'tags', to: '["Keller", "Zähler"]' },
+          { field: 'details', to: written },
+        ],
+      }),
+    ])
+
+    return noteId
+  }
+
+  async function refusalOf(patch: { field: string; from?: SyncValue; to: SyncValue }) {
+    const noteId = await noteWithDetails()
+    const refused = await send(north.id, [
+      operation({ entity: 'notes', recordId: noteId, kind: 'update', patches: [patch] }),
+    ]).catch((error: unknown) => error)
+
+    expect((refused as OperationRefused).cause).toBeInstanceOf(UnknownFieldError)
+
+    return (refused as OperationRefused).message
+  }
+
+  it('writes it from its text into the column, and sends it back as the text jsonText writes', async () => {
+    const noteId = await noteWithDetails()
+
+    const [note] = await inTenant(north.id, (tx) => tx.select().from(notes))
+
+    expect(note).toMatchObject({
+      id: noteId,
+      tags: ['Keller', 'Zähler'],
+      details: { rooms: 3, access: { via: 'Hof', key: null } },
+    })
+
+    const pulled = await inTenant(north.id, (tx) => sync.changesSince(tx, 0))
+    const [row] = pulled.changes.find((change) => change.entity === 'notes')?.rows ?? []
+
+    expect(row).toMatchObject({ tags: '["Keller","Zähler"]', details: asJsonText })
+  })
+
+  it('compares what a value is and not how a device wrote it, and keeps a change made elsewhere for a person', async () => {
+    const noteId = await noteWithDetails()
+
+    // The device that wrote the note saw its own text, not the server's.
+    const changed = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [{ field: 'details', from: written, to: '{"rooms": 4}' }],
+        deviceId: 'phone-a',
+      }),
+    ])
+    // A second device still held the first value, in the server's text.
+    const stale = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [{ field: 'details', from: asJsonText, to: '{"rooms": 2}' }],
+        deviceId: 'phone-b',
+      }),
+    ])
+
+    expect(outcomes(changed)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+    expect(outcomes(stale)).toEqual([
+      { outcome: 'conflict', reason: 'changed_elsewhere', fields: ['details'] },
+    ])
+
+    // Read from a row that holds a list beside it, which the merge reads as text as well.
+    const [conflict] = await inTenant(north.id, (tx) => openConflicts(tx))
+
+    expect(conflict).toMatchObject({
+      wanted: { details: '{"rooms":2}' },
+      seen: { details: asJsonText },
+      found: { details: '{"rooms":4}' },
+    })
+  })
+
+  it('refuses a text that is no JSON, before the merge and for the whole transmission', async () => {
+    expect(await refusalOf({ field: 'details', from: written, to: 'drei Räume' })).toBe(
+      'Dieses Feld nimmt nur JSON als Text: details',
+    )
+    expect(await refusalOf({ field: 'details', from: 'nicht gelesen', to: '{}' })).toBe(
+      'Dieses Feld nimmt nur JSON als Text: details',
+    )
+  })
+
+  it('refuses what is not a list for a column of a list, and what is not text', async () => {
+    expect(await refusalOf({ field: 'tags', from: '["Keller","Zähler"]', to: '"Keller"' })).toBe(
+      'Dieses Feld nimmt nur JSON als Text: tags',
+    )
+    expect(await refusalOf({ field: 'details', from: asJsonText, to: 4 })).toBe(
+      'Dieses Feld nimmt nur JSON als Text: details',
+    )
+  })
+
+  it('takes null and the text of null as nothing', async () => {
+    const noteId = await noteWithDetails()
+
+    const cleared = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [
+          { field: 'details', from: asJsonText, to: 'null' },
+          { field: 'tags', from: '["Keller","Zähler"]', to: null },
+        ],
+      }),
+    ])
+
+    // A device that kept the text of null saw nothing there, as the server does.
+    const again = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [{ field: 'details', from: 'null', to: '{"rooms": 1}' }],
+      }),
+    ])
+
+    expect(outcomes(cleared)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+    expect(outcomes(again)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+
+    const pulled = await inTenant(north.id, (tx) => sync.changesSince(tx, 0))
+    const [row] = pulled.changes.find((change) => change.entity === 'notes')?.rows ?? []
+
+    expect(row).toMatchObject({ tags: null, details: '{"rooms":1}' })
+  })
+})
+
 describe('what a device is sent', () => {
   it('sends a tenant its own records and nothing of the tenant next door', async () => {
     await send(north.id, [
