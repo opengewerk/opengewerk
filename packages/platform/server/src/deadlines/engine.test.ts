@@ -387,6 +387,56 @@ describe('a source the application has', () => {
   })
 })
 
+describe('the way into a transaction of a pass', () => {
+  it('is the one the application gives, for every transaction the pass opens for a tenant', async () => {
+    const opened: string[] = []
+    // A source that answers only inside the transaction the application opens,
+    // as the tables of an application with areas do for a pass of nobody.
+    const behindTheWay = async (
+      tx: TenantTransaction,
+    ): Promise<readonly ExpectedDeadline<ProbeValues>[]> => {
+      const result = await tx.execute(sql`select current_setting('app.probe_way', true) as way`)
+
+      return result.rows[0]?.['way'] === 'open' ? parcelSource(tx) : []
+    }
+    parcels.get(north.id)?.set(parcelOne, {
+      arrivedOn: '2037-03-01',
+      takenInBy: 'tom',
+      number: 'P-0042',
+    })
+
+    const withoutTheWay = await runDeadlinesOf(
+      engine({ sources: { parcel: behindTheWay, door: doorSource } }),
+      north.id,
+      at('2037-03-08'),
+    )
+
+    expect(withoutTheWay.created).toBe(0)
+
+    const report = await runDeadlinesOf(
+      engine({
+        sources: { parcel: behindTheWay, door: doorSource },
+        inTenant: (actor, work) =>
+          database.forTenant(actor, async (tx) => {
+            await tx.execute(sql`select set_config('app.probe_way', 'open', true)`)
+            opened.push(actor.reason ?? '')
+
+            return work(tx)
+          }),
+      }),
+      north.id,
+      at('2037-03-08'),
+    )
+
+    expect(report).toMatchObject({ created: 1, reminded: 1 })
+    // Following the sources, reading what is due and the one reminder.
+    expect(opened).toEqual(['deadline', 'deadline', 'deadline'])
+    expect(noted).toEqual([
+      { kind: 'parcel.pickup', label: 'Paket P-0042', responsible: 'tom', parcel: 'P-0042' },
+    ])
+  })
+})
+
 describe('an interval in months', () => {
   it('ends on the same day of the month, or the last one of a shorter month', async () => {
     buildings.get(north.id)?.set(eastHouse, { name: 'Haus Ost', checkedOn: '2037-08-31' })
