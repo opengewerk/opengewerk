@@ -11,7 +11,16 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import { type InstallationId, inStructureOrder, type TenantId } from '@opengewerk/domain'
-import { Database, isUuid, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  addressLines,
+  Database,
+  isUuid,
+  present,
+  RENDERER,
+  type Renderer,
+  RendererUnavailableError,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
@@ -24,11 +33,8 @@ import {
   sites,
   tenants,
 } from '../database/schema/index.js'
-import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
-import { addressLines, present } from '../documents/template.js'
 import { type ChartBoard, type CircuitChart, circuitChartJob } from '../electrical/circuit-chart.js'
 import { RequiresPermission } from './authorization.js'
-import { RENDERER } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { todayInGermany } from '../today.js'
 

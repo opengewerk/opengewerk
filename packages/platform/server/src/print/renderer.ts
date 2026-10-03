@@ -13,9 +13,9 @@
  * a crash.
  */
 
-/** What a caller gets instead of a PDF, phrased for whoever reads the log. */
-import { refusePlaceholder } from '@opengewerk/platform-server'
+import { refusePlaceholder } from '../configuration.js'
 
+/** What a caller gets instead of a PDF, phrased for whoever reads the log. */
 export class RendererUnavailableError extends Error {}
 
 /** The four margins of a page, as CSS lengths: `20mm`. */
@@ -181,3 +181,9 @@ export function rendererFor(configuration: RendererConfiguration): Renderer {
       ...(job.size === undefined ? {} : { size: job.size }),
     })
 }
+
+/**
+ * Turns a print job into a PDF, under which a module hands it to the routes
+ * that print: the renderer service, or a stand-in in a test.
+ */
+export const RENDERER = Symbol('Renderer')

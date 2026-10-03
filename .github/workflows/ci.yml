@@ -632,16 +632,17 @@ jobs:
 
       # The renderer belongs to the default stack: COMPOSE_PROFILES in the
       # template switches it on. Asked from inside the application container,
-      # through the same function the application prints with, so address and
-      # token come from its environment and never appear in this log. Chromium
-      # takes a few seconds after the container is up, hence the retries.
+      # through the same function the application prints with, the foundation's
+      # since #23, so address and token come from its environment and never
+      # appear in this log. Chromium takes a few seconds after the container is
+      # up, hence the retries.
       - name: Der Renderer läuft von Haus aus und druckt ein PDF
         working-directory: docker
         run: |
           set -eu
           docker compose ps --status running --services | grep -qx renderer
           docker compose exec -T app node --input-type=module -e '
-            const { readRendererConfiguration, rendererFor } = await import("./dist/documents/renderer.js")
+            const { readRendererConfiguration, rendererFor } = await import("@opengewerk/platform-server")
             const render = rendererFor(readRendererConfiguration())
             let pdf = null
             for (let attempt = 1; pdf === null; attempt++) {

@@ -11,6 +11,8 @@ import {
   FileStore,
   instanceIsEmpty,
   InstanceSettingsCache,
+  readRendererConfiguration,
+  rendererFor,
   runInstance,
   SecretKey,
   startupLine,
@@ -22,7 +24,6 @@ import {
 import { ApiModule } from './api/api.module.js'
 import { access, createAuthentication, SessionIdentitySource } from './authentication/access.js'
 import { application as opengewerk, readConfiguration } from './configuration.js'
-import { readRendererConfiguration, rendererFor } from './documents/renderer.js'
 import { DocumentFiles } from './api/document-files.js'
 import { documentAttachments } from './mail/attachments.js'
 import { invitationLinks } from './mail/invitation-link.js'

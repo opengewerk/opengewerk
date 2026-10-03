@@ -19,6 +19,9 @@ import {
   HealthController,
   type InstanceSettingsCache,
   parseFileUploads,
+  RENDERER,
+  type Renderer,
+  rendererFor,
   SameOriginGuard,
   type SecretKey,
   syncParts,
@@ -30,7 +33,6 @@ import { raw } from 'express'
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
-import { type Renderer, rendererFor } from '../documents/renderer.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
@@ -59,7 +61,7 @@ import { MailSettingsController } from './mail-settings.controller.js'
 import { NumberRangesController } from './number-ranges.controller.js'
 import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
-import { MAIL, type MailContext, RENDERER, SECRETS } from './handed-in.js'
+import { MAIL, type MailContext, SECRETS } from './handed-in.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SuppliersController } from './suppliers.controller.js'

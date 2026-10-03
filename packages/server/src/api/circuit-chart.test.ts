@@ -1,6 +1,12 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { Database, newId } from '@opengewerk/platform-server'
+import {
+  Database,
+  newId,
+  type PrintJob,
+  type Renderer,
+  RendererUnavailableError,
+} from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -12,7 +18,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { type PrintJob, type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'

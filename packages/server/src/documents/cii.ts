@@ -13,8 +13,8 @@ import {
   RuleError,
   type TaxTreatment,
 } from '@opengewerk/domain'
+import { withoutUnwritable } from '@opengewerk/platform-server'
 
-import { withoutUnwritable } from './characters.js'
 import { documentTitle } from './template.js'
 
 /**

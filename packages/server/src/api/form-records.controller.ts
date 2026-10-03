@@ -10,7 +10,15 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import { type FormRecordStatus, type IsoDate, readFormValues } from '@opengewerk/domain'
-import { Database, isUuid } from '@opengewerk/platform-server'
+import {
+  addressLines,
+  Database,
+  isUuid,
+  present,
+  RENDERER,
+  type Renderer,
+  RendererUnavailableError,
+} from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
@@ -21,12 +29,9 @@ import {
   sites,
   tenants,
 } from '../database/schema/index.js'
-import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
-import { addressLines, present } from '../documents/template.js'
 import { protocolPrintJob, type PrintedProtocol } from '../forms/protocol-print.js'
 import { tradeForms, tradeRules } from '../forms/registry.js'
 import { RequiresPermission } from './authorization.js'
-import { RENDERER } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**

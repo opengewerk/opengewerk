@@ -20,4 +20,4 @@ export {
   readRendererConfiguration,
   renderPdf,
   RendererUnavailableError,
-} from './documents/renderer.js'
+} from '@opengewerk/platform-server'

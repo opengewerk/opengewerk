@@ -723,6 +723,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Migrationen hält sie seitdem mit. Der Pfad `settings` steht seitdem in der Liste des
   Fundaments und nicht mehr in der dieser Anwendung, weil jeder Pfad nur in einer der beiden
   Listen stehen darf.
+- Der Renderer und was jede gedruckte Seite braucht, sind Teile des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#23`, zweiter Teil), damit jede Anwendung ihre PDFs über denselben
+  Dienst druckt: `renderPdf`, `rendererFor`, `readRendererConfiguration` und das Token
+  `RENDERER`, dazu das Entfernen der Zeichen, die kein Dokument trägt, das Maskieren für HTML,
+  die eingebettete Schrift und die Anschrift in Zeilen, liegen in
+  `@opengewerk/platform-server`. Was eine Seite sagt, schreibt weiter diese Anwendung: Belege,
+  Etiketten, Prüfprotokoll und Stromkreisverzeichnis drucken wie vorher. Die Schrift Barlow ist
+  dafür eine Abhängigkeit des Fundaments geworden.
 
 ### Behoben
 

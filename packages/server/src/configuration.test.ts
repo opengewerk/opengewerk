@@ -1,8 +1,11 @@
-import { applicationRoleName, type Environment } from '@opengewerk/platform-server'
+import {
+  applicationRoleName,
+  type Environment,
+  readRendererConfiguration,
+} from '@opengewerk/platform-server'
 import { describe, expect, it } from 'vitest'
 
 import { application, readConfiguration } from './configuration.js'
-import { readRendererConfiguration } from './documents/renderer.js'
 
 // The checks themselves are the foundation's and are tested there, against an
 // application of their own. What is held here is what this application hands

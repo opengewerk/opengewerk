@@ -28,6 +28,9 @@ import {
   Database,
   isUniqueViolation,
   isUuid,
+  RENDERER,
+  type Renderer,
+  RendererUnavailableError,
   type TenantTransaction,
   TRUSTED_ORIGINS,
 } from '@opengewerk/platform-server'
@@ -41,10 +44,8 @@ import {
   sites,
   tenants,
 } from '../database/schema/index.js'
-import { type Renderer, RendererUnavailableError } from '../documents/renderer.js'
 import { labelPrintJob } from '../labels/label-print.js'
 import { RequiresPermission } from './authorization.js'
-import { RENDERER } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** An installation that is not deleted, held until the transaction ends when `lock` says so. */
