@@ -10,6 +10,7 @@ import { ScanLine } from 'lucide-react'
 
 import { SyncClient } from '../sync/client.js'
 import { siteTransport } from '../sync/transport.js'
+import { applicationName } from './name.js'
 import { leavePush } from './push.js'
 import { records } from './records.js'
 
@@ -57,7 +58,7 @@ function ScannedLabelNote() {
  * it never draws.
  */
 export const application: InterfaceApplication = {
-  name: 'OpenGewerk',
+  name: applicationName,
   claim: 'Kunde, Objekt, Anlage, Auftrag, Beleg. Ein Datenmodell statt sechs Programme.',
   hosting:
     'Diese Instanz läuft auf Ihrem eigenen Server. Die Daten verlassen ihn nicht, und niemand außer Ihnen kann sie abschalten.',

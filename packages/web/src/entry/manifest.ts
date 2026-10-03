@@ -1,80 +1,34 @@
+import type { EntryIcons, EntryWords } from '@opengewerk/platform-web/tools/manifests'
+
+import { applicationName } from '../app/name.js'
+
 /**
- * The two web app manifests, as data rather than as two JSON files.
+ * What the two web app manifests of this application say: what each entry is
+ * called and what it is for, and its icon.
  *
- * Two, because a manifest names exactly one `start_url` and the two entry
- * points of ADR 0004 are two different places to start. Installed from the
- * office the app opens the office; installed from a phone on a site it opens
- * the site entry, and that is the whole point of installing it there.
- *
- * They are emitted by the build, not kept as files, because almost everything
- * in them is the same and two hand kept copies of almost the same thing drift.
- * The one that matters is `start_url`, and here it is impossible to miss.
+ * The rest of both is the foundation's (`entryManifests` in
+ * `@opengewerk/platform-web/tools/manifests`, ADR 0010): where each entry
+ * starts and how far it reaches, its colours, and how the icon is offered.
+ * The build hands it these.
  *
  * The icons come from `assets/brand`, which the build serves as `/brand`.
  * There is no second copy of them in this package: the brand files live in the
  * organisation repository and are copied here once, never twice.
  */
 
-/** Slate. The colour behind the icon while the app starts. */
-const slate = '#1B2430'
+export const icons = {
+  192: '/brand/opengewerk-app-icon-192.png',
+  512: '/brand/opengewerk-app-icon-512.png',
+} satisfies EntryIcons
 
-/** Ivory. The ground of the light theme, which is what opens. */
-const ivory = '#F4F1EA'
-
-const icons = [
-  { src: '/brand/opengewerk-app-icon-192.png', sizes: '192x192', type: 'image/png' },
-  { src: '/brand/opengewerk-app-icon-512.png', sizes: '512x512', type: 'image/png' },
-  {
-    // `maskable` lets Android put the icon into its own shape instead of
-    // dropping a white square onto the home screen.
-    src: '/brand/opengewerk-app-icon-512.png',
-    sizes: '512x512',
-    type: 'image/png',
-    purpose: 'maskable',
-  },
-]
-
-interface Manifest {
-  readonly name: string
-  readonly short_name: string
-  readonly description: string
-  readonly start_url: string
-  readonly scope: string
-  readonly display: string
-  readonly background_color: string
-  readonly theme_color: string
-  readonly lang: string
-  readonly dir: string
-  readonly icons: typeof icons
-}
-
-function manifest(part: Pick<Manifest, 'name' | 'short_name' | 'description' | 'start_url'>) {
-  return {
-    ...part,
-    // The scope is the start url for the site entry and the whole origin for
-    // the office. A scope of `/m/` keeps the installed site app from
-    // wandering into the office by accident: a link out of the scope opens in
-    // a browser tab instead of inside the app.
-    scope: part.start_url,
-    display: 'standalone',
-    background_color: ivory,
-    theme_color: slate,
-    lang: 'de',
-    dir: 'ltr',
-    icons,
-  } satisfies Manifest
-}
-
-export const officeManifest = manifest({
-  name: 'OpenGewerk',
-  short_name: 'OpenGewerk',
+export const officeWords = {
+  name: applicationName,
+  short_name: applicationName,
   description: 'Handwerkersoftware für den Betrieb: Kunden, Objekte, Anlagen und Aufträge.',
-  start_url: '/',
-})
+} satisfies EntryWords
 
-export const siteManifest = manifest({
-  name: 'OpenGewerk Baustelle',
+export const siteWords = {
+  name: `${applicationName} Baustelle`,
   short_name: 'Baustelle',
   description: 'Die Aufträge des Tages, auch ohne Netz.',
-  start_url: '/m/',
-})
+} satisfies EntryWords

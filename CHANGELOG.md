@@ -621,6 +621,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `/tools/widths`. Diese Anwendung gibt ihre Einstiege mit Grenzen, die Seiten, an denen der
   Weg beginnt, die Seite, die nur ein Scan erreicht, und ihre Knöpfe mit. Die Ausgabe ist
   dieselbe wie vorher.
+- Service Worker und Manifeste sind Teile des Fundaments (ADR 0010, `opengewerk-haustechnik#12`,
+  zwölfter Teil), damit jede Anwendung mit zwei Einstiegen offline startet und sich installieren
+  lässt wie diese: `@opengewerk/platform-web/worker` und `/tools/manifests`. Diese Anwendung gibt
+  ihren Namen, ihr Symbol, die Worte ihrer zwei Einstiege und die Pfade ihres Servers mit; der
+  Name steht dafür an einer Stelle, auch für den Titel beider Hüllen. Die Pfade, die der Server
+  selbst beantwortet, stehen nicht mehr an drei Stellen, sondern in zwei Listen, denen des
+  Fundaments und denen dieser Anwendung, und ein Test hält beide gegen die Routen. `domain` und
+  `platform-domain` sagen jetzt, dass das Laden eines Moduls nichts tut: der Service Worker
+  bleibt so klein, und die Baustelle lädt die Wortlaute der Belehrungen nicht mehr mit, die sie
+  nie zeigt. Der Kopf, in dem eine Seite ihren Betrieb nennt, heißt jetzt
+  `x-opengewerk-tenant`; auf der Leitung ist es derselbe Kopf.
 
 ### Behoben
 
@@ -628,6 +639,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   den Tag der Anlage und die Zahl der Zugänge (#490). Jeder Kasten trug bisher nur die Inhaber:
   der Bildschirm gab der Kartenansicht seinen Inhalt an einer Stelle mit, die den ganzen Kasten
   ersetzt, und Name und Zeile darunter wurden nie gezeichnet.
+- Der Service Worker beantwortet eine Navigation mit Abfrageteil wie der Server
+  (`opengewerk-haustechnik#12`): `/m?...` öffnet ohne Netz die Baustelle statt des Büros, und ein
+  Pfad des Servers mit Abfrageteil geht an den Server statt an die Hülle. Bisher endete ein
+  Abschnitt für ihn nur an einem Schrägstrich.
+- Ein Tap auf eine Push-Nachricht führt nur noch auf diese Instanz, auch wenn ihr Pfad mit `/\`
+  beginnt (`opengewerk-haustechnik#12`). Die Prüfung sah nur auf die ersten Zeichen, und ein
+  Browser liest den Backslash als Schrägstrich. Ausnutzen ließ sich das nicht: die Pfade in
+  Push-Nachrichten schreibt nur der eigene Server.
 
 ## [0.4.0] - 2026-09-27
 

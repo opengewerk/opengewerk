@@ -1,5 +1,11 @@
 import { authenticationPath, Database } from '@opengewerk/platform-server'
-import { routesOf, undeclared } from '@opengewerk/platform-server/testing'
+import { foundationPaths, serverPaths } from '@opengewerk/domain'
+import {
+  firstSegmentOf,
+  outsideOf,
+  routesOf,
+  undeclared,
+} from '@opengewerk/platform-server/testing'
 import { describe, expect, it } from 'vitest'
 
 import { createAuthentication } from '../authentication/access.js'
@@ -259,5 +265,31 @@ describe('every route', () => {
         route.writes ? 'membership.write' : 'membership.read',
       ])
     }
+  })
+})
+
+/**
+ * The paths the server, the service worker and the development server of the
+ * interface leave to the API and answer no other way: the foundation's and the
+ * list of this application, one list for all three since #12. Held against the
+ * routing table and not against a copy of it, so that a controller added later
+ * is in here whether or not anybody remembers this file.
+ */
+describe('the paths of the server', () => {
+  const routes = routesOf(controllers)
+
+  it('hold every route', () => {
+    expect(
+      outsideOf([...foundationPaths, ...serverPaths], routes).map((route) => route.name),
+    ).toEqual([])
+  })
+
+  it('of this application hold nothing that no route of it answers, and none of the foundation', () => {
+    const answered = new Set(routes.map(firstSegmentOf))
+
+    expect(serverPaths.filter((path) => !answered.has(path))).toEqual([])
+    expect(
+      serverPaths.filter((path) => (foundationPaths as readonly string[]).includes(path)),
+    ).toEqual([])
   })
 })

@@ -15,6 +15,7 @@ export * from './model/invitation.js'
 export * from './model/mail-server.js'
 export * from './model/number-range.js'
 export * from './model/passkey.js'
+export * from './model/paths.js'
 export * from './model/rights.js'
 export * from './model/signature.js'
 

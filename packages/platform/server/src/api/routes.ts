@@ -86,3 +86,26 @@ export function undeclared(routes: readonly Route[]): Route[] {
       !route.needsOperator,
   )
 }
+
+/**
+ * The first segment of the path of a route, the part a shell is told apart by:
+ * `staff` for `POST /staff/:id`.
+ */
+export function firstSegmentOf(route: Route): string {
+  const path = route.name.slice(route.name.indexOf(' ') + 1)
+
+  return path.split('/')[1] ?? ''
+}
+
+/**
+ * The routes that lie under none of these first segments.
+ *
+ * The server, the service worker and the development server of an interface
+ * each leave a list of paths to the server and answer every other one with a
+ * shell (`foundationPaths`, and the list of the application). A route outside
+ * the list is answered with HTML where a program expects JSON, so the list is
+ * held against the routes, and against these and not a copy of them.
+ */
+export function outsideOf(paths: readonly string[], routes: readonly Route[]): Route[] {
+  return routes.filter((route) => !paths.includes(firstSegmentOf(route)))
+}
