@@ -13,7 +13,6 @@ import { permissionLabel, roleKeys, roles } from './authorization.js'
 
 /** The reasons of the business's own work, beside those of the foundation. */
 const reasonWords: Readonly<Record<string, string>> = {
-  deadline: 'Von selbst, Fristen',
   'article.import': 'Import aus DATANORM',
   'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
 }
@@ -121,14 +120,7 @@ const auditReferences: Readonly<Record<string, string>> = {
 }
 
 /** Fields that hold the id of a person, beside those of the foundation. */
-const auditPersonFields: readonly string[] = [
-  'assignee_user_id',
-  'responsible_user_id',
-  'natural_user_id',
-  'created_by',
-  'issued_by',
-  'closed_by',
-]
+const auditPersonFields: readonly string[] = ['assignee_user_id', 'created_by', 'issued_by']
 
 /**
  * The tables whose rows are best named by their person: somebody put on a job,
@@ -163,14 +155,12 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   article_imports: ['supplier_id'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],
-  deadlines: ['source_label'],
   letterheads: ['company_name'],
   instructions: ['title', 'template'],
   form_definitions: ['key'],
   form_records: ['definition_key'],
   attachment_versions: ['file_name'],
   document_signatures: ['signer_name'],
-  deadline_settings: ['kind'],
   job_notes: ['text'],
   payments: ['received_on'],
   document_files: ['purpose'],
@@ -198,14 +188,23 @@ const auditTitles: Readonly<Record<string, AuditTitleRule>> = {
 export const auditVocabulary: AuditVocabulary = {
   tables: auditTables,
   commonFields: auditCommonFields,
-  // The outbox is the foundation's table (#23); the columns for what a
-  // message of this application is about are this application's own.
+  // The outbox and the deadlines are the foundation's tables (#23,
+  // opengewerk-haustechnik#24); the columns for what a message or a deadline
+  // of this application is about are this application's own.
   ownFields: {
     mail_outbox: {
       task_id: 'Aufgabe',
       document_id: 'Beleg',
       attachment: 'Anhang',
       deadline_id: 'Frist',
+    },
+    deadlines: {
+      document_id: 'Beleg',
+      installation_id: 'Anlage',
+      customer_id: 'Kunde',
+      site_id: 'Objekt',
+      job_id: 'Auftrag',
+      task_id: 'Aufgabe',
     },
   },
   foundation: {

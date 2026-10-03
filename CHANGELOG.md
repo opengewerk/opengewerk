@@ -787,6 +787,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Betreiberpflichten; die Fristarten hier zählen weiter in Tagen. Die Vorgabe der Person heißt `lead`
   statt `owner`, keine Fristart hat sie bisher benutzt. Quellen, Aktionen, das Gewerk einer Art, der
   Titel ihrer Aufgabe und die Wörter des Büros bleiben hier. Lauf, Tabellen und Routen folgen.
+- Lauf und Tabellen der Fristen gehören zum Fundament (ADR 0010, `opengewerk-haustechnik#24`,
+  zweiter Teil). Der Lauf, der die Fristen mit ihren Quellen abgleicht, je Fälligkeitstag genau
+  einmal erinnert und die Aktionen einer Art ausführt, liegt in `@opengewerk/platform-server`,
+  ebenso die Frage, wer für eine Frist verantwortlich ist, und die Uhr in Deutschland. Die Tabelle
+  der Fristen entsteht dort mit den Spalten der Anwendung: hier behalten Beleg, Anlage, Kunde, Objekt,
+  Auftrag und Aufgabe ihre Spalten, und die Aktionen Aufgabe, Serviceauftrag und neuer Stand an der
+  Quelle bleiben hier. Neu hält jeder Lauf fest, wann er einen Betrieb zuletzt durchgegangen ist und
+  wann er dabei scheiterte (`deadline_runs`, Migration 0067). Das Änderungsprotokoll sieht davon
+  nichts, weil es sonst jede Minute einen Eintrag bekäme; die Anzeige im Büro folgt mit den Routen.
+  Die Einstellung einer Fristart kann außerdem eine Frist in Monaten tragen. Die Wiedervorlage eines
+  Angebots arbeitet wie bisher.
 
 ### Behoben
 

@@ -22,8 +22,12 @@ export const probeAuditVocabulary: AuditVocabulary = {
     },
   },
   commonFields: { text: 'Text' },
-  // The probe application keeps the number of a parcel beside a message about one.
-  ownFields: { mail_outbox: { parcel_number: 'Paketnummer' } },
+  // The probe application keeps the number of a parcel beside a message about
+  // one, and beside the deadline that waits for it to be picked up.
+  ownFields: {
+    mail_outbox: { parcel_number: 'Paketnummer' },
+    deadlines: { parcel_number: 'Paketnummer' },
+  },
   foundation: {
     tenant: 'Mandant',
     tenantParameter: 'Einstellung des Mandanten',

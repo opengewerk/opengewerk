@@ -88,7 +88,10 @@ describe('the vocabulary of the change log against the database', () => {
   it("finds a column of the application's own on a table of the foundation that nobody named", async () => {
     const gaps = await auditVocabularyGaps(admin, changed({ ownFields: {} }))
 
-    expect(gaps).toEqual(['column mail_outbox.parcel_number has no name'])
+    expect(gaps.sort()).toEqual([
+      'column deadlines.parcel_number has no name',
+      'column mail_outbox.parcel_number has no name',
+    ])
   })
 
   it('finds own fields on a table not of the foundation, on a column not there, or on one the foundation names', async () => {
@@ -97,6 +100,7 @@ describe('the vocabulary of the change log against the database', () => {
       changed({
         ownFields: {
           mail_outbox: { parcel_number: 'Paketnummer', subject: 'Überschrift', shelf_id: 'Regal' },
+          deadlines: { parcel_number: 'Paketnummer' },
           shelves: { label: 'Beschriftung' },
         },
       }),

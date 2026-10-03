@@ -36,11 +36,12 @@ let database: Database
 
 /**
  * What stays out of the log in this application, beyond what the foundation
- * keeps out everywhere: the log itself, the sync layer and the accounts.
+ * keeps out everywhere: the log itself, the sync layer, the accounts and the
+ * heartbeat of the deadline engine.
  */
 const outsideTheLog = {
   prefixes: [...foundationOutsideTheLog.prefixes],
-  tables: ['secrets'],
+  tables: [...foundationOutsideTheLog.tables, 'secrets'],
 }
 
 /** The log's own error class. */

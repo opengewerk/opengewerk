@@ -37,3 +37,34 @@ export function addMonths(on: IsoDate, months: number): IsoDate {
 
   return at.toISOString().slice(0, 10) as IsoDate
 }
+
+/**
+ * The day and the minute of the day in Germany, where every tenant of an
+ * instance works: a deadline is due on a day there, and a reminder waits for
+ * the morning there, whatever clock the server runs on.
+ */
+export function berlinClock(now: Date): { readonly day: IsoDate; readonly minute: number } {
+  const parts = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now)
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? '00'
+
+  return {
+    day: `${part('year')}-${part('month')}-${part('day')}` as IsoDate,
+    minute: Number(part('hour')) * 60 + Number(part('minute')),
+  }
+}
+
+/**
+ * From when in the morning what is due today is told to its person: six
+ * o'clock. Not at midnight, because a message that arrives at six is at the
+ * top of the inbox when the day starts, and one from midnight is under
+ * everything that came after it.
+ */
+export const morningMinute = 6 * 60

@@ -366,10 +366,14 @@ export interface OutsideTheLog {
  * What belongs to the instance is out for the same reason as the accounts,
  * and is not without a record for it: it has a log of its own, written by a
  * trigger of its own (`instanceLogCoverage`).
+ *
+ * `deadline_runs` is out because it is a heartbeat: the deadline engine writes
+ * it after every pass, once a minute, and in the log it would bury every
+ * change a person made under its own.
  */
 export const foundationOutsideTheLog: OutsideTheLog = {
   prefixes: ['audit_', 'sync_', 'auth_', 'instance_'],
-  tables: [],
+  tables: ['deadline_runs'],
 }
 
 /** Which tables the audit trigger watches, held against which it should. */

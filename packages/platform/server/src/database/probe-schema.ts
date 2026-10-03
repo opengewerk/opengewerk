@@ -1,6 +1,7 @@
 import { index, text } from 'drizzle-orm/pg-core'
 
 import {
+  deadlinesGuard,
   type MadeByTheApplication,
   mailOutboxGuard,
   numberRangesGuard,
@@ -10,6 +11,7 @@ import {
   secretsGuard,
   tenantParametersGuard,
 } from '../migration/guards.js'
+import { deadlinesSchema } from './schema/deadlines.js'
 import { mailOutboxSchema } from './schema/mail-outbox.js'
 import { numberRangesSchema } from './schema/number-ranges.js'
 import { pushSchema } from './schema/push.js'
@@ -76,6 +78,22 @@ export const probePush = pushSchema({
   occasions: ['parcel_waiting', 'visit_announced'],
 })
 
+/**
+ * The deadlines of the probe application: a parcel at the desk is to be picked
+ * up within a week, and the deadline keeps the number of the parcel in a column
+ * of the application's own, the way an application keeps what a deadline
+ * hangs on.
+ */
+const probeDeadlineColumns = { parcelNumber: text('parcel_number') }
+
+/** The column the probe application gives its deadlines. */
+export type ProbeDeadlineColumns = typeof probeDeadlineColumns
+
+export const { deadlineStatus: probeDeadlineStatus, deadlines: probeDeadlines } = deadlinesSchema({
+  columns: probeDeadlineColumns,
+  constraints: (table) => [index('deadlines_parcel_idx').on(table.tenantId, table.parcelNumber)],
+})
+
 /** The same tables as the kit is told about them. */
 export const probeMade: MadeByTheApplication = {
   schema: {
@@ -90,6 +108,8 @@ export const probeMade: MadeByTheApplication = {
     mailStatus: probeMailStatus,
     mailOutbox: probeMailOutbox,
     ...probePush,
+    deadlineStatus: probeDeadlineStatus,
+    deadlines: probeDeadlines,
   },
   guards: [
     secretsGuard,
@@ -99,5 +119,6 @@ export const probeMade: MadeByTheApplication = {
     pushSubscriptionsGuard,
     pushOptOutsGuard,
     pushOutboxGuard,
+    deadlinesGuard,
   ],
 }

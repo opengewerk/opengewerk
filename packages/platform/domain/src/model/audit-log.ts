@@ -217,7 +217,14 @@ export const quietAuditFields: readonly string[] = [
 ]
 
 /** The fields of the foundation that hold the id of a person. */
-const foundationPersonFields: readonly string[] = ['user_id', 'invited_by', 'requested_by']
+const foundationPersonFields: readonly string[] = [
+  'user_id',
+  'invited_by',
+  'requested_by',
+  'responsible_user_id',
+  'natural_user_id',
+  'closed_by',
+]
 
 /** Fields of the foundation that point at another record, and the table they point into. */
 const foundationReferences: Readonly<Record<string, string>> = {
@@ -245,6 +252,8 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 
 /** The tables of the foundation the log of a tenant holds, by name. */
 export const foundationAuditTables = [
+  'deadline_settings',
+  'deadlines',
   'files',
   'invitations',
   'mail_outbox',
@@ -268,6 +277,34 @@ function foundationTables(
   words: FoundationAuditWords,
 ): Readonly<Record<FoundationAuditTable, AuditTableWords>> {
   return {
+    deadline_settings: {
+      label: 'Einstellung einer Fristart',
+      fields: {
+        kind: 'Art',
+        lead_days: 'Vorlauf',
+        interval_days: 'Intervall',
+        interval_months: 'Intervall in Monaten',
+        responsible_user_id: 'Verantwortlich',
+      },
+    },
+    deadlines: {
+      label: 'Frist',
+      fields: {
+        kind: 'Art',
+        source_id: 'Quelle',
+        source_label: 'Name der Quelle',
+        anchor_on: 'Anker',
+        due_on: 'Fällig am',
+        lead_days: 'Vorlauf',
+        responsible_user_id: 'Verantwortlich',
+        natural_user_id: 'Vorgabe der Art',
+        status: 'Status',
+        closed_at: 'Geschlossen am',
+        closed_by: 'Geschlossen von',
+        reminded_for: 'Erinnert für',
+        reminded_at: 'Erinnert am',
+      },
+    },
     files: {
       label: 'Gespeicherte Datei',
       fields: { sha256: 'Prüfsumme', size_bytes: 'Größe', media_type: 'Dateityp' },
@@ -411,9 +448,12 @@ function foundationInstanceTables(
 /**
  * Where the records of the foundation are named: a membership and a sign in by
  * their person, a file by its type, a mail server by the address it sends from,
- * a message by its subject.
+ * a message by its subject, a deadline by its source.
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
+  // A deadline by what its source is called, a setting by its kind.
+  deadlines: ['source_label'],
+  deadline_settings: ['kind'],
   files: ['media_type'],
   mail_outbox: ['subject'],
   mail_settings: ['from_address'],
@@ -445,6 +485,7 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'membership.create': 'Zugang über die Kommandozeile',
   'instance.settings': 'Einstellungen der Instanz ändern',
   environment: 'Übernommen aus der .env',
+  deadline: 'Von selbst, Fristen',
   mail: 'Von selbst, E-Mail-Versand',
   notification: 'Von selbst, Benachrichtigungen',
   push: 'Von selbst, Push-Versand',

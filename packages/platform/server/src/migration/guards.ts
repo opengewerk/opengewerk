@@ -157,6 +157,12 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   procedure of its own.
  * - The mail server of a tenant: all four. It is set up, changed and removed
  *   again, and the log sees each of them; the password is not in it.
+ * - What a tenant sets for a kind of deadline: written and changed, never
+ *   removed; a setting put back to the kind's own values is a row of nulls,
+ *   and the log keeps what it was before.
+ * - When the deadline engine last went through a tenant: written and changed
+ *   after every pass, never removed, and kept out of the log, which it would
+ *   fill once a minute.
  * - The audit tables and the counter of the sync layer: read only. Their one
  *   writer is a trigger that runs as its definer.
  * - The receipts of the sync layer are written once; a conflict is written
@@ -196,6 +202,8 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'tenant_roles', grants: ['select', 'insert'], audited: true, synced: false },
   { table: 'files', grants: ['select', 'insert'], audited: true, synced: false },
   { table: 'mail_settings', grants: everything, audited: true, synced: false },
+  { table: 'deadline_settings', grants: noDelete, audited: true, synced: false },
+  { table: 'deadline_runs', grants: noDelete, audited: false, synced: false },
   { table: 'audit_chains', grants: ['select'], audited: false, synced: false },
   { table: 'audit_entries', grants: ['select'], audited: false, synced: false },
   { table: 'sync_sequences', grants: ['select'], audited: false, synced: false },
@@ -278,6 +286,19 @@ export const numberRangesGuard: TableGuard = {
  */
 export const mailOutboxGuard: TableGuard = {
   table: 'mail_outbox',
+  grants: noDelete,
+  audited: true,
+  synced: false,
+}
+
+/**
+ * The deadlines of an application (`deadlinesSchema`). Written by the engine,
+ * which follows the sources, and changed by a person in what a person decides;
+ * never removed, because a deadline that dropped out comes back when its
+ * source asks again. Watched by the log, like every record of a tenant.
+ */
+export const deadlinesGuard: TableGuard = {
+  table: 'deadlines',
   grants: noDelete,
   audited: true,
   synced: false,

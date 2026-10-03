@@ -30,6 +30,7 @@ export * from './database/schema/rls.js'
 // Tables of the foundation an application makes with a list of its own: the
 // columns and the rules are the same everywhere, what the list holds is not.
 // The outbox of the mail takes columns of the application as well.
+export * from './database/schema/deadlines.js'
 export * from './database/schema/mail-outbox.js'
 export * from './database/schema/number-ranges.js'
 export * from './database/schema/push.js'
@@ -174,6 +175,10 @@ export * from './mail/worker.js'
 
 // The mechanism that turns an occasion of an application into a message for
 // mail and for push: one table of occasions, and both jobs run over it.
+export * from './deadlines/engine.js'
+export * from './deadlines/responsible.js'
+export * from './deadlines/runs.js'
+export * from './deadlines/settings.js'
 export * from './notifications/occasions.js'
 
 // Web Push: encryption and signature without a library, the rule for the

@@ -1061,6 +1061,7 @@ interface Planted {
   readonly mail: string
   readonly deadline: string
   readonly deadlineSetting: string
+  readonly deadlineRun: string
   readonly pushDevice: string
   readonly pushOptOut: string
   readonly pushMessage: string
@@ -1236,6 +1237,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     ),
     deadlineSetting: await one(
       "insert into deadline_settings (tenant_id, kind, lead_days) values ($1, 'quote.follow_up', 2)",
+      [tenant],
+    ),
+    deadlineRun: await one(
+      'insert into deadline_runs (tenant_id, succeeded_at) values ($1, now())',
       [tenant],
     ),
     pushDevice,
