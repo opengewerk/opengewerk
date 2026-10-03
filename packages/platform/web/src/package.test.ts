@@ -57,6 +57,8 @@ describe('the interface of the foundation', () => {
       './site': './src/site/index.ts',
       './sync': './src/sync/index.ts',
       './testing': './src/testing.ts',
+      './tools/budget': './tools/budget.js',
+      './tools/widths': './tools/widths.js',
       './styles/index.css': './src/styles/index.css',
       './styles/tokens.css': './src/styles/tokens.css',
     })
@@ -84,12 +86,22 @@ describe('the interface of the foundation', () => {
 // an application is called and what its things are called come in as
 // arguments, and this holds the line.
 
-/** What an entry point loads: the sources and the stylesheets, without the tests. */
-const shipped = import.meta.glob(['./**/*.{ts,tsx,css}', '!./**/*.test.{ts,tsx}'], {
-  query: '?raw',
-  eager: true,
-  import: 'default',
-}) as Readonly<Record<string, string>>
+/**
+ * What an entry point loads, the sources and the stylesheets, and the tools an
+ * application runs in its CI, without the tests.
+ */
+const shipped = {
+  ...import.meta.glob(['./**/*.{ts,tsx,css}', '!./**/*.test.{ts,tsx}'], {
+    query: '?raw',
+    eager: true,
+    import: 'default',
+  }),
+  ...import.meta.glob(['../tools/*.js', '!../tools/*.test.js'], {
+    query: '?raw',
+    eager: true,
+    import: 'default',
+  }),
+} as Readonly<Record<string, string>>
 
 interface Line {
   readonly file: string
@@ -180,6 +192,8 @@ describe('what the interface of the foundation knows of an application', () => {
     expect(files).toContain('./shell/suggestion.tsx')
     expect(files).toContain('./format.ts')
     expect(files).toContain('./styles/tokens.css')
+    expect(files).toContain('../tools/budget.js')
+    expect(files).toContain('../tools/widths.js')
     expect(files.filter((file) => file.includes('.test.'))).toEqual([])
     expect(files.length).toBeGreaterThanOrEqual(15)
   })
