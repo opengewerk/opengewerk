@@ -48,6 +48,40 @@ export {
 export { auditWords, useAuditWords } from './audit-words.js'
 export type { AuditNames, AuditScreenWords, AuditWords } from './audit-words.js'
 
+// The deadlines of a tenant: the list, with what is due, the card for one
+// deadline and a word when the engine has not gone through them, and their
+// settings per kind under the key `fristen`. Its records, its columns, the
+// way to a source and its words the application hands in as properties.
+export { DeadlineListScreen } from './deadlines.js'
+export type {
+  DeadlineCandidate,
+  DeadlineColumn,
+  DeadlineListProps,
+  DeadlineListWords,
+  DeadlinePeople,
+} from './deadlines.js'
+export { DeadlineSettingsScreen } from './deadline-settings.js'
+export type { DeadlineSettingsProps } from './deadline-settings.js'
+export {
+  changeDeadline,
+  deadlineKinds,
+  deadlineList,
+  deadlineRun,
+  deadlineSettings,
+  markDeadlineDone,
+  reopenDeadline,
+  setDeadlineSetting,
+} from './deadline-requests.js'
+export type {
+  DeadlineChange,
+  DeadlineFilter,
+  DeadlineKindView,
+  DeadlinePerson,
+  DeadlineRunView,
+  DeadlineSettingChange,
+  DeadlineView,
+} from './deadline-requests.js'
+
 // "Abgleich": what is to decide about the exchange, the conflicts and the entry
 // the server refused, beside the state of the exchange. What a record is
 // called and what other way out of a conflict there is, the application says

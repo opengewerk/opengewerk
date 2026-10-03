@@ -809,9 +809,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Art, Tagen oder Monaten. Dabei fiel auf, dass die Routen von Mailserver und Push seit ihrem Umzug
   nicht gegen die Pfade des Fundaments geprüft wurden und `/push` dort fehlte; `push` und
   `deadlines` stehen jetzt unter den Pfaden des Fundaments und nicht mehr hier.
+- Die Bildschirme der Fristen gehören zum Fundament (ADR 0010, `opengewerk-haustechnik#24`, vierter
+  Teil): die Liste "Fristen" und "Einstellungen", "Fristen" liegen in `@opengewerk/platform-web`, mit
+  den Rechten, Sätzen und Spalten der Anwendung. Hier gibt sie den Kunden als eigene Spalte, Beleg
+  oder Anlage als Quelle und die Wörter des Büros dazu; beide Bildschirme sehen aus wie vorher. Neu
+  steht über der Liste ein Hinweis, sobald der Lauf den Betrieb zu lange nicht durchgegangen ist
+  oder zuletzt scheiterte, denn eine Erinnerung, die nie kam, sieht sonst aus wie eine, die nicht
+  fällig war. Eine Art, die in Monaten zählt, zeigt und nimmt ihre Frist in Monaten, auf der Karte
+  einer Frist wie in den Einstellungen.
 
 ### Behoben
 
+- Wird eine Frist im Büro erledigt, wieder geöffnet oder jemand anderem gegeben, steht ihre Aufgabe
+  sofort richtig da (`opengewerk-haustechnik#24`). Der Server schließt, öffnet oder übergibt die
+  Aufgabe mit der Frist, Aufgaben kommen aber über den Abgleich auf das Gerät, und der Bildschirm
+  fragte danach eine Abfrage neu an, die es nicht gab. Bis zur nächsten Änderung oder bis zum neuen
+  Laden stand die Aufgabe deshalb weiter offen, seit der Fristen-Engine (#283). Jetzt gleicht die
+  Liste nach jeder Änderung an einer Frist ab.
 - Eine E-Mail oder Push-Nachricht, die der Job in einem Lauf schreibt, geht im selben Lauf
   hinaus und nicht erst eine Minute später (`opengewerk-haustechnik#23`). Der Job las die Uhr,
   bevor er die fälligen Anlässe schrieb, und die Datenbank stempelte die neue Zeile einen Augenblick
