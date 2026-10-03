@@ -23,19 +23,17 @@ import {
 import {
   Database,
   everyTenant,
+  FILE_STORE,
+  type FileStorage,
   isUniqueViolation,
   newId,
+  StoredFileDamagedError,
+  StoredFileMissingError,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import { FILE_STORE } from '../api/handed-in.js'
 import { articleImports, files, suppliers } from '../database/schema/index.js'
-import {
-  type FileStorage,
-  StoredFileDamagedError,
-  StoredFileMissingError,
-} from '../storage/file-store.js'
 import { todayInGermany } from '../today.js'
 import { holdingsOf } from './holdings.js'
 import { ImportRefused, planImport } from './plan.js'

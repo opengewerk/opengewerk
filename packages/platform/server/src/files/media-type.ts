@@ -1,4 +1,4 @@
-import { attachmentMediaType } from '@opengewerk/domain'
+import { fileMediaType } from '@opengewerk/platform-domain'
 
 /**
  * The types a browser may show in place, a picture or a PDF. Everything else
@@ -56,7 +56,7 @@ export function recognisedMediaType(bytes: Uint8Array): (typeof shownInPlace)[nu
  *
  * What the bytes show wins over what the browser declared, for the types that
  * are shown in place. A declared type is taken otherwise, as far as
- * `attachmentMediaType` knows it, but never one of those: a file that says it
+ * `fileMediaType` knows it, but never one of those: a file that says it
  * is a PNG and is not one would be put in front of a browser as a picture
  * because of a name. It is recorded as a plain byte stream instead and handed
  * out as a download.
@@ -68,7 +68,27 @@ export function storedMediaType(bytes: Uint8Array, declared: string): string {
     return recognised
   }
 
-  const type = attachmentMediaType(declared)
+  const type = fileMediaType(declared)
 
   return (shownInPlace as readonly string[]).includes(type) ? 'application/octet-stream' : type
+}
+
+/**
+ * The value of `Content-Disposition` for a file: in place for what a browser
+ * shows safely, as a download for everything else, with the name it had.
+ *
+ * The name twice, as RFC 6266 asks: once in plain ASCII for whatever reads
+ * only that, with everything else replaced, and once in full as UTF-8. A name
+ * from a device never gets into the header unescaped, so a quote or a line
+ * break in it cannot end the header early.
+ */
+export function dispositionFor(mediaType: string, fileName: string): string {
+  const kind = (shownInPlace as readonly string[]).includes(mediaType) ? 'inline' : 'attachment'
+  const ascii = fileName.replace(/[^\x20-\x7e]|["\\]/g, '_')
+  const encoded = encodeURIComponent(fileName).replace(
+    /['()*]/g,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  )
+
+  return `${kind}; filename="${ascii}"; filename*=UTF-8''${encoded}`
 }

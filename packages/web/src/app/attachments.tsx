@@ -1,6 +1,6 @@
 import {
-  attachmentMediaType,
-  attachmentSizeProblem,
+  fileMediaType,
+  fileSizeProblem,
   attachmentTitleOf,
   isPhoto,
   isPicture,
@@ -73,7 +73,7 @@ async function prepare(
   file: File,
   keepOriginal: boolean,
 ): Promise<Prepared | { readonly problem: string }> {
-  const declared = attachmentMediaType(file.type)
+  const declared = fileMediaType(file.type)
   let bytes = await file.arrayBuffer()
   let mediaType = declared
   let fileName = file.name
@@ -88,7 +88,7 @@ async function prepare(
     }
   }
 
-  const problem = attachmentSizeProblem(bytes.byteLength)
+  const problem = fileSizeProblem(bytes.byteLength)
 
   if (problem) {
     return { problem: `${file.name}: ${problem}` }

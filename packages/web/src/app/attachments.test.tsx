@@ -4,7 +4,7 @@ import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { createHash } from 'node:crypto'
 
-import { largestAttachmentBytes, type RecordState, type RoleKey } from '@opengewerk/domain'
+import { largestFileBytes, type RecordState, type RoleKey } from '@opengewerk/domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -230,7 +230,7 @@ describe('a file added in the office', () => {
   it('names a file that is too large, and still adds the others', async () => {
     signedInAs('office')
     const client = await mount(inTheOffice())
-    const huge = new File([new Uint8Array(largestAttachmentBytes + 1)], 'Scan.pdf', {
+    const huge = new File([new Uint8Array(largestFileBytes + 1)], 'Scan.pdf', {
       type: 'application/pdf',
     })
 

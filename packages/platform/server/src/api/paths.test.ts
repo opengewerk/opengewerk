@@ -3,9 +3,11 @@ import { probeAuditVocabulary } from '@opengewerk/platform-domain/testing'
 import { describe, expect, it } from 'vitest'
 
 import { auditLogParts } from '../audit/controller.js'
+import { backupStatusParts } from '../backup/controller.js'
 import { type Authentication, authenticationPath } from '../authentication/authentication.js'
 import { authenticationParts } from '../authentication/module.js'
 import { probeAccess, probeCatalogue } from '../authentication/probe-application.js'
+import { fileParts } from '../files/controller.js'
 import { serverSync } from '../sync/apply.js'
 import { syncParts } from '../sync/controller.js'
 import {
@@ -29,8 +31,9 @@ import { firstSegmentOf, outsideOf, routesOf } from './routes.js'
  * Every controller the foundation hands an application, those of an open
  * instance included: only whether a handle is handed in decides which they
  * are, and nothing here calls it. The health check beside them, which an
- * application lists in its module itself, the change log, and the sync, which
- * an application whose devices work without a network registers.
+ * application lists in its module itself, the change log, the file store and
+ * the last backup, and the sync, which an application whose devices work
+ * without a network registers.
  */
 const controllers = [
   HealthController,
@@ -51,6 +54,8 @@ const controllers = [
     access: { catalogue: rightsCatalogue([...probeCatalogue.rights, auditRights.read]) },
     vocabulary: probeAuditVocabulary,
   }).controllers,
+  ...fileParts({ access: probeAccess, upload: 'notes.write' }).controllers,
+  ...backupStatusParts({ access: probeAccess, read: 'members.read', directory: null }).controllers,
 ]
 
 const routes = routesOf(controllers)
@@ -64,6 +69,8 @@ describe('the paths of the foundation', () => {
     expect(routes.map((route) => route.name)).toContain('GET /health')
     expect(routes.map((route) => route.name)).toContain('POST /sync')
     expect(routes.map((route) => route.name)).toContain('GET /audit/changes')
+    expect(routes.map((route) => route.name)).toContain('PUT /files/:sha256')
+    expect(routes.map((route) => route.name)).toContain('GET /settings/backup')
   })
 
   it('hold every route of the foundation', () => {

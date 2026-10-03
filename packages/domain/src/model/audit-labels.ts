@@ -220,10 +220,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     },
   },
   equipment: { label: 'Betriebsmittel', fields: { circuit_id: 'Stromkreis' } },
-  files: {
-    label: 'Gespeicherte Datei',
-    fields: { sha256: 'Prüfsumme', size_bytes: 'Größe', media_type: 'Dateityp' },
-  },
   form_definitions: {
     label: 'Formular',
     fields: { key: 'Schlüssel', definition_version: 'Fassung', definition: 'Definition' },

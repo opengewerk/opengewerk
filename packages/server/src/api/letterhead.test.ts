@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, FileStore, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -16,7 +16,6 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { FileStore } from '../storage/file-store.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'

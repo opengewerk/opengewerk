@@ -1,25 +1,26 @@
-import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
-import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { bigint, check, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
+import { primaryId, timestamps } from './columns.js'
+import { tenantIsolation } from './rls.js'
+import { tenantColumn } from './tenants.js'
+
 /**
- * The files a business keeps, as far as the database knows them. The bytes
- * lie in the content addressed store from ADR 0007, under their SHA-256.
+ * The files a tenant keeps, as far as the database knows them. The bytes lie
+ * in the content addressed store (`FileStore`), under their SHA-256.
  *
  * The row is what makes a file belong to somebody. The store is shared by
- * every business on the instance and knows nothing about any of them; row
- * level security on this table is what decides whether a hash may be read.
- * Whoever knows the hash of another company's invoice has a string, not a
- * file.
+ * every tenant on the instance and knows nothing about any of them; row level
+ * security on this table is what decides whether a hash may be read. Whoever
+ * knows the hash of a file of another tenant has a string, not a file.
  *
- * One row per business and content, which the unique index says. The same
- * logo uploaded twice is one file, and the second upload finds the first.
+ * One row per tenant and content, which the unique index says. The same logo
+ * uploaded twice is one file, and the second upload finds the first.
  *
  * Inserted and read, never changed and never deleted by the application: the
- * grant in 0013 stops at INSERT. A file an issued document points at has to
- * outlive every mistake, and deleting files at the end of a retention period
- * is a procedure of its own that nothing here does yet.
+ * grant stops at INSERT. A file a record points at has to outlive every
+ * mistake, and deleting files at the end of a retention period is a procedure
+ * of its own that nothing here does yet.
  */
 export const files = pgTable(
   'files',

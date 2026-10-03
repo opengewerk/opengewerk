@@ -8,6 +8,7 @@ import { type Identity, serverPaths } from '@opengewerk/domain'
 import {
   createServer,
   type Database,
+  FileStore,
   mailInternalHosts,
   SecretKey,
   vapidKeysFrom,
@@ -18,7 +19,6 @@ import { readRendererConfiguration, rendererFor } from '../documents/renderer.js
 import { reachableOnly } from '../mail/reach.js'
 import { httpsPost } from '../push/post.js'
 import { smtpTransport } from '../mail/transport.js'
-import { FileStore } from '../storage/file-store.js'
 import { previewPort, previewUser } from './preview-database.js'
 import { PreviewIdentitySource, previewSession } from './preview-identity.js'
 

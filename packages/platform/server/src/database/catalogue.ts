@@ -97,6 +97,11 @@ export async function readCatalogue(pool: Pool): Promise<Catalogue> {
       where n.nspname = 'public' and k.contype <> 'n'`,
   )
 
+  // Without the indexes a primary key, a unique key or an exclusion brought
+  // with it; those say what they are among the constraints. A foreign key names
+  // an index in `conindid` as well, but the one it leans on, which belongs to
+  // the table it points at: counted as brought with a constraint, an index
+  // dropped out of the comparison as soon as another table pointed at it.
   const indexes = await pool.query<Part>(
     `select c.relname as table_name, i.relname as name, pg_get_indexdef(x.indexrelid) as says
        from pg_index x
@@ -104,7 +109,10 @@ export async function readCatalogue(pool: Pool): Promise<Catalogue> {
        join pg_class i on i.oid = x.indexrelid
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public'
-        and not exists (select 1 from pg_constraint k where k.conindid = x.indexrelid)`,
+        and not exists (
+          select 1 from pg_constraint k
+           where k.conindid = x.indexrelid and k.contype in ('p', 'u', 'x')
+        )`,
   )
 
   const policies = await pool.query<Part>(

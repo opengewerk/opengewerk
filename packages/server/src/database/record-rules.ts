@@ -5,7 +5,7 @@ import {
   timeEntryProblem,
   attachmentHomeProblem,
   attachmentMediaTypeProblem,
-  attachmentSizeProblem,
+  fileSizeProblem,
   deviceInfoProblem,
   fileHashProblem,
   inverterLinkProblem,
@@ -192,7 +192,7 @@ const rules: RecordRules = {
       problem: (at) => {
         const size = at('sizeBytes')
 
-        return attachmentSizeProblem(typeof size === 'number' ? size : Number.NaN)
+        return fileSizeProblem(typeof size === 'number' ? size : Number.NaN)
       },
     },
   ],

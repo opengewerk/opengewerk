@@ -6,20 +6,19 @@ import {
   RequestMethod,
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
-import {
-  auditVocabulary,
-  largestAttachmentBytes,
-  largestLogoBytes,
-  logoMediaTypes,
-} from '@opengewerk/domain'
+import { auditVocabulary, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
 import {
   auditLogParts,
   type Authentication,
   authenticationParts,
   AUTHORIZATION,
+  backupStatusParts,
   Database,
+  fileParts,
+  type FileStorage,
   HealthController,
   type InstanceSettingsCache,
+  parseFileUploads,
   SameOriginGuard,
   type SecretKey,
   syncParts,
@@ -32,12 +31,10 @@ import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
 import { type Renderer, rendererFor } from '../documents/renderer.js'
-import { type FileStorage, noFileStorage } from '../storage/file-store.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { AttachmentsController } from './attachments.controller.js'
 import { authorization, AuthorizationGuard } from './authorization.js'
-import { BackupStatusController } from './backup-status.controller.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
 import { InstallationLabelsController } from './installation-labels.controller.js'
 import { CollectiveInvoicesController } from './collective-invoices.controller.js'
@@ -52,7 +49,6 @@ import { DocumentMailController } from './document-mail.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { EInvoiceController } from './e-invoice.controller.js'
-import { FilesController, fileUploadType } from './files.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
@@ -63,14 +59,7 @@ import { MailSettingsController } from './mail-settings.controller.js'
 import { NumberRangesController } from './number-ranges.controller.js'
 import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
-import {
-  BACKUP_STATUS,
-  FILE_STORE,
-  MAIL,
-  type MailContext,
-  RENDERER,
-  SECRETS,
-} from './handed-in.js'
+import { MAIL, type MailContext, RENDERER, SECRETS } from './handed-in.js'
 import { SiteAccessesController } from './site-accesses.controller.js'
 import { SitesController } from './sites.controller.js'
 import { SuppliersController } from './suppliers.controller.js'
@@ -169,9 +158,10 @@ export interface ApiOptions {
 export class ApiModule implements NestModule {
   /**
    * The two routes that take a body that is not JSON: the logo, as the image
-   * itself, and the bytes of a file for the records (#77). Read as raw bytes
-   * there and nowhere else, so that no other route can be sent megabytes of
-   * something it does not expect.
+   * itself, and the bytes of a file for the records (#77), whose parser comes
+   * with the route of the foundation. Read as raw bytes there and nowhere
+   * else, so that no other route can be sent megabytes of something it does
+   * not expect.
    *
    * The limits sit above the ones the controllers enforce, so that a file
    * just over one gets the controller's sentence and not the parser's.
@@ -180,9 +170,7 @@ export class ApiModule implements NestModule {
     consumer
       .apply(raw({ type: [...logoMediaTypes], limit: largestLogoBytes * 2 }))
       .forRoutes({ path: 'settings/letterhead/logo', method: RequestMethod.PUT })
-    consumer
-      .apply(raw({ type: [fileUploadType], limit: largestAttachmentBytes * 2 }))
-      .forRoutes({ path: 'files/:sha256', method: RequestMethod.PUT })
+    parseFileUploads(consumer)
   }
 
   static create(
@@ -194,7 +182,7 @@ export class ApiModule implements NestModule {
       authentication,
       setupCode = null,
       trustedOrigins = [],
-      files = noFileStorage,
+      files,
       renderer = rendererFor({ url: undefined, token: undefined }),
       mail = null,
       backupStatus = null,
@@ -223,6 +211,11 @@ export class ApiModule implements NestModule {
     const syncing = syncParts({ access, routes: syncRoutes(secrets) })
     // The change log of the business, read by the foundation in the words of the office.
     const auditing = auditLogParts({ access, vocabulary: auditVocabulary })
+    // The bytes of the files in the records go into the store through the
+    // route of the foundation, under the right of the records (#77).
+    const storing = fileParts({ access, upload: 'attachment.write', store: files })
+    // When the last backup ran, for whoever reads the settings (#130).
+    const backingUp = backupStatusParts({ access, read: 'settings.read', directory: backupStatus })
 
     return {
       module: ApiModule,
@@ -249,7 +242,7 @@ export class ApiModule implements NestModule {
         PushController,
         ...auditing.controllers,
         TenantsController,
-        FilesController,
+        ...storing.controllers,
         AttachmentsController,
         TimeController,
         // Before the documents, whose routes take an id in the same place.
@@ -272,14 +265,12 @@ export class ApiModule implements NestModule {
         MailSettingsController,
         NumberRangesController,
         LetterheadController,
-        BackupStatusController,
+        ...backingUp.controllers,
       ],
       providers: [
         { provide: Database, useValue: database },
-        { provide: FILE_STORE, useValue: files },
         { provide: RENDERER, useValue: renderer },
         { provide: MAIL, useValue: mail },
-        { provide: BACKUP_STATUS, useValue: backupStatus },
         { provide: VERSION, useValue: version },
         { provide: PUSH, useValue: push },
         { provide: SECRETS, useValue: secrets },
@@ -288,6 +279,8 @@ export class ApiModule implements NestModule {
         ...signingIn.providers,
         ...syncing.providers,
         ...auditing.providers,
+        ...storing.providers,
+        ...backingUp.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

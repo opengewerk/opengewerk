@@ -20,7 +20,16 @@ import {
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
-import { type Actor, Database, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  type Actor,
+  Database,
+  FILE_STORE,
+  fileRowFor,
+  type FileStorage,
+  StoredFileDamagedError,
+  StoredFileMissingError,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { documentFiles, documents, files } from '../database/schema/index.js'
@@ -38,13 +47,7 @@ import {
   printJob,
 } from '../documents/template.js'
 import { zugferdPdf } from '../documents/zugferd.js'
-import {
-  type FileStorage,
-  StoredFileDamagedError,
-  StoredFileMissingError,
-} from '../storage/file-store.js'
-import { fileRowFor } from '../storage/files.js'
-import { FILE_STORE, RENDERER } from './handed-in.js'
+import { RENDERER } from './handed-in.js'
 
 /** What the two forms are called in a sentence that says what one of them lacks. */
 const formNames: Readonly<Record<EInvoiceProfile, string>> = {

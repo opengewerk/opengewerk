@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { access, mkdir, open, readFile, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-import { sha256Pattern } from '@opengewerk/domain'
+import { sha256Pattern } from '@opengewerk/platform-domain'
 
 /** A file the database knows of and the directory does not. */
 export class StoredFileMissingError extends Error {}
@@ -10,7 +10,7 @@ export class StoredFileMissingError extends Error {}
 /**
  * A file whose contents no longer match its name. In a content addressed
  * store that means it is damaged, and it is reported rather than handed out:
- * an invoice that comes back different from how it went out is worse than one
+ * a record that comes back different from how it went in is worse than one
  * that does not come back.
  */
 export class StoredFileDamagedError extends Error {}
@@ -55,7 +55,7 @@ function hashOf(bytes: Uint8Array): string {
  * photos. `ab/cd/abcd…`.
  *
  * What the store does not know is who a file belongs to. It is shared by every
- * business on the instance, and the question whether somebody may read a file
+ * tenant on the instance, and the question whether somebody may read a file
  * is answered by the `files` table under row level security, before this
  * class is ever asked. A hash on its own opens nothing.
  */
@@ -78,7 +78,7 @@ export class FileStore implements FileStorage {
    * Written to a temporary name beside the target, flushed to the disk, and
    * then renamed into place, so that the name only ever points at a complete
    * file. A crash halfway leaves a stray `.part` file, which the restore check
-   * ignores because its name is no hash, and not a truncated invoice under a
+   * ignores because its name is no hash, and not a truncated file under a
    * name that claims otherwise.
    */
   async put(bytes: Uint8Array): Promise<StoredBlob> {

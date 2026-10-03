@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { type BackupStatus, backupOverdueAfterHours, defaultBackupTime } from '@opengewerk/domain'
+import {
+  type BackupStatus,
+  backupOverdueAfterHours,
+  defaultBackupTime,
+} from '@opengewerk/platform-domain'
 
 /** What `backup.sh` writes after every backup, as far as the office needs it. */
 interface Record {
@@ -40,10 +44,10 @@ function recordOf(text: string): Record | null {
  *
  * Read from the record `backup.sh` writes into `directory` after every backup,
  * the nightly one and one made by hand alike. The application sees that record
- * and nothing else: the archives hold every business of the instance, and the
+ * and nothing else: the archives hold every tenant of the instance, and the
  * application reaches the data of each only through row level security.
  *
- * `since` is the moment a missing backup starts to count, the day the business
+ * `since` is the moment a missing backup starts to count, the day the tenant
  * was set up. An hour old, it has no backup yet and is not warned about it; a
  * week old without one, it is. A record that cannot be read counts as none,
  * the same answer an operator gets from a backup that never ran.

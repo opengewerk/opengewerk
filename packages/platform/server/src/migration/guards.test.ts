@@ -104,7 +104,7 @@ describe('the tables of the foundation', () => {
     const tables = foundationGuards.map((guard) => guard.table)
 
     expect(new Set(tables).size).toBe(tables.length)
-    expect(tables).toHaveLength(21)
+    expect(tables).toHaveLength(22)
   })
 
   it('give the application nothing but reading on what only a trigger writes', () => {
@@ -123,7 +123,7 @@ describe('the tables of the foundation', () => {
       (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
     )
 
-    expect(ofATenant).toHaveLength(11)
+    expect(ofATenant).toHaveLength(12)
     expect(ofATenant.filter((guard) => guard.grants.includes('delete'))).toEqual([])
   })
 
@@ -146,13 +146,14 @@ describe('the tables of the foundation', () => {
     })
   })
 
-  it('watch what a tenant may see of its people, and nothing that has no tenant', () => {
+  it('watch what a tenant may see of its people and its files, and nothing that has no tenant', () => {
     expect(
       foundationGuards
         .filter((guard) => guard.audited)
         .map((guard) => guard.table)
         .sort(),
     ).toEqual([
+      'files',
       'invitations',
       'member_passkeys',
       'memberships',

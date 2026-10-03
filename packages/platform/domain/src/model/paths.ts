@@ -2,8 +2,10 @@
  * The first segment of every path the server of the foundation answers itself
  * (ADR 0010): the authentication under `/api`, the routes of the sign in, the
  * first run, the people of a tenant, an invitation and the area of the
- * instance, the health check, the change log of a tenant, and the sync of an
- * application whose devices work without a network.
+ * instance, the health check, the change log of a tenant, the sync of an
+ * application whose devices work without a network, the bytes of the files a
+ * tenant keeps, and the last backup under `/settings`, a segment an
+ * application may answer under as well without listing it a second time.
  *
  * Three read it, each together with the paths the server of its application
  * answers: the server, which never hands a shell back for one of them; the
@@ -28,4 +30,6 @@ export const foundationPaths = [
   'health',
   'audit',
   'sync',
+  'files',
+  'settings',
 ] as const

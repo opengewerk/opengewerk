@@ -8,37 +8,20 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import type { AttachmentVersionId } from '@opengewerk/domain'
-import { Database, isUuid } from '@opengewerk/platform-server'
+import {
+  Database,
+  dispositionFor,
+  FILE_STORE,
+  type FileStorage,
+  isUuid,
+} from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { shownInPlace } from '../attachments/media-type.js'
 import { attachments, attachmentVersions, files } from '../database/schema/index.js'
-import type { FileStorage } from '../storage/file-store.js'
 import { RequiresPermission } from './authorization.js'
-import { FILE_STORE } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 const gone = 'Diese Datei gibt es nicht, oder sie ist aus der Ablage entfernt worden.'
-
-/**
- * The value of `Content-Disposition` for a file: in place for what a browser
- * shows safely, as a download for everything else, with the name it had.
- *
- * The name twice, as RFC 6266 asks: once in plain ASCII for whatever reads
- * only that, with everything else replaced, and once in full as UTF-8. A name
- * from a device never gets into the header unescaped, so a quote or a line
- * break in it cannot end the header early.
- */
-export function dispositionFor(mediaType: string, fileName: string): string {
-  const kind = (shownInPlace as readonly string[]).includes(mediaType) ? 'inline' : 'attachment'
-  const ascii = fileName.replace(/[^\x20-\x7e]|["\\]/g, '_')
-  const encoded = encodeURIComponent(fileName).replace(
-    /['()*]/g,
-    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
-  )
-
-  return `${kind}; filename="${ascii}"; filename*=UTF-8''${encoded}`
-}
 
 /**
  * The files of a business's records, handed out by version (#77).
