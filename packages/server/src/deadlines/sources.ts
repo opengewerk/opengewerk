@@ -1,40 +1,29 @@
-import type {
-  CustomerId,
-  DeadlineSource,
-  DocumentId,
-  InstallationId,
-  IsoDate,
-  JobId,
-  SiteId,
+import {
+  berlinClock,
+  type CustomerId,
+  type DeadlineSource,
+  type DocumentId,
+  type InstallationId,
+  type JobId,
+  type SiteId,
 } from '@opengewerk/domain'
-import type { TenantTransaction } from '@opengewerk/platform-server'
+import type { SourceQuery } from '@opengewerk/platform-server'
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import { documents } from '../database/schema/index.js'
-import { berlinClock } from '../notifications/notify.js'
 
 /**
- * A deadline as its source asks for it right now: what the engine compares
- * with the deadline it keeps, to write it, move it or let it drop.
+ * What a deadline of this application hangs on beside its source, as its
+ * sources say it: the columns this application gives the table of the
+ * foundation. The task is not among them; the action that makes it writes it.
  */
-export interface ExpectedDeadline {
-  readonly sourceId: string
-  readonly sourceLabel: string
+export interface DeadlineValues {
   readonly documentId: DocumentId | null
   readonly installationId: InstallationId | null
   readonly customerId: CustomerId | null
   readonly siteId: SiteId | null
   readonly jobId: JobId | null
-  /** The day of the source the due day is counted from. */
-  readonly anchorOn: IsoDate
-  /** The due day, where the source names it; null where the interval of the kind counts. */
-  readonly namedDueOn: IsoDate | null
-  /** The person the source names, for a kind whose responsible is `source`. */
-  readonly naturalUserId: string | null
 }
-
-/** The question one source asks the data of a business. */
-export type SourceQuery = (tx: TenantTransaction) => Promise<readonly ExpectedDeadline[]>
 
 /**
  * The quotes that went out and that nothing has followed: no order
@@ -45,7 +34,7 @@ export type SourceQuery = (tx: TenantTransaction) => Promise<readonly ExpectedDe
  *
  * Counted from the day it was issued, in Berlin, and named by its number.
  */
-export async function openQuotes(tx: TenantTransaction): Promise<readonly ExpectedDeadline[]> {
+export const openQuotes: SourceQuery<DeadlineValues> = async (tx) => {
   const rows = await tx
     .select({
       id: documents.id,
@@ -79,20 +68,23 @@ export async function openQuotes(tx: TenantTransaction): Promise<readonly Expect
           {
             sourceId: row.id,
             sourceLabel: row.number ?? '',
-            documentId: row.id,
-            installationId: null,
-            customerId: row.customerId,
-            siteId: row.siteId,
-            jobId: row.jobId,
             anchorOn: berlinClock(row.issuedAt).day,
             namedDueOn: null,
             naturalUserId: row.issuedBy,
+            values: {
+              documentId: row.id,
+              installationId: null,
+              customerId: row.customerId,
+              siteId: row.siteId,
+              jobId: row.jobId,
+            },
           },
         ],
   )
 }
 
 /** Every source there is, by the name a kind gives it. */
-export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery>> = {
-  quote: openQuotes,
-}
+export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
+  {
+    quote: openQuotes,
+  }

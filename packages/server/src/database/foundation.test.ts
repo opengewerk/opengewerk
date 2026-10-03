@@ -27,25 +27,43 @@ describe('the foundation in this database', () => {
   it('is what its building blocks say, after every migration', async () => {
     // What hangs of its own on a table of the foundation is what the outbox of
     // the mail carries for the records its messages are about (#23): the
-    // task, the document with its file, and the deadline. The one trigger
-    // that used to be named here, the log of the instance watching `tenants`
-    // (#188), is the foundation's since the area of the instance moved there.
+    // task, the document with its file, and the deadline; and what a deadline
+    // hangs on (opengewerk-haustechnik#24): the document, the installation,
+    // the customer, the site, the job and the task its reminder made. The one
+    // trigger that used to be named here, the log of the instance watching
+    // `tenants` (#188), is the foundation's since the area of the instance
+    // moved there.
     const deviations = await foundationDeviations(admin, {
       columns: [
         'mail_outbox.task_id',
         'mail_outbox.document_id',
         'mail_outbox.attachment',
         'mail_outbox.deadline_id',
+        'deadlines.document_id',
+        'deadlines.installation_id',
+        'deadlines.customer_id',
+        'deadlines.site_id',
+        'deadlines.job_id',
+        'deadlines.task_id',
       ],
       constraints: [
         'mail_outbox.mail_outbox_task_in_tenant',
         'mail_outbox.mail_outbox_document_in_tenant',
         'mail_outbox.mail_outbox_deadline_in_tenant',
+        'deadlines.deadlines_document_in_tenant',
+        'deadlines.deadlines_installation_in_tenant',
+        'deadlines.deadlines_customer_in_tenant',
+        'deadlines.deadlines_site_in_tenant',
+        'deadlines.deadlines_job_in_tenant',
+        'deadlines.deadlines_task_in_tenant',
       ],
       indexes: [
         'mail_outbox.mail_outbox_task_idx',
         'mail_outbox.mail_outbox_document_idx',
         'mail_outbox.mail_outbox_deadline_idx',
+        'deadlines.deadlines_customer_idx',
+        'deadlines.deadlines_document_idx',
+        'deadlines.deadlines_task_idx',
       ],
     })
 

@@ -134,31 +134,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       buyer_reference: 'Käuferreferenz',
     },
   },
-  deadline_settings: {
-    label: 'Einstellung einer Fristart',
-    fields: {
-      lead_days: 'Vorlauf',
-      interval_days: 'Intervall',
-      responsible_user_id: 'Verantwortlich',
-    },
-  },
-  deadlines: {
-    label: 'Frist',
-    fields: {
-      source_id: 'Quelle',
-      source_label: 'Name der Quelle',
-      anchor_on: 'Anker',
-      due_on: 'Fällig am',
-      lead_days: 'Vorlauf',
-      responsible_user_id: 'Verantwortlich',
-      natural_user_id: 'Vorgabe der Art',
-      closed_at: 'Geschlossen am',
-      closed_by: 'Geschlossen von',
-      reminded_for: 'Erinnert für',
-      reminded_at: 'Erinnert am',
-      task_id: 'Aufgabe',
-    },
-  },
   distribution_boards: { label: 'Verteiler', fields: { location: 'Standort' } },
   document_files: {
     label: 'Datei eines Belegs',

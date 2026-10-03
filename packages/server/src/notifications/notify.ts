@@ -1,10 +1,12 @@
 import {
+  berlinClock,
   type DeadlineId,
   type DeadlineRegistry,
   type DocumentId,
   type InvitationId,
   type IssuerContent,
   type IsoDate,
+  morningMinute,
   renderSignature,
   shippedRules,
   type TaskId,
@@ -13,6 +15,8 @@ import {
 import {
   accountsOf,
   type Database,
+  deadlineSettingsOf,
+  responsibleFor,
   stillOpen,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
@@ -36,8 +40,6 @@ import {
   tasks,
 } from '../database/schema/index.js'
 import { deadlineKinds } from '../deadlines/registry.js'
-import { responsibleFor } from '../deadlines/responsible.js'
-import { settingsOf } from '../deadlines/settings.js'
 import { contentOf, frozenContent, issuerOf } from '../documents/content.js'
 import {
   deadlineDueMessage,
@@ -164,33 +166,6 @@ export function causeOf(notification: Notification): string {
   }
 }
 
-/** The day and the minute of the day in Berlin, where the businesses are. */
-export function berlinClock(now: Date): { readonly day: IsoDate; readonly minute: number } {
-  const parts = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Berlin',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now)
-  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? '00'
-
-  return {
-    day: `${part('year')}-${part('month')}-${part('day')}` as IsoDate,
-    minute: Number(part('hour')) * 60 + Number(part('minute')),
-  }
-}
-
-/**
- * From when in the morning a task due today is told to its person.
- *
- * Not at midnight: a message that arrives at six is at the top of the inbox
- * when the day starts, one from midnight is under everything that came after.
- */
-export const dueTasksFromMinute = 6 * 60
-
 /**
  * The two ways a message goes out, each with its own outbox (#81, #284). A
  * notification is raised for each of them separately, and "told already" is
@@ -234,7 +209,7 @@ export async function dueTasks(
 ): Promise<readonly Extract<Notification, { readonly kind: 'task_due' }>[]> {
   const { day, minute } = berlinClock(now)
 
-  if (minute < dueTasksFromMinute) {
+  if (minute < morningMinute) {
     return []
   }
 
@@ -776,7 +751,7 @@ export async function deadlineStillDue(
         .from(tasks)
         .where(eq(tasks.id, deadline.taskId))
     : []
-  const setting = (await settingsOf(tx)).get(kind.key) ?? null
+  const setting = (await deadlineSettingsOf(tx)).get(kind.key) ?? null
   const recipient = await responsibleFor(tx, tenantId, kind, setting, {
     responsibleUserId: task?.assignee ?? deadline.responsibleUserId,
     naturalUserId: deadline.naturalUserId,

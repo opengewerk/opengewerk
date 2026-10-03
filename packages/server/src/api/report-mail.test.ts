@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { signedContentFingerprint, type TenantId } from '@opengewerk/domain'
+import { berlinClock, signedContentFingerprint, type TenantId } from '@opengewerk/domain'
 import {
   Database,
   FileStore,
@@ -27,7 +27,6 @@ import {
   resetSchema,
 } from '../database/test-database.js'
 import { documentAttachments } from '../mail/attachments.js'
-import { berlinClock } from '../notifications/notify.js'
 import { runMailCycle } from '../mail/worker.js'
 import { ApiModule } from './api.module.js'
 import { DocumentFiles } from './document-files.js'

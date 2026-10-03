@@ -1,5 +1,6 @@
-import { mailOutboxSchema } from '@opengewerk/platform-server'
+import { deadlinesSchema, mailOutboxSchema } from '@opengewerk/platform-server'
 import {
+  deadlinesGuard,
   type MadeByTheApplication,
   mailOutboxGuard,
   numberRangesGuard,
@@ -25,6 +26,12 @@ import { secretPurpose, secrets } from './secrets.js'
 const outboxOfTheBlocks = mailOutboxSchema({ kinds: mailKinds })
 
 /**
+ * The deadlines as the foundation makes them, without the columns this
+ * application adds for what a deadline hangs on, for the same reason.
+ */
+const deadlinesOfTheBlocks = deadlinesSchema()
+
+/**
  * The tables of the foundation this application makes with lists of its own
  * (ADR 0010): their columns and rules are the foundation's, the values of
  * their enums are this application's.
@@ -46,6 +53,8 @@ export const madeWithLists: MadeByTheApplication = {
     mailStatus: outboxOfTheBlocks.mailStatus,
     mailOutbox: outboxOfTheBlocks.mailOutbox,
     ...push,
+    deadlineStatus: deadlinesOfTheBlocks.deadlineStatus,
+    deadlines: deadlinesOfTheBlocks.deadlines,
   },
   guards: [
     secretsGuard,
@@ -55,5 +64,6 @@ export const madeWithLists: MadeByTheApplication = {
     pushSubscriptionsGuard,
     pushOptOutsGuard,
     pushOutboxGuard,
+    deadlinesGuard,
   ],
 }

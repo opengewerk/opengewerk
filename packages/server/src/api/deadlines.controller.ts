@@ -25,7 +25,13 @@ import {
   remindOn,
   type TenantId,
 } from '@opengewerk/domain'
-import { accountsOf, Database, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  accountsOf,
+  Database,
+  deadlineSettingsOf,
+  responsibleFor,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, asc, eq, sql } from 'drizzle-orm'
 
 import {
@@ -37,8 +43,6 @@ import {
 } from '../database/schema/index.js'
 import type { DeadlineRow } from '../deadlines/engine.js'
 import { deadlineKinds } from '../deadlines/registry.js'
-import { responsibleFor } from '../deadlines/responsible.js'
-import { settingsOf } from '../deadlines/settings.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -216,7 +220,7 @@ export class DeadlinesController {
         .leftJoin(customers, eq(customers.id, deadlines.customerId))
         .where(wanted === 'all' ? sql`true` : eq(deadlines.status, wanted))
         .orderBy(asc(deadlines.dueOn), asc(deadlines.sourceLabel))
-      const settings = await settingsOf(tx)
+      const settings = await deadlineSettingsOf(tx)
       const responsibles = new Map<string, string | null>()
 
       for (const { deadline } of rows) {
@@ -301,7 +305,7 @@ export class DeadlinesController {
   @Get('kinds')
   @RequiresPermission('deadline.read')
   async kinds(@CurrentIdentity() identity: RequestIdentity): Promise<DeadlineKindEntry[]> {
-    return kindEntries(await this.database.forTenant(identity, (tx) => settingsOf(tx)))
+    return kindEntries(await this.database.forTenant(identity, (tx) => deadlineSettingsOf(tx)))
   }
 
   /**
@@ -455,7 +459,7 @@ async function handTaskOn(
     return
   }
 
-  const setting = (await settingsOf(tx)).get(kind.key) ?? null
+  const setting = (await deadlineSettingsOf(tx)).get(kind.key) ?? null
   const responsible = await responsibleFor(tx, tenantId, kind, setting, deadline)
 
   if (responsible !== null) {
@@ -478,7 +482,7 @@ export class DeadlineSettingsController {
   @Get()
   @RequiresPermission('settings.read')
   async list(@CurrentIdentity() identity: RequestIdentity): Promise<DeadlineKindEntry[]> {
-    return kindEntries(await this.database.forTenant(identity, (tx) => settingsOf(tx)))
+    return kindEntries(await this.database.forTenant(identity, (tx) => deadlineSettingsOf(tx)))
   }
 
   @Put(':kind')
@@ -526,7 +530,7 @@ export class DeadlineSettingsController {
           set: { leadDays, intervalDays, responsibleUserId, updatedAt: now },
         })
 
-      const entry = kindEntries(await settingsOf(tx)).find(
+      const entry = kindEntries(await deadlineSettingsOf(tx)).find(
         (candidate) => candidate.key === kind.key,
       )
 

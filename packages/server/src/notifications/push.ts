@@ -1,4 +1,5 @@
 import {
+  berlinClock,
   type DeadlineRegistry,
   type PushEntry,
   pushEntries,
@@ -10,13 +11,7 @@ import type { Database, PushDraft, PushRules } from '@opengewerk/platform-server
 
 import { deadlineKinds } from '../deadlines/registry.js'
 import { pushes } from '../push/outbox.js'
-import {
-  berlinClock,
-  causeOf,
-  deadlineStillDue,
-  type Notification,
-  taskStillDue,
-} from './notify.js'
+import { causeOf, deadlineStillDue, type Notification, taskStillDue } from './notify.js'
 import { deadlineDuePush, taskDuePush, testPush } from './templates.js'
 
 /**

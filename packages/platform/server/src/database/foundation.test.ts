@@ -135,15 +135,15 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(23)
+    expect(tables).toHaveLength(25)
     expect(unprotected(tables)).toEqual([])
   })
 
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The thirteen tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(13)
+    // The fifteen tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(15)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -203,14 +203,18 @@ describe('the foundation, built from its building blocks alone', () => {
   it('runs every key between two tables of a tenant over the tenant', async () => {
     const keys = await keysBetweenTenantTables(admin)
 
-    expect(keys.map((key) => key.key)).toEqual(['member_passkeys_person_works_here'])
+    expect(keys.map((key) => key.key)).toEqual([
+      'deadline_settings_responsible_works_here',
+      'member_passkeys_person_works_here',
+    ])
     expect(withoutTheTenant(keys)).toEqual([])
   })
 
-  it('watches what a tenant may see of its people, its files and its mail server and leaves the rest out of the log', async () => {
+  it('watches what a tenant may see of its people, its files, its mail server and its settings of deadlines and leaves the rest out of the log', async () => {
     const coverage = await logCoverage(admin)
 
     expect(coverage.watched).toEqual([
+      'deadline_settings',
       'files',
       'invitations',
       'mail_settings',
@@ -495,6 +499,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(23)
+    expect(await tableNames(admin)).toHaveLength(25)
   })
 })
