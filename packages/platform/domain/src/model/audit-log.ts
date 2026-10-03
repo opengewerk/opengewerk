@@ -233,6 +233,7 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 
 /** The tables of the foundation the log of a tenant holds, by name. */
 export const foundationAuditTables = [
+  'files',
   'invitations',
   'member_passkeys',
   'memberships',
@@ -250,6 +251,10 @@ function foundationTables(
   words: FoundationAuditWords,
 ): Readonly<Record<FoundationAuditTable, AuditTableWords>> {
   return {
+    files: {
+      label: 'Gespeicherte Datei',
+      fields: { sha256: 'Prüfsumme', size_bytes: 'Größe', media_type: 'Dateityp' },
+    },
     invitations: {
       label: 'Einladung',
       fields: {
@@ -325,8 +330,9 @@ function foundationInstanceTables(
   }
 }
 
-/** Where the records of the foundation are named: a membership and a sign in by their person. */
+/** Where the records of the foundation are named: a membership and a sign in by their person, a file by its type. */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
+  files: ['media_type'],
   memberships: ['user_id'],
   tenant_sessions: ['user_id'],
   invitations: ['name', 'email'],

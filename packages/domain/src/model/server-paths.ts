@@ -11,6 +11,9 @@
  *
  * The test of the routes holds it against the controllers of the server, in
  * both directions: no route outside it, and nothing in it no route answers.
+ * A segment of the foundation stands there and not here, also where routes of
+ * this application share it: the settings under `/settings` sit beside the
+ * last backup, which is the foundation's.
  */
 export const serverPaths = [
   'customers',
@@ -24,11 +27,9 @@ export const serverPaths = [
   'deadlines',
   'push',
   'tenants',
-  'files',
   'attachments',
   'form-records',
   'time',
   'documents',
   'payments',
-  'settings',
 ] as const

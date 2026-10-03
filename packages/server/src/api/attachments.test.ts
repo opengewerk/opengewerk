@@ -5,8 +5,7 @@ import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { largestAttachmentBytes } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, dispositionFor, FileStore, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -18,9 +17,7 @@ import {
   connect,
   resetSchema,
 } from '../database/test-database.js'
-import { FileStore } from '../storage/file-store.js'
 import { ApiModule } from './api.module.js'
-import { dispositionFor } from './attachments.controller.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'
 
@@ -170,70 +167,10 @@ afterAll(async () => {
 })
 
 describe('the bytes of a file', () => {
-  it('are stored under their hash, with the type the bytes show', async () => {
-    const stored = await upload(png, 'application/octet-stream')
-
-    expect(stored).toEqual({
-      sha256: hashOf(png),
-      sizeBytes: png.byteLength,
-      mediaType: 'image/png',
-    })
-  })
-
-  it('are stored once, however often they are sent', async () => {
-    await upload(plan, 'application/pdf')
-    await upload(plan, 'application/pdf')
-
-    const { rows } = await admin.query(
-      'select count(*)::int as count from files where sha256 = $1',
-      [hashOf(plan)],
-    )
-
-    expect(rows[0]).toEqual({ count: 1 })
-  })
-
-  it('are never recorded as a picture because of a declared type alone', async () => {
-    const pretending = Buffer.from('<script>alert(1)</script>')
-
-    expect((await upload(pretending, 'image/png')).mediaType).toBe('application/octet-stream')
-    expect((await upload(notes, 'text/plain; charset=utf-8')).mediaType).toBe('text/plain')
-  })
-
-  it('are refused when they do not match the hash they were sent under', async () => {
-    const answer = await http()
-      .put(`/files/${hashOf(plan)}`)
-      .set('x-test-identity', office())
-      .set('Content-Type', 'application/octet-stream')
-      .send(notes)
-      .expect(422)
-
-    expect((answer.body as { message: string }).message).toMatch(/Prüfsumme/)
-  })
-
-  it('are refused as anything but a byte stream, empty, or above the limit', async () => {
-    await http()
-      .put(`/files/${hashOf(notes)}`)
-      .set('x-test-identity', office())
-      .set('Content-Type', 'text/plain')
-      .send(notes.toString())
-      .expect(415)
-    await http()
-      .put(`/files/${hashOf(Buffer.alloc(0))}`)
-      .set('x-test-identity', office())
-      .set('Content-Type', 'application/octet-stream')
-      .send(Buffer.alloc(0))
-      .expect(400)
-
-    const tooLarge = Buffer.alloc(largestAttachmentBytes + 1, 1)
-
-    await http()
-      .put(`/files/${hashOf(tooLarge)}`)
-      .set('x-test-identity', office())
-      .set('Content-Type', 'application/octet-stream')
-      .send(tooLarge)
-      .expect(413)
-  })
-
+  /**
+   * The route is the foundation's and is tested there; this is the right this
+   * application gives it, the one of the records, which a technician has.
+   */
   it('are stored by a technician, and by nobody without a right to the records', async () => {
     await upload(notes, 'text/plain', technician())
     await upload(notes, 'text/plain', as(north.id), 403)
@@ -421,17 +358,5 @@ describe('an attachment with its versions', () => {
       .get(`/attachments/versions/${plain.version}/preview`)
       .set('x-test-identity', office())
       .expect(404)
-  })
-})
-
-describe('the name a file is handed out with', () => {
-  it('is in plain ASCII and in full, and nothing in it ends the header', () => {
-    expect(dispositionFor('application/pdf', 'Plan.pdf')).toBe(
-      `inline; filename="Plan.pdf"; filename*=UTF-8''Plan.pdf`,
-    )
-    expect(dispositionFor('text/plain', 'Aufmaß "neu".txt')).toBe(
-      `attachment; filename="Aufma_ _neu_.txt"; filename*=UTF-8''Aufma%C3%9F%20%22neu%22.txt`,
-    )
-    expect(dispositionFor('text/plain', 'a\r\nSet-Cookie: x')).not.toMatch(/[\r\n]/)
   })
 })

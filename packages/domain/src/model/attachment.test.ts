@@ -2,32 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   attachmentHomeProblem,
-  attachmentMediaType,
   attachmentMediaTypeProblem,
-  fileHashProblem,
-  attachmentSizeProblem,
   attachmentTitleOf,
   isPhoto,
   isPicture,
-  largestAttachmentBytes,
 } from './attachment.js'
-
-describe('the type a file is recorded as', () => {
-  it('is the declared one, lower case and without parameters, when it is on the list', () => {
-    expect(attachmentMediaType('application/pdf')).toBe('application/pdf')
-    expect(attachmentMediaType('Image/JPEG')).toBe('image/jpeg')
-    expect(attachmentMediaType('text/plain; charset=utf-8')).toBe('text/plain')
-  })
-
-  it('is a plain byte stream for anything else, and never a refusal', () => {
-    // Nothing that a browser could run is on the list, and a type a browser
-    // made up for an unknown ending is still a file somebody needs.
-    expect(attachmentMediaType('text/html')).toBe('application/octet-stream')
-    expect(attachmentMediaType('image/svg+xml')).toBe('application/octet-stream')
-    expect(attachmentMediaType('')).toBe('application/octet-stream')
-    expect(attachmentMediaType('application/x-messgeraet')).toBe('application/octet-stream')
-  })
-})
 
 describe('what a version says about its file', () => {
   it('has the type as it is recorded, and nothing else', () => {
@@ -36,13 +15,6 @@ describe('what a version says about its file', () => {
     expect(attachmentMediaTypeProblem('Application/PDF')).toMatch(/nicht so angegeben/)
     expect(attachmentMediaTypeProblem('text/html')).toMatch(/nicht so angegeben/)
     expect(attachmentMediaTypeProblem(null)).toMatch(/nicht so angegeben/)
-  })
-
-  it('names the file by a SHA-256 in lower case hex', () => {
-    expect(fileHashProblem('a'.repeat(64))).toBeNull()
-    expect(fileHashProblem('A'.repeat(64))).toMatch(/kein SHA-256/)
-    expect(fileHashProblem('../../etc/passwd')).toMatch(/kein SHA-256/)
-    expect(fileHashProblem(42)).toMatch(/kein SHA-256/)
   })
 })
 
@@ -59,20 +31,6 @@ describe('a picture and a photo', () => {
     expect(isPhoto('image/jpeg')).toBe(true)
     expect(isPhoto('image/webp')).toBe(true)
     expect(isPhoto('image/png')).toBe(false)
-  })
-})
-
-describe('the size of a file', () => {
-  it('may be anything from one byte up to the limit', () => {
-    expect(attachmentSizeProblem(1)).toBeNull()
-    expect(attachmentSizeProblem(largestAttachmentBytes)).toBeNull()
-  })
-
-  it('is refused above the limit, when empty and when it is no count of bytes', () => {
-    expect(attachmentSizeProblem(largestAttachmentBytes + 1)).toMatch(/größer als 25 MB/)
-    expect(attachmentSizeProblem(0)).toBe('Die Datei ist leer.')
-    expect(attachmentSizeProblem(-1)).toMatch(/keine Zahl/)
-    expect(attachmentSizeProblem(1.5)).toMatch(/keine Zahl/)
   })
 })
 

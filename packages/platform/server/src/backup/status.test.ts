@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { backupStatus } from './backup-status.js'
+import { backupStatus } from './status.js'
 
 /**
  * The record of the last backup, as the office reads it (#130). The schedule
@@ -67,7 +67,7 @@ describe('the last backup', () => {
     })
   })
 
-  it('is missing without warning for a new business, and with one for a business of days', async () => {
+  it('is missing without warning for a new tenant, and with one for a tenant of days', async () => {
     expect(await backupStatus(directory(), hours(1), now)).toEqual({
       state: 'none',
       overdue: false,

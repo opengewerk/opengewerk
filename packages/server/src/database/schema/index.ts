@@ -1,6 +1,6 @@
 // What every application carries comes from the foundation (ADR 0010): the
 // role the policies are written for, and the tables for tenants, accounts,
-// memberships, the audit log, the sync layer and the instance. They are handed on here
+// memberships, the audit log, the sync layer, the files and the instance. They are handed on here
 // because drizzle-kit reads the schema from this file: a table it does not
 // find here is one it would drop, a role one it would try to manage.
 export * from '@opengewerk/platform-server/schema'
@@ -17,7 +17,6 @@ export * from './document-signatures.js'
 export * from './document-sources.js'
 export * from './documents.js'
 export * from './electrical.js'
-export * from './files.js'
 export * from './form-definitions.js'
 export * from './form-records.js'
 export * from './installation-labels.js'

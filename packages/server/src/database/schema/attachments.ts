@@ -5,12 +5,11 @@ import {
   tenantIsolation,
   timestamps,
 } from '@opengewerk/platform-server'
-import { tenantColumn } from '@opengewerk/platform-server/schema'
+import { files, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { bigint, check, foreignKey, index, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 import { customers } from './customers.js'
-import { files } from './files.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'
 import { sites } from './sites.js'

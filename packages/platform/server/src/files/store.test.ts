@@ -5,10 +5,10 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { FileStore, StoredFileDamagedError, StoredFileMissingError } from './file-store.js'
+import { FileStore, StoredFileDamagedError, StoredFileMissingError } from './store.js'
 
 /**
- * The store is the one place where an invoice that went out can come back
+ * The store is the one place where a record that went in can come back
  * different, so the tests are about the ways that could happen: a file
  * changed on disk, a file missing, a name that is not a hash.
  */
@@ -16,11 +16,11 @@ import { FileStore, StoredFileDamagedError, StoredFileMissingError } from './fil
 let root: string
 let store: FileStore
 
-const contents = new TextEncoder().encode('%PDF-1.7 Rechnung 2026-0001')
+const contents = new TextEncoder().encode('%PDF-1.7 Probe 2026-0001')
 const hash = createHash('sha256').update(contents).digest('hex')
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'opengewerk-store-'))
+  root = mkdtempSync(join(tmpdir(), 'file-store-'))
   store = new FileStore(root)
 })
 

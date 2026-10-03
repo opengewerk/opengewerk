@@ -1,4 +1,4 @@
-import { sha256Pattern } from '@opengewerk/platform-domain'
+import { fileMediaType } from '@opengewerk/platform-domain'
 import type { Synced } from '@opengewerk/platform-domain'
 import type {
   AttachmentId,
@@ -62,14 +62,6 @@ export interface AttachmentVersion extends Synced {
 }
 
 /**
- * The largest file a business can put into its records, known to the device
- * and the server alike, so that a file that is too large is turned away where
- * it is chosen and not after it has crossed a mobile network. 25 MB takes a
- * scanned plan or a long PDF; a video does not belong here.
- */
-export const largestAttachmentBytes = 25_000_000
-
-/**
  * How a photo is made smaller before it goes anywhere (ADR 0007: "unter 1 MB
  * pro Foto, Original optional behalten"). 2048 pixels on the long edge still
  * shows a type plate legibly, and a JPEG of that size at this quality lands
@@ -82,65 +74,11 @@ export const photoQuality = 0.8
 export const previewLongEdge = 320
 export const previewQuality = 0.7
 
-/**
- * The types a file is recorded as. Anything else is recorded as
- * `application/octet-stream` and not refused: a measuring device's export or
- * a CAD format nobody listed is still a file somebody needs to keep. The type
- * only decides how the file is handed out again, and the server decides that
- * by looking at the bytes, not at this list.
- */
-export const attachmentMediaTypes = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic',
-  'image/heif',
-  'application/pdf',
-  'text/plain',
-  'text/csv',
-  'application/xml',
-  'text/xml',
-  'application/zip',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/vnd.oasis.opendocument.text',
-  'application/vnd.oasis.opendocument.spreadsheet',
-  'image/vnd.dwg',
-  'image/vnd.dxf',
-  'application/octet-stream',
-] as const
-
-/**
- * The type a file is recorded as, from the one a browser declared. Lower case
- * and without parameters; a type outside the list becomes
- * `application/octet-stream`. Device and server both ask this, and a version
- * whose type is not what this answers is a mistake in the client.
- */
-export function attachmentMediaType(declared: string): string {
-  const essence = (declared.split(';')[0] ?? '').trim().toLowerCase()
-
-  return (attachmentMediaTypes as readonly string[]).includes(essence)
-    ? essence
-    : 'application/octet-stream'
-}
-
-/** Why a type is not the one `attachmentMediaType` records, or null when it is. */
+/** Why a type is not the one `fileMediaType` records, or null when it is. */
 export function attachmentMediaTypeProblem(mediaType: unknown): string | null {
-  return typeof mediaType === 'string' && attachmentMediaType(mediaType) === mediaType
+  return typeof mediaType === 'string' && fileMediaType(mediaType) === mediaType
     ? null
     : 'Der Typ der Datei ist nicht so angegeben, wie OpenGewerk ihn festhält.'
-}
-
-/** Why a value is not the SHA-256 a stored file is named by, or null when it is. */
-export function fileHashProblem(hash: unknown): string | null {
-  return typeof hash === 'string' && sha256Pattern.test(hash)
-    ? null
-    : 'Die Prüfsumme der Datei ist kein SHA-256 in Kleinbuchstaben.'
 }
 
 /**
@@ -160,23 +98,6 @@ export function isPicture(mediaType: string): boolean {
  */
 export function isPhoto(mediaType: string): boolean {
   return ['image/jpeg', 'image/webp'].includes(mediaType)
-}
-
-/** Why a file of this size cannot be kept, or null when it can. */
-export function attachmentSizeProblem(sizeBytes: number): string | null {
-  if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0) {
-    return 'Die Größe der Datei ist keine Zahl von Bytes.'
-  }
-
-  if (sizeBytes === 0) {
-    return 'Die Datei ist leer.'
-  }
-
-  return sizeBytes > largestAttachmentBytes
-    ? `Die Datei ist größer als ${String(largestAttachmentBytes / 1_000_000)} MB und lässt sich ` +
-        'deshalb nicht ablegen. Ein Foto wird vor dem Ablegen verkleinert, ein Dokument ' +
-        'lässt sich oft als PDF kleiner speichern.'
-    : null
 }
 
 /** The four places a file can hang on. */

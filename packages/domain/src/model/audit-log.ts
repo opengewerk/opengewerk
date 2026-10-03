@@ -186,7 +186,6 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   push_subscriptions: ['label'],
   job_notes: ['text'],
   payments: ['received_on'],
-  files: ['media_type'],
   document_files: ['purpose'],
   document_instruction_choices: ['variant'],
   // Rows with nothing of their own to be called by are named after what they belong to.

@@ -711,6 +711,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Antworten auch. Die Datenbank bekommt die neuen Einheiten in der Aufzählung `rule_unit`, in
   der eine Einstellung eines Betriebs ihre Einheit hat (Migration 0066), und ein Test hält
   Aufzählung und Liste seitdem zusammen.
+- Der Dateispeicher und der Stand der Sicherung sind Teile des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#23`, erster Teil), damit jede Anwendung Dateien nach ihrem Hash ablegt
+  und die letzte Sicherung zeigt wie diese: der Speicher, die Tabelle `files`, das Erkennen von
+  Bild und PDF an den ersten Bytes, `PUT /files/:sha256` und `GET /settings/backup` liegen in
+  `@opengewerk/platform-server`, die Regeln einer Datei für Typ, Größe und Prüfsumme in
+  `@opengewerk/platform-domain`. Diese Anwendung nennt die beiden Rechte: eine Datei legt ab,
+  wer an der Ablage schreibt, die letzte Sicherung sieht, wer die Einstellungen liest. Die
+  Routen antworten wie vorher, und die Datenbank bekommt keine Migration: die Tabelle ist
+  dieselbe, nur ihr Schema steht jetzt im Fundament, und der Vergleich der Bausteine mit den
+  Migrationen hält sie seitdem mit. Der Pfad `settings` steht seitdem in der Liste des
+  Fundaments und nicht mehr in der dieser Anwendung, weil jeder Pfad nur in einer der beiden
+  Listen stehen darf.
 
 ### Behoben
 
@@ -726,6 +738,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   beginnt (`opengewerk-haustechnik#12`). Die Prüfung sah nur auf die ersten Zeichen, und ein
   Browser liest den Backslash als Schrägstrich. Ausnutzen ließ sich das nicht: die Pfade in
   Push-Nachrichten schreibt nur der eigene Server.
+- Der Vergleich einer Datenbank mit den Bausteinen des Fundaments (`foundationDeviations`) sieht
+  einen Index jetzt auch dann, wenn ein Fremdschlüssel einer anderen Tabelle auf ihn zeigt
+  (`opengewerk-haustechnik#23`). Bisher nahm er jeden Index aus, den irgendein Constraint nennt,
+  und ein Fremdschlüssel nennt dort den Index der Tabelle, auf die er zeigt. So fiel
+  `files_content` aus dem Vergleich, weil `attachment_versions` auf ihn zeigt, und eine
+  Abweichung an einem solchen Index wäre niemandem aufgefallen.
 
 ## [0.4.0] - 2026-09-27
 

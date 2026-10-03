@@ -123,6 +123,19 @@ export * from './instance/sentences.js'
 export * from './instance/settings.js'
 export * from './instance/tenants.js'
 
+// The files a tenant keeps: the content addressed store, the row that makes a
+// file a tenant's, what its first bytes show, and the route its bytes are
+// stored through. Who may store one, the application says.
+export * from './files/controller.js'
+export * from './files/media-type.js'
+export * from './files/rows.js'
+export * from './files/store.js'
+
+// When the last backup of the instance ran, and the route that says so. Who
+// may see it, the application says.
+export * from './backup/controller.js'
+export * from './backup/status.js'
+
 // What a command is started with, for a test that listens to one.
 export type { CommandSurroundings } from './command-line.js'
 

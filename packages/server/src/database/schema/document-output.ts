@@ -1,10 +1,9 @@
 import { documentFilePurposes, type StoredDocumentContent } from '@opengewerk/domain'
 import { primaryId, reference, tenantIsolation } from '@opengewerk/platform-server'
-import { tenantColumn } from '@opengewerk/platform-server/schema'
+import { files, tenantColumn } from '@opengewerk/platform-server/schema'
 import { foreignKey, jsonb, pgEnum, pgTable, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { documents } from './documents.js'
-import { files } from './files.js'
 
 export const documentFilePurpose = pgEnum('document_file_purpose', documentFilePurposes)
 

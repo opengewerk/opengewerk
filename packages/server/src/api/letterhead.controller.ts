@@ -24,15 +24,19 @@ import {
   type LogoMediaType,
   type TenantId,
 } from '@opengewerk/domain'
-import { AcceptsBody, Database, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  AcceptsBody,
+  Database,
+  FILE_STORE,
+  fileRowFor,
+  type FileStorage,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, eq, ne } from 'drizzle-orm'
 import type { Request } from 'express'
 
 import { files, letterheads, tenants } from '../database/schema/index.js'
-import type { FileStorage } from '../storage/file-store.js'
-import { fileRowFor } from '../storage/files.js'
 import { RequiresPermission } from './authorization.js'
-import { FILE_STORE } from './handed-in.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** The longest a single field may be. A letterhead line, not a letter. */

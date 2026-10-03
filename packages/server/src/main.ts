@@ -8,6 +8,7 @@ import {
   ConfigurationError,
   createServer,
   Database,
+  FileStore,
   instanceIsEmpty,
   InstanceSettingsCache,
   runInstance,
@@ -34,7 +35,6 @@ import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { httpsPost } from './push/post.js'
 import { startPushWorker } from './push/worker.js'
-import { FileStore } from './storage/file-store.js'
 
 /**
  * Starts an instance.
