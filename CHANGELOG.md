@@ -638,6 +638,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   allem, was vor den Routen steht, das Herunterfahren in fester Reihenfolge und die Zeile beim
   Start. `main.ts` und die Vorschau dieser Anwendung nehmen sie von dort; was sie tun, bleibt
   gleich.
+- Einrichten, Starten und Sichern sind Bausteine des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#14`, zweiter Teil), damit eine weitere Anwendung dieselben Skripte mit
+  ihren eigenen Namen benutzt. `setup.sh` und `start.sh` lesen den Namen der Anwendung und den
+  Anfang ihrer Variablen aus `docker/application.env` und lassen sich über
+  `APPLICATION_DIRECTORY` gegen den Ordner einer anderen Anwendung starten; das Abbild der
+  Sicherung bleibt für jede dasselbe. Eine vorhandene `.env` behält jeden Namen, ein Update
+  braucht keinen Handgriff. Archive heißen weiter `opengewerk-<zeit>.tar.gz`, nach der
+  Datenbank, und Aufbewahren, Prüfen und Rückspielen sehen nur noch Archive genau dieser Form:
+  liegen die einer zweiten Anwendung im selben Ziel, löscht die Aufbewahrung sie nicht mehr mit.
 
 ### Behoben
 

@@ -24,6 +24,9 @@ set -eu
 : "${POSTGRES_DB:=opengewerk}"
 : "${BACKUP_PATH:=/var/lib/opengewerk/backups}"
 
+# The names of the archives, in one place for backup, restore and verify.
+. "$(dirname "$0")/names.sh"
+
 wanted="${1:-latest}"
 
 if [ -z "${PGPASSWORD:-}" ]; then
@@ -32,7 +35,7 @@ if [ -z "${PGPASSWORD:-}" ]; then
 fi
 
 if [ "$wanted" = "latest" ]; then
-	archive=$(find "$BACKUP_PATH" -maxdepth 1 -name 'opengewerk-*.tar.gz*' | sort | tail -n 1)
+	archive=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | tail -n 1)
 
 	if [ -z "$archive" ]; then
 		echo "Unter $BACKUP_PATH liegt keine Sicherung." >&2

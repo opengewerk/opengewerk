@@ -590,6 +590,15 @@ Instanz. Jeder weitere Aufruf lässt Gesetztes stehen, ergänzt nur, was eine
 neuere Vorlage mitbringt, und startet in der Reihenfolge, die ein Update
 braucht. `sh docker/setup.sh` richtet nur die Datei ein, ohne zu starten.
 
+**Die Skripte gehören dem Fundament** (ADR 0010, `opengewerk-haustechnik#14`).
+Wie die Anwendung heißt und womit ihre eigenen Variablen beginnen, lesen
+`setup.sh` und `start.sh` aus `docker/application.env`; Abbilder,
+Compose-Projekt und Standardport stehen in `docker/compose.yaml`, die Adresse
+der Vorlage in `docker/.env.example`. Eine weitere Anwendung der Organisation
+startet dieselben Skripte gegen ihren eigenen Ordner, indem sie ihn in
+`APPLICATION_DIRECTORY` nennt, und hält ihre Variablen über deren Anfang von
+denen dieser Anwendung getrennt.
+
 Wer die `.env` lieber von Hand füllt, erzeugt jeden Schlüssel einzeln mit
 `openssl rand -hex 32`; als `SETUP_CODE` taugt jeder Code ab acht Zeichen,
 Leerzeichen und Bindestriche nicht gezählt. `VAPID_PRIVATE_KEY` ist kein
@@ -1073,6 +1082,13 @@ aus. Sie enthält Kundendaten, Belege und das Audit-Log.
 
 `BACKUP_KEEP` legt fest, wie viele Generationen bleiben (Vorgabe 14). Ältere
 werden nach jedem Lauf entfernt.
+
+Ein Archiv heißt nach der Datenbank, die es enthält, `opengewerk-<zeit>.tar.gz`,
+verschlüsselt mit `.age` dahinter. Aufbewahrung, Prüfung und Rückspielen sehen
+nur Archive genau dieser Form, ein Ziel, das eine weitere Anwendung mitbenutzt,
+behält also deren Archive. Wer das Abbild der Sicherung in einer anderen
+Anwendung benutzt, setzt `BACKUP_PREFIX`, wenn der Name ihrer Datenbank nicht
+der Anfang ihrer Archive sein soll.
 
 **`BACKUP_TARGET` gehört auf eine andere Maschine.** Das ist der Regelfall und
 keine Möglichkeit. Die Vorgabe ist ein Docker-Volume auf derselben Platte wie

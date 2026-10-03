@@ -3,8 +3,10 @@
 # down what it was asked: a checkout of the source builds, a release kit pulls
 # the version in its compose.yaml and builds nothing, and a version in the .env
 # or the environment wins. And what it says about the setup code (#215): where
-# it is while the instance is empty, never what it is. What the containers
-# then do is the job of the CI run that starts the whole stack.
+# it is while the instance is empty, never what it is. And another
+# application with these scripts and its own folder (opengewerk-haustechnik#14).
+# What the containers then do is the job of the CI run that starts the whole
+# stack.
 #
 # Prints what it checks and stops at the first thing that is wrong.
 set -eu
@@ -15,16 +17,19 @@ trap 'rm -rf "$work"' EXIT
 
 mkdir -p "$work/bin" "$work/docker"
 cp "$source_dir/start.sh" "$source_dir/setup.sh" "$source_dir/.env.example" \
-  "$source_dir/compose.yaml" "$work/docker/"
+  "$source_dir/compose.yaml" "$source_dir/application.env" "$work/docker/"
 
 # Every call as one line: the version it saw in the environment, then the
-# arguments. "docker compose version" answers like the real one does. The one
+# arguments. Which variable holds the version is the prefix of the application
+# that starts, OPENGEWERK_VERSION unless WATCHED names another. "docker compose
+# version" answers like the real one does. The one
 # question start.sh asks the running application, whether it still waits for
 # its first run, is answered with SETUP_NEEDED, false when it is not set and
 # nothing at all when it is empty.
 cat > "$work/bin/docker" <<'FAKE'
 #!/bin/sh
-printf '%s|%s\n' "${OPENGEWERK_VERSION:-}" "$*" >> "$CALLS"
+eval "seen=\${${WATCHED:-OPENGEWERK_VERSION}:-}"
+printf '%s|%s\n' "$seen" "$*" >> "$CALLS"
 case "$*" in
   *' exec -T app '*) printf '%s' "${SETUP_NEEDED-false}" ;;
 esac
@@ -132,5 +137,62 @@ for answer in false ''; do
   fi
 done
 check 'eingerichtete Instanz: kein Hinweis'
+
+# 8. Another application: the scripts of this folder, its material in a folder
+# of its own, named in APPLICATION_DIRECTORY (opengewerk-haustechnik#14). Its
+# compose.yaml, its .env, its version variable and its name in every line; the
+# version of the first application in the environment changes nothing.
+probe="$work/probe"
+mkdir -p "$probe"
+cat > "$probe/application.env" <<'APPLICATION'
+APPLICATION_NAME='Probewerk'
+APPLICATION_PREFIX='PROBEWERK'
+APPLICATION_EXAMPLE_ADDRESS='https://probewerk.meinbetrieb.de'
+APPLICATION
+sed 's/OPENGEWERK_/PROBEWERK_/g' "$source_dir/.env.example" > "$probe/.env.example"
+sed -e 's/OPENGEWERK_/PROBEWERK_/g' -e 's/PROBEWERK_VERSION:-source}/PROBEWERK_VERSION:-1.0.0}/' \
+  "$source_dir/compose.yaml" > "$probe/compose.yaml"
+
+probe_start() {
+  : > "$CALLS"
+  WATCHED=PROBEWERK_VERSION OPENGEWERK_VERSION=9.9.9 PROBEWERK_ADDRESS=http://127.0.0.1:23900 \
+    APPLICATION_DIRECTORY="$probe" sh "$work/docker/start.sh" < /dev/null 2>&1
+}
+
+ours=$(sha256sum "$work/docker/.env" | cut -d' ' -f1)
+out=$(probe_start)
+printf '%s\n' "$out"
+grep -q "^1\.0\.0|compose -f $probe/compose.yaml pull --policy missing\$" "$CALLS"
+grep -q "^1\.0\.0|compose -f $probe/compose.yaml run --rm migrate\$" "$CALLS"
+absent ' build'
+absent "$work/docker/compose.yaml"
+grep -q '^TRUSTED_ORIGINS=http://127.0.0.1:23900$' "$probe/.env"
+test "$(sha256sum "$work/docker/.env" | cut -d' ' -f1)" = "$ours"
+if printf '%s\n' "$out" | grep -qv '^Probewerk: '; then
+  echo 'FEHLER: eine Zeile beginnt nicht mit dem Namen der Anwendung'
+  exit 1
+fi
+if printf '%s' "$out" | grep -q 'OpenGewerk'; then
+  echo 'FEHLER: die zweite Anwendung bekommt den Namen der ersten zu lesen'
+  exit 1
+fi
+check 'zweite Anwendung: ihre compose.yaml und Fassung, ihr Name, die .env der ersten unberührt'
+
+sed 's/^PROBEWERK_VERSION=.*/PROBEWERK_VERSION=1.0.1/' "$probe/.env" > "$probe/.env.new"
+mv "$probe/.env.new" "$probe/.env"
+probe_start > /dev/null
+grep -q "^1\.0\.1|compose -f $probe/compose.yaml pull --policy missing\$" "$CALLS"
+check 'zweite Anwendung: ihre Fassung aus ihrer .env geht vor'
+
+# A prefix that is no beginning of a variable stops before anything is called.
+printf "APPLICATION_NAME='Probewerk'\nAPPLICATION_PREFIX='PROBE-WERK'\n" > "$probe/application.env"
+: > "$CALLS"
+if out=$(APPLICATION_DIRECTORY="$probe" sh "$work/docker/start.sh" < /dev/null 2>&1); then
+  echo 'FEHLER: ein Präfix mit Bindestrich lief durch'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'kein Präfix für Variablen'
+test ! -s "$CALLS"
+check 'zweite Anwendung: falsches Präfix abgelehnt, bevor Docker gefragt wird'
 
 echo 'Startskript: alles in Ordnung.'

@@ -10,8 +10,8 @@
 # Four things in here are decisions.
 #
 # 1. THE TIME IS A SETTING OF THE INSTANCE, 02:30 until its operators choose
-#    another in their area (#188), in the time zone of the businesses. Not a
-#    setting of a business: one instance can carry several, and the hour of
+#    another in their area (#188), in the time zone of the instance (TZ). Not
+#    a setting of a tenant: one instance can carry several, and the hour of
 #    all of them is decided by the people who run the instance. It is read
 #    again before every check, so a change arrives within five minutes and
 #    without a restart, and a database that cannot be asked means 02:30.
@@ -26,7 +26,7 @@
 #    every five minutes would fill the disk with half archives and the log
 #    with the same sentence.
 #
-# 4. AN INSTANCE WITHOUT A BUSINESS IS NOT BACKED UP BY THE SCHEDULE. After a
+# 4. AN INSTANCE WITHOUT A TENANT IS NOT BACKED UP BY THE SCHEDULE. After a
 #    lost disk the instance comes back empty, and a nightly backup of that
 #    empty instance would be the newest archive, the one `restore.sh latest`
 #    takes, and fourteen nights later the last one with data would be gone.

@@ -8,10 +8,12 @@
 FROM postgres:18-alpine
 
 # tzdata for the schedule, which runs at night in the time zone of the
-# businesses and not in UTC (#130).
+# instance and not in UTC (#130).
 RUN apk add --no-cache age tzdata
 
-COPY backup.sh restore.sh verify.sh schedule.sh /usr/local/bin/
+# names.sh is read by three of them and run by none, so it is not made
+# executable.
+COPY backup.sh restore.sh verify.sh schedule.sh names.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/restore.sh /usr/local/bin/verify.sh \
 	/usr/local/bin/schedule.sh
 

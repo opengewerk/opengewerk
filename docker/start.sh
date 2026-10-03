@@ -1,5 +1,5 @@
 #!/bin/sh
-# Starts OpenGewerk: the first time, every time after, and after an update.
+# Starts an instance: the first time, every time after, and after an update.
 #
 # First the .env, through setup.sh: on the first start every secret is made
 # and the address asked for, later only what a newer version brought is
@@ -14,27 +14,50 @@
 # alone replaces the running application before the migration has even
 # started, and a migration that fails leaves the instance standing still
 # instead of answering on the state before.
+#
+# What the application is called and how its variables begin come from
+# application.env beside the .env (opengewerk-haustechnik#14). The script is
+# the foundation's; another application runs it against its own folder by
+# naming it in APPLICATION_DIRECTORY, which the setup script beside this one
+# reads from the environment as well.
 
 set -eu
 
-here=$(cd "$(dirname "$0")" && pwd)
+scripts=$(cd "$(dirname "$0")" && pwd)
+here=${APPLICATION_DIRECTORY:-$scripts}
+
+if [ ! -f "$here/application.env" ]; then
+  printf 'In %s fehlt application.env mit den Namen der Anwendung.\n' "$here" >&2
+  exit 1
+fi
+
+# shellcheck source=application.env
+. "$here/application.env"
 
 say() {
-  printf 'OpenGewerk: %s\n' "$*"
+  printf '%s: %s\n' "$APPLICATION_NAME" "$*"
 }
 
 fail() {
-  printf 'OpenGewerk: %s\n' "$*" >&2
+  printf '%s: %s\n' "$APPLICATION_NAME" "$*" >&2
   exit 1
 }
 
+# The prefix goes into the name of a variable that is read with eval below,
+# so it is held to what a name of a variable may be and nothing more.
+case "$APPLICATION_PREFIX" in
+  '' | [!A-Z]* | *[!A-Z0-9_]*)
+    fail 'APPLICATION_PREFIX in application.env ist kein Präfix für Variablen: nur Großbuchstaben, Ziffern und Unterstriche.'
+    ;;
+esac
+
 command -v docker >/dev/null 2>&1 ||
-  fail 'Docker fehlt auf dieser Maschine. OpenGewerk läuft in Docker: https://docs.docker.com/engine/install/'
+  fail "Docker fehlt auf dieser Maschine. $APPLICATION_NAME läuft in Docker: https://docs.docker.com/engine/install/"
 
 docker compose version >/dev/null 2>&1 ||
   fail 'Docker Compose fehlt. Es gehört zu jeder aktuellen Docker-Installation und heißt "docker compose", ohne Bindestrich.'
 
-sh "$here/setup.sh"
+sh "$scripts/setup.sh"
 
 compose() {
   docker compose -f "$here/compose.yaml" "$@"
@@ -44,8 +67,14 @@ compose() {
 # environment, else from the .env, else the default in compose.yaml. A value
 # edited by hand may carry a comment, quotes or, from Windows, a carriage
 # return, none of which belongs to a version.
-pinned=${OPENGEWERK_VERSION:-$(sed -n 's/^OPENGEWERK_VERSION=//p' "$here/.env" | head -n 1 | sed 's/[[:space:]]#.*//' | tr -d "\r\"' ")}
-shipped=$(sed -n 's/.*OPENGEWERK_VERSION:-\([^}]*\)}.*/\1/p' "$here/compose.yaml" | head -n 1)
+version_variable="${APPLICATION_PREFIX}_VERSION"
+eval "pinned=\${${version_variable}:-}"
+
+if [ -z "$pinned" ]; then
+  pinned=$(sed -n "s/^${version_variable}=//p" "$here/.env" | head -n 1 | sed 's/[[:space:]]#.*//' | tr -d "\r\"' ")
+fi
+
+shipped=$(sed -n "s/.*${version_variable}:-\([^}]*\)}.*/\1/p" "$here/compose.yaml" | head -n 1)
 version=${pinned:-$shipped}
 
 case "$version" in
@@ -57,7 +86,7 @@ case "$version" in
       fail 'Die Abbilder ließen sich nicht bauen, der Grund steht darüber. Eine laufende Instanz arbeitet unverändert weiter.'
     ;;
   *)
-    export OPENGEWERK_VERSION="$version"
+    export "$version_variable=$version"
     say "Fassung $version: die signierten Abbilder werden geholt."
     compose pull --policy missing ||
       fail "Die Abbilder der Fassung $version ließen sich nicht holen, der Grund steht darüber. Gebraucht werden eine Verbindung zu ghcr.io und Docker Compose ab 2.22. Eine laufende Instanz arbeitet unverändert weiter."
@@ -68,12 +97,12 @@ say 'Die Datenbank wird eingerichtet oder auf den neuen Stand gebracht.'
 compose run --rm migrate ||
   fail 'Die Migration ist gescheitert, der Grund steht darüber. Eine laufende Instanz arbeitet unverändert weiter, die Datenbank steht auf dem Stand davor.'
 
-say 'OpenGewerk startet.'
+say "$APPLICATION_NAME startet."
 compose up -d --wait --wait-timeout 300 ||
-  fail 'OpenGewerk ist nicht gestartet. Warum, zeigt: docker compose -f docker/compose.yaml logs app'
+  fail "$APPLICATION_NAME ist nicht gestartet. Warum, zeigt: docker compose -f docker/compose.yaml logs app"
 
 address=$(grep '^TRUSTED_ORIGINS=' "$here/.env" | head -n 1 | cut -d= -f2- | cut -d, -f1)
-say "OpenGewerk läuft. Im Browser: $address"
+say "$APPLICATION_NAME läuft. Im Browser: $address"
 
 # An instance nobody has set up yet asks for the setup code on its first
 # screen (#215). Said here is where it is and never what it is: the code
