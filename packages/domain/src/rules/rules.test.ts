@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { IsoDate } from '@opengewerk/platform-domain'
 import { addDays, daysInYear, lateFrom, lateInterestOn, longPaymentTermNotice } from './payment.js'
-import { applyRate, RuleError, type RuleRecord, ruleSet } from '@opengewerk/platform-domain'
+import {
+  applyRate,
+  RuleError,
+  ruleHoles,
+  type RuleRecord,
+  ruleScopeNames,
+  ruleSet,
+} from '@opengewerk/platform-domain'
 import { tenantParameterKeys, tenantParameterUnits } from './parameter.js'
 import { rulePackages, shippedRules } from './shipped.js'
 import { vatOn, withinSmallBusinessLimits } from './tax.js'
@@ -210,29 +217,12 @@ describe('the packages that ship', () => {
   it('leave no hole inside a run of one key', () => {
     // A hole is allowed at the end of a package, where knowledge stops. One in
     // the middle is a maintenance slip, and it would show up as an invoice
-    // that cannot be calculated on one particular day.
-    const byKey = new Map<string, RuleRecord[]>()
-
-    for (const entry of shippedRules.all()) {
-      byKey.set(entry.key, [...(byKey.get(entry.key) ?? []), entry])
-    }
-
-    const holes: string[] = []
-
-    for (const [key, entries] of byKey) {
-      const ordered = [...entries].sort((left, right) =>
-        left.validFrom.localeCompare(right.validFrom),
-      )
-
-      for (let index = 1; index < ordered.length; index += 1) {
-        const earlier = ordered[index - 1]
-        const later = ordered[index]
-
-        if (earlier?.validUntil && later && addDays(earlier.validUntil, 1) !== later.validFrom) {
-          holes.push(`${key}: ${earlier.validUntil} bis ${later.validFrom}`)
-        }
-      }
-    }
+    // that cannot be calculated on one particular day. Which runs there are,
+    // one key in one scope, the foundation says (`ruleHoles`); every package
+    // here is federal law.
+    const holes = ruleHoles(shippedRules.all()).map(
+      (hole) => `${hole.key} (${ruleScopeNames[hole.scope]}): ${hole.after} bis ${hole.before}`,
+    )
 
     expect(holes).toEqual([])
   })

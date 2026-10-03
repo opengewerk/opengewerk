@@ -697,6 +697,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Vokabulars meldet Worte für eine Tabelle, die kein Trigger beobachtet, nur noch bei den Tabellen
   der Anwendung: eine Tabelle des Fundaments legt eine Anwendung erst an, wenn sie sie braucht,
   die Einstellungen eines Mandanten etwa, wie das Anheben in der Haustechnik zeigte.
+- Die Regel-Engine kennt einen Geltungsbereich und sechs Einheiten mehr (ADR 0010,
+  `opengewerk-haustechnik#16`), damit die Haustechnik Betreiberpflichten nach Landesrecht
+  abbilden kann: Bauordnungsrecht ist Landesrecht, und eine Prüfung, die ein Land vorschreibt,
+  gibt es im nächsten nicht. Eine Regel gilt bundesweit oder in einem Land, eine Abfrage nennt
+  den Tag und auf Wunsch das Land; eine Regel für Baden-Württemberg ist für Bayern keine
+  Antwort, eine bundesweite gilt in jedem Land, und ohne Land antwortet nur eine bundesweite.
+  Gilt ein Schlüssel am selben Tag bundesweit und in einem Land, lehnt die Engine das beim
+  Aufbau ab, weil jede Antwort darauf geraten wäre. Neu sind Monate, Zehntelgrad Celsius,
+  Kilowatt, Kilogramm und Tonnen CO2-Äquivalent und eine Anzahl je 100 ml. Die Prüfung auf
+  Lücken in einer Reihe gilt je Schlüssel und Geltungsbereich und steht als `ruleHoles` im
+  Fundament. Die Regelpakete dieser Anwendung gelten bundesweit und bleiben, wie sie sind, ihre
+  Antworten auch. Die Datenbank bekommt die neuen Einheiten in der Aufzählung `rule_unit`, in
+  der eine Einstellung eines Betriebs ihre Einheit hat (Migration 0066), und ein Test hält
+  Aufzählung und Liste seitdem zusammen.
 
 ### Behoben
 
