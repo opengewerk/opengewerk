@@ -16,6 +16,9 @@ export async function settingsOf(
         kind: row.kind,
         leadDays: row.leadDays,
         intervalDays: row.intervalDays,
+        // No kind of this application counts in months, and the table has no
+        // column for an interval in months.
+        intervalMonths: null,
         responsibleUserId: row.responsibleUserId,
       },
     ]),

@@ -1,7 +1,6 @@
 import type { IsoDate } from '@opengewerk/platform-domain'
 import type { TimeEntryKind } from '../model/time-entry.js'
-import { addDays } from './payment.js'
-import type { RuleSet } from '@opengewerk/platform-domain'
+import { addDays, type RuleSet } from '@opengewerk/platform-domain'
 
 /** An entry as the warnings need it: what it was, and from when to when. */
 export interface TimedEntry {

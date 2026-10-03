@@ -1,5 +1,5 @@
 import {
-  addDays,
+  addInterval,
   type DeadlineKind,
   type DeadlineRegistry,
   type DeadlineSetting,
@@ -68,7 +68,9 @@ function dueOf(
   setting: DeadlineSetting | null,
   expected: ExpectedDeadline,
 ): IsoDate {
-  return expected.namedDueOn ?? addDays(expected.anchorOn, intervalOf(kind, setting) ?? 0)
+  return (
+    expected.namedDueOn ?? addInterval(expected.anchorOn, intervalOf(kind, setting) ?? { days: 0 })
+  )
 }
 
 /** The values a deadline takes over from its source on every pass. */

@@ -778,6 +778,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   sich nicht übersetzen. Welche Anlässe es gibt, wer benachrichtigt wird und was eine Nachricht sagt,
   bleibt bei der Anwendung: hier die fällige Aufgabe und die Frist für E-Mail und Push, der Beleg,
   der unterschriebene Regiebericht und die Einladung für E-Mail. Verschickt wird wie vorher.
+- Der Kern der Fristen gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#24`, erster Teil),
+  damit jede Anwendung Fristen aus ihren eigenen Quellen führt. In `platform-domain` stehen die
+  Stände einer Frist, die Fristart über den Quellen und Aktionen einer Anwendung, Vorlauf und Frist
+  mit ihren Prüfungen, was ein Betrieb für eine Art einstellt, und das Rechnen mit Tagen und Monaten:
+  `addDays`, bisher in den Zahlungsregeln, und neu `addMonths`, das am Ende eines kürzeren Monats
+  dessen letzten Tag nimmt. Eine Frist zählt damit auch in Monaten, wie die Prüffristen von
+  Betreiberpflichten; die Fristarten hier zählen weiter in Tagen. Die Vorgabe der Person heißt `lead`
+  statt `owner`, keine Fristart hat sie bisher benutzt. Quellen, Aktionen, das Gewerk einer Art, der
+  Titel ihrer Aufgabe und die Wörter des Büros bleiben hier. Lauf, Tabellen und Routen folgen.
 
 ### Behoben
 
