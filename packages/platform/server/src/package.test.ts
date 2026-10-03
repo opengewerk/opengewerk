@@ -131,6 +131,17 @@ const roleLabel = /\b(?:Inhaber|Monteur)\b/
  */
 const tenantWord = /\b(?:Betrieb|Betriebs|Betriebe|Betrieben|Betreiber|Betreibers|Betreibern)\b/
 
+/**
+ * The records of the trades application: by the names its tables go by, as a
+ * string of their own, which is how the sync asks for an entity, and by the
+ * words a person reads for them. Which entities travel and what is asked of
+ * them, the application says (`SyncRoutes`, `serverSync`).
+ */
+const recordLiteral =
+  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|contacts|suppliers|articles|time_entries|attachments)\1/
+const recordWord =
+  /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
+
 describe('what the foundation knows of an application', () => {
   const lines = shipped().flatMap(linesOf)
 
@@ -145,6 +156,10 @@ describe('what the foundation knows of an application', () => {
     // runs an instance used to stand.
     expect(files).toContain('src/instance/operators.ts')
     expect(files).toContain('sql/instance.sql')
+    // The sync on the server and its routes, where every entity of the
+    // trades application used to be named.
+    expect(files).toContain('src/sync/apply.ts')
+    expect(files).toContain('src/sync/controller.ts')
     expect(files.has('src/authentication/probe-application.ts')).toBe(false)
     expect(files.size).toBeGreaterThan(50)
   })
@@ -165,6 +180,14 @@ describe('what the foundation knows of an application', () => {
     const code = lines.filter((line) => !isComment(line))
 
     expect(found(code.filter((line) => tenantWord.test(line.text)))).toEqual([])
+  })
+
+  it('is not one of its records: none stands as a string, and none in a sentence', () => {
+    const code = lines.filter((line) => !isComment(line))
+
+    expect(
+      found(code.filter((line) => recordLiteral.test(line.text) || recordWord.test(line.text))),
+    ).toEqual([])
   })
 
   it('would notice any of them, as the patterns are written', () => {
@@ -194,5 +217,12 @@ describe('what the foundation knows of an application', () => {
     expect(tenantWord.test("'Die Betriebsart der Sicherung steht in den Einstellungen.'")).toBe(
       false,
     )
+
+    expect(recordLiteral.test("  if (entity === 'customers' && kind === 'create') {")).toBe(true)
+    expect(recordLiteral.test("  if (operation.entity !== 'document_lines') {")).toBe(true)
+    expect(recordLiteral.test("    document_lines: 'document.write',")).toBe(false)
+    expect(recordLiteral.test('const customers = rows.length')).toBe(false)
+    expect(recordWord.test("'Der Beleg ist festgeschrieben.'")).toBe(true)
+    expect(recordWord.test("'Diese Art von Datensatz wird nicht abgeglichen.'")).toBe(false)
   })
 })

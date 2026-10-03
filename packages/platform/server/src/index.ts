@@ -43,10 +43,13 @@ export * from './database/parameters.js'
 export * from './database/number-ranges.js'
 
 // The sync on the server: applying what a device queued up, recording what
-// became of it, and the pull by change sequence. Which entities travel, under
-// which rules, and what is asked of an operation before the database does,
-// the application says.
+// became of it, the pull by change sequence, and the routes a device sends
+// and fetches through. Which entities travel, under which rules, what is
+// asked of an operation before the database does, which right it needs and
+// what a device holds, the application says.
 export * from './sync/apply.js'
+export * from './sync/controller.js'
+export * from './sync/narrowing.js'
 export * from './sync/record-rules.js'
 export * from './sync/tables.js'
 

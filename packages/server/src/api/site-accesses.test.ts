@@ -513,6 +513,38 @@ describe('an access on the device of a technician', () => {
     expect(rows[0]?.revealed_at.toISOString()).toBe(revealedAt)
   })
 
+  it('comes back as a showing to the devices of its person and to nobody else', async () => {
+    const { site, job } = await siteWithJob('Zeugen')
+    const access = await addAccess(site, { designation: 'Gartentor', value: 'Code 2468' })
+
+    await http()
+      .put(`/jobs/${job}/assignees`)
+      .set('x-test-identity', office())
+      .send({ userIds: ['max'] })
+      .expect(200)
+    await pull(technician(), true)
+
+    const showing = newId<'site-access-reveal'>()
+
+    await push(app, technician(), [
+      created('site_access_reveals', showing, {
+        siteAccessId: String(access['id']),
+        valueSetAt: String(access['valueSetAt']),
+        revealedAt: '2026-09-27T11:00:00.000Z',
+      }),
+    ])
+
+    const showingsIn = (pulled: Pulled) =>
+      (pulled.changes.find((change) => change.entity === 'site_access_reveals')?.rows ?? []).map(
+        (row) => row['id'],
+      )
+
+    // Who saw which value is for the audit log. The office keeps every way in
+    // and still gets no showing of somebody else on its device.
+    expect(showingsIn(await pull(technician(), true))).toContain(showing)
+    expect(showingsIn(await pull(officeOn()))).not.toContain(showing)
+  })
+
   it('keeps a showing that arrives long after the job was closed and the access deleted', async () => {
     const { site, job } = await siteWithJob('Keller')
     const access = await addAccess(site, { designation: 'Kellertür', value: 'Code 5656' })

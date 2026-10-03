@@ -1,7 +1,5 @@
-import { createHash } from 'node:crypto'
-
 import { closedJobsStayDays, recentlyUsedDays } from '@opengewerk/domain'
-import type { TenantTransaction } from '@opengewerk/platform-server'
+import { fingerprintOf, idArray, type TenantTransaction } from '@opengewerk/platform-server'
 import { type SQL, sql } from 'drizzle-orm'
 
 /**
@@ -53,7 +51,7 @@ export async function deviceScope(
   return {
     userId,
     jobIds,
-    value: `jobs:${digest(jobIds)}`,
+    value: `jobs:${fingerprintOf(jobIds)}`,
     openJobIds,
   }
 }
@@ -91,12 +89,12 @@ export async function articlesOnDevices(tx: TenantTransaction): Promise<Articles
     order by id`)
   const articleIds = rows.map((row) => row.id)
 
-  return { articleIds, value: `articles:${digest(articleIds)}` }
+  return { articleIds, value: `articles:${fingerprintOf(articleIds)}` }
 }
 
 /** The condition that keeps the pull of an article or its prices to that set. */
 export function articlesNarrowedTo(held: ArticlesOnDevices, entity: string): SQL | undefined {
-  const ids = uuidArray(held.articleIds)
+  const ids = idArray(held.articleIds)
 
   if (entity === 'articles') {
     return sql`${sql.identifier('articles')}.${sql.identifier('id')} = any(${ids})`
@@ -107,19 +105,6 @@ export function articlesNarrowedTo(held: ArticlesOnDevices, entity: string): SQL
   }
 
   return undefined
-}
-
-/** A short fingerprint of a sorted list, for the value an answer names. */
-function digest(ids: readonly string[]): string {
-  return createHash('sha256').update(ids.join(',')).digest('hex').slice(0, 16)
-}
-
-/** A list of ids as a parameter, an empty one included. */
-function uuidArray(ids: readonly string[]): SQL {
-  return sql`array[${sql.join(
-    ids.map((id) => sql`${id}`),
-    sql`, `,
-  )}]::uuid[]`
 }
 
 /** The entities whose rows a scope narrows; every other entity is sent whole. */
@@ -249,7 +234,7 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
  */
 export function accessesOfOpenJobs(scope: DeviceScope): SQL {
   return sql`"site_accesses"."site_id" in (select site_id from jobs
-    where id = any(${uuidArray(scope.openJobIds)}) and site_id is not null)`
+    where id = any(${idArray(scope.openJobIds)}) and site_id is not null)`
 }
 
 /**
@@ -270,7 +255,7 @@ export async function sitesWithOpenJobs(
   const { rows } = await tx.execute<{ site_id: string }>(sql`
     select distinct j.site_id
       from jobs j
-     where j.id = any(${uuidArray(scope.openJobIds)})
+     where j.id = any(${idArray(scope.openJobIds)})
        and j.site_id is not null
        and exists (select 1 from sites s
                     where s.id = j.site_id and s.deleted_at is null)
@@ -279,5 +264,5 @@ export async function sitesWithOpenJobs(
      order by j.site_id`)
   const ids = rows.map((row) => row.site_id)
 
-  return { siteIds: new Set(ids), value: `sites:${digest(ids)}` }
+  return { siteIds: new Set(ids), value: `sites:${fingerprintOf(ids)}` }
 }

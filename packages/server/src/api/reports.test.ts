@@ -29,7 +29,7 @@ import {
 import type { PrintJob, Renderer } from '../documents/renderer.js'
 import { FileStore } from '../storage/file-store.js'
 import { ApiModule } from './api.module.js'
-import { permissionFor } from './sync.controller.js'
+import { permissionFor } from './sync-routes.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { invoiceable, readyToInvoice } from './test-invoice.js'

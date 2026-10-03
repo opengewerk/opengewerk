@@ -4,6 +4,18 @@ import { describe, expect, it } from 'vitest'
 import { type Authentication, authenticationPath } from '../authentication/authentication.js'
 import { authenticationParts } from '../authentication/module.js'
 import { probeAccess } from '../authentication/probe-application.js'
+import { serverSync } from '../sync/apply.js'
+import { syncParts } from '../sync/controller.js'
+import {
+  letterLines,
+  letters,
+  notes,
+  probeSyncAccess,
+  probeSyncRoutes,
+  probeSyncRules,
+  shelves,
+} from '../sync/probe-sync.js'
+import { syncTables } from '../sync/tables.js'
 import { HealthController } from './health.controller.js'
 import { firstSegmentOf, outsideOf, routesOf } from './routes.js'
 
@@ -15,13 +27,23 @@ import { firstSegmentOf, outsideOf, routesOf } from './routes.js'
  * Every controller the foundation hands an application, those of an open
  * instance included: only whether a handle is handed in decides which they
  * are, and nothing here calls it. The health check beside them, which an
- * application lists in its module itself.
+ * application lists in its module itself, and the sync, which an application
+ * whose devices work without a network registers.
  */
 const controllers = [
   HealthController,
   ...authenticationParts({
     access: probeAccess,
     authentication: {} as Authentication,
+  }).controllers,
+  ...syncParts({
+    access: probeSyncAccess,
+    routes: probeSyncRoutes(
+      serverSync({
+        rules: probeSyncRules,
+        tables: syncTables({ shelves, notes, letters, letterLines }),
+      }),
+    ),
   }).controllers,
 ]
 
@@ -34,6 +56,7 @@ describe('the paths of the foundation', () => {
     expect(routes.map((route) => route.name)).toContain('POST /setup')
     expect(routes.map((route) => route.name)).toContain('GET /instance/tenants')
     expect(routes.map((route) => route.name)).toContain('GET /health')
+    expect(routes.map((route) => route.name)).toContain('POST /sync')
   })
 
   it('hold every route of the foundation', () => {
