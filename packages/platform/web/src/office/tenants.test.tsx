@@ -126,14 +126,16 @@ describe('the tenant in the header', () => {
   })
 
   it('takes no second choice while the first is on its way', async () => {
-    // The server keeps the answer to itself.
-    let release: () => void = () => {}
+    // The server keeps the answer to itself, and says when the question is there.
+    const held: { release?: () => void } = {}
     const standing = globalThis.fetch
+    const disabled = () =>
+      screen.getAllByRole('menuitemradio').every((row) => (row as HTMLButtonElement).disabled)
 
     vi.stubGlobal('fetch', (path: string, init?: RequestInit) =>
       path === '/auth/tenant'
         ? new Promise<Response>((resolve) => {
-            release = () => {
+            held.release = () => {
               resolve(new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
             }
           })
@@ -146,12 +148,18 @@ describe('the tenant in the header', () => {
     await userEvent.click(screen.getByRole('menuitemradio', { name: /Probewerk Süd/ }))
 
     await waitFor(() => {
-      expect(
-        screen.getAllByRole('menuitemradio').every((row) => (row as HTMLButtonElement).disabled),
-      ).toBe(true)
+      expect(disabled()).toBe(true)
     })
 
-    release()
+    // The question to move the session leaves a while after the click, the
+    // outbox first. An answer released before it is there releases nothing,
+    // and the question waits for ever: in the CI it did (#502).
+    await waitFor(() => {
+      expect(held.release).toBeDefined()
+    })
+    expect(disabled()).toBe(true)
+
+    held.release?.()
     await waitFor(() => {
       expect(globalThis.location.assign).toHaveBeenCalledWith('/')
     })

@@ -670,6 +670,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   das Recht je Vorgang, ihre Worte für eine Ablehnung der Datenbank und die Auswahl je Gerät mit,
   samt dem, was eine Antwort als eingeschränkt nennt. Was ein Gerät sendet und zurückbekommt,
   bleibt gleich, auch der Fingerabdruck einer Auswahl, sodass kein Gerät deshalb neu abholt.
+- `vite` 8.3.2 statt 8.3.0, `vitest` 5.0.3 statt 5.0.1, `@tanstack/react-router` 1.170.41,
+  `@tanstack/react-query` 5.104.0 und `lucide-react` 1.49.0 (`opengewerk-haustechnik#13`), damit
+  die Oberfläche der Haustechnik mit der neuesten Fassung beginnt: sie übersetzt die Pakete des
+  Fundaments mit denselben Werkzeugen und lädt dieselben Bibliotheken. Am Bau ändert sich
+  nichts, das Bündelbudget steht weiter bei 231,6 und 330,3 kB. Dazu wartet der Test des
+  Wechsels zwischen zwei Mandanten im Fundament auf die Frage an den Server, bevor er sie
+  beantwortet: kam sie auf einem langsamen Runner nach der Antwort, wartete sie für immer.
 
 ### Behoben
 
