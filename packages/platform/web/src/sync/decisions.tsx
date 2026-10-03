@@ -1,17 +1,30 @@
-import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/domain'
-import { quantityFactor } from '@opengewerk/domain'
-import { Button, Card, Cell, Column, Panel, TablePanel, useEntry } from '@opengewerk/platform-web'
-import { amount, clockTime, euros, moment } from '@opengewerk/platform-web/format'
-import { refusalFor, refusalText, useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
-import type { RefusedOperation } from '@opengewerk/platform-web/sync'
-import { Check, Clock, RefreshCw, Server, Smartphone, TriangleAlert, WifiOff } from 'lucide-react'
+import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/platform-domain'
+import { Server, Smartphone } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { draftFromFixed, fixedDocumentOf } from './fixed-draft.js'
-import { lineUnitLabel, vatRateLabel } from './labels.js'
-import { entityLabel, fieldLabel, titleOf } from './naming.js'
+import { useApplication } from '../application.js'
+import type { RecordWords } from '../application.js'
+import { Button } from '../components/button.js'
+import { Panel, TablePanel } from '../components/panel.js'
+import { Card, useEntry } from '../components/surface.js'
+import { Cell, Column } from '../components/table.js'
+import { moment } from '../format.js'
+import { refusalFor, refusalText } from './client.js'
+import type { RefusedOperation } from './client.js'
+import { useSync, useSyncStatus } from './provider.js'
+
+/**
+ * What somebody has to decide about the exchange, in both entries: the
+ * conflicts with both versions beside each other, and the entry the server
+ * refused outright. The screens around them are `SyncScreen` in the office
+ * and `ConflictScreen` on site.
+ *
+ * What a record is called, how its values are written, which conflicts no
+ * version settles and what other way out there is, the application says
+ * (`records` in its value, ADR 0010).
+ */
 
 /**
  * Why the two sides disagree, said once, in words somebody can act on.
@@ -25,27 +38,11 @@ function reasonText(reason: ConflictReason): string {
 }
 
 /**
- * Conflicts that taking the device's version cannot settle, with what to do
- * instead.
- *
- * A signature is the one so far. It is refused when the report changed while
- * the customer was signing, and taken anyway it would stand under a page the
- * customer never saw, which is the whole of what the refusal prevents. The way
- * on is a new signature on the report as it is now, and that is what the card
- * says instead of offering a choice that is not one.
+ * A value the way the application's screens show it. What neither the
+ * foundation nor the application knows stays raw, which is visibly a gap and
+ * better than an empty cell.
  */
-const settledOnSite: Readonly<Record<string, string>> = {
-  document_signatures:
-    'Die Unterschrift gilt nicht, weil sich der Bericht geändert hat, während unterschrieben ' +
-    'wurde. Der Bericht ist wieder offen; bitte ansehen und noch einmal unterschreiben lassen.',
-}
-
-/**
- * A value the way the document screen shows it: a line reads "2" and
- * "48,50 €", not 2000 and 4850. What this build does not know stays raw,
- * which is visibly a gap and better than an empty cell (see `naming.ts`).
- */
-function shown(field: string, value: SyncValue | undefined): string {
+function shown(words: RecordWords, field: string, value: SyncValue | undefined): string {
   if (value === null || value === undefined) {
     return 'leer'
   }
@@ -54,67 +51,7 @@ function shown(field: string, value: SyncValue | undefined): string {
     return value ? 'ja' : 'nein'
   }
 
-  if (typeof value === 'number' && field === 'quantityMilli') {
-    return amount(value)
-  }
-
-  if (typeof value === 'number' && field === 'unitPriceCents') {
-    return euros(value)
-  }
-
-  if (typeof value === 'number' && field === 'priceBase') {
-    return `je ${amount(value * quantityFactor)}`
-  }
-
-  if (typeof value === 'string' && field === 'unit' && Object.hasOwn(lineUnitLabel, value)) {
-    return lineUnitLabel[value as keyof typeof lineUnitLabel]
-  }
-
-  if (typeof value === 'string' && field === 'vatRate' && Object.hasOwn(vatRateLabel, value)) {
-    return vatRateLabel[value as keyof typeof vatRateLabel]
-  }
-
-  return String(value)
-}
-
-/**
- * Fields of a line that say where it hangs and where it sits, not what it
- * says. On the card for an issued document they would be rows nobody can do
- * anything with, and the new draft sets all three itself.
- */
-const placement = new Set(['documentId', 'position', 'kind'])
-
-/**
- * The order of the document screen, head first and a line as it reads.
- *
- * What the device wanted arrives as `jsonb`, and PostgreSQL hands its keys back
- * shortest first: a line would read unit, rate, designation. Fields not in the
- * list keep their order behind the rest.
- */
-const documentOrder = [
-  'subject',
-  'introText',
-  'closingText',
-  'serviceFrom',
-  'serviceUntil',
-  'paymentTermDays',
-  'designation',
-  'description',
-  'quantityMilli',
-  'unit',
-  'unitPriceCents',
-  'priceBase',
-  'vatRate',
-]
-
-function inDocumentOrder(fields: readonly string[]): string[] {
-  const rank = (field: string) => {
-    const at = documentOrder.indexOf(field)
-
-    return at === -1 ? documentOrder.length : at
-  }
-
-  return [...fields].sort((left, right) => rank(left) - rank(right))
+  return words.valueText(field, value) ?? String(value)
 }
 
 /**
@@ -166,6 +103,15 @@ function FieldName({ children }: { readonly children: string }) {
 }
 
 /**
+ * Where a conflicting change was made, as far as a person can tell: on this
+ * device or on another one. The key of a device is a UUID and says nothing to
+ * anybody who reads it (#271).
+ */
+function madeOn(conflict: SyncConflict, deviceId: string): string {
+  return conflict.deviceId === deviceId ? 'auf diesem Gerät' : 'auf einem anderen Gerät'
+}
+
+/**
  * One conflict, both versions beside each other.
  *
  * Three columns and not two, and the third is the one that explains the other
@@ -175,57 +121,48 @@ function FieldName({ children }: { readonly children: string }) {
  * that, and meanwhile it had become something else.
  *
  * The decision is made here, on the device, which ADR 0005 asks for and the
- * site entry needs: a technician on a roof cannot wait for an office to
- * arbitrate. Taking the device's version is an ordinary change and goes
+ * site entry needs: whoever works away from a desk cannot wait for an office
+ * to arbitrate. Taking the device's version is an ordinary change and goes
  * through the outbox like any other, so it is subject to the same rules and
  * lands in the same audit log. Nothing about deciding a conflict is a back
  * door.
  *
- * A change to a document that was issued in the meantime cannot win: the
- * document is not changed any more, and taking the device's version is
- * refused again. There the choice is a new draft or the state in the system
- * (#139, ADR 0005 point 4), and the new draft takes every such change to the
- * same document at once, see `draftFromFixed`.
+ * Where the application has another way out (#139, ADR 0005 point 4), the
+ * card offers it in place of the device's version, which could not win there,
+ * and the way takes every conflict of its group at once.
  */
-/**
- * Where a conflicting change was made, as far as a person can tell: on this
- * device or on another one. The key of a device is a UUID and says nothing to
- * anybody who reads it (#271).
- */
-function madeOn(conflict: SyncConflict, deviceId: string): string {
-  return conflict.deviceId === deviceId ? 'auf diesem Gerät' : 'auf einem anderen Gerät'
-}
-
 function ConflictCard({
   conflict,
-  onDrafted,
+  onMade,
 }: {
   readonly conflict: SyncConflict
-  readonly onDrafted: (subject: string) => void
+  readonly onMade: (summary: string) => void
 }) {
   const client = useSync()
+  const { records: words } = useApplication()
   const { conflicts } = useSyncStatus()
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
-  const fixedDocument = fixedDocumentOf(client, conflict)
+  const way = words.otherWay
+  const group = way ? way.groupOf(client, conflict) : null
 
   // A record the server refused to create is on neither side, and then what
   // the device wanted is the only thing that can name it.
   const known = client.get(conflict.entity, conflict.recordId)
   const record = known ?? conflict.wanted
-  const settled = settledOnSite[conflict.entity]
+  const settled = words.settledElsewhere[conflict.entity]
 
-  // At an issued document the server names the field that stops the change,
-  // the status of the document, and that is no row anybody can decide on.
-  // What the device wrote is: a new line with its values, a changed one with
-  // the values beside what the system holds.
-  const involved = fixedDocument
-    ? inDocumentOrder(Object.keys(conflict.wanted).filter((field) => !placement.has(field)))
-    : conflict.fields.length > 0
-      ? conflict.fields
-      : Object.keys(conflict.wanted)
-  const onlyOnDevice = fixedDocument !== null && known === null
-  const deleting = fixedDocument !== null && Object.keys(conflict.wanted).length === 0
+  // Where the other way is open, the server names the field that stops the
+  // change, and that is no row anybody can decide on. What the device wrote
+  // is: the fields the way chooses, beside what the system holds.
+  const involved =
+    way && group !== null
+      ? way.fields(conflict.wanted)
+      : conflict.fields.length > 0
+        ? conflict.fields
+        : Object.keys(conflict.wanted)
+  const onlyOnDevice = group !== null && known === null
+  const deleting = group !== null && Object.keys(conflict.wanted).length === 0
   const entry = useEntry()
 
   async function decide(takeMine: boolean) {
@@ -238,9 +175,8 @@ function ConflictCard({
 
         if (again.outcome === 'refused') {
           // It can be refused a second time, and then the device's version
-          // simply cannot stand: an issued document is the usual case. Saying
-          // so and leaving the conflict open beats marking it decided when
-          // nothing was decided.
+          // simply cannot stand. Saying so and leaving the conflict open beats
+          // marking it decided when nothing was decided.
           setTrouble(refusalFor(again))
 
           return
@@ -255,12 +191,16 @@ function ConflictCard({
     }
   }
 
-  async function asDraft(documentId: string) {
+  async function takeWay(chosen: string) {
+    if (!way) {
+      return
+    }
+
     setWorking(true)
     setTrouble(null)
 
     try {
-      const result = await draftFromFixed(client, conflicts, documentId)
+      const result = await way.take(client, conflicts, chosen)
 
       if (result.outcome === 'refused') {
         setTrouble(result.message)
@@ -268,22 +208,19 @@ function ConflictCard({
         return
       }
 
-      onDrafted(result.subject)
+      onMade(result.summary)
 
-      // Closed only after the draft exists, and each conflict of the document
-      // with it. Without a connection they stay open, and closing them later
-      // with "Stand im System behalten" makes no second draft.
+      // Closed only after what the way made exists, and each conflict of the
+      // group with it. Without a connection they stay open, and closing them
+      // later with "Stand im System behalten" makes nothing a second time.
       try {
-        for (const entry of conflicts) {
-          if (fixedDocumentOf(client, entry) === documentId) {
-            await client.resolveConflict(entry.id)
+        for (const other of conflicts) {
+          if (way.groupOf(client, other) === chosen) {
+            await client.resolveConflict(other.id)
           }
         }
       } catch {
-        setTrouble(
-          'Der Entwurf ist angelegt. Die Konflikte lassen sich erst mit Verbindung schließen, ' +
-            'dann mit "Stand im System behalten".',
-        )
+        setTrouble(way.stillOpen)
       }
     } finally {
       setWorking(false)
@@ -304,15 +241,15 @@ function ConflictCard({
         </Button>
       ) : (
         <>
-          {fixedDocument ? (
+          {way && group !== null ? (
             <Button
               tone="primary"
               disabled={working}
               onClick={() => {
-                void asDraft(fixedDocument)
+                void takeWay(group)
               }}
             >
-              Als neuen Entwurf anlegen
+              {way.action}
             </Button>
           ) : (
             <Button
@@ -340,11 +277,11 @@ function ConflictCard({
   )
 
   if (entry === 'office') {
-    const name = titleOf(conflict.entity, record)
+    const name = words.titleOf(conflict.entity, record)
 
     return (
       <ConflictFrame
-        kind={entityLabel(conflict.entity)}
+        kind={words.entityLabel(conflict.entity)}
         title={name}
         reason={reasonText(conflict.reason)}
       >
@@ -359,8 +296,8 @@ function ConflictCard({
             caption={`Was das Gerät an ${name} schreiben wollte`}
             cards={involved.map((field) => ({
               key: field,
-              title: fieldLabel(field),
-              sub: `Auf dem Gerät: ${shown(field, conflict.wanted[field])}`,
+              title: words.fieldLabel(field),
+              sub: `Auf dem Gerät: ${shown(words, field, conflict.wanted[field])}`,
             }))}
           >
             <thead>
@@ -372,8 +309,10 @@ function ConflictCard({
             <tbody>
               {involved.map((field) => (
                 <tr key={field}>
-                  <FieldName>{fieldLabel(field)}</FieldName>
-                  <Cell className="font-semibold">{shown(field, conflict.wanted[field])}</Cell>
+                  <FieldName>{words.fieldLabel(field)}</FieldName>
+                  <Cell className="font-semibold">
+                    {shown(words, field, conflict.wanted[field])}
+                  </Cell>
                 </tr>
               ))}
             </tbody>
@@ -383,12 +322,12 @@ function ConflictCard({
             caption={`Die beiden Stände von ${name}`}
             cards={involved.map((field) => ({
               key: field,
-              title: fieldLabel(field),
+              title: words.fieldLabel(field),
               sub: (
                 <>
-                  <span className="block">{`Auf dem Gerät: ${shown(field, conflict.wanted[field])}`}</span>
-                  <span className="block">{`Im System: ${shown(field, conflict.found[field])}`}</span>
-                  <span className="block">{`Das Gerät sah: ${shown(field, conflict.seen[field])}`}</span>
+                  <span className="block">{`Auf dem Gerät: ${shown(words, field, conflict.wanted[field])}`}</span>
+                  <span className="block">{`Im System: ${shown(words, field, conflict.found[field])}`}</span>
+                  <span className="block">{`Das Gerät sah: ${shown(words, field, conflict.seen[field])}`}</span>
                 </>
               ),
             }))}
@@ -404,23 +343,22 @@ function ConflictCard({
             <tbody>
               {involved.map((field) => (
                 <tr key={field}>
-                  <FieldName>{fieldLabel(field)}</FieldName>
-                  <Cell className="font-semibold">{shown(field, conflict.wanted[field])}</Cell>
-                  <Cell className="font-semibold">{shown(field, conflict.found[field])}</Cell>
-                  <Cell>{shown(field, conflict.seen[field])}</Cell>
+                  <FieldName>{words.fieldLabel(field)}</FieldName>
+                  <Cell className="font-semibold">
+                    {shown(words, field, conflict.wanted[field])}
+                  </Cell>
+                  <Cell className="font-semibold">
+                    {shown(words, field, conflict.found[field])}
+                  </Cell>
+                  <Cell>{shown(words, field, conflict.seen[field])}</Cell>
                 </tr>
               ))}
             </tbody>
           </TablePanel>
         )}
 
-        {fixedDocument ? (
-          <p className="text-[14px] leading-[1.5] text-ink">
-            Der Beleg ist inzwischen festgeschrieben und wird nicht mehr geändert. Was auf diesem
-            Gerät dazukam oder geändert wurde, lässt sich als neuer Entwurf für denselben Kunden und
-            Auftrag anlegen; sein Betreff nennt den festgeschriebenen Beleg. Sonst bleibt es beim
-            Stand im System.
-          </p>
+        {way && group !== null ? (
+          <p className="text-[14px] leading-[1.5] text-ink">{way.explanation}</p>
         ) : null}
 
         <p className="text-[13px] text-ink-faint">
@@ -446,15 +384,15 @@ function ConflictCard({
         </Button>
       ) : (
         <>
-          {fixedDocument ? (
+          {way && group !== null ? (
             <Button
               tone="dark"
               wide
               height={56}
               disabled={working}
-              onClick={() => void asDraft(fixedDocument)}
+              onClick={() => void takeWay(group)}
             >
-              Als neuen Entwurf anlegen
+              {way.action}
             </Button>
           ) : (
             <Button
@@ -480,8 +418,8 @@ function ConflictCard({
   // over the other, which a phone has room for where a table has none.
   return (
     <SiteConflictFrame
-      kind={entityLabel(conflict.entity)}
-      title={titleOf(conflict.entity, record)}
+      kind={words.entityLabel(conflict.entity)}
+      title={words.titleOf(conflict.entity, record)}
       reason={reasonText(conflict.reason)}
     >
       {settled ? (
@@ -491,17 +429,17 @@ function ConflictCard({
       ) : (
         involved.map((field) => (
           <div key={field} className="flex flex-col gap-2">
-            <SiteFieldHead>{`Feld: ${fieldLabel(field)}`}</SiteFieldHead>
+            <SiteFieldHead>{`Feld: ${words.fieldLabel(field)}`}</SiteFieldHead>
             <SiteVersion icon={Smartphone} head="Auf dem Gerät">
-              {shown(field, conflict.wanted[field])}
+              {shown(words, field, conflict.wanted[field])}
             </SiteVersion>
             {onlyOnDevice ? null : (
               <>
                 <SiteVersion icon={Server} head="Im System">
-                  {shown(field, conflict.found[field])}
+                  {shown(words, field, conflict.found[field])}
                 </SiteVersion>
                 <p className="text-[15px] text-ink-muted">
-                  {`Das Gerät sah: ${shown(field, conflict.seen[field])}`}
+                  {`Das Gerät sah: ${shown(words, field, conflict.seen[field])}`}
                 </p>
               </>
             )}
@@ -509,13 +447,8 @@ function ConflictCard({
         ))
       )}
 
-      {fixedDocument ? (
-        <p className="text-[16px] leading-[1.45]">
-          Der Beleg ist inzwischen festgeschrieben und wird nicht mehr geändert. Was auf diesem
-          Gerät dazukam oder geändert wurde, lässt sich als neuer Entwurf für denselben Kunden und
-          Auftrag anlegen; sein Betreff nennt den festgeschriebenen Beleg. Sonst bleibt es beim
-          Stand im System.
-        </p>
+      {way && group !== null ? (
+        <p className="text-[16px] leading-[1.45]">{way.explanation}</p>
       ) : null}
 
       <p className="numeric text-[14px] text-ink-faint">
@@ -615,9 +548,10 @@ function SiteConflictFrame({
  */
 function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
   const client = useSync()
+  const { records: words } = useApplication()
   const [working, setWorking] = useState(false)
   const { operation, message } = refused
-  const title = titleOf(operation.entity, client.get(operation.entity, operation.recordId))
+  const title = words.titleOf(operation.entity, client.get(operation.entity, operation.recordId))
   const creating = operation.kind === 'create'
   const entry = useEntry()
 
@@ -663,7 +597,7 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
 
   if (entry === 'office') {
     return (
-      <RefusedFrame kind={entityLabel(operation.entity)} title={title}>
+      <RefusedFrame kind={words.entityLabel(operation.entity)} title={title}>
         <p className="text-[14px] font-semibold text-conflict">{message}</p>
         <p className="text-[14px] leading-[1.5] text-ink">{explanation}</p>
         {operation.kind === 'delete' ? (
@@ -675,8 +609,8 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
             caption={`Was das Gerät an ${title} schreiben wollte`}
             cards={operation.patches.map((patch) => ({
               key: patch.field,
-              title: fieldLabel(patch.field),
-              sub: `Auf dem Gerät: ${shown(patch.field, patch.to)}`,
+              title: words.fieldLabel(patch.field),
+              sub: `Auf dem Gerät: ${shown(words, patch.field, patch.to)}`,
             }))}
           >
             <thead>
@@ -688,8 +622,8 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
             <tbody>
               {operation.patches.map((patch) => (
                 <tr key={patch.field}>
-                  <FieldName>{fieldLabel(patch.field)}</FieldName>
-                  <Cell>{shown(patch.field, patch.to)}</Cell>
+                  <FieldName>{words.fieldLabel(patch.field)}</FieldName>
+                  <Cell>{shown(words, patch.field, patch.to)}</Cell>
                 </tr>
               ))}
             </tbody>
@@ -710,7 +644,7 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
     <Panel>
       <div className="flex flex-col gap-2">
         <div>
-          <SiteFieldHead>{entityLabel(operation.entity)}</SiteFieldHead>
+          <SiteFieldHead>{words.entityLabel(operation.entity)}</SiteFieldHead>
           <h2 className="mt-0.5 text-[20px] font-bold [overflow-wrap:anywhere]">{title}</h2>
           <p className="mt-1 text-[16px] font-semibold text-conflict">{message}</p>
         </div>
@@ -720,9 +654,9 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
         ) : (
           operation.patches.map((patch) => (
             <div key={patch.field} className="flex flex-col gap-2">
-              <SiteFieldHead>{`Feld: ${fieldLabel(patch.field)}`}</SiteFieldHead>
+              <SiteFieldHead>{`Feld: ${words.fieldLabel(patch.field)}`}</SiteFieldHead>
               <SiteVersion icon={Smartphone} head="Auf dem Gerät">
-                {shown(patch.field, patch.to)}
+                {shown(words, patch.field, patch.to)}
               </SiteVersion>
             </div>
           ))
@@ -761,7 +695,7 @@ function RefusedCard({ refused }: { readonly refused: RefusedOperation }) {
 
 /**
  * An entry the server refused, in the office: a plain card with the kind of
- * record in small capitals over its name, as the board draws the "Belegposition".
+ * record in small capitals over its name.
  */
 function RefusedFrame({
   kind,
@@ -792,85 +726,6 @@ function RefusedFrame({
   )
 }
 
-/** One line of "Stand des Abgleichs": a symbol, what is so, perhaps a time. */
-function StateLine({
-  icon: Icon,
-  tone,
-  strong = false,
-  aside,
-  children,
-}: {
-  readonly icon: LucideIcon
-  readonly tone: 'done' | 'waiting' | 'conflict'
-  readonly strong?: boolean
-  readonly aside?: string
-  readonly children: ReactNode
-}) {
-  const colour =
-    tone === 'done' ? 'text-done' : tone === 'waiting' ? 'text-waiting' : 'text-conflict'
-
-  return (
-    <li className="flex items-center gap-2.5">
-      <Icon size={18} strokeWidth={2.3} aria-hidden="true" className={`shrink-0 ${colour}`} />
-      <span className={`grow text-[14px] ${strong ? `font-semibold ${colour}` : 'text-ink'}`}>
-        {children}
-      </span>
-      {aside ? <span className="numeric text-[13px] text-ink-faint">{aside}</span> : null}
-    </li>
-  )
-}
-
-/**
- * "Stand des Abgleichs", the side card of the board: when this device last
- * exchanged with the system, what waits on it, and what somebody has to decide.
- */
-export function SyncStateCard() {
-  const status = useSyncStatus()
-  const { conflicts, refused, pending, lastSyncedAt } = status
-  const offline = status.state === 'offline' && status.trouble !== null
-
-  return (
-    <Panel title="Stand des Abgleichs">
-      <ul className="flex flex-col gap-[9px]">
-        <StateLine
-          icon={Check}
-          tone="done"
-          {...(lastSyncedAt ? { aside: clockTime(lastSyncedAt) } : {})}
-        >
-          {lastSyncedAt ? 'Zuletzt abgeglichen' : 'Noch nicht abgeglichen'}
-        </StateLine>
-        {offline ? (
-          <StateLine icon={WifiOff} tone="waiting">
-            Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.
-          </StateLine>
-        ) : null}
-        {pending > 0 ? (
-          <StateLine icon={Clock} tone="waiting">
-            {pending === 1 ? '1 Vorgang wartet' : `${String(pending)} Vorgänge warten`}
-          </StateLine>
-        ) : null}
-        {refused ? (
-          <StateLine icon={TriangleAlert} tone="conflict" strong>
-            Eine Änderung abgelehnt, bitte entscheiden
-          </StateLine>
-        ) : null}
-        {conflicts.length > 0 ? (
-          <StateLine icon={TriangleAlert} tone="conflict" strong>
-            {conflicts.length === 1
-              ? '1 Konflikt, bitte entscheiden'
-              : `${String(conflicts.length)} Konflikte, bitte entscheiden`}
-          </StateLine>
-        ) : null}
-        {pending === 0 && conflicts.length === 0 && !refused && !offline ? (
-          <StateLine icon={Check} tone="done">
-            Nichts wartet, nichts zu entscheiden
-          </StateLine>
-        ) : null}
-      </ul>
-    </Panel>
-  )
-}
-
 /** The sentence for a list with nothing in it. */
 export function NothingToDecide() {
   return (
@@ -883,29 +738,26 @@ export function NothingToDecide() {
 
 /**
  * What is to decide, in the order it has to be decided: first the entry the
- * outbox is stuck on, then the conflicts. The drafts made from a conflict are
- * said once they exist: the conflict that led to one is gone from the list,
- * and without this the draft would appear somewhere else with nobody told
- * where.
+ * outbox is stuck on, then the conflicts. What another way out made is said
+ * once it exists: the conflict that led to it is gone from the list, and
+ * without this it would appear somewhere else with nobody told where.
  */
 export function useDecisions(): {
-  readonly drafted: ReactNode
+  readonly made: ReactNode
   readonly cards: ReactNode
   readonly empty: boolean
 } {
   const { conflicts, refused } = useSyncStatus()
-  const [drafted, setDrafted] = useState<readonly string[]>([])
+  const way = useApplication().records.otherWay
+  const [made, setMade] = useState<readonly string[]>([])
 
   return {
-    drafted:
-      drafted.length > 0 ? (
-        <Card label="Als neuer Entwurf angelegt" tone="sunken">
+    made:
+      way && made.length > 0 ? (
+        <Card label={way.madeLabel} tone="sunken">
           <ul role="status" className="flex flex-col gap-1 text-body">
-            {drafted.map((subject) => (
-              <li key={subject}>
-                {`Entwurf angelegt: ${subject}. Er gehört zum selben Kunden und Auftrag wie der ` +
-                  'festgeschriebene Beleg.'}
-              </li>
+            {made.map((summary) => (
+              <li key={summary}>{way.made(summary)}</li>
             ))}
           </ul>
         </Card>
@@ -917,8 +769,8 @@ export function useDecisions(): {
           <ConflictCard
             key={conflict.id}
             conflict={conflict}
-            onDrafted={(subject) => {
-              setDrafted((before) => [...before, subject])
+            onMade={(summary) => {
+              setMade((before) => [...before, summary])
             }}
           />
         ))}
@@ -926,116 +778,4 @@ export function useDecisions(): {
     ),
     empty: conflicts.length === 0 && !refused,
   }
-}
-
-/** One line of the state on site: a symbol and a sentence, 16 pixels. */
-function SiteStateLine({
-  icon: Icon,
-  tone,
-  strong = false,
-  children,
-}: {
-  readonly icon: LucideIcon
-  readonly tone: 'done' | 'waiting' | 'conflict'
-  readonly strong?: boolean
-  readonly children: ReactNode
-}) {
-  const colour =
-    tone === 'done' ? 'text-done' : tone === 'waiting' ? 'text-waiting' : 'text-conflict'
-
-  return (
-    <li className="flex items-center gap-2.5">
-      <Icon size={20} strokeWidth={2.3} aria-hidden="true" className={`shrink-0 ${colour}`} />
-      <span
-        className={`text-[16px] leading-[1.4] ${strong ? `font-semibold ${colour}` : 'text-ink'}`}
-      >
-        {children}
-      </span>
-    </li>
-  )
-}
-
-/**
- * The list somebody has to work through on site, the board "Konflikte", and
- * the only screen in the application that is allowed to be empty and still
- * worth opening: when this device last exchanged, what waits on it, what is
- * to decide, and a way to try again.
- */
-export function ConflictScreen() {
-  const client = useSync()
-  const status = useSyncStatus()
-  const { drafted, cards, empty } = useDecisions()
-  const { conflicts, refused, pending, lastSyncedAt } = status
-  const offline = status.state === 'offline'
-  const [working, setWorking] = useState(false)
-
-  return (
-    <div className="flex min-w-0 flex-col gap-3 p-4">
-      <div>
-        <p className="font-condensed text-[15px] font-semibold tracking-[1.2px] text-ink-faint uppercase">
-          Abgleich
-        </p>
-        <h1 className="mt-0.5 text-[27px] leading-[1.15] font-bold">Konflikte</h1>
-      </div>
-
-      <Panel>
-        <ul aria-label="Stand des Abgleichs" className="flex flex-col gap-2">
-          <SiteStateLine icon={Check} tone="done">
-            {lastSyncedAt
-              ? `Zuletzt abgeglichen um ${clockTime(lastSyncedAt)}.`
-              : 'Noch nicht abgeglichen.'}
-          </SiteStateLine>
-          {offline ? (
-            <SiteStateLine icon={WifiOff} tone="waiting">
-              Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.
-            </SiteStateLine>
-          ) : null}
-          {pending > 0 ? (
-            <SiteStateLine icon={Clock} tone="waiting">
-              {pending === 1
-                ? '1 Änderung wartet auf dem Gerät.'
-                : `${String(pending)} Änderungen warten auf dem Gerät.`}
-            </SiteStateLine>
-          ) : null}
-          {refused ? (
-            <SiteStateLine icon={TriangleAlert} tone="conflict" strong>
-              Eine Änderung wurde abgelehnt und wartet auf eine Entscheidung.
-            </SiteStateLine>
-          ) : null}
-          {conflicts.length > 0 ? (
-            <SiteStateLine icon={TriangleAlert} tone="conflict" strong>
-              {conflicts.length === 1
-                ? 'Ein Konflikt wartet auf eine Entscheidung.'
-                : `${String(conflicts.length)} Konflikte warten auf eine Entscheidung.`}
-            </SiteStateLine>
-          ) : null}
-        </ul>
-      </Panel>
-
-      {drafted}
-
-      {empty ? (
-        <Panel title="Keine Konflikte">
-          <NothingToDecide />
-        </Panel>
-      ) : (
-        cards
-      )}
-
-      <Button
-        wide
-        height={52}
-        icon={RefreshCw}
-        disabled={working}
-        onClick={() => {
-          setWorking(true)
-          void client.synchronise().finally(() => {
-            setWorking(false)
-          })
-        }}
-      >
-        Erneut versuchen
-      </Button>
-    </div>
-  )
 }

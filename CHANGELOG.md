@@ -606,6 +606,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   der Oberfläche ändert sich nichts: 46 Zustände sind vor und nach dem Umzug aufgenommen und
   Byte für Byte dieselben. Der Scanner der Etiketten hat dabei Tests für seine Sätze ohne Leser
   und ohne Kamera bekommen, die bisher nur der Scanner der Seriennummern hatte.
+- Der Konfliktbildschirm gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#12`,
+  zehnter Teil), weil jede Anwendung mit Abgleich dieselben Entscheidungen braucht: "Abgleich"
+  im Büro und "Konflikte" auf der Baustelle, mit beiden Ständen eines Konflikts, der
+  abgelehnten Änderung und dem Stand des Abgleichs. Was ein Datensatz und ein Feld heißen,
+  wie ein Wert geschrieben wird, dass eine Unterschrift sich nicht durchsetzen lässt und dass
+  Änderungen an einem festgeschriebenen Beleg ein neuer Entwurf werden, sagt diese Anwendung
+  in ihrem Wert. An der Oberfläche ändert sich nichts: 54 Zustände sind vor und nach dem
+  Umzug aufgenommen und Byte für Byte dieselben. Dass "Keine Verbindung" fehlt, solange
+  etwas zu entscheiden ist, zieht unverändert mit und hat ein eigenes Issue (#494).
 
 ### Behoben
 

@@ -11,6 +11,7 @@ import { ScanLine } from 'lucide-react'
 import { SyncClient } from '../sync/client.js'
 import { siteTransport } from '../sync/transport.js'
 import { leavePush } from './push.js'
+import { records } from './records.js'
 
 /**
  * Over the sign in after the camera of a phone opened the address of a QR
@@ -152,6 +153,9 @@ export const application: InterfaceApplication = {
       entities: syncEntities,
       onSignedOut,
     }),
+
+  // What the screens of the conflicts say about a record, in both entries.
+  records,
 
   beforeSignIn: <ScannedLabelNote />,
 

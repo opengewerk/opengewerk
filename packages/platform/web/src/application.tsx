@@ -1,3 +1,4 @@
+import type { RecordState, SyncConflict, SyncValue } from '@opengewerk/platform-domain'
 import type { LucideIcon } from 'lucide-react'
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
@@ -57,6 +58,12 @@ export interface InterfaceApplication {
    */
   readonly startSync: (start: DeviceStart) => Promise<SyncClient>
   /**
+   * What the application calls its records and their fields, how it writes
+   * their values, and what it offers where taking a version cannot settle a
+   * conflict: all the screen of the conflicts says about a record.
+   */
+  readonly records: RecordWords
+  /**
    * A line over the card of the sign in, when the application has something
    * to say about the address the page was opened at, as after the scan of a
    * label: what happens once somebody is signed in.
@@ -112,6 +119,76 @@ export interface DeviceStart {
   /** For the client to call when the server answers it as not signed in. */
   readonly onSignedOut: () => void
 }
+
+/**
+ * What the screens of the foundation say about a record of the application,
+ * which they know only by the name of its kind and its fields.
+ *
+ * Each of the first three falls back to the raw name where the application
+ * knows none. A conflict can come from a newer server about a field this
+ * build has never heard of, and its name beside two values is better than an
+ * empty cell; it is also visibly a gap.
+ */
+export interface RecordWords {
+  /** What a kind of record is called, in a sentence and over a card. */
+  readonly entityLabel: (entity: string) => string
+  /** What a field is called, at the head of its row. */
+  readonly fieldLabel: (field: string) => string
+  /** The name a record goes by on a screen, or what it is when it has none. */
+  readonly titleOf: (entity: string, record: RecordState | null) => string
+  /**
+   * A value the way the screens of the application write it, a price kept in
+   * cents with its currency, or null where it is written as it is.
+   */
+  readonly valueText: (field: string, value: SyncValue) => string | null
+  /**
+   * Kinds of record whose conflict no choice of a version settles, with the
+   * sentence that says what to do instead. The card offers only to close it.
+   */
+  readonly settledElsewhere: Readonly<Record<string, string>>
+  /** Another way out of a conflict, where the application has one. */
+  readonly otherWay?: ConflictWay
+}
+
+/**
+ * A way out of a conflict besides the two versions, where the application has
+ * one: a record that can no longer be changed, written anew instead.
+ *
+ * It takes every conflict of the same group at once, so that what a device
+ * wrote about one record is not split over several new ones. The card shows
+ * the fields it chooses, says what the way does and offers it in place of
+ * the version of the device, and the list says what came of it.
+ */
+export interface ConflictWay {
+  /** The group a conflict belongs to when the way is open for it, or null. */
+  readonly groupOf: (client: SyncClient, conflict: SyncConflict) => string | null
+  /** Which fields of what the device wanted are shown, and in which order. */
+  readonly fields: (wanted: Readonly<Record<string, SyncValue>>) => readonly string[]
+  /** What the card says about the way, under the fields. */
+  readonly explanation: string
+  /** What the button says. */
+  readonly action: string
+  /**
+   * Takes the way for every conflict of the group, through the outbox like
+   * any change, and says in a few words what it made, or why it could not.
+   */
+  readonly take: (
+    client: SyncClient,
+    conflicts: readonly SyncConflict[],
+    group: string,
+  ) => Promise<WayTaken>
+  /** Over the list of what was made. */
+  readonly madeLabel: string
+  /** One line of that list, for what `take` said it made. */
+  readonly made: (summary: string) => string
+  /** When what was made exists and its conflicts cannot be closed yet. */
+  readonly stillOpen: string
+}
+
+/** What came of taking another way out of a conflict. */
+export type WayTaken =
+  | { readonly outcome: 'made'; readonly summary: string }
+  | { readonly outcome: 'refused'; readonly message: string }
 
 /**
  * The sentences of the foundation's screens that name a tenant, whoever leads

@@ -4,8 +4,9 @@ import { Archive, KeyRound, StickyNote } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { ApplicationProvider } from './application.js'
-import type { InterfaceApplication } from './application.js'
+import type { InterfaceApplication, RecordWords } from './application.js'
 import { SyncClient } from './sync/client.js'
+import { maybeText } from './sync/fields.js'
 import { directWrite, httpTransport } from './sync/transport.js'
 
 /**
@@ -23,6 +24,79 @@ import { directWrite, httpTransport } from './sync/transport.js'
  * client use as well.
  */
 export const probeRules = syncRules(probePolicies)
+
+const probeEntityNames: Readonly<Record<string, string>> = {
+  shelves: 'Regal',
+  notes: 'Notiz',
+  parcels: 'Paket',
+  letters: 'Brief',
+  letter_lines: 'Briefzeile',
+  letter_seals: 'Siegel',
+}
+
+const probeFieldNames: Readonly<Record<string, string>> = {
+  label: 'Aufschrift',
+  text: 'Text',
+  weightGrams: 'Gewicht',
+  status: 'Stand',
+}
+
+/**
+ * What the application that belongs to nobody says about its records: names
+ * found in no application, a weight in kilograms where it keeps grams, a seal
+ * that no version settles, and a letter that went out written anew as a copy.
+ */
+export const probeRecords: RecordWords = {
+  entityLabel: (entity) => probeEntityNames[entity] ?? entity,
+  fieldLabel: (field) => probeFieldNames[field] ?? field,
+  titleOf: (entity, record) =>
+    maybeText(record, 'label') ??
+    maybeText(record, 'text') ??
+    `${probeEntityNames[entity] ?? entity} ohne Aufschrift`,
+  valueText: (field, value) =>
+    field === 'weightGrams' && typeof value === 'number'
+      ? `${String(value / 1000).replace('.', ',')} kg`
+      : null,
+  settledElsewhere: {
+    letter_seals:
+      'Das Siegel gilt nicht, der Brief hat sich beim Siegeln geändert. Bitte neu siegeln.',
+  },
+  otherWay: {
+    groupOf: (_client, conflict) =>
+      conflict.reason === 'record_is_fixed' && conflict.entity === 'letters'
+        ? conflict.recordId
+        : null,
+    fields: (wanted) =>
+      Object.keys(wanted)
+        .filter((field) => field !== 'status')
+        .sort(),
+    explanation:
+      'Der Brief ist schon verschickt. Was hier dazukam, lässt sich als Abschrift anlegen.',
+    action: 'Als Abschrift anlegen',
+    take: async (client, conflicts, group) => {
+      const letter = client.get('letters', group)
+
+      if (!letter) {
+        return { outcome: 'refused', message: 'Den Brief gibt es auf diesem Gerät nicht.' }
+      }
+
+      const wanted = conflicts
+        .filter((conflict) => conflict.recordId === group)
+        .reduce<Record<string, unknown>>((all, conflict) => ({ ...all, ...conflict.wanted }), {})
+      const made = await client.create('letters', {
+        subject: `Abschrift von ${String(letter['subject'])}`,
+        ...Object.fromEntries(Object.entries(wanted).filter(([field]) => field !== 'status')),
+      })
+
+      return made.outcome === 'refused'
+        ? { outcome: 'refused', message: 'Die Abschrift ließ sich nicht anlegen.' }
+        : { outcome: 'made', summary: `Abschrift von ${String(letter['subject'])}` }
+    },
+    madeLabel: 'Als Abschrift angelegt',
+    made: (summary) => `Angelegt: ${summary}.`,
+    stillOpen: 'Die Abschrift steht. Die Konflikte schließen sich erst mit Verbindung.',
+  },
+}
 
 export function probeApplication(over: Partial<InterfaceApplication> = {}): InterfaceApplication {
   return {
@@ -200,6 +274,7 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         entities: ['shelves', 'notes'],
         onSignedOut,
       }),
+    records: probeRecords,
 
     ...over,
   }
