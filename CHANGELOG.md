@@ -615,6 +615,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   in ihrem Wert. An der Oberfläche ändert sich nichts: 54 Zustände sind vor und nach dem
   Umzug aufgenommen und Byte für Byte dieselben. Dass "Keine Verbindung" fehlt, solange
   etwas zu entscheiden ist, zieht unverändert mit und hat ein eigenes Issue (#494).
+- Bündelbudget und Prüfung der Breiten sind Werkzeuge des Fundaments (ADR 0010,
+  `opengewerk-haustechnik#12`, elfter Teil), damit jede Anwendung mit zwei Einstiegen ihre
+  Oberfläche so prüft wie diese: `@opengewerk/platform-web/tools/budget` und
+  `/tools/widths`. Diese Anwendung gibt ihre Einstiege mit Grenzen, die Seiten, an denen der
+  Weg beginnt, die Seite, die nur ein Scan erreicht, und ihre Knöpfe mit. Die Ausgabe ist
+  dieselbe wie vorher.
 
 ### Behoben
 

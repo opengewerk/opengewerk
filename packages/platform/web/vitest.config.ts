@@ -6,6 +6,9 @@ export default mergeConfig(shared, {
   plugins: [react()],
   test: {
     name: 'platform-web',
+    // The tools beside the source run in Node, and so do their tests, each of
+    // which says so at its top.
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'tools/**/*.test.js'],
     setupFiles: ['./test-setup.ts'],
     environment: 'happy-dom',
     // Without this a `?raw` import of a stylesheet comes back as an empty

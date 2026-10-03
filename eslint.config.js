@@ -60,9 +60,10 @@ export default configuration(
   // environment and writing to a console is the job.
   runsInNode(['*.js', '*.config.js', '*.config.ts', 'packages/*/scripts/**/*.js']),
 
-  // The check of the widths runs in Node and hands functions to a browser
-  // (#218).
-  runsInBoth(['packages/web/scripts/widths.js']),
+  // The checks of the CI as tools for every application (ADR 0010): they run
+  // in Node, and the check of the widths hands functions to a browser (#218).
+  runsInNode(['packages/platform/web/tools/**/*.js']),
+  runsInBoth(['packages/platform/web/tools/widths.js']),
 
   formatting,
 )

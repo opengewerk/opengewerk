@@ -17,6 +17,8 @@
     "./site": "./src/site/index.ts",
     "./sync": "./src/sync/index.ts",
     "./testing": "./src/testing.ts",
+    "./tools/budget": "./tools/budget.js",
+    "./tools/widths": "./tools/widths.js",
     "./styles/index.css": "./src/styles/index.css",
     "./styles/tokens.css": "./src/styles/tokens.css"
   },
@@ -50,6 +52,7 @@
     "@vitejs/plugin-react": "6.1.1",
     "fake-indexeddb": "6.2.5",
     "happy-dom": "20.14.5",
+    "playwright-core": "1.63.0",
     "vite": "8.3.0",
     "vitest": "5.0.1"
   }
