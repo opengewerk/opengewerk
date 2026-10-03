@@ -1,31 +1,12 @@
+import { foundationPaths, serverPaths } from '@opengewerk/domain'
+import { entryManifests } from '@opengewerk/platform-web/tools/manifests'
 import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-import { officeManifest, siteManifest } from './src/entry/manifest.js'
-
-/**
- * Writes the two web app manifests into the build.
- *
- * `vite-plugin-pwa` can generate one, and one is exactly what does not fit
- * here: the two entry points start in two different places. So the plugin is
- * told to leave the manifest alone and both are emitted from the one module
- * that holds their content.
- */
-function manifests(): Plugin {
-  return {
-    name: 'opengewerk-manifests',
-    generateBundle() {
-      for (const [name, content] of [
-        ['manifest.webmanifest', officeManifest],
-        ['m/manifest.webmanifest', siteManifest],
-      ] as const) {
-        this.emitFile({ type: 'asset', fileName: name, source: JSON.stringify(content, null, 2) })
-      }
-    },
-  }
-}
+import { applicationName } from './src/app/name.js'
+import { icons, officeWords, siteWords } from './src/entry/manifest.js'
 
 export default defineConfig({
   // `assets` rather than a folder of this package. The brand files are copied
@@ -51,46 +32,24 @@ export default defineConfig({
   server: {
     // In development vite serves the two entry points and the API is somewhere
     // else, so every path the server owns is forwarded to it. The list is the
-    // same one `serveInterface` keeps on the other side, and it has to be:
-    // a path missing here reaches vite, which answers with a shell, and the
-    // failure reads like the server returning HTML for JSON.
+    // one the server and the service worker take as well, the foundation's and
+    // this application's: a path missing here would reach vite, which answers
+    // with a shell, and the failure reads like the server returning HTML for
+    // JSON.
     proxy: Object.fromEntries(
-      [
-        '/api',
-        '/auth',
-        '/customers',
-        '/contacts',
-        '/suppliers',
-        '/articles',
-        '/sites',
-        '/installations',
-        '/jobs',
-        '/tasks',
-        '/deadlines',
-        '/push',
-        '/audit',
-        '/instance',
-        '/tenants',
-        '/files',
-        '/attachments',
-        '/form-records',
-        '/time',
-        '/documents',
-        '/payments',
-        '/sync',
-        '/settings',
-        '/setup',
-        '/staff',
-        '/invitation',
-        '/health',
-      ].map((path) => [path, { target: 'http://127.0.0.1:23700', changeOrigin: false }]),
+      [...foundationPaths, ...serverPaths].map((path) => [
+        `/${path}`,
+        { target: 'http://127.0.0.1:23700', changeOrigin: false },
+      ]),
     ),
   },
 
   plugins: [
     react(),
     tailwind(),
-    manifests(),
+    // Both manifests, and the name in the title of both shells and in their
+    // sentence for a browser without JavaScript (ADR 0010).
+    entryManifests({ name: applicationName, icons, office: officeWords, site: siteWords }),
     VitePWA({
       // Hand written, because the fallback for a navigation has to be told
       // apart by prefix: `/m/...` belongs to the site shell and everything

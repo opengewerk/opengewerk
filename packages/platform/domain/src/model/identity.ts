@@ -22,5 +22,12 @@ export interface TenantIdentity {
  * no longer shows. The server refuses a request whose header names another
  * tenant than the session, and the page starts again in the tenant of the
  * session.
+ *
+ * In small letters, the way the organisation writes its name where only a
+ * program reads it, and the way HTTP/2 sends the name of every header anyway.
+ * A name in other letters is the same header: HTTP compares names without
+ * regard to case, and Node hands every header to the server in small letters,
+ * so a page that still sends the name the way it was written before is
+ * understood as it was.
  */
-export const workingInHeader = 'X-OpenGewerk-Tenant'
+export const workingInHeader = 'x-opengewerk-tenant'

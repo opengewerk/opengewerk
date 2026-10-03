@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, posix, resolve } from 'node:path'
 
+import { foundationPaths, serverPaths } from '@opengewerk/domain'
 import { shellPolicy } from '@opengewerk/platform-server'
 import express from 'express'
 import type { Express, Request, Response } from 'express'
@@ -56,37 +57,11 @@ export function interfacePath(): string | null {
  * Written out rather than derived from the router, because the fallback has to
  * answer before the router does: a shell handed back for a mistyped API path
  * looks to a client like the server returning HTML for JSON, and that is a
- * confusing hour.
+ * confusing hour. The list is the one the service worker and the development
+ * server of the interface take as well, the foundation's and this
+ * application's, and the test of the routes holds it against the controllers.
  */
-const apiPrefixes = [
-  'api',
-  'auth',
-  'customers',
-  'contacts',
-  'suppliers',
-  'articles',
-  'sites',
-  'installations',
-  'jobs',
-  'tasks',
-  'deadlines',
-  'push',
-  'audit',
-  'instance',
-  'tenants',
-  'files',
-  'attachments',
-  'form-records',
-  'time',
-  'documents',
-  'payments',
-  'sync',
-  'settings',
-  'setup',
-  'staff',
-  'invitation',
-  'health',
-]
+const apiPrefixes: readonly string[] = [...foundationPaths, ...serverPaths]
 
 function belongsToTheApi(path: string): boolean {
   const first = path.split('/')[1] ?? ''
