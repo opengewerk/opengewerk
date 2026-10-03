@@ -37,11 +37,11 @@
     "@fontsource/barlow-condensed": "5.3.0",
     "@opengewerk/platform-domain": "workspace:*",
     "@simplewebauthn/browser": "14.0.0",
-    "@tanstack/react-query": "5.103.1",
-    "@tanstack/react-router": "1.170.38",
+    "@tanstack/react-query": "5.104.0",
+    "@tanstack/react-router": "1.170.41",
     "@zxing/browser": "0.2.1",
     "clsx": "2.1.1",
-    "lucide-react": "1.47.0",
+    "lucide-react": "1.49.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tailwindcss": "4.3.3",
@@ -60,7 +60,7 @@
     "fake-indexeddb": "6.2.5",
     "happy-dom": "20.14.5",
     "playwright-core": "1.63.0",
-    "vite": "8.3.0",
-    "vitest": "5.0.1"
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
   }
 }
