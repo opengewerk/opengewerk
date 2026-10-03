@@ -5,12 +5,11 @@
 # Three things in here are decisions rather than mechanics.
 #
 # 1. THE ORDER IS DATABASE FIRST, FILES SECOND, and it is not interchangeable.
-#    A document row points at a file by its hash. Dumping files first would
-#    mean that anything uploaded between the two steps has a row in the dump
-#    and no file in the archive: a restored invoice pointing at nothing. The
-#    other way round the worst case is a file nobody references, and an
-#    unreferenced file in a content addressed store costs disk and nothing
-#    else.
+#    A row points at a file by its hash. Dumping files first would mean that
+#    anything uploaded between the two steps has a row in the dump and no file
+#    in the archive: a restored record pointing at nothing. The other way
+#    round the worst case is a file nobody references, and an unreferenced
+#    file in a content addressed store costs disk and nothing else.
 #
 # 2. IT CONNECTS AS THE SUPERUSER, not as the owner of the tables. Row level
 #    security is FORCEd on every table, and it applies to the owner as well,
@@ -26,7 +25,7 @@
 #    evidence, and it costs one small file.
 #
 # Called with --scheduled by the nightly schedule (schedule.sh), it skips an
-# instance that has no business: after a lost disk the empty instance would
+# instance that has no tenant: after a lost disk the empty instance would
 # otherwise become the newest archive. After every backup it records when it
 # finished in BACKUP_STATUS_PATH, which the office reads (#130).
 
@@ -44,6 +43,9 @@ fi
 : "${BACKUP_PATH:=/var/lib/opengewerk/backups}"
 : "${BACKUP_KEEP:=14}"
 
+# The names of the archives, in one place for backup, restore and verify.
+. "$(dirname "$0")/names.sh"
+
 if [ -z "${PGPASSWORD:-}" ]; then
 	echo "PGPASSWORD fehlt. Die Sicherung meldet sich als Superuser an, weil sie" >&2
 	echo "sonst wegen der Mandantentrennung leere Tabellen sichern würde." >&2
@@ -56,19 +58,19 @@ if [ ! -d "$STORAGE_PATH" ]; then
 fi
 
 if [ "$scheduled" = true ]; then
-	# A database that is not migrated yet has no table of businesses at all,
-	# and nothing in it to back up either.
+	# A database that is not migrated yet has no table of tenants at all, and
+	# nothing in it to back up either.
 	migrated=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
 		--tuples-only --no-align --quiet --command "select to_regclass('public.tenants') is not null")
-	businesses=0
+	tenants=0
 
 	if [ "$migrated" = "t" ]; then
-		businesses=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
+		tenants=$(psql --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
 			--tuples-only --no-align --quiet --command "select count(*) from tenants")
 	fi
 
-	if [ "$businesses" = "0" ]; then
-		echo "Keine Betriebe in der Datenbank. Die geplante Sicherung wird übersprungen, damit"
+	if [ "$tenants" = "0" ]; then
+		echo "Keine Mandanten in der Datenbank. Die geplante Sicherung wird übersprungen, damit"
 		echo "eine leere Instanz keine ältere Sicherung mit Daten verdrängt. Von Hand geht sie weiter."
 		exit 0
 	fi
@@ -77,7 +79,7 @@ fi
 mkdir -p "$BACKUP_PATH"
 
 stamp=$(date -u +%Y-%m-%dT%H%M%SZ)
-name="opengewerk-${stamp}"
+name="${BACKUP_PREFIX}-${stamp}"
 work="${BACKUP_PATH}/.${name}.work"
 rm -rf "$work"
 mkdir -p "$work"
@@ -162,14 +164,15 @@ fi
 
 # --- 6. Retention ----------------------------------------------------------
 # Oldest first, keep the newest BACKUP_KEEP. Sorting by name works because the
-# timestamp is the name and it is written in a sortable shape.
+# timestamp is the name and it is written in a sortable shape. Only archives of
+# this prefix count, see names.sh.
 if [ "$BACKUP_KEEP" -gt 0 ]; then
-	total=$(find "$BACKUP_PATH" -maxdepth 1 -name 'opengewerk-*.tar.gz*' | wc -l | tr -d ' ')
+	total=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | wc -l | tr -d ' ')
 	surplus=$((total - BACKUP_KEEP))
 
 	if [ "$surplus" -gt 0 ]; then
 		echo "  ${surplus} alte Sicherung(en) werden entfernt, ${BACKUP_KEEP} bleiben."
-		find "$BACKUP_PATH" -maxdepth 1 -name 'opengewerk-*.tar.gz*' | sort | head -n "$surplus" |
+		find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | head -n "$surplus" |
 			while read -r old; do
 				rm -f "$old"
 				echo "    entfernt: $(basename "$old")"

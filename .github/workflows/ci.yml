@@ -593,6 +593,13 @@ jobs:
         working-directory: docker
         run: sh test-start.sh
 
+      # The names of the archives (opengewerk-haustechnik#14), with the backup
+      # scripts and stand-ins for the tools of PostgreSQL: in a folder shared
+      # with another application, each finds, keeps and removes only its own.
+      - name: Namen der Sicherungen prüfen
+        working-directory: docker
+        run: sh test-backup.sh
+
       # Every service with a limit on its logs (#211), those in a profile
       # included, so that a service added later cannot go without one: nothing
       # else would show it before a full disk does. Read from the

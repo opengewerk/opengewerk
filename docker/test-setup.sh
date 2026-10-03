@@ -2,7 +2,8 @@
 # Exercises setup.sh in a scratch copy of this folder, for the CI and for
 # anybody who changes the script: the first run, a second one, an older .env
 # meeting a newer template, and the refusals. Above all it checks that no
-# value the script makes appears in what it prints.
+# value the script makes appears in what it prints. And that another
+# application can run it against its own folder (opengewerk-haustechnik#14).
 #
 # Prints what it checks and stops at the first thing that is wrong.
 set -eu
@@ -11,7 +12,7 @@ source_dir=$(cd "$(dirname "$0")" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-cp "$source_dir/setup.sh" "$source_dir/.env.example" "$work/"
+cp "$source_dir/setup.sh" "$source_dir/.env.example" "$source_dir/application.env" "$work/"
 
 check() {
   printf 'check: %s\n' "$1"
@@ -163,5 +164,69 @@ rm "$work/.env"
 OPENGEWERK_ADDRESS=https://opengewerk.example.org/ sh "$work/setup.sh" < /dev/null > /dev/null 2>&1
 grep -q '^TRUSTED_ORIGINS=https://opengewerk.example.org$' "$work/.env"
 check 'Schrägstrich am Ende: weggenommen'
+
+# 10. Another application runs the same script against its own folder
+# (opengewerk-haustechnik#14): its name at the start of every line, its prefix
+# for its own variables, the address of its own template, and nothing of this
+# one's, not even when the variables of this one are set as well.
+probe="$work/probe"
+mkdir -p "$probe"
+cat > "$probe/application.env" <<'APPLICATION'
+APPLICATION_NAME='Probewerk'
+APPLICATION_PREFIX='PROBEWERK'
+APPLICATION_EXAMPLE_ADDRESS='https://probewerk.meinbetrieb.de'
+APPLICATION
+sed -e 's/OPENGEWERK_/PROBEWERK_/g' \
+  -e 's|^TRUSTED_ORIGINS=.*|TRUSTED_ORIGINS=https://probewerk.example.de|' \
+  "$source_dir/.env.example" > "$probe/.env.example"
+
+ours=$(sha256sum "$work/.env" | cut -d' ' -f1)
+out=$(OPENGEWERK_ADDRESS=http://127.0.0.1:23700 PROBEWERK_ADDRESS=http://127.0.0.1:23900 \
+  APPLICATION_DIRECTORY="$probe" sh "$work/setup.sh" < /dev/null 2>&1)
+printf '%s\n' "$out"
+grep -q '^TRUSTED_ORIGINS=http://127.0.0.1:23900$' "$probe/.env"
+grep -Eq '^PROBEWERK_OWNER_PASSWORD=[0-9a-f]{64}$' "$probe/.env"
+test "$(sha256sum "$work/.env" | cut -d' ' -f1)" = "$ours"
+if printf '%s\n' "$out" | grep -qv '^Probewerk: '; then
+  echo 'FEHLER: eine Zeile beginnt nicht mit dem Namen der Anwendung'
+  exit 1
+fi
+if printf '%s' "$out" | grep -q 'OpenGewerk'; then
+  echo 'FEHLER: die zweite Anwendung bekommt den Namen der ersten zu lesen'
+  exit 1
+fi
+check 'zweite Anwendung: ihr Name, ihre Adresse aus PROBEWERK_ADDRESS, die .env der ersten unberührt'
+
+# Its own version variable, and only that one, comes out of "latest".
+sed 's/^PROBEWERK_VERSION=.*/PROBEWERK_VERSION=latest/' "$probe/.env" > "$probe/.env.old"
+mv "$probe/.env.old" "$probe/.env"
+out=$(APPLICATION_DIRECTORY="$probe" sh "$work/setup.sh" < /dev/null 2>&1)
+grep -qx 'PROBEWERK_VERSION=' "$probe/.env"
+printf '%s' "$out" | grep -q 'PROBEWERK_VERSION stand auf latest'
+check 'zweite Anwendung: ihre Fassung aus latest geleert'
+
+# The address of the first application is no address for the second.
+rm "$probe/.env"
+if out=$(OPENGEWERK_ADDRESS=http://127.0.0.1:23700 APPLICATION_DIRECTORY="$probe" sh "$work/setup.sh" < /dev/null 2>&1); then
+  echo 'FEHLER: die zweite Anwendung nahm die Adresse der ersten'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'oder PROBEWERK_ADDRESS setzen'
+check 'zweite Anwendung: OPENGEWERK_ADDRESS gilt nicht für sie'
+
+# A prefix that is no beginning of a variable, and a folder without names.
+printf "APPLICATION_NAME='Probewerk'\nAPPLICATION_PREFIX='probewerk'\n" > "$probe/application.env"
+if out=$(PROBEWERK_ADDRESS=http://127.0.0.1:23900 APPLICATION_DIRECTORY="$probe" sh "$work/setup.sh" < /dev/null 2>&1); then
+  echo 'FEHLER: ein Präfix aus Kleinbuchstaben lief durch'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'kein Präfix für Variablen'
+rm "$probe/application.env"
+if out=$(APPLICATION_DIRECTORY="$probe" sh "$work/setup.sh" < /dev/null 2>&1); then
+  echo 'FEHLER: ohne application.env lief das Skript durch'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'fehlt application.env'
+check 'zweite Anwendung: falsches Präfix und fehlende Namen abgelehnt'
 
 echo 'alles geprüft'

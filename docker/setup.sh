@@ -10,8 +10,14 @@
 # that.
 #
 # The one value it cannot make is the address the instance is reached at. It
-# asks for it when somebody is at the terminal, takes it from
-# OPENGEWERK_ADDRESS when nobody is, and stops with a sentence otherwise.
+# asks for it when somebody is at the terminal, takes it from the variable
+# <prefix>_ADDRESS when nobody is, and stops with a sentence otherwise.
+#
+# What the application is called and how its variables begin come from
+# application.env beside the .env (opengewerk-haustechnik#14), with the
+# application.env in this folder OPENGEWERK_ADDRESS. The script is the
+# foundation's; another application runs it against its own folder by naming
+# it in APPLICATION_DIRECTORY.
 #
 # No secret ever reaches the terminal or a log. Only the names of the values
 # that were made are printed; the values are in the .env and nowhere else,
@@ -19,19 +25,34 @@
 
 set -eu
 
-here=$(cd "$(dirname "$0")" && pwd)
+here=${APPLICATION_DIRECTORY:-$(cd "$(dirname "$0")" && pwd)}
 env_file="$here/.env"
 template="$here/.env.example"
-example_address='https://opengewerk.example.de'
+
+if [ ! -f "$here/application.env" ]; then
+  printf 'In %s fehlt application.env mit den Namen der Anwendung.\n' "$here" >&2
+  exit 1
+fi
+
+# shellcheck source=application.env
+. "$here/application.env"
 
 say() {
-  printf 'OpenGewerk: %s\n' "$*"
+  printf '%s: %s\n' "$APPLICATION_NAME" "$*"
 }
 
 fail() {
-  printf 'OpenGewerk: %s\n' "$*" >&2
+  printf '%s: %s\n' "$APPLICATION_NAME" "$*" >&2
   exit 1
 }
+
+# The prefix goes into the names of variables that are read with eval below,
+# so it is held to what a name of a variable may be and nothing more.
+case "$APPLICATION_PREFIX" in
+  '' | [!A-Z]* | *[!A-Z0-9_]*)
+    fail "APPLICATION_PREFIX in application.env ist kein Präfix für Variablen: nur Großbuchstaben, Ziffern und Unterstriche."
+    ;;
+esac
 
 # 32 random bytes as hex. Hex and not base64: the passwords end up inside
 # connection strings, where a "/" or "@" splits the address.
@@ -91,7 +112,11 @@ replace_env() {
   chmod 600 "$env_file"
 }
 
-[ -f "$template" ] || fail "Die Vorlage $template fehlt. Das Skript gehört in den Ordner docker des Repositorys."
+[ -f "$template" ] || fail "Die Vorlage $template fehlt. Sie gehört neben application.env in den Ordner docker der Anwendung."
+
+# The address the template carries until the real one is given, read there
+# rather than written here a second time.
+example_address=$(sed -n 's/^TRUSTED_ORIGINS=//p' "$template" | head -n 1)
 
 umask 077
 
@@ -132,12 +157,14 @@ fi
 # "latest" was the value of OPENGEWERK_VERSION in the template until #155 and
 # never named a version. Kept, it would make a release kit build, and a kit
 # has no source to build from; empty runs what the kit or the checkout brings.
-if grep -q '^OPENGEWERK_VERSION=latest[[:space:]]*$' "$env_file"; then
+version_variable="${APPLICATION_PREFIX}_VERSION"
+
+if grep -q "^${version_variable}=latest[[:space:]]*\$" "$env_file"; then
   draft=$(mktemp "$here/.env.XXXXXX")
   trap 'rm -f "$draft"' EXIT
-  sed 's/^OPENGEWERK_VERSION=latest[[:space:]]*$/OPENGEWERK_VERSION=/' "$env_file" > "$draft"
+  sed "s/^${version_variable}=latest[[:space:]]*\$/${version_variable}=/" "$env_file" > "$draft"
   replace_env "$draft"
-  say 'OPENGEWERK_VERSION stand auf latest, der früheren Vorgabe, und ist jetzt leer: ein Paket läuft damit in seiner Fassung, ein Checkout baut aus dem Quelltext.'
+  say "$version_variable stand auf latest, der früheren Vorgabe, und ist jetzt leer: ein Paket läuft damit in seiner Fassung, ein Checkout baut aus dem Quelltext."
 fi
 
 # Every placeholder becomes a secret of its own. The loop reads from a file
@@ -192,26 +219,32 @@ else
 fi
 
 if [ -n "$without_push" ]; then
-  say 'Ohne openssl ließ sich kein Schlüssel für Push-Nachrichten erzeugen. VAPID_PRIVATE_KEY bleibt leer, und OpenGewerk läuft ohne Push; den Befehl für einen Schlüssel nennt docker/.env.example.'
+  say "Ohne openssl ließ sich kein Schlüssel für Push-Nachrichten erzeugen. VAPID_PRIVATE_KEY bleibt leer, und $APPLICATION_NAME läuft ohne Push; den Befehl für einen Schlüssel nennt docker/.env.example."
 fi
 
 # The address, the one value nothing here can make up.
 address=$(grep '^TRUSTED_ORIGINS=' "$env_file" | head -n 1 | cut -d= -f2-)
 
 if [ -z "$address" ] || [ "$address" = "$example_address" ]; then
-  port=$(grep '^OPENGEWERK_PORT=' "$env_file" | head -n 1 | cut -d= -f2-)
-  port=${port:-23700}
-  wanted=${OPENGEWERK_ADDRESS:-}
+  # The port from the .env, else the default Docker Compose falls back to.
+  port=$(grep "^${APPLICATION_PREFIX}_PORT=" "$env_file" | head -n 1 | cut -d= -f2-)
+
+  if [ -z "$port" ]; then
+    port=$(sed -n "s/.*\${${APPLICATION_PREFIX}_PORT:-\([0-9]*\)}.*/\1/p" "$here/compose.yaml" 2>/dev/null | head -n 1)
+  fi
+
+  address_variable="${APPLICATION_PREFIX}_ADDRESS"
+  eval "wanted=\${${address_variable}:-}"
 
   if [ -z "$wanted" ] && [ -t 0 ]; then
-    printf 'OpenGewerk: Unter welcher Adresse wird OpenGewerk im Browser geöffnet?\n'
-    printf '  Etwa https://opengewerk.meinbetrieb.de. Leer lassen für http://localhost:%s: ' "$port"
+    printf '%s: Unter welcher Adresse wird %s im Browser geöffnet?\n' "$APPLICATION_NAME" "$APPLICATION_NAME"
+    printf '  Etwa %s. Leer lassen für http://localhost%s: ' "$APPLICATION_EXAMPLE_ADDRESS" "${port:+:$port}"
     read -r wanted || wanted=''
-    wanted=${wanted:-http://localhost:$port}
+    wanted=${wanted:-http://localhost${port:+:$port}}
   fi
 
   if [ -z "$wanted" ]; then
-    fail "In docker/.env fehlt die Adresse, unter der OpenGewerk erreichbar ist (TRUSTED_ORIGINS). Das Skript einmal im Terminal starten, dann fragt es danach, oder OPENGEWERK_ADDRESS setzen."
+    fail "In docker/.env fehlt die Adresse, unter der $APPLICATION_NAME erreichbar ist (TRUSTED_ORIGINS). Das Skript einmal im Terminal starten, dann fragt es danach, oder $address_variable setzen."
   fi
 
   # An origin and nothing more: a path or a trailing slash never matches what
@@ -220,7 +253,7 @@ if [ -z "$address" ] || [ "$address" = "$example_address" ]; then
 
   case "$wanted" in
     http://*/* | https://*/*)
-      fail "\"$wanted\" hat einen Pfad. Gebraucht wird nur die Adresse, etwa https://opengewerk.meinbetrieb.de."
+      fail "\"$wanted\" hat einen Pfad. Gebraucht wird nur die Adresse, etwa $APPLICATION_EXAMPLE_ADDRESS."
       ;;
     http://?* | https://?*) ;;
     *)

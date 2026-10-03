@@ -34,6 +34,9 @@ set -eu
 : "${STORAGE_PATH:=/var/lib/opengewerk/storage}"
 : "${BACKUP_PATH:=/var/lib/opengewerk/backups}"
 
+# The names of the archives, in one place for backup, restore and verify.
+. "$(dirname "$0")/names.sh"
+
 wanted="${1:-latest}"
 
 if [ -z "${PGPASSWORD:-}" ]; then
@@ -44,7 +47,7 @@ fi
 
 # --- Find the archive ------------------------------------------------------
 if [ "$wanted" = "latest" ]; then
-	archive=$(find "$BACKUP_PATH" -maxdepth 1 -name 'opengewerk-*.tar.gz*' | sort | tail -n 1)
+	archive=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | tail -n 1)
 
 	if [ -z "$archive" ]; then
 		echo "Unter $BACKUP_PATH liegt keine Sicherung." >&2
@@ -176,7 +179,7 @@ chown -R "$storage_owner" "$STORAGE_PATH"
 
 # --- Check 2: is every file still the file its name claims? ----------------
 # ADR 0007 asks for a sample. This checks all of them, because it costs
-# seconds on the amount of data a trades business keeps and a sample answers
+# seconds on the amount of data an instance keeps and a sample answers
 # "probably" where this answers "yes".
 echo "  Dateispeicher wird gegen die Hashes geprüft."
 
