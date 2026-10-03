@@ -187,7 +187,7 @@ async function anInvitation(over: { revoked?: boolean } = {}): Promise<string> {
   await admin.query(
     `insert into invitations (id, tenant_id, email, name, roles, token_hash, invited_by, expires_at, revoked_at)
      values ($1, $2, 'gast@example.de', 'Gerda Gast', '{member}', $3, 'lena', now() + interval '7 days', $4)`,
-    [id, north.id, `nicht-mehr-gueltig-${id}`, over.revoked ? new Date() : null],
+    [id, north.id, `unused-token-${id}`, over.revoked ? new Date() : null],
   )
 
   return id
