@@ -14,7 +14,7 @@ import {
   startMailWorker as startFoundationWorker,
 } from '@opengewerk/platform-server'
 
-import { dueDeadlines, dueTasks, notify, signedReports } from '../notifications/notify.js'
+import { occasions } from '../notifications/occasions.js'
 import type { AttachmentSource } from './attachments.js'
 import { outbox, type OutboxRow } from './outbox.js'
 import { mailServersOfBusinesses } from './server-settings.js'
@@ -73,11 +73,10 @@ async function attachmentsOf(job: MailJob, row: OutboxRow): Promise<readonly Mai
 }
 
 /**
- * The job of the foundation (ADR 0010) with the causes of this application:
- * a task due this morning, a report signed on site that is to go out, and a
- * deadline that has come. Written in the order the notifications raise them,
- * before what waits in the outbox is sent, so that something due in this
- * minute goes out in the same pass.
+ * The job of the foundation (ADR 0010) over the occasions of this
+ * application: a task due this morning, a report signed on site that is to go
+ * out, and a deadline that has come, written before what waits in the outbox
+ * is sent, so that something due in this minute goes out in the same pass.
  */
 function bound(job: MailJob): FoundationMailJob<OutboxRow> {
   return {
@@ -86,25 +85,10 @@ function bound(job: MailJob): FoundationMailJob<OutboxRow> {
     outbox,
     connect: job.connect,
     key: job.key,
-    raise: async (tenantId, now) => {
-      const raised = [
-        ...(await dueTasks(job.database, tenantId, now)),
-        ...(await signedReports(job.database, tenantId, now)),
-        ...(await dueDeadlines(job.database, tenantId, now, job.deadlineKinds)),
-      ]
-      let written = 0
-
-      for (const notification of raised) {
-        const rows = await notify(job.database, tenantId, notification, {
-          origin: job.origin,
-          ...(job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {}),
-        })
-
-        written += rows.length
-      }
-
-      return written
-    },
+    raise: occasions.raiseMail(job.database, {
+      origin: job.origin,
+      ...(job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {}),
+    }),
     attachments: (row) => attachmentsOf(job, row),
     ...(job.invitationLinks ? { invitationLinks: job.invitationLinks } : {}),
     sentences,

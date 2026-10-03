@@ -172,6 +172,10 @@ export * from './mail/settings.controller.js'
 export * from './mail/transport.js'
 export * from './mail/worker.js'
 
+// The mechanism that turns an occasion of an application into a message for
+// mail and for push: one table of occasions, and both jobs run over it.
+export * from './notifications/occasions.js'
+
 // Web Push: encryption and signature without a library, the rule for the
 // address of a push service, the devices and the outbox of a tenant, the job
 // that sends and the routes of push. Which entries and occasions there are,

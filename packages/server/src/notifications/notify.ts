@@ -231,7 +231,7 @@ export async function dueTasks(
   tenantId: TenantId,
   now: Date,
   channel: Channel = 'mail',
-): Promise<readonly Notification[]> {
+): Promise<readonly Extract<Notification, { readonly kind: 'task_due' }>[]> {
   const { day, minute } = berlinClock(now)
 
   if (minute < dueTasksFromMinute) {
@@ -298,7 +298,7 @@ export async function dueDeadlines(
   now: Date,
   registry: DeadlineRegistry = deadlineKinds,
   channel: Channel = 'mail',
-): Promise<readonly Notification[]> {
+): Promise<readonly Extract<Notification, { readonly kind: 'deadline_due' }>[]> {
   const reminding = registry.kinds.filter((kind) => kind.actions.includes('reminder'))
 
   if (reminding.length === 0) {
@@ -334,42 +334,6 @@ export async function dueDeadlines(
     deadlineId: row.id,
     dueOn: row.dueOn as IsoDate,
   }))
-}
-
-/**
- * Turns a notification into a message in the outbox, or into nothing.
- *
- * The only place a message is written. It decides who is told and what the
- * message says, from the state of things right now: a task that was done in
- * the meantime, moved to another day or handed to somebody who has since been
- * shut out of the business gets no message. Sending is not done here; the
- * row waits for the job in `mail/worker.ts`, and that is what lets a message
- * survive a mail server that is gone for an afternoon.
- *
- * Written once per cause. Asked twice for the same one, the second time finds
- * the row and writes nothing, so whoever raises notifications does not have to
- * remember what it raised.
- *
- * Returns the identifiers of the messages it wrote.
- */
-export async function notify(
-  database: Database,
-  tenantId: TenantId,
-  notification: Notification,
-  context: NotifyContext,
-): Promise<readonly string[]> {
-  switch (notification.kind) {
-    case 'task_due':
-      return taskDue(database, tenantId, notification, context)
-    case 'document':
-      return documentToCustomer(database, tenantId, notification)
-    case 'report_signed':
-      return signedReport(database, tenantId, notification)
-    case 'invitation':
-      return invitationByMail(database, tenantId, notification)
-    case 'deadline_due':
-      return deadlineDue(database, tenantId, notification, context)
-  }
 }
 
 /**
@@ -423,7 +387,7 @@ export async function taskStillDue(
   return task
 }
 
-async function taskDue(
+export async function taskDue(
   database: Database,
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'task_due' }>,
@@ -494,7 +458,7 @@ async function taskDue(
  * is the business as its letterhead stands today, because the message is
  * written today; the document inside is the one it was.
  */
-async function documentToCustomer(
+export async function documentToCustomer(
   database: Database,
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'document' }>,
@@ -590,7 +554,7 @@ export async function signedReports(
   database: Database,
   tenantId: TenantId,
   now: Date,
-): Promise<readonly Notification[]> {
+): Promise<readonly Extract<Notification, { readonly kind: 'report_signed' }>[]> {
   const since = new Date(now.getTime() - signaturesWithinHours * 3_600_000)
 
   return database.forTenant({ tenantId, reason: 'notification' }, async (tx) => {
@@ -611,7 +575,7 @@ export async function signedReports(
         ),
       )
 
-    const wanted: Notification[] = []
+    const wanted: Extract<Notification, { readonly kind: 'report_signed' }>[] = []
 
     for (const row of rows) {
       const setting = await parameterAt(
@@ -637,7 +601,7 @@ export async function signedReports(
  * read the way its PDF is, from what it froze if it was issued in the
  * meantime, otherwise from its rows, which the signature has fixed.
  */
-async function signedReport(
+export async function signedReport(
   database: Database,
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'report_signed' }>,
@@ -714,7 +678,7 @@ async function signedReport(
  * written, it gets none. The message holds a placeholder where the link goes;
  * the job makes the token when it sends, see `mail/invitation-link.ts`.
  */
-async function invitationByMail(
+export async function invitationByMail(
   database: Database,
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'invitation' }>,
@@ -840,7 +804,7 @@ export async function deadlineStillDue(
  * blocked in the meantime is passed over for the next one, in the end the
  * owner. Sent by nobody, like a task that fell due.
  */
-async function deadlineDue(
+export async function deadlineDue(
   database: Database,
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'deadline_due' }>,

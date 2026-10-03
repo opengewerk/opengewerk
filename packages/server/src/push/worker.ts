@@ -10,8 +10,7 @@ import {
   type VapidKeys,
 } from '@opengewerk/platform-server'
 
-import { dueDeadlines, dueTasks } from '../notifications/notify.js'
-import { notifyPush } from '../notifications/push.js'
+import { occasions } from '../notifications/occasions.js'
 import { pushes } from './outbox.js'
 
 export type { PushReport } from '@opengewerk/platform-server'
@@ -33,9 +32,9 @@ const sentences = {
 }
 
 /**
- * The job of the foundation (ADR 0010) with the occasions of this
- * application: a task due this morning and a deadline that reminds, raised by
- * the same functions as for mail and decided the same way.
+ * The job of the foundation (ADR 0010) over the occasions of this
+ * application: a task due this morning and a deadline that reminds, raised and
+ * decided the same way as for mail.
  */
 function bound(job: PushJob): FoundationPushJob<'office' | 'site', 'task_due' | 'deadline_due'> {
   return {
@@ -43,24 +42,10 @@ function bound(job: PushJob): FoundationPushJob<'office' | 'site', 'task_due' | 
     vapid: job.vapid,
     post: job.post,
     store: pushes,
-    raise: async (tenantId, now) => {
-      const raised = [
-        ...(await dueTasks(job.database, tenantId, now, 'push')),
-        ...(await dueDeadlines(job.database, tenantId, now, job.deadlineKinds, 'push')),
-      ]
-      let written = 0
-
-      for (const notification of raised) {
-        const ids = await notifyPush(job.database, tenantId, notification, {
-          now,
-          ...(job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {}),
-        })
-
-        written += ids.length
-      }
-
-      return written
-    },
+    raise: occasions.raisePush(
+      job.database,
+      job.deadlineKinds ? { deadlineKinds: job.deadlineKinds } : {},
+    ),
     sentences,
     ...(job.now ? { now: job.now } : {}),
   }

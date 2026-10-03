@@ -9,7 +9,7 @@ import { desc, inArray } from 'drizzle-orm'
 
 import { mailOutbox } from '../database/schema/index.js'
 import { requireMailServer } from '../mail/server-settings.js'
-import { notify } from './notify.js'
+import { notify } from './occasions.js'
 
 /**
  * The message each of these invitations went out with, where one did.

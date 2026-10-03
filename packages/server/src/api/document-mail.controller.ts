@@ -38,7 +38,7 @@ import {
   messagesAbout,
   stillWaiting,
 } from '../notifications/document-mail.js'
-import { notify } from '../notifications/notify.js'
+import { notify } from '../notifications/occasions.js'
 import type { DocumentAttachment } from '../notifications/templates.js'
 import { RequiresPermission } from './authorization.js'
 import { dutyOf } from './e-invoice.controller.js'
