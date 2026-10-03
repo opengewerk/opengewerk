@@ -574,6 +574,12 @@ jobs:
             ${{ runner.temp }}/preview.log
           if-no-files-found: ignore
 
+  # The three runs on a whole stack call their steps from docker/test-stack.sh,
+  # which belongs to the foundation and stands there with the reason for each
+  # step (opengewerk-haustechnik#14). What they need to know about this
+  # application beyond its compose.yaml and application.env is in
+  # docker/test-material.sh. Another application runs the same steps against
+  # its own folder; the names of the steps here are the ones its runs take.
   operations:
     name: Betrieb über Docker Compose
     runs-on: ubuntu-latest
@@ -600,260 +606,29 @@ jobs:
         working-directory: docker
         run: sh test-backup.sh
 
-      # Every service with a limit on its logs (#211), those in a profile
-      # included, so that a service added later cannot go without one: nothing
-      # else would show it before a full disk does. Read from the
-      # configuration Compose builds out of the file, anchors resolved, and
-      # without interpolation, which needs no .env and puts no value from one
-      # into the output.
       - name: Jeder Dienst begrenzt seine Protokolle
         working-directory: docker
-        run: |
-          set -eu
-          docker compose --profile '*' config --no-interpolate --format json > "$RUNNER_TEMP/compose.json"
-          python3 - "$RUNNER_TEMP/compose.json" <<'PYTHON'
-          import json
-          import sys
+        run: sh test-stack.sh log-limits
 
-          services = json.load(open(sys.argv[1], encoding="utf-8"))["services"]
-          unbounded = []
-
-          for name, service in sorted(services.items()):
-              logging = service.get("logging") or {}
-              limit = (logging.get("options") or {}).get("max-size")
-              print(f"{name}: {logging.get('driver', 'kein Treiber')}, je Datei {limit or 'unbegrenzt'}")
-              if not logging.get("driver") or not limit:
-                  unbounded.append(name)
-
-          if not services or unbounded:
-              print("Ohne Grenze für die Protokolle: " + (", ".join(unbounded) or "kein Dienst gefunden"))
-              sys.exit(1)
-          PYTHON
-
-      # The way an installation starts, with the one command the README
-      # names: setup.sh makes every secret and prints only their names, then
-      # the migration runs on its own, then the containers start. What it
-      # prints is kept for the step on the setup code below.
       - name: Stapel starten
         working-directory: docker
-        run: |
-          set -eo pipefail
-          OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh start.sh | tee "$RUNNER_TEMP/start.log"
+        run: sh test-stack.sh start
 
       - name: Die .env ist ausgefüllt und nur für ihren Besitzer lesbar
         working-directory: docker
-        run: |
-          set -eu
-          # An if and not "! grep": set -e leaves out a negated command, so
-          # that line could never fail the step. A value and not the word,
-          # which the comment at the top of the template names too.
-          if grep -q "^[A-Z_]*=bitte-ersetzen" .env; then
-            echo "In der .env steht noch ein Platzhalter." >&2
-            exit 1
-          fi
-          test "$(stat -c %a .env)" = "600"
+        run: sh test-stack.sh env-file
 
       - name: Instanz antwortet mit migrierter Datenbank
         working-directory: docker
-        run: |
-          set -eu
+        run: sh test-stack.sh answers
 
-          # No version: a checkout runs "source", which names none (#259).
-          health=$(curl --silent --fail http://127.0.0.1:23700/health)
-          echo "Health: ${health}"
-          test "${health}" = '{"status":"bereit","database":true,"version":null}'
-
-          # Without authentication every route touching data has to refuse. An
-          # instance answering 200 here would be handing out tenant data.
-          status=$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:23700/customers)
-          echo "GET /customers: ${status}"
-          test "${status}" = "401"
-
-          # The migration created the tables, and every one of them is under
-          # row level security. One without it would be readable across
-          # tenants, and this is the run where that has to show up.
-          unprotected=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from pg_tables where schemaname = 'public' and not rowsecurity")
-          echo "Tabellen ohne Row-Level Security: ${unprotected}"
-          test "${unprotected}" = "0"
-
-      # The first run of a fresh instance asks for the setup code from the
-      # .env (#215), so that the instance is set up by whoever can get at the
-      # server and not by whoever reaches the address first. start.sh says
-      # where the code is; the code itself is in no output and in no log. The
-      # script reads it from the .env and sends it from there, and prints
-      # statuses only, so that it does not reach this log either.
       - name: Die Ersteinrichtung verlangt den Einrichtungscode
         working-directory: docker
-        run: |
-          python3 - "$RUNNER_TEMP/start.log" <<'PYTHON'
-          import json
-          import subprocess
-          import sys
-          import urllib.error
-          import urllib.request
+        run: sh test-stack.sh first-run
 
-          BASE = "http://127.0.0.1:23700"
-
-
-          def ask(method, path, body=None):
-              data = None if body is None else json.dumps(body).encode("utf-8")
-              request = urllib.request.Request(BASE + path, data=data, method=method)
-              if data is not None:
-                  request.add_header("Content-Type", "application/json")
-              try:
-                  with urllib.request.urlopen(request, timeout=30) as answer:
-                      return answer.status, json.loads(answer.read() or b"null")
-              except urllib.error.HTTPError as error:
-                  return error.code, json.loads(error.read() or b"null")
-
-
-          code = ""
-          with open(".env", encoding="utf-8") as handle:
-              for line in handle:
-                  if line.startswith("SETUP_CODE="):
-                      code = line.split("=", 1)[1].strip()
-
-          if len(code) != 9:
-              print("In der .env steht kein Einrichtungscode der Form XXXX-XXXX.")
-              sys.exit(1)
-
-          problems = []
-          started = open(sys.argv[1], encoding="utf-8").read()
-          logs = subprocess.run(
-              ["docker", "compose", "logs", "--no-color", "app"],
-              capture_output=True, text=True, check=True,
-          ).stdout
-
-          if "docker/.env unter SETUP_CODE" not in started:
-              problems.append("start.sh sagt nicht, wo der Einrichtungscode steht")
-
-          for name, text in (("der Ausgabe von start.sh", started), ("dem Protokoll der Anwendung", logs)):
-              if code in text or code.replace("-", "") in text:
-                  problems.append(f"Der Einrichtungscode steht in {name}")
-
-          account = {
-              "company": "Elektro Probe GmbH",
-              "name": "Olga Probe",
-              "email": "chefin@probe.example.de",
-              "password": "ein-ordentlich-langes-passwort",
-          }
-          wrong = "BBBB-BBBB" if code == "AAAA-AAAA" else "AAAA-AAAA"
-          steps = [
-              ("leer vorher", "GET", None, 200, {"needed": True}),
-              ("ohne Code", "POST", account, 400, None),
-              ("falscher Code", "POST", {**account, "setupCode": wrong}, 403, "Der Einrichtungscode stimmt nicht."),
-              ("noch leer", "GET", None, 200, {"needed": True}),
-              # Typed the way somebody might: small letters, a space for the dash.
-              ("richtiger Code", "POST", {**account, "setupCode": code.lower().replace("-", " ")}, 201, None),
-              ("eingerichtet", "GET", None, 200, {"needed": False}),
-          ]
-
-          for label, method, body, expected, said in steps:
-              status, answer = ask(method, "/setup", body)
-              print(f"{label}: {method} /setup {status}")
-              if status != expected:
-                  problems.append(f"{label}: {status} statt {expected}")
-              elif isinstance(said, dict) and answer != said:
-                  problems.append(f"{label}: {answer} statt {said}")
-              elif isinstance(said, str) and (answer or {}).get("message") != said:
-                  problems.append(f"{label}: die Ablehnung sagt nicht: {said}")
-
-          if problems:
-              print("Nicht in Ordnung:")
-              for line in problems:
-                  print(f"  {line}")
-              sys.exit(1)
-
-          print("Die Ersteinrichtung nimmt nur den Einrichtungscode aus der .env an.")
-          PYTHON
-
-      # The icons of both entries, fetched the way a browser and an installed
-      # app fetch them (#213): what the two shells link and what their
-      # manifests name, read from them rather than listed here, so that a new
-      # icon is checked the day it is linked. The image of 0.1.0 had none of
-      # these files, and the fallback answered each one with a shell and a
-      # 200, so nothing failed. A file that is not there is a 404 since then,
-      # and that is asked too.
       - name: Favicon und Icons beider Einstiege kommen als Bild
-        run: |
-          python3 - <<'PYTHON'
-          import json
-          import sys
-          import urllib.error
-          import urllib.request
-          from html.parser import HTMLParser
-          from urllib.parse import urljoin
-
-          BASE = "http://127.0.0.1:23700/"
-
-
-          def fetch(url):
-              try:
-                  with urllib.request.urlopen(url, timeout=10) as answer:
-                      return answer.status, answer.headers.get("Content-Type", ""), answer.read()
-              except urllib.error.HTTPError as error:
-                  return error.code, error.headers.get("Content-Type", ""), error.read()
-
-
-          class Links(HTMLParser):
-              def __init__(self):
-                  super().__init__()
-                  self.icons = []
-                  self.manifests = []
-
-              def handle_starttag(self, tag, attrs):
-                  attributes = dict(attrs)
-                  rel = (attributes.get("rel") or "").split()
-                  if tag != "link" or not attributes.get("href"):
-                      return
-                  if "icon" in rel or "apple-touch-icon" in rel:
-                      self.icons.append(attributes["href"])
-                  if "manifest" in rel:
-                      self.manifests.append(attributes["href"])
-
-
-          problems = []
-          icons = {urljoin(BASE, "/brand/favicon.ico")}
-
-          for shell in ("/", "/m/"):
-              page = urljoin(BASE, shell)
-              status, kind, body = fetch(page)
-              links = Links()
-              links.feed(body.decode("utf-8"))
-              icons.update(urljoin(page, href) for href in links.icons)
-              if status != 200 or len(links.manifests) != 1:
-                  problems.append(f"{shell}: {status} {kind}, {len(links.manifests)} Manifeste statt einem")
-
-              for href in links.manifests:
-                  manifest = urljoin(page, href)
-                  status, kind, body = fetch(manifest)
-                  try:
-                      named = [icon["src"] for icon in json.loads(body)["icons"]]
-                  except (ValueError, KeyError, TypeError):
-                      named = []
-                  print(f"{manifest}: {status} {kind}, {len(named)} Icons")
-                  if status != 200 or not named:
-                      problems.append(f"{manifest}: {status} {kind}, kein Manifest mit Icons")
-                  icons.update(urljoin(manifest, src) for src in named)
-
-          for icon in sorted(icons):
-              status, kind, body = fetch(icon)
-              print(f"{icon}: {status} {kind}, {len(body)} Bytes")
-              if status != 200 or not kind.startswith("image/"):
-                  problems.append(f"{icon}: {status} {kind}")
-
-          missing = urljoin(BASE, "/brand/gibt-es-nicht.png")
-          status, kind, body = fetch(missing)
-          print(f"{missing}: {status} {kind}")
-          if status != 404:
-              problems.append(f"{missing}: {status} {kind} statt 404")
-
-          if problems:
-              print("Nicht in Ordnung:")
-              for line in problems:
-                  print(f"  {line}")
-              sys.exit(1)
-          PYTHON
+        working-directory: docker
+        run: sh test-stack.sh icons
 
       # The renderer belongs to the default stack: COMPOSE_PROFILES in the
       # template switches it on. Asked from inside the application container,
@@ -913,202 +688,52 @@ jobs:
       - name: Zugangsdaten und Schlüsselpaar erzeugen
         working-directory: docker
         run: |
-          set -eu
-          OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh setup.sh
-
-          # The archive is encrypted in this run too, because an untested
-          # encryption path is the one that fails on the evening it is needed.
-          # The key pair comes from the command the README names, through the
-          # image the installation has (#155).
-          docker compose --profile backup build backup
-          docker compose --profile backup run --rm --no-deps -T backup age-keygen > key.txt 2> keygen.txt
-          grep -o 'AGE-SECRET-KEY-[A-Z0-9]*' key.txt > identity.txt
-          recipient=$(grep -o 'age1[a-z0-9]*' keygen.txt | head -1)
-          sed -i "s|^BACKUP_AGE_RECIPIENT=.*|BACKUP_AGE_RECIPIENT=${recipient}|" .env
-          echo "Verschlüsselt an: ${recipient}"
+          sh test-stack.sh setup
+          sh test-stack.sh keys
 
       - name: Stapel starten
         working-directory: docker
-        run: docker compose up -d --build --wait --wait-timeout 300
+        run: sh test-stack.sh up
 
       - name: Eine leere Instanz sichert der Zeitplan nicht
         working-directory: docker
-        run: |
-          set -eu
-          # The schedule checks at once when it starts, and the instance has no
-          # business yet. After a lost disk that is exactly the state it comes
-          # back in, and a backup of it would become the newest archive, the
-          # one a restore takes, so the schedule skips it (#130).
-          for attempt in $(seq 1 30); do
-            if docker compose logs backup-schedule | grep -q 'übersprungen'; then
-              archives=$(docker compose exec -T backup-schedule sh -c 'find /var/lib/opengewerk/backups -maxdepth 1 -name "opengewerk-*" | wc -l' | tr -d '\r ')
-              echo "Übersprungen, Archive: ${archives}"
-              test "${archives}" = "0"
-              exit 0
-            fi
-            sleep 2
-          done
-          docker compose logs backup-schedule
-          echo "Der Zeitplan hat die leere Instanz nicht übersprungen." >&2
-          exit 1
+        run: sh test-stack.sh skips-empty
 
       - name: Daten und Dateien anlegen
         working-directory: docker
-        run: |
-          set -eu
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
-            insert into tenants (id, name) values
-              ('01931c00-0000-7000-8000-000000000001', 'Elektro Nord GmbH'),
-              ('01931c00-0000-7000-8000-000000000002', 'Elektro Sued GmbH');
-            insert into customers (tenant_id, kind, name) values
-              ('01931c00-0000-7000-8000-000000000001', 'business', 'Bauherr Nord'),
-              ('01931c00-0000-7000-8000-000000000002', 'business', 'Bauherr Sued');"
-
-          # Content addressed, so a file name has to be the hash of what is in
-          # it. The restore checks exactly that, and a file written any other
-          # way would make it fail for the wrong reason.
-          docker compose exec -T app sh -c 'for text in eins zwei drei; do hash=$(printf "%s" "$text" | sha256sum | cut -d" " -f1); printf "%s" "$text" > "/var/lib/opengewerk/storage/$hash"; done'
-
-          # A file in the records (#77), where the store keeps it: two levels
-          # of directories from the first four characters of its hash. With
-          # the rows that make it one: the file of the business, an attachment
-          # at its customer, and the version that names the file.
-          hash=$(printf "%s" "Aufmass Keller" | sha256sum | cut -d" " -f1)
-          dir="/var/lib/opengewerk/storage/$(echo "$hash" | cut -c1-2)/$(echo "$hash" | cut -c3-4)"
-          docker compose exec -T app sh -c "mkdir -p '$dir' && printf '%s' 'Aufmass Keller' > '$dir/$hash'"
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
-            insert into files (tenant_id, sha256, size_bytes, media_type) values
-              ('01931c00-0000-7000-8000-000000000001', '$hash', 14, 'text/plain');
-            insert into attachments (id, tenant_id, customer_id, title)
-              select '01931c00-0000-7000-8000-0000000000a1', tenant_id, id, 'Aufmass'
-                from customers where name = 'Bauherr Nord';
-            insert into attachment_versions (tenant_id, attachment_id, sha256, file_name, media_type, size_bytes) values
-              ('01931c00-0000-7000-8000-000000000001', '01931c00-0000-7000-8000-0000000000a1', '$hash', 'Aufmass.txt', 'text/plain', 14);"
+        run: sh test-stack.sh seed
 
       - name: Stand vor der Sicherung festhalten
         working-directory: docker
-        run: |
-          set -eu
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from attachment_versions; select count(*) from audit_entries" > /tmp/before.txt
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-before.txt
-          cat /tmp/before.txt /tmp/chains-before.txt
+        run: sh test-stack.sh snapshot
 
       - name: Sicherung erstellen
         working-directory: docker
-        run: docker compose --profile backup run --rm backup backup.sh
+        run: sh test-stack.sh backup
 
       - name: Die Anwendung liest, wann die Sicherung fertig wurde
         working-directory: docker
-        run: |
-          set -eu
-          # The record every backup leaves, read from inside the application,
-          # which sees it read-only and nothing else of the backups (#130).
-          docker compose exec -T app cat /var/lib/opengewerk/backup-status/last.json | tee /tmp/last.json
-          grep -q '"finishedEpoch"' /tmp/last.json
-          grep -q '"encrypted": true' /tmp/last.json
+        run: sh test-stack.sh record
 
       - name: Datenplatte verlieren, Sicherung behalten
         working-directory: docker
-        run: |
-          set -eu
-          docker compose --profile backup down --remove-orphans
-          docker volume rm opengewerk_database opengewerk_files
-          docker compose up -d --wait --wait-timeout 300
-
-          empty=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants")
-          echo "Mandanten in der leeren Instanz: ${empty}"
-          test "${empty}" = "0"
+        run: sh test-stack.sh lose-data
 
       - name: Sicherung zurückspielen
         working-directory: docker
-        run: |
-          docker compose --profile backup run --rm -v "$(pwd)/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest
+        run: sh test-stack.sh restore
 
       - name: Derselbe Datenbestand, dieselbe Audit-Kette
         working-directory: docker
-        run: |
-          set -eu
-          docker compose restart app
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants; select count(*) from customers; select count(*) from attachment_versions; select count(*) from audit_entries" > /tmp/after.txt
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-after.txt
-
-          diff /tmp/before.txt /tmp/after.txt
-          # The heads matter most. They were written outside the database, so a
-          # log rewritten to fit itself still fails this comparison.
-          diff /tmp/chains-before.txt /tmp/chains-after.txt
-          echo "Datenbestand und Audit-Ketten stimmen mit der Sicherung überein."
-
-          files=$(docker compose exec -T app sh -c "find /var/lib/opengewerk/storage -type f | wc -l" | tr -d "\r")
-          echo "Dateien im Speicher: ${files}"
-          test "${files}" = "4"
-
-          # The file the records name is back where the store looks for it,
-          # with the contents its name promises (#77).
-          hash=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select sha256 from attachment_versions" | tr -d "\r")
-          path="/var/lib/opengewerk/storage/$(echo "$hash" | cut -c1-2)/$(echo "$hash" | cut -c3-4)/$hash"
-          found=$(docker compose exec -T app sha256sum "$path" | cut -d" " -f1)
-          test "${found}" = "${hash}"
-          echo "Die abgelegte Datei ist mit ihrer Fassung zurück."
-
-          # The instance has to come back up on the restored data, not merely
-          # hold it. That is the part of the issue saying "and the application
-          # starts with the same data".
-          for attempt in 1 2 3 4 5 6 7 8 9 10; do
-            if curl --silent --fail http://127.0.0.1:23700/health | grep -q bereit; then
-              echo "Die Anwendung läuft auf dem zurückgespielten Bestand."
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "Die Anwendung wird nach dem Rückspielen nicht gesund." >&2
-          exit 1
+        run: sh test-stack.sh compare
 
       - name: Eine beschädigte Sicherung wird abgelehnt
         working-directory: docker
-        run: |
-          set -eu
-          # Overwrite a stretch in the middle of the archive. The manifest has
-          # to catch that before anything touches the database, because a
-          # restore that half succeeds is worse than one that never starts.
-          docker compose --profile backup run --rm --entrypoint sh backup -c 'file=$(find /var/lib/opengewerk/backups -name "opengewerk-*" | sort | tail -n 1); size=$(stat -c %s "$file"); dd if=/dev/urandom of="$file" bs=1 seek=$((size / 2)) count=64 conv=notrunc 2>/dev/null; echo "Byte in $file verändert."'
-
-          if docker compose --profile backup run --rm -v "$(pwd)/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest; then
-            echo "Die beschädigte Sicherung wurde angenommen. Das ist der Fehler." >&2
-            exit 1
-          fi
-
-          echo "Die beschädigte Sicherung wurde abgelehnt."
+        run: sh test-stack.sh corrupt
 
       - name: Die nächtliche Sicherung holt nach
         working-directory: docker
-        run: |
-          set -eu
-          # A backup is due whenever the last one finished before the most
-          # recent 02:30, which is what a machine that was off at night looks
-          # like. Taking the record away makes the instance look like that, and
-          # the schedule has to catch up on its own, now that the restored
-          # instance has businesses in it (#130).
-          count() {
-            docker compose exec -T backup-schedule sh -c 'find /var/lib/opengewerk/backups -maxdepth 1 -name "opengewerk-*" | wc -l' | tr -d '\r '
-          }
-          before=$(count)
-          docker compose exec -T backup-schedule rm -f /var/lib/opengewerk/backup-status/last.json
-          docker compose restart backup-schedule
-
-          for attempt in $(seq 1 60); do
-            if docker compose exec -T backup-schedule test -f /var/lib/opengewerk/backup-status/last.json; then
-              after=$(count)
-              echo "Archive vorher: ${before}, nachher: ${after}"
-              test "${after}" -gt "${before}"
-              docker compose logs backup-schedule | tail -n 15
-              exit 0
-            fi
-            sleep 2
-          done
-
-          docker compose logs backup-schedule
-          echo "Der Zeitplan hat die fehlende Sicherung nicht nachgeholt." >&2
-          exit 1
+        run: sh test-stack.sh catch-up
 
       - name: Protokolle bei einem Fehlschlag
         if: failure()
@@ -1130,213 +755,31 @@ jobs:
 
       - name: Zugangsdaten für den Lauf erzeugen
         working-directory: docker
-        run: OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh setup.sh
+        run: sh test-stack.sh setup
 
       - name: Auf den Stand einer älteren Fassung zurücknehmen
-        run: |
-          python3 - <<'PYTHON'
-          import json
-          from pathlib import Path
-
-          # An older release differs from this one in the one respect that
-          # matters for an update: it brought fewer migrations. Four leaves the
-          # two that follow as the ones that have to carry data over.
-          #
-          # What this run cannot show is older application code. The path
-          # under test is the database one, so on the older state only the
-          # database runs: the application of this checkout reads tables of
-          # later migrations when it starts (the settings of the instance,
-          # #188), which an older release never did.
-          keep = 4
-
-          folder = Path("packages/server/migrations")
-          journal = json.loads((folder / "meta" / "_journal.json").read_text(encoding="utf-8"))
-          entries = sorted(journal["entries"], key=lambda entry: entry["idx"])
-
-          for entry in entries[keep:]:
-              (folder / (entry["tag"] + ".sql")).unlink()
-
-          journal["entries"] = entries[:keep]
-          (folder / "meta" / "_journal.json").write_text(
-              json.dumps(journal, indent=2), encoding="utf-8"
-          )
-          Path("/tmp/migrations-old.txt").write_text(str(keep), encoding="utf-8")
-          print("Zurückgenommen auf " + entries[keep - 1]["tag"] + ".")
-          PYTHON
+        working-directory: docker
+        run: sh test-stack.sh rewind
 
       - name: Datenbank auf dem Stand der älteren Fassung
         working-directory: docker
-        run: |
-          set -eu
-          docker compose up -d --wait --wait-timeout 300 postgres
-          docker compose run --rm --build migrate
+        run: sh test-stack.sh older
 
       - name: Daten anlegen und den Stand festhalten
         working-directory: docker
-        run: |
-          set -eu
-          applied=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          echo "Migrationen auf dem alten Stand: ${applied}"
-          test "${applied}" = "$(cat /tmp/migrations-old.txt)"
-
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --quiet --command "
-            insert into tenants (id, name) values
-              ('01931c00-0000-7000-8000-000000000001', 'Elektro Nord GmbH');
-            insert into customers (tenant_id, kind, name) values
-              ('01931c00-0000-7000-8000-000000000001', 'business', 'Bauherr Nord'),
-              ('01931c00-0000-7000-8000-000000000001', 'private', 'Familie Weber');"
-
-          # The head of the audit chain is the strict half of "data intact". It
-          # was computed over entries the update passes over, so whatever the
-          # update does to the log turns up here.
-          docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select tenant_id || ':' || next_sequence || ':' || coalesce(head_hash, '-') from audit_chains order by tenant_id" > /tmp/chains-before.txt
-          cat /tmp/chains-before.txt
+        run: sh test-stack.sh seed-older
 
       - name: Aktualisieren, erst migrieren und dann tauschen
-        run: |
-          set -eu
-          git checkout -- packages/server/migrations
-          cd docker
-
-          # In this order and not through "up" alone. "up" recreates every
-          # container whose image changed before it starts any of them, so the
-          # serving container would already be gone when the migration runs.
-          # The next step is the one that depends on it.
-          docker compose run --rm --build migrate
-          docker compose up -d --build --wait --wait-timeout 300
+        working-directory: docker
+        run: sh test-stack.sh update
 
       - name: Derselbe Bestand auf dem neuen Stand
         working-directory: docker
-        run: |
-          set -eu
-          applied=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          # From the journal rather than a fixed number: the next migration
-          # would otherwise break this job with nothing actually wrong.
-          python3 -c "import json, pathlib; pathlib.Path('/tmp/migrations-new.txt').write_text(str(len(json.loads(pathlib.Path('../packages/server/migrations/meta/_journal.json').read_text(encoding='utf-8'))['entries'])), encoding='utf-8')"
-          echo "Migrationen nach dem Update: ${applied}, erwartet: $(cat /tmp/migrations-new.txt)"
-          test "${applied}" = "$(cat /tmp/migrations-new.txt)"
-
-          customers=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
-          test "${customers}" = "2"
-
-          # One of the columns the update hangs on every table that holds
-          # records. On rows that were there already it has to carry its
-          # default, otherwise the migration would have stopped.
-          missing=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers where change_sequence is null")
-          test "${missing}" = "0"
-
-          # The update adds to the log: migration 0063 gives every business its
-          # roles as rows, and those are changes like any other. So the head
-          # of a chain moves. What is held instead is the part that cannot be
-          # repaired afterwards: the head from before is still the entry it
-          # was, and nothing came in after it but those roles, written by the
-          # migration. That the chain goes on unbroken is the check below.
-          #
-          # Read through a descriptor of its own: a command in the loop would
-          # otherwise take the rest of the file as its input.
-          while IFS=: read -r tenant next head <&3; do
-            kept=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from audit_entries where tenant_id = '${tenant}' and sequence = ${next} - 1 and hash = '${head}'")
-            echo "Der Kopf der Kette von ${tenant} vor dem Update steht noch: ${kept}"
-            test "${kept}" = "1"
-
-            added=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select coalesce(string_agg(distinct table_name || ' (' || coalesce(reason, 'ohne Grund') || ')', ', '), 'nichts') from audit_entries where tenant_id = '${tenant}' and sequence >= ${next}")
-            echo "Seitdem dazugekommen: ${added}"
-            test "${added}" = "tenant_roles (migration)"
-          done 3< /tmp/chains-before.txt
-
-          broken=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t, verify_audit_chain(t.id) v where v.broken_at is not null")
-          echo "Mandanten mit gebrochener Kette: ${broken}"
-          test "${broken}" = "0"
-
-          # The business that was there before the update has its roles, one
-          # that leads it among them, so that whoever worked in it still may.
-          # Which rights each role holds is the test of the migration; counted
-          # here they would break this job with the next right, with nothing
-          # actually wrong.
-          leaderless=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from tenants t where not exists (select 1 from tenant_roles r where r.tenant_id = t.id and r.leads)")
-          echo "Betriebe ohne eine Rolle, die führt: ${leaderless}"
-          test "${leaderless}" = "0"
-
-          health=$(curl --silent --fail http://127.0.0.1:23700/health)
-          echo "Health nach dem Update: ${health}"
-          test "${health}" = '{"status":"bereit","database":true,"version":null}'
+        run: sh test-stack.sh after-update
 
       - name: Eine fehlerhafte Migration bricht ab, die Instanz läuft weiter
-        run: |
-          set -eu
-          python3 - <<'PYTHON'
-          import json
-          from pathlib import Path
-
-          # The mistake this really guards against: a column added without a
-          # default. It passes every development database that has no rows in
-          # it yet and fails on the first installation that has.
-          folder = Path("packages/server/migrations")
-          journal = json.loads((folder / "meta" / "_journal.json").read_text(encoding="utf-8"))
-          entries = sorted(journal["entries"], key=lambda entry: entry["idx"])
-          last = entries[-1]
-          tag = "9999_kreditrahmen"
-
-          (folder / (tag + ".sql")).write_text(
-              'CREATE TABLE "warranties" ("id" uuid PRIMARY KEY);--> statement-breakpoint\n'
-              'ALTER TABLE "customers" ADD COLUMN "credit_limit" numeric(12, 2) NOT NULL;\n',
-              encoding="utf-8",
-          )
-          entries.append(
-              {
-                  "idx": last["idx"] + 1,
-                  "version": last["version"],
-                  "when": last["when"] + 1000,
-                  "tag": tag,
-                  "breakpoints": True,
-              }
-          )
-          journal["entries"] = entries
-          (folder / "meta" / "_journal.json").write_text(
-              json.dumps(journal, indent=2), encoding="utf-8"
-          )
-          print("Fehlerhafte Migration " + tag + " eingesetzt.")
-          PYTHON
-
-          cd docker
-          before=$(docker compose ps --quiet app)
-
-          if docker compose run --rm --build migrate > /tmp/migrate.log 2>&1; then
-            echo "Die fehlerhafte Migration ging durch. Das ist der Fehler." >&2
-            cat /tmp/migrate.log
-            exit 1
-          fi
-
-          # The reason has to stand in the output. Somebody reads this in the
-          # moment the update stops, and "Migration fehlgeschlagen" without the
-          # statement sends them looking through six files.
-          tail -n 25 /tmp/migrate.log
-          grep -q "Die Migration ist fehlgeschlagen" /tmp/migrate.log
-          grep -q "credit_limit" /tmp/migrate.log
-
-          # The instance was never touched: same container, still answering.
-          # That is what makes a failed update a postponed one rather than an
-          # outage, and it holds only because the migration ran before the
-          # swap.
-          after=$(docker compose ps --quiet app)
-          test "${before}" = "${after}"
-
-          health=$(curl --silent --fail http://127.0.0.1:23700/health)
-          echo "Health nach dem Fehlschlag: ${health}"
-          test "${health}" = '{"status":"bereit","database":true,"version":null}'
-
-          # And the database stands where it stood. The first statement of the
-          # failed migration went through without complaint, its table is gone
-          # all the same, because both were inside one transaction.
-          applied=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from drizzle.__drizzle_migrations")
-          test "${applied}" = "$(cat /tmp/migrations-new.txt)"
-
-          leftovers=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'warranties'")
-          echo "Reste der abgebrochenen Migration: ${leftovers}"
-          test "${leftovers}" = "0"
-
-          customers=$(docker compose exec -T postgres psql --username postgres --dbname opengewerk --tuples-only --no-align --command "select count(*) from customers")
-          test "${customers}" = "2"
+        working-directory: docker
+        run: sh test-stack.sh broken-update
 
       - name: Protokolle bei einem Fehlschlag
         if: failure()

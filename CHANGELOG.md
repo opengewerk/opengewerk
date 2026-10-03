@@ -647,6 +647,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   braucht keinen Handgriff. Archive heißen weiter `opengewerk-<zeit>.tar.gz`, nach der
   Datenbank, und Aufbewahren, Prüfen und Rückspielen sehen nur noch Archive genau dieser Form:
   liegen die einer zweiten Anwendung im selben Ziel, löscht die Aufbewahrung sie nicht mehr mit.
+- Die CI-Läufe "Betrieb über Docker Compose", "Sicherung und Rückspielen" und "Update einer
+  laufenden Instanz" sind Bausteine des Fundaments (ADR 0010, `opengewerk-haustechnik#14`,
+  dritter Teil), damit eine weitere Anwendung ihren Stapel genauso prüft. Ihre Schritte stehen
+  in `docker/test-stack.sh`, was nur diese Anwendung weiß, in `docker/test-material.sh`; die
+  Namen der Läufe und Schritte bleiben, wie sie waren. Nach dem Rückspielen vergleicht der Lauf
+  jetzt jede Datei des Speichers mit ihrem Hash, statt sie nur zu zählen, und die Migration, die
+  scheitern soll, legt ihre Probetabelle unter einem Namen an, den keine Anwendung je braucht.
+  Die zwei Mandanten der Sicherung bekommen ihre Rollen jetzt vor der Sicherung, wie jeder
+  Mandant der Anwendung: bisher ergänzte die Anwendung sie erst bei ihrem nächsten Start, und
+  der Vergleich nach dem Rückspielen bestand nur, weil er schneller zählte, als sie startete.
 
 ### Behoben
 
