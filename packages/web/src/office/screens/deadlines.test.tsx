@@ -1,4 +1,8 @@
+import 'fake-indexeddb/auto'
+
 import type { RoleKey } from '@opengewerk/domain'
+import { openLocalStore, SyncProvider } from '@opengewerk/platform-web/sync'
+import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
@@ -7,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InRouter } from '../../app/in-router.js'
 import type { DeadlineKindView, DeadlineView } from '../../session/deadlines.js'
+import { SyncClient } from '../../sync/client.js'
 import { DeadlineSettingsScreen } from './deadline-settings.js'
 import { DeadlineListScreen } from './deadlines.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
@@ -25,17 +30,24 @@ interface Call {
 
 let calls: Call[]
 let answers: Map<string, { status: number; body: unknown }>
+/** What the server does besides answering, by method and path. */
+let effects: Map<string, () => void>
+let records: TestServer
+let client: SyncClient
+let stores = 0
 
 function serverSays(method: string, path: string, body: unknown, status = 200): void {
   answers.set(`${method} ${path}`, { status, body })
 }
 
 function inQueries(node: ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   return (
-    <QueryClientProvider client={client}>
-      <InRouter>{node}</InRouter>
+    <QueryClientProvider client={queries}>
+      <SyncProvider client={client}>
+        <InRouter>{node}</InRouter>
+      </SyncProvider>
     </QueryClientProvider>
   )
 }
@@ -89,9 +101,19 @@ function aDeadline(over: Partial<DeadlineView> = {}): DeadlineView {
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   calls = []
   answers = new Map()
+  effects = new Map()
+  records = new TestServer()
+  client = await SyncClient.start({
+    store: await openLocalStore(`deadlines${String((stores += 1))}`),
+    transport: records,
+    writer: records,
+    deviceId: 'office-computer',
+    entities: ['tasks'],
+    onSignedOut: () => {},
+  })
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-27T10:00:00Z') })
 
   serverSays('GET', '/deadlines?status=open', [])
@@ -113,6 +135,7 @@ beforeEach(() => {
     })
 
     const answer = answers.get(`${method} ${path}`) ?? { status: 200, body: {} }
+    effects.get(`${method} ${path}`)?.()
 
     return Promise.resolve(
       new Response(JSON.stringify(answer.body), {
@@ -124,6 +147,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  client.stop()
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
@@ -181,6 +205,29 @@ describe('the list "Fristen"', () => {
       expect(
         calls.some((call) => call.method === 'POST' && call.path === '/deadlines/d-1/done'),
       ).toBe(true)
+    })
+  })
+
+  it('brings the task a deadline closes onto the device as soon as the deadline is done', async () => {
+    signedInAs('office')
+    serverSays('GET', '/deadlines?status=open', [aDeadline({ taskId: 'task-1' })])
+    serverSays('POST', '/deadlines/d-1/done', aDeadline({ status: 'done', taskId: 'task-1' }))
+    records.put('tasks', { id: 'task-1', text: 'Angebot A-2026-0091 nachfassen', status: 'open' })
+    await client.synchronise()
+    // The server closes the task of the day along with the deadline; the
+    // task reaches a device only by sync.
+    effects.set('POST /deadlines/d-1/done', () => {
+      records.put('tasks', { ...records.row('tasks', 'task-1'), status: 'done', version: 2 })
+    })
+    render(inQueries(<DeadlineListScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Fristen' })
+    expect(client.get('tasks', 'task-1')?.['status']).toBe('open')
+    const user = userEvent.setup()
+    await user.click(within(table).getByRole('button', { name: 'Erledigt' }))
+
+    await waitFor(() => {
+      expect(client.get('tasks', 'task-1')?.['status']).toBe('done')
     })
   })
 
