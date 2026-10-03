@@ -60,7 +60,10 @@ export async function auditVocabularyGaps(
     }
   }
 
-  for (const table of Object.keys(language.tables)) {
+  // Words for a table of the application that nobody watches are left over.
+  // Those of the foundation are not: an application makes some of its tables
+  // only once it needs them, the settings of a tenant for one.
+  for (const table of Object.keys(vocabulary.tables)) {
     if (!tenantLog.has(table)) {
       gaps.push(`table ${table} has words and is not watched`)
     }

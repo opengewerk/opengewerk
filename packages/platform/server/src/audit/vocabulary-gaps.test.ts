@@ -1,9 +1,10 @@
-import type { AuditVocabulary } from '@opengewerk/platform-domain'
+import { type AuditVocabulary, foundationAuditTables } from '@opengewerk/platform-domain'
 import { probeAuditVocabulary } from '@opengewerk/platform-domain/testing'
 import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { type ProbeFoundation, probeFoundation } from '../authentication/probe-application.js'
+import { tenantParametersGuard } from '../migration/guards.js'
 import { probeSyncMade } from '../sync/probe-sync.js'
 import { auditVocabularyGaps } from './vocabulary-gaps.js'
 
@@ -108,6 +109,17 @@ describe('the vocabulary of the change log against the database', () => {
     )
   })
 
+  it('names only tables of the foundation that a database of the foundation has', async () => {
+    const { rows } = await admin.query<{ table_name: string }>(
+      `select distinct event_object_table as table_name
+         from information_schema.triggers
+        where trigger_schema = 'public' and trigger_name = 'audit_changes'`,
+    )
+    const watched = rows.map((row) => row.table_name)
+
+    expect(foundationAuditTables.filter((table) => !watched.includes(table))).toEqual([])
+  })
+
   it('finds words of its own for a reason the foundation words', async () => {
     const gaps = await auditVocabularyGaps(
       admin,
@@ -115,5 +127,41 @@ describe('the vocabulary of the change log against the database', () => {
     )
 
     expect(gaps).toEqual(["reason session.start is the foundation's, which words it"])
+  })
+})
+
+describe('an application that has not made every table of the foundation yet', () => {
+  /** The probe application before it has settings of its own: no `tenant_parameters`. */
+  const withoutSettings = {
+    schema: Object.fromEntries(
+      Object.entries(probeSyncMade.schema).filter(
+        ([name]) => !['ruleUnit', 'tenantParameterKey', 'tenantParameters'].includes(name),
+      ),
+    ),
+    guards: probeSyncMade.guards.filter((guard) => guard !== tenantParametersGuard),
+  }
+
+  let early: ProbeFoundation
+  let earlyAdmin: Pool
+
+  beforeAll(async () => {
+    early = await probeFoundation(withoutSettings)
+    earlyAdmin = await early.kit.connect()
+    await early.empty(earlyAdmin)
+  }, 60_000)
+
+  afterAll(async () => {
+    await earlyAdmin.end()
+    early.remove()
+  })
+
+  it('fits, although the foundation names the settings of a tenant', async () => {
+    const { rows } = await earlyAdmin.query<{ found: boolean }>(
+      `select exists (select 1 from information_schema.tables
+                       where table_schema = 'public' and table_name = 'tenant_parameters') as found`,
+    )
+
+    expect(rows[0]?.found).toBe(false)
+    expect(await auditVocabularyGaps(earlyAdmin, probeAuditVocabulary)).toEqual([])
   })
 })
