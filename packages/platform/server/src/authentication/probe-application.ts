@@ -49,6 +49,7 @@ import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { probeMade } from '../database/probe-schema.js'
 import { allowApplicationLogin, type TestDatabase } from '../database/test-database.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
+import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
 import type { AccessRules } from './access.js'
 import {
@@ -577,9 +578,14 @@ export interface ProbeFoundation {
  * the probe application makes with its own lists. The migration is put
  * together once, so that a test that starts from an empty instance every time
  * does not pay for it every time.
+ *
+ * A test that needs tables of the probe application beyond those hands them
+ * in as `made`, the way an application lists what it makes.
  */
-export async function probeFoundation(): Promise<ProbeFoundation> {
-  const { up } = await foundationMigration(undefined, probeMade)
+export async function probeFoundation(
+  made: MadeByTheApplication = probeMade,
+): Promise<ProbeFoundation> {
+  const { up } = await foundationMigration(undefined, made)
   const folder = probeMigrations([{ tag: '0000_foundation', sql: up, when: 1 }])
   const kit = probeDatabase(folder)
 
