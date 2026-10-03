@@ -247,16 +247,23 @@ function compare(
  * `table.name`. Listed so that it is a decision: a trigger the list does not
  * name is either missing from the blocks or should not be there.
  *
- * Columns and constraints are for the one table made to carry some of an
- * application's own, the outbox of its mail, whose messages point at the
- * records they are about. Named on another table they are allowed just the
+ * Columns and constraints are for the tables made to carry some of an
+ * application's own, the outbox of its mail and its deadlines, which point at
+ * the records they are about. Named on another table they are allowed just the
  * same, and stand in the list for everybody to see.
+ *
+ * Policies are for a table whose rows an application keeps further apart than
+ * the tenant, its areas for one. Only a restrictive policy may be named: it can
+ * only take rows away from what the policies of the blocks give, so it narrows
+ * what the foundation promises and never widens it. A permissive one opens
+ * what the others close, and stays a deviation whether it is named or not.
  */
 export interface OwnAdditions {
   readonly triggers?: readonly string[]
   readonly indexes?: readonly string[]
   readonly columns?: readonly string[]
   readonly constraints?: readonly string[]
+  readonly policies?: readonly string[]
 }
 
 /** The names of one table in such a list, and the entries that name nothing. */
@@ -289,11 +296,12 @@ function ownOf(
  *
  * What an application has of its own is not looked at: its tables, its types
  * and its functions. A table of the foundation is held in both directions. A
- * policy or a right more than the blocks gave is a deviation, because each of
- * them changes what the foundation promises about that table. So is a column,
- * a key, a trigger or an index more, unless the application names it as its
- * own: that is how a trigger the blocks forgot is told from one the
- * application added.
+ * right more than the blocks gave is a deviation, because it changes what the
+ * foundation promises about that table. So is a column, a key, a trigger or an
+ * index more, unless the application names it as its own: that is how a
+ * trigger the blocks forgot is told from one the application added. A policy
+ * more is a deviation unless the application names it as its own and it is
+ * restrictive, because only a restrictive policy leaves the promise as it was.
  */
 export function catalogueDeviations(
   expected: Catalogue,
@@ -322,16 +330,29 @@ export function catalogueDeviations(
     const indexes = ownOf(own.indexes, name, found.indexes, 'index')
     const columns = ownOf(own.columns, name, found.columns, 'column')
     const constraints = ownOf(own.constraints, name, found.constraints, 'constraint')
+    const policies = ownOf(own.policies, name, found.policies, 'policy')
+    // A policy of the blocks is held as it is whatever the list names. Of the
+    // others, only a restrictive one is the application's to name; anything
+    // else it names is told apart from what nobody named.
+    const permissive = policies.own
+      .filter((policy) => !(policy in table.policies) && policy in found.policies)
+      .filter((policy) => !(found.policies[policy] ?? '').startsWith('RESTRICTIVE '))
+      .map(
+        (policy) =>
+          `table ${name}, policy ${policy}: named as the application's own and permissive; only a restrictive policy may be, because a permissive one opens what the others close`,
+      )
 
     deviations.push(
       ...compare(`table ${name},`, whole, wholeFound, 'exactly'),
       ...compare(`table ${name}, column`, table.columns, found.columns, columns),
       ...compare(`table ${name}, constraint`, table.constraints, found.constraints, constraints),
-      ...compare(`table ${name}, policy`, table.policies, found.policies, 'exactly'),
+      ...compare(`table ${name}, policy`, table.policies, found.policies, policies),
       ...compare(`table ${name}, index`, table.indexes, found.indexes, indexes),
       ...compare(`table ${name}, trigger`, table.triggers, found.triggers, triggers),
       ...columns.stale,
       ...constraints.stale,
+      ...policies.stale,
+      ...permissive,
       ...indexes.stale,
       ...triggers.stale,
     )
@@ -342,6 +363,7 @@ export function catalogueDeviations(
     ...(own.indexes ?? []),
     ...(own.columns ?? []),
     ...(own.constraints ?? []),
+    ...(own.policies ?? []),
   ]) {
     const table = entry.slice(0, entry.indexOf('.'))
 
