@@ -7,6 +7,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Eine Anwendung schreibt mit, wenn jemand eingeladen wird, beitritt oder andere Rollen bekommt
+  (`opengewerk-haustechnik#84`). Das Fundament kennt eine Zugehörigkeit nur mit ihren Rollen. Die
+  Haustechnik führt daneben, in welchen Bereichen jemand arbeitet, und das soll schon mit der
+  Einladung feststehen und mit einem Rollenwechsel in einem Zug gespeichert werden, statt in
+  einem zweiten Schritt, der scheitern kann. Die Regeln einer Anwendung nehmen dafür `additions`
+  (`MembershipAdditions`): das Fundament ruft sie in der Transaktion, die die Einladung oder die
+  Zugehörigkeit schreibt, nach seiner eigenen Zeile, mit dem, was der Rumpf unter `additions`
+  nannte, und lehnt die Anwendung ab, wird nichts geschrieben. Beim Einlösen eines Einmal-Links
+  läuft der Aufruf im Mandanten und als die Person, die beitritt. `invite` und `setRoles` der
+  Oberfläche reichen dasselbe durch. Für diese Anwendung ändert sich nichts, sie führt nichts
+  neben einer Zugehörigkeit.
+
 ### Geändert
 
 - Die Navigation des Büros nimmt einen Eintrag vor den Gruppen und Einträge der Anwendung am Fuß,

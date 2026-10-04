@@ -5,7 +5,7 @@ import {
   GoneException,
   UnauthorizedException,
 } from '@nestjs/common'
-import type { TenantId } from '@opengewerk/platform-domain'
+import type { InvitationId, TenantId } from '@opengewerk/platform-domain'
 import { eq, sql } from 'drizzle-orm'
 
 import { isUniqueViolation } from '../api/database-errors.js'
@@ -149,7 +149,7 @@ export async function offerOf(database: Database, token: string): Promise<Invita
  * so that the right person can still use it.
  */
 export async function redeemInvitation(
-  access: Pick<AccessRules, 'sentences'>,
+  access: Pick<AccessRules, 'sentences' | 'additions'>,
   authentication: Authentication,
   database: Database,
   token: string,
@@ -233,6 +233,14 @@ export async function redeemInvitation(
         }
 
         await grantMembership(tx, { tenantId, userId: account.userId, roles })
+        // What the invitation said about the person beside their roles holds
+        // from here on, written with the membership or not at all.
+        await access.additions?.joined(tx, {
+          tenantId,
+          userId: account.userId,
+          invitationId: row.invitation_id as InvitationId,
+          roles,
+        })
 
         return account.created
       },

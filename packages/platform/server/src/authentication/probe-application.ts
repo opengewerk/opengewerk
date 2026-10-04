@@ -51,7 +51,7 @@ import { allowApplicationLogin, type TestDatabase } from '../database/test-datab
 import type { InstanceSettingsCache } from '../instance/settings.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
-import type { AccessRules } from './access.js'
+import type { AccessRules, MembershipAdditions } from './access.js'
 import {
   type Authentication,
   type AuthenticationOptions,
@@ -294,6 +294,8 @@ export interface ProbeModuleOptions {
   readonly instanceSettings?: InstanceSettingsCache | null
   /** The version the health check names; left out, it names none, as in a checkout. */
   readonly version?: string | null
+  /** What this application keeps beside a membership. Left out, nothing. */
+  readonly additions?: MembershipAdditions
 }
 
 @Module({})
@@ -305,7 +307,7 @@ export class ProbeModule {
     options: ProbeModuleOptions = {},
   ): DynamicModule {
     const signingIn = authenticationParts({
-      access: probeAccess,
+      access: options.additions ? { ...probeAccess, additions: options.additions } : probeAccess,
       authentication: options.authentication,
       setupCode: options.setupCode,
       invitationMailing: options.invitationMailing,
@@ -360,6 +362,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly invitationMailing?: InvitationMailing | null
   /** The settings of the instance in memory, where a test keeps them there. */
   readonly instanceSettings?: InstanceSettingsCache | null
+  /** What this application keeps beside a membership. Left out, nothing. */
+  readonly additions?: MembershipAdditions
 }
 
 /** A running instance of the probe application, and what a test asks of it. */
@@ -407,6 +411,7 @@ export async function probeInstance(
     closed = false,
     invitationMailing = null,
     instanceSettings = null,
+    additions,
     ...authenticationOptions
   } = options
   const database = Database.connect(databaseUrl)
@@ -433,6 +438,7 @@ export async function probeInstance(
               trustedOrigins: [probeOrigin],
               invitationMailing,
               instanceSettings,
+              ...(additions ? { additions } : {}),
             },
       ),
     ],

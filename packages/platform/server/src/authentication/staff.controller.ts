@@ -80,6 +80,9 @@ export class StaffController {
    * Whatever sends the message makes one at that moment and knows the address
    * its link starts with. Whoever invited sees the message under the
    * invitation, not the link.
+   *
+   * `additions` carries what the application keeps beside a membership, and
+   * only the application reads it (`MembershipAdditions`).
    */
   @Post()
   @RequiresPermission(accessRights.write)
@@ -87,7 +90,7 @@ export class StaffController {
     @CurrentIdentity() identity: RequestIdentity,
     @Body() body: unknown,
   ): Promise<IssuedInvitation> {
-    const values = pick(body, ['email', 'name', 'roles', 'send'] as const)
+    const values = pick(body, ['email', 'name', 'roles', 'send', 'additions'] as const)
 
     requireFields(values, ['email', 'name'] as const)
 
@@ -117,6 +120,7 @@ export class StaffController {
         email: text(values.email, 'email'),
         name: text(values.name, 'name'),
         roles: rolesFrom(values.roles),
+        additions: values.additions,
       },
       { byMail },
     )
@@ -171,6 +175,9 @@ export class StaffController {
    * has the role and would meet the wall at their next request. What this
    * route does is refuse to take away the last one who leads the tenant,
    * which is the half no screen can be trusted with.
+   *
+   * `additions` carries what the application keeps beside a membership, as
+   * with an invitation, and is written with the roles or not at all.
    */
   @Patch(':userId')
   @RequiresPermission(accessRights.write)
@@ -179,13 +186,14 @@ export class StaffController {
     @Param('userId') userId: string,
     @Body() body: unknown,
   ): Promise<{ userId: string; roles: readonly string[] }> {
-    const values = pick(body, ['roles'] as const)
+    const values = pick(body, ['roles', 'additions'] as const)
     const roles = await changeRoles(
       this.access,
       this.database,
       identity,
       userId,
       rolesFrom(values.roles),
+      values.additions,
     )
 
     return { userId, roles }
