@@ -70,8 +70,10 @@ async function invite(
   return token
 }
 
-function redeem(token: string, body: Record<string, unknown> = { password }) {
-  return http().post(`/invitation/${token}`).set('origin', origin).send(body)
+function redeem(token: string, body: Record<string, unknown> = { password }, cookies = '') {
+  const call = http().post(`/invitation/${token}`).set('origin', origin)
+
+  return (cookies === '' ? call : call.set('cookie', cookies)).send(body)
 }
 
 async function rolesIn(tenantId: TenantId, email: string): Promise<readonly string[] | undefined> {
@@ -244,8 +246,13 @@ describe('using a link', () => {
    * An address that already has an account keeps its password. The other way
    * round, a link made in one tenant would set a password on an account that
    * may belong to the tenant next door.
+   *
+   * And it joins only signed in as itself (opengewerk-haustechnik#31). The
+   * token is in the hands of whoever invited, when no mail was sent, and
+   * without this the lead of one tenant could put an account of the tenant
+   * next door into their own, with nothing done by the person it belongs to.
    */
-  it('leaves the password of an account that is already on the instance', async () => {
+  it('lets an account that is already on the instance join only signed in as itself, and leaves its password', async () => {
     await addStaffMember(instance.authentication, instance.database, {
       email: 'beide@example.de',
       name: 'Bodo Beide',
@@ -264,14 +271,33 @@ describe('using a link', () => {
       knownAccount: true,
     })
 
-    // No password is asked for, and one that is sent changes nothing.
-    const redeemed = await redeem(token, { password: 'ein-ganz-anderes-passwort' }).expect(201)
+    // The token alone is not enough, with or without a password.
+    const anonymous = await redeem(token, { password: 'ein-ganz-anderes-passwort' }).expect(401)
+
+    expect(anonymous.body.message).toBe(
+      'Für diese Adresse gibt es auf dieser Instanz schon ein Konto. Melden Sie sich damit an, ' +
+        'dann können Sie beitreten.',
+    )
+
+    // Nor is a session of somebody else: here the lead who made the link.
+    const lead = await instance.signIn('leitung@example.de', password)
+    const foreign = await redeem(token, {}, lead).expect(403)
+
+    expect(foreign.body.message).toBe(
+      'Diese Einladung gilt für ein anderes Konto als das, mit dem Sie angemeldet sind.',
+    )
+    expect(await rolesIn(south.id, 'beide@example.de')).toBeUndefined()
+    expect((await http().get(`/invitation/${token}`).expect(200)).body.state).toBe('open')
+
+    // Signed in as itself it joins, and a password sent along changes nothing.
+    const own = await instance.signIn('beide@example.de', password)
+    const redeemed = await redeem(token, { password: 'ein-ganz-anderes-passwort' }, own).expect(201)
 
     expect(redeemed.body).toMatchObject({ tenantId: south.id, created: false })
+    expect(await rolesIn(south.id, 'beide@example.de')).toEqual(['member'])
     expect(await instance.signIn('beide@example.de', 'ein-ganz-anderes-passwort')).toBe('')
 
-    const cookies = await instance.signIn('beide@example.de', password)
-    const choices = await http().get('/auth/tenants').set('cookie', cookies).expect(200)
+    const choices = await http().get('/auth/tenants').set('cookie', own).expect(200)
 
     expect((choices.body as { id: string }[]).map((row) => row.id).sort()).toEqual(
       [north.id, south.id].sort(),
@@ -321,13 +347,15 @@ describe('using a link', () => {
     })
 
     const token = await invite({ email: 'doppelt@example.de', name: 'Dora Doppelt' })
+    // The account joins signed in as itself, both times.
+    const own = await instance.signIn('doppelt@example.de', password)
     const holder = await admin.connect()
 
     try {
       await holder.query('begin')
       await holder.query(`select id from invitations where email = 'doppelt@example.de' for update`)
 
-      const both = Promise.all([redeem(token), redeem(token)])
+      const both = Promise.all([redeem(token, {}, own), redeem(token, {}, own)])
 
       await standingInLine(2)
       await holder.query('commit')

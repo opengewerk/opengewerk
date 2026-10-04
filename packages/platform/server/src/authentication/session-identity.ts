@@ -11,7 +11,7 @@ import { rolesHeld } from './roles.js'
 import { renewSession } from './session-lifetime.js'
 
 /** What a request has to carry for a session to be found in it. */
-interface RequestWithHeaders {
+export interface RequestWithHeaders {
   readonly headers?: Record<string, string | string[] | undefined>
 }
 
@@ -164,7 +164,7 @@ export class SessionIdentitySource<Right extends string = string> implements Ide
  * joining with a comma is what the HTTP specification says such a header
  * means.
  */
-function toHeaders(raw: RequestWithHeaders['headers']): Headers {
+export function toHeaders(raw: RequestWithHeaders['headers']): Headers {
   const headers = new Headers()
 
   for (const [name, value] of Object.entries(raw ?? {})) {

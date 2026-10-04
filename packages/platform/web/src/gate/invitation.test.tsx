@@ -207,36 +207,116 @@ describe('redeeming a link', () => {
     expect(screen.getByText(sentence)).toBeTruthy()
     expect(screen.queryByLabelText(/Passwort/)).toBeNull()
   })
+})
 
-  /**
-   * An address that already has an account keeps its password. Asking for a
-   * new one would either do nothing or change the password of an account this
-   * tenant has nothing to do with, and on a shared instance that account might
-   * belong to the tenant next door.
-   */
-  it('asks for no password when the address already has an account', async () => {
+/**
+ * An address that already has an account keeps its password, and joins signed
+ * in as that account and only so (opengewerk-haustechnik#31). Asking for a new
+ * password would either do nothing or change the password of an account this
+ * tenant has nothing to do with; taking the link alone would let whoever holds
+ * it, the lead who invited when no mail went out, put somebody else's account
+ * into their tenant.
+ */
+describe('a link for an address that already has an account', () => {
+  const lea = { id: 'konto-lea', email: 'lea@example.de', name: 'Lea Leitung' }
+
+  beforeEach(() => {
     serverSays(
       'GET',
       `/invitation/${token}`,
-      offer({ name: 'Lea Leitung', email: 'lea@example.de', knownAccount: true }),
+      offer({ name: lea.name, email: lea.email, knownAccount: true }),
     )
+  })
+
+  it('asks to sign in with that account first, with the address filled in, and joins only then', async () => {
+    render(inQueries(<InvitationScreen token={token} />))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Anmelden' })).toBeTruthy()
+    expect(screen.getByText('lea@example.de').parentElement?.textContent).toBe(
+      'Für lea@example.de gibt es auf dieser Instanz schon ein Konto. Melden Sie sich damit an, ' +
+        'dann können Sie Probewerk Nord beitreten.',
+    )
+    expect((screen.getByLabelText('E-Mail') as HTMLInputElement).value).toBe(lea.email)
+    expect(screen.queryByRole('button', { name: 'Mandant übernehmen' })).toBeNull()
+
+    const person = userEvent.setup()
+
+    await person.type(screen.getByLabelText('Passwort'), 'was-nur-lea-kennt')
+    // From the sign in on, the server knows who this is.
+    serverSays('GET', '/api/auth/get-session', { user: lea, session: {} })
+    await person.click(screen.getByRole('button', { name: 'Anmelden' }))
+
+    expect(asked('/api/auth/sign-in/email', 'POST')?.body).toEqual({
+      email: lea.email,
+      password: 'was-nur-lea-kennt',
+    })
+    expect(asked(`/invitation/${token}`, 'POST')).toBeUndefined()
+
+    // Then the step that joins, as the account itself, with no password.
+    expect((await screen.findByText(/Angemeldet als/)).textContent).toBe(
+      'Angemeldet als lea@example.de. Ihr Passwort bleibt, der Mandant kommt dazu.',
+    )
+    await person.click(await screen.findByRole('button', { name: 'Mandant übernehmen' }))
+
+    expect(asked(`/invitation/${token}`, 'POST')?.body).toEqual({})
+    expect(went).toBe('/')
+  })
+
+  it('goes through the second factor of an account that has one before it offers to join', async () => {
+    serverSays('POST', '/api/auth/sign-in/email', { twoFactorRedirect: true })
+
+    render(inQueries(<InvitationScreen token={token} />))
+
+    const person = userEvent.setup()
+
+    await person.type(await screen.findByLabelText('Passwort'), 'was-nur-lea-kennt')
+    await person.click(screen.getByRole('button', { name: 'Anmelden' }))
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Zweiter Faktor' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Mandant übernehmen' })).toBeNull()
+
+    serverSays('GET', '/api/auth/get-session', { user: lea, session: {} })
+    await person.type(screen.getByLabelText('Code aus der App'), '123456')
+    await person.click(screen.getByRole('button', { name: 'Weiter' }))
+
+    expect(asked('/api/auth/two-factor/verify-totp', 'POST')?.body).toEqual({ code: '123456' })
+    expect(await screen.findByRole('button', { name: 'Mandant übernehmen' })).toBeTruthy()
+    expect(asked(`/invitation/${token}`, 'POST')).toBeUndefined()
+  })
+
+  it('joins straight away for the account it is for when that one is signed in already', async () => {
+    serverSays('GET', '/api/auth/get-session', { user: lea, session: {} })
+
+    render(inQueries(<InvitationScreen token={token} />))
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Mandant übernehmen' }))
+
+    expect(asked(`/invitation/${token}`, 'POST')?.body).toEqual({})
+    // No sign in: the session is there, and the account keeps its password.
+    expect(asked('/api/auth/sign-in/email', 'POST')).toBeUndefined()
+    expect(went).toBe('/')
+  })
+
+  it('goes no further while somebody else is signed in, and says so', async () => {
+    serverSays('GET', '/api/auth/get-session', {
+      user: { id: 'konto-otto', email: 'otto@example.de', name: 'Otto Anders' },
+      session: {},
+    })
 
     render(inQueries(<InvitationScreen token={token} />))
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Beitreten zu Probewerk Nord' }),
     ).toBeTruthy()
-    // That there is an account, the foundation says. That the password stays
-    // and the tenant is added, the application.
-    expect(screen.getByText('lea@example.de').parentElement?.textContent).toBe(
-      'Für lea@example.de gibt es auf dieser Instanz schon ein Konto. Ihr Passwort bleibt, der Mandant kommt dazu.',
+    expect(screen.getByText('otto@example.de').parentElement?.textContent).toBe(
+      'Diese Einladung gilt für lea@example.de, angemeldet sind Sie als otto@example.de. ' +
+        'Melden Sie sich in der Anwendung ab und öffnen Sie den Link danach noch einmal.',
     )
-    expect(screen.queryByLabelText(/Passwort/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Mandant übernehmen' })).toBeNull()
+    expect(calls.filter((call) => call.method === 'POST')).toEqual([])
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Mandant übernehmen' }))
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Zur Anwendung' }))
 
-    expect(asked(`/invitation/${token}`, 'POST')).toBeDefined()
-    // No sign in: the account has a password and this screen does not know it.
-    expect(asked('/api/auth/sign-in/email', 'POST')).toBeUndefined()
+    expect(went).toBe('/')
   })
 })

@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, GoneException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  GoneException,
+  UnauthorizedException,
+} from '@nestjs/common'
 import type { TenantId } from '@opengewerk/platform-domain'
 import { eq, sql } from 'drizzle-orm'
 
@@ -14,12 +20,20 @@ import { createAccount, grantMembership } from './staff.js'
  * The other end of a one time link: somebody who has been handed a token and
  * nothing else.
  *
- * Everything here happens without a session, which is what makes it different
- * from the rest of the user administration and is the whole reason it is a
- * file of its own. The caller cannot be identified, has no tenant, and
+ * Nearly everything here happens without a session, which is what makes it
+ * different from the rest of the user administration and is the whole reason
+ * it is a file of its own. The caller cannot be identified, has no tenant, and
  * therefore sees nothing at all under the ordinary policies. What stands in
  * for an identity is the token, and the one thing it proves is that whoever
  * holds it was given it by somebody in one particular tenant.
+ *
+ * That is enough to make an account, and not enough to hand one over. An
+ * address that already has an account on the instance joins only signed in as
+ * that account (opengewerk-haustechnik#31). Until then the token alone let
+ * anybody holding it, and that is the lead who invited when no mail was sent,
+ * put somebody else's account into their tenant without that person doing
+ * anything; on an instance with several tenants that is a way into an account
+ * that is not the tenant's to give.
  *
  * The lookup goes through `invitation_for`, which runs as the owner of the
  * tables. It has to: `tenant_isolation` on `invitations` compares a row
@@ -42,13 +56,15 @@ export interface InvitationOffer {
    * Whether this address already has an account on the instance.
    *
    * It decides what the screen asks for. A new account needs a password; one
-   * that exists keeps the one it has, and asking for a new one would either
-   * silently do nothing or quietly change somebody's password from a link
-   * somebody else made, which is worse.
+   * that exists keeps the one it has and joins signed in as itself, and asking
+   * for a new password would either silently do nothing or quietly change
+   * somebody's password from a link somebody else made, which is worse.
    *
-   * Handing this out to somebody holding a token is not a way of asking the
-   * instance who has an account: the token names one address, the one that
-   * was typed into the invitation, and whoever typed it already knew it.
+   * Handing this out to somebody holding a token says one thing about the
+   * instance: whether the one address typed into the invitation has an account
+   * here. Whoever typed it knew the address already; that it has an account is
+   * the part they learn, and the screen cannot ask the right question without
+   * it. Since the account joins only signed in, that is all the token gives.
    */
   readonly knownAccount: boolean
 }
@@ -91,7 +107,7 @@ export async function offerOf(database: Database, token: string): Promise<Invita
     return null
   }
 
-  const { row, knownAccount } = found
+  const { row, accountId } = found
 
   return {
     state: stateOf(row),
@@ -99,7 +115,7 @@ export async function offerOf(database: Database, token: string): Promise<Invita
     name: row.invited_name,
     email: row.invited_email,
     expiresAt: new Date(row.expires),
-    knownAccount,
+    knownAccount: accountId !== null,
   }
 }
 
@@ -123,6 +139,13 @@ export async function offerOf(database: Database, token: string): Promise<Invita
  * would be a link made in one tenant that sets a password on an account the
  * tenant has nothing to do with, and on a shared instance that account might
  * belong to the tenant next door.
+ *
+ * And it joins only signed in as itself. `signedInAs` names the account of the
+ * session the request carries, asked only when the address has an account:
+ * a link for somebody new needs no session and gets none looked up. Without
+ * one the answer is 401 and says to sign in; with the session of another
+ * account it is 403. Either way nothing is written and the link stays good,
+ * so that the right person can still use it.
  */
 export async function redeemInvitation(
   access: Pick<AccessRules, 'sentences'>,
@@ -130,6 +153,7 @@ export async function redeemInvitation(
   database: Database,
   token: string,
   password: string | undefined,
+  signedInAs: () => Promise<string | null>,
 ): Promise<Redeemed> {
   const found = await lookUp(database, token)
 
@@ -137,7 +161,7 @@ export async function redeemInvitation(
     throw new GoneException('Diesen Link gibt es nicht.')
   }
 
-  const { row, knownAccount } = found
+  const { row, accountId } = found
   const state = stateOf(row)
 
   if (state !== 'open') {
@@ -146,13 +170,26 @@ export async function redeemInvitation(
     throw new GoneException(access.sentences.unusableLink[state])
   }
 
-  if (!knownAccount) {
-    if (typeof password !== 'string' || password.length < shortestPassword) {
-      throw new BadRequestException(
-        `Das Passwort ist zu kurz. Mindestens ${String(shortestPassword)} Zeichen, denn dieses ` +
-          'Konto wird einmal eingerichtet und jahrelang benutzt.',
+  if (accountId !== null) {
+    const signedIn = await signedInAs()
+
+    if (signedIn === null) {
+      throw new UnauthorizedException(
+        'Für diese Adresse gibt es auf dieser Instanz schon ein Konto. Melden Sie sich damit an, ' +
+          'dann können Sie beitreten.',
       )
     }
+
+    if (signedIn !== accountId) {
+      throw new ForbiddenException(
+        'Diese Einladung gilt für ein anderes Konto als das, mit dem Sie angemeldet sind.',
+      )
+    }
+  } else if (typeof password !== 'string' || password.length < shortestPassword) {
+    throw new BadRequestException(
+      `Das Passwort ist zu kurz. Mindestens ${String(shortestPassword)} Zeichen, denn dieses ` +
+        'Konto wird einmal eingerichtet und jahrelang benutzt.',
+    )
   }
 
   const context = await authentication.$context
@@ -166,7 +203,7 @@ export async function redeemInvitation(
         email: row.invited_email,
         name: row.invited_name,
         // Ignored when the account is already there, which is the case
-        // `knownAccount` stands for. The empty string never reaches a hasher:
+        // `accountId` stands for. The empty string never reaches a hasher:
         // `createAccount` returns before it gets that far.
         password: password ?? '',
       })
@@ -212,7 +249,7 @@ export async function redeemInvitation(
 async function lookUp(
   database: Database,
   token: string,
-): Promise<{ row: InvitationRow; knownAccount: boolean } | null> {
+): Promise<{ row: InvitationRow; accountId: string | null } | null> {
   const hash = hashToken(token)
 
   return database.forInstance(async (tx) => {
@@ -229,7 +266,7 @@ async function lookUp(
       .where(eq(authUsers.email, row.invited_email))
       .limit(1)
 
-    return { row, knownAccount: account !== undefined }
+    return { row, accountId: account?.id ?? null }
   })
 }
 

@@ -1,12 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { useApplication } from '../application.js'
 import { Button } from '../components/button.js'
 import { Field } from '../components/field.js'
+import { accountQuery } from '../session/queries.js'
 import { invitationOffer, redeemInvitation, shortestPassword, signIn } from '../session/session.js'
 import { RequestRefused } from '../sync/transport.js'
 import { Gate, GateText, GateWaiting } from './frame.js'
+import { SecondFactorScreen, SignInScreen } from './sign-in.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -99,7 +101,7 @@ function Accept({
   const mismatched = repeated.length > 0 && repeated !== password
 
   async function submit() {
-    if (!offer.knownAccount && password !== repeated) {
+    if (password !== repeated) {
       setTrouble('Die beiden Passwörter sind nicht gleich.')
 
       return
@@ -126,34 +128,7 @@ function Accept({
   }
 
   if (offer.knownAccount) {
-    return (
-      <Gate title={`Beitreten zu ${offer.company}`}>
-        <GateText muted={false}>
-          Für <strong>{offer.email}</strong> gibt es auf dieser Instanz schon ein Konto.{' '}
-          {sentences.tenantIsAdded}
-        </GateText>
-
-        {trouble ? (
-          <p
-            role="alert"
-            className="text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]"
-          >
-            {trouble}
-          </p>
-        ) : null}
-
-        <Button
-          tone="primary"
-          wide
-          disabled={working}
-          onClick={() => {
-            void submit()
-          }}
-        >
-          {working ? 'Einen Moment' : sentences.join}
-        </Button>
-      </Gate>
-    )
+    return <JoinAsAccount token={token} offer={offer} />
   }
 
   return (
@@ -211,6 +186,128 @@ function Accept({
           {working ? 'Einen Moment' : 'Zugang einrichten'}
         </Button>
       </form>
+    </Gate>
+  )
+}
+
+/**
+ * An address that already has an account joins signed in as that account, and
+ * only so (opengewerk-haustechnik#31).
+ *
+ * The link alone is not enough: when no mail was sent it is in the hands of
+ * whoever invited, and the server refuses it without the session of the
+ * account it names. So this screen asks who is signed in and offers what
+ * fits: the ordinary sign in with the address filled in, the second factor
+ * where the account has one, and only then the button that joins. Signed in as
+ * somebody else, it says so and goes no further; signing out belongs to the
+ * application, which knows what is still waiting on this device.
+ */
+function JoinAsAccount({
+  token,
+  offer,
+}: {
+  readonly token: string
+  readonly offer: { company: string; email: string }
+}) {
+  const { invitation: sentences } = useApplication().sentences
+  const queries = useQueryClient()
+  const account = useQuery(accountQuery)
+  const [secondFactor, setSecondFactor] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  function askAgain() {
+    void queries.invalidateQueries({ queryKey: accountQuery.queryKey })
+  }
+
+  async function join() {
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      await redeemInvitation(token)
+      startOver()
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Das hat nicht geklappt.'))
+      setWorking(false)
+    }
+  }
+
+  if (secondFactor) {
+    return (
+      <SecondFactorScreen
+        onVerified={() => {
+          setSecondFactor(false)
+          askAgain()
+        }}
+      />
+    )
+  }
+
+  if (account.isPending) {
+    return <GateWaiting>Die Anwendung fragt, wer angemeldet ist.</GateWaiting>
+  }
+
+  const signedIn = account.data ?? null
+
+  if (!signedIn) {
+    return (
+      <SignInScreen
+        email={offer.email}
+        intro={
+          <>
+            Für <strong>{offer.email}</strong> gibt es auf dieser Instanz schon ein Konto. Melden
+            Sie sich damit an, dann können Sie {offer.company} beitreten.
+          </>
+        }
+        onSignedIn={askAgain}
+        onSecondFactor={() => {
+          setSecondFactor(true)
+        }}
+      />
+    )
+  }
+
+  if (signedIn.email.toLowerCase() !== offer.email.toLowerCase()) {
+    return (
+      <Gate title={`Beitreten zu ${offer.company}`}>
+        <GateText muted={false}>
+          Diese Einladung gilt für <strong>{offer.email}</strong>, angemeldet sind Sie als{' '}
+          <strong>{signedIn.email}</strong>. Melden Sie sich in der Anwendung ab und öffnen Sie den
+          Link danach noch einmal.
+        </GateText>
+        <Button tone="secondary" wide onClick={startOver}>
+          Zur Anwendung
+        </Button>
+      </Gate>
+    )
+  }
+
+  return (
+    <Gate title={`Beitreten zu ${offer.company}`}>
+      <GateText muted={false}>
+        Angemeldet als <strong>{offer.email}</strong>. {sentences.tenantIsAdded}
+      </GateText>
+
+      {trouble ? (
+        <p
+          role="alert"
+          className="text-[15px] leading-[1.5] font-semibold text-conflict lg:text-[14px]"
+        >
+          {trouble}
+        </p>
+      ) : null}
+
+      <Button
+        tone="primary"
+        wide
+        disabled={working}
+        onClick={() => {
+          void join()
+        }}
+      >
+        {working ? 'Einen Moment' : sentences.join}
+      </Button>
     </Gate>
   )
 }

@@ -2,7 +2,7 @@ import type { TenantId } from '@opengewerk/platform-domain'
 import clsx from 'clsx'
 import { FingerprintPattern } from 'lucide-react'
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import { useApplication } from '../application.js'
 import { Button } from '../components/button.js'
@@ -57,17 +57,27 @@ function GateTrouble({ children }: { readonly children: string }) {
  * password goes out and who helps when none arrives, and for whom the second
  * factor is required. How long the link holds and what follows the password
  * are the foundation's to say, and stand between and after them.
+ *
+ * The invitation of an account that is already on the instance uses this
+ * screen too (opengewerk-haustechnik#31): with the address of the invitation
+ * filled in and a sentence above the form that says why a sign in comes first.
  */
 export function SignInScreen({
   onSignedIn,
   onSecondFactor,
+  email: given = '',
+  intro,
 }: {
   readonly onSignedIn: () => void
   readonly onSecondFactor: () => void
+  /** The address to start with, the one an invitation is for. */
+  readonly email?: string
+  /** A sentence above the form, saying why somebody is asked to sign in here. */
+  readonly intro?: ReactNode
 }) {
   const application = useApplication()
   const { signIn: sentences } = application.sentences
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(given)
   const [password, setPassword] = useState('')
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -143,6 +153,7 @@ export function SignInScreen({
 
   return (
     <Gate title="Anmelden" before={application.beforeSignIn}>
+      {intro === undefined ? null : <GateText muted={false}>{intro}</GateText>}
       <form
         className="flex flex-col gap-[15px]"
         onSubmit={(event) => {

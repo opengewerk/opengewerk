@@ -326,6 +326,26 @@ describe('the first run', () => {
     expect(await instanceIsEmpty(instance.database)).toBe(true)
   })
 
+  /**
+   * The screen signs in right after the setup with the password as typed, and
+   * so does every later sign in. Cut at its edges here, the only account of
+   * the instance would never be signed into again (opengewerk-haustechnik#31).
+   */
+  it('keeps the password exactly as typed, spaces at its edges included', async () => {
+    await emptyInstance()
+
+    const typed = `  ${password} `
+
+    await http()
+      .post('/setup')
+      .set('origin', origin)
+      .send({ ...firstRequest, password: typed })
+      .expect(201)
+
+    expect(await instance.signIn(firstRun.email, typed)).not.toBe('')
+    expect(await instance.signIn(firstRun.email, password)).toBe('')
+  })
+
   it('turns down an address that is not one', async () => {
     await emptyInstance()
 
