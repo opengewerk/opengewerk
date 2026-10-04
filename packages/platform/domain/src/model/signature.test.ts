@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { longestSignaturePath, signatureBox, signaturePathIsValid } from './signature.js'
+import {
+  longestSignaturePath,
+  longestSignerName,
+  signatureBox,
+  signaturePathIsValid,
+  signerNameProblem,
+} from './signature.js'
 
 describe('the box of a signature', () => {
   it('stays what every stored signature is measured in', () => {
@@ -55,5 +61,20 @@ describe('a signature path', () => {
     expect(longest).toHaveLength(longestSignaturePath)
     expect(signaturePathIsValid(longest)).toBe(true)
     expect(signaturePathIsValid(`${longest}L1,1`)).toBe(false)
+  })
+})
+
+describe('the name under a signature', () => {
+  it('is something besides spaces, and no longer than a table keeps it', () => {
+    expect(signerNameProblem('Erika Berg')).toBeNull()
+    expect(signerNameProblem(`  ${'E'.repeat(longestSignerName)}  `)).toBeNull()
+
+    for (const nobody of ['', '   ', null, 42]) {
+      expect(signerNameProblem(nobody)).toBe('Der Name dessen, der unterschreibt.')
+    }
+
+    expect(signerNameProblem('E'.repeat(longestSignerName + 1))).toBe(
+      'Der Name dessen, der unterschreibt, hat höchstens 200 Zeichen.',
+    )
   })
 })

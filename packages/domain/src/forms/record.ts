@@ -1,11 +1,10 @@
-import type { Id, IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { FormRecordStatus, Id, IsoDate, Synced } from '@opengewerk/platform-domain'
+
 import type { InstallationId, JobId } from '../model/identifier.js'
 import type { FormRegistry } from './definition.js'
-import { longestFormValues, readFormValues, sealProblems, valuesProblem } from './values.js'
+import { tradeForms } from './engine.js'
 
-export const formRecordStatuses = ['draft', 'signed'] as const
-
-export type FormRecordStatus = (typeof formRecordStatuses)[number]
+export { formRecordStatuses, type FormRecordStatus } from '@opengewerk/platform-domain'
 
 /**
  * A filled form (#78): a test protocol at an installation, in the version of
@@ -51,38 +50,5 @@ export function formRecordProblem(
     readonly values: unknown
   },
 ): string | null {
-  const definition =
-    typeof record.definitionKey === 'string' && typeof record.definitionVersion === 'number'
-      ? registry.definitionFor(record.definitionKey, record.definitionVersion)
-      : null
-
-  if (!definition) {
-    return 'Dieses Formular kennt diese Fassung von OpenGewerk nicht.'
-  }
-
-  if (typeof record.values === 'string' && record.values.length > longestFormValues) {
-    return `Die Werte eines Formulars sind höchstens ${String(longestFormValues)} Zeichen lang.`
-  }
-
-  const values = readFormValues(record.values ?? '{}')
-
-  if (values === null) {
-    return 'Die Werte eines Formulars kommen als JSON-Text eines Objekts.'
-  }
-
-  const problem = valuesProblem(definition, values)
-
-  if (problem !== null) {
-    return problem
-  }
-
-  if (record.status === 'signed') {
-    const [missing] = sealProblems(definition, values)
-
-    if (missing !== undefined) {
-      return `Unterschrieben wird ein vollständiges Protokoll: ${missing}`
-    }
-  }
-
-  return null
+  return tradeForms.formRecordProblem(registry, record)
 }

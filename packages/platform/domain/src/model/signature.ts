@@ -18,6 +18,29 @@ export const signatureBox = { width: 1000, height: 400 } as const
 export const longestSignaturePath = 40_000
 
 /**
+ * The name typed in under a signature, as long as an application keeps it. A
+ * table that stores signatures holds the same length in a check of its own.
+ */
+export const longestSignerName = 200
+
+/**
+ * What is wrong with the name typed in under a signature, or null when
+ * nothing is: something besides spaces, and no more than a table keeps. A
+ * form asks before the signature is queued, the sync again before it lands.
+ */
+export function signerNameProblem(name: unknown): string | null {
+  const trimmed = typeof name === 'string' ? name.trim() : ''
+
+  if (trimmed === '') {
+    return 'Der Name dessen, der unterschreibt.'
+  }
+
+  return trimmed.length > longestSignerName
+    ? `Der Name dessen, der unterschreibt, hat höchstens ${String(longestSignerName)} Zeichen.`
+    : null
+}
+
+/**
  * Moves and lines in whole units: `M12,40L15,41L19,43M300,80L...`. Every group
  * starts with its own letter, so the pattern cannot backtrack its way into
  * trouble on a long string.

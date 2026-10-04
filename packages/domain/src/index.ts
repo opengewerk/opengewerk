@@ -47,13 +47,30 @@ export * from './model/job-note.js'
 export * from './model/tenant.js'
 export * from './model/text-snippet.js'
 
-// The form engine of section 1.3 (#78). The definitions come from the trade
-// packages under `packages/gewerke/`; this is what reads and checks them.
+// The form engine of section 1.3 (#78). The engine is the foundation's
+// (opengewerk-haustechnik#28); the definitions come from the trade packages
+// under `packages/gewerke/`, and what is here binds the engine to the units,
+// circuits and limits of this application.
 export * from './forms/definition.js'
 export * from './forms/limits.js'
 export * from './forms/record.js'
 export * from './forms/report-fields.js'
 export * from './forms/values.js'
+// The general shapes of the foundation go by the same names; these are the
+// ones written with the units, circuits and limits of this application, and
+// named here so that they are the ones handed on.
+export {
+  type BlockField,
+  type FormDefinition,
+  type FormField,
+  type FormRegistry,
+  type FormSection,
+  type GroupField,
+  type LimitSpec,
+  type MeasurementField,
+  type NumberField,
+} from './forms/definition.js'
+export { type FormValue, type FormValues, type GroupBlock, readFormValues } from './forms/values.js'
 
 // The deadline engine of section 1.2 (#283): one record for everything that
 // falls due. The kinds are data, from the core and from the trade packages.

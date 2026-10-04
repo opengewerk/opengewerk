@@ -841,6 +841,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   vor der Transaktion (`senderOf`), etwa die Namen der Konten, die nur auf der Instanz lesbar sind.
   Die Haustechnik braucht beides für eine Unterschrift, die ein Gerät ohne Netz leistet und nach der
   die Nachweise entstehen. Hier ändert sich nichts.
+- Die Formular-Engine gehört zum Fundament (ADR 0010, `opengewerk-haustechnik#28`, erster Teil),
+  damit die Haustechnik ihre Prüf- und Wartungsprotokolle mit derselben Engine beschreibt, statt
+  eine zweite zu schreiben. Definitionen, Werte, Prüfung, Unterschrift, Vorlage aus dem letzten
+  Formular und Urteil über einen Grenzwert stehen in `platform-domain`; was die Engine nicht wissen
+  kann, sagt ihr die Anwendung mit `formEngine`: ihre Einheiten, die Listen, über die eine Gruppe
+  wiederholt, die Grenzwerte, die sie selbst ausrechnet, und unter welchen Schlüsseln ein Block den
+  Eintrag hält, zu dem er gehört. Die Handwerkersoftware nennt dort ihre Stromkreise, die
+  Schleifenimpedanz und den Auslösestrom; ihre Protokolle bleiben Zeichen für Zeichen, wie sie
+  gespeichert sind, und eine Definition nennt weiter, woran ein Formular hängt. Die Engine prüft
+  eine Definition jetzt strenger: ein Formular ohne Titel, ein Abschnitt zweimal oder mit Schlüssel
+  der falschen Form, eine unbekannte Art von Feld, Einheit, Liste oder Grenzwert. Einen Wert in
+  einem Feld, das erst eine spätere Fassung kennt, lehnt sie mit einem Satz ab, statt ihn
+  durchzulassen. Die Regel für den Namen unter einer Unterschrift steht seitdem ebenfalls im
+  Fundament. Sonst ändert sich hier nichts.
 
 ### Behoben
 
