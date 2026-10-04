@@ -4,20 +4,17 @@ import {
   BadRequestException,
   Controller,
   Inject,
-  type MiddlewareConsumer,
   Param,
   PayloadTooLargeException,
   type Provider,
   Put,
   Req,
-  RequestMethod,
   type Type,
   UnprocessableEntityException,
-  UnsupportedMediaTypeException,
 } from '@nestjs/common'
 import { fileHashProblem, fileSizeProblem, largestFileBytes } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
-import { raw, type Request } from 'express'
+import type { Request } from 'express'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { AcceptsBody } from '../api/origin.js'
@@ -40,11 +37,69 @@ export const FILE_STORE = Symbol('FileStore')
 /** How a file travels: as bytes, with a type a form cannot send. */
 export const fileUploadType = 'application/octet-stream'
 
-/** Where the bytes of a file go, for the parser in front of it. */
-export const fileUploadRoute = { path: 'files/:sha256', method: RequestMethod.PUT }
-
 const refusal =
   'Eine Datei wird als application/octet-stream geschickt, mit ihrem Typ im Kopf X-Media-Type.'
+
+/**
+ * The body of a request as bytes, read here and by nothing in front of the
+ * route, or null when it is longer than the route takes.
+ *
+ * A parser in front of the route reads before any guard has asked who is
+ * sending: megabytes went into memory for a request without a session, which
+ * was then turned away (opengewerk-haustechnik#31). Read by the handler, a
+ * body is read for whoever the guards let through and for nobody else.
+ *
+ * A body that is too long is read on and kept nowhere. Answering while the
+ * sender is still sending cuts the connection under it, and what it reads
+ * then is a lost connection and not the sentence about the size. Twice the
+ * limit is where the reading ends whatever is still coming.
+ */
+function bytesOf(request: Request, most: number, announced: number): Promise<Buffer | null> {
+  // An application that still reads the body in front of the route has it here.
+  if (Buffer.isBuffer(request.body)) {
+    return Promise.resolve(request.body.byteLength > most ? null : request.body)
+  }
+
+  if (request.readableEnded) {
+    return Promise.resolve(Buffer.alloc(0))
+  }
+
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    let length = 0
+    // What the sender says the length is decides before a byte is kept.
+    let tooLong = announced > most
+
+    const finish = (result: Buffer | null) => {
+      request.off('data', take)
+      request.off('end', end)
+      request.off('error', reject)
+      resolve(result)
+    }
+    const take = (chunk: Buffer) => {
+      length += chunk.byteLength
+
+      if (length > most) {
+        tooLong = true
+        chunks.length = 0
+      }
+
+      if (!tooLong) {
+        chunks.push(chunk)
+      } else if (length > most * 2) {
+        request.pause()
+        finish(null)
+      }
+    }
+    const end = () => {
+      finish(tooLong ? null : Buffer.concat(chunks))
+    }
+
+    request.on('data', take)
+    request.on('end', end)
+    request.on('error', reject)
+  })
+}
 
 /**
  * The route the bytes of a file are stored through, ahead of the record that
@@ -90,22 +145,21 @@ function filesController(right: string): Type<unknown> {
         throw new BadRequestException(malformed)
       }
 
-      const body: unknown = request.body
+      const announced = Number(request.header('content-length') ?? '0')
+      const body = await bytesOf(
+        request,
+        largestFileBytes,
+        Number.isFinite(announced) ? announced : 0,
+      )
 
-      if (!Buffer.isBuffer(body)) {
-        // The parser leaves an empty body alone, so an empty file arrives as
-        // no body at all and not as zero bytes.
-        throw Number(request.header('content-length') ?? '0') === 0
-          ? new BadRequestException(fileSizeProblem(0))
-          : new UnsupportedMediaTypeException(refusal)
+      if (body === null) {
+        throw new PayloadTooLargeException(fileSizeProblem(largestFileBytes + 1) ?? undefined)
       }
 
-      const tooLarge = fileSizeProblem(body.byteLength)
+      const empty = fileSizeProblem(body.byteLength)
 
-      if (tooLarge) {
-        throw body.byteLength === 0
-          ? new BadRequestException(tooLarge)
-          : new PayloadTooLargeException(tooLarge)
+      if (empty) {
+        throw new BadRequestException(empty)
       }
 
       const bytes = new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
@@ -157,8 +211,8 @@ export interface FileParts<Right extends string> {
  * `authenticationParts` is one: the guard, the database and the identity
  * source are the application's to register, once.
  *
- * The module also has to read the body of that one route as bytes, which a
- * module does in its `configure` and nowhere else: `parseFileUploads`.
+ * The module has nothing to read the body with in front of the route. The
+ * route reads it itself, once the guards have let the request through.
  */
 export function fileParts<Right extends string>(
   parts: FileParts<Right>,
@@ -171,16 +225,4 @@ export function fileParts<Right extends string>(
     controllers: [filesController(parts.upload)],
     providers: [{ provide: FILE_STORE, useValue: parts.store ?? noFileStorage }],
   }
-}
-
-/**
- * The body of the route of the file store as raw bytes, and of no other
- * route: no route that expects a little JSON can be sent megabytes of
- * something else. The limit sits above the one the route enforces, so that a
- * file just over it gets the route's sentence and not the parser's.
- */
-export function parseFileUploads(consumer: MiddlewareConsumer): void {
-  consumer
-    .apply(raw({ type: [fileUploadType], limit: largestFileBytes * 2 }))
-    .forRoutes(fileUploadRoute)
 }

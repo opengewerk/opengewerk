@@ -9,7 +9,7 @@ import {
   type SyncRules,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { and, asc, eq, getTableColumns, getTableName, gt, isNull, type SQL } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, getTableName, gt, isNull, type SQL, sql } from 'drizzle-orm'
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import type { TenantTransaction } from '../database/database.js'
@@ -330,6 +330,22 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
     sent: Operation,
     sender: Sender,
   ): Promise<OperationReceipt> {
+    // One at a time for one operation, until the transaction ends. The
+    // question below was asked without it: a device that sent its queue again
+    // while the first transmission was still being applied found no receipt,
+    // applied the operation a second time and failed on the receipt of the
+    // first, and the whole transmission was refused over an operation that
+    // had been taken (opengewerk-haustechnik#31). Now the second waits here,
+    // asks once the first is through and is told what became of it.
+    //
+    // The lock is on the id, in a key space of its own beside the named locks
+    // of the foundation. Two transmissions take their locks in the same
+    // order, the one their operations were recorded in, so they do not wait
+    // for each other in a circle.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext('opengewerk.sync_operation'), hashtext(${sent.id}::text))`,
+    )
+
     const seen = await tx
       .select({ outcome: syncOperations.outcome })
       .from(syncOperations)

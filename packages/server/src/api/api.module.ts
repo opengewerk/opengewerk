@@ -22,7 +22,6 @@ import {
   MAIL,
   type MailContext,
   mailSettingsParts,
-  parseFileUploads,
   PUSH,
   type PushContext,
   pushParts,
@@ -166,20 +165,19 @@ export interface ApiOptions {
 @Module({})
 export class ApiModule implements NestModule {
   /**
-   * The two routes that take a body that is not JSON: the logo, as the image
-   * itself, and the bytes of a file for the records (#77), whose parser comes
-   * with the route of the foundation. Read as raw bytes there and nowhere
-   * else, so that no other route can be sent megabytes of something it does
-   * not expect.
+   * The one route here that takes a body that is not JSON: the logo, as the
+   * image itself. Read as raw bytes there and nowhere else, so that no other
+   * route can be sent megabytes of something it does not expect. The bytes of
+   * a file for the records (#77) need no parser: the route of the foundation
+   * reads them itself, after its guards.
    *
-   * The limits sit above the ones the controllers enforce, so that a file
-   * just over one gets the controller's sentence and not the parser's.
+   * The limit sits above the one the controller enforces, so that a logo
+   * just over it gets the controller's sentence and not the parser's.
    */
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(raw({ type: [...logoMediaTypes], limit: largestLogoBytes * 2 }))
       .forRoutes({ path: 'settings/letterhead/logo', method: RequestMethod.PUT })
-    parseFileUploads(consumer)
   }
 
   static create(
