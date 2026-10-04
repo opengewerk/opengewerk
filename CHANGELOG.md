@@ -933,6 +933,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und ein Fremdschlüssel nennt dort den Index der Tabelle, auf die er zeigt. So fiel
   `files_content` aus dem Vergleich, weil `attachment_versions` auf ihn zeigt, und eine
   Abweichung an einem solchen Index wäre niemandem aufgefallen.
+- Derselbe Vergleich und die Katalogfragen sehen jetzt, ob ein Trigger feuert und wem ein Recht
+  gegeben wurde (#529, `opengewerk-haustechnik#31`). Ein abgeschalteter Trigger steht weiter unter
+  seinem Namen im Katalog: eine Tabelle, deren Änderungsprotokoll jemand abgeschaltet hatte, galt
+  als überwacht, eine ohne laufenden Stempel als gestempelt. Und gelesen wurden nur die Rechte der
+  Anwendungsrolle: ein Recht an PUBLIC, also an jede Rolle, die es gibt und je geben wird, stand
+  in keinem Vergleich. Jetzt sagt der Vergleich bei jedem Trigger, ob er abgeschaltet ist oder nur
+  auf einem Replikat feuert, nennt jedes Recht einer anderen Rolle mit ihrem Namen, und eine
+  Tabelle mit einem Recht an PUBLIC gilt als ungeschützt, auch wenn es nur eine Spalte betrifft.
+- Der Zähler des Abgleichs lässt sich nur noch von der Anwendungsrolle aufrufen (#471, Migration
+  0068). `next_sync_sequence` läuft als Eigentümer der Tabellen und war ohne eigene Vergabe
+  angelegt, also für jede Rolle der Datenbank offen, anders als jede andere solche Funktion. Lesen
+  ließ sich darüber nichts. Die Katalogfragen melden künftig jede Funktion, die als ihr Eigentümer
+  läuft und für jede Rolle offen ist; der Vergleich mit den Bausteinen konnte das nicht sehen, weil
+  der Baustein dieselbe Lücke hatte. Eine Anwendung, die das Fundament trägt, braucht dieselbe
+  Änderung als eigene Migration.
 - Die Ersteinrichtung übernimmt das Passwort so, wie es eingegeben wurde
   (`opengewerk-haustechnik#31`). Sie kürzte es um Leerzeichen am Rand, die Anmeldung gleich danach
   und jede spätere nicht; wer ein Passwort mit einem Leerzeichen am Ende einfügte, kam an das

@@ -43,6 +43,14 @@ BEGIN
 END;
 $$;--> statement-breakpoint
 
+-- A function is open to every role until somebody says otherwise, and this
+-- one runs as the owner of the tables: left open, any role in the cluster
+-- could move the counter of any tenant. The application role calls it through
+-- the trigger below whenever it writes a row that travels; the owner keeps the
+-- right because the function is its own.
+REVOKE EXECUTE ON FUNCTION "next_sync_sequence"(uuid) FROM PUBLIC;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "next_sync_sequence"(uuid) TO "opengewerk_app";--> statement-breakpoint
+
 -- What keeps the five columns true. It does not touch a table, so it runs as
 -- whoever triggered it; the counter it calls is the part that needs more.
 --
