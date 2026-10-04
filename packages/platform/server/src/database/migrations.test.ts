@@ -149,24 +149,61 @@ describe('the migration runner', () => {
   /**
    * The case the runner itself passes over without a word: a new migration
    * whose timestamp sits before the newest applied one, as two branches merged
-   * in the wrong order leave it. It is skipped, the run reports success, and
-   * the table it creates does not exist. The check after the run is what says
-   * so.
+   * in the wrong order leave it. The runner skips it and applies the ones after
+   * it in the same run; until opengewerk-haustechnik#31 the check after the run
+   * found that only once it was committed, and blamed a changed file. It is
+   * refused before anything runs, and on a fresh database as well, where the
+   * runner would take it.
    */
-  it('finds a migration the runner skipped because of its timestamp', async () => {
+  const late: ProbeMigration = {
+    tag: '0002_late',
+    sql: 'CREATE TABLE "probe_late" ("id" integer PRIMARY KEY);',
+    when: 2_000,
+  }
+  const later: ProbeMigration = {
+    tag: '0003_later',
+    sql: 'CREATE TABLE "probe_later" ("id" integer PRIMARY KEY);',
+    when: 4_000,
+  }
+
+  it('refuses a journal whose timestamps do not rise, before anything runs', async () => {
     await runMigrations(kit.ownerDatabaseUrl(), folderOf(first, second))
 
-    const late: ProbeMigration = {
-      tag: '0002_late',
-      sql: 'CREATE TABLE "probe_late" ("id" integer PRIMARY KEY);',
-      when: 2_000,
-    }
     const error = await failure(
-      runMigrations(kit.ownerDatabaseUrl(), folderOf(first, second, late)),
+      runMigrations(kit.ownerDatabaseUrl(), folderOf(first, second, late, later)),
     )
 
     expect(error).toBeInstanceOf(MigrationHistoryError)
-    expect((error as Error).message).toContain(`die erste ist "${late.tag}"`)
+    expect((error as Error).message).toContain(`der Migration "${late.tag}" nicht nach dem von`)
+    expect((error as Error).message).toContain('Es wurde nichts eingespielt.')
+    expect(await tableNames(pool)).toEqual(['probe_first', 'probe_second'])
+    expect(await appliedMigrationCount(pool)).toBe(2)
+
+    await kit.resetSchema(pool)
+
+    expect(
+      await failure(runMigrations(kit.ownerDatabaseUrl(), folderOf(first, second, late, later))),
+    ).toBeInstanceOf(MigrationHistoryError)
+    expect(await tableNames(pool)).toEqual([])
+  })
+
+  /**
+   * A journal that rises can still disagree with the database: a timestamp
+   * changed after its migration ran is the old one there, and the runner
+   * compares against that.
+   */
+  it('refuses a migration that would sit before the newest that ran, by what the database says', async () => {
+    await runMigrations(kit.ownerDatabaseUrl(), folderOf(first, second))
+
+    const restamped: ProbeMigration = { ...second, when: 2_000 }
+    const between: ProbeMigration = { ...late, when: 2_500 }
+    const error = await failure(
+      runMigrations(kit.ownerDatabaseUrl(), folderOf(first, restamped, between)),
+    )
+
+    expect(error).toBeInstanceOf(MigrationHistoryError)
+    expect((error as Error).message).toContain(`Die Migration "${late.tag}" hat einen Zeitstempel`)
+    expect((error as Error).message).toContain('Es wurde nichts eingespielt.')
     expect(await tableNames(pool)).not.toContain('probe_late')
   })
 

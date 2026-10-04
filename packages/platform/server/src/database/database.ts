@@ -8,6 +8,22 @@ import { isUuid } from './identifier.js'
 export type TenantTransaction = NodePgDatabase
 
 /**
+ * Undoes a transaction that failed, and keeps the error that says why it
+ * failed: on a connection that is gone the rollback fails too, and its error
+ * would take the place of the first. What it returns is the rollback's own
+ * error, for `giveBack`, or nothing when the rollback went through.
+ */
+async function rollBack(client: PoolClient): Promise<Error | undefined> {
+  try {
+    await client.query('rollback')
+
+    return undefined
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
+/**
  * What a caller gets from `forInstanceAndTenant`: one transaction, and the
  * step that moves it from the instance into a business.
  */
@@ -73,10 +89,75 @@ export interface Actor {
  * that happens to get it.
  */
 export class Database {
-  private constructor(private readonly pool: Pool) {}
+  private constructor(
+    private readonly pool: Pool,
+    private readonly lostWhileOut: (error: Error) => void,
+  ) {}
 
-  static connect(connectionString: string): Database {
-    return new Database(new Pool({ connectionString }))
+  /**
+   * A connection can end while nobody is waiting on it: the database server
+   * restarts, or `restore.sh` ends every connection of the application before
+   * it puts a backup back. The pool reports that as an event, and an event
+   * nobody listens to ends the process, in the middle of whatever else it was
+   * answering (opengewerk-haustechnik#31). Nothing needs to be done about it
+   * beyond saying so: the pool drops the connection and opens a new one the
+   * next time it is asked for one.
+   */
+  static connect(
+    connectionString: string,
+    complain: (line: string, error: unknown) => void = console.error,
+  ): Database {
+    const pool = new Pool({ connectionString })
+
+    pool.on('error', (error) => {
+      complain(
+        'Eine ruhende Verbindung zur Datenbank ist abgebrochen; die nächste Anfrage öffnet eine neue.',
+        error,
+      )
+    })
+
+    return new Database(pool, (error) => {
+      complain(
+        'Eine Verbindung zur Datenbank ist mitten in einer Transaktion abgebrochen; ' +
+          'die Transaktion wird nicht gespeichert.',
+        error,
+      )
+    })
+  }
+
+  /**
+   * A client from the pool, listened to while it is out. The pool listens only
+   * to the clients it holds, and a client it has handed out would report a lost
+   * connection to nobody, which ends the process just the same. A client
+   * reports one loss twice, the reason the server gave and then the end of the
+   * socket, and is complained about once.
+   *
+   * `giveBack` returns it, unless the transaction on it could not be undone:
+   * such a client may still be inside it, so the pool closes it instead of
+   * handing it to the next request.
+   */
+  private async checkOut(): Promise<{
+    client: PoolClient
+    giveBack: (broken: Error | undefined) => void
+  }> {
+    const client = await this.pool.connect()
+    let said = false
+    const lost = (error: Error) => {
+      if (!said) {
+        said = true
+        this.lostWhileOut(error)
+      }
+    }
+
+    client.on('error', lost)
+
+    return {
+      client,
+      giveBack: (broken) => {
+        client.off('error', lost)
+        client.release(broken)
+      },
+    }
   }
 
   /**
@@ -97,7 +178,8 @@ export class Database {
       throw new Error(`Not a tenant id: ${JSON.stringify(tenantId)}`)
     }
 
-    const client: PoolClient = await this.pool.connect()
+    const { client, giveBack } = await this.checkOut()
+    let broken: Error | undefined
 
     try {
       await client.query('begin')
@@ -122,10 +204,10 @@ export class Database {
 
       return result
     } catch (error) {
-      await client.query('rollback')
+      broken = await rollBack(client)
       throw error
     } finally {
-      client.release()
+      giveBack(broken)
     }
   }
 
@@ -159,7 +241,8 @@ export class Database {
      */
     reason = 'authentication',
   ): Promise<Result> {
-    const client: PoolClient = await this.pool.connect()
+    const { client, giveBack } = await this.checkOut()
+    let broken: Error | undefined
 
     try {
       await client.query('begin')
@@ -180,10 +263,10 @@ export class Database {
 
       return result
     } catch (error) {
-      await client.query('rollback')
+      broken = await rollBack(client)
       throw error
     } finally {
-      client.release()
+      giveBack(broken)
     }
   }
 
@@ -220,7 +303,8 @@ export class Database {
     work: (straddling: StraddlingTransaction) => Promise<Result>,
     userId?: string,
   ): Promise<Result> {
-    const client: PoolClient = await this.pool.connect()
+    const { client, giveBack } = await this.checkOut()
+    let broken: Error | undefined
 
     try {
       await client.query('begin isolation level read committed')
@@ -255,10 +339,10 @@ export class Database {
 
       return result
     } catch (error) {
-      await client.query('rollback')
+      broken = await rollBack(client)
       throw error
     } finally {
-      client.release()
+      giveBack(broken)
     }
   }
 
