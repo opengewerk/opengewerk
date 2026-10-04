@@ -7,6 +7,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Die Navigation des Büros nimmt einen Eintrag vor den Gruppen und Einträge der Anwendung am Fuß,
+  und vor Ort gibt es den Pfad (`opengewerk-haustechnik#83`). Die Tafeln der Haustechnik zeichnen
+  über den Gruppen eine Übersicht ohne Titel und am Fuß einen Katalog vor "Abgleich" und
+  "Einstellungen". Beides ließ der Rahmen nicht zu: eine Gruppe brauchte einen Titel, und der Fuß
+  gehörte dem Fundament allein. Eine Gruppe ohne Titel steht jetzt als ihre Einträge allein, ohne
+  leere Zeile darüber, und `OfficeFrame` nimmt unter `foot` Einträge der Anwendung, die so leise
+  stehen wie die beiden des Fundaments. `SiteCrumbs` unter `/site` zeichnet den Pfad über einer
+  Seite vor Ort aus denselben Schritten wie `Crumbs` im Büro, in der Schrift vor Ort und mit
+  Umbruch am Telefon; der Typ `Crumb` steht dafür bei den gemeinsamen Bausteinen. Für diese
+  Anwendung ändert sich nichts, sie nutzt keines der drei.
+
 ## [0.5.0] - 2026-10-04
 
 Die fünfte Fassung bringt, was von Phase 2 gebaut ist, das Fundament in eigenen Paketen und die

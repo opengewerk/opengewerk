@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import type { SyncConflict } from '@opengewerk/platform-domain'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { Archive, Mail, StickyNote } from 'lucide-react'
+import { Archive, BookOpen, LayoutDashboard, Mail, StickyNote } from 'lucide-react'
 import { useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,7 +17,7 @@ import { TestServer } from '../sync/test-server.js'
 import { RequestRefused } from '../sync/transport.js'
 import { OfficeFrame } from './frame.js'
 import type { OfficeFrameProps } from './frame.js'
-import type { NavigationGroup } from './navigation.js'
+import type { NavigationEntry, NavigationGroup } from './navigation.js'
 import { PathSlot } from './top-bar.js'
 
 /**
@@ -41,6 +41,18 @@ const navigation: readonly NavigationGroup[] = [
   { title: 'Post', entries: [{ to: '/briefe', label: 'Briefe', icon: Mail }] },
 ]
 
+/**
+ * What an application puts before its groups and what it visits rather than
+ * works in, as one has them whose boards draw an overview on top and a
+ * catalogue at the foot (`opengewerk-haustechnik#83`).
+ */
+const overview: NavigationGroup = {
+  entries: [{ to: '/lage', label: 'Lage', icon: LayoutDashboard }],
+}
+const ownFoot: readonly NavigationEntry[] = [
+  { to: '/verzeichnis', label: 'Verzeichnis', icon: BookOpen },
+]
+
 const screens = {
   '/': () => <h1>Regale</h1>,
   '/regale/$shelfId': () => <h1>Ein Regal</h1>,
@@ -48,6 +60,8 @@ const screens = {
   '/notizen/$noteId': () => <h1>Eine Notiz</h1>,
   '/zettel/$noteId': () => <h1>Ein Zettel</h1>,
   '/briefe': () => <h1>Briefe</h1>,
+  '/lage': () => <h1>Lage</h1>,
+  '/verzeichnis': () => <h1>Verzeichnis</h1>,
   '/konflikte': () => <h1>Abgleich</h1>,
   '/konto': () => <h1>Konto</h1>,
   '/instanz': () => <h1>Instanz</h1>,
@@ -88,6 +102,13 @@ function entries(nav: HTMLElement): string[] {
         said && drawn ? ' *' : said || drawn ? ' ?' : ''
       }`
     })
+}
+
+/** What stands over the entries in small capitals: the titles of the groups, and whatever else is set like them. */
+function titles(nav: HTMLElement): (string | null)[] {
+  return [...nav.querySelectorAll('div')]
+    .filter((element) => element.className.split(' ').includes('uppercase'))
+    .map((element) => element.textContent)
 }
 
 /** A server with this many conflicts waiting. */
@@ -290,6 +311,61 @@ describe('the navigation beside the screen', () => {
     expect(within(nav).getByText('Bestand')).toBeTruthy()
   })
 
+  it('puts the entries of a group without a title first, with no title over them', async () => {
+    await frame({ navigation: [overview, ...navigation] })
+
+    const nav = await sidebar()
+
+    await within(nav).findByRole('link', { name: 'Einstellungen' })
+    expect(entries(nav)).toEqual([
+      'Lage',
+      'Regale *',
+      'Notizen',
+      'Briefe',
+      'Abgleich',
+      'Einstellungen',
+    ])
+    // The entry is the first thing in the navigation: no empty title, and no
+    // room for one, stands before it.
+    expect(nav.firstElementChild).toBe(within(nav).getByRole('link', { name: 'Lage' }))
+    expect(titles(nav)).toEqual(['Bestand', 'Post'])
+  })
+
+  it('puts what the application has at the foot before the exchange and the settings, as quiet as they are', async () => {
+    await frame({ foot: ownFoot })
+
+    const nav = await sidebar()
+
+    await within(nav).findByRole('link', { name: 'Einstellungen' })
+    expect(entries(nav)).toEqual([
+      'Regale *',
+      'Notizen',
+      'Briefe',
+      'Verzeichnis',
+      'Abgleich',
+      'Einstellungen',
+    ])
+
+    const quiet = (name: string) =>
+      within(nav).getByRole('link', { name }).className.split(' ').includes('text-ink-muted')
+
+    expect(['Notizen', 'Verzeichnis', 'Abgleich', 'Einstellungen'].map(quiet)).toEqual([
+      false,
+      true,
+      true,
+      true,
+    ])
+  })
+
+  it('lights an entry of the application at the foot on its own screen', async () => {
+    await frame({ foot: ownFoot }, { at: '/verzeichnis' })
+
+    const nav = await sidebar()
+
+    await within(nav).findByRole('link', { name: 'Einstellungen' })
+    expect(entries(nav).filter((entry) => /[*?]$/.test(entry))).toEqual(['Verzeichnis *'])
+  })
+
   it.each([
     ['/', 'Regale'],
     // A record lights the list it is opened from, by the path the entry names besides.
@@ -471,6 +547,31 @@ describe('the navigation on a phone', () => {
     expect(document.activeElement).toBe(
       within(drawer).getByRole('button', { name: 'Menü schließen' }),
     )
+  })
+
+  it('carries the entries before the groups and those of the application at the foot as well', async () => {
+    await frame({ navigation: [overview, ...navigation], foot: ownFoot }, { at: '/notizen' })
+
+    const menu = await screen.findByRole('button', { name: 'Menü' })
+
+    await within(screen.getByRole('banner')).findByText('Probewerk Nord')
+    await userEvent.click(menu)
+
+    const nav = within(screen.getByRole('dialog', { name: 'Menü' })).getByRole('navigation', {
+      name: 'Hauptbereiche',
+    })
+
+    expect(entries(nav)).toEqual([
+      'Lage',
+      'Regale',
+      'Notizen *',
+      'Briefe',
+      'Verzeichnis',
+      'Abgleich',
+      'Einstellungen',
+    ])
+    // No empty title over the first entry, in the drawer either.
+    expect(titles(nav)).toEqual(['Bestand', 'Post', 'Darstellung'])
   })
 
   it('closes when an entry is followed', async () => {

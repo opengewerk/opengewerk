@@ -4,6 +4,8 @@ import { ChevronDown, ChevronLeft, ChevronRight, Info } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 
+import type { Crumb } from '../components/crumb.js'
+
 /**
  * The pieces every office screen is built from, one for each building block
  * of the canvas (`lib.py` of the generator in `.Branding\canvas-generator\`):
@@ -38,10 +40,7 @@ export function Screen({
   )
 }
 
-export interface Crumb {
-  readonly to: string
-  readonly label: string
-}
+export type { Crumb }
 
 /** Where this screen sits: the records above it, each a link, the screen itself not. */
 export function Crumbs({ items }: { readonly items: readonly Crumb[] }) {
