@@ -294,6 +294,24 @@ describe('the list of deadlines', () => {
     expect(alert.textContent).toContain('Wer die Instanz betreibt')
   })
 
+  it('says what may be missing after a pass that failed, and not that nothing happened', async () => {
+    server.answer('GET', '/deadlines/run', {
+      succeededAt: '2026-09-30T08:00:00Z',
+      failedAt: '2026-09-30T09:00:00Z',
+      behind: true,
+    })
+    list()
+
+    const said = (await screen.findByRole('alert')).textContent
+
+    // A pass that fails over one reminder has written the deadlines before it
+    // and made every other reminder.
+    expect(said).toContain(
+      'Bis der Abgleich wieder durchläuft, können neue Fristen fehlen und Erinnerungen ausbleiben.',
+    )
+    expect(said).not.toMatch(/entsteht keine neue Frist|wird an keine\s+erinnert/)
+  })
+
   it('says when the engine has not gone through for too long, or never', async () => {
     server.answer('GET', '/deadlines/run', {
       succeededAt: '2026-09-29T10:00:00Z',

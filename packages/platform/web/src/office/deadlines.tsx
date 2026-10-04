@@ -295,6 +295,10 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
  * the tenant for too long, or failed the last time: a reminder that never came
  * looks exactly like one that was not due, and this is where it shows. Nothing
  * while all is well, nothing while the answer is on its way.
+ *
+ * It says what may be missing and not that nothing happened: a pass that
+ * fails over one reminder has written the deadlines before it and made every
+ * other reminder.
  */
 function DeadlineRunNote() {
   const run = useQuery({
@@ -319,8 +323,8 @@ function DeadlineRunNote() {
   return (
     <div role="alert">
       <NoteBox tone="conflict" icon={TriangleAlert}>
-        {said} Bis der Abgleich wieder läuft, entsteht keine neue Frist und es wird an keine
-        erinnert. Wer die Instanz betreibt, findet den Grund im Protokoll der Anwendung.
+        {said} Bis der Abgleich wieder durchläuft, können neue Fristen fehlen und Erinnerungen
+        ausbleiben. Wer die Instanz betreibt, findet den Grund im Protokoll der Anwendung.
       </NoteBox>
     </div>
   )
