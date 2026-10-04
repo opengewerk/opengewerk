@@ -190,6 +190,12 @@ export interface AuditVocabulary {
   readonly roles: Readonly<Record<string, string>>
   /** Fields that say nothing about a change, beside the foundation's own. */
   readonly quietFields?: readonly string[]
+  /**
+   * Fields of its own tables whose value the log keeps to itself, by table.
+   * The server answers for such a field only that it was set, and so does the
+   * page. Beside the foundation's own.
+   */
+  readonly secretFields?: Readonly<Record<string, readonly string[]>>
 }
 
 /** The fields a record is named by when its table names none. */
@@ -215,6 +221,28 @@ export const quietAuditFields: readonly string[] = [
   // the passkey is named by its name.
   'passkey_id',
 ]
+
+/**
+ * The fields of the foundation whose value no reader of the log gets, by
+ * table: the hash of a one time link, and what a browser handed over so that
+ * a message can be pushed to it. The address of the push service is a way to
+ * reach the device, the two keys are what a message to it is sealed with.
+ *
+ * The log holds them like every value. They were hidden on the page and went
+ * out with the answer all the same, to everybody who may read the log, and an
+ * application that did not name them on its page showed them
+ * (opengewerk-haustechnik#31).
+ */
+const foundationSecretFields: Readonly<Record<string, readonly string[]>> = {
+  invitations: ['token_hash'],
+  push_subscriptions: ['endpoint', 'p256dh', 'auth'],
+}
+
+/**
+ * What the log says of a value it keeps to itself: that there was one. The
+ * server puts it where the value stood, and a page shows it as it is.
+ */
+export const withheldAuditValue = 'gesetzt'
 
 /** The fields of the foundation that hold the id of a person. */
 const foundationPersonFields: readonly string[] = [
@@ -539,6 +567,8 @@ export interface AuditLanguage {
   readonly isPersonField: (field: string) => boolean
   /** Whether a field says nothing about a change. */
   readonly isQuiet: (field: string) => boolean
+  /** Whether the log keeps the value of this field to itself. */
+  readonly isSecret: (table: string, field: string) => boolean
   /** The way a change took, in the application's words. */
   readonly way: (reason: string | null, databaseRole: string) => AuditWay
 }
@@ -558,6 +588,12 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
   const titles = { ...vocabulary.titles, ...foundationTitles }
   const personFields = new Set([...foundationPersonFields, ...vocabulary.personFields])
   const quiet = new Set([...quietAuditFields, ...(vocabulary.quietFields ?? [])])
+  const secret = (table: string): readonly string[] => [
+    ...(Object.hasOwn(foundationSecretFields, table) ? (foundationSecretFields[table] ?? []) : []),
+    ...(vocabulary.secretFields && Object.hasOwn(vocabulary.secretFields, table)
+      ? (vocabulary.secretFields[table] ?? [])
+      : []),
+  ]
 
   const rule = (table: string): AuditTitleRule => titles[table] ?? defaultAuditTitleFields
   const fieldsOf = (found: AuditTitleRule): readonly string[] =>
@@ -612,6 +648,7 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
     referenceOf: (field) => foundationReferences[field] ?? vocabulary.references[field] ?? null,
     isPersonField: (field) => personFields.has(field),
     isQuiet: (field) => quiet.has(field),
+    isSecret: (table, field) => secret(table).includes(field),
     way: (reason, databaseRole) => auditWay(vocabulary, reason, databaseRole),
   }
 }

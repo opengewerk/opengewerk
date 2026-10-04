@@ -168,6 +168,37 @@ export class Database {
     actor: Actor,
     work: (tx: TenantTransaction) => Promise<Result>,
   ): Promise<Result> {
+    return this.inTenant(actor, work, 'begin')
+  }
+
+  /**
+   * Reads one tenant as it stood at one moment, and writes nothing.
+   *
+   * In `forTenant` every statement sees what was committed when it began, so
+   * two questions asked one after the other can be answered from two states
+   * of the tenant, with somebody else's change between them. That is right
+   * for nearly everything and wrong for a question whose answer is how two
+   * readings fit together: the check of the audit chain counted the entries,
+   * then read how many the head says there are, and a change written between
+   * the two looked like an entry taken away (opengewerk-haustechnik#31). Here
+   * the first statement fixes what all of them see.
+   *
+   * Read only, because a transaction that holds on to one moment and then
+   * writes would be refused whenever somebody else wrote first, and nothing
+   * that asks this way has anything to write.
+   */
+  async readingTenant<Result>(
+    actor: Actor,
+    work: (tx: TenantTransaction) => Promise<Result>,
+  ): Promise<Result> {
+    return this.inTenant(actor, work, 'begin isolation level repeatable read read only')
+  }
+
+  private async inTenant<Result>(
+    actor: Actor,
+    work: (tx: TenantTransaction) => Promise<Result>,
+    begin: string,
+  ): Promise<Result> {
     const { tenantId, userId, reason, deviceId } = actor
 
     if (!isUuid(tenantId)) {
@@ -182,7 +213,7 @@ export class Database {
     let broken: Error | undefined
 
     try {
-      await client.query('begin')
+      await client.query(begin)
       // set_config with `is_local` true is SET LOCAL, and unlike SET LOCAL it
       // takes a parameter, so the value never gets pasted into the statement.
       //

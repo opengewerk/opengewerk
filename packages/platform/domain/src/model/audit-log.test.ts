@@ -136,6 +136,23 @@ describe('the fields the log treats apart', () => {
     expect(language.isQuiet('badge')).toBe(false)
   })
 
+  it("keeps the foundation's secret values to itself, and the application's, each on its own table", () => {
+    const joined = auditLanguage({ ...withContacts, secretFields: { visitors: ['door_code'] } })
+
+    for (const field of ['endpoint', 'p256dh', 'auth']) {
+      expect([field, joined.isSecret('push_subscriptions', field)]).toEqual([field, true])
+    }
+
+    expect(joined.isSecret('invitations', 'token_hash')).toBe(true)
+    expect(joined.isSecret('visitors', 'door_code')).toBe(true)
+    // Secret on its table and nowhere else, and no table is one because every
+    // object answers to its name.
+    expect(joined.isSecret('shelves', 'auth')).toBe(false)
+    expect(joined.isSecret('push_subscriptions', 'label')).toBe(false)
+    expect(joined.isSecret('constructor', 'name')).toBe(false)
+    expect(language.isSecret('visitors', 'door_code')).toBe(false)
+  })
+
   it('finds parts where the application names them, and references where it or the foundation does', () => {
     expect(language.partsOf('shelves')).toEqual([{ table: 'notes', column: 'shelf_id' }])
     expect(language.partsOf('notes')).toEqual([])

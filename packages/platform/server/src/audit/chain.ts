@@ -48,13 +48,19 @@ export async function verifyAuditChain(
  * function, and on top what it cannot see, entries missing at the end. The
  * head of the chain says how many entries were written; fewer found means the
  * newest ones were taken away.
+ *
+ * The walk and the head are read as the tenant stood at one moment. A tenant
+ * is at work while its chain is checked, and read one after the other in a
+ * plain transaction, an entry written between the two was one the head
+ * counted and the walk had not seen: the check reported a tampered log to a
+ * tenant whose log was whole.
  */
 export async function checkAuditChain(
   database: Database,
   identity: { readonly tenantId: TenantId; readonly userId: string },
   now: Date = new Date(),
 ): Promise<AuditChainReport> {
-  return database.forTenant(identity, async (tx) => {
+  return database.readingTenant(identity, async (tx) => {
     const verification = await verifyAuditChain(tx, identity.tenantId)
     let { brokenAt, problem } = verification
 

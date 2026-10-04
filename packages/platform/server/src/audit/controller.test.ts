@@ -32,8 +32,11 @@ import {
 } from '../authentication/probe-application.js'
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import type { TenantTransaction } from '../database/database.js'
 import { memberships } from '../database/schema/memberships.js'
+import { invitations } from '../schema.js'
 import { letterLines, letters, notes, probeSyncMade, shelves } from '../sync/probe-sync.js'
+import { checkAuditChain } from './chain.js'
 import { auditLogParts } from './controller.js'
 
 /**
@@ -432,6 +435,65 @@ describe('the check of the chain', () => {
     expect(report.checked).toBeGreaterThan(5)
   })
 
+  /**
+   * A tenant is at work while its chain is checked. The check asks twice, how
+   * far the chain fits together and how many entries its head counts, and a
+   * change written between the two was an entry the head counted and the walk
+   * had not seen: a whole log was reported as one with its newest entries
+   * taken away. Both are read as the tenant stood at one moment.
+   *
+   * The change is written here the moment the check has had its first answer,
+   * through the database it was handed, so that it lands exactly between the
+   * two and not when chance has it.
+   */
+  it('reads the chain as it stood at one moment, also while the tenant is at work', async () => {
+    let answered = 0
+
+    const interrupted = (tx: TenantTransaction): TenantTransaction =>
+      new Proxy(tx, {
+        get(target, property) {
+          const found: unknown = Reflect.get(target, property, target)
+
+          if (property !== 'execute' || typeof found !== 'function') {
+            return typeof found === 'function' ? found.bind(target) : found
+          }
+
+          return async (...statement: unknown[]) => {
+            const result: unknown = await Reflect.apply(found, target, statement)
+
+            answered += 1
+
+            if (answered === 1) {
+              await shelf(north.id, 'mia', 'Zwischenregal')
+            }
+
+            return result
+          }
+        },
+      })
+    const atWork = {
+      forTenant: (
+        actor: Parameters<Database['forTenant']>[0],
+        work: (tx: TenantTransaction) => unknown,
+      ) => database.forTenant(actor, (tx) => Promise.resolve(work(interrupted(tx)))),
+      readingTenant: (
+        actor: Parameters<Database['readingTenant']>[0],
+        work: (tx: TenantTransaction) => unknown,
+      ) => database.readingTenant(actor, (tx) => Promise.resolve(work(interrupted(tx)))),
+    } as unknown as Database
+
+    const before = await check('lea')
+    const report = await checkAuditChain(atWork, { tenantId: north.id, userId: 'lea' })
+
+    expect(answered).toBeGreaterThan(1)
+    expect(report.problem).toBeNull()
+    expect(report.brokenAt).toBeNull()
+    // What it saw is the chain from before the shelf, and the shelf is in the
+    // chain the next check walks.
+    expect(report.checked).toBe(before.checked)
+    expect((await check('lea')).checked).toBeGreaterThan(report.checked)
+  })
+
   it('finds an entry changed past the application, and when it was written', async () => {
     const client = await admin.connect()
 
@@ -476,5 +538,53 @@ describe('the check of the chain', () => {
 
     expect(report.problem).toBe('Der letzte Eintrag fehlt.')
     expect(report.brokenAt).toBe(report.checked + 1)
+  })
+})
+
+describe('a value the log keeps to itself', () => {
+  /**
+   * The log holds the hash of a one time link as it holds every value, and
+   * the chain is hashed over it. What a reader of the log gets is that it was
+   * set. Hidden on the page alone, it went out with the answer to everybody
+   * who may read the log, for any page to show (opengewerk-haustechnik#31).
+   */
+  it('never leaves the server, on the page of all changes or on the one of its table', async () => {
+    const hash = 'c0ffee'.repeat(10)
+
+    await database.forTenant(
+      { tenantId: north.id, userId: 'lea', reason: 'membership.write' },
+      (tx) =>
+        tx.insert(invitations).values({
+          tenantId: north.id,
+          email: 'neu@example.de',
+          name: 'Nele Neu',
+          roles: ['member'],
+          tokenHash: hash,
+          invitedBy: 'lea',
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        }),
+    )
+
+    const every = await get('lea', '/audit/changes').expect(200)
+    const narrowed = await get('lea', '/audit/changes?table=invitations').expect(200)
+    const [change] = (narrowed.body as AuditPage).changes
+
+    expect(change?.fields.find((field) => field.field === 'token_hash')).toEqual({
+      field: 'token_hash',
+      before: null,
+      after: 'gesetzt',
+    })
+    // The address beside it is no secret and reads as it is.
+    expect(change?.fields.find((field) => field.field === 'email')?.after).toBe('neu@example.de')
+    expect(JSON.stringify(every.body)).not.toContain(hash)
+    expect(JSON.stringify(narrowed.body)).not.toContain(hash)
+
+    const { rows } = await admin.query<{ new_value: string }>(
+      `select new_value from audit_entries
+        where tenant_id = $1 and table_name = 'invitations' and field = 'token_hash'`,
+      [north.id],
+    )
+
+    expect(rows).toEqual([{ new_value: hash }])
   })
 })

@@ -114,8 +114,6 @@ export const auditScreenWords: AuditScreenWords = {
     form_records: { definition_key: formWords },
   },
   lists: { kinds: documentKindLabel },
-  // Keys of a browser, never shown, only that they are set.
-  hidden: ['p256dh', 'auth', 'endpoint'],
   fingerprints: ['sha256', 'preview_sha256', 'content_fingerprint'],
   summary(change) {
     const status = change.fields.find((field) => field.field === 'status')
