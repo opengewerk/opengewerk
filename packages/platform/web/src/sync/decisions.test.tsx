@@ -755,6 +755,45 @@ describe('"Abgleich" in the office', () => {
     ).toBeNull()
   })
 
+  /**
+   * A server that answered and refused the exchange leaves a reason behind as
+   * well, and the line said "Keine Verbindung" over it, on a device that has
+   * one, with "sobald wieder Netz da ist" for something no network cures
+   * (#545). The strip over the page had the sentence of the server all along.
+   */
+  it('says the sentence of the server that answered and refused, not that the connection is missing', async () => {
+    const started = await client()
+
+    server.pull = () =>
+      Promise.reject(new RequestRefused(403, 'Abgleichen darf dieser Zugang nicht.'))
+    await started.create('notes', { text: 'Eins' })
+    await started.synchronise()
+    inOffice(started)
+
+    const state = within(screen.getByRole('region', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('Abgleichen darf dieser Zugang nicht.')).toBeTruthy()
+    expect(
+      state.queryByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeNull()
+    // Nor that all is well.
+    expect(state.queryByText('Nichts wartet, nichts zu entscheiden')).toBeNull()
+  })
+
+  it('does not say that all is well over a refused exchange with nothing waiting', async () => {
+    const started = await client()
+
+    server.pull = () =>
+      Promise.reject(new RequestRefused(403, 'Abgleichen darf dieser Zugang nicht.'))
+    await started.synchronise()
+    inOffice(started)
+
+    const state = within(screen.getByRole('region', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('Abgleichen darf dieser Zugang nicht.')).toBeTruthy()
+    expect(state.queryByText('Nichts wartet, nichts zu entscheiden')).toBeNull()
+  })
+
   it('offers no second exchange while one runs', async () => {
     const started = await client()
     let answer: (result: PullResult) => void = () => {}
@@ -935,6 +974,24 @@ describe('"Konflikte" on site', () => {
     const state = within(screen.getByRole('list', { name: 'Stand des Abgleichs' }))
 
     expect(await state.findByText('1 Änderung wartet auf dem Gerät.')).toBeTruthy()
+    expect(
+      state.queryByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeNull()
+  })
+
+  it('says the sentence of the server that answered and refused, not that the connection is missing', async () => {
+    const started = await client()
+
+    server.pull = () =>
+      Promise.reject(new RequestRefused(403, 'Abgleichen darf dieser Zugang nicht.'))
+    await started.create('notes', { text: 'Eins' })
+    await started.synchronise()
+    onSite(started)
+
+    const state = within(screen.getByRole('list', { name: 'Stand des Abgleichs' }))
+
+    // The device has a connection, and no network cures a right that is missing (#545).
+    expect(state.getByText('Abgleichen darf dieser Zugang nicht.')).toBeTruthy()
     expect(
       state.queryByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
     ).toBeNull()

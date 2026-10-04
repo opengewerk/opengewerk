@@ -10,6 +10,7 @@ import { ThemeSwitch } from '../components/theme-switch.js'
 import { useTheme } from '../components/theme.js'
 import { sinceThen } from '../format.js'
 import { useWho } from '../session/who.js'
+import { exchangeRefusal, noConnection } from '../sync/client.js'
 import { useSyncStatus } from '../sync/provider.js'
 import { useSettingsEntries } from './settings.js'
 import { DrawerTenant } from './tenants.js'
@@ -193,16 +194,26 @@ export function SyncNote() {
     return null
   }
 
+  // What went wrong with the exchange itself, if anything did: nobody
+  // answered, or the server answered and refused it, which waiting for a
+  // network does not cure (#545). A change the server refused at its own
+  // route is neither. Its sentence stands at the form, and the exchange goes
+  // on as it did.
+  const failed = noConnection(status)
+    ? 'Keine Verbindung'
+    : exchangeRefusal(status) === null
+      ? null
+      : 'Abgleich abgelehnt'
+  const settled = status.lastSyncedAt
+    ? `Abgeglichen, ${sinceThen(status.lastSyncedAt)}`
+    : 'Noch nicht abgeglichen'
   const text =
     status.state === 'refused'
       ? 'Eine Änderung abgelehnt'
       : status.state === 'offline'
-        ? status.trouble === null
-          ? 'Wird übertragen'
-          : 'Keine Verbindung'
-        : status.lastSyncedAt
-          ? `Abgeglichen, ${sinceThen(status.lastSyncedAt)}`
-          : 'Noch nicht abgeglichen'
+        ? (failed ??
+          (status.troubleKind === null || status.pending > 0 ? 'Wird übertragen' : settled))
+        : settled
 
   return (
     <div
@@ -210,9 +221,9 @@ export function SyncNote() {
         'pl-[35px] pr-2.5 pb-1.5 -mt-[3px] text-[12px] leading-snug',
         // Quiet while everything goes as it should, also while a change is on
         // its way; red only when something needs somebody.
-        status.state === 'synced' || (status.state === 'offline' && status.trouble === null)
-          ? 'text-ink-faint'
-          : 'text-conflict font-semibold',
+        status.state === 'refused' || failed !== null
+          ? 'text-conflict font-semibold'
+          : 'text-ink-faint',
       )}
     >
       {text}

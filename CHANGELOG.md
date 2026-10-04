@@ -965,6 +965,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Entscheidung nicht hinausgeht. Büro und Baustelle fragen jetzt beide, ob der letzte Versuch einen
   Grund hinterlassen hat; auf der Baustelle stand die Zeile bisher auch über jeder Änderung, die
   gerade erst unterwegs war.
+- "Keine Verbindung" steht nur noch da, wenn niemand geantwortet hat (#545). Lehnt der Server den
+  Abgleich ab, etwa weil der Rolle das Recht dazu fehlt oder die Instanz die Adresse nicht kennt,
+  hat das Gerät eine Verbindung, und "sobald wieder Netz da ist" stimmte nicht: die Leiste oben
+  nannte den Satz des Servers, die Navigation und der Stand des Abgleichs daneben eine fehlende
+  Verbindung. Unter "Abgleich" steht in dem Fall jetzt "Abgleich abgelehnt" (so entschieden von
+  Moritz am 04.10.2026), der Stand des Abgleichs nennt den Satz des Servers, im Büro wie auf der
+  Baustelle, und "Offline" im Kopf einer Seite der Baustelle steht nur noch ohne Verbindung, dann
+  aber auch neben einem Konflikt. Lehnt der Server eine Änderung ab, die mit Verbindung an ihre
+  Route geht, bleibt die Zeile unter "Abgleich" ruhig: abgelehnt ist die Änderung, nicht der
+  Abgleich, und ihr Satz steht am Formular. Der Stand des Abgleichs sagt dafür, welcher Art der
+  Grund ist (`troubleKind`), statt dass die Bildschirme am Text raten.
 - Der Vergleich einer Datenbank mit den Bausteinen des Fundaments (`foundationDeviations`) sieht
   einen Index jetzt auch dann, wenn ein Fremdschlüssel einer anderen Tabelle auf ihn zeigt
   (`opengewerk-haustechnik#23`). Bisher nahm er jeden Index aus, den irgendein Constraint nennt,

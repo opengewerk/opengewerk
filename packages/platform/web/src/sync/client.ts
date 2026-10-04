@@ -60,6 +60,27 @@ export interface RefusedOperation {
   readonly message: string
 }
 
+/**
+ * What kind of thing went wrong last. The sentence in `trouble` is for people;
+ * this is for the places that say something of their own about it, because
+ * waiting for a network helps with the first and with neither of the others
+ * (#545).
+ */
+export type SyncTroubleKind =
+  /** Nobody answered: no network, or no server at the other end of it. */
+  | 'unreachable'
+  /**
+   * The server answered and refused the exchange: a right that is missing, an
+   * address the instance does not trust, a session that ran out.
+   */
+  | 'exchange_refused'
+  /**
+   * The server refused a change that goes straight to its route. The exchange
+   * is not touched by that, and whoever made the change has the sentence at
+   * the form.
+   */
+  | 'change_refused'
+
 export interface SyncSnapshot {
   readonly state: SyncState
   /** Operations still waiting in the outbox. */
@@ -77,8 +98,50 @@ export interface SyncSnapshot {
   readonly online: boolean
   /** The last thing that went wrong, for the bar to say out loud. */
   readonly trouble: string | null
+  /** What kind of thing that was. Null exactly while `trouble` is. */
+  readonly troubleKind: SyncTroubleKind | null
   /** The operation the outbox is stuck on, until somebody lets it go. */
   readonly refused: RefusedOperation | null
+}
+
+/** A reason and its kind, which are only ever published together. */
+function troubled(troubleKind: SyncTroubleKind, trouble: string) {
+  return { trouble, troubleKind } as const
+}
+
+/** Nothing went wrong, or it is being tried again. */
+const untroubled = { trouble: null, troubleKind: null } as const
+
+/**
+ * Whether "Keine Verbindung" stands where the state of the exchange is told:
+ * when the last attempt ended with nobody answering.
+ *
+ * Asked of the reason and not of the state of the client. The state names
+ * what needs somebody first, a refused change before a conflict before a
+ * missing connection, so a device with a conflict and no network said nothing
+ * of the network, and whoever decided the conflict learned only at its card
+ * that the decision did not get out (#494). One question for every place that
+ * says it: the site asked the state alone, and with it claimed a missing
+ * connection over every change that was simply on its way.
+ *
+ * And asked of the kind of the reason, not of whether there is one (#545). A
+ * server that answered and refused leaves a reason as well, and "sobald wieder
+ * Netz da ist" is not true of a right that is missing or an address the
+ * instance does not trust: `exchangeRefusal` has the sentence for that.
+ */
+export function noConnection(status: Pick<SyncSnapshot, 'troubleKind'>): boolean {
+  return status.troubleKind === 'unreachable'
+}
+
+/**
+ * The sentence of a server that answered and refused the exchange, for the
+ * state of the exchange to say as the strip does. Null while that is not what
+ * went wrong.
+ */
+export function exchangeRefusal(
+  status: Pick<SyncSnapshot, 'trouble' | 'troubleKind'>,
+): string | null {
+  return status.troubleKind === 'exchange_refused' ? status.trouble : null
 }
 
 export type EditResult =
@@ -317,7 +380,7 @@ export class SyncClient {
     lastSyncedAt: null,
     exchanging: false,
     online: true,
-    trouble: null,
+    ...untroubled,
     refused: null,
   }
 
@@ -430,7 +493,7 @@ export class SyncClient {
       // The state itself is worked out from the outbox and nowhere else. The
       // browser's flag is a hint and a famously unreliable one: it says online
       // on a hotel network that answers nothing.
-      this.publish({ online: false, trouble: 'Keine Verbindung.' })
+      this.publish({ online: false, ...troubled('unreachable', 'Keine Verbindung.') })
     }
 
     globalThis.addEventListener('online', online)
@@ -643,12 +706,12 @@ export class SyncClient {
       // refusal is an answer and brings its own sentence, which the screen
       // shows instead (#254).
       if (error instanceof RequestRefused) {
-        this.publish({ trouble: error.message })
+        this.publish(troubled('change_refused', error.message))
 
         return { outcome: 'refused', reason: 'online_only', fields: [], message: error.message }
       }
 
-      this.publish({ trouble: 'Keine Verbindung.' })
+      this.publish(troubled('unreachable', 'Keine Verbindung.'))
 
       return { outcome: 'refused', reason: 'online_only', fields: [] }
     }
@@ -817,7 +880,7 @@ export class SyncClient {
   }
 
   private async exchange(): Promise<void> {
-    this.publish({ exchanging: true, trouble: null })
+    this.publish({ exchanging: true, ...untroubled })
 
     try {
       // A push refused over one operation does not stop the pull. What comes
@@ -841,10 +904,13 @@ export class SyncClient {
       }
       await this.refreshConflicts()
 
-      this.publish({ lastSyncedAt: new Date(), exchanging: false, trouble: null, refused })
+      this.publish({ lastSyncedAt: new Date(), exchanging: false, ...untroubled, refused })
     } catch (error) {
       if (isUnauthenticated(error)) {
-        this.publish({ exchanging: false, trouble: 'Die Anmeldung ist abgelaufen.' })
+        this.publish({
+          exchanging: false,
+          ...troubled('exchange_refused', 'Die Anmeldung ist abgelaufen.'),
+        })
         this.wanted = false
         this.onSignedOut()
 
@@ -853,13 +919,13 @@ export class SyncClient {
 
       // A 403 lands here, with the session still good: the strip shows the
       // server's sentence, a missing right or an address the instance does not
-      // trust, and the device stays open (#254).
+      // trust, and the device stays open (#254). That is an answer and not a
+      // missing connection, and the state says which of the two it was (#545).
       this.publish({
         exchanging: false,
-        trouble:
-          error instanceof RequestRefused
-            ? error.message
-            : 'Keine Verbindung. Die Änderungen bleiben auf dem Gerät.',
+        ...(error instanceof RequestRefused
+          ? troubled('exchange_refused', error.message)
+          : troubled('unreachable', 'Keine Verbindung. Die Änderungen bleiben auf dem Gerät.')),
       })
 
       // Nothing is asked for again after a failure. Whoever comes back, the
