@@ -40,6 +40,13 @@ let siteId: string
 const office = () => as(north.id, 'office')
 const technician = () => as(north.id, 'technician')
 
+/**
+ * The same somebody, in a session opened on one device. A conflict is that
+ * device's and is listed and closed there alone (GHSA-4jfj-cxqw-qgpj).
+ */
+const onDevice = (who: string, deviceId: string) =>
+  JSON.stringify({ ...(JSON.parse(who) as Record<string, unknown>), deviceId })
+
 function http() {
   return request(app.getHttpServer())
 }
@@ -356,7 +363,7 @@ describe('two devices that wrote the same field', () => {
 
     const conflicts = await http()
       .get('/sync/conflicts')
-      .set('x-test-identity', office())
+      .set('x-test-identity', onDevice(technician(), 'telefon-bernd'))
       .expect(200)
     const open = (conflicts.body as Record<string, unknown>[]).filter(
       (entry) => entry['recordId'] === board.id,
@@ -442,7 +449,7 @@ describe('the same transmission twice', () => {
 
     const conflicts = await http()
       .get('/sync/conflicts')
-      .set('x-test-identity', office())
+      .set('x-test-identity', onDevice(technician(), 'telefon-anna'))
       .expect(200)
     const open = (conflicts.body as Record<string, unknown>[]).filter(
       (entry) => entry['recordId'] === board.id,
@@ -736,7 +743,7 @@ describe('a record that was deleted while the device was away', () => {
 
     const conflicts = await http()
       .get('/sync/conflicts')
-      .set('x-test-identity', office())
+      .set('x-test-identity', onDevice(technician(), 'telefon-anna'))
       .expect(200)
     expect(
       (conflicts.body as { recordId: string }[]).some((entry) => entry.recordId === board.id),
@@ -1050,7 +1057,7 @@ describe('a contact from a device', () => {
     // And it waits on the list for a person, like every other conflict.
     const conflicts = await http()
       .get('/sync/conflicts')
-      .set('x-test-identity', office())
+      .set('x-test-identity', onDevice(office(), 'geraet-im-keller'))
       .expect(200)
     expect(
       (conflicts.body as { recordId: string }[]).some((entry) => entry.recordId === stray),
@@ -1373,7 +1380,9 @@ describe('a conflict', () => {
       }),
     ])
 
-    const listed = await http().get('/sync/conflicts').set('x-test-identity', office()).expect(200)
+    // The second phone's change is the one that conflicts, and its device decides.
+    const bernd = onDevice(technician(), 'telefon-bernd')
+    const listed = await http().get('/sync/conflicts').set('x-test-identity', bernd).expect(200)
     const mine = (listed.body as { id: string; recordId: string }[]).find(
       (entry) => entry.recordId === board.id,
     )
@@ -1383,17 +1392,17 @@ describe('a conflict', () => {
 
     await http()
       .post(`/sync/conflicts/${mine.id}/resolve`)
-      .set('x-test-identity', office())
+      .set('x-test-identity', bernd)
       .expect(201)
 
-    const left = await http().get('/sync/conflicts').set('x-test-identity', office()).expect(200)
+    const left = await http().get('/sync/conflicts').set('x-test-identity', bernd).expect(200)
     expect((left.body as { id: string }[]).some((entry) => entry.id === mine.id)).toBe(false)
 
     // And not twice. A conflict that could be closed again and again would let
     // a list quietly disagree with itself about how much is still open.
     await http()
       .post(`/sync/conflicts/${mine.id}/resolve`)
-      .set('x-test-identity', office())
+      .set('x-test-identity', bernd)
       .expect(404)
   })
 })

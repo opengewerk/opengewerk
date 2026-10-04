@@ -387,17 +387,31 @@ export class SyncController {
     })
   }
 
-  /** The list somebody has to work through. */
+  /**
+   * The list somebody has to work through: the conflicts of the device this
+   * session belongs to, and only those (GHSA-4jfj-cxqw-qgpj).
+   *
+   * The device is the session's and never one a request names, so that no
+   * query reaches the conflicts of another. A session that was not opened as
+   * a device has sent nothing through the sync and has none.
+   */
   @Get('conflicts')
   @RequiresPermission(syncRights.read)
-  conflicts(@CurrentIdentity() identity: RequestIdentity): Promise<SyncConflictRow[]> {
-    return this.database.forTenant(identity, (tx) => openConflicts(tx))
+  async conflicts(@CurrentIdentity() identity: RequestIdentity): Promise<SyncConflictRow[]> {
+    const { deviceId } = identity
+
+    if (deviceId === undefined) {
+      return []
+    }
+
+    return this.database.forTenant(identity, (tx) => openConflicts(tx, deviceId))
   }
 
   /**
-   * Marks a conflict as decided. What the decision was is a change like any
-   * other and comes through the ordinary routes; this only says that nobody
-   * has to look at it again.
+   * Marks a conflict of this device as decided. What the decision was is a
+   * change like any other and comes through the ordinary routes; this only
+   * says that nobody has to look at it again. The conflict of another device
+   * is not found here, as if it did not exist.
    */
   @Post('conflicts/:id/resolve')
   @RequiresPermission(syncRights.write)
@@ -405,7 +419,10 @@ export class SyncController {
     @CurrentIdentity() identity: RequestIdentity,
     @Param('id') id: string,
   ): Promise<{ resolved: string }> {
-    const closed = await this.database.forTenant(identity, (tx) => closeConflict(tx, id))
+    const { deviceId } = identity
+    const closed =
+      deviceId !== undefined &&
+      (await this.database.forTenant(identity, (tx) => closeConflict(tx, id, deviceId)))
 
     if (!closed) {
       throw new NotFoundException()
