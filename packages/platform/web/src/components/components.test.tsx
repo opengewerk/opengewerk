@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Button, IconButton } from './button.js'
 import { Confirm } from './confirm.js'
-import { Field } from './field.js'
+import { Field, SelectField, TextArea } from './field.js'
 import { TablePanel } from './panel.js'
 import { Strip } from './strip.js'
 import { Cell, Column, Table } from './table.js'
@@ -72,6 +72,69 @@ describe('a field', () => {
     expect(input.getAttribute('aria-invalid')).toBe('true')
     expect(describedBy).toBeTruthy()
     expect(document.getElementById(describedBy as string)?.textContent).toContain('Grenzwert')
+  })
+
+  /** The label of a control, by the id the control carries. */
+  function labelOf(control: HTMLElement) {
+    return document.querySelector(`label[for="${control.id}"]`)
+  }
+
+  it('carries a star beside its label where the screen asks for one, and keeps its name', () => {
+    render(
+      <>
+        <Field label="Name" required starred />
+        <SelectField
+          label="Raum"
+          value="shop"
+          options={[{ value: 'shop', label: 'Werkstatt' }]}
+          onChange={() => undefined}
+          required
+          starred
+        />
+        <TextArea label="Notiz" required starred />
+      </>,
+    )
+
+    for (const name of ['Name', 'Raum', 'Notiz']) {
+      const control = screen.getByLabelText(name)
+      const star = labelOf(control)?.nextElementSibling
+
+      // The label is the name and nothing else: the star stands beside it and
+      // out of what a reader hears, and the control says that it is required.
+      expect(labelOf(control)?.textContent).toBe(name)
+      expect(star?.textContent).toBe('*')
+      expect(star?.getAttribute('aria-hidden')).toBe('true')
+      expect(control).toHaveProperty('required', true)
+    }
+  })
+
+  it('carries no star for being required alone', () => {
+    // A form before the sign in asks for nothing but required fields.
+    render(
+      <>
+        <Field label="Passwort" required />
+        <TextArea label="Grund" required />
+      </>,
+    )
+
+    expect(screen.getByLabelText('Passwort')).toHaveProperty('required', true)
+    expect(document.body.textContent).not.toContain('*')
+  })
+
+  it('keeps the star at the label where something stands at the right of it', () => {
+    render(<Field label="Passwort" starred aside={<a href="#vergessen">Vergessen?</a>} />)
+
+    const label = labelOf(screen.getByLabelText('Passwort'))
+    const aside = screen.getByRole('link', { name: 'Vergessen?' })
+
+    expect(label?.textContent).toBe('Passwort')
+    expect(label?.nextElementSibling?.textContent).toBe('*')
+    // The star belongs to the label, what stands at the right comes after both.
+    expect(label?.parentElement?.contains(aside)).toBe(false)
+    expect(
+      (label?.parentElement?.compareDocumentPosition(aside) ?? 0) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })
 

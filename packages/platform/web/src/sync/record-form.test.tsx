@@ -339,6 +339,134 @@ describe('the buttons of a form', () => {
   })
 })
 
+describe('a form drawn as a board draws it', () => {
+  const noted: readonly FormField[] = [
+    { name: 'name', label: 'Name', required: true, place: 'lg:col-span-3' },
+    { name: 'boards', label: 'Böden', placeholder: '5' },
+    {
+      name: 'room',
+      label: 'Raum',
+      required: true,
+      options: [{ value: 'shop', label: 'Werkstatt' }],
+    },
+    {
+      name: 'note',
+      label: 'Notiz',
+      kind: 'textarea',
+      placeholder: 'Was an diesem Regal zu beachten ist',
+    },
+  ]
+
+  it('takes more than a line in a box, and hands the lines back as they were typed', async () => {
+    const submitted = taking()
+
+    form({ fields: noted, onSubmit: submitted })
+
+    const note = screen.getByLabelText('Notiz')
+
+    expect(note.tagName).toBe('TEXTAREA')
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Regal')
+    // A line break in the box is a line break, not the end of the form.
+    await userEvent.type(note, 'Oben nur Leichtes.{enter}Schlüssel im Büro.')
+
+    expect(submitted).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(submitted).toHaveBeenCalledWith({
+      name: 'Regal',
+      boards: '',
+      room: 'shop',
+      note: 'Oben nur Leichtes.\nSchlüssel im Büro.',
+    })
+  })
+
+  it('starts the box with what the record holds, and marks it as the reason of a refusal', async () => {
+    form({
+      fields: noted,
+      record: { id: 's-1', name: 'Regal', note: 'Wackelt.' },
+      onSubmit: () =>
+        Promise.resolve({ outcome: 'refused', reason: 'record_is_fixed', fields: ['note'] }),
+    })
+
+    const note = screen.getByLabelText('Notiz')
+
+    expect(note).toHaveProperty('value', 'Wackelt.')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+    await screen.findByRole('alert')
+
+    expect(note.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('Name').getAttribute('aria-invalid')).not.toBe('true')
+  })
+
+  it('shows an example in an empty field where one is given, and none where not', () => {
+    form({ fields: noted })
+
+    expect(screen.getByLabelText('Böden').getAttribute('placeholder')).toBe('5')
+    expect(screen.getByLabelText('Notiz').getAttribute('placeholder')).toBe(
+      'Was an diesem Regal zu beachten ist',
+    )
+    expect(screen.getByLabelText('Name').hasAttribute('placeholder')).toBe(false)
+  })
+
+  /** The cell of the grid a control stands in: the child of the grid above it. */
+  function cellOf(control: HTMLElement): Element | null {
+    let cell: Element | null = control
+
+    while (cell?.parentElement && !cell.parentElement.className.includes('grid')) {
+      cell = cell.parentElement
+    }
+
+    return cell
+  }
+
+  it('stands where it says in the grid, a box across the whole of it, and anything else in one cell', () => {
+    form({ fields: noted, columns: 'lg:grid-cols-6' })
+
+    expect(cellOf(screen.getByLabelText('Name'))?.className).toContain('lg:col-span-3')
+    expect(cellOf(screen.getByLabelText('Notiz'))?.className).toContain('col-span-full')
+    // A field that says nothing takes one cell, as it always did.
+    expect(cellOf(screen.getByLabelText('Böden'))?.className).not.toContain('col-span')
+    expect(cellOf(screen.getByLabelText('Raum'))?.className).not.toContain('col-span')
+    expect(cellOf(screen.getByLabelText('Name'))?.parentElement?.className).toContain(
+      'lg:grid-cols-6',
+    )
+  })
+
+  it('lets a box stand in less than the whole row where it says so', () => {
+    form({
+      fields: [{ name: 'note', label: 'Notiz', kind: 'textarea', place: 'sm:col-span-1' }],
+    })
+
+    const cell = cellOf(screen.getByLabelText('Notiz'))
+
+    expect(cell?.className).toContain('sm:col-span-1')
+    expect(cell?.className).not.toContain('col-span-full')
+  })
+
+  /** The labels a star stands beside. */
+  function starred(): (string | null)[] {
+    return [...document.querySelectorAll('label')]
+      .filter((label) => label.nextElementSibling?.textContent === '*')
+      .map((label) => label.textContent)
+  }
+
+  it('draws a star beside what has to be filled in where the form is asked to, and none otherwise', () => {
+    const { unmount } = form({ fields: noted })
+
+    expect(starred()).toEqual([])
+
+    unmount()
+    form({ fields: noted, starred: true })
+
+    // The typed field and the choice, not what may stay empty.
+    expect(starred()).toEqual(['Name', 'Raum'])
+    expect(screen.getByLabelText('Name')).toHaveProperty('required', true)
+  })
+})
+
 describe('what a choice hands back, as a record wants it', () => {
   it('is a yes only for the yes of the two choices', () => {
     expect(yesOrNo.map((choice) => [choice.label, asBoolean(choice.value)])).toEqual([

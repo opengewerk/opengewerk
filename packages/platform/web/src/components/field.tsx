@@ -54,6 +54,52 @@ function edge(problem: string | undefined): string {
   return problem ? 'border-2 border-conflict' : 'border border-line-strong'
 }
 
+/**
+ * The star beside the label of a field that has to be filled in, as
+ * `field(required=True)` of the canvas draws it, in the colour of a conflict.
+ *
+ * Beside the label and not in it: the label stays the name of the field, as
+ * a reader hears it and as a test finds it, and that the field is required
+ * the control says itself. Not drawn for every required field either. A form
+ * before the sign in asks for nothing but required fields and marks none; a
+ * screen says with `starred` where its board draws the star.
+ */
+function Star({ kind }: { readonly kind: keyof typeof look }) {
+  return (
+    <span aria-hidden="true" className={clsx(look[kind].label, 'text-conflict!')}>
+      *
+    </span>
+  )
+}
+
+/** The label of a control, with its star beside it where the screen asks for one. */
+function Named({
+  id,
+  kind,
+  starred,
+  children,
+}: {
+  readonly id: string
+  readonly kind: keyof typeof look
+  readonly starred: boolean
+  readonly children: ReactNode
+}) {
+  const label = (
+    <label htmlFor={id} className={look[kind].label}>
+      {children}
+    </label>
+  )
+
+  return starred ? (
+    <span className="flex items-baseline gap-1">
+      {label}
+      <Star kind={kind} />
+    </span>
+  ) : (
+    label
+  )
+}
+
 /** The line under a field, and the problem under that, both wired to it. */
 function Notes({
   kind,
@@ -109,6 +155,8 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
    * "Passwort" on the board "Tor-Anmelden".
    */
   readonly aside?: ReactNode
+  /** A star beside the label, where the board of the screen marks what has to be filled in. */
+  readonly starred?: boolean
 }
 
 /**
@@ -126,6 +174,7 @@ export function Field({
   numeric = false,
   unit,
   aside,
+  starred = false,
   className,
   ref,
   ...rest
@@ -158,15 +207,24 @@ export function Field({
     <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
       {aside ? (
         <div className="flex items-baseline gap-2">
-          <label htmlFor={id} className={clsx('grow', look[kind].label)}>
-            {label}
-          </label>
+          {starred ? (
+            <span className="flex grow items-baseline gap-1">
+              <label htmlFor={id} className={look[kind].label}>
+                {label}
+              </label>
+              <Star kind={kind} />
+            </span>
+          ) : (
+            <label htmlFor={id} className={clsx('grow', look[kind].label)}>
+              {label}
+            </label>
+          )}
           {aside}
         </div>
       ) : (
-        <label htmlFor={id} className={look[kind].label}>
+        <Named id={id} kind={kind} starred={starred}>
           {label}
-        </label>
+        </Named>
       )}
       {unit ? (
         <div className="flex items-center gap-2.5">
@@ -200,6 +258,8 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
   readonly label: string
   readonly hint?: ReactNode
   readonly problem?: string
+  /** A star beside the label, as at a `Field`. */
+  readonly starred?: boolean
 }
 
 /**
@@ -209,7 +269,15 @@ export interface TextAreaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaE
  * the control token, because a paragraph has no single right height, and line
  * breaks are kept as typed, because the printed document keeps them too.
  */
-export function TextArea({ label, hint, problem, rows = 4, className, ...rest }: TextAreaProps) {
+export function TextArea({
+  label,
+  hint,
+  problem,
+  starred = false,
+  rows = 4,
+  className,
+  ...rest
+}: TextAreaProps) {
   const id = useId()
   const kind = useLook()
   const hintId = `${id}-hint`
@@ -218,9 +286,9 @@ export function TextArea({ label, hint, problem, rows = 4, className, ...rest }:
 
   return (
     <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
-      <label htmlFor={id} className={look[kind].label}>
+      <Named id={id} kind={kind} starred={starred}>
         {label}
-      </label>
+      </Named>
       <textarea
         id={id}
         rows={rows}
@@ -249,6 +317,8 @@ export interface SelectFieldProps {
   readonly problem?: string
   readonly required?: boolean
   readonly disabled?: boolean
+  /** A star beside the label, as at a `Field`. */
+  readonly starred?: boolean
 }
 
 /**
@@ -268,6 +338,7 @@ export function SelectField({
   problem,
   required,
   disabled,
+  starred = false,
 }: SelectFieldProps) {
   const id = useId()
   const entry = useEntry()
@@ -278,9 +349,9 @@ export function SelectField({
 
   return (
     <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
-      <label htmlFor={id} className={look[kind].label}>
+      <Named id={id} kind={kind} starred={starred}>
         {label}
-      </label>
+      </Named>
       {/* The native list, with the arrow of the canvas instead of the
           browser's, which differs on every system. */}
       <div className="relative min-w-0">

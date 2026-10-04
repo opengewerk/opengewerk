@@ -227,22 +227,33 @@ const sideWidths = {
  * screen reader and the Tab key follow the order of the page, and a column
  * moved up by the stylesheet alone would be read in another place than it is
  * seen.
+ *
+ * With `sideFirst` the narrow column stands at the left, where a board draws
+ * what a record is before what hangs on it. First in the page as well, for
+ * the same reason: what is seen first is read first.
  */
 export function RecordColumns({
   main,
   side,
   sideWidth = 282,
+  sideFirst = false,
 }: {
   readonly main: ReactNode
   readonly side: ReactNode
   readonly sideWidth?: keyof typeof sideWidths
+  readonly sideFirst?: boolean
 }) {
+  const wide = <div className="flex min-w-0 flex-col gap-3 lg:grow">{main}</div>
+  const narrow = (
+    <div className={clsx('flex min-w-0 flex-col gap-3 lg:shrink-0', sideWidths[sideWidth])}>
+      {side}
+    </div>
+  )
+
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
-      <div className="flex min-w-0 flex-col gap-3 lg:grow">{main}</div>
-      <div className={clsx('flex min-w-0 flex-col gap-3 lg:shrink-0', sideWidths[sideWidth])}>
-        {side}
-      </div>
+      {sideFirst ? narrow : wide}
+      {sideFirst ? wide : narrow}
     </div>
   )
 }

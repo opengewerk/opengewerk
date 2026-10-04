@@ -5,7 +5,7 @@ import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { Button } from '../components/button.js'
-import { Field, SelectField } from '../components/field.js'
+import { Field, SelectField, TextArea } from '../components/field.js'
 import { useEntry } from '../components/surface.js'
 import { refusalFor } from './client.js'
 import type { EditResult } from './client.js'
@@ -14,21 +14,34 @@ import type { EditResult } from './client.js'
  * One field of a form, described rather than written out.
  *
  * ADR 0004 names a form engine on a JSON schema renderer for later. This is
- * not that, and it deliberately stops well short of it: four kinds of input
- * and a list of choices, enough that the forms of an application are
- * descriptions instead of hand built forms that drift apart in how they
- * label, space and announce themselves.
+ * not that, and it deliberately stops well short of it: a few kinds of input,
+ * a box for more than a line and a list of choices, enough that the forms of
+ * an application are descriptions instead of hand built forms that drift
+ * apart in how they label, space and announce themselves.
  */
 export interface FormField {
   readonly name: string
   readonly label: string
-  readonly kind?: 'text' | 'email' | 'tel' | 'date' | 'number'
+  /**
+   * What is typed into it. `textarea` is a box for more than a line, a remark
+   * or a way in; it stands across the whole form unless `place` says
+   * otherwise, because a paragraph in half a row is a column of three words.
+   */
+  readonly kind?: 'text' | 'email' | 'tel' | 'date' | 'number' | 'textarea'
   /** Turns the field into a list of choices. */
   readonly options?: readonly { readonly value: string; readonly label: string }[]
   readonly required?: boolean
   readonly hint?: string
+  /** What an empty field shows in grey: an example of what belongs in it, never its name. */
+  readonly placeholder?: string
   /** Amounts and measured values, for tabular figures. */
   readonly numeric?: boolean
+  /**
+   * Where the field stands in the grid of its form, as a class: how many of
+   * the columns it takes where a board draws a street wider than a postal
+   * code. Left out, one cell.
+   */
+  readonly place?: string
   /**
    * Whether the field stands in the form for what is filled in so far: a
    * field only some kinds of a record have, shown once that kind is chosen
@@ -142,6 +155,7 @@ export function RecordForm({
   after,
   columns,
   divided = true,
+  starred = false,
 }: {
   readonly fields: readonly FormField[]
   readonly record?: RecordState | null
@@ -170,6 +184,11 @@ export function RecordForm({
   readonly columns?: string
   /** A line over the buttons; a form that stands in a row of its own has none. */
   readonly divided?: boolean
+  /**
+   * A star beside the label of every field that has to be filled in, where
+   * the boards of an application draw one.
+   */
+  readonly starred?: boolean
 }) {
   const entry = useEntry()
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -232,34 +251,68 @@ export function RecordForm({
           }
 
           const choices = choicesOf(field, values)
+          const star = starred && field.required === true ? true : undefined
+          const problem = wrongFields.includes(field.name)
+            ? 'Dieses Feld ist der Grund.'
+            : undefined
+          // A cell of its own only where the field says where it stands, so
+          // that a form that says nothing is drawn as it always was.
+          const place = field.place ?? (field.kind === 'textarea' ? 'col-span-full' : undefined)
+          const key = place === undefined ? field.name : undefined
 
-          return choices ? (
+          const control = choices ? (
             <SelectField
-              key={field.name}
+              key={key}
               label={field.label}
               options={choices}
               required={field.required}
+              starred={star}
               hint={field.hint}
               value={values[field.name] ?? ''}
               onChange={(value) => {
                 setValues((current) => ({ ...current, [field.name]: value }))
               }}
             />
-          ) : (
-            <Field
-              key={field.name}
+          ) : field.kind === 'textarea' ? (
+            <TextArea
+              key={key}
               label={field.label}
-              type={field.kind ?? 'text'}
               name={field.name}
               required={field.required}
+              starred={star}
               hint={field.hint}
-              numeric={field.numeric}
-              problem={wrongFields.includes(field.name) ? 'Dieses Feld ist der Grund.' : undefined}
+              placeholder={field.placeholder}
+              problem={problem}
               value={values[field.name] ?? ''}
               onChange={(event) => {
                 setValues((current) => ({ ...current, [field.name]: event.target.value }))
               }}
             />
+          ) : (
+            <Field
+              key={key}
+              label={field.label}
+              type={field.kind ?? 'text'}
+              name={field.name}
+              required={field.required}
+              starred={star}
+              hint={field.hint}
+              placeholder={field.placeholder}
+              numeric={field.numeric}
+              problem={problem}
+              value={values[field.name] ?? ''}
+              onChange={(event) => {
+                setValues((current) => ({ ...current, [field.name]: event.target.value }))
+              }}
+            />
+          )
+
+          return place === undefined ? (
+            control
+          ) : (
+            <div key={field.name} className={clsx('min-w-0', place)}>
+              {control}
+            </div>
           )
         })}
       </div>

@@ -20,6 +20,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   läuft der Aufruf im Mandanten und als die Person, die beitritt. `invite` und `setRoles` der
   Oberfläche reichen dasselbe durch. Für diese Anwendung ändert sich nichts, sie führt nichts
   neben einer Zugehörigkeit.
+- Ein Formular lässt sich zeichnen, wie eine Tafel es zeichnet, und die schmale Spalte einer Seite
+  steht auf Wunsch links (`opengewerk-haustechnik#85`). Die Tafel "Neue Liegenschaft" der
+  Haustechnik hat eine Notiz über mehrere Zeilen, eine Postleitzahl, die schmaler ist als der Ort
+  daneben, und ein Sternchen an jedem Pflichtfeld; die Tafel "Liegenschaft" zeichnet Anschrift und
+  Ansprechpartner links und die Gebäude rechts. Das Formular über einem Datensatz (`RecordForm`)
+  kannte nur einzeilige Felder in gleich breiten Zellen. Ein Feld der Art `textarea` ist jetzt ein
+  Kasten für mehr als eine Zeile, über die ganze Breite, wenn es nichts anderes sagt; `place`
+  nennt, wie viele Spalten des Rasters ein Feld nimmt, `placeholder` ein Beispiel im leeren Feld,
+  und mit `starred` steht neben dem Namen jedes Pflichtfelds ein Sternchen. Das Sternchen steht
+  neben dem Namen und nicht darin, damit der Name bleibt, wie ein Bildschirmleser ihn vorliest,
+  und es steht nur, wo ein Bildschirm es verlangt: die Anmeldung fragt nur Pflichtfelder und
+  markiert keines. `RecordColumns` nimmt `sideFirst` und setzt die schmale Spalte dann an den
+  Anfang, auf dem Bildschirm und in der Seite. Für diese Anwendung ändert sich nichts, ihre
+  Formulare und Seiten stehen wie bisher.
 
 ### Geändert
 
