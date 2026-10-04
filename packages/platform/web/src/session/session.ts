@@ -556,13 +556,17 @@ export function invitationOffer(token: string): Promise<InvitationOffer> {
  * Uses the link. Signing in afterwards is the ordinary sign in and a separate
  * call, because a route that handed out a session of its own would be a second
  * way in to keep right.
+ *
+ * Without a password for an address that already has an account: that one
+ * joins signed in as itself, with the cookie of the session it has
+ * (opengewerk-haustechnik#31), and keeps the password it had.
  */
 export function redeemInvitation(
   token: string,
-  password: string,
+  password?: string,
 ): Promise<{ tenantId: TenantId; company: string; email: string; created: boolean }> {
   return request(`/invitation/${encodeURIComponent(token)}`, {
     method: 'POST',
-    body: JSON.stringify({ password }),
+    body: JSON.stringify(password === undefined ? {} : { password }),
   })
 }

@@ -117,7 +117,12 @@ export class SetupController {
     const company = text(values.company, 'company')
     const name = text(values.name, 'name')
     const email = text(values.email, 'email')
-    const password = text(values.password, 'password')
+    // As typed, and not through `text`: the sign in right after the setup
+    // sends it untrimmed, like every later one, and a password cut at its
+    // edges here would lock the only account of the instance out of it
+    // (opengewerk-haustechnik#31). The invitation and the change of password
+    // do not trim either.
+    const password = secret(values.password, 'password')
 
     // The same rule as when the name is changed later (#276), which is why
     // the application brings it.
@@ -211,4 +216,13 @@ function text(value: unknown, field: string): string {
   }
 
   return value.trim()
+}
+
+/** A field that has to be a non empty string and is taken exactly as it came. */
+function secret(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value === '') {
+    throw new BadRequestException(`${field} fehlt oder ist kein Text.`)
+  }
+
+  return value
 }

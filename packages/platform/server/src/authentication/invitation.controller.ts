@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, NotFoundException, Param, Post } from '@nestjs/common'
+import { Body, Controller, Get, Inject, NotFoundException, Param, Post, Req } from '@nestjs/common'
 
 import { PublicRoute } from '../api/authorization.js'
 import { pick } from '../api/body.js'
@@ -8,13 +8,14 @@ import { ACCESS_RULES, type AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
 import { looksLikeAToken } from './invitation.js'
 import { type InvitationOffer, offerOf, type Redeemed, redeemInvitation } from './redemption.js'
+import { type RequestWithHeaders, toHeaders } from './session-identity.js'
 
 /**
  * The far end of a one time link.
  *
  * Public, and the second pair of routes of the authentication that is. It has
- * to be: the person opening the link has no account yet, which is the whole
- * point of the link, so there is nobody to authenticate. What stands in for an
+ * to be: the person opening the link usually has no account yet, which is the
+ * whole point of the link, so there is nobody to authenticate. What stands in for an
  * identity is the token, 32 random bytes that somebody in one tenant made and
  * handed over, and the state of the invitation it names: used once, called
  * back, or run out, and it answers nothing.
@@ -74,17 +75,40 @@ export class InvitationController {
    * run. It is the ordinary sign in, with the ordinary cookie and the ordinary
    * rate limit, and a route that handed out a session of its own would be a
    * second way in to keep right.
+   *
+   * For an address that already has an account it works the other way round:
+   * the ordinary sign in comes first, and this route reads the session the
+   * request carries to see that it is that account. Public all the same,
+   * because a link for somebody new has nobody to sign in yet.
    */
   @Post(':token')
   @PublicRoute()
-  async redeem(@Param('token') token: string, @Body() body: unknown): Promise<Redeemed> {
+  async redeem(
+    @Param('token') token: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithHeaders,
+  ): Promise<Redeemed> {
     if (!looksLikeAToken(token)) {
       throw new NotFoundException('Diesen Link gibt es nicht.')
     }
 
     const values = pick(body, ['password'] as const)
     const password = typeof values.password === 'string' ? values.password : undefined
+    const signedInAs = async () => {
+      const found = await this.authentication.api.getSession({
+        headers: toHeaders(request.headers),
+      })
 
-    return redeemInvitation(this.access, this.authentication, this.database, token, password)
+      return found?.user.id ?? null
+    }
+
+    return redeemInvitation(
+      this.access,
+      this.authentication,
+      this.database,
+      token,
+      password,
+      signedInAs,
+    )
   }
 }

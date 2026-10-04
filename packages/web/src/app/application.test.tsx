@@ -288,18 +288,27 @@ describe('an invitation into a business', () => {
     )
   })
 
-  it('tells an address with an account that the business is added, under a button that says so', async () => {
+  /**
+   * An address with an account joins signed in as that account
+   * (opengewerk-haustechnik#31); signed in, it is told the business is added,
+   * under a button that says so.
+   */
+  it('tells an address with an account, once signed in, that the business is added, under a button that says so', async () => {
     serverSays(`GET /invitation/${token}`, {
       ...offer,
       name: 'Ingo Inhaber',
       email: 'ingo@example.de',
       knownAccount: true,
     })
+    serverSays('GET /api/auth/get-session', {
+      user: { id: 'konto-ingo', email: 'ingo@example.de', name: 'Ingo Inhaber' },
+      session: {},
+    })
 
     render(inApplication(<InvitationScreen token={token} />))
 
-    expect((await screen.findByText('ingo@example.de')).parentElement?.textContent).toBe(
-      'Für ingo@example.de gibt es auf dieser Instanz schon ein Konto. Sie behalten Ihr Passwort; der Betrieb kommt einfach dazu.',
+    expect((await screen.findByText(/Angemeldet als/)).textContent).toBe(
+      'Angemeldet als ingo@example.de. Sie behalten Ihr Passwort; der Betrieb kommt einfach dazu.',
     )
     expect(screen.getByRole('button', { name: 'Betrieb übernehmen' })).toBeTruthy()
   })

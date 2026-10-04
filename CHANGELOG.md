@@ -909,6 +909,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und ein Fremdschlüssel nennt dort den Index der Tabelle, auf die er zeigt. So fiel
   `files_content` aus dem Vergleich, weil `attachment_versions` auf ihn zeigt, und eine
   Abweichung an einem solchen Index wäre niemandem aufgefallen.
+- Die Ersteinrichtung übernimmt das Passwort so, wie es eingegeben wurde
+  (`opengewerk-haustechnik#31`). Sie kürzte es um Leerzeichen am Rand, die Anmeldung gleich danach
+  und jede spätere nicht; wer ein Passwort mit einem Leerzeichen am Ende einfügte, kam an das
+  einzige Konto der Instanz nur noch über `reset-password` auf dem Server.
+
+### Sicherheit
+
+- Ein Konto, das es auf der Instanz schon gibt, tritt einer Einladung nur noch angemeldet als
+  dieses Konto bei (`opengewerk-haustechnik#31`). Bisher genügte der Link allein, und den hält bei
+  einer Einladung ohne E-Mail die Leitung, die eingeladen hat: auf einer Instanz mit mehreren
+  Betrieben konnte sie so ein Konto eines anderen Betriebs in ihren eigenen holen, ohne dass die
+  Person etwas tat. Die Seite des Links fragt jetzt, wer angemeldet ist, und bietet die gewöhnliche
+  Anmeldung mit der Adresse der Einladung an, dazu den zweiten Faktor, wo das Konto einen hat; erst
+  danach steht der Knopf zum Beitreten da. Der Server nimmt den Beitritt nur mit der Sitzung genau
+  dieses Kontos an, sonst antwortet er mit 401 oder 403 und lässt den Link gültig. Betroffen war
+  nur der Stand auf `main`: in 0.4.0 hat eine Instanz genau einen Betrieb.
 
 ## [0.4.0] - 2026-09-27
 
