@@ -215,6 +215,47 @@ describe('a definition', () => {
     ])
   })
 
+  it('names what is not of its shape in a definition out of a file, instead of falling over it', () => {
+    const broken = {
+      ...inspection,
+      sections: [
+        null,
+        {
+          key: 'main',
+          title: 'Haupt',
+          fields: [
+            null,
+            { kind: 'choice', key: 'colour', label: 'Farbe' },
+            {
+              kind: 'choice',
+              key: 'size',
+              label: 'Größe',
+              options: [null, { value: 's', label: 'S' }],
+            },
+            { kind: 'group', key: 'boxes', label: 'Kisten', repeat: 'free', fields: 'none' },
+            {
+              kind: 'measurement',
+              key: 'heat',
+              label: 'Wärme',
+              unit: 'degree_celsius',
+              decimals: 1,
+              limit: null,
+            },
+          ],
+        },
+      ],
+    } as unknown as FormDefinition<ProbeTerms>
+
+    expect(engine.definitionProblems(broken)).toEqual([
+      'shelf-inspection: unter den Abschnitten steht etwas, das kein Abschnitt ist.',
+      'shelf-inspection: unter den Feldern steht etwas, das kein Feld ist.',
+      'shelf-inspection: die Auswahl colour hat keine Liste von Möglichkeiten.',
+      'shelf-inspection: jede Möglichkeit der Auswahl size braucht einen eigenen Wert und eine Beschriftung.',
+      'shelf-inspection: die Gruppe boxes hat keine Liste von Feldern.',
+      'shelf-inspection: der Grenzwert von heat ist von einer Art, die es nicht gibt.',
+    ])
+  })
+
   it('takes a key written with hyphens or with underscores, and no other', () => {
     expect(engine.definitionProblems({ ...inspection, key: 'shelf_inspection' })).toEqual([])
     expect(engine.definitionProblems({ ...inspection, key: 'probe.shelf_inspection' })).toEqual([

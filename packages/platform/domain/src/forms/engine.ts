@@ -266,6 +266,24 @@ function isSignature(value: unknown): value is SignatureValue {
   )
 }
 
+/** Whether a value read out of a definition is an object at all. */
+function isObject(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** An option of a choice as the engine reads it: a value and a label, neither empty. */
+function isOption(value: unknown): boolean {
+  const option = value as { readonly value?: unknown; readonly label?: unknown } | null
+
+  return (
+    isObject(option) &&
+    typeof option?.value === 'string' &&
+    option.value !== '' &&
+    typeof option.label === 'string' &&
+    option.label.trim() !== ''
+  )
+}
+
 /** The id of a file, as a photo field and a check point hold it. */
 function isPhoto(value: unknown): boolean {
   return typeof value === 'string' && value.length > 0 && value.length <= 64
@@ -408,6 +426,13 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     }
 
     const check = (field: FormField<E>, inGroup: boolean) => {
+      // A definition out of a file may hold anything where a field belongs.
+      if (!isObject(field)) {
+        problems.push(`${definition.key}: unter den Feldern steht etwas, das kein Feld ist.`)
+
+        return
+      }
+
       if (!(formFieldKinds as readonly string[]).includes(field.kind)) {
         problems.push(
           `${definition.key}: das Feld ${field.key} hat die Art ${String(field.kind)}, die es nicht gibt.`,
@@ -455,20 +480,25 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         )
       }
 
-      if (field.kind === 'choice' && field.options.length < 2) {
+      if (field.kind === 'choice' && !Array.isArray(field.options)) {
         problems.push(
-          `${definition.key}: die Auswahl ${field.key} hat weniger als zwei Möglichkeiten.`,
+          `${definition.key}: die Auswahl ${field.key} hat keine Liste von Möglichkeiten.`,
         )
-      }
+      } else if (field.kind === 'choice') {
+        if (field.options.length < 2) {
+          problems.push(
+            `${definition.key}: die Auswahl ${field.key} hat weniger als zwei Möglichkeiten.`,
+          )
+        }
 
-      if (
-        field.kind === 'choice' &&
-        (field.options.some((option) => option.value === '' || option.label.trim() === '') ||
-          new Set(field.options.map((option) => option.value)).size !== field.options.length)
-      ) {
-        problems.push(
-          `${definition.key}: jede Möglichkeit der Auswahl ${field.key} braucht einen eigenen Wert und eine Beschriftung.`,
-        )
+        if (
+          !field.options.every(isOption) ||
+          new Set(field.options.map((option) => option.value)).size !== field.options.length
+        ) {
+          problems.push(
+            `${definition.key}: jede Möglichkeit der Auswahl ${field.key} braucht einen eigenen Wert und eine Beschriftung.`,
+          )
+        }
       }
 
       if (
@@ -492,7 +522,11 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       if (field.kind === 'measurement' && field.limit !== undefined) {
         const limit = field.limit
 
-        if (isRuleLimit(limit)) {
+        if (!isObject(limit) || typeof (limit as { readonly kind?: unknown }).kind !== 'string') {
+          problems.push(
+            `${definition.key}: der Grenzwert von ${field.key} ist von einer Art, die es nicht gibt.`,
+          )
+        } else if (isRuleLimit(limit)) {
           if (typeof limit.rule !== 'string' || limit.rule === '') {
             problems.push(`${definition.key}: der Grenzwert von ${field.key} nennt keine Regel.`)
           }
@@ -522,18 +556,32 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
 
         const inside = new Set<string>()
 
-        for (const nested of field.fields) {
-          if (inside.has(nested.key)) {
+        if (!Array.isArray(field.fields)) {
+          problems.push(`${definition.key}: die Gruppe ${field.key} hat keine Liste von Feldern.`)
+        }
+
+        for (const nested of Array.isArray(field.fields) ? field.fields : []) {
+          if (isObject(nested) && inside.has(nested.key)) {
             problems.push(`${definition.key}: ${nested.key} steht in ${field.key} zweimal.`)
           }
 
-          inside.add(nested.key)
+          if (isObject(nested)) {
+            inside.add(nested.key)
+          }
+
           check(nested, true)
         }
       }
     }
 
     for (const section of definition.sections) {
+      if (!isObject(section)) {
+        problems.push(
+          `${definition.key}: unter den Abschnitten steht etwas, das kein Abschnitt ist.`,
+        )
+        continue
+      }
+
       if (typeof section.key !== 'string' || !keyShape.test(section.key)) {
         problems.push(
           `${definition.key}: der Abschnitt ${String(section.key)} hat einen Schlüssel der falschen Form.`,
@@ -556,11 +604,14 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       }
 
       for (const field of section.fields) {
-        if (seen.has(field.key)) {
+        if (isObject(field) && seen.has(field.key)) {
           problems.push(`${definition.key}: das Feld ${field.key} steht zweimal im Formular.`)
         }
 
-        seen.add(field.key)
+        if (isObject(field)) {
+          seen.add(field.key)
+        }
+
         check(field, false)
       }
     }

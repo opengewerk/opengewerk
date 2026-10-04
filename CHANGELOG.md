@@ -868,8 +868,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Bildschirme zeigen, sagt jede Anwendung der Engine selbst, wie ihre Einheiten; die
   Handwerkersoftware nennt die sechs, die sie hat, und eine Definition mit einem Prüfpunkt lehnt sie
   ab, statt ihn nicht anzeigen zu können. Der Schlüssel eines Formulars darf neben Bindestrichen
-  auch Unterstriche tragen, wie jeder Schlüssel in den Paketen der Haustechnik. Hier ändert sich
-  sonst nichts.
+  auch Unterstriche tragen, wie jeder Schlüssel in den Paketen der Haustechnik. Steht in einer
+  Definition aus einer Datei an einer Stelle etwas anderes als erwartet, etwa eine Auswahl ohne
+  Liste von Möglichkeiten, nennt die Engine das als Befund, statt daran abzubrechen. Hier ändert
+  sich sonst nichts.
 
 ### Behoben
 
