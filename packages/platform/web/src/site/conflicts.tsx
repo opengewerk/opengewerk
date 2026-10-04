@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { Button } from '../components/button.js'
 import { Panel } from '../components/panel.js'
 import { clockTime } from '../format.js'
-import { NothingToDecide, useDecisions } from '../sync/decisions.js'
+import { noConnection, NothingToDecide, useDecisions } from '../sync/decisions.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 
 /** One line of the state on site: a symbol and a sentence, 16 pixels. */
@@ -47,7 +47,7 @@ export function ConflictScreen() {
   const status = useSyncStatus()
   const { made, cards, empty } = useDecisions()
   const { conflicts, refused, pending, lastSyncedAt } = status
-  const offline = status.state === 'offline'
+  const offline = noConnection(status)
   const [working, setWorking] = useState(false)
 
   return (

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { Button } from '../components/button.js'
 import { Panel } from '../components/panel.js'
 import { clockTime } from '../format.js'
-import { NothingToDecide, useDecisions } from '../sync/decisions.js'
+import { noConnection, NothingToDecide, useDecisions } from '../sync/decisions.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { PageHead, RecordColumns, Screen } from './kit.js'
 
@@ -44,7 +44,7 @@ function StateLine({
 function SyncStateCard() {
   const status = useSyncStatus()
   const { conflicts, refused, pending, lastSyncedAt } = status
-  const offline = status.state === 'offline' && status.trouble !== null
+  const offline = noConnection(status)
 
   return (
     <Panel title="Stand des Abgleichs">
