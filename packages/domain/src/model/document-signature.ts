@@ -2,28 +2,13 @@ import type { LineKind, LineUnit } from './document-line.js'
 import type { Synced } from '@opengewerk/platform-domain'
 import type { DocumentId, DocumentSignatureId } from './identifier.js'
 
-/** The name of whoever signs, as the check `document_signatures_signer_named` holds it. */
-export const longestSignerName = 200
+// The name typed in under a signature and its length, which the check
+// `document_signatures_signer_named` holds, are the foundation's since
+// opengewerk-haustechnik#28 (`signerNameProblem`, `longestSignerName`): a form
+// of any application asks the same.
 
 /** What a browser says about itself, as much as `document_signatures_device_info_short` keeps. */
 export const longestDeviceInfo = 500
-
-/**
- * What is wrong with the name typed in under a signature, or null when
- * nothing is: something besides spaces, and no more than the table keeps. The
- * form asks before the signature is queued, the sync again before it lands.
- */
-export function signerNameProblem(name: unknown): string | null {
-  const trimmed = typeof name === 'string' ? name.trim() : ''
-
-  if (trimmed === '') {
-    return 'Der Name dessen, der unterschreibt.'
-  }
-
-  return trimmed.length > longestSignerName
-    ? `Der Name dessen, der unterschreibt, hat höchstens ${String(longestSignerName)} Zeichen.`
-    : null
-}
 
 /**
  * What is wrong with the device information of a signature, or null when
