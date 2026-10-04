@@ -41,7 +41,7 @@ import type { DeadlinesTable, OwnDeadlineColumns } from '../database/schema/dead
 import { memberships } from '../database/schema/memberships.js'
 import { tenants } from '../database/schema/tenants.js'
 import type { KeptDeadline } from './engine.js'
-import { responsibleFor } from './responsible.js'
+import { responsibleForAll } from './responsible.js'
 import { deadlineRunOf } from './runs.js'
 import { deadlineSettingsOf } from './settings.js'
 
@@ -323,25 +323,20 @@ function deadlinesController(
             .where(wanted === 'all' ? sql`true` : eq(table.status, wanted))
             .orderBy(asc(table.dueOn), asc(table.sourceLabel))) as KeptDeadline[]
           const settings = await deadlineSettingsOf(tx)
-          const responsibles = new Map<string, string | null>()
+          // Asked for all of them together: one deadline at a time went to the
+          // database up to four times a row. A deadline of a kind this
+          // instance no longer knows has nobody.
+          const responsibles = await responsibleForAll(
+            tx,
+            identity.tenantId,
+            rows.flatMap((row) => {
+              const kind = this.rules.registry.kind(row.kind)
 
-          for (const row of rows) {
-            const kind = this.rules.registry.kind(row.kind)
-
-            responsibles.set(
-              row.id,
-              kind
-                ? await responsibleFor(
-                    tx,
-                    identity.tenantId,
-                    kind,
-                    settings.get(kind.key) ?? null,
-                    row,
-                  )
-                : null,
-            )
-          }
-
+              return kind
+                ? [{ key: row.id, kind, setting: settings.get(kind.key) ?? null, deadline: row }]
+                : []
+            }),
+          )
           const describe = this.rules.describe ? await this.rules.describe(tx, rows) : () => ({})
 
           return { rows, settings, responsibles, describe }

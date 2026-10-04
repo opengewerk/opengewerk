@@ -9,9 +9,9 @@ import {
   type MemberIdentity,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import type { Pool } from 'pg'
+import { Client, type Pool } from 'pg'
 import request from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AUTHORIZATION, AuthorizationGuard } from '../api/authorization.js'
 import { databaseErrors } from '../api/database-errors.js'
@@ -216,6 +216,19 @@ async function list(person: Person, status?: string): Promise<DeadlineEntry[]> {
   return answer.body as DeadlineEntry[]
 }
 
+/** How many statements go to the database while something is done. */
+async function statementsOf(work: () => Promise<unknown>): Promise<number> {
+  const asked = vi.spyOn(Client.prototype, 'query')
+
+  try {
+    await work()
+
+    return asked.mock.calls.length
+  } finally {
+    asked.mockRestore()
+  }
+}
+
 async function run(person: Person = 'lena'): Promise<DeadlineRunEntry> {
   const answer = await http().get('/deadlines/run').set(testIdentityHeader, as(person)).expect(200)
 
@@ -291,6 +304,80 @@ describe('the list of deadlines', () => {
       (await list('mia')).map((entry) => [entry.source.label, entry.responsible?.userId]),
     ).toEqual([['Haus Ost', 'lena']])
     expect((await list('sven')).map((entry) => entry.source.label)).toEqual(['Paket S-1'])
+  })
+
+  /**
+   * Who answers for a deadline was asked one deadline at a time, up to four
+   * times a row (opengewerk-haustechnik#31). The list of a tenant with a few
+   * thousand deadlines went to the database a few thousand times.
+   *
+   * So the order is held here on every step of it, own person, the one of
+   * the kind, the one of the source, whoever leads, with somebody blocked
+   * and somebody who never worked here passed over, and then the list of six
+   * is held against a list of one: both ask the database the same number of
+   * times.
+   */
+  it('names who answers for each deadline by the order of the settings, in the queries of one', async () => {
+    const own = async (id: string, userId: string) => {
+      await admin.query('update deadlines set responsible_user_id = $1 where id = $2', [userId, id])
+    }
+    const named = async (person: Person | null) => {
+      await admin.query(
+        `insert into deadline_settings (tenant_id, kind, responsible_user_id)
+         values ($1, 'parcel.pickup', $2)
+         on conflict (tenant_id, kind) do update set responsible_user_id = excluded.responsible_user_id`,
+        [north.id, person],
+      )
+    }
+    const answering = async () =>
+      Object.fromEntries(
+        (await list('mia')).map((entry) => [entry.source.label, entry.responsible?.userId]),
+      )
+
+    await aDeadline({ label: 'A von der Quelle', dueOn: '2037-03-01' })
+    await own(await aDeadline({ label: 'B eigene Person', dueOn: '2037-03-02' }), 'lena')
+    await aDeadline({ label: 'C niemand', dueOn: '2037-03-03', natural: null })
+    await aDeadline({ label: 'D nie hier gewesen', dueOn: '2037-03-04', natural: 'paul' })
+    await own(await aDeadline({ label: 'E eigene gesperrt', dueOn: '2037-03-05' }), 'gero')
+    await aDeadline({ kind: 'door.check', label: 'F Haus Ost', dueOn: '2037-03-06' })
+    await aDeadline({ label: 'Erledigt', dueOn: '2037-02-01', status: 'done', natural: null })
+    await admin.query(`update memberships set blocked_at = now() where user_id = 'gero'`)
+
+    // The kind names somebody blocked: passed over, the source is next.
+    await named('gero')
+    expect(await answering()).toEqual({
+      'A von der Quelle': 'mia',
+      'B eigene Person': 'lena',
+      'C niemand': 'lena',
+      'D nie hier gewesen': 'lena',
+      'E eigene gesperrt': 'mia',
+      'F Haus Ost': 'lena',
+    })
+
+    // The kind names somebody who works here: before the source, after the
+    // person a deadline has of its own, and not for a kind it was not set for.
+    await named('mia')
+    await admin.query(`update deadlines set natural_user_id = 'lena' where source_label like 'A %'`)
+    expect(await answering()).toEqual({
+      'A von der Quelle': 'mia',
+      'B eigene Person': 'lena',
+      'C niemand': 'mia',
+      'D nie hier gewesen': 'mia',
+      'E eigene gesperrt': 'mia',
+      'F Haus Ost': 'lena',
+    })
+
+    // Six deadlines with every step of the order among them, and one that
+    // gets as far as whoever leads: the same number of statements.
+    await named('gero')
+    expect(await list('mia')).toHaveLength(6)
+    expect(await list('mia', 'done')).toHaveLength(1)
+
+    const forSix = await statementsOf(() => list('mia'))
+    const forOne = await statementsOf(() => list('mia', 'done'))
+
+    expect(forSix).toBeGreaterThan(0)
+    expect(forSix).toBe(forOne)
   })
 
   it('refuses a state it does not know', async () => {

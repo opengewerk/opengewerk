@@ -921,6 +921,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   fragte danach eine Abfrage neu an, die es nicht gab. Bis zur nächsten Änderung oder bis zum neuen
   Laden stand die Aufgabe deshalb weiter offen, seit der Fristen-Engine (#283). Jetzt gleicht die
   Liste nach jeder Änderung an einer Frist ab.
+- Die Liste der Fristen fragt die Datenbank für viele Fristen so oft wie für eine (#534,
+  `opengewerk-haustechnik#31`). Wer für eine Frist verantwortlich ist, wurde je Zeile einzeln
+  gefragt, bis zu vier Abfragen je Frist; bei ein paar tausend Fristen eines Betreibers von
+  Gebäuden wären das ein paar tausend Abfragen für einen Bildschirm gewesen. Jetzt werden alle
+  Personen, die Fristen, Einstellungen und Quellen nennen, zusammen nachgesehen, und wer den
+  Betrieb führt, einmal je Liste (`responsibleForAll`). Die Reihenfolge ist dieselbe geblieben:
+  die eigene Person der Frist, dann die der Art, dann die der Quelle, zuletzt die Leitung.
 - Eine E-Mail oder Push-Nachricht, die der Job in einem Lauf schreibt, geht im selben Lauf
   hinaus und nicht erst eine Minute später (`opengewerk-haustechnik#23`). Der Job las die Uhr,
   bevor er die fälligen Anlässe schrieb, und die Datenbank stempelte die neue Zeile einen Augenblick
