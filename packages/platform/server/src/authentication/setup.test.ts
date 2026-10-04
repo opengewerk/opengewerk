@@ -16,6 +16,7 @@ import {
   probeOrigin as origin,
 } from './probe-application.js'
 import { instanceIsEmpty, setUpInstance } from './setup.js'
+import { restAfterFailure } from './setup.controller.js'
 import { currentCode } from './test-authenticator.js'
 
 /**
@@ -278,6 +279,12 @@ describe('an instance that has been set up', () => {
 
     expect(refused.body.message).toContain('bereits eingerichtet')
     expect(await counted()).toEqual({ tenants: 1, accounts: 1 })
+
+    // A first run that failed at the route makes it rest, and it answers 409
+    // to every other until the rest is over. Waited out here, where it began,
+    // so that no later test hangs on how quick the ones in between are
+    // (opengewerk-haustechnik#31).
+    await new Promise((resolve) => setTimeout(resolve, restAfterFailure))
   })
 
   /**
