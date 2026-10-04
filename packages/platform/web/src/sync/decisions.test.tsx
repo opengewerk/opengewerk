@@ -698,6 +698,63 @@ describe('"Abgleich" in the office', () => {
     expect(state.queryByText('Nichts wartet, nichts zu entscheiden')).toBeNull()
   })
 
+  /**
+   * The state of the client names what needs somebody first, a refused change
+   * before a conflict before a missing connection, and the line was asked of
+   * that state: with a conflict open and no network it was missing, and
+   * whoever decided learned only at the card that the decision did not get
+   * out (#494).
+   */
+  it('says when there is no connection while a conflict is open as well', async () => {
+    server.open = [conflict()]
+
+    const started = await client({ notes: [note] })
+
+    server.offline = true
+    await started.create('notes', { text: 'Eins' })
+    await started.synchronise()
+    inOffice(started)
+
+    const state = within(screen.getByRole('region', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('1 Konflikt, bitte entscheiden')).toBeTruthy()
+    expect(state.getByText('1 Vorgang wartet')).toBeTruthy()
+    expect(
+      state.getByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeTruthy()
+  })
+
+  it('says when there is no connection while a refused change waits as well', async () => {
+    const started = await client()
+
+    refusing(400, 'Nein.')
+    await started.create('notes', { text: 'Drei' })
+    await started.synchronise()
+    server.offline = true
+    server.push = () => Promise.reject(new TypeError('Failed to fetch'))
+    await started.synchronise()
+    inOffice(started)
+
+    const state = within(screen.getByRole('region', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('Eine Änderung abgelehnt, bitte entscheiden')).toBeTruthy()
+    expect(
+      state.getByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeTruthy()
+  })
+
+  it('says nothing of the connection over a conflict while the device has one', async () => {
+    server.open = [conflict()]
+    inOffice(await client({ notes: [note] }))
+
+    const state = within(screen.getByRole('region', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('1 Konflikt, bitte entscheiden')).toBeTruthy()
+    expect(
+      state.queryByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeNull()
+  })
+
   it('offers no second exchange while one runs', async () => {
     const started = await client()
     let answer: (result: PullResult) => void = () => {}
@@ -821,6 +878,66 @@ describe('"Konflikte" on site', () => {
     expect(
       await state.findByText('Eine Änderung wurde abgelehnt und wartet auf eine Entscheidung.'),
     ).toBeTruthy()
+  })
+
+  it('says when there is no connection while a conflict is open as well', async () => {
+    server.open = [conflict()]
+
+    const started = await client({ notes: [note] })
+
+    server.offline = true
+    await started.create('notes', { text: 'Eins' })
+    await started.synchronise()
+    onSite(started)
+
+    const state = within(screen.getByRole('list', { name: 'Stand des Abgleichs' }))
+
+    expect(state.getByText('Ein Konflikt wartet auf eine Entscheidung.')).toBeTruthy()
+    expect(state.getByText('1 Änderung wartet auf dem Gerät.')).toBeTruthy()
+    expect(
+      state.getByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeTruthy()
+  })
+
+  it('says when there is no connection while a refused change waits as well', async () => {
+    const started = await client()
+
+    refusing(400, 'Nein.')
+    await started.create('notes', { text: 'Drei' })
+    await started.synchronise()
+    server.offline = true
+    server.push = () => Promise.reject(new TypeError('Failed to fetch'))
+    await started.synchronise()
+    onSite(started)
+
+    const state = within(screen.getByRole('list', { name: 'Stand des Abgleichs' }))
+
+    expect(
+      state.getByText('Eine Änderung wurde abgelehnt und wartet auf eine Entscheidung.'),
+    ).toBeTruthy()
+    expect(
+      state.getByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeTruthy()
+  })
+
+  /**
+   * On site the line was asked of the state alone, and the state is the same
+   * for a change on its way as for one that cannot get out: the screen said
+   * "Keine Verbindung" over a send that worked, as the strip once did (#223).
+   */
+  it('does not claim there is no connection while a change is still on its way', async () => {
+    const started = await client()
+
+    server.push = () => new Promise<OperationReceipt[]>(() => {})
+    await started.create('notes', { text: 'Unterwegs' })
+    onSite(started)
+
+    const state = within(screen.getByRole('list', { name: 'Stand des Abgleichs' }))
+
+    expect(await state.findByText('1 Änderung wartet auf dem Gerät.')).toBeTruthy()
+    expect(
+      state.queryByText('Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.'),
+    ).toBeNull()
   })
 
   it('says so before this device ever exchanged, and tries again on demand', async () => {

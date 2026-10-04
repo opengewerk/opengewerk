@@ -958,6 +958,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   beginnt (`opengewerk-haustechnik#12`). Die Prüfung sah nur auf die ersten Zeichen, und ein
   Browser liest den Backslash als Schrägstrich. Ausnutzen ließ sich das nicht: die Pfade in
   Push-Nachrichten schreibt nur der eigene Server.
+- "Keine Verbindung" steht im Stand des Abgleichs jetzt auch, solange ein Konflikt oder eine
+  abgelehnte Änderung offen ist (#494). Die Zeile hing am Zustand des Abgleichs, und der nennt nur,
+  was zuerst jemanden braucht: eine abgelehnte Änderung vor einem Konflikt vor der fehlenden
+  Verbindung. Wer ohne Netz einen Konflikt entschied, erfuhr erst an der Karte, dass die
+  Entscheidung nicht hinausgeht. Büro und Baustelle fragen jetzt beide, ob der letzte Versuch einen
+  Grund hinterlassen hat; auf der Baustelle stand die Zeile bisher auch über jeder Änderung, die
+  gerade erst unterwegs war.
 - Der Vergleich einer Datenbank mit den Bausteinen des Fundaments (`foundationDeviations`) sieht
   einen Index jetzt auch dann, wenn ein Fremdschlüssel einer anderen Tabelle auf ihn zeigt
   (`opengewerk-haustechnik#23`). Bisher nahm er jeden Index aus, den irgendein Constraint nennt,
