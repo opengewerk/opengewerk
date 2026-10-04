@@ -24,6 +24,7 @@ import {
 } from '../authentication/probe-application.js'
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import { standingInLine } from '../database/test-database.js'
 import { serverSync } from './apply.js'
 import { syncParts, type SyncRoutes } from './controller.js'
 import { fingerprintOf } from './narrowing.js'
@@ -403,6 +404,64 @@ describe('sending an outbox', () => {
       .expect(400)
 
     expect(unknownKind.body).toMatchObject({ message: 'Vorgang 1: unbekannte Art merge.' })
+  })
+
+  /**
+   * A device that lost the answer sends its queue again, and the first
+   * transmission may still be at work when the second arrives. The receipt
+   * that makes a second transmission harmless is written at the end of the
+   * first, so the second found none, applied the operation again and then
+   * failed on that receipt: the device was told its transmission was refused
+   * over an operation the server had taken.
+   *
+   * The note is held until one transmission waits to write it and the other
+   * waits for the first. Sent off together and left to chance, one is through
+   * before the other asks, and nothing is ever at stake.
+   */
+  it('takes an operation once when its transmission arrives twice at the same moment', async () => {
+    const { noteId } = await shelfWithNote('Keller', 'Zähler ablesen')
+    const reworded = operation({
+      entity: 'notes',
+      recordId: noteId,
+      kind: 'update',
+      patches: [{ field: 'text', from: 'Zähler ablesen', to: 'Zähler abgelesen' }],
+    })
+    const holder = await admin.connect()
+
+    try {
+      await holder.query('begin')
+      await holder.query('select id from notes where id = $1 for update', [noteId])
+
+      const both = Promise.all([push(olga(), [reworded]), push(olga(), [reworded])])
+
+      await standingInLine(admin, 2)
+      await holder.query('commit')
+
+      const answers = await both
+
+      expect(answers.map((answer) => answer.status)).toEqual([201, 201])
+      expect(
+        answers
+          .flatMap((answer) => (answer.body as { receipts: { reason: string | null }[] }).receipts)
+          .map((receipt) => receipt.reason)
+          .sort(),
+      ).toEqual(['already_seen', null].sort())
+    } finally {
+      await holder.query('rollback')
+      holder.release()
+    }
+
+    const [note] = await database.forTenant(
+      { tenantId: north.id, userId: 'olga', reason: 'probe' },
+      (tx) =>
+        tx
+          .select()
+          .from(notes)
+          .where(eq(notes.id, noteId as never)),
+    )
+
+    // Written once: the text is the new one, and the version moved by one.
+    expect(note).toMatchObject({ text: 'Zähler abgelesen', version: 2 })
   })
 
   it('answers a mistake only the client can make with its sentence, naming the operation', async () => {

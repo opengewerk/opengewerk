@@ -904,6 +904,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Passwort wie eine ohne Benutzernamen (`opengewerk-haustechnik#31`). Ein Passwort aus
   `openssl rand -base64` mit einem "/" darin führt meistens in diesen Zweig, und der sagte nur, wie
   eine Adresse aussieht.
+- Schickt ein Gerät seinen Postausgang ein zweites Mal, während die erste Übertragung noch läuft,
+  wird jeder Vorgang einmal angewandt und beim zweiten Mal als schon gesehen quittiert (#532,
+  `opengewerk-haustechnik#31`). Die Quittung, die eine Wiederholung harmlos macht, entsteht erst am
+  Ende der ersten Übertragung: die zweite fand keine, wandte den Vorgang noch einmal an, scheiterte
+  dann an der Quittung der ersten, und das Gerät bekam eine abgelehnte Übertragung für einen
+  Vorgang, den der Server angenommen hatte. Jetzt wartet die zweite, bis die erste fertig ist.
 - Der Test des Lesers für Codes in `platform-web` lief in sein Zeitlimit, sobald alle Pakete ihre
   Tests zugleich ausführten, und hielt damit den ganzen Lauf an, obwohl er allein in einer Sekunde
   grün war. Der Leser in JavaScript ist ein großes Modul, und der erste Test, der auf ihn
@@ -1046,6 +1052,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   oder mit der nächsten Nachricht an diesen Server schicken lassen. Port und Verschlüsselung lassen
   sich weiter ohne neues Passwort ändern. Betroffen sind 0.1.0 bis 0.4.0; ändern darf die
   Einstellungen dort nur der Inhaber.
+- Der Server liest die Bytes einer Datei erst, wenn feststeht, wer sie schickt (#532,
+  `opengewerk-haustechnik#31`). Bisher las ein Parser vor der Route den Körper, bis zu 50 MB, bevor
+  die Anmeldung geprüft war: wer die Adresse einer Instanz kannte, konnte sie ohne Zugang Speicher
+  belegen lassen. Jetzt liest die Route selbst, nach Anmeldung, Recht und Inhaltstyp, und behält
+  höchstens die 25 MB, die eine Datei groß sein darf. Betroffen sind 0.1.0 bis 0.4.0.
 - Was jemand auf einem Gerät erfasst hat und nicht mehr senden konnte, geht nicht mehr unter der
   nächsten Person hinaus, die sich dort anmeldet (`opengewerk-haustechnik#31`). Der Server nimmt
   die Person aus der Sitzung, die sendet, und ein Vorgang nennt nur sein Gerät. Lief eine Sitzung

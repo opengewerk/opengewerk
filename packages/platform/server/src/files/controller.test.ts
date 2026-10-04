@@ -2,16 +2,12 @@ import 'reflect-metadata'
 
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import {
-  type DynamicModule,
-  type INestApplication,
-  type MiddlewareConsumer,
-  Module,
-  type NestModule,
-} from '@nestjs/common'
+import { type DynamicModule, type INestApplication, Module } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import { largestFileBytes, type MemberIdentity, type TenantId } from '@opengewerk/platform-domain'
@@ -34,7 +30,7 @@ import {
 } from '../authentication/probe-application.js'
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
-import { fileParts, parseFileUploads } from './controller.js'
+import { fileParts } from './controller.js'
 import { FileStore } from './store.js'
 
 /**
@@ -103,10 +99,10 @@ async function upload(bytes: Buffer, mediaType: string, person: Person = 'mia', 
 
 /**
  * The module of an application, as far as the file store goes: the route and
- * its store, and the parser that reads its body as bytes in `configure`.
+ * its store. Nothing reads the body in front of the route.
  */
 @Module({})
-class ProbeFilesModule implements NestModule {
+class ProbeFilesModule {
   static create(database: Database, store: FileStore): DynamicModule {
     const parts = fileParts({ access: probeAccess, upload: 'notes.write', store })
 
@@ -125,10 +121,6 @@ class ProbeFilesModule implements NestModule {
       ],
     }
   }
-
-  configure(consumer: MiddlewareConsumer): void {
-    parseFileUploads(consumer)
-  }
 }
 
 beforeAll(async () => {
@@ -144,7 +136,9 @@ beforeAll(async () => {
       imports: [ProbeFilesModule.create(database, new FileStore(storageRoot))],
     }).compile()
   ).createNestApplication()
-  await app.init()
+  // Listening, so that a test can send the head of a request and hold back
+  // its body.
+  await app.listen(0, '127.0.0.1')
 }, 60_000)
 
 afterAll(async () => {
@@ -241,6 +235,52 @@ describe('the bytes of a file', () => {
 
   it('are stored only by whoever has the right the application named', async () => {
     await upload(notes, 'text/plain', 'gero', 403)
+  })
+
+  /**
+   * A file may be 25 MB, and a parser in front of the route took all of it
+   * into memory before a guard had asked who was sending: for a request
+   * without a session, megabytes were read and then turned away
+   * (opengewerk-haustechnik#31).
+   *
+   * So the head of a request announces 20 MB here and its body never comes.
+   * A server that reads first waits for it; one that asks first answers.
+   */
+  it('are not waited for when nobody is signed in, or somebody without the right', async () => {
+    const withoutItsBody = (identity: string | null) =>
+      new Promise<number>((resolve, reject) => {
+        const { port } = app.getHttpServer().address() as AddressInfo
+        const sent = httpRequest(
+          {
+            host: '127.0.0.1',
+            port,
+            method: 'PUT',
+            path: `/files/${hashOf(notes)}`,
+            headers: {
+              'content-type': 'application/octet-stream',
+              'content-length': String(20 * 1024 * 1024),
+              ...(identity === null ? {} : { [testIdentityHeader]: identity }),
+            },
+          },
+          (answer) => {
+            clearTimeout(waiting)
+            answer.resume()
+            sent.destroy()
+            resolve(answer.statusCode ?? 0)
+          },
+        )
+        const waiting = setTimeout(() => {
+          sent.destroy()
+          reject(new Error('The server waited for the body before it answered.'))
+        }, 3000)
+
+        // A connection cut after the answer is how this ends, not a failure.
+        sent.on('error', () => undefined)
+        sent.write(Buffer.alloc(1024))
+      })
+
+    expect(await withoutItsBody(null)).toBe(401)
+    expect(await withoutItsBody(identityOf('gero'))).toBe(403)
   })
 
   it('lie in the store once, and every tenant reaches them through a row of its own', async () => {
