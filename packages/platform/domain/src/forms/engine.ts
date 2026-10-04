@@ -125,6 +125,22 @@ export interface FormEngineSetup<T extends FormTerms = FormTerms> {
   }
 }
 
+/** The items a list stands at, as far as sealing asks: which there are, in their order. */
+export type ListItems<T extends FormTerms = FormTerms> = Readonly<
+  Partial<Record<T['list'], readonly { readonly id: string }[]>>
+>
+
+/** What sealing is asked with. */
+export interface SealOptions<T extends FormTerms = FormTerms> {
+  /** Whether the sealing signature itself is asked for, which it is unless said otherwise. */
+  readonly seal?: boolean
+  /**
+   * The items of every list as they stand now, by the name of the list. A
+   * group over a list named here has to answer for each of them.
+   */
+  readonly items?: ListItems<T>
+}
+
 /** A filled form as far as the engine asks it: what it was filled in, its state and its values. */
 export interface FilledForm {
   readonly definitionKey: unknown
@@ -162,11 +178,19 @@ export interface FormEngine<T extends FormTerms = FormTerms> {
    * check point without an answer or without the remark its answer needs,
    * and a signature that seals it. Without the seal it is the question the
    * form asks before it offers the signature at all.
+   *
+   * A block is asked about only where there is one. With `items` the engine
+   * also knows which blocks there have to be: every item of a list needs the
+   * answers its group asks for, whether the values hold a block for it or
+   * not. Without `items` a group over a list is complete as far as its blocks
+   * go, and whether a block is there for every item is for the application
+   * to see to; a form whose values leave a block out is otherwise signed with
+   * the check points of that item unanswered.
    */
   readonly sealProblems: (
     definition: FormDefinition<T>,
     values: FormValues,
-    options?: { readonly seal?: boolean },
+    options?: SealOptions<T>,
   ) => readonly string[]
   /** The sealing signature of a definition, if it has one. */
   readonly sealingField: (definition: FormDefinition<T>) => SignatureField | null
@@ -207,6 +231,7 @@ export interface FormEngine<T extends FormTerms = FormTerms> {
   readonly formRecordProblem: (
     registry: FormRegistry<FormDefinition<T>>,
     record: FilledForm,
+    options?: Pick<SealOptions<T>, 'items'>,
   ) => string | null
 }
 
@@ -223,6 +248,22 @@ interface Every<T extends FormTerms> {
 }
 
 const keyShape = /^[a-z][a-z0-9_]*$/
+
+/**
+ * Whether every object answers to this key already, `constructor` for one.
+ * A field under such a key reads as filled before anybody filled it in: the
+ * values of a form are an object, and asked for the key they hand back what
+ * every object has there.
+ */
+const isBuiltIn = (key: string): boolean => key in Object.prototype
+
+/** What an object holds under a key itself, and nothing it only inherits. */
+function own<Value>(
+  holder: Readonly<Record<string, Value>> | undefined,
+  key: string,
+): Value | undefined {
+  return holder !== undefined && Object.hasOwn(holder, key) ? holder[key] : undefined
+}
 
 /**
  * Small letters, digits, hyphens and underscores: one application writes the
@@ -453,6 +494,10 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         problems.push(
           `${definition.key}: das Feld ${String(field.key)} hat einen Schlüssel der falschen Form.`,
         )
+      } else if (isBuiltIn(field.key)) {
+        problems.push(
+          `${definition.key}: das Feld ${field.key} trägt einen Schlüssel, den jedes Objekt schon hat.`,
+        )
       }
 
       if (typeof field.label !== 'string' || field.label.trim() === '') {
@@ -585,6 +630,10 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       if (typeof section.key !== 'string' || !keyShape.test(section.key)) {
         problems.push(
           `${definition.key}: der Abschnitt ${String(section.key)} hat einen Schlüssel der falschen Form.`,
+        )
+      } else if (isBuiltIn(section.key)) {
+        problems.push(
+          `${definition.key}: der Abschnitt ${section.key} trägt einen Schlüssel, den jedes Objekt schon hat.`,
         )
       } else if (sections.has(section.key)) {
         problems.push(`${definition.key}: der Abschnitt ${section.key} steht zweimal im Formular.`)
@@ -788,12 +837,14 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
   function sealProblems(
     definition: FormDefinition<E>,
     values: FormValues,
-    { seal = true }: { readonly seal?: boolean } = {},
+    { seal = true, items }: SealOptions<E> = {},
   ): readonly string[] {
     const missing: string[] = []
+    const standing = items as
+      Readonly<Record<string, readonly { readonly id: string }[]>> | undefined
 
     for (const field of fieldsOf(definition)) {
-      const value = values[field.key]
+      const value = own(values, field.key)
 
       if (needed(field) && !filled(field, value)) {
         missing.push(`${field.label} fehlt.`)
@@ -809,12 +860,14 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         missing.push(`${field.label} fehlt.`)
       }
 
-      if (field.kind === 'group' && Array.isArray(value)) {
-        for (const [index, block] of (value as readonly GroupBlock[]).entries()) {
+      if (field.kind === 'group') {
+        const blocks = Array.isArray(value) ? (value as readonly GroupBlock[]) : []
+
+        for (const [index, block] of blocks.entries()) {
           const where = `${field.label}, Block ${String(index + 1)}`
 
           for (const nested of field.fields) {
-            const nestedValue = block.values[nested.key]
+            const nestedValue = own(block.values, nested.key)
 
             if (needed(nested) && nestedValue === undefined) {
               missing.push(`${where}: ${nested.label} fehlt.`)
@@ -828,6 +881,22 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
             if (nestedRemark !== null) {
               missing.push(nestedRemark)
             }
+          }
+        }
+
+        // The items nobody opened a block for. A block that is not there asks
+        // nothing above, and so a check point of the group went unanswered
+        // for that item without a word.
+        const expected = field.repeat === 'free' ? undefined : own(standing, field.repeat)
+        const answered = new Set(blocks.map(idOf))
+
+        for (const [position, item] of (expected ?? []).entries()) {
+          if (answered.has(item.id)) {
+            continue
+          }
+
+          for (const nested of field.fields.filter(needed)) {
+            missing.push(`${field.label}, Eintrag ${String(position + 1)}: ${nested.label} fehlt.`)
           }
         }
       }
@@ -869,7 +938,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       field.kind !== 'meter_reading'
 
     for (const field of fieldsOf(definition)) {
-      const value = values[field.key]
+      const value = own(values, field.key)
 
       if (value === undefined) {
         continue
@@ -1000,6 +1069,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
   function formRecordProblem(
     registry: FormRegistry<FormDefinition<E>>,
     record: FilledForm,
+    options: Pick<SealOptions<E>, 'items'> = {},
   ): string | null {
     const definition =
       typeof record.definitionKey === 'string' && typeof record.definitionVersion === 'number'
@@ -1027,7 +1097,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     }
 
     if (record.status === 'signed') {
-      const [missing] = sealProblems(definition, values)
+      const [missing] = sealProblems(definition, values, options)
 
       if (missing !== undefined) {
         return `Unterschrieben wird ein vollständiges Protokoll: ${missing}`

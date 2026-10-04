@@ -953,6 +953,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - Ein Formular sagt, wenn das Gerät eine Eingabe nicht ablegen konnte, etwa weil sein Speicher voll
   ist, und lässt die Eingaben stehen (`opengewerk-haustechnik#31`). Bisher blieb es ohne ein Wort
   stehen, als wäre gespeichert.
+- Die Formular-Engine fragt beim Unterschreiben jeden Eintrag einer Liste, auch einen ohne Block
+  (#533, `opengewerk-haustechnik#31`). Eine Gruppe über eine Liste galt als vollständig, soweit
+  ihre Blöcke es waren: fehlte in den Werten der Block eines Eintrags, blieb sein Prüfpunkt ohne
+  Antwort, und das Formular ließ sich trotzdem unterschreiben. Wer unterschreiben lässt, nennt der
+  Engine jetzt die Einträge der Liste, und sie verlangt für jeden, was die Gruppe braucht. Die
+  Handwerkersoftware nennt sie nicht, an ihrem Prüfprotokoll ändert sich nichts.
+- Ein Feld eines Formulars kann nicht mehr `constructor` heißen (#533). Die Werte eines Formulars
+  sind ein Objekt, und unter diesem Schlüssel antwortet jedes Objekt, bevor jemand etwas
+  eingetragen hat: ein Pflichtfeld mit diesem Schlüssel galt als ausgefüllt, und das nächste
+  Formular begann mit einem Wert, den niemand eingegeben hatte. Die Prüfung einer Definition lehnt
+  den Schlüssel ab, und gelesen wird nur noch, was die Werte selbst halten.
 - Unter "Zugänge" stehen die Knöpfe zum Anlegen, Sperren, Zurückziehen und Abmelden und die Haken
   der Rollen nur noch für den, der die Zugänge auch ändern darf (`opengewerk-haustechnik#31`). Seit
   die Rollen Zeilen eines Betriebs sind, kann eine Rolle die Liste lesen, ohne sie zu ändern; sie

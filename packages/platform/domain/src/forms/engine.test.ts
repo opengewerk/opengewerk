@@ -834,3 +834,143 @@ describe('the answers of a round', () => {
     )
   })
 })
+
+describe('the items of a list when a round is signed', () => {
+  // The store room has two shelves by now, and the answers hold a block for
+  // the first alone.
+  const standing = { shelves: [{ id: 'shelf-1' }, { id: 'shelf-2' }] }
+  const stable = { stable: { result: 'ok' } }
+  const bothShelves = answeredWith('shelf_checks', [
+    { itemId: 'shelf-1', item: keller, values: stable },
+    { itemId: 'shelf-2', item: boden, values: stable },
+  ])
+
+  it('ask every item for its check points, also one nobody opened a block for', () => {
+    // Without the items the engine cannot know of the second shelf: its block
+    // is simply not there, and that is the application's to see to.
+    expect(engine.sealProblems(round, answered)).toEqual([])
+    expect(engine.sealProblems(round, answered, { items: standing })).toEqual([
+      'Regale, Eintrag 2: Standsicher fehlt.',
+    ])
+    expect(engine.sealProblems(round, bothShelves, { items: standing })).toEqual([])
+  })
+
+  it('ask every item when the values hold no block at all, or not even the group', () => {
+    const every = ['Regale, Eintrag 1: Standsicher fehlt.', 'Regale, Eintrag 2: Standsicher fehlt.']
+
+    expect(
+      engine.sealProblems(round, answeredWith('shelf_checks', []), { items: standing }),
+    ).toEqual(every)
+    expect(
+      engine.sealProblems(round, answeredWith('shelf_checks', undefined), { items: standing }),
+    ).toEqual(every)
+  })
+
+  it('still ask the block of an item that is gone, and nothing of a list that has no item', () => {
+    // What was found on a shelf was found: its block stays, and a check point
+    // in it that nobody answered is as missing as before.
+    expect(
+      engine.sealProblems(round, shelfWith({}), { items: { shelves: [{ id: 'shelf-2' }] } }),
+    ).toEqual(['Regale, Block 1: Standsicher fehlt.', 'Regale, Eintrag 1: Standsicher fehlt.'])
+    expect(
+      engine.sealProblems(round, answeredWith('shelf_checks', undefined), {
+        items: { shelves: [] },
+      }),
+    ).toEqual([])
+  })
+
+  it('ask only for what a group needs: an item without a block misses nothing where nothing is required', () => {
+    const remarks: FormDefinition<ProbeTerms> = {
+      key: 'shelf-remarks',
+      version: 1,
+      title: 'Anmerkungen zu den Regalen',
+      sections: [
+        {
+          key: 'shelves',
+          title: 'Regale',
+          fields: [
+            {
+              kind: 'group',
+              key: 'remarks',
+              label: 'Regale',
+              repeat: 'shelves',
+              fields: [{ kind: 'text', key: 'remark', label: 'Bemerkung' }],
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(engine.definitionProblems(remarks)).toEqual([])
+    expect(engine.sealProblems(remarks, {}, { items: standing })).toEqual([])
+    // The required load of the inspection is asked of each shelf the same way.
+    expect(engine.sealProblems(inspection, { ...filled, loads: [] }, { items: standing })).toEqual([
+      'Regale, Eintrag 1: Last fehlt.',
+      'Regale, Eintrag 2: Last fehlt.',
+    ])
+  })
+
+  it('reach the check of a form that says it is signed', () => {
+    const registry = formRegistry([round])
+    const signed = {
+      definitionKey: 'store-round',
+      definitionVersion: 1,
+      status: 'signed',
+      values: formValuesText(answered),
+    }
+
+    expect(engine.formRecordProblem(registry, signed)).toBeNull()
+    expect(engine.formRecordProblem(registry, signed, { items: standing })).toBe(
+      'Unterschrieben wird ein vollständiges Protokoll: Regale, Eintrag 2: Standsicher fehlt.',
+    )
+    expect(
+      engine.formRecordProblem(registry, { ...signed, status: 'draft' }, { items: standing }),
+    ).toBeNull()
+  })
+})
+
+describe('a key every object answers to already', () => {
+  /** A form nobody checked: one field, one section and one field of a group named `constructor`. */
+  const unchecked = {
+    key: 'built-in',
+    version: 1,
+    title: 'Eingebaute Schlüssel',
+    sections: [
+      {
+        key: 'constructor',
+        title: 'Abschnitt',
+        fields: [
+          { kind: 'text', key: 'constructor', label: 'Hersteller', required: true, carry: true },
+          {
+            kind: 'group',
+            key: 'parts',
+            label: 'Teile',
+            repeat: 'free',
+            fields: [
+              { kind: 'text', key: 'constructor', label: 'Erbauer', required: true, carry: true },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as FormDefinition<ProbeTerms>
+
+  it('is refused as the key of a field, of a field in a group and of a section', () => {
+    expect(engine.definitionProblems(unchecked)).toEqual([
+      'built-in: der Abschnitt constructor trägt einen Schlüssel, den jedes Objekt schon hat.',
+      'built-in: das Feld constructor trägt einen Schlüssel, den jedes Objekt schon hat.',
+      'built-in: das Feld constructor trägt einen Schlüssel, den jedes Objekt schon hat.',
+    ])
+  })
+
+  it('is read as empty where a form holds nothing under it, even in a definition nobody checked', () => {
+    // Asked for `constructor`, an empty object answers with the function every
+    // object is made by. Read that way the required field was filled, and the
+    // next form began with it.
+    expect(engine.sealProblems(unchecked, { parts: [{ values: {} }] })).toEqual([
+      'Hersteller fehlt.',
+      'Teile, Block 1: Erbauer fehlt.',
+    ])
+    expect(engine.templateValues(unchecked, {})).toEqual({})
+  })
+})
