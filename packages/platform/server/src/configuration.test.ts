@@ -269,6 +269,26 @@ describe('the configuration', () => {
     ).toThrow(/PostgreSQL/)
   })
 
+  /**
+   * What `openssl rand -base64` makes about half the time: a slash in the
+   * password. Which sentence comes depends on what stands before the slash,
+   * and both name the password.
+   */
+  it('names the password when a slash in it splits the address', () => {
+    expect(() =>
+      readConfiguration(
+        { ...valid, DATABASE_URL: `postgres://${applicationRole}:Ab/cd@db:5432/probewerk` },
+        writable,
+      ),
+    ).toThrow(/keine gültige Verbindungsadresse.*Enthält das Passwort "\/"/s)
+    expect(() =>
+      readConfiguration(
+        { ...valid, DATABASE_URL: `postgres://${applicationRole}:12/cd@db:5432/probewerk` },
+        writable,
+      ),
+    ).toThrow(/keinen Benutzernamen.*Passwort mit "\/"/s)
+  })
+
   it('refuses to start without a cookie secret, and without a short one', () => {
     expect(() => readConfiguration(without('SESSION_SECRET'), writable)).toThrow(/SESSION_SECRET/)
     // Long enough to look deliberate, short enough to be somebody typing.

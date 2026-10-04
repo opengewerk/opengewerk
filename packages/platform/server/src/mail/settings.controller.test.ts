@@ -424,6 +424,46 @@ describe('checking the connection', () => {
     ])
   })
 
+  /**
+   * Whoever may change the settings does not know the password, or need not.
+   * Pointed at a server of their own, the check would hand it over there, and
+   * so would every message after a save (opengewerk-haustechnik#31).
+   */
+  it('sends the password kept to no other server and with no other login', async () => {
+    await save(settings).expect(200)
+    tried = []
+
+    const { password: _typed, ...withoutPassword } = settings
+    const elsewhere = [
+      { ...withoutPassword, host: 'mail.angreifer.example' },
+      { ...withoutPassword, username: 'jemand@angreifer.example' },
+    ]
+
+    for (const body of elsewhere) {
+      const checked = await http()
+        .post('/settings/mail/server/check')
+        .set(testIdentityHeader, leading())
+        .send(body)
+        .expect(400)
+
+      expect((checked.body as { message: string }).message).toContain(
+        'Für einen anderen Server oder Benutzernamen gehört es neu eingegeben.',
+      )
+      await save(body).expect(400)
+    }
+
+    expect(tried).toEqual([])
+    expect(await serverOf()).toMatchObject({
+      host: 'smtp.ionos.de',
+      username: 'post@nord.example.de',
+    })
+
+    // The same server, written another way, is the same server.
+    await save({ ...withoutPassword, host: 'SMTP.IONOS.DE' }).expect(200)
+    // With the password typed in, any server is fine.
+    await save({ ...settings, host: 'mail.nord.example.de' }).expect(200)
+  })
+
   it('names the login when the server refuses it, and saves nothing', async () => {
     answer = new MailDeliveryError('535 Authentication failed', 'EAUTH', 535)
 

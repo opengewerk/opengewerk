@@ -152,7 +152,8 @@ export interface MailServers {
   /**
    * The settings somebody is about to save, as a connection to try. The
    * password is the one typed in, or the one kept when none was typed, so
-   * that checking a changed port does not ask for the password again.
+   * that checking a changed port does not ask for the password again; the one
+   * kept goes to the same server and login only.
    */
   configurationToTry(
     database: Database,
@@ -183,6 +184,25 @@ async function settingsOf(tx: TenantTransaction, tenantId: TenantId) {
   const [row] = await tx.select().from(mailSettings).where(eq(mailSettings.tenantId, tenantId))
 
   return row ?? null
+}
+
+/**
+ * The password kept goes to the server and the login it was typed in for, and
+ * to no other (opengewerk-haustechnik#31). Whoever may change the settings
+ * could otherwise point them at a server of their own and have the password of
+ * the mailbox sent there, with a check or with the next message. The port and
+ * the kind of connection may change; the server stays the same one.
+ */
+function keptPasswordFits(current: SettingsRow | null, input: MailServerInput): void {
+  if (
+    current !== null &&
+    (current.host.toLowerCase() !== input.host.toLowerCase() || current.username !== input.username)
+  ) {
+    throw new BadRequestException(
+      'Das gespeicherte Passwort geht nur an den Server und den Benutzernamen, für die es ' +
+        'eingegeben wurde. Für einen anderen Server oder Benutzernamen gehört es neu eingegeben.',
+    )
+  }
 }
 
 /**
@@ -302,6 +322,8 @@ export function mailServers<Purpose extends string>(rules: MailServerRules<Purpo
               'Instanz seitdem getauscht wurde. Es muss neu eingegeben werden.',
           )
         }
+
+        keptPasswordFits(current, input)
       }
 
       const values = {
@@ -441,9 +463,10 @@ export function mailServers<Purpose extends string>(rules: MailServerRules<Purpo
       return { ...configuration, user: input.username, password: input.password }
     }
 
-    const stored = await database.forTenant(actor, (tx) =>
-      secrets.read(tx, key, place(actor.tenantId)),
-    )
+    const { current, stored } = await database.forTenant(actor, async (tx) => ({
+      current: await settingsOf(tx, actor.tenantId),
+      stored: await secrets.read(tx, key, place(actor.tenantId)),
+    }))
 
     if (stored.state !== 'readable') {
       throw new BadRequestException(
@@ -452,6 +475,8 @@ export function mailServers<Purpose extends string>(rules: MailServerRules<Purpo
           : 'Das gespeicherte Passwort lässt sich nicht mehr lesen. Es muss neu eingegeben werden.',
       )
     }
+
+    keptPasswordFits(current, input)
 
     return { ...configuration, user: input.username, password: stored.value }
   }

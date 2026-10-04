@@ -164,6 +164,78 @@ describe('a transaction for the instance', () => {
   })
 })
 
+describe('a connection the database server ends', () => {
+  // What `restore.sh` does to every connection of the application, and what a
+  // restart of the database server does. Without a listener, the event that
+  // reports it ends the process, and Vitest reports it as an unhandled error.
+
+  /** Waits for `found`, for up to two seconds. */
+  async function until(found: () => boolean): Promise<void> {
+    for (let tries = 0; tries < 100 && !found(); tries += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  }
+
+  async function backendOf(tx: TenantTransaction): Promise<number> {
+    const result = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`)
+
+    return Number(result.rows[0]?.pid)
+  }
+
+  async function watched(
+    test: (watched: Database, complaints: string[]) => Promise<void>,
+  ): Promise<void> {
+    const complaints: string[] = []
+    const one = Database.connect(kit.testDatabaseUrl(), (line) => {
+      complaints.push(line)
+    })
+
+    try {
+      await test(one, complaints)
+    } finally {
+      await one.close()
+    }
+  }
+
+  it('is said while it rests in the pool, and the next request gets another', async () => {
+    await watched(async (one, complaints) => {
+      const resting = await one.forInstance(backendOf)
+
+      await pool.query('select pg_terminate_backend($1)', [resting])
+      await until(() => complaints.length > 0)
+
+      expect(complaints).toEqual([expect.stringMatching(/ruhende Verbindung/)])
+      expect(await one.forInstance(backendOf)).not.toBe(resting)
+    })
+  })
+
+  const ways: [
+    string,
+    (one: Database, work: (tx: TenantTransaction) => Promise<void>) => Promise<void>,
+  ][] = [
+    ['for a tenant', (one, work) => one.forTenant({ tenantId: newId<'tenant'>() }, work)],
+    ['for the instance', (one, work) => one.forInstance(work)],
+    ['into a tenant', (one, work) => one.forInstanceAndTenant('setup', ({ tx }) => work(tx))],
+  ]
+
+  it.each(ways)(
+    'is said once while a transaction %s has it, and the transaction fails with its own error',
+    async (_way, transaction) => {
+      await watched(async (one, complaints) => {
+        const failed = transaction(one, async (tx) => {
+          await pool.query('select pg_terminate_backend($1)', [await backendOf(tx)])
+          await until(() => complaints.length > 0)
+          await tx.execute(sql`select 'after the end'`)
+        })
+
+        await expect(failed).rejects.toThrow(/after the end/)
+        expect(complaints).toEqual([expect.stringMatching(/mitten in einer Transaktion/)])
+        expect(await one.isReachable()).toBe(true)
+      })
+    },
+  )
+})
+
 describe('the health check', () => {
   it('says whether the database answers, and hands out no connection', async () => {
     expect(await database.isReachable()).toBe(true)

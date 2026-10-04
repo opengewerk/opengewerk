@@ -899,10 +899,12 @@ describe('the migration run', () => {
 
     expect(failure).toBeInstanceOf(MigrationHistoryError)
     expect((failure as Error).message).toContain('0004_late_arrival')
+    expect((failure as Error).message).toContain('Es wurde nichts eingespielt.')
 
-    // The table really is missing, so the migration really was skipped. The
-    // check after the run is the only thing that says so.
+    // Refused before the run, so the installation is where it was. The runner
+    // would have passed over the migration without a word.
     expect(await tableNames(admin)).not.toContain('warranties')
+    expect(await appliedMigrationCount(admin)).toBe(olderRelease)
   })
 
   it('refuses an image that is older than the database', async () => {

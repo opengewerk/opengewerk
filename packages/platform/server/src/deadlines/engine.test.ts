@@ -35,8 +35,9 @@ import { deadlineRunOf } from './runs.js'
 const north = { id: newId<'tenant'>() as TenantId, name: 'Mandant Nord' }
 const south = { id: newId<'tenant'>() as TenantId, name: 'Mandant Süd' }
 
-/** The records the sources of the probe application follow: a parcel and two houses. */
+/** The records the sources of the probe application follow: two parcels and two houses. */
 const parcelOne = newId<'source'>()
+const parcelTwo = newId<'source'>()
 const eastHouse = newId<'source'>()
 const westHouse = newId<'source'>()
 
@@ -533,6 +534,73 @@ describe('a reminder', () => {
 
     expect(await runDeadlinesOf(engine(), north.id, at('2037-03-08', 9))).toMatchObject({
       reminded: 1,
+    })
+  })
+
+  describe('that fails', () => {
+    beforeEach(async () => {
+      parcels
+        .get(north.id)
+        ?.set(parcelOne, { arrivedOn: '2037-03-02', takenInBy: 'tom', number: 'P-0042' })
+      parcels
+        .get(north.id)
+        ?.set(parcelTwo, { arrivedOn: '2037-03-02', takenInBy: 'ida', number: 'P-0043' })
+      await runDeadlinesOf(engine(), north.id, at('2037-03-02'))
+    })
+
+    it('does not hold up the others of its tenant, and the pass still fails', async () => {
+      // The first reminder of the pass fails, whichever deadline comes first.
+      let calls = 0
+      const firstFails = engine({
+        actions: {
+          note: async (context) => {
+            calls += 1
+
+            if (calls === 1) {
+              throw new Error('The note could not be written.')
+            }
+
+            noted.push({
+              kind: context.kind.key,
+              label: context.deadline.sourceLabel,
+              responsible: context.responsible,
+              parcel: context.deadline.parcelNumber,
+            })
+          },
+        },
+      })
+
+      await expect(runDeadlinesOf(firstFails, north.id, at('2037-03-08', 8))).rejects.toThrow(
+        'The note could not be written.',
+      )
+      expect(noted).toHaveLength(1)
+      expect(
+        (await deadlinesOf(north.id)).map((deadline) => deadline.remindedFor !== null),
+      ).toEqual(expect.arrayContaining([true, false]))
+
+      expect(await runDeadlinesOf(engine(), north.id, at('2037-03-08', 9))).toMatchObject({
+        reminded: 1,
+      })
+      expect(noted).toHaveLength(2)
+    })
+
+    it('names every reminder that failed in the pass', async () => {
+      failing.note = true
+
+      const failed: unknown = await runDeadlinesOf(engine(), north.id, at('2037-03-08', 8)).catch(
+        (error: unknown) => error,
+      )
+
+      expect(failed).toBeInstanceOf(AggregateError)
+      expect((failed as AggregateError).message).toBe('2 Erinnerungen sind gescheitert.')
+      expect((failed as AggregateError).errors).toEqual([
+        new Error('The note could not be written.'),
+        new Error('The note could not be written.'),
+      ])
+      expect(await deadlinesOf(north.id)).toMatchObject([
+        { remindedFor: null },
+        { remindedFor: null },
+      ])
     })
   })
 

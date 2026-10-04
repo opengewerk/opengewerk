@@ -1,5 +1,6 @@
 import { lookup as resolveName, type LookupAddress } from 'node:dns'
 import { lookup as lookupAll } from 'node:dns/promises'
+import type { ClientRequest } from 'node:http'
 import { request } from 'node:https'
 import { isIP } from 'node:net'
 
@@ -159,6 +160,9 @@ export function checkedLookup(resolve: Lookup = resolveName): Lookup {
   return checked
 }
 
+/** How long a push service has for the whole of one request. */
+export const pushAnswerLimitMs = 10_000
+
 /** Posts over HTTPS, to the internet only, and gives up after ten seconds. */
 export function httpsPost(resolve?: Lookup): PushPost {
   const lookup = checkedLookup(resolve)
@@ -170,35 +174,63 @@ export function httpsPost(resolve?: Lookup): PushPost {
       return Promise.reject(new Error(problem))
     }
 
-    return new Promise((answered, failed) => {
-      const sent = request(
-        endpoint,
-        {
-          method: 'POST',
-          headers: { ...headers, 'Content-Length': String(body.length) },
-          lookup,
-          timeout: 10_000,
-        },
-        (response) => {
-          // The body of an answer says nothing the status does not; it is
-          // read away so that the connection is freed.
-          response.resume()
-          response.on('end', () => {
-            const retryAfter = response.headers['retry-after']
-
-            answered({
-              status: response.statusCode ?? 0,
-              retryAfter: typeof retryAfter === 'string' ? retryAfter : null,
-            })
-          })
-        },
-      )
-
-      sent.on('timeout', () => {
-        sent.destroy(new Error('Der Push-Dienst hat in zehn Sekunden nicht geantwortet.'))
-      })
-      sent.on('error', failed)
-      sent.end(body)
+    const sent = request(endpoint, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': String(body.length) },
+      lookup,
     })
+    const answer = answerOf(sent)
+
+    sent.end(body)
+
+    return answer
   }
+}
+
+/**
+ * What a push service answers to one request: as soon as the head of its
+ * response is there, or an error when that takes longer than the limit.
+ *
+ * The limit is for the whole request and not for each pause in it. Before
+ * opengewerk-haustechnik#31 it was the idle timeout of the socket, which
+ * starts again with every byte, and the body of the answer was read to its
+ * end. An endpoint anybody with the right to switch on push can name, and
+ * that sends a byte every few seconds and never an end, then held the job
+ * that sends push for every tenant of the instance: a cycle runs one message
+ * after another and never two at once. All the server needs is the status
+ * and one header, so the connection is cut as soon as they are there.
+ */
+export function answerOf(sent: ClientRequest, limitMs = pushAnswerLimitMs): Promise<PushAnswer> {
+  return new Promise((answered, failed) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      sent.destroy(new Error('Der Push-Dienst hat nicht rechtzeitig geantwortet.'))
+    }, limitMs)
+
+    function settle(finish: () => void): void {
+      if (!settled) {
+        settled = true
+        clearTimeout(timer)
+        finish()
+      }
+    }
+
+    sent.on('response', (response) => {
+      const retryAfter = response.headers['retry-after']
+
+      settle(() => {
+        answered({
+          status: response.statusCode ?? 0,
+          retryAfter: typeof retryAfter === 'string' ? retryAfter : null,
+        })
+      })
+      // Whatever the body says, the status already did.
+      response.destroy()
+    })
+    sent.on('error', (error) => {
+      settle(() => {
+        failed(error)
+      })
+    })
+  })
 }

@@ -81,11 +81,14 @@ export function readMigrationIndex(folder: string): MigrationFile[] {
     }))
 }
 
-/** What the database says has run, oldest first. Empty for a fresh database. */
+/**
+ * What the database says has run, oldest first, with the timestamp the runner
+ * wrote for each. Empty for a fresh database.
+ */
 async function appliedMigrations(
   pool: Pool,
   history: MigrationHistory,
-): Promise<{ hash: string }[]> {
+): Promise<{ hash: string; when: number }[]> {
   const table = qualified(history)
   const { rows: existing } = await pool.query<{ table: string | null }>(
     'select to_regclass($1) as table',
@@ -99,9 +102,34 @@ async function appliedMigrations(
   // By id, which is the order they were inserted in and therefore the order
   // they ran in. Not by created_at: that is the timestamp from the journal,
   // and a wrong one there is exactly what this check is meant to catch.
-  const { rows } = await pool.query<{ hash: string }>(`select hash from ${table} order by id`)
+  const { rows } = await pool.query<{ hash: string; created_at: string | null }>(
+    `select hash, created_at from ${table} order by id`,
+  )
 
-  return rows
+  return rows.map((row) => ({ hash: row.hash, when: Number(row.created_at ?? 0) }))
+}
+
+/**
+ * The first migration of the journal whose timestamp is not after the one
+ * before it, or null when they all rise.
+ *
+ * On an empty database the runner takes every migration in the order of the
+ * journal, whatever its timestamp, so a journal like that passes every test
+ * that starts from nothing. It fails on an installation that already has the
+ * one before: there the runner passes over it, as `checkMigrationHistory`
+ * explains. Two branches merged in another order than their migrations were
+ * made in leave a journal like that.
+ */
+function outOfOrder(files: readonly MigrationFile[]): [MigrationFile, MigrationFile] | null {
+  for (const [position, file] of files.entries()) {
+    const before = files[position - 1]
+
+    if (before && file.when <= before.when) {
+      return [before, file]
+    }
+  }
+
+  return null
 }
 
 /**
@@ -111,10 +139,12 @@ async function appliedMigrations(
  * The runner does not do this itself. It writes a hash per migration and then
  * only ever compares the timestamp of the newest applied one, so a migration
  * that was changed after it ran is skipped without a word, and so is a new one
- * whose timestamp happens to sit before it. Both leave a database whose state
- * no file describes, and both are found here instead: once before the run,
- * where what is applied has to be the beginning of what the image carries, and
- * once after, where everything the image carries has to be applied.
+ * whose timestamp happens to sit before it, while the ones after it in the same
+ * run are applied. Both leave a database whose state no file describes, and
+ * both are found here instead. Before the run: the timestamps of the journal
+ * rise, what is applied is the beginning of what the image carries, and every
+ * migration still to come has a timestamp after the newest that ran. After the
+ * run, everything the image carries has to be applied.
  *
  * Refusing is the point. An update that stops with a reason costs an evening;
  * one that runs on a schema nobody can name costs the installation.
@@ -125,6 +155,21 @@ export async function checkMigrationHistory(
   stage: 'before' | 'after',
   history: MigrationHistory = defaultMigrationHistory,
 ): Promise<void> {
+  const disorder = stage === 'before' ? outOfOrder(files) : null
+
+  if (disorder) {
+    const [before, file] = disorder
+
+    throw new MigrationHistoryError(
+      `Im Journal liegt der Zeitstempel der Migration "${file.tag}" nicht nach dem von ` +
+        `"${before.tag}". Auf einer Datenbank, die "${before.tag}" schon kennt, übergeht der ` +
+        'Migrationslauf sie stillschweigend und spielt die späteren ein. Das passiert, wenn ' +
+        'zwei Branches in einer anderen Reihenfolge gemergt werden, als ihre Migrationen ' +
+        'entstanden sind. Die Migration braucht einen Zeitstempel nach dem der vorigen. Es ' +
+        'wurde nichts eingespielt.',
+    )
+  }
+
   const applied = await appliedMigrations(pool, history)
 
   if (applied.length > files.length) {
@@ -151,6 +196,23 @@ export async function checkMigrationHistory(
           'eingespielt.',
       )
     }
+  }
+
+  // The journal rises, but the database has the word: a timestamp changed in
+  // the journal after its migration ran is still the old one there.
+  const newest = applied.reduce((latest, entry) => Math.max(latest, entry.when), 0)
+  const late =
+    stage === 'before' && applied.length > 0
+      ? files.slice(applied.length).find((file) => file.when <= newest)
+      : undefined
+
+  if (late) {
+    throw new MigrationHistoryError(
+      `Die Migration "${late.tag}" hat einen Zeitstempel, der nicht nach dem der zuletzt ` +
+        'eingespielten liegt. Der Migrationslauf vergleicht nur mit der neuesten, er würde ' +
+        'sie stillschweigend übergehen und die späteren einspielen. Die Migration braucht ' +
+        'einen Zeitstempel nach dem der letzten, dann läuft sie. Es wurde nichts eingespielt.',
+    )
   }
 
   if (stage === 'after' && applied.length < files.length) {

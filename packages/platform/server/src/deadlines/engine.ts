@@ -328,7 +328,8 @@ async function remindOne<
 /**
  * One pass over one tenant: first the sources, then what has come within its
  * lead. The first transaction writes the deadlines, then each reminder gets a
- * transaction of its own, so that one that fails does not hold up the others.
+ * transaction of its own, so that one that fails does not hold up the others;
+ * the pass fails all the same, with what went wrong, once the others are made.
  *
  * Deadlines follow their sources at any hour, but a reminder waits for the
  * morning of its day (`morningMinute`): whatever it makes is then under
@@ -371,6 +372,7 @@ export async function runDeadlinesOf<
   }))
 
   let reminded = 0
+  const failures: unknown[] = []
 
   for (const deadline of due) {
     const kind = engine.registry.kind(deadline.kind)
@@ -387,13 +389,30 @@ export async function runDeadlinesOf<
       continue
     }
 
-    const done = await inTenant(actor, (tx) =>
-      remindOne(engine, tx, tenantId, kind, setting, deadline, now),
-    )
+    try {
+      const done = await inTenant(actor, (tx) =>
+        remindOne(engine, tx, tenantId, kind, setting, deadline, now),
+      )
 
-    if (done) {
-      reminded += 1
+      if (done) {
+        reminded += 1
+      }
+    } catch (error) {
+      // Until opengewerk-haustechnik#31 the first failure ended the pass, and
+      // since a failed reminder stays due, the same one stopped the same
+      // others every minute for as long as its cause lasted.
+      failures.push(error)
     }
+  }
+
+  // The others have been made; the pass still counts as failed, so that it is
+  // seen where people work and in the log, and the next one tries again.
+  if (failures.length === 1) {
+    throw failures[0]
+  }
+
+  if (failures.length > 1) {
+    throw new AggregateError(failures, `${String(failures.length)} Erinnerungen sind gescheitert.`)
   }
 
   return { ...found, reminded }

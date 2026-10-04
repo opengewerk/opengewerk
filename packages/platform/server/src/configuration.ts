@@ -195,11 +195,15 @@ function port(environment: Environment, name: string, fallback: number): number 
  * Reads a connection string and refuses the ways it can be wrong without
  * looking wrong.
  *
- * The missing user name is the one worth explaining. A password containing a
- * slash splits the address at the wrong place: everything before the slash
- * becomes the host, and the failure that reaches the log is a name lookup for
- * a host called like the role. Nobody reading that thinks of the password, and
- * `openssl rand -base64` produces a slash about half the time.
+ * A password with a slash in it is the one worth explaining. It splits the
+ * address at the wrong place: everything before the slash becomes the host,
+ * and `openssl rand -base64` produces a slash about half the time. What the
+ * parser makes of that depends on the password. With letters after the colon
+ * the part before the slash is no host and port at all, and the address does
+ * not parse (opengewerk-haustechnik#31, until then this said nothing of the
+ * password); with digits only it parses, without a user name. Either way the
+ * sentence names the password, because nobody reading the address thinks of
+ * it.
  *
  * @param exampleDatabase the name of the database in the example the first
  *   sentence gives, which is the application's.
@@ -212,7 +216,7 @@ export function parseConnectionString(raw: string, name: string, exampleDatabase
   } catch {
     throw new ConfigurationError(
       `${name} ist keine gültige Verbindungsadresse. Erwartet wird etwa ` +
-        `postgres://benutzer:passwort@host:5432/${exampleDatabase}`,
+        `postgres://benutzer:passwort@host:5432/${exampleDatabase}. ${splitByThePassword}`,
     )
   }
 
@@ -233,6 +237,12 @@ export function parseConnectionString(raw: string, name: string, exampleDatabase
 
   return parsed
 }
+
+/** The cause behind an address that does not parse, more often than not. */
+const splitByThePassword =
+  'Enthält das Passwort "/", "@", ":" oder "?", teilt es die Adresse an der falschen ' +
+  'Stelle. Dann ein Passwort ohne diese Zeichen verwenden, etwa aus "openssl rand -hex 32", ' +
+  'oder es in der Adresse prozentkodieren.'
 
 /**
  * The connection string of the application, checked for the one mistake that

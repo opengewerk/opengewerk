@@ -875,6 +875,30 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Verbindung zur Datenbank, die der Datenbankserver beendet, beendet die Anwendung nicht mehr
+  (`opengewerk-haustechnik#31`). `restore.sh` beendet vor dem Rückspielen jede Verbindung der
+  Anwendung, ein Neustart von PostgreSQL ebenso. Der Pool meldete das als Ereignis, auf das niemand
+  hörte, und Node beendete den Prozess mitten in dem, was er gerade beantwortete; wieder hoch kam
+  die Anwendung nur über `restart: unless-stopped`. Jetzt steht es im Log, und die nächste Anfrage
+  bekommt eine neue Verbindung. Eine Transaktion, deren Verbindung abbricht, scheitert mit ihrem
+  eigenen Fehler und nicht mehr mit dem des Zurückrollens.
+- Eine Erinnerung an eine Frist, deren Aktion scheitert, hält die übrigen Erinnerungen des Betriebs
+  nicht mehr auf (`opengewerk-haustechnik#31`). Bisher endete der Durchgang beim ersten Fehler, und
+  weil eine gescheiterte Erinnerung fällig bleibt, hielt sie dieselben anderen jede Minute auf,
+  solange ihre Ursache bestand. Der Durchgang zählt weiter als gescheitert, damit es im Büro zu
+  sehen ist, und nennt jede Erinnerung, die nicht ging.
+- Der Migrationslauf prüft die Zeitstempel, bevor er etwas einspielt (`opengewerk-haustechnik#31`).
+  Eine neue Migration mit einem Zeitstempel vor dem der zuletzt eingespielten übergeht drizzle
+  stillschweigend und spielt die späteren desselben Laufs ein. Die Prüfung danach merkte das erst
+  nach dem Commit, nannte eine geänderte Datei als Ursache, und jeder weitere Start scheiterte an
+  derselben Stelle. Jetzt lehnt der Lauf ein Journal ab, dessen Zeitstempel nicht steigen, und eine
+  ausstehende Migration, die nicht nach der neuesten eingespielten liegt, beides mit dem richtigen
+  Grund und ohne etwas einzuspielen. Weil jeder Test, der migriert, über diesen Lauf geht, fällt
+  ein solches Journal in jeder Anwendung schon in der CI auf.
+- Eine Verbindungsadresse, die sich gar nicht lesen lässt, bekommt jetzt denselben Hinweis auf das
+  Passwort wie eine ohne Benutzernamen (`opengewerk-haustechnik#31`). Ein Passwort aus
+  `openssl rand -base64` mit einem "/" darin führt meistens in diesen Zweig, und der sagte nur, wie
+  eine Adresse aussieht.
 - Der Test des Lesers für Codes in `platform-web` lief in sein Zeitlimit, sobald alle Pakete ihre
   Tests zugleich ausführten, und hielt damit den ganzen Lauf an, obwohl er allein in einer Sekunde
   grün war. Der Leser in JavaScript ist ein großes Modul, und der erste Test, der auf ihn
@@ -934,6 +958,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   danach steht der Knopf zum Beitreten da. Der Server nimmt den Beitritt nur mit der Sitzung genau
   dieses Kontos an, sonst antwortet er mit 401 oder 403 und lässt den Link gültig. Betroffen war
   nur der Stand auf `main`: in 0.4.0 hat eine Instanz genau einen Betrieb.
+- Ein Push-Dienst, der langsam antwortet, hält den Versand der Push-Nachrichten nicht mehr auf
+  (`opengewerk-haustechnik#31`). Die zehn Sekunden galten für jede Pause und nicht für die ganze
+  Anfrage, und gelesen wurde die Antwort bis zu ihrem Ende. Wer Push einschalten darf, also jeder
+  im Betrieb, konnte ein Gerät mit der Adresse eines eigenen Servers anmelden, der ein Byte nach
+  dem anderen schickt, und damit den Versand für alle Betriebe der Instanz bis zum nächsten
+  Neustart anhalten. Jetzt gilt die Frist für die ganze Anfrage, und die Verbindung endet, sobald
+  der Kopf der Antwort da ist. Betroffen war nur der Stand auf `main`, Push kam nach 0.4.0.
+- Das gespeicherte Passwort des Mailservers geht nur noch an den Server und den Benutzernamen, für
+  die es eingegeben wurde (`opengewerk-haustechnik#31`). Wer die E-Mail-Einstellungen ändern darf,
+  konnte einen anderen Server eintragen, das Passwort leer lassen und es mit "Verbindung prüfen"
+  oder mit der nächsten Nachricht an diesen Server schicken lassen. Port und Verschlüsselung lassen
+  sich weiter ohne neues Passwort ändern. Betroffen sind 0.1.0 bis 0.4.0; ändern darf die
+  Einstellungen dort nur der Inhaber.
 
 ## [0.4.0] - 2026-09-27
 
