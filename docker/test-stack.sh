@@ -568,16 +568,62 @@ compare)
   ;;
 
 corrupt)
-  # Overwrite a stretch in the middle of the newest archive. The manifest has
-  # to catch that before anything touches the database, because a restore
-  # that half succeeds is worse than one that never starts.
+  # A restore that half succeeds is worse than one that never starts, so a
+  # damaged archive is turned away before anything touches the database. Two
+  # kinds of damage, because they are caught in two places.
+  #
+  # The first is a stretch overwritten in the middle of the newest archive,
+  # which is encrypted in this run. That one never reaches the manifest: age
+  # authenticates what it decrypts and stops there. With the checksums of the
+  # manifest taken out of restore.sh, this half was as green as with them
+  # (opengewerk-haustechnik#31), so it says where the restore ended.
   compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | tail -n 1) && size=$(stat -c %s "$file") && dd if=/dev/urandom of="$file" bs=1 seek=$((size / 2)) count=64 conv=notrunc 2>/dev/null && echo "Byte in $file verändert."'
 
-  if compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest; then
+  if compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest > "$temp/corrupt.txt" 2>&1; then
+    cat "$temp/corrupt.txt"
     fail 'Die beschädigte Sicherung wurde angenommen. Das ist der Fehler.'
   fi
 
-  echo 'Die beschädigte Sicherung wurde abgelehnt.'
+  cat "$temp/corrupt.txt"
+  grep -q 'Sicherung wird entschlüsselt' "$temp/corrupt.txt" ||
+    fail 'Die beschädigte Sicherung wurde abgelehnt, aber nicht bei der Entschlüsselung.'
+
+  if grep -q -e 'Prüfsummen werden geprüft' -e 'ausgesperrt' "$temp/corrupt.txt"; then
+    fail 'Die beschädigte Sicherung kam an der Entschlüsselung vorbei.'
+  fi
+
+  echo 'Die beschädigte Sicherung wurde bei der Entschlüsselung abgelehnt.'
+
+  # The second is an archive that unpacks cleanly and does not hold what the
+  # backup wrote, which only the manifest can notice. Changing a byte of an
+  # unencrypted archive would not show that either: gzip carries a checksum
+  # of its own, and tar stops on it. So a backup is taken without encryption,
+  # unpacked, its dump given one byte more and packed again. It is named
+  # outright, which takes the question whether a named archive is one of this
+  # application through the shell of the image as well.
+  compose --profile backup run --rm -e BACKUP_AGE_RECIPIENT= backup backup.sh
+
+  repacked=$(compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" ! -name "*.age" | sort | tail -n 1) && [ -n "$file" ] && work=$(mktemp -d) && tar --extract --gzip --file "$file" --directory "$work" && printf x >> "$work/database.dump" && tar --create --gzip --file "$file" --directory "$work" . && basename "$file"' | tr -d '\r' | tail -n 1)
+  [ -n "$repacked" ] || fail 'Die unverschlüsselte Sicherung ließ sich nicht neu packen.'
+  echo "database.dump in ${repacked} verändert und neu gepackt."
+
+  if compose --profile backup run --rm backup restore.sh "$repacked" > "$temp/repacked.txt" 2>&1; then
+    cat "$temp/repacked.txt"
+    fail 'Die veränderte Sicherung wurde angenommen. Das ist der Fehler.'
+  fi
+
+  cat "$temp/repacked.txt"
+  grep -q 'Die Prüfsumme von database.dump stimmt nicht' "$temp/repacked.txt" ||
+    fail 'Die veränderte Sicherung wurde abgelehnt, aber nicht vom Manifest.'
+
+  if grep -q 'ausgesperrt' "$temp/repacked.txt"; then
+    fail 'Die veränderte Sicherung wurde erst abgelehnt, als die Anwendung schon ausgesperrt war.'
+  fi
+
+  # Gone again, so that the newest archive is the one the steps after this
+  # one have always found there.
+  compose --profile backup run --rm --entrypoint sh backup -c 'rm -f "$BACKUP_PATH/$1"' sh "$repacked"
+  echo 'Die veränderte Sicherung wurde vom Manifest abgelehnt.'
   ;;
 
 catch-up)

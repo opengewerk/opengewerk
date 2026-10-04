@@ -601,8 +601,11 @@ jobs:
 
       # The names of the archives (opengewerk-haustechnik#14), with the backup
       # scripts and stand-ins for the tools of PostgreSQL: in a folder shared
-      # with another application, each finds, keeps and removes only its own.
-      - name: Namen der Sicherungen prüfen
+      # with another application, each finds, keeps, restores and removes only
+      # its own. And the manifest: an archive that unpacks cleanly and holds a
+      # changed part is turned away before the database is asked anything
+      # (opengewerk-haustechnik#31).
+      - name: Namen und Manifest der Sicherungen prüfen
         working-directory: docker
         run: sh test-backup.sh
 

@@ -61,6 +61,14 @@ else
 		echo "Die Sicherung \"${wanted}\" gibt es nicht." >&2
 		exit 1
 	fi
+
+	# A named archive is held to the names "latest" looks among, see names.sh.
+	if ! is_own_archive "$archive"; then
+		echo "Die Sicherung \"$(basename "$archive")\" gehört nicht zu dieser Anwendung: ihre" >&2
+		echo "Sicherungen heißen ${BACKUP_PREFIX}-<Zeit>.tar.gz, verschlüsselt mit .age dahinter." >&2
+		echo "Es wird nichts zurückgespielt." >&2
+		exit 1
+	fi
 fi
 
 echo "Sicherung: $(basename "$archive")"

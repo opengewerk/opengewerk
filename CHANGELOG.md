@@ -928,6 +928,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   (`opengewerk-haustechnik#12`): `/m?...` öffnet ohne Netz die Baustelle statt des Büros, und ein
   Pfad des Servers mit Abfrageteil geht an den Server statt an die Hülle. Bisher endete ein
   Abschnitt für ihn nur an einem Schrägstrich.
+- `restore.sh` und `verify.sh` nehmen ein Archiv, das mit seinem Namen genannt wird, nur noch,
+  wenn es eines dieser Anwendung ist (#531, `opengewerk-haustechnik#31`). "Nur Archive genau
+  dieser Form" galt bisher für `latest`; mit einem Namen ließ sich in einem Ziel, das zwei
+  Anwendungen teilen, das Archiv der anderen zurückspielen, und weil beide ihre Mandanten in
+  Tabellen desselben Namens halten, hätte es die Mandanten dieser Instanz ersetzt. Abgelehnt wird
+  vor der ersten Frage an die Datenbank, mit dem Satz, wie die eigenen Archive heißen.
+- Der Lauf "Sicherung und Rückspielen" prüft jetzt wirklich die Prüfsummen des Manifests (#531,
+  `opengewerk-haustechnik#31`). Sein Schritt mit der beschädigten Sicherung blieb grün, wenn man
+  sie aus `restore.sh` herausnahm: das Archiv ist dort verschlüsselt, und ein verändertes Byte
+  fällt schon age auf, in einem unverschlüsselten Archiv gzip. Der Schritt nimmt jetzt zusätzlich
+  eine unverschlüsselte Sicherung, packt sie mit einem veränderten Teil neu und erwartet den Satz
+  des Manifests; `test-backup.sh` tut dasselbe für jeden Teil, für eine fehlende Prüfsumme und
+  einen fehlenden Teil und hält fest, dass die Datenbank vorher nicht gefragt wird.
 - Ein Tap auf eine Push-Nachricht führt nur noch auf diese Instanz, auch wenn ihr Pfad mit `/\`
   beginnt (`opengewerk-haustechnik#12`). Die Prüfung sah nur auf die ersten Zeichen, und ein
   Browser liest den Backslash als Schrägstrich. Ausnutzen ließ sich das nicht: die Pfade in

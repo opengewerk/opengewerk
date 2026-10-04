@@ -1096,9 +1096,13 @@ werden nach jedem Lauf entfernt.
 Ein Archiv heißt nach der Datenbank, die es enthält, `opengewerk-<zeit>.tar.gz`,
 verschlüsselt mit `.age` dahinter. Aufbewahrung, Prüfung und Rückspielen sehen
 nur Archive genau dieser Form, ein Ziel, das eine weitere Anwendung mitbenutzt,
-behält also deren Archive. Wer das Abbild der Sicherung in einer anderen
-Anwendung benutzt, setzt `BACKUP_PREFIX`, wenn der Name ihrer Datenbank nicht
-der Anfang ihrer Archive sein soll.
+behält also deren Archive. Das gilt auch, wenn statt `latest` ein Archiv mit
+seinem Namen genannt wird: eines, das nicht so heißt, lehnen `restore.sh` und
+`verify.sh` ab, bevor sie die Datenbank fragen. Zwei Anwendungen der
+Organisation halten ihre Mandanten in Tabellen desselben Namens, und das Archiv
+der einen würde in der Datenbank der anderen deren Mandanten ersetzen. Wer das
+Abbild der Sicherung in einer anderen Anwendung benutzt, setzt `BACKUP_PREFIX`,
+wenn der Name ihrer Datenbank nicht der Anfang ihrer Archive sein soll.
 
 **`BACKUP_TARGET` gehört auf eine andere Maschine.** Das ist der Regelfall und
 keine Möglichkeit. Die Vorgabe ist ein Docker-Volume auf derselben Platte wie

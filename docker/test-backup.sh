@@ -2,11 +2,15 @@
 # Exercises the names of the archives (opengewerk-haustechnik#14) with the
 # backup scripts themselves and stand-ins for the tools of PostgreSQL: an
 # archive is named after its database unless BACKUP_PREFIX says otherwise, the
-# retention removes only archives of its own prefix, and "latest" is the newest
-# of its own. All of it in one folder with the archives of another application
-# whose prefix begins with this one's, the case a bare "<prefix>-*" gets wrong.
-# What an archive holds and whether it comes back is the job of the CI run
-# that backs up and restores a whole instance.
+# retention removes only archives of its own prefix, "latest" is the newest of
+# its own, and an archive named outright is taken only if it is one of its own.
+# All of it in one folder with the archives of another application whose
+# prefix begins with this one's, the case a bare "<prefix>-*" gets wrong.
+#
+# Then what a restore turns away before it asks anything of the database: an
+# archive that unpacks cleanly and does not hold what its manifest says
+# (opengewerk-haustechnik#31). Whether a whole instance comes back out of an
+# archive is the job of the CI run that backs one up and restores it.
 #
 # Prints what it checks and stops at the first thing that is wrong.
 set -eu
@@ -30,14 +34,20 @@ while [ $# -gt 0 ]; do
   shift
 done
 FAKE
+#
+# Each writes down that it was called. A restore that is turned away has to be
+# turned away before the first of them, the one that locks the application out
+# included.
 cat > "$work/bin/psql" <<'FAKE'
 #!/bin/sh
+printf 'psql %s\n' "$*" >> "$CALLS"
 case "$*" in
   *server_version*) echo 18 ;;
 esac
 FAKE
 cat > "$work/bin/pg_restore" <<'FAKE'
 #!/bin/sh
+printf 'pg_restore\n' >> "$CALLS"
 FAKE
 chmod +x "$work/bin/pg_dump" "$work/bin/psql" "$work/bin/pg_restore"
 
@@ -45,7 +55,8 @@ PATH="$work/bin:$PATH"
 PGPASSWORD=probe
 STORAGE_PATH="$work/storage"
 BACKUP_PATH="$work/backups"
-export PATH PGPASSWORD STORAGE_PATH BACKUP_PATH
+CALLS="$work/calls"
+export PATH PGPASSWORD STORAGE_PATH BACKUP_PATH CALLS
 
 check() {
   printf 'check: %s\n' "$1"
@@ -68,6 +79,41 @@ gone() {
       exit 1
     fi
   done
+}
+
+# A command that has to be turned away: it fails, it says why in the words
+# given, and it has asked nothing of the database on the way there.
+refused() {
+  sentence=$1
+  shift
+  : > "$CALLS"
+
+  if "$@" > "$work/out" 2>&1; then
+    printf 'FEHLER: lief durch: %s\n' "$*"
+    cat "$work/out"
+    exit 1
+  fi
+
+  if ! grep -q "$sentence" "$work/out"; then
+    printf 'FEHLER: abgelehnt, aber ohne "%s": %s\n' "$sentence" "$*"
+    cat "$work/out"
+    exit 1
+  fi
+
+  if [ -s "$CALLS" ]; then
+    printf 'FEHLER: vor der Ablehnung wurde die Datenbank gefragt: %s\n' "$*"
+    cat "$CALLS"
+    exit 1
+  fi
+}
+
+# The same, for a command that has to go through.
+taken() {
+  if ! "$@" > "$work/out" 2>&1; then
+    printf 'FEHLER: abgelehnt: %s\n' "$*"
+    cat "$work/out"
+    exit 1
+  fi
 }
 
 # Two older archives of this application, two of another whose prefix begins
@@ -143,4 +189,85 @@ grep -q 'taugt nicht als Anfang eines Dateinamens' "$work/out"
 test "$(ls "$work/backups" | wc -l)" -eq "$before"
 check 'falsches Präfix: abgelehnt, nichts geschrieben'
 
-echo 'Namen der Sicherungen: alles in Ordnung.'
+# 5. An archive named outright is held to the names "latest" looks among. The
+# archive of the other application lies in the same folder, and by its name or
+# by its path it is turned away before anything is asked of the database, in
+# both directions, as is the file that only looks like an archive.
+foreign='gehört nicht zu dieser Anwendung'
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$mine"
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$work/backups/$mine"
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$named"
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$lookalike"
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/verify.sh" "$mine"
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/verify.sh" "$work/backups/$mine"
+refused "$foreign" env POSTGRES_DB=opengewerk sh "$work/bin/verify.sh" "$lookalike"
+refused "$foreign" env BACKUP_PREFIX=opengewerk-haustechnik POSTGRES_DB=haustechnik \
+  sh "$work/bin/restore.sh" "$ours"
+refused "$foreign" env BACKUP_PREFIX=opengewerk-haustechnik POSTGRES_DB=haustechnik \
+  sh "$work/bin/verify.sh" "$ours"
+grep -q 'opengewerk-haustechnik-<Zeit>.tar.gz' "$work/out"
+check 'mit Namen genannt: das Archiv einer anderen Anwendung wird abgelehnt, die Datenbank nicht gefragt'
+
+# Its own it takes, by name and by path. The encrypted one gets as far as the
+# question for the key, which this run has none of: its name did not stop it.
+taken env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$ours"
+grep -qx "Sicherung: $ours" "$work/out"
+taken env POSTGRES_DB=opengewerk sh "$work/bin/verify.sh" "$work/backups/$ours"
+grep -qx "Sicherung: $ours" "$work/out"
+taken env BACKUP_PREFIX=opengewerk-haustechnik POSTGRES_DB=haustechnik sh "$work/bin/restore.sh" "$mine"
+grep -qx "Sicherung: $mine" "$work/out"
+refused 'BACKUP_AGE_IDENTITY' env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$old"
+grep -qx "Sicherung: $old" "$work/out"
+check 'mit Namen genannt: das eigene Archiv wird genommen'
+
+# 6. An archive that unpacks cleanly and does not hold what its manifest says.
+# A changed byte in the packed file would not get as far as the manifest: gzip
+# carries a checksum of its own, and an encrypted archive is authenticated by
+# age. What only the manifest can notice is a part that is not the part the
+# backup wrote, inside packing that is whole. So each one is unpacked, changed
+# and packed again here, and turned away before anything is asked of the
+# database.
+pristine="$work/pristine.tar.gz"
+cp "$work/backups/$ours" "$pristine"
+
+# Unpacks the archive as the backup wrote it, runs the change on its parts
+# and packs it again under its own name.
+repacked() {
+  rm -rf "$work/unpacked"
+  mkdir "$work/unpacked"
+  tar --extract --gzip --file "$pristine" --directory "$work/unpacked"
+  (cd "$work/unpacked" && "$@")
+  tar --create --gzip --file "$work/backups/$ours" --directory "$work/unpacked" .
+}
+
+one_byte_more() {
+  printf 'x' >> "$1"
+}
+
+without_its_checksum() {
+  grep -v "\"$1\"" manifest.json > manifest.new
+  mv manifest.new manifest.json
+}
+
+for part in database.dump storage.tar audit-chains.tsv; do
+  repacked one_byte_more "$part"
+  refused "Die Prüfsumme von $part stimmt nicht" env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$ours"
+  refused "Die Prüfsumme von $part stimmt nicht" env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" latest
+done
+check 'Manifest: ein veränderter Teil in einem heilen Archiv wird abgelehnt, die Datenbank nicht gefragt'
+
+repacked without_its_checksum storage.tar
+refused 'Im Manifest steht keine Prüfsumme für storage.tar' env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$ours"
+repacked rm audit-chains.tsv
+refused 'In der Sicherung fehlt audit-chains.tsv' env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$ours"
+check 'Manifest: ein Teil ohne Prüfsumme und ein fehlender Teil werden abgelehnt'
+
+# Packed again without a change it goes through, and the database is asked:
+# what was turned away above was the change and not the packing.
+repacked true
+: > "$CALLS"
+taken env POSTGRES_DB=opengewerk sh "$work/bin/restore.sh" "$ours"
+grep -q '^pg_restore$' "$CALLS"
+check 'Manifest: dasselbe Archiv, unverändert neu gepackt, wird zurückgespielt'
+
+echo 'Sicherungen: alles in Ordnung.'
