@@ -7,6 +7,40 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-04
+
+Die fünfte Fassung bringt, was von Phase 2 gebaut ist, das Fundament in eigenen Paketen und die
+Korrekturen aus einer Prüfung dieses Fundaments, darunter vier Sicherheitskorrekturen für 0.1.0 bis
+0.4.0.
+
+Aus Phase 2 kommen Fristen, die von selbst entstehen, mit der Wiedervorlage eines Angebots als
+erster Art, Push-Nachrichten auf die Geräte, das Änderungsprotokoll im Büro, Passkeys, Tags an
+Kunden und Objekten, der Zugang zum Objekt, die PV-Struktur mit dem Scanner für Seriennummern, das
+QR-Etikett je Anlage und Artikel und Lieferanten mit der Preiseinheit des Großhandels. Eine Instanz
+trägt jetzt mehrere Betriebe, mit einem Wechsel ohne neue Anmeldung und einem eigenen Bereich für
+ihre Betreiber. Der Import aus DATANORM 4 ist auf dem Server gebaut und hat noch keinen Bildschirm
+(#297).
+
+Mandantentrennung, Anmeldung, Rechte, Abgleich, Änderungsprotokoll, Fristen, Formulare und der
+Betrieb liegen jetzt unter `packages/platform/` in eigenen Paketen (ADR 0010), damit OpenGewerk
+Haustechnik auf demselben Code steht und eine Korrektur dort jede Anwendung erreicht. Was eine Rolle
+darf, steht seitdem in Zeilen des Betriebs und nicht mehr im Code; für Inhaber, Büro und Monteur
+bleibt es dasselbe.
+
+Die Sicherheitskorrekturen betreffen die Konfliktliste des Abgleichs, ein Gerät, an dem sich
+nacheinander zwei Personen anmelden, das Hochladen einer Datei und das Passwort des Mailservers,
+beschrieben unter "Sicherheit" mit ihren Advisories.
+
+Wer 0.4.0 betreibt, aktualisiert mit dem Paket dieser Fassung: die Migrationen 0049 bis 0068 laufen
+dabei von selbst, `docker/setup.sh` trägt den Schlüssel für Push in die `.env` ein, und wer die
+Instanz eingerichtet hat, ist ihr Betreiber. Auf einem Gerät, das sich mehrere Personen teilen,
+sendet vorher jede, was dort noch wartet: ein Vorgang von vor dem Update nennt niemanden und geht an
+die erste Person, die sich danach anmeldet.
+
+Phase 2 ist damit nicht abgeschlossen; was fehlt, steht in ihrem Meilenstein. Wie bei den Fassungen
+davor fehlen vor dem produktiven Einsatz die fachliche Abnahme der Regelpakete und der Grenzwerte
+des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133).
+
 ### Hinzugefügt
 
 - Die Fristen-Engine (#283), an der die meisten Issues von Phase 2 hängen: Eine Frist entsteht von
@@ -1124,24 +1158,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   im Fundament und nicht mehr auf der Seite einer Anwendung. Betroffen war nur der Stand auf
   `main`: das Änderungsprotokoll im Büro kam nach 0.4.0.
 - Das gespeicherte Passwort des Mailservers geht nur noch an den Server und den Benutzernamen, für
-  die es eingegeben wurde (`opengewerk-haustechnik#31`). Wer die E-Mail-Einstellungen ändern darf,
-  konnte einen anderen Server eintragen, das Passwort leer lassen und es mit "Verbindung prüfen"
-  oder mit der nächsten Nachricht an diesen Server schicken lassen. Port und Verschlüsselung lassen
-  sich weiter ohne neues Passwort ändern. Betroffen sind 0.1.0 bis 0.4.0; ändern darf die
-  Einstellungen dort nur der Inhaber.
-- Der Server liest die Bytes einer Datei erst, wenn feststeht, wer sie schickt (#532,
-  `opengewerk-haustechnik#31`). Bisher las ein Parser vor der Route den Körper, bis zu 50 MB, bevor
-  die Anmeldung geprüft war: wer die Adresse einer Instanz kannte, konnte sie ohne Zugang Speicher
-  belegen lassen. Jetzt liest die Route selbst, nach Anmeldung, Recht und Inhaltstyp, und behält
-  höchstens die 25 MB, die eine Datei groß sein darf. Betroffen sind 0.1.0 bis 0.4.0.
+  die es eingegeben wurde (GHSA-h6mf-rmg6-7g8m, `opengewerk-haustechnik#31`). Wer die
+  E-Mail-Einstellungen ändern darf, konnte einen anderen Server eintragen, das Passwort leer lassen
+  und es mit "Verbindung prüfen" oder mit der nächsten Nachricht an diesen Server schicken lassen.
+  Port und Verschlüsselung lassen sich weiter ohne neues Passwort ändern. Betroffen sind 0.1.0 bis
+  0.4.0; ändern darf die Einstellungen dort nur der Inhaber.
+- Der Server liest die Bytes einer Datei erst, wenn feststeht, wer sie schickt (GHSA-36h5-4qwr-j66f,
+  #532, `opengewerk-haustechnik#31`). Bisher las ein Parser vor der Route den Körper, bis zu 50 MB,
+  bevor die Anmeldung geprüft war: wer die Adresse einer Instanz kannte, konnte sie ohne Zugang
+  Speicher belegen lassen. Jetzt liest die Route selbst, nach Anmeldung, Recht und Inhaltstyp, und
+  behält höchstens die 25 MB, die eine Datei groß sein darf. Betroffen sind 0.1.0 bis 0.4.0.
 - Was jemand auf einem Gerät erfasst hat und nicht mehr senden konnte, geht nicht mehr unter der
-  nächsten Person hinaus, die sich dort anmeldet (`opengewerk-haustechnik#31`). Der Server nimmt
-  die Person aus der Sitzung, die sendet, und ein Vorgang nennt nur sein Gerät. Lief eine Sitzung
-  ab oder wurde sie beendet, ohne dass jemand "Abmelden" drückte, gingen Zeiten, Notizen oder
-  Unterschriften der ersten Person unter dem Namen und mit den Rechten der zweiten hinaus. Jetzt
-  hält die Ablage auf dem Gerät zu jedem Vorgang und jeder wartenden Datei fest, für wen sie
-  erfasst wurden; sie warten auf diese Person, und das Abmelden zählt sie weiter mit. Betroffen
-  sind 0.1.0 bis 0.4.0.
+  nächsten Person hinaus, die sich dort anmeldet (GHSA-hh7x-xcvr-pqxp, `opengewerk-haustechnik#31`).
+  Der Server nimmt die Person aus der Sitzung, die sendet, und ein Vorgang nennt nur sein Gerät.
+  Lief eine Sitzung ab oder wurde sie beendet, ohne dass jemand "Abmelden" drückte, gingen Zeiten,
+  Notizen oder Unterschriften der ersten Person unter dem Namen und mit den Rechten der zweiten
+  hinaus. Jetzt hält die Ablage auf dem Gerät zu jedem Vorgang und jeder wartenden Datei fest, für
+  wen sie erfasst wurden; sie warten auf diese Person, und das Abmelden zählt sie weiter mit.
+  Betroffen sind 0.1.0 bis 0.4.0.
 
 ## [0.4.0] - 2026-09-27
 
