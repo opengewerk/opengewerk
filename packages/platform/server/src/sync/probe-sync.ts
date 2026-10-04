@@ -111,6 +111,31 @@ export const letterLines = pgTable(
   ],
 )
 
+/**
+ * A seal on a letter: made on a device while the letter is a draft, never
+ * changed, and named by the server after whoever sent it. What comes of it,
+ * the letter sealed, the server writes as it takes the seal.
+ */
+export const letterSeals = pgTable(
+  'letter_seals',
+  {
+    id: primaryId<'letter-seal'>(),
+    ...tenantColumn,
+    letterId: reference<'letter'>('letter_id').notNull(),
+    sealedBy: text('sealed_by').notNull(),
+    ...syncColumns,
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    foreignKey({
+      name: 'letter_seals_letter',
+      columns: [table.tenantId, table.letterId],
+      foreignColumns: [letters.tenantId, letters.id],
+    }),
+  ],
+)
+
 /** The rules of the probe application, as an application makes them. */
 export const probeSyncRules = syncRules(probePolicies)
 
@@ -124,13 +149,14 @@ const travelling = (table: string): TableGuard => ({
 
 /** The tables above, with what the probe application already makes. */
 export const probeSyncMade: MadeByTheApplication = {
-  schema: { ...probeMade.schema, shelves, notes, letters, letterLines },
+  schema: { ...probeMade.schema, shelves, notes, letters, letterLines, letterSeals },
   guards: [
     ...probeMade.guards,
     travelling('shelves'),
     travelling('notes'),
     travelling('letters'),
     travelling('letter_lines'),
+    travelling('letter_seals'),
   ],
 }
 
@@ -182,6 +208,7 @@ export function probePermissionFor(
     notes: 'notes.write',
     letters: 'letters.write',
     letter_lines: 'letters.write',
+    letter_seals: 'letters.write',
   }
 
   return subject[entity] ?? null

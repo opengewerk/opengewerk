@@ -112,6 +112,16 @@ export interface SyncApplication<Sender> {
   readonly complete?: (
     context: SyncCheckContext<Sender>,
   ) => Promise<Record<string, unknown>> | Record<string, unknown>
+  /**
+   * What follows an operation once it is written, in the same transaction:
+   * what the application does beyond the one row, a signature that completes
+   * a record and writes what comes of it. Shown the values as they were
+   * written. Not asked for an operation that was skipped or kept as a
+   * conflict. What it throws refuses the transmission like any other error,
+   * and takes back what went before; a refusal it can foresee belongs in a
+   * check.
+   */
+  readonly afterWrite?: (context: SyncCheckContext<Sender>) => Promise<void> | void
 }
 
 export interface ChangedRows {
@@ -443,6 +453,10 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
         .update(table)
         .set(complete as never)
         .where(eq(id, operation.recordId))
+    }
+
+    if (application.afterWrite) {
+      await application.afterWrite({ ...context, values: complete })
     }
 
     return await record(tx, tenantId, operation, { outcome: 'applied', reason: null, fields: [] })

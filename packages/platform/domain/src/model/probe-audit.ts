@@ -4,7 +4,7 @@ import type { AuditVocabulary } from './audit-log.js'
  * What an application that belongs to nobody says about its tables in the
  * change log, for the tests of the foundation: the records of
  * `probePolicies` that have tables, its shelves with their notes and its
- * letters with their lines.
+ * letters with their lines and seals.
  *
  * A test that ran green with the tables of a real application would not show
  * that the log knows none of them. Its tenant is a "Mandant", whoever runs an
@@ -23,6 +23,7 @@ export const probeAuditVocabulary: AuditVocabulary = {
       label: 'Briefzeile',
       fields: { letter_id: 'Brief', quantity: 'Menge', price: 'Preis', total: 'Summe' },
     },
+    letter_seals: { label: 'Siegel', fields: { letter_id: 'Brief', sealed_by: 'Gesiegelt von' } },
   },
   commonFields: { text: 'Text' },
   // The probe application keeps the number of a parcel beside a message about
@@ -47,7 +48,10 @@ export const probeAuditVocabulary: AuditVocabulary = {
   },
   parts: {
     shelves: [{ table: 'notes', column: 'shelf_id' }],
-    letters: [{ table: 'letter_lines', column: 'letter_id' }],
+    letters: [
+      { table: 'letter_lines', column: 'letter_id' },
+      { table: 'letter_seals', column: 'letter_id' },
+    ],
   },
   records: ['shelves', 'letters'],
   references: { shelf_id: 'shelves', letter_id: 'letters' },
@@ -56,8 +60,10 @@ export const probeAuditVocabulary: AuditVocabulary = {
     shelves: ['label'],
     notes: ['text'],
     letters: ['subject'],
-    // A line has nothing of its own to be called by and is named after its letter.
+    // A line has nothing of its own to be called by and is named after its
+    // letter, and so has a seal.
     letter_lines: ['letter_id'],
+    letter_seals: ['letter_id'],
   },
   reasons: { tidy: 'Von selbst, Aufräumen' },
   rights: {
