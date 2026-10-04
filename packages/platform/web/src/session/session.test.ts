@@ -24,6 +24,7 @@ import {
   passwordResetToken,
   secretFrom,
   setBlocked,
+  setRoles,
   signIn,
   signOut,
   type TenantChoice,
@@ -269,6 +270,40 @@ describe('the links somebody reaches the gate with', () => {
 })
 
 describe('what the server is asked for the people of a tenant', () => {
+  it('hands on what the application keeps beside a membership, with an invitation and with the roles', async () => {
+    answers = () => json({ token: null, expiresAt: '2026-10-09T08:00:00.000Z' })
+
+    await invite({
+      email: 'neu@probewerk.example.de',
+      name: 'Neu Hier',
+      roles: ['member'],
+      send: 'mail',
+      additions: { shelf: 'A3' },
+    })
+    await setRoles('u 2', ['guest'], { shelf: 'B1' })
+
+    expect(asked.slice(-2).map((entry) => [entry.method, entry.path, entry.body])).toEqual([
+      [
+        'POST',
+        '/staff',
+        {
+          email: 'neu@probewerk.example.de',
+          name: 'Neu Hier',
+          roles: ['member'],
+          send: 'mail',
+          additions: { shelf: 'A3' },
+        },
+      ],
+      ['PATCH', '/staff/u%202', { roles: ['guest'], additions: { shelf: 'B1' } }],
+    ])
+  })
+
+  it('names nothing of it where a screen has nothing to say', async () => {
+    await setRoles('u 2', ['member'])
+
+    expect(asked.at(-1)?.body).toEqual({ roles: ['member'] })
+  })
+
   it('shuts somebody out with one method and lets them back in with the other', async () => {
     await setBlocked('u 2', true)
     await setBlocked('u 2', false)

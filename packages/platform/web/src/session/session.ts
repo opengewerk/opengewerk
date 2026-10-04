@@ -422,12 +422,16 @@ export function openInvitations(): Promise<readonly InvitationEntry[]> {
  *
  * Sent by mail, there is no link to hand back: the server makes the token when
  * the message goes out, and it is in that message and nowhere else.
+ *
+ * `additions` is what the application keeps beside a membership, in the shape
+ * its server reads; written with the invitation or not at all.
  */
 export async function invite(wanted: {
   readonly email: string
   readonly name: string
   readonly roles: readonly string[]
   readonly send: 'link' | 'mail'
+  readonly additions?: unknown
 }): Promise<{ link: string | null; expiresAt: string }> {
   const answer = await request<{ token: string | null; expiresAt: string }>('/staff', {
     method: 'POST',
@@ -447,10 +451,19 @@ export async function withdrawInvitation(invitationId: string): Promise<void> {
   await request(`/staff/invitations/${encodeURIComponent(invitationId)}`, { method: 'DELETE' })
 }
 
-export async function setRoles(userId: string, roles: readonly string[]): Promise<void> {
+/**
+ * Gives somebody these roles, and with them what the application keeps
+ * beside a membership where a screen names it (`additions`): both are written
+ * or neither.
+ */
+export async function setRoles(
+  userId: string,
+  roles: readonly string[],
+  additions?: unknown,
+): Promise<void> {
   await request(`/staff/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ roles }),
+    body: JSON.stringify({ roles, additions }),
   })
 }
 

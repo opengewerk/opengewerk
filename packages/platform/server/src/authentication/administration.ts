@@ -266,12 +266,22 @@ export async function listInvitations(
  * job that sends the message makes the real one at that moment, puts its hash
  * here and its link into the message, so the token exists in the mail and
  * nowhere else: not in the outbox, not in the audit log, not on a screen.
+ *
+ * What the application keeps beside a membership is written with the
+ * invitation, in its transaction (`MembershipAdditions`): refused there, no
+ * invitation is left behind that would let somebody in without it.
  */
 export async function inviteStaff(
-  access: Pick<AccessRules, 'sentences'>,
+  access: Pick<AccessRules, 'sentences' | 'additions'>,
   database: Database,
   identity: TenantIdentity,
-  wanted: { readonly email: string; readonly name: string; readonly roles: readonly string[] },
+  wanted: {
+    readonly email: string
+    readonly name: string
+    readonly roles: readonly string[]
+    /** What the body named beside these, for the application to read. */
+    readonly additions?: unknown
+  },
   options: { readonly byMail?: boolean } = {},
 ): Promise<IssuedInvitation> {
   const email = normalise(wanted.email)
@@ -316,6 +326,12 @@ export async function inviteStaff(
       invitedBy: identity.userId,
       expiresAt,
     })
+
+    await access.additions?.invited(
+      tx,
+      { tenantId: identity.tenantId, invitationId: id, roles },
+      wanted.additions,
+    )
   })
 
   return { id, token: options.byMail ? null : token, expiresAt, email }
@@ -352,13 +368,18 @@ export async function revokeInvitation(
  * function. A tenant that has taken the leading role off the last person who
  * held it has locked itself out of its own user administration, and the way
  * back is a psql prompt on a server most tenants have nobody for.
+ *
+ * What the application keeps beside a membership follows in the same
+ * transaction (`MembershipAdditions`), with what the body named for it or
+ * with nothing: a role can change what it means even then.
  */
 export async function changeRoles(
-  access: Pick<AccessRules, 'sentences'>,
+  access: Pick<AccessRules, 'sentences' | 'additions'>,
   database: Database,
   identity: TenantIdentity,
   userId: string,
   wanted: readonly string[],
+  additions?: unknown,
 ): Promise<readonly string[]> {
   return database.forTenant(identity, async (tx) => {
     const known = await rolesOfTenant(tx, identity.tenantId)
@@ -374,6 +395,8 @@ export async function changeRoles(
       .update(memberships)
       .set({ roles, updatedAt: new Date() })
       .where(and(eq(memberships.tenantId, identity.tenantId), eq(memberships.userId, userId)))
+
+    await access.additions?.changed(tx, { tenantId: identity.tenantId, userId, roles }, additions)
 
     return roles
   })

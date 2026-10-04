@@ -1,5 +1,11 @@
-import type { RightsCatalogue, RoleDefinition } from '@opengewerk/platform-domain'
+import type {
+  InvitationId,
+  RightsCatalogue,
+  RoleDefinition,
+  TenantId,
+} from '@opengewerk/platform-domain'
 
+import type { TenantTransaction } from '../database/database.js'
 import type { InstanceSentences } from '../instance/sentences.js'
 
 /**
@@ -43,6 +49,69 @@ export interface AccessRules<Right extends string = string> {
    */
   tenantNameProblem(name: string): string | null
   readonly sentences: AccessSentences
+  /**
+   * What the application keeps beside a membership. Left out, a membership is
+   * its roles and nothing else.
+   */
+  readonly additions?: MembershipAdditions
+}
+
+/**
+ * What an application keeps beside a membership and decides together with
+ * it: the part of a tenant somebody works in, for one.
+ *
+ * The foundation knows a membership by its roles alone. Where an application
+ * has more to say about who works for a tenant, it says it here, and the
+ * foundation calls it inside the transaction that writes the invitation or
+ * the membership, after its own row, so that both are written or neither. A
+ * refusal is an exception with the sentence for the screen, and takes the
+ * whole change back.
+ *
+ * What a body says of it travels under `additions` and is handed on unread:
+ * only the application knows its shape, and checks it.
+ */
+export interface MembershipAdditions {
+  /**
+   * With a new invitation. `said` is what the body named beside name,
+   * address and roles, undefined where it named nothing.
+   */
+  invited(
+    tx: TenantTransaction,
+    invitation: {
+      readonly tenantId: TenantId
+      readonly invitationId: InvitationId
+      readonly roles: readonly string[]
+    },
+    said: unknown,
+  ): Promise<void>
+  /**
+   * With the membership an invitation became, inside the tenant and as the
+   * person who joined, so that what the invitation said about them holds
+   * from their first request on.
+   */
+  joined(
+    tx: TenantTransaction,
+    membership: {
+      readonly tenantId: TenantId
+      readonly userId: string
+      readonly invitationId: InvitationId
+      readonly roles: readonly string[]
+    },
+  ): Promise<void>
+  /**
+   * With a change of somebody's roles. `said` is what the body named beside
+   * the roles, undefined where it named nothing; the application decides what
+   * the new roles mean for what it keeps even then.
+   */
+  changed(
+    tx: TenantTransaction,
+    membership: {
+      readonly tenantId: TenantId
+      readonly userId: string
+      readonly roles: readonly string[]
+    },
+    said: unknown,
+  ): Promise<void>
 }
 
 /**
