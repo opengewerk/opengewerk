@@ -5,6 +5,7 @@ import {
   auditLanguage,
   type AuditPage,
   type AuditVocabulary,
+  withheldAuditValue,
 } from '@opengewerk/platform-domain'
 
 import { useApplication } from '../application.js'
@@ -45,7 +46,12 @@ export interface AuditScreenWords {
   readonly values?: Readonly<Record<string, Readonly<Record<string, Words>>>>
   /** Fields that hold a list of keys, by field, with the words for each key. */
   readonly lists?: Readonly<Record<string, Words>>
-  /** Fields shown as "gesetzt" and never as their value, beside the foundation's own. */
+  /**
+   * Fields shown as "gesetzt" and never as their value, whatever table they
+   * are on. What the log keeps to itself the vocabulary says (`secretFields`),
+   * and the server does not send it; this is for a value the page may have
+   * and should not spell out.
+   */
   readonly hidden?: readonly string[]
   /** Fields that hold a fingerprint, shortened to its start. */
   readonly fingerprints?: readonly string[]
@@ -66,9 +72,6 @@ export interface AuditScreenWords {
   /** Beside the chip of one record's log: what it takes in, by the record's table. */
   readonly partsWords?: Readonly<Record<string, string>>
 }
-
-/** Keys of the browser and the hash of a link: never shown, only that they are set. */
-const foundationHidden: readonly string[] = ['token_hash']
 
 /** What the foundation's own fields hold as a key, by table, then by field. */
 const foundationValues: Readonly<Record<string, Readonly<Record<string, Words>>>> = {
@@ -152,7 +155,7 @@ const nobody = 'Eine Person, die es nicht mehr gibt'
 /** The words of the log for an application. */
 export function auditWords(screen: AuditScreenWords): AuditWords {
   const language = auditLanguage(screen.vocabulary)
-  const hidden = new Set([...foundationHidden, ...(screen.hidden ?? [])])
+  const hidden = new Set(screen.hidden ?? [])
   const fingerprints = new Set(screen.fingerprints ?? [])
 
   const deviceWords = (deviceId: string, page: Pick<AuditPage, 'devices'>): string => {
@@ -199,8 +202,10 @@ export function auditWords(screen: AuditScreenWords): AuditWords {
       return words[raw] ?? raw
     }
 
-    if (hidden.has(field)) {
-      return 'gesetzt'
+    // Kept back by the server already; asked here as well, so that a page
+    // never spells such a value out, whatever it was handed.
+    if (language.isSecret(table, field) || hidden.has(field)) {
+      return withheldAuditValue
     }
 
     if (fingerprints.has(field)) {

@@ -887,6 +887,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   weil eine gescheiterte Erinnerung fällig bleibt, hielt sie dieselben anderen jede Minute auf,
   solange ihre Ursache bestand. Der Durchgang zählt weiter als gescheitert, damit es im Büro zu
   sehen ist, und nennt jede Erinnerung, die nicht ging.
+- "Protokoll prüfen" meldet keinen entfernten Eintrag mehr, wenn während der Prüfung jemand im
+  Betrieb etwas ändert (#530, `opengewerk-haustechnik#31`). Die Prüfung zählte erst die Einträge
+  und las dann, wie viele der Kopf der Kette nennt; eine Änderung zwischen den beiden Fragen sah
+  aus wie ein Eintrag, der am Ende fehlt, und der Bildschirm sprach von einem veränderten
+  Protokoll. Jetzt liest die Prüfung den Betrieb, wie er in einem Moment stand.
 - Der Migrationslauf prüft die Zeitstempel, bevor er etwas einspielt (`opengewerk-haustechnik#31`).
   Eine neue Migration mit einem Zeitstempel vor dem der zuletzt eingespielten übergeht drizzle
   stillschweigend und spielt die späteren desselben Laufs ein. Die Prüfung danach merkte das erst
@@ -1029,6 +1034,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   dem anderen schickt, und damit den Versand für alle Betriebe der Instanz bis zum nächsten
   Neustart anhalten. Jetzt gilt die Frist für die ganze Anfrage, und die Verbindung endet, sobald
   der Kopf der Antwort da ist. Betroffen war nur der Stand auf `main`, Push kam nach 0.4.0.
+- Das Änderungsprotokoll gibt die Schlüssel eines Geräts mit Push und die Prüfsumme eines
+  Einmal-Links nicht mehr heraus (#530, `opengewerk-haustechnik#31`). Die Seite zeigte an ihrer
+  Stelle "gesetzt", die Antwort des Servers trug die Werte aber zu jedem, der das Protokoll lesen
+  darf. Jetzt setzt der Server selbst das Wort an ihre Stelle, und welche Felder das sind, steht
+  im Fundament und nicht mehr auf der Seite einer Anwendung. Betroffen war nur der Stand auf
+  `main`: das Änderungsprotokoll im Büro kam nach 0.4.0.
 - Das gespeicherte Passwort des Mailservers geht nur noch an den Server und den Benutzernamen, für
   die es eingegeben wurde (`opengewerk-haustechnik#31`). Wer die E-Mail-Einstellungen ändern darf,
   konnte einen anderen Server eintragen, das Passwort leer lassen und es mit "Verbindung prüfen"

@@ -6,6 +6,7 @@ import {
   auditPageSize,
   type AuditTitle,
   type TenantId,
+  withheldAuditValue,
 } from '@opengewerk/platform-domain'
 import { and, inArray, isNotNull, type SQL, sql } from 'drizzle-orm'
 
@@ -141,6 +142,7 @@ async function changesOf(
   tenantId: TenantId,
   filter: AuditFilter,
   places: readonly Place[] | null,
+  language: AuditLanguage,
 ): Promise<{ changes: AuditChange[]; next: number | null }> {
   const conditions: SQL[] = [sql`tenant_id = ${tenantId}::uuid`]
 
@@ -200,6 +202,17 @@ async function changesOf(
 
   const changes: AuditChange[] = []
 
+  // A value the log keeps to itself leaves here as the word that it was set,
+  // before and after alike. Hiding it on the page would hand it to everybody
+  // who may read the log and trust every page to look away.
+  const said = (row: EntryRow, value: string | null): string | null =>
+    value !== null && language.isSecret(row.table_name, row.field) ? withheldAuditValue : value
+  const fieldOf = (row: EntryRow) => ({
+    field: row.field,
+    before: said(row, row.old_value),
+    after: said(row, row.new_value),
+  })
+
   for (const row of rows) {
     const current = changes.at(-1)
     const sequence = Number(row.sequence)
@@ -209,10 +222,7 @@ async function changesOf(
         ...current,
         firstSequence: Math.min(current.firstSequence, sequence),
         lastSequence: Math.max(current.lastSequence, sequence),
-        fields: [
-          ...current.fields,
-          { field: row.field, before: row.old_value, after: row.new_value },
-        ],
+        fields: [...current.fields, fieldOf(row)],
       }
       continue
     }
@@ -229,7 +239,7 @@ async function changesOf(
       databaseRole: row.database_role,
       firstSequence: sequence,
       lastSequence: sequence,
-      fields: [{ field: row.field, before: row.old_value, after: row.new_value }],
+      fields: [fieldOf(row)],
     })
   }
 
@@ -387,7 +397,7 @@ export async function readAuditPage(
       filter.record === null
         ? null
         : await recordAndParts(tx, identity.tenantId, filter.record, language)
-    const { changes, next } = await changesOf(tx, identity.tenantId, filter, places)
+    const { changes, next } = await changesOf(tx, identity.tenantId, filter, places, language)
     const withDevice = await withDevices(tx, identity.tenantId, changes)
 
     const named = new Map<string, Place>()

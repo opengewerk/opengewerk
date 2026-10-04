@@ -104,6 +104,16 @@ describe('the values of the change log', () => {
 
   it('never shows a hidden value and shortens a fingerprint', () => {
     expect(words.auditValue('invitations', 'token_hash', 'f'.repeat(64), page)).toBe('gesetzt')
+    // What a browser handed over for push, which an application had to name
+    // on its own page until the foundation did. Only on the table it is on.
+    for (const field of ['endpoint', 'p256dh', 'auth']) {
+      expect([field, words.auditValue('push_subscriptions', field, 'BNcRdreALRFX', page)]).toEqual([
+        field,
+        'gesetzt',
+      ])
+    }
+
+    expect(words.auditValue('shelves', 'auth', 'offen', page)).toBe('offen')
     expect(words.auditValue('shelves', 'lock_code', '4711', page)).toBe('gesetzt')
     expect(words.auditValue('notes', 'checksum', 'a'.repeat(64), page)).toBe(`${'a'.repeat(12)}…`)
   })
