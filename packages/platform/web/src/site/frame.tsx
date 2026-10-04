@@ -2,11 +2,12 @@ import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Menu, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { BrandMark } from '../components/brand-mark.js'
 import { Shell } from '../components/surface.js'
+import { useHeadingFocus } from '../shell/heading-focus.js'
 import { EntrySuggestion } from '../shell/suggestion.js'
 import { UpdateBar } from '../shell/update-bar.js'
 import { SyncStatusBar } from '../sync/bar.js'
@@ -69,6 +70,11 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
     setMenuOpen(false)
   }, [])
   const places = usePlaces(tabs)
+  // The heading of a screen below the tabs stands in the header above the
+  // content, so the frame is what is asked for it.
+  const frame = useRef<HTMLDivElement>(null)
+
+  useHeadingFocus(frame)
 
   return (
     <Shell entry="site">
@@ -77,7 +83,7 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
           {/* From 1024 pixels a frame as on the board "Tablet quer": the bars on
             top, the rail and the screen below, and only the screen scrolls,
             so the rail keeps "Menü" in reach whatever stands above it. */}
-          <div className="group/site flex min-h-dvh flex-col lg:h-dvh">
+          <div ref={frame} className="group/site flex min-h-dvh flex-col lg:h-dvh">
             {/* The strips first, in the order of the board of the strips on
               site, then the header of the screen, then what the application
               keeps in view under them on every screen. */}

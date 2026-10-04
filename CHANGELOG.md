@@ -872,6 +872,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Definition aus einer Datei an einer Stelle etwas anderes als erwartet, etwa eine Auswahl ohne
   Liste von Möglichkeiten, nennt die Engine das als Befund, statt daran abzubrechen. Hier ändert
   sich sonst nichts.
+- Nach einem Wechsel der Seite steht der Fokus an ihrer Überschrift (`opengewerk-haustechnik#83`).
+  Büro, Baustelle und der Bereich der Instanz tauschen die Seite, ohne ein Dokument zu laden, und
+  der Fokus blieb auf dem Link der Navigation, der dorthin führte, oder auf nichts, wenn der Link
+  mit der alten Seite verschwand: wer einen Bildschirmleser benutzt, hörte von der neuen Seite
+  nichts, und mit der Tastatur ging es noch einmal durch die ganze Navigation. Die drei Rahmen
+  setzen den Fokus jetzt auf die Überschrift der neuen Seite (`useHeadingFocus`): die erste, die
+  vorher nicht da war oder jetzt etwas anderes sagt. Bleibt eine Liste neben dem stehen, was sie
+  öffnet, wie die Aufträge der Baustelle auf einem Tablet, ist das die Überschrift des Geöffneten.
+  Sie ist dafür für ein Skript erreichbar, steht nicht in der Reihenfolge der Tabulatortaste, und
+  die Seite wird dabei nicht verschoben. Unberührt bleiben die Seite, auf der man ankommt, ein
+  Wechsel nur im Abfrageteil der Adresse, also Suche und Filter, ein Fokus, den seit dem Aufbruch
+  etwas anderes genommen hat, etwa ein Formular, das in seinem ersten Feld beginnt, oder die
+  Person selbst, und eine Seite, die noch dieselbe ist, weil unter den Reitern eines Datensatzes
+  nur ein Teil gewechselt hat. Zeichnet eine Seite ihre Überschrift erst, nachdem sie etwas gelesen
+  hat, bekommt die den Fokus dann, außer jemand ist inzwischen weitergegangen.
 
 ### Behoben
 

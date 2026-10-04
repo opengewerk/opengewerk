@@ -1,8 +1,9 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { Shell } from '../components/surface.js'
+import { useHeadingFocus } from '../shell/heading-focus.js'
 import { EntrySuggestion } from '../shell/suggestion.js'
 import { UpdateBar } from '../shell/update-bar.js'
 import { SyncStatusBar } from '../sync/bar.js'
@@ -56,13 +57,19 @@ export function OfficeFrame({ navigation, focus = false, strips }: OfficeFramePr
     setDrawer(false)
   }, [])
   const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const frame = useRef<HTMLDivElement>(null)
+
+  useHeadingFocus(frame)
 
   return (
     <Shell entry="office">
       {/* `--sticky-top` is the height of the top bar, under which the head of
           a table stays while the page scrolls (#272): 56 pixels, and 52 from
           1024 on, as `TopBar` has it. */}
-      <div className="flex min-h-dvh flex-col [--sticky-top:3.5rem] lg:[--sticky-top:52px]">
+      <div
+        ref={frame}
+        className="flex min-h-dvh flex-col [--sticky-top:3.5rem] lg:[--sticky-top:52px]"
+      >
         <a
           href="#inhalt"
           // The first thing Tab reaches, and invisible until it is reached. A
