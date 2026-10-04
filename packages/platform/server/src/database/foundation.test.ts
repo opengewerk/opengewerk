@@ -139,6 +139,23 @@ describe('the foundation, built from its building blocks alone', () => {
     expect(unprotected(tables)).toEqual([])
   })
 
+  it('finds a table of the foundation that was opened to every role', async () => {
+    // The check itself, seen red once. The application role reads the table
+    // either way, so "granted" says nothing; what gives it away is the list
+    // of rights, where PUBLIC stands as a grantee of its own.
+    const open = async () => unprotected(await tableProtections(admin)).map((table) => table.table)
+
+    await admin.query('grant select on "memberships" to public')
+
+    try {
+      expect(await open()).toEqual(['memberships'])
+    } finally {
+      await admin.query('revoke select on "memberships" from public')
+    }
+
+    expect(await open()).toEqual([])
+  })
+
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
@@ -185,8 +202,49 @@ describe('the foundation, built from its building blocks alone', () => {
     expect(reading.stale).toEqual(['tenants.long_gone'])
   })
 
-  it('lets a function run as its definer only where the list says why', async () => {
-    expect(await readDefinerFunctions(admin)).toEqual({ unexplained: [], stale: [] })
+  it('lets a function run as its definer only where the list says why, and no role call it that has no business to', async () => {
+    expect(await readDefinerFunctions(admin)).toEqual({
+      unexplained: [],
+      stale: [],
+      openToEveryRole: [],
+    })
+  })
+
+  it('keeps the counter of the sync from a role that has no business with it', async () => {
+    // A role as one might be added later for something else: it may enter the
+    // schema and has been given nothing in it. The role is gone again with the
+    // transaction.
+    const client = await admin.connect()
+
+    try {
+      await client.query('begin')
+      await client.query('create role "bystander"')
+      await client.query('grant usage on schema "public" to "bystander"')
+      await client.query('set local role "bystander"')
+
+      expect(await errorCode(client.query('select next_sync_sequence($1)', [newId()]))).toBe(
+        insufficientPrivilege,
+      )
+    } finally {
+      await client.query('rollback')
+      client.release()
+    }
+  })
+
+  it('finds a function that runs as its definer and was left open to every role', async () => {
+    // How the counter of the sync was created until #471: no word about who
+    // may call it, which in PostgreSQL means everybody.
+    await admin.query('grant execute on function "next_sync_sequence"(uuid) to public')
+
+    try {
+      expect((await readDefinerFunctions(admin)).openToEveryRole).toEqual([
+        'next_sync_sequence(tenant uuid)',
+      ])
+    } finally {
+      await admin.query('revoke execute on function "next_sync_sequence"(uuid) from public')
+    }
+
+    expect((await readDefinerFunctions(admin)).openToEveryRole).toEqual([])
   })
 
   it('finds every function that runs as its definer, when the list does not excuse it', async () => {
@@ -234,6 +292,27 @@ describe('the foundation, built from its building blocks alone', () => {
       'instance_settings',
       'tenants',
     ])
+  })
+
+  it('finds a table whose log was switched off, of a tenant and of the instance', async () => {
+    // Both triggers are still in the catalogue under their names. Asked for
+    // the name alone, the two questions called these tables watched.
+    await admin.query('alter table "memberships" disable trigger "audit_changes"')
+    await admin.query('alter table "instance_settings" disable trigger "instance_changes"')
+
+    try {
+      const coverage = await logCoverage(admin)
+
+      expect(coverage.unwatched).toEqual(['memberships'])
+      expect(coverage.watched).not.toContain('memberships')
+      expect(await instanceLogCoverage(admin)).toEqual(['instance_operators', 'tenants'])
+    } finally {
+      await admin.query('alter table "memberships" enable trigger "audit_changes"')
+      await admin.query('alter table "instance_settings" enable trigger "instance_changes"')
+    }
+
+    expect((await logCoverage(admin)).unwatched).toEqual([])
+    expect(await instanceLogCoverage(admin)).toHaveLength(3)
   })
 
   it('has the columns of an audit entry as they are frozen', async () => {

@@ -28,11 +28,23 @@ export interface TableProtection {
   readonly forced: boolean
   readonly policies: number
   readonly granted: boolean
+  /**
+   * Whether a right on the table or on one of its columns was given to
+   * PUBLIC, that is to every role there is and every one that comes later.
+   */
+  readonly openToEveryRole: boolean
 }
 
 /**
- * Every table in `public` with the four things it needs: row level security
- * on, forced, at least one policy, and a grant.
+ * Every table in `public` with the five things it needs: row level security
+ * on, forced, at least one policy, a grant, and no right handed to every
+ * role.
+ *
+ * The last is asked of the list of rights itself. `has_table_privilege`
+ * answers yes for the application role whether the right was given to it or
+ * to PUBLIC, so a table opened to everybody passed as granted, and the policies
+ * that name the application role say nothing about the role that comes next
+ * (opengewerk-haustechnik#31).
  *
  * All of them come back, the sound ones included, so that a test can also say
  * how many it expected. A query that finds no table must not pass as "no table
@@ -48,12 +60,19 @@ export async function tableProtections(
     forced: boolean
     policies: string
     granted: boolean
+    open_to_every_role: boolean
   }>(
     `select c.relname as table_name,
             c.relrowsecurity as enabled,
             c.relforcerowsecurity as forced,
             (select count(*) from pg_policy p where p.polrelid = c.oid) as policies,
-            has_table_privilege($1, c.oid, 'SELECT') as granted
+            has_table_privilege($1, c.oid, 'SELECT') as granted,
+            (exists (select 1 from aclexplode(c.relacl) g where g.grantee = 0)
+             or exists (select 1
+                          from pg_attribute a
+                         cross join lateral aclexplode(a.attacl) g
+                         where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+                           and g.grantee = 0)) as open_to_every_role
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public'
@@ -69,13 +88,19 @@ export async function tableProtections(
     forced: row.forced,
     policies: Number(row.policies),
     granted: row.granted,
+    openToEveryRole: row.open_to_every_role,
   }))
 }
 
-/** The ones a tenant is not kept out of, or nobody gets into. */
+/** The ones a tenant is not kept out of, nobody gets into, or everybody does. */
 export function unprotected(tables: readonly TableProtection[]): TableProtection[] {
   return tables.filter(
-    (table) => !table.enabled || !table.forced || table.policies === 0 || !table.granted,
+    (table) =>
+      !table.enabled ||
+      !table.forced ||
+      table.policies === 0 ||
+      !table.granted ||
+      table.openToEveryRole,
   )
 }
 
@@ -233,6 +258,13 @@ export interface DefinerReading {
   readonly unexplained: readonly string[]
   /** Entries of the list that name no such function any more. */
   readonly stale: readonly string[]
+  /**
+   * Functions that run as their definer and may be called by every role,
+   * listed or not. A function is open to PUBLIC until its migration takes
+   * that away, and one that runs as the owner of the tables is then a way
+   * past the policies for any role the cluster has or gets.
+   */
+  readonly openToEveryRole: readonly string[]
 }
 
 /**
@@ -243,13 +275,23 @@ export interface DefinerReading {
  * lets an application have more: it has functions of its own. This asks the
  * narrower question it leaves open, which of all of them walk past the
  * policies.
+ *
+ * And who may call them. The comparison holds that against the blocks, which
+ * says nothing when a block left a function open as well: the counter of the
+ * sync was created without a word about it and stayed callable by every role
+ * in both (#471). A trigger function is not counted. It cannot be called,
+ * only hung on a table, and that takes the owner of the table.
  */
 export async function readDefinerFunctions(
   pool: Pool,
   explained: Readonly<Record<string, string>> = foundationDefinerFunctions,
 ): Promise<DefinerReading> {
-  const { rows } = await pool.query<{ signature: string }>(
-    `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as signature
+  const { rows } = await pool.query<{ signature: string; open: boolean }>(
+    `select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as signature,
+            (p.prorettype <> 'trigger'::regtype
+             and exists (select 1
+                           from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) g
+                          where g.grantee = 0 and g.privilege_type = 'EXECUTE')) as open
        from pg_proc p
        join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
@@ -261,6 +303,7 @@ export async function readDefinerFunctions(
   return {
     unexplained: found.filter((signature) => !(signature in explained)),
     stale: Object.keys(explained).filter((signature) => !found.includes(signature)),
+    openToEveryRole: rows.filter((row) => row.open).map((row) => row.signature),
   }
 }
 
@@ -385,6 +428,15 @@ export interface LogCoverage {
   readonly watchedAgainstTheList: readonly string[]
 }
 
+/**
+ * A trigger that fires for a change an ordinary session makes: created as it
+ * comes (`O`) or set to fire always (`A`). One that is disabled, or fires on a
+ * replica only, is in the catalogue under its name and watches nothing, and a
+ * question that asked for the name alone called such a table watched
+ * (opengewerk-haustechnik#31).
+ */
+const fires = `t.tgenabled in ('O', 'A')`
+
 export async function logCoverage(
   pool: Pool,
   outside: OutsideTheLog = foundationOutsideTheLog,
@@ -393,7 +445,8 @@ export async function logCoverage(
   const { rows } = await pool.query<{ table_name: string; watched: boolean }>(
     `select c.relname as table_name,
             exists (select 1 from pg_trigger t
-                     where t.tgrelid = c.oid and t.tgname = 'audit_changes') as watched
+                     where t.tgrelid = c.oid and t.tgname = 'audit_changes'
+                       and ${fires}) as watched
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public'
@@ -428,6 +481,7 @@ export async function instanceLogCoverage(pool: Pool): Promise<string[]> {
        from pg_trigger t
        join pg_class c on c.oid = t.tgrelid
       where t.tgname = 'instance_changes'
+        and ${fires}
       order by c.relname`,
   )
 
@@ -436,8 +490,9 @@ export async function instanceLogCoverage(pool: Pool): Promise<string[]> {
 
 /**
  * Tables that carry the sync columns without the trigger that keeps them
- * true. A row there would travel with a version that never moves, and the
- * next device to change it would overwrite without a conflict.
+ * true, or with one that is switched off. A row there would travel with a
+ * version that never moves, and the next device to change it would overwrite
+ * without a conflict.
  */
 export async function unstampedTables(pool: Pool): Promise<string[]> {
   const { rows } = await pool.query<{ table_name: string }>(
@@ -449,7 +504,8 @@ export async function unstampedTables(pool: Pool): Promise<string[]> {
       where n.nspname = 'public'
         and c.relkind = 'r'
         and not exists (select 1 from pg_trigger t
-                         where t.tgrelid = c.oid and t.tgname = 'stamp_sync_columns')
+                         where t.tgrelid = c.oid and t.tgname = 'stamp_sync_columns'
+                           and ${fires})
       order by c.relname`,
   )
 

@@ -22,7 +22,12 @@ export interface TableCatalogue {
   readonly triggers: Readonly<Record<string, string>>
   /** Whether row level security is on, and whether it holds for the owner. */
   readonly rowSecurity: string
-  /** What the application role may do, columns it may change alone included. */
+  /**
+   * What the application role may do, columns it may change alone included,
+   * and after it every right somebody else was given, with the name: a right
+   * of every role reads `SELECT to PUBLIC`. The owner is left out, the table
+   * is its own.
+   */
   readonly grants: string
 }
 
@@ -47,23 +52,37 @@ function collect<Row extends { table_name: string; name: string; says: string }>
 
 type Part = { table_name: string; name: string; says: string }
 
+/**
+ * Whom a right was given to, as the words after it: nothing for the
+ * application role, whose rights the comparison is about, and the name for
+ * everybody else. PUBLIC is the grantee 0, every role there is and will be.
+ */
+const grantedTo = `case when g.grantee = $1::regrole then ''
+                        when g.grantee = 0 then ' to PUBLIC'
+                        else ' to ' || pg_get_userbyid(g.grantee) end`
+
 /** Reads the catalogue of `public`. Run as a role that sees all of it. */
 export async function readCatalogue(pool: Pool): Promise<Catalogue> {
+  // The rights of every role but the owner, and not those of the application
+  // role alone: a right handed to PUBLIC reaches the application role as well
+  // and every role that comes later, and read by grantee it was a right the
+  // comparison could not see (opengewerk-haustechnik#31).
   const tables = await pool.query<{ table_name: string; row_security: string; grants: string }>(
     `select c.relname as table_name,
             case when c.relrowsecurity then 'enabled' else 'disabled' end
               || case when c.relforcerowsecurity then ', forced' else ', not forced' end
               as row_security,
             concat_ws(', ',
-              (select string_agg(g.privilege_type, ', ' order by g.privilege_type)
+              (select string_agg(g.privilege_type || ${grantedTo}, ', '
+                                 order by ${grantedTo}, g.privilege_type)
                  from aclexplode(c.relacl) g
-                where g.grantee = $1::regrole),
-              (select string_agg(g.privilege_type || ' (' || a.attname || ')', ', '
-                                 order by g.privilege_type, a.attname)
+                where g.grantee <> c.relowner),
+              (select string_agg(g.privilege_type || ' (' || a.attname || ')' || ${grantedTo}, ', '
+                                 order by ${grantedTo}, g.privilege_type, a.attname)
                  from pg_attribute a
                 cross join lateral aclexplode(a.attacl) g
                 where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
-                  and g.grantee = $1::regrole)) as grants
+                  and g.grantee <> c.relowner)) as grants
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind = 'r'
@@ -124,8 +143,21 @@ export async function readCatalogue(pool: Pool): Promise<Catalogue> {
       where p.schemaname = 'public'`,
   )
 
+  // With whether it fires. The definition says the same for a trigger that is
+  // switched off as for one that is on, and a table whose audit trigger had
+  // been disabled compared as watched (opengewerk-haustechnik#31). One that
+  // fires as it was created adds nothing, so the text of every sound trigger
+  // stays what the definition says.
   const triggers = await pool.query<Part>(
-    `select c.relname as table_name, t.tgname as name, pg_get_triggerdef(t.oid) as says
+    `select c.relname as table_name, t.tgname as name,
+            pg_get_triggerdef(t.oid)
+              || case t.tgenabled
+                   when 'O' then ''
+                   when 'D' then E'\\n-- disabled'
+                   when 'R' then E'\\n-- fires on a replica only'
+                   when 'A' then E'\\n-- fires always, on a replica as well'
+                   else E'\\n-- fires: ' || t.tgenabled::text
+                 end as says
        from pg_trigger t
        join pg_class c on c.oid = t.tgrelid
        join pg_namespace n on n.oid = c.relnamespace

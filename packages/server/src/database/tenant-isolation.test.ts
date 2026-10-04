@@ -137,15 +137,19 @@ describe('the tables', () => {
    * its reason: the ones of the foundation there, the one of this application
    * here. A migration that adds one, or leaves one behind it meant to
    * replace, turns this red.
+   *
+   * And none of them is open to every role. The counter of the sync was,
+   * from 0004 until 0068 (#471): created without a word about who may call
+   * it, which means everybody.
    */
-  it('let a function past them only where a list says why', async () => {
+  it('let a function past them only where a list says why, and no role call one that has no business to', async () => {
     const reading = await readDefinerFunctions(admin, {
       ...foundationDefinerFunctions,
       'reserve_sync_sequences(amount integer)':
         'an import takes its block of change numbers at its very end, in one step (#297)',
     })
 
-    expect(reading).toEqual({ unexplained: [], stale: [] })
+    expect(reading).toEqual({ unexplained: [], stale: [], openToEveryRole: [] })
   })
 })
 
