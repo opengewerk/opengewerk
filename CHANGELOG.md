@@ -928,6 +928,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Personen, die Fristen, Einstellungen und Quellen nennen, zusammen nachgesehen, und wer den
   Betrieb führt, einmal je Liste (`responsibleForAll`). Die Reihenfolge ist dieselbe geblieben:
   die eigene Person der Frist, dann die der Art, dann die der Quelle, zuletzt die Leitung.
+- Der Hinweis über der Liste der Fristen sagt, was nach einem gescheiterten Lauf fehlen kann, und
+  nicht mehr, dass nichts geschehen ist (#534, `opengewerk-haustechnik#31`): "Bis der Abgleich
+  wieder durchläuft, können neue Fristen fehlen und Erinnerungen ausbleiben." Bisher hieß es, es
+  entstehe keine neue Frist und an keine werde erinnert. Seit eine scheiternde Erinnerung die
+  übrigen nicht mehr aufhält (#526), hat ein Lauf, der an einer Erinnerung scheitert, die Fristen
+  davor geschrieben und jede andere Erinnerung gemacht; der Satz sagte also zu viel. So entschieden
+  von Moritz am 04.10.2026. Dass die Liste auf dem Server blättert, kommt mit dem Bildschirm der
+  Fristen von OpenGewerk Haustechnik (`opengewerk-haustechnik#104`).
 - Eine E-Mail oder Push-Nachricht, die der Job in einem Lauf schreibt, geht im selben Lauf
   hinaus und nicht erst eine Minute später (`opengewerk-haustechnik#23`). Der Job las die Uhr,
   bevor er die fälligen Anlässe schrieb, und die Datenbank stempelte die neue Zeile einen Augenblick
