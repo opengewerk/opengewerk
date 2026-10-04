@@ -36,13 +36,14 @@ import { addStaffMember, createAuthentication, SessionIdentitySource } from './a
  */
 
 const north = { id: newId<'tenant'>(), name: 'Elektro Nord GmbH' }
+/** The second business, which the last test brings to the instance. */
 const south = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
 
 const origin = 'https://opengewerk.example.de'
 const site = { relyingParty: 'opengewerk.example.de', origin }
 const password = 'ein-ordentlich-langes-passwort'
 
-/** In both businesses, without the app. */
+/** Working in the business, without the app. */
 const worker = { email: 'monteur@example.de', name: 'Max Monteur' }
 /** An owner without the app, for whom a passkey is the second factor. */
 const chief = { email: 'chefin@example.de', name: 'Olga Ohne-App' }
@@ -129,13 +130,10 @@ beforeAll(async () => {
   await resetSchema(admin)
   await applyMigrations()
   await allowApplicationLogin(admin)
-  await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
-    north.id,
-    north.name,
-    south.id,
-    south.name,
-  ])
-  await shipRoles(admin, north.id, south.id)
+  // One business, the one kind of instance a mail to an account goes out on
+  // (opengewerk-haustechnik#31); the second comes with the last test.
+  await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await shipRoles(admin, north.id)
 
   database = Database.connect(applicationDatabaseUrl())
 
@@ -148,7 +146,6 @@ beforeAll(async () => {
 
   for (const [person, tenantId, roles] of [
     [worker, north.id, ['technician']],
-    [worker, south.id, ['technician']],
     [chief, north.id, ['owner']],
   ] as const) {
     const { userId } = await addStaffMember(authentication, database, {
@@ -262,8 +259,22 @@ describe('the mail about a new passkey', () => {
     return rows
   }
 
-  it('goes into the outbox of a business of the account that sends mail, once', async () => {
-    await aMailServer(admin, south.id, { from: 'buero@sued.example.de' })
+  // In this order: the business sends no mail until the second test of this
+  // block sets its mail server up.
+  it('goes nowhere while the business of the account sends no mail', async () => {
+    const owner = {
+      id: userIds.get(chief.email) ?? '',
+      email: chief.email,
+      name: chief.name,
+    }
+
+    await notice()(owner, { id: 'passkey-quiet', name: 'Telefon' })
+
+    expect(await outbox(north.id)).toEqual([])
+  })
+
+  it('goes into the outbox of the business of the account, once', async () => {
+    await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
     const owner = {
       id: userIds.get(worker.email) ?? '',
       email: worker.email,
@@ -273,10 +284,7 @@ describe('the mail about a new passkey', () => {
     await notice()(owner, { id: 'passkey-mail', name: 'Laptop Büro' })
     await notice()(owner, { id: 'passkey-mail', name: 'Laptop Büro' })
 
-    // North sends no mail, so it went through south.
-    expect(await outbox(north.id)).toEqual([])
-
-    const written = await outbox(south.id)
+    const written = await outbox(north.id)
 
     expect(written).toHaveLength(1)
     expect(written[0]?.recipient_address).toBe(worker.email)
@@ -285,24 +293,10 @@ describe('the mail about a new passkey', () => {
     expect(written[0]?.body).toContain(`${origin}/konto`)
   })
 
-  it('goes nowhere when no business of the account sends mail', async () => {
-    const owner = {
-      id: userIds.get(chief.email) ?? '',
-      email: chief.email,
-      name: chief.name,
-    }
-
-    await notice()(owner, { id: 'passkey-quiet', name: 'Telefon' })
-
-    expect((await outbox(north.id)).filter((row) => row.recipient_address === chief.email)).toEqual(
-      [],
-    )
-  })
-
   /**
    * The two are bound: a passkey added through the routes of the foundation
-   * writes the notice of this application, into the outbox of a business that
-   * sends mail. South does since the first test of this block.
+   * writes the notice of this application, into the outbox of the business,
+   * which sends mail since the test before.
    */
   it('is written when a passkey is added, through the notice handed to the authentication', async () => {
     const mailing = Database.connect(applicationDatabaseUrl())
@@ -332,9 +326,34 @@ describe('the mail about a new passkey', () => {
       await mailing.close()
     }
 
-    const written = (await outbox(south.id)).filter((row) => row.body.includes('„Werkstatt-PC“'))
+    const written = (await outbox(north.id)).filter((row) => row.body.includes('„Werkstatt-PC“'))
 
     expect(written).toHaveLength(1)
     expect(written[0]?.recipient_address).toBe(worker.email)
+  })
+
+  /**
+   * With a second business, its lead could take the account into it, and the
+   * notice would land in the outbox of that business (opengewerk-haustechnik#31).
+   * Until the instance has a mail server of its own, none goes out on such an
+   * instance, not even through the business the account has always worked in.
+   * Last in this file, because it leaves the second business behind.
+   */
+  it('goes nowhere once the instance has a second business', async () => {
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [south.id, south.name])
+    await shipRoles(admin, south.id)
+    await aMailServer(admin, south.id, { from: 'buero@sued.example.de' })
+
+    const owner = {
+      id: userIds.get(worker.email) ?? '',
+      email: worker.email,
+      name: worker.name,
+    }
+
+    await notice()(owner, { id: 'passkey-second', name: 'Tablet Lager' })
+
+    const anywhere = [...(await outbox(north.id)), ...(await outbox(south.id))]
+
+    expect(anywhere.filter((row) => row.body.includes('„Tablet Lager“'))).toEqual([])
   })
 })
