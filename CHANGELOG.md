@@ -858,6 +858,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Test des Lesers für Codes in `platform-web` lief in sein Zeitlimit, sobald alle Pakete ihre
+  Tests zugleich ausführten, und hielt damit den ganzen Lauf an, obwohl er allein in einer Sekunde
+  grün war. Der Leser in JavaScript ist ein großes Modul, und der erste Test, der auf ihn
+  zurückfällt, hatte für das erste Laden nur seine eigenen fünf Sekunden. Jetzt lädt der Test ihn
+  vorher einmal, mit einer Minute Zeit.
 - Wird eine Frist im Büro erledigt, wieder geöffnet oder jemand anderem gegeben, steht ihre Aufgabe
   sofort richtig da (`opengewerk-haustechnik#24`). Der Server schließt, öffnet oder übergibt die
   Aufgabe mit der Frist, Aufgaben kommen aber über den Abgleich auf das Gerät, und der Bildschirm
