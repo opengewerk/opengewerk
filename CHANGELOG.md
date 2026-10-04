@@ -937,6 +937,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   (`opengewerk-haustechnik#31`). Sie kürzte es um Leerzeichen am Rand, die Anmeldung gleich danach
   und jede spätere nicht; wer ein Passwort mit einem Leerzeichen am Ende einfügte, kam an das
   einzige Konto der Instanz nur noch über `reset-password` auf dem Server.
+- Zwei, die einen Betrieb führen, können sich nicht mehr im selben Moment gegenseitig die Rolle
+  nehmen oder sperren (#478). Die Frage, ob außer der betroffenen Person noch jemand führt, las
+  ohne Sperre: beide Anfragen sahen die jeweils andere noch als Leitung und kamen durch, danach
+  führte niemand mehr den Betrieb, und der Rückweg war `add-staff` auf dem Server. Jetzt sperrt
+  die Frage, was sie zählt, die zweite Anfrage wartet und wird abgelehnt.
+- Wer einen Einmal-Link für ein neues Konto zweimal im selben Moment antippt, liest beim zweiten
+  Mal "Dieser Link wurde gerade eben schon benutzt." (#474). Bisher kam ein Satz über Angaben,
+  die nicht zum Datenmodell passen: die zweite Anfrage scheiterte am Konto, das die erste gerade
+  angelegt hatte, bevor sie den Link als benutzt vorfinden konnte. Entstanden ist immer nur ein
+  Konto.
 - Eine Änderung an Stammdaten schickt der Route nur noch die Felder, die sich geändert haben
   (`opengewerk-haustechnik#31`). Ein Formular gibt alle Felder zurück, und die Route schreibt, was
   sie bekommt, ohne eine Fassung zu vergleichen: wer die Anschrift eines Kunden speicherte, setzte

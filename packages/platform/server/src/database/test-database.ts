@@ -153,6 +153,36 @@ export const foreignKeyViolation = '23503'
 export const insufficientPrivilege = '42501'
 
 /**
+ * Waits until this many sessions stand in line for a row somebody else holds.
+ *
+ * For a test of a lock. Two requests sent off together reach the lock only
+ * when chance has it: on a quicker machine one is through before the other
+ * asks, both answers are right, and the lock was never what decided. A test
+ * holds the row in a transaction of its own, waits here until both wait for
+ * it, and lets go then.
+ */
+export async function standingInLine(pool: Pool, sessions: number): Promise<void> {
+  const deadline = Date.now() + 10_000
+
+  for (;;) {
+    const { rows } = await pool.query<{ waiting: number }>(
+      `select count(*)::int as waiting from pg_stat_activity
+        where datname = current_database() and wait_event_type = 'Lock'`,
+    )
+
+    if ((rows[0]?.waiting ?? 0) >= sessions) {
+      return
+    }
+
+    if (Date.now() > deadline) {
+      throw new Error(`Fewer than ${String(sessions)} sessions came to wait for the row.`)
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}
+
+/**
  * A migration that does not exist in the repository, for a test that needs one
  * to fail or to arrive out of order.
  */

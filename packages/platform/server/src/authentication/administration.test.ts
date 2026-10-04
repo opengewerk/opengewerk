@@ -1,9 +1,11 @@
 import { ConflictException } from '@nestjs/common'
 import type { InvitationId, TenantId, TenantIdentity } from '@opengewerk/platform-domain'
 import type { Pool } from 'pg'
+import type { Response } from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { newId } from '../database/identifier.js'
+import { standingInLine } from '../database/test-database.js'
 import { listColleagues } from './administration.js'
 import { authenticationPath } from './authentication.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
@@ -899,6 +901,142 @@ describe('changing what somebody may do', () => {
     // Put back: Lea leads again, Mia works here.
     await change(asMia, lea, ['lead']).expect(200)
     await change(cookies, mia, ['member']).expect(200)
+  })
+
+  /**
+   * The same refusal when two ask at once (#478). With two who lead a tenant,
+   * each taking the other out, both requests still read the other person as
+   * leading, counted one left over and wrote: afterwards nobody led the
+   * tenant. The question now locks what it counts, so the second one waits,
+   * reads the rows as they are then and is refused.
+   *
+   * The memberships are held until both requests stand in line for them.
+   * Sent off together and left to chance, one of the two is usually through
+   * before the other asks, and the lock is never the thing that decided.
+   */
+  describe('when two who lead a tenant act at the same moment', () => {
+    const change = (as: string, person: { readonly email: string }, roles: readonly string[]) =>
+      http()
+        .patch(`/staff/${idOf(person)}`)
+        .set('cookie', as)
+        .set('origin', origin)
+        .send({ roles })
+    const block = (as: string, person: { readonly email: string }) =>
+      http()
+        .put(`/staff/${idOf(person)}/block`)
+        .set('cookie', as)
+        .set('origin', origin)
+
+    /** Who leads the north and can get in, by address. */
+    async function leading(): Promise<string[]> {
+      const { rows } = await admin.query<{ email: string }>(
+        `select u.email
+           from memberships m
+           join auth_users u on u.id = m.user_id
+          where m.tenant_id = $1 and m.blocked_at is null and 'lead' = any(m.roles)
+          order by u.email`,
+        [north.id],
+      )
+
+      return rows.map((row) => row.email)
+    }
+
+    /** Lea and Mia both lead the north, each signed in. */
+    async function bothLead(): Promise<{ asLea: string; asMia: string }> {
+      const asLea = await workIn(lea.email, north.id)
+
+      await change(asLea, mia, ['lead']).expect(200)
+
+      if (!secondFactors.has(mia.email)) {
+        await setUpSecondFactor(mia.email)
+      }
+
+      expect(await leading()).toEqual([lea.email, mia.email].sort())
+
+      return { asLea, asMia: await workIn(mia.email, north.id) }
+    }
+
+    /** Sends both once each stands in line for the memberships of the north. */
+    async function atTheSameMoment(
+      requests: readonly [PromiseLike<Response>, PromiseLike<Response>],
+    ): Promise<Response[]> {
+      const holder = await admin.connect()
+
+      try {
+        await holder.query('begin')
+        await holder.query('select user_id from memberships where tenant_id = $1 for update', [
+          north.id,
+        ])
+
+        const both = Promise.all(requests)
+
+        await standingInLine(admin, 2)
+        await holder.query('commit')
+
+        return await both
+      } finally {
+        await holder.query('rollback')
+        holder.release()
+      }
+    }
+
+    /** Back to how the tests around this one expect it: Lea leads, Mia works here. */
+    async function putBack(): Promise<void> {
+      await admin.query(
+        `update memberships set blocked_at = null,
+                roles = case when user_id = $2 then '{lead}'::text[] else '{member}'::text[] end
+          where tenant_id = $1 and user_id in ($2, $3)`,
+        [north.id, idOf(lea), idOf(mia)],
+      )
+    }
+
+    it('lets one of them take the role off the other, and refuses the second', async () => {
+      const { asLea, asMia } = await bothLead()
+
+      try {
+        const answers = await atTheSameMoment([
+          change(asLea, mia, ['member']),
+          change(asMia, lea, ['member']),
+        ])
+
+        expect(answers.map((answer) => answer.status).sort()).toEqual([200, 409])
+        expect(answers.find((answer) => answer.status === 409)?.body.message).toBe(
+          probeAccess.sentences.lastLead,
+        )
+        expect(await leading()).toHaveLength(1)
+      } finally {
+        await putBack()
+      }
+    })
+
+    it('lets one of them shut the other out, and refuses the second', async () => {
+      const { asLea, asMia } = await bothLead()
+
+      try {
+        const answers = await atTheSameMoment([block(asLea, mia), block(asMia, lea)])
+
+        expect(answers.map((answer) => answer.status).sort()).toEqual([200, 409])
+        expect(await leading()).toHaveLength(1)
+      } finally {
+        await putBack()
+      }
+    })
+
+    it('lets one of them step down, and refuses the other who does the same', async () => {
+      const { asLea, asMia } = await bothLead()
+
+      try {
+        const answers = await atTheSameMoment([
+          change(asLea, lea, ['member']),
+          change(asMia, mia, ['member']),
+        ])
+
+        expect(answers.map((answer) => answer.status).sort()).toEqual([200, 409])
+        expect(await leading()).toHaveLength(1)
+      } finally {
+        await putBack()
+      }
+    })
   })
 })
 
