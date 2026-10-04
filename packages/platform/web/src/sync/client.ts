@@ -10,6 +10,7 @@ import {
   type SyncConflict,
   type SyncRules,
   type SyncValue,
+  jsonText,
   sameValue,
   toSyncValue,
 } from '@opengewerk/platform-domain'
@@ -18,6 +19,20 @@ import { uuidv7 } from 'uuidv7'
 import { byRecord, project, recordKey } from './projection.js'
 import type { LocalStore, StoredFile } from './store.js'
 import { isForbidden, isUnauthenticated, RequestRefused, type SyncTransport } from './transport.js'
+
+/**
+ * Whether a value a form hands in is the one the device holds. A list or a
+ * value of JSON is held as its text since opengewerk#519 and compared as that
+ * text; `sameValue` takes neither.
+ */
+function sameAsHeld(held: SyncValue | undefined, handed: unknown): boolean {
+  const comparable =
+    handed !== null && typeof handed === 'object' && !(handed instanceof Date)
+      ? jsonText(handed)
+      : toSyncValue(handed)
+
+  return Object.is(held ?? null, comparable)
+}
 
 /**
  * The way a change that needs a connection reaches the server: at the route
@@ -582,6 +597,12 @@ export class SyncClient {
    * log, the trigger has bumped the version, and the pull that follows brings
    * the new row down so the screen shows what the server holds rather than
    * what this device hoped for.
+   *
+   * Only the fields that differ from what this device holds are sent
+   * (opengewerk-haustechnik#31). A form hands back every field, and the route
+   * writes what it is sent without a version to compare: a phone number
+   * somebody else changed while the form was open went back to the old one
+   * when an address was saved. A change that changes nothing sends nothing.
    */
   private async writeDirectly(
     entity: string,
@@ -592,9 +613,18 @@ export class SyncClient {
       if (values === null) {
         await this.writer.remove(entity, id)
       } else {
+        const held = this.get(entity, id)
         const sendable = Object.fromEntries(
-          Object.entries(values).filter(([field]) => !this.rules.isSetByServer(entity, field)),
+          Object.entries(values).filter(
+            ([field, value]) =>
+              !this.rules.isSetByServer(entity, field) &&
+              (held === null || !sameAsHeld(held[field], value)),
+          ),
         )
+
+        if (Object.keys(sendable).length === 0) {
+          return { outcome: 'queued', id }
+        }
 
         await this.writer.patch(entity, id, sendable)
       }
@@ -996,9 +1026,9 @@ export class SyncClient {
       return false
     }
 
-    await this.store.writeMeta(narrowedKey, said)
-
     if (typeof kept !== 'string') {
+      await this.store.writeMeta(narrowedKey, said)
+
       return false
     }
 
@@ -1007,17 +1037,23 @@ export class SyncClient {
       (entity) => before[entity] !== narrowed[entity],
     )
 
+    // What the device holds is a part now, until the pull from the start has
+    // run through, and also after a start in between.
+    this.narrowedNow = null
+    await this.store.writeMeta(settledKey, '')
+
     for (const entity of changed) {
       await this.store.drop(entity)
       this.records.get(entity)?.clear()
     }
 
-    // What the device holds is a part now, until the pull from the start has
-    // run through, and also after a start in between.
-    this.narrowedNow = null
-    await this.store.writeMeta(settledKey, '')
     this.cursor = 0
     await this.store.writeMeta(cursorKey, 0)
+    // The new answer last, as the proof that everything it asks for is done
+    // (opengewerk-haustechnik#31). Written first, a page closed in between
+    // found it kept at the next start and went on with the rows of somebody
+    // else, behind a cursor that would never bring the dropped ones back.
+    await this.store.writeMeta(narrowedKey, said)
     this.publish({})
 
     return true

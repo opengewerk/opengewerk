@@ -150,13 +150,29 @@ function ticked(container: HTMLElement): boolean[] {
     .map((box) => (box as HTMLInputElement).checked)
 }
 
+/**
+ * Until the answer with the rights is there, the screen offers nothing to
+ * change, so a test that clicks something in a row waits for it first; a box
+ * clicked before would do nothing, and a test about nothing being sent would
+ * pass for the wrong reason.
+ */
+async function mayChange() {
+  await screen.findByRole('button', { name: 'Zugang anlegen' })
+}
+
 beforeEach(() => {
   server = standInServer()
   // Lea is looking, and she leads: the list of settings at the side asks
-  // which of them she may read.
+  // which of them she may read, and the screen whether she may change them.
   signedIn(
     server,
-    [aTenant({ roles: ['lead'], roleLabels: ['Leitung'], rights: ['membership.read'] })],
+    [
+      aTenant({
+        roles: ['lead'],
+        roleLabels: ['Leitung'],
+        rights: ['membership.read', 'membership.write'],
+      }),
+    ],
     { name: 'Lea Leitung', email: 'lea@nord.example.de' },
   )
   server.answer('GET', '/staff', [lea, max])
@@ -215,7 +231,7 @@ describe('the staff screen', () => {
     staffScreen()
     await screen.findByText('Max Mitglied')
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
 
     expect(screen.getByLabelText('E-Mail')).toBeTruthy()
     expect(screen.queryByLabelText(/Passwort/)).toBeNull()
@@ -239,7 +255,7 @@ describe('the staff screen', () => {
     // screen while somebody is reaching for a checkbox rather than after.
     expect(screen.getByText(/Die Rolle Leitung verlangt einen zweiten Faktor/)).toBeTruthy()
 
-    await person.click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await person.click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
     expect(screen.queryByText(/zweiter Faktor Pflicht/)).toBeNull()
 
     // Scoped to the form, because the rows of the table carry the same boxes
@@ -265,7 +281,7 @@ describe('the staff screen', () => {
 
     const person = userEvent.setup()
 
-    await person.click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await person.click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
     await person.type(screen.getByLabelText('Name'), 'Nele Neu')
     await person.type(screen.getByLabelText('E-Mail'), 'neu@nord.example.de')
     await person.click(screen.getByRole('button', { name: 'Link erzeugen' }))
@@ -297,7 +313,7 @@ describe('the staff screen', () => {
 
     const person = userEvent.setup()
 
-    await person.click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await person.click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
     await person.type(screen.getByLabelText('Name'), 'Nele Neu')
     await person.type(screen.getByLabelText('E-Mail'), 'neu@nord.example.de')
     await person.click(screen.getByRole('button', { name: 'Per E-Mail einladen' }))
@@ -320,7 +336,7 @@ describe('the staff screen', () => {
     staffScreen({ byMail: false })
     await screen.findByText('Max Mitglied')
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
 
     expect(screen.getByRole('button', { name: 'Link erzeugen' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Per E-Mail einladen' })).toBeNull()
@@ -412,6 +428,7 @@ describe('the staff screen', () => {
     staffScreen()
     await screen.findByText('Max Mitglied')
 
+    await mayChange()
     await userEvent.setup().click(within(rowOf('Max Mitglied')).getByLabelText('Gast'))
 
     expect(sent('PATCH', '/staff/u-2')).toEqual([{ roles: ['member', 'guest'] }])
@@ -421,6 +438,7 @@ describe('the staff screen', () => {
     staffScreen()
     await screen.findByText('Max Mitglied')
 
+    await mayChange()
     await userEvent.setup().click(within(rowOf('Max Mitglied')).getByLabelText('Mitglied'))
 
     expect(sent('PATCH', '/staff/u-2')).toEqual([])
@@ -432,6 +450,7 @@ describe('the staff screen', () => {
     staffScreen()
     await screen.findByText('Max Mitglied')
 
+    await mayChange()
     await userEvent.setup().click(within(rowOf('Max Mitglied')).getByLabelText('Gast'))
 
     expect((await screen.findByRole('alert')).textContent).toBe('Diese Rolle gibt es hier nicht.')
@@ -445,6 +464,7 @@ describe('the staff screen', () => {
 
     const person = userEvent.setup()
 
+    await mayChange()
     expect(within(rowOf('Lea Leitung')).queryByRole('button', { name: /sperren$/ })).toBeNull()
 
     await person.click(screen.getByRole('button', { name: 'Max Mitglied sperren' }))
@@ -475,6 +495,7 @@ describe('the staff screen', () => {
       ),
     ).toBeTruthy()
 
+    await mayChange()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Max Mitglied entsperren' }))
 
     expect(screen.queryByRole('alertdialog')).toBeNull()
@@ -544,6 +565,51 @@ describe('the staff screen', () => {
         ),
       ).toBe(true)
     })
+  })
+
+  /**
+   * A tenant may give a role the right to read the list without the right to
+   * change it (opengewerk-haustechnik#31). Nothing the routes would refuse is
+   * offered then; the list, the invitations and the devices stay readable.
+   */
+  it('offers nothing to change to somebody who may only read it', async () => {
+    signedIn(
+      server,
+      [aTenant({ roles: ['lead'], roleLabels: ['Leitung'], rights: ['membership.read'] })],
+      { name: 'Lea Leitung', email: 'lea@nord.example.de' },
+    )
+    server.answer('GET', '/staff/invitations', [
+      { ...invitation, id: 'i-1', name: 'Lina Link', mail: null },
+    ])
+    server.answer('GET', '/staff/u-2/devices', devices)
+
+    staffScreen()
+    await screen.findByText('Max Mitglied')
+    await screen.findByText('Lina Link')
+
+    // The settings at the side stand once the rights are known, and only then
+    // does a missing button say anything.
+    const settings = screen.getByRole('navigation', { name: 'Einstellungen' })
+
+    await within(settings).findByRole('link', { name: 'Zugänge' })
+
+    expect(screen.queryByRole('button', { name: 'Zugang anlegen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /sperren$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /zurückziehen$/ })).toBeNull()
+    expect(
+      within(rowOf('Max Mitglied'))
+        .getAllByRole('checkbox')
+        .map((box) => (box as HTMLInputElement).disabled),
+    ).toEqual([true, true, true])
+
+    await userEvent
+      .setup()
+      .click(within(rowOf('Max Mitglied')).getByRole('button', { name: 'Geräte' }))
+
+    expect(
+      await screen.findByRole('table', { name: 'Wo Max Mitglied im Mandanten angemeldet ist' }),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /abmelden$/ })).toBeNull()
   })
 
   it('says why the list did not arrive, in the words of the server', async () => {
@@ -652,7 +718,7 @@ describe('the roles of the tenant', () => {
 
     const person = userEvent.setup()
 
-    await person.click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await person.click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
 
     const form = inviteForm()
 
@@ -681,7 +747,7 @@ describe('the roles of the tenant', () => {
     staffScreen({ suggestedRoles: ['books'] })
     await screen.findByRole('table', { name: 'Konten des Mandanten' })
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
 
     expect(ticked(inviteForm())).toEqual([false, false, true])
     // The one ticked asks for a factor, so the warning stands from the start.
@@ -698,7 +764,7 @@ describe('the roles of the tenant', () => {
     staffScreen({ suggestedRoles: ['member'] })
     await screen.findByRole('table', { name: 'Konten des Mandanten' })
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Zugang anlegen' }))
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Zugang anlegen' }))
 
     expect(ticked(inviteForm())).toEqual([false, false])
     expect(
@@ -713,7 +779,8 @@ describe('the roles of the tenant', () => {
 
     expect(await screen.findByText('Die Rollen sind gerade nicht zu haben.')).toBeTruthy()
     expect(
-      (screen.getByRole('button', { name: 'Zugang anlegen' }) as HTMLButtonElement).disabled,
+      ((await screen.findByRole('button', { name: 'Zugang anlegen' })) as HTMLButtonElement)
+        .disabled,
     ).toBe(true)
   })
 
@@ -747,6 +814,7 @@ describe('the roles of the tenant', () => {
     // key it has no role for as it stands.
     expect(within(invitations).getByText('Helfer, Kasse, gone')).toBeTruthy()
 
+    await mayChange()
     await userEvent.setup().click(within(rowOf('Max Mitglied')).getByLabelText('Kasse'))
 
     expect(sent('PATCH', '/staff/u-2')).toEqual([{ roles: ['member', 'books'] }])

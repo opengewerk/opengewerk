@@ -241,6 +241,24 @@ describe('what stands in the way of a form', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Dafür fehlt das Recht.')
   })
 
+  /**
+   * The device could not keep what was filled in, a full store above all
+   * (opengewerk-haustechnik#31). The form says so and keeps the entries, where
+   * it stood there before as if it had been saved.
+   */
+  it('says so when the device could not keep it, and keeps what was typed', async () => {
+    form({ onSubmit: () => Promise.reject(new Error('QuotaExceededError')) })
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Regal')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Auf diesem Gerät ließ sich das nicht speichern. Die Eingaben stehen noch da.',
+    )
+    expect(screen.getByLabelText('Name')).toHaveProperty('value', 'Regal')
+    expect(screen.getByRole('button', { name: 'Speichern' })).toHaveProperty('disabled', false)
+  })
+
   it('says why nothing can be written right now, and offers nothing to press', () => {
     form({ disabled: true, disabledReason: 'Das Regal ist abgebaut.' })
 

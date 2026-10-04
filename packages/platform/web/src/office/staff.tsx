@@ -1,4 +1,4 @@
-import type { RoleDefinition } from '@opengewerk/platform-domain'
+import { accessRights, type RoleDefinition } from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Copy, Plus } from 'lucide-react'
@@ -14,7 +14,7 @@ import type { TableCard } from '../components/panel.js'
 import { Cell, Column } from '../components/table.js'
 import { date, moment } from '../format.js'
 import { deviceName } from '../session/device-name.js'
-import { accountQuery } from '../session/queries.js'
+import { accountQuery, useRight } from '../session/queries.js'
 import {
   invite,
   openInvitations,
@@ -94,6 +94,10 @@ export function StaffScreen({
   const known = useQuery({ queryKey: ['staff-roles'], queryFn: staffRoles })
   const invitations = useQuery({ queryKey: ['invitations'], queryFn: openInvitations })
   const account = useQuery(accountQuery)
+  // Reading the list takes one right and changing it another, and a tenant
+  // may give a role the first alone (opengewerk-haustechnik#31). Without the
+  // second nothing is offered that the routes would refuse.
+  const mayWrite = useRight(accessRights.write)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
   const [mailedTo, setMailedTo] = useState<string | null>(null)
@@ -153,7 +157,7 @@ export function StaffScreen({
         person={person}
         roles={available}
         inBox={inBox}
-        disabled={roles.isPending}
+        disabled={!mayWrite || roles.isPending}
         onPick={(wanted) => {
           setTrouble(null)
           roles.mutate({ userId: person.userId, wanted })
@@ -174,7 +178,7 @@ export function StaffScreen({
         >
           Geräte
         </Button>
-        {person.userId === you ? null : (
+        {person.userId === you || !mayWrite ? null : (
           <Button
             size="small"
             tone={person.blockedAt ? 'secondary' : 'danger'}
@@ -224,7 +228,7 @@ export function StaffScreen({
         <span className="mt-0.5 block">{deliveryInWords(entry.mail)}</span>
       </>
     ),
-    actions: (
+    actions: mayWrite ? (
       <Button
         size="small"
         tone="danger"
@@ -237,7 +241,7 @@ export function StaffScreen({
       >
         Zurückziehen
       </Button>
-    ),
+    ) : null,
   }))
 
   return (
@@ -246,21 +250,23 @@ export function StaffScreen({
       title="Zugänge"
       sub={sentences.what}
       actions={
-        <Button
-          tone="primary"
-          icon={Plus}
-          // Not before the roles of the tenant are known: the form offers
-          // them, and one without any could invite nobody.
-          disabled={inviting || !known.data}
-          onClick={() => {
-            setTrouble(null)
-            setLink(null)
-            setMailedTo(null)
-            setInviting(true)
-          }}
-        >
-          Zugang anlegen
-        </Button>
+        mayWrite ? (
+          <Button
+            tone="primary"
+            icon={Plus}
+            // Not before the roles of the tenant are known: the form offers
+            // them, and one without any could invite nobody.
+            disabled={inviting || !known.data}
+            onClick={() => {
+              setTrouble(null)
+              setLink(null)
+              setMailedTo(null)
+              setInviting(true)
+            }}
+          >
+            Zugang anlegen
+          </Button>
+        ) : null
       }
     >
       {trouble ? (
@@ -349,6 +355,7 @@ export function StaffScreen({
         <Devices
           userId={devicesOf}
           name={people.data?.find((person) => person.userId === devicesOf)?.name ?? ''}
+          mayWrite={mayWrite}
           onTrouble={setTrouble}
           onClose={() => {
             setDevicesOf(null)
@@ -389,18 +396,20 @@ export function StaffScreen({
                 <Cell className="text-[13px]">{date(entry.expiresAt)}</Cell>
                 <Cell className="text-[13px]">{deliveryInWords(entry.mail)}</Cell>
                 <Cell numeric>
-                  <Button
-                    size="small"
-                    tone="danger"
-                    aria-label={`Einladung an ${entry.email} zurückziehen`}
-                    disabled={withdraw.isPending}
-                    onClick={() => {
-                      setTrouble(null)
-                      setWithdrawing({ id: entry.id, email: entry.email })
-                    }}
-                  >
-                    Zurückziehen
-                  </Button>
+                  {mayWrite ? (
+                    <Button
+                      size="small"
+                      tone="danger"
+                      aria-label={`Einladung an ${entry.email} zurückziehen`}
+                      disabled={withdraw.isPending}
+                      onClick={() => {
+                        setTrouble(null)
+                        setWithdrawing({ id: entry.id, email: entry.email })
+                      }}
+                    >
+                      Zurückziehen
+                    </Button>
+                  ) : null}
                 </Cell>
               </tr>
             ))}
@@ -877,11 +886,14 @@ function SecondFactorWarning({ needed }: { readonly needed: boolean }) {
 function Devices({
   userId,
   name,
+  mayWrite,
   onTrouble,
   onClose,
 }: {
   readonly userId: string
   readonly name: string
+  /** Whether whoever looks may sign a device out, which the list alone does not need. */
+  readonly mayWrite: boolean
   readonly onTrouble: (sentence: string | null) => void
   readonly onClose: () => void
 }) {
@@ -920,6 +932,10 @@ function Devices({
   }))
 
   function signOutButton(sessionId: string, label: string): ReactNode {
+    if (!mayWrite) {
+      return null
+    }
+
     return (
       <Button
         size="small"

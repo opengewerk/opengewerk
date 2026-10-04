@@ -529,6 +529,54 @@ describe('the sync client behind the gate', () => {
       ])
     },
   )
+
+  /**
+   * Somebody else wrote on this device, and their session ran out before it
+   * went (opengewerk-haustechnik#31). The client of the person signed in now
+   * does not see it, so it does not go out under their name; it waits for its
+   * own person.
+   */
+  it('sends the changes of the person signed in, and leaves those of anybody else waiting', async () => {
+    const tenantId = await tenantOnTheDevice()
+    const note = (id: string): Operation => ({
+      id: id as Operation['id'],
+      entity: 'notes',
+      recordId: `n-${id}`,
+      kind: 'create',
+      baseVersion: null,
+      patches: [{ field: 'text', from: null, to: 'Ohne Netz geschrieben' }],
+      recordedAt: new Date('2026-10-04T08:00:00Z'),
+      deviceId: deviceIdentity(),
+    })
+    const earlier = await openLocalStore(tenantId, 'u-0')
+
+    await earlier.queue(note('op-of-somebody-else'))
+    earlier.close()
+
+    const mine = await openLocalStore(tenantId, account.userId)
+
+    await mine.queue(note('op-of-mine'))
+    mine.close()
+
+    const standing = probeApplication()
+    const waiting: (readonly string[])[] = []
+
+    rememberAccount({ ...account, tenantId })
+    noNetwork()
+    start({
+      application: {
+        ...standing,
+        startSync: async (device: DeviceStart) => {
+          waiting.push((await device.store.readOutbox()).map((operation) => operation.id))
+
+          return standing.startSync(device)
+        },
+      },
+    })
+
+    expect(await screen.findByText('Leiter im Flur vergessen')).toBeTruthy()
+    expect(waiting).toEqual([['op-of-mine']])
+  })
 })
 
 describe('refused with a session that is still good (#254)', () => {

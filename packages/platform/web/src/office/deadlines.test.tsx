@@ -386,16 +386,21 @@ describe('the list of deadlines', () => {
 
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'Frist zu Paket P-0042 ändern' }))
+
+    // Nothing changed yet, so there is nothing to save.
+    expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+
     await user.type(screen.getByLabelText('Vorlauf in Tagen'), '3')
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => {
       expect(afterChange).toHaveBeenCalledTimes(1)
     })
-    expect(server.heard.find((call) => call.method === 'PATCH')?.body).toEqual({
-      leadDays: 3,
-      responsibleUserId: null,
-    })
+    // Only the lead, which is what changed: the person stays whoever somebody
+    // else may have chosen since the card was opened (opengewerk-haustechnik#31).
+    expect(server.heard.find((call) => call.method === 'PATCH')?.body).toEqual({ leadDays: 3 })
   })
 
   it('shows a box per deadline on a phone, with what the application adds and its buttons', async () => {

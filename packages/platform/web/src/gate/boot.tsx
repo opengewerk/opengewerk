@@ -117,6 +117,9 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
   })
 
   const tenantId = account.data?.tenantId ?? null
+  // Whose changes the device sends. Another person signed in on this device
+  // starts another client, one that leaves the changes of the first waiting.
+  const userId = account.data?.userId ?? null
   // Set when the server turned the running client away as signed out and the
   // account came back as it was; see `signedOut`.
   const [stalled, setStalled] = useState(false)
@@ -154,7 +157,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
   )
 
   useEffect(() => {
-    if (!tenantId) {
+    if (!tenantId || !userId) {
       return
     }
 
@@ -167,8 +170,9 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
     void (async () => {
       // The store is the foundation's to open and the client the
       // application's to start: only it knows by which rules its records
-      // travel and which of them it has a screen for.
-      const store = await openLocalStore(tenantId)
+      // travel and which of them it has a screen for. Opened for the person
+      // signed in, whose changes alone it sends (opengewerk-haustechnik#31).
+      const store = await openLocalStore(tenantId, userId)
       const running = await startSync({
         store,
         deviceId,
@@ -200,7 +204,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
       setClient(null)
       setStalled(false)
     }
-  }, [tenantId, deviceId, signedOut, round, entry, startSync])
+  }, [tenantId, userId, deviceId, signedOut, round, entry, startSync])
 
   if (token) {
     return <InvitationScreen token={token} />
