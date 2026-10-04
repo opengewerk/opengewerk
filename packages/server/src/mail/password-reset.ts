@@ -5,6 +5,7 @@ import { type MailContext } from '@opengewerk/platform-server'
 
 import { memberships, tenants } from '../database/schema/index.js'
 import { passwordResetMessage } from '../notifications/templates.js'
+import { mayMailAccounts } from './account-mail.js'
 import { connectionOf } from './server-settings.js'
 
 /**
@@ -28,9 +29,16 @@ import { connectionOf } from './server-settings.js'
  * otherwise take as long as a mail server takes, and one for an address that
  * does not would not, and the difference would say which addresses have an
  * account here.
+ *
+ * Only on an instance with one business (`mayMailAccounts`): with a second,
+ * its lead could have the link sent through a mail server of their own.
  */
 export function passwordResetMails(database: Database, mail: MailContext): PasswordResetMail {
   return async (requester, token) => {
+    if (!(await mayMailAccounts(database))) {
+      return
+    }
+
     const businesses = await database.forInstance(
       (tx) =>
         tx

@@ -81,13 +81,10 @@ beforeAll(async () => {
   await resetSchema(admin)
   await applyMigrations()
   await allowApplicationLogin(admin)
-  await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
-    north.id,
-    north.name,
-    quiet.id,
-    quiet.name,
-  ])
-  await shipRoles(admin, north.id, quiet.id)
+  // One business, the one kind of instance a mail to an account goes out on;
+  // the second comes with the last test.
+  await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
+  await shipRoles(admin, north.id)
 
   database = Database.connect(applicationDatabaseUrl())
   authentication = createAuthentication({
@@ -132,13 +129,19 @@ describe('the mail with the link', () => {
     expect(sent.at(-1)?.text).toContain('eine Stunde')
   })
 
-  it('does not go out for an account whose business sends no mail', async () => {
-    const userId = await person('still@still.example.de', quiet.id)
+  it('does not go out while the business sends no mail', async () => {
+    const userId = await person('still@nord.example.de')
     const before = sent.length
 
-    await sender()({ id: userId, email: 'still@still.example.de', name: '' }, 'geheim')
+    await admin.query('delete from mail_settings where tenant_id = $1', [north.id])
 
-    expect(sent.slice(before)).toEqual([])
+    try {
+      await sender()({ id: userId, email: 'still@nord.example.de', name: '' }, 'geheim')
+
+      expect(sent.slice(before)).toEqual([])
+    } finally {
+      await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
+    }
   })
 
   /**
@@ -178,5 +181,27 @@ describe('the mail with the link', () => {
       .set('origin', origin)
       .send({ email: 'vergessen@nord.example.de', password: 'das-zweite-lange-passwort' })
       .expect(200)
+  })
+
+  /**
+   * With a second business, its lead could take the account into it, set up
+   * a mail server of their own and have the link sent there
+   * (opengewerk-haustechnik#31). Until the instance has a mail server of its
+   * own, no link goes out on such an instance, not even through the business
+   * the account has always worked in. Last in this file, because it leaves the
+   * second business behind.
+   */
+  it('goes out nowhere once the instance has a second business', async () => {
+    const userId = await person('zweiter@nord.example.de')
+
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [quiet.id, quiet.name])
+    await shipRoles(admin, quiet.id)
+    await aMailServer(admin, quiet.id, { from: 'buero@still.example.de' })
+
+    const before = sent.length
+
+    await sender()({ id: userId, email: 'zweiter@nord.example.de', name: '' }, 'geheim')
+
+    expect(sent.slice(before)).toEqual([])
   })
 })

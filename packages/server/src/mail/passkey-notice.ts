@@ -5,6 +5,7 @@ import { type MailContext } from '@opengewerk/platform-server'
 
 import { mailOutbox, memberships, tenants } from '../database/schema/index.js'
 import { passkeyAddedMessage } from '../notifications/templates.js'
+import { mayMailAccounts } from './account-mail.js'
 import { connectionOf } from './server-settings.js'
 
 /**
@@ -21,9 +22,17 @@ import { connectionOf } from './server-settings.js'
  * business is no risk, and the outbox tries again for two days where a mail
  * server does not answer at once. A notice that a key was added is worth the
  * retry; somebody who did not add it should hear of it even so.
+ *
+ * Only on an instance with one business, like the link (`mayMailAccounts`):
+ * with a second, the notice could land in the outbox of a business whose lead
+ * took the account into it.
  */
 export function passkeyNotices(database: Database, mail: MailContext): PasskeyNotice {
   return async (owner, passkey) => {
+    if (!(await mayMailAccounts(database))) {
+      return
+    }
+
     const businesses = await database.forInstance(
       (tx) =>
         tx

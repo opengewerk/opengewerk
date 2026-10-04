@@ -958,6 +958,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   danach steht der Knopf zum Beitreten da. Der Server nimmt den Beitritt nur mit der Sitzung genau
   dieses Kontos an, sonst antwortet er mit 401 oder 403 und lässt den Link gültig. Betroffen war
   nur der Stand auf `main`: in 0.4.0 hat eine Instanz genau einen Betrieb.
+- Der Link zu einem neuen Passwort und der Hinweis auf einen neuen Passkey gehen nur noch hinaus,
+  solange die Instanz genau einen Betrieb hat (`opengewerk-haustechnik#31`). Beide gingen über den
+  Mailserver eines Betriebs, in dem das Konto arbeitet, und den trägt dessen Leitung selbst ein:
+  auf einer Instanz mit mehreren Betrieben konnte die Leitung eines Betriebs ein Konto zu sich
+  holen, einen eigenen Mailserver eintragen und den Link dort lesen. Mails an ein Konto kommen
+  künftig über einen Mailserver der Instanz, den ihre Betreiber einrichten; bis dahin ist der Weg
+  zurück in ein Konto auf einer solchen Instanz die Leitung oder `reset-password` auf dem Server.
+  Betroffen war nur der Stand auf `main`: in 0.4.0 hat eine Instanz genau einen Betrieb.
 - Ein Push-Dienst, der langsam antwortet, hält den Versand der Push-Nachrichten nicht mehr auf
   (`opengewerk-haustechnik#31`). Die zehn Sekunden galten für jede Pause und nicht für die ganze
   Anfrage, und gelesen wurde die Antwort bis zu ihrem Ende. Wer Push einschalten darf, also jeder
