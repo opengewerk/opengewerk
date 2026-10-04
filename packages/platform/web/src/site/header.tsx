@@ -4,6 +4,7 @@ import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
+import { noConnection } from '../sync/client.js'
 import { useSyncStatus } from '../sync/provider.js'
 
 /**
@@ -43,7 +44,11 @@ export function SiteHeader({
   readonly back?: WayBack | null
 }) {
   const slot = useContext(HeaderSlot)
-  const offline = useSyncStatus().state === 'offline'
+  // The same question as the state of the exchange asks (#494, #545): the
+  // state of the client alone said "Offline" over every change that was on
+  // its way and over a server that had answered, and nothing of it while a
+  // conflict was waiting.
+  const offline = noConnection(useSyncStatus())
 
   const header = (
     <header className="flex min-h-16 items-center gap-1.5 bg-top px-3 py-2.5 text-top-ink">

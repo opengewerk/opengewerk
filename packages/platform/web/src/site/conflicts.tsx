@@ -6,7 +6,8 @@ import type { ReactNode } from 'react'
 import { Button } from '../components/button.js'
 import { Panel } from '../components/panel.js'
 import { clockTime } from '../format.js'
-import { noConnection, NothingToDecide, useDecisions } from '../sync/decisions.js'
+import { exchangeRefusal, noConnection } from '../sync/client.js'
+import { NothingToDecide, useDecisions } from '../sync/decisions.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 
 /** One line of the state on site: a symbol and a sentence, 16 pixels. */
@@ -48,6 +49,8 @@ export function ConflictScreen() {
   const { made, cards, empty } = useDecisions()
   const { conflicts, refused, pending, lastSyncedAt } = status
   const offline = noConnection(status)
+  // The server answered and refused: its own sentence, as in the strip.
+  const refusal = exchangeRefusal(status)
   const [working, setWorking] = useState(false)
 
   return (
@@ -69,6 +72,11 @@ export function ConflictScreen() {
           {offline ? (
             <SiteStateLine icon={WifiOff} tone="waiting">
               Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.
+            </SiteStateLine>
+          ) : null}
+          {refusal ? (
+            <SiteStateLine icon={TriangleAlert} tone="waiting">
+              {refusal}
             </SiteStateLine>
           ) : null}
           {pending > 0 ? (

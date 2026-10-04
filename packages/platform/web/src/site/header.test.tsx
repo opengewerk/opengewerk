@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 
-import { render, screen, within } from '@testing-library/react'
+import type { OperationReceipt, SyncConflict } from '@opengewerk/platform-domain'
+import { act, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 
@@ -9,6 +10,7 @@ import { probeClient } from '../in-frame.js'
 import { InRouter } from '../in-router.js'
 import { SyncProvider } from '../sync/provider.js'
 import { TestServer } from '../sync/test-server.js'
+import { RequestRefused } from '../sync/transport.js'
 import { SiteHeader } from './header.js'
 
 /**
@@ -20,10 +22,11 @@ import { SiteHeader } from './header.js'
  * the screen; here, as in a test of one screen, it stands in place.
  */
 
+/** Draws the header over a client that has had its first exchange with this server, and hands back the client. */
 async function shown(node: ReactNode, server: TestServer = new TestServer()) {
   const client = await probeClient(server)
 
-  const result = render(
+  render(
     <SyncProvider client={client}>
       <Shell entry="site">
         <InRouter at="/regale/s-1">{node}</InRouter>
@@ -33,7 +36,7 @@ async function shown(node: ReactNode, server: TestServer = new TestServer()) {
 
   await screen.findByRole('banner')
 
-  return result
+  return client
 }
 
 describe('the header of a screen on site', () => {
@@ -83,5 +86,53 @@ describe('the header of a screen on site', () => {
     await shown(<SiteHeader title="Regale" />)
 
     expect(within(screen.getByRole('banner')).queryByText('Offline')).toBeNull()
+  })
+
+  /**
+   * "Offline" was asked of the state of the client, which is the same for a
+   * server that answered and refused as for one nobody reached: the header
+   * claimed a missing network on a device that had one (#545).
+   */
+  it('says nothing of the network over a server that answered and refused', async () => {
+    const refusing = Object.assign(new TestServer(), {
+      pull: () => Promise.reject(new RequestRefused(403, 'Abgleichen darf dieser Zugang nicht.')),
+    })
+
+    const client = await shown(<SiteHeader title="Regale" />, refusing)
+
+    // The server has answered, and this is its sentence.
+    expect(client.status().trouble).toBe('Abgleichen darf dieser Zugang nicht.')
+    expect(within(screen.getByRole('banner')).queryByText('Offline')).toBeNull()
+  })
+
+  it('says nothing of the network over a change that is on its way', async () => {
+    const slow = new TestServer()
+    const client = await shown(<SiteHeader title="Regale" />, slow)
+
+    slow.push = () => new Promise<OperationReceipt[]>(() => {})
+    await act(() => client.create('notes', { text: 'Unterwegs' }))
+
+    // The change waits in the outbox for its answer, and nothing went wrong.
+    expect(client.status().pending).toBe(1)
+    expect(client.status().state).toBe('offline')
+    expect(within(screen.getByRole('banner')).queryByText('Offline')).toBeNull()
+  })
+
+  it('says so while a conflict waits as well', async () => {
+    const server = Object.assign(new TestServer(), {
+      conflicts: () => Promise.resolve([{ id: 'c-1' }] as unknown as SyncConflict[]),
+    })
+    const client = await shown(<SiteHeader title="Regale" />, server)
+
+    expect(client.status().state).toBe('conflict')
+    expect(within(screen.getByRole('banner')).queryByText('Offline')).toBeNull()
+
+    server.offline = true
+    await act(() => client.synchronise())
+
+    // The state of the client still names the conflict, which needs somebody
+    // first; the header asks what went wrong, as the list of conflicts does.
+    expect(client.status().state).toBe('conflict')
+    expect(within(screen.getByRole('banner')).getByText('Offline')).toBeTruthy()
   })
 })

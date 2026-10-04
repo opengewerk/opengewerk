@@ -10,8 +10,10 @@
 // The client, and what a screen learns from it about an edit and the state of
 // the exchange.
 export {
+  exchangeRefusal,
   inTransmissions,
   largestTransmission,
+  noConnection,
   refusalFor,
   refusalText,
   SyncClient,
@@ -24,6 +26,7 @@ export type {
   SyncSnapshot,
   SyncStart,
   SyncState,
+  SyncTroubleKind,
 } from './client.js'
 
 // How a screen reads: the client from the context, and records as they stand

@@ -12,7 +12,7 @@ import { Card, useEntry } from '../components/surface.js'
 import { Cell, Column } from '../components/table.js'
 import { moment } from '../format.js'
 import { refusalFor, refusalText } from './client.js'
-import type { RefusedOperation, SyncSnapshot } from './client.js'
+import type { RefusedOperation } from './client.js'
 import { useSync, useSyncStatus } from './provider.js'
 
 /**
@@ -724,22 +724,6 @@ function RefusedFrame({
       {children}
     </section>
   )
-}
-
-/**
- * Whether "Keine Verbindung" stands in the state of the exchange: whenever
- * the last attempt left a reason behind.
- *
- * Asked of the reason and not of the state of the client. The state names
- * what needs somebody first, a refused change before a conflict before a
- * missing connection, so a device with a conflict and no network said nothing
- * of the network, and whoever decided the conflict learned only at its card
- * that the decision did not get out (#494). One question for both entries:
- * the site asked the state alone, and with it claimed a missing connection
- * over every change that was simply on its way.
- */
-export function noConnection(status: Pick<SyncSnapshot, 'trouble'>): boolean {
-  return status.trouble !== null
 }
 
 /** The sentence for a list with nothing in it. */

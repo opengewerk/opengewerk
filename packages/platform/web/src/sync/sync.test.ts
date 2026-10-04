@@ -12,7 +12,14 @@ import { probePolicies } from '@opengewerk/platform-domain/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DirectWriter, SyncClient } from './client.js'
-import { SyncClient as Client, inTransmissions, refusalFor, refusalText } from './client.js'
+import {
+  SyncClient as Client,
+  exchangeRefusal,
+  inTransmissions,
+  noConnection,
+  refusalFor,
+  refusalText,
+} from './client.js'
 import { byRecord, project } from './projection.js'
 import { type LocalStore, openLocalStore } from './store.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
@@ -1209,6 +1216,82 @@ describe('an exchange with the server', () => {
       await client.update('shelves', 's-1', { name: 'Hall, left' })
 
       expect(signedOut).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe('the kind of what went wrong (#545)', () => {
+    // The sentence is for people. The places that say something of their own,
+    // "Keine Verbindung" under the exchange and "Offline" on site, ask the
+    // kind: waiting for a network cures only one of the three.
+    const noRight = 'Abgleichen darf dieser Zugang nicht.'
+
+    it('is that nobody answered when the exchange finds no server', async () => {
+      const client = await start(transport)
+
+      transport.refuse = new TypeError('Failed to fetch')
+      await client.synchronise()
+
+      expect(client.status().troubleKind).toBe('unreachable')
+      expect(noConnection(client.status())).toBe(true)
+      expect(exchangeRefusal(client.status())).toBeNull()
+    })
+
+    it('is that the server refused the exchange when it answered so, with its sentence', async () => {
+      const client = await start(transport)
+
+      transport.refuse = new RequestRefused(403, noRight)
+      await client.synchronise()
+
+      expect(client.status().troubleKind).toBe('exchange_refused')
+      // A connection there is, and "sobald wieder Netz da ist" would be wrong.
+      expect(noConnection(client.status())).toBe(false)
+      expect(exchangeRefusal(client.status())).toBe(noRight)
+    })
+
+    it('counts a session that ran out as an answer as well', async () => {
+      const client = await start(transport)
+
+      transport.refuse = new RequestRefused(401, 'Keine gültige Anmeldung.')
+      await client.synchronise()
+
+      expect(client.status().troubleKind).toBe('exchange_refused')
+      expect(noConnection(client.status())).toBe(false)
+    })
+
+    it('keeps a change refused at its route apart from the exchange', async () => {
+      const client = await start(transport)
+
+      await holding(client, transport, {
+        entity: 'shelves',
+        rows: [row({ id: 's-1', name: 'Hall', kind: 'wood' })],
+      })
+      writer.refuse = new RequestRefused(403, 'Regale ändern darf dieser Zugang nicht.')
+      await client.update('shelves', 's-1', { name: 'Hall, left' })
+
+      // The exchange went through a moment ago and is not what was refused.
+      expect(client.status().troubleKind).toBe('change_refused')
+      expect(noConnection(client.status())).toBe(false)
+      expect(exchangeRefusal(client.status())).toBeNull()
+
+      writer.refuse = new TypeError('Failed to fetch')
+      await client.update('shelves', 's-1', { name: 'Hall, left' })
+
+      expect(client.status().troubleKind).toBe('unreachable')
+    })
+
+    it('is none while nothing went wrong, and none again once an exchange goes through', async () => {
+      const client = await start(transport)
+
+      expect(client.status().troubleKind).toBeNull()
+
+      transport.refuse = new RequestRefused(403, noRight)
+      await client.synchronise()
+      transport.refuse = null
+      await client.synchronise()
+
+      expect(client.status().trouble).toBeNull()
+      expect(client.status().troubleKind).toBeNull()
+      expect(exchangeRefusal(client.status())).toBeNull()
     })
   })
 

@@ -5,7 +5,8 @@ import type { ReactNode } from 'react'
 import { Button } from '../components/button.js'
 import { Panel } from '../components/panel.js'
 import { clockTime } from '../format.js'
-import { noConnection, NothingToDecide, useDecisions } from '../sync/decisions.js'
+import { exchangeRefusal, noConnection } from '../sync/client.js'
+import { NothingToDecide, useDecisions } from '../sync/decisions.js'
 import { useSync, useSyncStatus } from '../sync/provider.js'
 import { PageHead, RecordColumns, Screen } from './kit.js'
 
@@ -45,6 +46,8 @@ function SyncStateCard() {
   const status = useSyncStatus()
   const { conflicts, refused, pending, lastSyncedAt } = status
   const offline = noConnection(status)
+  // The server answered and refused: its own sentence, as in the strip.
+  const refusal = exchangeRefusal(status)
 
   return (
     <Panel title="Stand des Abgleichs">
@@ -59,6 +62,11 @@ function SyncStateCard() {
         {offline ? (
           <StateLine icon={WifiOff} tone="waiting">
             Keine Verbindung. Übertragen wird, sobald wieder Netz da ist.
+          </StateLine>
+        ) : null}
+        {refusal ? (
+          <StateLine icon={TriangleAlert} tone="waiting">
+            {refusal}
           </StateLine>
         ) : null}
         {pending > 0 ? (
@@ -78,7 +86,7 @@ function SyncStateCard() {
               : `${String(conflicts.length)} Konflikte, bitte entscheiden`}
           </StateLine>
         ) : null}
-        {pending === 0 && conflicts.length === 0 && !refused && !offline ? (
+        {pending === 0 && conflicts.length === 0 && !refused && !offline && !refusal ? (
           <StateLine icon={Check} tone="done">
             Nichts wartet, nichts zu entscheiden
           </StateLine>

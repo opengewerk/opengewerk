@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 
 import type { SyncConflict } from '@opengewerk/platform-domain'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { Archive, Mail, StickyNote } from 'lucide-react'
 import { useContext } from 'react'
@@ -14,6 +14,7 @@ import { probeApplication } from '../probe-application.js'
 import { offerUpdate } from '../shell/updates.js'
 import { Strip } from '../components/strip.js'
 import { TestServer } from '../sync/test-server.js'
+import { RequestRefused } from '../sync/transport.js'
 import { OfficeFrame } from './frame.js'
 import type { OfficeFrameProps } from './frame.js'
 import type { NavigationGroup } from './navigation.js'
@@ -369,6 +370,47 @@ describe('the navigation beside the screen', () => {
 
     expect(await within(nav).findByText('Keine Verbindung')).toBeTruthy()
     expect(within(nav).getByRole('link', { name: 'Abgleich' })).toBeTruthy()
+  })
+
+  /**
+   * The line was asked whether the last attempt left a reason behind, and a
+   * server that answered and refused leaves one as well: "Keine Verbindung"
+   * stood under the exchange on a device that had one (#545).
+   */
+  it('says under the exchange that the server refused it, and not that the connection is missing', async () => {
+    const refusing = Object.assign(new TestServer(), {
+      pull: () => Promise.reject(new RequestRefused(403, 'Abgleichen darf dieser Zugang nicht.')),
+    })
+
+    await frame({}, { server: refusing })
+
+    const nav = await sidebar()
+    const line = await within(nav).findByText('Abgleich abgelehnt')
+
+    // Red, because somebody has to do something about it.
+    expect(line.className).toContain('text-conflict')
+    expect(within(nav).queryByText('Keine Verbindung')).toBeNull()
+  })
+
+  it('stays quiet under the exchange over a change the server refused at its own route', async () => {
+    const refusing = Object.assign(new TestServer(), {
+      patch: () =>
+        Promise.reject(new RequestRefused(403, 'Regale ändern darf dieser Zugang nicht.')),
+    })
+
+    refusing.put('shelves', { id: 's-1', name: 'Halle' })
+
+    const { client } = await frame({}, { server: refusing })
+    const nav = await sidebar()
+
+    await within(nav).findByText('Abgeglichen, gerade eben')
+    await act(() => client.update('shelves', 's-1', { name: 'Halle, links' }))
+
+    // What was refused is the change, and its sentence stands at the form.
+    // The exchange went through a moment ago and goes on as it did.
+    expect(client.status().troubleKind).toBe('change_refused')
+    expect(within(nav).getByText('Abgeglichen, gerade eben').className).toContain('text-ink-faint')
+    expect(within(nav).queryByText(/Abgleich abgelehnt|Keine Verbindung/)).toBeNull()
   })
 
   it('offers the settings only to somebody who may read one of them', async () => {
