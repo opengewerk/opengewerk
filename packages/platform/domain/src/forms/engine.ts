@@ -3,6 +3,8 @@ import { signaturePathIsValid, signerNameProblem } from '../model/signature.js'
 import { RuleError, type RuleRecord, type RuleSet, type RuleUnit } from '../rules/rule.js'
 import {
   type BlockField,
+  type BlockFieldKind,
+  type CheckPointField,
   fieldsOf,
   type FormDefinition,
   type FormField,
@@ -15,6 +17,9 @@ import {
   type SignatureField,
 } from './definition.js'
 import {
+  type CheckPointValue,
+  checkPointResultLabel,
+  checkPointResults,
   type FieldValue,
   type FormValue,
   type FormValues,
@@ -98,6 +103,16 @@ export interface FormEngineSetup<T extends FormTerms = FormTerms> {
   /** The limits it works out itself, beside those taken from a rule. */
   readonly limits: Readonly<Record<T['limit'], LimitCalculator<T>>>
   /**
+   * The kinds of field its screens show, beside the signature and the group.
+   * A definition with any other is refused, and so is a value for one.
+   */
+  readonly kinds: readonly T['kind'][]
+  /**
+   * The kinds of record a field of its forms may be about (`about` of a
+   * field), none when left out.
+   */
+  readonly records?: readonly string[]
+  /**
    * Where a block keeps its item and the item's id. Fixed once a form is
    * filled: a block written under these keys is read under them for ever.
    */
@@ -130,7 +145,9 @@ export interface FormEngine<T extends FormTerms = FormTerms> {
   /**
    * What is wrong with one value of one field, or null. The shape and
    * nothing else: whether a measured value is within its limit is a verdict
-   * to show and never a reason to refuse it.
+   * to show and never a reason to refuse it, and whether an answer has the
+   * remark it needs is a question of signing, so that a form can be saved
+   * between the answer and the remark.
    */
   readonly valueProblem: (field: BlockField<T> | SignatureField, value: unknown) => string | null
   /**
@@ -141,9 +158,10 @@ export interface FormEngine<T extends FormTerms = FormTerms> {
   readonly valuesProblem: (definition: FormDefinition<T>, values: unknown) => string | null
   /**
    * What is missing before a form can be signed and fixed: the required
-   * fields that are empty, required fields of every block included, and a
-   * signature that seals it. Without the seal it is the question the form
-   * asks before it offers the signature at all.
+   * fields that are empty, required fields of every block included, every
+   * check point without an answer or without the remark its answer needs,
+   * and a signature that seals it. Without the seal it is the question the
+   * form asks before it offers the signature at all.
    */
   readonly sealProblems: (
     definition: FormDefinition<T>,
@@ -192,8 +210,32 @@ export interface FormEngine<T extends FormTerms = FormTerms> {
   ) => string | null
 }
 
+/**
+ * The terms of an application with every kind of field: how the engine reads
+ * a definition, since what it is handed may come out of a file and hold a
+ * kind the application does not show, and it has to say so.
+ */
+interface Every<T extends FormTerms> {
+  readonly unit: T['unit']
+  readonly list: T['list']
+  readonly limit: T['limit']
+  readonly kind: BlockFieldKind
+}
+
 const keyShape = /^[a-z][a-z0-9_]*$/
-const definitionKeyShape = /^[a-z][a-z0-9-]*$/
+
+/**
+ * Small letters, digits, hyphens and underscores: one application writes the
+ * key of a form with hyphens, the next with underscores, as it writes every
+ * key of its packages.
+ */
+const definitionKeyShape = /^[a-z][a-z0-9_-]*$/
+
+/** The keys an answer to a check point holds, and no other. */
+const checkPointKeys: readonly string[] = ['result', 'remark', 'photo']
+
+/** The longest id of a record a field may be about. */
+const longestRecordId = 64
 
 const numberFormats = new Map<number, Intl.NumberFormat>()
 
@@ -224,32 +266,78 @@ function isSignature(value: unknown): value is SignatureValue {
   )
 }
 
+/** The id of a file, as a photo field and a check point hold it. */
+function isPhoto(value: unknown): boolean {
+  return typeof value === 'string' && value.length > 0 && value.length <= 64
+}
+
+function isCheckPointAnswer(value: unknown): value is CheckPointValue {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (checkPointResults as readonly unknown[]).includes((value as CheckPointValue).result)
+  )
+}
+
+/**
+ * What is missing from an answer to a check point: the remark every answer
+ * but "in order" needs, the finding or the reason. Null when nothing is.
+ */
+function remarkMissing(label: string, value: unknown): string | null {
+  if (!isCheckPointAnswer(value) || value.result === 'ok') {
+    return null
+  }
+
+  if (typeof value.remark === 'string' && value.remark.trim() !== '') {
+    return null
+  }
+
+  const answer = checkPointResultLabel[value.result]
+
+  return value.result === 'not_ok'
+    ? `${label}: zu „${answer}“ fehlt die Bemerkung.`
+    : `${label}: zu „${answer}“ fehlt der Grund.`
+}
+
 function none(text: string): LimitVerdict {
   return { within: null, limitMilli: null, text, source: null }
 }
 
 /**
  * The engine for the forms of one application: its units, its lists, the
- * limits it works out and the keys its blocks keep their items under.
+ * limits it works out, the kinds of field it shows, the records a field may
+ * be about and the keys its blocks keep their items under.
  */
 export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): FormEngine<T> {
+  type E = Every<T>
+
   const keys = setup.blockKeys ?? { id: 'itemId', item: 'item' }
   const units = setup.units as Readonly<Record<string, FormUnit>>
   const lists = setup.lists as Readonly<Record<string, RepeatList>>
-  const limits = setup.limits as Readonly<Record<string, LimitCalculator<T>>>
+  const limits = setup.limits as unknown as Readonly<Record<string, LimitCalculator<E>>>
+  const shown: readonly string[] = setup.kinds
+  const records: readonly string[] = setup.records ?? []
   const unknownDefinition =
     setup.sentences?.unknownDefinition ?? 'Diese Fassung des Formulars ist hier nicht bekannt.'
   const freeBlockWithItem =
     setup.sentences?.freeBlockWithItem ??
     ((label: string) => `${label}: ein freier Block gehört zu keinem Eintrag einer Liste.`)
 
-  const listOf = (field: GroupField<T>): RepeatList | null =>
+  const listOf = (field: GroupField<E>): RepeatList | null =>
     field.repeat !== 'free' && Object.hasOwn(lists, field.repeat)
       ? (lists[field.repeat] ?? null)
       : null
 
   const unitOf = (unit: string): FormUnit | null =>
     Object.hasOwn(units, unit) ? (units[unit] ?? null) : null
+
+  /** Whether the application shows a field of this kind. */
+  const isShown = (kind: string): boolean =>
+    kind === 'signature' || kind === 'group' || shown.includes(kind)
+
+  /** Whether an answer to this field is needed before the form is signed. */
+  const needed = (field: FormField<E> | BlockField<E>): boolean =>
+    field.required === true || field.kind === 'check_point'
 
   const idOf = (block: GroupBlock): unknown =>
     (block as unknown as Record<string, unknown>)[keys.id]
@@ -263,7 +351,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     values: Readonly<Record<string, FieldValue>>,
   ): GroupBlock => ({ [keys.id]: id, [keys.item]: item, values }) as unknown as GroupBlock
 
-  function definitionProblems(definition: FormDefinition<T>): readonly string[] {
+  function definitionProblems(definition: FormDefinition<E>): readonly string[] {
     const problems: string[] = []
 
     if (typeof definition.key !== 'string' || !definitionKeyShape.test(definition.key)) {
@@ -287,10 +375,50 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     const seen = new Set<string>()
     const sections = new Set<string>()
 
-    const check = (field: FormField<T> | BlockField<T>, inGroup: boolean) => {
+    const pointerProblem = (field: FormField<E>, inGroup: boolean): string | null => {
+      // Read off any field: a definition out of a file may give one to a
+      // signature or a group, which the types do not allow.
+      const about = (field as { readonly about?: unknown }).about
+
+      if (about === undefined) {
+        return null
+      }
+
+      if (field.kind === 'signature' || field.kind === 'group') {
+        return `${definition.key}: ${field.key} zeigt auf einen Datensatz, das kann weder eine Unterschrift noch eine Gruppe.`
+      }
+
+      if (inGroup) {
+        return `${definition.key}: ${field.key} zeigt in einer Gruppe auf einen Datensatz, das kann nur ein Feld außerhalb einer Gruppe.`
+      }
+
+      if (
+        typeof about !== 'object' ||
+        about === null ||
+        !records.includes((about as { readonly kind?: unknown }).kind as string)
+      ) {
+        return `${definition.key}: ${field.key} zeigt auf eine Art von Datensatz, die es nicht gibt.`
+      }
+
+      const id = (about as { readonly id?: unknown }).id
+
+      return typeof id === 'string' && id.trim() !== '' && id.length <= longestRecordId
+        ? null
+        : `${definition.key}: ${field.key} zeigt auf einen Datensatz ohne Kennung.`
+    }
+
+    const check = (field: FormField<E>, inGroup: boolean) => {
       if (!(formFieldKinds as readonly string[]).includes(field.kind)) {
         problems.push(
           `${definition.key}: das Feld ${field.key} hat die Art ${String(field.kind)}, die es nicht gibt.`,
+        )
+
+        return
+      }
+
+      if (!isShown(field.kind)) {
+        problems.push(
+          `${definition.key}: das Feld ${field.key} hat die Art ${field.kind}, die diese Anwendung nicht zeigt.`,
         )
 
         return
@@ -312,6 +440,21 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         )
       }
 
+      if (
+        field.carry === true &&
+        (field.kind === 'check_point' || field.kind === 'meter_reading')
+      ) {
+        problems.push(
+          `${definition.key}: ${field.key} wird nicht übernommen, eine Antwort auf einen Prüfpunkt und ein Zählerstand gehören zu dem Tag, an dem sie entstanden sind.`,
+        )
+      }
+
+      if (field.kind === 'check_point' && field.required === false) {
+        problems.push(
+          `${definition.key}: der Prüfpunkt ${field.key} braucht immer eine Antwort, dafür gibt es „entfällt“ und „nicht möglich“.`,
+        )
+      }
+
       if (field.kind === 'choice' && field.options.length < 2) {
         problems.push(
           `${definition.key}: die Auswahl ${field.key} hat weniger als zwei Möglichkeiten.`,
@@ -328,12 +471,19 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         )
       }
 
-      if ((field.kind === 'number' || field.kind === 'measurement') && !unitOf(field.unit)) {
+      if (
+        (field.kind === 'number' ||
+          field.kind === 'measurement' ||
+          field.kind === 'meter_reading') &&
+        !unitOf(field.unit)
+      ) {
         problems.push(`${definition.key}: ${field.key} nennt eine Einheit, die es nicht gibt.`)
       }
 
       if (
-        (field.kind === 'number' || field.kind === 'measurement') &&
+        (field.kind === 'number' ||
+          field.kind === 'measurement' ||
+          field.kind === 'meter_reading') &&
         (!Number.isInteger(field.decimals) || field.decimals < 0 || field.decimals > 3)
       ) {
         problems.push(`${definition.key}: ${field.key} zeigt null bis drei Nachkommastellen.`)
@@ -351,6 +501,12 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
             `${definition.key}: der Grenzwert von ${field.key} ist von einer Art, die es nicht gibt.`,
           )
         }
+      }
+
+      const pointer = pointerProblem(field, inGroup)
+
+      if (pointer !== null) {
+        problems.push(pointer)
       }
 
       if (field.kind === 'group') {
@@ -412,7 +568,41 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     return problems
   }
 
-  function valueProblem(field: BlockField<T> | SignatureField, value: unknown): string | null {
+  function checkPointProblem(field: CheckPointField, value: unknown): string | null {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+      return `${field.label}: in Ordnung, nicht in Ordnung, entfällt oder nicht möglich.`
+    }
+
+    const answer = value as Readonly<Record<string, unknown>>
+
+    if (Object.keys(answer).some((key) => !checkPointKeys.includes(key))) {
+      return `${field.label}: ein Prüfpunkt hält eine Antwort, eine Bemerkung und ein Foto.`
+    }
+
+    if (!(checkPointResults as readonly unknown[]).includes(answer['result'])) {
+      return `${field.label}: in Ordnung, nicht in Ordnung, entfällt oder nicht möglich.`
+    }
+
+    const remark = answer['remark']
+
+    if (remark !== undefined && (typeof remark !== 'string' || remark.length > longestFormText)) {
+      return `${field.label}: eine Bemerkung mit höchstens ${String(longestFormText)} Zeichen.`
+    }
+
+    if (answer['photo'] !== undefined && !isPhoto(answer['photo'])) {
+      return `${field.label}: ein Foto aus den Dateien.`
+    }
+
+    return null
+  }
+
+  function valueProblem(field: BlockField<E> | SignatureField, value: unknown): string | null {
+    if (!isShown(field.kind)) {
+      // A kind the application does not show, out of a definition nobody
+      // checked: refused like one a newer build knows.
+      return `${field.label}: dieses Feld kennt dieser Stand nicht.`
+    }
+
     switch (field.kind) {
       case 'text':
         return typeof value === 'string' && value.length <= longestFormText
@@ -420,6 +610,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
           : `${field.label}: ein Text mit höchstens ${String(longestFormText)} Zeichen.`
       case 'number':
       case 'measurement':
+      case 'meter_reading':
         return typeof value === 'number' && Number.isInteger(value) && Math.abs(value) < 1e15
           ? null
           : `${field.label}: eine Zahl.`
@@ -430,9 +621,9 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       case 'yes_no':
         return typeof value === 'boolean' ? null : `${field.label}: ja oder nein.`
       case 'photo':
-        return typeof value === 'string' && value.length > 0 && value.length <= 64
-          ? null
-          : `${field.label}: ein Foto aus den Dateien.`
+        return isPhoto(value) ? null : `${field.label}: ein Foto aus den Dateien.`
+      case 'check_point':
+        return checkPointProblem(field, value)
       case 'signature': {
         if (!isSignature(value)) {
           return `${field.label}: eine Unterschrift mit Namen.`
@@ -451,7 +642,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     }
   }
 
-  function groupProblem(field: GroupField<T>, value: unknown): string | null {
+  function groupProblem(field: GroupField<E>, value: unknown): string | null {
     if (!Array.isArray(value)) {
       return `${field.label}: eine Liste von Blöcken.`
     }
@@ -509,7 +700,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     return null
   }
 
-  function valuesProblem(definition: FormDefinition<T>, values: unknown): string | null {
+  function valuesProblem(definition: FormDefinition<E>, values: unknown): string | null {
     if (typeof values !== 'object' || values === null || Array.isArray(values)) {
       return 'Die Werte eines Formulars sind eine Zuordnung von Feldern zu Werten.'
     }
@@ -535,7 +726,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
   }
 
   /** Whether a field holds something, for a group whether it has any block. */
-  function filled(field: FormField<T>, value: FormValue | undefined): boolean {
+  function filled(field: FormField<E>, value: FormValue | undefined): boolean {
     if (value === undefined) {
       return false
     }
@@ -544,7 +735,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
   }
 
   function sealProblems(
-    definition: FormDefinition<T>,
+    definition: FormDefinition<E>,
     values: FormValues,
     { seal = true }: { readonly seal?: boolean } = {},
   ): readonly string[] {
@@ -553,8 +744,14 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     for (const field of fieldsOf(definition)) {
       const value = values[field.key]
 
-      if (field.required && !filled(field, value)) {
+      if (needed(field) && !filled(field, value)) {
         missing.push(`${field.label} fehlt.`)
+      }
+
+      const remark = field.kind === 'check_point' ? remarkMissing(field.label, value) : null
+
+      if (remark !== null) {
+        missing.push(remark)
       }
 
       if (seal && field.kind === 'signature' && field.seals && value === undefined) {
@@ -563,9 +760,22 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
 
       if (field.kind === 'group' && Array.isArray(value)) {
         for (const [index, block] of (value as readonly GroupBlock[]).entries()) {
+          const where = `${field.label}, Block ${String(index + 1)}`
+
           for (const nested of field.fields) {
-            if (nested.required && block.values[nested.key] === undefined) {
-              missing.push(`${field.label}, Block ${String(index + 1)}: ${nested.label} fehlt.`)
+            const nestedValue = block.values[nested.key]
+
+            if (needed(nested) && nestedValue === undefined) {
+              missing.push(`${where}: ${nested.label} fehlt.`)
+            }
+
+            const nestedRemark =
+              nested.kind === 'check_point'
+                ? remarkMissing(`${where}: ${nested.label}`, nestedValue)
+                : null
+
+            if (nestedRemark !== null) {
+              missing.push(nestedRemark)
             }
           }
         }
@@ -575,7 +785,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     return missing
   }
 
-  function sealingField(definition: FormDefinition<T>): SignatureField | null {
+  function sealingField(definition: FormDefinition<E>): SignatureField | null {
     const found = fieldsOf(definition).find(
       (field): field is SignatureField => field.kind === 'signature' && field.seals === true,
     )
@@ -598,10 +808,14 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     return [...current, ...gone]
   }
 
-  function templateValues(definition: FormDefinition<T>, values: FormValues): FormValues {
+  function templateValues(definition: FormDefinition<E>, values: FormValues): FormValues {
     const kept: Record<string, FormValue> = {}
-    const carries = (field: FormField<T> | BlockField<T>) =>
-      field.carry === true && field.kind !== 'measurement' && field.kind !== 'signature'
+    const carries = (field: FormField<E>) =>
+      field.carry === true &&
+      field.kind !== 'measurement' &&
+      field.kind !== 'signature' &&
+      field.kind !== 'check_point' &&
+      field.kind !== 'meter_reading'
 
     for (const field of fieldsOf(definition)) {
       const value = values[field.key]
@@ -657,7 +871,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
   }
 
   function limitVerdict(
-    field: MeasurementField<T>,
+    field: MeasurementField<E>,
     measuredMilli: number | null,
     context: { readonly rules: RuleSet; readonly on: IsoDate; readonly item?: unknown },
   ): LimitVerdict {
@@ -707,11 +921,11 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     // side: 2,875 as "höchstens 2,87", never 2,88, or a measured 2,88 would be
     // outside a limit that reads like it.
     const step = 10 ** Math.max(0, 3 - field.decimals)
-    const shown = atLeast
+    const shownLimit = atLeast
       ? Math.ceil(limitMilli / step) * step
       : Math.floor(limitMilli / step) * step
     const stated = `${atLeast ? 'mindestens' : 'höchstens'} ${formatMeasured(
-      shown,
+      shownLimit,
       field.unit,
       field.decimals,
     )}`
@@ -733,7 +947,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
   }
 
   function formRecordProblem(
-    registry: FormRegistry<FormDefinition<T>>,
+    registry: FormRegistry<FormDefinition<E>>,
     record: FilledForm,
   ): string | null {
     const definition =
@@ -772,7 +986,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     return null
   }
 
-  return {
+  const engine: FormEngine<E> = {
     definitionProblems,
     valueProblem,
     valuesProblem,
@@ -784,4 +998,9 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     limitVerdict,
     formRecordProblem,
   }
+
+  // The engine reads every kind, the application is handed the ones it
+  // shows: a definition of its own terms is one of these, so the functions
+  // take it as they are.
+  return engine as unknown as FormEngine<T>
 }

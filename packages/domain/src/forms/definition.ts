@@ -10,7 +10,7 @@ import type {
   NumberField as GeneralNumberField,
 } from '@opengewerk/platform-domain'
 
-import { tradeForms } from './engine.js'
+import { type tradeFieldKinds, tradeForms } from './engine.js'
 import type { MeasurementUnit } from './units.js'
 
 /**
@@ -44,14 +44,15 @@ export {
 
 /**
  * What the forms of this application name: its units, the circuits a group
- * repeats over, and the two limits worked out of a circuit, the loop
- * impedance from its protective device and the tripping current from its
- * residual current device.
+ * repeats over, the two limits worked out of a circuit, the loop impedance
+ * from its protective device and the tripping current from its residual
+ * current device, and the kinds of field it shows.
  */
 export interface TradeFormTerms {
   readonly unit: MeasurementUnit
   readonly list: 'circuits'
   readonly limit: 'loop_impedance' | 'rcd_trip_current'
+  readonly kind: (typeof tradeFieldKinds)[number]
 }
 
 export type LimitSpec = GeneralLimitSpec<TradeFormTerms>

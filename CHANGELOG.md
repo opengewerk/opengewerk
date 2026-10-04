@@ -855,6 +855,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   einem Feld, das erst eine spätere Fassung kennt, lehnt sie mit einem Satz ab, statt ihn
   durchzulassen. Die Regel für den Namen unter einer Unterschrift steht seitdem ebenfalls im
   Fundament. Sonst ändert sich hier nichts.
+- Die Formular-Engine des Fundaments kennt Prüfpunkt und Zählerstand und ein Feld, das auf einen
+  Datensatz zeigt (ADR 0010, `opengewerk-haustechnik#28`, zweiter Teil), weil die Rundgänge und
+  Wartungsprotokolle der Haustechnik aus solchen Punkten bestehen. Ein Prüfpunkt hat die Antworten
+  "in Ordnung", "nicht in Ordnung", "entfällt" und "nicht möglich", jede außer der ersten mit einer
+  Bemerkung, dazu auf Wunsch ein Foto; unterschrieben wird erst, wenn jeder Prüfpunkt eine Antwort
+  hat, und das lässt sich in keiner Definition abschalten. Gespeichert werden darf eine Antwort
+  schon vor ihrer Bemerkung, weil jede Eingabe sofort auf dem Gerät gesichert wird. Ein Zählerstand
+  ist ein Wert in Tausendsteln seiner Einheit. Ein Feld außerhalb einer Gruppe kann auf einen
+  Datensatz zeigen, mit einer Art aus der Liste der Anwendung und der Kennung; was daraus folgt,
+  etwa ein Mangel an genau dieser Anlage, entscheidet die Anwendung. Welche Arten von Feldern ihre
+  Bildschirme zeigen, sagt jede Anwendung der Engine selbst, wie ihre Einheiten; die
+  Handwerkersoftware nennt die sechs, die sie hat, und eine Definition mit einem Prüfpunkt lehnt sie
+  ab, statt ihn nicht anzeigen zu können. Der Schlüssel eines Formulars darf neben Bindestrichen
+  auch Unterstriche tragen, wie jeder Schlüssel in den Paketen der Haustechnik. Hier ändert sich
+  sonst nichts.
 
 ### Behoben
 

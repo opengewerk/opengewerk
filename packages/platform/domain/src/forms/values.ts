@@ -5,14 +5,38 @@ export interface SignatureValue {
   readonly signedAt: string
 }
 
+/** The answers a check point takes, in the order a form offers them. */
+export const checkPointResults = ['ok', 'not_ok', 'not_applicable', 'not_possible'] as const
+
+export type CheckPointResult = (typeof checkPointResults)[number]
+
+/** The answers of a check point as a person reads them, on screen and on paper. */
+export const checkPointResultLabel: Readonly<Record<CheckPointResult, string>> = {
+  ok: 'in Ordnung',
+  not_ok: 'nicht in Ordnung',
+  not_applicable: 'entfällt',
+  not_possible: 'nicht möglich',
+}
+
 /**
- * The value of one field as a filled form holds it. Numbers and measured
- * values are whole thousandths of their unit, like every figure in the
+ * The answer to a check point: its result, the remark that says what was
+ * found or why it was not checked, and a photo where somebody took one, the
+ * id of a file like the value of a photo field.
+ */
+export interface CheckPointValue {
+  readonly result: CheckPointResult
+  readonly remark?: string
+  readonly photo?: string
+}
+
+/**
+ * The value of one field as a filled form holds it. Numbers, measured values
+ * and readings are whole thousandths of their unit, like every figure in the
  * applications of the organisation: 0,85 Ω is 850. A photo is the id of a
  * file of what the form hangs on. Nothing filled in is the key left out, not
  * an empty value.
  */
-export type FieldValue = string | number | boolean | SignatureValue
+export type FieldValue = string | number | boolean | SignatureValue | CheckPointValue
 
 /**
  * One block of a repeating group: its own values, and, for a group over a
