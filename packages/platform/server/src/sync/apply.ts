@@ -589,25 +589,49 @@ async function record(
 /** A conflict as the table keeps it. */
 export type SyncConflictRow = typeof syncConflicts.$inferSelect
 
-/** The conflicts somebody still has to decide, oldest first. */
-export async function openConflicts(tx: TenantTransaction): Promise<SyncConflictRow[]> {
+/**
+ * The conflicts one device still has to decide, oldest first.
+ *
+ * Only that device's, never the tenant's. A conflict carries the values the
+ * device wanted to write, the ones it had seen and the ones the server found,
+ * and the person who decides it is the one whose change it was (ADR 0005).
+ * Listing them for everybody with the right to sync handed out values of
+ * records a device is no longer given since it holds only its part of the
+ * tenant, and let anyone mark somebody else's conflict decided
+ * (GHSA-4jfj-cxqw-qgpj, opengewerk-haustechnik#31).
+ */
+export async function openConflicts(
+  tx: TenantTransaction,
+  deviceId: string,
+): Promise<SyncConflictRow[]> {
   return await tx
     .select()
     .from(syncConflicts)
-    .where(isNull(syncConflicts.resolvedAt))
+    .where(and(isNull(syncConflicts.resolvedAt), eq(syncConflicts.deviceId, deviceId as never)))
     .orderBy(asc(syncConflicts.recordedAt))
 }
 
 /**
- * Marks a conflict as decided. What the decision was is a change like any
- * other and comes through the ordinary routes; this only says that nobody has
- * to look at it again.
+ * Marks a conflict of this device as decided. What the decision was is a
+ * change like any other and comes through the ordinary routes; this only says
+ * that nobody has to look at it again. A conflict of another device is not
+ * found, as if it did not exist.
  */
-export async function closeConflict(tx: TenantTransaction, id: string): Promise<boolean> {
+export async function closeConflict(
+  tx: TenantTransaction,
+  id: string,
+  deviceId: string,
+): Promise<boolean> {
   const closed = await tx
     .update(syncConflicts)
     .set({ resolvedAt: new Date() })
-    .where(and(eq(syncConflicts.id, id as never), isNull(syncConflicts.resolvedAt)))
+    .where(
+      and(
+        eq(syncConflicts.id, id as never),
+        eq(syncConflicts.deviceId, deviceId as never),
+        isNull(syncConflicts.resolvedAt),
+      ),
+    )
     .returning({ id: syncConflicts.id })
 
   return closed.length > 0

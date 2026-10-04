@@ -719,63 +719,80 @@ describe('taking what has changed', () => {
   })
 })
 
+/** The same somebody, in a session opened on one device. */
+function on(who: string, deviceId: string): string {
+  return JSON.stringify({ ...(JSON.parse(who) as Record<string, unknown>), deviceId })
+}
+
+function conflictsOf(who: string) {
+  return request(app.getHttpServer()).get('/sync/conflicts').set(testIdentityHeader, who)
+}
+
+function resolveAs(who: string, id: string) {
+  return request(app.getHttpServer())
+    .post(`/sync/conflicts/${id}/resolve`)
+    .set(testIdentityHeader, who)
+}
+
 describe('the conflicts', () => {
-  it('lists what somebody has to decide, closes it once, and only in its own tenant', async () => {
+  /**
+   * A conflict is the device's whose change it was, and the person on it
+   * decides (ADR 0005). Listed for everybody who may sync, it handed out the
+   * values of records a device is no longer given since it holds only its
+   * part of the tenant, and anybody could mark it decided
+   * (GHSA-4jfj-cxqw-qgpj, opengewerk-haustechnik#31).
+   */
+  it('lists what a device has to decide and closes it once, for that device alone', async () => {
     const { shelfId } = await shelfWithNote('Keller', 'Zähler ablesen')
 
     // A shelf is corrected with a connection, not from a device.
-    const sent = await push(lena(), [
-      operation({
-        entity: 'shelves',
-        recordId: shelfId,
-        kind: 'update',
-        patches: [{ field: 'label', from: 'Keller', to: 'Dachboden' }],
-      }),
-    ]).expect(201)
+    const sent = await push(
+      on(lena(), 'lenas-phone'),
+      [
+        operation({
+          entity: 'shelves',
+          recordId: shelfId,
+          kind: 'update',
+          patches: [{ field: 'label', from: 'Keller', to: 'Dachboden' }],
+        }),
+      ],
+      'lenas-phone',
+    ).expect(201)
 
     expect(
       (sent.body as { receipts: { outcome: string; reason: string }[] }).receipts,
     ).toMatchObject([{ outcome: 'conflict', reason: 'online_only' }])
 
-    const listed = (
-      await request(app.getHttpServer())
-        .get('/sync/conflicts')
-        .set(testIdentityHeader, olga())
-        .expect(200)
-    ).body as { id: string; entity: string; recordId: string; reason: string }[]
+    const listed = (await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body as {
+      id: string
+      entity: string
+      recordId: string
+      reason: string
+    }[]
 
     expect(listed).toMatchObject([{ entity: 'shelves', recordId: shelfId, reason: 'online_only' }])
 
     const id = listed[0]?.id ?? ''
 
-    // Not from the tenant next door, which does not even learn it exists.
-    await request(app.getHttpServer())
-      .post(`/sync/conflicts/${id}/resolve`)
-      .set(testIdentityHeader, olga(south.id))
-      .expect(404)
-    await request(app.getHttpServer())
-      .post(`/sync/conflicts/${id}/resolve`)
-      .set(testIdentityHeader, gustav())
-      .expect(403)
+    // Another device of the tenant neither sees it nor closes it, whoever is
+    // on it: somebody else, the same person on a second device, or a session
+    // that was never opened as a device.
+    for (const elsewhere of [on(olga(), 'olgas-phone'), on(lena(), 'lenas-tablet'), olga()]) {
+      expect((await conflictsOf(elsewhere).expect(200)).body).toEqual([])
+      await resolveAs(elsewhere, id).expect(404)
+    }
 
-    const resolved = await request(app.getHttpServer())
-      .post(`/sync/conflicts/${id}/resolve`)
-      .set(testIdentityHeader, olga())
-      .expect(201)
+    // Not from the tenant next door either, which does not even learn it
+    // exists, and not without the right to write.
+    await resolveAs(on(olga(south.id), 'lenas-phone'), id).expect(404)
+    await resolveAs(on(gustav(), 'lenas-phone'), id).expect(403)
+
+    const resolved = await resolveAs(on(lena(), 'lenas-phone'), id).expect(201)
 
     expect(resolved.body).toEqual({ resolved: id })
 
-    await request(app.getHttpServer())
-      .post(`/sync/conflicts/${id}/resolve`)
-      .set(testIdentityHeader, olga())
-      .expect(404)
-
-    const left = await request(app.getHttpServer())
-      .get('/sync/conflicts')
-      .set(testIdentityHeader, olga())
-      .expect(200)
-
-    expect(left.body).toEqual([])
+    await resolveAs(on(lena(), 'lenas-phone'), id).expect(404)
+    expect((await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body).toEqual([])
   })
 })
 

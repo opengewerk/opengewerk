@@ -27,7 +27,7 @@ import { instanceIsEmpty, setUpInstance } from './setup.js'
 import { normalizeSetupCode, SetupAttempts, setupCodesMatch } from './setup-code.js'
 
 /** How long a caller waits after a first run that failed before the next one. */
-const restAfterFailure = 2000
+export const restAfterFailure = 2000
 
 /**
  * The way into an instance that has never been used.

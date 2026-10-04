@@ -916,6 +916,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Die Konfliktliste des Abgleichs zeigt jedem Gerät nur noch seine eigenen Konflikte, und nur das
+  Gerät, dessen Änderung es war, markiert einen als entschieden (GHSA-4jfj-cxqw-qgpj,
+  `opengewerk-haustechnik#31`). Bisher bekam jeder im Betrieb mit dem Recht zum Abgleich, also
+  auch ein Monteur, alle offenen Konflikte des Betriebs, und eine Konfliktzeile trägt die Werte,
+  die ein Gerät schreiben wollte, gesehen hatte und vorfand. So ließen sich Werte aus Datensätzen
+  lesen, die ein Gerät seit #140 nicht mehr bekommt, etwa aus dem Zeiteintrag einer anderen
+  Person, und ein fremder Konflikt ließ sich schließen, bevor sein Gerät ihn gezeigt hatte.
+  Betroffen sind 0.1.0 bis 0.4.0. Das Gerät ist das der Sitzung; eine Sitzung, die nicht als
+  Gerät angemeldet ist, hat keine Konflikte.
 - Ein Konto, das es auf der Instanz schon gibt, tritt einer Einladung nur noch angemeldet als
   dieses Konto bei (`opengewerk-haustechnik#31`). Bisher genügte der Link allein, und den hält bei
   einer Einladung ohne E-Mail die Leitung, die eingeladen hat: auf einer Instanz mit mehreren
