@@ -1,5 +1,5 @@
 import { encode } from 'uqr'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { openCamera, openCodeReader } from './barcode.js'
 
@@ -7,6 +7,14 @@ import { openCamera, openCodeReader } from './barcode.js'
  * Where a code on a label is read: by the detector of the browser where it has
  * one, and otherwise by the reader in JavaScript, loaded when it is needed.
  */
+
+// The reader in JavaScript is a large module. Loading it the first time took
+// longer than a test may whenever every package ran its tests at once, and the
+// first test that falls back to it ran out of time twice while it was green on
+// its own. Loaded once here, with time of its own, it costs the tests nothing.
+beforeAll(async () => {
+  await import('@zxing/browser')
+}, 60_000)
 
 afterEach(() => {
   vi.unstubAllGlobals()
