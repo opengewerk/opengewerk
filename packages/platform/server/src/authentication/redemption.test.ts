@@ -4,6 +4,7 @@ import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { newId } from '../database/identifier.js'
+import { standingInLine } from '../database/test-database.js'
 import { auditEntries, invitations } from '../schema.js'
 import { mintToken } from './invitation.js'
 import {
@@ -84,28 +85,6 @@ async function rolesIn(tenantId: TenantId, email: string): Promise<readonly stri
   )
 
   return rows[0]?.roles
-}
-
-/** Waits until this many sessions stand in line for a row somebody else holds. */
-async function standingInLine(sessions: number): Promise<void> {
-  const deadline = Date.now() + 10_000
-
-  for (;;) {
-    const { rows } = await admin.query<{ waiting: number }>(
-      `select count(*)::int as waiting from pg_stat_activity
-        where datname = current_database() and wait_event_type = 'Lock'`,
-    )
-
-    if ((rows[0]?.waiting ?? 0) >= sessions) {
-      return
-    }
-
-    if (Date.now() > deadline) {
-      throw new Error(`Fewer than ${String(sessions)} sessions came to wait for the row.`)
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 20))
-  }
 }
 
 beforeAll(async () => {
@@ -357,7 +336,7 @@ describe('using a link', () => {
 
       const both = Promise.all([redeem(token, {}, own), redeem(token, {}, own)])
 
-      await standingInLine(2)
+      await standingInLine(admin, 2)
       await holder.query('commit')
 
       const answers = await both
@@ -378,16 +357,36 @@ describe('using a link', () => {
   /**
    * The same for somebody new. Here the second one is stopped a step earlier,
    * by the account it would make a second time, and leaves nothing behind
-   * either: one account, one membership.
+   * either: one account, one membership. It is told the same as above. Until
+   * #474 the refusal of the key on the address went out as a 400 that spoke of
+   * a form not fitting the data model.
+   *
+   * Held the same way: the first has made the account and waits to mark the
+   * link, the second waits at the key on the address for the first.
    */
-  it('makes one account when a link for somebody new is used twice at the same moment', async () => {
+  it('makes one account when a link for somebody new is used twice at the same moment, and says so', async () => {
     const token = await invite({ email: 'zweimal@example.de', name: 'Zoe Zweimal' })
-    const answers = await Promise.all([redeem(token), redeem(token)])
-    const statuses = answers.map((answer) => answer.status).sort()
+    const holder = await admin.connect()
 
-    expect(statuses[0]).toBe(201)
-    expect(statuses[1]).toBeGreaterThanOrEqual(400)
-    expect(statuses[1]).toBeLessThan(500)
+    try {
+      await holder.query('begin')
+      await holder.query(`select id from invitations where email = 'zweimal@example.de' for update`)
+
+      const both = Promise.all([redeem(token), redeem(token)])
+
+      await standingInLine(admin, 2)
+      await holder.query('commit')
+
+      const answers = await both
+
+      expect(answers.map((answer) => answer.status).sort()).toEqual([201, 409])
+      expect(answers.find((answer) => answer.status === 409)?.body.message).toBe(
+        'Dieser Link wurde gerade eben schon benutzt.',
+      )
+    } finally {
+      await holder.query('rollback')
+      holder.release()
+    }
 
     const { rows } = await admin.query<{ accounts: number; members: number }>(
       `select (select count(*) from auth_users where email = 'zweimal@example.de')::int as accounts,
@@ -396,6 +395,47 @@ describe('using a link', () => {
     )
 
     expect(rows).toEqual([{ accounts: 1, members: 1 }])
+  })
+
+  /**
+   * The key on the address is everybody's, not this link's. When it refuses
+   * because the account came from somewhere else in the same moment, the link
+   * was not used and must not be said to be: it stays good, and the next
+   * attempt finds the account and asks to sign in with it.
+   */
+  it('stays good when the account of its address is made by something else in the same moment', async () => {
+    const token = await invite({ email: 'zugleich@example.de', name: 'Zita Zugleich' })
+    const holder = await admin.connect()
+
+    try {
+      // The account as a command on the server would make it, not committed yet.
+      await holder.query('begin')
+      await holder.query(
+        `insert into auth_users (id, name, email) values ('user-zugleich', 'Zita Zugleich', 'zugleich@example.de')`,
+      )
+
+      // A request goes out when somebody waits for its answer, so the wait
+      // begins here and not at the `await` further down.
+      const redeeming = redeem(token).then((answer) => answer)
+
+      await standingInLine(admin, 1)
+      await holder.query('commit')
+
+      const answer = await redeeming
+
+      expect(answer.status).toBe(409)
+      expect(answer.body.message).toBe(
+        'Für diese Adresse ist im selben Moment ein Konto entstanden. Öffnen Sie den Link bitte noch einmal.',
+      )
+    } finally {
+      await holder.query('rollback')
+      holder.release()
+    }
+
+    expect((await http().get(`/invitation/${token}`).expect(200)).body.state).toBe('open')
+    expect(await rolesIn(north.id, 'zugleich@example.de')).toBeUndefined()
+    // And the next attempt meets the account: sign in first.
+    expect((await redeem(token)).status).toBe(401)
   })
 
   /**

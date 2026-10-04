@@ -8,6 +8,7 @@ import {
 import type { TenantId } from '@opengewerk/platform-domain'
 import { eq, sql } from 'drizzle-orm'
 
+import { isUniqueViolation } from '../api/database-errors.js'
 import type { Database, StraddlingTransaction } from '../database/database.js'
 import { authUsers, invitations } from '../schema.js'
 import type { AccessRules } from './access.js'
@@ -196,47 +197,91 @@ export async function redeemInvitation(
   const tenantId = row.business as TenantId
   const roles = row.invited_roles
 
-  const created = await database.forInstanceAndTenant(
-    'invitation.redeem',
-    async ({ tx, enter }: StraddlingTransaction) => {
-      const account = await createAccount(context, tx, {
-        email: row.invited_email,
-        name: row.invited_name,
-        // Ignored when the account is already there, which is the case
-        // `accountId` stands for. The empty string never reaches a hasher:
-        // `createAccount` returns before it gets that far.
-        password: password ?? '',
-      })
+  const created = await redeemedOnce(database, token, accountId === null, () =>
+    database.forInstanceAndTenant(
+      'invitation.redeem',
+      async ({ tx, enter }: StraddlingTransaction) => {
+        const account = await createAccount(context, tx, {
+          email: row.invited_email,
+          name: row.invited_name,
+          // Ignored when the account is already there, which is the case
+          // `accountId` stands for. The empty string never reaches a hasher:
+          // `createAccount` returns before it gets that far.
+          password: password ?? '',
+        })
 
-      // Inside the tenant from here on, as the person who is joining it. So
-      // both rows below land in this tenant's audit log with their name on
-      // them, which is the honest answer to "how did this person get in".
-      await enter(tenantId, account.userId)
+        // Inside the tenant from here on, as the person who is joining it. So
+        // both rows below land in this tenant's audit log with their name on
+        // them, which is the honest answer to "how did this person get in".
+        await enter(tenantId, account.userId)
 
-      const used = await tx
-        .update(invitations)
-        .set({ redeemedAt: new Date(), updatedAt: new Date() })
-        .where(
-          sql`${invitations.id} = ${row.invitation_id}
+        const used = await tx
+          .update(invitations)
+          .set({ redeemedAt: new Date(), updatedAt: new Date() })
+          .where(
+            sql`${invitations.id} = ${row.invitation_id}
             and ${invitations.redeemedAt} is null
             and ${invitations.revokedAt} is null
             and ${invitations.expiresAt} > now()`,
-        )
-        .returning({ id: invitations.id })
+          )
+          .returning({ id: invitations.id })
 
-      if (used.length === 0) {
-        // Somebody else got here first, in the moment between the lookup above
-        // and this statement. Throwing rolls the account back with it.
-        throw new ConflictException('Dieser Link wurde gerade eben schon benutzt.')
-      }
+        if (used.length === 0) {
+          // Somebody else got here first, in the moment between the lookup above
+          // and this statement. Throwing rolls the account back with it.
+          throw new ConflictException('Dieser Link wurde gerade eben schon benutzt.')
+        }
 
-      await grantMembership(tx, { tenantId, userId: account.userId, roles })
+        await grantMembership(tx, { tenantId, userId: account.userId, roles })
 
-      return account.created
-    },
+        return account.created
+      },
+    ),
   )
 
   return { tenantId, company: row.company, email: row.invited_email, created }
+}
+
+/** The key that keeps an address to one account, as the schema names it. */
+const oneAccountPerAddress = 'auth_users_email_unique'
+
+/**
+ * Answers a second redemption of a link for somebody new the way the mark
+ * answers one for an account that is there already.
+ *
+ * For somebody new the two transactions never get as far as the mark. Both
+ * make the same account, the second waits at the key on the address and is
+ * refused by it the moment the first commits. Nothing is left behind, and
+ * unanswered here the refusal went out as a 400 with the sentence for a form
+ * that does not fit the data model, to somebody who tapped a link twice.
+ *
+ * So the link is looked at again. Used by now, it is the conflict the mark
+ * would have reported. Still open, the account came from somewhere else in
+ * the same moment, another link for the same address or a command on the
+ * server, and the link is as good as before: the next attempt finds the
+ * account and asks to sign in with it.
+ */
+async function redeemedOnce<Result>(
+  database: Database,
+  token: string,
+  makesTheAccount: boolean,
+  redeem: () => Promise<Result>,
+): Promise<Result> {
+  try {
+    return await redeem()
+  } catch (error) {
+    if (!makesTheAccount || !isUniqueViolation(error, oneAccountPerAddress)) {
+      throw error
+    }
+
+    const found = await lookUp(database, token)
+
+    throw new ConflictException(
+      found !== null && stateOf(found.row) === 'open'
+        ? 'Für diese Adresse ist im selben Moment ein Konto entstanden. Öffnen Sie den Link bitte noch einmal.'
+        : 'Dieser Link wurde gerade eben schon benutzt.',
+    )
+  }
 }
 
 /**

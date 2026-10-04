@@ -624,6 +624,15 @@ async function membershipOf(
  * any more, and an earlier draft of this file refused every operation on
  * one's own row and thereby made the only case that matters unreachable.
  * Working on one's own row is allowed and this is the fence.
+ *
+ * Before it counts, it locks what it counts: the memberships of the tenant
+ * that lead it, in one order. Asked without the lock, two who lead a tenant
+ * could take the role off each other in the same moment (#478). Each
+ * transaction still read the other person as leading, counted one left over
+ * and wrote, and afterwards nobody led the tenant. With the lock the second
+ * one waits until the first is done, reads the rows as they are then and is
+ * refused. The same holds for two who step down or shut each other out at
+ * once, since both ways come through here.
  */
 async function refuseIfLastLead(
   access: Pick<AccessRules, 'sentences'>,
@@ -631,6 +640,13 @@ async function refuseIfLastLead(
   tenantId: TenantId,
   userId: string,
 ): Promise<void> {
+  await tx
+    .select({ userId: memberships.userId })
+    .from(memberships)
+    .where(and(eq(memberships.tenantId, tenantId), leadsItsTenant()))
+    .orderBy(memberships.userId)
+    .for('update')
+
   const [row] = await tx
     .select({ others: count() })
     .from(memberships)
