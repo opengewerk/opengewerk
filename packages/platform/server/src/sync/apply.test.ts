@@ -12,11 +12,13 @@ import {
   openConflicts,
   serverSync,
   type SyncCheck,
+  type SyncCheckContext,
   UnknownFieldError,
 } from './apply.js'
 import {
   letterLines,
   letters,
+  letterSeals,
   notes,
   nothing,
   probeSyncMade,
@@ -79,9 +81,57 @@ const privateText: SyncCheck<Courier> = ({ operation, values }) => {
 /** Who sent a note, written into nothing but this list, so that a test can see the sender arrive. */
 const senders: string[] = []
 
+/**
+ * What followed a written operation, in the order it was written: the entity,
+ * the kind and what the operation wrote of its text, its total or its seal.
+ */
+const followed: string[] = []
+
+/**
+ * What follows a seal, as an application follows a signature: the letter is
+ * sealed in the same transaction, and takes no second seal. A letter nobody
+ * can deliver is refused only then, from what the seal writes.
+ */
+async function sealTheLetter({ tx, operation, values }: SyncCheckContext<Courier>) {
+  followed.push(
+    [
+      operation.entity,
+      operation.kind,
+      String(values['text'] ?? values['total'] ?? values['sealedBy'] ?? ''),
+    ].join(':'),
+  )
+
+  if (operation.entity !== 'letter_seals') {
+    return
+  }
+
+  // The seal is written by now and found, as an application counts the
+  // signatures of a record with the new one among them.
+  const [seal] = await tx
+    .select({ id: letterSeals.id })
+    .from(letterSeals)
+    .where(eq(letterSeals.id, operation.recordId as never))
+
+  if (!seal) {
+    throw new Error('The seal is not written yet')
+  }
+
+  const letterId = values['letterId'] as never
+  const [letter] = await tx
+    .select({ subject: letters.subject })
+    .from(letters)
+    .where(eq(letters.id, letterId))
+
+  if (letter?.subject === 'Unzustellbar') {
+    throw new Error('Dieser Brief lässt sich nicht zustellen.')
+  }
+
+  await tx.update(letters).set({ status: 'sealed' }).where(eq(letters.id, letterId))
+}
+
 const sync = serverSync<Courier>({
   rules: probeSyncRules,
-  tables: syncTables({ shelves, notes, letters, letterLines }),
+  tables: syncTables({ shelves, notes, letters, letterLines, letterSeals }),
   checks: [
     noteText,
     ({ operation, sender }) => {
@@ -94,7 +144,12 @@ const sync = serverSync<Courier>({
     closedShelf,
     privateText,
   ],
-  complete: ({ operation, values, current }) => {
+  complete: ({ operation, values, current, sender }) => {
+    if (operation.entity === 'letter_seals') {
+      // Named after whoever sent it, whatever a device says.
+      return { ...values, sealedBy: sender.name }
+    }
+
     if (operation.entity !== 'letter_lines') {
       return values
     }
@@ -104,6 +159,7 @@ const sync = serverSync<Courier>({
 
     return { ...values, total: quantity * price }
   },
+  afterWrite: sealTheLetter,
 })
 
 let foundation: ProbeFoundation
@@ -158,6 +214,7 @@ beforeEach(async () => {
   await foundation.empty(admin)
   await foundation.tenants(admin, [north, south])
   senders.length = 0
+  followed.length = 0
 })
 
 afterAll(async () => {
@@ -575,6 +632,173 @@ describe('what the application asks of an operation', () => {
 
     expect((refused as OperationRefused).cause).toBeInstanceOf(UnknownFieldError)
     expect((refused as OperationRefused).message).toBe('Unbekanntes Feld: colour')
+  })
+})
+
+describe('what follows a written operation', () => {
+  /** A letter and a seal on it, as a device sends them in one transmission. */
+  function letterWithSeal(subject: string, sealedBy?: string) {
+    const letterId = newId<'letter'>()
+    const sealId = newId<'letter-seal'>()
+
+    return {
+      letterId,
+      sealId,
+      operations: [
+        operation({
+          entity: 'letters',
+          recordId: letterId,
+          patches: [{ field: 'subject', to: subject }],
+        }),
+        operation({
+          entity: 'letter_seals',
+          recordId: sealId,
+          patches: [
+            { field: 'letterId', to: letterId },
+            ...(sealedBy === undefined ? [] : [{ field: 'sealedBy', to: sealedBy }]),
+          ],
+        }),
+      ],
+    }
+  }
+
+  it('writes what comes of a seal in the same transaction, and the letter takes no second one', async () => {
+    // A device that names somebody else: the server names the sender.
+    const { letterId, sealId, operations } = letterWithSeal('Angebot', 'Jemand anderes')
+
+    expect(outcomes(await send(north.id, operations))).toEqual([
+      { outcome: 'applied', reason: null, fields: [] },
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+
+    const [letter] = await inTenant(north.id, (tx) =>
+      tx.select().from(letters).where(eq(letters.id, letterId)),
+    )
+    const [seal] = await inTenant(north.id, (tx) =>
+      tx.select().from(letterSeals).where(eq(letterSeals.id, sealId)),
+    )
+
+    expect(letter?.status).toBe('sealed')
+    expect(seal?.sealedBy).toBe('Olga')
+    // Shown the values as they were written, the name the server put in among them.
+    expect(followed).toEqual(['letters:create:', 'letter_seals:create:Olga'])
+
+    // A second seal finds the letter sealed: a conflict, and nothing follows it.
+    const second = operation({
+      entity: 'letter_seals',
+      recordId: newId<'letter-seal'>(),
+      patches: [{ field: 'letterId', to: letterId }],
+    })
+
+    expect(outcomes(await send(north.id, [second]))).toEqual([
+      { outcome: 'conflict', reason: 'record_is_fixed', fields: ['status'] },
+    ])
+    expect(await inTenant(north.id, (tx) => tx.select().from(letterSeals))).toHaveLength(1)
+    expect(followed).toHaveLength(2)
+  })
+
+  it('is shown what the checks and the server made of the values, for a change and a deletion too', async () => {
+    const noteId = newId<'note'>()
+    const letterId = newId<'letter'>()
+
+    await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        patches: [{ field: 'text', to: 'privat: Schlüssel unter der Matte' }],
+      }),
+      operation({
+        entity: 'letters',
+        recordId: letterId,
+        patches: [{ field: 'subject', to: 'Rechnung' }],
+      }),
+      operation({
+        entity: 'letter_lines',
+        recordId: newId<'letter-line'>(),
+        patches: [
+          { field: 'letterId', to: letterId },
+          { field: 'quantity', to: 3 },
+          { field: 'price', to: 250 },
+        ],
+      }),
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [{ field: 'text', from: '(privat)', to: 'Zähler ablesen' }],
+      }),
+      operation({ entity: 'notes', recordId: noteId, kind: 'delete' }),
+    ])
+
+    expect(followed).toEqual([
+      'notes:create:(privat)',
+      'letters:create:',
+      'letter_lines:create:750',
+      'notes:update:Zähler ablesen',
+      'notes:delete:',
+    ])
+  })
+
+  it('is not asked for an operation that was skipped or kept as a conflict', async () => {
+    const shelfId = newId<'shelf'>()
+    const queued = [
+      operation({
+        entity: 'shelves',
+        recordId: shelfId,
+        patches: [{ field: 'label', to: 'Keller' }],
+      }),
+    ]
+
+    await send(north.id, queued)
+    await inTenant(north.id, (tx) =>
+      tx.update(shelves).set({ closed: true }).where(eq(shelves.id, shelfId)),
+    )
+    followed.length = 0
+
+    // The same transmission again, and the same record made by another operation.
+    const again = await send(north.id, queued)
+    const anew = await send(north.id, [
+      operation({
+        entity: 'shelves',
+        recordId: shelfId,
+        patches: [{ field: 'label', to: 'Keller' }],
+      }),
+    ])
+    const onTheClosedShelf = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: newId<'note'>(),
+        patches: [
+          { field: 'text', to: 'Zu spät' },
+          { field: 'shelfId', to: shelfId },
+        ],
+      }),
+    ])
+
+    expect(outcomes(again)).toEqual([{ outcome: 'applied', reason: 'already_seen', fields: [] }])
+    expect(outcomes(anew)).toEqual([{ outcome: 'skipped', reason: 'already_there', fields: [] }])
+    expect(outcomes(onTheClosedShelf)).toEqual([
+      { outcome: 'conflict', reason: 'record_is_fixed', fields: ['shelfId'] },
+    ])
+    expect(followed).toEqual([])
+  })
+
+  it('refuses the transmission with what it throws, naming the operation, and takes back what went before', async () => {
+    const before = operation({
+      entity: 'notes',
+      recordId: newId<'note'>(),
+      patches: [{ field: 'text', to: 'Davor' }],
+    })
+    const { operations } = letterWithSeal('Unzustellbar')
+    const seal = operations[1]
+    const refused = await send(north.id, [before, ...operations]).catch((error: unknown) => error)
+
+    expect(refused).toBeInstanceOf(OperationRefused)
+    expect((refused as OperationRefused).operationId).toBe(seal?.id)
+    expect((refused as OperationRefused).message).toBe('Dieser Brief lässt sich nicht zustellen.')
+    expect(await inTenant(north.id, (tx) => tx.select().from(notes))).toEqual([])
+    expect(await inTenant(north.id, (tx) => tx.select().from(letters))).toEqual([])
+    expect(await inTenant(north.id, (tx) => tx.select().from(letterSeals))).toEqual([])
   })
 })
 

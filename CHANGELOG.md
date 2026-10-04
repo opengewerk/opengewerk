@@ -835,6 +835,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Spalten in Tabellen, die reisen. Ein Text, der kein JSON ist, lehnt die Übertragung ab. Die
   Handwerkersoftware hält ihre Werte aus JSON in Spalten mit Text, wie bisher; hier ändert sich
   nichts.
+- Was einem Vorgang im Abgleich folgt, schreibt eine Anwendung in derselben Transaktion (ADR 0010,
+  `opengewerk-haustechnik#27`): `serverSync` nimmt dafür den Haken `afterWrite`, gerufen nach dem
+  Schreiben eines angewandten Vorgangs, und die Routen des Abgleichs lesen den Absender auf Wunsch
+  vor der Transaktion (`senderOf`), etwa die Namen der Konten, die nur auf der Instanz lesbar sind.
+  Die Haustechnik braucht beides für eine Unterschrift, die ein Gerät ohne Netz leistet und nach der
+  die Nachweise entstehen. Hier ändert sich nichts.
 
 ### Behoben
 

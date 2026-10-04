@@ -4,7 +4,7 @@ import { ConflictException, type INestApplication } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { Test } from '@nestjs/testing'
 import { syncRights, type SyncValue, type TenantId } from '@opengewerk/platform-domain'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -15,6 +15,7 @@ import { TRUSTED_ORIGINS } from '../api/handed-in.js'
 import { type FoundIdentity, IDENTITY_SOURCE } from '../api/identity.js'
 import { SameOriginGuard } from '../api/origin.js'
 import { headerIdentities, testIdentityHeader } from '../api/test-identity.js'
+import { accountsOf } from '../authentication/administration.js'
 import {
   probeAuthorization,
   probeCatalogue,
@@ -29,7 +30,9 @@ import { fingerprintOf } from './narrowing.js'
 import {
   letterLines,
   letters,
+  letterSeals,
   notes,
+  probePermissionFor,
   probeSyncAccess,
   type ProbeSyncIdentity,
   probeSyncMade,
@@ -105,8 +108,8 @@ let app: INestApplication
 let withoutScope: INestApplication
 
 /** The HTTP side of the probe application with the routes of the sync, as an application builds it. */
-async function instanceWith(
-  routes: SyncRoutes<ProbeSyncIdentity, ProbeSyncRight>,
+async function instanceWith<Sender = FoundIdentity<ProbeSyncIdentity>>(
+  routes: SyncRoutes<ProbeSyncIdentity, ProbeSyncRight, Sender>,
 ): Promise<INestApplication> {
   const syncing = syncParts({ access: probeSyncAccess, routes })
   const built = await Test.createTestingModule({
@@ -434,6 +437,146 @@ describe('sending an outbox', () => {
     ]).expect(500)
 
     expect(answer.body).not.toHaveProperty('operationId')
+  })
+})
+
+describe('whoever sent a transmission, read before its transaction', () => {
+  /** The sender as this sync is told it: with the name of the account, which lives on the instance. */
+  type Named = FoundIdentity<ProbeSyncIdentity> & { readonly name: string }
+
+  /**
+   * Who was read for which operations, in the order the transmissions
+   * arrived, and how many transactions of the application stood open
+   * meanwhile.
+   */
+  const read: { userId: string; entities: string[]; openTransactions: number }[] = []
+
+  /** A sync whose seals carry the name of the account that sent them, and seal their letter. */
+  const sealing = serverSync<Named>({
+    rules: probeSyncRules,
+    tables: syncTables({ shelves, notes, letters, letterLines, letterSeals }),
+    complete: ({ operation, values, sender }) =>
+      operation.entity === 'letter_seals' ? { ...values, sealedBy: sender.name } : values,
+    afterWrite: async ({ tx, operation, values }) => {
+      if (operation.entity === 'letter_seals') {
+        await tx
+          .update(letters)
+          .set({ status: 'sealed' })
+          .where(eq(letters.id, values['letterId'] as never))
+      }
+    },
+  })
+
+  let named: INestApplication
+
+  beforeAll(async () => {
+    named = await instanceWith<Named>({
+      sync: sealing,
+      permissionFor: probePermissionFor,
+      answerFor,
+      async senderOf(identity, operations) {
+        // A transaction of the transmission already open would wait here, on
+        // a connection of its own, for this one.
+        const open = await database.forInstance((tx) =>
+          tx.execute(sql`
+            select count(*)::int as open from pg_stat_activity
+             where usename = current_user
+               and state like 'idle in transaction%'
+               and pid <> pg_backend_pid()`),
+        )
+
+        read.push({
+          userId: identity.userId,
+          entities: operations.map((operation) => operation.entity),
+          openTransactions: Number((open.rows[0] as { open: number } | undefined)?.open),
+        })
+
+        // On the instance, the way accounts are read, and never inside a tenant.
+        const account = (await accountsOf(database, [identity.userId], identity.userId)).get(
+          identity.userId,
+        )
+
+        if (!account) {
+          throw new ConflictException('Dieses Konto gibt es nicht mehr.')
+        }
+
+        return { ...identity, name: account.name }
+      },
+    })
+  })
+
+  beforeEach(async () => {
+    read.length = 0
+    await admin.query('insert into auth_users (id, name, email) values ($1, $2, $3)', [
+      'lena',
+      'Lena Leitung',
+      'lena@example.de',
+    ])
+  })
+
+  afterAll(async () => {
+    await named.close()
+  })
+
+  /** A letter and a seal on it, as a device sends them in one transmission. */
+  function letterWithSeal() {
+    const letterId = newId<'letter'>()
+
+    return {
+      letterId,
+      operations: [
+        operation({
+          entity: 'letters',
+          recordId: letterId,
+          patches: [{ field: 'subject', to: 'Angebot' }],
+        }),
+        operation({ entity: 'letter_seals', patches: [{ field: 'letterId', to: letterId }] }),
+      ],
+    }
+  }
+
+  it('is read once per transmission with its operations, before its transaction, and the sync is told it', async () => {
+    const { letterId, operations } = letterWithSeal()
+
+    await push(lena(), operations, 'probe-phone', named).expect(201)
+
+    expect(read).toEqual([
+      { userId: 'lena', entities: ['letters', 'letter_seals'], openTransactions: 0 },
+    ])
+
+    const seals = await database.forTenant(
+      { tenantId: north.id, userId: 'lena', reason: 'probe' },
+      (tx) => tx.select().from(letterSeals),
+    )
+    const [letter] = await database.forTenant(
+      { tenantId: north.id, userId: 'lena', reason: 'probe' },
+      (tx) => tx.select().from(letters).where(eq(letters.id, letterId)),
+    )
+
+    expect(seals.map((seal) => seal.sealedBy)).toEqual(['Lena Leitung'])
+    expect(letter?.status).toBe('sealed')
+  })
+
+  it('is not read for a transmission refused over a right', async () => {
+    // Olga writes notes and no letters.
+    await push(olga(), letterWithSeal().operations, 'probe-phone', named).expect(400)
+
+    expect(read).toEqual([])
+  })
+
+  it('refuses the transmission with what it throws, before anything is written', async () => {
+    await admin.query("delete from auth_users where id = 'lena'")
+
+    const answer = await push(lena(), letterWithSeal().operations, 'probe-phone', named).expect(409)
+
+    expect(answer.body).toMatchObject({ message: 'Dieses Konto gibt es nicht mehr.' })
+    // Not about an operation, so it names none.
+    expect(answer.body).not.toHaveProperty('operationId')
+    expect(
+      await database.forTenant({ tenantId: north.id, userId: 'lena', reason: 'probe' }, (tx) =>
+        tx.select().from(letters),
+      ),
+    ).toEqual([])
   })
 })
 

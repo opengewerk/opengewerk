@@ -90,13 +90,46 @@ export interface PullContext<
 /**
  * What an application hands the routes of the sync (ADR 0010): its sync on
  * the server, the right each operation asks for, its words for a refusal of
- * the database, and what the device of somebody holds.
+ * the database, what the device of somebody holds, and, for a sync on the
+ * server that is told more about whoever sent a transmission than the
+ * identity of the request, how that is read.
  */
-export interface SyncRoutes<
+export type SyncRoutes<
   Who extends MemberIdentity = MemberIdentity,
   Right extends string = string,
-> {
-  readonly sync: ServerSync<FoundIdentity<Who>>
+  Sender = FoundIdentity<Who>,
+> = SyncRouteParts<Who, Right, Sender> & SenderReading<Who, Sender>
+
+/**
+ * How whoever sent a transmission is told to the sync on the server, to its
+ * checks and to what follows a write: read before the transaction of the
+ * transmission, from the identity of the request and the operations, for
+ * what may only be read outside the tenant, the names of accounts above all
+ * (`accountsOf`). Read inside the transaction, it would take a second
+ * connection while the first one is held, and enough transmissions at once
+ * would wait for each other for good.
+ *
+ * Asked once per transmission, after every operation in it has its right, so
+ * that a refused transmission reads nothing. What it throws refuses the
+ * transmission before anything is written. Left out by an application whose
+ * sync on the server is told the identity alone, and required of one whose
+ * sender carries more.
+ */
+export type SenderReading<Who extends MemberIdentity, Sender> = [FoundIdentity<Who>] extends [
+  Sender,
+]
+  ? { senderOf?: SenderOf<Who, Sender> }
+  : { senderOf: SenderOf<Who, Sender> }
+
+/** Reads whoever sent a transmission, before its transaction. */
+export type SenderOf<Who extends MemberIdentity, Sender> = (
+  identity: FoundIdentity<Who>,
+  operations: readonly Operation[],
+) => Promise<Sender> | Sender
+
+/** What every application hands the routes of the sync. */
+export interface SyncRouteParts<Who extends MemberIdentity, Right extends string, Sender> {
+  readonly sync: ServerSync<Sender>
   /**
    * What an operation needs beyond the right to sync at all, or nothing for
    * an entity the application does not sync, which refuses the transmission.
@@ -298,14 +331,15 @@ export class SyncController {
       }
     }
 
+    // Before the transaction, which holds a connection until it ends: what
+    // the sender is read from may need one of its own.
+    const sender = this.routes.senderOf
+      ? await this.routes.senderOf(identity, operations)
+      : identity
+
     try {
       return await this.database.forTenant({ ...identity, deviceId }, async (tx) => ({
-        receipts: await this.routes.sync.applyOperations(
-          tx,
-          identity.tenantId,
-          operations,
-          identity,
-        ),
+        receipts: await this.routes.sync.applyOperations(tx, identity.tenantId, operations, sender),
       }))
     } catch (error) {
       if (error instanceof OperationRefused) {
@@ -382,10 +416,14 @@ export class SyncController {
 }
 
 /** What the routes of the sync are put together from. */
-export interface SyncParts<Who extends MemberIdentity, Right extends string> {
+export interface SyncParts<
+  Who extends MemberIdentity,
+  Right extends string,
+  Sender = FoundIdentity<Who>,
+> {
   /** The rights of the application, which have to hold those of the sync. */
   readonly access: Pick<AccessRules<Right>, 'catalogue'>
-  readonly routes: SyncRoutes<Who, Right>
+  readonly routes: SyncRoutes<Who, Right, Sender>
 }
 
 /**
@@ -396,8 +434,12 @@ export interface SyncParts<Who extends MemberIdentity, Right extends string> {
  * is one: the guard, the database and the identity source are the
  * application's to register, once.
  */
-export function syncParts<Who extends MemberIdentity, Right extends string>(
-  parts: SyncParts<Who, Right>,
+export function syncParts<
+  Who extends MemberIdentity,
+  Right extends string,
+  Sender = FoundIdentity<Who>,
+>(
+  parts: SyncParts<Who, Right, Sender>,
 ): { readonly controllers: Type<unknown>[]; readonly providers: Provider[] } {
   const missing = Object.values(syncRights).filter(
     (right) => !parts.access.catalogue.isRight(right),
