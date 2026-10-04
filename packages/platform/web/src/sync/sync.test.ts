@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DirectWriter, SyncClient } from './client.js'
 import { SyncClient as Client, inTransmissions, refusalFor, refusalText } from './client.js'
 import { byRecord, project } from './projection.js'
-import { openLocalStore } from './store.js'
+import { type LocalStore, openLocalStore } from './store.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
 import { RequestRefused } from './transport.js'
 
@@ -679,6 +679,73 @@ describe('a device handed to somebody who sees less, or more', () => {
     expect(again.list('visits').map((entry) => entry['id'])).toEqual(['v-2'])
   })
 
+  /**
+   * The page is closed, or the phone locks, halfway through letting go
+   * (opengewerk-haustechnik#31). The next start does the whole of it again,
+   * because the new answer is written down only once it is done.
+   */
+  it('lets go of everything at the next start, when the page closed halfway through', async () => {
+    const desk = await startOn('cut-tablet')
+
+    transport.pulls = [
+      {
+        changes: [
+          { entity: 'shelves', rows: [row({ id: 's-1', name: 'Hall', kind: 'wood' })] },
+          { entity: 'visits', rows: [theirs, mine] },
+        ],
+        cursor: 9,
+        hasMore: false,
+        narrowed: { visits: 'all', shelves: 'all' },
+      },
+    ]
+    await desk.synchronise()
+    desk.stop()
+
+    // The second of the two kinds to let go of is where the page closes.
+    const store = await openLocalStore('cut-tablet')
+    let dropped = 0
+    const closing: LocalStore = {
+      ...store,
+      drop: (entity) => {
+        dropped += 1
+
+        return dropped === 2 ? Promise.reject(new Error('Die Seite ist zu.')) : store.drop(entity)
+      },
+    }
+    const road = await Client.start({
+      store: closing,
+      transport,
+      writer: new Writing(),
+      rules,
+      deviceId: 'tablet',
+      entities: ['shelves', 'visits'],
+      onSignedOut: () => {},
+    })
+    const narrower = { visits: 'user:u-road', shelves: 'part:hall' }
+
+    transport.pulls = [{ changes: [], cursor: 9, hasMore: false, narrowed: narrower }]
+    await road.synchronise()
+    road.stop()
+
+    const again = await startOn('cut-tablet')
+
+    transport.asked.length = 0
+    transport.pulls = [
+      { changes: [], cursor: 9, hasMore: false, narrowed: narrower },
+      {
+        changes: [{ entity: 'visits', rows: [mine] }],
+        cursor: 9,
+        hasMore: false,
+        narrowed: narrower,
+      },
+    ]
+    await again.synchronise()
+
+    expect(transport.asked).toEqual([9, 0])
+    expect(again.list('visits').map((entry) => entry['id'])).toEqual(['v-2'])
+    expect(again.list('shelves')).toEqual([])
+  })
+
   it('keeps everything while the server narrows the same way, or says nothing', async () => {
     const first = await startOn('same-person')
 
@@ -967,6 +1034,34 @@ describe('an exchange with the server', () => {
       { entity: 'shelves', id: 's-1', values: { name: 'Hall, left' } },
     ])
     expect(client.status().pending).toBe(0)
+  })
+
+  /**
+   * A form hands back every field, and the route writes what it is sent
+   * without a version to compare (opengewerk-haustechnik#31). Sent whole, a
+   * change to one field put back what somebody else had changed in another
+   * since the form was opened.
+   */
+  it('sends a route only the fields that differ from what the device holds', async () => {
+    const client = await start(transport)
+
+    await holding(client, transport, {
+      entity: 'shelves',
+      rows: [row({ id: 's-1', name: 'Hall', kind: 'wood' })],
+    })
+
+    // The whole form, with the kind as the device holds it.
+    await client.update('shelves', 's-1', { name: 'Hall, left', kind: 'wood' })
+
+    expect(writer.patched).toEqual([
+      { entity: 'shelves', id: 's-1', values: { name: 'Hall, left' } },
+    ])
+
+    // Nothing that differs is nothing to send.
+    const unchanged = await client.update('shelves', 's-1', { name: 'Hall', kind: 'wood' })
+
+    expect(unchanged.outcome).toBe('queued')
+    expect(writer.patched).toHaveLength(1)
   })
 
   it('removes master data at its own route as well', async () => {

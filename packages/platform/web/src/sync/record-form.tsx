@@ -202,6 +202,11 @@ export function RecordForm({
         setTrouble(refusalFor(result))
         setWrongFields(result.fields)
       }
+    } catch {
+      // The device could not keep it, a full store above all, where the photos
+      // lie as well (opengewerk-haustechnik#31). Without a word the form stood
+      // there as if saved, and whoever filled it in went away.
+      setTrouble('Auf diesem Gerät ließ sich das nicht speichern. Die Eingaben stehen noch da.')
     } finally {
       setWorking(false)
     }

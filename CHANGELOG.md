@@ -937,6 +937,26 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   (`opengewerk-haustechnik#31`). Sie kürzte es um Leerzeichen am Rand, die Anmeldung gleich danach
   und jede spätere nicht; wer ein Passwort mit einem Leerzeichen am Ende einfügte, kam an das
   einzige Konto der Instanz nur noch über `reset-password` auf dem Server.
+- Eine Änderung an Stammdaten schickt der Route nur noch die Felder, die sich geändert haben
+  (`opengewerk-haustechnik#31`). Ein Formular gibt alle Felder zurück, und die Route schreibt, was
+  sie bekommt, ohne eine Fassung zu vergleichen: wer die Anschrift eines Kunden speicherte, setzte
+  damit eine Telefonnummer zurück, die jemand anderes geändert hatte, seit das Formular offen war.
+  Eine Änderung, die nichts ändert, schickt nichts.
+- Die Karte einer Frist schickt nur, was geändert wurde, und "Speichern" bleibt aus, solange nichts
+  geändert ist (`opengewerk-haustechnik#31`). Wer nur den Vorlauf änderte, setzte die
+  verantwortliche Person zurück, die jemand anderes inzwischen gewählt hatte, und gab damit die
+  Aufgabe des Tages weiter.
+- Bekommt ein Gerät eine andere Auswahl, weil jemand anderes daran arbeitet, hält es die neue erst
+  fest, wenn es alles weggeworfen hat, was nicht mehr dazugehört (`opengewerk-haustechnik#31`).
+  Bisher stand sie zuerst fest; wurde die Seite dazwischen geschlossen, behielt das Gerät beim
+  nächsten Start die Zeilen der Person davor und holte nie wieder, was es schon weggeworfen hatte.
+- Ein Formular sagt, wenn das Gerät eine Eingabe nicht ablegen konnte, etwa weil sein Speicher voll
+  ist, und lässt die Eingaben stehen (`opengewerk-haustechnik#31`). Bisher blieb es ohne ein Wort
+  stehen, als wäre gespeichert.
+- Unter "Zugänge" stehen die Knöpfe zum Anlegen, Sperren, Zurückziehen und Abmelden und die Haken
+  der Rollen nur noch für den, der die Zugänge auch ändern darf (`opengewerk-haustechnik#31`). Seit
+  die Rollen Zeilen eines Betriebs sind, kann eine Rolle die Liste lesen, ohne sie zu ändern; sie
+  bekam bisher alles angeboten und danach nur "Das ließ sich nicht ändern".
 
 ### Sicherheit
 
@@ -971,6 +991,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   oder mit der nächsten Nachricht an diesen Server schicken lassen. Port und Verschlüsselung lassen
   sich weiter ohne neues Passwort ändern. Betroffen sind 0.1.0 bis 0.4.0; ändern darf die
   Einstellungen dort nur der Inhaber.
+- Was jemand auf einem Gerät erfasst hat und nicht mehr senden konnte, geht nicht mehr unter der
+  nächsten Person hinaus, die sich dort anmeldet (`opengewerk-haustechnik#31`). Der Server nimmt
+  die Person aus der Sitzung, die sendet, und ein Vorgang nennt nur sein Gerät. Lief eine Sitzung
+  ab oder wurde sie beendet, ohne dass jemand "Abmelden" drückte, gingen Zeiten, Notizen oder
+  Unterschriften der ersten Person unter dem Namen und mit den Rechten der zweiten hinaus. Jetzt
+  hält die Ablage auf dem Gerät zu jedem Vorgang und jeder wartenden Datei fest, für wen sie
+  erfasst wurden; sie warten auf diese Person, und das Abmelden zählt sie weiter mit. Betroffen
+  sind 0.1.0 bis 0.4.0.
 
 ## [0.4.0] - 2026-09-27
 

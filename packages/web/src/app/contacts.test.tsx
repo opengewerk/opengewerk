@@ -357,11 +357,10 @@ describe('the contacts at a customer in the office', () => {
     await waitFor(() => {
       expect(server.patched).toHaveLength(1)
     })
-    expect(server.patched[0]).toMatchObject({
-      entity: 'contacts',
-      id: 'k-1',
-      values: { role: 'Kaufmännische Leitung', familyName: 'Zander' },
-    })
+    expect(server.patched[0]).toMatchObject({ entity: 'contacts', id: 'k-1' })
+    // The field that changed and nothing else, so that a field somebody else
+    // changed meanwhile is not put back (opengewerk-haustechnik#31).
+    expect(server.patched[0]?.values).toEqual({ role: 'Kaufmännische Leitung' })
     expect(server.sent).toEqual([])
 
     // Removing is in the form behind the pencil, with a question first, as

@@ -50,6 +50,7 @@ export interface LocalStore {
   /** Every row of one kind, gone; the outbox keeps what it holds of it. */
   drop(entity: string): Promise<void>
 
+  /** What waits to be sent: of the person the store is open for, or all of it without one. */
   readOutbox(): Promise<readonly Operation[]>
   queue(operation: Operation): Promise<void>
   dequeue(ids: readonly OperationId[]): Promise<void>
@@ -68,7 +69,10 @@ export interface LocalStore {
    */
   keepFile(file: StoredFile, waiting: boolean): Promise<void>
   readFile(sha256: string): Promise<StoredFile | null>
-  /** The files made here that still have to go up, oldest first. */
+  /**
+   * The files made here that still have to go up, oldest first; of the
+   * person the store is open for, like the outbox.
+   */
   waitingFiles(): Promise<readonly StoredFile[]>
   /** How many that is, without reading a single byte of them. */
   countWaitingFiles(): Promise<number>
@@ -129,15 +133,34 @@ function finished(transaction: IDBTransaction): Promise<void> {
  * only through the structured clone, and that clone is what a branded id does
  * not survive as anything but the string it already is. Writing the round trip
  * out here beats discovering a string where the sort expects a date.
+ *
+ * Beside it the person it was recorded for, when the store is open for one;
+ * see `openLocalStore`. The operation itself never carries it, so it is taken
+ * off again on the way out and never travels.
  */
-function toStored(operation: Operation) {
-  return { ...operation, recordedAt: operation.recordedAt.toISOString() }
+function toStored(operation: Operation, owner: string | undefined) {
+  return {
+    ...operation,
+    recordedAt: operation.recordedAt.toISOString(),
+    ...(owner === undefined ? {} : { owner }),
+  }
 }
 
 function fromStored(row: unknown): Operation {
-  const stored = row as Operation & { recordedAt: string }
+  const { owner: _owner, ...stored } = row as Operation & { recordedAt: string; owner?: string }
 
   return { ...stored, recordedAt: new Date(stored.recordedAt) }
+}
+
+/**
+ * Whether an operation in the outbox is one the person the store is open for
+ * may send. One from before the person was recorded has nobody, and goes to
+ * whoever opens the store first, which is what it did before.
+ */
+function sendableBy(row: unknown, owner: string | undefined): boolean {
+  const recordedFor = (row as { owner?: string }).owner
+
+  return owner === undefined || recordedFor === undefined || recordedFor === owner
 }
 
 function upgrade(database: IDBDatabase): void {
@@ -231,8 +254,18 @@ export function deleteLocalStore(tenantId: string): Promise<void> {
  * tenants on one laptop get two databases, and there is no query that could
  * accidentally reach across. The server has row level security for the same
  * job; here the boundary is the file.
+ *
+ * `owner` is the person the device works for. What is queued is recorded for
+ * them, and the outbox answers with theirs alone (opengewerk-haustechnik#31).
+ * The server takes the person from the session that sends and an operation
+ * names only its device, so a change somebody wrote and could not send before
+ * their session ended went out under whoever signed in next on this device,
+ * with that person's name and rights on it. Now it waits on the device until
+ * its person signs in again. Opened without an owner, the outbox answers with
+ * everything, which is what counting before a sign out needs: a change of
+ * somebody else that waits here is lost with the sign out all the same.
  */
-export async function openLocalStore(tenantId: string): Promise<LocalStore> {
+export async function openLocalStore(tenantId: string, owner?: string): Promise<LocalStore> {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
     // Version 2 added the files (#77). `upgrade` adds whatever is missing, so a
     // device on version 1 keeps its records and gains the two new stores.
@@ -297,15 +330,15 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
     async readOutbox() {
       const transaction = transact([outboxStore], 'readonly')
 
-      return (await promised<unknown[]>(transaction.objectStore(outboxStore).getAll())).map(
-        fromStored,
-      )
+      return (await promised<unknown[]>(transaction.objectStore(outboxStore).getAll()))
+        .filter((row) => sendableBy(row, owner))
+        .map(fromStored)
     },
 
     async queue(operation) {
       const transaction = transact([outboxStore], 'readwrite')
 
-      transaction.objectStore(outboxStore).put(toStored(operation))
+      transaction.objectStore(outboxStore).put(toStored(operation, owner))
 
       await finished(transaction)
     },
@@ -371,8 +404,14 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
 
       transaction.objectStore(fileStore).put(file)
 
+      // A file waits for its person like a change does: the upload is a row
+      // in the log of the tenant, under the person whose session sends it.
       if (waiting) {
-        transaction.objectStore(uploadStore).put({ sha256: file.sha256, since: Date.now() })
+        transaction.objectStore(uploadStore).put({
+          sha256: file.sha256,
+          since: Date.now(),
+          ...(owner === undefined ? {} : { owner }),
+        })
       }
 
       await finished(transaction)
@@ -389,9 +428,11 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
 
     async waitingFiles() {
       const listed = transact([uploadStore], 'readonly')
-      const waiting = await promised<{ sha256: string; since: number }[]>(
-        listed.objectStore(uploadStore).getAll(),
-      )
+      const waiting = (
+        await promised<{ sha256: string; since: number; owner?: string }[]>(
+          listed.objectStore(uploadStore).getAll(),
+        )
+      ).filter((row) => sendableBy(row, owner))
 
       // A second transaction with every request made at once. A request made
       // after an `await` may find its transaction already committed.
@@ -409,7 +450,13 @@ export async function openLocalStore(tenantId: string): Promise<LocalStore> {
     async countWaitingFiles() {
       const transaction = transact([uploadStore], 'readonly')
 
-      return await promised<number>(transaction.objectStore(uploadStore).count())
+      if (owner === undefined) {
+        return await promised<number>(transaction.objectStore(uploadStore).count())
+      }
+
+      const rows = await promised<unknown[]>(transaction.objectStore(uploadStore).getAll())
+
+      return rows.filter((row) => sendableBy(row, owner)).length
     },
 
     async fileSent(sha256) {

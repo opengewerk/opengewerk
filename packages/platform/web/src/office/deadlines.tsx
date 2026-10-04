@@ -568,10 +568,18 @@ function DeadlineCard<View extends DeadlineView, Kind extends DeadlineKindView>(
   const problem = leadDays === null ? null : leadProblem(leadDays)
   const kindLead = kind.setting.leadDays ?? kind.leadDays
   const label = props.responsibleLabel(kind)
+  const responsibleUserId = responsible || null
+  // What changed and nothing else (opengewerk-haustechnik#31). Sent whole, a
+  // new lead put back the person somebody else had chosen while the card was
+  // open, and a new person hands the task of the day on.
+  const change = {
+    ...(leadDays !== deadline.ownLeadDays ? { leadDays } : {}),
+    ...(responsibleUserId !== deadline.ownResponsibleUserId ? { responsibleUserId } : {}),
+  }
+  const changed = Object.keys(change).length > 0
 
   const save = useMutation({
-    mutationFn: () =>
-      changeDeadline(deadline.id, { leadDays, responsibleUserId: responsible || null }),
+    mutationFn: () => changeDeadline(deadline.id, change),
     onSuccess: () => {
       refresh()
       onClose()
@@ -651,7 +659,7 @@ function DeadlineCard<View extends DeadlineView, Kind extends DeadlineKindView>(
         <Button
           tone="primary"
           icon={Check}
-          disabled={problem !== null || save.isPending}
+          disabled={!changed || problem !== null || save.isPending}
           onClick={() => {
             save.mutate()
           }}

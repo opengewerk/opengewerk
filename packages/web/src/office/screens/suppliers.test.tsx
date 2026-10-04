@@ -381,10 +381,9 @@ describe('the form of a supplier', () => {
       expect(router.state.location.pathname).toBe('/lieferanten/s-1')
     })
     expect(server.patched).toHaveLength(1)
-    expect(server.patched[0]?.values).toMatchObject({
-      name: 'Elektro-Großhandel Rhein-Neckar GmbH',
-      phone: '0621 318 40-12',
-    })
+    // The field that changed and nothing else, so that a field somebody else
+    // changed meanwhile is not put back (opengewerk-haustechnik#31).
+    expect(server.patched[0]?.values).toEqual({ phone: '0621 318 40-12' })
     expect(server.operations()).toHaveLength(0)
   })
 
