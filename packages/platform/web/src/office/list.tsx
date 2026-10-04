@@ -192,13 +192,16 @@ const chrome = { pager: 45, head: 33, below: 18 }
  * the window or the table changes. Never fewer than six, as the boards have
  * it: a list of three rows per page on a short laptop is worse than one that
  * scrolls a little.
+ *
+ * Given the element and not a ref to it. The frame of the table is not there
+ * while a list is empty, finds nothing or is drawn as cards, and an effect
+ * hung on a ref ran once, when the list came: a list whose rows arrived after
+ * it stayed at the fallback for good (opengewerk-haustechnik#31).
  */
-function useRowsThatFit(frame: { readonly current: HTMLElement | null }, fallback: number): number {
+function useRowsThatFit(element: HTMLElement | null, fallback: number): number {
   const [rows, setRows] = useState(fallback)
 
   useEffect(() => {
-    const element = frame.current
-
     if (!element || typeof ResizeObserver !== 'function') {
       return
     }
@@ -218,7 +221,7 @@ function useRowsThatFit(frame: { readonly current: HTMLElement | null }, fallbac
     return () => {
       observer.disconnect()
     }
-  }, [frame])
+  }, [element])
 
   return rows
 }
@@ -297,7 +300,8 @@ export function ListScreen(props: ListScreenProps) {
   const [chosen, setChosen] = useState<string | null>(null)
   const [closed, setClosed] = useState(false)
   const input = useRef<HTMLInputElement>(null)
-  const frame = useRef<HTMLDivElement>(null)
+  // The frame of the table, as state: the measuring begins when it comes.
+  const [frame, setFrame] = useState<HTMLDivElement | null>(null)
   const countId = useId()
 
   useKeysToSearch(input)
@@ -420,7 +424,7 @@ export function ListScreen(props: ListScreenProps) {
           </ul>
         ))
       : (nothingFound ?? (
-          <div ref={frame} className="flex min-w-0 grow flex-col">
+          <div ref={setFrame} className="flex min-w-0 grow flex-col">
             <TablePanel
               caption={caption}
               note={note}

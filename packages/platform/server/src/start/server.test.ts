@@ -2,12 +2,15 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { Controller, type DynamicModule, Module, Post, Req } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import type { Request, Response } from 'express'
 import request from 'supertest'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { PublicRoute } from '../api/authorization.js'
 import { ClosedIdentitySource } from '../api/closed-identity.js'
+import { AcceptsBody, largestTransmissionBytes } from '../api/origin.js'
 import { ProbeModule } from '../authentication/probe-application.js'
 import { Database } from '../database/database.js'
 import { createServer } from './server.js'
@@ -52,10 +55,46 @@ function echoingAuthentication(): (request: Request, response: Response) => void
   }
 }
 
+/**
+ * Routes that say what the server made of a body before they saw it: one that
+ * takes JSON like every route, one that lets a form past the guard, so that
+ * what a parser did with it shows, and the place a device sends its outbox to.
+ */
+@Controller()
+class EchoController {
+  @Post('echo/json')
+  @PublicRoute()
+  json(@Req() incoming: Request): { body: unknown } {
+    return { body: (incoming.body as unknown) ?? null }
+  }
+
+  @Post('echo/form')
+  @PublicRoute()
+  @AcceptsBody(['application/x-www-form-urlencoded'], 'Nur zur Probe.')
+  form(@Req() incoming: Request): { body: unknown } {
+    return { body: (incoming.body as unknown) ?? null }
+  }
+
+  @Post('sync')
+  @PublicRoute()
+  outbox(@Req() incoming: Request): { characters: number } {
+    return { characters: JSON.stringify(incoming.body).length }
+  }
+}
+
+/** The module of an application with those routes beside its own. */
+@Module({})
+class EchoModule {
+  static around(application: DynamicModule): DynamicModule {
+    return { module: EchoModule, imports: [application], controllers: [EchoController] }
+  }
+}
+
 async function started(
   parts: Parameters<typeof createServer>[1],
+  of: DynamicModule = module,
 ): Promise<{ app: NestExpressApplication; interfaceDirectory: string | null }> {
-  const { application, interfaceDirectory } = await createServer(module, parts)
+  const { application, interfaceDirectory } = await createServer(of, parts)
 
   await application.init()
   running = application
@@ -91,6 +130,77 @@ describe('the server of an instance', () => {
       body: '{"email":"leitung@probe.example.org"}',
       parsed: false,
     })
+  })
+
+  /**
+   * The order createServer promises, held on each of its steps
+   * (opengewerk-haustechnik#31): the headers stand in front of the
+   * authentication, which is mounted in front of everything Nest knows of, so
+   * headers set after it would be missing on exactly the answers that hand
+   * out a session.
+   */
+  it('sends the security headers on the answers of the authentication as well', async () => {
+    const { app } = await started({
+      authenticationHandler: echoingAuthentication(),
+      serverPaths: [],
+      interfaceDirectory: null,
+    })
+    const answer = await request(app.getHttpServer())
+      .post('/api/auth/sign-in/email')
+      .set('Content-Type', 'application/json')
+      .send('{}')
+      .expect(200)
+
+    expect(answer.headers['x-content-type-options']).toBe('nosniff')
+    expect(answer.headers['x-frame-options']).toBe('DENY')
+    expect(answer.headers['x-powered-by']).toBeUndefined()
+  })
+
+  it('reads a body of JSON for a route, and no form: not even where a route would take one', async () => {
+    const { app } = await started(
+      { authenticationHandler: null, serverPaths: [], interfaceDirectory: null },
+      EchoModule.around(module),
+    )
+    const server = app.getHttpServer()
+
+    expect(
+      (await request(server).post('/echo/json').send({ name: 'Regal 1' }).expect(201)).body,
+    ).toEqual({ body: { name: 'Regal 1' } })
+
+    // A form is turned away by the guard at every route that does not ask for one.
+    const refused = await request(server).post('/echo/json').type('form').send({ name: 'Regal 1' })
+
+    expect(refused.status).toBe(415)
+    expect(refused.body.message).toBe('Diese Anfrage wird nur als JSON angenommen.')
+
+    // Let past the guard, it arrives unread: there is no parser for it.
+    expect(
+      (await request(server).post('/echo/form').type('form').send({ name: 'Regal 1' }).expect(201))
+        .body,
+    ).toEqual({ body: null })
+  })
+
+  it('takes the outbox of a device up to a limit of its own, and every other body up to that of a form', async () => {
+    const { app } = await started(
+      { authenticationHandler: null, serverPaths: [], interfaceDirectory: null },
+      EchoModule.around(module),
+    )
+    const server = app.getHttpServer()
+    // Twice what every other route reads.
+    const large = { text: 'x'.repeat(200 * 1024) }
+
+    expect(
+      (await request(server).post('/sync').send(large).expect(201)).body.characters,
+    ).toBeGreaterThan(200 * 1024)
+    await request(server).post('/echo/json').send(large).expect(413)
+    // Only where the outbox goes, and only the way it is sent there.
+    await request(server).put('/sync').send(large).expect(413)
+    await request(server).post('/sync/conflicts').send(large).expect(413)
+    // And not without a limit there either.
+    await request(server)
+      .post('/sync')
+      .send({ text: 'x'.repeat(largestTransmissionBytes) })
+      .expect(413)
   })
 
   it('has no authentication at all where none is handed in, as on a closed instance', async () => {

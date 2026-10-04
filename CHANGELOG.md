@@ -983,6 +983,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - Ein Formular sagt, wenn das Gerät eine Eingabe nicht ablegen konnte, etwa weil sein Speicher voll
   ist, und lässt die Eingaben stehen (`opengewerk-haustechnik#31`). Bisher blieb es ohne ein Wort
   stehen, als wäre gespeichert.
+- Eine Liste im Büro misst ihre Seitenlänge auch dann, wenn ihre Zeilen erst nach ihr kommen
+  (#535, `opengewerk-haustechnik#31`). Der Rahmen der Tabelle ist nicht da, solange eine Liste leer
+  ist, und die Liste maß nur den Rahmen, den sie beim Einhängen vorfand: kamen die Zeilen mit dem
+  ersten Abgleich eines Geräts, blieb es bei zwanzig je Seite, gleich wie viele das Fenster hielt.
+- Die Prüfung "Breiten und Auflösungen" bricht ab, wenn ihr Gang durch die Seiten seine Grenze von
+  120 Arten erreicht und noch Adressen warten (#535, `opengewerk-haustechnik#31`). Bisher hörte er
+  dort still auf, und die Prüfung meldete Erfolg mit Seiten, die sie nie geöffnet hatte. Eine
+  Anwendung mit mehr Arten von Seiten nennt `checkWidths` ihre Grenze (`mostKinds`). Der dunkle
+  Durchgang liest den Schlüssel der Farbwahl aus `components/theme.ts`, statt ihn ein zweites Mal
+  zu schreiben, und hält die erste Seite jedes Durchgangs daran fest, dass sie zeigt, wofür der
+  Durchgang läuft: ein dunkler Durchgang, der hell läuft, ist jetzt ein Fehler und kein Erfolg.
+- Tests, die fehlten (#535, `opengewerk-haustechnik#31`): die Karten von "Zugänge" am Telefon, also
+  Konten mit Rollen, Zustand und Sperren, offene Einladungen mit Zurückziehen und Geräte mit
+  Abmelden; der Gang der Breitenprüfung ohne Browser; und die Reihenfolge, die der Start des
+  Servers zusagt, also die Sicherheits-Header auch auf den Antworten der Anmeldung, nur JSON als
+  Körper und die Grenze von 8 MB allein für `POST /sync`.
 - Die Formular-Engine fragt beim Unterschreiben jeden Eintrag einer Liste, auch einen ohne Block
   (#533, `opengewerk-haustechnik#31`). Eine Gruppe über eine Liste galt als vollständig, soweit
   ihre Blöcke es waren: fehlte in den Werten der Block eines Eintrags, blieb sein Prüfpunkt ohne

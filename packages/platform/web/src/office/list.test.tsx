@@ -3,6 +3,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { Archive, Tag } from 'lucide-react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { InRouter } from '../in-router.js'
@@ -39,77 +40,83 @@ function Where() {
   return <p data-testid="where">{path}</p>
 }
 
+/** The list by itself, for a test that keeps it mounted while its rows change. */
+function theList(over: Partial<ListScreenProps> = {}) {
+  return (
+    <ListScreen
+      title="Regale"
+      caption="Regale"
+      rows={shelves}
+      columns={[
+        {
+          id: 'name',
+          header: 'Name',
+          value: (row) => String(row['name']),
+          beside: (row) => (row['colour'] === 'rot' ? <span>rot</span> : null),
+        },
+        { id: 'room', header: 'Raum', value: (row) => String(row['room']), muted: true },
+        {
+          id: 'state',
+          header: 'Stand',
+          value: (row) => String(row['state']),
+          cell: (row) => <em>{row['state'] === 'full' ? 'voll' : 'frei'}</em>,
+          wideOnly: true,
+        },
+      ]}
+      alsoSearched={(row) => String(row['code'])}
+      hrefFor={(row) => `/regale/${String(row['id'])}`}
+      searchLabel="Regale durchsuchen"
+      searchPlaceholder="Name, Raum"
+      filters={[
+        { id: 'cellar', label: 'Keller', test: (row) => row['room'] === 'Keller' },
+        { id: 'shop', label: 'Werkstatt', test: (row) => row['room'] === 'Werkstatt' },
+      ]}
+      facets={{
+        label: 'Stand',
+        filters: [
+          { id: 'full', label: 'Voll', test: (row) => row['state'] === 'full' },
+          { id: 'free', label: 'Frei', test: (row) => row['state'] === 'free' },
+        ],
+      }}
+      choice={{
+        label: 'Farbe',
+        all: 'Alle Farben',
+        icon: Tag,
+        options: [
+          { id: 'rot', label: 'Rot', test: (row) => row['colour'] === 'rot' },
+          { id: 'blau', label: 'Blau', test: (row) => row['colour'] === 'blau' },
+        ],
+      }}
+      sorts={[
+        {
+          id: 'name',
+          label: 'Name',
+          compare: (left, right) => String(left['name']).localeCompare(String(right['name']), 'de'),
+        },
+        lastChanged,
+      ]}
+      primary={{ label: 'Neues Regal', onPress: () => {} }}
+      card={(row) => <ListCard to={`/regale/${String(row['id'])}`} title={String(row['name'])} />}
+      preview={(row) => <aside aria-label="Vorschau">Vorschau {String(row['name'])}</aside>}
+      record={(row, close) => (
+        <aside aria-label="Akte">
+          Akte {String(row['name'])}
+          <button type="button" onClick={close}>
+            Schließen
+          </button>
+        </aside>
+      )}
+      empty={{ icon: Archive, title: 'Noch kein Regal', text: 'Das erste Regal entsteht hier.' }}
+      {...over}
+    />
+  )
+}
+
 function list(over: Partial<ListScreenProps> = {}) {
   return (
     <InRouter>
       <Where />
-      <ListScreen
-        title="Regale"
-        caption="Regale"
-        rows={shelves}
-        columns={[
-          {
-            id: 'name',
-            header: 'Name',
-            value: (row) => String(row['name']),
-            beside: (row) => (row['colour'] === 'rot' ? <span>rot</span> : null),
-          },
-          { id: 'room', header: 'Raum', value: (row) => String(row['room']), muted: true },
-          {
-            id: 'state',
-            header: 'Stand',
-            value: (row) => String(row['state']),
-            cell: (row) => <em>{row['state'] === 'full' ? 'voll' : 'frei'}</em>,
-            wideOnly: true,
-          },
-        ]}
-        alsoSearched={(row) => String(row['code'])}
-        hrefFor={(row) => `/regale/${String(row['id'])}`}
-        searchLabel="Regale durchsuchen"
-        searchPlaceholder="Name, Raum"
-        filters={[
-          { id: 'cellar', label: 'Keller', test: (row) => row['room'] === 'Keller' },
-          { id: 'shop', label: 'Werkstatt', test: (row) => row['room'] === 'Werkstatt' },
-        ]}
-        facets={{
-          label: 'Stand',
-          filters: [
-            { id: 'full', label: 'Voll', test: (row) => row['state'] === 'full' },
-            { id: 'free', label: 'Frei', test: (row) => row['state'] === 'free' },
-          ],
-        }}
-        choice={{
-          label: 'Farbe',
-          all: 'Alle Farben',
-          icon: Tag,
-          options: [
-            { id: 'rot', label: 'Rot', test: (row) => row['colour'] === 'rot' },
-            { id: 'blau', label: 'Blau', test: (row) => row['colour'] === 'blau' },
-          ],
-        }}
-        sorts={[
-          {
-            id: 'name',
-            label: 'Name',
-            compare: (left, right) =>
-              String(left['name']).localeCompare(String(right['name']), 'de'),
-          },
-          lastChanged,
-        ]}
-        primary={{ label: 'Neues Regal', onPress: () => {} }}
-        card={(row) => <ListCard to={`/regale/${String(row['id'])}`} title={String(row['name'])} />}
-        preview={(row) => <aside aria-label="Vorschau">Vorschau {String(row['name'])}</aside>}
-        record={(row, close) => (
-          <aside aria-label="Akte">
-            Akte {String(row['name'])}
-            <button type="button" onClick={close}>
-              Schließen
-            </button>
-          </aside>
-        )}
-        empty={{ icon: Archive, title: 'Noch kein Regal', text: 'Das erste Regal entsteht hier.' }}
-        {...over}
-      />
+      {theList(over)}
     </InRouter>
   )
 }
@@ -528,6 +535,109 @@ describe('a list at other widths', () => {
     )
 
     expect(await screen.findByText('/regale/s-01')).toBe(screen.getByTestId('where'))
+  })
+})
+
+describe('the page of a list', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /**
+   * A window that holds so many rows under the top of the table: the table
+   * begins at 100, a row is 30 high, and the head of the table, the pages and
+   * the room under the card take 96 of what is left. The observer of the
+   * list measures as soon as it is given something to observe, as a browser
+   * does.
+   */
+  function windowHolding(rows: number): void {
+    vi.stubGlobal('innerHeight', 100 + 96 + rows * 30)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const row = this.tagName === 'TR'
+
+      return { top: row ? 0 : 100, height: row ? 30 : 0, width: 0, left: 0 } as DOMRect
+    })
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        private gone = false
+
+        constructor(private readonly callback: () => void) {}
+
+        observe() {
+          queueMicrotask(() => {
+            if (!this.gone) {
+              this.callback()
+            }
+          })
+        }
+
+        disconnect() {
+          this.gone = true
+        }
+      },
+    )
+  }
+
+  it('is as long as the window holds rows under the top of the table', async () => {
+    windowHolding(8)
+    await shown()
+
+    expect(await screen.findByText('1 bis 8 von 30')).toBeTruthy()
+    expect(names()).toHaveLength(8)
+  })
+
+  it('is never shorter than six rows, however short the window', async () => {
+    windowHolding(2)
+    await shown()
+
+    expect(await screen.findByText('1 bis 6 von 30')).toBeTruthy()
+  })
+
+  /**
+   * The frame of the table is not there while a list has no rows, and the
+   * list measured only the frame it found when it came: rows that arrived
+   * after it, from the first exchange of a device, were paged twenty at a
+   * time for good, whatever the window held (opengewerk-haustechnik#31).
+   */
+  it('is measured as well when the rows come after the list', async () => {
+    windowHolding(8)
+
+    /** A list that is there before its rows are, as on a device before its first exchange. */
+    function Arriving() {
+      const [rows, setRows] = useState<readonly RecordState[]>([])
+
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setRows(shelves)
+            }}
+          >
+            Abgleichen
+          </button>
+          {theList({ rows })}
+        </>
+      )
+    }
+
+    render(
+      <InRouter>
+        <Where />
+        <Arriving />
+      </InRouter>,
+    )
+    await screen.findByTestId('where')
+
+    expect(screen.queryByRole('table')).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abgleichen' }))
+
+    expect(await screen.findByText('1 bis 8 von 30')).toBeTruthy()
+    expect(names()).toHaveLength(8)
   })
 })
 

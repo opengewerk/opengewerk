@@ -4,13 +4,27 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { alsoReached, bandOf, fileFor, heightFor, kindOf, stepsIn, widths } from './widths.js'
+import { storedTheme } from '../src/components/theme.ts'
+import {
+  alsoReached,
+  bandOf,
+  fileFor,
+  heightFor,
+  kindOf,
+  stepsIn,
+  themeKeyIn,
+  themeProblem,
+  walkThrough,
+  widths,
+  worthFollowing,
+} from './widths.js'
 
 /**
  * What the check of the widths decides before a browser is involved: which
- * pages are of one kind, which a scan stands for, where the layouts change,
- * and where a photograph of a failure goes. The walk itself runs in the CI
- * against the preview of an application.
+ * pages are of one kind, which a scan stands for, which links are followed
+ * and when the walk gives up, where the layouts change, which theme a pass
+ * runs in, and where a photograph of a failure goes. The walk through a real
+ * browser runs in the CI against the preview of an application.
  */
 
 describe('the widths of the board', () => {
@@ -54,6 +68,168 @@ describe('a page only a scan reaches', () => {
       [],
     )
     expect(alsoReached([], '/regale/0193a2b4-0000-7000-8000-000000000001')).toEqual([])
+  })
+})
+
+/** The identifier of a record, by its number. */
+function id(number) {
+  return `0193a2b4-0000-7000-8000-${String(number).padStart(12, '0')}`
+}
+
+describe('the links of a page worth following', () => {
+  it('are those not queued yet, each once', () => {
+    expect(
+      worthFollowing(['/', '/notizen', '/konto', '/notizen'], new Set(['/']), new Map(), []),
+    ).toEqual(['/notizen', '/konto'])
+  })
+
+  it('are four of a kind and no more, counting what was looked at before', () => {
+    const records = Array.from({ length: 9 }, (_, number) => `/notizen/${id(number)}`)
+
+    expect(worthFollowing(records, new Set(), new Map(), [])).toEqual(records.slice(0, 4))
+    expect(worthFollowing(records, new Set(), new Map([['/notizen/:id', 3]]), [])).toEqual(
+      records.slice(0, 1),
+    )
+    expect(worthFollowing(records, new Set(), new Map([['/notizen/:id', 4]]), [])).toEqual([])
+  })
+
+  it('include the page only a scan reaches, found through the link to its record', () => {
+    expect(
+      worthFollowing([`/regale/${id(1)}`], new Set(), new Map(), [
+        [/^\/regale\/([^/]+)$/, (record) => `/m/regale/${record}`],
+      ]),
+    ).toEqual([`/regale/${id(1)}`, `/m/regale/${id(1)}`])
+  })
+})
+
+/**
+ * A site as the walk reads it, without a browser: for every address the
+ * links that stand on it and the buttons, and every address that is not
+ * listed is no page of the application. Says which addresses were opened.
+ */
+function siteOf(pages) {
+  const opened = []
+  let open = null
+
+  return {
+    opened,
+    reader: {
+      open(path) {
+        open = path
+        opened.push(path)
+
+        return Promise.resolve()
+      },
+      has: (name) => Promise.resolve((pages[open]?.buttons ?? []).includes(name)),
+      paths: () => Promise.resolve(pages[open]?.links ?? []),
+      pages: (candidates) => Promise.resolve(candidates.filter((path) => path in pages)),
+    },
+  }
+}
+
+describe('the walk through the pages', () => {
+  it('finds every kind of page by following links, one address each, and a button as a kind of its own', async () => {
+    const site = siteOf({
+      '/': { links: ['/notizen', '/konto', '/api/notizen.pdf'] },
+      '/m/': { links: ['/m/regale'] },
+      '/konto': { links: ['/'] },
+      '/notizen': { links: [`/notizen/${id(1)}`, `/notizen/${id(2)}`], buttons: ['Neu'] },
+      [`/notizen/${id(1)}`]: { links: ['/notizen'], buttons: ['Bearbeiten'] },
+      [`/notizen/${id(2)}`]: { links: [`/notizen/${id(2)}/anhang`], buttons: ['Bearbeiten'] },
+      [`/notizen/${id(2)}/anhang`]: {},
+      '/m/regale': {},
+    })
+
+    const kinds = await walkThrough(site.reader, {
+      entries: ['/', '/m/'],
+      openers: ['Bearbeiten'],
+    })
+
+    expect(Object.fromEntries(kinds)).toEqual({
+      '/': { path: '/', press: null },
+      '/m/': { path: '/m/', press: null },
+      '/notizen': { path: '/notizen', press: null },
+      '/konto': { path: '/konto', press: null },
+      '/m/regale': { path: '/m/regale', press: null },
+      '/notizen/:id': { path: `/notizen/${id(1)}`, press: null },
+      '/notizen/:id (Bearbeiten)': { path: `/notizen/${id(1)}`, press: 'Bearbeiten' },
+      // Found on the second record of its kind only: one page of a kind is not enough.
+      '/notizen/:id/anhang': { path: `/notizen/${id(2)}/anhang`, press: null },
+    })
+    // What answers with something other than a page is not opened.
+    expect(site.opened).not.toContain('/api/notizen.pdf')
+  })
+
+  /**
+   * The limit is there for a walk that runs away, as it once did over the
+   * days of a calendar. Reached, the walk ended and the check went on to
+   * measure what it had and to report that no page was too wide, with pages
+   * it had never opened (opengewerk-haustechnik#31).
+   */
+  it('fails when it reaches its limit with addresses still waiting, and says how many', async () => {
+    const site = siteOf({
+      '/': { links: ['/a', '/b', '/c', '/d'] },
+      '/a': {},
+      '/b': {},
+      '/c': {},
+      '/d': {},
+    })
+
+    await expect(walkThrough(site.reader, { entries: ['/'], mostKinds: 3 })).rejects.toThrow(
+      'an der Grenze von 3 Arten angehalten, 2 Adressen blieben ungeprüft',
+    )
+    expect(site.opened).toEqual(['/', '/a', '/b'])
+  })
+
+  it('is through under the limit an application names', async () => {
+    const pages = { '/': { links: [] } }
+
+    for (let number = 0; number < 150; number++) {
+      pages['/'].links.push(`/seite-${String(number)}`)
+      pages[`/seite-${String(number)}`] = {}
+    }
+
+    // 151 kinds of page: too many for the limit it has unless told, which says so.
+    await expect(walkThrough(siteOf(pages).reader, { entries: ['/'] })).rejects.toThrow(
+      'an der Grenze von 120 Arten angehalten, 31 Adressen blieben ungeprüft',
+    )
+    expect((await walkThrough(siteOf(pages).reader, { entries: ['/'], mostKinds: 200 })).size).toBe(
+      151,
+    )
+  })
+})
+
+describe('the theme of a pass', () => {
+  const source = readFileSync(join(import.meta.dirname, '../src/components/theme.ts'), 'utf8')
+
+  /**
+   * The dark pass sets the stored choice of the device before the page
+   * loads. The key was written out in the tool a second time: changed in
+   * `theme.ts`, the dark pass would have run light and found nothing
+   * (opengewerk-haustechnik#31).
+   */
+  it('is chosen under the key the theme reads its choice from', () => {
+    const key = themeKeyIn(source)
+
+    expect(storedTheme({ getItem: (asked) => (asked === key ? 'dark' : null) })).toBe('dark')
+    expect(storedTheme({ getItem: () => null })).toBe('light')
+  })
+
+  it('is not chosen under a key that could not be read, rather than run light', () => {
+    expect(() => themeKeyIn("const name = 'x'")).toThrow('kein Schlüssel der Farbwahl')
+    expect(() => themeKeyIn("const key = ''")).toThrow('kein Schlüssel der Farbwahl')
+    expect(() => themeKeyIn("const key = 'offen")).toThrow('kein Schlüssel der Farbwahl')
+    expect(themeKeyIn("export const x = 1\nconst key = 'probe.theme'\n")).toBe('probe.theme')
+  })
+
+  it('is held to what the page says it shows', () => {
+    expect(themeProblem('dark', 'dark')).toBeNull()
+    expect(themeProblem('light', 'light')).toBeNull()
+    expect(themeProblem('dark', 'light')).toBe(
+      'Der dunkle Durchgang lief hell: die Seite hat die Farbwahl nicht übernommen, die die Prüfung ihr mitgibt.',
+    )
+    expect(themeProblem('light', 'dark')).toContain('Der helle Durchgang lief dunkel')
+    expect(themeProblem('dark', null)).toContain('ohne Angabe ihrer Farbwahl')
   })
 })
 

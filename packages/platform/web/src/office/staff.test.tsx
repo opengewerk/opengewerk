@@ -627,6 +627,219 @@ describe('the staff screen', () => {
  * something else, dropped one and made one of its own is the case a list in
  * the code would get wrong in every line.
  */
+describe('the staff screen on a phone', () => {
+  /**
+   * A window narrower than every band above the phone. The three tables of
+   * the screen are boxes there, drawn by other code than their rows: a button
+   * or a box of a role missing from them would be missing on every phone and
+   * in no test at a desk (opengewerk-haustechnik#31).
+   */
+  function onAPhone() {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+  }
+
+  /** The box of one person among the accounts. */
+  async function boxOf(name: string): Promise<HTMLElement> {
+    const accounts = await screen.findByRole('list', { name: 'Konten des Mandanten' })
+
+    return within(accounts).getByText(name).closest('li') as HTMLElement
+  }
+
+  it('shows a box per person with name, roles, state and what can be done, and no table', async () => {
+    server.answer('GET', '/staff', [
+      lea,
+      max,
+      {
+        ...max,
+        userId: 'u-3',
+        name: 'Gesa Gesperrt',
+        email: 'gesa@nord.example.de',
+        blockedAt: '2026-09-30T08:00:00.000Z',
+      },
+    ])
+    onAPhone()
+    staffScreen()
+
+    const maxBox = await boxOf('Max Mitglied')
+
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(maxBox.textContent).toContain('max@nord.example.de')
+    expect(boxes(maxBox)).toEqual(['Leitung', 'Mitglied', 'Gast'])
+    expect(ticked(maxBox)).toEqual([false, true, false])
+    // State and last sign in, in one line under the roles.
+    expect(maxBox.textContent).toContain('Aktiv · Noch nie')
+
+    await mayChange()
+
+    expect(within(maxBox).getByRole('button', { name: 'Geräte' })).toBeTruthy()
+    expect(within(maxBox).getByRole('button', { name: 'Max Mitglied sperren' }).textContent).toBe(
+      'Sperren',
+    )
+
+    // Whoever is looking is marked and cannot block themselves, in a box as in a row.
+    const leaBox = await boxOf('Lea Leitung')
+
+    expect(leaBox.textContent).toContain('Sie')
+    expect(leaBox.textContent).toContain('Aktiv, zweiter Faktor eingerichtet')
+    expect(within(leaBox).queryByRole('button', { name: /sperren$/ })).toBeNull()
+
+    const gesaBox = await boxOf('Gesa Gesperrt')
+
+    expect(gesaBox.textContent).toContain('Gesperrt seit')
+    expect(
+      within(gesaBox).getByRole('button', { name: 'Gesa Gesperrt entsperren' }).textContent,
+    ).toBe('Entsperren')
+  })
+
+  it('sends the roles of a person from a box the way a row does', async () => {
+    onAPhone()
+    staffScreen()
+
+    const box = await boxOf('Max Mitglied')
+
+    await mayChange()
+    await userEvent.setup().click(within(box).getByLabelText('Gast'))
+
+    expect(sent('PATCH', '/staff/u-2')).toEqual([{ roles: ['member', 'guest'] }])
+  })
+
+  it('blocks somebody from a box only after asking', async () => {
+    server.answer('PUT', '/staff/u-2/block', {})
+    onAPhone()
+    staffScreen()
+
+    const box = await boxOf('Max Mitglied')
+    const person = userEvent.setup()
+
+    await mayChange()
+    await person.click(within(box).getByRole('button', { name: 'Max Mitglied sperren' }))
+
+    const asking = await screen.findByRole('alertdialog', { name: 'Max Mitglied sperren?' })
+
+    expect(server.heard.some((call) => call.path === '/staff/u-2/block')).toBe(false)
+
+    await person.click(within(asking).getByRole('button', { name: 'Sperren' }))
+
+    await waitFor(() => {
+      expect(
+        server.heard.some((call) => call.method === 'PUT' && call.path === '/staff/u-2/block'),
+      ).toBe(true)
+    })
+  })
+
+  it('shows an open invitation in a box, with how it travels and the way to withdraw it', async () => {
+    server.answer('GET', '/staff/invitations', [
+      { ...invitation, id: 'i-1', name: 'Lina Link', mail: null },
+    ])
+    server.answer('DELETE', '/staff/invitations/i-1', {})
+    onAPhone()
+    staffScreen()
+
+    const invitations = await screen.findByRole('list', {
+      name: 'Einladungen, die noch benutzt werden können',
+    })
+    const box = within(invitations).getByText('Lina Link').closest('li') as HTMLElement
+
+    expect(box.textContent).toContain('x@nord.example.de · Mitglied · bis ')
+    expect(box.textContent).toContain('Link weitergegeben')
+
+    const person = userEvent.setup()
+
+    await mayChange()
+    await person.click(
+      within(box).getByRole('button', { name: 'Einladung an x@nord.example.de zurückziehen' }),
+    )
+    await person.click(
+      within(await screen.findByRole('alertdialog', { name: 'Einladung zurückziehen?' })).getByRole(
+        'button',
+        { name: 'Zurückziehen' },
+      ),
+    )
+
+    await waitFor(() => {
+      expect(
+        server.heard.some(
+          (call) => call.method === 'DELETE' && call.path === '/staff/invitations/i-1',
+        ),
+      ).toBe(true)
+    })
+  })
+
+  it('shows the devices of a person in boxes, each with the way to sign it out', async () => {
+    server.answer('GET', '/staff/u-2/devices', devices)
+    server.answer('DELETE', '/staff/u-2/devices/s-2', {})
+    onAPhone()
+    staffScreen()
+
+    const person = userEvent.setup()
+
+    await person.click(within(await boxOf('Max Mitglied')).getByRole('button', { name: 'Geräte' }))
+
+    const list = await screen.findByRole('list', {
+      name: 'Wo Max Mitglied im Mandanten angemeldet ist',
+    })
+    const desk = within(list).getByText('Chrome auf Windows').closest('li') as HTMLElement
+    const phone = within(list).getByText('Chrome auf Android').closest('li') as HTMLElement
+
+    expect(desk.textContent).toContain('Schreibtisch, 12 Stunden')
+    expect(phone.textContent).toContain('Unterwegs, 30 Tage')
+
+    await mayChange()
+    await person.click(within(phone).getByRole('button', { name: 'Chrome auf Android abmelden' }))
+    await person.click(
+      within(await screen.findByRole('alertdialog', { name: 'Gerät abmelden?' })).getByRole(
+        'button',
+        { name: 'Abmelden' },
+      ),
+    )
+
+    await waitFor(() => {
+      expect(
+        server.heard.some(
+          (call) => call.method === 'DELETE' && call.path === '/staff/u-2/devices/s-2',
+        ),
+      ).toBe(true)
+    })
+  })
+
+  it('offers nothing to change in a box to somebody who may only read', async () => {
+    signedIn(
+      server,
+      [aTenant({ roles: ['lead'], roleLabels: ['Leitung'], rights: ['membership.read'] })],
+      { name: 'Lea Leitung', email: 'lea@nord.example.de' },
+    )
+    server.answer('GET', '/staff/invitations', [
+      { ...invitation, id: 'i-1', name: 'Lina Link', mail: null },
+    ])
+    server.answer('GET', '/staff/u-2/devices', devices)
+    onAPhone()
+    staffScreen()
+
+    const box = await boxOf('Max Mitglied')
+
+    await userEvent.setup().click(within(box).getByRole('button', { name: 'Geräte' }))
+    await screen.findByRole('list', { name: 'Wo Max Mitglied im Mandanten angemeldet ist' })
+    // The settings at the side are listed once the rights are known.
+    await within(screen.getByRole('navigation', { name: 'Einstellungen' })).findByRole('link', {
+      name: 'Zugänge',
+    })
+
+    expect(screen.queryByRole('button', { name: /sperren$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /zurückziehen$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /abmelden$/ })).toBeNull()
+    expect(
+      within(box)
+        .getAllByRole('checkbox')
+        .every((role) => (role as HTMLInputElement).disabled),
+    ).toBe(true)
+  })
+})
+
 describe('the roles of the tenant', () => {
   const head: RoleDefinition = { ...lead, label: 'Vorsitz' }
   const worker: RoleDefinition = { ...member, label: 'Helfer' }

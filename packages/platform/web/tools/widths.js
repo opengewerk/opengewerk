@@ -62,8 +62,11 @@ export function heightFor(width) {
  */
 const pagesPerKind = 4
 
-/** Enough for every kind of page there is, and a stop if the walk runs away. */
-const mostKinds = 120
+/**
+ * Enough for every kind of page an application has had so far, and a stop if
+ * the walk runs away. An application with more names its own to `checkWidths`.
+ */
+const mostKindsUnlessSaid = 120
 
 const identifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -171,18 +174,11 @@ export function alsoReached(scannedOnly, path) {
 }
 
 /**
- * The links on the page worth following: to pages not queued yet, as many of
- * a kind as that kind has left of `pagesPerKind`, and only those that lead to
- * a page of the application.
+ * The addresses worth following among the links of a page: those not queued
+ * yet, and as many of a kind as that kind has left of `pagesPerKind`. Whether
+ * one of them leads to a page of the application the browser says afterwards.
  */
-async function linksOn(page, queued, looked, scannedOnly) {
-  const paths = await page.evaluate(() =>
-    [...document.querySelectorAll('a[href]')]
-      .filter((anchor) => !anchor.hasAttribute('download') && !anchor.target)
-      .map((anchor) => new URL(anchor.href, location.href))
-      .filter((url) => url.origin === location.origin)
-      .map((url) => url.pathname),
-  )
+export function worthFollowing(paths, queued, looked, scannedOnly) {
   const fresh = new Set()
   const taken = new Map()
 
@@ -196,32 +192,7 @@ async function linksOn(page, queued, looked, scannedOnly) {
     }
   }
 
-  // A link to a PDF or to the API answers with something other than the
-  // shell of the application, and that is how it is told apart.
-  return page.evaluate(
-    async (candidates) => {
-      const pages = []
-
-      for (const path of candidates) {
-        try {
-          // Asked the way a browser asks for a page, and the answer left
-          // unread: only its type matters.
-          const response = await fetch(path, { headers: { Accept: 'text/html' } })
-
-          if ((response.headers.get('content-type') ?? '').startsWith('text/html')) {
-            pages.push(path)
-          }
-
-          await response.body?.cancel()
-        } catch {
-          // Not reachable is not a page to check.
-        }
-      }
-
-      return pages
-    },
-    [...fresh.values()],
-  )
+  return [...fresh]
 }
 
 /** Goes to a page and waits until the screen stands. */
@@ -231,12 +202,78 @@ async function open(page, address, path) {
 }
 
 /**
+ * What the walk asks of a browser, on one page of it: to open an address,
+ * whether a button stands on what is open, where its links lead, and which of
+ * some addresses are pages of the application. Apart from the walk, so that
+ * the walk can be held to what it promises without a browser.
+ */
+function readerOf(page, address) {
+  return {
+    // At a desktop width, where the navigation stands open and every link
+    // in it can be found.
+    async open(path) {
+      await open(page, address, path)
+      await resize(page, 1280)
+    },
+
+    async has(name) {
+      return (await opener(page, name).count()) > 0
+    },
+
+    paths() {
+      return page.evaluate(() =>
+        [...document.querySelectorAll('a[href]')]
+          .filter((anchor) => !anchor.hasAttribute('download') && !anchor.target)
+          .map((anchor) => new URL(anchor.href, location.href))
+          .filter((url) => url.origin === location.origin)
+          .map((url) => url.pathname),
+      )
+    },
+
+    // A link to a PDF or to the API answers with something other than the
+    // shell of the application, and that is how it is told apart.
+    pages(candidates) {
+      return page.evaluate(async (asked) => {
+        const pages = []
+
+        for (const path of asked) {
+          try {
+            // Asked the way a browser asks for a page, and the answer left
+            // unread: only its type matters.
+            const response = await fetch(path, { headers: { Accept: 'text/html' } })
+
+            if ((response.headers.get('content-type') ?? '').startsWith('text/html')) {
+              pages.push(path)
+            }
+
+            await response.body?.cancel()
+          } catch {
+            // Not reachable is not a page to check.
+          }
+        }
+
+        return pages
+      }, candidates)
+    },
+  }
+}
+
+/**
  * The kinds of page of both entry points, one address each, and with it the
  * button to press first, or null.
+ *
+ * The limit is a stop for a walk that runs away and not a number of pages
+ * that is enough. Reached with addresses still waiting, pages went unchecked,
+ * and the walk used to end there and the check to report a success it did not
+ * have (opengewerk-haustechnik#31). Now that is a failure which says how many
+ * were left.
+ *
+ * @param {object} reader What the walk asks of a browser, see `readerOf`.
  */
-async function walk(context, { address, entries, scannedOnly, openers }) {
-  const page = await context.newPage()
-
+export async function walkThrough(
+  reader,
+  { entries, scannedOnly = [], openers = [], mostKinds = mostKindsUnlessSaid },
+) {
   const kinds = new Map()
   const queued = new Set(entries)
   const looked = new Map(entries.map((path) => [kindOf(path), 1]))
@@ -249,29 +286,82 @@ async function walk(context, { address, entries, scannedOnly, openers }) {
       kinds.set(kindOf(path), { path, press: null })
     }
 
-    // At a desktop width, where the navigation stands open and every link
-    // in it can be found.
-    await open(page, address, path)
-    await resize(page, 1280)
+    await reader.open(path)
 
     for (const name of openers) {
       const kind = `${kindOf(path)} (${name})`
 
-      if (!kinds.has(kind) && (await opener(page, name).count()) > 0) {
+      if (!kinds.has(kind) && (await reader.has(name))) {
         kinds.set(kind, { path, press: name })
       }
     }
 
-    for (const link of await linksOn(page, queued, looked, scannedOnly)) {
+    const fresh = worthFollowing(await reader.paths(), queued, looked, scannedOnly)
+
+    for (const link of await reader.pages(fresh)) {
       queued.add(link)
       looked.set(kindOf(link), (looked.get(kindOf(link)) ?? 0) + 1)
       queue.push(link)
     }
   }
 
-  await page.close()
+  if (queue.length > 0) {
+    throw new Error(
+      `Der Gang durch die Seiten hat an der Grenze von ${String(mostKinds)} Arten angehalten, ${String(queue.length)} Adressen blieben ungeprüft. Eine Anwendung mit mehr Arten von Seiten nennt checkWidths eine höhere Grenze (mostKinds).`,
+    )
+  }
 
   return kinds
+}
+
+/** The walk in a page of its own of this browser. */
+async function walk(context, { address, ...asked }) {
+  const page = await context.newPage()
+
+  try {
+    return await walkThrough(readerOf(page, address), asked)
+  } finally {
+    await page.close()
+  }
+}
+
+/**
+ * The key the choice of light or dark is kept under, read from
+ * `components/theme.ts` of this package rather than written here a second
+ * time. A copy that fell behind would have run the dark pass light without a
+ * word (opengewerk-haustechnik#31). Read with `indexOf`: what a package
+ * exports counts as foreign input for the code scanning, and a pattern that
+ * backtracks is a finding there.
+ */
+export function themeKeyIn(source) {
+  const opening = "const key = '"
+  const from = source.indexOf(opening)
+  const until = from < 0 ? -1 : source.indexOf("'", from + opening.length)
+
+  if (until <= from + opening.length) {
+    throw new Error(
+      'In theme.ts steht kein Schlüssel der Farbwahl: die Prüfung liest ihn aus "const key = \'<schlüssel>\'" und liefe ohne ihn im dunklen Durchgang hell.',
+    )
+  }
+
+  return source.slice(from + opening.length, until)
+}
+
+/**
+ * What is wrong when a pass does not run in the theme it is run for, or null.
+ * Asked of the first page of every pass, of what the page itself says it
+ * shows: a dark pass that runs light finds nothing and proves nothing.
+ */
+export function themeProblem(wanted, shown) {
+  if (shown === wanted) {
+    return null
+  }
+
+  const pass = wanted === 'dark' ? 'dunkle' : 'helle'
+  const seen =
+    shown === 'dark' ? 'dunkel' : shown === 'light' ? 'hell' : 'ohne Angabe ihrer Farbwahl'
+
+  return `Der ${pass} Durchgang lief ${seen}: die Seite hat die Farbwahl nicht übernommen, die die Prüfung ihr mitgibt.`
 }
 
 /**
@@ -414,14 +504,19 @@ export function fileFor(report, kind, width, theme) {
  *   for as well.
  * @param {readonly string[]} [options.openers] The names of the buttons that
  *   open a form without an address of its own.
+ * @param {number} [options.mostKinds] How many kinds of page the walk may
+ *   find before it stops and fails, 120 unless said.
  */
-export async function checkWidths({ report, entries, scannedOnly = [], openers = [] }) {
+export async function checkWidths({ report, entries, scannedOnly = [], openers = [], mostKinds }) {
   const browserAddress = process.env.WIDTHS_BROWSER ?? 'ws://127.0.0.1:3999?token=probe'
   const address = (process.env.WIDTHS_ADDRESS ?? 'http://host.docker.internal:23700').replace(
     /\/$/,
     '',
   )
   const steps = stepsIn(readFileSync(resolve(here, '..', 'src', 'components', 'band.ts'), 'utf8'))
+  const themeKey = themeKeyIn(
+    readFileSync(resolve(here, '..', 'src', 'components', 'theme.ts'), 'utf8'),
+  )
 
   rmSync(report, { recursive: true, force: true })
 
@@ -434,6 +529,7 @@ export async function checkWidths({ report, entries, scannedOnly = [], openers =
       entries,
       scannedOnly,
       openers,
+      mostKinds,
     })
     console.log(
       `${String(kinds.size)} Arten von Seiten gefunden, geprüft bei ${String(widths.length)} Breiten, hell und dunkel:`,
@@ -450,19 +546,38 @@ export async function checkWidths({ report, entries, scannedOnly = [], openers =
       const context = await browser.newContext()
 
       if (theme === 'dark') {
-        await context.addInitScript(() => {
-          localStorage.setItem('opengewerk.theme', 'dark')
-        })
+        await context.addInitScript((key) => {
+          localStorage.setItem(key, 'dark')
+        }, themeKey)
       }
 
       const page = await context.newPage()
+      let confirmed = false
+
+      /** Opens a page, and holds the first of the pass to the theme the pass is run for. */
+      const openInTheme = async (path) => {
+        await open(page, address, path)
+
+        if (!confirmed) {
+          const problem = themeProblem(
+            theme,
+            await page.evaluate(() => document.documentElement.dataset.theme ?? null),
+          )
+
+          if (problem) {
+            throw new Error(problem)
+          }
+
+          confirmed = true
+        }
+      }
 
       for (const [kind, { path, press }] of kinds) {
         // A kind with a button to press opens its page in the loop below, in
         // every band anew; the first column of its tables is the plain
         // kind's to check, once per page.
         if (!press) {
-          await open(page, address, path)
+          await openInTheme(path)
 
           const bare = await bareColumns(page)
 
@@ -484,7 +599,7 @@ export async function checkWidths({ report, entries, scannedOnly = [], openers =
 
           if (press && bandOf(steps, width) !== band) {
             band = bandOf(steps, width)
-            await open(page, address, path)
+            await openInTheme(path)
             await resize(page, width)
 
             const button = opener(page, press)
