@@ -191,6 +191,28 @@ describe('the frame of the area', () => {
     expect(within(nav).getByRole('link', { name: 'Mandanten' }).className).toContain('bg-ink')
   })
 
+  it('puts the focus on the heading of the screen somebody goes to', async () => {
+    server.answer('GET', '/instance/tenants', [])
+    server.answer('GET', '/instance/settings', {
+      mailInternalHosts: [],
+      backupTime: '02:30',
+      takenOverAt: null,
+    })
+    await area('/instanz')
+
+    const nav = (await screen.findAllByRole('navigation', { name: 'Instanz' }))[0] as HTMLElement
+
+    await userEvent.setup().click(within(nav).getByRole('link', { name: 'Einstellungen' }))
+
+    // Not on the link that led there: a reader hears the new screen, and Tab
+    // goes on in it.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { level: 1, name: 'Einstellungen' }),
+      )
+    })
+  })
+
   it('names the application and the instance in its header, and no tenant', async () => {
     server.answer('GET', '/instance/tenants', [])
     await area('/instanz')

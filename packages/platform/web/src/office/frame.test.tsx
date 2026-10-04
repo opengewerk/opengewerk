@@ -595,3 +595,51 @@ describe('the strips over an office screen', () => {
     ).toBe('/konflikte')
   })
 })
+
+describe('the focus after a change of screen in the office', () => {
+  /**
+   * The frame swaps the screen without loading a document, and the focus
+   * stayed on the link that led there: a reader heard nothing of the new
+   * screen, and Tab went through the navigation once more.
+   */
+  it('stands at the heading of the screen somebody goes to from the navigation', async () => {
+    await frame()
+
+    const nav = await sidebar()
+
+    await userEvent.setup().click(within(nav).getByRole('link', { name: 'Notizen' }))
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Notizen' })
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(heading)
+    })
+    // Reached by the frame and by no Tab.
+    expect(heading.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('stands at the heading after the menu of a phone led there as well', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    await frame()
+
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Menü' }))
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Menü' })).getByRole('link', { name: 'Notizen' }),
+    )
+
+    // The menu has closed, and the link in it is gone with it.
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('heading', { level: 1, name: 'Notizen' }),
+      )
+    })
+    expect(screen.queryByRole('dialog', { name: 'Menü' })).toBeNull()
+  })
+})

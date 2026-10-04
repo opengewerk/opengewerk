@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 
 import type { SyncConflict } from '@opengewerk/platform-domain'
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { Archive, PackageOpen, StickyNote } from 'lucide-react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -381,5 +381,38 @@ describe('the menu on site', () => {
     await waitFor(() => {
       expect(globalThis.location.assign).toHaveBeenCalledWith('/m/')
     })
+  })
+})
+
+describe('the focus after a change of screen on site', () => {
+  it('stands at the heading of the place somebody goes to', async () => {
+    await frame()
+
+    const [, bottom] = await places()
+
+    await userEvent.setup().click(within(bottom).getByRole('link', { name: 'Pakete' }))
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'Pakete' }))
+    })
+  })
+
+  /**
+   * Below the tabs the title of a screen stands in the header over it, which
+   * is not part of the page itself: the frame is asked for the heading, not
+   * the content alone.
+   */
+  it('stands at the title in the header of a screen below the tabs', async () => {
+    const { router } = await frame()
+
+    await places()
+    await act(() => router.navigate({ to: '/regale/$shelfId', params: { shelfId: 's-1' } }))
+
+    const title = await screen.findByRole('heading', { level: 1, name: 'Regal am Fenster' })
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(title)
+    })
+    expect(screen.getByRole('banner').contains(title)).toBe(true)
   })
 })

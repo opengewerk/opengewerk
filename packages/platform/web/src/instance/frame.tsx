@@ -13,6 +13,7 @@ import { SettingsText } from '../office/settings.js'
 import { PersonMenu } from '../office/top-bar.js'
 import { instanceAccessQuery } from '../session/instance.js'
 import { useWho } from '../session/who.js'
+import { useHeadingFocus } from '../shell/heading-focus.js'
 import { UpdateBar } from '../shell/update-bar.js'
 
 /** One screen of the area, as its navigation lists it. */
@@ -326,10 +327,16 @@ export function InstanceFrame({ navigation }: { readonly navigation: readonly In
   const closeDrawer = useCallback(() => {
     setDrawer(false)
   }, [])
+  const frame = useRef<HTMLDivElement>(null)
+
+  useHeadingFocus(frame)
 
   return (
     <Shell entry="office">
-      <div className="flex min-h-dvh flex-col [--sticky-top:3.5rem] lg:[--sticky-top:52px]">
+      <div
+        ref={frame}
+        className="flex min-h-dvh flex-col [--sticky-top:3.5rem] lg:[--sticky-top:52px]"
+      >
         <a
           href="#inhalt"
           className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-2 focus:p-2 focus:bg-surface focus:border focus:border-line-strong focus:rounded-control"
