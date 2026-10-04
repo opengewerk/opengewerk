@@ -19,6 +19,8 @@ export type { CellProps, ColumnProps } from './table.js'
 export { Card, Shell, TextLink, useEntry } from './surface.js'
 export type { CardProps, CardTone, Entry, ShellProps, TextLinkProps } from './surface.js'
 
+export type { Crumb } from './crumb.js'
+
 export { BrandMark } from './brand-mark.js'
 export { QrCode } from './qr-code.js'
 export { SignaturePicture } from './signature.js'

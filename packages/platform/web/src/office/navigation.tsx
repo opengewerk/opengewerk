@@ -47,26 +47,34 @@ export interface NavigationBadge {
   readonly spoken: string
 }
 
-/** Entries under a title. A group without an entry is left out with its title. */
+/**
+ * Entries under a title. A group without an entry is left out with its title.
+ * A group without a title is its entries alone: the place an application puts
+ * before its groups, as an overview over all of them.
+ */
 export interface NavigationGroup {
-  readonly title: string
+  readonly title?: string
   readonly entries: readonly NavigationEntry[]
 }
 
-/** Where the exchange with the server is looked at, the first of the two entries at the foot. */
+/** Where the exchange with the server is looked at, the first of the foundation's two entries at the foot. */
 const syncPath = '/konflikte'
 
 /**
- * The two places at the foot that are visited rather than worked in: the
- * exchange with the server, with the conflicts that wait as a figure, and the
- * settings, for whoever may read at least one of them. A courtesy and not the
- * gate, as everywhere in the navigation.
+ * The places at the foot that are visited rather than worked in: what the
+ * application has of that kind, then the exchange with the server, with the
+ * conflicts that wait as a figure, and the settings, for whoever may read at
+ * least one of them. A courtesy and not the gate, as everywhere in the
+ * navigation.
  */
-function useFoot(): readonly NavigationEntry[] {
+function useFoot(own: readonly NavigationEntry[]): readonly NavigationEntry[] {
   const { conflicts } = useSyncStatus()
   const settings = useSettingsEntries()
 
   return [
+    // Quiet like the two after them, whatever the application said: the foot
+    // is the part that stands back behind the work.
+    ...own.map((entry) => ({ ...entry, quiet: true })),
     {
       to: syncPath,
       label: 'Abgleich',
@@ -236,8 +244,15 @@ function withEntries(groups: readonly NavigationGroup[]): readonly NavigationGro
 }
 
 /** The navigation beside every office screen, from 1024 px on. */
-export function Sidebar({ groups }: { readonly groups: readonly NavigationGroup[] }) {
-  const foot = useFoot()
+export function Sidebar({
+  groups,
+  foot: own,
+}: {
+  readonly groups: readonly NavigationGroup[]
+  /** Entries of the application at the foot, before the two of the foundation. */
+  readonly foot: readonly NavigationEntry[]
+}) {
+  const foot = useFoot(own)
 
   return (
     <nav
@@ -245,16 +260,18 @@ export function Sidebar({ groups }: { readonly groups: readonly NavigationGroup[
       className="hidden lg:flex sticky top-[52px] h-[calc(100dvh-52px)] w-[208px] shrink-0 flex-col gap-0.5 overflow-y-auto px-2.5 py-3.5 bg-nav border-r border-line"
     >
       {withEntries(groups).map((group, index) => (
-        <Fragment key={group.title}>
-          <div
-            className={clsx(
-              groupLabel,
-              'px-2.5 text-label',
-              index === 0 ? 'pt-1.5 pb-1' : 'pt-3.5 pb-1',
-            )}
-          >
-            {group.title}
-          </div>
+        <Fragment key={group.title ?? index}>
+          {group.title ? (
+            <div
+              className={clsx(
+                groupLabel,
+                'px-2.5 text-label',
+                index === 0 ? 'pt-1.5 pb-1' : 'pt-3.5 pb-1',
+              )}
+            >
+              {group.title}
+            </div>
+          ) : null}
           {group.entries.map((entry) => (
             <EntryLink key={entry.to} entry={entry} />
           ))}
@@ -281,12 +298,15 @@ export function Drawer({
   open,
   onClose,
   groups,
+  foot: own,
 }: {
   readonly open: boolean
   readonly onClose: () => void
   readonly groups: readonly NavigationGroup[]
+  /** Entries of the application at the foot, before the two of the foundation. */
+  readonly foot: readonly NavigationEntry[]
 }) {
-  const foot = useFoot()
+  const foot = useFoot(own)
   const [theme, chooseTheme] = useTheme()
   const who = useWho()
   const { name } = useApplication()
@@ -343,16 +363,18 @@ export function Drawer({
         {who.tenant ? <DrawerTenant name={who.tenant} onFollow={onClose} /> : null}
         <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-2">
           {withEntries(groups).map((group, index) => (
-            <Fragment key={group.title}>
-              <div
-                className={clsx(
-                  groupLabel,
-                  'px-3.5 text-[13px]',
-                  index === 0 ? 'pt-1 pb-1.5' : 'pt-4 pb-1.5',
-                )}
-              >
-                {group.title}
-              </div>
+            <Fragment key={group.title ?? index}>
+              {group.title ? (
+                <div
+                  className={clsx(
+                    groupLabel,
+                    'px-3.5 text-[13px]',
+                    index === 0 ? 'pt-1 pb-1.5' : 'pt-4 pb-1.5',
+                  )}
+                >
+                  {group.title}
+                </div>
+              ) : null}
               {group.entries.map((entry) => (
                 <EntryLink key={entry.to} entry={entry} large onFollow={onClose} />
               ))}

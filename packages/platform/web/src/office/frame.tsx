@@ -8,16 +8,26 @@ import { EntrySuggestion } from '../shell/suggestion.js'
 import { UpdateBar } from '../shell/update-bar.js'
 import { SyncStatusBar } from '../sync/bar.js'
 import { Drawer, Sidebar } from './navigation.js'
-import type { NavigationGroup } from './navigation.js'
+import type { NavigationEntry, NavigationGroup } from './navigation.js'
 import { PathSlot, TopBar } from './top-bar.js'
+
+/** An application with nothing of its own at the foot. */
+const nothingOfItsOwn: readonly NavigationEntry[] = []
 
 export interface OfficeFrameProps {
   /**
    * What the application offers beside every screen, in its groups, with what
    * the person may not use left out. The two entries at the foot, the
-   * exchange with the server and the settings, the frame adds itself.
+   * exchange with the server and the settings, the frame adds itself. A
+   * group without a title stands before the others as its entries alone.
    */
   readonly navigation: readonly NavigationGroup[]
+  /**
+   * What the application visits rather than works in, a catalogue for
+   * instance: entries at the foot, before the two of the frame and as quiet
+   * as they are, with what the person may not use left out.
+   */
+  readonly foot?: readonly NavigationEntry[]
   /**
    * Whether the screen of this address is one that is worked in rather than
    * passed through. From 1024 pixels it takes the width of the navigation and
@@ -48,7 +58,12 @@ export interface OfficeFrameProps {
  * screen said nothing most of the time and took the space of a table row
  * (#217).
  */
-export function OfficeFrame({ navigation, focus = false, strips }: OfficeFrameProps) {
+export function OfficeFrame({
+  navigation,
+  foot = nothingOfItsOwn,
+  focus = false,
+  strips,
+}: OfficeFrameProps) {
   const [drawer, setDrawer] = useState(false)
   const openDrawer = useCallback(() => {
     setDrawer(true)
@@ -98,7 +113,7 @@ export function OfficeFrame({ navigation, focus = false, strips }: OfficeFramePr
         {/* The screen as tall as the window, so that a list can fill it to
             the bottom with its pages at the foot, as the list boards do. */}
         <div className="flex flex-1">
-          {focus ? null : <Sidebar groups={navigation} />}
+          {focus ? null : <Sidebar groups={navigation} foot={foot} />}
           <main id="inhalt" className="flex min-w-0 flex-1 flex-col">
             <PathSlot.Provider value={focus ? slot : null}>
               <Outlet />
@@ -106,7 +121,7 @@ export function OfficeFrame({ navigation, focus = false, strips }: OfficeFramePr
           </main>
         </div>
 
-        <Drawer open={drawer} onClose={closeDrawer} groups={navigation} />
+        <Drawer open={drawer} onClose={closeDrawer} groups={navigation} foot={foot} />
       </div>
     </Shell>
   )

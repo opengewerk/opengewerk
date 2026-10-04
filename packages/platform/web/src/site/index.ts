@@ -16,6 +16,10 @@ export type { SiteFrameProps, SiteTab } from './frame.js'
 // application names.
 export { SiteHeader } from './header.js'
 export type { WayBack } from './header.js'
+// The path over a screen that stands under something: the same steps as in
+// the office, in the type of the site.
+export { SiteCrumbs } from './crumbs.js'
+export type { Crumb } from '../components/crumb.js'
 
 // The content of a screen, small capitals over a value, the facts of a
 // record, links and rows to tap, the head of a screen of the tabs, and the
