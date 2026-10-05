@@ -1,4 +1,9 @@
-import { contactParentProblem, contactParentText, type RecordState } from '@opengewerk/domain'
+import {
+  contactParentProblem,
+  contactParentText,
+  type RecordState,
+  tradeContacts,
+} from '@opengewerk/domain'
 import { Button, IconButton } from '@opengewerk/platform-web'
 import {
   RecordForm,
@@ -58,6 +63,20 @@ export function asContact(values: Record<string, string>) {
   }
 }
 
+/**
+ * What the rules of a contact say to the texts a form collected, or null when
+ * they say nothing: the family name no contact does without, above all. The
+ * routes and the sync ask the same rule (opengewerk-haustechnik#85), so a form
+ * that asks it first never queues what the server refuses for the whole
+ * transmission. A name of nothing but spaces passes the browser's own check
+ * of a required field and is caught here.
+ */
+export function contactTextProblem(values: Record<string, string>): string | null {
+  const [problem] = Object.values(tradeContacts.personProblems(asContact(values)))
+
+  return problem ?? null
+}
+
 export function contactName(contact: RecordState): string {
   return personName(contact) ?? 'Ansprechpartner ohne Namen'
 }
@@ -103,10 +122,10 @@ export function NewContactForm({
       fields={contactFields}
       submitLabel="Anlegen"
       onCancel={onDone}
-      check={() => {
+      check={(values) => {
         const problem = contactParentProblem(parent)
 
-        return problem ? contactParentText[problem] : null
+        return problem ? contactParentText[problem] : contactTextProblem(values)
       }}
       onSubmit={async (values) => {
         const made = await client.create('contacts', { ...parent, ...asContact(values) })
@@ -183,6 +202,7 @@ export function ContactList({
                   fields={contactFields}
                   record={contact}
                   submitLabel="Speichern"
+                  check={contactTextProblem}
                   disabled={offline}
                   disabledReason={
                     offline

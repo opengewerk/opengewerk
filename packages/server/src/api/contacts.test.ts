@@ -2,10 +2,12 @@ import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { contactParentText } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
+import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { contacts } from '../database/schema/index.js'
 import {
   allowApplicationLogin,
   applicationDatabaseUrl,
@@ -20,6 +22,10 @@ import { as, testIdentities as identities } from './test-identity.js'
  * The people to talk to at a customer or a site (#121). Created on the
  * screens through the outbox, corrected and removed here, with a connection,
  * the way master data is. The rights are the customer's.
+ *
+ * The routes are the foundation's since opengewerk-haustechnik#85 and tested
+ * there on records of nobody's; what is held here is this application's
+ * binding: its three parents, its rights and its sentences.
  */
 
 const north = { id: newId<'tenant'>(), name: 'Elektro Nord GmbH' }
@@ -235,6 +241,32 @@ describe('contacts', () => {
     )
 
     expect(kept.rows[0]?.deleted_at).toBeInstanceOf(Date)
+  })
+
+  it('cannot be removed for good by the application role, which only marks them', async () => {
+    const row = await contact({ customerId, familyName: 'Gerdes' })
+
+    // The right went with migration 0069: the description of the table in the
+    // foundation says "marked, never removed", and a device that was offline
+    // never hears about a row that is gone.
+    await expect(
+      database.forTenant({ tenantId: north.id, reason: 'tidy' }, (tx) =>
+        tx.delete(contacts).where(eq(contacts.id, row.id as never)),
+      ),
+    ).rejects.toMatchObject({ cause: { code: '42501' } })
+    expect((await list()).map((entry) => entry.id)).toContain(row.id)
+  })
+
+  it('keep their texts trimmed, and one left empty is none', async () => {
+    const row = await contact({
+      customerId,
+      givenName: '  Ole ',
+      familyName: ' Hansen ',
+      role: '',
+      phone: ' 040 123 45 ',
+    })
+
+    expect(row).toMatchObject({ givenName: 'Ole', familyName: 'Hansen', role: null })
   })
 
   it('are created by a technician on site, and corrected only by whoever may correct the customer', async () => {

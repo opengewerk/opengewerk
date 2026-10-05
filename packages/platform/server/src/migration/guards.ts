@@ -222,12 +222,14 @@ export const foundationGuards: readonly TableGuard[] = [
 /**
  * The tables of the foundation an application made with a list of its own:
  * the sealed credentials with its purposes, its settings, its sequences of
- * numbers, the outbox of its mail, its push, and what else is a function in the schema
- * of the foundation rather than a table. They are the foundation's in every
- * column and every rule, and only the application can say which values their
- * enums hold. The outbox is the one an application may add columns to, for
- * the records its messages are about; it names them to the comparison as its
- * own, and describes the outbox here without them.
+ * numbers, the outbox of its mail, its push, its deadlines, its contacts, and
+ * what else is a function in the schema of the foundation rather than a table.
+ * They are the foundation's in every column and every rule, and only the
+ * application can say which values their enums hold. The outbox, the deadlines
+ * and the contacts are the ones an application adds columns to, for the
+ * records its messages are about and for what a deadline or a contact hangs
+ * on; it names them to the comparison as its own, and describes each table
+ * here without them.
  *
  * An application describes them once, next to its schema. Its first migration
  * is completed with the guards (`completeInitialMigration`), and the kit of
@@ -302,6 +304,20 @@ export const deadlinesGuard: TableGuard = {
   grants: noDelete,
   audited: true,
   synced: false,
+}
+
+/**
+ * The people to talk to (`contactsSchema`), the one table described here whose
+ * rows travel to devices. Written and corrected, and marked as deleted where a
+ * contact is taken away, never removed: a row that is gone is a row a device
+ * that was offline never hears about. Watched by the log, like every record of
+ * a tenant.
+ */
+export const contactsGuard: TableGuard = {
+  table: 'contacts',
+  grants: noDelete,
+  audited: true,
+  synced: true,
 }
 
 /**

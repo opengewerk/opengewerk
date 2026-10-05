@@ -19,8 +19,14 @@ import {
   signerNameProblem,
   supplierProblems,
   titleAmountProblem,
+  tradeContacts,
 } from '@opengewerk/domain'
-import { type RecordRule, type RecordRules, recordRuleRefusal } from '@opengewerk/platform-server'
+import {
+  contactRecordRules,
+  type RecordRule,
+  type RecordRules,
+  recordRuleRefusal,
+} from '@opengewerk/platform-server'
 
 // Whose mistake a broken rule is, a conflict or a refusal of the transmission,
 // is the foundation's and the same for every application (ADR 0010,
@@ -69,6 +75,13 @@ const country: RecordRule = {
 const rules: RecordRules = {
   customers: [country],
   sites: [country],
+  // A contact (#121) under the rules of the foundation
+  // (opengewerk-haustechnik#85): the family name no contact does without,
+  // and one that hangs on a customer, a site and a supplier at once. A form
+  // makes a contact on the screen of what it belongs to and has no way to
+  // name another as well, so on several it is a mistake only the client can
+  // make, and the answer is the sentence of the rule.
+  contacts: contactRecordRules(tradeContacts),
   // A supplier is master data a device may create (#296): its name, the
   // customer number there and its short code, as `supplierProblems` and the
   // checks hold them.

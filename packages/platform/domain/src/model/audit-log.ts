@@ -149,7 +149,8 @@ export interface AuditVocabulary {
   /**
    * Columns of its own on tables of the foundation, named by table. The
    * outbox of the mail is the table made to carry some, for the records its
-   * messages are about (#23); the foundation names every other column.
+   * messages are about (#23), and so are the deadlines and the contacts, for
+   * what each of them hangs on; the foundation names every other column.
    */
   readonly ownFields?: Readonly<Record<string, Readonly<Record<string, string>>>>
   /** What the foundation needs from it to name its own tables and reasons. */
@@ -280,6 +281,7 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 
 /** The tables of the foundation the log of a tenant holds, by name. */
 export const foundationAuditTables = [
+  'contacts',
   'deadline_settings',
   'deadlines',
   'files',
@@ -305,6 +307,17 @@ function foundationTables(
   words: FoundationAuditWords,
 ): Readonly<Record<FoundationAuditTable, AuditTableWords>> {
   return {
+    // A person to talk to. What a contact hangs on is a column of the
+    // application, which names it (`ownFields`).
+    contacts: {
+      label: 'Ansprechpartner',
+      fields: {
+        given_name: 'Vorname',
+        family_name: 'Nachname',
+        role: 'Funktion',
+        phone: 'Telefon',
+      },
+    },
     deadline_settings: {
       label: 'Einstellung einer Fristart',
       fields: {
@@ -476,9 +489,11 @@ function foundationInstanceTables(
 /**
  * Where the records of the foundation are named: a membership and a sign in by
  * their person, a file by its type, a mail server by the address it sends from,
- * a message by its subject, a deadline by its source.
+ * a message by its subject, a deadline by its source, a contact by both its
+ * names.
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
+  contacts: { joined: ['given_name', 'family_name'] },
   // A deadline by what its source is called, a setting by its kind.
   deadlines: ['source_label'],
   deadline_settings: ['kind'],

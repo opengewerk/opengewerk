@@ -1,0 +1,24 @@
+-- The application role no longer removes a contact for good
+-- (opengewerk-haustechnik#85, ADR 0010).
+--
+-- Migration 0001 granted DELETE on every table of the time, `contacts` among
+-- them, and nothing ever used it there: a contact is taken away by marking it
+-- as deleted, in the column the sync layer brought (0004). A row that is gone
+-- is a row a device that was offline never hears about, because a delta pull
+-- delivers what changed and a row that is no longer there is not among it.
+-- Removing one for good was never possible through a route, and now the
+-- database says so as well: a right nothing needs is a right somebody can only
+-- misuse.
+--
+-- The occasion is the move of the contacts into the foundation. There a table
+-- is described once, with what it needs, and every application built on the
+-- foundation gets exactly that; the description says "marked, never removed",
+-- and this is the migration that makes it true here.
+--
+-- The keys to a customer, a site and a supplier keep ON DELETE CASCADE. They
+-- act for whoever owns the table and ask no right of the application role, and
+-- no route removes one of those rows either.
+--
+-- Nothing is written and no row is touched. A version of the application from
+-- before this migration runs on unchanged, it never deleted a contact.
+REVOKE DELETE ON "contacts" FROM "opengewerk_app";

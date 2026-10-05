@@ -16,6 +16,7 @@ import {
   migrationsFolderUpTo,
   ownerDatabaseUrl,
   resetSchema,
+  revertMigration,
   tableNames,
 } from './test-database.js'
 
@@ -38,6 +39,7 @@ import {
 const olderRelease = 4
 
 const tenant = { id: newId<'tenant'>(), name: 'Elektro Nord GmbH' }
+const customerOfTheContact = newId<'customer'>()
 
 let admin: Pool
 const folders: string[] = []
@@ -853,6 +855,60 @@ describe('the instructions a business had before 0029', () => {
       ['early_start', 4, ['quote'], false],
       [null, 5, ['cost_estimate', 'quote'], false],
     ])
+  })
+})
+
+/**
+ * What the application role may do with a contact. 0001 granted every right
+ * on every table of the time, and nothing ever removed a contact for good: one
+ * is marked as deleted, so that a device that was offline hears about it. With
+ * the contacts in the foundation (opengewerk-haustechnik#85) the table is
+ * described once, as marked and never removed, and 0069 makes that true on an
+ * installation that had granted more.
+ */
+describe('the right to remove a contact for good', () => {
+  async function rights(): Promise<string[]> {
+    const { rows } = await admin.query<{ privilege_type: string }>(
+      `select privilege_type from information_schema.role_table_grants
+        where table_schema = 'public' and table_name = 'contacts' and grantee = 'opengewerk_app'
+        order by privilege_type`,
+    )
+
+    return rows.map((row) => row.privilege_type)
+  }
+
+  it('goes with the update, comes back with the rollback, and no row is touched', async () => {
+    // The 69 migrations up to 0068, the state 0.5.0 left behind.
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(69))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'business', 'Bauherr Nord')",
+      [customerOfTheContact, tenant.id],
+    )
+    await admin.query(
+      "insert into contacts (tenant_id, customer_id, family_name) values ($1, $2, 'Brandt')",
+      [tenant.id, customerOfTheContact],
+    )
+
+    const before = await admin.query('select id, version, change_sequence from contacts')
+    const logged = await admin.query('select count(*)::int as entries from audit_entries')
+
+    expect(await rights()).toEqual(['DELETE', 'INSERT', 'SELECT', 'UPDATE'])
+
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+
+    expect(await rights()).toEqual(['INSERT', 'SELECT', 'UPDATE'])
+    expect((await admin.query('select id, version, change_sequence from contacts')).rows).toEqual(
+      before.rows,
+    )
+    expect((await admin.query('select count(*)::int as entries from audit_entries')).rows).toEqual(
+      logged.rows,
+    )
+
+    await revertMigration(admin, '0069_contacts_kept')
+
+    expect(await rights()).toEqual(['DELETE', 'INSERT', 'SELECT', 'UPDATE'])
   })
 })
 

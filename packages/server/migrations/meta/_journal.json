@@ -484,6 +484,13 @@
       "when": 1791134064017,
       "tag": "0068_sync_counter_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1791162781987,
+      "tag": "0069_contacts_kept",
+      "breakpoints": true
     }
   ]
 }

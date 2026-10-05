@@ -341,6 +341,43 @@ describe('the contacts at a customer in the office', () => {
     expect(await section.findByText('Brandt')).toBeDefined()
   })
 
+  it('hold a family name of nothing but spaces before anything is queued', async () => {
+    signedInAs('office')
+    const { client } = await mount('/kunden/c-1')
+    const section = await contactsSection()
+
+    await userEvent.click(await section.findByRole('button', { name: 'Anlegen' }))
+    // Spaces pass the browser's own check of a required field, and the sync
+    // refuses a contact without a family name for the whole transmission
+    // (opengewerk-haustechnik#85): the form asks the same rule first.
+    await userEvent.type(section.getByLabelText(/Nachname/), '   ')
+    await userEvent.click(section.getByRole('button', { name: 'Anlegen' }))
+
+    expect(await section.findByText('Der Nachname fehlt.')).toBeDefined()
+
+    await client.synchronise()
+
+    expect(server.sent).toEqual([])
+    expect(client.status().pending).toBe(0)
+  })
+
+  it('hold an emptied family name before anything goes to the server', async () => {
+    signedInAs('office')
+    await mount('/kunden/c-1')
+    const section = await contactsSection()
+
+    await userEvent.click(await section.findByRole('button', { name: 'Albers bearbeiten' }))
+
+    const name = section.getByLabelText(/Nachname/)
+
+    await userEvent.clear(name)
+    await userEvent.type(name, '  ')
+    await userEvent.click(section.getByRole('button', { name: 'Speichern' }))
+
+    expect(await section.findByText('Der Nachname fehlt.')).toBeDefined()
+    expect(server.patched).toEqual([])
+  })
+
   it('are corrected and removed straight at the server, the way master data is', async () => {
     signedInAs('office')
     await mount('/kunden/c-1')

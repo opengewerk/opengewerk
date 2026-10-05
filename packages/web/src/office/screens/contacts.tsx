@@ -16,6 +16,7 @@ import {
   type ContactParent,
   asContact,
   contactName,
+  contactTextProblem,
   dialable,
   NewContactForm,
   parentField,
@@ -128,6 +129,7 @@ export function ContactsSection({
                     fields={contactFields}
                     record={contact}
                     submitLabel="Speichern"
+                    check={contactTextProblem}
                     disabled={offline}
                     disabledReason={
                       offline

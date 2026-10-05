@@ -8,3 +8,4 @@
 // tested, and all of them mean the same records.
 export { probePolicies } from './sync/probe-policies.js'
 export { probeAuditVocabulary } from './model/probe-audit.js'
+export { probeContactRules } from './model/probe-contacts.js'

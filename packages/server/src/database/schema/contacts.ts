@@ -1,42 +1,35 @@
-import {
-  primaryId,
-  reference,
-  syncColumns,
-  tenantIsolation,
-  timestamps,
-} from '@opengewerk/platform-server'
-import { tenantColumn } from '@opengewerk/platform-server/schema'
+import { contactsSchema, reference } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, pgTable, text } from 'drizzle-orm/pg-core'
+import { check, foreignKey, index } from 'drizzle-orm/pg-core'
 
 import { customers } from './customers.js'
 import { sites } from './sites.js'
 import { suppliers } from './suppliers.js'
+
+/** What a contact of this application hangs on: a customer, a site or a supplier. */
+const contactParents = {
+  customerId: reference<'customer'>('customer_id'),
+  siteId: reference<'site'>('site_id'),
+  supplierId: reference<'supplier'>('supplier_id'),
+}
+
+/** The columns this application gives its contacts. */
+export type ContactParentColumns = typeof contactParents
 
 /**
  * A person to talk to. Hangs off a customer, off a single site or, since
  * #296, off a supplier, and the check makes sure it is exactly one: a contact
  * that belongs to nothing is unreachable, one that belongs to two is ambiguous
  * when a site changes hands.
+ *
+ * The table is the foundation's (`contactsSchema`,
+ * opengewerk-haustechnik#85): who a contact is and how to reach them, the sync
+ * columns and the separation of the businesses. Kept here are the three
+ * parents with their keys over the business, the check and the indexes.
  */
-export const contacts = pgTable(
-  'contacts',
-  {
-    id: primaryId<'contact'>(),
-    ...tenantColumn,
-    customerId: reference<'customer'>('customer_id'),
-    siteId: reference<'site'>('site_id'),
-    supplierId: reference<'supplier'>('supplier_id'),
-    givenName: text('given_name'),
-    familyName: text('family_name').notNull(),
-    role: text('role'),
-    email: text('email'),
-    phone: text('phone'),
-    ...timestamps,
-    ...syncColumns,
-  },
-  (table) => [
-    tenantIsolation(table.tenantId),
+export const { contacts } = contactsSchema({
+  columns: contactParents,
+  constraints: (table) => [
     foreignKey({
       columns: [table.tenantId, table.customerId],
       foreignColumns: [customers.tenantId, customers.id],
@@ -60,4 +53,4 @@ export const contacts = pgTable(
     index('contacts_site_idx').on(table.tenantId, table.siteId),
     index('contacts_supplier_idx').on(table.tenantId, table.supplierId),
   ],
-)
+})

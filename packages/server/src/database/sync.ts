@@ -1,6 +1,4 @@
 import {
-  contactParentProblem,
-  contactParentText,
   type CustomerId,
   formRecordProblem,
   type IsoDate,
@@ -12,8 +10,10 @@ import {
   type RecordState,
   signaturePathIsValid,
   type TenantId,
+  tradeContacts,
 } from '@opengewerk/domain'
 import {
+  contactWithoutParent,
   serverSync,
   type SyncCheck,
   syncTables,
@@ -48,25 +48,6 @@ type Check = SyncCheck<FoundIdentity>
 /** A field as the record would stand afterwards: what the operation sets, over what is held. */
 function standing(values: Record<string, unknown>, current: RecordState | null) {
   return (field: string) => (field in values ? values[field] : current?.[field])
-}
-
-/** Which of its three parents a contact names, judged as it would stand afterwards. */
-function contactParent(
-  operation: Operation,
-  values: Record<string, unknown>,
-  current: RecordState | null,
-) {
-  if (operation.entity !== 'contacts' || operation.kind === 'delete') {
-    return null
-  }
-
-  const at = standing(values, current)
-
-  return contactParentProblem({
-    customerId: at('customerId'),
-    siteId: at('siteId'),
-    supplierId: at('supplierId'),
-  })
 }
 
 /**
@@ -199,22 +180,6 @@ const structure: Check = ({ operation, values, current }) => {
 }
 
 /**
- * A contact hangs on one customer, one site or one supplier, which the check
- * in the database holds as well, judged as it would stand afterwards: what the
- * operation sets, over the row it lands on. The two ways to miss that are not
- * the same kind of mistake. On several, it is one only the client can make: a
- * form makes a contact on the screen of what it belongs to and has no way to
- * name another as well, so the answer is the sentence of the rule, the way a
- * circuit is refused whose curve does not go with its device. On none, it is a
- * record without the parent it must have, and that is the question of the
- * references further down, which gets their answer.
- */
-const contactOnSeveral: Check = ({ operation, values, current }) =>
-  contactParent(operation, values, current) === 'several'
-    ? { kind: 'client', message: contactParentText.several }
-    : null
-
-/**
  * The checks on the fields of one record that nothing above asks: the service
  * period of a document, the place and amount of a line, the name and device of
  * a signature. Each as the rule the forms ask as well, and whose mistake a
@@ -273,12 +238,10 @@ const versionFile: Check = async ({ tx, tenantId, operation, values }) => {
  * A parent that is gone, or that belongs to another business, is a conflict
  * about this one operation, for every entity: the key over tenant and id would
  * refuse it too, but for the whole transmission, and a deleted parent it would
- * take. A contact that names none at all is missing the one it must have, like
- * any record created without it, and a conflict as well, with both fields;
- * left to the check in the database, it took the whole transmission along.
- * Then the pairings the keys cannot say alone: the section of a circuit on the
- * circuit's board, and the PV system and inverter an installation belongs to,
- * at its own site (#300).
+ * take. Then the pairings the keys cannot say alone: the section of a circuit
+ * on the circuit's board, and the PV system and inverter an installation
+ * belongs to, at its own site (#300). A contact that names no parent at all is
+ * asked right after this, by the check of the foundation.
  */
 const references: Check = async ({ tx, operation, table, values, current }) => {
   const missing =
@@ -288,10 +251,6 @@ const references: Check = async ({ tx, operation, table, values, current }) => {
 
   if (missing) {
     return { kind: 'conflict', reason: 'record_missing', fields: [missing.field] }
-  }
-
-  if (contactParent(operation, values, current) === 'none') {
-    return { kind: 'conflict', reason: 'record_missing', fields: ['customerId', 'siteId'] }
   }
 
   const misplaced =
@@ -433,11 +392,15 @@ export const sync = serverSync<FoundIdentity>({
     formRecord,
     reportFields,
     structure,
-    contactOnSeveral,
     recordRules,
     timeEntry,
     versionFile,
     references,
+    // A contact that names none of its three parents is missing the one it
+    // must have, like any record created without it: a conflict about that
+    // one contact, as the foundation asks it (opengewerk-haustechnik#85).
+    // Left to the check in the database, it took the whole transmission along.
+    contactWithoutParent(tradeContacts),
     followUp,
     cancellation,
   ],

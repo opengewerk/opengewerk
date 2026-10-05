@@ -1,5 +1,6 @@
-import { deadlinesSchema, mailOutboxSchema } from '@opengewerk/platform-server'
+import { contactsSchema, deadlinesSchema, mailOutboxSchema } from '@opengewerk/platform-server'
 import {
+  contactsGuard,
   deadlinesGuard,
   type MadeByTheApplication,
   mailOutboxGuard,
@@ -32,6 +33,13 @@ const outboxOfTheBlocks = mailOutboxSchema({ kinds: mailKinds })
 const deadlinesOfTheBlocks = deadlinesSchema()
 
 /**
+ * The contacts as the foundation makes them, without the columns this
+ * application adds for what a contact hangs on, for the same reason: they
+ * point at its customers, sites and suppliers.
+ */
+const contactsOfTheBlocks = contactsSchema()
+
+/**
  * The tables of the foundation this application makes with lists of its own
  * (ADR 0010): their columns and rules are the foundation's, the values of
  * their enums are this application's.
@@ -55,6 +63,7 @@ export const madeWithLists: MadeByTheApplication = {
     ...push,
     deadlineStatus: deadlinesOfTheBlocks.deadlineStatus,
     deadlines: deadlinesOfTheBlocks.deadlines,
+    contacts: contactsOfTheBlocks.contacts,
   },
   guards: [
     secretsGuard,
@@ -65,5 +74,6 @@ export const madeWithLists: MadeByTheApplication = {
     pushOptOutsGuard,
     pushOutboxGuard,
     deadlinesGuard,
+    contactsGuard,
   ],
 }

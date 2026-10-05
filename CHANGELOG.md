@@ -40,6 +40,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Ansprechpartner sind ein Baustein des Fundaments, und woran einer hängt, sagt die Anwendung
+  (`opengewerk-haustechnik#85`). Die Haustechnik führt Ansprechpartner an der Liegenschaft, und der
+  Baustein dieser Anwendung kannte Kunde, Objekt und Lieferant in jeder Schicht beim Namen. Wer
+  jemand ist und wie man ihn erreicht, steht jetzt im Fundament: die Regeln (`contactRules`), die
+  Tabelle als Fabrik (`contactsSchema`), die Routen unter `/contacts` (`contactParts`) und was der
+  Abgleich von einem Kontakt fragt (`contactRecordRules`, `contactWithoutParent`). Diese Anwendung
+  bindet sie an ihre drei Eltern, ihre Rechte und ihre zwei Sätze; ihre Tabelle bleibt, wie sie
+  war. Vier Antworten sind dabei anders geworden. Die Route kürzt Texte, speichert einen leer
+  gelassenen als keinen, wie die Formulare es immer geschickt haben, und lehnt ab, was kein Text
+  ist. Ein Kontakt ohne Nachnamen wird mit "Der Nachname fehlt." abgelehnt. Ein Kontakt, den es
+  nicht mehr gibt, wird mit einem Satz gemeldet statt mit "Not Found". Und der Konflikt eines
+  Kontakts ohne Elternteil nennt alle drei Felder, der Lieferant fehlte dort seit #296. Nachträge
+  in ADR 0010 und ADR 0005.
+- Die Anwendungsrolle entfernt keinen Ansprechpartner mehr endgültig (Migration 0069,
+  `opengewerk-haustechnik#85`). Ein Kontakt wird als gelöscht markiert, damit ein Gerät, das
+  gerade kein Netz hatte, davon erfährt; das Recht zum Löschen stammte aus der ersten Vergabe über
+  alle Tabellen und wurde nie benutzt. Die Beschreibung der Tabelle im Fundament sagt "markiert,
+  nie entfernt", und die Migration macht das hier wahr, wie 0064 bei den Nummernkreisen. Keine
+  Zeile wird angefasst.
 - Die Navigation des Büros nimmt einen Eintrag vor den Gruppen und Einträge der Anwendung am Fuß,
   und vor Ort gibt es den Pfad (`opengewerk-haustechnik#83`). Die Tafeln der Haustechnik zeichnen
   über den Gruppen eine Übersicht ohne Titel und am Fuß einen Katalog vor "Abgleich" und
@@ -53,6 +72,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Ansprechpartner ohne Nachnamen kommt auf keinem Weg mehr in den Bestand
+  (`opengewerk-haustechnik#85`). Die Route verlangte den Nachnamen, der Abgleich nicht: ein Name
+  aus lauter Leerzeichen bestand die Prüfung des Browsers für ein Pflichtfeld und wurde über den
+  Postausgang als leerer Name gespeichert, und ein ganz fehlender scheiterte erst an der
+  Datenbank, mit "Die Angaben passen nicht zum Datenmodell." für die ganze Übertragung.
+  Formulare, Route und Abgleich fragen jetzt dieselbe Regel des Fundaments, das Formular zuerst.
 - Eine Auswahlliste zeigt, was das Formular hält (`opengewerk-haustechnik#85`). Hielt ein Formular
   einen Wert, den die Liste nicht anbietet, zeigte der Browser ihre erste Auswahl, und gespeichert
   wurde etwas anderes, als auf dem Bildschirm stand. Aufgefallen ist es am Formular einer neuen

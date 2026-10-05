@@ -13,11 +13,12 @@
  * both directions: no route outside it, and nothing in it no route answers.
  * A segment of the foundation stands there and not here, also where routes of
  * this application share it: the settings under `/settings` sit beside the
- * last backup, which is the foundation's.
+ * last backup, which is the foundation's. The contacts are the foundation's
+ * routes altogether (opengewerk-haustechnik#85), bound here to the customers,
+ * sites and suppliers they hang on.
  */
 export const serverPaths = [
   'customers',
-  'contacts',
   'suppliers',
   'articles',
   'sites',
