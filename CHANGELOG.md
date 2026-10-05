@@ -32,8 +32,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   neben dem Namen und nicht darin, damit der Name bleibt, wie ein Bildschirmleser ihn vorliest,
   und es steht nur, wo ein Bildschirm es verlangt: die Anmeldung fragt nur Pflichtfelder und
   markiert keines. `RecordColumns` nimmt `sideFirst` und setzt die schmale Spalte dann an den
-  Anfang, auf dem Bildschirm und in der Seite. Für diese Anwendung ändert sich nichts, ihre
-  Formulare und Seiten stehen wie bisher.
+  Anfang, auf dem Bildschirm und in der Seite. Was eine Liste vor ihrem ersten Eintrag sagt, steht
+  als `EmptyState` auch für sich: die Liste der Liegenschaften zeigt die Gebäude unter jeder
+  Liegenschaft und ist deshalb keine Tabelle aus flachen Zeilen, soll leer aber dasselbe sagen wie
+  jede andere. Für diese Anwendung ändert sich nichts, ihre Formulare, Seiten und Listen stehen
+  wie bisher.
 
 ### Geändert
 

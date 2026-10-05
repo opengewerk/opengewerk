@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { InRouter } from '../in-router.js'
-import { entries, lastChanged, ListCard, ListScreen, SortChoice } from './list.js'
+import { EmptyState, entries, lastChanged, ListCard, ListScreen, SortChoice } from './list.js'
 import type { ListScreenProps } from './list.js'
 
 /**
@@ -664,6 +664,49 @@ describe('a list with nothing in it', () => {
     await userEvent.click(buttons[1] as HTMLElement)
 
     expect(pressed).toHaveBeenCalledOnce()
+  })
+
+  it('offers nothing under the sentence to whoever may add nothing', async () => {
+    await shown({ rows: [], primary: undefined })
+
+    const card = screen.getByRole('region', { name: 'Noch kein Regal' })
+
+    expect(within(card).queryByRole('button')).toBeNull()
+    expect(card.querySelector('p')?.nextElementSibling).toBeNull()
+  })
+})
+
+describe('what a list says before its first entry, on its own', () => {
+  it('is a card named by its heading, with the sentence and the way to the first entry', () => {
+    render(
+      <EmptyState
+        icon={Archive}
+        title="Noch kein Lager"
+        action={<button type="button">Neues Lager</button>}
+      >
+        Ein Lager ist, wo Regale stehen.
+      </EmptyState>,
+    )
+
+    const card = screen.getByRole('region', { name: 'Noch kein Lager' })
+
+    expect(within(card).getByRole('heading', { level: 2, name: 'Noch kein Lager' })).toBeTruthy()
+    expect(within(card).getByText('Ein Lager ist, wo Regale stehen.')).toBeTruthy()
+    expect(within(card).getByRole('button', { name: 'Neues Lager' })).toBeTruthy()
+    // It takes the room the screen has left, as the empty list drawn here does.
+    expect(card.className.split(' ')).toContain('grow')
+  })
+
+  it('has no row for an action where there is none', () => {
+    render(
+      <EmptyState icon={Archive} title="Noch kein Lager">
+        Ein Lager ist, wo Regale stehen.
+      </EmptyState>,
+    )
+
+    const card = screen.getByRole('region', { name: 'Noch kein Lager' })
+
+    expect(card.querySelector('p')?.nextElementSibling).toBeNull()
   })
 })
 

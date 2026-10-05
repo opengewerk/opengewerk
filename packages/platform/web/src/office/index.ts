@@ -106,8 +106,9 @@ export type { Crumb, Fact, NoteTone, PageHeadProps } from './kit.js'
 
 // A list at every width: cards on a phone, a table from a tablet on, a
 // preview beside it on a wide screen and the whole record beside it on a
-// very wide one.
-export { entries, lastChanged, ListCard, ListScreen, SortChoice } from './list.js'
+// very wide one. Its card and what it says before its first entry stand on
+// their own as well, for a list an application draws itself.
+export { EmptyState, entries, lastChanged, ListCard, ListScreen, SortChoice } from './list.js'
 export type {
   ListChoice,
   ListColumn,
