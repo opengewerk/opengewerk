@@ -177,21 +177,29 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   site_access_deliveries: ['site_access_id'],
 }
 
-/** Where a record's name is: by its fields, by its person, and a contact by both its names. */
+/**
+ * Where a record's name is: by its fields, or by its person. A contact is
+ * named by both its names, which the foundation says for its table.
+ */
 const auditTitles: Readonly<Record<string, AuditTitleRule>> = {
   ...titleFieldsByTable,
   ...Object.fromEntries(auditPersonTables.map((table) => [table, ['user_id']])),
-  contacts: { joined: ['given_name', 'family_name'] },
 }
 
 /** The change log of the business, as the foundation is told it (ADR 0010). */
 export const auditVocabulary: AuditVocabulary = {
   tables: auditTables,
   commonFields: auditCommonFields,
-  // The outbox and the deadlines are the foundation's tables (#23,
-  // opengewerk-haustechnik#24); the columns for what a message or a deadline
-  // of this application is about are this application's own.
+  // The outbox, the deadlines and the contacts are the foundation's tables
+  // (#23, opengewerk-haustechnik#24 and #85); the columns for what a message
+  // or a deadline of this application is about, and for what a contact hangs
+  // on, are this application's own.
   ownFields: {
+    contacts: {
+      customer_id: 'Kunde',
+      site_id: 'Objekt',
+      supplier_id: 'Lieferant',
+    },
     mail_outbox: {
       task_id: 'Aufgabe',
       document_id: 'Beleg',

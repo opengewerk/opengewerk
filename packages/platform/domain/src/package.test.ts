@@ -134,9 +134,13 @@ const roleLiteral = /(['"`])(?:owner|office|technician)\1/
 /**
  * The records of the trades application: by the names its tables go by, as a
  * string of their own, and by the words a person reads for them.
+ *
+ * A contact is not among them. The people to talk to are a record of the
+ * foundation, which every application hangs on records of its own
+ * (opengewerk-haustechnik#85).
  */
 const recordLiteral =
-  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|contacts|suppliers|articles|time_entries|attachments)\1/
+  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries|attachments)\1/
 const recordWord =
   /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
 
@@ -199,6 +203,7 @@ describe('what the foundation without I/O knows of an application', () => {
     expect(roleLiteral.test(' * which runs as the owner of the tables')).toBe(false)
     expect(recordLiteral.test("if (entity === 'customers') {")).toBe(true)
     expect(recordLiteral.test('const customers = rows.length')).toBe(false)
+    expect(recordLiteral.test("if (entity === 'contacts') {")).toBe(false)
     expect(recordWord.test("'Der Beleg ist festgeschrieben.'")).toBe(true)
     expect(recordWord.test("'Dieser Vorgang wurde abgelehnt.'")).toBe(false)
   })

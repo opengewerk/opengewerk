@@ -13,6 +13,7 @@ import {
   authenticationParts,
   AUTHORIZATION,
   backupStatusParts,
+  contactParts,
   Database,
   deadlineParts,
   fileParts,
@@ -49,7 +50,7 @@ import { authorization, AuthorizationGuard } from './authorization.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
 import { InstallationLabelsController } from './installation-labels.controller.js'
 import { CollectiveInvoicesController } from './collective-invoices.controller.js'
-import { ContactsController } from './contacts.controller.js'
+import { contactRights, contactRoutes } from './contact-routes.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
@@ -239,6 +240,9 @@ export class ApiModule implements NestModule {
       },
       rules: deadlineRules,
     })
+    // The people to talk to at a customer, a site or a supplier (#121, #296),
+    // on the routes of the foundation (opengewerk-haustechnik#85).
+    const contacting = contactParts({ access, rights: contactRights, routes: contactRoutes })
     const mailing = mailSettingsParts({
       access,
       rights: { status: 'settings.read', read: 'mail.read', write: 'mail.write' },
@@ -252,7 +256,7 @@ export class ApiModule implements NestModule {
         ...signingIn.controllers,
         CustomersController,
         TagsController,
-        ContactsController,
+        ...contacting.controllers,
         SuppliersController,
         ArticleImportsController,
         ArticlesController,
@@ -311,6 +315,7 @@ export class ApiModule implements NestModule {
         ...mailing.providers,
         ...pushing.providers,
         ...deadlining.providers,
+        ...contacting.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

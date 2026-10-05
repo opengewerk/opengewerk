@@ -1,6 +1,11 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { contactParentText, missingPermission, syncEntities } from '@opengewerk/domain'
+import {
+  contactFamilyNameMissing,
+  contactParentText,
+  missingPermission,
+  syncEntities,
+} from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
@@ -1005,11 +1010,13 @@ describe('a reference to a record of another business', () => {
 })
 
 /**
- * A contact hangs on one customer or on one site, and the check in the
- * database says so for the whole transmission: it refused a contact on
- * neither with "Die Angaben passen nicht zum Datenmodell.", and everything
- * the device had sent with it, so the next exchange sent the same stack
- * again. The sync asks first now (#116).
+ * A contact hangs on one customer, one site or one supplier, and the check in
+ * the database says so for the whole transmission: it refused a contact on
+ * none of them with "Die Angaben passen nicht zum Datenmodell.", and
+ * everything the device had sent with it, so the next exchange sent the same
+ * stack again. The sync asks first (#116), since opengewerk-haustechnik#85
+ * with the rules of the foundation, bound to the three parents of this
+ * application.
  */
 describe('a contact from a device', () => {
   const answered = (answer: Awaited<ReturnType<typeof transmit>>) =>
@@ -1045,7 +1052,13 @@ describe('a contact from a device', () => {
     ])
 
     expect(answered(answer)).toEqual([
-      { outcome: 'conflict', reason: 'record_missing', fields: ['customerId', 'siteId'] },
+      // Every field a parent could stand in, the supplier's since
+      // opengewerk-haustechnik#85: the list named two of the three before.
+      {
+        outcome: 'conflict',
+        reason: 'record_missing',
+        fields: ['customerId', 'siteId', 'supplierId'],
+      },
       { outcome: 'applied', reason: null, fields: [] },
     ])
 
@@ -1080,6 +1093,30 @@ describe('a contact from a device', () => {
     expect(refused.message).toBe(contactParentText.several)
 
     const { rows } = await admin.query('select id from contacts where id = $1', [doubled])
+    expect(rows).toEqual([])
+  })
+
+  it('without a family name is refused as a mistake of the client, with the sentence of the rule', async () => {
+    // The column is `not null` and took an empty name all the same, and a
+    // contact that named none at all met the database, which only said that
+    // something is wrong. The forms ask the same rule before anything is
+    // queued (opengewerk-haustechnik#85).
+    const without: Record<string, string>[] = [
+      { customerId, role: 'Hausmeister' },
+      { customerId, familyName: '   ' },
+    ]
+
+    for (const fields of without) {
+      const nameless = created('contacts', newId<'contact'>(), fields)
+      const refused = await transmit(app, office(), [nameless], 400)
+
+      expect(refused.message).toBe(contactFamilyNameMissing)
+      expect(refused.operationId).toBe(nameless.id)
+    }
+
+    const { rows } = await admin.query(
+      `select id from contacts where family_name is null or btrim(family_name) = ''`,
+    )
     expect(rows).toEqual([])
   })
 })
@@ -1953,10 +1990,10 @@ describe('a transmission refused over one operation', () => {
   })
 
   it('names it for a check in the database that nothing asked before', async () => {
-    // A contact without a family name. The column is `not null`, and nothing in
-    // `applyOne` asks, like every column a form cannot leave empty. Should one
-    // ever get through, the device can at least let it go.
-    const nameless = created('contacts', newId<'contact'>(), { customerId, role: 'Hausmeister' })
+    // A customer without a name. The column is `not null`, and no check of the
+    // sync asks, like every column a form cannot leave empty. Should one ever
+    // get through, the device can at least let it go.
+    const nameless = created('customers', newId<'customer'>(), { kind: 'private' })
 
     const refused = await transmit(app, office(), [nameless], 400)
 

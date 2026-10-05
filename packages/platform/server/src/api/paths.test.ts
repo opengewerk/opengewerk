@@ -1,9 +1,10 @@
 import { auditRights, foundationPaths, rightsCatalogue } from '@opengewerk/platform-domain'
-import { probeAuditVocabulary } from '@opengewerk/platform-domain/testing'
+import { probeAuditVocabulary, probeContactRules } from '@opengewerk/platform-domain/testing'
 import { describe, expect, it } from 'vitest'
 
 import { auditLogParts } from '../audit/controller.js'
 import { backupStatusParts } from '../backup/controller.js'
+import { contactParts } from '../contacts/controller.js'
 import { type Authentication, authenticationPath } from '../authentication/authentication.js'
 import { authenticationParts } from '../authentication/module.js'
 import { probeAccess, probeCatalogue } from '../authentication/probe-application.js'
@@ -18,6 +19,7 @@ import {
   letterLines,
   letters,
   notes,
+  probeContacts,
   probeSyncAccess,
   probeSyncRoutes,
   probeSyncRules,
@@ -36,10 +38,10 @@ import { firstSegmentOf, outsideOf, routesOf } from './routes.js'
  * instance included: only whether a handle is handed in decides which they
  * are, and nothing here calls it. The health check beside them, which an
  * application lists in its module itself, the change log, the file store and
- * the last backup, the mail server, push and the deadlines, and the sync,
- * which an application whose devices work without a network registers. The
- * rules of an application are no business of a route's path, so they are
- * empty here.
+ * the last backup, the mail server, push, the deadlines and the contacts, and
+ * the sync, which an application whose devices work without a network
+ * registers. The rules of an application are no business of a route's path, so
+ * they are empty here, except where a part reads them as it is put together.
  */
 const controllers = [
   HealthController,
@@ -79,6 +81,11 @@ const controllers = [
     },
     rules: {} as DeadlineRules,
   }).controllers,
+  ...contactParts({
+    access: probeSyncAccess,
+    rights: { read: 'members.read', create: 'notes.write', write: 'shelves.write' },
+    routes: { table: probeContacts, rules: probeContactRules },
+  }).controllers,
 ]
 
 const routes = routesOf(controllers)
@@ -98,6 +105,7 @@ describe('the paths of the foundation', () => {
     expect(routes.map((route) => route.name)).toContain('PUT /push/subscription')
     expect(routes.map((route) => route.name)).toContain('GET /deadlines/run')
     expect(routes.map((route) => route.name)).toContain('PUT /settings/deadlines/:kind')
+    expect(routes.map((route) => route.name)).toContain('PATCH /contacts/:id')
   })
 
   it('hold every route of the foundation', () => {

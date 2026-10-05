@@ -67,6 +67,19 @@ describe('what the log calls a table and a field', () => {
     expect(language.fieldName('shelves', 'parcel_number')).toBeNull()
   })
 
+  it('names a contact and who it is itself, and what one hangs on in the words of the application', () => {
+    expect(language.tableLabel('contacts')).toBe('Ansprechpartner')
+    expect(language.fieldName('contacts', 'given_name')).toBe('Vorname')
+    expect(language.fieldName('contacts', 'family_name')).toBe('Nachname')
+    expect(language.fieldName('contacts', 'role')).toBe('Funktion')
+    expect(language.fieldName('contacts', 'phone')).toBe('Telefon')
+    expect(language.fieldName('contacts', 'email')).toBe('E-Mail')
+    // The parents are columns of the application, which names them.
+    expect(language.fieldName('contacts', 'shelf_id')).toBe('Regal')
+    expect(language.fieldName('contacts', 'letter_id')).toBe('Brief')
+    expect(language.fieldName('contacts', 'drawer_id')).toBeNull()
+  })
+
   it('writes a field with its table, and a table nothing names as itself', () => {
     expect(language.fieldLabel('shelves', 'label')).toBe('Regal, Beschriftung')
     expect(language.fieldLabel('shelves', 'unnamed')).toBe('Regal, unnamed')
@@ -112,6 +125,21 @@ describe("what a record's name is", () => {
     expect(language.titleFrom('tenants', { name: 'Mandant Nord' })).toBe('Mandant Nord')
     expect(language.titleFrom('member_passkeys', { name: 'Laptop' })).toBe('Laptop')
   })
+
+  it('is both names of a contact, whatever an application says of its title', () => {
+    const renaming = auditLanguage({
+      ...probeAuditVocabulary,
+      titles: { ...probeAuditVocabulary.titles, contacts: ['role'] },
+    })
+    const jensen = { given_name: 'Ole', family_name: 'Jensen', role: 'Empfang' }
+
+    expect(language.titleFields('contacts')).toEqual(['given_name', 'family_name'])
+    expect(language.titleFrom('contacts', jensen)).toBe('Ole Jensen')
+    expect(language.titleFrom('contacts', { given_name: null, family_name: 'Jensen' })).toBe(
+      'Jensen',
+    )
+    expect(renaming.titleFrom('contacts', jensen)).toBe('Ole Jensen')
+  })
 })
 
 describe('the fields the log treats apart', () => {
@@ -154,7 +182,11 @@ describe('the fields the log treats apart', () => {
   })
 
   it('finds parts where the application names them, and references where it or the foundation does', () => {
-    expect(language.partsOf('shelves')).toEqual([{ table: 'notes', column: 'shelf_id' }])
+    // The notes on a shelf, and the people to ask about it.
+    expect(language.partsOf('shelves')).toEqual([
+      { table: 'notes', column: 'shelf_id' },
+      { table: 'contacts', column: 'shelf_id' },
+    ])
     expect(language.partsOf('notes')).toEqual([])
     expect(language.referenceOf('letter_id')).toBe('letters')
     // The invitation a message is about, in the outbox of every application.

@@ -4,7 +4,8 @@ import type { AuditVocabulary } from './audit-log.js'
  * What an application that belongs to nobody says about its tables in the
  * change log, for the tests of the foundation: the records of
  * `probePolicies` that have tables, its shelves with their notes and its
- * letters with their lines and seals.
+ * letters with their lines and seals, and the people to talk to about a shelf
+ * or a letter.
  *
  * A test that ran green with the tables of a real application would not show
  * that the log knows none of them. Its tenant is a "Mandant", whoever runs an
@@ -31,6 +32,9 @@ export const probeAuditVocabulary: AuditVocabulary = {
   ownFields: {
     mail_outbox: { parcel_number: 'Paketnummer' },
     deadlines: { parcel_number: 'Paketnummer' },
+    // What a contact of the probe application hangs on, and the label of the
+    // shelf it was filed under.
+    contacts: { shelf_id: 'Regal', letter_id: 'Brief', filed_under: 'Abgelegt unter' },
   },
   foundation: {
     tenant: 'Mandant',
@@ -47,10 +51,14 @@ export const probeAuditVocabulary: AuditVocabulary = {
     },
   },
   parts: {
-    shelves: [{ table: 'notes', column: 'shelf_id' }],
+    shelves: [
+      { table: 'notes', column: 'shelf_id' },
+      { table: 'contacts', column: 'shelf_id' },
+    ],
     letters: [
       { table: 'letter_lines', column: 'letter_id' },
       { table: 'letter_seals', column: 'letter_id' },
+      { table: 'contacts', column: 'letter_id' },
     ],
   },
   records: ['shelves', 'letters'],

@@ -166,9 +166,13 @@ const entryWord = /\b(?:Baustelle|Baustellen)\b/
  * The records of the trades application, the one whose screens were built
  * from this code: by the names its tables go by, as a string of their own,
  * and by the words a person reads for them.
+ *
+ * A contact is not among them. The people to talk to are a record of the
+ * foundation, which every application hangs on records of its own
+ * (opengewerk-haustechnik#85).
  */
 const recordLiteral =
-  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|contacts|suppliers|articles|time_entries|attachments)\1/
+  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries|attachments)\1/
 const recordWord =
   /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
 
@@ -261,6 +265,7 @@ describe('what the interface of the foundation knows of an application', () => {
     expect(recordLiteral.test("if (entity === 'customers') {")).toBe(true)
     expect(recordLiteral.test('queryKey: ["document_lines", id]')).toBe(true)
     expect(recordLiteral.test('const customers = rows.length')).toBe(false)
+    expect(recordLiteral.test("useRelated('contacts', field, id)")).toBe(false)
     expect(recordWord.test("'Der Beleg ist festgeschrieben.'")).toBe(true)
     expect(recordWord.test("'Dieser Vorgang wurde abgelehnt.'")).toBe(false)
   })

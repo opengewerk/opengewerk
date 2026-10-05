@@ -29,7 +29,9 @@ describe('the foundation in this database', () => {
     // the mail carries for the records its messages are about (#23): the
     // task, the document with its file, and the deadline; and what a deadline
     // hangs on (opengewerk-haustechnik#24): the document, the installation,
-    // the customer, the site, the job and the task its reminder made. The one
+    // the customer, the site, the job and the task its reminder made; and what
+    // a contact hangs on (opengewerk-haustechnik#85): the customer, the site
+    // or the supplier, with the check that it is exactly one. The one
     // trigger that used to be named here, the log of the instance watching
     // `tenants` (#188), is the foundation's since the area of the instance
     // moved there.
@@ -45,6 +47,9 @@ describe('the foundation in this database', () => {
         'deadlines.site_id',
         'deadlines.job_id',
         'deadlines.task_id',
+        'contacts.customer_id',
+        'contacts.site_id',
+        'contacts.supplier_id',
       ],
       constraints: [
         'mail_outbox.mail_outbox_task_in_tenant',
@@ -56,6 +61,10 @@ describe('the foundation in this database', () => {
         'deadlines.deadlines_site_in_tenant',
         'deadlines.deadlines_job_in_tenant',
         'deadlines.deadlines_task_in_tenant',
+        'contacts.contacts_customer_in_tenant',
+        'contacts.contacts_site_in_tenant',
+        'contacts.contacts_supplier_in_tenant',
+        'contacts.contacts_belong_to_one_parent',
       ],
       indexes: [
         'mail_outbox.mail_outbox_task_idx',
@@ -64,6 +73,9 @@ describe('the foundation in this database', () => {
         'deadlines.deadlines_customer_idx',
         'deadlines.deadlines_document_idx',
         'deadlines.deadlines_task_idx',
+        'contacts.contacts_customer_idx',
+        'contacts.contacts_site_idx',
+        'contacts.contacts_supplier_idx',
       ],
     })
 

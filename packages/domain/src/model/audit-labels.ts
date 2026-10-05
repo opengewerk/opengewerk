@@ -113,15 +113,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       cable_installation_method: 'Verlegeart',
     },
   },
-  contacts: {
-    label: 'Ansprechpartner',
-    fields: {
-      given_name: 'Vorname',
-      family_name: 'Nachname',
-      role: 'Funktion',
-      supplier_id: 'Lieferant',
-    },
-  },
   customer_tags: { label: 'Tag an einem Kunden', fields: { tag_id: 'Tag' } },
   customers: {
     label: 'Kunde',

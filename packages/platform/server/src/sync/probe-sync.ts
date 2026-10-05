@@ -8,16 +8,27 @@ import {
 } from '@opengewerk/platform-domain'
 import { probePolicies } from '@opengewerk/platform-domain/testing'
 import { eq, sql } from 'drizzle-orm'
-import { boolean, foreignKey, integer, jsonb, pgTable, text, unique } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  check,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  unique,
+} from 'drizzle-orm/pg-core'
 
 import { databaseErrors } from '../api/database-errors.js'
 import type { FoundIdentity } from '../api/identity.js'
 import { probeCatalogue } from '../authentication/probe-application.js'
 import { primaryId, reference, syncColumns, timestamps } from '../database/schema/columns.js'
+import { contactsSchema } from '../database/schema/contacts.js'
 import { tenantIsolation } from '../database/schema/rls.js'
 import { tenantColumn } from '../database/schema/tenants.js'
 import { probeMade } from '../database/probe-schema.js'
-import type { MadeByTheApplication, TableGuard } from '../migration/guards.js'
+import { contactsGuard, type MadeByTheApplication, type TableGuard } from '../migration/guards.js'
 import type { ServerSync } from './apply.js'
 import type { SyncRoutes } from './controller.js'
 import { fingerprintOf, idArray } from './narrowing.js'
@@ -136,6 +147,41 @@ export const letterSeals = pgTable(
   ],
 )
 
+/**
+ * What a contact of the probe application hangs on: somebody to ask about a
+ * shelf, or the person a letter goes to, never both. The two columns, their
+ * keys over the tenant and the check are the application's, the way an
+ * application says what its contacts hang on. Beside them the label of the
+ * shelf a contact was filed under, which the server works out and no request
+ * sets: the kind of column an application adds for what follows from a parent.
+ */
+const probeContactColumns = {
+  shelfId: reference<'shelf'>('shelf_id'),
+  letterId: reference<'letter'>('letter_id'),
+  filedUnder: text('filed_under'),
+}
+
+/** The columns the probe application gives its contacts. */
+export type ProbeContactColumns = typeof probeContactColumns
+
+export const { contacts: probeContacts } = contactsSchema({
+  columns: probeContactColumns,
+  constraints: (table) => [
+    foreignKey({
+      name: 'contacts_shelf',
+      columns: [table.tenantId, table.shelfId],
+      foreignColumns: [shelves.tenantId, shelves.id],
+    }),
+    foreignKey({
+      name: 'contacts_letter',
+      columns: [table.tenantId, table.letterId],
+      foreignColumns: [letters.tenantId, letters.id],
+    }),
+    check('contacts_on_one_record', sql`num_nonnulls(${table.shelfId}, ${table.letterId}) = 1`),
+    index('contacts_shelf_idx').on(table.tenantId, table.shelfId),
+  ],
+})
+
 /** The rules of the probe application, as an application makes them. */
 export const probeSyncRules = syncRules(probePolicies)
 
@@ -149,7 +195,15 @@ const travelling = (table: string): TableGuard => ({
 
 /** The tables above, with what the probe application already makes. */
 export const probeSyncMade: MadeByTheApplication = {
-  schema: { ...probeMade.schema, shelves, notes, letters, letterLines, letterSeals },
+  schema: {
+    ...probeMade.schema,
+    shelves,
+    notes,
+    letters,
+    letterLines,
+    letterSeals,
+    contacts: probeContacts,
+  },
   guards: [
     ...probeMade.guards,
     travelling('shelves'),
@@ -157,6 +211,7 @@ export const probeSyncMade: MadeByTheApplication = {
     travelling('letters'),
     travelling('letter_lines'),
     travelling('letter_seals'),
+    contactsGuard,
   ],
 }
 

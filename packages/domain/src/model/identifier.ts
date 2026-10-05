@@ -3,11 +3,10 @@ import type { Id } from '@opengewerk/platform-domain'
 /**
  * The keys of this application's entities. `Id` and the keys every
  * application shares (tenant, membership, invitation, audit entry, stored
- * file) come from the foundation, as do `IsoDate`, `TenantOwned` and `Synced`
- * (ADR 0010).
+ * file, contact) come from the foundation, as do `IsoDate`, `TenantOwned` and
+ * `Synced` (ADR 0010).
  */
 export type CustomerId = Id<'customer'>
-export type ContactId = Id<'contact'>
 export type SiteId = Id<'site'>
 export type InstallationId = Id<'installation'>
 export type DistributionBoardId = Id<'distribution-board'>
