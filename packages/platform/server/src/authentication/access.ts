@@ -141,6 +141,13 @@ export interface AccessSentences {
    * into a way of asking who has an account here.
    */
   readonly notAMember: string
+  /**
+   * The refusal to correct the name or the address of an account that is not
+   * this tenant's alone: it works for another tenant of the instance as well,
+   * or runs the instance. One answer for both, so that it says no more about
+   * where else somebody works than the refusal has to.
+   */
+  readonly accountNotOnlyHere: string
   /** A session that is not working in this tenant, or is not there at all. */
   readonly noSuchSessionHere: string
   /**

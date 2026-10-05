@@ -281,6 +281,7 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 
 /** The tables of the foundation the log of a tenant holds, by name. */
 export const foundationAuditTables = [
+  'account_corrections',
   'contacts',
   'deadline_settings',
   'deadlines',
@@ -393,6 +394,17 @@ function foundationTables(
         revoked_at: 'Zurückgezogen am',
       },
     },
+    // A name or an address somebody who administers the tenant put right.
+    // Each pair is there where that half changed.
+    account_corrections: {
+      label: 'Berichtigung eines Kontos',
+      fields: {
+        name_before: 'Name bisher',
+        name_after: 'Name neu',
+        email_before: 'E-Mail bisher',
+        email_after: 'E-Mail neu',
+      },
+    },
     member_passkeys: {
       label: 'Passkey',
       fields: { passkey_id: 'Kennung des Passkeys', removed_at: 'Gelöscht am' },
@@ -487,12 +499,13 @@ function foundationInstanceTables(
 }
 
 /**
- * Where the records of the foundation are named: a membership and a sign in by
- * their person, a file by its type, a mail server by the address it sends from,
+ * Where the records of the foundation are named: a membership, a sign in and a
+ * correction of an account by their person, a file by its type, a mail server by the address it sends from,
  * a message by its subject, a deadline by its source, a contact by both its
  * names.
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
+  account_corrections: ['user_id'],
   contacts: { joined: ['given_name', 'family_name'] },
   // A deadline by what its source is called, a setting by its kind.
   deadlines: ['source_label'],

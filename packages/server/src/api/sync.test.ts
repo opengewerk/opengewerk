@@ -287,6 +287,7 @@ describe('the tables', () => {
       name === 'push_opt_outs' ||
       name === 'push_outbox' ||
       name === 'member_passkeys' ||
+      name === 'account_corrections' ||
       name === 'tenant_roles' ||
       name === 'site_access_deliveries' ||
       name === 'supplier_articles' ||
