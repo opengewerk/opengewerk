@@ -3,7 +3,9 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Button, IconButton } from './button.js'
+import { Choice } from './choice.js'
 import { Confirm } from './confirm.js'
+import { Dialog, DialogActions } from './dialog.js'
 import { Field, SelectField, TextArea } from './field.js'
 import { TablePanel } from './panel.js'
 import { Strip } from './strip.js'
@@ -586,5 +588,134 @@ describe('a card and a link', () => {
     expect(screen.getByRole('region', { name: 'Eintrag' })).toBeDefined()
     // Colour alone is the one distinction a colour blind reader does not get.
     expect(screen.getByRole('link', { name: 'Eintrag öffnen' }).className).toContain('underline')
+  })
+})
+
+describe('a short form over the page', () => {
+  function Opened({ onClose }: { readonly onClose: () => void }) {
+    return (
+      <Dialog title="Zugang anlegen" sub="Ein Link, der einmal gilt." onClose={onClose}>
+        <Field label="Name" autoFocus />
+        <DialogActions>
+          <Button onClick={onClose}>Abbrechen</Button>
+        </DialogActions>
+      </Dialog>
+    )
+  }
+
+  it('is a dialog named by its heading, and takes the focus to the field that asks for it', () => {
+    render(<Opened onClose={() => {}} />)
+
+    const dialog = screen.getByRole('dialog', { name: 'Zugang anlegen' })
+
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(dialog.getAttribute('aria-describedby')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+  })
+
+  it('takes the focus itself where no field asks for it, and hands it back when it closes', () => {
+    const { rerender } = render(<button>Bearbeiten</button>)
+    const opener = screen.getByRole('button', { name: 'Bearbeiten' })
+
+    opener.focus()
+    rerender(
+      <>
+        <button>Bearbeiten</button>
+        <Dialog title="Zugang bearbeiten" onClose={() => {}}>
+          <p>Angaben</p>
+        </Dialog>
+      </>,
+    )
+
+    expect(document.activeElement).toBe(screen.getByRole('dialog'))
+
+    rerender(<button>Bearbeiten</button>)
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Bearbeiten' }))
+  })
+
+  it('closes on Escape and not by a tap beside it', async () => {
+    const closed: string[] = []
+    const user = userEvent.setup()
+    const { container } = render(<Opened onClose={() => closed.push('zu')} />)
+
+    // What somebody typed is not thrown away by a slip of the hand.
+    await user.click(container.querySelector('[aria-hidden="true"]') as HTMLElement)
+    expect(closed).toEqual([])
+
+    await user.keyboard('{Escape}')
+    expect(closed).toEqual(['zu'])
+  })
+
+  it('leaves Escape to a question that stands above it', async () => {
+    const closed: string[] = []
+    const user = userEvent.setup()
+
+    render(
+      <Dialog title="Zugang bearbeiten" onClose={() => closed.push('dialog')}>
+        <Confirm
+          open
+          title="Gerät abmelden?"
+          confirm="Abmelden"
+          onConfirm={() => {}}
+          onCancel={() => closed.push('frage')}
+        >
+          Das Gerät muss sich danach neu anmelden.
+        </Confirm>
+      </Dialog>,
+    )
+
+    await user.keyboard('{Escape}')
+
+    expect(closed).toEqual(['frage'])
+  })
+})
+
+describe('one of a few, all in sight', () => {
+  const roles = [
+    { value: 'lead', label: 'Leitung', note: 'Alles im Mandanten.' },
+    { value: 'member', label: 'Mitglied' },
+  ]
+
+  it('is a group named by what is chosen, with an option named by its label and described by its sentence', () => {
+    render(<Choice label="Rolle" options={roles} value="member" onChange={() => {}} />)
+
+    const group = screen.getByRole('group', { name: 'Rolle' })
+    const leading = within(group).getByRole('radio', { name: 'Leitung' })
+
+    expect(
+      document.getElementById(leading.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toBe('Alles im Mandanten.')
+    expect(
+      within(group).getByRole('radio', { name: 'Mitglied' }).hasAttribute('aria-describedby'),
+    ).toBe(false)
+    expect(
+      within(group)
+        .getAllByRole('radio')
+        .map((radio) => (radio as HTMLInputElement).checked),
+    ).toEqual([false, true])
+  })
+
+  it('says which one was picked, and has none picked where none is', async () => {
+    const picked: string[] = []
+    const user = userEvent.setup()
+
+    render(
+      <Choice
+        label="Rolle"
+        options={roles}
+        value={null}
+        onChange={(value) => picked.push(value)}
+      />,
+    )
+
+    expect(
+      screen.getAllByRole('radio').map((radio) => (radio as HTMLInputElement).checked),
+    ).toEqual([false, false])
+
+    // The whole card is the target, not only the dot.
+    await user.click(screen.getByText('Alles im Mandanten.'))
+
+    expect(picked).toEqual(['lead'])
   })
 })

@@ -467,6 +467,22 @@ export async function setRoles(
   })
 }
 
+/**
+ * Corrects the name or the address of somebody's account, with what is named
+ * and nothing else: a name that was misspelt, an address that has changed.
+ * The server refuses it for an account that is not this tenant's alone, in
+ * the words of the application.
+ */
+export async function correctAccount(
+  userId: string,
+  wanted: { readonly name?: string; readonly email?: string },
+): Promise<void> {
+  await request(`/staff/${encodeURIComponent(userId)}/account`, {
+    method: 'PATCH',
+    body: JSON.stringify(wanted),
+  })
+}
+
 export async function setBlocked(userId: string, blocked: boolean): Promise<void> {
   await request(`/staff/${encodeURIComponent(userId)}/block`, {
     method: blocked ? 'PUT' : 'DELETE',

@@ -31,6 +31,15 @@ export { PasskeysPanel } from './passkeys.js'
 // Who works in the tenant, with which roles, on which devices, and the
 // invitations still open: a settings screen, under the key `zugaenge`.
 export { StaffScreen } from './staff.js'
+// The same, where an access has one role and is made and changed in a dialog,
+// with what the application keeps beside a membership as a column and as a
+// part of the dialogs. An application shows one of the two.
+export { StaffDialogsScreen } from './staff-dialogs.js'
+export type {
+  StaffAdditions,
+  StaffAdditionsPart,
+  StaffDialogsScreenProps,
+} from './staff-dialogs.js'
 
 // The change log of a tenant, under the settings at `auditLogPath` and behind
 // the button "Änderungen" at a record, and the pieces the log of the instance
