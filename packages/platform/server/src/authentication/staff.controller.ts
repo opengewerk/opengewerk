@@ -20,6 +20,8 @@ import { Database } from '../database/database.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
 import {
   changeRoles,
+  correctAccount,
+  type CorrectedAccount,
   devicesOf,
   type InvitationEntry,
   inviteStaff,
@@ -200,6 +202,30 @@ export class StaffController {
   }
 
   /**
+   * Corrects the name or the address of somebody's account, either or both.
+   *
+   * A route of its own beside the roles, because it writes something else:
+   * the account, which is the instance's, and not the membership. It answers
+   * with what the account is called now, and refuses for an account that is
+   * not this tenant's alone (`correctAccount`).
+   */
+  @Patch(':userId/account')
+  @RequiresPermission(accessRights.write)
+  async correct(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('userId') userId: string,
+    @Body() body: unknown,
+  ): Promise<{ userId: string } & CorrectedAccount> {
+    const values = pick(body, ['name', 'email'] as const)
+    const account = await correctAccount(this.access, this.database, identity, userId, {
+      ...(values.name === undefined ? {} : { name: written(values.name, 'name') }),
+      ...(values.email === undefined ? {} : { email: written(values.email, 'email') }),
+    })
+
+    return { userId, ...account }
+  }
+
+  /**
    * Shuts somebody out, and ends what they have open right now.
    *
    * A block and not a delete. A deleted account takes its name off everything
@@ -264,6 +290,18 @@ function text(value: unknown, field: string): string {
   }
 
   return value.trim()
+}
+
+/**
+ * A field that has to be a string, empty or not. What an empty one means is
+ * said where the change happens, in the words for that field.
+ */
+function written(value: unknown, field: string): string {
+  if (typeof value !== 'string') {
+    throw new BadRequestException(`${field} ist kein Text.`)
+  }
+
+  return value
 }
 
 /**

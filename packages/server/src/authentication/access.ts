@@ -45,6 +45,9 @@ export const access: AccessRules<Permission> = {
       'Dieser Zugang ist im Betrieb gesperrt. Der Inhaber kann ihn wieder freigeben.',
     alreadyWorksHere: 'Diese Adresse arbeitet schon in diesem Betrieb.',
     notAMember: 'Dieses Konto arbeitet nicht in diesem Betrieb.',
+    accountNotOnlyHere:
+      'Dieses Konto arbeitet auch in einem anderen Betrieb dieser Instanz oder ist ihr ' +
+      'Betreiber. Name und E-Mail ändert dann nur die Person selbst.',
     noSuchSessionHere: 'Diese Sitzung gibt es in diesem Betrieb nicht.',
     lastLead:
       'Das ist der letzte Inhaber dieses Betriebs. Erst einen zweiten Inhaber einsetzen, ' +

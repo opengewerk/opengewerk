@@ -135,7 +135,7 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(25)
+    expect(tables).toHaveLength(26)
     expect(unprotected(tables)).toEqual([])
   })
 
@@ -159,8 +159,8 @@ describe('the foundation, built from its building blocks alone', () => {
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The fifteen tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(15)
+    // The sixteen tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(16)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -262,6 +262,7 @@ describe('the foundation, built from its building blocks alone', () => {
     const keys = await keysBetweenTenantTables(admin)
 
     expect(keys.map((key) => key.key)).toEqual([
+      'account_corrections_person_works_here',
       'deadline_settings_responsible_works_here',
       'member_passkeys_person_works_here',
     ])
@@ -272,6 +273,7 @@ describe('the foundation, built from its building blocks alone', () => {
     const coverage = await logCoverage(admin)
 
     expect(coverage.watched).toEqual([
+      'account_corrections',
       'deadline_settings',
       'files',
       'invitations',
@@ -578,6 +580,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(25)
+    expect(await tableNames(admin)).toHaveLength(26)
   })
 })

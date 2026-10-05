@@ -176,6 +176,9 @@ export const probeAccess: AccessRules<ProbeRight> = {
     blockedInTenant: 'Dieser Zugang ist bei diesem Mandanten gesperrt.',
     alreadyWorksHere: 'Diese Adresse arbeitet schon bei diesem Mandanten.',
     notAMember: 'Dieses Konto arbeitet nicht bei diesem Mandanten.',
+    accountNotOnlyHere:
+      'Dieses Konto arbeitet auch bei einem anderen Mandanten dieser Instanz oder gehört zu ' +
+      'ihrer Hausmeisterei. Name und E-Mail ändert dann nur die Person selbst.',
     noSuchSessionHere: 'Diese Sitzung gibt es bei diesem Mandanten nicht.',
     lastLead:
       'Das ist die letzte Leitung dieses Mandanten. Erst eine zweite einsetzen, sonst ' +

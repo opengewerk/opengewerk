@@ -6,11 +6,21 @@ import {
   type TenantId,
   type TenantIdentity,
 } from '@opengewerk/platform-domain'
-import { and, count, eq, inArray, isNull, max, ne, sql } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, like, max, ne, sql } from 'drizzle-orm'
 
+import { isUniqueViolation } from '../api/database-errors.js'
 import type { Database, TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
-import { authSessions, authUsers, invitations, memberships, tenantSessions } from '../schema.js'
+import {
+  accountCorrections,
+  authSessions,
+  authUsers,
+  authVerifications,
+  instanceOperators,
+  invitations,
+  memberships,
+  tenantSessions,
+} from '../schema.js'
 import type { AccessRules } from './access.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
@@ -465,6 +475,185 @@ export async function setBlocked(
       identity.userId,
     )
   }
+}
+
+/** What a correction leaves an account with. */
+export interface CorrectedAccount {
+  readonly name: string
+  readonly email: string
+}
+
+/** The key that keeps an address to one account, as the schema names it. */
+const oneAccountPerAddress = 'auth_users_email_unique'
+
+/** How better-auth names a link to a new password that is still open. */
+const openPasswordResets = 'reset-password:%'
+
+/**
+ * Corrects the name or the address of somebody's account: the name that was
+ * misspelt when they were invited, the address that has changed.
+ *
+ * The account is the instance's and not this tenant's, and the fence in the
+ * middle is about that. An address is where "forgot my password" writes to,
+ * so whoever may change it can have a link to a new password sent to
+ * themselves. For an account that works here and nowhere else, that hands
+ * whoever leads the tenant nothing they did not have: they give out every
+ * role here already. For one that also works for the tenant next door, or
+ * runs the instance, it would be a way into what is not theirs. Such an
+ * account is corrected by the person and by nobody else.
+ *
+ * What was changed into what goes into the log of this tenant, through
+ * `account_corrections`. The account is written first and the record second,
+ * each where it is in reach, and a record that cannot be written takes the
+ * change back: a change the log does not show is the one thing the log is
+ * there to prevent.
+ *
+ * A link to a new password that is still open ends with a change of the
+ * address, since it was sent to the old one. The sessions of the person stay;
+ * they are who they were.
+ */
+export async function correctAccount(
+  access: Pick<AccessRules, 'sentences'>,
+  database: Database,
+  identity: TenantIdentity,
+  userId: string,
+  wanted: { readonly name?: string; readonly email?: string },
+): Promise<CorrectedAccount> {
+  await database.forTenant(identity, (tx) => membershipOf(access, tx, identity.tenantId, userId))
+
+  const name = wanted.name?.trim()
+  const email = wanted.email === undefined ? undefined : normalise(wanted.email)
+
+  if (name === undefined && email === undefined) {
+    throw new BadRequestException('Weder name noch email ist angegeben.')
+  }
+
+  if (name === '') {
+    throw new BadRequestException('Der Name fehlt.')
+  }
+
+  if (email !== undefined && !email.includes('@')) {
+    throw new BadRequestException('Die E-Mail-Adresse sieht nicht wie eine aus.')
+  }
+
+  if (!(await worksOnlyHere(database, identity.tenantId, userId))) {
+    throw new ConflictException(access.sentences.accountNotOnlyHere)
+  }
+
+  const before = (await accountsOf(database, [userId], identity.userId)).get(userId)
+
+  if (!before) {
+    // A membership without an account would be a broken foreign key.
+    throw new NotFoundException(access.sentences.notAMember)
+  }
+
+  const after = { name: name ?? before.name, email: email ?? before.email }
+  const nameChanged = after.name !== before.name
+  const emailChanged = after.email !== before.email
+
+  if (!nameChanged && !emailChanged) {
+    // Nothing to correct is not a correction, and the log gets no entry
+    // saying that something stayed as it was.
+    return after
+  }
+
+  try {
+    await writeAccount(database, identity.userId, userId, after, emailChanged)
+  } catch (error) {
+    if (isUniqueViolation(error, oneAccountPerAddress)) {
+      throw new ConflictException('Diese E-Mail-Adresse gehört schon zu einem anderen Konto.')
+    }
+
+    throw error
+  }
+
+  try {
+    await database.forTenant(identity, (tx) =>
+      tx.insert(accountCorrections).values({
+        tenantId: identity.tenantId,
+        userId,
+        nameBefore: nameChanged ? before.name : null,
+        nameAfter: nameChanged ? after.name : null,
+        emailBefore: emailChanged ? before.email : null,
+        emailAfter: emailChanged ? after.email : null,
+      }),
+    )
+  } catch (error) {
+    await writeAccount(
+      database,
+      identity.userId,
+      userId,
+      { name: before.name, email: before.email },
+      false,
+    )
+
+    throw error
+  }
+
+  return after
+}
+
+/**
+ * Whether an account is this tenant's alone: it works for no other tenant of
+ * the instance and does not run the instance.
+ *
+ * Asked as the account itself. From outside a tenant a membership is read by
+ * the person it belongs to and by nobody else (`membershipVisibility`), and
+ * this is the one direction from which the memberships of an account can be
+ * counted across tenants. Only the answer leaves the function: whoever asked
+ * learns that there is something else, and neither what nor where.
+ *
+ * A membership that is blocked counts. Somebody shut out of the tenant next
+ * door can be let back in there tomorrow, and the account they come back
+ * with should be the one they left with.
+ */
+async function worksOnlyHere(
+  database: Database,
+  tenantId: TenantId,
+  userId: string,
+): Promise<boolean> {
+  return database.forInstance(async (tx) => {
+    const elsewhere = await tx
+      .select({ tenantId: memberships.tenantId })
+      .from(memberships)
+      .where(and(eq(memberships.userId, userId), ne(memberships.tenantId, tenantId)))
+      .limit(1)
+
+    const runsTheInstance = await tx
+      .select({ id: instanceOperators.id })
+      .from(instanceOperators)
+      .where(eq(instanceOperators.userId, userId))
+      .limit(1)
+
+    return elsewhere.length === 0 && runsTheInstance.length === 0
+  }, userId)
+}
+
+/** Writes the name and the address of an account, outside any tenant, where accounts are. */
+async function writeAccount(
+  database: Database,
+  asUser: string,
+  userId: string,
+  account: CorrectedAccount,
+  endsOpenResets: boolean,
+): Promise<void> {
+  await database.forInstance(async (tx) => {
+    await tx
+      .update(authUsers)
+      .set({ name: account.name, email: account.email, updatedAt: new Date() })
+      .where(eq(authUsers.id, userId))
+
+    if (endsOpenResets) {
+      await tx
+        .delete(authVerifications)
+        .where(
+          and(
+            eq(authVerifications.value, userId),
+            like(authVerifications.identifier, openPasswordResets),
+          ),
+        )
+    }
+  }, asUser)
 }
 
 /**

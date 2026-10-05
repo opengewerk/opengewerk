@@ -9,6 +9,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Wer die Zugänge verwaltet, berichtigt Name und E-Mail eines Kontos
+  (`opengewerk-haustechnik#84`). Ein Name, der bei der Einladung falsch geschrieben wurde, und
+  eine Adresse, die sich geändert hat, ließen sich bisher von niemandem ändern. Das Fundament
+  bekommt dafür die Route `PATCH /staff/:userId/account`, hinter demselben Recht wie die Rollen.
+  Ein Konto gehört der Instanz und nicht einem Betrieb, deshalb hat die Route eine Schranke:
+  arbeitet das Konto auch in einem anderen Betrieb der Instanz oder betreibt es die Instanz,
+  lehnt sie ab, und Name und E-Mail bleiben Sache der Person. An die Adresse geht der Link für
+  ein neues Passwort, und wer sie ändern darf, käme sonst an ein Konto, das nicht allein seinem
+  Betrieb gehört. Was von was in was berichtigt wurde, steht im Änderungsprotokoll des Betriebs,
+  über die neue Tabelle `account_corrections` (Migration 0070): eine Zeile je Berichtigung, die
+  die Anwendung nur lesen und einfügen darf. Lässt sich die Zeile nicht schreiben, wird die
+  Änderung am Konto zurückgenommen. Ein Link für ein neues Passwort, der noch offen ist, endet
+  mit der alten Adresse. Die Oberfläche dieser Anwendung zeigt davon noch nichts.
 - Eine Anwendung schreibt mit, wenn jemand eingeladen wird, beitritt oder andere Rollen bekommt
   (`opengewerk-haustechnik#84`). Das Fundament kennt eine Zugehörigkeit nur mit ihren Rollen. Die
   Haustechnik führt daneben, in welchen Bereichen jemand arbeitet, und das soll schon mit der

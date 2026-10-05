@@ -2,10 +2,11 @@ import { ConflictException } from '@nestjs/common'
 import type { InvitationId, TenantId, TenantIdentity } from '@opengewerk/platform-domain'
 import type { Pool } from 'pg'
 import type { Response } from 'supertest'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { newId } from '../database/identifier.js'
-import { standingInLine } from '../database/test-database.js'
+import { applicationRole, standingInLine } from '../database/test-database.js'
+import { appointOperator } from '../instance/operators.js'
 import { listColleagues } from './administration.js'
 import { authenticationPath } from './authentication.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
@@ -1238,5 +1239,307 @@ describe('the devices of somebody else', () => {
       [north.id, idOf(gus)],
     )
     expect(open.rowCount).toBe(0)
+  })
+})
+
+describe('correcting the name and the address of somebody', () => {
+  /**
+   * Three people of the north who differ in one thing: Nora works there and
+   * nowhere else, Paul works in the south as well, and Olga runs the instance.
+   */
+  const nora = { email: 'nora@nord.example.de', name: 'Nora Nurhier' }
+  const paul = { email: 'paul@nord.example.de', name: 'Paul Pendler' }
+  const olga = { email: 'olga@nord.example.de', name: 'Olga Obhut' }
+
+  interface Correction {
+    readonly name_before: string | null
+    readonly name_after: string | null
+    readonly email_before: string | null
+    readonly email_after: string | null
+  }
+
+  /** What the account of somebody is called on the instance right now. */
+  async function accountOf(userId: string): Promise<{ name: string; email: string }> {
+    const { rows } = await admin.query<{ name: string; email: string }>(
+      'select name, email from auth_users where id = $1',
+      [userId],
+    )
+
+    return rows[0] as { name: string; email: string }
+  }
+
+  /** The corrections the north wrote down for somebody, the oldest first. */
+  async function correctionsOf(userId: string): Promise<Correction[]> {
+    const { rows } = await admin.query<Correction>(
+      `select name_before, name_after, email_before, email_after
+         from account_corrections
+        where tenant_id = $1 and user_id = $2
+        order by created_at, id`,
+      [north.id, userId],
+    )
+
+    return rows
+  }
+
+  /** The links to a new password that are still open for somebody. */
+  async function openResetsOf(userId: string): Promise<number> {
+    const { rows } = await admin.query<{ count: number }>(
+      `select count(*)::int as count from auth_verifications
+        where value = $1 and identifier like 'reset-password:%'`,
+      [userId],
+    )
+
+    return rows[0]?.count ?? 0
+  }
+
+  function correct(cookies: string, userId: string, body: object) {
+    return http()
+      .patch(`/staff/${userId}/account`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .send(body)
+  }
+
+  beforeAll(async () => {
+    for (const [person, tenantIds] of [
+      [nora, [north.id]],
+      [paul, [north.id, south.id]],
+      [olga, [north.id]],
+    ] as const) {
+      for (const tenantId of tenantIds) {
+        const { userId } = await addStaffMember(instance.authentication, instance.database, {
+          ...person,
+          password,
+          tenantId,
+          roles: ['member'],
+        })
+
+        userIds.set(person.email, userId)
+      }
+    }
+
+    await appointOperator(instance.database, probeAccess.sentences.instance, idOf(lea), olga.email)
+  })
+
+  /**
+   * The name that was misspelt and the address that changed. Both belong to
+   * the account, which lives on the instance, and what was changed into what
+   * stands in the log of the tenant that did it, with the right the route
+   * asks for as the reason.
+   */
+  it('changes what the account is called and writes into the log what became of what', async () => {
+    const cookies = await workIn(lea.email, north.id)
+    const asNora = await workIn(nora.email, north.id)
+    const corrected = { name: 'Nora Neumann', email: 'nora.neumann@nord.example.de' }
+
+    const answer = await correct(cookies, idOf(nora), {
+      name: '  Nora Neumann ',
+      email: ' Nora.Neumann@Nord.Example.de',
+    }).expect(200)
+
+    expect(answer.body).toEqual({ userId: idOf(nora), ...corrected })
+    expect(await accountOf(idOf(nora))).toEqual(corrected)
+
+    const list = await http().get('/staff').set('cookie', cookies).expect(200)
+    const listed = (list.body as { userId: string }[]).find(
+      (person) => person.userId === idOf(nora),
+    )
+
+    expect(listed).toMatchObject(corrected)
+
+    for (const [field, value] of [
+      ['name_before', nora.name],
+      ['name_after', corrected.name],
+      ['email_before', nora.email],
+      ['email_after', corrected.email],
+    ] as const) {
+      expect(await logged(north.id, 'account_corrections', field)).toEqual([
+        { old_value: null, new_value: value, reason: 'membership.write' },
+      ])
+    }
+
+    // The session she had open goes on: she is who she was. And the new
+    // address signs in where the old one no longer does.
+    await http().get('/probe/members').set('cookie', asNora).expect(200)
+    await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .send({ email: nora.email, password })
+      .expect(401)
+    expect(await signIn(corrected.email)).not.toBe('')
+  })
+
+  it('writes down the half that changed, and nothing where nothing did', async () => {
+    const cookies = await workIn(lea.email, north.id)
+    const before = await accountOf(idOf(nora))
+    const written = (await correctionsOf(idOf(nora))).length
+
+    await correct(cookies, idOf(nora), { name: 'Nora Nachname' }).expect(200)
+
+    const rows = await correctionsOf(idOf(nora))
+
+    expect(rows).toHaveLength(written + 1)
+    expect(rows.at(-1)).toEqual({
+      name_before: before.name,
+      name_after: 'Nora Nachname',
+      email_before: null,
+      email_after: null,
+    })
+    expect((await accountOf(idOf(nora))).email).toBe(before.email)
+
+    // Said once more, with the address as it stands in another spelling:
+    // nothing changes, and the log does not hear that something stayed.
+    const again = await correct(cookies, idOf(nora), {
+      name: 'Nora Nachname',
+      email: before.email.toUpperCase(),
+    }).expect(200)
+
+    expect(again.body).toEqual({ userId: idOf(nora), name: 'Nora Nachname', email: before.email })
+    expect(await correctionsOf(idOf(nora))).toHaveLength(written + 1)
+  })
+
+  /**
+   * The fence. An address is where a link to a new password goes, so whoever
+   * may change it can take the account over. For an account that works here
+   * alone that is nothing whoever leads the tenant could not do anyway; for
+   * one that also works next door, or runs the instance, it would be a way
+   * into what is not theirs.
+   */
+  it('is refused for an account that is not this tenant alone', async () => {
+    const cookies = await workIn(lea.email, north.id)
+
+    for (const person of [paul, olga]) {
+      const before = await accountOf(idOf(person))
+      const refused = await correct(cookies, idOf(person), {
+        name: 'Anders Genannt',
+        email: 'anders@nord.example.de',
+      }).expect(409)
+
+      expect(refused.body.message).toBe(probeAccess.sentences.accountNotOnlyHere)
+      expect(await accountOf(idOf(person))).toEqual(before)
+      expect(await correctionsOf(idOf(person))).toEqual([])
+    }
+
+    // Shut out next door is still next door's: they can be let back in
+    // tomorrow, with the account they left with.
+    await admin.query(
+      'update memberships set blocked_at = now() where tenant_id = $1 and user_id = $2',
+      [south.id, idOf(paul)],
+    )
+
+    await correct(cookies, idOf(paul), { name: 'Anders Genannt' }).expect(409)
+    expect((await accountOf(idOf(paul))).name).toBe(paul.name)
+  })
+
+  it('refuses an address another account has, and what is no name or no address', async () => {
+    const cookies = await workIn(lea.email, north.id)
+    const before = await accountOf(idOf(nora))
+    const written = (await correctionsOf(idOf(nora))).length
+
+    const taken = await correct(cookies, idOf(nora), {
+      name: 'Nora Doppelt',
+      email: mia.email.toUpperCase(),
+    }).expect(409)
+
+    expect(taken.body.message).toBe('Diese E-Mail-Adresse gehört schon zu einem anderen Konto.')
+
+    for (const body of [
+      {},
+      { name: '   ' },
+      { email: 'keine-adresse' },
+      { name: 7 },
+      { email: null },
+    ]) {
+      await correct(cookies, idOf(nora), body).expect(400)
+    }
+
+    // Not half of it either: the name that came with the taken address is not
+    // written.
+    expect(await accountOf(idOf(nora))).toEqual(before)
+    expect(await correctionsOf(idOf(nora))).toHaveLength(written)
+  })
+
+  it('is for whoever administers the tenant, and reaches nobody next door', async () => {
+    const before = await accountOf(idOf(nora))
+
+    for (const person of [mia, gus]) {
+      const cookies = await workIn(person.email, north.id)
+
+      await correct(cookies, idOf(nora), { name: 'Von Unbefugt' }).expect(403)
+    }
+
+    const nextDoor = await workIn(sven.email, south.id)
+    const reaching = await correct(nextDoor, idOf(nora), { name: 'Von Nebenan' }).expect(404)
+
+    expect(reaching.body.message).toBe(probeAccess.sentences.notAMember)
+    expect(await accountOf(idOf(nora))).toEqual(before)
+  })
+
+  /**
+   * A link that is on its way to the old address would hand the account to
+   * whoever reads that inbox, which is the address the correction just took
+   * off the account.
+   */
+  it('ends a link to a new password with the address it went to, and not with a name', async () => {
+    const cookies = await workIn(lea.email, north.id)
+    const { email } = await accountOf(idOf(nora))
+
+    await http()
+      .post(`${authenticationPath}/request-password-reset`)
+      .set('origin', origin)
+      .send({ email })
+      .expect(200)
+    await vi.waitFor(async () => {
+      expect(await openResetsOf(idOf(nora))).toBe(1)
+    })
+
+    await correct(cookies, idOf(nora), { name: 'Nora Namenswechsel' }).expect(200)
+    expect(await openResetsOf(idOf(nora))).toBe(1)
+
+    await correct(cookies, idOf(nora), { email: 'nora.wechsel@nord.example.de' }).expect(200)
+    expect(await openResetsOf(idOf(nora))).toBe(0)
+  })
+
+  /**
+   * A row says what happened at one moment. The application reads it and
+   * writes a new one, and has no way of making an old one say something else.
+   */
+  it('is written once: the application may neither change nor remove one', async () => {
+    const { rows } = await admin.query<{ privilege: string; held: boolean }>(
+      `select privilege, has_table_privilege($1, 'account_corrections', privilege) as held
+         from unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) as privilege
+        order by privilege`,
+      [applicationRole],
+    )
+
+    expect(rows.filter((row) => row.held).map((row) => row.privilege)).toEqual(['INSERT', 'SELECT'])
+  })
+
+  /**
+   * A change the log does not show is what the log is there to prevent, so a
+   * correction that cannot be written down does not stay.
+   */
+  it('is taken back when it cannot be written into the log', async () => {
+    const cookies = await workIn(lea.email, north.id)
+    const before = await accountOf(idOf(nora))
+    const written = (await correctionsOf(idOf(nora))).length
+
+    await admin.query(`revoke insert on account_corrections from "${applicationRole}"`)
+
+    try {
+      const failed = await correct(cookies, idOf(nora), {
+        name: 'Nora Ohneprotokoll',
+        email: 'ohne.protokoll@nord.example.de',
+      })
+
+      // What the database says to a write it does not allow, as every
+      // route answers it.
+      expect(failed.status).toBe(403)
+    } finally {
+      await admin.query(`grant insert on account_corrections to "${applicationRole}"`)
+    }
+
+    expect(await accountOf(idOf(nora))).toEqual(before)
+    expect(await correctionsOf(idOf(nora))).toHaveLength(written)
   })
 })

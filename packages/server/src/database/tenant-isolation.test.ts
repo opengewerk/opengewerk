@@ -790,6 +790,14 @@ const crossings: readonly {
             values (${own.tenant}, ${other.user}, 'passkey-elsewhere', 'Telefon')`,
   },
   {
+    // An insert too: a correction is written once and names the person it
+    // was made for, who works in the business that made it.
+    key: 'account_corrections_person_works_here',
+    write: (own, other) =>
+      sql`insert into account_corrections (tenant_id, user_id, name_before, name_after)
+            values (${own.tenant}, ${other.user}, 'Alt', 'Neu')`,
+  },
+  {
     key: 'push_outbox_subscription_in_tenant',
     write: (own, other) =>
       repoint('push_outbox', 'subscription_id', own.pushMessage, other.pushDevice),
