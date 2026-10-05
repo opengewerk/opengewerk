@@ -171,12 +171,16 @@ describe('a field that depends on what is filled in', () => {
   /**
    * Only for a list that depends on the values. A fixed list keeps a value
    * it does not offer: a record written somewhere else goes back as it came,
-   * instead of quietly becoming the first choice.
+   * instead of quietly becoming the first choice. And the list shows what the
+   * form keeps, so that what is saved is what stood on the screen.
    */
-  it('keeps a value a fixed list does not offer', async () => {
+  it('keeps a value a fixed list does not offer, and shows it', async () => {
     const submitted = taking()
 
     form({ onSubmit: submitted, record: { id: 's-1', name: 'Regal', room: 'attic' } })
+
+    expect((screen.getByLabelText('Raum') as HTMLSelectElement).value).toBe('attic')
+
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
 
     expect(submitted.mock.calls[0]?.[0]).toMatchObject({ room: 'attic' })

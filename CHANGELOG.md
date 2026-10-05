@@ -51,6 +51,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Umbruch am Telefon; der Typ `Crumb` steht dafür bei den gemeinsamen Bausteinen. Für diese
   Anwendung ändert sich nichts, sie nutzt keines der drei.
 
+### Behoben
+
+- Eine Auswahlliste zeigt, was das Formular hält (`opengewerk-haustechnik#85`). Hielt ein Formular
+  einen Wert, den die Liste nicht anbietet, zeigte der Browser ihre erste Auswahl, und gespeichert
+  wurde etwas anderes, als auf dem Bildschirm stand. Aufgefallen ist es am Formular einer neuen
+  Liegenschaft: dort fiel "Bitte wählen" aus der Liste, sobald die ersten Datensätze auf einem
+  neuen Gerät ankamen, die Liste zeigte "Baden-Württemberg", und das Formular meldete "Das
+  Bundesland fehlt.". `SelectField` zeigt einen solchen Wert jetzt als das, was er ist, und er lässt
+  sich nicht wieder wählen; hält ein Pflichtfeld nichts, hält der Browser das Formular an wie bei
+  einem leeren Feld. In den Tests der Bildschirme dieser Anwendung hält keine Liste einen Wert, den
+  sie nicht anbietet, gemessen mit einer Probe, die in diesem Fall einen Fehler wirft; für sie
+  ändert sich also nichts.
+
 ## [0.5.0] - 2026-10-04
 
 Die fünfte Fassung bringt, was von Phase 2 gebaut ist, das Fundament in eigenen Paketen und die

@@ -328,6 +328,13 @@ export interface SelectFieldProps {
  * control cannot do the job, and this is not one of them: the native one is
  * the only control on a phone that opens the wheel people already know how to
  * use, and it is announced correctly everywhere without help.
+ *
+ * It shows what the form holds. A value its choices do not offer, one from
+ * another build or nothing where no choice stands for nothing, is shown as
+ * what it is and cannot be picked again. Left to itself a browser shows the
+ * first choice of the list for such a value, and the form would hand back
+ * something other than what stands on the screen (opengewerk-haustechnik#85).
+ * Nothing held with `required` then stops the form as an empty field does.
  */
 export function SelectField({
   label,
@@ -346,6 +353,7 @@ export function SelectField({
   const hintId = `${id}-hint`
   const problemId = `${id}-problem`
   const described = [hint ? hintId : null, problem ? problemId : null].filter(Boolean).join(' ')
+  const offered = options.some((option) => option.value === value)
 
   return (
     <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
@@ -372,6 +380,11 @@ export function SelectField({
             edge(problem),
           )}
         >
+          {offered ? null : (
+            <option value={value} disabled hidden>
+              {value}
+            </option>
+          )}
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}

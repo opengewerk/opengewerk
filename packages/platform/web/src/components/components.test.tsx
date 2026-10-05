@@ -138,6 +138,95 @@ describe('a field', () => {
   })
 })
 
+describe('a list of choices', () => {
+  const countries = [
+    { value: 'DE', label: 'Deutschland' },
+    { value: 'AT', label: 'Österreich' },
+  ]
+
+  /**
+   * The list as a reader meets it: each choice with what it hands back, and
+   * how it is kept from being picked. Out of the list for a browser that
+   * leaves hidden choices out, and not to be picked for one that shows them.
+   */
+  function choices(select: HTMLSelectElement) {
+    return [...select.options].map((option) => ({
+      value: option.value,
+      label: option.textContent,
+      kept: [option.hidden ? 'out of the list' : null, option.disabled ? 'not to be picked' : null]
+        .filter(Boolean)
+        .join(', '),
+    }))
+  }
+
+  it('offers its choices and nothing else while it holds one of them', async () => {
+    const changed = vi.fn()
+
+    render(<SelectField label="Land" value="DE" options={countries} onChange={changed} />)
+
+    const select = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Land' })
+
+    expect(select.value).toBe('DE')
+    expect(choices(select)).toEqual([
+      { value: 'DE', label: 'Deutschland', kept: '' },
+      { value: 'AT', label: 'Österreich', kept: '' },
+    ])
+
+    await userEvent.selectOptions(select, 'Österreich')
+
+    expect(changed).toHaveBeenCalledExactlyOnceWith('AT')
+  })
+
+  // Left to itself a browser shows the first choice for such a value, and
+  // the form would hand back something other than what stands on the screen.
+  it('shows a value its choices do not offer as what it is, and not as the first of them', () => {
+    render(<SelectField label="Land" value="XX" options={countries} onChange={() => {}} />)
+
+    const select = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Land' })
+
+    expect(select.value).toBe('XX')
+    expect(choices(select)).toEqual([
+      { value: 'XX', label: 'XX', kept: 'out of the list, not to be picked' },
+      { value: 'DE', label: 'Deutschland', kept: '' },
+      { value: 'AT', label: 'Österreich', kept: '' },
+    ])
+  })
+
+  it('shows nothing chosen where it holds nothing and no choice stands for nothing', () => {
+    render(<SelectField label="Land" value="" required options={countries} onChange={() => {}} />)
+
+    const select = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Land' })
+
+    // Empty and required: the browser stops the form as at an empty field.
+    expect(select.value).toBe('')
+    expect(select.required).toBe(true)
+    expect(choices(select)[0]).toEqual({
+      value: '',
+      label: '',
+      kept: 'out of the list, not to be picked',
+    })
+  })
+
+  it('takes a choice that stands for nothing as one of its choices', () => {
+    render(
+      <SelectField
+        label="Land"
+        value=""
+        options={[{ value: '', label: 'Bitte wählen' }, ...countries]}
+        onChange={() => {}}
+      />,
+    )
+
+    const select = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Land' })
+
+    expect(choices(select).map((choice) => choice.label)).toEqual([
+      'Bitte wählen',
+      'Deutschland',
+      'Österreich',
+    ])
+  })
+})
+
 describe('a table', () => {
   it('has a caption and column headers that point at their column', () => {
     render(
