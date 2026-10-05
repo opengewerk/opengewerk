@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- "Zugänge" gibt es im Fundament ein zweites Mal: mit einer Rolle je Zugang, die in einem Dialog
+  vergeben wird (`opengewerk-haustechnik#84`). Die Haustechnik führt neben einer Zugehörigkeit
+  die Bereiche einer Person, und Rolle und Bereiche sind eine Entscheidung mit einem "Speichern";
+  die Zeile mit den Kästchen hat dafür keinen Platz. Der neue Bildschirm (`StaffDialogsScreen`)
+  zeigt je Zugang seine Rolle und eine Spalte der Anwendung, legt einen Zugang in einem Dialog
+  an und bearbeitet ihn in einem zweiten, in dem auch Name und E-Mail berichtigt werden und die
+  Geräte der Person stehen. Die Handwerkersoftware behält ihren Bildschirm, wie er ist. Dazu
+  kommen zwei Bausteine für beide Einstiege: `Dialog`, ein kurzes Formular über der Seite, und
+  `Choice`, eine von wenigen als Karten oder in einer Zeile.
 - Wer die Zugänge verwaltet, berichtigt Name und E-Mail eines Kontos
   (`opengewerk-haustechnik#84`). Ein Name, der bei der Einladung falsch geschrieben wurde, und
   eine Adresse, die sich geändert hat, ließen sich bisher von niemandem ändern. Das Fundament

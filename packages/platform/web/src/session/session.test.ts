@@ -16,6 +16,7 @@ import {
   type Account,
   availableTenants,
   chooseTenant,
+  correctAccount,
   currentAccount,
   instanceVersion,
   invitationPath,
@@ -302,6 +303,16 @@ describe('what the server is asked for the people of a tenant', () => {
     await setRoles('u 2', ['member'])
 
     expect(asked.at(-1)?.body).toEqual({ roles: ['member'] })
+  })
+
+  it('corrects an account with what is named and nothing else', async () => {
+    await correctAccount('u 2', { name: 'Max Mitglied' })
+    await correctAccount('u 2', { email: 'max@probewerk.example.de' })
+
+    expect(asked.map((entry) => [entry.method, entry.path, entry.body])).toEqual([
+      ['PATCH', '/staff/u%202/account', { name: 'Max Mitglied' }],
+      ['PATCH', '/staff/u%202/account', { email: 'max@probewerk.example.de' }],
+    ])
   })
 
   it('shuts somebody out with one method and lets them back in with the other', async () => {

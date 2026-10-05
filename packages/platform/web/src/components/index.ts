@@ -1,6 +1,10 @@
 export { Button, ButtonLink, IconButton, useButtonLook } from './button.js'
 export { Confirm } from './confirm.js'
 export type { ConfirmProps } from './confirm.js'
+export { Dialog, DialogActions } from './dialog.js'
+export type { DialogProps } from './dialog.js'
+export { Choice } from './choice.js'
+export type { ChoiceOption, ChoiceProps } from './choice.js'
 export type {
   ButtonLinkProps,
   ButtonProps,

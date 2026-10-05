@@ -14,6 +14,7 @@ export {
   availableTenants,
   changePassword,
   chooseTenant,
+  correctAccount,
   currentAccount,
   devices,
   instanceVersion,
