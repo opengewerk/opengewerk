@@ -48,6 +48,7 @@ describe('the interface of the foundation', () => {
     // that pointed at a build would be one nobody makes.
     expect(manifest.exports).toEqual({
       '.': './src/index.ts',
+      './contacts': './src/contacts/index.ts',
       './format': './src/format.ts',
       './gate': './src/gate/index.ts',
       './instance': './src/instance/index.ts',

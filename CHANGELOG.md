@@ -40,6 +40,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Oberfläche der Ansprechpartner steht im Fundament (`opengewerk-haustechnik#85`). Die Karte
+  "Ansprechpartner" des Büros (`ContactsPanel`), die Liste zum Antippen vor Ort (`ContactList`) und
+  das Formular für einen neuen (`NewContactForm`, neuer Einstieg
+  `@opengewerk/platform-web/contacts`) nehmen von der Anwendung, woran ein Ansprechpartner hängt,
+  wer anlegen und berichtigen darf, und ihre Wörter. Für die Haustechnik kann die Karte einen
+  Ansprechpartner an seiner Route anlegen statt über den Postausgang (`make`) und zeichnet auf
+  Wunsch eine Zeile je Person (`dense`). Für diese Anwendung ändert sich nichts: das HTML ihrer
+  Karte und ihrer Liste ist in 26 gemessenen Zuständen vor und nach dem Umzug gleich. Nicht mit
+  umgezogen ist, was die Liste vor Ort konnte und kein Bildschirm je anbot, das Berichtigen und
+  Entfernen. Nachtrag in ADR 0010.
 - Die Ansprechpartner sind ein Baustein des Fundaments, und woran einer hängt, sagt die Anwendung
   (`opengewerk-haustechnik#85`). Die Haustechnik führt Ansprechpartner an der Liegenschaft, und der
   Baustein dieser Anwendung kannte Kunde, Objekt und Lieferant in jeder Schicht beim Namen. Wer

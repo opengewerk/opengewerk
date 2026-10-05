@@ -82,6 +82,14 @@ export type {
   DeadlineView,
 } from './deadline-requests.js'
 
+// The people to talk to at a record, as the card on its screen: the list,
+// the form for a new one, the pencil to change one and the question before
+// one is taken away. What a contact hangs on, who may keep one and the words
+// that name its records the application hands in; the pieces both entries
+// share are under `/contacts`.
+export { ContactsPanel } from './contacts.js'
+export type { ContactsPanelProps, ContactsPanelWords } from './contacts.js'
+
 // "Abgleich": what is to decide about the exchange, the conflicts and the entry
 // the server refused, beside the state of the exchange. What a record is
 // called and what other way out of a conflict there is, the application says

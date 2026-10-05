@@ -4,6 +4,12 @@ import type { Id, Synced } from './identifier.js'
 export type ContactId = Id<'contact'>
 
 /**
+ * The entity a device, a route and a screen talk about a contact as: the name
+ * of its table, the same in every application.
+ */
+export const contactEntity = 'contacts'
+
+/**
  * The texts that say who a contact is and how to reach them, in the order a
  * form asks for them.
  */

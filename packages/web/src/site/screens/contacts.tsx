@@ -1,11 +1,11 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Panel, SelectField } from '@opengewerk/platform-web'
-import { SiteLabel } from '@opengewerk/platform-web/site'
+import { ContactList, SiteLabel } from '@opengewerk/platform-web/site'
 import { maybeText, text, useRecord, useRelated } from '@opengewerk/platform-web/sync'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { type ContactParent, ContactList, NewContactForm } from '../../app/contacts.js'
+import { type ContactParent, NewContactForm } from '../../app/contacts.js'
 import { useMay } from '../../app/queries.js'
 
 /**
@@ -114,7 +114,7 @@ function ContactGroup({
   return (
     <section aria-label={heading} className={spaced ? 'mt-1.5' : undefined}>
       <SiteLabel>{heading}</SiteLabel>
-      <ContactList contacts={contacts} manage={false} empty={empty} />
+      <ContactList contacts={contacts} empty={empty} />
     </section>
   )
 }

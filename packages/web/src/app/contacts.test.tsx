@@ -9,7 +9,7 @@ import {
 } from '@opengewerk/domain'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import type { DirectWriter, PullResult, SyncTransport } from '@opengewerk/platform-web/sync'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -17,7 +17,7 @@ import {
   createRouter,
   RouterProvider,
 } from '@tanstack/react-router'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -289,6 +289,10 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  // A test that took the network away gives it back, to the sync client and
+  // to the queries, which share one flag between all tests of a file.
+  window.dispatchEvent(new Event('online'))
+  onlineManager.setOnline(true)
   vi.unstubAllGlobals()
 })
 
@@ -407,6 +411,14 @@ describe('the contacts at a customer in the office', () => {
 
     const question = await screen.findByRole('alertdialog', { name: 'Albers entfernen?' })
 
+    // What it means is said in the words of this application, which has
+    // devices on a building site.
+    expect(
+      within(question).getByText(
+        'Danach steht der Ansprechpartner hier nicht mehr, auch nicht auf den Geräten der Baustelle.',
+      ),
+    ).toBeDefined()
+
     await userEvent.click(within(question).getByRole('button', { name: 'Entfernen' }))
 
     await waitFor(() => {
@@ -415,6 +427,25 @@ describe('the contacts at a customer in the office', () => {
     await waitFor(() => {
       expect(section.queryByText('Albers')).toBeNull()
     })
+  })
+
+  it('say in the words of this application that a correction needs a connection', async () => {
+    signedInAs('office')
+    await mount('/kunden/c-1')
+    const section = await contactsSection()
+
+    // What the browser says when the network goes, which the client listens to.
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    await userEvent.click(await section.findByRole('button', { name: 'Albers bearbeiten' }))
+
+    expect(section.getByRole('status').textContent).toBe(
+      'Stammdaten werden nur mit Verbindung geändert. Gerade ist keine da.',
+    )
+    expect((section.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
   })
 
   it('can be added but not corrected by somebody who may only create a customer', async () => {
