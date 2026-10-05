@@ -126,6 +126,20 @@ describe('the facts of a record', () => {
     // The order a reader and the Tab key follow, at every width.
     expect(main.compareDocumentPosition(side) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
+
+  it('stand before the tables where a board draws them first, in the page as on the screen', () => {
+    render(<RecordColumns sideFirst sideWidth={340} main={<p>Tabellen</p>} side={<p>Angaben</p>} />)
+
+    const main = screen.getByText('Tabellen')
+    const side = screen.getByText('Angaben')
+
+    // First in the page and not moved by the stylesheet: what is seen first
+    // is read first.
+    expect(side.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Still the narrow one of the two, and the tables take the rest.
+    expect(side.parentElement?.className).toContain('lg:w-[340px]')
+    expect(main.parentElement?.className).toContain('lg:grow')
+  })
 })
 
 describe('the filters of a list', () => {

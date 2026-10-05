@@ -20,6 +20,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   läuft der Aufruf im Mandanten und als die Person, die beitritt. `invite` und `setRoles` der
   Oberfläche reichen dasselbe durch. Für diese Anwendung ändert sich nichts, sie führt nichts
   neben einer Zugehörigkeit.
+- Ein Formular lässt sich zeichnen, wie eine Tafel es zeichnet, und die schmale Spalte einer Seite
+  steht auf Wunsch links (`opengewerk-haustechnik#85`). Die Tafel "Neue Liegenschaft" der
+  Haustechnik hat eine Notiz über mehrere Zeilen, eine Postleitzahl, die schmaler ist als der Ort
+  daneben, und ein Sternchen an jedem Pflichtfeld; die Tafel "Liegenschaft" zeichnet Anschrift und
+  Ansprechpartner links und die Gebäude rechts. Das Formular über einem Datensatz (`RecordForm`)
+  kannte nur einzeilige Felder in gleich breiten Zellen. Ein Feld der Art `textarea` ist jetzt ein
+  Kasten für mehr als eine Zeile, über die ganze Breite, wenn es nichts anderes sagt; `place`
+  nennt, wie viele Spalten des Rasters ein Feld nimmt, `placeholder` ein Beispiel im leeren Feld,
+  und mit `starred` steht neben dem Namen jedes Pflichtfelds ein Sternchen. Das Sternchen steht
+  neben dem Namen und nicht darin, damit der Name bleibt, wie ein Bildschirmleser ihn vorliest,
+  und es steht nur, wo ein Bildschirm es verlangt: die Anmeldung fragt nur Pflichtfelder und
+  markiert keines. `RecordColumns` nimmt `sideFirst` und setzt die schmale Spalte dann an den
+  Anfang, auf dem Bildschirm und in der Seite. Was eine Liste vor ihrem ersten Eintrag sagt, steht
+  als `EmptyState` auch für sich: die Liste der Liegenschaften zeigt die Gebäude unter jeder
+  Liegenschaft und ist deshalb keine Tabelle aus flachen Zeilen, soll leer aber dasselbe sagen wie
+  jede andere. Für diese Anwendung ändert sich nichts, ihre Formulare, Seiten und Listen stehen
+  wie bisher.
 
 ### Geändert
 
@@ -33,6 +50,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Seite vor Ort aus denselben Schritten wie `Crumbs` im Büro, in der Schrift vor Ort und mit
   Umbruch am Telefon; der Typ `Crumb` steht dafür bei den gemeinsamen Bausteinen. Für diese
   Anwendung ändert sich nichts, sie nutzt keines der drei.
+
+### Behoben
+
+- Eine Auswahlliste zeigt, was das Formular hält (`opengewerk-haustechnik#85`). Hielt ein Formular
+  einen Wert, den die Liste nicht anbietet, zeigte der Browser ihre erste Auswahl, und gespeichert
+  wurde etwas anderes, als auf dem Bildschirm stand. Aufgefallen ist es am Formular einer neuen
+  Liegenschaft: dort fiel "Bitte wählen" aus der Liste, sobald die ersten Datensätze auf einem
+  neuen Gerät ankamen, die Liste zeigte "Baden-Württemberg", und das Formular meldete "Das
+  Bundesland fehlt.". `SelectField` zeigt einen solchen Wert jetzt als das, was er ist, und er lässt
+  sich nicht wieder wählen; hält ein Pflichtfeld nichts, hält der Browser das Formular an wie bei
+  einem leeren Feld. In den Tests der Bildschirme dieser Anwendung hält keine Liste einen Wert, den
+  sie nicht anbietet, gemessen mit einer Probe, die in diesem Fall einen Fehler wirft; für sie
+  ändert sich also nichts.
 
 ## [0.5.0] - 2026-10-04
 

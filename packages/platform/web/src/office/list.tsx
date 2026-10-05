@@ -804,7 +804,6 @@ function EmptyList({
   empty,
   band,
 }: ListScreenProps & { readonly band: Band }) {
-  const Icon = empty.icon
   const narrow = band === 'S' || band === 'M'
 
   return (
@@ -830,26 +829,59 @@ function EmptyList({
           narrow ? 'h-12 w-full' : 'h-8 w-[300px]',
         )}
       />
-      <section
-        aria-label={empty.title}
-        className="flex grow flex-col justify-center gap-3 rounded-[5px] border border-line bg-surface px-5 py-14"
-      >
-        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-surface-sunken text-ink-muted">
-          <Icon size={26} strokeWidth={1.9} aria-hidden="true" />
-        </div>
-        <h2 className="text-center text-[18px] font-semibold">{empty.title}</h2>
-        <p className="mx-auto max-w-[460px] text-center text-[14px] leading-[1.5] text-ink-muted">
-          {empty.text}
-        </p>
-        {primary ? (
-          <div className="flex justify-center">
+      <EmptyState
+        icon={empty.icon}
+        title={empty.title}
+        action={
+          primary ? (
             <Button tone="primary" icon={Plus} onClick={primary.onPress}>
               {primary.label}
             </Button>
-          </div>
-        ) : null}
-      </section>
+          ) : undefined
+        }
+      >
+        {empty.text}
+      </EmptyState>
     </div>
+  )
+}
+
+/**
+ * What a list says before its first entry: what will stand in it, and the
+ * way to the first. The card grows to the room the screen has left.
+ *
+ * On its own for a list an application draws itself, a list in levels above
+ * all, which is no table of flat rows: it says the same thing in the same
+ * place as the lists drawn here.
+ */
+export function EmptyState({
+  icon: Icon,
+  title,
+  children,
+  action,
+}: {
+  readonly icon: LucideIcon
+  /** The heading, and what a reader hears the card called. */
+  readonly title: string
+  /** What an entry is, in a sentence or two. */
+  readonly children: ReactNode
+  /** The way to the first entry, for whoever may make one. */
+  readonly action?: ReactNode
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="flex grow flex-col justify-center gap-3 rounded-[5px] border border-line bg-surface px-5 py-14"
+    >
+      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-surface-sunken text-ink-muted">
+        <Icon size={26} strokeWidth={1.9} aria-hidden="true" />
+      </div>
+      <h2 className="text-center text-[18px] font-semibold">{title}</h2>
+      <p className="mx-auto max-w-[460px] text-center text-[14px] leading-[1.5] text-ink-muted">
+        {children}
+      </p>
+      {action ? <div className="flex justify-center">{action}</div> : null}
+    </section>
   )
 }
 
