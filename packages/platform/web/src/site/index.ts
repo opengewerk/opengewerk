@@ -56,6 +56,11 @@ export type { CodeReader } from './barcode.js'
 // is shown in both entries and sits at the root of the package.
 export { SignaturePad } from './signature-pad.js'
 
+// The people to talk to at a record, to read and to call: the name, what
+// somebody is there, and the number and the address to tap. The form for a
+// new one is under `/contacts`.
+export { ContactList } from './contacts.js'
+
 // "Konflikte": the state of the exchange, what is to decide and a way to try
 // again, the one screen of the site that may be empty. What a record is
 // called and what other way out of a conflict there is, the application says

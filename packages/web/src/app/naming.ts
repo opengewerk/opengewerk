@@ -1,4 +1,5 @@
 import { type RecordState, syncEntityNames, syncFieldNames } from '@opengewerk/domain'
+import { personName } from '@opengewerk/platform-web/contacts'
 import { maybeText } from '@opengewerk/platform-web/sync'
 
 /**
@@ -38,13 +39,4 @@ export function titleOf(entity: string, record: RecordState | null): string {
     personName(record)
 
   return named ?? `${entityLabel(entity)} ohne Bezeichnung`
-}
-
-/** Given and family name as one, or null when a record has neither. */
-export function personName(record: RecordState | null): string | null {
-  const parts = [maybeText(record, 'givenName'), maybeText(record, 'familyName')].filter(
-    (part): part is string => part !== null,
-  )
-
-  return parts.length > 0 ? parts.join(' ') : null
 }

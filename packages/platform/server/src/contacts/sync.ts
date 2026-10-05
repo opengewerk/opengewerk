@@ -1,10 +1,7 @@
-import { type ContactRules, contactTextFields } from '@opengewerk/platform-domain'
+import { contactEntity, type ContactRules, contactTextFields } from '@opengewerk/platform-domain'
 
 import type { SyncCheck } from '../sync/apply.js'
 import type { RecordRule } from '../sync/record-rules.js'
-
-/** The entity a device talks about a contact as: the name of its table. */
-export const contactEntity = 'contacts'
 
 /**
  * The rules over the fields of a contact, for the record rules of an
