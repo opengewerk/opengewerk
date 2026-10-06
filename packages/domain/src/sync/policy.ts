@@ -1,4 +1,9 @@
-import { attachmentVersionPolicy, type SyncPolicy, syncRules } from '@opengewerk/platform-domain'
+import {
+  attachmentVersionPolicy,
+  labelPolicy,
+  type SyncPolicy,
+  syncRules,
+} from '@opengewerk/platform-domain'
 
 /**
  * Master data. A technician on site adds a customer that is not in the system
@@ -229,7 +234,7 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * device reads them, so that a scan opens an installation without a network
    * and says so when its label is blocked, and writes none.
    */
-  installation_labels: { create: false, change: 'never' },
+  installation_labels: labelPolicy,
   /**
    * The articles a device holds (#296), whatever its role: the frequent ones
    * and those a line took in the last 90 days, with their selling prices. Kept

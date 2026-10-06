@@ -99,6 +99,14 @@ export type {
 export { ContactsPanel } from './contacts.js'
 export type { ContactsPanelProps, ContactsPanelWords } from './contacts.js'
 
+// The card of the label of a record, in the side column of its page: the
+// valid label with its QR code, printing it for a label printer or a sheet,
+// blocking it, and making one where there is none. What a label hangs on,
+// who may make and block one and at which routes, the application says, and
+// every sentence that speaks to the reader.
+export { LabelCard } from './label-card.js'
+export type { CardLabel, LabelCardProps, LabelCardWords } from './label-card.js'
+
 // "Abgleich": what is to decide about the exchange, the conflicts and the entry
 // the server refused, beside the state of the exchange. What a record is
 // called and what other way out of a conflict there is, the application says

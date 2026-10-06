@@ -62,6 +62,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Das Etikett mit QR-Code ist ein Baustein des Fundaments, und woran ein Etikett hängt, sagt die
+  Anwendung (`opengewerk-haustechnik#98`). Die Haustechnik klebt Etiketten an Anlagen und an die
+  Türen von Räumen, und Abschnitt 2.1 ihres Konzepts nennt die Etiketten dieser Anwendung unter
+  dem, was sich fast unverändert nutzen lässt; hier hingen Code, Druck und Karte an der Anlage
+  eines Kunden. Was ein Etikett ist, steht jetzt im Fundament: in `platform-domain` der Code mit
+  seinem Alphabet, die Adresse im QR-Code, das nachsichtige Lesen eines Scans, die beiden Formate
+  und die Prüfung eines Drucks (`labelCodeFrom`, `labelAddress`, `labelCodeFromScan`,
+  `labelLayouts`, `labelPrintProblem`, dazu `labelPolicy` für den Abgleich), in `platform-server`
+  das Ziehen eines Codes mit Wiederholung (`withLabelCode`), die Seite für Etikettendrucker und
+  Bogen (`labelPrintJob`, `qrSvg`), die zwei Spalten jeder Tabelle von Etiketten (`labelColumns`,
+  `labelCodeShaped`, `labelIsValid`) und der neue Baustein `sql/labels.sql` mit der Funktion, die
+  ein gesperrtes Etikett gesperrt hält, und in `platform-web` die Karte des Büros (`LabelCard`).
+  Ein Druck nimmt jetzt eine Liste von Etiketten, jedes mit eigenem Code und eigenen drei Zeilen,
+  weil die Haustechnik einen Bogen mit vielen verschiedenen druckt. Diese Anwendung bindet die
+  Teile an ihre Anlage, ihr Recht, ihre Routen und ihre Sätze. Für sie ändert sich nichts: die
+  Tabelle bleibt, wie sie war, es gibt keine Migration, und Routen, Abgleich, Karte und PDF
+  antworten wie vorher. Der Scanner vor Ort und die Seite nach dem Scan sind nicht mit umgezogen,
+  sie folgen den Tafeln dieser Anwendung. Nachtrag in ADR 0010.
 - Die Ablage mit ihren Fassungen ist ein Baustein des Fundaments, und woran eine Datei hängt, sagt
   die Anwendung (`opengewerk-haustechnik#97`). Die Haustechnik legt Dokumente an Liegenschaft,
   Gebäude, Raum, Anlage und Vorgang ab, und die Ablage dieser Anwendung kannte Kunde, Objekt,

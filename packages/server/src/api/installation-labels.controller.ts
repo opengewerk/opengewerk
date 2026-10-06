@@ -1,5 +1,3 @@
-import { randomBytes } from 'node:crypto'
-
 import {
   BadGatewayException,
   BadRequestException,
@@ -20,7 +18,6 @@ import {
   type InstallationId,
   type InstallationLabelId,
   type LabelFormat,
-  labelCodeFrom,
   labelPrintProblem,
   type TenantId,
 } from '@opengewerk/domain'
@@ -28,11 +25,13 @@ import {
   Database,
   isUniqueViolation,
   isUuid,
+  LabelCodeUnavailableError,
   RENDERER,
   type Renderer,
   RendererUnavailableError,
   type TenantTransaction,
   TRUSTED_ORIGINS,
+  withLabelCode,
 } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
@@ -44,7 +43,7 @@ import {
   sites,
   tenants,
 } from '../database/schema/index.js'
-import { labelPrintJob } from '../labels/label-print.js'
+import { installationLabelPrintJob } from '../labels/label-print.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -127,12 +126,10 @@ export class InstallationLabelsController {
     @CurrentIdentity() identity: RequestIdentity,
     @Param('installationId') installationId: string,
   ) {
-    // A code drawn twice is as likely as none of these requests ever being
-    // made; the loop is there so that the unique index is the last word and
-    // not an error nobody could have caused.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        return await this.database.forTenant(identity, async (tx) => {
+    try {
+      // Drawn by the server, and drawn again when the code stood there already.
+      return await withLabelCode('installation_labels_code_once', (draw) =>
+        this.database.forTenant(identity, async (tx) => {
           // Held until the label is written: an installation deleted meanwhile
           // would otherwise keep a label nothing takes away.
           const installation = await openInstallation(tx, installationId, true)
@@ -163,29 +160,27 @@ export class InstallationLabelsController {
             .values({
               tenantId: identity.tenantId,
               installationId: installation.id,
-              code: labelCodeFrom(randomBytes(10)),
+              code: draw(),
             })
             .returning()
 
           return created
-        })
-      } catch (error) {
-        // Two requests at once: the second finds the first one's label.
-        if (isUniqueViolation(error, 'installation_labels_one_valid')) {
-          throw new ConflictException(
-            'Diese Anlage hat schon ein gültiges Etikett. Erst sperren, dann ein neues anlegen.',
-          )
-        }
-
-        if (!isUniqueViolation(error, 'installation_labels_code_once')) {
-          throw error
-        }
+        }),
+      )
+    } catch (error) {
+      // Two requests at once: the second finds the first one's label.
+      if (isUniqueViolation(error, 'installation_labels_one_valid')) {
+        throw new ConflictException(
+          'Diese Anlage hat schon ein gültiges Etikett. Erst sperren, dann ein neues anlegen.',
+        )
       }
-    }
 
-    throw new ServiceUnavailableException(
-      'Es ließ sich kein freier Code ziehen. Bitte noch einmal.',
-    )
+      if (error instanceof LabelCodeUnavailableError) {
+        throw new ServiceUnavailableException(error.message)
+      }
+
+      throw error
+    }
   }
 
   /**
@@ -278,7 +273,9 @@ export class InstallationLabelsController {
     let bytes: Uint8Array
 
     try {
-      bytes = await this.render(labelPrintJob({ ...facts.print, origin, format, count, start }))
+      bytes = await this.render(
+        installationLabelPrintJob({ ...facts.print, origin, format, count, start }),
+      )
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)
