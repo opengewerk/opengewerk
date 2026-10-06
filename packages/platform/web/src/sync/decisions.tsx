@@ -1,7 +1,7 @@
 import type { ConflictReason, SyncConflict, SyncValue } from '@opengewerk/platform-domain'
 import { Server, Smartphone } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useId, useState } from 'react'
+import { Fragment, useId, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { useApplication } from '../application.js'
@@ -22,8 +22,9 @@ import { useSync, useSyncStatus } from './provider.js'
  * and `ConflictScreen` on site.
  *
  * What a record is called, how its values are written, which conflicts no
- * version settles and what other way out there is, the application says
- * (`records` in its value, ADR 0010).
+ * version settles, what other way out there is and which conflict it decides
+ * in a card of its own, the application says (`records` in its value, ADR
+ * 0010).
  */
 
 /**
@@ -466,6 +467,24 @@ function ConflictCard({
   )
 }
 
+/**
+ * The frame of a decision in the entry it stands in, for a card an
+ * application draws itself (`ownDecision`): the kind of record in small
+ * capitals, the name of the one it is about, what there is to decide, and
+ * under them whatever the application puts there. The card of the foundation
+ * stands in the same frame, so a list of both reads as one.
+ */
+export function DecisionFrame(props: {
+  readonly kind: string
+  readonly title: string
+  readonly reason: string
+  readonly children: ReactNode
+}) {
+  const Frame = useEntry() === 'office' ? ConflictFrame : SiteConflictFrame
+
+  return <Frame {...props} />
+}
+
 /** Small capitals over a field of a conflict on site: "Feld: Bezeichnung". */
 function SiteFieldHead({ children }: { readonly children: string }) {
   return (
@@ -748,7 +767,8 @@ export function useDecisions(): {
   readonly empty: boolean
 } {
   const { conflicts, refused } = useSyncStatus()
-  const way = useApplication().records.otherWay
+  const words = useApplication().records
+  const way = words.otherWay
   const [made, setMade] = useState<readonly string[]>([])
 
   return {
@@ -765,15 +785,27 @@ export function useDecisions(): {
     cards: (
       <>
         {refused ? <RefusedCard key={refused.operation.id} refused={refused} /> : null}
-        {conflicts.map((conflict) => (
-          <ConflictCard
-            key={conflict.id}
-            conflict={conflict}
-            onMade={(summary) => {
-              setMade((before) => [...before, summary])
-            }}
-          />
-        ))}
+        {conflicts.map((conflict) => {
+          // The application first: its own card, or no card for a conflict
+          // that is decided with another one.
+          const own = words.ownDecision?.(conflict, conflicts)
+
+          if (own === null) {
+            return null
+          }
+
+          return own === undefined ? (
+            <ConflictCard
+              key={conflict.id}
+              conflict={conflict}
+              onMade={(summary) => {
+                setMade((before) => [...before, summary])
+              }}
+            />
+          ) : (
+            <Fragment key={conflict.id}>{own}</Fragment>
+          )
+        })}
       </>
     ),
     empty: conflicts.length === 0 && !refused,

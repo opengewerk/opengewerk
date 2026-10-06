@@ -59,6 +59,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Liegenschaft und ist deshalb keine Tabelle aus flachen Zeilen, soll leer aber dasselbe sagen wie
   jede andere. Für diese Anwendung ändert sich nichts, ihre Formulare, Seiten und Listen stehen
   wie bisher.
+- Eine Anwendung zeichnet die Karte eines Konflikts selbst, wo weder eine der beiden Fassungen noch
+  ein einzelner weiterer Knopf sagt, was zu entscheiden ist (`opengewerk-haustechnik#99`). Die
+  Haustechnik braucht das für eine mögliche Dublette aus der Bestandsaufnahme: die Karte zeigt die
+  Anlage, die es schon gibt, und fragt "Ist dieselbe Anlage" oder "Trotzdem anlegen", und das Foto
+  und das Etikett derselben Aufnahme werden mit ihr entschieden statt als drei weitere Karten.
+  Dafür nimmt `records` im Wert der Anwendung `ownDecision`: die Antwort ist die Karte, nichts für
+  einen Konflikt, der mit einem anderen entschieden wird, oder die Karte des Fundaments wie bisher.
+  Den Rahmen dazu gibt `DecisionFrame` aus `@opengewerk/platform-web/sync`, im Büro und vor Ort
+  derselbe wie um die Karten des Fundaments. Die Handwerkersoftware nutzt es nicht.
 
 ### Geändert
 

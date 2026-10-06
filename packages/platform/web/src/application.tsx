@@ -1,7 +1,7 @@
 import type { RecordState, SyncConflict, SyncValue } from '@opengewerk/platform-domain'
 import type { LucideIcon } from 'lucide-react'
 import { createContext, useContext } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 
 import type { Entry } from './components/surface.js'
 import type { AuditScreenWords } from './office/audit-words.js'
@@ -156,6 +156,21 @@ export interface RecordWords {
   readonly settledElsewhere: Readonly<Record<string, string>>
   /** Another way out of a conflict, where the application has one. */
   readonly otherWay?: ConflictWay
+  /**
+   * A conflict the application decides in a card of its own, where neither a
+   * version nor one more button says what there is to decide: a record that
+   * may be there already, shown beside the one it may be. It answers with the
+   * card, drawn in `DecisionFrame`; with null for a conflict that is decided
+   * with another one and has no card of its own; and with undefined for every
+   * other, which gets the card of the foundation.
+   *
+   * The card closes what it decides itself (`resolveConflict`), the conflicts
+   * it answered null for included: nothing here does it for the application.
+   */
+  readonly ownDecision?: (
+    conflict: SyncConflict,
+    conflicts: readonly SyncConflict[],
+  ) => ReactElement | null | undefined
 }
 
 /**

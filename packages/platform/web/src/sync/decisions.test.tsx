@@ -17,6 +17,7 @@ import { SyncScreen } from '../office/sync-screen.js'
 import { InProbe, probeApplication, probeRecords, probeRules } from '../probe-application.js'
 import { ConflictScreen } from '../site/conflicts.js'
 import { SyncClient } from './client.js'
+import { DecisionFrame } from './decisions.js'
 import type { DirectWriter } from './client.js'
 import { SyncProvider } from './provider.js'
 import { openLocalStore } from './store.js'
@@ -554,6 +555,66 @@ describe('the other way out of a conflict', () => {
     expect(screen.queryByRole('button', { name: 'Als Abschrift anlegen' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeTruthy()
     expect(screen.getAllByRole('rowheader').map((cell) => cell.textContent)).toEqual(['Stand'])
+  })
+})
+
+describe('a conflict the application decides itself', () => {
+  /** An application that decides the first note itself, and the second with it. */
+  function deciding() {
+    return probeApplication({
+      records: {
+        ...probeRecords,
+        ownDecision: (asked) =>
+          asked.recordId === 'n-1' ? (
+            <DecisionFrame kind="Notiz" title="Zweimal notiert" reason="Diese Notiz gibt es schon.">
+              <button type="button">Ist dieselbe</button>
+            </DecisionFrame>
+          ) : asked.recordId === 'n-2' ? null : undefined,
+      },
+    })
+  }
+
+  const notes = [
+    note,
+    { ...note, id: 'n-2', text: 'Regal vier' },
+    { ...note, id: 'n-3', text: 'Regal fünf' },
+  ]
+
+  it('shows the card of the application in place of its own, in the frame of the office', async () => {
+    server.open = [conflict()]
+    inOffice(await client({ notes }), deciding())
+
+    const card = screen.getByRole('region', { name: 'Zweimal notiert' })
+
+    expect(within(card).getByText('Diese Notiz gibt es schon.')).toBeTruthy()
+    expect(within(card).getByRole('button', { name: 'Ist dieselbe' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeNull()
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  it('shows no card for a conflict that is decided with another one, and its own for every other', async () => {
+    server.open = [
+      conflict(),
+      conflict({ id: 'k-2', recordId: 'n-2' }),
+      conflict({ id: 'k-3', recordId: 'n-3' }),
+    ]
+    onSite(await client({ notes }), deciding())
+
+    expect(screen.getAllByRole('heading', { level: 2 }).map((head) => head.textContent)).toEqual([
+      'Zweimal notiert',
+      'Regal fünf',
+    ])
+    expect(screen.getAllByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toHaveLength(1)
+    // Nothing is closed by leaving a card out: the three are still to decide.
+    expect(screen.getByText('3 Konflikte warten auf eine Entscheidung.')).toBeTruthy()
+    expect(server.resolved).toEqual([])
+  })
+
+  it('leaves every conflict to the foundation where the application decides none itself', async () => {
+    server.open = [conflict()]
+    onSite(await client({ notes }))
+
+    expect(screen.getByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeTruthy()
   })
 })
 
