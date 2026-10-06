@@ -33,6 +33,7 @@ export * from './database/schema/rls.js'
 // records of a tenant take columns of the application as well.
 export * from './database/schema/attachments.js'
 export * from './database/schema/contacts.js'
+export * from './database/schema/labels.js'
 export * from './database/schema/deadlines.js'
 export * from './database/schema/mail-outbox.js'
 export * from './database/schema/number-ranges.js'
@@ -161,6 +162,12 @@ export * from './backup/status.js'
 export * from './print/characters.js'
 export * from './print/helpers.js'
 export * from './print/renderer.js'
+
+// Labels with a QR code: drawing the code of a new one, and the page they are
+// printed on, for a label printer or a sheet. What a label hangs on and what
+// its three lines say, the application says.
+export * from './labels/code.js'
+export * from './print/label.js'
 
 // What a command is started with, for a test that listens to one.
 export type { CommandSurroundings } from './command-line.js'

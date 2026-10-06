@@ -8,7 +8,7 @@ import {
   labelCodeLength,
   labelPrintProblem,
   printedLabelCode,
-} from './installation-label.js'
+} from './label.js'
 
 describe('the code of a label', () => {
   it('takes five bits for each of its sixteen characters', () => {
@@ -119,6 +119,13 @@ describe('a print of labels', () => {
     expect(labelPrintProblem('sheet', 25, 1)).toBe('Gedruckt werden 1 bis 24 Etiketten auf einmal.')
     expect(labelPrintProblem('sheet', 1.5, 1)).toBe(
       'Gedruckt werden 1 bis 24 Etiketten auf einmal.',
+    )
+  })
+
+  it('makes as many different ones as the caller allows', () => {
+    expect(labelPrintProblem('sheet', 240, 1, 240)).toBeNull()
+    expect(labelPrintProblem('sheet', 241, 1, 240)).toBe(
+      'Gedruckt werden 1 bis 240 Etiketten auf einmal.',
     )
   })
 

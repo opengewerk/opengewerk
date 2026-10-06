@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 
 // The SQL of the foundation that no schema describes, as files under `sql/`
 // of this package: the role, and the functions and triggers of the audit log,
-// the sync layer, the first run, the area of the instance and the versions of
-// a file. They are files and not strings in here so that they read, diff and
-// review as what they are.
+// the sync layer, the first run, the area of the instance, the versions of a
+// file and the labels with a QR code. They are files and not strings in here
+// so that they read, diff and review as what they are.
 //
 // They are the state the migrations of the trades application arrived at, and
 // a test there holds every one of them against its database. A block that
@@ -20,12 +20,21 @@ export const statementBreakpoint = '--> statement-breakpoint'
  * file call nothing of each other, the triggers on the tables call the first
  * two and the last.
  *
- * The last brings two functions and no table. The tables they keep are made
- * by an application that keeps files in its records (`attachmentsSchema`),
- * and the triggers that call them come with the description of those tables;
- * in a database without them the two functions stand unused.
+ * The last two bring functions and no table. The tables they keep are made
+ * by an application: one that keeps files in its records
+ * (`attachmentsSchema`), where the triggers that call the two functions come
+ * with the description of those tables, and one that prints labels with a QR
+ * code (`labelColumns`), which hangs the one function on its table itself.
+ * In a database without such tables the functions stand unused.
  */
-export const foundationBlocks = ['audit', 'sync', 'setup', 'instance', 'attachments'] as const
+export const foundationBlocks = [
+  'audit',
+  'sync',
+  'setup',
+  'instance',
+  'attachments',
+  'labels',
+] as const
 
 export type FoundationBlock = (typeof foundationBlocks)[number]
 

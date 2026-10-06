@@ -8,7 +8,7 @@ import {
   type RoleKey,
   type TenantId,
 } from '@opengewerk/domain'
-import { Database, newId, type PrintJob, type Renderer } from '@opengewerk/platform-server'
+import { Database, newId, type PrintJob, qrSvg, type Renderer } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -24,7 +24,6 @@ import {
   refusedBy,
   resetSchema,
 } from '../database/test-database.js'
-import { qrSvg } from '../labels/label-print.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { created, push } from './test-structure.js'

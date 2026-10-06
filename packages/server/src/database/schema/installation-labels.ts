@@ -1,5 +1,7 @@
-import { labelCodeAlphabet, labelCodeLength } from '@opengewerk/domain'
 import {
+  labelCodeShaped,
+  labelColumns,
+  labelIsValid,
   primaryId,
   reference,
   syncColumns,
@@ -7,17 +9,7 @@ import {
   timestamps,
 } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
-import { sql } from 'drizzle-orm'
-import {
-  check,
-  foreignKey,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  unique,
-  uniqueIndex,
-} from 'drizzle-orm/pg-core'
+import { foreignKey, index, pgTable, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { installations } from './installations.js'
 
@@ -42,8 +34,7 @@ export const installationLabels = pgTable(
     id: primaryId<'installation-label'>(),
     ...tenantColumn,
     installationId: reference<'installation'>('installation_id').notNull(),
-    code: text('code').notNull(),
-    blockedAt: timestamp('blocked_at', { withTimezone: true }),
+    ...labelColumns(),
     ...timestamps,
     ...syncColumns,
   },
@@ -58,12 +49,9 @@ export const installationLabels = pgTable(
     uniqueIndex('installation_labels_code_once').on(table.code),
     uniqueIndex('installation_labels_one_valid')
       .on(table.tenantId, table.installationId)
-      .where(sql`${table.blockedAt} is null and ${table.deletedAt} is null`),
+      .where(labelIsValid(table.blockedAt, table.deletedAt)),
     index('installation_labels_installation_idx').on(table.tenantId, table.installationId),
     // What `isLabelCode` asks, held here for every way in.
-    check(
-      'installation_labels_code_shaped',
-      sql`${table.code} ~ ${sql.raw(`'^[${labelCodeAlphabet}]{${String(labelCodeLength)}}$'`)}`,
-    ),
+    labelCodeShaped('installation_labels_code_shaped', table.code),
   ],
 )
