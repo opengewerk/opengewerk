@@ -30,6 +30,9 @@ export interface NumberRangeView<Key extends string = string> {
   readonly next: string
 }
 
+/** How many numbers one step hands out at most: far more than any list that is taken over holds. */
+const mostAtOnce = 100_000
+
 /** A change to a sequence that is not made, with the sentence saying why. */
 export class NumberRangeRefused extends Error {}
 
@@ -52,6 +55,23 @@ export interface NumberRangeStore<Key extends string> {
    * which is the order somebody checking them walks them in.
    */
   assignNumber(tx: TenantTransaction, tenantId: TenantId, key: Key, at: Date): Promise<string>
+  /**
+   * Hands out the next numbers of a sequence in one step, as many as asked
+   * for and in their order.
+   *
+   * For what makes many records at once, a list that is taken over. The
+   * counter moves on by the count in one statement: the row is locked once,
+   * and the audit log holds one change of the counter, not one per record.
+   * Like a single number, they go back with the transaction that drew them.
+   * No number is asked for and none is drawn: then nothing is written.
+   */
+  assignNumbers(
+    tx: TenantTransaction,
+    tenantId: TenantId,
+    key: Key,
+    at: Date,
+    count: number,
+  ): Promise<string[]>
   /**
    * Every sequence of a tenant, the ones nothing has drawn from yet included:
    * a range is created on first use, and until then its pattern is the
@@ -131,25 +151,54 @@ export function numberRangeStore<const Key extends string>(
       .values({ tenantId, key, pattern: defaultPatterns[key] })
       .onConflictDoNothing()
 
+  /** Moves the counter on by `count` in one statement, and gives the numbers it passed. */
+  const draw = async (
+    tx: TenantTransaction,
+    tenantId: TenantId,
+    key: Key,
+    at: Date,
+    count: number,
+  ): Promise<string[]> => {
+    if (!Number.isInteger(count) || count < 1 || count > mostAtOnce) {
+      throw new Error(
+        `Numbers are drawn one at least and ${String(mostAtOnce)} at most at once, not ${String(count)}`,
+      )
+    }
+
+    await ensure(tx, tenantId, key)
+
+    const [range] = await tx
+      .update(numberRanges)
+      .set({ nextValue: sql`${numberRanges.nextValue} + ${count}`, updatedAt: new Date() })
+      .where(and(eq(numberRanges.tenantId, tenantId), eq(numberRanges.key, key)))
+      .returning()
+
+    if (!range) {
+      throw new Error(`No number range for ${key}`)
+    }
+
+    // `returning` gives the new value, so the first one handed out is `count` less.
+    const first = range.nextValue - count
+    const year = yearOf(at)
+
+    return Array.from({ length: count }, (_, index) =>
+      numberFromPattern(range.pattern, { counter: first + index, year }),
+    )
+  }
+
   return {
     async assignNumber(tx, tenantId, key, at) {
-      await ensure(tx, tenantId, key)
+      const [number] = await draw(tx, tenantId, key, at, 1)
 
-      const [range] = await tx
-        .update(numberRanges)
-        .set({ nextValue: sql`${numberRanges.nextValue} + 1`, updatedAt: new Date() })
-        .where(and(eq(numberRanges.tenantId, tenantId), eq(numberRanges.key, key)))
-        .returning()
-
-      if (!range) {
+      if (number === undefined) {
         throw new Error(`No number range for ${key}`)
       }
 
-      // `returning` gives the new value, so the one just handed out is one less.
-      return numberFromPattern(range.pattern, {
-        counter: range.nextValue - 1,
-        year: yearOf(at),
-      })
+      return number
+    },
+
+    async assignNumbers(tx, tenantId, key, at, count) {
+      return count === 0 ? [] : draw(tx, tenantId, key, at, count)
     },
 
     async numberRangesOf(tx, tenantId, now = new Date()) {

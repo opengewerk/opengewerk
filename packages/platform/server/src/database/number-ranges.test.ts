@@ -187,6 +187,97 @@ describe('numbers drawn at the same moment', () => {
   })
 })
 
+describe('numbers drawn in one step', () => {
+  const drawMany = (tenantId: TenantId, count: number) =>
+    inTenant(tenantId, (tx) => store.assignNumbers(tx, tenantId, 'parcel', midsummer, count))
+
+  /** How often the log says the counter of the parcels of a tenant moved. */
+  const counterChanges = async (tenantId: TenantId) => {
+    const { rows } = await admin.query<{ changes: number }>(
+      `select count(*)::int as changes from audit_entries
+        where tenant_id = $1 and table_name = 'number_ranges'
+          and operation = 'update' and field = 'next_value'`,
+      [tenantId],
+    )
+
+    return rows[0]?.changes ?? 0
+  }
+
+  it('follow the last number in their order, and the next number follows them', async () => {
+    expect(await draw(north.id, 'parcel')).toBe('PK-2037-00001')
+    expect(await drawMany(north.id, 3)).toEqual(['PK-2037-00002', 'PK-2037-00003', 'PK-2037-00004'])
+    expect(await draw(north.id, 'parcel')).toBe('PK-2037-00005')
+  })
+
+  it('are one change of the counter in the log, however many they are', async () => {
+    await draw(north.id, 'parcel')
+
+    const before = await counterChanges(north.id)
+
+    expect(await drawMany(north.id, 250)).toHaveLength(250)
+    expect((await counterChanges(north.id)) - before).toBe(1)
+
+    // Drawn one by one, three numbers are three changes: that is what the step saves.
+    await draw(north.id, 'parcel')
+    await draw(north.id, 'parcel')
+    await draw(north.id, 'parcel')
+    expect((await counterChanges(north.id)) - before).toBe(4)
+  })
+
+  it('go back together with the transaction that drew them', async () => {
+    await expect(
+      inTenant(north.id, async (tx) => {
+        expect(await store.assignNumbers(tx, north.id, 'parcel', midsummer, 3)).toHaveLength(3)
+
+        throw new Error('Something fails after the numbers were drawn')
+      }),
+    ).rejects.toThrow('Something fails after the numbers were drawn')
+
+    expect(await draw(north.id, 'parcel')).toBe('PK-2037-00001')
+  })
+
+  it('are unbroken runs beside numbers drawn at the same moment, and none is given twice', async () => {
+    const drawn = await Promise.all([
+      drawMany(north.id, 5),
+      ...Array.from({ length: 5 }, async () => [await draw(north.id, 'parcel')]),
+      drawMany(north.id, 5),
+    ])
+    const counterOf = (number: string) => Number(number.slice(-5))
+
+    expect(
+      drawn
+        .flat()
+        .map(counterOf)
+        .sort((one, other) => one - other),
+    ).toEqual(Array.from({ length: 15 }, (_, index) => index + 1))
+
+    for (const run of drawn) {
+      const first = counterOf(run[0] ?? '')
+
+      expect(run.map(counterOf)).toEqual(run.map((_, index) => first + index))
+    }
+  })
+
+  it('are none where none are asked for, and then nothing is written', async () => {
+    expect(await drawMany(north.id, 0)).toEqual([])
+
+    const { rows } = await admin.query('select 1 from number_ranges where tenant_id = $1', [
+      north.id,
+    ])
+
+    expect(rows).toEqual([])
+  })
+
+  it('are refused where the count is no whole number, below nought or beyond any list', async () => {
+    for (const count of [-1, 1.5, Number.NaN, 100_001]) {
+      await expect(drawMany(north.id, count)).rejects.toThrow('at most at once')
+    }
+
+    // Nothing was drawn by any of them.
+    expect(await draw(north.id, 'parcel')).toBe('PK-2037-00001')
+  })
+})
+
 describe('the year in a number', () => {
   it('is the year the application names for the moment the number is drawn', async () => {
     // Still the old year in UTC and on the clock of any process in Europe,
