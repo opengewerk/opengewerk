@@ -97,7 +97,8 @@ export function readXml(xml: string, reader: XmlReader): void {
         const closed = xml[end - 1] === '/'
         const inner = xml.slice(tag + 1, closed ? end - 1 : end)
         const space = inner.search(/\s/)
-        const attributes: Record<string, string> = {}
+        // Without a prototype: the names come out of a file, and none of them is to mean anything but itself.
+        const attributes = Object.create(null) as Record<string, string>
 
         if (space >= 0) {
           attribute.lastIndex = 0

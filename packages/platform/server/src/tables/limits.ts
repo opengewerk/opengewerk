@@ -29,7 +29,15 @@ export class SheetRows {
   put(row: number, column: number, raw: string): void {
     const text = cellText(raw)
 
-    if (text === '') {
+    // A place is two whole numbers from 0 on. Both come out of a file, and
+    // anything else is no place in a table.
+    if (
+      text === '' ||
+      !Number.isInteger(row) ||
+      row < 0 ||
+      !Number.isInteger(column) ||
+      column < 0
+    ) {
       return
     }
 
@@ -52,13 +60,16 @@ export class SheetRows {
       this.rows.push([])
     }
 
-    const cells = this.rows[row] ?? []
+    const cells = this.rows.at(row) ?? []
 
     while (cells.length < column) {
       cells.push('')
     }
 
-    cells[column] = text
+    // At its place, in a row that reaches it now: the cell that stood there
+    // is replaced, and one behind the last is added. Written through the
+    // methods of a list and never as a property under a name from the file.
+    cells.splice(column, 1, text)
   }
 }
 
