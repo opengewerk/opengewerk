@@ -8,6 +8,7 @@ import {
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
 import { auditVocabulary, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
 import {
+  attachmentParts,
   auditLogParts,
   type Authentication,
   authenticationParts,
@@ -45,7 +46,7 @@ import { invitationMailing } from '../notifications/invitation-mail.js'
 import { pushRules } from '../notifications/push.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
-import { AttachmentsController } from './attachments.controller.js'
+import { attachmentRights, attachmentRoutes } from './attachment-routes.js'
 import { authorization, AuthorizationGuard } from './authorization.js'
 import { CircuitChartController } from './circuit-chart.controller.js'
 import { InstallationLabelsController } from './installation-labels.controller.js'
@@ -222,6 +223,13 @@ export class ApiModule implements NestModule {
     // The bytes of the files in the records go into the store through the
     // route of the foundation, under the right of the records (#77).
     const storing = fileParts({ access, upload: 'attachment.write', store: files })
+    // And come out again by version, on the routes of the foundation
+    // (opengewerk-haustechnik#97), for whoever may read the records.
+    const filing = attachmentParts({
+      access,
+      rights: attachmentRights,
+      routes: attachmentRoutes,
+    })
     // When the last backup ran, for whoever reads the settings (#130).
     const backingUp = backupStatusParts({ access, read: 'settings.read', directory: backupStatus })
     // The mail server of the business, set up by whoever may write in its name
@@ -274,7 +282,7 @@ export class ApiModule implements NestModule {
         ...auditing.controllers,
         TenantsController,
         ...storing.controllers,
-        AttachmentsController,
+        ...filing.controllers,
         TimeController,
         // Before the documents, whose routes take an id in the same place.
         // None of them clashes with this path today, and this order keeps it
@@ -311,6 +319,7 @@ export class ApiModule implements NestModule {
         ...syncing.providers,
         ...auditing.providers,
         ...storing.providers,
+        ...filing.providers,
         ...backingUp.providers,
         ...mailing.providers,
         ...pushing.providers,

@@ -79,18 +79,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       import_id: 'Import',
     },
   },
-  attachment_versions: {
-    label: 'Fassung einer Datei',
-    fields: {
-      attachment_id: 'Datei',
-      sha256: 'Prüfsumme',
-      file_name: 'Dateiname',
-      media_type: 'Dateityp',
-      size_bytes: 'Größe',
-      preview_sha256: 'Vorschau',
-    },
-  },
-  attachments: { label: 'Datei' },
   board_sections: {
     label: 'Feld eines Verteilers',
     fields: { distribution_board_id: 'Verteiler' },

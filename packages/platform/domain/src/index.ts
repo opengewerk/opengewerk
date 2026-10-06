@@ -5,6 +5,7 @@
 //
 // The same rule as in `domain` holds: no frameworks, no clock, no network.
 // It has to give the same answer in the browser and on the server.
+export * from './model/attachment.js'
 export * from './model/audit.js'
 export * from './model/audit-log.js'
 export * from './model/backup.js'

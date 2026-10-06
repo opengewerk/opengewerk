@@ -29,8 +29,9 @@ export * from './database/schema/rls.js'
 
 // Tables of the foundation an application makes with a list of its own: the
 // columns and the rules are the same everywhere, what the list holds is not.
-// The outbox of the mail, the deadlines and the contacts take columns of the
-// application as well.
+// The outbox of the mail, the deadlines, the contacts and the files in the
+// records of a tenant take columns of the application as well.
+export * from './database/schema/attachments.js'
 export * from './database/schema/contacts.js'
 export * from './database/schema/deadlines.js'
 export * from './database/schema/mail-outbox.js'
@@ -142,6 +143,12 @@ export * from './files/store.js'
 // of one. What a contact hangs on and who may keep one, the application says.
 export * from './contacts/controller.js'
 export * from './contacts/sync.js'
+
+// The files in the records of an application, with their versions: the routes
+// a version is handed out through, and what the sync asks of a file and of a
+// version. What a file hangs on and who may read one, the application says.
+export * from './attachments/controller.js'
+export * from './attachments/sync.js'
 
 // When the last backup of the instance ran, and the route that says so. Who
 // may see it, the application says.

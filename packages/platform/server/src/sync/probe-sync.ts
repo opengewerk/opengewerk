@@ -23,12 +23,19 @@ import {
 import { databaseErrors } from '../api/database-errors.js'
 import type { FoundIdentity } from '../api/identity.js'
 import { probeCatalogue } from '../authentication/probe-application.js'
+import { attachmentsSchema } from '../database/schema/attachments.js'
 import { primaryId, reference, syncColumns, timestamps } from '../database/schema/columns.js'
 import { contactsSchema } from '../database/schema/contacts.js'
 import { tenantIsolation } from '../database/schema/rls.js'
 import { tenantColumn } from '../database/schema/tenants.js'
 import { probeMade } from '../database/probe-schema.js'
-import { contactsGuard, type MadeByTheApplication, type TableGuard } from '../migration/guards.js'
+import {
+  attachmentsGuard,
+  attachmentVersionsGuard,
+  contactsGuard,
+  type MadeByTheApplication,
+  type TableGuard,
+} from '../migration/guards.js'
 import type { ServerSync } from './apply.js'
 import type { SyncRoutes } from './controller.js'
 import { fingerprintOf, idArray } from './narrowing.js'
@@ -182,6 +189,42 @@ export const { contacts: probeContacts } = contactsSchema({
   ],
 })
 
+/**
+ * What a file of the probe application hangs on: a scan filed under a shelf,
+ * the scan of a letter, or both at once, and never neither. The two columns,
+ * their keys over the tenant and the check are the application's, the way an
+ * application says what its files hang on.
+ */
+const probeAttachmentColumns = {
+  shelfId: reference<'shelf'>('shelf_id'),
+  letterId: reference<'letter'>('letter_id'),
+}
+
+/** The columns the probe application gives its files. */
+export type ProbeAttachmentColumns = typeof probeAttachmentColumns
+
+export const { attachments: probeAttachments, attachmentVersions: probeAttachmentVersions } =
+  attachmentsSchema({
+    columns: probeAttachmentColumns,
+    constraints: (table) => [
+      foreignKey({
+        name: 'attachments_shelf',
+        columns: [table.tenantId, table.shelfId],
+        foreignColumns: [shelves.tenantId, shelves.id],
+      }),
+      foreignKey({
+        name: 'attachments_letter',
+        columns: [table.tenantId, table.letterId],
+        foreignColumns: [letters.tenantId, letters.id],
+      }),
+      check(
+        'attachments_hang_somewhere',
+        sql`num_nonnulls(${table.shelfId}, ${table.letterId}) >= 1`,
+      ),
+      index('attachments_shelf_idx').on(table.tenantId, table.shelfId),
+    ],
+  })
+
 /** The rules of the probe application, as an application makes them. */
 export const probeSyncRules = syncRules(probePolicies)
 
@@ -203,6 +246,8 @@ export const probeSyncMade: MadeByTheApplication = {
     letterLines,
     letterSeals,
     contacts: probeContacts,
+    attachments: probeAttachments,
+    attachmentVersions: probeAttachmentVersions,
   },
   guards: [
     ...probeMade.guards,
@@ -212,6 +257,8 @@ export const probeSyncMade: MadeByTheApplication = {
     travelling('letter_lines'),
     travelling('letter_seals'),
     contactsGuard,
+    attachmentsGuard,
+    attachmentVersionsGuard,
   ],
 }
 

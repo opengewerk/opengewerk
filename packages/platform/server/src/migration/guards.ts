@@ -40,6 +40,22 @@ export interface TableGuard {
    * and this is the trigger that keeps them true.
    */
   readonly synced: boolean
+  /**
+   * Triggers beside those two that belong to the table wherever it stands,
+   * each calling a function a block of the foundation brings.
+   */
+  readonly triggers?: readonly TableTrigger[]
+}
+
+/** When a trigger of a table fires, as its statement says it. */
+export const triggerMoments = ['BEFORE INSERT', 'BEFORE UPDATE OR DELETE'] as const
+
+/** A trigger of a table that is its own, beside the log and the stamp of the sync. */
+export interface TableTrigger {
+  readonly name: string
+  readonly fires: (typeof triggerMoments)[number]
+  /** The function it calls for each row, one without arguments. */
+  readonly calls: string
 }
 
 const plainName = /^[a-z_][a-z0-9_]*$/
@@ -115,6 +131,17 @@ export function triggerStatements(guard: TableGuard): string[] {
     statements.push(
       `CREATE TRIGGER "stamp_sync_columns" BEFORE INSERT OR UPDATE ON ${table}\n` +
         '\tFOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();',
+    )
+  }
+
+  for (const trigger of guard.triggers ?? []) {
+    if (!triggerMoments.includes(trigger.fires)) {
+      throw new Error(`Not a moment a trigger fires at: ${JSON.stringify(trigger.fires)}`)
+    }
+
+    statements.push(
+      `CREATE TRIGGER ${quoted(trigger.name)} ${trigger.fires} ON ${table}\n` +
+        `\tFOR EACH ROW EXECUTE FUNCTION ${quoted(trigger.calls)}();`,
     )
   }
 
@@ -226,14 +253,15 @@ export const foundationGuards: readonly TableGuard[] = [
 /**
  * The tables of the foundation an application made with a list of its own:
  * the sealed credentials with its purposes, its settings, its sequences of
- * numbers, the outbox of its mail, its push, its deadlines, its contacts, and
- * what else is a function in the schema of the foundation rather than a table.
- * They are the foundation's in every column and every rule, and only the
- * application can say which values their enums hold. The outbox, the deadlines
- * and the contacts are the ones an application adds columns to, for the
- * records its messages are about and for what a deadline or a contact hangs
- * on; it names them to the comparison as its own, and describes each table
- * here without them.
+ * numbers, the outbox of its mail, its push, its deadlines, its contacts, the
+ * files in its records with their versions, and what else is a function in
+ * the schema of the foundation rather than a table. They are the foundation's
+ * in every column and every rule, and only the application can say which
+ * values their enums hold. The outbox, the deadlines, the contacts and the
+ * files are the ones an application adds columns to, for the records its
+ * messages are about and for what a deadline, a contact or a file hangs on;
+ * it names them to the comparison as its own, and describes each table here
+ * without them.
  *
  * An application describes them once, next to its schema. Its first migration
  * is completed with the guards (`completeInitialMigration`), and the kit of
@@ -322,6 +350,49 @@ export const contactsGuard: TableGuard = {
   grants: noDelete,
   audited: true,
   synced: true,
+}
+
+/**
+ * The files in the records of a tenant (`attachmentsSchema`). Their rows
+ * travel to devices. Written and renamed, and marked as deleted where a file
+ * is taken out of the records, never removed: its versions and their bytes
+ * stay, which is what records are for. Watched by the log, like every record
+ * of a tenant.
+ */
+export const attachmentsGuard: TableGuard = {
+  table: 'attachments',
+  grants: noDelete,
+  audited: true,
+  synced: true,
+}
+
+/**
+ * The versions of those files (`attachmentsSchema`). Read and inserted and
+ * nothing else: a new version is a new row, and an old one stays readable.
+ * Two triggers of the block `attachments.sql` keep it that way against
+ * everybody, the owner of the table included: one writes who stored a
+ * version, from the request and from nothing else, and one refuses every
+ * change and every deletion. A version whose hash could be changed
+ * afterwards would show somebody a different file than the one a decision
+ * was taken on.
+ */
+export const attachmentVersionsGuard: TableGuard = {
+  table: 'attachment_versions',
+  grants: ['select', 'insert'],
+  audited: true,
+  synced: true,
+  triggers: [
+    {
+      name: 'attachment_versions_record_uploader',
+      fires: 'BEFORE INSERT',
+      calls: 'record_attachment_uploader',
+    },
+    {
+      name: 'attachment_versions_stay_as_written',
+      fires: 'BEFORE UPDATE OR DELETE',
+      calls: 'attachment_version_stays_as_written',
+    },
+  ],
 }
 
 /**

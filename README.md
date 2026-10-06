@@ -383,6 +383,8 @@ Die Dateien eines Betriebs hängen dort, worum es in ihnen geht (Feature-Glieder
 
 **Eine Datei ist kein Sonderfall der Mandantentrennung.** Hochgeladen wird nach Hash über `PUT /files/:sha256`, ausgeliefert nur nach der Kennung der Fassung (`GET /attachments/versions/:id/content` und `/preview`) und nur, wenn die Ablage dem Betrieb gehört und nicht entfernt ist. Ein fremder Betrieb bekommt eine Datei weder über die Kennung noch über den Hash. Ob eine Datei im Browser angezeigt oder heruntergeladen wird, entscheiden ihre ersten Bytes und nicht ihr Name: angezeigt werden nur erkannte Bilder und PDF. Die Rechte sind `attachment.read` und `attachment.write`, beide für alle Rollen. Die Sicherung nimmt die Dateien mit, der CI-Job "Sicherung und Rückspielen" prüft das an einer abgelegten Datei samt Fassung.
 
+**Der Baustein gehört dem Fundament.** Seit `opengewerk-haustechnik#97` stehen die beiden Tabellen, die Regeln, die Auslieferung, die Prüfungen des Abgleichs und das, was auf dem Gerät aus einer gewählten Datei wird, im Fundament (ADR 0010), weil auch die Haustechnik eine Ablage führt, dort an Ort, Anlage und Vorgang. Diese Anwendung sagt, woran eine Datei bei ihr hängt, mit welchem Recht sie gelesen wird und in welchen Sätzen (`tradeAttachments` in `domain`, `api/attachment-routes.ts`); die Karte "Dateien" und die Liste "Fotos und Dateien" zeichnet sie weiter selbst.
+
 Was nicht dazugehört: Volltextsuche und OCR (Phase 6) und die generierte Verfahrensdokumentation (Phase 3).
 
 ### Zeiterfassung

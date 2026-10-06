@@ -88,9 +88,12 @@ describe('the vocabulary of the change log against the database', () => {
   it("finds a column of the application's own on a table of the foundation that nobody named", async () => {
     const gaps = await auditVocabularyGaps(admin, changed({ ownFields: {} }))
 
-    // The number of a parcel beside a message and a deadline, and what a
-    // contact of the probe application hangs on and was filed under.
+    // The number of a parcel beside a message and a deadline, what a contact
+    // of the probe application hangs on and was filed under, and what a file
+    // of its records hangs on.
     expect(gaps.sort()).toEqual([
+      'column attachments.letter_id has no name',
+      'column attachments.shelf_id has no name',
       'column contacts.filed_under has no name',
       'column contacts.letter_id has no name',
       'column contacts.shelf_id has no name',
@@ -107,6 +110,7 @@ describe('the vocabulary of the change log against the database', () => {
           mail_outbox: { parcel_number: 'Paketnummer', subject: 'Überschrift', shelf_id: 'Regal' },
           deadlines: { parcel_number: 'Paketnummer' },
           contacts: { shelf_id: 'Regal', letter_id: 'Brief', filed_under: 'Abgelegt unter' },
+          attachments: { shelf_id: 'Regal', letter_id: 'Brief' },
           shelves: { label: 'Beschriftung' },
         },
       }),

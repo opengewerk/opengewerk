@@ -40,6 +40,40 @@ function all(pattern: RegExp, text: string): RegExpExecArray[] {
   return [...text.matchAll(new RegExp(pattern.source, pattern.flags))]
 }
 
+const addsForeignKey =
+  /^ALTER TABLE "[a-z_][a-z0-9_]*" ADD CONSTRAINT "[a-z_][a-z0-9_]*" FOREIGN KEY /
+const createsUniqueIndex = /^CREATE UNIQUE INDEX /
+
+/**
+ * The statements drizzle-kit generated for an empty database, with the unique
+ * indexes in front of the foreign keys.
+ *
+ * drizzle-kit writes every key before every index. A key that leans on a
+ * unique index rather than on a unique constraint is then refused, because the
+ * index is not there yet: the key of a version of a file onto the stored
+ * files is one, over tenant and hash. In an application that got its files
+ * with a later migration the index has long been there; in a first migration
+ * that creates both, it has to come first. Everything else keeps its order.
+ */
+export function uniqueIndexesBeforeKeys(statements: readonly string[]): string[] {
+  const firstKey = statements.findIndex((statement) => addsForeignKey.test(statement.trimStart()))
+
+  if (firstKey === -1) {
+    return [...statements]
+  }
+
+  const late = (statement: string, position: number) =>
+    position > firstKey && createsUniqueIndex.test(statement.trimStart())
+
+  return [
+    ...statements.slice(0, firstKey),
+    ...statements.filter(late),
+    ...statements
+      .slice(firstKey)
+      .filter((statement, position) => !late(statement, position + firstKey)),
+  ]
+}
+
 /** What an initial migration is put together for. */
 export interface InitialMigrationOptions {
   /**

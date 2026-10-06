@@ -62,6 +62,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Ablage mit ihren Fassungen ist ein Baustein des Fundaments, und woran eine Datei hängt, sagt
+  die Anwendung (`opengewerk-haustechnik#97`). Die Haustechnik legt Dokumente an Liegenschaft,
+  Gebäude, Raum, Anlage und Vorgang ab, und die Ablage dieser Anwendung kannte Kunde, Objekt,
+  Anlage und Auftrag in jeder Schicht beim Namen. Was eine Datei und eine Fassung sind, steht jetzt
+  im Fundament: die Regeln (`attachmentRules`), die beiden Tabellen als Fabrik
+  (`attachmentsSchema`) mit dem Riegel, der eine Fassung hält, wie sie geschrieben wurde (neuer
+  Baustein `sql/attachments.sql`), die Auslieferung nach der Kennung einer Fassung unter
+  `/attachments` (`attachmentParts`), was der Abgleich von einer Datei und einer Fassung fragt
+  (`attachmentRecordRules`, `attachmentVersionFiles`) und, unter dem neuen Einstieg
+  `@opengewerk/platform-web/attachments`, was auf dem Gerät aus einer gewählten Datei wird: ein
+  Foto verkleinert, eine Vorschau für die Liste, die Bytes vor dem Datensatz geschickt, auch ohne
+  Netz. Diese Anwendung bindet sie an ihre vier Orte, ihr Recht und ihre zwei Sätze. Für sie
+  ändert sich nichts: ihre Tabellen bleiben, wie sie waren, es gibt keine Migration, und Routen,
+  Abgleich und Bildschirme antworten wie vorher. Die Karte des Büros und die Liste vor Ort sind
+  nicht mit umgezogen, sie folgen den Tafeln dieser Anwendung. Nachtrag in ADR 0010.
 - Die Oberfläche der Ansprechpartner steht im Fundament (`opengewerk-haustechnik#85`). Die Karte
   "Ansprechpartner" des Büros (`ContactsPanel`), die Liste zum Antippen vor Ort (`ContactList`) und
   das Formular für einen neuen (`NewContactForm`, neuer Einstieg

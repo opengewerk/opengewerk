@@ -35,6 +35,8 @@ export const probeAuditVocabulary: AuditVocabulary = {
     // What a contact of the probe application hangs on, and the label of the
     // shelf it was filed under.
     contacts: { shelf_id: 'Regal', letter_id: 'Brief', filed_under: 'Abgelegt unter' },
+    // What a file of the probe application hangs on.
+    attachments: { shelf_id: 'Regal', letter_id: 'Brief' },
   },
   foundation: {
     tenant: 'Mandant',

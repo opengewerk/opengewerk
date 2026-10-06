@@ -139,10 +139,11 @@ const tenantWord = /\b(?:Betrieb|Betriebs|Betriebe|Betrieben|Betreiber|Betreiber
  *
  * A contact is not among them. The people to talk to are a record of the
  * foundation, which every application hangs on records of its own
- * (opengewerk-haustechnik#85).
+ * (opengewerk-haustechnik#85). Neither is a file in the records of a tenant,
+ * with its versions (opengewerk-haustechnik#97).
  */
 const recordLiteral =
-  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries|attachments)\1/
+  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries)\1/
 const recordWord =
   /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
 
@@ -227,6 +228,7 @@ describe('what the foundation knows of an application', () => {
     expect(recordLiteral.test("    document_lines: 'document.write',")).toBe(false)
     expect(recordLiteral.test('const customers = rows.length')).toBe(false)
     expect(recordLiteral.test("  @Controller('contacts')")).toBe(false)
+    expect(recordLiteral.test("  @Controller('attachments')")).toBe(false)
     expect(recordWord.test("'Der Beleg ist festgeschrieben.'")).toBe(true)
     expect(recordWord.test("'Diese Art von Datensatz wird nicht abgeglichen.'")).toBe(false)
   })

@@ -2,6 +2,7 @@ import { auditRights, foundationPaths, rightsCatalogue } from '@opengewerk/platf
 import { probeAuditVocabulary, probeContactRules } from '@opengewerk/platform-domain/testing'
 import { describe, expect, it } from 'vitest'
 
+import { attachmentParts } from '../attachments/controller.js'
 import { auditLogParts } from '../audit/controller.js'
 import { backupStatusParts } from '../backup/controller.js'
 import { contactParts } from '../contacts/controller.js'
@@ -19,6 +20,8 @@ import {
   letterLines,
   letters,
   notes,
+  probeAttachments,
+  probeAttachmentVersions,
   probeContacts,
   probeSyncAccess,
   probeSyncRoutes,
@@ -86,6 +89,13 @@ const controllers = [
     rights: { read: 'members.read', create: 'notes.write', write: 'shelves.write' },
     routes: { table: probeContacts, rules: probeContactRules },
   }).controllers,
+  ...attachmentParts({
+    access: probeSyncAccess,
+    rights: { read: 'members.read' },
+    routes: {
+      tables: { attachments: probeAttachments, attachmentVersions: probeAttachmentVersions },
+    },
+  }).controllers,
 ]
 
 const routes = routesOf(controllers)
@@ -106,6 +116,9 @@ describe('the paths of the foundation', () => {
     expect(routes.map((route) => route.name)).toContain('GET /deadlines/run')
     expect(routes.map((route) => route.name)).toContain('PUT /settings/deadlines/:kind')
     expect(routes.map((route) => route.name)).toContain('PATCH /contacts/:id')
+    expect(routes.map((route) => route.name)).toContain(
+      'GET /attachments/versions/:versionId/content',
+    )
   })
 
   it('hold every route of the foundation', () => {
