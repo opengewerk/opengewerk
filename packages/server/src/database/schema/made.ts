@@ -1,5 +1,12 @@
-import { contactsSchema, deadlinesSchema, mailOutboxSchema } from '@opengewerk/platform-server'
 import {
+  attachmentsSchema,
+  contactsSchema,
+  deadlinesSchema,
+  mailOutboxSchema,
+} from '@opengewerk/platform-server'
+import {
+  attachmentsGuard,
+  attachmentVersionsGuard,
   contactsGuard,
   deadlinesGuard,
   type MadeByTheApplication,
@@ -40,6 +47,13 @@ const deadlinesOfTheBlocks = deadlinesSchema()
 const contactsOfTheBlocks = contactsSchema()
 
 /**
+ * The files of the records and their versions as the foundation makes them,
+ * without the columns this application adds for what a file hangs on, for the
+ * same reason: they point at its customers, sites, installations and jobs.
+ */
+const attachmentsOfTheBlocks = attachmentsSchema()
+
+/**
  * The tables of the foundation this application makes with lists of its own
  * (ADR 0010): their columns and rules are the foundation's, the values of
  * their enums are this application's.
@@ -64,6 +78,8 @@ export const madeWithLists: MadeByTheApplication = {
     deadlineStatus: deadlinesOfTheBlocks.deadlineStatus,
     deadlines: deadlinesOfTheBlocks.deadlines,
     contacts: contactsOfTheBlocks.contacts,
+    attachments: attachmentsOfTheBlocks.attachments,
+    attachmentVersions: attachmentsOfTheBlocks.attachmentVersions,
   },
   guards: [
     secretsGuard,
@@ -75,5 +91,7 @@ export const madeWithLists: MadeByTheApplication = {
     pushOutboxGuard,
     deadlinesGuard,
     contactsGuard,
+    attachmentsGuard,
+    attachmentVersionsGuard,
   ],
 }

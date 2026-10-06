@@ -1,6 +1,10 @@
 import { statementBreakpoint } from '../migration/blocks.js'
 import { foundationGuards, type MadeByTheApplication } from '../migration/guards.js'
-import { completeInitialMigration, initialMigrationRollback } from '../migration/initial.js'
+import {
+  completeInitialMigration,
+  initialMigrationRollback,
+  uniqueIndexesBeforeKeys,
+} from '../migration/initial.js'
 import * as schema from '../schema.js'
 import { defaultMigrationHistory, type MigrationHistory } from './migrations.js'
 
@@ -35,7 +39,9 @@ export async function foundationMigration(
     generateDrizzleJson({}),
     generateDrizzleJson({ ...schema, ...made.schema }),
   )
-  const generated = statements.join(`${statementBreakpoint}\n`)
+  // A version of a file reaches the stored files over a unique index, which
+  // has to stand before the key that leans on it.
+  const generated = uniqueIndexesBeforeKeys(statements).join(`${statementBreakpoint}\n`)
 
   return {
     up: completeInitialMigration(generated, { guards: [...foundationGuards, ...made.guards] }),

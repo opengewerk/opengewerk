@@ -3,11 +3,7 @@ import {
   correctionProblem,
   locationProblem,
   timeEntryProblem,
-  attachmentHomeProblem,
-  attachmentMediaTypeProblem,
-  fileSizeProblem,
   deviceInfoProblem,
-  fileHashProblem,
   inverterLinkProblem,
   jobNoteProblem,
   linePositionProblem,
@@ -19,9 +15,11 @@ import {
   signerNameProblem,
   supplierProblems,
   titleAmountProblem,
+  tradeAttachments,
   tradeContacts,
 } from '@opengewerk/domain'
 import {
+  attachmentRecordRules,
   contactRecordRules,
   type RecordRule,
   type RecordRules,
@@ -70,9 +68,13 @@ const country: RecordRule = {
  * The versions of an attachment have no check in the database for type, size
  * and hash, and are here all the same (#77). Their key onto `files` holds the
  * hash and the size of what it finds, and a version that breaks one of these
- * is a mistake of the client that should say so, not reach the key.
+ * is a mistake of the client that should say so, not reach the key. These
+ * rules and the one over the places of a file are the foundation's
+ * (opengewerk-haustechnik#97), asked with the four places and the sentences
+ * of this application.
  */
 const rules: RecordRules = {
+  ...attachmentRecordRules(tradeAttachments),
   customers: [country],
   sites: [country],
   // A contact (#121) under the rules of the foundation
@@ -173,41 +175,9 @@ const rules: RecordRules = {
         }),
     },
   ],
-  attachments: [
-    {
-      fields: ['customerId', 'siteId', 'installationId', 'jobId'],
-      problem: (at) =>
-        attachmentHomeProblem({
-          customerId: at('customerId'),
-          siteId: at('siteId'),
-          installationId: at('installationId'),
-          jobId: at('jobId'),
-        }),
-    },
-  ],
   job_notes: [
     { fields: ['text'], problem: (at) => jobNoteProblem(at('text')) },
     { fields: ['writtenAt'], problem: (at) => noteTimeProblem(at('writtenAt')) },
-  ],
-  attachment_versions: [
-    { fields: ['sha256'], problem: (at) => fileHashProblem(at('sha256')) },
-    {
-      fields: ['previewSha256'],
-      problem: (at) => {
-        const preview = at('previewSha256')
-
-        return preview === null || preview === undefined ? null : fileHashProblem(preview)
-      },
-    },
-    { fields: ['mediaType'], problem: (at) => attachmentMediaTypeProblem(at('mediaType')) },
-    {
-      fields: ['sizeBytes'],
-      problem: (at) => {
-        const size = at('sizeBytes')
-
-        return fileSizeProblem(typeof size === 'number' ? size : Number.NaN)
-      },
-    },
   ],
 }
 

@@ -110,7 +110,6 @@ const auditReferences: Readonly<Record<string, string>> = {
   supplier_id: 'suppliers',
   supplier_article_id: 'supplier_articles',
   pv_system_id: 'installations',
-  attachment_id: 'attachments',
   task_id: 'tasks',
   deadline_id: 'deadlines',
   corrects_entry_id: 'time_entries',
@@ -159,7 +158,6 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   instructions: ['title', 'template'],
   form_definitions: ['key'],
   form_records: ['definition_key'],
-  attachment_versions: ['file_name'],
   document_signatures: ['signer_name'],
   job_notes: ['text'],
   payments: ['received_on'],
@@ -190,11 +188,18 @@ const auditTitles: Readonly<Record<string, AuditTitleRule>> = {
 export const auditVocabulary: AuditVocabulary = {
   tables: auditTables,
   commonFields: auditCommonFields,
-  // The outbox, the deadlines and the contacts are the foundation's tables
-  // (#23, opengewerk-haustechnik#24 and #85); the columns for what a message
-  // or a deadline of this application is about, and for what a contact hangs
-  // on, are this application's own.
+  // The outbox, the deadlines, the contacts and the files with their versions
+  // are the foundation's tables (#23, opengewerk-haustechnik#24, #85 and #97);
+  // the columns for what a message or a deadline of this application is
+  // about, and for what a contact or a file hangs on, are this application's
+  // own.
   ownFields: {
+    attachments: {
+      customer_id: 'Kunde',
+      site_id: 'Objekt',
+      installation_id: 'Anlage',
+      job_id: 'Auftrag',
+    },
     contacts: {
       customer_id: 'Kunde',
       site_id: 'Objekt',

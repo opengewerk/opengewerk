@@ -26,7 +26,6 @@ export const serverPaths = [
   'jobs',
   'tasks',
   'tenants',
-  'attachments',
   'form-records',
   'time',
   'documents',

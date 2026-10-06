@@ -13,6 +13,7 @@ import {
   tradeContacts,
 } from '@opengewerk/domain'
 import {
+  attachmentVersionFiles,
   contactWithoutParent,
   serverSync,
   type SyncCheck,
@@ -21,7 +22,6 @@ import {
 } from '@opengewerk/platform-server'
 
 import type { FoundIdentity } from '../api/identity.js'
-import { versionFileRefusal } from '../attachments/versions.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
@@ -218,21 +218,11 @@ const timeEntry: Check = async ({ tx, operation, values }) => {
 /**
  * A version of an attachment names its file by business and hash, a key the
  * reference check below does not read. Its own question: is the file there,
- * uploaded ahead of the version, and is the size the one it has.
+ * uploaded ahead of the version, and is the size the one it has. Asked by the
+ * foundation, where the versions of a file are kept
+ * (opengewerk-haustechnik#97).
  */
-const versionFile: Check = async ({ tx, tenantId, operation, values }) => {
-  if (operation.entity !== 'attachment_versions' || operation.kind !== 'create') {
-    return null
-  }
-
-  const refusal = await versionFileRefusal(tx, tenantId, values)
-
-  if (refusal?.kind === 'client') {
-    return { kind: 'client', message: refusal.message }
-  }
-
-  return refusal ? { kind: 'conflict', reason: refusal.reason, fields: refusal.fields } : null
-}
+const versionFile: Check = attachmentVersionFiles()
 
 /**
  * A parent that is gone, or that belongs to another business, is a conflict

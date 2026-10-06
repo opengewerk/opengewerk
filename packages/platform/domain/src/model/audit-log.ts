@@ -131,6 +131,24 @@ export interface FoundationAuditWords {
   /** One of those who run the instance, as one row is called. */
   readonly operator: string
   readonly reasons: Readonly<Record<ApplicationWordedReason, string>>
+  /**
+   * What the application calls a file in its records and one version of it,
+   * where it keeps such files and calls them something else than the
+   * foundation does: a file, and a version of a file.
+   */
+  readonly attachments?: FoundationAttachmentWords
+}
+
+/** A file in the records of a tenant and one version of it, as rows are called. */
+export interface FoundationAttachmentWords {
+  readonly record: string
+  readonly version: string
+}
+
+/** What the foundation calls them where the application says nothing. */
+const attachmentWords: FoundationAttachmentWords = {
+  record: 'Datei',
+  version: 'Fassung einer Datei',
 }
 
 /**
@@ -253,10 +271,13 @@ const foundationPersonFields: readonly string[] = [
   'responsible_user_id',
   'natural_user_id',
   'closed_by',
+  // Who stored a version of a file, written by the database.
+  'created_by',
 ]
 
 /** Fields of the foundation that point at another record, and the table they point into. */
 const foundationReferences: Readonly<Record<string, string>> = {
+  attachment_id: 'attachments',
   invitation_id: 'invitations',
   subscription_id: 'push_subscriptions',
 }
@@ -282,6 +303,8 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 /** The tables of the foundation the log of a tenant holds, by name. */
 export const foundationAuditTables = [
   'account_corrections',
+  'attachment_versions',
+  'attachments',
   'contacts',
   'deadline_settings',
   'deadlines',
@@ -307,7 +330,25 @@ type FoundationAuditTable = (typeof foundationAuditTables)[number]
 function foundationTables(
   words: FoundationAuditWords,
 ): Readonly<Record<FoundationAuditTable, AuditTableWords>> {
+  const attachment = words.attachments ?? attachmentWords
+
   return {
+    // A file in the records of a tenant and its versions. What a file hangs
+    // on is a column of the application, which names it (`ownFields`), and
+    // what a file is called there the application may say as well.
+    attachment_versions: {
+      label: attachment.version,
+      fields: {
+        attachment_id: attachment.record,
+        sha256: 'Prüfsumme',
+        file_name: 'Dateiname',
+        media_type: 'Dateityp',
+        size_bytes: 'Größe',
+        preview_sha256: 'Vorschau',
+        created_by: 'Angelegt von',
+      },
+    },
+    attachments: { label: attachment.record, fields: { title: 'Titel' } },
     // A person to talk to. What a contact hangs on is a column of the
     // application, which names it (`ownFields`).
     contacts: {
@@ -506,6 +547,8 @@ function foundationInstanceTables(
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   account_corrections: ['user_id'],
+  // A version by the name its file came with; the file itself has a title.
+  attachment_versions: ['file_name'],
   contacts: { joined: ['given_name', 'family_name'] },
   // A deadline by what its source is called, a setting by its kind.
   deadlines: ['source_label'],

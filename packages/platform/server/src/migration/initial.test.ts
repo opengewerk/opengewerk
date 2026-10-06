@@ -17,6 +17,7 @@ import {
   completeInitialMigration,
   completeInitialMigrationIn,
   initialMigrationRollback,
+  uniqueIndexesBeforeKeys,
 } from './initial.js'
 
 // The tool that puts the building blocks around a first migration, on text.
@@ -144,6 +145,52 @@ describe('a completed first migration', () => {
     expect(() => completeInitialMigration('ALTER TABLE "probe" ADD COLUMN "x" text;')).toThrow(
       /not an initial migration/,
     )
+  })
+})
+
+describe('the statements of a first migration, before they are completed', () => {
+  const key = (table: string, to: string) =>
+    `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_${to}" FOREIGN KEY ("tenant_id","sha256") REFERENCES "public"."${to}"("tenant_id","sha256") ON DELETE restrict ON UPDATE no action;`
+
+  it('have their unique indexes in front of the keys, since a key may lean on one', () => {
+    const statements = [
+      'CREATE TABLE "scans" (\n\t"id" uuid PRIMARY KEY\n);\n',
+      'CREATE TABLE "prints" (\n\t"id" uuid PRIMARY KEY\n);\n',
+      key('prints', 'scans'),
+      key('scans', 'tenants'),
+      'CREATE INDEX "prints_idx" ON "prints" USING btree ("tenant_id");',
+      'CREATE UNIQUE INDEX "scans_content" ON "scans" USING btree ("tenant_id","sha256");',
+      'CREATE UNIQUE INDEX "prints_content" ON "prints" USING btree ("tenant_id","sha256");',
+      'CREATE POLICY "tenant_isolation" ON "scans" AS PERMISSIVE FOR ALL TO "opengewerk_app";',
+    ]
+
+    expect(uniqueIndexesBeforeKeys(statements)).toEqual([
+      statements[0],
+      statements[1],
+      statements[5],
+      statements[6],
+      statements[2],
+      statements[3],
+      statements[4],
+      statements[7],
+    ])
+  })
+
+  it('keep their order where no key could be waiting for an index', () => {
+    const early = [
+      'CREATE TABLE "scans" (\n\t"id" uuid PRIMARY KEY\n);\n',
+      'CREATE UNIQUE INDEX "scans_content" ON "scans" USING btree ("tenant_id","sha256");',
+      key('scans', 'tenants'),
+    ]
+    const keyless = [
+      'CREATE TABLE "scans" (\n\t"id" uuid PRIMARY KEY\n);\n',
+      'CREATE INDEX "scans_idx" ON "scans" USING btree ("tenant_id");',
+      'CREATE UNIQUE INDEX "scans_content" ON "scans" USING btree ("tenant_id","sha256");',
+    ]
+
+    expect(uniqueIndexesBeforeKeys(early)).toEqual(early)
+    expect(uniqueIndexesBeforeKeys(keyless)).toEqual(keyless)
+    expect(uniqueIndexesBeforeKeys([])).toEqual([])
   })
 })
 

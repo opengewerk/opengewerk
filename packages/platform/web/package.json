@@ -8,6 +8,7 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./attachments": "./src/attachments/index.ts",
     "./contacts": "./src/contacts/index.ts",
     "./format": "./src/format.ts",
     "./gate": "./src/gate/index.ts",

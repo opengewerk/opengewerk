@@ -1,4 +1,4 @@
-import { type SyncPolicy, syncRules } from '@opengewerk/platform-domain'
+import { attachmentVersionPolicy, type SyncPolicy, syncRules } from '@opengewerk/platform-domain'
 
 /**
  * Master data. A technician on site adds a customer that is not in the system
@@ -151,9 +151,10 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * before it sends the version, and the server finds the file by business and
    * hash; a version whose file never arrived is a conflict about that one
    * version, not a refusal of the transmission. `createdBy` is the server's,
-   * like the author of a task.
+   * like the author of a task. The rule is the foundation's, where the
+   * versions of a file are kept the same in every application.
    */
-  attachment_versions: { create: true, change: 'never', reserved: ['createdBy'] },
+  attachment_versions: attachmentVersionPolicy,
   /**
    * A stretch of somebody's working time (#76), recorded on site without a
    * network and never changed afterwards: `change: 'never'` with no route

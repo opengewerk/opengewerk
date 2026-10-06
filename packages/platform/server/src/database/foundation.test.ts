@@ -101,7 +101,11 @@ describe('the foundation, built from its building blocks alone', () => {
       'operation_outcome',
       'sign_in_method',
     ])
+    // Two of them keep the versions of a file, a table an application makes
+    // (`attachmentsSchema`): the functions come with the blocks, so that they
+    // are the same wherever such a table stands.
     expect(await functionNames(admin)).toEqual([
+      'attachment_version_stays_as_written',
       'audit_entry_stays',
       'audit_fingerprint',
       'create_first_tenant',
@@ -111,6 +115,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'instance_is_empty',
       'invitation_for',
       'next_sync_sequence',
+      'record_attachment_uploader',
       'record_change',
       'record_instance_change',
       'stamp_sync_columns',

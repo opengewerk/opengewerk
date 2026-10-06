@@ -5,10 +5,10 @@
  * instance, the health check, the change log of a tenant, the sync of an
  * application whose devices work without a network, the bytes of the files a
  * tenant keeps, push on one's own devices, the deadlines of a tenant, the
- * people to talk to an application keeps at its records, and the last backup,
- * the mail server and the settings of the deadlines under `/settings`, a
- * segment an application may answer under as well without listing it a second
- * time.
+ * people to talk to an application keeps at its records, the files it keeps
+ * there, handed out by version, and the last backup, the mail server and the
+ * settings of the deadlines under `/settings`, a segment an application may
+ * answer under as well without listing it a second time.
  *
  * Three read it, each together with the paths the server of its application
  * answers: the server, which never hands a shell back for one of them; the
@@ -37,6 +37,7 @@ export const foundationPaths = [
   'push',
   'deadlines',
   'contacts',
+  'attachments',
   'settings',
 ] as const
 

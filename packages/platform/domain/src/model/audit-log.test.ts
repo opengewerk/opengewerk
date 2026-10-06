@@ -80,6 +80,39 @@ describe('what the log calls a table and a field', () => {
     expect(language.fieldName('contacts', 'drawer_id')).toBeNull()
   })
 
+  it('names a file of the records and its versions itself, and what a file hangs on in the words of the application', () => {
+    expect(language.tableLabel('attachments')).toBe('Datei')
+    expect(language.fieldName('attachments', 'title')).toBe('Titel')
+    expect(language.tableLabel('attachment_versions')).toBe('Fassung einer Datei')
+    expect(language.fieldName('attachment_versions', 'attachment_id')).toBe('Datei')
+    expect(language.fieldName('attachment_versions', 'sha256')).toBe('Prüfsumme')
+    expect(language.fieldName('attachment_versions', 'file_name')).toBe('Dateiname')
+    expect(language.fieldName('attachment_versions', 'media_type')).toBe('Dateityp')
+    expect(language.fieldName('attachment_versions', 'size_bytes')).toBe('Größe')
+    expect(language.fieldName('attachment_versions', 'preview_sha256')).toBe('Vorschau')
+    expect(language.fieldName('attachment_versions', 'created_by')).toBe('Angelegt von')
+    // The places are columns of the application, which names them.
+    expect(language.fieldName('attachments', 'shelf_id')).toBe('Regal')
+    expect(language.fieldName('attachments', 'letter_id')).toBe('Brief')
+    expect(language.fieldName('attachments', 'drawer_id')).toBeNull()
+  })
+
+  it('calls a file and a version what the application calls them, where it says so', () => {
+    const filing = auditLanguage({
+      ...probeAuditVocabulary,
+      foundation: {
+        ...probeAuditVocabulary.foundation,
+        attachments: { record: 'Scan', version: 'Fassung eines Scans' },
+      },
+    })
+
+    expect(filing.tableLabel('attachments')).toBe('Scan')
+    expect(filing.tableLabel('attachment_versions')).toBe('Fassung eines Scans')
+    expect(filing.fieldName('attachment_versions', 'attachment_id')).toBe('Scan')
+    // What a version says of its bytes is called the same everywhere.
+    expect(filing.fieldName('attachment_versions', 'file_name')).toBe('Dateiname')
+  })
+
   it('writes a field with its table, and a table nothing names as itself', () => {
     expect(language.fieldLabel('shelves', 'label')).toBe('Regal, Beschriftung')
     expect(language.fieldLabel('shelves', 'unnamed')).toBe('Regal, unnamed')
@@ -126,6 +159,14 @@ describe("what a record's name is", () => {
     expect(language.titleFrom('member_passkeys', { name: 'Laptop' })).toBe('Laptop')
   })
 
+  it('is the title of a file, and the name its bytes came with for a version', () => {
+    expect(language.titleFrom('attachments', { title: 'Schaltplan' })).toBe('Schaltplan')
+    expect(language.titleFields('attachment_versions')).toEqual(['file_name'])
+    expect(language.titleFrom('attachment_versions', { file_name: 'Schaltplan.pdf' })).toBe(
+      'Schaltplan.pdf',
+    )
+  })
+
   it('is both names of a contact, whatever an application says of its title', () => {
     const renaming = auditLanguage({
       ...probeAuditVocabulary,
@@ -149,6 +190,8 @@ describe('the fields the log treats apart', () => {
     expect(joined.isPersonField('user_id')).toBe(true)
     expect(joined.isPersonField('invited_by')).toBe(true)
     expect(joined.isPersonField('requested_by')).toBe(true)
+    // Who stored a version of a file.
+    expect(joined.isPersonField('created_by')).toBe(true)
     expect(joined.isPersonField('host_id')).toBe(true)
     expect(joined.isPersonField('shelf_id')).toBe(false)
   })
@@ -191,6 +234,8 @@ describe('the fields the log treats apart', () => {
     expect(language.referenceOf('letter_id')).toBe('letters')
     // The invitation a message is about, in the outbox of every application.
     expect(language.referenceOf('invitation_id')).toBe('invitations')
+    // The file a version belongs to, wherever an application keeps files.
+    expect(language.referenceOf('attachment_id')).toBe('attachments')
     expect(language.referenceOf('label')).toBeNull()
   })
 })

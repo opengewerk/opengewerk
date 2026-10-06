@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  attachmentsGuard,
+  attachmentVersionsGuard,
   foundationGuards,
   guardStatements,
   protectionStatements,
@@ -69,6 +71,46 @@ describe('what guards a table', () => {
     expect(triggerStatements({ ...record, audited: false, synced: false })).toEqual([])
   })
 
+  it('hangs the triggers a table has of its own after those two, each on its function', () => {
+    const sealed: TableGuard = {
+      ...record,
+      triggers: [
+        { name: 'probe_records_signed', fires: 'BEFORE INSERT', calls: 'sign_probe_record' },
+        {
+          name: 'probe_records_stay',
+          fires: 'BEFORE UPDATE OR DELETE',
+          calls: 'probe_record_stays',
+        },
+      ],
+    }
+
+    expect(triggerStatements(sealed).slice(2)).toEqual([
+      'CREATE TRIGGER "probe_records_signed" BEFORE INSERT ON "probe_records"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "sign_probe_record"();',
+      'CREATE TRIGGER "probe_records_stay" BEFORE UPDATE OR DELETE ON "probe_records"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "probe_record_stays"();',
+    ])
+    expect(triggerStatements({ ...sealed, audited: false, synced: false })).toHaveLength(2)
+    expect(triggerStatements(record)).toHaveLength(2)
+  })
+
+  it('refuses a trigger whose name, function or moment is not a plain one', () => {
+    const hung = (trigger: object): TableGuard => ({
+      ...record,
+      triggers: [
+        { name: 'probe_stay', fires: 'BEFORE INSERT', calls: 'probe_stays', ...trigger } as never,
+      ],
+    })
+
+    expect(() => triggerStatements(hung({ name: 'stay" ON "tenants' }))).toThrow(/Not a name/)
+    expect(() => triggerStatements(hung({ calls: 'stays"(); DROP TABLE x; --' }))).toThrow(
+      /Not a name/,
+    )
+    expect(() => triggerStatements(hung({ fires: 'INSTEAD OF INSERT' }))).toThrow(
+      /Not a moment a trigger fires at/,
+    )
+  })
+
   it('puts the protection before the triggers when both are asked for at once', () => {
     expect(guardStatements(record)).toEqual([
       ...protectionStatements(record),
@@ -96,6 +138,34 @@ describe('what guards a table', () => {
         synced: false,
       }),
     ).toThrow(/Not a name/)
+  })
+})
+
+describe('the files in the records of a tenant, where an application keeps them', () => {
+  it('are marked and never removed, and travel and are watched like every record', () => {
+    expect(guardStatements(attachmentsGuard)).toEqual([
+      'ALTER TABLE "attachments" FORCE ROW LEVEL SECURITY;',
+      'GRANT SELECT, INSERT, UPDATE ON "attachments" TO "opengewerk_app";',
+      'CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "attachments"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "record_change"();',
+      'CREATE TRIGGER "stamp_sync_columns" BEFORE INSERT OR UPDATE ON "attachments"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();',
+    ])
+  })
+
+  it('have versions that are read and inserted and nothing else, with who stored one and the bolt', () => {
+    expect(guardStatements(attachmentVersionsGuard)).toEqual([
+      'ALTER TABLE "attachment_versions" FORCE ROW LEVEL SECURITY;',
+      'GRANT SELECT, INSERT ON "attachment_versions" TO "opengewerk_app";',
+      'CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "attachment_versions"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "record_change"();',
+      'CREATE TRIGGER "stamp_sync_columns" BEFORE INSERT OR UPDATE ON "attachment_versions"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();',
+      'CREATE TRIGGER "attachment_versions_record_uploader" BEFORE INSERT ON "attachment_versions"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "record_attachment_uploader"();',
+      'CREATE TRIGGER "attachment_versions_stay_as_written" BEFORE UPDATE OR DELETE ON "attachment_versions"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "attachment_version_stays_as_written"();',
+    ])
   })
 })
 

@@ -137,10 +137,11 @@ const roleLiteral = /(['"`])(?:owner|office|technician)\1/
  *
  * A contact is not among them. The people to talk to are a record of the
  * foundation, which every application hangs on records of its own
- * (opengewerk-haustechnik#85).
+ * (opengewerk-haustechnik#85). Neither is a file in the records of a tenant,
+ * with its versions (opengewerk-haustechnik#97).
  */
 const recordLiteral =
-  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries|attachments)\1/
+  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries)\1/
 const recordWord =
   /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
 
@@ -204,6 +205,7 @@ describe('what the foundation without I/O knows of an application', () => {
     expect(recordLiteral.test("if (entity === 'customers') {")).toBe(true)
     expect(recordLiteral.test('const customers = rows.length')).toBe(false)
     expect(recordLiteral.test("if (entity === 'contacts') {")).toBe(false)
+    expect(recordLiteral.test("if (entity === 'attachments') {")).toBe(false)
     expect(recordWord.test("'Der Beleg ist festgeschrieben.'")).toBe(true)
     expect(recordWord.test("'Dieser Vorgang wurde abgelehnt.'")).toBe(false)
   })

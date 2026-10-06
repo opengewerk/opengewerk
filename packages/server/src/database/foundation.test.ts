@@ -31,7 +31,10 @@ describe('the foundation in this database', () => {
     // hangs on (opengewerk-haustechnik#24): the document, the installation,
     // the customer, the site, the job and the task its reminder made; and what
     // a contact hangs on (opengewerk-haustechnik#85): the customer, the site
-    // or the supplier, with the check that it is exactly one. The one
+    // or the supplier, with the check that it is exactly one; and what a file
+    // of the records hangs on (opengewerk-haustechnik#97): the customer, the
+    // site, the installation and the job, with the check that it is at least
+    // one. The one
     // trigger that used to be named here, the log of the instance watching
     // `tenants` (#188), is the foundation's since the area of the instance
     // moved there.
@@ -50,6 +53,10 @@ describe('the foundation in this database', () => {
         'contacts.customer_id',
         'contacts.site_id',
         'contacts.supplier_id',
+        'attachments.customer_id',
+        'attachments.site_id',
+        'attachments.installation_id',
+        'attachments.job_id',
       ],
       constraints: [
         'mail_outbox.mail_outbox_task_in_tenant',
@@ -65,6 +72,11 @@ describe('the foundation in this database', () => {
         'contacts.contacts_site_in_tenant',
         'contacts.contacts_supplier_in_tenant',
         'contacts.contacts_belong_to_one_parent',
+        'attachments.attachments_customer_in_tenant',
+        'attachments.attachments_site_in_tenant',
+        'attachments.attachments_installation_in_tenant',
+        'attachments.attachments_job_in_tenant',
+        'attachments.attachments_have_a_home',
       ],
       indexes: [
         'mail_outbox.mail_outbox_task_idx',
@@ -76,6 +88,10 @@ describe('the foundation in this database', () => {
         'contacts.contacts_customer_idx',
         'contacts.contacts_site_idx',
         'contacts.contacts_supplier_idx',
+        'attachments.attachments_customer_idx',
+        'attachments.attachments_site_idx',
+        'attachments.attachments_installation_idx',
+        'attachments.attachments_job_idx',
       ],
     })
 

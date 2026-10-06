@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  attachmentHomeProblem,
-  attachmentMediaTypeProblem,
-  attachmentTitleOf,
-  isPhoto,
-  isPicture,
-} from './attachment.js'
+// What a picture is and what a new file is called are the foundation's
+// (opengewerk-haustechnik#97) and reach this application's code under the
+// names they always had, through the entry of this package.
+import { attachmentTitleOf, isPhoto, isPicture } from '../index.js'
+import { attachmentHomeProblem, attachmentMediaTypeProblem } from './attachment.js'
 
 describe('what a version says about its file', () => {
   it('has the type as it is recorded, and nothing else', () => {

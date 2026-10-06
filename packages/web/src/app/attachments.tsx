@@ -1,34 +1,30 @@
-import {
-  fileMediaType,
-  fileSizeProblem,
-  attachmentTitleOf,
-  isPhoto,
-  isPicture,
-  photoLongEdge,
-  photoQuality,
-  previewLongEdge,
-  previewQuality,
-  type RecordState,
-} from '@opengewerk/domain'
+import { type RecordState, tradeAttachments } from '@opengewerk/domain'
 import { Button, Confirm } from '@opengewerk/platform-web'
 import type { SiteHeight } from '@opengewerk/platform-web'
-import { fileSize, moment } from '@opengewerk/platform-web/format'
-import { SiteRow, SiteRows } from '@opengewerk/platform-web/site'
 import {
-  count,
-  maybeText,
-  refusalFor,
-  text,
-  useRecords,
-  useSync,
-  workingInHeaders,
-} from '@opengewerk/platform-web/sync'
+  addAttachment as fileAttachment,
+  addVersion as fileVersion,
+  openVersion,
+  usePreview,
+  useVersions,
+  versionLine,
+} from '@opengewerk/platform-web/attachments'
+import { fileSize } from '@opengewerk/platform-web/format'
+import { SiteRow, SiteRows } from '@opengewerk/platform-web/site'
+import { count, refusalFor, text, useSync } from '@opengewerk/platform-web/sync'
 import clsx from 'clsx'
 import { Camera, Image as ImageIcon, Upload, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
 import { shrinkPicture } from './pictures.js'
+
+// What becomes of a chosen file, the versions of each file, their previews and
+// how one is opened are the foundation's (opengewerk-haustechnik#97) and reach
+// the screens of this application under the names they always had. Kept here
+// are the places a file of this application hangs on, and how its two entries
+// draw a list of files.
+export { openVersion, usePreview, useVersions, versionLine }
 
 /**
  * Where a new file hangs (#77): the places of the screen it is added on. A
@@ -42,254 +38,27 @@ export interface AttachmentHome {
   readonly jobId?: string | null
 }
 
-function placesOf(home: AttachmentHome): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(home).filter(
-      (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '',
-    ),
-  )
-}
-
-/** A version as it is written, before anything knows its id. */
-interface Prepared {
-  readonly sha256: string
-  readonly sizeBytes: number
-  readonly mediaType: string
-  readonly fileName: string
-  readonly previewSha256: string | null
-}
-
-/**
- * What becomes of one chosen file before anything is queued.
- *
- * A photo is made smaller unless somebody keeps the original, and only when
- * the smaller one really is smaller. Every picture gets a preview, a small
- * JPEG a list can show without fetching the file. Both go into the local
- * store and onto the list of uploads; the size is checked on what is kept,
- * against the same limit the server holds.
- */
-async function prepare(
-  client: SyncClient,
-  file: File,
-  keepOriginal: boolean,
-): Promise<Prepared | { readonly problem: string }> {
-  const declared = fileMediaType(file.type)
-  let bytes = await file.arrayBuffer()
-  let mediaType = declared
-  let fileName = file.name
-
-  if (isPhoto(declared) && !keepOriginal) {
-    const smaller = await shrinkPicture(file, photoLongEdge, photoQuality)
-
-    if (smaller && smaller.byteLength < bytes.byteLength) {
-      bytes = smaller
-      mediaType = 'image/jpeg'
-      fileName = `${attachmentTitleOf(file.name)}.jpg`
-    }
-  }
-
-  const problem = fileSizeProblem(bytes.byteLength)
-
-  if (problem) {
-    return { problem: `${file.name}: ${problem}` }
-  }
-
-  const preview = isPicture(declared)
-    ? await shrinkPicture(file, previewLongEdge, previewQuality)
-    : null
-  const kept = await client.keepFile(bytes, mediaType)
-  const previewKept = preview ? await client.keepFile(preview, 'image/jpeg') : null
-
-  return {
-    sha256: kept.sha256,
-    sizeBytes: kept.sizeBytes,
-    mediaType,
-    fileName,
-    previewSha256: previewKept?.sha256 ?? null,
-  }
-}
-
 /** A new file at a place, through the outbox. The sentence to show, or null when it is queued. */
-export async function addAttachment(
+export function addAttachment(
   client: SyncClient,
   home: AttachmentHome,
   file: File,
   keepOriginal: boolean,
 ): Promise<string | null> {
-  const prepared = await prepare(client, file, keepOriginal)
-
-  if ('problem' in prepared) {
-    return prepared.problem
-  }
-
-  const made = await client.create('attachments', {
-    ...placesOf(home),
-    title: attachmentTitleOf(file.name),
+  return fileAttachment(client, tradeAttachments.homesOf(home), file, {
+    keepOriginal,
+    shrink: shrinkPicture,
   })
-
-  if (made.outcome === 'refused') {
-    return refusalFor(made)
-  }
-
-  const version = await client.create('attachment_versions', {
-    attachmentId: made.id,
-    ...prepared,
-  })
-
-  return version.outcome === 'refused' ? refusalFor(version) : null
 }
 
 /** A new version of a file, laid over the ones before it. */
-export async function addVersion(
+export function addVersion(
   client: SyncClient,
   attachmentId: string,
   file: File,
   keepOriginal: boolean,
 ): Promise<string | null> {
-  const prepared = await prepare(client, file, keepOriginal)
-
-  if ('problem' in prepared) {
-    return prepared.problem
-  }
-
-  const version = await client.create('attachment_versions', { attachmentId, ...prepared })
-
-  return version.outcome === 'refused' ? refusalFor(version) : null
-}
-
-/**
- * The versions of each file, newest first. Ids are UUIDv7 and minted when a
- * version is made, so the newest is the one with the highest id, on a device
- * that has not sent it yet as much as on the server.
- */
-export function useVersions(): ReadonlyMap<string, readonly RecordState[]> {
-  const versions = useRecords('attachment_versions')
-
-  return useMemo(() => {
-    const byAttachment = new Map<string, RecordState[]>()
-
-    for (const version of versions) {
-      const key = text(version, 'attachmentId')
-      const list = byAttachment.get(key) ?? []
-
-      list.push(version)
-      byAttachment.set(key, list)
-    }
-
-    for (const list of byAttachment.values()) {
-      list.sort((left, right) => String(right['id']).localeCompare(String(left['id'])))
-    }
-
-    return byAttachment
-  }, [versions])
-}
-
-/**
- * The preview of a version as an address the page can show, or null.
- *
- * From this device when it has the picture, which it does for every photo it
- * took and every preview it fetched before; otherwise fetched once and kept,
- * so that a list opened in a cellar shows the pictures it showed upstairs.
- * The large file is never fetched for this, only when somebody opens it.
- */
-export function usePreview(version: RecordState | undefined): string | null {
-  const client = useSync()
-  const hash = maybeText(version, 'previewSha256')
-  const id = version ? String(version['id']) : null
-  const [shown, setShown] = useState<{ readonly hash: string; readonly href: string } | null>(null)
-
-  useEffect(() => {
-    if (!hash || !id) {
-      return undefined
-    }
-
-    let live = true
-    let made: string | null = null
-
-    void (async () => {
-      let file = await client.readFile(hash)
-
-      if (!file && !client.isPending('attachment_versions', id)) {
-        try {
-          const response = await fetch(`/attachments/versions/${encodeURIComponent(id)}/preview`, {
-            credentials: 'include',
-            headers: workingInHeaders(),
-          })
-
-          if (response.ok) {
-            const bytes = await response.arrayBuffer()
-            const mediaType = response.headers.get('content-type') ?? 'image/jpeg'
-
-            await client.rememberFile(hash, bytes, mediaType)
-            file = { sha256: hash, bytes, mediaType }
-          }
-        } catch {
-          // Without a network there is no preview this time. The list still
-          // shows the name, and the next time the picture is fetched.
-        }
-      }
-
-      if (!file || !live) {
-        return
-      }
-
-      made = URL.createObjectURL(new Blob([file.bytes], { type: file.mediaType }))
-      setShown({ hash, href: made })
-    })()
-
-    return () => {
-      live = false
-
-      if (made) {
-        URL.revokeObjectURL(made)
-      }
-    }
-  }, [client, hash, id])
-
-  return shown && shown.hash === hash ? shown.href : null
-}
-
-/**
- * Opens a version: from this device when it holds the file, which it does for
- * everything made here and so works without a network, and from the server
- * otherwise. In a new window, from the click that asked for it.
- */
-export async function openVersion(client: SyncClient, version: RecordState): Promise<void> {
-  const local = await client.readFile(text(version, 'sha256'))
-
-  if (!local) {
-    window.open(
-      `/attachments/versions/${encodeURIComponent(String(version['id']))}/content`,
-      '_blank',
-      'noopener',
-    )
-
-    return
-  }
-
-  const href = URL.createObjectURL(new Blob([local.bytes], { type: local.mediaType }))
-
-  window.open(href, '_blank', 'noopener')
-  window.setTimeout(() => {
-    URL.revokeObjectURL(href)
-  }, 60_000)
-}
-
-/** The line under a file's name: name, size, version, and whether it is up yet. */
-export function versionLine(client: SyncClient, version: RecordState, versions: number): string {
-  const parts = [text(version, 'fileName'), fileSize(count(version, 'sizeBytes'))]
-
-  if (versions > 1) {
-    parts.push(`Fassung ${String(versions)}`)
-  }
-
-  parts.push(
-    client.isPending('attachment_versions', String(version['id']))
-      ? 'noch nicht übertragen'
-      : moment(maybeText(version, 'createdAt')),
-  )
-
-  return parts.join(', ')
+  return fileVersion(client, attachmentId, file, { keepOriginal, shrink: shrinkPicture })
 }
 
 /**
