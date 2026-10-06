@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Nummernkreis des Fundaments gibt mehrere Nummern in einem Schritt aus (`assignNumbers`,
+  `opengewerk-haustechnik#100`). Wer eine ganze Liste übernimmt, zog bisher je Datensatz eine
+  Nummer, und jede Ziehung ist eine Änderung am Zähler, die im Änderungsprotokoll steht: ein
+  Import von tausend Anlagen schrieb tausend Einträge über den Zähler neben den einen über den
+  Import. Jetzt rückt der Zähler in einer Anweisung um die Zahl weiter, seine Zeile wird einmal
+  gesperrt, und im Protokoll steht eine Änderung. Die Nummern sind dieselben, stehen in ihrer
+  Reihenfolge und gehen wie eine einzelne mit der Transaktion zurück, die sie gezogen hat.
+  `assignNumber` bleibt, wie es ist.
 - "Zugänge" gibt es im Fundament ein zweites Mal: mit einer Rolle je Zugang, die in einem Dialog
   vergeben wird (`opengewerk-haustechnik#84`). Die Haustechnik führt neben einer Zugehörigkeit
   die Bereiche einer Person, und Rolle und Bereiche sind eine Entscheidung mit einem "Speichern";
