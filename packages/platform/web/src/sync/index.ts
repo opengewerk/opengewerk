@@ -68,3 +68,6 @@ export type { ChangedRows, PullResult, SyncTransport } from './transport.js'
 
 // The strip over every screen while something waits or has to be decided.
 export { SyncStatusBar } from './bar.js'
+// The frame of a decision, for the card of a conflict an application decides
+// itself (`ownDecision` in its value). The cards of the foundation stay here.
+export { DecisionFrame } from './decisions.js'
