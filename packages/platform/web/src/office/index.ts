@@ -129,6 +129,13 @@ export {
 } from './kit.js'
 export type { Crumb, Fact, NoteTone, PageHeadProps } from './kit.js'
 
+// A table somebody kept in a spreadsheet, taken over in a few steps: the
+// steps, the file with its sheets, its columns with the field each of them
+// is, and the two requests a table travels in. Which fields there are and
+// what the rows become, the application says.
+export { ColumnsPanel, readTableFile, sendTable, Steps, TableFilePanel } from './tables.js'
+export type { ColumnsPanelProps, StepsProps, TableFilePanelProps } from './tables.js'
+
 // A list at every width: cards on a phone, a table from a tablet on, a
 // preview beside it on a wide screen and the whole record beside it on a
 // very wide one. Its card and what it says before its first entry stand on
