@@ -27,7 +27,12 @@ import {
 } from '../authentication/probe-application.js'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
-import { foreignKeyViolation, insufficientPrivilege, refusedBy } from '../database/test-database.js'
+import {
+  checkViolation,
+  foreignKeyViolation,
+  insufficientPrivilege,
+  refusedBy,
+} from '../database/test-database.js'
 import { fileParts } from '../files/controller.js'
 import { storedMediaType } from '../files/media-type.js'
 import { fileRowFor } from '../files/rows.js'
@@ -642,6 +647,26 @@ describe('a version in the database', () => {
 })
 
 describe('a file in the database', () => {
+  it('is held to its places by the check and the keys of the application as well, for every other way in', async () => {
+    const filing = (values: Record<string, unknown>) =>
+      inTenant('lena', (tx) =>
+        tx
+          .insert(probeAttachments)
+          .values({ tenantId: north.id, title: 'Scan', ...values } as never),
+      )
+
+    expect(await refusedBy(filing({}))).toEqual({
+      code: checkViolation,
+      constraint: 'attachments_hang_somewhere',
+    })
+    // A shelf of another tenant is a key that points nowhere.
+    expect(await refusedBy(filing({ shelfId: southShelf }))).toEqual({
+      code: foreignKeyViolation,
+      constraint: 'attachments_shelf',
+    })
+    await filing({ shelfId: shelf, letterId: letter })
+  })
+
   it('is marked as deleted and never removed by the application', async () => {
     const attachment = await filed('lena', { shelfId: shelf })
 
