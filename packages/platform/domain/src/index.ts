@@ -38,6 +38,14 @@ export * from './forms/definition.js'
 export * from './forms/engine.js'
 export * from './forms/values.js'
 
+// A table somebody kept in a spreadsheet: sheets of rows, the columns given
+// to fields, the rows as records with the line they stand in, and the rows of
+// a file of separated values. Which fields there are and what a record
+// becomes, the application says.
+export * from './tables/csv.js'
+export * from './tables/table.js'
+export * from './tables/wire.js'
+
 // The rule engine: records with a period of validity and the paragraph they
 // come from. Which rules there are is the application's business.
 export * from './rules/rule.js'

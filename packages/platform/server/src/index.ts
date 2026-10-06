@@ -77,6 +77,7 @@ export * from './api/database-errors.js'
 // rights there are and who holds them, the application says.
 export * from './api/authorization.js'
 export * from './api/body.js'
+export * from './api/body-bytes.js'
 export * from './api/client-address.js'
 export * from './api/closed-identity.js'
 export * from './api/handed-in.js'
@@ -138,6 +139,7 @@ export * from './files/controller.js'
 export * from './files/media-type.js'
 export * from './files/rows.js'
 export * from './files/store.js'
+export * from './files/zip.js'
 
 // The people to talk to at the records of an application: the routes they
 // are listed, added, corrected and taken away through, and what the sync asks
@@ -215,6 +217,14 @@ export * from './push/post.js'
 export * from './push/push.controller.js'
 export * from './push/web-push.js'
 export * from './push/worker.js'
+
+// A table somebody kept in a spreadsheet, on its way into records: a workbook
+// or a file of separated values read into sheets, with limits and without a
+// package, and the two ways such a table reaches a route. Which fields a
+// table has and what becomes of its rows, the application says.
+export * from './tables/limits.js'
+export * from './tables/read.js'
+export * from './tables/request.js'
 
 // The way in of an instance: the built interface served from the same process
 // as the API, with a shell for every address that is neither a file nor the

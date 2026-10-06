@@ -69,8 +69,45 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Den Rahmen dazu gibt `DecisionFrame` aus `@opengewerk/platform-web/sync`, im Büro und vor Ort
   derselbe wie um die Karten des Fundaments. Die Handwerkersoftware nutzt es nicht.
 
+- Das Fundament liest Tabellen, wie jemand sie in einer Tabellenkalkulation führt, und gibt einer
+  Anwendung, was sie braucht, um eine solche Liste zu übernehmen (`opengewerk-haustechnik#100`). Die
+  Haustechnik importiert damit Liegenschaften, Gebäude, Geschosse, Räume und Anlagen; die
+  Handwerkersoftware nutzt es noch nicht und kann es für Kunden oder Artikel auf demselben Weg tun.
+  - `platform-domain` beschreibt die Tabelle (`TableFile`, `TableSheet`), ihre Grenzen
+    (`tableLimits`: 10 MB je Datei, 10.000 Zeilen, 100 Spalten), die Zuordnung der Spalten zu den
+    Feldern einer Anwendung mit einem Vorschlag nach den Namen der Spalten (`suggestedMapping`,
+    `columnMappingProblem`), die Zeilen als Datensätze mit ihrer Zeile in der Datei
+    (`tableRecords`) und liest CSV mit Semikolon, Komma oder Tabulator (`csvRows`).
+  - `platform-server` liest eine Datei in diese Tabelle (`tableFileOf`): eine Arbeitsmappe (.xlsx)
+    mit ihren Blättern oder eine CSV-Datei in UTF-8, UTF-16 oder Windows-1252. Jede Zelle wird der
+    Text, den jemand darin liest: ein Tag als 02.10.2026, eine Zahl mit Komma, ja und nein.
+    **Dafür kommt kein Paket dazu.** Geprüft wurden vier: `exceljs` ist seit 2023 ohne Fassung und
+    bringt neun Abhängigkeiten mit, die Fassung von `xlsx` auf npm hat zwei offene Meldungen der
+    Stufe hoch, `hucre` ist ein halbes Jahr alt und liest sieben Formate, und `read-excel-file` ist
+    gepflegt, entpackt aber ohne Grenze: eine Arbeitsmappe von 293 kB, die sich auf 300 MB
+    entpackt, hielt den Prozess 63 Sekunden an und belegte 1 GB. Eine Arbeitsmappe ist ein
+    ZIP-Archiv aus vier Arten von XML-Teilen, und der ZIP-Leser mit Grenze war für DATANORM schon
+    da; er liegt jetzt im Fundament (`unzip`), entpackt nur die Teile, die gefragt sind, und hält
+    eine Arbeitsmappe bei 60 MB an.
+  - Eine Tabelle erreicht eine Route auf zwei Wegen, und für beide gibt es den Baustein
+    (`uploadedTable`, `tableBodyOf` mit `AcceptsTableFile` und `AcceptsTable`). Als Datei geht sie
+    als Bytes mit ihrem Namen im Kopf; gespeichert wird dabei nichts, weil eine Liste ansehen noch
+    kein Übernehmen ist. Mit dem, was über sie entschieden wurde, geht sie als JSON unter einem
+    eigenen Typ, `application/x.table+json`: ein solcher Inhalt ist Megabytes groß, der Leser vor
+    den Routen nimmt weiter nur 100 kB JSON an, und gelesen wird er erst für den, den die Guards
+    durchlassen (`bodyBytesOf`, bisher nur in der Dateiroute).
+  - `@opengewerk/platform-web/office` bringt die Schrittanzeige (`Steps`), die Karte der Datei mit
+    Blattwahl (`TableFilePanel`) und die Zuordnung der Spalten (`ColumnsPanel`), dazu die beiden
+    Anfragen (`readTableFile`, `sendTable`). Was die Felder sind und was aus den Zeilen wird, sagt
+    die Anwendung.
+
 ### Geändert
 
+- Der ZIP-Leser der DATANORM-Lieferungen liegt im Fundament (`packages/platform/server/src/files/zip.ts`),
+  weil eine Arbeitsmappe ebenfalls ein Archiv ist (`opengewerk-haustechnik#100`). Er nennt die Dateien
+  jetzt mit ihrem Ordner und entpackt auf Wunsch nur die gefragten; für DATANORM ändert sich nichts,
+  `packages/server/src/datanorm/zip.ts` reicht die Dateien wie bisher unter ihrem bloßen Namen
+  weiter, mit derselben Grenze von 400 MB und denselben Sätzen.
 - Das Etikett mit QR-Code ist ein Baustein des Fundaments, und woran ein Etikett hängt, sagt die
   Anwendung (`opengewerk-haustechnik#98`). Die Haustechnik klebt Etiketten an Anlagen und an die
   Türen von Räumen, und Abschnitt 2.1 ihres Konzepts nennt die Etiketten dieser Anwendung unter
