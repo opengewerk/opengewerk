@@ -32,6 +32,11 @@ import { chromium } from 'playwright-core'
  * Whatever is too wide is photographed into the folder of the report, next
  * to a line that names the element sticking out furthest. What an application
  * hands in is said at `checkWidths` (ADR 0010).
+ *
+ * The measuring runs on several pages at once, light and dark side by side
+ * and each theme on pages of its own (#576): one page after the other, the
+ * check of an application with 106 kinds of page took 27 minutes on
+ * 08.10.2026, close to the 30 a session of the browser is given in the CI.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -67,6 +72,13 @@ const pagesPerKind = 4
  * the walk runs away. An application with more names its own to `checkWidths`.
  */
 const mostKindsUnlessSaid = 120
+
+/**
+ * How many pages measure one theme at once unless an application says. Both
+ * themes run side by side, so twice as many are open: four, as many as the
+ * runner of the CI has processors.
+ */
+const lanesUnlessSaid = 2
 
 const identifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -326,6 +338,48 @@ async function walk(context, { address, ...asked }) {
 }
 
 /**
+ * Checks every item on all lanes at once, each lane taking the next item as
+ * soon as it is free, so that a lane with the slow kinds of page does not hold
+ * up the others. What the checks return comes back in the order of the items,
+ * whichever finished first, and the first check that fails stops the lanes
+ * from taking more. Apart from the browser, so that it can be held to that
+ * without one.
+ *
+ * @template Item, Lane, Result
+ * @param {readonly Item[]} items
+ * @param {readonly Lane[]} lanes
+ * @param {(item: Item, lane: Lane) => Promise<Result>} check
+ * @returns {Promise<Result[]>}
+ */
+export async function inLanes(items, lanes, check) {
+  if (lanes.length === 0) {
+    throw new Error('Ohne eine Seite im Browser wird nichts gemessen: es braucht mindestens eine.')
+  }
+
+  const results = []
+  let next = 0
+  let failed = false
+
+  async function run(lane) {
+    while (!failed && next < items.length) {
+      const index = next
+      next += 1
+
+      try {
+        results[index] = await check(items[index], lane)
+      } catch (error) {
+        failed = true
+        throw error
+      }
+    }
+  }
+
+  await Promise.all(lanes.map(run))
+
+  return results
+}
+
+/**
  * The key the choice of light or dark is kept under, read from
  * `components/theme.ts` of this package rather than written here a second
  * time. A copy that fell behind would have run the dark pass light without a
@@ -491,6 +545,117 @@ export function fileFor(report, kind, width, theme) {
 }
 
 /**
+ * A page of the browser that measures in one theme, in a context of its own,
+ * so that pages measuring at once share neither what one of them stored nor
+ * a process of the browser. The choice is made the way a person makes it, as
+ * the stored choice of the device, before the first script of the page runs:
+ * under the key `components/theme.ts` keeps it under.
+ */
+async function laneIn(browser, theme, themeKey) {
+  const context = await browser.newContext()
+
+  if (theme === 'dark') {
+    await context.addInitScript((key) => {
+      localStorage.setItem(key, 'dark')
+    }, themeKey)
+  }
+
+  return { theme, context, page: await context.newPage(), confirmed: false }
+}
+
+/** Opens a page, and holds the first of the lane to the theme the lane is run for. */
+async function openInTheme(lane, address, path) {
+  await open(lane.page, address, path)
+
+  if (!lane.confirmed) {
+    const problem = themeProblem(
+      lane.theme,
+      await lane.page.evaluate(() => document.documentElement.dataset.theme ?? null),
+    )
+
+    if (problem) {
+      throw new Error(problem)
+    }
+
+    lane.confirmed = true
+  }
+}
+
+/** One kind of page at every width on one lane, and what was found wrong with it. */
+async function checkKind(lane, { kind, path, press }, { address, report, steps }) {
+  const { page, theme } = lane
+  const failures = []
+
+  // A kind with a button to press opens its page in the loop below, in every
+  // band anew; the first column of its tables is the plain kind's to check,
+  // once per page.
+  if (!press) {
+    await openInTheme(lane, address, path)
+
+    const bare = await bareColumns(page)
+
+    if (bare > 0) {
+      failures.push({
+        kind,
+        theme,
+        line: `${String(bare)} Zellen der stehenden ersten Tabellenspalte ohne Grund`,
+        culprits: [],
+      })
+    }
+  }
+
+  let band = null
+  let reachable = true
+
+  for (const width of widths) {
+    await resize(page, width)
+
+    if (press && bandOf(steps, width) !== band) {
+      band = bandOf(steps, width)
+      await openInTheme(lane, address, path)
+      await resize(page, width)
+
+      const button = opener(page, press)
+
+      reachable = await button.isVisible()
+
+      // A button that is there at a desktop width and gone in this band
+      // leaves the form out of reach on such a device.
+      if (reachable) {
+        await button.click()
+        await settle(page, 400)
+      } else {
+        failures.push({
+          kind,
+          theme,
+          line: `bei ${String(width)} px ist "${press}" nicht zu sehen`,
+          culprits: [],
+        })
+      }
+    }
+
+    if (!reachable) {
+      continue
+    }
+
+    const { over, culprits } = await measure(page)
+
+    if (over > 0) {
+      mkdirSync(report, { recursive: true })
+      await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
+      failures.push({
+        kind,
+        theme,
+        line: `bei ${String(width)} px ${String(over)} px zu breit`,
+        culprits,
+      })
+    }
+  }
+
+  return failures
+}
+
+/**
  * Walks and measures an application, says what it found, and sets the exit
  * code when a page is too wide or a button out of reach.
  *
@@ -506,8 +671,17 @@ export function fileFor(report, kind, width, theme) {
  *   open a form without an address of its own.
  * @param {number} [options.mostKinds] How many kinds of page the walk may
  *   find before it stops and fails, 120 unless said.
+ * @param {number} [options.lanes] How many pages measure one theme at once,
+ *   two unless said.
  */
-export async function checkWidths({ report, entries, scannedOnly = [], openers = [], mostKinds }) {
+export async function checkWidths({
+  report,
+  entries,
+  scannedOnly = [],
+  openers = [],
+  mostKinds,
+  lanes = lanesUnlessSaid,
+}) {
   const browserAddress = process.env.WIDTHS_BROWSER ?? 'ws://127.0.0.1:3999?token=probe'
   const address = (process.env.WIDTHS_ADDRESS ?? 'http://host.docker.internal:23700').replace(
     /\/$/,
@@ -532,116 +706,33 @@ export async function checkWidths({ report, entries, scannedOnly = [], openers =
       mostKinds,
     })
     console.log(
-      `${String(kinds.size)} Arten von Seiten gefunden, geprüft bei ${String(widths.length)} Breiten, hell und dunkel:`,
+      `${String(kinds.size)} Arten von Seiten gefunden, geprüft bei ${String(widths.length)} Breiten, hell und dunkel, auf ${String(lanes)} Seiten je Farbwahl zugleich:`,
     )
 
     for (const kind of kinds.keys()) {
       console.log(`  ${kind}`)
     }
 
-    for (const theme of ['light', 'dark']) {
-      // The choice is made the way a person makes it, as the stored choice
-      // of the device, before the first script of the page runs: under the
-      // key `components/theme.ts` keeps it under.
-      const context = await browser.newContext()
+    const asked = [...kinds].map(([kind, { path, press }]) => ({ kind, path, press }))
+    const passes = await Promise.all(
+      ['light', 'dark'].map(async (theme) => {
+        const opened = await Promise.all(
+          Array.from({ length: lanes }, () => laneIn(browser, theme, themeKey)),
+        )
 
-      if (theme === 'dark') {
-        await context.addInitScript((key) => {
-          localStorage.setItem(key, 'dark')
-        }, themeKey)
-      }
-
-      const page = await context.newPage()
-      let confirmed = false
-
-      /** Opens a page, and holds the first of the pass to the theme the pass is run for. */
-      const openInTheme = async (path) => {
-        await open(page, address, path)
-
-        if (!confirmed) {
-          const problem = themeProblem(
-            theme,
-            await page.evaluate(() => document.documentElement.dataset.theme ?? null),
+        try {
+          const found = await inLanes(asked, opened, (kind, lane) =>
+            checkKind(lane, kind, { address, report, steps }),
           )
 
-          if (problem) {
-            throw new Error(problem)
-          }
-
-          confirmed = true
+          return found.flat()
+        } finally {
+          await Promise.all(opened.map((lane) => lane.context.close()))
         }
-      }
+      }),
+    )
 
-      for (const [kind, { path, press }] of kinds) {
-        // A kind with a button to press opens its page in the loop below, in
-        // every band anew; the first column of its tables is the plain
-        // kind's to check, once per page.
-        if (!press) {
-          await openInTheme(path)
-
-          const bare = await bareColumns(page)
-
-          if (bare > 0) {
-            failures.push({
-              kind,
-              theme,
-              line: `${String(bare)} Zellen der stehenden ersten Tabellenspalte ohne Grund`,
-              culprits: [],
-            })
-          }
-        }
-
-        let band = null
-        let reachable = true
-
-        for (const width of widths) {
-          await resize(page, width)
-
-          if (press && bandOf(steps, width) !== band) {
-            band = bandOf(steps, width)
-            await openInTheme(path)
-            await resize(page, width)
-
-            const button = opener(page, press)
-
-            reachable = await button.isVisible()
-
-            // A button that is there at a desktop width and gone in this band
-            // leaves the form out of reach on such a device.
-            if (reachable) {
-              await button.click()
-              await settle(page, 400)
-            } else {
-              failures.push({
-                kind,
-                theme,
-                line: `bei ${String(width)} px ist "${press}" nicht zu sehen`,
-                culprits: [],
-              })
-            }
-          }
-
-          if (!reachable) {
-            continue
-          }
-
-          const { over, culprits } = await measure(page)
-
-          if (over > 0) {
-            mkdirSync(report, { recursive: true })
-            await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
-            failures.push({
-              kind,
-              theme,
-              line: `bei ${String(width)} px ${String(over)} px zu breit`,
-              culprits,
-            })
-          }
-        }
-      }
-
-      await context.close()
-    }
+    failures.push(...passes.flat())
   } finally {
     await browser.close()
   }

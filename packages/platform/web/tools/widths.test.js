@@ -10,6 +10,7 @@ import {
   bandOf,
   fileFor,
   heightFor,
+  inLanes,
   kindOf,
   stepsIn,
   themeKeyIn,
@@ -22,8 +23,9 @@ import {
 /**
  * What the check of the widths decides before a browser is involved: which
  * pages are of one kind, which a scan stands for, which links are followed
- * and when the walk gives up, where the layouts change, which theme a pass
- * runs in, and where a photograph of a failure goes. The walk through a real
+ * and when the walk gives up, how the pages measuring at once share the
+ * kinds, where the layouts change, which theme a pass runs in, and where a
+ * photograph of a failure goes. The walk through a real
  * browser runs in the CI against the preview of an application.
  */
 
@@ -195,6 +197,85 @@ describe('the walk through the pages', () => {
     )
     expect((await walkThrough(siteOf(pages).reader, { entries: ['/'], mostKinds: 200 })).size).toBe(
       151,
+    )
+  })
+})
+
+/**
+ * The kinds of page are measured on several pages of the browser at once
+ * (#576). Every kind is measured, once, and the findings come back in the
+ * order of the kinds, as they did when one page measured them all.
+ */
+describe('the pages that measure at once', () => {
+  const pause = (milliseconds) =>
+    new Promise((resolve) => {
+      setTimeout(resolve, milliseconds)
+    })
+
+  it('measure every kind once, all of them at the same time and no more', async () => {
+    const kinds = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+    const measured = []
+    let running = 0
+    let most = 0
+
+    await inLanes(kinds, ['eins', 'zwei', 'drei'], async (kind) => {
+      running += 1
+      most = Math.max(most, running)
+      measured.push(kind)
+      await pause(kind === 'a' ? 30 : 5)
+      running -= 1
+    })
+
+    expect([...measured].sort()).toEqual(kinds)
+    expect(most).toBe(3)
+  })
+
+  it('give back what they found in the order of the kinds, whichever finished first', async () => {
+    const takes = { langsam: 30, mittel: 15, schnell: 0 }
+
+    const found = await inLanes(Object.keys(takes), ['eins', 'zwei', 'drei'], async (kind) => {
+      await pause(takes[kind])
+
+      return `${kind} gemessen`
+    })
+
+    expect(found).toEqual(['langsam gemessen', 'mittel gemessen', 'schnell gemessen'])
+  })
+
+  it('take the next kind as soon as one is free, rather than wait for a slow one', async () => {
+    const taken = { eins: [], zwei: [] }
+
+    await inLanes(['a', 'b', 'c', 'd'], ['eins', 'zwei'], async (kind, lane) => {
+      taken[lane].push(kind)
+      await pause(kind === 'a' ? 60 : 5)
+    })
+
+    expect(taken).toEqual({ eins: ['a'], zwei: ['b', 'c', 'd'] })
+  })
+
+  it('take no more kinds once one of them fails, and fail with it', async () => {
+    const measured = []
+
+    await expect(
+      inLanes(['a', 'b', 'c', 'd', 'e'], ['eins', 'zwei'], async (kind) => {
+        measured.push(kind)
+        await pause(5)
+
+        if (kind === 'b') {
+          throw new Error('Das Fenster sollte 320 Pixel breit sein, die Seite meldet 800.')
+        }
+      }),
+    ).rejects.toThrow('Das Fenster sollte 320 Pixel breit sein')
+
+    // What was already being measured on the other page finishes; nothing after it starts.
+    await pause(30)
+    expect(measured).not.toContain('d')
+    expect(measured).not.toContain('e')
+  })
+
+  it('are at least one, rather than measure nothing and find nothing', async () => {
+    await expect(inLanes(['a'], [], () => Promise.resolve('gemessen'))).rejects.toThrow(
+      'es braucht mindestens eine',
     )
   })
 })

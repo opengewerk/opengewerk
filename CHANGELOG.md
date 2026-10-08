@@ -203,6 +203,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Seite vor Ort aus denselben Schritten wie `Crumbs` im Büro, in der Schrift vor Ort und mit
   Umbruch am Telefon; der Typ `Crumb` steht dafür bei den gemeinsamen Bausteinen. Für diese
   Anwendung ändert sich nichts, sie nutzt keines der drei.
+- Die Prüfung "Breiten und Auflösungen" misst auf mehreren Seiten des Browsers zugleich (#576):
+  hell und dunkel nebeneinander, und je Farbwahl teilen sich zwei Seiten die Arten von Seiten,
+  jede nimmt die nächste, sobald sie frei ist. Eine Anwendung kann die Zahl je Farbwahl nennen
+  (`lanes`). Geprüft wird dasselbe wie vorher, und die Befunde stehen in derselben Reihenfolge.
+  Nacheinander brauchte der Job in OpenGewerk Haustechnik zuletzt 30 Minuten, nahe an der
+  Frist, die der Browser einer Sitzung in der CI lässt, und er war der längste der CI.
 
 ### Behoben
 
