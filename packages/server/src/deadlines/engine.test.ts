@@ -13,11 +13,9 @@ import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import { deadlines, jobs, mailOutbox, tasks } from '../database/schema/index.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import { runMailCycle } from '../mail/worker.js'
@@ -116,9 +114,7 @@ async function tasksOf(tenant: TenantId = north) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     north,
     'Elektro Nord GmbH',

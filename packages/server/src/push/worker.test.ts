@@ -11,13 +11,7 @@ import type { Pool } from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { pushOutbox, pushSubscriptions, tasks } from '../database/schema/index.js'
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { type PushJob, runPushCycle } from './worker.js'
 
 /**
@@ -127,9 +121,7 @@ async function messages(tenantId: TenantId = north) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     north,
     'Elektro Nord GmbH',

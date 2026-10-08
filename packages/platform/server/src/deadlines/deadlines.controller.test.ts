@@ -270,7 +270,7 @@ beforeAll(async () => {
 }, 60_000)
 
 beforeEach(async () => {
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
 
   for (const [userId, person] of Object.entries(people)) {

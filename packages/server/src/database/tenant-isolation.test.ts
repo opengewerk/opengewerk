@@ -8,9 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import * as schema from './schema/index.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   checkViolation,
   connect,
   foreignKeyViolation,
@@ -20,7 +18,7 @@ import {
   readDefinerFunctions,
   readPolicies,
   refusedBy,
-  resetSchema,
+  resetToMigrated,
   tableProtections,
   unprotected,
   withoutTheTenant,
@@ -41,9 +39,7 @@ const south = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
 
   // Creating a tenant is not something the application role does: it has no
   // tenant context yet, and the policy on `tenants` would refuse it. This is

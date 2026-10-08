@@ -8,13 +8,7 @@ import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import {
   admitPreviewUser,
   defaultPreviewDatabaseUrl,
@@ -121,9 +115,7 @@ describe('the sample data', () => {
 
   beforeAll(async () => {
     admin = await connect()
-    await resetSchema(admin)
-    await applyMigrations()
-    await allowApplicationLogin(admin)
+    await resetToMigrated()
     await admitPreviewUser(admin, tenant)
 
     database = Database.connect(applicationDatabaseUrl())

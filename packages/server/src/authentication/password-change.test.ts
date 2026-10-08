@@ -16,11 +16,9 @@ import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import { ApiModule } from '../api/api.module.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import { passwordResetMails } from '../mail/password-reset.js'
@@ -78,9 +76,7 @@ async function person(email: string, tenantId = north.id): Promise<string> {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   // One business, the one kind of instance a mail to an account goes out on;
   // the second comes with the last test.
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])

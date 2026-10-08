@@ -32,7 +32,7 @@ beforeAll(async () => {
   const foundation = await probeFoundation()
   const admin = await foundation.kit.connect()
 
-  await foundation.empty(admin)
+  await foundation.empty()
   await admin.end()
 
   database = Database.connect(foundation.kit.applicationDatabaseUrl())

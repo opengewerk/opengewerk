@@ -4,13 +4,7 @@ import { ClosedIdentitySource, Database } from '@opengewerk/platform-server'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 
 /**
@@ -25,9 +19,7 @@ let app: INestApplication
 
 beforeAll(async () => {
   const admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.end()
 
   database = Database.connect(applicationDatabaseUrl())

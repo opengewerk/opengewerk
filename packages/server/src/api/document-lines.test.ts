@@ -8,13 +8,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { documentLines } from '../database/schema/index.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   checkViolation,
   connect,
   refusedBy,
-  resetSchema,
+  resetToMigrated,
 } from '../database/test-database.js'
 
 import { ApiModule } from './api.module.js'
@@ -88,9 +86,7 @@ async function totalsOf(documentId: string) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
   await readyToInvoice(admin, north.id)
 

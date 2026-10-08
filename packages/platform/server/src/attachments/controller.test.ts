@@ -279,7 +279,7 @@ beforeAll(async () => {
 }, 60_000)
 
 beforeEach(async () => {
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
   shown.length = 0
 

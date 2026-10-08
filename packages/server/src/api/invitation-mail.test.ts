@@ -16,11 +16,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { aMailServer, testKey } from '@opengewerk/platform-server/testing'
 
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import { runMailCycle } from '../mail/worker.js'
@@ -112,9 +110,7 @@ async function outboxOf(invitationId: string) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
 
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
   await shipRoles(admin, north.id)

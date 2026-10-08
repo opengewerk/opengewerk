@@ -57,7 +57,7 @@ async function rows(): Promise<Row[]> {
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
 
   database = Database.connect(foundation.kit.applicationDatabaseUrl())

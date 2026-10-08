@@ -6,10 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import * as schema from './schema/index.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
   applicationRole,
-  applyMigrations,
   auditEntryColumns,
   columnNames,
   connect,
@@ -18,7 +16,7 @@ import {
   insufficientPrivilege,
   logCoverage,
   refusedBy,
-  resetSchema,
+  resetToMigrated,
 } from './test-database.js'
 
 /**
@@ -52,9 +50,7 @@ const clerk = { tenantId: tenant.id, userId: 'office-clerk', reason: 'customer.w
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
 
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     tenant.id,

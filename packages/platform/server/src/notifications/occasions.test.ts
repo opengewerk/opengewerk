@@ -180,7 +180,7 @@ function recording() {
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north])
   await admin.query(
     "insert into auth_users (id, name, email) values ('lena', 'Lena', 'lena@example.de')",

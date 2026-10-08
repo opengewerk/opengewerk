@@ -25,12 +25,10 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
   refusedBy,
-  resetSchema,
+  resetToMigrated,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 import { permissionFor } from './sync-routes.js'
@@ -208,9 +206,7 @@ async function documentRow(id: string) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
   await readyToInvoice(admin, north.id)
 

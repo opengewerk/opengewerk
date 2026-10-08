@@ -15,11 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ApiModule } from '../api/api.module.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import { passkeyNotices } from '../mail/passkey-notice.js'
@@ -127,9 +125,7 @@ async function passkeySignIn(authenticator: TestAuthenticator): Promise<string> 
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   // One business, the one kind of instance a mail to an account goes out on
   // (opengewerk-haustechnik#31); the second comes with the last test.
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])

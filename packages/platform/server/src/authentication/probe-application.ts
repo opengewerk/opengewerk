@@ -47,7 +47,7 @@ import { Database } from '../database/database.js'
 import { foundationMigration } from '../database/foundation-migration.js'
 import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { probeMade } from '../database/probe-schema.js'
-import { allowApplicationLogin, type TestDatabase } from '../database/test-database.js'
+import type { TestDatabase } from '../database/test-database.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
@@ -569,8 +569,11 @@ export interface ProbeTenant {
 /** A test database that carries the foundation and nothing else. */
 export interface ProbeFoundation {
   readonly kit: TestDatabase
-  /** Back to the state a freshly started installation is in. */
-  empty(admin: Pool): Promise<void>
+  /**
+   * Back to the state a freshly started installation is in, as a copy of the
+   * database the migration ran into once (`resetToMigrated`, #578).
+   */
+  empty(): Promise<void>
   /**
    * Brings tenants into being the way an application does: the row, and the
    * roles a tenant starts with. A test that wrote the row alone would have a
@@ -600,10 +603,8 @@ export async function probeFoundation(
 
   return {
     kit,
-    async empty(admin) {
-      await kit.resetSchema(admin)
-      await kit.applyMigrations()
-      await allowApplicationLogin(admin)
+    async empty() {
+      await kit.resetToMigrated()
     },
     async tenants(admin, tenants) {
       const database = Database.connect(kit.applicationDatabaseUrl())
