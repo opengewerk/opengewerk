@@ -618,6 +618,14 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
 
   async function resetToMigrated(database: string = testDatabaseUrl()): Promise<void> {
     const name = nameOf(database)
+
+    // This drops the whole database, so the name is checked here as well as
+    // in `testDatabaseUrl`: an address handed in is not checked there.
+    if (!name.endsWith('_test')) {
+      throw new Error(
+        `Refusing to drop and copy the database "${name}": only one whose name ends in "_test" is made again from the template.`,
+      )
+    }
     const server = await onServer(database)
 
     try {

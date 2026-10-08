@@ -135,6 +135,21 @@ describe('a freshly migrated database from the template', () => {
     expect(rows[0]?.count).toBe(0)
   })
 
+  it('refuses a database whose name does not end in _test, rather than drop it', async () => {
+    const elsewhere = new URL(foundation.kit.testDatabaseUrl())
+    elsewhere.pathname = '/refused_by_the_kit'
+
+    await expect(foundation.kit.resetToMigrated(elsewhere.toString())).rejects.toThrow(
+      'only one whose name ends in "_test"',
+    )
+
+    const { rows } = await admin.query('select 1 from pg_database where datname = $1', [
+      'refused_by_the_kit',
+    ])
+
+    expect(rows).toHaveLength(0)
+  })
+
   it('is copied from a template made once, not built again', async () => {
     await foundation.kit.resetToMigrated()
     const before = await templates()
