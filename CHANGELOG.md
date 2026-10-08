@@ -208,7 +208,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   jede nimmt die nächste, sobald sie frei ist. Eine Anwendung kann die Zahl je Farbwahl nennen
   (`lanes`). Geprüft wird dasselbe wie vorher, und die Befunde stehen in derselben Reihenfolge.
   Nacheinander brauchte der Job in OpenGewerk Haustechnik zuletzt 30 Minuten, nahe an der
-  Frist, die der Browser einer Sitzung in der CI lässt, und er war der längste der CI.
+  Frist, die der Browser einer Sitzung in der CI lässt, und er war der längste der CI. Jede Seite
+  öffnet ihre erste Adresse vor der ersten Breite, auch wenn ihre erste Art ein Dialog ist: eine
+  nie geöffnete Seite behält die 800 Pixel, mit denen sie entsteht, und die Prüfung brach in der
+  Haustechnik daran ab.
 
 ### Behoben
 
