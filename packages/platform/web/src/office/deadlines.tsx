@@ -1,8 +1,14 @@
 import { leadProblem } from '@opengewerk/platform-domain'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, RotateCcw, TriangleAlert } from 'lucide-react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useDeferredValue, useMemo, useState } from 'react'
 
 import { Button } from '../components/button.js'
 import { Field, SelectField } from '../components/field.js'
@@ -16,7 +22,7 @@ import {
   type DeadlineFilter,
   type DeadlineKindView,
   deadlineKinds,
-  deadlineList,
+  deadlinePage,
   deadlineRun,
   type DeadlineView,
   markDeadlineDone,
@@ -56,6 +62,21 @@ export interface DeadlineColumn<View extends DeadlineView> {
   readonly className: string
   /** What stands in the cell, and in the line under the title of a card on a phone. */
   readonly text: (deadline: View) => string | null | undefined
+  /** What stands in the cell instead of the text: two lines with a link, for one. The card keeps the text. */
+  readonly cell?: (deadline: View) => ReactNode
+}
+
+/** A filter the application adds to the list, between the kind and the person. */
+export interface DeadlineListFilter {
+  /** Its name in the address the list asks the server: "house". */
+  readonly key: string
+  /** What it says to a screen reader: "Nach Haus filtern". */
+  readonly label: string
+  /** The choice that narrows nothing: "Alle Häuser". */
+  readonly all: string
+  /** The width of the choice, as the other filters have one. */
+  readonly width: string
+  readonly options: readonly { readonly value: string; readonly label: string }[]
 }
 
 /** What the list says in the words of the application. */
@@ -81,8 +102,12 @@ export interface DeadlineListProps<View extends DeadlineView, Kind extends Deadl
     readonly name: (deadline: View) => string
   }
   readonly columns?: readonly DeadlineColumn<View>[]
-  /** What else the search looks in, beside the name of the source and the kind. */
-  readonly searchIn?: (deadline: View) => readonly string[]
+  /**
+   * The filters of the application beside the kind and the person, asked of
+   * the server by their key; what the search looks in beside the source and
+   * the kind is the server's (`searchIn` of the rules).
+   */
+  readonly filters?: readonly DeadlineListFilter[]
   /** What the card of a deadline says beside the day it is due: the record it hangs on, for one. */
   readonly cardFacts?: (deadline: View) => ReactNode
   /** Who answers for a deadline of a kind when nobody has said otherwise, in words. */
@@ -134,9 +159,14 @@ function late(deadline: DeadlineView, now: string): boolean {
  *
  * Nothing is created here: a deadline follows from its source, and the
  * sentence under the table says so. What a person decides is on the card that
- * opens above the list: a lead of its own, another person, done. The chips ask
- * the server for a state, the kind, the person and the search narrow what came
- * back. A pass of the engine that did not happen is said above the list.
+ * opens above the list: a lead of its own, another person, done. A pass of the
+ * engine that did not happen is said above the list.
+ *
+ * A tenant has a few thousand open deadlines, so the list asks the server for
+ * a page at a time (opengewerk-haustechnik#104), narrowed there by the state,
+ * the kind, the person, the search and the filters of the application.
+ * Narrowed to one person it names no number, neither above the list nor under
+ * it: no evaluation by person.
  */
 export function DeadlineListScreen<View extends DeadlineView, Kind extends DeadlineKindView>(
   props: DeadlineListProps<View, Kind>,
@@ -146,12 +176,22 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
   const [kind, setKind] = useState('')
   const [person, setPerson] = useState('')
   const [search, setSearch] = useState('')
+  const [narrowing, setNarrowing] = useState<Readonly<Record<string, string>>>({})
   const [editing, setEditing] = useState<string | null>(null)
+  const wanted = useDeferredValue(search.trim())
+  const { people } = props.usePeople()
 
-  const list = useQuery({
-    queryKey: ['deadlines', status],
-    queryFn: () => deadlineList<View>(status),
+  const question = { status, kind, person, search: wanted, filters: narrowing }
+  const pages = useInfiniteQuery({
+    queryKey: ['deadlines', 'list', question],
+    queryFn: ({ pageParam }) => deadlinePage<View>({ ...question, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) =>
+      last.more ? all.reduce((sum, page) => sum + page.rows.length, 0) : undefined,
     enabled: readsDeadlines,
+    placeholderData: keepPreviousData,
+    // A refusal is an answer: asking again brings the same one.
+    retry: (count, error) => !(error instanceof RequestRefused) && count < 2,
   })
   const kinds = useQuery({
     queryKey: ['deadlines', 'kinds'],
@@ -160,29 +200,29 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
     staleTime: 5 * 60_000,
   })
 
-  const rows = useMemo(() => (Array.isArray(list.data) ? list.data : []), [list.data])
-  const responsibles = useMemo(() => {
-    const byId = new Map<string, string>()
-
-    for (const row of rows) {
-      if (row.responsible) {
-        byId.set(row.responsible.userId, row.responsible.name)
-      }
-    }
-
-    return [...byId.entries()].sort(([, left], [, right]) => left.localeCompare(right, 'de'))
-  }, [rows])
-
-  const wanted = search.trim().toLocaleLowerCase('de')
-  const found = rows.filter(
-    (row) =>
-      (kind === '' || row.kind === kind) &&
-      (person === '' || row.responsible?.userId === person) &&
-      (wanted === '' ||
-        [row.source.label, ...(props.searchIn?.(row) ?? []), row.kindTitle].some((value) =>
-          value.toLocaleLowerCase('de').includes(wanted),
-        )),
+  const first = pages.data?.pages[0]
+  const rows = useMemo(() => pages.data?.pages.flatMap((page) => page.rows) ?? [], [pages.data])
+  // Who can answer for a deadline: whoever works for the tenant and can sign
+  // in; a deadline never waits with somebody blocked.
+  const responsibles = useMemo(
+    () =>
+      people
+        .filter((candidate) => candidate.active)
+        .map((candidate) => [candidate.userId, candidate.name] as const)
+        .sort(([, left], [, right]) => left.localeCompare(right, 'de')),
+    [people],
   )
+  const narrowed =
+    kind !== '' ||
+    person !== '' ||
+    wanted !== '' ||
+    Object.values(narrowing).some((value) => value !== '')
+  /** A filter set anew, with the card of a deadline that may no longer be in the list closed. */
+  const narrow = (change: () => void) => {
+    change()
+    setEditing(null)
+  }
+
   const opened = rows.find((row) => row.id === editing) ?? null
   const openedKind =
     opened && Array.isArray(kinds.data)
@@ -194,8 +234,8 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
       <PageHead
         title="Fristen"
         sub={props.words.sub}
-        {...(status === 'open' && list.isSuccess
-          ? { count: `${rows.length.toLocaleString('de-DE')} offen` }
+        {...(status === 'open' && first && first.total !== null
+          ? { count: `${first.total.toLocaleString('de-DE')} offen` }
           : {})}
       />
       {!readsDeadlines ? (
@@ -236,7 +276,11 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
               label="Nach Art filtern"
               width="w-[230px]"
               value={kind}
-              onChange={setKind}
+              onChange={(value) => {
+                narrow(() => {
+                  setKind(value)
+                })
+              }}
               options={[
                 { value: '', label: 'Alle Arten' },
                 ...(Array.isArray(kinds.data) ? kinds.data : []).map((entry) => ({
@@ -245,11 +289,29 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
                 })),
               ]}
             />
+            {(props.filters ?? []).map((filter) => (
+              <FilterSelect
+                key={filter.key}
+                label={filter.label}
+                width={filter.width}
+                value={narrowing[filter.key] ?? ''}
+                onChange={(value) => {
+                  narrow(() => {
+                    setNarrowing((before) => ({ ...before, [filter.key]: value }))
+                  })
+                }}
+                options={[{ value: '', label: filter.all }, ...filter.options]}
+              />
+            ))}
             <FilterSelect
               label="Nach Person filtern"
               width="w-[190px]"
               value={person}
-              onChange={setPerson}
+              onChange={(value) => {
+                narrow(() => {
+                  setPerson(value)
+                })
+              }}
               options={[
                 { value: '', label: 'Alle Personen' },
                 ...responsibles.map(([userId, name]) => ({ value: userId, label: name })),
@@ -269,19 +331,42 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
             />
           ) : null}
 
-          {list.isPending ? (
+          {pages.isPending ? (
             <p className="text-[13px] text-ink-muted">Wird geladen.</p>
-          ) : list.isError ? (
+          ) : pages.isError ? (
             <p className="text-[13px] text-ink-muted">
-              {saidWhy(list.error, 'Die Fristen kamen nicht an.')}
+              {saidWhy(pages.error, 'Die Fristen kamen nicht an.')}
             </p>
           ) : (
             <DeadlineTable
-              rows={found}
-              empty={rows.length === 0 ? status : null}
+              rows={rows}
+              empty={rows.length === 0 && !narrowed ? status : null}
               selected={editing}
               onEdit={setEditing}
               props={props}
+              footer={
+                first?.total === null && !pages.hasNextPage ? null : (
+                  <>
+                    <span className="numeric">
+                      {first?.total === null || first?.total === undefined
+                        ? ''
+                        : `${rows.length.toLocaleString('de-DE')} von ${first.total.toLocaleString('de-DE')}`}
+                    </span>
+                    <span className="grow" />
+                    {pages.hasNextPage ? (
+                      <Button
+                        size="small"
+                        disabled={pages.isFetchingNextPage}
+                        onClick={() => {
+                          void pages.fetchNextPage()
+                        }}
+                      >
+                        Weitere laden
+                      </Button>
+                    ) : null}
+                  </>
+                )
+              }
             />
           )}
         </>
@@ -337,6 +422,7 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
   selected,
   onEdit,
   props,
+  footer,
 }: {
   readonly rows: readonly View[]
   /** The state asked for, when the server had nothing in it at all. */
@@ -344,6 +430,8 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
   readonly selected: string | null
   readonly onEdit: (id: string) => void
   readonly props: DeadlineListProps<View, Kind>
+  /** How many of how many are shown, and the way to the next page; null for none. */
+  readonly footer: ReactNode
 }) {
   const writes = useRight(props.rights.write)
   const now = today()
@@ -366,6 +454,7 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
     <TablePanel
       caption="Fristen"
       note={note}
+      footer={footer}
       cards={rows.map((deadline) => {
         const href = props.source.href(deadline)
 
@@ -445,7 +534,9 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
                 <span className="block text-[12px] text-ink-faint">{deadline.kindTitle}</span>
               </Cell>
               {columns.map((column) => (
-                <Cell key={column.header}>{column.text(deadline) ?? ''}</Cell>
+                <Cell key={column.header}>
+                  {column.cell ? column.cell(deadline) : (column.text(deadline) ?? '')}
+                </Cell>
               ))}
               <Cell>{deadline.responsible?.name ?? ''}</Cell>
               <Cell

@@ -66,10 +66,66 @@ export interface DeadlineRunView {
 /** The chips of the list: a state, or all of them. */
 export type DeadlineFilter = DeadlineStatus | 'all'
 
-export function deadlineList<View extends DeadlineView = DeadlineView>(
-  status: DeadlineFilter,
-): Promise<readonly View[]> {
-  return request<readonly View[]>(`/deadlines?status=${status}`)
+/** How many deadlines the list asks for at a time. */
+export const deadlinePageSize = 50
+
+/**
+ * What the list asks the server: a state, what it is narrowed by and which
+ * page (opengewerk-haustechnik#104). The filters of the application go by
+ * their names in the address; an empty value narrows nothing.
+ */
+export interface DeadlineQuestion {
+  readonly status: DeadlineFilter
+  readonly kind?: string
+  readonly person?: string
+  readonly search?: string
+  /** Only the deadlines past their day: what a count of the late ones asks. */
+  readonly late?: boolean
+  readonly filters?: Readonly<Record<string, string>>
+  readonly offset?: number
+  readonly limit?: number
+}
+
+/**
+ * One page of the list. `total` is null when the list is narrowed to one
+ * person: it names no number for a person, how many deadlines somebody has
+ * or how many of them are late.
+ */
+export interface DeadlinePageView<View extends DeadlineView = DeadlineView> {
+  readonly rows: readonly View[]
+  readonly total: number | null
+  readonly more: boolean
+}
+
+/** The address of one page: the state first, then whatever narrows it, then the page. */
+export function deadlinePagePath(question: DeadlineQuestion): string {
+  const query = new URLSearchParams({ status: question.status })
+
+  for (const [name, value] of [
+    ['kind', question.kind],
+    ['person', question.person],
+    ['search', question.search?.trim()],
+    ['late', question.late ? 'true' : undefined],
+    ...Object.entries(question.filters ?? {}),
+  ] as const) {
+    if (value !== undefined && value !== '') {
+      query.set(name, value)
+    }
+  }
+
+  if (question.offset !== undefined && question.offset > 0) {
+    query.set('offset', String(question.offset))
+  }
+
+  query.set('limit', String(question.limit ?? deadlinePageSize))
+
+  return `/deadlines?${query.toString()}`
+}
+
+export function deadlinePage<View extends DeadlineView = DeadlineView>(
+  question: DeadlineQuestion,
+): Promise<DeadlinePageView<View>> {
+  return request<DeadlinePageView<View>>(deadlinePagePath(question))
 }
 
 export function deadlineKinds<Kind extends DeadlineKindView = DeadlineKindView>(): Promise<

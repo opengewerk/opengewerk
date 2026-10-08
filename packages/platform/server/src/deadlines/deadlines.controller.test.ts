@@ -9,6 +9,7 @@ import {
   type MemberIdentity,
   type TenantId,
 } from '@opengewerk/platform-domain'
+import { eq, ilike } from 'drizzle-orm'
 import { Client, type Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,6 +33,7 @@ import { type ProbeDeadlineColumns, probeDeadlines } from '../database/probe-sch
 import {
   type DeadlineEntry,
   type DeadlineKindEntry,
+  type DeadlinePage,
   deadlineParts,
   type DeadlineRules,
   type DeadlineRunEntry,
@@ -106,6 +108,10 @@ const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
     followed.push(`describe ${String(rows.length)}`)
 
     return (row) => ({ parcelNumber: row.parcelNumber })
+  },
+  searchIn: (pattern) => ilike(probeDeadlines.parcelNumber, pattern),
+  filters: {
+    parcel: (value) => (/^P-\d+$/.test(value) ? eq(probeDeadlines.parcelNumber, value) : null),
   },
   kindFields: (kind) => ({ countsIn: kind.intervalMonths ? 'months' : 'days' }),
   afterResponsible: async (_tx, _tenantId, row) => {
@@ -207,13 +213,31 @@ async function aDeadline(over: {
   return id
 }
 
-async function list(person: Person, status?: string): Promise<DeadlineEntry[]> {
+/** One page of the list, as the route answers the question in the address. */
+async function page(person: Person, query = ''): Promise<DeadlinePage> {
   const answer = await http()
-    .get(status === undefined ? '/deadlines' : `/deadlines?status=${status}`)
+    .get(query === '' ? '/deadlines' : `/deadlines?${query}`)
     .set(testIdentityHeader, as(person))
     .expect(200)
 
-  return answer.body as DeadlineEntry[]
+  return answer.body as DeadlinePage
+}
+
+/** The deadlines of a state on the first page. */
+async function list(person: Person, status?: string): Promise<readonly DeadlineEntry[]> {
+  return (await page(person, status === undefined ? '' : `status=${status}`)).rows
+}
+
+/** What the source of each deadline on a page is called, and how many the list says there are. */
+async function found(person: Person, query: string): Promise<[string[], number | null]> {
+  const answer = await page(person, query)
+
+  return [answer.rows.map((entry) => entry.source.label), answer.total]
+}
+
+/** Gives a deadline a person of its own. */
+async function ownPerson(id: string, userId: string): Promise<void> {
+  await admin.query('update deadlines set responsible_user_id = $1 where id = $2', [userId, id])
 }
 
 /** How many statements go to the database while something is done. */
@@ -382,6 +406,113 @@ describe('the list of deadlines', () => {
 
   it('refuses a state it does not know', async () => {
     await http().get('/deadlines?status=late').set(testIdentityHeader, as('mia')).expect(400)
+  })
+
+  it('pages through them by their day, and says whether more follow and how many there are', async () => {
+    for (const day of ['05', '01', '04', '02', '03']) {
+      await aDeadline({ label: `Paket P-${day}`, dueOn: `2037-03-${day}` })
+    }
+
+    await aDeadline({ label: 'Paket erledigt', dueOn: '2037-02-01', status: 'done' })
+
+    expect(await page('mia', 'limit=2')).toMatchObject({ total: 5, more: true })
+    expect(await found('mia', 'limit=2')).toEqual([['Paket P-01', 'Paket P-02'], 5])
+    expect(await found('mia', 'offset=2&limit=2')).toEqual([['Paket P-03', 'Paket P-04'], 5])
+    expect(await page('mia', 'offset=4&limit=2')).toMatchObject({ total: 5, more: false })
+    expect(await found('mia', 'offset=4&limit=2')).toEqual([['Paket P-05'], 5])
+    expect(await found('mia', 'status=all&limit=1')).toEqual([['Paket erledigt'], 6])
+  })
+
+  it('narrows by kind, by the search and by the filters of the application, and counts what it finds', async () => {
+    await aDeadline({ label: 'Paket am Tor', dueOn: '2037-03-01', parcel: 'P-7' })
+    await aDeadline({ label: 'Paket am Empfang', dueOn: '2037-03-02', parcel: 'P-8' })
+    await aDeadline({ kind: 'door.check', label: 'Haus Ost', dueOn: '2037-03-03', natural: null })
+    await aDeadline({ kind: 'door.check', label: 'Haus 50%', dueOn: '2037-03-04', natural: null })
+
+    expect(await found('mia', 'kind=door.check')).toEqual([['Haus Ost', 'Haus 50%'], 2])
+    // The name of the source, in any case; the title of the kind; what the
+    // application adds; and a sign of the pattern taken as it is written.
+    expect(await found('mia', 'search=TOR')).toEqual([['Paket am Tor'], 1])
+    expect(await found('mia', 'search=brandschutz')).toEqual([['Haus Ost', 'Haus 50%'], 2])
+    expect(await found('mia', 'search=p-8')).toEqual([['Paket am Empfang'], 1])
+    expect(await found('mia', 'search=%25')).toEqual([['Haus 50%'], 1])
+    expect(await found('mia', 'parcel=P-7')).toEqual([['Paket am Tor'], 1])
+    expect(await found('mia', 'parcel=P-7&search=empfang')).toEqual([[], 0])
+  })
+
+  it('narrows to the late ones, past their day by the calendar in Germany', async () => {
+    await aDeadline({ label: 'Paket von gestern', dueOn: '2020-01-01' })
+    await aDeadline({ label: 'Paket von morgen', dueOn: '2037-03-01' })
+    await aDeadline({ label: 'Paket erledigt', dueOn: '2020-01-02', status: 'done' })
+
+    expect(await found('mia', 'late=true')).toEqual([['Paket von gestern'], 1])
+    expect(await found('mia', 'status=all&late=true')).toEqual([
+      ['Paket von gestern', 'Paket erledigt'],
+      2,
+    ])
+    await http().get('/deadlines?late=ja').set(testIdentityHeader, as('mia')).expect(400)
+  })
+
+  it('refuses what a filter of the application cannot read, a page it cannot read and a value given twice', async () => {
+    for (const query of [
+      'parcel=Tor',
+      'limit=0',
+      `limit=201`,
+      'limit=zwei',
+      'limit=1e1',
+      'offset=-1',
+      'offset=1.5',
+      'kind=parcel.pickup&kind=door.check',
+    ]) {
+      await http()
+        .get(`/deadlines?${query}`)
+        .set(testIdentityHeader, as('mia'))
+        .expect(400)
+        .catch((error: unknown) => {
+          throw new Error(`${query}: ${String(error)}`)
+        })
+    }
+  })
+
+  /**
+   * Narrowed to a person the list names no number: not how many deadlines
+   * somebody answers for, nor how many of them are late
+   * (opengewerk-haustechnik#104). Who answers is worked out by the order of
+   * the settings, so the person is found the same way the list names one.
+   */
+  it('narrowed to a person, pages through what that person answers for and names no number', async () => {
+    await aDeadline({ label: 'A Mia', dueOn: '2037-03-01' })
+    await ownPerson(await aDeadline({ label: 'B Lena von sich aus', dueOn: '2037-03-02' }), 'lena')
+    await aDeadline({ kind: 'door.check', label: 'C Haus Ost', dueOn: '2037-03-03', natural: null })
+    await aDeadline({ label: 'D Mia', dueOn: '2037-03-04' })
+    await aDeadline({ label: 'E niemand', dueOn: '2037-03-05', natural: null })
+    await aDeadline({ label: 'F Mia', dueOn: '2037-03-06' })
+
+    expect(await page('lena', 'person=mia&limit=2')).toMatchObject({ total: null, more: true })
+    expect(await found('lena', 'person=mia&limit=2')).toEqual([['A Mia', 'D Mia'], null])
+    expect(await page('lena', 'person=mia&offset=2&limit=2')).toMatchObject({ more: false })
+    expect(await found('lena', 'person=mia&offset=2&limit=2')).toEqual([['F Mia'], null])
+    expect(await found('lena', 'person=lena')).toEqual([
+      ['B Lena von sich aus', 'C Haus Ost', 'E niemand'],
+      null,
+    ])
+    expect(await found('lena', 'person=mia&search=d')).toEqual([['D Mia'], null])
+    expect(await found('lena', 'person=gero')).toEqual([[], null])
+  })
+
+  it('takes no filter of the application by a name the list has for itself', () => {
+    expect(() =>
+      deadlineParts({
+        access: probeAccess,
+        rights: {
+          read: 'members.read',
+          write: 'notes.write',
+          settingsRead: 'members.read',
+          settingsWrite: 'membership.write',
+        },
+        rules: { ...rules, filters: { kind: () => null } },
+      }),
+    ).toThrow('A filter of the application takes a name of the list: kind')
   })
 
   it('names the kinds with what the tenant has set and what the application adds', async () => {

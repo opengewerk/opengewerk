@@ -7,7 +7,12 @@ import { aTenant, signedIn, standInServer } from '../in-frame.js'
 import type { StandIn } from '../in-frame.js'
 import { InRouter } from '../in-router.js'
 import { InProbe } from '../probe-application.js'
-import type { DeadlineKindView, DeadlineView } from './deadline-requests.js'
+import {
+  type DeadlineKindView,
+  deadlinePagePath,
+  type DeadlinePageView,
+  type DeadlineView,
+} from './deadline-requests.js'
 import { DeadlineSettingsScreen } from './deadline-settings.js'
 import { DeadlineListScreen } from './deadlines.js'
 
@@ -75,6 +80,18 @@ function aDeadline(over: Partial<ProbeDeadline> = {}): ProbeDeadline {
   }
 }
 
+/** The address of the first page of open deadlines, narrowed by nothing. */
+const firstPage = '/deadlines?status=open&limit=50'
+
+/** A page of the list as the server answers it: by default all there are. */
+function aPage(
+  rows: readonly ProbeDeadline[],
+  total: number | null = rows.length,
+  more = false,
+): DeadlinePageView<ProbeDeadline> {
+  return { rows, total, more }
+}
+
 const people = () => ({
   me: 'u-1',
   people: [
@@ -119,9 +136,22 @@ function list() {
           header: 'Paketnummer',
           className: 'w-[120px] min-w-[100px]',
           text: (deadline) => deadline.parcelNumber,
+          cell: (deadline) =>
+            deadline.parcelNumber ? <strong>{deadline.parcelNumber}</strong> : null,
         },
       ]}
-      searchIn={(deadline) => [deadline.parcelNumber ?? '']}
+      filters={[
+        {
+          key: 'house',
+          label: 'Nach Haus filtern',
+          all: 'Alle Häuser',
+          width: 'w-[150px]',
+          options: [
+            { value: 'h-1', label: 'Haus Ost' },
+            { value: 'h-2', label: 'Haus West' },
+          ],
+        },
+      ]}
       cardFacts={(deadline) =>
         deadline.parcelNumber ? <span>Paket: {deadline.parcelNumber}</span> : null
       }
@@ -172,7 +202,7 @@ beforeEach(() => {
   afterChange = vi.fn<() => void>()
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-30T10:00:00Z') })
   rightsOf('deadlines.read', 'deadlines.write', 'settings.write')
-  server.answer('GET', '/deadlines?status=open', [])
+  server.answer('GET', firstPage, aPage([]))
   server.answer('GET', '/deadlines/kinds', [pickup, doors])
   server.answer('GET', '/settings/deadlines', [pickup, doors])
   server.answer('GET', '/deadlines/run', {
@@ -189,21 +219,26 @@ afterEach(() => {
 
 describe('the list of deadlines', () => {
   it('shows what is due with the column of the application, the way to the source and late ones marked', async () => {
-    server.answer('GET', '/deadlines?status=open', [
-      aDeadline(),
-      aDeadline({
-        id: 'd-2',
-        dueOn: '2026-10-08',
-        remindOn: '2026-10-07',
-        parcelNumber: null,
-        source: { label: 'Paket ohne Nummer' },
-      }),
-    ])
+    server.answer(
+      'GET',
+      firstPage,
+      aPage([
+        aDeadline(),
+        aDeadline({
+          id: 'd-2',
+          dueOn: '2026-10-08',
+          remindOn: '2026-10-07',
+          parcelNumber: null,
+          source: { label: 'Paket ohne Nummer' },
+        }),
+      ]),
+    )
     list()
 
     const table = await screen.findByRole('table', { name: 'Fristen' })
 
     expect(within(table).getByRole('columnheader', { name: 'Paketnummer' })).toBeTruthy()
+    expect(within(table).getByText('P-0042').tagName).toBe('STRONG')
     expect(within(table).getByRole('link', { name: 'Paket P-0042' }).getAttribute('href')).toBe(
       '/pakete/P-0042',
     )
@@ -213,35 +248,95 @@ describe('the list of deadlines', () => {
     expect(screen.getByText('Was am Empfang fällig wird.')).toBeTruthy()
   })
 
-  it('searches in what the application adds', async () => {
-    server.answer('GET', '/deadlines?status=open', [
-      aDeadline(),
-      aDeadline({ id: 'd-2', parcelNumber: 'P-0099', source: { label: 'Paket am Tor' } }),
-    ])
+  it('asks the server for a page narrowed by the kind, the filters of the application, the person and the search', async () => {
+    const narrowed =
+      '/deadlines?status=open&kind=door.check&person=u-2&search=Tor&house=h-1&limit=50'
+
+    server.answer('GET', firstPage, aPage([aDeadline()]))
+    server.answer(
+      'GET',
+      narrowed,
+      aPage([aDeadline({ id: 'd-2', source: { label: 'Paket am Tor' } })], null),
+    )
     list()
 
-    const table = await screen.findByRole('table', { name: 'Fristen' })
+    await screen.findByRole('table', { name: 'Fristen' })
     const user = userEvent.setup()
-    await user.type(screen.getByLabelText('Fristen durchsuchen'), 'P-0099')
+    await user.selectOptions(screen.getByLabelText('Nach Art filtern'), 'door.check')
+    await user.selectOptions(screen.getByLabelText('Nach Haus filtern'), 'h-1')
+    await user.selectOptions(screen.getByLabelText('Nach Person filtern'), 'u-2')
+    await user.type(screen.getByLabelText('Fristen durchsuchen'), 'Tor')
 
-    expect(within(table).queryByText('Paket P-0042')).toBeNull()
-    expect(within(table).getByText('Paket am Tor')).toBeTruthy()
+    expect(await screen.findByText('Paket am Tor')).toBeTruthy()
+    expect(asked(narrowed)).toBeGreaterThan(0)
+  })
+
+  it('asks for the late ones at the address an application counts them with', () => {
+    expect(deadlinePagePath({ status: 'open', late: true, limit: 1 })).toBe(
+      '/deadlines?status=open&late=true&limit=1',
+    )
+  })
+
+  it('loads the next page, and says how many of how many it shows', async () => {
+    server.answer('GET', firstPage, aPage([aDeadline()], 2, true))
+    server.answer(
+      'GET',
+      '/deadlines?status=open&offset=1&limit=50',
+      aPage([aDeadline({ id: 'd-2', source: { label: 'Paket am Tor' } })], 2),
+    )
+    list()
+
+    expect(await screen.findByText('1 von 2')).toBeTruthy()
+    expect(screen.getByText('2 offen')).toBeTruthy()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Weitere laden' }))
+
+    expect(await screen.findByText('Paket am Tor')).toBeTruthy()
+    expect(screen.getByText('2 von 2')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Weitere laden' })).toBeNull()
+  })
+
+  it('names no number narrowed to a person, and offers nobody who cannot sign in', async () => {
+    server.answer('GET', firstPage, aPage([aDeadline()], 2, true))
+    server.answer(
+      'GET',
+      '/deadlines?status=open&person=u-2&limit=50',
+      aPage([aDeadline()], null, true),
+    )
+    list()
+
+    await screen.findByText('2 offen')
+    const choice = screen.getByLabelText('Nach Person filtern')
+
+    expect(within(choice).queryByRole('option', { name: 'Gesa Gesperrt' })).toBeNull()
+
+    await userEvent.setup().selectOptions(choice, 'u-2')
+
+    await waitFor(() => {
+      expect(screen.queryByText(/^\d+ offen$/)).toBeNull()
+    })
+    expect(screen.queryByText(/\d von \d/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Weitere laden' })).toBeTruthy()
   })
 
   it('says on the card how far the day lies after its anchor, in months for a kind that counts them', async () => {
-    server.answer('GET', '/deadlines?status=open', [
-      aDeadline({
-        id: 'd-3',
-        kind: 'door.check',
-        kindTitle: 'Prüfung der Brandschutztüren',
-        anchorOn: '2026-04-15',
-        dueOn: '2026-10-15',
-        remindOn: '2026-10-01',
-        leadDays: 14,
-        parcelNumber: null,
-        source: { label: 'Haus Ost' },
-      }),
-    ])
+    server.answer(
+      'GET',
+      firstPage,
+      aPage([
+        aDeadline({
+          id: 'd-3',
+          kind: 'door.check',
+          kindTitle: 'Prüfung der Brandschutztüren',
+          anchorOn: '2026-04-15',
+          dueOn: '2026-10-15',
+          remindOn: '2026-10-01',
+          leadDays: 14,
+          parcelNumber: null,
+          source: { label: 'Haus Ost' },
+        }),
+      ]),
+    )
     list()
 
     const user = userEvent.setup()
@@ -258,7 +353,7 @@ describe('the list of deadlines', () => {
   })
 
   it('shows what the application says about the record on the card, and offers nobody blocked', async () => {
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     list()
 
     const user = userEvent.setup()
@@ -335,7 +430,7 @@ describe('the list of deadlines', () => {
   })
 
   it('says nothing about the engine while all is well', async () => {
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     list()
 
     await screen.findByRole('table', { name: 'Fristen' })
@@ -355,7 +450,7 @@ describe('the list of deadlines', () => {
 
   it('offers nothing to press without the right to decide', async () => {
     rightsOf('deadlines.read')
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     list()
 
     // The list is only asked for once the rights are known, so the table
@@ -368,7 +463,7 @@ describe('the list of deadlines', () => {
   })
 
   it('asks for the deadlines anew once one is done, and lets the application follow up', async () => {
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     server.answer('POST', '/deadlines/d-1/done', aDeadline({ status: 'done' }))
     list()
 
@@ -380,12 +475,12 @@ describe('the list of deadlines', () => {
       expect(afterChange).toHaveBeenCalledTimes(1)
     })
     await waitFor(() => {
-      expect(asked('/deadlines?status=open')).toBe(2)
+      expect(asked(firstPage)).toBe(2)
     })
   })
 
   it('does not follow up on a change the server refused', async () => {
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     server.answer('POST', '/deadlines/d-1/done', { message: 'Die Frist ist schon erledigt.' }, 409)
     list()
 
@@ -398,7 +493,7 @@ describe('the list of deadlines', () => {
   })
 
   it('lets the application follow up once the card of a deadline is saved', async () => {
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     server.answer('PATCH', '/deadlines/d-1', aDeadline({ ownLeadDays: 3 }))
     list()
 
@@ -423,7 +518,7 @@ describe('the list of deadlines', () => {
 
   it('shows a box per deadline on a phone, with what the application adds and its buttons', async () => {
     onAPhone()
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     list()
 
     const boxes = await screen.findByRole('list', { name: 'Fristen' })
@@ -439,7 +534,7 @@ describe('the list of deadlines', () => {
   it('offers nothing to press on a phone without the right to decide', async () => {
     onAPhone()
     rightsOf('deadlines.read')
-    server.answer('GET', '/deadlines?status=open', [aDeadline()])
+    server.answer('GET', firstPage, aPage([aDeadline()]))
     list()
 
     // As in the table: the list is only asked for once the rights are known.

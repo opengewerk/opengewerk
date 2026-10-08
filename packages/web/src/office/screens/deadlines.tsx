@@ -56,7 +56,6 @@ export function DeadlineListScreen() {
           text: (deadline) => deadline.customer?.name,
         },
       ]}
-      searchIn={(deadline) => [deadline.customer?.name ?? '']}
       cardFacts={(deadline) =>
         deadline.customer ? (
           <span>
