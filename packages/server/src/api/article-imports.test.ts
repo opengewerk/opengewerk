@@ -11,13 +11,7 @@ import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { ArticleImports, endInterruptedImports } from '../datanorm/imports.js'
 import { cp850, header, zipOf } from '../datanorm/test-files.js'
 import { ApiModule } from './api.module.js'
@@ -156,9 +150,7 @@ const catalogue = cp850([
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     north.id,
     north.name,

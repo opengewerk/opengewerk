@@ -1,8 +1,9 @@
+import { createHash } from 'node:crypto'
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { Pool } from 'pg'
+import { Pool, type PoolClient } from 'pg'
 
 import { catalogueDeviations, type OwnAdditions, readCatalogue } from './catalogue.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
@@ -43,7 +44,27 @@ const ownerPassword = 'nur-für-die-testdatenbank'
 export const applicationRole = applicationRoleName
 const applicationPassword = 'nur-für-die-testdatenbank'
 
-export async function allowApplicationLogin(pool: Pool): Promise<void> {
+/**
+ * The role the migrations run as, with its password. The role survives a
+ * reset, the password has to be set either way. Only creating it when it is
+ * missing looks the same until somebody changes the password here: CI starts
+ * from an empty database and goes through, every local database still holds
+ * the old one and every test fails at the connection. Setting it on both paths
+ * costs one statement.
+ */
+async function giveOwnerRole(pool: Pool | PoolClient): Promise<void> {
+  await pool.query(`do $$
+    begin
+      if not exists (select from pg_roles where rolname = '${ownerRole}') then
+        create role "${ownerRole}" login password '${ownerPassword}' createrole;
+      else
+        alter role "${ownerRole}" login password '${ownerPassword}' createrole;
+      end if;
+    end
+  $$`)
+}
+
+export async function allowApplicationLogin(pool: Pool | PoolClient): Promise<void> {
   await pool.query(`alter role "${applicationRole}" login password '${applicationPassword}'`)
 }
 
@@ -270,6 +291,50 @@ export function writeMigrationsFolder(migrations: readonly WrittenMigration[]): 
   return folder
 }
 
+/**
+ * Raised when what goes into a template changes beyond the migrations, so
+ * that no database keeps copying a template made the old way.
+ */
+const templateFormat = 1
+
+/** What a template is called while it is being built. */
+const buildingSuffix = '_building'
+
+/** The name of the database an address points at. */
+function nameOf(database: string): string {
+  return new URL(database).pathname.replace(/^\//, '')
+}
+
+/** The same address, pointing at another database of the same server. */
+function withName(database: string, name: string): string {
+  const url = new URL(database)
+  url.pathname = `/${name}`
+
+  return url.toString()
+}
+
+/**
+ * A short fingerprint of what the migration runner reads from a folder: the
+ * journal and the file of every migration it names, with where the record of
+ * them is kept. The snapshots drizzle-kit writes beside them are not read, and
+ * not hashed either.
+ */
+export function migrationsFingerprint(folder: string, history?: MigrationHistory): string {
+  const hash = createHash('sha256')
+  const journal = readFileSync(join(folder, 'meta', '_journal.json'), 'utf8')
+  const { entries } = JSON.parse(journal) as { entries: { tag: string }[] }
+
+  hash.update(`template format ${String(templateFormat)}\n${JSON.stringify(history ?? null)}\n`)
+  hash.update(journal)
+
+  for (const { tag } of entries) {
+    hash.update(`\n${tag}\n`)
+    hash.update(readFileSync(join(folder, `${tag}.sql`)))
+  }
+
+  return hash.digest('hex').slice(0, 12)
+}
+
 /** What a test kit has to be told about the application it is for. */
 export interface TestDatabaseOptions {
   /** The migrations of the application, the folder its image carries. */
@@ -312,6 +377,16 @@ export interface TestDatabase {
   resetSchema(pool: Pool, database?: string): Promise<void>
   /** Runs the migrations the way an installation does, as the owner. */
   applyMigrations(database?: string): Promise<void>
+  /**
+   * Back to a freshly migrated database, the state `resetSchema`,
+   * `applyMigrations` and `allowApplicationLogin` leave behind, in a fraction
+   * of their time (#578): the database is dropped and made again as a copy of
+   * a template the migrations ran into once, the first time it is asked for.
+   * Whatever is connected to the database loses that connection; a pool opens
+   * a new one on its next query, and one it has no listener for ends the test
+   * run. A test of the migrations themselves keeps building them.
+   */
+  resetToMigrated(database?: string): Promise<void>
   /**
    * Rolls a migration back. The file is split on the same marker drizzle-kit
    * writes into the forward migration, so both halves are read the same way.
@@ -383,6 +458,11 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
   async function connect(): Promise<Pool> {
     const pool = new Pool({ connectionString: testDatabaseUrl(), max: 4 })
 
+    // `resetToMigrated` drops the database under the connections this pool
+    // keeps open. The pool reports each as an event and opens a new one on the
+    // next query; an event nobody listens to would end the test run.
+    pool.on('error', () => undefined)
+
     try {
       await pool.query('select 1')
     } catch (cause) {
@@ -419,28 +499,165 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
 
     await pool.query('create schema public')
 
-    // The role survives a reset, the password has to be set either way. Only
-    // creating it when it is missing looks the same until somebody changes the
-    // password here: CI starts from an empty database and goes through, every
-    // local database still holds the old one and every test fails at the
-    // connection. Setting it on both paths costs one statement.
-    await pool.query(`do $$
-      begin
-        if not exists (select from pg_roles where rolname = '${ownerRole}') then
-          create role "${ownerRole}" login password '${ownerPassword}' createrole;
-        else
-          alter role "${ownerRole}" login password '${ownerPassword}' createrole;
-        end if;
-      end
-    $$`)
-
-    const name = new URL(database).pathname.replace(/^\//, '')
-    await pool.query(`grant create on database "${name}" to "${ownerRole}"`)
+    await giveOwnerRole(pool)
+    await pool.query(`grant create on database "${nameOf(database)}" to "${ownerRole}"`)
     await pool.query(`alter schema public owner to "${ownerRole}"`)
   }
 
   async function applyMigrations(database: string = testDatabaseUrl()): Promise<void> {
     await runMigrations(ownerDatabaseUrl(database), migrationsFolder, history)
+  }
+
+  /** A pool on the database every server has, to make and drop the others from. */
+  async function onServer(database: string): Promise<Pool> {
+    const server = new Pool({ connectionString: withName(database, 'postgres'), max: 1 })
+
+    try {
+      await server.query('select 1')
+    } catch (cause) {
+      await server.end()
+      throw new Error(`No database to talk to. Start it with "${startHint}".`, { cause })
+    }
+
+    return server
+  }
+
+  /**
+   * The template for the migrations as they are now. Named after the test
+   * database and a fingerprint of what the migration runner reads, so that a
+   * changed or added migration gets a template of its own and an old one is
+   * never copied.
+   */
+  function templateName(database: string): string {
+    const name = `${nameOf(database).replace(/_test$/, '')}_template_${migrationsFingerprint(migrationsFolder, history)}`
+
+    if (name.length + buildingSuffix.length > 63) {
+      throw new Error(
+        `The template for the database "${nameOf(database)}" would be named "${name}", longer than PostgreSQL keeps a name.`,
+      )
+    }
+
+    return name
+  }
+
+  /**
+   * Builds the template once, the way `resetSchema`, `applyMigrations` and
+   * `allowApplicationLogin` build a test database, unless it is there.
+   *
+   * One process at a time on the whole server, through a lock in the database
+   * every connection here shares; the next finds the template made. It is
+   * built under another name and renamed when it is whole, so that a run that
+   * broke off halfway leaves nothing that gets copied.
+   */
+  async function migratedTemplate(server: Pool, database: string): Promise<string> {
+    const template = templateName(database)
+    const client = await server.connect()
+
+    try {
+      await client.query('select pg_advisory_lock(hashtext($1))', [template])
+
+      const { rowCount } = await client.query('select 1 from pg_database where datname = $1', [
+        template,
+      ])
+
+      if (rowCount === 0) {
+        await dropStaleTemplates(client, database)
+
+        const building = `${template}${buildingSuffix}`
+        const url = withName(database, building)
+
+        await client.query(`drop database if exists "${building}" with (force)`)
+        await client.query(`create database "${building}"`)
+
+        const pool = new Pool({ connectionString: url, max: 1 })
+
+        try {
+          await resetSchema(pool, url)
+          await applyMigrations(url)
+          await allowApplicationLogin(pool)
+        } finally {
+          await pool.end()
+        }
+
+        await client.query(`alter database "${building}" rename to "${template}"`)
+        // Nobody connects to it, which is what copying it needs.
+        await client.query(`alter database "${template}" with allow_connections false`)
+        await client.query(`comment on database "${template}" is '${new Date().toISOString()}'`)
+      }
+    } finally {
+      try {
+        await client.query('select pg_advisory_unlock(hashtext($1))', [template])
+      } finally {
+        client.release()
+      }
+    }
+
+    return template
+  }
+
+  /**
+   * The templates of this test database that were made more than two days
+   * ago: every changed migration leaves one behind on a database that keeps
+   * running between test runs. One that is still in use is made again.
+   */
+  async function dropStaleTemplates(client: PoolClient, database: string): Promise<void> {
+    const prefix = `${nameOf(database).replace(/_test$/, '')}_template_`
+    const before = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    const { rows } = await client.query<{ datname: string }>(
+      `select datname from pg_database
+        where left(datname, length($1)) = $1
+          and right(datname, length($2)) <> $2
+          and coalesce(shobj_description(oid, 'pg_database'), '') < $3`,
+      [prefix, buildingSuffix, before],
+    )
+
+    for (const { datname } of rows) {
+      await client.query(`drop database if exists "${datname}" with (force)`)
+    }
+  }
+
+  async function resetToMigrated(database: string = testDatabaseUrl()): Promise<void> {
+    const name = nameOf(database)
+
+    // This drops the whole database, so the name is checked here as well as
+    // in `testDatabaseUrl`: an address handed in is not checked there.
+    if (!name.endsWith('_test')) {
+      throw new Error(
+        `Refusing to drop and copy the database "${name}": only one whose name ends in "_test" is made again from the template.`,
+      )
+    }
+    const server = await onServer(database)
+
+    try {
+      const template = await migratedTemplate(server, database)
+
+      await server.query(`drop database if exists "${name}" with (force)`)
+      await server.query(`create database "${name}" template "${template}"`)
+      // A copy takes what is in the template, not what was granted on the
+      // template itself: the grant `resetSchema` gives the owner is given again.
+      await server.query(`grant create on database "${name}" to "${ownerRole}"`)
+      // The roles belong to the server and not to the copy. A test may have
+      // changed one since the template was made, and `resetSchema` and
+      // `allowApplicationLogin` set them every time, so this does too; under a
+      // lock for the whole server, because a second test run on it, with a
+      // database of its own, changes the same rows of the catalogue.
+      const client = await server.connect()
+
+      try {
+        await client.query('begin')
+        await client.query("select pg_advisory_xact_lock(hashtext('test kit roles'))")
+        await giveOwnerRole(client)
+        await allowApplicationLogin(client)
+        await client.query('commit')
+      } catch (error) {
+        await client.query('rollback')
+        throw error
+      } finally {
+        client.release()
+      }
+    } finally {
+      await server.end()
+    }
   }
 
   async function revertMigration(pool: Pool, name: string): Promise<void> {
@@ -538,6 +755,7 @@ export function testDatabase(options: TestDatabaseOptions): TestDatabase {
     applicationDatabaseUrl,
     resetSchema,
     applyMigrations,
+    resetToMigrated,
     revertMigration,
     revertAllMigrations,
     migrationsFolderUpTo,

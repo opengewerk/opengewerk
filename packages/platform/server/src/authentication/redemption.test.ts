@@ -90,7 +90,7 @@ async function rolesIn(tenantId: TenantId, email: string): Promise<readonly stri
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
 
   instance = await probeInstance(foundation.kit.applicationDatabaseUrl())

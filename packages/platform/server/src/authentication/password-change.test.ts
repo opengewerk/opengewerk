@@ -52,7 +52,7 @@ async function person(email: string, tenantId: TenantId = north.id): Promise<voi
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north])
 
   instance = await probeInstance(foundation.kit.applicationDatabaseUrl(), {

@@ -19,6 +19,7 @@ export const {
   applicationDatabaseUrl,
   resetSchema,
   applyMigrations,
+  resetToMigrated,
   revertMigration,
   revertAllMigrations,
   migrationsFolderUpTo,

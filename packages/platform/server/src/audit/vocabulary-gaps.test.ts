@@ -21,7 +21,7 @@ let admin: Pool
 beforeAll(async () => {
   foundation = await probeFoundation(probeSyncMade)
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
 }, 60_000)
 
 afterAll(async () => {
@@ -187,7 +187,7 @@ describe('an application that has not made every table of the foundation yet', (
   beforeAll(async () => {
     early = await probeFoundation(withoutSettings)
     earlyAdmin = await early.kit.connect()
-    await early.empty(earlyAdmin)
+    await early.empty()
   }, 60_000)
 
   afterAll(async () => {

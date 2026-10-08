@@ -111,6 +111,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Der Testbaukasten setzt eine Testdatenbank in einem Bruchteil der Zeit auf den frisch
+  migrierten Stand zurück (#578). `resetToMigrated` legt sie als Kopie einer Vorlage neu an, in
+  die die Migrationen je Lauf einmal liefen, statt das Schema zu löschen und alle Migrationen neu
+  laufen zu lassen: 0,2 bis 0,3 statt 2 Sekunden je Mal. Die Vorlage heißt nach einem
+  Fingerabdruck der Migrationen, eine geänderte Migration bekommt eine eigene. Die Tests des
+  Fundaments (über `probeFoundation().empty()`) und 60 Testdateien dieser Anwendung nutzen sie;
+  die Tests der Migrationen selbst bauen weiter. Viele Tests setzten die Datenbank vor jedem
+  einzelnen Test neu auf, und die Servertests waren der längste Teil der CI
 - Die Liste der Fristen blättert auf dem Server (`opengewerk-haustechnik#104`, `#75`). Ein
   Mandant der Haustechnik hat vom ersten Tag an ein paar tausend offene Fristen, und
   `GET /deadlines` gab alle Zeilen eines Stands auf einmal; der Bildschirm suchte und filterte

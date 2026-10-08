@@ -17,13 +17,7 @@ import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'
@@ -96,9 +90,7 @@ async function issued(fields: Record<string, unknown> = {}) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     north.id,
     north.name,

@@ -6,14 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { assignDocumentNumber } from './number-ranges.js'
 import * as schema from './schema/index.js'
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  refusedBy,
-  resetSchema,
-} from './test-database.js'
+import { applicationDatabaseUrl, connect, refusedBy, resetToMigrated } from './test-database.js'
 
 /**
  * The numbering has to hold under the two conditions that break it in
@@ -51,9 +44,7 @@ async function createDraft(kind: 'final_invoice' | 'quote' = 'final_invoice') {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
 
   database = Database.connect(applicationDatabaseUrl())

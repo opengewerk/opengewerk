@@ -20,13 +20,7 @@ import {
   setUpInstance,
 } from '../authentication/access.js'
 import { authUsers, instanceOperators } from '../database/schema/index.js'
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 
 /**
@@ -68,9 +62,7 @@ function http() {
 
 /** Back to the state a freshly started installation is in. */
 async function emptyInstance(): Promise<void> {
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
 }
 
 /** The cookies an answer set, the way a browser would keep them. */

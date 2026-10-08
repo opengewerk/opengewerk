@@ -84,7 +84,7 @@ async function moduleWith(directory: string | null): Promise<INestApplication> {
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [old, fresh])
   // A tenant of a week, so that a missing backup counts for it.
   await admin.query("update tenants set created_at = now() - interval '7 days' where id = $1", [

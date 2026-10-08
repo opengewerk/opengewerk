@@ -66,7 +66,7 @@ function from(address: string) {
 
 /** Back to the state a freshly started installation is in. */
 async function emptyInstance(): Promise<void> {
-  await foundation.empty(admin)
+  await foundation.empty()
 }
 
 /**

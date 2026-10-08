@@ -9,13 +9,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { tasks } from '../database/schema/index.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
   foreignKeyViolation,
   refusedBy,
-  resetSchema,
+  resetToMigrated,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
 import { type Somebody, testIdentities as identities } from './test-identity.js'
@@ -121,9 +119,7 @@ async function stored(id: string) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
     north.id,
     north.name,

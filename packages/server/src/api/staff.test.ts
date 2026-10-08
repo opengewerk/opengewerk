@@ -19,11 +19,9 @@ import {
   SessionIdentitySource,
 } from '../authentication/access.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
@@ -149,9 +147,7 @@ function idOf(person: { readonly email: string }): string {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
   await shipRoles(admin, north.id)
 

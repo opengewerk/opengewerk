@@ -14,13 +14,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { aMailServer, fakeSmtpServer, testKey } from '@opengewerk/platform-server/testing'
 
 import { mailOutbox, tasks } from '../database/schema/index.js'
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { maximumAttempts } from './outbox.js'
 import { saveMailServer } from './server-settings.js'
 import { type MailJob, runMailCycle } from './worker.js'
@@ -140,9 +134,7 @@ async function messages(tenantId: TenantId = north) {
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4), ($5, $6)', [
     north,
     'Elektro Nord GmbH',

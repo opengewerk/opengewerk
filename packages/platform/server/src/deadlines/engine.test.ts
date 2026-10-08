@@ -193,7 +193,7 @@ beforeAll(async () => {
 }, 60_000)
 
 beforeEach(async () => {
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
   await admin.query(
     `insert into auth_users (id, name, email) values

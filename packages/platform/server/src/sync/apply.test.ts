@@ -211,7 +211,7 @@ beforeAll(async () => {
 }, 60_000)
 
 beforeEach(async () => {
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
   senders.length = 0
   followed.length = 0

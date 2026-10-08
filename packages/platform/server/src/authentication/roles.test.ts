@@ -135,7 +135,7 @@ const writes = (cookies: string) =>
 beforeAll(async () => {
   foundation = await probeFoundation()
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south])
 
   instance = await probeInstance(foundation.kit.applicationDatabaseUrl())
@@ -711,7 +711,7 @@ describe('a tenant that comes into being with the first run', () => {
    * it up could do nothing in it.
    */
   it('has its roles before its first account works in it', async () => {
-    await foundation.empty(admin)
+    await foundation.empty()
 
     const fresh = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
       setupCode: 'ABCD-EFGH',

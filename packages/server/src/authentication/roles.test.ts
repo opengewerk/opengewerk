@@ -28,11 +28,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ApiModule } from '../api/api.module.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import {
@@ -153,9 +151,7 @@ async function rolesIn(tenantId: TenantId) {
 
 /** Back to the state a freshly started installation is in. */
 async function emptyInstance(): Promise<void> {
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
 }
 
 beforeAll(async () => {

@@ -126,7 +126,7 @@ let lineId = ''
 beforeAll(async () => {
   foundation = await probeFoundation(probeSyncMade)
   admin = await foundation.kit.connect()
-  await foundation.empty(admin)
+  await foundation.empty()
   await foundation.tenants(admin, [north, south, west])
   database = Database.connect(foundation.kit.applicationDatabaseUrl())
 

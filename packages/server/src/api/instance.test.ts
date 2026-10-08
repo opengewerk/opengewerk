@@ -16,11 +16,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { customers, memberships } from '../database/schema/index.js'
 import {
-  allowApplicationLogin,
   applicationDatabaseUrl,
-  applyMigrations,
   connect,
-  resetSchema,
+  resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
@@ -84,9 +82,7 @@ const message = (answer: { body: unknown }) => (answer.body as { message: string
 
 beforeAll(async () => {
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
   await admin.query('insert into tenants (id, name) values ($1, $2)', [first, 'Elektro Nord GmbH'])
   await shipRoles(admin, first)
 

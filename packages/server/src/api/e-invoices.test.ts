@@ -18,13 +18,7 @@ import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import {
-  allowApplicationLogin,
-  applicationDatabaseUrl,
-  applyMigrations,
-  connect,
-  resetSchema,
-} from '../database/test-database.js'
+import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { checkedCii } from '../documents/cii-schema.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
@@ -217,9 +211,7 @@ beforeAll(async () => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-23T10:00:00+02:00') })
 
   admin = await connect()
-  await resetSchema(admin)
-  await applyMigrations()
-  await allowApplicationLogin(admin)
+  await resetToMigrated()
 
   for (const tenant of [north, south]) {
     await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
