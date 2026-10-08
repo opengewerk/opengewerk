@@ -74,6 +74,11 @@ const followUp: DeadlineKindView = {
   setting: { intervalDays: null, leadDays: null, responsibleUserId: null },
 }
 
+/** A page of the list as the server answers it, with all there are. */
+function aPage(rows: readonly DeadlineView[]) {
+  return { rows, total: rows.length, more: false }
+}
+
 function aDeadline(over: Partial<DeadlineView> = {}): DeadlineView {
   return {
     id: 'd-1',
@@ -116,7 +121,7 @@ beforeEach(async () => {
   })
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-27T10:00:00Z') })
 
-  serverSays('GET', '/deadlines?status=open', [])
+  serverSays('GET', '/deadlines?status=open&limit=50', aPage([]))
   serverSays('GET', '/deadlines/kinds', [followUp])
   serverSays('GET', '/settings/deadlines', [followUp])
   serverSays('GET', '/tasks/assignees', [
@@ -155,17 +160,21 @@ afterEach(() => {
 describe('the list "Fristen"', () => {
   it('lists the open deadlines with source, customer, person and reminder, late ones marked', async () => {
     signedInAs('office')
-    serverSays('GET', '/deadlines?status=open', [
-      aDeadline({
-        id: 'd-0',
-        dueOn: '2026-09-23',
-        remindOn: '2026-09-23',
-        remindedFor: '2026-09-23',
-        remindedAt: '2026-09-23T04:00:00Z',
-        source: { label: 'A-2026-0088', documentId: 'doc-0', installationId: null },
-      }),
-      aDeadline(),
-    ])
+    serverSays(
+      'GET',
+      '/deadlines?status=open&limit=50',
+      aPage([
+        aDeadline({
+          id: 'd-0',
+          dueOn: '2026-09-23',
+          remindOn: '2026-09-23',
+          remindedFor: '2026-09-23',
+          remindedAt: '2026-09-23T04:00:00Z',
+          source: { label: 'A-2026-0088', documentId: 'doc-0', installationId: null },
+        }),
+        aDeadline(),
+      ]),
+    )
     render(inQueries(<DeadlineListScreen />))
 
     const table = await screen.findByRole('table', { name: 'Fristen' })
@@ -180,9 +189,11 @@ describe('the list "Fristen"', () => {
 
   it('asks the server for another state when a chip is pressed', async () => {
     signedInAs('office')
-    serverSays('GET', '/deadlines?status=done', [
-      aDeadline({ status: 'done', closedAt: '2026-09-26T08:00:00Z' }),
-    ])
+    serverSays(
+      'GET',
+      '/deadlines?status=done&limit=50',
+      aPage([aDeadline({ status: 'done', closedAt: '2026-09-26T08:00:00Z' })]),
+    )
     render(inQueries(<DeadlineListScreen />))
 
     const user = userEvent.setup()
@@ -194,7 +205,7 @@ describe('the list "Fristen"', () => {
 
   it('marks a deadline done from its row', async () => {
     signedInAs('office')
-    serverSays('GET', '/deadlines?status=open', [aDeadline()])
+    serverSays('GET', '/deadlines?status=open&limit=50', aPage([aDeadline()]))
     render(inQueries(<DeadlineListScreen />))
 
     const table = await screen.findByRole('table', { name: 'Fristen' })
@@ -210,7 +221,7 @@ describe('the list "Fristen"', () => {
 
   it('brings the task a deadline closes onto the device as soon as the deadline is done', async () => {
     signedInAs('office')
-    serverSays('GET', '/deadlines?status=open', [aDeadline({ taskId: 'task-1' })])
+    serverSays('GET', '/deadlines?status=open&limit=50', aPage([aDeadline({ taskId: 'task-1' })]))
     serverSays('POST', '/deadlines/d-1/done', aDeadline({ status: 'done', taskId: 'task-1' }))
     records.put('tasks', { id: 'task-1', text: 'Angebot A-2026-0091 nachfassen', status: 'open' })
     await client.synchronise()
@@ -233,7 +244,7 @@ describe('the list "Fristen"', () => {
 
   it('gives a deadline a lead and a person of its own on the card above the list', async () => {
     signedInAs('office')
-    serverSays('GET', '/deadlines?status=open', [aDeadline()])
+    serverSays('GET', '/deadlines?status=open&limit=50', aPage([aDeadline()]))
     serverSays('PATCH', '/deadlines/d-1', { id: 'd-1' })
     render(inQueries(<DeadlineListScreen />))
 
@@ -259,7 +270,7 @@ describe('the list "Fristen"', () => {
 
   it('refuses a lead that is no lead before anything is sent', async () => {
     signedInAs('office')
-    serverSays('GET', '/deadlines?status=open', [aDeadline()])
+    serverSays('GET', '/deadlines?status=open&limit=50', aPage([aDeadline()]))
     render(inQueries(<DeadlineListScreen />))
 
     const user = userEvent.setup()

@@ -59,12 +59,14 @@ export type { AuditNames, AuditScreenWords, AuditWords } from './audit-words.js'
 
 // The deadlines of a tenant: the list, with what is due, the card for one
 // deadline and a word when the engine has not gone through them, and their
-// settings per kind under the key `fristen`. Its records, its columns, the
-// way to a source and its words the application hands in as properties.
+// settings per kind under the key `fristen`. Its records, its columns, its
+// filters, the way to a source and its words the application hands in as
+// properties; the list is narrowed and paged on the server.
 export { DeadlineListScreen } from './deadlines.js'
 export type {
   DeadlineCandidate,
   DeadlineColumn,
+  DeadlineListFilter,
   DeadlineListProps,
   DeadlineListWords,
   DeadlinePeople,
@@ -74,7 +76,8 @@ export type { DeadlineSettingsProps } from './deadline-settings.js'
 export {
   changeDeadline,
   deadlineKinds,
-  deadlineList,
+  deadlinePage,
+  deadlinePagePath,
   deadlineRun,
   deadlineSettings,
   markDeadlineDone,
@@ -85,7 +88,9 @@ export type {
   DeadlineChange,
   DeadlineFilter,
   DeadlineKindView,
+  DeadlinePageView,
   DeadlinePerson,
+  DeadlineQuestion,
   DeadlineRunView,
   DeadlineSettingChange,
   DeadlineView,

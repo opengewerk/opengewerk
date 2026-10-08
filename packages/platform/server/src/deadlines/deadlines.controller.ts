@@ -16,6 +16,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
+  berlinClock,
   type DeadlineKind,
   type DeadlineRegistry,
   type DeadlineSetting,
@@ -29,7 +30,7 @@ import {
   remindOn,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, lt, or, type SQL, sql } from 'drizzle-orm'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
@@ -114,6 +115,125 @@ export interface DeadlineRunEntry {
 /** How long without a pass that went through counts as behind: ten passes of a minute. */
 export const deadlineRunBehindMs = 10 * 60_000
 
+/**
+ * One page of the list of deadlines (opengewerk-haustechnik#104): a tenant
+ * has a few thousand open from its first day, so the list is narrowed and
+ * paged on the server.
+ */
+export interface DeadlinePage<Entry = DeadlineEntry> {
+  readonly rows: readonly Entry[]
+  /**
+   * How many deadlines the question finds, or null when it is narrowed to
+   * one person: the list names no number for a person, how many deadlines
+   * somebody has or how many of them are late (opengewerk-haustechnik#104).
+   */
+  readonly total: number | null
+  /** Whether a further page follows. */
+  readonly more: boolean
+}
+
+/** How many deadlines a page holds when the question does not say, and at most. */
+export const deadlinePageSize = 50
+export const deadlinePageMost = 200
+
+/** The names in the address of the list that are the foundation's, and no filter of an application. */
+export const deadlineQuestionNames = [
+  'status',
+  'kind',
+  'person',
+  'search',
+  'late',
+  'offset',
+  'limit',
+] as const
+
+/** What the list is asked: a state, what it is narrowed by and which page. */
+interface DeadlineQuestion {
+  readonly status: DeadlineStatus | 'all'
+  readonly kind: string | null
+  readonly person: string | null
+  readonly search: string | null
+  /** Only the deadlines past their day, by the calendar in Germany: the late ones the office counts. */
+  readonly late: boolean
+  readonly narrowedBy: readonly SQL[]
+  readonly offset: number
+  readonly limit: number
+}
+
+/** A value of the address as one string, or null when it is not there or empty. */
+function oneValue(value: unknown, name: string): string | null {
+  if (value === undefined || value === '') {
+    return null
+  }
+
+  if (typeof value !== 'string') {
+    throw new BadRequestException(`Der Wert „${name}“ steht mehr als einmal in der Anfrage.`)
+  }
+
+  return value
+}
+
+/** A whole number of the address within its bounds, or the one given when it is not there. */
+function wholeNumber(value: unknown, name: string, least: number, most: number, otherwise: number) {
+  const said = oneValue(value, name)
+
+  if (said === null) {
+    return otherwise
+  }
+
+  const number = /^\d+$/.test(said) ? Number(said) : Number.NaN
+
+  if (!Number.isSafeInteger(number) || number < least || number > most) {
+    throw new BadRequestException(
+      `„${name}“ ist eine ganze Zahl von ${least.toLocaleString('de-DE')} bis ${most.toLocaleString('de-DE')}.`,
+    )
+  }
+
+  return number
+}
+
+/** The search as a pattern for ILIKE: what it says anywhere in the text, taken literally. */
+function containing(search: string): string {
+  return `%${search.replace(/[\\%_]/g, (character) => `\\${character}`)}%`
+}
+
+/** Reads what the list is asked, and refuses what it cannot read. */
+function deadlineQuestionOf(query: Readonly<Record<string, unknown>>, rules: AnyRules) {
+  const narrowedBy: SQL[] = []
+
+  for (const [name, condition] of Object.entries(rules.filters ?? {})) {
+    const value = oneValue(query[name], name)
+
+    if (value !== null) {
+      const where = condition(value)
+
+      if (where === null) {
+        throw new BadRequestException(`Diesen Wert kennt der Filter „${name}“ nicht: ${value}`)
+      }
+
+      narrowedBy.push(where)
+    }
+  }
+
+  const search = oneValue(query['search'], 'search')?.trim() ?? ''
+  const late = oneValue(query['late'], 'late')
+
+  if (late !== null && late !== 'true') {
+    throw new BadRequestException('„late“ steht für die überfälligen Fristen und heißt „true“.')
+  }
+
+  return {
+    status: asStatus(query['status']),
+    kind: oneValue(query['kind'], 'kind'),
+    person: oneValue(query['person'], 'person'),
+    search: search === '' ? null : search,
+    late: late === 'true',
+    narrowedBy,
+    offset: wholeNumber(query['offset'], 'offset', 0, Number.MAX_SAFE_INTEGER, 0),
+    limit: wholeNumber(query['limit'], 'limit', 1, deadlinePageMost, deadlinePageSize),
+  } satisfies DeadlineQuestion
+}
+
 /** What an application says about its deadlines, for the routes. */
 export interface DeadlineRules<
   Kind extends DeadlineKind = DeadlineKind,
@@ -131,6 +251,20 @@ export interface DeadlineRules<
     tx: TenantTransaction,
     rows: readonly Row[],
   ) => Promise<(row: Row) => Readonly<Record<string, unknown>>>
+  /**
+   * What else the search looks in, beside the name of the source and the
+   * title of the kind: the name of the record a deadline hangs on, for one.
+   * Handed the pattern ready for ILIKE, it gives a condition on a row of the
+   * table, which may ask a table of the application.
+   */
+  readonly searchIn?: (pattern: string) => SQL
+  /**
+   * The filters of the application beside state, kind and person, by their
+   * name in the address of the list: the place a deadline hangs on, for
+   * one. Each gives the condition for a value, or null for a value it cannot
+   * read, which the route refuses.
+   */
+  readonly filters?: Readonly<Record<string, (value: string) => SQL | null>>
   /** What a kind says beside what every one says: the package it comes from, for one. */
   readonly kindFields?: (kind: Kind) => Readonly<Record<string, unknown>>
   /** What follows a new person for a deadline: a task it made changes hands. */
@@ -305,41 +439,92 @@ function deadlinesController(
       return this.rules.table as unknown as DeadlinesTable
     }
 
+    /**
+     * One page of the deadlines, narrowed on the server
+     * (opengewerk-haustechnik#104): by state, kind, person, the search and
+     * the filters of the application, in the order of their day.
+     *
+     * Who answers for a deadline is worked out and not kept (the settings
+     * can name somebody else tomorrow), so a question for one person reads
+     * every deadline the rest of it finds, works out who answers for each,
+     * and pages through those of the person; it says whether more follow
+     * and never how many there are.
+     */
     @Get()
     @RequiresPermission(rights.read)
     async list(
       @CurrentIdentity() identity: RequestIdentity,
-      @Query('status') status: unknown,
-    ): Promise<DeadlineEntry[]> {
-      const wanted = asStatus(status)
+      @Query() query: Readonly<Record<string, unknown>>,
+    ): Promise<DeadlinePage> {
+      const question = deadlineQuestionOf(query, this.rules)
       const table = this.deadlines()
+      const where = and(
+        question.status === 'all' ? undefined : eq(table.status, question.status),
+        question.kind === null ? undefined : eq(table.kind, question.kind),
+        question.search === null ? undefined : this.searching(question.search),
+        question.late ? lt(table.dueOn, berlinClock(new Date()).day) : undefined,
+        ...question.narrowedBy,
+      )
+      const order = [asc(table.dueOn), asc(table.sourceLabel), asc(table.id)]
 
-      const { rows, settings, responsibles, describe } = await this.database.forTenant(
+      const { rows, total, more, settings, responsibles, describe } = await this.database.forTenant(
         identity,
         async (tx) => {
-          const rows = (await tx
-            .select()
-            .from(table)
-            .where(wanted === 'all' ? sql`true` : eq(table.status, wanted))
-            .orderBy(asc(table.dueOn), asc(table.sourceLabel))) as KeptDeadline[]
           const settings = await deadlineSettingsOf(tx)
-          // Asked for all of them together: one deadline at a time went to the
-          // database up to four times a row. A deadline of a kind this
+          // Asked for all of them together: one deadline at a time went to
+          // the database up to four times a row. A deadline of a kind this
           // instance no longer knows has nobody.
-          const responsibles = await responsibleForAll(
-            tx,
-            identity.tenantId,
-            rows.flatMap((row) => {
-              const kind = this.rules.registry.kind(row.kind)
+          const responsiblesOf = (rows: readonly KeptDeadline[]) =>
+            responsibleForAll(
+              tx,
+              identity.tenantId,
+              rows.flatMap((row) => {
+                const kind = this.rules.registry.kind(row.kind)
 
-              return kind
-                ? [{ key: row.id, kind, setting: settings.get(kind.key) ?? null, deadline: row }]
-                : []
-            }),
-          )
+                return kind
+                  ? [{ key: row.id, kind, setting: settings.get(kind.key) ?? null, deadline: row }]
+                  : []
+              }),
+            )
+          let rows: KeptDeadline[]
+          let total: number | null = null
+          let more: boolean
+          let responsibles: Map<string, string | null>
+
+          if (question.person === null) {
+            const found = (await tx
+              .select()
+              .from(table)
+              .where(where)
+              .orderBy(...order)
+              .offset(question.offset)
+              .limit(question.limit + 1)) as KeptDeadline[]
+            const [counted] = await tx
+              .select({ count: sql<number>`count(*)::int` })
+              .from(table)
+              .where(where)
+
+            rows = found.slice(0, question.limit)
+            more = found.length > question.limit
+            total = counted?.count ?? 0
+            responsibles = await responsiblesOf(rows)
+          } else {
+            const found = (await tx
+              .select()
+              .from(table)
+              .where(where)
+              .orderBy(...order)) as KeptDeadline[]
+            const everybody = await responsiblesOf(found)
+            const theirs = found.filter((row) => everybody.get(row.id) === question.person)
+
+            rows = theirs.slice(question.offset, question.offset + question.limit)
+            more = theirs.length > question.offset + question.limit
+            responsibles = everybody
+          }
+
           const describe = this.rules.describe ? await this.rules.describe(tx, rows) : () => ({})
 
-          return { rows, settings, responsibles, describe }
+          return { rows, total, more, settings, responsibles, describe }
         },
       )
 
@@ -363,7 +548,7 @@ function deadlinesController(
       const person = (userId: string | null): DeadlinePerson | null =>
         userId === null ? null : { userId, name: accounts.get(userId)?.name ?? 'Unbekanntes Konto' }
 
-      return rows.map((row) => {
+      const entries = rows.map((row): DeadlineEntry => {
         const kind = this.rules.registry.kind(row.kind)
         const setting = kind ? (settings.get(kind.key) ?? null) : null
         const lead = kind ? leadOf(kind, setting, row.leadDays) : (row.leadDays ?? 0)
@@ -388,6 +573,29 @@ function deadlinesController(
           ...describe(row),
         }
       })
+
+      return { rows: entries, total, more }
+    }
+
+    /**
+     * Where the search looks: the name of the source, the title of the kind
+     * and whatever the application adds. The titles are this instance's and
+     * not in the table, so they are looked through here and asked for by
+     * their keys.
+     */
+    private searching(search: string): SQL | undefined {
+      const table = this.deadlines()
+      const pattern = containing(search)
+      const wanted = search.toLocaleLowerCase('de')
+      const kinds = this.rules.registry.kinds
+        .filter((kind) => kind.title.toLocaleLowerCase('de').includes(wanted))
+        .map((kind) => kind.key)
+
+      return or(
+        ilike(table.sourceLabel, pattern),
+        kinds.length === 0 ? undefined : inArray(table.kind, kinds),
+        this.rules.searchIn?.(pattern),
+      )
     }
 
     /** The kinds this instance knows, with what the tenant has set, for the filter of the list. */
@@ -685,6 +893,12 @@ export function deadlineParts<
   for (const right of [read, write, settingsRead, settingsWrite]) {
     if (!parts.access.catalogue.isRight(right)) {
       throw new Error(`The catalogue lacks a right of the deadlines: ${right}`)
+    }
+  }
+
+  for (const name of Object.keys(parts.rules.filters ?? {})) {
+    if ((deadlineQuestionNames as readonly string[]).includes(name)) {
+      throw new Error(`A filter of the application takes a name of the list: ${name}`)
     }
   }
 

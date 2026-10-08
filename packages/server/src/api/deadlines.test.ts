@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DocumentId, RoleKey, TenantId } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, type DeadlinePage, newId } from '@opengewerk/platform-server'
 import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -76,13 +76,23 @@ async function aQuote(tenant: TenantId = north, number = 'A-2037-0001'): Promise
   return id
 }
 
-async function list(person: Person = 'britta', status?: string): Promise<DeadlineEntry[]> {
+async function list(
+  person: Person = 'britta',
+  status?: string,
+  search?: string,
+): Promise<readonly DeadlineEntry[]> {
+  const query = new URLSearchParams(status ? { status } : {})
+
+  if (search !== undefined) {
+    query.set('search', search)
+  }
+
   const answer = await http()
-    .get(status ? `/deadlines?status=${status}` : '/deadlines')
+    .get(query.size === 0 ? '/deadlines' : `/deadlines?${query.toString()}`)
     .set('x-test-identity', as(person))
     .expect(200)
 
-  return answer.body as DeadlineEntry[]
+  return (answer.body as DeadlinePage<DeadlineEntry>).rows
 }
 
 async function theOnly(person: Person = 'britta'): Promise<DeadlineEntry> {
@@ -205,6 +215,16 @@ describe('the list "Fristen"', () => {
 
     expect((await list('britta')).map((row) => row.source.label)).toEqual(['A-2037-0001'])
     expect((await list('susi')).map((row) => row.source.label)).toEqual(['A-2037-0100'])
+  })
+
+  it('finds a deadline by the name of its customer, on the server', async () => {
+    await aQuote()
+    await runDeadlinesOf({ database }, north, dueDay)
+
+    expect((await list('britta', 'open', 'verwaltung süd')).map((row) => row.source.label)).toEqual(
+      ['A-2037-0001'],
+    )
+    expect(await list('britta', 'open', 'Bauträger')).toHaveLength(0)
   })
 })
 

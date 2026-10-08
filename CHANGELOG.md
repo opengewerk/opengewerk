@@ -111,6 +111,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Liste der Fristen blättert auf dem Server (`opengewerk-haustechnik#104`, `#75`). Ein
+  Mandant der Haustechnik hat vom ersten Tag an ein paar tausend offene Fristen, und
+  `GET /deadlines` gab alle Zeilen eines Stands auf einmal; der Bildschirm suchte und filterte
+  dann im Browser. Jetzt nimmt die Route Stand, Art, Person, Suche, die Filter der Anwendung
+  und die Seite (`offset`, `limit`, ohne Angabe 50, höchstens 200) und antwortet mit einer
+  Seite, ihrer Zahl und ob weitere folgen; der Bildschirm lädt mit "Weitere laden" nach und
+  sagt "50 von 248". Eingegrenzt auf eine Person nennt die Liste keine Zahl, weder über der
+  Liste noch darunter: wie viele Fristen jemand hat und wie viele davon überfällig sind, ist
+  eine Auswertung über eine Person. Eine Anwendung gibt mit `searchIn` an ihren Regeln, worin
+  die Suche außerdem sieht, und mit `filters` eigene Filter, die der Bildschirm zwischen Art und
+  Person zeigt. Die Auswahl der Personen kommt aus `usePeople` der Anwendung statt aus den
+  geladenen Zeilen. Mit `late=true` fragt eine Anwendung nach den überfälligen Fristen, um sie
+  zu zählen, und eine Spalte der Anwendung kann in der Tabelle mehr zeigen als ihren Text
+  (`cell`). Die Handwerkersoftware findet den Kunden einer Frist jetzt auf dem Server.
+
 - Der ZIP-Leser der DATANORM-Lieferungen liegt im Fundament (`packages/platform/server/src/files/zip.ts`),
   weil eine Arbeitsmappe ebenfalls ein Archiv ist (`opengewerk-haustechnik#100`). Er nennt die Dateien
   jetzt mit ihrem Ordner und entpackt auf Wunsch nur die gefragten; für DATANORM ändert sich nichts,

@@ -16,7 +16,7 @@ import {
   responsibleFor,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js'
 import { customers, deadlines, tasks } from '../database/schema/index.js'
@@ -81,11 +81,12 @@ async function handTaskOn(
  *
  * An entry of the list names the trade of its kind, what its source is, a
  * document or an installation, and the customer, site, job and task it hangs
- * on; the customer by name, read in one query for the whole list. The task
- * its reminder made goes with the deadline: it changes hands with a new
- * person, is done when the deadline is marked done, and opens again with it.
- * Left done, the next pass of the engine would find the task done and close
- * the deadline again within the minute.
+ * on; the customer by name, read in one query for the whole list and found
+ * by the search of the list on the server. The task its reminder made goes
+ * with the deadline: it changes hands with a new person, is done when the
+ * deadline is marked done, and opens again with it. Left done, the next pass
+ * of the engine would find the task done and close the deadline again within
+ * the minute.
  */
 export const deadlineRules: DeadlineRules<DeadlineKind, ApplicationDeadlineColumns> = {
   table: deadlines,
@@ -121,6 +122,8 @@ export const deadlineRules: DeadlineRules<DeadlineKind, ApplicationDeadlineColum
       }
     }
   },
+  searchIn: (pattern) =>
+    sql`exists (select 1 from ${customers} where ${customers.id} = ${deadlines.customerId} and ${customers.name} ilike ${pattern})`,
   kindFields: (kind) => ({ trade: kind.trade }),
   afterResponsible: handTaskOn,
   afterDone: async (tx, row) => {
