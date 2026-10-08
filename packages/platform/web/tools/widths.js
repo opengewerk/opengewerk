@@ -586,12 +586,18 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps }
   const { page, theme } = lane
   const failures = []
 
+  // A page that has never been opened keeps the 800 pixels it was made with,
+  // whatever `resize` asks: the first kind of a lane opens its page before the
+  // first width, also when it has a button to press, or the check stops there.
+  // One page measuring everything always began with a kind without a button.
+  if (!press || !lane.confirmed) {
+    await openInTheme(lane, address, path)
+  }
+
   // A kind with a button to press opens its page in the loop below, in every
   // band anew; the first column of its tables is the plain kind's to check,
   // once per page.
   if (!press) {
-    await openInTheme(lane, address, path)
-
     const bare = await bareColumns(page)
 
     if (bare > 0) {
