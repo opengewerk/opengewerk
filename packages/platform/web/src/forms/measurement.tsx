@@ -29,6 +29,11 @@ export interface MeasurementBlockProps {
   /** The limit in short at the head, `limitMark()`, where there is one. */
   readonly mark?: string | undefined
   readonly hint?: string | undefined
+  /**
+   * The label for a reader only, where the screen says it above the card
+   * already, as a point on a screen of its own does.
+   */
+  readonly labelHidden?: boolean
   readonly disabled?: boolean
 }
 
@@ -46,6 +51,7 @@ export function MeasurementBlock({
   verdict,
   mark,
   hint,
+  labelHidden = false,
   disabled = false,
 }: MeasurementBlockProps) {
   const id = useId()
@@ -63,8 +69,16 @@ export function MeasurementBlock({
             : 'border-l-control',
       )}
     >
-      <div className="mb-2 flex items-baseline gap-2">
-        <label htmlFor={id} className="grow text-[16px] font-semibold text-ink">
+      <div
+        className={clsx(
+          'flex items-baseline gap-2',
+          labelHidden ? (mark === undefined ? '' : 'mb-2 justify-end') : 'mb-2',
+        )}
+      >
+        <label
+          htmlFor={id}
+          className={labelHidden ? 'sr-only' : 'grow text-[16px] font-semibold text-ink'}
+        >
           {label}
           <span className="sr-only">{` in ${unit}`}</span>
         </label>

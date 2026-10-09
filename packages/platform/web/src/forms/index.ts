@@ -9,6 +9,7 @@
  * are `Field`, `TextArea` and `Choice` at the root.
  */
 
+export { newBlockKey } from './block-key.js'
 export { AnswerMark, AnswerProgress } from './answer-mark.js'
 export type { PointState } from './answer-mark.js'
 export { CheckPointAnswer, checkPointWords } from './check-point.js'

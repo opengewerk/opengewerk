@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { AnswerMark, AnswerProgress } from './answer-mark.js'
+import { newBlockKey } from './block-key.js'
 import { CheckPointAnswer } from './check-point.js'
 import { FigureBlock } from './figure-block.js'
 import { limitMark, MeasurementBlock } from './measurement.js'
@@ -185,6 +186,60 @@ describe('a measured value', () => {
     expect((box as HTMLInputElement).value).toBe('55,5')
     expect(screen.getByText('≥ 60,0 °C')).toBeDefined()
     expect(screen.getByText(said).id).toBe(box.getAttribute('aria-describedby'))
+  })
+})
+
+describe('a value whose question the screen asks above it', () => {
+  it('keeps its name for a reader, and the limit in short in sight', () => {
+    render(
+      <MeasurementBlock
+        label="Temperatur am Speicheraustritt"
+        unit="°C"
+        value={undefined}
+        verdict={null}
+        mark="≥ 60,0 °C"
+        labelHidden
+        onChange={vi.fn()}
+      />,
+    )
+
+    const label = screen.getByText('Temperatur am Speicheraustritt')
+
+    expect(
+      screen.getByRole('textbox', { name: 'Temperatur am Speicheraustritt in °C' }),
+    ).toBeDefined()
+    expect(label.className).toContain('sr-only')
+    expect(screen.getByText('≥ 60,0 °C')).toBeDefined()
+  })
+
+  it('keeps the name of a figure for a reader as well', () => {
+    render(
+      <FigureBlock
+        label="Zählerstand"
+        unit="m³"
+        value={undefined}
+        labelHidden
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('textbox', { name: 'Zählerstand in m³' })).toBeDefined()
+    expect(screen.getByText('Zählerstand').className).toContain('sr-only')
+  })
+})
+
+describe('the key of a block', () => {
+  it('stands after the keys drawn before it, so that blocks stand in the order they were opened', async () => {
+    const drawn: string[] = []
+
+    for (let count = 0; count < 5; count += 1) {
+      drawn.push(newBlockKey())
+      await new Promise((resolve) => setTimeout(resolve, 2))
+    }
+
+    expect([...drawn].sort()).toEqual(drawn)
+    expect(new Set(drawn).size).toBe(5)
+    expect(drawn.every((key) => /^[0-9a-f-]{36}$/.test(key))).toBe(true)
   })
 })
 

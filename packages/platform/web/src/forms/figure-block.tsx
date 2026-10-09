@@ -28,6 +28,8 @@ export interface FigureBlockProps {
   readonly doubt?: FigureDoubt | null
   /** What stands beside the figure: the last reading and the meter, for a reading. */
   readonly beside?: ReactNode
+  /** The label for a reader only, where the screen says it above already. */
+  readonly labelHidden?: boolean
   readonly disabled?: boolean
 }
 
@@ -45,6 +47,7 @@ export function FigureBlock({
   hint,
   doubt = null,
   beside,
+  labelHidden = false,
   disabled = false,
 }: FigureBlockProps) {
   const id = useId()
@@ -56,7 +59,10 @@ export function FigureBlock({
   return (
     <div className="flex min-w-0 flex-col gap-3.5">
       <div ref={box} className="flex min-w-0 flex-col">
-        <label htmlFor={id} className="mb-2 text-[16px] font-semibold text-ink">
+        <label
+          htmlFor={id}
+          className={labelHidden ? 'sr-only' : 'mb-2 text-[16px] font-semibold text-ink'}
+        >
           {label}
           <span className="sr-only">{` in ${unit}`}</span>
         </label>
