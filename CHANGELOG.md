@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Bausteine für die Feldarten eines Formulars unter dem neuen Einstieg `@opengewerk/platform-web/forms`
+  (`opengewerk-haustechnik#107`): der Prüfpunkt mit seinen vier Antworten, groß für einen Punkt auf
+  eigener Seite und kurz in einer Reihe, der Messwert mit Grenzwert, Urteil und Fundstelle, die Zahl
+  und der Zählerstand mit der Einheit im Feld und einer Rückfrage bei einem Wert, der unmöglich
+  aussieht, die Bemerkung oder der Grund unter einer Antwort, das Foto eines Punkts, die Antwort in
+  einer Liste von Punkten mit dem Fortschritt und der Schlüssel eines neuen Blocks. Die Engine der
+  Formulare liegt seit dem 04.10.2026 im Fundament, gezeichnet hat sie bisher nur die
+  Handwerkersoftware in ihrem eigenen Prüfprotokoll; Prüfpunkt und Zählerstand zeigte keine
+  Anwendung. Die Bausteine halten weder Formular noch Datensatz, wie eine Antwort gespeichert wird,
+  sagt die Anwendung.
 - Der Nummernkreis des Fundaments gibt mehrere Nummern in einem Schritt aus (`assignNumbers`,
   `opengewerk-haustechnik#100`). Wer eine ganze Liste übernimmt, zog bisher je Datensatz eine
   Nummer, und jede Ziehung ist eine Änderung am Zähler, die im Änderungsprotokoll steht: ein

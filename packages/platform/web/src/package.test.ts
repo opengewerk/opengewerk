@@ -51,6 +51,7 @@ describe('the interface of the foundation', () => {
       './attachments': './src/attachments/index.ts',
       './contacts': './src/contacts/index.ts',
       './format': './src/format.ts',
+      './forms': './src/forms/index.ts',
       './gate': './src/gate/index.ts',
       './instance': './src/instance/index.ts',
       './office': './src/office/index.ts',
