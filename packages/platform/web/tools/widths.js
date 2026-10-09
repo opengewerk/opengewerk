@@ -1,4 +1,5 @@
 import { mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -37,6 +38,12 @@ import { chromium } from 'playwright-core'
  * and each theme on pages of its own (#576): one page after the other, the
  * check of an application with 106 kinds of page took 27 minutes on
  * 08.10.2026, close to the 30 a session of the browser is given in the CI.
+ *
+ * An application that asks for it (`accessibility`) has every kind of page
+ * checked for what a screen reader and a keyboard need as well
+ * (opengewerk-haustechnik#132): labels, roles, the order of the headings and
+ * the contrast, with axe-core, light and dark, at the width of a telephone
+ * and of a desktop, where a page shows different controls.
  */
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -45,6 +52,66 @@ const here = dirname(fileURLToPath(import.meta.url))
 export const widths = [
   320, 360, 390, 412, 768, 1024, 1280, 1366, 1440, 1536, 1920, 2560, 3440, 3840,
 ]
+
+/** The widths the accessibility of a page is checked at: a telephone and a desktop. */
+export const accessibilityWidths = [390, 1280]
+
+/**
+ * The rules of axe-core a page is held to: WCAG 2.1 at the levels A and AA,
+ * which EN 301 549 asks of public bodies, and the best practice axe adds.
+ * The experimental rules are left out: they are not settled, and
+ * `label-content-name-mismatch` among them counts the initial in an avatar
+ * and the figure beside an entry of the navigation as part of a name both
+ * are hidden from.
+ */
+export function accessibilityRules(rules) {
+  return rules
+    .filter(
+      (rule) =>
+        !rule.tags.includes('experimental') &&
+        rule.tags.some((tag) =>
+          ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'].includes(tag),
+        ),
+    )
+    .map((rule) => rule.ruleId)
+}
+
+/** The script of axe-core, read once, for the first page that asks. */
+let axeScript = null
+
+function axeSource() {
+  axeScript ??= readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8')
+
+  return axeScript
+}
+
+/**
+ * What axe-core finds wrong on a page as it stands, one line per rule with
+ * the elements it found. The script comes in through the browser's protocol
+ * and not as a script tag, which the policy of the application would block,
+ * and the policy stays on, as the application runs with it.
+ */
+async function accessibilityOf(page) {
+  if (!(await page.evaluate(() => 'axe' in window))) {
+    // A line of its own on each side, in case the script ends in a comment.
+    await page.evaluate(['(function () {', axeSource(), '}).call(window)'].join('\n'))
+  }
+
+  const rules = accessibilityRules(await page.evaluate(() => window.axe.getRules()))
+
+  return page.evaluate(async (values) => {
+    const { violations } = await window.axe.run(document, {
+      runOnly: { type: 'rule', values },
+      resultTypes: ['violations'],
+    })
+
+    return violations.map((violation) => ({
+      id: violation.id,
+      help: violation.help,
+      targets: violation.nodes.map((node) => node.target.join(' ')),
+    }))
+  }, rules)
+}
 
 /** A height that goes with each width, as the devices of the board have it. */
 export function heightFor(width) {
@@ -582,7 +649,7 @@ async function openInTheme(lane, address, path) {
 }
 
 /** One kind of page at every width on one lane, and what was found wrong with it. */
-async function checkKind(lane, { kind, path, press }, { address, report, steps }) {
+async function checkKind(lane, { kind, path, press }, { address, report, steps, accessibility }) {
   const { page, theme } = lane
   const failures = []
 
@@ -644,6 +711,17 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps }
       continue
     }
 
+    if (accessibility && accessibilityWidths.includes(width)) {
+      for (const { id, help, targets } of await accessibilityOf(page)) {
+        failures.push({
+          kind,
+          theme,
+          line: `bei ${String(width)} px ${id}: ${help}`,
+          culprits: targets.slice(0, 5),
+        })
+      }
+    }
+
     const { over, culprits } = await measure(page)
 
     if (over > 0) {
@@ -679,6 +757,9 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps }
  *   find before it stops and fails, 120 unless said.
  * @param {number} [options.lanes] How many pages measure one theme at once,
  *   two unless said.
+ * @param {boolean} [options.accessibility] Whether every kind of page is
+ *   held to the rules of accessibility as well, light and dark, at
+ *   `accessibilityWidths`; off unless said.
  */
 export async function checkWidths({
   report,
@@ -687,6 +768,7 @@ export async function checkWidths({
   openers = [],
   mostKinds,
   lanes = lanesUnlessSaid,
+  accessibility = false,
 }) {
   const browserAddress = process.env.WIDTHS_BROWSER ?? 'ws://127.0.0.1:3999?token=probe'
   const address = (process.env.WIDTHS_ADDRESS ?? 'http://host.docker.internal:23700').replace(
@@ -728,7 +810,7 @@ export async function checkWidths({
 
         try {
           const found = await inLanes(asked, opened, (kind, lane) =>
-            checkKind(lane, kind, { address, report, steps }),
+            checkKind(lane, kind, { address, report, steps, accessibility }),
           )
 
           return found.flat()
@@ -745,7 +827,9 @@ export async function checkWidths({
 
   if (failures.length === 0) {
     console.log(
-      'Keine Seite ist breiter als ihr Fenster, und jede stehende Tabellenspalte hat einen Grund.',
+      accessibility
+        ? 'Keine Seite ist breiter als ihr Fenster, jede stehende Tabellenspalte hat einen Grund, und keine verstößt gegen eine Regel der Barrierefreiheit.'
+        : 'Keine Seite ist breiter als ihr Fenster, und jede stehende Tabellenspalte hat einen Grund.',
     )
 
     return

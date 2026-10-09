@@ -17,6 +17,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   anderen, mit Fundstelle und Gültigkeit. Ostern ist gegen die Gaußsche Osterformel als zweite
   Rechnung über die Jahre 1583 bis 9999 geprüft. Migration 0071 nimmt die beiden Werte in den Typ
   `rule_unit` der Einstellungen auf, wie 0066; die Handwerkersoftware speichert keinen davon
+- Die Prüfung der Breiten prüft auf Wunsch einer Anwendung jede Art von Seite auch auf
+  Barrierefreiheit (`accessibility` an `checkWidths`, `opengewerk-haustechnik#132`): mit axe-core
+  nach WCAG 2.1 in den Stufen A und AA, wie die EN 301 549 sie öffentlichen Stellen abverlangt,
+  und den bewährten Regeln von axe, hell und dunkel, bei der Breite eines Telefons und eines
+  Desktops. Beschriftungen, Rollen, die Reihenfolge der Überschriften und der Kontrast gehören
+  dazu; die experimentellen Regeln nicht. Ein Verstoß nennt die Regel und die Elemente und macht
+  die Prüfung rot. Das Skript kommt über das Protokoll des Browsers in die Seite, die Richtlinie
+  der Anwendung bleibt an. Ohne die Option bleibt die Prüfung, wie sie war; die
+  Handwerkersoftware schaltet sie noch nicht ein
 
 - Bausteine für die Feldarten eines Formulars unter dem neuen Einstieg `@opengewerk/platform-web/forms`
   (`opengewerk-haustechnik#107`): der Prüfpunkt mit seinen vier Antworten, groß für einen Punkt auf
@@ -253,6 +262,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   standen unter dem Titel. Aufgefallen am Nachweis der Haustechnik, der mit
   `opengewerk-haustechnik#111` einen dritten Knopf bekommt. Unter der Breite eines Desktops
   bleibt es beim Umbruch.
+- Was die neue Prüfung der Barrierefreiheit in den Bausteinen fand (`opengewerk-haustechnik#132`):
+  Ein Eintrag der Navigation mit Zahl heißt "Fristen, 4 überfällig", sichtbar stand aber
+  "Fristen4" ohne Trennung, und wer per Sprache "Fristen 4" sagt, fand das im Namen nicht; jetzt
+  steht ein Leerzeichen davor. Die Initialen im Knopf des Kontos stehen nicht mehr als Text vor dem
+  Namen, sondern werden aus einem Attribut gezeichnet. Die Leiste unten vor Ort ist eine benannte
+  Region ("Aktionen"), damit ihr Inhalt in einer Landmark steht (WCAG 2.5.3 und 1.3.1)
 - Das Tor einer Zeile im Abgleich (`gateFrom`) liest den Datensatz, an dem die Zeile hängt, jetzt
   mit Sperre (#582). Bisher las es ihn ohne: Eine Transaktion, die den Datensatz zur selben Zeit
   festschrieb, wurde nicht abgewartet, die Zeile wurde gegen den Stand von vorher geprüft und

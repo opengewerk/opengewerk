@@ -154,7 +154,10 @@ function EntryLink({
       {() => (
         <>
           <Icon size={large ? 20 : 16} strokeWidth={1.9} aria-hidden="true" />
-          {entry.label}
+          {/* A space before the figure, which the eye never sees in the row: the name says
+              "Fristen, 4 überfällig", and a speech user who reads "Fristen 4" has to find the
+              words of it there (WCAG 2.5.3, opengewerk-haustechnik#132). */}
+          {entry.badge ? `${entry.label} ` : entry.label}
           {entry.badge ? (
             <span
               aria-hidden="true"

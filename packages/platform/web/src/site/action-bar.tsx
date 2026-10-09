@@ -33,7 +33,15 @@ export function SiteActionBar({
   const slot = useContext(ActionSlot)
 
   const bar = (
-    <div {...{ [actionBarMark]: '' }} className="border-t border-line bg-ground px-4 pt-3 pb-4">
+    // A region of its own: the bar stands beside the main content, and what it
+    // says belongs to a landmark a screen reader can jump to
+    // (opengewerk-haustechnik#132).
+    <div
+      {...{ [actionBarMark]: '' }}
+      role="region"
+      aria-label="Aktionen"
+      className="border-t border-line bg-ground px-4 pt-3 pb-4"
+    >
       <div className={stacked ? 'flex flex-col gap-2' : 'flex gap-2'}>{children}</div>
       {note ? (
         <p className="mt-2 text-center text-[14px] leading-[1.35] text-ink-muted">{note}</p>
