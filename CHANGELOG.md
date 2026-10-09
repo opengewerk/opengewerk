@@ -121,6 +121,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Ein Dialog des Büros steht auf breiten Bildschirmen senkrecht in der Mitte des Fensters statt
+  oben unter dem Kopf (`opengewerk-haustechnik#115`). Die Tafeln beider Anwendungen zeichnen ihn über
+  dem Bildschirm, zu dem er gehört, und das Fundament setzte jeden bei 8 % der Fensterhöhe an; einer,
+  der höher ist als das Fenster, beginnt am oberen Rand und rollt. Auf dem Telefon bleibt er oben, wo
+  die Tastatur ihn sichtbar lässt.
 - Der Testbaukasten setzt eine Testdatenbank in einem Bruchteil der Zeit auf den frisch
   migrierten Stand zurück (#578). `resetToMigrated` legt sie als Kopie einer Vorlage neu an, in
   die die Migrationen je Lauf einmal liefen, statt das Schema zu löschen und alle Migrationen neu
