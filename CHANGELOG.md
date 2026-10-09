@@ -238,6 +238,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Kopf einer Seite im Büro bleibt auf dem Desktop eine Zeile, wie auf den Tafeln: Der Titel
+  gibt nach und seine Abzeichen brechen um, die Knöpfe bleiben rechts daneben. Bisher brach die
+  ganze Zeile um, sobald Titel, Abzeichen und Knöpfe nicht nebeneinander passten, und die Knöpfe
+  standen unter dem Titel. Aufgefallen am Nachweis der Haustechnik, der mit
+  `opengewerk-haustechnik#111` einen dritten Knopf bekommt. Unter der Breite eines Desktops
+  bleibt es beim Umbruch.
 - Das Tor einer Zeile im Abgleich (`gateFrom`) liest den Datensatz, an dem die Zeile hängt, jetzt
   mit Sperre (#582). Bisher las es ihn ohne: Eine Transaktion, die den Datensatz zur selben Zeit
   festschrieb, wurde nicht abgewartet, die Zeile wurde gegen den Stand von vorher geprüft und
