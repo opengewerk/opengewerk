@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Regeln kennen einen Tag im Jahr und den Abstand zu Ostersonntag (`opengewerk-haustechnik#200`):
+  die Einheiten `month_day` (der Monat mal hundert und der Tag, 1003 ist der 3. Oktober) und
+  `days_from_easter` (-2 ist Karfreitag), dazu `easterSunday(year)` im Kalender und `ruleDayIn`,
+  das aus einer solchen Regel den Tag eines Jahres macht. Ein Tag, den nicht jedes Jahr hat, wird
+  beim Bau des Regelsatzes abgelehnt. Damit sind gesetzliche Feiertage eines Landes Regeln wie alle
+  anderen, mit Fundstelle und Gültigkeit. Ostern ist gegen die Gaußsche Osterformel als zweite
+  Rechnung über die Jahre 1583 bis 9999 geprüft. Migration 0071 nimmt die beiden Werte in den Typ
+  `rule_unit` der Einstellungen auf, wie 0066; die Handwerkersoftware speichert keinen davon
+
 - Bausteine für die Feldarten eines Formulars unter dem neuen Einstieg `@opengewerk/platform-web/forms`
   (`opengewerk-haustechnik#107`): der Prüfpunkt mit seinen vier Antworten, groß für einen Punkt auf
   eigener Seite und kurz in einer Reihe, der Messwert mit Grenzwert, Urteil und Fundstelle, die Zahl

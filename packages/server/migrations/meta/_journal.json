@@ -498,6 +498,13 @@
       "when": 1791190371794,
       "tag": "0070_account_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1791581272267,
+      "tag": "0071_rule_units_days",
+      "breakpoints": true
     }
   ]
 }
