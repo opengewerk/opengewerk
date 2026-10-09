@@ -233,6 +233,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Das Tor einer Zeile im Abgleich (`gateFrom`) liest den Datensatz, an dem die Zeile hängt, jetzt
+  mit Sperre (#582). Bisher las es ihn ohne: Eine Transaktion, die den Datensatz zur selben Zeit
+  festschrieb, wurde nicht abgewartet, die Zeile wurde gegen den Stand von vorher geprüft und
+  landete, nachdem die Festschreibung die Zeilen schon gelesen hatte. In der Haustechnik konnte so
+  eine Antwort ankommen, nachdem eine Unterschrift die Seite gelesen hatte, und der Nachweis hielt
+  eine andere Antwort als die Zeile. Die Sperre ist die einer Änderung, keine geteilte: Zwei
+  Übertragungen, die denselben Datensatz geteilt halten und ihn danach ändern, etwa zwei
+  Unterschriften unter denselben Vorgang, warten sonst im Kreis aufeinander, und die Datenbank
+  beendet eine von beiden mit einem Fehler. Gefunden im Security-Review von
+  `opengewerk-haustechnik#197`.
 - Ein Ansprechpartner ohne Nachnamen kommt auf keinem Weg mehr in den Bestand
   (`opengewerk-haustechnik#85`). Die Route verlangte den Nachnamen, der Abgleich nicht: ein Name
   aus lauter Leerzeichen bestand die Prüfung des Browsers für ein Pflichtfeld und wurde über den

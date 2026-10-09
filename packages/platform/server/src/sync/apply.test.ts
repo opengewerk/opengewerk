@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { type ProbeFoundation, probeFoundation } from '../authentication/probe-application.js'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import { standingInLine } from '../database/test-database.js'
 import {
   closeConflict,
   OperationRefused,
@@ -804,6 +805,136 @@ describe('what follows a written operation', () => {
     expect(await inTenant(north.id, (tx) => tx.select().from(notes))).toEqual([])
     expect(await inTenant(north.id, (tx) => tx.select().from(letters))).toEqual([])
     expect(await inTenant(north.id, (tx) => tx.select().from(letterSeals))).toEqual([])
+  })
+})
+
+/**
+ * A gate and a transaction that fixes its record at the same moment
+ * (opengewerk#582). Two that merely start together meet only when the timing
+ * allows, so one of them holds the letter until the other stands in line
+ * behind it.
+ */
+describe('a gate while its record is being fixed', () => {
+  /** A draft with a line on it, as a device sent them. */
+  async function draftWithLine() {
+    const letterId = newId<'letter'>()
+    const lineId = newId<'letter-line'>()
+
+    await send(north.id, [
+      operation({
+        entity: 'letters',
+        recordId: letterId,
+        patches: [{ field: 'subject', to: 'Angebot' }],
+      }),
+      operation({
+        entity: 'letter_lines',
+        recordId: lineId,
+        patches: [
+          { field: 'letterId', to: letterId },
+          { field: 'quantity', to: 3 },
+        ],
+      }),
+    ])
+
+    return { letterId, lineId }
+  }
+
+  it('lets a line wait for a transaction that is sending its letter, and asks the letter it left', async () => {
+    const { letterId, lineId } = await draftWithLine()
+    let held = () => {}
+    let release = () => {}
+    const holding = new Promise<void>((resolve) => {
+      held = resolve
+    })
+    const released = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    // Sent in a transaction that has not ended, as an application fixes a
+    // record while the line of a device is on its way.
+    const sending = inTenant(north.id, async (tx) => {
+      await tx.update(letters).set({ status: 'sent' }).where(eq(letters.id, letterId))
+      held()
+      await released
+    })
+
+    try {
+      await holding
+
+      const late = send(north.id, [
+        operation({
+          entity: 'letter_lines',
+          recordId: lineId,
+          kind: 'update',
+          patches: [{ field: 'quantity', from: 3, to: 4 }],
+        }),
+      ])
+
+      await standingInLine(admin, 1)
+      release()
+      await sending
+
+      expect(outcomes(await late)).toEqual([
+        { outcome: 'conflict', reason: 'record_is_fixed', fields: ['status'] },
+      ])
+    } finally {
+      release()
+    }
+
+    expect(
+      await inTenant(north.id, (tx) =>
+        tx.select({ quantity: letterLines.quantity }).from(letterLines),
+      ),
+    ).toEqual([{ quantity: 3 }])
+  })
+
+  it('lets the second of two seals sent at once wait at the gate, not in a circle with the first', async () => {
+    const { letterId } = await draftWithLine()
+    const seal = (deviceId: string) =>
+      inTenant(
+        north.id,
+        (tx) =>
+          sync.applyOperations(
+            tx,
+            north.id,
+            [
+              operation({
+                entity: 'letter_seals',
+                recordId: newId<'letter-seal'>(),
+                patches: [{ field: 'letterId', to: letterId }],
+                deviceId,
+              }),
+            ],
+            courier,
+          ),
+        deviceId,
+      )
+    const holder = await admin.connect()
+    let settled: PromiseSettledResult<readonly OperationReceipt[]>[]
+
+    try {
+      await holder.query('begin')
+      await holder.query('select id from letters where id = $1 for update', [letterId])
+
+      // Held shared, each would wait for the other once its seal changes the
+      // letter, and the database would end one of them with an error.
+      const both = [seal('probe-phone'), seal('probe-tablet')]
+
+      await standingInLine(admin, 2)
+      await holder.query('commit')
+      settled = await Promise.allSettled(both)
+    } finally {
+      holder.release()
+    }
+
+    expect(settled.map((each) => each.status)).toEqual(['fulfilled', 'fulfilled'])
+    expect(
+      settled
+        .flatMap((each) => (each.status === 'fulfilled' ? outcomes(each.value) : []))
+        .map(({ outcome, reason }) => `${outcome}:${String(reason)}`)
+        .sort(),
+    ).toEqual(['applied:null', 'conflict:record_is_fixed'])
+    expect(await inTenant(north.id, (tx) => tx.select().from(letterSeals))).toHaveLength(1)
   })
 })
 
