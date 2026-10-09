@@ -221,6 +221,20 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
    * Returns null when there is no parent to find. The merge turns that into
    * `record_missing`, which is what it is: a line whose parent is gone belongs
    * to nothing.
+   *
+   * The parent is locked until the transmission ends (opengewerk#582). Read
+   * without a lock, a transaction that is fixing it at the same moment was
+   * not waited for: the line was asked against the state from before, and
+   * landed after whatever the fixing had read of the lines. With the lock, a
+   * line waits for that transaction and is asked against what it left, and a
+   * transaction that comes later waits for the line.
+   *
+   * The lock is the one an update takes, not a shared one. What follows a
+   * line in the same transmission often changes the parent: a signature
+   * writes its record down. Two transmissions that each held the parent
+   * shared and then wanted to change it would wait for each other in a
+   * circle; with this lock the second waits at the gate and finds the parent
+   * as the first left it.
    */
   async function parentFor(
     tx: TenantTransaction,
@@ -254,7 +268,7 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
       throw new Error(`The table ${inherited.entity} has no id to find a record by`)
     }
 
-    const found = await tx.select().from(table).where(eq(id, reference))
+    const found = await tx.select().from(table).where(eq(id, reference)).for('no key update')
 
     return found[0] ? toRecordState(table, found[0] as Record<string, unknown>) : null
   }
