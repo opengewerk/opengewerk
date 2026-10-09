@@ -123,7 +123,9 @@ export function PageHead({
           {phoneBack.label}
         </Link>
       ) : null}
-      <div className="flex flex-wrap items-start gap-3">
+      {/* On a desktop the head stays one row, as on the boards: the title gives way and its
+          badges wrap, the actions keep their place on the right. Below that they wrap under it. */}
+      <div className="flex flex-wrap items-start gap-3 lg:flex-nowrap">
         <div className="min-w-0 grow">
           <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 max-lg:gap-y-0">
             <h1 className="text-[24px] leading-[1.2] font-semibold tracking-[-0.2px] text-ink [overflow-wrap:anywhere] max-sm:basis-full">
@@ -140,7 +142,7 @@ export function PageHead({
         {actions ? (
           <div
             className={clsx(
-              'flex flex-wrap items-center gap-2',
+              'flex flex-wrap items-center gap-2 lg:shrink-0',
               wideActions &&
                 'max-sm:grid max-sm:basis-full max-sm:grid-cols-2 max-sm:[&>*:only-child]:col-span-2',
             )}

@@ -83,6 +83,24 @@ describe('the head of a screen', () => {
     expect(screen.getAllByRole('link', { name: 'Regale' })).toHaveLength(2)
   })
 
+  it('stays one row on a desk, where the title gives way and the actions keep their place', async () => {
+    await shown(
+      <PageHead
+        title="Regal am Fenster"
+        badges={<span>voll</span>}
+        actions={<button type="button">Bearbeiten</button>}
+      />,
+    )
+
+    // The stylesheet decides at a width; jsdom has none, so the classes stand for it.
+    const actions = screen.getByRole('button', { name: 'Bearbeiten' }).parentElement
+    const row = actions?.parentElement
+
+    expect(row?.className).toContain('lg:flex-nowrap')
+    expect(actions?.className).toContain('lg:shrink-0')
+    expect(row?.firstElementChild?.className).toContain('min-w-0')
+  })
+
   it('has no path where a screen gives none', async () => {
     await shown(<PageHead title="Regale" />)
 
