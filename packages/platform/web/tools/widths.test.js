@@ -17,6 +17,7 @@ import {
   stepsIn,
   themeKeyIn,
   themeProblem,
+  troubleNote,
   walkThrough,
   widths,
   worthFollowing,
@@ -387,6 +388,25 @@ describe('the bands a layout changes at', () => {
   it('refuse a file that names fewer than five, rather than open a form too seldom', () => {
     expect(() => stepsIn('@media (min-width: 40rem) {} @media (min-width: 64rem) {}')).toThrow(
       'In band.ts stehen 2 Stufen',
+    )
+  })
+})
+
+describe('what went wrong while a page loaded', () => {
+  it('follows a finding with every answer that failed, once each, and nothing where none did', () => {
+    expect(troubleNote([])).toBe('')
+    expect(troubleNote(['500 /auth/tenants', '500 /auth/tenants', '404 /regale/:id'])).toBe(
+      '; beim Laden: 500 /auth/tenants, 404 /regale/:id',
+    )
+    expect(troubleNote(['net::ERR_CONNECTION_REFUSED /sync/pull'])).toBe(
+      '; beim Laden: net::ERR_CONNECTION_REFUSED /sync/pull',
+    )
+  })
+
+  it('leaves out what the next page cut off, and says no more than five', () => {
+    expect(troubleNote(['net::ERR_ABORTED /sync/pull'])).toBe('')
+    expect(troubleNote(['500 /a', '500 /b', '500 /c', '500 /d', '500 /e', '500 /f'])).toBe(
+      '; beim Laden: 500 /a, 500 /b, 500 /c, 500 /d, 500 /e',
     )
   })
 })
