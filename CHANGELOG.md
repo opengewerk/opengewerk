@@ -267,6 +267,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Freigabe, nur einen Kommentar: über ihn urteilt ein Modell, das Text aus dem PR lenken kann.
   Hebt ein PR den Aufruf an, liest das Review den Diff des Workflows aus dessen Repository; bisher
   blieb der neue Commit für das Review ein offener Punkt.
+- Das Security-Review stoppt Docker, bevor es sudo abschaltet, und prüft beides; den Checkout, in
+  dem der Agent schreiben kann, entfernt es gleich nach ihm, bevor der Post-Schritt von
+  `actions/checkout` dort git aufruft. Lässt sich das Review am PR nicht ablegen, steht der Status
+  auf `error` statt dauerhaft auf "läuft" (`opengewerk/.github#35` und `#36`, Aufruf angehoben).
+  Vorher war Docker ein zweiter Weg zu root, und eine Git-Konfiguration aus der Sandbox hätte nach
+  ihr außerhalb laufen können
 
 ### Behoben
 
