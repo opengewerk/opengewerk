@@ -1,3 +1,4 @@
+import { addDays, easterSunday } from '../model/calendar.js'
 import type { IsoDate } from '../model/identifier.js'
 
 /**
@@ -20,6 +21,14 @@ import type { IsoDate } from '../model/identifier.js'
  * runs a building (opengewerk-haustechnik#16): a test every 36 months, hot
  * water at 60.0 degrees, a heating system from 70 kilowatts, a refrigerant
  * charge from 5 tonnes of CO2 equivalent, legionella from 100 per 100 ml.
+ *
+ * A day of the year and the distance to Easter Sunday came with the public
+ * holidays of a state (opengewerk-haustechnik#200), which are rules like any
+ * other, with a source and the time they are in force: `month_day` is a day
+ * that comes back every year, written as the month times a hundred and the
+ * day (1003 is the third of October), and `days_from_easter` a day that moves
+ * with Easter, counted from Easter Sunday (-2 is Good Friday, 1 Easter
+ * Monday). `ruleDayIn` makes a day of a year of either.
  */
 export const ruleUnits = [
   'basis_points',
@@ -38,6 +47,8 @@ export const ruleUnits = [
   'kilograms_co2e',
   'tonnes_co2e',
   'count_per_100_ml',
+  'month_day',
+  'days_from_easter',
 ] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]
@@ -270,6 +281,14 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
         `Die Regel ${record.key} ab ${record.validFrom} hat keinen ganzzahligen Wert.`,
       )
     }
+
+    // A day that comes back every year has to be in every year: the 29th of
+    // February is not.
+    if (record.unit === 'month_day' && !isMonthDay(record.value)) {
+      throw new RuleError(
+        `Die Regel ${record.key} ab ${record.validFrom} nennt keinen Tag, den jedes Jahr hat: ${String(record.value)}.`,
+      )
+    }
   }
 
   // Which records may answer for a state: its own and those of the whole
@@ -310,6 +329,36 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
     keys: () => [...new Set(records.map((record) => record.key))].sort(),
     all: () => records,
   }
+}
+
+/** Whether a value of the unit `month_day` is a day every year has. */
+function isMonthDay(value: number): boolean {
+  const month = Math.floor(value / 100)
+  const day = value % 100
+  // The days of each month in a year that is no leap year.
+  const days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+  return month >= 1 && month <= 12 && day >= 1 && day <= (days[month - 1] ?? 0)
+}
+
+/**
+ * The day a rule of a day names in a year: the day itself for `month_day`,
+ * counted from Easter Sunday for `days_from_easter`, and none for a rule in
+ * any other unit.
+ */
+export function ruleDayIn(rule: Pick<RuleRecord, 'unit' | 'value'>, year: number): IsoDate | null {
+  if (rule.unit === 'days_from_easter') {
+    return addDays(easterSunday(year), rule.value)
+  }
+
+  if (rule.unit === 'month_day' && isMonthDay(rule.value)) {
+    const month = String(Math.floor(rule.value / 100)).padStart(2, '0')
+    const day = String(rule.value % 100).padStart(2, '0')
+
+    return `${String(year)}-${month}-${day}` as IsoDate
+  }
+
+  return null
 }
 
 /** The day after, without a time zone anywhere near it. */

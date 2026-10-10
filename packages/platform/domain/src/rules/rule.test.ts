@@ -1,6 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 
+import { easterSunday } from '../model/calendar.js'
 import type { IsoDate } from '../model/identifier.js'
 import {
   federalStates,
@@ -13,6 +14,7 @@ import {
   ruleScopeNames,
   ruleScopes,
   ruleSet,
+  ruleDayIn,
   ruleUnits,
   scopeOf,
 } from './rule.js'
@@ -403,5 +405,49 @@ describe('a set of rules, whatever its periods and scopes', () => {
         },
       ),
     )
+  })
+})
+
+describe('a rule of a day', () => {
+  const holiday = (unit: 'month_day' | 'days_from_easter', value: number): RuleRecord => ({
+    key: 'day_off',
+    scope: 'DE-BW',
+    validFrom: '1995-05-08' as IsoDate,
+    validUntil: null,
+    unit,
+    value,
+    source: '§ 1 FTG',
+  })
+
+  it('names the same day every year, or a day counted from Easter Sunday', () => {
+    expect(ruleDayIn(holiday('month_day', 1003), 2026)).toBe('2026-10-03')
+    expect(ruleDayIn(holiday('month_day', 101), 2027)).toBe('2027-01-01')
+    expect(ruleDayIn(holiday('days_from_easter', -2), 2026)).toBe('2026-04-03')
+    expect(ruleDayIn(holiday('days_from_easter', 1), 2026)).toBe('2026-04-06')
+    expect(ruleDayIn(holiday('days_from_easter', 60), 2026)).toBe('2026-06-04')
+    expect(ruleDayIn({ unit: 'days', value: 3 }, 2026)).toBeNull()
+  })
+
+  it('moves with Easter by as many days as it says, in every year', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1583, max: 9999 }),
+        fc.integer({ min: -60, max: 70 }),
+        (year, days) => {
+          const day = ruleDayIn(holiday('days_from_easter', days), year)
+          const easter = new Date(`${easterSunday(year)}T00:00:00Z`).getTime()
+
+          expect((new Date(`${String(day)}T00:00:00Z`).getTime() - easter) / 86_400_000).toBe(days)
+        },
+      ),
+    )
+  })
+
+  it('is refused for a day that not every year has', () => {
+    expect(() => ruleSet([holiday('month_day', 229)])).toThrow(RuleError)
+    expect(() => ruleSet([holiday('month_day', 1301)])).toThrow(/keinen Tag, den jedes Jahr hat/)
+    expect(() => ruleSet([holiday('month_day', 431)])).toThrow(RuleError)
+    expect(() => ruleSet([holiday('month_day', 1231)])).not.toThrow()
+    expect(() => ruleSet([holiday('days_from_easter', -2)])).not.toThrow()
   })
 })

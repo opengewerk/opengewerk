@@ -39,6 +39,41 @@ export function addMonths(on: IsoDate, months: number): IsoDate {
 }
 
 /**
+ * Easter Sunday of a year of the Gregorian calendar: the first Sunday after
+ * the full moon on or after the 21st of March, by the tables of the church,
+ * never before the 22nd of March and never after the 25th of April. Worked
+ * out with the anonymous Gregorian algorithm (Meeus, Jones and Butcher). The
+ * movable feasts are counted from it: Good Friday two days before, Whit
+ * Monday fifty days after. For the years 1583 to 9999, where the Gregorian
+ * calendar and a four digit year both hold.
+ */
+export function easterSunday(year: number): IsoDate {
+  if (!Number.isInteger(year) || year < 1583 || year > 9999) {
+    throw new RangeError(
+      `Ostern wird für die Jahre 1583 bis 9999 gerechnet, nicht für ${String(year)}.`,
+    )
+  }
+
+  const golden = year % 19
+  const century = Math.floor(year / 100)
+  const ofCentury = year % 100
+  const leapCenturies = Math.floor(century / 4)
+  const centuryLeft = century % 4
+  const moonCorrection = Math.floor((century + 8) / 25)
+  const moonShift = Math.floor((century - moonCorrection + 1) / 3)
+  const epact = (19 * golden + century - leapCenturies - moonShift + 15) % 30
+  const leapYears = Math.floor(ofCentury / 4)
+  const yearLeft = ofCentury % 4
+  const toSunday = (32 + 2 * centuryLeft + 2 * leapYears - epact - yearLeft) % 7
+  const late = Math.floor((golden + 11 * epact + 22 * toSunday) / 451)
+  const count = epact + toSunday - 7 * late + 114
+  const month = Math.floor(count / 31)
+  const day = (count % 31) + 1
+
+  return `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}` as IsoDate
+}
+
+/**
  * The day and the minute of the day in Germany, where every tenant of an
  * instance works: a deadline is due on a day there, and a reminder waits for
  * the morning there, whatever clock the server runs on.
