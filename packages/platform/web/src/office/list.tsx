@@ -11,7 +11,6 @@ import type { Band } from '../components/band.js'
 import { Button } from '../components/button.js'
 import { TablePanel } from '../components/panel.js'
 import { Cell, Column } from '../components/table.js'
-import { text } from '../sync/fields.js'
 import { Chip, Key, PageHead } from './kit.js'
 
 /**
@@ -132,13 +131,25 @@ export interface ListScreenProps {
   readonly empty: ListEmpty
 }
 
-/** The last change first: "Sortiert nach: Zuletzt geändert", as the list boards do. */
+/**
+ * The last change first: "Sortiert nach: Zuletzt geändert", as the list boards do.
+ *
+ * By the change sequence, which counts the changes of a tenant in the order
+ * they were committed. The moment of a change stays on the server with the
+ * rest of its stamp. A record this device made and the server has not yet
+ * answered has none and comes last, as it did while the moment travelled.
+ */
 export const lastChanged: ListSort = {
   id: 'changed',
   label: 'Zuletzt geändert',
   compare: (left, right) =>
-    text(right, 'updatedAt').localeCompare(text(left, 'updatedAt')) ||
-    String(right['id']).localeCompare(String(left['id'])),
+    sequenceOf(right) - sequenceOf(left) || String(right['id']).localeCompare(String(left['id'])),
+}
+
+function sequenceOf(row: RecordState): number {
+  const value = row['changeSequence']
+
+  return typeof value === 'number' ? value : 0
 }
 
 /** "248 Einträge", with the thousands the way a person writes them. */

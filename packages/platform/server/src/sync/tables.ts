@@ -7,6 +7,8 @@ import {
 import { getTableColumns, getTableName, is } from 'drizzle-orm'
 import { type PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
+import { leftOnTheServer } from './stamp.js'
+
 /**
  * The tables of a schema module by name, the names a device talks about.
  *
@@ -58,6 +60,10 @@ export function toRecordState(table: PgTable, row: Readonly<Record<string, unkno
  * out of it. Sent as an object, a value of JSON came back as an object in a
  * patch, which no patch carries, and a pending change to it, which is text,
  * lay over an object on the screen.
+ *
+ * Without the stamp of the last change (`leftOnTheServer`): a device needs the
+ * version and the change sequence, and not who changed a record, from which
+ * device and when.
  */
 export function travellingRows(
   table: PgTable,
@@ -67,16 +73,13 @@ export function travellingRows(
     .filter(([, column]) => carriesJson(column))
     .map(([field]) => field)
 
-  if (json.length === 0) {
-    return [...rows]
-  }
-
-  return rows.map((row) => ({
-    ...row,
-    ...Object.fromEntries(
-      json.filter((field) => field in row).map((field) => [field, asText(row[field])]),
+  return rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row)
+        .filter(([field]) => !leftOnTheServer.includes(field))
+        .map(([field, value]) => [field, json.includes(field) ? asText(value) : value]),
     ),
-  }))
+  )
 }
 
 /**

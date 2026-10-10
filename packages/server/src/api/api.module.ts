@@ -5,7 +5,7 @@ import {
   type NestModule,
   RequestMethod,
 } from '@nestjs/common'
-import { APP_FILTER, APP_GUARD } from '@nestjs/core'
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { auditVocabulary, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
 import {
   attachmentParts,
@@ -32,6 +32,7 @@ import {
   rendererFor,
   SameOriginGuard,
   type SecretKey,
+  StampInterceptor,
   syncParts,
   TRUSTED_ORIGINS,
   VERSION,
@@ -334,6 +335,9 @@ export class ApiModule implements NestModule {
         { provide: APP_GUARD, useClass: SameOriginGuard },
         { provide: APP_GUARD, useClass: AuthorizationGuard },
         { provide: APP_FILTER, useClass: DatabaseExceptionFilter },
+        // No answer says who changed a record last, from which device and
+        // when; the change log keeps it for the owner.
+        { provide: APP_INTERCEPTOR, useClass: StampInterceptor },
       ],
     }
   }

@@ -49,7 +49,11 @@ export interface TenantOwned {
 export interface Synced extends TenantOwned {
   /** Counts up on every change. A shortcut for "has anything happened here". */
   readonly version: number
-  /** Who wrote it last. On the row, because a device has no audit log. */
+  /**
+   * Who wrote it last, and from which device. On the row, for the change log;
+   * like `updatedAt`, neither leaves the server (`leftOnTheServer` there), so
+   * a record a device holds or a route hands out has neither.
+   */
   readonly updatedBy: string | null
   readonly deviceId: string | null
   /**
