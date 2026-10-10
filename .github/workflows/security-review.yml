@@ -1,12 +1,12 @@
 name: Security-Review
 
 # The security review of the organisation (opengewerk/.github,
-# .github/workflows/security-review.yml) for every pull request: in full on
-# pull_request for a branch of this repository by a member, by reading alone
-# on pull_request_target for anything else. A new push cancels the run of the
-# push before, so only the newest head is reviewed. The call pins a commit of
-# that workflow on its main: a change there reaches this repository with a
-# pull request here, which moves the commit.
+# .github/workflows/security-review.yml) for every pull request: with a shell
+# in a sandbox on pull_request for a branch of this repository by a member, by
+# reading alone on pull_request_target for anything else. A new push cancels
+# the run of the push before, so only the newest head is reviewed. The call
+# pins a commit of that workflow on its main: a change there reaches this
+# repository with a pull request here, which moves the commit.
 
 on:
   pull_request:
@@ -23,12 +23,10 @@ permissions: {}
 jobs:
   security-review:
     name: Security-Review
-    uses: opengewerk/.github/.github/workflows/security-review.yml@4a63c9b84a50f0c356cce3b5c5b611c86f60237d # main
+    uses: opengewerk/.github/.github/workflows/security-review.yml@c6ed9175a2fbb875633377b6f6836328b3fa648e # main
     permissions:
       contents: read
       id-token: write
       pull-requests: write
+      security-events: write
       statuses: write
-    with:
-      postgres-user: opengewerk
-      postgres-port: 5433
