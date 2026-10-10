@@ -253,6 +253,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   öffnet ihre erste Adresse vor der ersten Breite, auch wenn ihre erste Art ein Dialog ist: eine
   nie geöffnete Seite behält die 800 Pixel, mit denen sie entsteht, und die Prüfung brach in der
   Haustechnik daran ab.
+- Das Security-Review jedes Pull Requests läuft in GitHub Actions, mit dem Workflow der
+  Organisation (`opengewerk/.github#27`): für einen Branch dieses Repositorys von einem Mitglied
+  mit Tests und PoCs gegen eine eigene Testdatenbank auf Port 5433, für einen PR von außen nur
+  lesend und erst nach der Freigabe eines Maintainers. Geprüft wird der neueste Commit, ein
+  neuer Push bricht den Lauf davor ab; das Ergebnis steht als Kommentar am PR und als Status
+  `PR-Security-Review`. Der Aufruf heftet einen Commit des Workflows an. Bisher lief das Review
+  auf dem Rechner von Moritz mit einem kostenlosen Modell, dessen Kontingent am 10.10.2026
+  aufgebraucht war
 
 ### Behoben
 
