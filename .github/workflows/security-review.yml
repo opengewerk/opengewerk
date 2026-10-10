@@ -23,7 +23,7 @@ permissions: {}
 jobs:
   security-review:
     name: Security-Review
-    uses: opengewerk/.github/.github/workflows/security-review.yml@10111be0bc7f2cb5753127d9190a54169cd10d48 # main
+    uses: opengewerk/.github/.github/workflows/security-review.yml@243df62ee0489dd4399165abbb2048476fb29eea # main
     permissions:
       contents: read
       id-token: write
