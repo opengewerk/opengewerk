@@ -55,6 +55,31 @@ describe('the kind of a page', () => {
     // What only looks like an id is a page of its own.
     expect(kindOf('/a/0000000000000000')).toBe('/a/0000000000000000')
   })
+
+  /** A manual of an application, its topics and their chapters addressed by key. */
+  const manual = [/^\/handbuch\/([^/]+)(?:\/[^/]+\/([^/]+))?/]
+
+  it('stands for every entry an application names by its key, where its patterns capture one', () => {
+    expect(kindOf('/handbuch/heizung', manual)).toBe('/handbuch/:key')
+    expect(kindOf('/handbuch/heizung/kapitel', manual)).toBe('/handbuch/:key/kapitel')
+    expect(kindOf('/handbuch/heizung/kapitel/pumpe_tauschen', manual)).toBe(
+      '/handbuch/:key/kapitel/:key',
+    )
+    expect(kindOf('/handbuch', manual)).toBe('/handbuch')
+    // Without the patterns a key is a page of its own.
+    expect(kindOf('/handbuch/heizung')).toBe('/handbuch/heizung')
+  })
+
+  it('takes a pattern as it is meant, whatever its flags, and the same every time', () => {
+    expect(kindOf('/HANDBUCH/heizung', [/^\/handbuch\/([^/]+)/i])).toBe('/HANDBUCH/:key')
+
+    const global = [/^\/handbuch\/([^/]+)/g]
+
+    expect([kindOf('/handbuch/heizung', global), kindOf('/handbuch/lueftung', global)]).toEqual([
+      '/handbuch/:key',
+      '/handbuch/:key',
+    ])
+  })
 })
 
 describe('a page only a scan reaches', () => {
@@ -183,6 +208,32 @@ describe('the walk through the pages', () => {
       'an der Grenze von 3 Arten angehalten, 2 Adressen blieben ungeprüft',
     )
     expect(site.opened).toEqual(['/', '/a', '/b'])
+  })
+
+  it('takes the pages an application names by key as one kind, and opens four of them for links', async () => {
+    const chapters = Array.from(
+      { length: 6 },
+      (_, number) => `/handbuch/heizung/kapitel/schritt_${String(number)}`,
+    )
+    const site = siteOf({
+      '/': { links: ['/handbuch/heizung', '/handbuch/lueftung'] },
+      '/handbuch/heizung': { links: chapters },
+      '/handbuch/lueftung': { links: ['/handbuch/lueftung/kapitel/filter'] },
+      ...Object.fromEntries(chapters.map((path) => [path, {}])),
+      '/handbuch/lueftung/kapitel/filter': {},
+    })
+
+    const kinds = await walkThrough(site.reader, {
+      entries: ['/'],
+      keys: [/^\/handbuch\/([^/]+)(?:\/[^/]+\/([^/]+))?/],
+    })
+
+    expect(Object.fromEntries(kinds)).toEqual({
+      '/': { path: '/', press: null },
+      '/handbuch/:key': { path: '/handbuch/heizung', press: null },
+      '/handbuch/:key/kapitel/:key': { path: chapters[0], press: null },
+    })
+    expect(site.opened.filter((path) => path.includes('/kapitel/'))).toEqual(chapters.slice(0, 4))
   })
 
   it('is through under the limit an application names', async () => {
