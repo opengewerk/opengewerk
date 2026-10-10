@@ -273,6 +273,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   auf `error` statt dauerhaft auf "läuft" (`opengewerk/.github#35` und `#36`, Aufruf angehoben).
   Vorher war Docker ein zweiter Weg zu root, und eine Git-Konfiguration aus der Sandbox hätte nach
   ihr außerhalb laufen können
+- Die Prüfung "Breiten und Auflösungen" nimmt von einer Anwendung Muster für Adressen, die einen
+  Eintrag mit seinem Schlüssel statt einer Kennung nennen (`keys` an `checkWidths`,
+  `opengewerk-haustechnik#227`). Was eine Gruppe eines Musters fängt, zählt wie eine Kennung, und
+  Seiten, die sich nur dort unterscheiden, sind eine Art. Bisher war jeder solche Eintrag eine Art
+  für sich, die bei jeder Breite hell und dunkel gemessen wurde, und der Gang wuchs mit jedem
+  Eintrag; in der Haustechnik waren es 50 der 177 Arten, alle Seiten ihres Katalogs
 
 ### Behoben
 

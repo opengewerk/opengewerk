@@ -157,12 +157,52 @@ const identifier = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  */
 const day = /^\d{4}-\d{2}-\d{2}$/
 
-/** The kind of page an address is: every identifier becomes `:id`, every day `:day`. */
-export function kindOf(path) {
-  return path
+/**
+ * The kind of page an address is: every identifier becomes `:id`, every day
+ * `:day`, and every part an application names a record by its key in
+ * becomes `:key`.
+ *
+ * Such a key is a word, not an identifier, and only the application knows
+ * where one stands in its addresses: it says so with patterns, each group of
+ * which captures a key. Without them every entry of a register addressed by
+ * its key was a kind of its own, measured at every width, and the walk grew
+ * with every entry added.
+ *
+ * @param {string} path
+ * @param {readonly RegExp[]} [keys]
+ */
+export function kindOf(path, keys = []) {
+  const plain = path
     .split('/')
     .map((part) => (identifier.test(part) ? ':id' : day.test(part) ? ':day' : part))
     .join('/')
+
+  return keys.reduce(keyed, plain)
+}
+
+/** An address with every part the pattern captures as `:key`. */
+function keyed(path, pattern) {
+  // A pattern of its own for every address, with the places of its groups:
+  // nothing of one search carries over to the next.
+  const { flags } = pattern
+  const match = new RegExp(pattern.source, flags.includes('d') ? flags : `${flags}d`).exec(path)
+
+  if (match?.indices === undefined) {
+    return path
+  }
+
+  let kind = path
+
+  // From the last group to the first, so that the places of the earlier ones hold.
+  for (let group = match.indices.length - 1; group >= 1; group -= 1) {
+    const span = match.indices[group]
+
+    if (span !== undefined) {
+      kind = `${kind.slice(0, span[0])}:key${kind.slice(span[1])}`
+    }
+  }
+
+  return kind
 }
 
 /** The first button of that name on the page. */
@@ -257,12 +297,12 @@ export function alsoReached(scannedOnly, path) {
  * yet, and as many of a kind as that kind has left of `pagesPerKind`. Whether
  * one of them leads to a page of the application the browser says afterwards.
  */
-export function worthFollowing(paths, queued, looked, scannedOnly) {
+export function worthFollowing(paths, queued, looked, scannedOnly, keys = []) {
   const fresh = new Set()
   const taken = new Map()
 
   for (const path of [...paths, ...paths.flatMap((path) => alsoReached(scannedOnly, path))]) {
-    const kind = kindOf(path)
+    const kind = kindOf(path, keys)
     const count = (looked.get(kind) ?? 0) + (taken.get(kind) ?? 0)
 
     if (!queued.has(path) && !fresh.has(path) && count < pagesPerKind) {
@@ -384,35 +424,36 @@ function readerOf(page, address) {
  */
 export async function walkThrough(
   reader,
-  { entries, scannedOnly = [], openers = [], mostKinds = mostKindsUnlessSaid },
+  { entries, scannedOnly = [], keys = [], openers = [], mostKinds = mostKindsUnlessSaid },
 ) {
+  const kindOfPath = (path) => kindOf(path, keys)
   const kinds = new Map()
   const queued = new Set(entries)
-  const looked = new Map(entries.map((path) => [kindOf(path), 1]))
+  const looked = new Map(entries.map((path) => [kindOfPath(path), 1]))
   const queue = [...entries]
 
   while (queue.length > 0 && kinds.size < mostKinds) {
     const path = queue.shift()
 
-    if (!kinds.has(kindOf(path))) {
-      kinds.set(kindOf(path), { path, press: null })
+    if (!kinds.has(kindOfPath(path))) {
+      kinds.set(kindOfPath(path), { path, press: null })
     }
 
     await reader.open(path)
 
     for (const name of openers) {
-      const kind = `${kindOf(path)} (${name})`
+      const kind = `${kindOfPath(path)} (${name})`
 
       if (!kinds.has(kind) && (await reader.has(name))) {
         kinds.set(kind, { path, press: name })
       }
     }
 
-    const fresh = worthFollowing(await reader.paths(), queued, looked, scannedOnly)
+    const fresh = worthFollowing(await reader.paths(), queued, looked, scannedOnly, keys)
 
     for (const link of await reader.pages(fresh)) {
       queued.add(link)
-      looked.set(kindOf(link), (looked.get(kindOf(link)) ?? 0) + 1)
+      looked.set(kindOfPath(link), (looked.get(kindOfPath(link)) ?? 0) + 1)
       queue.push(link)
     }
   }
@@ -782,6 +823,9 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
  *   Pages only a scan reaches, found through a link to the same record: a
  *   pattern with the identifier as its first group, and the address it stands
  *   for as well.
+ * @param {readonly RegExp[]} [options.keys] Where the addresses name a record
+ *   by its key rather than an identifier: patterns, each group of which
+ *   captures such a key. Pages that differ only there are one kind.
  * @param {readonly string[]} [options.openers] The names of the buttons that
  *   open a form without an address of its own.
  * @param {number} [options.mostKinds] How many kinds of page the walk may
@@ -796,6 +840,7 @@ export async function checkWidths({
   report,
   entries,
   scannedOnly = [],
+  keys = [],
   openers = [],
   mostKinds,
   lanes = lanesUnlessSaid,
@@ -821,6 +866,7 @@ export async function checkWidths({
       address,
       entries,
       scannedOnly,
+      keys,
       openers,
       mostKinds,
     })
