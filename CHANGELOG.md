@@ -261,6 +261,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `PR-Security-Review`. Der Aufruf heftet einen Commit des Workflows an. Bisher lief das Review
   auf dem Rechner von Moritz mit einem kostenlosen Modell, dessen Kontingent am 10.10.2026
   aufgebraucht war
+- Das Security-Review gibt einen PR frei oder verlangt Änderungen, wie früher der lokale Reviewer,
+  und läuft mit einem zweiten Konto weiter, wenn das Guthaben des ersten aufgebraucht ist
+  (`opengewerk/.github#32` bis `#34`, Aufruf angehoben). Ein PR von außen bekommt nie eine
+  Freigabe, nur einen Kommentar: über ihn urteilt ein Modell, das Text aus dem PR lenken kann.
+  Hebt ein PR den Aufruf an, liest das Review den Diff des Workflows aus dessen Repository; bisher
+  blieb der neue Commit für das Review ein offener Punkt.
 
 ### Behoben
 
