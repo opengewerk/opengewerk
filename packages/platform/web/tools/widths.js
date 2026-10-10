@@ -660,11 +660,41 @@ async function laneIn(browser, theme, themeKey) {
     }, themeKey)
   }
 
-  return { theme, context, page: await context.newPage(), confirmed: false }
+  const page = await context.newPage()
+  const lane = { theme, context, page, confirmed: false, troubles: [] }
+  const where = (url) => kindOf(new URL(url).pathname)
+
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      lane.troubles.push(`${String(response.status())} ${where(response.url())}`)
+    }
+  })
+  page.on('requestfailed', (request) => {
+    lane.troubles.push(`${request.failure()?.errorText ?? 'ohne Antwort'} ${where(request.url())}`)
+  })
+
+  return lane
+}
+
+/**
+ * What went wrong with the requests of a page since it was opened, as a few
+ * words after a finding: an answer with an error, or a request that got none.
+ * A button that comes with what the server answers, a right for instance, is
+ * missing when that answer is, and waiting does not bring it back; the
+ * finding says which answer it was rather than leaving it to be guessed. A
+ * request the next page cut off is no trouble of the page.
+ *
+ * @param {readonly string[]} troubles
+ */
+export function troubleNote(troubles) {
+  const told = [...new Set(troubles.filter((trouble) => !trouble.includes('ERR_ABORTED')))]
+
+  return told.length === 0 ? '' : `; beim Laden: ${told.slice(0, 5).join(', ')}`
 }
 
 /** Opens a page, and holds the first of the lane to the theme the lane is run for. */
 async function openInTheme(lane, address, path) {
+  lane.troubles.length = 0
   await open(lane.page, address, path)
 
   if (!lane.confirmed) {
@@ -732,7 +762,7 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
         failures.push({
           kind,
           theme,
-          line: `bei ${String(width)} px ist "${press}" nicht zu sehen`,
+          line: `bei ${String(width)} px ist "${press}" nicht zu sehen${troubleNote(lane.troubles)}`,
           culprits: [],
         })
       }
@@ -747,7 +777,7 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
         failures.push({
           kind,
           theme,
-          line: `bei ${String(width)} px ${id}: ${help}`,
+          line: `bei ${String(width)} px ${id}: ${help}${troubleNote(lane.troubles)}`,
           culprits: targets.slice(0, 5),
         })
       }

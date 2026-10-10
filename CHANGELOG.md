@@ -320,6 +320,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Laden, und ein Bildschirm, dessen Datensätze erst danach auf das Gerät kamen, war noch leer oder
   ohne seinen Knopf. Die Prüfung wurde so an Seiten rot, die niemand geändert hatte, jedes Mal an
   einer anderen, auch auf `main`.
+- Ein Befund der Prüfung "Breiten und Auflösungen" nennt, welche Anfragen seiner Seite beim Laden
+  scheiterten, mit Status und Adresse (`opengewerk-haustechnik#231`). Ein Knopf, der mit einer
+  Antwort des Servers kommt, etwa mit den Rechten, fehlt, wenn diese Antwort fehlt, und Warten
+  bringt ihn nicht zurück; bisher stand im Bericht nur, dass er nicht zu sehen war, und das Log des
+  Servers lag nirgends.
 
 ## [0.5.0] - 2026-10-04
 
