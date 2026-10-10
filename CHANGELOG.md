@@ -314,6 +314,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   einem leeren Feld. In den Tests der Bildschirme dieser Anwendung hält keine Liste einen Wert, den
   sie nicht anbietet, gemessen mit einer Probe, die in diesem Fall einen Fehler wirft; für sie
   ändert sich also nichts.
+- Die Prüfung "Breiten und Auflösungen" wartet, bis ein Bildschirm gezeichnet ist
+  (`opengewerk-haustechnik#231`): nach dem Laden, bis `main` etwas enthält, und vor "ist nicht zu
+  sehen", bis der Knopf erscheint, jeweils höchstens 10 Sekunden. Bisher fragte sie gleich nach dem
+  Laden, und ein Bildschirm, dessen Datensätze erst danach auf das Gerät kamen, war noch leer oder
+  ohne seinen Knopf. Die Prüfung wurde so an Seiten rot, die niemand geändert hatte, jedes Mal an
+  einer anderen, auch auf `main`.
 
 ## [0.5.0] - 2026-10-04
 
