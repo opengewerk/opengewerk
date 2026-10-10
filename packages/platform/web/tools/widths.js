@@ -759,6 +759,10 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
         await opener(page, press).click()
         await settle(page, 400)
       } else {
+        // A photograph of what stood there instead, as of a page too wide:
+        // which screen, which message, and whether the page drew at all.
+        mkdirSync(report, { recursive: true })
+        await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
         failures.push({
           kind,
           theme,
