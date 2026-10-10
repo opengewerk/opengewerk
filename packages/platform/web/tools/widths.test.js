@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 
 import { storedTheme } from '../src/components/theme.ts'
 import {
+  accessibilityRules,
+  accessibilityWidths,
   alsoReached,
   bandOf,
   fileFor,
@@ -357,5 +359,23 @@ describe('the photograph of a failure', () => {
       join('report', 'start-320-dark.png'),
     )
     expect(performance.now() - started).toBeLessThan(1000)
+  })
+})
+
+describe('the rules of accessibility a page is held to', () => {
+  it('are those of WCAG 2.1 at A and AA and the best practice, without the experimental ones', () => {
+    expect(
+      accessibilityRules([
+        { ruleId: 'label', tags: ['cat.forms', 'wcag2a', 'wcag412'] },
+        { ruleId: 'color-contrast', tags: ['cat.color', 'wcag2aa', 'wcag143'] },
+        { ruleId: 'heading-order', tags: ['cat.semantics', 'best-practice'] },
+        { ruleId: 'label-content-name-mismatch', tags: ['wcag21a', 'wcag253', 'experimental'] },
+        { ruleId: 'color-contrast-enhanced', tags: ['cat.color', 'wcag2aaa', 'wcag146'] },
+      ]),
+    ).toEqual(['label', 'color-contrast', 'heading-order'])
+  })
+
+  it('are checked at the width of a telephone and of a desktop', () => {
+    expect(accessibilityWidths).toEqual([390, 1280])
   })
 })

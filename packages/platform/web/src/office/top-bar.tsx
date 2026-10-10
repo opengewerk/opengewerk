@@ -132,12 +132,14 @@ export function PersonMenu() {
         }}
         className="flex h-11 items-center gap-2 rounded-control px-1.5 text-[13px] text-top-muted cursor-pointer"
       >
+        {/* The initials are drawn and not written: as text they would stand in front of the
+            name a speech user says, which the name of the button does not begin with
+            (WCAG 2.5.3, opengewerk-haustechnik#132). */}
         <span
           aria-hidden="true"
-          className="flex size-[26px] items-center justify-center rounded-full bg-copper-solid text-[12px] font-semibold text-on-copper"
-        >
-          {who.initials}
-        </span>
+          data-initials={who.initials}
+          className="flex size-[26px] items-center justify-center rounded-full bg-copper-solid text-[12px] font-semibold text-on-copper before:content-[attr(data-initials)]"
+        />
         <span className="hidden lg:inline">{who.name}</span>
         <ChevronDown size={13} strokeWidth={2.2} aria-hidden="true" className="hidden lg:block" />
       </button>

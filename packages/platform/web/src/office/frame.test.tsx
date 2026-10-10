@@ -148,7 +148,8 @@ describe('the header of the office', () => {
       await within(header).findByRole('button', { name: 'Mia Mitglied, Konto und Darstellung' }),
     ).toBeTruthy()
     // Two letters for the round badge, and the name beside it.
-    expect(within(header).getByText('MM')).toBeTruthy()
+    // The initials are drawn from an attribute, so that no text stands in front of the name.
+    expect(header.querySelector('[data-initials="MM"]')?.textContent).toBe('')
   })
 
   it('shows no strip while there is nothing to do, and says under the exchange that everything arrived', async () => {
