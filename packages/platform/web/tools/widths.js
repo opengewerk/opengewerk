@@ -274,10 +274,43 @@ export function worthFollowing(paths, queued, looked, scannedOnly) {
   return [...fresh]
 }
 
-/** Goes to a page and waits until the screen stands. */
+/**
+ * How long a screen may take to draw what it shows, and a button to appear,
+ * before what is missing counts as missing.
+ */
+const drawnWithin = 10_000
+
+/**
+ * Goes to a page and waits until the screen stands: until its `main` holds
+ * something. A screen whose records reach the device after the page loaded
+ * draws its content, and the buttons in it, later than the network falls
+ * quiet; measured before, it was an empty page without a heading, or a page
+ * without the button it has, and the check went red at a page nobody had
+ * changed, a different one each time. A screen that never draws is measured
+ * as it stands after the wait, and what is missing is reported.
+ */
 async function open(page, address, path) {
   await page.goto(address + path, { waitUntil: 'networkidle', timeout: 30_000 })
+  await page
+    .waitForFunction(
+      () => (document.querySelector('main')?.textContent ?? '').trim() !== '',
+      null,
+      {
+        timeout: drawnWithin,
+      },
+    )
+    .catch(() => {})
   await settle(page, 400)
+}
+
+/** Whether a button of that name appears on the page, given the time a screen has to draw. */
+function appears(page, name) {
+  return opener(page, name)
+    .waitFor({ state: 'visible', timeout: drawnWithin })
+    .then(
+      () => true,
+      () => false,
+    )
 }
 
 /**
@@ -688,14 +721,12 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
       await openInTheme(lane, address, path)
       await resize(page, width)
 
-      const button = opener(page, press)
-
-      reachable = await button.isVisible()
+      reachable = await appears(page, press)
 
       // A button that is there at a desktop width and gone in this band
       // leaves the form out of reach on such a device.
       if (reachable) {
-        await button.click()
+        await opener(page, press).click()
         await settle(page, 400)
       } else {
         failures.push({
