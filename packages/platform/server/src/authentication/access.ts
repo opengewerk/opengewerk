@@ -122,6 +122,7 @@ export interface MembershipAdditions {
     readonly title: string
     readonly cells: (
       tx: TenantTransaction,
+      tenantId: TenantId,
       userIds: readonly string[],
     ) => Promise<ReadonlyMap<string, string>>
   }

@@ -105,6 +105,7 @@ export class StaffController {
           ? new Map<string, string>()
           : await beside.cells(
               tx,
+              identity.tenantId,
               people.map((person) => person.userId),
             ),
     }))

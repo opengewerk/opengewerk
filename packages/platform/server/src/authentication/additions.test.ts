@@ -80,13 +80,13 @@ const additions: MembershipAdditions = {
   },
   inTable: {
     title: 'Regale',
-    async cells(tx, userIds) {
+    async cells(tx, tenantId, userIds) {
       const { inTenant, asUser } = await workingAs(tx)
 
       return new Map([
         [
           miaId,
-          `Regal West, gefragt von ${asUser === leaId ? 'Lea' : asUser} in ${inTenant === north.id ? 'Nord' : inTenant}, ${String(userIds.length)} Personen`,
+          `Regal West, gefragt von ${asUser === leaId ? 'Lea' : asUser} in ${inTenant === north.id && tenantId === north.id ? 'Nord' : inTenant}, ${String(userIds.length)} Personen`,
         ],
       ])
     },
