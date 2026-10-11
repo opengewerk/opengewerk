@@ -36,6 +36,7 @@ import type { TenantTransaction } from '../database/database.js'
 import { memberships } from '../database/schema/memberships.js'
 import { invitations } from '../schema.js'
 import { letterLines, letters, notes, probeSyncMade, shelves } from '../sync/probe-sync.js'
+import { tableFileOf } from '../tables/read.js'
 import { checkAuditChain } from './chain.js'
 import { auditLogParts } from './controller.js'
 
@@ -216,7 +217,11 @@ beforeAll(async () => {
   await shelf(south.id, 'susi', 'Südregal')
   await shelf(west.id, 'wanda', 'Westregal')
 
-  const parts = auditLogParts({ access: { catalogue }, vocabulary: probeAuditVocabulary })
+  const parts = auditLogParts({
+    access: { catalogue },
+    vocabulary: probeAuditVocabulary,
+    words: { values: { shelves: { closed: { true: 'zu', false: 'offen' } } } },
+  })
 
   app = (
     await Test.createTestingModule({
@@ -586,5 +591,153 @@ describe('a value the log keeps to itself', () => {
     )
 
     expect(rows).toEqual([{ new_value: hash }])
+  })
+})
+
+/**
+ * The log as a table (opengewerk-haustechnik#236): what the filter finds,
+ * newest first and whole, in the words of the list, a row for each field a
+ * change shows, and who made a change only for whoever may see the staff.
+ */
+describe('the log as a table', () => {
+  /** Lea, who reads the log, as she would be with the right to see the staff as well. */
+  const leon = JSON.stringify({
+    userId: 'lea',
+    tenantId: north.id,
+    roles: [],
+    rights: [auditRights.read, 'membership.read'],
+  } satisfies MemberIdentity<Right>)
+
+  async function tableOf(person: Person | 'leon', query = ''): Promise<string[][]> {
+    const path = `/audit/table?format=xlsx${query}`
+    const answer = await (
+      person === 'leon'
+        ? request(app.getHttpServer()).get(path).set(testIdentityHeader, leon)
+        : get(person, path)
+    )
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          done(null, Buffer.concat(chunks))
+        })
+      })
+      .expect(200)
+
+    return (
+      tableFileOf(new Uint8Array(answer.body as Buffer), 'Protokoll.xlsx').sheets[0]?.rows.map(
+        (row) => [...row],
+      ) ?? []
+    )
+  }
+
+  /** Every page of the log as the list reads it, one after the other. */
+  async function wholeLog(person: Person, query: string): Promise<AuditPage['changes']> {
+    const changes: AuditPage['changes'][number][] = []
+    let next: number | null = null
+
+    do {
+      const found: AuditPage = await page(
+        person,
+        `${query}${next === null ? '' : `&before=${String(next)}`}`,
+      )
+
+      changes.push(...found.changes)
+      next = found.next
+    } while (next !== null)
+
+    return changes
+  }
+
+  it('holds every change the filter finds, a row for each field it shows, also beyond its first page', async () => {
+    for (let index = 0; index < auditPageSize + 3; index += 1) {
+      await shelf(south.id, 'susi', `Tabellenregal ${String(index)}`)
+    }
+
+    const changes = await wholeLog('susi', '?table=shelves')
+    const rows = await tableOf('susi', '&table=shelves')
+    const labels = (rows: string[][]) =>
+      rows
+        .slice(1)
+        .filter((row) => row[4] === 'Beschriftung')
+        .map((row) => row[6])
+
+    expect(changes.length).toBeGreaterThan(auditPageSize)
+    expect(labels(rows)).toEqual(
+      changes.flatMap((change) =>
+        change.fields.filter((field) => field.field === 'label').map((field) => field.after),
+      ),
+    )
+    expect(rows.slice(1).every((row) => row[1] !== '' && row[3] !== '')).toBe(true)
+  })
+
+  it('names its columns and writes the record, the change, the field and its values as the list does', async () => {
+    const rows = await tableOf('leon', `&table=shelves&record=${northShelves['tools'] ?? ''}`)
+
+    expect(rows[0]).toEqual([
+      'Zeitpunkt',
+      'Datensatz',
+      'Art',
+      'Änderung',
+      'Feld',
+      'Vorher',
+      'Nachher',
+      'Person',
+      'Gerät',
+      'Weg',
+    ])
+    expect(rows.find((row) => row[4] === 'Beschriftung' && row[5] === 'Werkzeug')).toEqual([
+      expect.stringMatching(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/),
+      'Werkzeug und Messgeräte',
+      'Regal',
+      expect.stringContaining('Beschriftung'),
+      'Beschriftung',
+      'Werkzeug',
+      'Werkzeug und Messgeräte',
+      'Mia Mitglied',
+      expect.stringContaining('Android'),
+      expect.any(String),
+    ])
+    expect(rows.find((row) => row[4] === 'Geschlossen')?.slice(5, 7)).toEqual(['offen', 'zu'])
+  })
+
+  it('names who made a change, and whom a field names, only for whoever may see the staff', async () => {
+    await database.forTenant(
+      { tenantId: north.id, userId: 'mia', reason: 'membership.write' },
+      (tx) =>
+        tx.insert(invitations).values({
+          tenantId: north.id,
+          email: 'tabelle@example.de',
+          name: 'Tara Tabelle',
+          roles: ['member'],
+          tokenHash: 'beef'.repeat(16),
+          invitedBy: 'mia',
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        }),
+    )
+
+    const named = await tableOf('leon', '&table=invitations')
+    const nameless = await tableOf('lea', '&table=invitations')
+    const invitedBy = (rows: string[][]) =>
+      rows.find((row) => row[6] === 'Mia Mitglied' || row[6] === 'gesetzt')
+
+    expect(named[0]).toContain('Person')
+    expect(invitedBy(named)?.[6]).toBe('Mia Mitglied')
+    expect(nameless[0]).not.toContain('Person')
+    expect(invitedBy(nameless)?.[6]).toBe('gesetzt')
+    expect(
+      nameless
+        .flat()
+        .filter((cell) => ['Mia Mitglied', 'Lea Leitung', 'Leon Leitung'].includes(cell)),
+    ).toEqual([])
+  })
+
+  it('is only for whoever reads the log, of their own tenant', async () => {
+    await get('mia', '/audit/table?format=csv').expect(403)
+    await get('lea', '/audit/table?format=pdf').expect(400)
+    await get('lea', '/audit/table?format=csv&since=03.10.2026').expect(400)
+    expect((await tableOf('susi')).flat().some((cell) => cell.includes('Werkzeug'))).toBe(false)
   })
 })

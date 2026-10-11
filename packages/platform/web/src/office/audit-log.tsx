@@ -16,12 +16,19 @@ import { Button, useButtonLook } from '../components/button.js'
 import { Panel, TablePanel } from '../components/panel.js'
 import { Cell, Column } from '../components/table.js'
 import { clockTime, moment } from '../format.js'
-import { auditChain, auditChanges, type AuditFilterView, auditPeople } from '../session/audit.js'
+import {
+  auditChain,
+  auditChanges,
+  type AuditFilterView,
+  auditPeople,
+  auditTablePath,
+} from '../session/audit.js'
 import { useRight } from '../session/queries.js'
 import { RequestRefused } from '../sync/transport.js'
 import { type AuditNames, useAuditWords } from './audit-words.js'
 import { Empty, NoteBox } from './kit.js'
 import { SettingsPage, SettingsText } from './settings.js'
+import { useTableExport } from './table-export.js'
 
 /**
  * Where the change log of a tenant is opened: under the settings, at an
@@ -104,6 +111,8 @@ export function AuditLogScreen() {
     ? { since, until, person, table: narrowed.table, record: narrowed.record }
     : { since, until, person, table, record: '' }
 
+  // What the log shows under its filter, whole, as a table (opengewerk-haustechnik#236).
+  const asTable = useTableExport(auditTablePath(filter))
   const changes = useInfiniteQuery({
     queryKey: ['audit', 'changes', filter],
     queryFn: ({ pageParam }) => auditChanges(filter, pageParam),
@@ -141,7 +150,13 @@ export function AuditLogScreen() {
   }
 
   return (
-    <SettingsPage active="protokoll" title="Änderungsprotokoll" sub={sentences.what}>
+    <SettingsPage
+      active="protokoll"
+      title="Änderungsprotokoll"
+      sub={sentences.what}
+      {...(reads ? { actions: asTable.button } : {})}
+    >
+      {reads ? asTable.trouble : null}
       {!reads ? (
         <Panel>
           <SettingsText muted>{sentences.onlyFor}</SettingsText>

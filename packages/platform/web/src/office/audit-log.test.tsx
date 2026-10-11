@@ -14,6 +14,7 @@ import type { InterfaceApplication } from '../application.js'
 import { clockTime, moment } from '../format.js'
 import { InRouter } from '../in-router.js'
 import { InProbe, probeApplication } from '../probe-application.js'
+import { auditTablePath } from '../session/audit.js'
 import type { TenantChoice } from '../session/session.js'
 import { AuditLogScreen, ChangesButton } from './audit-log.js'
 import { useAuditWords } from './audit-words.js'
@@ -195,6 +196,28 @@ describe('the change log', () => {
     expect(rows[1]?.textContent).toContain('Angelegt')
     expect(rows[1]?.textContent).toContain('Niemand')
     expect(rows[1]?.textContent).toContain('Direkt in der Datenbank')
+  })
+
+  it('is offered as a table, at the address of what it is narrowed to', async () => {
+    expect(
+      auditTablePath({
+        since: '2026-10-01',
+        until: '',
+        person: 'u-2',
+        table: 'shelves',
+        record: '',
+      }),
+    ).toBe('/audit/table?since=2026-10-01&person=u-2&table=shelves')
+    expect(auditTablePath({ since: '', until: '', person: '', table: '', record: '' })).toBe(
+      '/audit/table',
+    )
+
+    signedInWith('audit.read')
+    windowOf(1280)
+    render(inQueries(<AuditLogScreen />))
+
+    await screen.findByRole('table', { name: 'Änderungen' })
+    expect(screen.getByRole('button', { name: /Als Tabelle/ })).toBeTruthy()
   })
 
   it('opens a change with its fields before and after, and the ways to the record', async () => {
