@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import { tableFileOf } from '../tables/read.js'
 import type { MembershipAdditions } from './access.js'
 import {
   type ProbeFoundation,
@@ -76,6 +77,19 @@ const additions: MembershipAdditions = {
   async changed(tx, membership, said) {
     asked.push({ what: 'changed', ...(await workingAs(tx)), about: membership, said })
     answer()
+  },
+  inTable: {
+    title: 'Regale',
+    async cells(tx, userIds) {
+      const { inTenant, asUser } = await workingAs(tx)
+
+      return new Map([
+        [
+          miaId,
+          `Regal West, gefragt von ${asUser === leaId ? 'Lea' : asUser} in ${inTenant === north.id ? 'Nord' : inTenant}, ${String(userIds.length)} Personen`,
+        ],
+      ])
+    },
   },
 }
 
@@ -392,5 +406,65 @@ describe('what an application keeps beside a membership', () => {
       .expect(409)
 
     expect(asked).toEqual([])
+  })
+})
+
+/**
+ * The staff as a table (opengewerk-haustechnik#236): the accounts of the
+ * list with what the application shows beside them, for whoever sees the
+ * list, and the application asked in the tenant and as the person.
+ */
+describe('the staff as a table', () => {
+  async function tableOf(cookies: string): Promise<string[][]> {
+    const answer = await http()
+      .get('/staff/table?format=xlsx')
+      .set('cookie', cookies)
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          done(null, Buffer.concat(chunks))
+        })
+      })
+      .expect(200)
+
+    return (
+      tableFileOf(new Uint8Array(answer.body as Buffer), 'Zugänge.xlsx').sheets[0]?.rows.map(
+        (row) => [...row],
+      ) ?? []
+    )
+  }
+
+  it('holds each account with its roles by name, the column of the application, its state and when it was last seen', async () => {
+    const rows = await tableOf(await asLea())
+
+    expect(rows[0]).toEqual([
+      'Zugang',
+      'E-Mail',
+      'Rolle',
+      'Regale',
+      'Zustand',
+      'Zuletzt angemeldet',
+    ])
+
+    const byEmail = new Map(rows.slice(1).map((row) => [row[1], row]))
+
+    expect(byEmail.get(mia.email)?.slice(0, 5)).toEqual([
+      mia.name,
+      mia.email,
+      'Mitglied',
+      `Regal West, gefragt von Lea in Nord, ${String(rows.length - 1)} Personen`,
+      'Aktiv',
+    ])
+    expect(byEmail.get(lea.email)?.slice(3, 5)).toEqual(['', 'Aktiv, zweiter Faktor eingerichtet'])
+    expect(byEmail.get(lea.email)?.[5]).toMatch(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/)
+  })
+
+  it('is only for whoever sees the staff', async () => {
+    const cookies = await visitors.workIn(mia.email, north.id)
+
+    await http().get('/staff/table?format=csv').set('cookie', cookies).expect(403)
   })
 })

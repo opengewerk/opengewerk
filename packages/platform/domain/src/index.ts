@@ -23,6 +23,7 @@ export * from './model/passkey.js'
 export * from './model/paths.js'
 export * from './model/push.js'
 export * from './model/rights.js'
+export * from './model/staff-words.js'
 export * from './model/signature.js'
 export * from './model/task.js'
 
