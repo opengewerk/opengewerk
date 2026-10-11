@@ -182,6 +182,20 @@ describe('a list as text with separated values', () => {
     ])
   })
 
+  it('quotes a value with a semicolon, so that it stays one value', () => {
+    const table: OutgoingTable = {
+      name: 'Liste',
+      columns: ['Ort', 'Art'],
+      rows: [['Halle 1; Hof', 'Lager']],
+    }
+
+    expect(text(tableAsCsv(table))).toBe(`${mark}Ort;Art\r\n"Halle 1; Hof";Lager\r\n`)
+    expect(readBack(tableAsCsv(table), 'Liste.csv')[0]?.rows).toEqual([
+      ['Ort', 'Art'],
+      ['Halle 1; Hof', 'Lager'],
+    ])
+  })
+
   it('writes a negative number as a number, not as text with an apostrophe', () => {
     expect(text(tableAsCsv({ name: 'Liste', columns: ['Zahl'], rows: [[-3]] }))).toBe(
       `${mark}Zahl\r\n-3\r\n`,

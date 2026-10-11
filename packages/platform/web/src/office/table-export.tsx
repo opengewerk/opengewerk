@@ -170,7 +170,7 @@ export function useTableExport(address: string): {
           }}
         >
           {tableExportWords.button}
-          <ChevronDown size={13} strokeWidth={2.2} aria-hidden="true" className="ml-1.5" />
+          <ChevronDown size={13} strokeWidth={2.2} aria-hidden="true" />
         </Button>
         {open ? (
           <div
