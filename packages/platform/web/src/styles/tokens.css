@@ -78,6 +78,8 @@
   --color-top-ink: #f4f1ea;
   --color-top-muted: #cfcbc2;
   --color-top-line: #3a4453;
+  /* A field in the header, the search: a step lighter than the slate. */
+  --color-top-input: #262f3c;
   --color-nav: #eae6dd;
 
   /* The camera of the scanner (#300): the same in both grounds, since the
@@ -204,6 +206,7 @@
   --color-top-ink: #f4f1ea;
   --color-top-muted: #cfcbc2;
   --color-top-line: #2a3441;
+  --color-top-input: #1b2430;
   --color-nav: #182029;
 
   --color-camera: #0e131a;

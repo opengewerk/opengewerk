@@ -44,4 +44,17 @@ export { isNarrow, useBand, useThreeColumns } from './band.js'
 export type { Band } from './band.js'
 
 export { NumberBadge, Status, statusIcons } from './status.js'
+
+// The search over the records of an application: what it hands in, and the
+// pieces both entries draw it from (opengewerk-haustechnik#125).
+export {
+  isOwnAddress,
+  Marked,
+  markedPieces,
+  searchGroups,
+  searchWords,
+  useSearch,
+  useSearchWords,
+} from './search.js'
+export type { SearchFound, SearchHit, SearchKind, SearchSource, SearchState } from './search.js'
 export type { StatusProps, StatusTone } from './status.js'
