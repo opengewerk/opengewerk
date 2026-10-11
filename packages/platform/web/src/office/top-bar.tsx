@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
 import { ChevronDown, Menu, Server, User } from 'lucide-react'
 import { createContext, useEffect, useRef, useState } from 'react'
 
 import { useApplication } from '../application.js'
 import { BrandMark } from '../components/brand-mark.js'
+import type { SearchSource } from '../components/search.js'
 import { ThemeSwitch } from '../components/theme-switch.js'
 import { useTheme } from '../components/theme.js'
 import { SignOutButton } from '../gate/sign-out.js'
@@ -13,6 +15,7 @@ import { accountQuery } from '../session/queries.js'
 import { useWho } from '../session/who.js'
 import { entryPath } from '../shell/entry.js'
 import { useSync } from '../sync/provider.js'
+import { OfficeSearch } from './search.js'
 import { TenantMenu } from './tenants.js'
 
 /**
@@ -36,6 +39,7 @@ export function TopBar({
   onMenu,
   focus = false,
   onSlot,
+  search,
 }: {
   readonly menuOpen: boolean
   readonly onMenu: () => void
@@ -43,6 +47,8 @@ export function TopBar({
   readonly focus?: boolean
   /** Where the path of that screen goes. */
   readonly onSlot?: (element: HTMLElement | null) => void
+  /** What the application searches, for the field before the person (#125). */
+  readonly search?: SearchSource
 }) {
   const who = useWho()
   const { name } = useApplication()
@@ -61,7 +67,14 @@ export function TopBar({
       <div className="grow lg:hidden" />
       <Link to="/" className="flex items-center gap-[9px] text-top-ink no-underline">
         <BrandMark />
-        <span className="text-[16px] font-semibold tracking-[0.2px]">{name}</span>
+        {/* Below 640 pixels the magnifier of the search stands before the
+            person, and with the name beside the mark the person would leave
+            the phone: the name is then only for the ear. */}
+        <span
+          className={clsx('text-[16px] font-semibold tracking-[0.2px]', search && 'max-sm:sr-only')}
+        >
+          {name}
+        </span>
       </Link>
       {focus ? (
         <div ref={onSlot} className="hidden min-w-0 lg:ml-0 lg:flex" />
@@ -72,6 +85,7 @@ export function TopBar({
         </>
       )}
       <div className="grow" />
+      {search ? <OfficeSearch source={search} /> : null}
       <PersonMenu />
     </header>
   )

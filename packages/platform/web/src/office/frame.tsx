@@ -2,6 +2,7 @@ import { Link, Outlet } from '@tanstack/react-router'
 import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import type { SearchSource } from '../components/search.js'
 import { Shell } from '../components/surface.js'
 import { useHeadingFocus } from '../shell/heading-focus.js'
 import { EntrySuggestion } from '../shell/suggestion.js'
@@ -42,6 +43,12 @@ export interface OfficeFrameProps {
    * exchange and before the two offers.
    */
   readonly strips?: ReactNode
+  /**
+   * What the application searches (opengewerk-haustechnik#125): the field in
+   * the header from 1024 pixels, the magnifier below. Without it the header
+   * has no search.
+   */
+  readonly search?: SearchSource
 }
 
 /**
@@ -63,6 +70,7 @@ export function OfficeFrame({
   foot = nothingOfItsOwn,
   focus = false,
   strips,
+  search,
 }: OfficeFrameProps) {
   const [drawer, setDrawer] = useState(false)
   const openDrawer = useCallback(() => {
@@ -95,7 +103,13 @@ export function OfficeFrame({
           Zum Inhalt springen
         </a>
 
-        <TopBar menuOpen={drawer} onMenu={openDrawer} focus={focus} onSlot={setSlot} />
+        <TopBar
+          menuOpen={drawer}
+          onMenu={openDrawer}
+          focus={focus}
+          onSlot={setSlot}
+          {...(search ? { search } : {})}
+        />
 
         {/* In the order of the board "Leisten im Büro": what cannot wait first,
             the offers last. */}

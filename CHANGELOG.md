@@ -9,6 +9,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Suche über die Datensätze einer Anwendung (`opengewerk-haustechnik#125`): `OfficeFrame` nimmt
+  eine Quelle (`search`) und zeigt ab 1024 Pixeln ein Feld in der Kopfleiste, darunter eine Lupe,
+  die die Suche über dem Bildschirm öffnet; Strg K (Cmd K) springt von jedem Bildschirm hinein.
+  `SiteSearch` legt dasselbe vor Ort über das, was ein Bildschirm zeigt, und setzt die Treffer an
+  dessen Stelle, solange Wörter dastehen. Die Treffer stehen in Gruppen in der Reihenfolge der Arten,
+  das Gesuchte markiert, der erste gewählt; Pfeiltasten wählen, Eingabe öffnet. Was gesucht wird, wo
+  und wie die Arten heißen, gibt die Anwendung herein (ADR 0010): eine Quelle mit Arten, Wörtern und
+  einer Funktion, die findet. Gefragt wird sie auch ohne Netz, damit sie dann im Bestand des Geräts
+  sucht, und erst ab der kürzesten Länge, die sie nennt. Eine Art mit mehr Treffern sagt es ohne
+  Zahl. Ohne Quelle hat die Kopfleiste keine Suche, die Handwerkersoftware bleibt, wie sie ist. Mit
+  Quelle steht unter 640 Pixeln die Marke ohne den Namen daneben, damit Lupe und Person auf ein
+  Telefon passen; der Name bleibt der Name des Links.
 - Eine Liste des Büros geht als Tabelle hinaus (`opengewerk-haustechnik#138`): `tableAnswer` im
   Server schreibt, was die Route einer Liste unter den Rechten und in den Bereichen der fragenden
   Person liest, als Arbeitsmappe (.xlsx) oder als Text mit Semikolon (.csv), und `useTableExport`

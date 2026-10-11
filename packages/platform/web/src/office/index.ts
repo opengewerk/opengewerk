@@ -18,6 +18,9 @@ export type { NavigationBadge, NavigationEntry, NavigationGroup } from './naviga
 // The person with their menu, for a frame of an application's own, and the
 // place in the header a screen that is worked in puts its path into.
 export { PathSlot, PersonMenu } from './top-bar.js'
+// The search in the header, for a frame of an application's own: the frame
+// here draws it when it is handed a source (`search`).
+export { OfficeSearch } from './search.js'
 // The tenants of the person signed in and the switch between them, for the
 // header and for a screen that lists them.
 export { switchTenant, useTenants } from './tenants.js'
