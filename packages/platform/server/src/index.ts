@@ -222,10 +222,13 @@ export * from './push/worker.js'
 // A table somebody kept in a spreadsheet, on its way into records: a workbook
 // or a file of separated values read into sheets, with limits and without a
 // package, and the two ways such a table reaches a route. Which fields a
-// table has and what becomes of its rows, the application says.
+// table has and what becomes of its rows, the application says. And the
+// other way: a list of the office going out as a workbook or as text, with
+// what the list shows, which the route of the list reads.
 export * from './tables/limits.js'
 export * from './tables/read.js'
 export * from './tables/request.js'
+export * from './tables/write.js'
 
 // The way in of an instance: the built interface served from the same process
 // as the API, with a shell for every address that is neither a file nor the

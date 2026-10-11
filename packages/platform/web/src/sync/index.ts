@@ -60,11 +60,12 @@ export {
   isForbidden,
   isUnauthenticated,
   request,
+  requestFile,
   RequestRefused,
   workIn,
   workingInHeaders,
 } from './transport.js'
-export type { ChangedRows, PullResult, SyncTransport } from './transport.js'
+export type { ChangedRows, PullResult, RequestedFile, SyncTransport } from './transport.js'
 
 // The strip over every screen while something waits or has to be decided.
 export { SyncStatusBar } from './bar.js'

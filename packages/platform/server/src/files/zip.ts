@@ -1,4 +1,4 @@
-import { crc32, inflateRawSync } from 'node:zlib'
+import { crc32, deflateRawSync, inflateRawSync } from 'node:zlib'
 
 /**
  * The files of a ZIP archive: what a supplier packs a delivery into, and what
@@ -144,4 +144,77 @@ export function unzip(bytes: Uint8Array, limit: number, options: UnzipOptions = 
   }
 
   return entries
+}
+
+/**
+ * The archive of the files, each deflated, in their order: what a workbook
+ * is written as when a list goes out as a table
+ * (opengewerk-haustechnik#138). The counterpart of `unzip`, with the same
+ * zlib of Node and no package.
+ *
+ * The names are UTF-8 and marked as such. Every entry carries the same
+ * moment, the first one ZIP can write, so that the same files give the same
+ * bytes. Nothing is encrypted, and nothing needs ZIP64: an archive over
+ * 4 GB or 65535 entries is refused, which no list of an office comes near.
+ */
+export function zipped(files: readonly ZipEntry[]): Uint8Array {
+  const parts: Buffer[] = []
+  const directory: Buffer[] = []
+  let offset = 0
+
+  if (files.length >= 0xffff) {
+    throw new ZipRefused('Das Archiv hätte zu viele Dateien.')
+  }
+
+  for (const file of files) {
+    const name = Buffer.from(file.path, 'utf-8')
+    const packed = deflateRawSync(file.bytes)
+    const checksum = crc32(file.bytes)
+    // The 1st of January 1980 at midnight, as MS-DOS counts a day.
+    const day = (1 << 5) | 1
+    const head = Buffer.alloc(30)
+
+    head.writeUInt32LE(localSignature, 0)
+    head.writeUInt16LE(20, 4)
+    head.writeUInt16LE(0x800, 6)
+    head.writeUInt16LE(8, 8)
+    head.writeUInt16LE(day, 12)
+    head.writeUInt32LE(checksum, 14)
+    head.writeUInt32LE(packed.length, 18)
+    head.writeUInt32LE(file.bytes.length, 22)
+    head.writeUInt16LE(name.length, 26)
+
+    const listed = Buffer.alloc(46)
+
+    listed.writeUInt32LE(centralSignature, 0)
+    listed.writeUInt16LE(20, 4)
+    listed.writeUInt16LE(20, 6)
+    listed.writeUInt16LE(0x800, 8)
+    listed.writeUInt16LE(8, 10)
+    listed.writeUInt16LE(day, 14)
+    listed.writeUInt32LE(checksum, 16)
+    listed.writeUInt32LE(packed.length, 20)
+    listed.writeUInt32LE(file.bytes.length, 24)
+    listed.writeUInt16LE(name.length, 28)
+    listed.writeUInt32LE(offset, 42)
+
+    parts.push(head, name, packed)
+    directory.push(listed, name)
+    offset += head.length + name.length + packed.length
+
+    if (offset > 0xffffffff) {
+      throw new ZipRefused('Das Archiv wäre größer als 4 GB.')
+    }
+  }
+
+  const listing = Buffer.concat(directory)
+  const end = Buffer.alloc(22)
+
+  end.writeUInt32LE(endSignature, 0)
+  end.writeUInt16LE(files.length, 8)
+  end.writeUInt16LE(files.length, 10)
+  end.writeUInt32LE(listing.length, 12)
+  end.writeUInt32LE(offset, 16)
+
+  return new Uint8Array(Buffer.concat([...parts, listing, end]))
 }

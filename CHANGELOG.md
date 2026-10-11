@@ -9,6 +9,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Liste des Büros geht als Tabelle hinaus (`opengewerk-haustechnik#138`): `tableAnswer` im
+  Server schreibt, was die Route einer Liste unter den Rechten und in den Bereichen der fragenden
+  Person liest, als Arbeitsmappe (.xlsx) oder als Text mit Semikolon (.csv), und `useTableExport`
+  im Büro gibt der Liste den Knopf "Als Tabelle" mit beiden Formaten, ab der Breite eines Tablets.
+  Geschrieben wird ohne Paket, wie der Import liest: die Arbeitsmappe ist ein ZIP mit wenigen
+  Teilen XML (`zipped` neben `unzip`), die CSV ist UTF-8 mit der Marke am Anfang, damit Excel in
+  Deutschland Umlaute, Zahlen mit Komma und Tage ohne Nacharbeit liest. Ein Wert, der mit `=`,
+  `+`, `-`, `@`, einem Tabulator oder einem Wagenrücklauf beginnt, wird nie als Formel
+  ausgeführt: in der Arbeitsmappe ist jeder Text eine Textzelle mit dem Zeichen, dass sie Text
+  bleibt, in der CSV steht ein Apostroph davor. Was der Leser des Imports als Tag, Zahl und Text
+  liest, schreibt der Schreiber so, damit eine ausgegebene Liste sich wieder einlesen lässt.
+  `requestFile` holt eine solche Datei mit der Sitzung und dem Mandanten, in dem die Seite arbeitet.
 - Die Regeln kennen einen Tag im Jahr und den Abstand zu Ostersonntag (`opengewerk-haustechnik#200`):
   die Einheiten `month_day` (der Monat mal hundert und der Tag, 1003 ist der 3. Oktober) und
   `days_from_easter` (-2 ist Karfreitag), dazu `easterSunday(year)` im Kalender und `ruleDayIn`,
