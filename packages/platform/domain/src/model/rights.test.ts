@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { accessRights, rightsCatalogue, type RoleDefinition } from './rights.js'
+import { accessRights, rightsCatalogue, type RoleDefinition, tableNamesPeople } from './rights.js'
 
 // A catalogue that is nobody's: two rights of its own next to the two the
 // foundation asks for, and two roles. Nothing in here knows an application.
@@ -113,5 +113,15 @@ describe('whether somebody holds a right', () => {
     expect(catalogue.isAllowed(identity, 'shelf.read')).toBe(true)
     expect(catalogue.isAllowed(identity, 'shelf.write')).toBe(false)
     expect(catalogue.isAllowed({ rights: [] }, 'shelf.read')).toBe(false)
+  })
+})
+
+describe('whether a table names people', () => {
+  it('is so for whoever may see who works for the tenant, and for nobody else', () => {
+    expect(tableNamesPeople({ rights: [accessRights.read] })).toBe(true)
+    expect(tableNamesPeople({ rights: ['audit.read', accessRights.write, 'notes.read'] })).toBe(
+      false,
+    )
+    expect(tableNamesPeople({ rights: [] })).toBe(false)
   })
 })
