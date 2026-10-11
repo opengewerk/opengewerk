@@ -131,15 +131,39 @@ export type SearchState =
   | { readonly state: 'found'; readonly found: SearchFound }
   | { readonly state: 'failed'; readonly message: string }
 
+/** The origin an address is read against, which no address of this server names. */
+const ownOrigin = 'https://own.invalid'
+
 /**
  * Whether an address leads somewhere on this server: a path from its root,
  * and not one that names another host (`//`, `/\`) or a scheme. A hit leads
  * there with a plain link or `location.assign`, which run whatever scheme
  * they are given; so the place they are given addresses is checked here and
  * not trusted to every application.
+ *
+ * A browser drops tabs and line breaks from an address before it reads it,
+ * and `/<tab>/host` becomes `//host`: an address with a space or a control
+ * character in it is refused outright. What is left is read as a browser
+ * reads it, against an origin of its own, and has to stay on that origin.
  */
 export function isOwnAddress(to: string): boolean {
-  return /^\/(?![/\\])/.test(to)
+  if (
+    !to.startsWith('/') ||
+    /\s/.test(to) ||
+    [...to].some((character) => {
+      const code = character.charCodeAt(0)
+
+      return code < 0x20 || code === 0x7f
+    })
+  ) {
+    return false
+  }
+
+  try {
+    return new URL(to, ownOrigin).origin === ownOrigin
+  } catch {
+    return false
+  }
 }
 
 /** What was found, without a hit that would lead off this server. */

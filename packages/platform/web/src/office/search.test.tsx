@@ -7,6 +7,7 @@ import { Archive, StickyNote } from 'lucide-react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { inFrame, signedIn, standInServer } from '../in-frame.js'
+import { isOwnAddress } from '../components/search.js'
 import type { SearchFound, SearchSource } from '../components/search.js'
 import { RequestRefused } from '../sync/transport.js'
 import { OfficeFrame } from './frame.js'
@@ -307,6 +308,31 @@ describe('the search in the header of the office', () => {
     await userEvent.keyboard('{Enter}')
 
     expect(assign.mock.calls).toEqual([['/m/notizen/n9']])
+  })
+})
+
+describe('an address of this server', () => {
+  it('is a path from the root that stays on this server, as a browser reads it', () => {
+    for (const own of ['/m/notizen/n9', '/regale/s1?seite=2#oben', '/', '/%2F%2Ffremd.example']) {
+      expect([own, isOwnAddress(own)]).toEqual([own, true])
+    }
+
+    // A browser drops tabs and line breaks before it reads an address: "/\t/x" is "//x".
+    for (const away of [
+      'javascript:alert(1)',
+      'https://fremd.example/regal',
+      '//fremd.example',
+      '/\\fremd.example',
+      '/\t/fremd.example',
+      '/\n/fremd.example',
+      '/\r/fremd.example',
+      '/ /fremd.example',
+      '/\u0000/fremd.example',
+      'regale/s1',
+      '',
+    ]) {
+      expect([away, isOwnAddress(away)]).toEqual([away, false])
+    }
   })
 })
 
