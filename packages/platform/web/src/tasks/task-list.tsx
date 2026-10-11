@@ -127,8 +127,10 @@ export function TaskItem({ task, me, people, words, mayChange, target }: TaskIte
     late ? 'überfällig' : null,
     `verantwortlich: ${responsibleFor(task, me, people, words)}`,
     done ? 'erledigt' : null,
-    client.isPending(taskEntity, id) ? 'noch nicht übertragen' : null,
   ].filter((fact): fact is string => fact !== null)
+  // Ticked or written on the device and not sent yet: said in the colour of
+  // what waits, as everywhere a record has not reached the server.
+  const pending = client.isPending(taskEntity, id)
 
   const toggle = () => {
     setTrouble(null)
@@ -169,6 +171,12 @@ export function TaskItem({ task, me, people, words, mayChange, target }: TaskIte
           )}
         >
           {facts.join(', ')}
+          {pending ? (
+            <>
+              {', '}
+              <span className="font-semibold text-waiting">noch nicht übertragen</span>
+            </>
+          ) : null}
         </div>
         {maybeText(task, 'notes') ? (
           <p
