@@ -9,6 +9,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Aufgaben als Baustein (`opengewerk-haustechnik#124`): `platform-domain` hat `taskEntity`,
+  `taskStatuses`, `TaskBase` und die Regeln, die Formular und Abgleich gleich fragen
+  (`taskTitleProblem`, `isTaskOverdue`, `compareTasksForWork`, `mayNameForTask`, `mayChangeTask`):
+  eine Aufgabe nennt sich selbst jede Person, eine andere nur, wer Aufgaben verteilt, und ändern
+  darf sie, für wen sie ist, und wer verteilt. Der neue Einstieg `@opengewerk/platform-web/tasks`
+  bringt die Zeile einer Aufgabe, die Liste in der Reihenfolge, in der jemand sie abarbeitet, und das
+  Formular für eine neue, im Büro und vor Ort. Woran eine Aufgabe hängt, wen sie erreichen darf und
+  wie die Anwendung die Person anredet, gibt die Anwendung herein (ADR 0010), damit die Haustechnik
+  ihre Aufgaben an Ort, Anlage und Vorgang hängt, ohne den Bildschirm ein zweites Mal zu bauen. Die
+  Handwerkersoftware nimmt die beiden Zustände einer Aufgabe von dort, ihre Tabelle bleibt, wie sie
+  ist; ob sie auf den Baustein umzieht, steht in #597.
 - Die Suche über die Datensätze einer Anwendung (`opengewerk-haustechnik#125`): `OfficeFrame` nimmt
   eine Quelle (`search`) und zeigt ab 1024 Pixeln ein Feld in der Kopfleiste, darunter eine Lupe,
   die die Suche über dem Bildschirm öffnet; Strg K (Cmd K) springt von jedem Bildschirm hinein.
