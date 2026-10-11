@@ -316,12 +316,19 @@ describe('the five columns the server keeps', () => {
     // that is the point: a line the application has to remember is a line it
     // forgets at the sixteenth place, and a stale version only hurts the next
     // time two devices meet, days later and somewhere else.
-    expect(new Date(changed.body.updatedAt).getTime()).toBeGreaterThan(
-      new Date(board.body.updatedAt).getTime(),
-    )
     expect(changed.body.version).toBe(board.body.version + 1)
     expect(changed.body.changeSequence).toBeGreaterThan(board.body.changeSequence)
-    expect(changed.body.updatedBy).toBe('test')
+
+    // When, who and from which device stay on the row, for the change log,
+    // and out of the answer.
+    const { rows } = await admin.query<{ updated_by: string | null; moved: boolean }>(
+      `select updated_by, updated_at > created_at as moved from installations where id = $1`,
+      [board.body.id],
+    )
+
+    expect(rows).toEqual([{ updated_by: 'test', moved: true }])
+    expect(Object.keys(changed.body as object)).not.toContain('updatedBy')
+    expect(Object.keys(changed.body as object)).not.toContain('updatedAt')
   })
 })
 

@@ -86,7 +86,7 @@ beforeEach(() => {
     designation: 'Einfamilienhaus Berg',
     postalCode: '22301',
     city: 'Hamburg',
-    updatedAt: '2026-09-20T08:00:00.000Z',
+    changeSequence: 20,
     version: 1,
   })
   server.put('sites', {
@@ -95,7 +95,7 @@ beforeEach(() => {
     designation: 'Wohnanlage Elbchaussee',
     postalCode: '22763',
     city: 'Hamburg',
-    updatedAt: '2026-09-24T08:00:00.000Z',
+    changeSequence: 24,
     version: 1,
   })
   server.put('installations', {
@@ -104,7 +104,7 @@ beforeEach(() => {
     kind: 'wallbox',
     designation: 'Wallbox Garage',
     manufacturer: 'Mennekes',
-    updatedAt: '2026-09-21T08:00:00.000Z',
+    changeSequence: 21,
     version: 1,
   })
   server.put('installations', {
@@ -112,7 +112,7 @@ beforeEach(() => {
     siteId: 's-2',
     kind: 'meter_cabinet',
     designation: 'Zählerschrank Keller',
-    updatedAt: '2026-09-22T08:00:00.000Z',
+    changeSequence: 22,
     version: 1,
   })
   server.put('jobs', {

@@ -59,6 +59,7 @@ export * from './sync/apply.js'
 export * from './sync/controller.js'
 export * from './sync/narrowing.js'
 export * from './sync/record-rules.js'
+export * from './sync/stamp.js'
 export * from './sync/tables.js'
 
 // The change log of a tenant as a person reads it: a page of changes with the

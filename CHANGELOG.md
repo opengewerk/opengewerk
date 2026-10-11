@@ -139,6 +139,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Wann ein Datensatz zuletzt geändert wurde, von wem und von welchem Gerät, verlässt den Server
+  nicht mehr (`opengewerk-haustechnik#157`). Der Abruf eines Geräts lässt `updatedAt`, `updatedBy`
+  und `deviceId` weg (`travellingRows`), und der neue `StampInterceptor` nimmt sie aus jeder
+  Antwort einer Route, an jedem Datensatz, wie tief er auch steht; `updatedBy` überall. Eine
+  Anwendung meldet ihn für ihr ganzes Modul an, die Handwerkersoftware tut es. In der Zeile und im
+  Änderungsprotokoll bleiben alle drei. Kein Gerät und kein Bildschirm las sie, aber sie lagen auf
+  jedem Gerät, das den Datensatz lesen darf, und eine Arbeitnehmervertretung fragt genau danach.
+  „Zuletzt geändert“ in den Listen des Büros ordnet deshalb nach der Nummer im Änderungsstrom
+  statt nach dem Zeitpunkt; die Reihenfolge ist dieselbe. Ein Gerät, das einen Datensatz schon
+  hält, verliert den Stempel daran mit dessen nächster Änderung.
 - Ein Dialog des Büros steht auf breiten Bildschirmen senkrecht in der Mitte des Fensters statt
   oben unter dem Kopf (`opengewerk-haustechnik#115`). Die Tafeln beider Anwendungen zeichnen ihn über
   dem Bildschirm, zu dem er gehört, und das Fundament setzte jeden bei 8 % der Fensterhöhe an; einer,

@@ -241,13 +241,19 @@ describe('applying what a device queued up', () => {
     const rows = pulled.changes.find((change) => change.entity === 'shelves')?.rows ?? []
 
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({
-      id: shelfId,
-      label: 'Keller',
-      version: 1,
-      deviceId: 'probe-phone',
-    })
+    expect(rows[0]).toMatchObject({ id: shelfId, label: 'Keller', version: 1 })
     expect(Number(rows[0]?.['changeSequence'])).toBeGreaterThan(0)
+
+    // The device of the transmission is on the row, and stays there.
+    const [stored] = await inTenant(north.id, (tx) =>
+      tx
+        .select()
+        .from(shelves)
+        .where(eq(shelves.id, shelfId as never)),
+    )
+
+    expect(stored?.deviceId).toBe('probe-phone')
+    expect(rows[0]).not.toHaveProperty('deviceId')
     expect(pulled.cursor).toBe(Number(rows[0]?.['changeSequence']))
     expect(pulled.hasMore).toBe(false)
   })

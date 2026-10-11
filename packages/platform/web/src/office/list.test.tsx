@@ -30,7 +30,7 @@ const shelves: RecordState[] = Array.from({ length: 30 }, (_, index) => {
     state: number % 4 === 0 ? 'full' : 'free',
     colour: number % 5 === 0 ? 'rot' : 'blau',
     code: `X${String(1000 + number)}`,
-    updatedAt: `2026-09-${String(number).padStart(2, '0')}T08:00:00.000Z`,
+    changeSequence: number,
   }
 })
 
@@ -396,15 +396,23 @@ describe('the order of a list', () => {
     expect(screen.getByText('Strg')).toBeTruthy()
   })
 
-  it('puts the last change first, and of two changed in the same moment the later one', () => {
-    // In the order a sort that stopped at the moment would leave them in.
-    const rows = [
-      { id: 'a', updatedAt: '2026-09-01T08:00:00.000Z' },
-      { id: 'b', updatedAt: '2026-09-02T08:00:00.000Z' },
-      { id: 'c', updatedAt: '2026-09-02T08:00:00.000Z' },
+  it('puts the last change first, and of two without a change on the server the later one last', () => {
+    // In the order a sort that stopped at the change sequence would leave them in.
+    const rows: RecordState[] = [
+      { id: 'a', changeSequence: 7 },
+      { id: 'b', changeSequence: 12 },
+      { id: 'c', changeSequence: 9 },
+      { id: 'd' },
+      { id: 'e' },
     ]
 
-    expect([...rows].sort(lastChanged.compare).map((row) => row.id)).toEqual(['c', 'b', 'a'])
+    expect([...rows].sort(lastChanged.compare).map((row) => row['id'])).toEqual([
+      'b',
+      'c',
+      'a',
+      'e',
+      'd',
+    ])
   })
 
   it('offers the orders by name under a label a reader hears', async () => {

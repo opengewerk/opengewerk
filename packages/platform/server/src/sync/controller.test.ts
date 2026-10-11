@@ -204,6 +204,9 @@ function pull(who: string, query = 'since=0', instance: INestApplication = app) 
   return request(instance.getHttpServer()).get(`/sync?${query}`).set(testIdentityHeader, who)
 }
 
+/** The stamp of the last change, named here and not taken from the list it is held against. */
+const stampFields = ['updatedAt', 'updatedBy', 'deviceId']
+
 interface PulledChange {
   readonly entity: string
   readonly rows: readonly Record<string, unknown>[]
@@ -663,6 +666,34 @@ describe('taking what has changed', () => {
 
     expect(later.changes.flatMap((change) => change.rows)).toEqual([])
     expect(later.cursor).toBe(body.cursor)
+  })
+
+  it('hands a device no stamp of the last change: not when, not who, not from which device', async () => {
+    const { shelfId, noteId } = await shelfWithNote('Keller', 'Zähler ablesen')
+    const body = (await pull(lena()).expect(200)).body as { changes: PulledChange[] }
+    const rows = body.changes.flatMap((change) => change.rows)
+
+    expect(rows.map((row) => row['id']).sort()).toEqual([shelfId, noteId].sort())
+
+    for (const row of rows) {
+      expect(Object.keys(row).filter((field) => stampFields.includes(field))).toEqual([])
+      // What a device sends a change against and asks for more by.
+      expect(row['version']).toBe(1)
+      expect(row['changeSequence']).toEqual(expect.any(Number))
+    }
+
+    // Written all the same, on the row, for the change log of the tenant.
+    const [stored] = await database.forTenant(
+      { tenantId: north.id, userId: 'lena', reason: 'probe' },
+      (tx) =>
+        tx
+          .select()
+          .from(notes)
+          .where(eq(notes.id, noteId as never)),
+    )
+
+    expect(stored).toMatchObject({ updatedBy: 'lena', deviceId: 'probe-phone' })
+    expect(stored?.updatedAt).toBeInstanceOf(Date)
   })
 
   it('refuses a cursor that is not a whole number from zero', async () => {
