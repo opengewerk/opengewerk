@@ -151,6 +151,48 @@ export async function request<Answer>(path: string, init?: RequestInit): Promise
   return (await response.json()) as Answer
 }
 
+/** A file the server made for the page to save, and the name the server gave it. */
+export interface RequestedFile {
+  readonly content: Blob
+  /** From `Content-Disposition`, in full where the server wrote it as UTF-8; null where it named none. */
+  readonly name: string | null
+}
+
+/**
+ * A file from a route that makes one: a table of a list, say. Fetched like
+ * every other request, with the session and the tenant the page works in,
+ * and refused with the sentence of the server, where a link followed in the
+ * browser would show the raw answer in a tab.
+ */
+export async function requestFile(path: string, accept: string): Promise<RequestedFile> {
+  const response = await fetch(path, {
+    credentials: 'include',
+    headers: { Accept: `${accept}, application/json`, ...workingInHeaders() },
+  })
+
+  if (!response.ok) {
+    throw await refusal(response)
+  }
+
+  return { content: await response.blob(), name: fileNameOf(response.headers) }
+}
+
+/** The name in `Content-Disposition`: the one in UTF-8 where there is one, else the plain one. */
+function fileNameOf(headers: Headers): string | null {
+  const disposition = headers.get('Content-Disposition') ?? ''
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
+
+  if (encoded !== undefined) {
+    try {
+      return decodeURIComponent(encoded.trim())
+    } catch {
+      // A name that does not decode falls back to the plain one.
+    }
+  }
+
+  return /filename="([^"]*)"/i.exec(disposition)?.[1] ?? null
+}
+
 /**
  * An operation on the wire.
  *

@@ -140,6 +140,9 @@ export type { Crumb, Fact, NoteTone, PageHeadProps } from './kit.js'
 // what the rows become, the application says.
 export { ColumnsPanel, readTableFile, sendTable, Steps, TableFilePanel } from './tables.js'
 export type { ColumnsPanelProps, StepsProps, TableFilePanelProps } from './tables.js'
+// And the other way: a list going out as a table, "Als Tabelle" in its head,
+// with the file made by the route of the list from what its filter shows.
+export { tableExportWords, useTableExport } from './table-export.js'
 
 // A list at every width: cards on a phone, a table from a tablet on, a
 // preview beside it on a wide screen and the whole record beside it on a
