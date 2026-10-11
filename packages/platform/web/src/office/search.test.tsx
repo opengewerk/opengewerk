@@ -275,6 +275,39 @@ describe('the search in the header of the office', () => {
     expect(hit.getAttribute('href')).toBe('/m/notizen/n9')
     expect(hit.textContent).toContain('Öffnet vor Ort')
   })
+
+  it('shows no hit and goes nowhere whose address leads off this server', async () => {
+    const away = { away: 'Öffnet vor Ort', detail: 'Archiv', kind: 'note' } as const
+    const { source } = sourceOf(() =>
+      Promise.resolve({
+        hits: [
+          { ...away, id: 'x1', title: 'Regal mit Skript', to: 'javascript:alert(1)' },
+          { ...away, id: 'x2', title: 'Regal anderswo', to: '//fremd.example/regal' },
+          { ...away, id: 'x3', title: 'Regal mit Schrägstrich', to: '/\\fremd.example/regal' },
+          { ...away, id: 'x4', title: 'Regal mit Adresse', to: 'https://fremd.example/regal' },
+          { ...away, id: 'n9', title: 'Regal hier', to: '/m/notizen/n9' },
+        ],
+        more: [],
+        note: null,
+      }),
+    )
+    const assign = vi.spyOn(globalThis.location, 'assign').mockImplementation(() => {})
+
+    await frame(source)
+    await userEvent.type(await screen.findByRole('combobox', { name: 'Suche' }), 'regal')
+
+    const list = await screen.findByRole('listbox')
+
+    expect(
+      within(list)
+        .getAllByRole('option')
+        .map((option) => option.getAttribute('href')),
+    ).toEqual(['/m/notizen/n9'])
+
+    await userEvent.keyboard('{Enter}')
+
+    expect(assign.mock.calls).toEqual([['/m/notizen/n9']])
+  })
 })
 
 describe('the search of the office below 1024 pixels', () => {

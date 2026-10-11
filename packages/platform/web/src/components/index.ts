@@ -48,6 +48,7 @@ export { NumberBadge, Status, statusIcons } from './status.js'
 // The search over the records of an application: what it hands in, and the
 // pieces both entries draw it from (opengewerk-haustechnik#125).
 export {
+  isOwnAddress,
   Marked,
   markedPieces,
   searchGroups,

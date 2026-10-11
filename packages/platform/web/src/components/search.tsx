@@ -132,16 +132,34 @@ export type SearchState =
   | { readonly state: 'failed'; readonly message: string }
 
 /**
+ * Whether an address leads somewhere on this server: a path from its root,
+ * and not one that names another host (`//`, `/\`) or a scheme. A hit leads
+ * there with a plain link or `location.assign`, which run whatever scheme
+ * they are given; so the place they are given addresses is checked here and
+ * not trusted to every application.
+ */
+export function isOwnAddress(to: string): boolean {
+  return /^\/(?![/\\])/.test(to)
+}
+
+/** What was found, without a hit that would lead off this server. */
+function ownHitsOnly(found: SearchFound): SearchFound {
+  return { ...found, hits: found.hits.filter((hit) => isOwnAddress(hit.to)) }
+}
+
+/**
  * Asks the source for the words, once they are long enough. The question goes
  * out whether or not the browser thinks it is online: the source decides
  * where it searches, and without a network that is the device. What was found
- * for the last words stays while the next are asked.
+ * for the last words stays while the next are asked. A hit whose address
+ * leads off this server is left out (`isOwnAddress`).
  */
 export function useSearch(source: SearchSource, words: string): SearchState {
   const asked = words.length >= source.shortest
   const answer = useQuery({
     queryKey: ['search', source.key, words],
     queryFn: ({ signal }) => source.find(words, signal),
+    select: ownHitsOnly,
     enabled: asked,
     networkMode: 'always',
     retry: false,

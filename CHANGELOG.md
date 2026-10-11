@@ -18,7 +18,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und wie die Arten heißen, gibt die Anwendung herein (ADR 0010): eine Quelle mit Arten, Wörtern und
   einer Funktion, die findet. Gefragt wird sie auch ohne Netz, damit sie dann im Bestand des Geräts
   sucht, und erst ab der kürzesten Länge, die sie nennt. Eine Art mit mehr Treffern sagt es ohne
-  Zahl. Ohne Quelle hat die Kopfleiste keine Suche, die Handwerkersoftware bleibt, wie sie ist. Mit
+  Zahl. Ein Treffer, dessen Adresse vom Server wegführt (ein Schema, `//` oder `/\`), wird nicht
+  gezeigt (`isOwnAddress`), damit kein Link und kein `location.assign` ihr folgt, gleich welche
+  Anwendung sie liefert. Ohne Quelle hat die Kopfleiste keine Suche, die Handwerkersoftware bleibt, wie sie ist. Mit
   Quelle steht unter 640 Pixeln die Marke ohne den Namen daneben, damit Lupe und Person auf ein
   Telefon passen; der Name bleibt der Name des Links.
 - Eine Liste des Büros geht als Tabelle hinaus (`opengewerk-haustechnik#138`): `tableAnswer` im
