@@ -212,12 +212,20 @@ describe('the change log', () => {
       '/audit/table',
     )
 
-    signedInWith('audit.read')
+    signedInWith('audit.read', 'membership.read')
     windowOf(1280)
     render(inQueries(<AuditLogScreen />))
 
     await screen.findByRole('table', { name: 'Änderungen' })
     expect(screen.getByRole('button', { name: /Als Tabelle/ })).toBeTruthy()
+  })
+
+  it('is no table for whoever reads it and may not see the staff: it names people', async () => {
+    signedInWith('audit.read')
+    render(inQueries(<AuditLogScreen />))
+
+    await screen.findByRole('table', { name: 'Änderungen' })
+    expect(screen.queryByRole('button', { name: /Als Tabelle/ })).toBeNull()
   })
 
   it('opens a change with its fields before and after, and the ways to the record', async () => {

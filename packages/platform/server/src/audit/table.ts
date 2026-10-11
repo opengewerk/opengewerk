@@ -6,11 +6,10 @@ import {
   type AuditValueWords,
   emptyAuditValue,
   type TenantId,
-  withheldAuditValue,
 } from '@opengewerk/platform-domain'
 
 import type { Database } from '../database/database.js'
-import type { OutgoingTable, TableCell } from '../tables/write.js'
+import { type OutgoingTable, refuseOverlongTable, type TableCell } from '../tables/write.js'
 import { type AuditFilter, readAuditPage } from './log.js'
 
 /**
@@ -19,10 +18,12 @@ import { type AuditFilter, readAuditPage } from './log.js'
  * list reads it and named in the words of the list, with a row for each
  * field a change shows.
  *
- * Who made a change, and the value of a field that holds a person, stand in
- * it only where `names` says so (`tableNamesPeople`); without, the column of
- * the person is left out and such a value is written as set, as the log
- * writes a value it keeps to itself.
+ * It names people as the log does: who made a change, whom a field holds,
+ * and a record that is called by a person. Whoever calls this has asked
+ * whether the person may see the staff (`tableNamesPeople`); there is no log
+ * without its people to hand to anybody else.
+ *
+ * @throws UnprocessableEntityException once the log is longer than a table goes out with
  */
 export async function auditTable(
   database: Database,
@@ -30,7 +31,6 @@ export async function auditTable(
   filter: AuditFilter,
   language: AuditLanguage,
   said: AuditValueWords,
-  names: boolean,
 ): Promise<OutgoingTable> {
   const words = auditTextWords(said, auditFormatInGermany)
   const columns = auditTableColumns
@@ -42,20 +42,15 @@ export async function auditTable(
 
     for (const change of page.changes) {
       const way = words.wayWords(change, page)
-      const valueOf = (field: string, raw: string | null): string => {
-        if (!names && raw !== null && raw !== '' && language.isPersonField(field)) {
-          return withheldAuditValue
-        }
-
-        return words.auditValue(change.table, field, raw, page) ?? emptyAuditValue
-      }
+      const valueOf = (field: string, raw: string | null): string =>
+        words.auditValue(change.table, field, raw, page) ?? emptyAuditValue
       const common = [
         auditFormatInGermany.moment(change.changedAt),
         words.recordTitle(change.table, change.recordId, page),
         words.recordKind(change.table, change.recordId, page),
         words.changeSummary(change),
       ]
-      const after = [...(names ? [way.person ?? 'Niemand'] : []), way.device, way.way]
+      const after = [way.person ?? 'Niemand', way.device, way.way]
       const fields = words.shownFields(change)
 
       if (fields.length === 0) {
@@ -73,6 +68,8 @@ export async function auditTable(
       }
     }
 
+    // Asked page by page: a log that is too long is not read to its end first.
+    refuseOverlongTable(rows.length)
     before = page.next
   } while (before !== null)
 
@@ -86,7 +83,7 @@ export async function auditTable(
       columns.field,
       columns.before,
       columns.after,
-      ...(names ? [columns.person] : []),
+      columns.person,
       columns.device,
       columns.way,
     ],

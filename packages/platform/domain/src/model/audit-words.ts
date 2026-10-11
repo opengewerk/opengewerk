@@ -383,6 +383,15 @@ export const auditTableColumns = {
   way: 'Weg',
 } as const
 
+/**
+ * Why the log is no table for somebody who reads it and may not see the
+ * staff. Every row names who made a change, and a record is often called by
+ * a person or holds one in a field: a log that left the people out would
+ * still name them, so it goes out whole or not at all.
+ */
+export const auditTableNamesPeople =
+  'Das Änderungsprotokoll nennt Personen. Als Tabelle bekommt es, wer die Zugänge sehen darf.'
+
 /** What the opened change writes for a field without a value. */
 export const emptyAuditValue = 'leer'
 

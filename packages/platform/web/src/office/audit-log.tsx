@@ -1,4 +1,5 @@
 import {
+  accessRights,
   type AuditChainReport,
   type AuditChange,
   type AuditPage,
@@ -88,6 +89,10 @@ export function AuditLogScreen() {
   const words = useAuditWords()
 
   const reads = useRight(auditRights.read)
+  // The log names people in every row, so it leaves as a table only with
+  // whoever may see the staff as well; the server asks the same.
+  const seesStaff = useRight(accessRights.read)
+  const takesAway = reads && seesStaff
   const sentences = useAuditSentences()
   const band = useBand()
   const navigate = useNavigate()
@@ -154,9 +159,9 @@ export function AuditLogScreen() {
       active="protokoll"
       title="Änderungsprotokoll"
       sub={sentences.what}
-      {...(reads ? { actions: asTable.button } : {})}
+      {...(takesAway ? { actions: asTable.button } : {})}
     >
-      {reads ? asTable.trouble : null}
+      {takesAway ? asTable.trouble : null}
       {!reads ? (
         <Panel>
           <SettingsText muted>{sentences.onlyFor}</SettingsText>

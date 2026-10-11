@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  ForbiddenException,
   Get,
   Header,
   Inject,
@@ -17,6 +18,7 @@ import {
   type AuditPage,
   type AuditPerson,
   auditRights,
+  auditTableNamesPeople,
   type AuditValueWords,
   type AuditVocabulary,
   berlinClock,
@@ -174,8 +176,13 @@ export class AuditController {
   /**
    * The log as a table (opengewerk-haustechnik#236): every change the filter
    * finds, not a page of them, newest first and in the words of the list, as
-   * a workbook or as text (`?format=xlsx` or `csv`). For whoever reads the
-   * log; who made a change stands in it for whoever may see the staff.
+   * a workbook or as text (`?format=xlsx` or `csv`).
+   *
+   * For whoever reads the log and may see the staff as well
+   * (`tableNamesPeople`). A log names people in every row, by who made a
+   * change, by a field and by what a record is called, and one with the
+   * people left out would name them still; so it leaves as a table only
+   * with somebody a list of the staff may leave with.
    */
   @Get('table')
   @RequiresPermission(auditRights.read)
@@ -184,18 +191,15 @@ export class AuditController {
     @CurrentIdentity() identity: RequestIdentity,
     @Query() query: Record<string, unknown>,
   ): Promise<StreamableFile> {
+    if (!tableNamesPeople(identity)) {
+      throw new ForbiddenException(auditTableNamesPeople)
+    }
+
     const format = tableFormatOf(query)
     const filter = auditFilterFrom(query, this.language)
 
     return tableAnswer(
-      await auditTable(
-        this.database,
-        identity,
-        filter,
-        this.language,
-        this.words,
-        tableNamesPeople(identity),
-      ),
+      await auditTable(this.database, identity, filter, this.language, this.words),
       format,
       berlinClock(new Date()).day,
     )

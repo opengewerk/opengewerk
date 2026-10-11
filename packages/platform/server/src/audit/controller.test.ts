@@ -8,6 +8,7 @@ import {
   auditPageSize,
   type AuditPerson,
   auditRights,
+  auditTableNamesPeople,
   type MemberIdentity,
   rightsCatalogue,
   type TenantId,
@@ -597,24 +598,23 @@ describe('a value the log keeps to itself', () => {
 /**
  * The log as a table (opengewerk-haustechnik#236): what the filter finds,
  * newest first and whole, in the words of the list, a row for each field a
- * change shows, and who made a change only for whoever may see the staff.
+ * change shows, with its people, and so only for whoever may see the staff.
  */
 describe('the log as a table', () => {
-  /** Lea, who reads the log, as she would be with the right to see the staff as well. */
-  const leon = JSON.stringify({
-    userId: 'lea',
-    tenantId: north.id,
-    roles: [],
-    rights: [auditRights.read, 'membership.read'],
-  } satisfies MemberIdentity<Right>)
+  /** Somebody as they would be with the right to see the staff beside their own. */
+  function seeingTheStaff(person: Person, path: string) {
+    const identity: MemberIdentity<Right> = {
+      userId: person,
+      tenantId: people[person].tenant,
+      roles: [],
+      rights: [...people[person].rights, 'membership.read'],
+    }
 
-  async function tableOf(person: Person | 'leon', query = ''): Promise<string[][]> {
-    const path = `/audit/table?format=xlsx${query}`
-    const answer = await (
-      person === 'leon'
-        ? request(app.getHttpServer()).get(path).set(testIdentityHeader, leon)
-        : get(person, path)
-    )
+    return request(app.getHttpServer()).get(path).set(testIdentityHeader, JSON.stringify(identity))
+  }
+
+  async function tableOf(person: Person, query = ''): Promise<string[][]> {
+    const answer = await seeingTheStaff(person, `/audit/table?format=xlsx${query}`)
       .buffer(true)
       .parse((response, done) => {
         const chunks: Buffer[] = []
@@ -674,7 +674,7 @@ describe('the log as a table', () => {
   })
 
   it('names its columns and writes the record, the change, the field and its values as the list does', async () => {
-    const rows = await tableOf('leon', `&table=shelves&record=${northShelves['tools'] ?? ''}`)
+    const rows = await tableOf('lea', `&table=shelves&record=${northShelves['tools'] ?? ''}`)
 
     expect(rows[0]).toEqual([
       'Zeitpunkt',
@@ -703,7 +703,7 @@ describe('the log as a table', () => {
     expect(rows.find((row) => row[4] === 'Geschlossen')?.slice(5, 7)).toEqual(['offen', 'zu'])
   })
 
-  it('names who made a change, and whom a field names, only for whoever may see the staff', async () => {
+  it('names people, and so goes out only to whoever may see the staff as well', async () => {
     await database.forTenant(
       { tenantId: north.id, userId: 'mia', reason: 'membership.write' },
       (tx) =>
@@ -718,26 +718,21 @@ describe('the log as a table', () => {
         }),
     )
 
-    const named = await tableOf('leon', '&table=invitations')
-    const nameless = await tableOf('lea', '&table=invitations')
-    const invitedBy = (rows: string[][]) =>
-      rows.find((row) => row[6] === 'Mia Mitglied' || row[6] === 'gesetzt')
+    const rows = await tableOf('lea', '&table=invitations')
+    // Lea reads the log, and that alone is no right to take its people away.
+    const refused = await get('lea', '/audit/table?format=xlsx&table=invitations').expect(403)
 
-    expect(named[0]).toContain('Person')
-    expect(invitedBy(named)?.[6]).toBe('Mia Mitglied')
-    expect(nameless[0]).not.toContain('Person')
-    expect(invitedBy(nameless)?.[6]).toBe('gesetzt')
-    expect(
-      nameless
-        .flat()
-        .filter((cell) => ['Mia Mitglied', 'Lea Leitung', 'Leon Leitung'].includes(cell)),
-    ).toEqual([])
+    expect(rows[0]).toContain('Person')
+    // Who invited, a field that holds a person, and whom: what the record is called.
+    expect(rows.some((row) => row[6] === 'Mia Mitglied')).toBe(true)
+    expect(rows.some((row) => row[1]?.includes('Tara Tabelle'))).toBe(true)
+    expect((refused.body as { message: string }).message).toBe(auditTableNamesPeople)
   })
 
   it('is only for whoever reads the log, of their own tenant', async () => {
-    await get('mia', '/audit/table?format=csv').expect(403)
-    await get('lea', '/audit/table?format=pdf').expect(400)
-    await get('lea', '/audit/table?format=csv&since=03.10.2026').expect(400)
+    await seeingTheStaff('mia', '/audit/table?format=csv').expect(403)
+    await seeingTheStaff('lea', '/audit/table?format=pdf').expect(400)
+    await seeingTheStaff('lea', '/audit/table?format=csv&since=03.10.2026').expect(400)
     expect((await tableOf('susi')).flat().some((cell) => cell.includes('Werkzeug'))).toBe(false)
   })
 })
