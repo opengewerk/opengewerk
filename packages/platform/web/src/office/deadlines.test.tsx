@@ -11,6 +11,7 @@ import {
   type DeadlineKindView,
   deadlinePagePath,
   type DeadlinePageView,
+  deadlineTablePath,
   type DeadlineView,
 } from './deadline-requests.js'
 import { DeadlineSettingsScreen } from './deadline-settings.js'
@@ -117,9 +118,10 @@ function asked(path: string): number {
   return server.heard.filter((call) => call.method === 'GET' && call.path === path).length
 }
 
-function list() {
+function list(table?: boolean) {
   inScreen(
     <DeadlineListScreen<ProbeDeadline, DeadlineKindView>
+      {...(table === undefined ? {} : { table })}
       rights={{ read: 'deadlines.read', write: 'deadlines.write' }}
       words={{
         sub: 'Was am Empfang fällig wird.',
@@ -269,6 +271,33 @@ describe('the list of deadlines', () => {
 
     expect(await screen.findByText('Paket am Tor')).toBeTruthy()
     expect(asked(narrowed)).toBeGreaterThan(0)
+  })
+
+  it('is offered as a table where the application says so, at the address of what it is narrowed by', async () => {
+    expect(
+      deadlineTablePath({
+        status: 'all',
+        kind: 'door.check',
+        person: 'u-2',
+        search: ' Tor ',
+        filters: { house: 'h-1', street: '' },
+        offset: 50,
+      }),
+    ).toBe('/deadlines/table?status=all&kind=door.check&person=u-2&search=Tor&house=h-1')
+
+    server.answer('GET', firstPage, aPage([aDeadline()]))
+    list(true)
+
+    await screen.findByRole('table', { name: 'Fristen' })
+    expect(screen.getByRole('button', { name: /Als Tabelle/ })).toBeTruthy()
+  })
+
+  it('is no table where the application offers none', async () => {
+    server.answer('GET', firstPage, aPage([aDeadline()]))
+    list()
+
+    await screen.findByRole('table', { name: 'Fristen' })
+    expect(screen.queryByRole('button', { name: /Als Tabelle/ })).toBeNull()
   })
 
   it('asks for the late ones at the address an application counts them with', () => {

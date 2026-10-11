@@ -267,6 +267,13 @@ describe('the accounts of a tenant, one role each', () => {
     ).toEqual(['Zugang', 'Rolle', 'Regal', 'Zustand', 'Ändern'])
   })
 
+  it('are offered as a table in the head of the page', async () => {
+    staffScreen()
+    await screen.findByText('Max Mitglied')
+
+    expect(screen.getByRole('button', { name: /Als Tabelle/ })).toBeTruthy()
+  })
+
   it('say under the table what the application says of its column, which roles ask for a second factor, and whom nobody demotes', async () => {
     staffScreen({ additions: shelves({ note: 'Wer kein Regal hat, sieht keines.' }) })
     await screen.findByText('Max Mitglied')

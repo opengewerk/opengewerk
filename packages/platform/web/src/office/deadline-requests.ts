@@ -122,6 +122,20 @@ export function deadlinePagePath(question: DeadlineQuestion): string {
   return `/deadlines?${query.toString()}`
 }
 
+/**
+ * The address of the list as a table (opengewerk-haustechnik#236): what
+ * the list is narrowed by, and no page.
+ */
+export function deadlineTablePath(question: DeadlineQuestion): string {
+  const query = new URLSearchParams(
+    deadlinePagePath({ ...question, offset: 0 }).slice('/deadlines?'.length),
+  )
+
+  query.delete('limit')
+
+  return `/deadlines/table?${query.toString()}`
+}
+
 export function deadlinePage<View extends DeadlineView = DeadlineView>(
   question: DeadlineQuestion,
 ): Promise<DeadlinePageView<View>> {

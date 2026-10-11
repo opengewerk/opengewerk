@@ -1,10 +1,13 @@
 import {
   BadRequestException,
   Controller,
+  ForbiddenException,
   Get,
+  Header,
   Inject,
   type Provider,
   Query,
+  StreamableFile,
   type Type,
 } from '@nestjs/common'
 import {
@@ -15,7 +18,11 @@ import {
   type AuditPage,
   type AuditPerson,
   auditRights,
+  auditTableNamesPeople,
+  type AuditValueWords,
   type AuditVocabulary,
+  berlinClock,
+  tableNamesPeople,
 } from '@opengewerk/platform-domain'
 
 import { RequiresPermission } from '../api/authorization.js'
@@ -23,11 +30,16 @@ import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import type { AccessRules } from '../authentication/access.js'
 import { accountsOf } from '../authentication/administration.js'
 import { Database } from '../database/database.js'
+import { tableAnswer, tableFormatOf } from '../tables/write.js'
 import { checkAuditChain } from './chain.js'
 import { type AuditFilter, everMembers, readAuditPage } from './log.js'
+import { auditTable } from './table.js'
 
 /** The token the language of the log is handed under. */
 export const AUDIT_LANGUAGE = Symbol('AuditLanguage')
+
+/** The token what the application says about the values of its log is handed under. */
+export const AUDIT_WORDS = Symbol('AuditWords')
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -144,6 +156,7 @@ export class AuditController {
   constructor(
     private readonly database: Database,
     @Inject(AUDIT_LANGUAGE) private readonly language: AuditLanguage,
+    @Inject(AUDIT_WORDS) private readonly words: AuditValueWords,
   ) {}
 
   @Get('changes')
@@ -157,6 +170,38 @@ export class AuditController {
       identity,
       auditFilterFrom(query, this.language),
       this.language,
+    )
+  }
+
+  /**
+   * The log as a table (opengewerk-haustechnik#236): every change the filter
+   * finds, not a page of them, newest first and in the words of the list, as
+   * a workbook or as text (`?format=xlsx` or `csv`).
+   *
+   * For whoever reads the log and may see the staff as well
+   * (`tableNamesPeople`). A log names people in every row, by who made a
+   * change, by a field and by what a record is called, and one with the
+   * people left out would name them still; so it leaves as a table only
+   * with somebody a list of the staff may leave with.
+   */
+  @Get('table')
+  @RequiresPermission(auditRights.read)
+  @Header('Cache-Control', 'no-store')
+  async table(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Query() query: Record<string, unknown>,
+  ): Promise<StreamableFile> {
+    if (!tableNamesPeople(identity)) {
+      throw new ForbiddenException(auditTableNamesPeople)
+    }
+
+    const format = tableFormatOf(query)
+    const filter = auditFilterFrom(query, this.language)
+
+    return tableAnswer(
+      await auditTable(this.database, identity, filter, this.language, this.words),
+      format,
+      berlinClock(new Date()).day,
     )
   }
 
@@ -189,6 +234,11 @@ export interface AuditLogParts<Right extends string> {
   readonly access: Pick<AccessRules<Right>, 'catalogue'>
   /** What the application says about its own tables in the log. */
   readonly vocabulary: AuditVocabulary
+  /**
+   * What the application says about the values of its log, as its screen
+   * says it, for the log as a table (opengewerk-haustechnik#236).
+   */
+  readonly words?: Omit<AuditValueWords, 'vocabulary'>
 }
 
 /**
@@ -210,6 +260,9 @@ export function auditLogParts<Right extends string>(
 
   return {
     controllers: [AuditController],
-    providers: [{ provide: AUDIT_LANGUAGE, useValue: auditLanguage(parts.vocabulary) }],
+    providers: [
+      { provide: AUDIT_LANGUAGE, useValue: auditLanguage(parts.vocabulary) },
+      { provide: AUDIT_WORDS, useValue: { ...parts.words, vocabulary: parts.vocabulary } },
+    ],
   }
 }

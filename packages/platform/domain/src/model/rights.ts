@@ -28,6 +28,23 @@ export const accessRights = {
 export type AccessRight = (typeof accessRights)[keyof typeof accessRights]
 
 /**
+ * Whether a list taken away as a table names the people its rows name: who
+ * answers for something, who carries it out, who changed it
+ * (opengewerk-haustechnik#236). A table leaves the application, and with it
+ * whatever it says about the people who work there; so the column of a
+ * person goes to whoever may see who works for the tenant, and every other
+ * reader of the list gets the table without it.
+ *
+ * Asked of the right to see the staff and not of a role: whether a role
+ * leads is a flag of the role and no right, and the right is the one a
+ * tenant gives only to the role that leads, because whoever holds it can
+ * hand themselves every other.
+ */
+export function tableNamesPeople(identity: { readonly rights: readonly string[] }): boolean {
+  return identity.rights.includes(accessRights.read)
+}
+
+/**
  * The rights the foundation asks for on the routes of the sync: taking what
  * has changed, and sending what a device queued up.
  *

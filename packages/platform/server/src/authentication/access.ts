@@ -112,6 +112,20 @@ export interface MembershipAdditions {
     },
     said: unknown,
   ): Promise<void>
+  /**
+   * What the staff as a table shows beside the columns of the foundation
+   * (opengewerk-haustechnik#236), as the list shows it in a column of its
+   * own: the heading, and the cell of each person, read in the transaction
+   * of the tenant. A person it says nothing about has an empty cell.
+   */
+  readonly inTable?: {
+    readonly title: string
+    readonly cells: (
+      tx: TenantTransaction,
+      tenantId: TenantId,
+      userIds: readonly string[],
+    ) => Promise<ReadonlyMap<string, string>>
+  }
 }
 
 /**

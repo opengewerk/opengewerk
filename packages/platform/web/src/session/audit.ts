@@ -46,6 +46,21 @@ export function auditChanges(filter: AuditFilterView, before: number | null): Pr
   return request<AuditPage>(`/audit/changes${said === '' ? '' : `?${said}`}`)
 }
 
+/** The address of the log as a table, with what it is narrowed to (opengewerk-haustechnik#236). */
+export function auditTablePath(filter: AuditFilterView): string {
+  const query = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(filter)) {
+    if (value !== '') {
+      query.set(key, value)
+    }
+  }
+
+  const said = query.toString()
+
+  return said === '' ? '/audit/table' : `/audit/table?${said}`
+}
+
 export function auditChain(): Promise<AuditChainReport> {
   return request<AuditChainReport>('/audit/chain')
 }

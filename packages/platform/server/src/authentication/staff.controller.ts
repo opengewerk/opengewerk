@@ -4,19 +4,31 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Inject,
   Param,
   Patch,
   Post,
   Put,
+  Query,
   ServiceUnavailableException,
+  StreamableFile,
 } from '@nestjs/common'
-import { accessRights, type RoleDefinition } from '@opengewerk/platform-domain'
+import {
+  accessRights,
+  berlinClock,
+  momentInGermany,
+  type RoleDefinition,
+  roleNamesOf,
+  staffStateWords,
+  staffTableColumns,
+} from '@opengewerk/platform-domain'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { pick, requireFields } from '../api/body.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import { Database } from '../database/database.js'
+import { tableAnswer, tableFormatOf } from '../tables/write.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
 import {
   changeRoles,
@@ -67,6 +79,61 @@ export class StaffController {
   @RequiresPermission(accessRights.read)
   list(@CurrentIdentity() identity: RequestIdentity): Promise<StaffEntry[]> {
     return listStaff(this.database, identity)
+  }
+
+  /**
+   * The accounts of the list as a table (opengewerk-haustechnik#236), as a
+   * workbook or as text (`?format=xlsx` or `csv`): name and address, the
+   * roles by the names of the tenant, what the application shows beside them,
+   * whether somebody can work and when this tenant last saw them. For
+   * whoever sees the list, which is whoever leads the tenant.
+   */
+  @Get('table')
+  @RequiresPermission(accessRights.read)
+  @Header('Cache-Control', 'no-store')
+  async table(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Query() query: Readonly<Record<string, unknown>>,
+  ): Promise<StreamableFile> {
+    const format = tableFormatOf(query)
+    const people = await listStaff(this.database, identity)
+    const beside = this.access.additions?.inTable ?? null
+    const { roles, cells } = await this.database.forTenant(identity, async (tx) => ({
+      roles: await rolesOfTenant(tx, identity.tenantId),
+      cells:
+        beside === null
+          ? new Map<string, string>()
+          : await beside.cells(
+              tx,
+              identity.tenantId,
+              people.map((person) => person.userId),
+            ),
+    }))
+    const columns = staffTableColumns
+
+    return tableAnswer(
+      {
+        name: 'Zugänge',
+        columns: [
+          columns.access,
+          columns.email,
+          columns.role,
+          ...(beside === null ? [] : [beside.title]),
+          columns.state,
+          columns.lastSeen,
+        ],
+        rows: people.map((person) => [
+          person.name,
+          person.email,
+          roleNamesOf(person.roles, roles).join(', '),
+          ...(beside === null ? [] : [cells.get(person.userId) ?? null]),
+          staffStateWords(person, roles, momentInGermany),
+          person.lastSignInAt === null ? 'Noch nie' : momentInGermany(person.lastSignInAt),
+        ]),
+      },
+      format,
+      berlinClock(new Date()).day,
+    )
   }
 
   /**

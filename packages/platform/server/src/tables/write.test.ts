@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, UnprocessableEntityException } from '@nestjs/common'
+import { outgoingTableRows, tooLongForATable } from '@opengewerk/platform-domain'
 import { describe, expect, it } from 'vitest'
 
 import { unzip, zipped } from '../files/zip.js'
@@ -267,6 +268,27 @@ describe('the answer with a table', () => {
     expect(headers.type).toBe('text/csv; charset=utf-8')
     expect(headers.disposition).toBe(
       `attachment; filename="M_ngel offen 2026-10-11.csv"; filename*=UTF-8''M%C3%A4ngel%20offen%202026-10-11.csv`,
+    )
+  })
+
+  it('is refused in words for a list longer than a table goes out with, and never cut', () => {
+    const rowsOf = (count: number) => Array.from({ length: count }, () => ['AN-00012'])
+    const longest = tableAnswer(
+      { name: 'Anlagen', columns: ['Nummer'], rows: rowsOf(outgoingTableRows) },
+      'csv',
+      '2026-10-11',
+    )
+
+    expect(longest.getHeaders().length).toBeGreaterThan(outgoingTableRows)
+    expect(() =>
+      tableAnswer(
+        { name: 'Anlagen', columns: ['Nummer'], rows: rowsOf(outgoingTableRows + 1) },
+        'csv',
+        '2026-10-11',
+      ),
+    ).toThrow(new UnprocessableEntityException(tooLongForATable))
+    expect(tooLongForATable).toBe(
+      'Die Liste hat mehr als 50.000 Zeilen. Grenzen Sie sie mit dem Filter ein.',
     )
   })
 })

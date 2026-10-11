@@ -1,4 +1,10 @@
-import type { RoleDefinition } from '@opengewerk/platform-domain'
+import {
+  asksSecondFactor,
+  type RoleDefinition,
+  roleNamesOf,
+  staffStateOf,
+  staffStateWords,
+} from '@opengewerk/platform-domain'
 import clsx from 'clsx'
 import { Copy } from 'lucide-react'
 
@@ -52,27 +58,14 @@ export function Who({
 /**
  * What the tenant calls these roles, in the order it lists them. A key it has
  * no role for keeps its key: it stands in a membership or an invitation, and
- * leaving it out would hide that.
+ * leaving it out would hide that. The words are those of the table as well
+ * (`roleNamesOf`, opengewerk-haustechnik#236).
  */
-export function namesOf(
-  keys: readonly string[],
-  roles: readonly RoleDefinition[],
-): readonly string[] {
-  return [
-    ...roles.filter((role) => keys.includes(role.key)).map((role) => role.label),
-    ...keys.filter((key) => !roles.some((role) => role.key === key)),
-  ]
-}
+export const namesOf = roleNamesOf
 
-/** Whether one of these roles works only with a second factor, as the tenant has them. */
-export function asksSecondFactor(
-  keys: readonly string[],
-  roles: readonly RoleDefinition[],
-): boolean {
-  return roles.some((role) => role.secondFactor && keys.includes(role.key))
-}
+export { asksSecondFactor }
 
-/** Whether somebody can work, in the words of the column "Zustand". */
+/** Whether somebody can work, in the words of the column "Zustand", which the table writes as well. */
 export function StateOf({
   person,
   roles,
@@ -80,20 +73,13 @@ export function StateOf({
   readonly person: StaffEntry
   readonly roles: readonly RoleDefinition[]
 }) {
-  if (person.blockedAt) {
-    return <b className="font-semibold text-conflict">Gesperrt seit {moment(person.blockedAt)}</b>
-  }
+  const words = staffStateWords(person, roles, moment)
 
-  // The app or a passkey, which signs in only when confirmed on the device
-  // and is a second factor as well (#167).
-  if (person.twoFactorEnabled || person.hasPasskey) {
-    return <>Aktiv, zweiter Faktor eingerichtet</>
-  }
-
-  return asksSecondFactor(person.roles, roles) ? (
-    <b className="font-semibold text-conflict">Zweiter Faktor fehlt</b>
+  return staffStateOf(person, roles) === 'blocked' ||
+    staffStateOf(person, roles) === 'factorMissing' ? (
+    <b className="font-semibold text-conflict">{words}</b>
   ) : (
-    <>Aktiv</>
+    <>{words}</>
   )
 }
 

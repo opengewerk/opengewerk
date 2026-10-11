@@ -150,6 +150,70 @@ export function remindOn(dueOn: IsoDate, leadDays: number): IsoDate {
 }
 
 /**
+ * The columns of the list of deadlines that every application has, as the
+ * list heads them and its table names them (opengewerk-haustechnik#236). An
+ * application puts its own between "Betrifft" and "Verantwortlich".
+ */
+export const deadlineListColumns = {
+  due: 'Fällig am',
+  late: 'Überfällig',
+  subject: 'Betrifft',
+  kind: 'Art',
+  responsible: 'Verantwortlich',
+  reminder: 'Erinnerung',
+} as const
+
+/** A day as the office writes it: 02.10.2026. */
+function dayWords(day: string): string {
+  const [year, month, date] = day.slice(0, 10).split('-')
+
+  return `${date ?? ''}.${month ?? ''}.${year ?? ''}`
+}
+
+/** The part of a moment that is its day, from the moment or from its text. */
+function dayOf(moment: Date | string): string {
+  return (typeof moment === 'string' ? moment : moment.toISOString()).slice(0, 10)
+}
+
+/** What a list says about the reminder of a deadline: done, dropped, reminded, or when it will. */
+export interface DeadlineReminderFacts {
+  readonly status: DeadlineStatus
+  readonly dueOn: IsoDate
+  readonly remindOn: IsoDate
+  readonly remindedFor: IsoDate | null
+  readonly remindedAt: Date | string | null
+  readonly closedAt: Date | string | null
+}
+
+/**
+ * The column "Erinnerung" in words: "erledigt am 02.10.2026", "entfallen",
+ * "erinnert am 28.09.2026" for the day it is due, or the day it will remind.
+ */
+export function deadlineReminderWords(deadline: DeadlineReminderFacts): string {
+  if (deadline.status === 'done') {
+    return deadline.closedAt ? `erledigt am ${dayWords(dayOf(deadline.closedAt))}` : 'erledigt'
+  }
+
+  if (deadline.status === 'dropped') {
+    return deadline.closedAt ? `entfallen am ${dayWords(dayOf(deadline.closedAt))}` : 'entfallen'
+  }
+
+  if (deadline.remindedFor === deadline.dueOn && deadline.remindedAt) {
+    return `erinnert am ${dayWords(dayOf(deadline.remindedAt))}`
+  }
+
+  return `am ${dayWords(deadline.remindOn)}`
+}
+
+/** Whether an open deadline is past its day. */
+export function deadlineIsLate(
+  deadline: Pick<DeadlineReminderFacts, 'status' | 'dueOn'>,
+  today: IsoDate,
+): boolean {
+  return deadline.status === 'open' && deadline.dueOn < today
+}
+
+/**
  * What a tenant has set for a kind. Every value is optional: what is not set
  * is the kind's own. An interval is set in the unit the kind counts in.
  */

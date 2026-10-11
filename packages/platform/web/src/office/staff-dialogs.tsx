@@ -31,6 +31,7 @@ import {
 import type { InvitationEntry, StaffEntry } from '../session/session.js'
 import { rolesInWords } from '../session/who.js'
 import { SettingsPage, SettingsText } from './settings.js'
+import { useTableExport } from './table-export.js'
 import {
   asksSecondFactor,
   deliveryInWords,
@@ -155,6 +156,8 @@ export function StaffDialogsScreen<Value = undefined>({
   // Reading the list takes one right and changing it another. Without the
   // second nothing is offered that the routes would refuse.
   const mayWrite = useRight(accessRights.write)
+  // The accounts of the list as a table, for whoever sees it (opengewerk-haustechnik#236).
+  const table = useTableExport('/staff/table')
   const [trouble, setTrouble] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
   const [mailedTo, setMailedTo] = useState<string | null>(null)
@@ -332,23 +335,27 @@ export function StaffDialogsScreen<Value = undefined>({
       title="Zugänge"
       sub={sentences.what}
       actions={
-        mayWrite ? (
-          <Button
-            tone="primary"
-            icon={Plus}
-            disabled={creating || !ready}
-            onClick={() => {
-              setTrouble(null)
-              setLink(null)
-              setMailedTo(null)
-              setCreating(true)
-            }}
-          >
-            Zugang anlegen
-          </Button>
-        ) : null
+        <>
+          {table.button}
+          {mayWrite ? (
+            <Button
+              tone="primary"
+              icon={Plus}
+              disabled={creating || !ready}
+              onClick={() => {
+                setTrouble(null)
+                setLink(null)
+                setMailedTo(null)
+                setCreating(true)
+              }}
+            >
+              Zugang anlegen
+            </Button>
+          ) : null}
+        </>
       }
     >
+      {table.trouble}
       {trouble ? (
         <p role="alert" className="text-[13px] font-semibold text-conflict">
           {trouble}
