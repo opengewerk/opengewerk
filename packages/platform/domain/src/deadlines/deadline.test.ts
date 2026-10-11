@@ -8,7 +8,9 @@ import {
   type DeadlineCatalogue,
   type DeadlineKind,
   deadlineKindProblems,
+  deadlineIsLate,
   deadlineRegistry,
+  deadlineReminderWords,
   DeadlineRegistryError,
   intervalMonthsProblem,
   intervalOf,
@@ -209,5 +211,40 @@ describe('the lead', () => {
         },
       ),
     )
+  })
+})
+
+describe('what a list says about the reminder of a deadline', () => {
+  const open = {
+    status: 'open',
+    dueOn: '2026-10-20',
+    remindOn: '2026-10-06',
+    remindedFor: null,
+    remindedAt: null,
+    closedAt: null,
+  } as const
+
+  it('says the day it reminds, that it reminded for its day, or why it is closed', () => {
+    expect(deadlineReminderWords(open)).toBe('am 06.10.2026')
+    expect(
+      deadlineReminderWords({
+        ...open,
+        remindedFor: '2026-10-20',
+        remindedAt: new Date('2026-10-06T04:00:00Z'),
+      }),
+    ).toBe('erinnert am 06.10.2026')
+    expect(
+      deadlineReminderWords({ ...open, remindedFor: '2026-04-20', remindedAt: '2026-04-06' }),
+    ).toBe('am 06.10.2026')
+    expect(
+      deadlineReminderWords({ ...open, status: 'done', closedAt: '2026-10-02T09:00:00Z' }),
+    ).toBe('erledigt am 02.10.2026')
+    expect(deadlineReminderWords({ ...open, status: 'dropped' })).toBe('entfallen')
+  })
+
+  it('counts an open deadline late from the day after it is due', () => {
+    expect(deadlineIsLate(open, '2026-10-20')).toBe(false)
+    expect(deadlineIsLate(open, '2026-10-21')).toBe(true)
+    expect(deadlineIsLate({ ...open, status: 'done' }, '2026-10-21')).toBe(false)
   })
 })

@@ -30,6 +30,7 @@ import {
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
 import { type ProbeDeadlineColumns, probeDeadlines } from '../database/probe-schema.js'
+import { tableFileOf } from '../tables/read.js'
 import {
   type DeadlineEntry,
   type DeadlineKindEntry,
@@ -56,7 +57,7 @@ const people = {
   lena: {
     tenant: north.id,
     roles: ['lead'],
-    rights: ['members.read', 'notes.write', 'membership.write'],
+    rights: ['members.read', 'notes.write', 'membership.read', 'membership.write'],
   },
   mia: { tenant: north.id, roles: ['member'], rights: ['members.read', 'notes.write'] },
   gero: { tenant: north.id, roles: ['guest'], rights: ['members.read'] },
@@ -124,6 +125,20 @@ const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
     followed.push(`reopen ${row.sourceLabel}`)
   },
   sentences: { notAColleague: 'Diese Person arbeitet nicht im Mandanten oder ist gesperrt.' },
+  listAsTable: {
+    name: 'Fristen',
+    columns: ['Paket'],
+    cells: async (_tx, identity, rows) => {
+      followed.push(`table ${identity.userId} ${String(rows.length)}`)
+
+      return (row) => ({
+        subject: `Abholung: ${row.source.label}`,
+        cells: [(row as unknown as { readonly parcelNumber: string | null }).parcelNumber],
+      })
+    },
+    narrowedToAPerson:
+      'Auf eine Person eingegrenzt gibt es die Fristen als Tabelle nur für die Leitung.',
+  },
 }
 
 let foundation: ProbeFoundation
@@ -528,6 +543,155 @@ describe('the list of deadlines', () => {
       ['parcel.pickup', 7, null, 'days'],
       ['door.check', null, 6, 'months'],
     ])
+  })
+})
+
+/**
+ * The list as a table (opengewerk-haustechnik#236): what the question finds,
+ * whole, under the columns every deadline has and those of the application,
+ * and who answers for a deadline only for whoever may see the staff.
+ */
+describe('the list of deadlines as a table', () => {
+  /** The table at the address as its rows, read back as an import reads it; the header first. */
+  async function tableOf(person: Person | string, query = ''): Promise<string[][]> {
+    const answer = await http()
+      .get(`/deadlines/table?format=xlsx${query === '' ? '' : `&${query}`}`)
+      .set(testIdentityHeader, person in people ? as(person as Person) : person)
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          done(null, Buffer.concat(chunks))
+        })
+      })
+      .expect(200)
+
+    return (
+      tableFileOf(new Uint8Array(answer.body as Buffer), 'Fristen.xlsx').sheets[0]?.rows.map(
+        (row) => [...row],
+      ) ?? []
+    )
+  }
+
+  it('holds every deadline the question finds, in the order of the list, also beyond its first page', async () => {
+    for (let index = 0; index < 55; index += 1) {
+      await aDeadline({
+        label: `Paket ${String(index).padStart(2, '0')}`,
+        dueOn: `2037-${String(1 + (index % 12)).padStart(2, '0')}-${String(1 + (index % 28)).padStart(2, '0')}`,
+        parcel: `P-${String(index)}`,
+      })
+    }
+
+    await aDeadline({ label: 'Paket erledigt', dueOn: '2037-01-01', status: 'done' })
+
+    const first = await page('mia')
+    const second = await page('mia', `offset=${String(first.rows.length)}`)
+    const rows = await tableOf('mia')
+
+    expect(first.more).toBe(true)
+    expect(rows.slice(1).map((row) => row[2])).toEqual(
+      [...first.rows, ...second.rows].map((entry) => `Abholung: ${entry.source.label}`),
+    )
+    expect(rows).toHaveLength(56)
+    expect(followed).toContain('table mia 55')
+  })
+
+  it('names its columns and fills them as the list does: the day, late, the subject, the kind and what the application adds', async () => {
+    await aDeadline({ label: 'Paket am Tor', dueOn: '2020-01-02', parcel: 'P-7' })
+    await aDeadline({ kind: 'door.check', label: 'Haus Ost', dueOn: '2037-03-03', natural: null })
+
+    expect(await tableOf('mia')).toEqual([
+      ['Fällig am', 'Überfällig', 'Betrifft', 'Art', 'Paket', 'Erinnerung'],
+      [
+        '02.01.2020',
+        'überfällig',
+        'Abholung: Paket am Tor',
+        'Abholung eines Pakets',
+        'P-7',
+        'am 01.01.2020',
+      ],
+      ['03.03.2037', '', 'Abholung: Haus Ost', 'Prüfung der Brandschutztüren', '', 'am 17.02.2037'],
+    ])
+  })
+
+  it('narrows as the list does: by state, kind, the search and the filters of the application', async () => {
+    await aDeadline({ label: 'Paket am Tor', dueOn: '2037-03-01', parcel: 'P-7' })
+    await aDeadline({ label: 'Paket am Empfang', dueOn: '2037-03-02', parcel: 'P-8' })
+    await aDeadline({ kind: 'door.check', label: 'Haus Ost', dueOn: '2037-03-03', natural: null })
+    await aDeadline({ label: 'Paket erledigt', dueOn: '2037-03-04', status: 'done' })
+
+    const subjects = async (query: string) =>
+      (await tableOf('mia', query)).slice(1).map((row) => row[2])
+
+    expect(await subjects('kind=door.check')).toEqual(['Abholung: Haus Ost'])
+    expect(await subjects('search=empfang')).toEqual(['Abholung: Paket am Empfang'])
+    expect(await subjects('parcel=P-7')).toEqual(['Abholung: Paket am Tor'])
+    expect(await subjects('status=done')).toEqual(['Abholung: Paket erledigt'])
+  })
+
+  it('names who answers for each only for whoever may see the staff', async () => {
+    await aDeadline({ label: 'Paket am Tor', dueOn: '2037-03-01' })
+
+    const named = await tableOf('lena')
+    const nameless = await tableOf('mia')
+
+    expect(named[0]).toContain('Verantwortlich')
+    expect(named[1]).toContain('Mia Probe')
+    expect(nameless[0]).not.toContain('Verantwortlich')
+    expect(nameless.flat().filter((cell) => cell.includes('Probe'))).toEqual([])
+  })
+
+  it('is narrowed to one person only by whoever may see the staff', async () => {
+    await aDeadline({ label: 'A Mia', dueOn: '2037-03-01' })
+    await ownPerson(await aDeadline({ label: 'B Lena', dueOn: '2037-03-02' }), 'lena')
+
+    const refused = await http()
+      .get('/deadlines/table?format=csv&person=mia')
+      .set(testIdentityHeader, as('mia'))
+      .expect(403)
+
+    expect(refused.body.message).toBe(
+      'Auf eine Person eingegrenzt gibt es die Fristen als Tabelle nur für die Leitung.',
+    )
+    expect((await tableOf('lena', 'person=mia')).slice(1).map((row) => row[2])).toEqual([
+      'Abholung: A Mia',
+    ])
+  })
+
+  it('is for whoever reads the list, of their own tenant alone', async () => {
+    await aDeadline({ label: 'Paket im Norden', dueOn: '2037-03-01' })
+    await aDeadline({
+      tenant: south.id,
+      label: 'Paket im Süden',
+      dueOn: '2037-03-01',
+      natural: 'sven',
+    })
+
+    expect((await tableOf('sven')).slice(1).map((row) => row[2])).toEqual([
+      'Abholung: Paket im Süden',
+    ])
+    await http()
+      .get('/deadlines/table?format=xlsx')
+      .set(
+        testIdentityHeader,
+        JSON.stringify({ userId: 'gero', tenantId: north.id, roles: ['guest'], rights: [] }),
+      )
+      .expect(403)
+    await http().get('/deadlines/table?format=pdf').set(testIdentityHeader, as('mia')).expect(400)
+  })
+
+  it('writes a value that begins like a formula so that no spreadsheet runs it', async () => {
+    await aDeadline({ label: 'Paket am Tor', dueOn: '2037-03-01', parcel: '=1+1' })
+
+    const answer = await http()
+      .get('/deadlines/table?format=csv')
+      .set(testIdentityHeader, as('mia'))
+      .expect(200)
+
+    expect(answer.text).toContain(";'=1+1;")
+    expect((await tableOf('mia'))[1]?.[4]).toBe('=1+1')
   })
 })
 

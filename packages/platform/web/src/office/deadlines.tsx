@@ -1,4 +1,9 @@
-import { leadProblem } from '@opengewerk/platform-domain'
+import {
+  deadlineIsLate,
+  deadlineListColumns,
+  deadlineReminderWords,
+  leadProblem,
+} from '@opengewerk/platform-domain'
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -24,11 +29,13 @@ import {
   deadlineKinds,
   deadlinePage,
   deadlineRun,
+  deadlineTablePath,
   type DeadlineView,
   markDeadlineDone,
   reopenDeadline,
 } from './deadline-requests.js'
 import { Chip, Empty, FilterSelect, NoteBox, PageHead, Screen } from './kit.js'
+import { useTableExport } from './table-export.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -120,6 +127,12 @@ export interface DeadlineListProps<View extends DeadlineView, Kind extends Deadl
    * it, whatever a deadline opened and closes again, for one.
    */
   readonly afterChange?: () => void
+  /**
+   * Whether the list is offered as a table (opengewerk-haustechnik#236):
+   * where the application gives its rules what its columns hold there
+   * (`listAsTable`). What the list shows under its filter, whole.
+   */
+  readonly table?: boolean
 }
 
 /** Asks for the deadlines anew, then lets the application follow up. */
@@ -130,28 +143,6 @@ function useRefresh(afterChange: (() => void) | undefined): () => void {
     void queries.invalidateQueries({ queryKey: ['deadlines'] })
     afterChange?.()
   }
-}
-
-/** The column "Erinnerung": when it reminded, or when it will, or why it is closed. */
-function reminding(deadline: DeadlineView): string {
-  if (deadline.status === 'done') {
-    return deadline.closedAt ? `erledigt am ${date(deadline.closedAt.slice(0, 10))}` : 'erledigt'
-  }
-
-  if (deadline.status === 'dropped') {
-    return deadline.closedAt ? `entfallen am ${date(deadline.closedAt.slice(0, 10))}` : 'entfallen'
-  }
-
-  if (deadline.remindedFor === deadline.dueOn && deadline.remindedAt) {
-    return `erinnert am ${date(deadline.remindedAt.slice(0, 10))}`
-  }
-
-  return `am ${date(deadline.remindOn)}`
-}
-
-/** Whether an open deadline is past its day. */
-function late(deadline: DeadlineView, now: string): boolean {
-  return deadline.status === 'open' && deadline.dueOn < now
 }
 
 /**
@@ -182,6 +173,8 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
   const { people } = props.usePeople()
 
   const question = { status, kind, person, search: wanted, filters: narrowing }
+  // What the list shows under its filter, whole and not a page, as a table (#236).
+  const table = useTableExport(deadlineTablePath(question))
   const pages = useInfiniteQuery({
     queryKey: ['deadlines', 'list', question],
     queryFn: ({ pageParam }) => deadlinePage<View>({ ...question, offset: pageParam }),
@@ -237,7 +230,9 @@ export function DeadlineListScreen<View extends DeadlineView, Kind extends Deadl
         {...(status === 'open' && first && first.total !== null
           ? { count: `${first.total.toLocaleString('de-DE')} offen` }
           : {})}
+        {...(props.table === true && readsDeadlines ? { actions: table.button } : {})}
       />
+      {props.table === true ? table.trouble : null}
       {!readsDeadlines ? (
         <p className="text-[13px] leading-[1.4] text-ink-muted">
           Fristen sehen darf dieser Zugang nicht.
@@ -475,7 +470,9 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
             .filter(Boolean)
             .join(' · '),
           right: (
-            <span className={late(deadline, now) ? 'font-semibold text-conflict' : undefined}>
+            <span
+              className={deadlineIsLate(deadline, now) ? 'font-semibold text-conflict' : undefined}
+            >
               {date(deadline.dueOn)}
             </span>
           ),
@@ -491,15 +488,15 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
               one column without a width, the one that says what is due, to
               92 pixels; with them it keeps its columns and the frame scrolls,
               as the board "Breiten und Auflösungen" has it. */}
-          <Column className="w-[110px] min-w-[88px]">Fällig am</Column>
-          <Column className="min-w-[180px]">Betrifft</Column>
+          <Column className="w-[110px] min-w-[88px]">{deadlineListColumns.due}</Column>
+          <Column className="min-w-[180px]">{deadlineListColumns.subject}</Column>
           {columns.map((column) => (
             <Column key={column.header} className={column.className}>
               {column.header}
             </Column>
           ))}
-          <Column className="w-[130px] min-w-[110px]">Verantwortlich</Column>
-          <Column className="w-[150px] min-w-[130px]">Erinnerung</Column>
+          <Column className="w-[130px] min-w-[110px]">{deadlineListColumns.responsible}</Column>
+          <Column className="w-[150px] min-w-[130px]">{deadlineListColumns.reminder}</Column>
           {writes ? (
             <Column numeric className="w-[160px] min-w-[150px]">
               <span className="sr-only">Ändern</span>
@@ -514,7 +511,7 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
           return (
             <tr key={deadline.id} className={deadline.id === selected ? 'bg-selected' : undefined}>
               <Cell>
-                {late(deadline, now) ? (
+                {deadlineIsLate(deadline, now) ? (
                   <>
                     <span className="font-semibold text-conflict">{date(deadline.dueOn)}</span>
                     <span className="block text-[12px] text-conflict">überfällig</span>
@@ -542,7 +539,7 @@ function DeadlineTable<View extends DeadlineView, Kind extends DeadlineKindView>
               <Cell
                 className={deadline.remindedFor === deadline.dueOn ? 'text-ink-muted' : undefined}
               >
-                {reminding(deadline)}
+                {deadlineReminderWords(deadline)}
               </Cell>
               {writes ? <Cell numeric>{actions(deadline)}</Cell> : null}
             </tr>

@@ -3,7 +3,9 @@ import {
   Body,
   ConflictException,
   Controller,
+  ForbiddenException,
   Get,
+  Header,
   Inject,
   NotFoundException,
   Param,
@@ -12,12 +14,16 @@ import {
   type Provider,
   Put,
   Query,
+  StreamableFile,
   type Type,
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
   berlinClock,
+  deadlineIsLate,
   type DeadlineKind,
+  deadlineListColumns,
+  deadlineReminderWords,
   type DeadlineRegistry,
   type DeadlineSetting,
   type DeadlineStatus,
@@ -28,6 +34,7 @@ import {
   leadOf,
   leadProblem,
   remindOn,
+  tableNamesPeople,
   type TenantId,
 } from '@opengewerk/platform-domain'
 import { and, asc, eq, ilike, inArray, lt, or, type SQL, sql } from 'drizzle-orm'
@@ -41,6 +48,7 @@ import { deadlineSettings } from '../database/schema/deadline-settings.js'
 import type { DeadlinesTable, OwnDeadlineColumns } from '../database/schema/deadlines.js'
 import { memberships } from '../database/schema/memberships.js'
 import { tenants } from '../database/schema/tenants.js'
+import { type OutgoingTable, type TableCell, tableAnswer, tableFormatOf } from '../tables/write.js'
 import type { KeptDeadline } from './engine.js'
 import { responsibleForAll } from './responsible.js'
 import { deadlineRunOf } from './runs.js'
@@ -145,6 +153,7 @@ export const deadlineQuestionNames = [
   'late',
   'offset',
   'limit',
+  'format',
 ] as const
 
 /** What the list is asked: a state, what it is narrowed by and which page. */
@@ -234,6 +243,34 @@ function deadlineQuestionOf(query: Readonly<Record<string, unknown>>, rules: Any
   } satisfies DeadlineQuestion
 }
 
+/**
+ * What an application says about the list of deadlines as a table
+ * (opengewerk-haustechnik#236): the columns it adds to the list and what
+ * stands in them. The foundation writes the rest, the columns every
+ * deadline has, and the person who answers for one only for whoever may
+ * see the staff (`tableNamesPeople`).
+ */
+export interface DeadlineTableParts {
+  /** What the list is called: the name of the sheet, and of the file. */
+  readonly name: string
+  /** The columns of the application, as its list heads them between "Betrifft" and "Verantwortlich". */
+  readonly columns: readonly string[]
+  /**
+   * Asked once for the rows of one table, in the transaction of the person
+   * and under their rights: what a deadline is called in "Betrifft", as the
+   * list names it, and its cells in the columns of the application.
+   */
+  readonly cells: (
+    tx: TenantTransaction,
+    identity: RequestIdentity,
+    rows: readonly DeadlineEntry[],
+  ) => Promise<
+    (row: DeadlineEntry) => { readonly subject: string; readonly cells: readonly TableCell[] }
+  >
+  /** The refusal for a table narrowed to one person, asked by somebody who gets no names in it. */
+  readonly narrowedToAPerson: string
+}
+
 /** What an application says about its deadlines, for the routes. */
 export interface DeadlineRules<
   Kind extends DeadlineKind = DeadlineKind,
@@ -278,6 +315,8 @@ export interface DeadlineRules<
     /** For a person who does not work for the tenant or is blocked. */
     readonly notAColleague: string
   }
+  /** The list as a table, where the application offers it. */
+  readonly listAsTable?: DeadlineTableParts
 }
 
 /**
@@ -452,11 +491,89 @@ function deadlinesController(
      */
     @Get()
     @RequiresPermission(rights.read)
-    async list(
+    list(
       @CurrentIdentity() identity: RequestIdentity,
       @Query() query: Readonly<Record<string, unknown>>,
     ): Promise<DeadlinePage> {
+      return this.read(identity, deadlineQuestionOf(query, this.rules), 'page')
+    }
+
+    /**
+     * The list as a table (opengewerk-haustechnik#236): every deadline the
+     * question finds, and not a page of them, in the order of the list, as
+     * a workbook or as text (`?format=xlsx` or `csv`). Whoever reads the
+     * list reads its table, in their areas; who answers for a deadline
+     * stands in it only for whoever may see the staff, and only they may
+     * narrow it to one person. An application that offers no table has
+     * none here.
+     *
+     * Before a deadline, or its address would be read as an id.
+     */
+    @Get('table')
+    @RequiresPermission(rights.read)
+    @Header('Cache-Control', 'no-store')
+    async table(
+      @CurrentIdentity() identity: RequestIdentity,
+      @Query() query: Readonly<Record<string, unknown>>,
+    ): Promise<StreamableFile> {
+      const parts = this.rules.listAsTable
+
+      if (!parts) {
+        throw new NotFoundException()
+      }
+
+      const format = tableFormatOf(query)
       const question = deadlineQuestionOf(query, this.rules)
+      const names = tableNamesPeople(identity)
+
+      if (question.person !== null && !names) {
+        throw new ForbiddenException(parts.narrowedToAPerson)
+      }
+
+      const { rows } = await this.read(identity, question, 'whole')
+      const today = berlinClock(new Date()).day
+      const cellsOf = await this.database.forTenant(identity, (tx) =>
+        parts.cells(tx, identity, rows),
+      )
+      const columns = deadlineListColumns
+      const written: OutgoingTable = {
+        name: parts.name,
+        columns: [
+          columns.due,
+          columns.late,
+          columns.subject,
+          columns.kind,
+          ...parts.columns,
+          ...(names ? [columns.responsible] : []),
+          columns.reminder,
+        ],
+        rows: rows.map((row) => {
+          const own = cellsOf(row)
+
+          return [
+            { day: row.dueOn },
+            deadlineIsLate(row, today) ? 'überfällig' : null,
+            own.subject,
+            row.kindTitle,
+            ...parts.columns.map((_, index) => own.cells[index] ?? null),
+            ...(names ? [row.responsible?.name ?? null] : []),
+            deadlineReminderWords(row),
+          ]
+        }),
+      }
+
+      return tableAnswer(written, format, today)
+    }
+
+    /**
+     * The deadlines a question finds, with what the list says about each:
+     * a page of them for the list, all of them for its table.
+     */
+    private async read(
+      identity: RequestIdentity,
+      question: DeadlineQuestion,
+      extent: 'page' | 'whole',
+    ): Promise<DeadlinePage> {
       const table = this.deadlines()
       const where = and(
         question.status === 'all' ? undefined : eq(table.status, question.status),
@@ -491,7 +608,16 @@ function deadlinesController(
           let more: boolean
           let responsibles: Map<string, string | null>
 
-          if (question.person === null) {
+          if (question.person === null && extent === 'whole') {
+            rows = (await tx
+              .select()
+              .from(table)
+              .where(where)
+              .orderBy(...order)) as KeptDeadline[]
+            more = false
+            total = rows.length
+            responsibles = await responsiblesOf(rows)
+          } else if (question.person === null) {
             const found = (await tx
               .select()
               .from(table)
@@ -517,8 +643,11 @@ function deadlinesController(
             const everybody = await responsiblesOf(found)
             const theirs = found.filter((row) => everybody.get(row.id) === question.person)
 
-            rows = theirs.slice(question.offset, question.offset + question.limit)
-            more = theirs.length > question.offset + question.limit
+            rows =
+              extent === 'whole'
+                ? theirs
+                : theirs.slice(question.offset, question.offset + question.limit)
+            more = extent === 'page' && theirs.length > question.offset + question.limit
             responsibles = everybody
           }
 
