@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Bausteine der Aufgaben, wie die Tafeln der Haustechnik sie zeichnen
+  (`opengewerk-haustechnik#124`): im Formular einer Karte steht der Text allein in seiner Zeile,
+  Tag und Person teilen sich die nächste (ab 1024 Pixeln der Tag in 112 Pixeln); `note` setzt
+  einen Satz unter die Knöpfe, vor Ort etwa, dass eine Aufgabe auf dem Gerät gesichert ist. Eine
+  abgehakte Aufgabe, die noch nicht beim Server ist, sagt "noch nicht übertragen" in der Farbe
+  dessen, was wartet. Vorher standen Text und Tag in einer Spalte von 320 Pixeln nebeneinander,
+  und der Hinweis fiel im Rest der Zeile nicht auf.
 - Die Aufgaben als Baustein (`opengewerk-haustechnik#124`): `platform-domain` hat `taskEntity`,
   `taskStatuses`, `TaskBase` und die Regeln, die Formular und Abgleich gleich fragen
   (`taskTitleProblem`, `isTaskOverdue`, `compareTasksForWork`, `mayNameForTask`, `mayChangeTask`):

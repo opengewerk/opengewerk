@@ -44,6 +44,8 @@ export interface NewTaskFormProps {
   readonly longest: number
   /** The fields in one row, as the list of the office draws the card "Neue Aufgabe". */
   readonly wide?: boolean
+  /** A sentence under the buttons, such as what becomes of the task without a network. */
+  readonly note?: string
   /** Called once the task is kept, and when somebody backs out. */
   readonly onDone: () => void
 }
@@ -67,6 +69,7 @@ export function NewTaskForm({
   words,
   longest,
   wide = false,
+  note,
   onDone,
 }: NewTaskFormProps) {
   const client = useSync()
@@ -89,7 +92,14 @@ export function NewTaskForm({
       .sort((left, right) => left.label.localeCompare(right.label, 'de')),
   ]
   const fields: FormField[] = [
-    { name: 'title', label: 'Was zu tun ist', required: true },
+    // In a card the text takes the whole row, the day and the person share
+    // the next one; in a row of their own the four stand side by side.
+    {
+      name: 'title',
+      label: 'Was zu tun ist',
+      required: true,
+      ...(wide ? {} : { place: 'col-span-full' }),
+    },
     { name: 'dueOn', label: 'Fällig am', kind: 'date', required: true },
     {
       name: 'assigneeUserId',
@@ -100,7 +110,7 @@ export function NewTaskForm({
     ...(place ? [place.field] : []),
   ]
 
-  return (
+  const form = (
     <RecordForm
       fields={fields}
       record={{ dueOn: today(), assigneeUserId: me }}
@@ -112,7 +122,7 @@ export function NewTaskForm({
               : 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)]',
             divided: false,
           }
-        : {})}
+        : { columns: 'lg:grid-cols-[112px_minmax(0,1fr)]' })}
       onCancel={onDone}
       check={(values) => taskTitleProblem(values['title'], longest)}
       onSubmit={async (values): Promise<EditResult> => {
@@ -132,5 +142,14 @@ export function NewTaskForm({
         return made
       }}
     />
+  )
+
+  return note === undefined ? (
+    form
+  ) : (
+    <div className="flex flex-col gap-2">
+      {form}
+      <p className="text-center text-[14px] leading-[1.4] text-ink-muted">{note}</p>
+    </div>
   )
 }

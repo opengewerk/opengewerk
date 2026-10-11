@@ -163,6 +163,21 @@ describe('a list of tasks', () => {
     })
   })
 
+  it('says of a task ticked without a network that it has not gone to the server yet', async () => {
+    server.put(taskEntity, task('t-1', { title: 'Regal räumen' }))
+    const client = await started('site', <Tasks />)
+
+    server.offline = true
+    await userEvent.click(await screen.findByRole('button', { name: 'Erledigt' }))
+    await client.synchronise()
+
+    await waitFor(() => {
+      expect(rows()).toEqual([
+        'Regal räumenFällig am 01.01.2099, verantwortlich: Sie, erledigt, noch nicht übertragenWieder öffnen',
+      ])
+    })
+  })
+
   it('offers nothing to change on a task the person may not change', async () => {
     server.put(taskEntity, task('t-1', { title: 'Für Ana' }))
     server.put(taskEntity, task('t-2', { title: 'Für Ben', assigneeUserId: 'ben' }))
@@ -295,6 +310,12 @@ describe('a new task', () => {
 
     await client.synchronise()
     expect(server.queued()).toEqual([])
+  })
+
+  it('says under its buttons what the application wants said', async () => {
+    await started('site', form({ note: 'Auf dem Gerät gesichert.' }))
+
+    expect(await screen.findByText('Auf dem Gerät gesichert.')).toBeTruthy()
   })
 
   it('waits until it is known who is writing', async () => {
