@@ -9,6 +9,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Fristen, Zugänge und das Änderungsprotokoll als Tabelle (`opengewerk-haustechnik#236`): `GET /deadlines/table`, `GET /staff/table` und `GET /audit/table` schreiben, was die Liste unter ihrem Filter zeigt, ganz und nicht als Seite, als Excel oder CSV, und die drei Bildschirme bekommen den Knopf "Als Tabelle" (die Fristen über die Eigenschaft `table`). Was die Anwendung daneben zeigt, gibt sie über `listAsTable`, `inTable` und `words` an `auditLogParts` herein. Eine Person nennt eine Tabelle nur für wen die Zugänge sieht (`tableNamesPeople`), und nur wer sie sieht, grenzt die Fristen als Tabelle auf eine Person ein: so hat es die Projektleitung am 11.10.2026 für die Haustechnik entschieden. Die Wörter dieser Listen und der Name eines Geräts stehen dafür in `platform-domain`, damit Bildschirm und Tabelle dasselbe sagen.
 - Die Bausteine der Aufgaben, wie die Tafeln der Haustechnik sie zeichnen
   (`opengewerk-haustechnik#124`): im Formular einer Karte steht der Text allein in seiner Zeile,
   Tag und Person teilen sich die nächste (ab 1024 Pixeln der Tag in 112 Pixeln); `note` setzt
