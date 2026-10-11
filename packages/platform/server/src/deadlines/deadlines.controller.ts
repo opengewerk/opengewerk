@@ -33,6 +33,7 @@ import {
   type IsoDate,
   leadOf,
   leadProblem,
+  outgoingTableRows,
   remindOn,
   tableNamesPeople,
   type TenantId,
@@ -48,7 +49,13 @@ import { deadlineSettings } from '../database/schema/deadline-settings.js'
 import type { DeadlinesTable, OwnDeadlineColumns } from '../database/schema/deadlines.js'
 import { memberships } from '../database/schema/memberships.js'
 import { tenants } from '../database/schema/tenants.js'
-import { type OutgoingTable, type TableCell, tableAnswer, tableFormatOf } from '../tables/write.js'
+import {
+  type OutgoingTable,
+  refuseOverlongTable,
+  type TableCell,
+  tableAnswer,
+  tableFormatOf,
+} from '../tables/write.js'
 import type { KeptDeadline } from './engine.js'
 import { responsibleForAll } from './responsible.js'
 import { deadlineRunOf } from './runs.js'
@@ -609,11 +616,15 @@ function deadlinesController(
           let responsibles: Map<string, string | null>
 
           if (question.person === null && extent === 'whole') {
+            // One more than a table goes out with: enough to know the list
+            // is too long, without reading the rest of it.
             rows = (await tx
               .select()
               .from(table)
               .where(where)
-              .orderBy(...order)) as KeptDeadline[]
+              .orderBy(...order)
+              .limit(outgoingTableRows + 1)) as KeptDeadline[]
+            refuseOverlongTable(rows.length)
             more = false
             total = rows.length
             responsibles = await responsiblesOf(rows)

@@ -1,5 +1,10 @@
-import { BadRequestException, StreamableFile } from '@nestjs/common'
-import { columnLetters, type IsoDate } from '@opengewerk/platform-domain'
+import { BadRequestException, StreamableFile, UnprocessableEntityException } from '@nestjs/common'
+import {
+  columnLetters,
+  type IsoDate,
+  outgoingTableRows,
+  tooLongForATable,
+} from '@opengewerk/platform-domain'
 
 import { dispositionFor } from '../files/media-type.js'
 import { zipped } from '../files/zip.js'
@@ -57,15 +62,32 @@ export const tableMediaTypes: Readonly<Record<TableFormat, string>> = {
 }
 
 /**
+ * Refuses a list that is longer than a table goes out with
+ * (`outgoingTableRows`), in the sentence for whoever asked. A route that
+ * reads its rows asks as soon as it knows how many there are, so that it
+ * reads no further, and `tableAnswer` asks for every table before it is
+ * written.
+ */
+export function refuseOverlongTable(rows: number): void {
+  if (rows > outgoingTableRows) {
+    throw new UnprocessableEntityException(tooLongForATable)
+  }
+}
+
+/**
  * The table as the answer of a route: a file to save, named after the list
  * and the day it was taken, "Anlagen 2026-10-11.xlsx". The route says
  * `Cache-Control: no-store`, as for every file it hands out.
+ *
+ * @throws UnprocessableEntityException for a list longer than a table goes out with
  */
 export function tableAnswer(
   table: OutgoingTable,
   format: TableFormat,
   day: IsoDate,
 ): StreamableFile {
+  refuseOverlongTable(table.rows.length)
+
   const bytes = format === 'xlsx' ? tableAsWorkbook(table) : tableAsCsv(table)
   const type = tableMediaTypes[format]
 

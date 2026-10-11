@@ -282,6 +282,17 @@ export const tooMuch =
   'Die Tabelle hält mehr, als auf einmal gelesen wird. Teilen Sie sie in mehrere Dateien.'
 
 /**
+ * How long a list may be to go out as a table. Its rows are read and written
+ * in one piece and stand in memory meanwhile, so a list has an end here. A
+ * longer one is refused in words and never cut: part of a list taken away
+ * looks like all of it.
+ */
+export const outgoingTableRows = 50_000
+
+/** The sentence for whoever asked for a longer list as a table. */
+export const tooLongForATable = `Die Liste hat mehr als ${count(outgoingTableRows)} Zeilen. Grenzen Sie sie mit dem Filter ein.`
+
+/**
  * Why a choice of columns cannot be worked with, or null: what came over the
  * wire has to be a choice at all, among the fields of this table and the
  * columns of this sheet, with a column for every field that needs one.
