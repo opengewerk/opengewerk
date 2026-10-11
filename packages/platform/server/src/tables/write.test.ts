@@ -124,6 +124,19 @@ describe('a list as a workbook', () => {
     )
   })
 
+  it('names its sheet without an apostrophe at either end, and "Tabelle" where nothing is left', () => {
+    const sheetName = (name: string) =>
+      /<sheet name="([^"]*)"/.exec(
+        partsOf(tableAsWorkbook({ ...list, name })).get('xl/workbook.xml') ?? '',
+      )?.[1]
+
+    expect(sheetName("'Mängel' ")).toBe('Mängel')
+    expect(sheetName("'".repeat(50_000))).toBe('Tabelle')
+    expect(sheetName('Eine Liste mit einem sehr langen Namen, länger als ein Blatt')).toBe(
+      'Eine Liste mit einem sehr lange',
+    )
+  })
+
   it('holds the header in place, with a filter over every column', () => {
     const parts = partsOf(tableAsWorkbook(list))
 

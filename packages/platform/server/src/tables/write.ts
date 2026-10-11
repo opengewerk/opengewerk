@@ -201,17 +201,28 @@ function xml(text: string): string {
 }
 
 /**
- * The name of the sheet: at most 31 characters and none of those a workbook
- * keeps for itself.
+ * The name of the sheet: at most 31 characters, none of those a workbook
+ * keeps for itself, and no apostrophe at either end, which a workbook does
+ * not take there. Cut by hand and not with an expression that looks for the
+ * end of a run, which takes long on a name that is nothing but apostrophes.
  */
 function sheetNameOf(name: string): string {
-  const plain = name
+  const spaced = name
+    .slice(0, 200)
     .replace(/[\\/?*[\]:]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^'+|'+$/g, '')
-    .trim()
-    .slice(0, 31)
-    .trim()
+  let start = 0
+  let end = spaced.length
+
+  while (start < end && (spaced[start] === "'" || spaced[start] === ' ')) {
+    start += 1
+  }
+
+  while (end > start && (spaced[end - 1] === "'" || spaced[end - 1] === ' ')) {
+    end -= 1
+  }
+
+  const plain = spaced.slice(start, end).slice(0, 31).trim()
 
   return plain === '' ? 'Tabelle' : plain
 }
