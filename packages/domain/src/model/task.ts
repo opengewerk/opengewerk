@@ -1,14 +1,9 @@
-import type { IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { IsoDate, Synced, TaskStatus } from '@opengewerk/platform-domain'
 import type { CustomerId, JobId, SiteId, TaskId } from './identifier.js'
 
-/**
- * Open or done, and nothing in between. A task that is "in progress" says
- * nothing a person does not already know, and a third state is one more thing
- * a list has to be filtered by before it shows what is left to do.
- */
-export const taskStatuses = ['open', 'done'] as const
-
-export type TaskStatus = (typeof taskStatuses)[number]
+// Open or done: the states of a task are the foundation's since
+// opengewerk-haustechnik#124 (`taskStatuses` there), the same two this table
+// was made with.
 
 /**
  * Something one person has to do by a day.

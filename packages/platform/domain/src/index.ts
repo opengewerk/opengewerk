@@ -24,6 +24,7 @@ export * from './model/paths.js'
 export * from './model/push.js'
 export * from './model/rights.js'
 export * from './model/signature.js'
+export * from './model/task.js'
 
 // The deadline engine: kinds as data, checked against the sources and actions
 // an application hands in, and what a tenant sets for a kind. Which sources

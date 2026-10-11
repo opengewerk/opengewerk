@@ -19,6 +19,7 @@
     "./shell": "./src/shell/index.ts",
     "./site": "./src/site/index.ts",
     "./sync": "./src/sync/index.ts",
+    "./tasks": "./src/tasks/index.ts",
     "./testing": "./src/testing.ts",
     "./worker": "./src/worker/index.ts",
     "./tools/budget": "./tools/budget.js",

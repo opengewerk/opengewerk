@@ -59,6 +59,7 @@ describe('the interface of the foundation', () => {
       './shell': './src/shell/index.ts',
       './site': './src/site/index.ts',
       './sync': './src/sync/index.ts',
+      './tasks': './src/tasks/index.ts',
       './testing': './src/testing.ts',
       './worker': './src/worker/index.ts',
       './tools/budget': './tools/budget.js',
@@ -173,10 +174,11 @@ const entryWord = /\b(?:Baustelle|Baustellen)\b/
  * A contact is not among them. The people to talk to are a record of the
  * foundation, which every application hangs on records of its own
  * (opengewerk-haustechnik#85). Neither is a file in the records of a tenant,
- * with its versions (opengewerk-haustechnik#97).
+ * with its versions (opengewerk-haustechnik#97), nor a task, which every
+ * application hangs on records of its own as well (opengewerk-haustechnik#124).
  */
 const recordLiteral =
-  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|tasks|suppliers|articles|time_entries)\1/
+  /(['"`])(?:customers|sites|installations|jobs|documents|document_lines|suppliers|articles|time_entries)\1/
 const recordWord =
   /\b(?:Kunde|Kunden|Beleg|Belege|Belegs|Rechnung|Rechnungen|Angebot|Angebote|Auftrag|Aufträge|Auftrags|Regiebericht|Regieberichte)\b/
 
