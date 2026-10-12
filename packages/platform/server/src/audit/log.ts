@@ -439,6 +439,12 @@ export async function readAuditPage(
             }
           }
 
+          const behind = language.prefixedReferenceOf(field.field, value)
+
+          if (behind) {
+            named.set(placeKey(behind), behind)
+          }
+
           if (language.isPersonField(field.field)) {
             people.add(value)
           }

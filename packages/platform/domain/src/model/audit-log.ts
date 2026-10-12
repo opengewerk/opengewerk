@@ -96,6 +96,15 @@ export interface AuditTableWords {
 }
 
 /**
+ * A field whose value points at a record where it begins with a prefix, and
+ * holds something else where it does not.
+ */
+export interface AuditPrefixedReference {
+  readonly prefix: string
+  readonly table: string
+}
+
+/**
  * Where the name of a record is: the first of these fields that has a value,
  * or, for a record whose name is two fields, both of them joined.
  */
@@ -197,6 +206,13 @@ export interface AuditVocabulary {
    * at, so that a list of records reads as their names and not as their keys.
    */
   readonly referenceLists?: Readonly<Record<string, string>>
+  /**
+   * Fields that hold the id of another record behind a prefix, and something
+   * else where the prefix is missing, by field: `after-<id>` beside a word of
+   * a list. The page names what such a value points at, as it does for a
+   * field that only ever points.
+   */
+  readonly prefixedReferences?: Readonly<Record<string, AuditPrefixedReference>>
   /** Fields that hold the id of a person, beside the foundation's own. */
   readonly personFields: readonly string[]
   /**
@@ -655,6 +671,8 @@ export interface AuditLanguage {
   readonly referenceOf: (field: string) => string | null
   /** The table the ids of a field that holds a list of them point into, or null. */
   readonly referenceListOf: (field: string) => string | null
+  /** The record a value points at behind the prefix its field names, or null. */
+  readonly prefixedReferenceOf: (field: string, value: string) => AuditPlace | null
   readonly isPersonField: (field: string) => boolean
   /** Whether a field says nothing about a change. */
   readonly isQuiet: (field: string) => boolean
@@ -727,6 +745,21 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
   const referenceOf = (field: string): string | null =>
     foundationReferences[field] ?? vocabulary.references[field] ?? null
 
+  const prefixedReferenceOf = (field: string, value: string): AuditPlace | null => {
+    const behind =
+      vocabulary.prefixedReferences && Object.hasOwn(vocabulary.prefixedReferences, field)
+        ? vocabulary.prefixedReferences[field]
+        : undefined
+
+    if (!behind || !value.startsWith(behind.prefix)) {
+      return null
+    }
+
+    const id = value.slice(behind.prefix.length)
+
+    return hasValue(id) ? { table: behind.table, id } : null
+  }
+
   const standsAtFields = (table: string): readonly string[] =>
     vocabulary.standsAt && Object.hasOwn(vocabulary.standsAt, table)
       ? (vocabulary.standsAt[table] ?? [])
@@ -764,6 +797,7 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
       vocabulary.referenceLists && Object.hasOwn(vocabulary.referenceLists, field)
         ? (vocabulary.referenceLists[field] ?? null)
         : null,
+    prefixedReferenceOf,
     isPersonField: (field) => personFields.has(field),
     isQuiet: (field) => quiet.has(field),
     isSecret: (table, field) => secret(table).includes(field),

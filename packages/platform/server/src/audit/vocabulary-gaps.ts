@@ -167,6 +167,12 @@ export async function auditVocabularyGaps(
     }
   }
 
+  for (const [column, behind] of Object.entries(vocabulary.prefixedReferences ?? {})) {
+    if (!tenantLog.has(behind.table) || !anywhere(column) || behind.prefix === '') {
+      gaps.push(`prefixed reference ${column} to ${behind.table}`)
+    }
+  }
+
   for (const column of vocabulary.personFields) {
     if (!anywhere(column)) {
       gaps.push(`person field ${column}, which no watched table has`)

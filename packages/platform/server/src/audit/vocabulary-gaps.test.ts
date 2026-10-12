@@ -136,6 +136,13 @@ describe('the vocabulary of the change log against the database', () => {
         referenceLists: { about_letters: 'racks', seen_by: 'shelves' },
         personFields: ['keeper_id'],
         titles: { ...probeAuditVocabulary.titles, notes: ['heading'], parcels: ['number'] },
+        // Behind a prefix: into a table that is not there, through a column
+        // that is not there, and with no prefix to speak of.
+        prefixedReferences: {
+          status: { prefix: 'after-', table: 'racks' },
+          heading: { prefix: 'see-', table: 'letters' },
+          subject: { prefix: '', table: 'letters' },
+        },
         // A column the table does not have, one that points nowhere, and a
         // table nobody watches.
         standsAt: { notes: ['rack_id', 'text'], parcels: [] },
@@ -151,6 +158,9 @@ describe('the vocabulary of the change log against the database', () => {
         'reference list seen_by to shelves',
         'person field keeper_id, which no watched table has',
         'title of notes: none of its naming fields exists',
+        'prefixed reference status to racks',
+        'prefixed reference heading to letters',
+        'prefixed reference subject to letters',
         'stands at notes.rack_id, which is no reference of the table',
         'stands at notes.text, which is no reference of the table',
         'stands at of parcels, which is not watched',

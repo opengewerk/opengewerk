@@ -233,6 +233,32 @@ describe('records and devices', () => {
     expect(words.recordTitle('notes', 'note-on-a-note', page)).toBe('Auch hier, Zange fehlt')
   })
 
+  it('reads a value that points at a record behind a prefix as that record, and every other value of the field as before', () => {
+    expect(words.auditValue('letters', 'status', `after-${ids.letter}`, page)).toBe(
+      'Wartung im Oktober',
+    )
+    expect(words.auditValue('letters', 'status', 'after-not-on-the-page', page)).toBe(
+      'Brief ohne Bezeichnung',
+    )
+    expect(words.auditValue('letters', 'status', 'sent', page)).toBe('Verschickt')
+    expect(words.auditValue('letters', 'status', 'after-', page)).toBe('after-')
+    // Another field with the same beginning is a text like any other.
+    expect(words.auditValue('letters', 'subject', `after-${ids.letter}`, page)).toBe(
+      `after-${ids.letter}`,
+    )
+  })
+
+  it('keeps a value to itself behind a prefix as well, where the field is one the page does not spell out', () => {
+    const discreet = auditWords({ ...probeAuditWords, hidden: ['lock_code', 'status'] })
+
+    expect(discreet.auditValue('notes', 'status', `after-${ids.letter}`, page)).toBe(
+      discreet.auditValue('shelves', 'lock_code', '4711', page),
+    )
+    expect(discreet.auditValue('notes', 'status', `after-${ids.letter}`, page)).not.toContain(
+      'Wartung',
+    )
+  })
+
   it('names a part by the record it belongs to', () => {
     expect(words.recordTitle('letter_lines', ids.line, page)).toBe('Wartung im Oktober')
   })

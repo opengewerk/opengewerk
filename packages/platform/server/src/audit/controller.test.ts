@@ -781,6 +781,61 @@ describe('the log as a table', () => {
 })
 
 /**
+ * A value that points at a record behind a prefix is named like any field
+ * that points at one (opengewerk-haustechnik#259): a letter that waits for
+ * another says `after-` and that letter where its state stands.
+ */
+describe('a value that points at a record behind a prefix', () => {
+  it('has the page name that record, which nothing else on the page points at, and the table read it by its name', async () => {
+    const [waiting] = await database.forTenant(
+      { tenantId: north.id, userId: 'lea', reason: 'letters.write' },
+      (tx) =>
+        tx
+          .insert(letters)
+          .values({ tenantId: north.id, subject: 'Zweite Wartung', status: `after-${letterId}` })
+          .returning({ id: letters.id }),
+    )
+    const id = waiting?.id ?? ''
+    const found = await page('lea', `?table=letters&record=${id}`)
+
+    expect(new Set(found.changes.map((change) => change.recordId))).toEqual(new Set([id]))
+    expect(found.titles[letterId]).toMatchObject({ table: 'letters', title: 'Wartung im Oktober' })
+
+    // The log as a table reads the value by the name of the letter as well.
+    const seesTheStaff: MemberIdentity<Right> = {
+      userId: 'lea',
+      tenantId: north.id,
+      roles: [],
+      rights: [...people.lea.rights, 'membership.read'],
+    }
+    const answer = await request(app.getHttpServer())
+      .get(`/audit/table?format=csv&table=letters&record=${id}`)
+      .set(testIdentityHeader, JSON.stringify(seesTheStaff))
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          done(null, Buffer.concat(chunks))
+        })
+      })
+      .expect(200)
+    const rows =
+      tableFileOf(new Uint8Array(answer.body as Buffer), 'Protokoll.csv').sheets[0]?.rows ?? []
+
+    expect(rows.find((row) => row[4] === 'Stand')?.[6]).toBe('Wartung im Oktober')
+  })
+
+  it('names nothing for the values the field holds otherwise', async () => {
+    const found = await page('lea', `?table=letters&record=${letterId}`)
+
+    expect(Object.keys(found.titles)).not.toContain('draft')
+    expect(Object.keys(found.titles)).not.toContain('sent')
+  })
+})
+
+/**
  * A record that shares its name with others of its table is told apart by
  * what it stands at (opengewerk-haustechnik#258): a note by its shelf.
  */

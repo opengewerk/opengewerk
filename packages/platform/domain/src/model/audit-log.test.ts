@@ -169,6 +169,21 @@ describe("what a record's name is", () => {
     })
   })
 
+  it('reads a value as a record where it points at one behind the prefix its field names', () => {
+    expect(language.prefixedReferenceOf('status', 'after-l-1')).toEqual({
+      table: 'letters',
+      id: 'l-1',
+    })
+    // What the field holds otherwise, the prefix alone, and any other field.
+    expect(language.prefixedReferenceOf('status', 'sent')).toBeNull()
+    expect(language.prefixedReferenceOf('status', 'postponed for now')).toBeNull()
+    expect(language.prefixedReferenceOf('status', 'l-1')).toBeNull()
+    expect(language.prefixedReferenceOf('status', 'after-')).toBeNull()
+    expect(language.prefixedReferenceOf('status', 'after- ')).toBeNull()
+    expect(language.prefixedReferenceOf('subject', 'after-l-1')).toBeNull()
+    expect(language.prefixedReferenceOf('constructor', 'after-l-1')).toBeNull()
+  })
+
   it('is two fields joined where the application says so, from no single field', () => {
     const joined = auditLanguage(withContacts)
 

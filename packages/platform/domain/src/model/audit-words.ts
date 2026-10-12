@@ -224,6 +224,18 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       return null
     }
 
+    // A value that points at a record behind a prefix is read as that
+    // record, whatever its field holds otherwise. Never for a field whose
+    // value the log keeps to itself.
+    const behind =
+      language.isSecret(table, field) || hidden.has(field)
+        ? null
+        : language.prefixedReferenceOf(field, raw)
+
+    if (behind) {
+      return recordTitle(behind.table, behind.id, page)
+    }
+
     const words = screen.values?.[table]?.[field] ?? foundationValues[table]?.[field]
 
     if (words) {
