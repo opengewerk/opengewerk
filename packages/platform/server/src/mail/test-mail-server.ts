@@ -2,6 +2,35 @@ import type { Pool } from 'pg'
 
 import { SecretKey } from '../secrets/key.js'
 
+/**
+ * Sets up the mail server of the instance, without a login, as the superuser
+ * (opengewerk-haustechnik#81): for the tests that need an instance which
+ * sends a mail to an account and do not care how it reaches its server.
+ */
+export async function anInstanceMailServer(
+  admin: Pool,
+  from = 'konten@instanz.example.de',
+): Promise<void> {
+  await admin.query(
+    `update instance_settings
+        set mail_server_host = 'mail.instanz.example.de', mail_server_port = 587,
+            mail_server_security = 'starttls', mail_server_username = null,
+            mail_server_from = $1, mail_server_password = null,
+            mail_server_password_set_at = null`,
+    [from],
+  )
+}
+
+/** Takes the mail server of the instance away again. */
+export async function noInstanceMailServer(admin: Pool): Promise<void> {
+  await admin.query(
+    `update instance_settings
+        set mail_server_host = null, mail_server_port = null, mail_server_security = null,
+            mail_server_username = null, mail_server_from = null, mail_server_password = null,
+            mail_server_password_set_at = null`,
+  )
+}
+
 /** The key the tests seal with, in place of one derived from SESSION_SECRET. */
 export const testKey = SecretKey.from('t'.repeat(64))
 

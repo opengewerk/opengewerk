@@ -1,13 +1,19 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { TenantId } from '@opengewerk/domain'
 import {
+  accountMails,
   type Authentication,
   authenticationPath,
   Database,
   newId,
+  type OutgoingMail,
 } from '@opengewerk/platform-server'
-import { aMailServer, TestAuthenticator, testKey } from '@opengewerk/platform-server/testing'
+import {
+  aMailServer,
+  anInstanceMailServer,
+  TestAuthenticator,
+  testKey,
+} from '@opengewerk/platform-server/testing'
 import { toNodeHandler } from 'better-auth/node'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -20,7 +26,7 @@ import {
   resetToMigrated,
   shipRoles,
 } from '../database/test-database.js'
-import { passkeyNotices } from '../mail/passkey-notice.js'
+import { accountMessages } from '../mail/account-messages.js'
 import { addStaffMember, createAuthentication, SessionIdentitySource } from './access.js'
 
 /**
@@ -228,36 +234,35 @@ describe('signing in with a passkey', () => {
 })
 
 describe('the mail about a new passkey', () => {
+  /** Every message the mail server of this block was handed. */
+  const sent: OutgoingMail[] = []
+
   function notice() {
-    return passkeyNotices(database, {
-      origin,
-      key: testKey,
-      connect: () => ({
-        send: () => Promise.resolve(),
-        verify: () => Promise.resolve(),
-        close: () => undefined,
-      }),
-    })
+    return accountMails(
+      database,
+      {
+        origin,
+        key: testKey,
+        connect: () => ({
+          send: (mail) => {
+            sent.push(mail)
+
+            return Promise.resolve()
+          },
+          verify: () => Promise.resolve(),
+          close: () => undefined,
+        }),
+      },
+      accountMessages,
+    ).passkeyNotice
   }
 
-  async function outbox(tenantId: TenantId) {
-    const { rows } = await admin.query<{
-      kind: string
-      recipient_address: string
-      subject: string
-      body: string
-    }>(
-      `select kind, recipient_address, subject, body from mail_outbox
-        where tenant_id = $1 and kind = 'passkey_added'`,
-      [tenantId],
-    )
+  // In this order: the instance has no mail server until the second test of
+  // this block sets one up. The business sends mail of its own from the start,
+  // and has no part in a mail to an account (opengewerk-haustechnik#81).
+  it('goes nowhere while the instance has no mail server, though the business of the account sends mail', async () => {
+    await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
 
-    return rows
-  }
-
-  // In this order: the business sends no mail until the second test of this
-  // block sets its mail server up.
-  it('goes nowhere while the business of the account sends no mail', async () => {
     const owner = {
       id: userIds.get(chief.email) ?? '',
       email: chief.email,
@@ -266,11 +271,12 @@ describe('the mail about a new passkey', () => {
 
     await notice()(owner, { id: 'passkey-quiet', name: 'Telefon' })
 
-    expect(await outbox(north.id)).toEqual([])
+    expect(sent).toEqual([])
   })
 
-  it('goes into the outbox of the business of the account, once', async () => {
-    await aMailServer(admin, north.id, { from: 'buero@nord.example.de' })
+  it('goes out through the mail server of the instance, under the name of this application', async () => {
+    await anInstanceMailServer(admin, 'konten@opengewerk.example.de')
+
     const owner = {
       id: userIds.get(worker.email) ?? '',
       email: worker.email,
@@ -278,23 +284,22 @@ describe('the mail about a new passkey', () => {
     }
 
     await notice()(owner, { id: 'passkey-mail', name: 'Laptop Büro' })
-    await notice()(owner, { id: 'passkey-mail', name: 'Laptop Büro' })
 
-    const written = await outbox(north.id)
-
-    expect(written).toHaveLength(1)
-    expect(written[0]?.recipient_address).toBe(worker.email)
-    expect(written[0]?.subject).toBe('Ein neuer Passkey für OpenGewerk')
-    expect(written[0]?.body).toContain('„Laptop Büro“')
-    expect(written[0]?.body).toContain(`${origin}/konto`)
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.from).toEqual({ name: 'OpenGewerk', address: 'konten@opengewerk.example.de' })
+    expect(sent[0]?.to).toEqual({ name: worker.name, address: worker.email })
+    expect(sent[0]?.subject).toBe('Ein neuer Passkey für OpenGewerk')
+    expect(sent[0]?.text).toContain('„Laptop Büro“')
+    expect(sent[0]?.text).toContain(`${origin}/konto`)
+    expect(sent[0]?.text).not.toContain(north.name)
   })
 
   /**
    * The two are bound: a passkey added through the routes of the foundation
-   * writes the notice of this application, into the outbox of the business,
-   * which sends mail since the test before.
+   * sends the notice of this application, through the mail server of the
+   * instance, which is there since the test before.
    */
-  it('is written when a passkey is added, through the notice handed to the authentication', async () => {
+  it('is sent when a passkey is added, through the notice handed to the authentication', async () => {
     const mailing = Database.connect(applicationDatabaseUrl())
     const withMail = createAuthentication({
       database: mailing,
@@ -315,6 +320,8 @@ describe('the mail about a new passkey', () => {
     mailingApp.use(authenticationPath, toNodeHandler(withMail))
     await mailingApp.init()
 
+    const before = sent.length
+
     try {
       await addPasskey(worker.email, 'Werkstatt-PC', mailingApp)
     } finally {
@@ -322,20 +329,19 @@ describe('the mail about a new passkey', () => {
       await mailing.close()
     }
 
-    const written = (await outbox(north.id)).filter((row) => row.body.includes('„Werkstatt-PC“'))
+    const told = sent.slice(before).filter((mail) => mail.text.includes('„Werkstatt-PC“'))
 
-    expect(written).toHaveLength(1)
-    expect(written[0]?.recipient_address).toBe(worker.email)
+    expect(told).toHaveLength(1)
+    expect(told[0]?.to.address).toBe(worker.email)
   })
 
   /**
-   * With a second business, its lead could take the account into it, and the
-   * notice would land in the outbox of that business (opengewerk-haustechnik#31).
-   * Until the instance has a mail server of its own, none goes out on such an
-   * instance, not even through the business the account has always worked in.
-   * Last in this file, because it leaves the second business behind.
+   * With a second business, its lead could take the account into it
+   * (opengewerk-haustechnik#31). The notice goes through the mail server of
+   * the instance all the same, and into the outbox of no business. Last in
+   * this file, because it leaves the second business behind.
    */
-  it('goes nowhere once the instance has a second business', async () => {
+  it('goes out through the mail server of the instance on an instance with a second business as well, and into no outbox', async () => {
     await admin.query('insert into tenants (id, name) values ($1, $2)', [south.id, south.name])
     await shipRoles(admin, south.id)
     await aMailServer(admin, south.id, { from: 'buero@sued.example.de' })
@@ -345,11 +351,16 @@ describe('the mail about a new passkey', () => {
       email: worker.email,
       name: worker.name,
     }
+    const before = sent.length
 
     await notice()(owner, { id: 'passkey-second', name: 'Tablet Lager' })
 
-    const anywhere = [...(await outbox(north.id)), ...(await outbox(south.id))]
+    expect(sent.slice(before).map((mail) => mail.from.address)).toEqual([
+      'konten@opengewerk.example.de',
+    ])
 
-    expect(anywhere.filter((row) => row.body.includes('„Tablet Lager“'))).toEqual([])
+    const { rows } = await admin.query(`select 1 from mail_outbox where kind = 'passkey_added'`)
+
+    expect(rows).toEqual([])
   })
 })

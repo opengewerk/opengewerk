@@ -91,6 +91,9 @@ export interface AuditValueWords {
 
 /** What the foundation's own fields hold as a key, by table, then by field. */
 const foundationValues: Readonly<Record<string, Readonly<Record<string, Words>>>> = {
+  instance_settings: {
+    mail_server_security: { starttls: 'STARTTLS', tls: 'TLS', none: 'Ohne Verschlüsselung' },
+  },
   tenant_sessions: { sign_in_method: { password: 'Passwort', passkey: 'Passkey' } },
 }
 

@@ -49,6 +49,7 @@ import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { probeMade } from '../database/probe-schema.js'
 import type { TestDatabase } from '../database/test-database.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
+import { MAIL, type MailContext } from '../mail/context.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
 import type { AccessRules, MembershipAdditions } from './access.js'
@@ -295,6 +296,8 @@ export interface ProbeModuleOptions {
   readonly invitationMailing?: InvitationMailing | null
   /** The settings of the instance in memory, where a test keeps them there. */
   readonly instanceSettings?: InstanceSettingsCache | null
+  /** What the routes around mail need. Left out, this instance sends no mail. */
+  readonly mail?: MailContext | null
   /** The version the health check names; left out, it names none, as in a checkout. */
   readonly version?: string | null
   /** What this application keeps beside a membership. Left out, nothing. */
@@ -324,6 +327,7 @@ export class ProbeModule {
         { provide: Database, useValue: database },
         ...signingIn.providers,
         { provide: TRUSTED_ORIGINS, useValue: options.trustedOrigins ?? [] },
+        { provide: MAIL, useValue: options.mail ?? null },
         { provide: VERSION, useValue: options.version ?? null },
         { provide: IDENTITY_SOURCE, useValue: identities },
         { provide: AUTHORIZATION, useValue: probeAuthorization },
@@ -365,6 +369,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly invitationMailing?: InvitationMailing | null
   /** The settings of the instance in memory, where a test keeps them there. */
   readonly instanceSettings?: InstanceSettingsCache | null
+  /** What the routes around mail need. Left out, this instance sends no mail. */
+  readonly mail?: MailContext | null
   /** What this application keeps beside a membership. Left out, nothing. */
   readonly additions?: MembershipAdditions
 }
@@ -414,6 +420,7 @@ export async function probeInstance(
     closed = false,
     invitationMailing = null,
     instanceSettings = null,
+    mail = null,
     additions,
     ...authenticationOptions
   } = options
@@ -434,13 +441,14 @@ export async function probeInstance(
         database,
         closed ? new ClosedIdentitySource() : probeIdentities(authentication, database),
         closed
-          ? { trustedOrigins: [probeOrigin], invitationMailing, instanceSettings }
+          ? { trustedOrigins: [probeOrigin], invitationMailing, instanceSettings, mail }
           : {
               authentication,
               setupCode: setupCode ?? null,
               trustedOrigins: [probeOrigin],
               invitationMailing,
               instanceSettings,
+              mail,
               ...(additions ? { additions } : {}),
             },
       ),

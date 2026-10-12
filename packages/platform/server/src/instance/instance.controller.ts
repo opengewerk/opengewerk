@@ -4,16 +4,23 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpException,
+  HttpStatus,
   Inject,
   Optional,
   Param,
   Post,
   Put,
   Query,
+  ServiceUnavailableException,
+  UnprocessableEntityException,
 } from '@nestjs/common'
 import type {
   InstanceAccess,
   InstanceLogPage,
+  InstanceMailServerState,
+  InstanceMailServerView,
   InstanceSettingsView,
   InstanceTenantView,
   OperatorView,
@@ -24,8 +31,19 @@ import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { ACCESS_RULES, type AccessRules } from '../authentication/access.js'
 import { Database } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
+import { checkMailServer, type MailServerCheck } from '../mail/check.js'
+import type { MailConfiguration } from '../mail/configuration.js'
+import { MAIL, type MailContext } from '../mail/context.js'
 import { operatorAccess } from './access.js'
 import { readInstanceLog } from './log.js'
+import {
+  instanceMailConfigurationToTry,
+  instanceMailServerInput,
+  readInstanceMailServer,
+  removeInstanceMailServer,
+  sameInstanceMailConnection,
+  saveInstanceMailServer,
+} from './mail-server.js'
 import { appointOperator, listOperators, removeOperator } from './operators.js'
 import {
   checkedChange,
@@ -41,6 +59,22 @@ import { createTenantFor, listInstanceTenants } from './tenants.js'
  * them on the next request, and not on the next refresh.
  */
 export const INSTANCE_SETTINGS = Symbol('InstanceSettings')
+
+/**
+ * How often the mail server of the instance may be tried within ten minutes,
+ * saving included, by everybody who runs the instance together: plenty for
+ * going through the settings of a provider, too few to try one password
+ * after the other against somebody else's mail server with this instance
+ * doing the connecting.
+ */
+const mailTriesAllowed = 30
+const mailTriesWithinMs = 10 * 60_000
+
+/** What saving the mail server of the instance answers: the settings as kept, and what the server said to them. */
+export interface SavedInstanceMailServer {
+  readonly server: InstanceMailServerView
+  readonly check: MailServerCheck
+}
 
 function field(body: unknown, name: string): unknown {
   return typeof body === 'object' && body !== null
@@ -63,7 +97,59 @@ export class InstanceController {
     @Optional()
     @Inject(INSTANCE_SETTINGS)
     private readonly settingsInMemory?: InstanceSettingsCache | null,
+    @Optional()
+    @Inject(MAIL)
+    private readonly mail?: MailContext | null,
   ) {}
+
+  /** When the mail server of the instance was last tried, the last ten minutes of it. In memory, like the tries of a tenant. */
+  private mailTries: number[] = []
+
+  /** What mail needs, or the sentence that says this instance sends none. */
+  private mailContext(): MailContext {
+    if (!this.mail) {
+      throw new ServiceUnavailableException(
+        'Diese Instanz verschickt keine E-Mails, sie ist geschlossen oder ohne Versand gestartet.',
+      )
+    }
+
+    return this.mail
+  }
+
+  /** Counts one try at the mail server of the instance, or refuses it. */
+  private mailTryAllowed(): void {
+    const now = Date.now()
+    const recent = this.mailTries.filter((at) => now - at < mailTriesWithinMs)
+
+    if (recent.length >= mailTriesAllowed) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message:
+            `Der Mailserver wurde in den letzten zehn Minuten ${String(mailTriesAllowed)}-mal ` +
+            'geprüft. In ein paar Minuten geht es wieder.',
+          error: 'Too Many Requests',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
+
+    recent.push(now)
+    this.mailTries = recent
+  }
+
+  private async tryMailServer(
+    context: MailContext,
+    configuration: MailConfiguration,
+  ): Promise<MailServerCheck> {
+    const transport = context.connect(configuration)
+
+    try {
+      return await checkMailServer(transport, configuration)
+    } finally {
+      transport.close()
+    }
+  }
 
   /** Whether the person asking may enter, for the entry in the menu under the name. */
   @Get('access')
@@ -90,6 +176,79 @@ export class InstanceController {
     await this.settingsInMemory?.refresh()
 
     return saved
+  }
+
+  /**
+   * The mail server of the instance (opengewerk-haustechnik#81), without its
+   * password, and whether this instance sends mail at all.
+   */
+  @Get('mail-server')
+  @RequiresOperator()
+  async mailServer(): Promise<InstanceMailServerState> {
+    return this.mail
+      ? { sends: true, server: await readInstanceMailServer(this.database, this.mail.key) }
+      : { sends: false, server: null }
+  }
+
+  /**
+   * Saves the mail server of the instance, and asks it first. A connection
+   * that is new is kept only when the server takes it; the one already kept
+   * is saved whatever the server says this minute, with what it said.
+   */
+  @Put('mail-server')
+  @RequiresOperator()
+  async saveMailServer(
+    @CurrentUser() user: SignedInUser,
+    @Body() body: unknown,
+  ): Promise<SavedInstanceMailServer> {
+    const context = this.mailContext()
+    const input = instanceMailServerInput(body)
+    const configuration = await instanceMailConfigurationToTry(this.database, context.key, input)
+
+    this.mailTryAllowed()
+
+    const check = await this.tryMailServer(context, configuration)
+
+    if (
+      check.outcome !== 'ready' &&
+      !(await sameInstanceMailConnection(this.database, context.key, configuration))
+    ) {
+      throw new UnprocessableEntityException(`Nicht gespeichert. ${check.reason}`)
+    }
+
+    return {
+      server: await saveInstanceMailServer(this.database, user.userId, context.key, input),
+      check,
+    }
+  }
+
+  @Delete('mail-server')
+  @RequiresOperator()
+  async removeMailServer(@CurrentUser() user: SignedInUser): Promise<{ readonly removed: true }> {
+    await removeInstanceMailServer(this.database, user.userId)
+
+    return { removed: true }
+  }
+
+  /**
+   * Tries the settings as they stand in the form, saved or not: connects,
+   * signs in, sends nothing. The password is the one typed in, or the one
+   * kept when none was.
+   */
+  @Post('mail-server/check')
+  @HttpCode(200)
+  @RequiresOperator()
+  async tryTheMailServer(@Body() body: unknown): Promise<MailServerCheck> {
+    const context = this.mailContext()
+    const configuration = await instanceMailConfigurationToTry(
+      this.database,
+      context.key,
+      instanceMailServerInput(body),
+    )
+
+    this.mailTryAllowed()
+
+    return this.tryMailServer(context, configuration)
   }
 
   @Get('operators')

@@ -747,11 +747,11 @@ bisherige nicht an. Nur die Rollen im genannten Betrieb ändern sich.
 **Ein Passwort ändern und zurückholen.** Unter "Konto" ändert jeder sein
 Passwort mit dem bisherigen als Bestätigung; alle anderen Geräte des Zugangs
 sind danach abgemeldet. Wer es vergessen hat, fordert auf der Anmeldung mit
-"Passwort vergessen?" einen Link an. Er kommt über den Mailserver eines Betriebs,
-in dem der Zugang arbeitet, gilt eine Stunde und einmal, und danach ist jedes
-Gerät abgemeldet. Die Antwort ist dieselbe, ob es zu der Adresse einen Zugang
-gibt oder nicht. Ein eingerichteter zweiter Faktor gilt danach weiter. Verschickt
-kein Betrieb des Zugangs E-Mails, bleibt die Kommandozeile:
+"Passwort vergessen?" einen Link an. Er kommt über den Mailserver der Instanz
+und über den Mailserver keines Betriebs, gilt eine Stunde und einmal, und danach
+ist jedes Gerät abgemeldet. Die Antwort ist dieselbe, ob es zu der Adresse einen
+Zugang gibt oder nicht. Ein eingerichteter zweiter Faktor gilt danach weiter. Hat
+die Instanz keinen Mailserver, bleibt die Kommandozeile:
 
 ```bash
 docker compose -f docker/compose.yaml exec app node dist/reset-password.js monteur@betrieb.de
@@ -807,9 +807,14 @@ diesen Fall beim Start und sagt, woran es liegt.
 
 Was keinem Betrieb gehört, sondern der Instanz, steht in einem eigenen Bereich
 (#188): unter dem Namen oben rechts über "Instanz verwalten", unter `/instanz`.
-Dort stehen die Betriebe der Instanz, die Mailserver im eigenen Netz, die ein
-Betrieb benutzen darf, die Uhrzeit der nächtlichen Sicherung, wer die Instanz
-betreibt, und ein Protokoll jeder Änderung daran. Aus einem Betrieb sieht der
+Dort stehen die Betriebe der Instanz, der Mailserver der Instanz, die
+Mailserver im eigenen Netz, die ein Betrieb benutzen darf, die Uhrzeit der
+nächtlichen Sicherung, wer die Instanz betreibt, und ein Protokoll jeder
+Änderung daran. Über den Mailserver der Instanz gehen die E-Mails an einen
+Zugang, der Link zu einem neuen Passwort und der Hinweis auf einen neuen
+Passkey: ein Zugang gehört der Instanz und keinem Betrieb, und wer einen Betrieb
+führt, soll solche E-Mails nicht über einen eigenen Mailserver lesen können.
+Ohne ihn geht keine davon hinaus. Aus einem Betrieb sieht der
 Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber und die Zahl der
 Zugänge, nichts, was in ihm steht. Wer einen Betrieb führt, liest die Liste
 aus den Rollen des Betriebs: Inhaber ist dort, wer eine Rolle hält, die den

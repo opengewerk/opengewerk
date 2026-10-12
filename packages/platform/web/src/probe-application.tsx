@@ -288,6 +288,8 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
           what: 'Was für alle Mandanten gilt.',
           mailOwnServer: 'Ein Mandant schickt Mails über seinen Mailserver.',
           mailNoWayIn: 'So kommt kein Mandant in das Netz dahinter.',
+          accountMail: 'Mails an ein Konto gehen über diesen Server und über den keines Mandanten.',
+          accountMailMissing: 'Ohne ihn bekommt niemand einen Link zu einem neuen Passwort.',
         },
         log: {
           what: 'Was die Aufsicht an der Instanz geändert hat. Was in einem Mandanten geschieht, steht in dessen Protokoll.',

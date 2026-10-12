@@ -33,7 +33,10 @@ CREATE TRIGGER "instance_changes_stay_on_truncate"
 -- The writer of the log of the instance: one row per field that differs, the
 -- fields of one write sharing a change id, as `record_change` writes the log
 -- of a tenant. SECURITY DEFINER so that it reaches the log whoever made the
--- change, and the same four columns stay out of the comparison.
+-- change, and the same four columns stay out of the comparison. So does the
+-- sealed password of the mail server of the instance: the log says when a
+-- password was set, in the column beside it, and never holds the password,
+-- sealed or not (opengewerk-haustechnik#81).
 CREATE FUNCTION "record_instance_change"() RETURNS trigger
 	LANGUAGE plpgsql
 	SECURITY DEFINER
@@ -59,7 +62,7 @@ BEGIN
 	FOR changed IN
 		SELECT k.field
 		  FROM jsonb_object_keys(before_row || after_row) AS k(field)
-		 WHERE NOT (k.field = ANY (ARRAY['updated_at', 'updated_by', 'version', 'change_sequence']))
+		 WHERE NOT (k.field = ANY (ARRAY['updated_at', 'updated_by', 'version', 'change_sequence', 'mail_server_password']))
 		   AND (before_row ->> k.field) IS DISTINCT FROM (after_row ->> k.field)
 		 ORDER BY k.field
 	LOOP

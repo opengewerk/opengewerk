@@ -125,9 +125,11 @@ export * from './authentication/staff.js'
 // it and the ways a further one comes to be. What whoever runs it and a tenant
 // are called, the application says.
 export * from './instance/access.js'
+export * from './instance/account-mail.js'
 export * from './instance/commands.js'
 export * from './instance/instance.controller.js'
 export * from './instance/log.js'
+export * from './instance/mail-server.js'
 export * from './instance/operators.js'
 export * from './instance/sentences.js'
 export * from './instance/settings.js'

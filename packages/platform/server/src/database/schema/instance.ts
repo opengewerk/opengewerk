@@ -1,9 +1,20 @@
 import { sql } from 'drizzle-orm'
-import { check, index, pgTable, smallint, text, time, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  check,
+  index,
+  integer,
+  pgTable,
+  smallint,
+  text,
+  time,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 import { auditOperation } from './audit.js'
 import { authUsers } from './authentication.js'
 import { primaryId, timestamps } from './columns.js'
+import { mailSecurity } from './mail-settings.js'
 import { outsideAnyTenant, writtenByTriggerOutsideAnyTenant } from './rls.js'
 
 /**
@@ -60,9 +71,50 @@ export const instanceSettings = pgTable(
      * not happened.
      */
     importedFromEnvironmentAt: timestamp('imported_from_environment_at', { withTimezone: true }),
+    /**
+     * The mail server of the instance (opengewerk-haustechnik#81). What goes
+     * to an account, the link to a new password and the notice of a new
+     * passkey, goes out through it and through the mail server of no tenant:
+     * an account belongs to the instance. All of it null while there is none.
+     */
+    mailServerHost: text('mail_server_host'),
+    mailServerPort: integer('mail_server_port'),
+    mailServerSecurity: mailSecurity('mail_server_security'),
+    mailServerUsername: text('mail_server_username'),
+    /** The address the instance writes from. */
+    mailServerFrom: text('mail_server_from'),
+    /**
+     * The password, sealed with the key of the instance. The log of the
+     * instance never holds it: its trigger leaves the column out (the block
+     * `instance.sql`), and what it records is the moment below.
+     */
+    mailServerPassword: text('mail_server_password'),
+    mailServerPasswordSetAt: timestamp('mail_server_password_set_at', { withTimezone: true }),
     ...timestamps,
   },
-  (table) => [outsideAnyTenant(), check('instance_settings_one_row', sql`${table.id} = 1`)],
+  (table) => [
+    outsideAnyTenant(),
+    check('instance_settings_one_row', sql`${table.id} = 1`),
+    // A mail server is there whole or not at all: the server with its port,
+    // the kind of connection and the address it writes from, or none of it.
+    check(
+      'instance_settings_mail_server_whole',
+      sql`(${table.mailServerHost} is null) = (${table.mailServerPort} is null)
+        and (${table.mailServerHost} is null) = (${table.mailServerSecurity} is null)
+        and (${table.mailServerHost} is null) = (${table.mailServerFrom} is null)
+        and (${table.mailServerHost} is not null or (${table.mailServerUsername} is null and ${table.mailServerPassword} is null))`,
+    ),
+    // A password goes with a login, and the moment it was set with the password.
+    check(
+      'instance_settings_mail_server_login',
+      sql`(${table.mailServerPassword} is null or ${table.mailServerUsername} is not null)
+        and (${table.mailServerPassword} is null) = (${table.mailServerPasswordSetAt} is null)`,
+    ),
+    check(
+      'instance_settings_mail_server_port',
+      sql`${table.mailServerPort} is null or ${table.mailServerPort} between 1 and 65535`,
+    ),
+  ],
 )
 
 /**

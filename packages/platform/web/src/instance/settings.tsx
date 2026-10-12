@@ -16,6 +16,7 @@ import { Saved, SettingsText } from '../office/settings.js'
 import { instanceSettings, saveInstanceSettings } from '../session/instance.js'
 import { RequestRefused } from '../sync/transport.js'
 import { InstancePage } from './frame.js'
+import { InstanceMailServer } from './mail-server.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -54,6 +55,7 @@ export function InstanceSettingsScreen() {
         </SettingsText>
       ) : (
         <>
+          <InstanceMailServer />
           <MailHosts settings={settings.data} />
           <BackupTime settings={settings.data} />
         </>

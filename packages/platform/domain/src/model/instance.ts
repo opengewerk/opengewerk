@@ -1,4 +1,5 @@
 import type { AuditChange, AuditTitle } from './audit.js'
+import type { SmtpSecurity } from './mail-server.js'
 
 /**
  * The instance, as opposed to a tenant on it: who runs it, what holds for
@@ -27,6 +28,36 @@ export interface InstanceSettingsView {
   readonly backupTime: string
   /** When `MAIL_INTERNAL_HOSTS` was taken over from the `.env`, ISO 8601, or null. */
   readonly takenOverAt: string | null
+}
+
+/**
+ * The mail server of the instance as its settings show it
+ * (opengewerk-haustechnik#81), and never with the password. Whether there is
+ * one, and whether it still opens, is all a screen learns about it.
+ */
+export interface InstanceMailServerView {
+  readonly host: string
+  readonly port: number
+  readonly security: SmtpSecurity
+  readonly username: string | null
+  /** The address the instance writes from. */
+  readonly fromAddress: string
+  /**
+   * `unreadable` is a password this instance can no longer open, because its
+   * secret has changed since it was sealed. It has to be entered again, and
+   * until it is, nothing goes out to an account.
+   */
+  readonly password: 'none' | 'set' | 'unreadable'
+  /** When the password was set, ISO 8601, or null. */
+  readonly passwordSetAt: string | null
+}
+
+/** What the settings of the instance learn about its mail server. */
+export interface InstanceMailServerState {
+  /** False on an instance that sends no mail at all: closed, or started without sending. */
+  readonly sends: boolean
+  /** Null while the instance has none. */
+  readonly server: InstanceMailServerView | null
 }
 
 /** One of the accounts that run the instance. */
