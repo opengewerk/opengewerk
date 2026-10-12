@@ -156,6 +156,7 @@ export function RecordForm({
   columns,
   divided = true,
   starred = false,
+  narrow = false,
 }: {
   readonly fields: readonly FormField[]
   readonly record?: RecordState | null
@@ -189,6 +190,15 @@ export function RecordForm({
    * the boards of an application draw one.
    */
   readonly starred?: boolean
+  /**
+   * Set where the form stands in a column too narrow for two fields beside
+   * each other and three buttons in one row: one field to a row at every
+   * width, whatever `columns` says, and the further action in a row of its
+   * own over the way out and the button that saves. Without it the address
+   * in such a column was cut off in its field, and the button that saves
+   * dropped under the other two by a few pixels.
+   */
+  readonly narrow?: boolean
 }) {
   const entry = useEntry()
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -244,7 +254,7 @@ export function RecordForm({
         </p>
       ) : null}
 
-      <div className={clsx('grid gap-3 sm:grid-cols-2', columns)}>
+      <div className={clsx('grid gap-3', !narrow && 'sm:grid-cols-2', !narrow && columns)}>
         {fields.map((field) => {
           if (field.shownWhen && !field.shownWhen(values)) {
             return null
@@ -349,10 +359,14 @@ export function RecordForm({
           )}
         >
           {extraAction ? (
-            <>
-              {extraAction}
-              <div className="grow" />
-            </>
+            narrow ? (
+              <div className="flex basis-full">{extraAction}</div>
+            ) : (
+              <>
+                {extraAction}
+                <div className="grow" />
+              </>
+            )
           ) : null}
           {onCancel ? (
             <Button onClick={onCancel} disabled={working}>

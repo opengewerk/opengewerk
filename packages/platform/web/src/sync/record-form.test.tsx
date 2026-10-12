@@ -335,6 +335,26 @@ describe('the buttons of a form', () => {
     ])
   })
 
+  it('stand in two rows in a narrow column, what takes away in a row of its own over the other two', () => {
+    form({
+      narrow: true,
+      onCancel: () => {},
+      extraAction: <button type="button">Entfernen</button>,
+    })
+
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Entfernen',
+      'Abbrechen',
+      'Speichern',
+    ])
+    expect(screen.getByRole('button', { name: 'Entfernen' }).parentElement?.className).toContain(
+      'basis-full',
+    )
+    expect(
+      screen.getByRole('button', { name: 'Abbrechen' }).parentElement?.className,
+    ).not.toContain('basis-full')
+  })
+
   it('have no way out where the caller gives none, and show what the caller puts after the fields', () => {
     form({ after: <p>Danach</p> })
 
@@ -437,6 +457,18 @@ describe('a form drawn as a board draws it', () => {
     expect(cellOf(screen.getByLabelText('Name'))?.parentElement?.className).toContain(
       'lg:grid-cols-6',
     )
+    expect(cellOf(screen.getByLabelText('Name'))?.parentElement?.className).toContain(
+      'sm:grid-cols-2',
+    )
+  })
+
+  it('asks for one thing to a row in a narrow column, whatever its columns say', () => {
+    form({ fields: noted, columns: 'lg:grid-cols-6', narrow: true })
+
+    const grid = cellOf(screen.getByLabelText('Böden'))?.parentElement
+
+    expect(grid?.className).toContain('grid')
+    expect(grid?.className).not.toContain('grid-cols')
   })
 
   it('lets a box stand in less than the whole row where it says so', () => {

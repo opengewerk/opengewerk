@@ -34,6 +34,8 @@ export interface NewContactFormProps {
    * the form stands, says so before anybody fills it in, and cannot be sent.
    */
   readonly unavailable?: string
+  /** Set where the form stands in a narrow column: one field to a row. */
+  readonly narrow?: boolean
 }
 
 /**
@@ -51,6 +53,7 @@ export function NewContactForm({
   onDone,
   make,
   unavailable,
+  narrow,
 }: NewContactFormProps) {
   const client = useSync()
 
@@ -58,6 +61,7 @@ export function NewContactForm({
     <RecordForm
       fields={contactFields(words)}
       submitLabel={words.add}
+      narrow={narrow}
       disabled={unavailable !== undefined}
       disabledReason={unavailable}
       onCancel={onDone}
