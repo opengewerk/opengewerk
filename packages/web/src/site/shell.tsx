@@ -1,9 +1,8 @@
-import { SiteFrame } from '@opengewerk/platform-web/site'
+import { usePushRefresh } from '@opengewerk/platform-web/session'
+import { SiteFrame, SitePush } from '@opengewerk/platform-web/site'
 import type { SiteTab } from '@opengewerk/platform-web/site'
 import { Calendar, Clock, ScanLine } from 'lucide-react'
 
-import { usePushRefresh } from '../app/push-state.js'
-import { SitePush } from './push.js'
 import { StopwatchBar } from './screens/time.js'
 
 /**
@@ -29,5 +28,5 @@ const tabs: readonly SiteTab[] = [
 export function SiteShell() {
   usePushRefresh('site')
 
-  return <SiteFrame tabs={tabs} underHeader={<StopwatchBar />} menu={<SitePush />} />
+  return <SiteFrame tabs={tabs} underHeader={<StopwatchBar />} menu={<SitePush entry="site" />} />
 }

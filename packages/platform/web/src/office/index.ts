@@ -173,3 +173,14 @@ export {
   SettingsText,
   useSettingsEntries,
 } from './settings.js'
+
+// How a tenant sends mail: its mail server for whoever may see it, with the
+// signature under every message, and one sentence for everybody else. What
+// goes out through it and what a signature may hold, the application says.
+export { MailServerSection, MailStatusSection, SignaturePreviews } from './mail-server.js'
+export type { MailServerWords, MailStatusWords, SignatureCase } from './mail-server.js'
+
+// Push on this device and the occasions for every device, as a card of the
+// account. The occasions the server names, the sentences the application.
+export { PushPanel } from './push-panel.js'
+export type { PushPanelProps, PushPanelWords } from './push-panel.js'

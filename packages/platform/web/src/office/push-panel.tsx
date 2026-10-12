@@ -1,35 +1,56 @@
-import { Button, Panel, Status } from '@opengewerk/platform-web'
-import { date } from '@opengewerk/platform-web/format'
-import { NoteBox, SettingsText } from '@opengewerk/platform-web/office'
 import { Bell, Send } from 'lucide-react'
 
-import { usePush } from '../../app/push-state.js'
+import { useApplication } from '../application.js'
+import { Button } from '../components/button.js'
+import { Panel } from '../components/panel.js'
+import { Status } from '../components/status.js'
+import { date } from '../format.js'
+import { usePush } from '../session/push-state.js'
+import { NoteBox } from './kit.js'
+import { SettingsText } from './settings.js'
 
-/** Why this device cannot have push, in the words of the card. */
-const blocked = {
-  unsupported: 'Dieser Browser kann keine Push-Nachrichten empfangen.',
-  install:
-    'Auf dem iPhone und dem iPad kommen Push-Nachrichten nur, wenn OpenGewerk über „Zum Home-Bildschirm“ als App installiert ist. Dort, in der App, lassen sie sich hier einschalten.',
-  denied:
-    'Der Browser lässt für diese Seite keine Benachrichtigungen zu. Erlauben lassen sie sich in seinen Einstellungen zu dieser Seite, danach hier einschalten.',
-} as const
+/** What only an application can say on the card. */
+export interface PushPanelWords {
+  /**
+   * The first sentences of the card: that a message comes while the
+   * application is closed, and what it says and leaves out.
+   */
+  readonly about: string
+  /** Who gets the key an instance without one is missing, and how: a sentence. */
+  readonly keyMissing: string
+  /** Under the occasions, after the sentence that they hold for every device. */
+  readonly footnote?: string
+}
+
+export interface PushPanelProps {
+  /** The entry this card is shown in, as the application names it to the server. */
+  readonly entry: string
+  readonly words: PushPanelWords
+}
 
 /**
- * Push on this device and the occasions for every device (#284), as the card
- * "Benachrichtigungen" on the board "Konto" draws it: whether it is on here,
- * a test message, and which occasions come as push at all.
+ * Push on this device and the occasions for every device (#284), as a card of
+ * the account: whether it is on here, a test message, and which occasions
+ * come as push at all. Which occasions there are the server says, the
+ * application names them there (ADR 0010).
  */
-export function PushPanel() {
-  const push = usePush('office')
+export function PushPanel({ entry, words }: PushPanelProps) {
+  const { name } = useApplication()
+  const push = usePush(entry)
   const overview = push.overview
+
+  /** Why this device cannot have push, in the words of the card. */
+  const blocked = {
+    unsupported: 'Dieser Browser kann keine Push-Nachrichten empfangen.',
+    install: `Auf dem iPhone und dem iPad kommen Push-Nachrichten nur, wenn ${name} über „Zum Home-Bildschirm“ als App installiert ist. Dort, in der App, lassen sie sich hier einschalten.`,
+    denied:
+      'Der Browser lässt für diese Seite keine Benachrichtigungen zu. Erlauben lassen sie sich in seinen Einstellungen zu dieser Seite, danach hier einschalten.',
+  } as const
 
   return (
     <Panel title="Benachrichtigungen" roomy>
       <div className="flex flex-col gap-3">
-        <SettingsText>
-          Push-Nachrichten kommen auch, wenn OpenGewerk geschlossen ist. Sie sagen nur, was ansteht;
-          Namen und Anschriften stehen erst in OpenGewerk.
-        </SettingsText>
+        <SettingsText>{words.about}</SettingsText>
 
         {overview === undefined ? (
           <SettingsText muted>
@@ -37,8 +58,7 @@ export function PushPanel() {
           </SettingsText>
         ) : !overview.available ? (
           <NoteBox>
-            Diese Instanz verschickt keine Push-Nachrichten, ihr fehlt der Schlüssel dafür. Der
-            Betreiber bekommt ihn mit dem nächsten Start über „sh docker/start.sh“.
+            {`Diese Instanz verschickt keine Push-Nachrichten, ihr fehlt der Schlüssel dafür. ${words.keyMissing}`}
           </NoteBox>
         ) : (
           <>
@@ -108,9 +128,9 @@ export function PushPanel() {
         ) : null}
 
         <p className="text-[12px] leading-[1.5] text-ink-muted">
-          Die Anlässe gelten für jedes Gerät, auf dem Push eingeschaltet ist. Auf dem iPhone und dem
-          iPad kommen Push-Nachrichten nur, wenn OpenGewerk über „Zum Home-Bildschirm“ als App
-          installiert ist.
+          {`Die Anlässe gelten für jedes Gerät, auf dem Push eingeschaltet ist.${
+            words.footnote ? ` ${words.footnote}` : ''
+          }`}
         </p>
       </div>
     </Panel>

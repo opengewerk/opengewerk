@@ -1,7 +1,7 @@
 import { OfficeFrame } from '@opengewerk/platform-web/office'
+import { usePushRefresh } from '@opengewerk/platform-web/session'
 import { useRouterState } from '@tanstack/react-router'
 
-import { usePushRefresh } from '../app/push-state.js'
 import { useNavigation } from './navigation.js'
 import { BackupBar } from './screens/backup.js'
 

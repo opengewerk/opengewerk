@@ -12,10 +12,10 @@ import {
 } from '@tanstack/react-router'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { fakePushBrowser, forgetPushBrowser } from '@opengewerk/platform-web/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InApplication } from '../app/in-application.js'
-import { fakePushBrowser, forgetPushBrowser } from '../app/test-push.js'
 import { aTenantChoice } from '../session/test-tenants.js'
 import { SyncClient, stopwatchName } from '../sync/client.js'
 import { SiteHeader } from './header.js'

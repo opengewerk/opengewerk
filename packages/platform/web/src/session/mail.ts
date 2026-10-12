@@ -1,23 +1,24 @@
-import type { SmtpSecurity } from '@opengewerk/domain'
-import { request } from '@opengewerk/platform-web/sync'
+import type { SmtpSecurity } from '@opengewerk/platform-domain'
 
-/** Whether the business sends mail, and from which address. */
+import { request } from '../sync/transport.js'
+
+/** Whether the tenant sends mail, and from which address. */
 export interface MailStatus {
   readonly configured: boolean
   readonly from: string | null
 }
 
 /**
- * Read at the route, like the other settings: whether a business sends mail
- * is nothing a device carries around. Everybody who reads the settings may
- * ask, because the office needs the answer before it offers "Per E-Mail".
+ * Read at the route, like the other settings: whether a tenant sends mail is
+ * nothing a device carries around. Everybody who reads the settings may ask,
+ * because a screen needs the answer before it offers to send something.
  */
 export function mailStatus(): Promise<MailStatus> {
   return request<MailStatus>('/settings/mail')
 }
 
 /**
- * The mail server of the business as the server shows it: never with the
+ * The mail server of the tenant as the server shows it: never with the
  * password, only whether there is one and whether it still opens.
  */
 export interface MailServer {
@@ -57,7 +58,7 @@ export interface SavedMailServer {
 
 const server = '/settings/mail/server'
 
-/** Behind `mail.read`, which only the owner has. */
+/** Behind the right to read the mail server, which an application gives to few. */
 export async function mailServer(): Promise<MailServer | null> {
   return (await request<{ server: MailServer | null }>(server)).server
 }

@@ -1,31 +1,26 @@
-import {
-  defaultSmtpPorts,
-  type IssuerContent,
-  renderSignature,
-  type SmtpSecurity,
-  smtpSecurities,
-  unknownPlaceholders,
-} from '@opengewerk/domain'
-import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
-import { moment } from '@opengewerk/platform-web/format'
-import { Saved, SettingsText } from '@opengewerk/platform-web/office'
-import { accountQuery } from '@opengewerk/platform-web/session'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
+import { defaultSmtpPorts, smtpSecurities, type SmtpSecurity } from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
+import { type ComponentType, useState } from 'react'
 
-import { letterhead, type LetterheadView } from '../../session/letterhead.js'
+import { Button } from '../components/button.js'
+import { Confirm } from '../components/confirm.js'
+import { Field, SelectField, TextArea } from '../components/field.js'
+import { Panel } from '../components/panel.js'
+import { moment } from '../format.js'
 import {
   checkMailServer,
   type MailServer,
   type MailServerCheck,
   type MailServerInput,
   mailServer,
+  mailStatus,
   removeMailServer,
   type SavedMailServer,
   saveMailServer,
-} from '../../session/mail.js'
+} from '../session/mail.js'
+import { RequestRefused } from '../sync/transport.js'
+import { Saved, SettingsText } from './settings.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -35,6 +30,38 @@ const securityLabels: Readonly<Record<SmtpSecurity, string>> = {
   starttls: 'STARTTLS, Port 587 (üblich)',
   tls: 'TLS, Port 465',
   none: 'Keine, nur für einen Mailserver im eigenen Netz',
+}
+
+/**
+ * What only an application can say about the mail server of a tenant
+ * (ADR 0010): what it sends through it, where the name of the sender comes
+ * from, and what a signature may hold.
+ */
+export interface MailServerWords {
+  /** What goes out through this mail server: the first sentence of the card. */
+  readonly what: string
+  /** Under the address messages go out from: where the name in front of it comes from. */
+  readonly senderName: string
+  readonly signature: {
+    readonly placeholder: string
+    readonly hint: string
+    /** What is wrong with a signature as typed, a placeholder nobody knows for one. */
+    readonly problem: (template: string) => string | undefined
+    /**
+     * How the signature reads under a message, one case each, drawn with
+     * `SignaturePreviews`. A component, because what a signature prints an
+     * application reads from its own settings.
+     */
+    readonly Previews: ComponentType<{ readonly template: string | null }>
+  }
+}
+
+/** What an application says to whoever may not see the mail server itself. */
+export interface MailStatusWords {
+  /** The tenant sends mail, from this address. */
+  readonly set: (from: string) => string
+  /** The tenant has no mail server and sends none. */
+  readonly missing: string
 }
 
 /** A sentence under the form, about what just happened. */
@@ -81,41 +108,40 @@ function saidOfSaving(saved: SavedMailServer): Said {
       }
 }
 
-/**
- * The business as the letterhead has it, for the preview of `{briefkopf}`:
- * everything the signature prints, the register and who represents the
- * business included (#278). The tax number and the bank stay out, as they
- * stay out of every mail.
- */
-function issuerOf(view: LetterheadView): IssuerContent {
-  return {
-    name: view.companyName ?? view.businessName,
-    street: view.street,
-    houseNumber: view.houseNumber,
-    postalCode: view.postalCode,
-    city: view.city,
-    country: view.country ?? 'DE',
-    phone: view.phone,
-    email: view.email,
-    website: view.website,
-    taxNumber: null,
-    vatId: view.vatId,
-    iban: null,
-    bic: null,
-    bankName: null,
-    registerCourt: view.registerCourt,
-    registerNumber: view.registerNumber,
-    managingDirectors: view.managingDirectors,
-    logo: null,
-  }
+/** Whether the tenant sends mail, for whoever may not see the server itself. */
+export function MailStatusSection({ words }: { readonly words: MailStatusWords }) {
+  const status = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
+
+  return (
+    <Panel title="Mailserver" roomy>
+      {status.isPending ? (
+        <SettingsText muted>Wird geladen.</SettingsText>
+      ) : status.isError ? (
+        <SettingsText muted>
+          {saidWhy(status.error, 'Die Angaben zum Versand kamen nicht an.')}
+        </SettingsText>
+      ) : status.data.configured && status.data.from !== null ? (
+        <SettingsText>{words.set(status.data.from)}</SettingsText>
+      ) : (
+        <SettingsText>{words.missing}</SettingsText>
+      )}
+    </Panel>
+  )
 }
 
 /**
- * The mail server of the business, for whoever holds `mail.read`, which is
- * the owner. The form is remounted after every save, so that it shows what
- * the server now keeps; what happened stays above it, here.
+ * The mail server of the tenant, for whoever may read it, which an
+ * application gives to few: the login to a mailbox is a way of writing in the
+ * tenant's name to anybody. The form is remounted after every save, so that
+ * it shows what the server now keeps; what happened stays above it, here.
  */
-export function MailServerSection({ mayWrite }: { readonly mayWrite: boolean }) {
+export function MailServerSection({
+  mayWrite,
+  words,
+}: {
+  readonly mayWrite: boolean
+  readonly words: MailServerWords
+}) {
   const stored = useQuery({ queryKey: ['mail-server'], queryFn: mailServer })
   const [said, setSaid] = useState<Said | null>(null)
 
@@ -123,9 +149,7 @@ export function MailServerSection({ mayWrite }: { readonly mayWrite: boolean }) 
     <Panel title="Mailserver" roomy>
       <div className="flex flex-col gap-3">
         <SettingsText>
-          Über diesen Mailserver verschickt OpenGewerk alle E-Mails des Betriebs: Belege an Kunden,
-          Einladungen neuer Zugänge und fällige Aufgaben. Die Angaben stehen beim E-Mail-Anbieter,
-          meist unter „SMTP“ oder „Postausgangsserver“.
+          {`${words.what} Die Angaben stehen beim E-Mail-Anbieter, meist unter „SMTP“ oder „Postausgangsserver“.`}
         </SettingsText>
 
         {stored.isPending ? (
@@ -139,6 +163,7 @@ export function MailServerSection({ mayWrite }: { readonly mayWrite: boolean }) 
             key={stored.data?.updatedAt ?? 'neu'}
             stored={stored.data}
             mayWrite={mayWrite}
+            words={words}
             onSaid={setSaid}
           />
         )}
@@ -157,15 +182,15 @@ export function MailServerSection({ mayWrite }: { readonly mayWrite: boolean }) 
 function MailServerForm({
   stored,
   mayWrite,
+  words,
   onSaid,
 }: {
   readonly stored: MailServer | null
   readonly mayWrite: boolean
+  readonly words: MailServerWords
   readonly onSaid: (said: Said | null) => void
 }) {
   const queries = useQueryClient()
-  const account = useQuery(accountQuery)
-  const head = useQuery({ queryKey: ['letterhead'], queryFn: letterhead })
 
   const [host, setHost] = useState(stored?.host ?? '')
   const [security, setSecurity] = useState<SmtpSecurity>(stored?.security ?? 'starttls')
@@ -178,7 +203,8 @@ function MailServerForm({
   const [signature, setSignature] = useState(stored?.signature ?? '')
 
   const template = signature.trim() === '' ? null : signature
-  const unknown = unknownPlaceholders(signature)
+  const signatureProblem = words.signature.problem(signature)
+  const Previews = words.signature.Previews
 
   function input(): MailServerInput {
     return {
@@ -239,7 +265,6 @@ function MailServerForm({
   })
 
   const working = save.isPending || check.isPending || remove.isPending
-  const issuer = head.data ? issuerOf(head.data) : null
 
   return (
     <form
@@ -337,7 +362,7 @@ function MailServerForm({
               onChange={(event) => {
                 setFromAddress(event.target.value)
               }}
-              hint="Von dieser Adresse gehen die E-Mails hinaus. Der Name davor kommt aus dem Briefkopf."
+              hint={`Von dieser Adresse gehen die E-Mails hinaus. ${words.senderName}`}
             />
           </div>
         </div>
@@ -347,36 +372,14 @@ function MailServerForm({
             name="signature"
             rows={4}
             value={signature}
-            placeholder={'Viele Grüße\n{benutzer}\n\n{briefkopf}'}
+            placeholder={words.signature.placeholder}
             onChange={(event) => {
               setSignature(event.target.value)
             }}
-            problem={
-              unknown.length > 0
-                ? `Unbekannt: ${unknown.join(', ')}. Möglich sind {benutzer} und {briefkopf}.`
-                : undefined
-            }
-            hint={
-              'Steht unter jeder E-Mail. {benutzer} ist der Name dessen, der die E-Mail ' +
-              'verschickt; bei automatischen E-Mails fällt die Zeile weg. {briefkopf} ist der ' +
-              'Briefkopf. Leer lassen für den Briefkopf allein.'
-            }
+            problem={signatureProblem}
+            hint={words.signature.hint}
           />
-          {issuer ? (
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              <SignaturePreview
-                title="Von Ihnen verschickt"
-                text={renderSignature(template, {
-                  issuer,
-                  sender: account.data?.name || 'Ihr Name',
-                })}
-              />
-              <SignaturePreview
-                title="Automatisch verschickt"
-                text={renderSignature(template, { issuer, sender: null })}
-              />
-            </div>
-          ) : null}
+          <Previews template={template} />
         </div>
       </fieldset>
 
@@ -386,7 +389,7 @@ function MailServerForm({
             type="submit"
             tone="primary"
             icon={Check}
-            disabled={working || unknown.length > 0}
+            disabled={working || signatureProblem !== undefined}
           >
             {save.isPending ? 'Wird geprüft' : 'Speichern'}
           </Button>
@@ -435,14 +438,27 @@ function MailServerForm({
   )
 }
 
-/** How the signature reads under a message, one case each. */
-function SignaturePreview({ title, text }: { readonly title: string; readonly text: string }) {
+/** One case of a signature: who sent the message, and how the signature reads under it. */
+export interface SignatureCase {
+  readonly title: string
+  readonly text: string
+}
+
+/**
+ * How a signature reads under a message, one case beside the other. For the
+ * component an application hands in as `Previews`.
+ */
+export function SignaturePreviews({ cases }: { readonly cases: readonly SignatureCase[] }) {
   return (
-    <figure className="flex min-w-0 flex-col gap-1">
-      <figcaption className="text-[12px] font-semibold text-ink-faint">{title}</figcaption>
-      <pre className="rounded-[4px] border border-line bg-ground px-3 py-2.5 font-sans text-[13px] leading-[1.45] whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">
-        {`-- \n${text}`}
-      </pre>
-    </figure>
+    <div className="grid gap-2.5 sm:grid-cols-2">
+      {cases.map((one) => (
+        <figure key={one.title} className="flex min-w-0 flex-col gap-1">
+          <figcaption className="text-[12px] font-semibold text-ink-faint">{one.title}</figcaption>
+          <pre className="rounded-[4px] border border-line bg-ground px-3 py-2.5 font-sans text-[13px] leading-[1.45] whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">
+            {`-- \n${one.text}`}
+          </pre>
+        </figure>
+      ))}
+    </div>
   )
 }

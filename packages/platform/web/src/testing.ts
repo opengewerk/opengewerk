@@ -31,3 +31,7 @@ export const foundationSources = import.meta.glob(['./**/*.tsx', '!./**/*.test.t
   eager: true,
   import: 'default',
 }) as Readonly<Record<string, string>>
+
+// A browser that can take push, for the tests of the account and of the menu
+// of the site.
+export { fakePushBrowser, forgetPushBrowser } from './session/test-push.js'

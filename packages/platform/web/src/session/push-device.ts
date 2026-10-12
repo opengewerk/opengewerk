@@ -1,12 +1,10 @@
-import type { PushEntry } from '@opengewerk/domain'
-import { deviceName } from '@opengewerk/platform-web/session'
-
+import { deviceName } from './device-name.js'
 import {
   type BrowserSubscription,
   pushOverview,
   subscribeDevice,
   unsubscribeDevice,
-} from '../session/push.js'
+} from './push.js'
 
 /**
  * Push in this browser (#284): whether it can take messages, asking for them,
@@ -18,6 +16,9 @@ import {
  * its subscription and the row goes; and at every start with push on the row
  * is written again, which binds it to the session this device is signed in
  * with now and notices a key that changed on the server.
+ *
+ * The entry a device subscribes from is a key of the application, and so is
+ * the name a sentence calls it by (ADR 0010).
  */
 
 /** What stands between this browser and a push message, or null when nothing does. */
@@ -41,7 +42,7 @@ function onApplesPhone(): boolean {
   )
 }
 
-/** Whether OpenGewerk runs as an installed app rather than in a tab of the browser. */
+/** Whether the application runs as an installed app rather than in a tab of the browser. */
 function installed(): boolean {
   return (
     globalThis.matchMedia?.('(display-mode: standalone)').matches === true ||
@@ -139,14 +140,16 @@ export class PushRefused extends Error {}
  * Switches push on here: asks the browser, subscribes with the server's key
  * and writes the row. A subscription made with another key is dropped first,
  * because messages signed with the new one would not arrive through it.
+ * `name` is what the application is called, for the sentences that say why
+ * it did not work.
  */
-export async function switchOn(publicKey: string, entry: PushEntry): Promise<string> {
+export async function switchOn(publicKey: string, entry: string, name: string): Promise<string> {
   const blocker = pushBlocker()
 
   if (blocker === 'unsupported' || blocker === 'install') {
     throw new PushRefused(
       blocker === 'install'
-        ? 'Auf dem iPhone und dem iPad kommen Push-Nachrichten nur, wenn OpenGewerk als App installiert ist.'
+        ? `Auf dem iPhone und dem iPad kommen Push-Nachrichten nur, wenn ${name} als App installiert ist.`
         : 'Dieser Browser kann keine Push-Nachrichten empfangen.',
     )
   }
@@ -161,7 +164,7 @@ export async function switchOn(publicKey: string, entry: PushEntry): Promise<str
 
   if (!registered) {
     throw new PushRefused(
-      'OpenGewerk läuft in diesem Browser nicht als App, ohne die kommen keine Push-Nachrichten. Ein Neuladen der Seite hilft meist.',
+      `${name} läuft in diesem Browser nicht als App, ohne die kommen keine Push-Nachrichten. Ein Neuladen der Seite hilft meist.`,
     )
   }
 
@@ -203,7 +206,7 @@ export async function switchOff(id: string | null): Promise<void> {
  * whatever fails here is tried again at the next start, and nobody waits for
  * it.
  */
-export async function refreshPush(entry: PushEntry): Promise<void> {
+export async function refreshPush(entry: string, name: string): Promise<void> {
   if (pushBlocker() !== null || Notification.permission !== 'granted') {
     return
   }
@@ -228,7 +231,7 @@ export async function refreshPush(entry: PushEntry): Promise<void> {
     )
   } else {
     await subscription.unsubscribe()
-    await switchOn(overview.publicKey, entry)
+    await switchOn(overview.publicKey, entry, name)
   }
 }
 

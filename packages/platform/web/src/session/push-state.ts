@@ -1,15 +1,8 @@
-import type { PushEntry, PushOccasion } from '@opengewerk/domain'
-import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import {
-  type PushDeviceView,
-  type PushOverview,
-  pushOverview,
-  sendTestPush,
-  setOccasion,
-} from '../session/push.js'
+import { useApplication } from '../application.js'
+import { RequestRefused } from '../sync/transport.js'
 import {
   browserSubscription,
   type PushBlocker,
@@ -18,6 +11,13 @@ import {
   refreshPush,
   switchOff,
   switchOn,
+} from './push-device.js'
+import {
+  type PushDeviceView,
+  type PushOverview,
+  pushOverview,
+  sendTestPush,
+  setOccasion,
 } from './push.js'
 
 /** Whether this page has refreshed its subscription already; once per start is enough. */
@@ -28,15 +28,17 @@ let refreshed = false
  * bound to the session of now (#284). Once per page, quietly; see
  * `refreshPush`.
  */
-export function usePushRefresh(entry: PushEntry): void {
+export function usePushRefresh(entry: string): void {
+  const { name } = useApplication()
+
   useEffect(() => {
     if (refreshed) {
       return
     }
 
     refreshed = true
-    void refreshPush(entry).catch(() => undefined)
-  }, [entry])
+    void refreshPush(entry, name).catch(() => undefined)
+  }, [entry, name])
 }
 
 /** Where the identifier of this device's row is kept, for an instance where a session says nothing (the preview). */
@@ -62,7 +64,7 @@ function remember(id: string | null): void {
   }
 }
 
-/** The state of push for "Konto" and the menu of the site, with what can be done about it. */
+/** The state of push for the account and the menu of the site, with what can be done about it. */
 export interface PushState {
   /** The server's answer, or undefined while it is on its way. */
   readonly overview: PushOverview | undefined
@@ -77,7 +79,7 @@ export interface PushState {
   readonly turnOn: () => void
   readonly turnOff: () => void
   readonly test: () => void
-  readonly choose: (occasion: PushOccasion, on: boolean) => void
+  readonly choose: (occasion: string, on: boolean) => void
 }
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -89,7 +91,8 @@ function devices(count: number): string {
   return count === 1 ? '1 Gerät' : `${String(count)} Geräte`
 }
 
-export function usePush(entry: PushEntry): PushState {
+export function usePush(entry: string): PushState {
+  const { name } = useApplication()
   const queries = useQueryClient()
   const overview = useQuery({ queryKey: ['push'], queryFn: pushOverview })
   // What the browser holds, asked once and again after each change here.
@@ -112,7 +115,7 @@ export function usePush(entry: PushEntry): PushState {
         throw new PushRefused('Diese Instanz verschickt keine Push-Nachrichten.')
       }
 
-      return switchOn(publicKey, entry)
+      return switchOn(publicKey, entry, name)
     },
     onSuccess: (id) => {
       remember(id)
@@ -169,7 +172,7 @@ export function usePush(entry: PushEntry): PushState {
   })
 
   const choose = useMutation({
-    mutationFn: ({ occasion, value }: { occasion: PushOccasion; value: boolean }) =>
+    mutationFn: ({ occasion, value }: { occasion: string; value: boolean }) =>
       setOccasion(occasion, value),
     onSuccess: (occasions) => {
       queries.setQueryData<PushOverview>(['push'], (old) => (old ? { ...old, occasions } : old))

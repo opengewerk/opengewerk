@@ -1,9 +1,9 @@
 import { vi } from 'vitest'
 
 /**
- * A browser that can take push, for the tests of "Konto" and the menu of the
- * site (#284): its permission, its service worker and its push manager, with
- * or without a subscription.
+ * A browser that can take push, for the tests of the account and the menu of
+ * the site (#284): its permission, its service worker and its push manager,
+ * with or without a subscription.
  */
 export function fakePushBrowser(state: {
   readonly subscribed: boolean
