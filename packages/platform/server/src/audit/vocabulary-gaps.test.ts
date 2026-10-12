@@ -136,6 +136,9 @@ describe('the vocabulary of the change log against the database', () => {
         referenceLists: { about_letters: 'racks', seen_by: 'shelves' },
         personFields: ['keeper_id'],
         titles: { ...probeAuditVocabulary.titles, notes: ['heading'], parcels: ['number'] },
+        // A column the table does not have, one that points nowhere, and a
+        // table nobody watches.
+        standsAt: { notes: ['rack_id', 'text'], parcels: [] },
       }),
     )
 
@@ -148,6 +151,9 @@ describe('the vocabulary of the change log against the database', () => {
         'reference list seen_by to shelves',
         'person field keeper_id, which no watched table has',
         'title of notes: none of its naming fields exists',
+        'stands at notes.rack_id, which is no reference of the table',
+        'stands at notes.text, which is no reference of the table',
+        'stands at of parcels, which is not watched',
         'title of parcels, which is not watched',
       ].sort(),
     )

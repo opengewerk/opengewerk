@@ -172,11 +172,12 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       : `Gerät ${deviceId}`
   }
 
-  const recordTitle = (table: string, id: string, page: AuditNames): string => {
+  /** The name a record carries itself, or null where the page has none for it. */
+  const ownName = (id: string, page: AuditNames): string | null => {
     const found = page.titles[id]
 
     if (!found || found.title === null) {
-      return `${language.tableLabel(table)} ohne Bezeichnung`
+      return null
     }
 
     const title =
@@ -186,6 +187,22 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
 
     // A record named by a text of its own, and a list is no place for a paragraph.
     return title.length > longestTitle ? `${title.slice(0, longestTitle).trimEnd()}…` : title
+  }
+
+  const recordTitle = (table: string, id: string, page: AuditNames): string => {
+    const own = ownName(id, page)
+
+    if (own === null) {
+      return `${language.tableLabel(table)} ohne Bezeichnung`
+    }
+
+    // A record told apart by what it stands at is followed by the name of
+    // that record, one step and no further; where the page has no name for
+    // it, the record's own says what there is to say.
+    const at = page.titles[id]?.at
+    const where = at === undefined ? null : ownName(at.id, page)
+
+    return where === null ? own : `${own}, ${where}`
   }
 
   const auditValue = (

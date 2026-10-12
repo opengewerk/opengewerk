@@ -147,6 +147,19 @@ export interface AuditTitle {
   readonly title: string | null
   /** Its `kind` where it has one, for the screen to say what sort of record it is. */
   readonly kind: string | null
+  /**
+   * The record it stands at, where its application tells records of one name
+   * apart that way (`standsAt` of the vocabulary): the page carries the name
+   * of that record as well, and the name of this one is followed by it.
+   * Absent for every other record.
+   */
+  readonly at?: AuditPlace
+}
+
+/** A record of the log by its table and its id. */
+export interface AuditPlace {
+  readonly table: string
+  readonly id: string
 }
 
 /** The most changes one page of a log holds. */

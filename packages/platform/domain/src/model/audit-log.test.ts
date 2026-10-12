@@ -141,6 +141,34 @@ describe("what a record's name is", () => {
     expect(language.titleFieldOf('letters', latest)).toBeNull()
   })
 
+  it('is followed by what the record stands at, where the application tells its records apart that way', () => {
+    expect(language.standsAtFields('notes')).toEqual(['shelf_id'])
+    expect(language.standsAt('notes', { text: 'Zange fehlt', shelf_id: 's-1' })).toEqual({
+      table: 'shelves',
+      id: 's-1',
+    })
+    // A note on no shelf stands nowhere, and most tables say nothing of the kind.
+    expect(language.standsAt('notes', { text: 'Zange fehlt', shelf_id: null })).toBeNull()
+    expect(language.standsAtFields('shelves')).toEqual([])
+    expect(language.standsAt('shelves', { shelf_id: 's-1' })).toBeNull()
+  })
+
+  it('stands at what the first of its fields with a value points at, and at nothing through a field that points nowhere', () => {
+    const either = auditLanguage({
+      ...probeAuditVocabulary,
+      standsAt: { notes: ['letter_id', 'colour', 'shelf_id'] },
+    })
+
+    expect(either.standsAt('notes', { letter_id: 'l-1', shelf_id: 's-1' })).toEqual({
+      table: 'letters',
+      id: 'l-1',
+    })
+    expect(either.standsAt('notes', { letter_id: ' ', colour: 'red', shelf_id: 's-1' })).toEqual({
+      table: 'shelves',
+      id: 's-1',
+    })
+  })
+
   it('is two fields joined where the application says so, from no single field', () => {
     const joined = auditLanguage(withContacts)
 

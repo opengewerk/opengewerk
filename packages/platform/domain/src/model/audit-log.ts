@@ -1,4 +1,4 @@
-import type { AuditChange, AuditTitle, ChainVerification } from './audit.js'
+import type { AuditChange, AuditPlace, AuditTitle, ChainVerification } from './audit.js'
 
 /**
  * The change log as a person reads it (ADR 0010).
@@ -204,6 +204,14 @@ export interface AuditVocabulary {
    * named by the first of `defaultAuditTitleFields` it has.
    */
   readonly titles: Readonly<Record<string, AuditTitleRule>>
+  /**
+   * Records that share their name with others of their table and are told
+   * apart by what they stand at, by table: the fields that point at it, in
+   * the order they are tried, each of them one of `references`. The name of
+   * such a record is followed by the name of the one the first field with a
+   * value points at, "Zange fehlt, Werkzeug".
+   */
+  readonly standsAt?: Readonly<Record<string, readonly string[]>>
   /** Words for the reasons of its own that a change carries, by reason. */
   readonly reasons: Readonly<Record<string, string>>
   /**
@@ -637,6 +645,10 @@ export interface AuditLanguage {
   readonly titleFieldOf: (table: string, latest: AuditLatest) => string | null
   /** The name from the latest values of those fields, or null. */
   readonly titleFrom: (table: string, latest: AuditLatest) => string | null
+  /** The fields that say what a record of this table stands at, in the order they are tried; none for most. */
+  readonly standsAtFields: (table: string) => readonly string[]
+  /** What a record stands at, from the latest values of those fields, or null. */
+  readonly standsAt: (table: string, latest: AuditLatest) => AuditPlace | null
   /** The parts of a record of this table, none for most. */
   readonly partsOf: (table: string) => readonly AuditPart[]
   /** The table a field points into, or null. */
@@ -712,6 +724,27 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
     return field === null ? null : (latest[field] ?? null)
   }
 
+  const referenceOf = (field: string): string | null =>
+    foundationReferences[field] ?? vocabulary.references[field] ?? null
+
+  const standsAtFields = (table: string): readonly string[] =>
+    vocabulary.standsAt && Object.hasOwn(vocabulary.standsAt, table)
+      ? (vocabulary.standsAt[table] ?? [])
+      : []
+
+  const standsAt = (table: string, latest: AuditLatest): AuditPlace | null => {
+    for (const field of standsAtFields(table)) {
+      const target = referenceOf(field)
+      const id = latest[field]
+
+      if (target !== null && hasValue(id)) {
+        return { table: target, id }
+      }
+    }
+
+    return null
+  }
+
   return {
     vocabulary,
     tables,
@@ -723,8 +756,10 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
     titleFields: (table) => fieldsOf(rule(table)),
     titleFieldOf,
     titleFrom,
+    standsAtFields,
+    standsAt,
     partsOf: (table) => vocabulary.parts[table] ?? [],
-    referenceOf: (field) => foundationReferences[field] ?? vocabulary.references[field] ?? null,
+    referenceOf,
     referenceListOf: (field) =>
       vocabulary.referenceLists && Object.hasOwn(vocabulary.referenceLists, field)
         ? (vocabulary.referenceLists[field] ?? null)
