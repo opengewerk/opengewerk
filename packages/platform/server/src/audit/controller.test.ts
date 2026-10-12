@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing'
 import {
   type AuditChainReport,
   type AuditPage,
+  auditListKeys,
   auditPageSize,
   type AuditPerson,
   auditRights,
@@ -239,7 +240,12 @@ beforeAll(async () => {
   const parts = auditLogParts({
     access: { catalogue },
     vocabulary: probeAuditVocabulary,
-    words: { values: { shelves: { closed: { true: 'zu', false: 'offen' } } } },
+    words: {
+      values: { shelves: { closed: { true: 'zu', false: 'offen' } } },
+      // The tags of a note as a sentence, the way a list of them reads.
+      written: (table, field, raw) =>
+        table === 'notes' && field === 'tags' ? (auditListKeys(raw) ?? []).join(' und ') : null,
+    },
   })
 
   app = (
@@ -777,6 +783,54 @@ describe('the log as a table', () => {
 
     expect(rows.some((row) => row[1] === 'Zange fehlt, Werkzeug und Messgeräte')).toBe(true)
     expect(rows.some((row) => row[1] === 'Sicherungen, Ersatzteile')).toBe(true)
+  })
+})
+
+/**
+ * A value the application writes its own way reads that way in the log as a
+ * table as well (opengewerk-haustechnik#263): both ask the same words.
+ */
+describe('a value the application writes its own way', () => {
+  it('stands in the table as the application writes it', async () => {
+    const [tagged] = await database.forTenant(
+      { tenantId: north.id, userId: 'lea', reason: 'notes.write' },
+      (tx) =>
+        tx
+          .insert(notes)
+          .values({
+            tenantId: north.id,
+            shelfId: northShelves['other'] as never,
+            text: 'Schrauben nachbestellen',
+            tags: ['eilig', 'lager'],
+          })
+          .returning({ id: notes.id }),
+    )
+    const seesTheStaff: MemberIdentity<Right> = {
+      userId: 'lea',
+      tenantId: north.id,
+      roles: [],
+      rights: [...people.lea.rights, 'membership.read'],
+    }
+    const answer = await request(app.getHttpServer())
+      .get('/audit/table?format=csv&table=notes&person=lea')
+      .set(testIdentityHeader, JSON.stringify(seesTheStaff))
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          done(null, Buffer.concat(chunks))
+        })
+      })
+      .expect(200)
+    const rows =
+      tableFileOf(new Uint8Array(answer.body as Buffer), 'Protokoll.csv').sheets[0]?.rows ?? []
+
+    expect(tagged?.id).toBeTruthy()
+    expect(rows.some((row) => row[6] === 'eilig und lager')).toBe(true)
+    // And nowhere as the list the log holds.
+    expect(rows.flat().filter((cell) => cell.includes('eilig'))).toEqual(['eilig und lager'])
   })
 })
 

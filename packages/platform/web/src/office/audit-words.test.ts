@@ -209,6 +209,66 @@ describe('a value called like what every list carries', () => {
   })
 })
 
+// What a field holds as structured data the application reads elsewhere in
+// its own words, and says here how (opengewerk-haustechnik#263).
+describe('a value the application writes its own way', () => {
+  const own = auditWords({
+    ...probeAuditWords,
+    written: (table, field, raw, format) => {
+      if (table !== 'shelves' || field !== 'layout') {
+        return null
+      }
+
+      const layout = JSON.parse(raw) as { rows?: number; since?: string; note?: string }
+
+      return [
+        layout.rows === undefined ? null : `Reihen: ${String(layout.rows)}`,
+        layout.since === undefined ? null : `Seit: ${format.date(layout.since)}`,
+        layout.note ?? null,
+      ]
+        .filter((part) => part !== null)
+        .join(', ')
+    },
+  })
+
+  it('is read as the application writes it, with the days of whoever reads', () => {
+    expect(own.auditValue('shelves', 'layout', '{"rows": 4, "since": "2026-10-03"}', page)).toBe(
+      'Reihen: 4, Seit: 03.10.2026',
+    )
+  })
+
+  it('is no value where the application writes nothing for it, and is cut like any other text', () => {
+    expect(own.auditValue('shelves', 'layout', '{}', page)).toBeNull()
+    expect(
+      own.auditValue('shelves', 'layout', JSON.stringify({ note: 'x'.repeat(400) }), page),
+    ).toBe(`${'x'.repeat(300)}…`)
+  })
+
+  it('is left to the rules here where the application has no way of its own', () => {
+    expect(own.auditValue('shelves', 'closed', 'true', page)).toBe('Ja')
+    expect(own.auditValue('letters', 'status', 'sent', page)).toBe('Verschickt')
+    expect(own.auditValue('notes', 'layout', '{"rows": 4}', page)).toBe('{"rows": 4}')
+  })
+
+  it('is never asked for a field whose value the page keeps to itself', () => {
+    const asked: string[] = []
+    const discreet = auditWords({
+      ...probeAuditWords,
+      hidden: ['lock_code', 'layout'],
+      written: (_table, field) => {
+        asked.push(field)
+
+        return 'verraten'
+      },
+    })
+
+    expect(discreet.auditValue('shelves', 'layout', '{"rows": 4}', page)).toBe(
+      discreet.auditValue('shelves', 'lock_code', '4711', page),
+    )
+    expect(asked).toEqual([])
+  })
+})
+
 describe('records and devices', () => {
   it('names a record from the log, and says what it is where it has no name', () => {
     expect(words.recordTitle('shelves', ids.shelf, page)).toBe('Werkzeug')
