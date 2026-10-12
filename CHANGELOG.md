@@ -428,6 +428,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ansieht. Die Seite eines entfernten Datensatzes meldete deshalb in einem Reiter im Hintergrund
   eine fehlende Verbindung statt "nicht gefunden". Wiederholt wird jetzt nur, was sich durch
   erneutes Fragen ändern kann: keine Antwort, ein 5xx, 408 und 429 (`isRefusedForGood`)
+- Die Wörter des Änderungsprotokolls schlagen einen Wert nur unter den eigenen Einträgen einer Liste nach (gefunden beim Review von `opengewerk-haustechnik#261`). Das Protokoll hält, was geschrieben wurde, auch einen Wert, der `constructor`, `toString` oder `__proto__` heißt; eine einfache Liste von Wörtern antwortete darauf mit dem, was jedes Objekt mitbringt, und statt des Werts stand etwas anderes da oder der Bildschirm brach ab. Das gilt für die Wörter eines Felds, die Rollen und Rechte, die Namen von Personen und Geräten und die Titel der Datensätze.
 
 ## [0.5.0] - 2026-10-04
 

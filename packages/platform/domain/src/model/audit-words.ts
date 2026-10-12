@@ -89,6 +89,15 @@ const longestTitle = 80
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
+ * What a list holds under a key, and nothing the key merely shares its name
+ * with: the log holds whatever was written, `constructor` as well, and a
+ * plain list of words would answer that with what every object carries.
+ */
+function held<Value>(list: Readonly<Record<string, Value>>, key: string): Value | undefined {
+  return Object.hasOwn(list, key) ? list[key] : undefined
+}
+
+/**
  * A list of keys the database keeps as an array, `{a,b}` or `["a"]`, or null
  * for a value that is no list. The server asks it as well, for the records a
  * list of references names.
@@ -161,7 +170,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
   const fingerprints = new Set(screen.fingerprints ?? [])
 
   const deviceWords = (deviceId: string, page: Pick<AuditPage, 'devices'>): string => {
-    const agent = page.devices[deviceId]
+    const agent = held(page.devices, deviceId)
 
     if (agent) {
       return deviceName(agent)
@@ -174,7 +183,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
 
   /** The name a record carries itself, or null where the page has none for it. */
   const ownName = (id: string, page: AuditNames): string | null => {
-    const found = page.titles[id]
+    const found = held(page.titles, id)
 
     if (!found || found.title === null) {
       return null
@@ -199,7 +208,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     // A record told apart by what it stands at is followed by the name of
     // that record, one step and no further; where the page has no name for
     // it, the record's own says what there is to say.
-    const at = page.titles[id]?.at
+    const at = held(page.titles, id)?.at
     const where = at === undefined ? null : ownName(at.id, page)
 
     return where === null ? own : `${own}, ${where}`
@@ -218,7 +227,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     const words = screen.values?.[table]?.[field] ?? foundationValues[table]?.[field]
 
     if (words) {
-      return words[raw] ?? raw
+      return held(words, raw) ?? raw
     }
 
     // Kept back by the server already; asked here as well, so that a page
@@ -236,7 +245,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     if (listed) {
       const keys = auditListKeys(raw)
 
-      return keys ? keys.map((key) => listed[key] ?? key).join(', ') : raw
+      return keys ? keys.map((key) => held(listed, key) ?? key).join(', ') : raw
     }
 
     // What a role may do, in the words a refusal uses for a right. One this
@@ -250,7 +259,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
 
       return keys.length === 0
         ? null
-        : keys.map((key) => screen.vocabulary.rights[key] ?? key).join(', ')
+        : keys.map((key) => held(screen.vocabulary.rights, key) ?? key).join(', ')
     }
 
     // The settings of the instance: a list of servers, and a time the
@@ -266,7 +275,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     }
 
     if (language.isPersonField(field)) {
-      return page.people[raw] ?? nobody
+      return held(page.people, raw) ?? nobody
     }
 
     const target = language.referenceOf(field)
@@ -381,7 +390,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     deviceWords,
     recordTitle,
     recordKind: (table, id, page) =>
-      screen.kindOf?.(table, page.titles[id]?.kind ?? null) ?? language.tableLabel(table),
+      screen.kindOf?.(table, held(page.titles, id)?.kind ?? null) ?? language.tableLabel(table),
     auditValue,
     fieldWords,
     shownFields,
@@ -390,7 +399,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       const way = language.way(change.reason, change.databaseRole)
 
       return {
-        person: change.userId === null ? null : (page.people[change.userId] ?? nobody),
+        person: change.userId === null ? null : (held(page.people, change.userId) ?? nobody),
         device: change.deviceId === null ? null : deviceWords(change.deviceId, page),
         way: way.text,
         direct: way.direct,
