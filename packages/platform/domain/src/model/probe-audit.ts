@@ -82,6 +82,8 @@ export const probeAuditVocabulary: AuditVocabulary = {
     letter_lines: ['letter_id'],
     letter_seals: ['letter_id'],
   },
+  // Notes say the same on many a shelf, and are told apart by theirs.
+  standsAt: { notes: ['shelf_id'] },
   reasons: { tidy: 'Von selbst, Aufräumen' },
   rights: {
     'membership.read': 'Mitglieder sehen',

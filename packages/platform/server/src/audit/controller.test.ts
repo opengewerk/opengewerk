@@ -771,4 +771,66 @@ describe('the log as a table', () => {
     await seeingTheStaff('lea', '/audit/table?format=csv&since=03.10.2026').expect(400)
     expect((await tableOf('susi')).flat().some((cell) => cell.includes('Werkzeug'))).toBe(false)
   })
+
+  it('names a record with what it stands at, as the list does (opengewerk-haustechnik#258)', async () => {
+    const rows = await tableOf('lea', '&table=notes&person=lea')
+
+    expect(rows.some((row) => row[1] === 'Zange fehlt, Werkzeug und Messgeräte')).toBe(true)
+    expect(rows.some((row) => row[1] === 'Sicherungen, Ersatzteile')).toBe(true)
+  })
+})
+
+/**
+ * A record that shares its name with others of its table is told apart by
+ * what it stands at (opengewerk-haustechnik#258): a note by its shelf.
+ */
+describe('a record told apart by what it stands at', () => {
+  it('carries where it stands, and the name of that record also when no change on the page points at it', async () => {
+    const [note] = await database.forTenant(
+      { tenantId: north.id, userId: 'lea', reason: 'notes.write' },
+      (tx) =>
+        tx
+          .insert(notes)
+          .values({
+            tenantId: north.id,
+            shelfId: northShelves['other'] as never,
+            text: 'Lampe flackert',
+          })
+          .returning({ id: notes.id }),
+    )
+    const id = note?.id ?? ''
+
+    // Somebody else rewrites the note and leaves it where it stands, so that
+    // a page of her changes carries no field that points at the shelf.
+    await database.forTenant({ tenantId: north.id, userId: 'mia', reason: 'notes.write' }, (tx) =>
+      tx
+        .update(notes)
+        .set({ text: 'Lampe flackert wieder' })
+        .where(eq(notes.id, id as never)),
+    )
+
+    const found = await page('lea', '?person=mia&table=notes')
+
+    expect(found.changes.map((change) => change.recordId)).toEqual([id])
+    expect(found.changes[0]?.fields.some((field) => field.field === 'shelf_id')).toBe(false)
+    expect(found.titles[id]).toEqual({
+      table: 'notes',
+      field: 'text',
+      title: 'Lampe flackert wieder',
+      kind: null,
+      at: { table: 'shelves', id: northShelves['other'] },
+    })
+    expect(found.titles[northShelves['other'] ?? '']?.title).toBe('Ersatzteile')
+  })
+
+  it('says nothing of the kind about a record of a table that names no such field', async () => {
+    const found = await page('lea', `?table=shelves&record=${northShelves['tools'] ?? ''}`)
+
+    expect(found.titles[northShelves['tools'] ?? '']).toEqual({
+      table: 'shelves',
+      field: 'label',
+      title: 'Werkzeug und Messgeräte',
+      kind: null,
+    })
+  })
 })

@@ -340,7 +340,10 @@ async function titlesOf(
   const fields = new Set<string>(['kind'])
 
   for (const place of places) {
-    for (const field of language.titleFields(place.table)) {
+    for (const field of [
+      ...language.titleFields(place.table),
+      ...language.standsAtFields(place.table),
+    ]) {
       fields.add(field)
     }
   }
@@ -372,11 +375,14 @@ async function titlesOf(
   for (const place of places) {
     const values = latest.get(placeKey(place)) ?? {}
 
+    const at = language.standsAt(place.table, values)
+
     titles.set(place.id, {
       table: place.table,
       field: language.titleFieldOf(place.table, values),
       title: language.titleFrom(place.table, values),
       kind: values['kind'] ?? null,
+      ...(at === null ? {} : { at }),
     })
   }
 
@@ -456,6 +462,25 @@ export async function readAuditPage(
       tx,
       identity.tenantId,
       [...owners.values()],
+      language,
+    )) {
+      titles.set(id, title)
+    }
+
+    // A record told apart by what it stands at needs the name of that
+    // record, whether it is on the page itself or named by one that is.
+    const stoodAt = new Map<string, Place>()
+
+    for (const title of titles.values()) {
+      if (title.at && !titles.has(title.at.id)) {
+        stoodAt.set(placeKey(title.at), title.at)
+      }
+    }
+
+    for (const [id, title] of await titlesOf(
+      tx,
+      identity.tenantId,
+      [...stoodAt.values()],
       language,
     )) {
       titles.set(id, title)

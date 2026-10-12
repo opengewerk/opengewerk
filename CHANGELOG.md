@@ -190,6 +190,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
     Blattwahl (`TableFilePanel`) und die Zuordnung der Spalten (`ColumnsPanel`), dazu die beiden
     Anfragen (`readTableFile`, `sendTable`). Was die Felder sind und was aus den Zeilen wird, sagt
     die Anwendung.
+- Das Änderungsprotokoll nennt einen Datensatz mit dem, woran er hängt, wo eine Anwendung das sagt (`standsAt` im Vokabular, `opengewerk-haustechnik#258`): hinter seinem Namen steht der Name des Datensatzes, auf den das erste der genannten Felder zeigt, das einen Wert hat, etwa "Zange fehlt, Werkzeug". Datensätze, die sich in ihrer Tabelle einen Namen teilen, standen in der Liste gleich untereinander, und erst der geöffnete Eintrag zeigte, welcher gemeint ist. Der Titel auf der Seite des Protokolls trägt dafür `at`, und die Seite bringt den Namen dieses Datensatzes mit, auch wenn keine Änderung auf ihr auf ihn zeigt. Es gilt in der Liste, am Chip eines einzelnen Datensatzes, wo ein Feld auf den Datensatz zeigt, und im Protokoll als Tabelle. Hängt das, woran ein Datensatz hängt, selbst an etwas, steht das nicht mehr dahinter. Der Abgleich des Vokabulars mit der Datenbank meldet ein solches Feld, das die Tabelle nicht hat oder das auf nichts zeigt. Eine Anwendung, die nichts nennt, sieht keinen Unterschied.
 
 ### Geändert
 
@@ -427,6 +428,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ansieht. Die Seite eines entfernten Datensatzes meldete deshalb in einem Reiter im Hintergrund
   eine fehlende Verbindung statt "nicht gefunden". Wiederholt wird jetzt nur, was sich durch
   erneutes Fragen ändern kann: keine Antwort, ein 5xx, 408 und 429 (`isRefusedForGood`)
+- Die Wörter des Änderungsprotokolls schlagen einen Wert nur unter den eigenen Einträgen einer Liste nach (gefunden beim Review von `opengewerk-haustechnik#261`). Das Protokoll hält, was geschrieben wurde, auch einen Wert, der `constructor`, `toString` oder `__proto__` heißt; eine einfache Liste von Wörtern antwortete darauf mit dem, was jedes Objekt mitbringt, und statt des Werts stand etwas anderes da oder der Bildschirm brach ab. Das gilt für die Wörter eines Felds, die Rollen und Rechte, die Namen von Personen und Geräten und die Titel der Datensätze.
 
 ## [0.5.0] - 2026-10-04
 

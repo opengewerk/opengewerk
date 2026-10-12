@@ -42,6 +42,34 @@ const page: AuditPage = {
     [ids.membership]: { table: 'memberships', field: 'user_id', title: 'mia', kind: null },
     [ids.nameless]: { table: 'notes', field: null, title: null, kind: null },
     [ids.long]: { table: 'notes', field: 'text', title: 'Zange '.repeat(30), kind: null },
+    'note-on-the-shelf': {
+      table: 'notes',
+      field: 'text',
+      title: 'Zange fehlt',
+      kind: null,
+      at: { table: 'shelves', id: ids.shelf },
+    },
+    'long-note-on-the-shelf': {
+      table: 'notes',
+      field: 'text',
+      title: 'Zange '.repeat(30),
+      kind: null,
+      at: { table: 'shelves', id: ids.shelf },
+    },
+    'note-on-a-shelf-unknown': {
+      table: 'notes',
+      field: 'text',
+      title: 'Zange fehlt',
+      kind: null,
+      at: { table: 'shelves', id: 'not-on-the-page' },
+    },
+    'note-on-a-note': {
+      table: 'notes',
+      field: 'text',
+      title: 'Auch hier',
+      kind: null,
+      at: { table: 'notes', id: 'note-on-the-shelf' },
+    },
   },
   people: { mia: 'Mia Mitglied' },
   devices: {
@@ -157,6 +185,30 @@ describe('the values of the change log', () => {
   })
 })
 
+// The log holds whatever was written. A value that is called like something
+// every object carries is a value like any other, and no word for it.
+describe('a value called like what every list carries', () => {
+  it('is read as it is written where the words have no entry for it', () => {
+    for (const raw of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(words.auditValue('letters', 'status', raw, page)).toBe(raw)
+      expect(words.auditValue('shelves', 'labels', `{${raw},red}`, page)).toBe(`${raw}, Rot`)
+      expect(words.auditValue('memberships', 'roles', `{${raw},lead}`, page)).toBe(
+        `${raw}, Leitung`,
+      )
+      expect(words.auditValue('tenant_roles', 'rights', `{${raw}}`, page)).toBe(raw)
+      expect(words.auditValue('memberships', 'user_id', raw, page)).toBe(
+        'Eine Person, die es nicht mehr gibt',
+      )
+      expect(words.recordTitle('notes', raw, page)).toBe('Notiz ohne Bezeichnung')
+      expect(words.recordKind('letters', raw, page)).toBe('Brief')
+      expect(words.deviceWords(raw, page)).toBe(`Gerät ${raw}`)
+      expect(words.wayWords(change({ userId: raw }), page).person).toBe(
+        'Eine Person, die es nicht mehr gibt',
+      )
+    }
+  })
+})
+
 describe('records and devices', () => {
   it('names a record from the log, and says what it is where it has no name', () => {
     expect(words.recordTitle('shelves', ids.shelf, page)).toBe('Werkzeug')
@@ -166,6 +218,19 @@ describe('records and devices', () => {
     expect(words.recordTitle('notes', ids.long, page)).toBe(
       `${'Zange '.repeat(30).slice(0, 80).trimEnd()}…`,
     )
+  })
+
+  it('tells a record apart by what it stands at, after its own name', () => {
+    expect(words.recordTitle('notes', 'note-on-the-shelf', page)).toBe('Zange fehlt, Werkzeug')
+    // The name is cut to its length first, and where it stands is said whole.
+    expect(words.recordTitle('notes', 'long-note-on-the-shelf', page)).toBe(
+      `${'Zange '.repeat(30).slice(0, 80).trimEnd()}…, Werkzeug`,
+    )
+  })
+
+  it('says the own name alone where the page has no name for what the record stands at, and goes one step and no further', () => {
+    expect(words.recordTitle('notes', 'note-on-a-shelf-unknown', page)).toBe('Zange fehlt')
+    expect(words.recordTitle('notes', 'note-on-a-note', page)).toBe('Auch hier, Zange fehlt')
   })
 
   it('names a part by the record it belongs to', () => {

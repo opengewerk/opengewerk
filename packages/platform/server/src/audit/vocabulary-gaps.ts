@@ -143,6 +143,18 @@ export async function auditVocabularyGaps(
     }
   }
 
+  for (const [table, columns] of Object.entries(vocabulary.standsAt ?? {})) {
+    if (!tenantLog.has(table)) {
+      gaps.push(`stands at of ${table}, which is not watched`)
+    }
+
+    for (const column of columns) {
+      if (!has(table, column) || language.referenceOf(column) === null) {
+        gaps.push(`stands at ${table}.${column}, which is no reference of the table`)
+      }
+    }
+  }
+
   for (const [column, target] of Object.entries(vocabulary.references)) {
     if (!tenantLog.has(target) || !anywhere(column)) {
       gaps.push(`reference ${column} to ${target}`)
