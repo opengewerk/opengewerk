@@ -31,6 +31,11 @@ export interface ConfirmProps {
  * card in the middle with the question, a sentence on what follows, and the
  * way out beside the action (#222).
  *
+ * The middle is the middle of the window in both directions, at every width,
+ * as a dialog with a form stands from a tablet on: the card stood a fifth of
+ * the window from its top, and a board drawn after it copied that. One taller
+ * than the window starts at its top and scrolls.
+ *
  * The way out has the focus when it opens, so Enter on a keyboard does not do
  * the thing by reflex; Escape and a tap beside the card take the way out as
  * well. An `alertdialog`, because it interrupts and wants an answer.
@@ -75,7 +80,7 @@ export function Confirm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 pt-[20vh] pb-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4">
       <div
         aria-hidden="true"
         className="fixed inset-0 bg-[rgb(15_20_27/0.45)]"
@@ -86,7 +91,7 @@ export function Confirm({
         aria-modal="true"
         aria-labelledby={heading}
         aria-describedby={text}
-        className="relative flex w-full max-w-[480px] flex-col gap-3.5 rounded-[8px] border border-line bg-surface px-6 py-[22px] shadow-[0_16px_40px_rgb(15_20_27/0.28)]"
+        className="relative my-auto flex w-full max-w-[480px] flex-col gap-3.5 rounded-[8px] border border-line bg-surface px-6 py-[22px] shadow-[0_16px_40px_rgb(15_20_27/0.28)]"
       >
         <h2 id={heading} className="text-[20px] font-semibold">
           {title}

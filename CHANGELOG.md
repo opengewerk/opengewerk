@@ -193,6 +193,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Frage vor etwas, das sich nicht zurücknehmen lässt (`Confirm`), steht in der Mitte des
+  Fensters, bei jeder Breite (`opengewerk-haustechnik#147`). Sie stand ein Fünftel der Höhe von
+  oben, also nur in der Breite mittig, während der Dialog mit einem Formular seit
+  `opengewerk-haustechnik#115` in der Mitte steht; auf einem hohen Bildschirm hing sie damit weit
+  über dem, worauf sie sich bezieht. Eine Frage, die höher ist als das Fenster, beginnt an seinem
+  oberen Rand und lässt sich schieben.
 - Die Formulare der Ansprechpartner in der schmalen Karte (`opengewerk-haustechnik#147`): zeichnet
   eine Anwendung die Karte mit einer Zeile je Person (`dense`), fragen ihre Formulare nach einer
   Sache je Zeile, und "Entfernen" steht in einer eigenen Zeile über "Abbrechen" und "Speichern".

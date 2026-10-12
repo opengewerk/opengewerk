@@ -535,6 +535,29 @@ describe('a question before something that cannot be taken back', () => {
 
     expect(screen.queryByRole('alertdialog')).toBeNull()
   })
+
+  it('stands in the middle of the window, with nothing that pushes it from the top', () => {
+    render(
+      <Confirm
+        open
+        title="Gerät abmelden?"
+        confirm="Abmelden"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      >
+        Das Gerät muss sich danach neu anmelden.
+      </Confirm>,
+    )
+
+    const card = screen.getByRole('alertdialog')
+    const layer = card.parentElement?.className.split(' ') ?? []
+
+    // The margin takes what is left over and under the card in equal parts,
+    // and gives way where the card is taller than the window.
+    expect(card.className.split(' ')).toContain('my-auto')
+    expect(layer).toContain('justify-center')
+    expect(layer.filter((name) => /^(pt|top|mt)-/.test(name))).toEqual([])
+  })
 })
 
 describe('the shell of an entry point', () => {
