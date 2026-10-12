@@ -191,6 +191,12 @@ export interface AuditVocabulary {
    * two names and not as two keys.
    */
   readonly references: Readonly<Record<string, string>>
+  /**
+   * Fields that hold a list of ids of other records, and the table they point
+   * into. The page names each of them, as it names what a single field points
+   * at, so that a list of records reads as their names and not as their keys.
+   */
+  readonly referenceLists?: Readonly<Record<string, string>>
   /** Fields that hold the id of a person, beside the foundation's own. */
   readonly personFields: readonly string[]
   /**
@@ -635,6 +641,8 @@ export interface AuditLanguage {
   readonly partsOf: (table: string) => readonly AuditPart[]
   /** The table a field points into, or null. */
   readonly referenceOf: (field: string) => string | null
+  /** The table the ids of a field that holds a list of them point into, or null. */
+  readonly referenceListOf: (field: string) => string | null
   readonly isPersonField: (field: string) => boolean
   /** Whether a field says nothing about a change. */
   readonly isQuiet: (field: string) => boolean
@@ -717,6 +725,10 @@ export function auditLanguage(vocabulary: AuditVocabulary): AuditLanguage {
     titleFrom,
     partsOf: (table) => vocabulary.parts[table] ?? [],
     referenceOf: (field) => foundationReferences[field] ?? vocabulary.references[field] ?? null,
+    referenceListOf: (field) =>
+      vocabulary.referenceLists && Object.hasOwn(vocabulary.referenceLists, field)
+        ? (vocabulary.referenceLists[field] ?? null)
+        : null,
     isPersonField: (field) => personFields.has(field),
     isQuiet: (field) => quiet.has(field),
     isSecret: (table, field) => secret(table).includes(field),

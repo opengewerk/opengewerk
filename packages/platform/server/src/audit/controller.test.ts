@@ -124,6 +124,7 @@ const northShelves: Record<string, string> = {}
 let noteId = ''
 let letterId = ''
 let lineId = ''
+let aboutId = ''
 
 beforeAll(async () => {
   foundation = await probeFoundation(probeSyncMade)
@@ -214,6 +215,23 @@ beforeAll(async () => {
       .set({ quantity: 3 })
       .where(eq(letterLines.id, lineId as never)),
   )
+
+  // A note about the letter. It names the letter in a list, and through no
+  // field that points at one record.
+  const [about] = await database.forTenant(
+    { tenantId: north.id, userId: 'lea', reason: 'notes.write' },
+    (tx) =>
+      tx
+        .insert(notes)
+        .values({
+          tenantId: north.id,
+          shelfId: northShelves['other'] as never,
+          text: 'Termin steht im Brief',
+          aboutLetters: [letterId],
+        })
+        .returning({ id: notes.id }),
+  )
+  aboutId = about?.id ?? ''
 
   await shelf(south.id, 'susi', 'Südregal')
   await shelf(west.id, 'wanda', 'Westregal')
@@ -332,6 +350,24 @@ describe('the log of one record', () => {
       northShelves['tools'],
     )
     expect(found.titles[northShelves['tools'] ?? '']?.title).toBe('Werkzeug und Messgeräte')
+  })
+
+  it('names the records a list in a field points at', async () => {
+    const found = await page('lea', '?table=notes')
+    const about = found.changes.find((change) => change.recordId === aboutId)
+    const listed = about?.fields.find((field) => field.field === 'about_letters')?.after
+
+    expect(JSON.parse(listed ?? 'null')).toEqual([letterId])
+    // No change to a note points at the letter with a field of its own.
+    expect(
+      found.changes.some((change) => change.fields.some((field) => field.field === 'letter_id')),
+    ).toBe(false)
+    expect(found.titles[letterId]).toEqual({
+      table: 'letters',
+      field: 'subject',
+      title: 'Wartung im Oktober',
+      kind: null,
+    })
   })
 
   it('brings the name of the record a part is named after', async () => {

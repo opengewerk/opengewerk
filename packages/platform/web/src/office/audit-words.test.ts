@@ -127,6 +127,21 @@ describe('the values of the change log', () => {
     expect(words.auditValue('notes', 'device_id', 'device-mia', page)).toBe('Safari auf iPhone')
   })
 
+  it('names each record a list in a field points at, in either form the database keeps one', () => {
+    expect(
+      words.auditValue('notes', 'about_letters', `["${ids.letter}", "${ids.reminder}"]`, page),
+    ).toBe('Wartung im Oktober, Zweite Erinnerung')
+    expect(words.auditValue('notes', 'about_letters', `{${ids.letter}}`, page)).toBe(
+      'Wartung im Oktober',
+    )
+    // One the page has no name for is said to be what it is, never its key.
+    expect(
+      words.auditValue('notes', 'about_letters', `["${ids.letter}", "${ids.shelf}x"]`, page),
+    ).toBe('Wartung im Oktober, Brief ohne Bezeichnung')
+    // No record is no value, and the screen says "leer".
+    expect(words.auditValue('notes', 'about_letters', '[]', page)).toBeNull()
+  })
+
   it('writes the settings of the instance as they were set', () => {
     expect(
       words.auditValue('instance_settings', 'mail_internal_hosts', '{mail.lan,10.0.0.2}', page),

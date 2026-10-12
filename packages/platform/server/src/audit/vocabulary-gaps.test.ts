@@ -132,6 +132,8 @@ describe('the vocabulary of the change log against the database', () => {
         parts: { shelves: [{ table: 'notes', column: 'rack_id' }] },
         records: ['shelves', 'parcels'],
         references: { shelf_id: 'shelves', rack_id: 'racks' },
+        // A column that is there into a table that is not, and the other way round.
+        referenceLists: { about_letters: 'racks', seen_by: 'shelves' },
         personFields: ['keeper_id'],
         titles: { ...probeAuditVocabulary.titles, notes: ['heading'], parcels: ['number'] },
       }),
@@ -142,6 +144,8 @@ describe('the vocabulary of the change log against the database', () => {
         'part notes.rack_id of shelves',
         'record parcels, which is not watched',
         'reference rack_id to racks',
+        'reference list about_letters to racks',
+        'reference list seen_by to shelves',
         'person field keeper_id, which no watched table has',
         'title of notes: none of its naming fields exists',
         'title of parcels, which is not watched',

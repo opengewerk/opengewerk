@@ -18,6 +18,7 @@ import {
   pgTable,
   text,
   unique,
+  uuid,
 } from 'drizzle-orm/pg-core'
 
 import { databaseErrors } from '../api/database-errors.js'
@@ -76,6 +77,8 @@ export const notes = pgTable(
     text: text('text').notNull(),
     tags: text('tags').array(),
     details: jsonb('details').$type<Readonly<Record<string, unknown>>>(),
+    // The letters a note is about: a list of ids, and no key behind them.
+    aboutLetters: uuid('about_letters').array(),
     ...syncColumns,
     ...timestamps,
   },

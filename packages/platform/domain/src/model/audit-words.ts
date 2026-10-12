@@ -88,8 +88,12 @@ const longestTitle = 80
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** A list of keys the database keeps as an array, `{a,b}` or `["a"]`. */
-function keysOf(raw: string): readonly string[] | null {
+/**
+ * A list of keys the database keeps as an array, `{a,b}` or `["a"]`, or null
+ * for a value that is no list. The server asks it as well, for the records a
+ * list of references names.
+ */
+export function auditListKeys(raw: string): readonly string[] | null {
   const trimmed = raw.trim()
 
   if (trimmed.startsWith('[')) {
@@ -213,7 +217,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     const listed = field === 'roles' ? screen.vocabulary.roles : screen.lists?.[field]
 
     if (listed) {
-      const keys = keysOf(raw)
+      const keys = auditListKeys(raw)
 
       return keys ? keys.map((key) => listed[key] ?? key).join(', ') : raw
     }
@@ -221,7 +225,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     // What a role may do, in the words a refusal uses for a right. One this
     // version does not know stays as it is written.
     if (table === 'tenant_roles' && field === 'rights') {
-      const keys = keysOf(raw)
+      const keys = auditListKeys(raw)
 
       if (!keys) {
         return raw
@@ -235,7 +239,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     // The settings of the instance: a list of servers, and a time the
     // database writes with seconds that nobody set.
     if (field === 'mail_internal_hosts') {
-      const keys = keysOf(raw)
+      const keys = auditListKeys(raw)
 
       return keys ? (keys.length === 0 ? null : keys.join(', ')) : raw
     }
@@ -252,6 +256,21 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
 
     if (target) {
       return recordTitle(target, raw, page)
+    }
+
+    // A list of records by their names. An empty list is no value.
+    const targets = language.referenceListOf(field)
+
+    if (targets) {
+      const keys = auditListKeys(raw)
+
+      if (!keys) {
+        return raw
+      }
+
+      return keys.length === 0
+        ? null
+        : keys.map((key) => recordTitle(targets, key, page)).join(', ')
     }
 
     if (field === 'device_id') {
