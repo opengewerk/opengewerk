@@ -329,7 +329,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `actions/checkout` dort git aufruft. Lässt sich das Review am PR nicht ablegen, steht der Status
   auf `error` statt dauerhaft auf "läuft" (`opengewerk/.github#35` und `#36`, Aufruf angehoben).
   Vorher war Docker ein zweiter Weg zu root, und eine Git-Konfiguration aus der Sandbox hätte nach
-  ihr außerhalb laufen können
+  ihr außerhalb laufen können.
+- Das Security-Review kann Tests ausführen, auch mit Datenbank: es startet die Testdatenbank dieses
+  Repositorys als PostgreSQL 18 in seiner Sandbox, erreicht die Registry über deren Proxy, findet
+  `pnpm` im Pfad und installiert in einer Kopie des Checkouts (`opengewerk/.github#38` und `#40`,
+  Aufruf angehoben, mit der Eingabe `database`). Vorher ließ sich in der Sandbox nichts
+  installieren, und was erst die Datenbank durchsetzt, Policies, Trigger und die Rechte der Rollen,
+  blieb nur gelesen.
 - Die Prüfung "Breiten und Auflösungen" nimmt von einer Anwendung Muster für Adressen, die einen
   Eintrag mit seinem Schlüssel statt einer Kennung nennen (`keys` an `checkWidths`,
   `opengewerk-haustechnik#227`). Was eine Gruppe eines Musters fängt, zählt wie eine Kennung, und
