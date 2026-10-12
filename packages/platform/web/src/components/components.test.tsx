@@ -636,6 +636,18 @@ describe('a short form over the page', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Name'))
   })
 
+  it('stands in the middle of the window at every width, with nothing that pushes it from the top', () => {
+    render(<Opened onClose={() => {}} />)
+
+    const card = screen.getByRole('dialog')
+    const layer = card.parentElement?.className.split(' ') ?? []
+
+    // Not from a width on, and no offset of its own on a phone.
+    expect(card.className.split(' ')).toContain('my-auto')
+    expect(layer).toContain('justify-center')
+    expect(layer.filter((name) => /(^|:)(pt|top|mt)-/.test(name))).toEqual([])
+  })
+
   it('takes the focus itself where no field asks for it, and hands it back when it closes', () => {
     const { rerender } = render(<button>Bearbeiten</button>)
     const opener = screen.getByRole('button', { name: 'Bearbeiten' })
