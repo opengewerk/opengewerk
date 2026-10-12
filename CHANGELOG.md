@@ -193,6 +193,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Der Dialog mit einem Formular (`Dialog`) steht auch unter 640 Pixeln in der Mitte des Fensters
+  (`opengewerk-haustechnik#147`). Auf einem Telefon stand er am oberen Rand, damit eine Tastatur
+  ihn nicht verdeckt; damit stand dieselbe Karte je nach Breite an zwei Stellen, und die Frage
+  daneben seit dem Eintrag darunter in der Mitte. Das Feld, das den Fokus hat, holt der Browser
+  selbst ins Bild. Ein Dialog, der höher ist als das Fenster, beginnt weiter an seinem oberen Rand
+  und lässt sich schieben.
 - Die Frage vor etwas, das sich nicht zurücknehmen lässt (`Confirm`), steht in der Mitte des
   Fensters, bei jeder Breite (`opengewerk-haustechnik#147`). Sie stand ein Fünftel der Höhe von
   oben, also nur in der Breite mittig, während der Dialog mit einem Formular seit
