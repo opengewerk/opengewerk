@@ -72,6 +72,9 @@ export const probeAuditVocabulary: AuditVocabulary = {
   references: { shelf_id: 'shelves', letter_id: 'letters' },
   // The letters a note is about, a list of them in one field.
   referenceLists: { about_letters: 'letters' },
+  // A letter that waits for another says so where its state stands,
+  // `after-` and the letter it waits for.
+  prefixedReferences: { status: { prefix: 'after-', table: 'letters' } },
   personFields: [],
   titles: {
     shelves: ['label'],
