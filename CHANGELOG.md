@@ -401,6 +401,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Antwort des Servers kommt, etwa mit den Rechten, fehlt, wenn diese Antwort fehlt, und Warten
   bringt ihn nicht zurück; bisher stand im Bericht nur, dass er nicht zu sehen war. Zu einem solchen
   Befund liegt jetzt auch ein Foto der Seite im Bericht, wie zu einer zu breiten.
+- Eine Anfrage, die der Server abgelehnt hat, stellt der Abfrage-Client des Fundaments nicht ein
+  zweites Mal (opengewerk/opengewerk-haustechnik#246). Bisher galt das nur für 401 und 403; ein
+  404 ging noch einmal hinaus, und dieser zweite Versuch wartet auf ein Fenster, das jemand
+  ansieht. Die Seite eines entfernten Datensatzes meldete deshalb in einem Reiter im Hintergrund
+  eine fehlende Verbindung statt "nicht gefunden". Wiederholt wird jetzt nur, was sich durch
+  erneutes Fragen ändern kann: keine Antwort, ein 5xx, 408 und 429 (`isRefusedForGood`)
 
 ## [0.5.0] - 2026-10-04
 

@@ -88,6 +88,23 @@ export function isForbidden(error: unknown): boolean {
   return error instanceof RequestRefused && error.status === 403
 }
 
+/**
+ * Refused, and asking again will not change it: the server looked at the
+ * request and said no to it, a record that is not there, a right that is
+ * missing, a value it does not take. A 408 and a 429 say "not now", and a
+ * 5xx says the server could not answer at all; those are worth a second
+ * attempt.
+ */
+export function isRefusedForGood(error: unknown): boolean {
+  return (
+    error instanceof RequestRefused &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 408 &&
+    error.status !== 429
+  )
+}
+
 async function refusal(response: Response): Promise<RequestRefused> {
   // Nest puts the sentence in `message`; anything else gets the status.
   const fallback = `Der Server hat die Anfrage abgelehnt (${response.status}).`
