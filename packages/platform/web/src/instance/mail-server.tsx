@@ -111,7 +111,7 @@ export function InstanceMailServer() {
             {state.data.server === null ? (
               <div
                 role="note"
-                className="flex items-start gap-2 rounded-[5px] border border-line bg-sunken px-3 py-2.5 text-[13px] leading-[1.45]"
+                className="flex items-start gap-2 rounded-[5px] border border-line bg-surface-sunken px-3 py-2.5 text-[13px] leading-[1.45]"
               >
                 <TriangleAlert
                   size={16}

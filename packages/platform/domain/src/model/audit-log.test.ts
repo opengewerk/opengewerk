@@ -130,6 +130,19 @@ describe('what the log calls a table and a field', () => {
   })
 })
 
+describe('what the log of the instance keeps to itself', () => {
+  // The trigger leaves the sealed password of the mail server of the
+  // instance out already (opengewerk-haustechnik#81); should a row of it ever
+  // be there, no page spells it out either.
+  it('is the sealed password of the mail server of the instance', () => {
+    expect(language.isSecret('instance_settings', 'mail_server_password')).toBe(true)
+    expect(language.isSecret('instance_settings', 'mail_server_host')).toBe(false)
+    expect(language.fieldName('instance_settings', 'mail_server_password_set_at')).toBe(
+      'Mailserver der Instanz, Passwort gesetzt am',
+    )
+  })
+})
+
 describe("what a record's name is", () => {
   it('is the first naming field with a value, and which one it came from', () => {
     const latest = { subject: '', status: 'sent' }

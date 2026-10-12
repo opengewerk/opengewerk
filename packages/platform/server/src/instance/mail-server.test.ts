@@ -21,7 +21,11 @@ import { smtpTransport } from '../mail/transport.js'
 import { SecretKey } from '../secrets/key.js'
 import { accountMails, type AccountMessages } from './account-mail.js'
 import { InstanceController } from './instance.controller.js'
-import { instanceMailConnection, readInstanceMailServer } from './mail-server.js'
+import {
+  instanceMailConnection,
+  readInstanceMailServer,
+  saveInstanceMailServer,
+} from './mail-server.js'
 
 /**
  * The mail server of the instance (opengewerk-haustechnik#81), end to end and
@@ -360,6 +364,23 @@ describe('changing the mail server of the instance', () => {
     }
   })
 
+  it('refuses the same where the settings are saved without a route in front', async () => {
+    for (const moved of [{ host: 'localhost' }, { username: 'jemand-anders' }]) {
+      await expect(
+        saveInstanceMailServer(database, 'somebody', key, {
+          host: '127.0.0.1',
+          port: smtp.port,
+          security: 'none',
+          username: 'instanz',
+          fromAddress: 'konten@nord.example.de',
+          ...moved,
+        }),
+      ).rejects.toThrow('Das gespeicherte Passwort geht nur an den Server und den Benutzernamen')
+    }
+
+    expect((await state()).server).toMatchObject({ host: '127.0.0.1', username: 'instanz' })
+  })
+
   it('tries a connection without keeping it', async () => {
     const wrong = await send(
       'post',
@@ -473,6 +494,34 @@ describe('removing the mail server of the instance', () => {
     const refused = await send('delete', '/instance/mail-server', lea).expect(404)
 
     expect(message(refused)).toBe('Die Instanz hat keinen Mailserver, der sich entfernen ließe.')
+  })
+})
+
+/**
+ * Last of the tests that ask a mail server: the allowance is one for
+ * everybody who runs the instance, and it stays used up for ten minutes.
+ */
+describe('trying the mail server of the instance over and over', () => {
+  it('is refused after thirty tries in ten minutes, saving included', async () => {
+    let tries = 0
+    let refused: { body: unknown } | null = null
+
+    while (refused === null && tries < 40) {
+      const answer = await send('post', '/instance/mail-server/check', lea, typed())
+
+      if (answer.status === 429) {
+        refused = answer
+      } else {
+        expect(answer.status).toBe(200)
+        tries += 1
+      }
+    }
+
+    expect(refused).not.toBeNull()
+    expect(tries).toBeLessThanOrEqual(30)
+    expect(message(refused ?? { body: {} })).toContain('In ein paar Minuten geht es wieder.')
+    // Saving counts against the same allowance.
+    await send('put', '/instance/mail-server', lea, typed()).expect(429)
   })
 })
 
