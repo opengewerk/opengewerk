@@ -59,7 +59,10 @@ export interface ContactsPanelProps {
   /**
    * What somebody is and how to reach them in one line under the name, where
    * a board draws the card in a narrow column. Left out, each stands on its
-   * own, as the card was drawn first.
+   * own, as the card was drawn first. The forms of such a card ask for one
+   * thing to a row, and what takes somebody away stands in a row of its own:
+   * in 340 pixels an address did not fit half the card, and three buttons
+   * did not fit one row.
    */
   readonly dense?: boolean
 }
@@ -123,6 +126,7 @@ export function ContactsPanel({
         fields={fields}
         record={contact}
         submitLabel="Speichern"
+        narrow={dense}
         check={(values) => contactTextProblem(rules, values)}
         disabled={offline}
         disabledReason={offline ? words.needsConnection : undefined}
@@ -194,6 +198,7 @@ export function ContactsPanel({
             rules={rules}
             words={words}
             make={make}
+            narrow={dense}
             unavailable={make && !status.online ? words.needsConnection : undefined}
             onDone={() => {
               setAdding(false)

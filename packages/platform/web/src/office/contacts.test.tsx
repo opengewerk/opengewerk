@@ -644,6 +644,45 @@ describe('the contacts of a record drawn in one line each', () => {
     })
   })
 
+  it('ask for one thing to a row in their forms, and keep what takes somebody away in a row of its own', async () => {
+    await mounted({ dense: true })
+
+    await userEvent.click(card().getByRole('button', { name: 'Eintragen' }))
+
+    expect(
+      card()
+        .getByLabelText(/Nachname/)
+        .closest('.grid')?.className,
+    ).not.toContain('grid-cols')
+
+    await userEvent.click(card().getByRole('button', { name: 'Abbrechen' }))
+    await userEvent.click(card().getByRole('button', { name: 'Petra Zander bearbeiten' }))
+
+    expect(
+      card()
+        .getByLabelText(/Nachname/)
+        .closest('.grid')?.className,
+    ).not.toContain('grid-cols')
+    expect(card().getByRole('button', { name: 'Entfernen' }).parentElement?.className).toContain(
+      'basis-full',
+    )
+  })
+
+  it('leave the forms of the card as it was drawn first with two fields beside each other', async () => {
+    await mounted()
+
+    await userEvent.click(card().getByRole('button', { name: 'Petra Zander bearbeiten' }))
+
+    expect(
+      card()
+        .getByLabelText(/Nachname/)
+        .closest('.grid')?.className,
+    ).toContain('sm:grid-cols-2')
+    expect(
+      card().getByRole('button', { name: 'Entfernen' }).parentElement?.className,
+    ).not.toContain('basis-full')
+  })
+
   it('have no pencil for whoever may not correct, and say when one waits on the device', async () => {
     const client = await mounted({ dense: true, corrects: false })
 

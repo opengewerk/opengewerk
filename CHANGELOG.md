@@ -193,6 +193,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Formulare der Ansprechpartner in der schmalen Karte (`opengewerk-haustechnik#147`): zeichnet
+  eine Anwendung die Karte mit einer Zeile je Person (`dense`), fragen ihre Formulare nach einer
+  Sache je Zeile, und "Entfernen" steht in einer eigenen Zeile über "Abbrechen" und "Speichern".
+  `RecordForm` und `NewContactForm` nehmen dafür `narrow`. In einer Spalte von 340 Pixeln standen
+  zwei Felder nebeneinander: von einer E-Mail-Adresse war nur der Anfang zu lesen, der Hinweis
+  unter einem Feld brach in drei Zeilen um, und die drei Knöpfe waren ein paar Pixel breiter als
+  die Karte, so dass "Speichern" allein in die nächste Zeile rutschte. Die Karte, wie sie zuerst
+  gezeichnet war, bleibt, wie sie ist.
 - Wann ein Datensatz zuletzt geändert wurde, von wem und von welchem Gerät, verlässt den Server
   nicht mehr (`opengewerk-haustechnik#157`). Der Abruf eines Geräts lässt `updatedAt`, `updatedBy`
   und `deviceId` weg (`travellingRows`), und der neue `StampInterceptor` nimmt sie aus jeder
