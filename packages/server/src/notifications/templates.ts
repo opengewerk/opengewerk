@@ -334,11 +334,14 @@ export function invitationMessage(facts: {
  * works once and for an hour, every device is signed out afterwards, and
  * somebody who asked for nothing has nothing to do. The last one matters most,
  * because anybody can type an address into the form.
+ *
+ * Signed by the application and by no business: an account belongs to the
+ * instance, and the mail goes out through the mail server of the instance
+ * (opengewerk-haustechnik#81).
  */
 export function passwordResetMessage(facts: {
   readonly name: string
   readonly link: string
-  readonly business: string
 }): MessageText {
   const body = [
     facts.name ? `Hallo ${facts.name},` : 'Hallo,',
@@ -353,7 +356,7 @@ export function passwordResetMessage(facts: {
       'haben, müssen Sie nichts tun: das alte gilt weiter.',
     '',
     '-- ',
-    facts.business,
+    'OpenGewerk',
   ].join('\n')
 
   return { subject: 'Ein neues Passwort für OpenGewerk', body }
@@ -374,7 +377,6 @@ export function passkeyAddedMessage(facts: {
   readonly passkey: string
   readonly addedAt: Date
   readonly link: string
-  readonly business: string
 }): MessageText {
   const when = new Intl.DateTimeFormat('de-DE', {
     timeZone: 'Europe/Berlin',
@@ -400,7 +402,7 @@ export function passkeyAddedMessage(facts: {
       'Passwort und sagen Sie dem Inhaber Ihres Betriebs Bescheid.',
     '',
     '-- ',
-    facts.business,
+    'OpenGewerk',
   ].join('\n')
 
   return { subject: 'Ein neuer Passkey für OpenGewerk', body }

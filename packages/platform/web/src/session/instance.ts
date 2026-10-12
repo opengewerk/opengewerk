@@ -1,9 +1,12 @@
 import type {
   InstanceAccess,
   InstanceLogPage,
+  InstanceMailServerState,
+  InstanceMailServerView,
   InstanceSettingsView,
   InstanceTenantView,
   OperatorView,
+  SmtpSecurity,
   TenantId,
 } from '@opengewerk/platform-domain'
 import { queryOptions } from '@tanstack/react-query'
@@ -52,6 +55,51 @@ export function saveInstanceSettings(change: {
     method: 'PUT',
     body: JSON.stringify(change),
   })
+}
+
+/**
+ * The mail server of the instance, through which a mail to an account goes
+ * out (opengewerk-haustechnik#81). Never with its password: whether there is
+ * one, and whether it still opens, is all that comes back.
+ */
+export function instanceMailServer(): Promise<InstanceMailServerState> {
+  return request<InstanceMailServerState>('/instance/mail-server')
+}
+
+/** The settings as the form sends them. A password is sent only when one was typed. */
+export interface InstanceMailServerInput {
+  readonly host: string
+  /** Null for the port that goes with the kind of connection. */
+  readonly port: number | null
+  readonly security: SmtpSecurity
+  readonly username: string | null
+  readonly password?: string
+  readonly fromAddress: string
+}
+
+/** What asking the mail server found. */
+export type InstanceMailServerCheck =
+  | { readonly outcome: 'ready' }
+  | { readonly outcome: 'refused' | 'unreachable'; readonly reason: string }
+
+export function saveInstanceMailServer(input: InstanceMailServerInput): Promise<{
+  readonly server: InstanceMailServerView
+  readonly check: InstanceMailServerCheck
+}> {
+  return request('/instance/mail-server', { method: 'PUT', body: JSON.stringify(input) })
+}
+
+export function checkInstanceMailServer(
+  input: InstanceMailServerInput,
+): Promise<InstanceMailServerCheck> {
+  return request<InstanceMailServerCheck>('/instance/mail-server/check', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function removeInstanceMailServer(): Promise<void> {
+  await request('/instance/mail-server', { method: 'DELETE' })
 }
 
 export function operators(): Promise<readonly OperatorView[]> {

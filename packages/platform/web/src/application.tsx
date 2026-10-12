@@ -466,6 +466,13 @@ export interface InstanceAreaSentences {
     readonly mailOwnServer: string
     /** After it: what the rule keeps a tenant from. */
     readonly mailNoWayIn: string
+    /**
+     * Over the mail server of the instance: what goes out through it, and
+     * why not through the mail server of a tenant.
+     */
+    readonly accountMail: string
+    /** While the instance has none: what does not happen then, and the ways back into an account that remain. */
+    readonly accountMailMissing: string
   }
   readonly log: {
     /** Under the heading: what the log holds, and where a change in a tenant stands instead. */

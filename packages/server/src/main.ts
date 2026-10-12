@@ -2,6 +2,7 @@ import 'reflect-metadata'
 
 import { serverPaths } from '@opengewerk/domain'
 import {
+  accountMails,
   authenticationHandler,
   ClosedIdentitySource,
   completeRoles,
@@ -30,8 +31,7 @@ import { access, createAuthentication, SessionIdentitySource } from './authentic
 import { application as opengewerk, readConfiguration } from './configuration.js'
 import { DocumentFiles } from './api/document-files.js'
 import { documentAttachments } from './mail/attachments.js'
-import { passkeyNotices } from './mail/passkey-notice.js'
-import { passwordResetMails } from './mail/password-reset.js'
+import { accountMessages } from './mail/account-messages.js'
 import { endInterruptedImports } from './datanorm/imports.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
@@ -119,14 +119,15 @@ async function start(): Promise<void> {
         }
       : null
 
-  // After the mail, because the link to a new password goes out through the
-  // mail server of a business (#126). A closed instance sends none.
+  // After the mail, because the link to a new password and the notice of a
+  // new passkey go out through the mail server of the instance, and through
+  // the one of no business (opengewerk-haustechnik#81). A closed instance
+  // sends none.
   const authentication = createAuthentication({
     database,
     secret: configuration.sessionSecret,
     trustedOrigins: configuration.trustedOrigins,
-    passwordResetMail: mail ? passwordResetMails(database, mail) : undefined,
-    passkeyNotice: mail ? passkeyNotices(database, mail) : undefined,
+    ...(mail ? accountMails(database, mail, accountMessages) : {}),
   })
 
   const identities = configuration.closed
