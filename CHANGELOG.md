@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Änderungsprotokoll benennt auch eine Liste von Verweisen (`opengewerk-haustechnik#171`):
+  ein Feld, das mehrere Kennungen anderer Datensätze hält, nennt eine Anwendung in ihrem
+  Vokabular unter `referenceLists`, mit der Tabelle, in die es zeigt. Bildschirm und Tabelle
+  schreiben dann die Namen der Datensätze statt ihrer Kennungen und eine leere Liste als "leer",
+  der Server liefert die Namen mit der Seite, und `auditVocabularyGaps` nennt eine solche Angabe,
+  zu der es Tabelle oder Spalte nicht gibt. Vorher ging das nur für ein Feld mit genau einer
+  Kennung, und eine Liste stand als Reihe von Kennungen im Protokoll.
 - Fristen, Zugänge und das Änderungsprotokoll als Tabelle (`opengewerk-haustechnik#236`): `GET /deadlines/table`, `GET /staff/table` und `GET /audit/table` schreiben, was die Liste unter ihrem Filter zeigt, ganz und nicht als Seite, als Excel oder CSV, und die drei Bildschirme bekommen den Knopf "Als Tabelle" (die Fristen über die Eigenschaft `table`). Was die Anwendung daneben zeigt, gibt sie über `listAsTable`, `inTable` und `words` an `auditLogParts` herein. Eine Person nennt eine Tabelle nur für wen die Zugänge sieht (`tableNamesPeople`), und nur wer sie sieht, grenzt die Fristen als Tabelle auf eine Person ein: so hat es die Projektleitung am 11.10.2026 für die Haustechnik entschieden. Das Änderungsprotokoll nennt in jeder Zeile Personen, auch dort, wo ein Datensatz nach einer Person heißt, und geht deshalb als Tabelle nur an wen die Zugänge sieht; wer es nur liest, bekommt die Absage in einem Satz und keinen Knopf. Eine Liste mit mehr als 50.000 Zeilen lehnt `tableAnswer` mit einem Satz ab und kürzt sie nie (`refuseOverlongTable`), damit eine Tabelle den Speicher des Servers nicht beliebig füllt. Die Wörter dieser Listen und der Name eines Geräts stehen dafür in `platform-domain`, damit Bildschirm und Tabelle dasselbe sagen.
 - Die Bausteine der Aufgaben, wie die Tafeln der Haustechnik sie zeichnen
   (`opengewerk-haustechnik#124`): im Formular einer Karte steht der Text allein in seiner Zeile,

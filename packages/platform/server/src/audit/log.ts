@@ -1,6 +1,7 @@
 import {
   type AuditChange,
   type AuditLanguage,
+  auditListKeys,
   type AuditOperation,
   type AuditPage,
   auditPageSize,
@@ -415,6 +416,7 @@ export async function readAuditPage(
 
       for (const field of change.fields) {
         const target = language.referenceOf(field.field)
+        const targets = language.referenceListOf(field.field)
 
         for (const value of [field.before, field.after]) {
           if (value === null) {
@@ -423,6 +425,12 @@ export async function readAuditPage(
 
           if (target) {
             named.set(placeKey({ table: target, id: value }), { table: target, id: value })
+          }
+
+          if (targets) {
+            for (const id of auditListKeys(value) ?? []) {
+              named.set(placeKey({ table: targets, id }), { table: targets, id })
+            }
           }
 
           if (language.isPersonField(field.field)) {

@@ -149,6 +149,12 @@ export async function auditVocabularyGaps(
     }
   }
 
+  for (const [column, target] of Object.entries(vocabulary.referenceLists ?? {})) {
+    if (!tenantLog.has(target) || !anywhere(column)) {
+      gaps.push(`reference list ${column} to ${target}`)
+    }
+  }
+
   for (const column of vocabulary.personFields) {
     if (!anywhere(column)) {
       gaps.push(`person field ${column}, which no watched table has`)

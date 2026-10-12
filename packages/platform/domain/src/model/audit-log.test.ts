@@ -237,6 +237,11 @@ describe('the fields the log treats apart', () => {
     // The file a version belongs to, wherever an application keeps files.
     expect(language.referenceOf('attachment_id')).toBe('attachments')
     expect(language.referenceOf('label')).toBeNull()
+    // A list of records in one field is no single reference, and the other way round.
+    expect(language.referenceListOf('about_letters')).toBe('letters')
+    expect(language.referenceOf('about_letters')).toBeNull()
+    expect(language.referenceListOf('letter_id')).toBeNull()
+    expect(language.referenceListOf('constructor')).toBeNull()
   })
 })
 

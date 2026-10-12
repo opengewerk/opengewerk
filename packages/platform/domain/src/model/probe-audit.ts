@@ -17,7 +17,12 @@ export const probeAuditVocabulary: AuditVocabulary = {
     shelves: { label: 'Regal', fields: { label: 'Beschriftung', closed: 'Geschlossen' } },
     notes: {
       label: 'Notiz',
-      fields: { shelf_id: 'Regal', tags: 'Schlagworte', details: 'Angaben' },
+      fields: {
+        shelf_id: 'Regal',
+        tags: 'Schlagworte',
+        details: 'Angaben',
+        about_letters: 'Zu den Briefen',
+      },
     },
     letters: { label: 'Brief', fields: { subject: 'Betreff', status: 'Stand' } },
     letter_lines: {
@@ -65,6 +70,8 @@ export const probeAuditVocabulary: AuditVocabulary = {
   },
   records: ['shelves', 'letters'],
   references: { shelf_id: 'shelves', letter_id: 'letters' },
+  // The letters a note is about, a list of them in one field.
+  referenceLists: { about_letters: 'letters' },
   personFields: [],
   titles: {
     shelves: ['label'],
