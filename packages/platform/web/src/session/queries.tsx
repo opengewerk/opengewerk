@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider, queryOptions, useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
-import { isForbidden, isUnauthenticated } from '../sync/transport.js'
+import { isRefusedForGood } from '../sync/transport.js'
 import { availableTenants, currentAccount } from './session.js'
 
 /**
@@ -20,9 +20,13 @@ import { availableTenants, currentAccount } from './session.js'
 export const queries = new QueryClient({
   defaultOptions: {
     queries: {
-      // Once. A desk is not on a train, and a question that fails twice
-      // usually fails for a reason that a third attempt will not change.
-      retry: (attempt, error) => attempt < 1 && !isUnauthenticated(error) && !isForbidden(error),
+      // Once, and only where asking again can change the answer. A desk is
+      // not on a train, and a question that fails twice usually fails for a
+      // reason that a third attempt will not change. A refusal is an answer:
+      // a record that is gone stays gone. Asked again all the same, the
+      // second attempt waits for a window somebody looks at, and a screen in
+      // a tab behind another took that wait for a missing connection.
+      retry: (attempt, error) => attempt < 1 && !isRefusedForGood(error),
       // An expired session has to be noticed, and these answers are small.
       refetchOnWindowFocus: true,
       staleTime: 30_000,

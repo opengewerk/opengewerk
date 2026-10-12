@@ -58,6 +58,7 @@ export {
   directWrite,
   httpTransport,
   isForbidden,
+  isRefusedForGood,
   isUnauthenticated,
   request,
   requestFile,
