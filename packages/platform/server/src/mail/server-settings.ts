@@ -35,8 +35,12 @@ export interface MailServerView {
   readonly updatedAt: Date
 }
 
-/** What a settings screen sends to set the mail server up or change it. */
-export interface MailServerInput {
+/**
+ * The connection to a mail server as a settings screen sends it: the mail
+ * server of a tenant, and the one of the instance
+ * (opengewerk-haustechnik#81).
+ */
+export interface MailConnectionInput {
   readonly host: string
   /** Null for the port that goes with the kind of connection. */
   readonly port: number | null
@@ -45,6 +49,10 @@ export interface MailServerInput {
   /** A new password. Left out, the one there is stays. */
   readonly password?: string
   readonly fromAddress: string
+}
+
+/** What a settings screen sends to set the mail server of a tenant up or change it. */
+export interface MailServerInput extends MailConnectionInput {
   readonly signature: string | null
 }
 
@@ -193,7 +201,10 @@ async function settingsOf(tx: TenantTransaction, tenantId: TenantId) {
  * the mailbox sent there, with a check or with the next message. The port and
  * the kind of connection may change; the server stays the same one.
  */
-function keptPasswordFits(current: SettingsRow | null, input: MailServerInput): void {
+export function keptPasswordFits(
+  current: { readonly host: string; readonly username: string | null } | null,
+  input: Pick<MailConnectionInput, 'host' | 'username'>,
+): void {
   if (
     current !== null &&
     (current.host.toLowerCase() !== input.host.toLowerCase() || current.username !== input.username)
@@ -202,6 +213,69 @@ function keptPasswordFits(current: SettingsRow | null, input: MailServerInput): 
       'Das gespeicherte Passwort geht nur an den Server und den Benutzernamen, für die es ' +
         'eingegeben wurde. Für einen anderen Server oder Benutzernamen gehört es neu eingegeben.',
     )
+  }
+}
+
+/**
+ * The connection as it is to be kept: trimmed, the port filled in, and every
+ * mistake that can be named before a server is asked refused with the field
+ * it is in. The same for the mail server of a tenant and for the one of the
+ * instance; `senderName` is the sentence after a refused address, which says
+ * where the name in front of it comes from.
+ */
+export function validMailConnection(
+  wanted: MailConnectionInput,
+  senderName: string,
+): MailConnectionInput & { readonly port: number } {
+  const host = wanted.host.trim()
+  const fromAddress = wanted.fromAddress.trim()
+  const username = wanted.username?.trim() || null
+
+  if (!(smtpSecurities as readonly string[]).includes(wanted.security)) {
+    throw new BadRequestException('Die Verschlüsselung ist "starttls", "tls" oder "none".')
+  }
+
+  const port = wanted.port ?? defaultSmtpPorts[wanted.security]
+
+  if (host === '' || !isHostName(host)) {
+    throw new BadRequestException(
+      'Der Server ist ein Name wie mail.example.de oder eine IP-Adresse, ohne "smtp://" davor ' +
+        'und ohne Port; der hat ein Feld für sich.',
+    )
+  }
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new BadRequestException('Der Port ist eine Zahl zwischen 1 und 65535.')
+  }
+
+  if (!isMailAddress(fromAddress)) {
+    throw new BadRequestException(
+      `"${fromAddress}" ist keine E-Mail-Adresse. Als Absender steht hier nur die Adresse. ` +
+        senderName,
+    )
+  }
+
+  if (wanted.password === '') {
+    throw new BadRequestException(
+      'Ein leeres Passwort gibt es nicht. Soll das gespeicherte bleiben, wird das Feld gar nicht ' +
+        'mitgeschickt.',
+    )
+  }
+
+  if (username === null && wanted.password !== undefined) {
+    throw new BadRequestException(
+      'Ein Passwort gehört zu einem Benutzernamen. Ohne Benutzernamen gibt es keine Anmeldung ' +
+        'beim Mailserver und kein Passwort dafür.',
+    )
+  }
+
+  return {
+    host,
+    port,
+    security: wanted.security,
+    username,
+    ...(wanted.password === undefined ? {} : { password: wanted.password }),
+    fromAddress,
   }
 }
 
@@ -217,48 +291,8 @@ export function mailServers<Purpose extends string>(rules: MailServerRules<Purpo
   const place = (tenantId: TenantId) => ({ tenantId, purpose })
 
   function validMailServer(wanted: MailServerInput): MailServerInput {
-    const host = wanted.host.trim()
-    const fromAddress = wanted.fromAddress.trim()
-    const username = wanted.username?.trim() || null
+    const connection = validMailConnection(wanted, sentences.senderName)
     const signature = wanted.signature?.trim() ? wanted.signature.replace(/\r\n?/g, '\n') : null
-
-    if (!(smtpSecurities as readonly string[]).includes(wanted.security)) {
-      throw new BadRequestException('Die Verschlüsselung ist "starttls", "tls" oder "none".')
-    }
-
-    const port = wanted.port ?? defaultSmtpPorts[wanted.security]
-
-    if (host === '' || !isHostName(host)) {
-      throw new BadRequestException(
-        'Der Server ist ein Name wie mail.example.de oder eine IP-Adresse, ohne "smtp://" davor ' +
-          'und ohne Port; der hat ein Feld für sich.',
-      )
-    }
-
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new BadRequestException('Der Port ist eine Zahl zwischen 1 und 65535.')
-    }
-
-    if (!isMailAddress(fromAddress)) {
-      throw new BadRequestException(
-        `"${fromAddress}" ist keine E-Mail-Adresse. Als Absender steht hier nur die Adresse. ` +
-          sentences.senderName,
-      )
-    }
-
-    if (wanted.password === '') {
-      throw new BadRequestException(
-        'Ein leeres Passwort gibt es nicht. Soll das gespeicherte bleiben, wird das Feld gar nicht ' +
-          'mitgeschickt.',
-      )
-    }
-
-    if (username === null && wanted.password !== undefined) {
-      throw new BadRequestException(
-        'Ein Passwort gehört zu einem Benutzernamen. Ohne Benutzernamen gibt es keine Anmeldung ' +
-          'beim Mailserver und kein Passwort dafür.',
-      )
-    }
 
     if (signature !== null) {
       const problem = rules.signatureProblem(signature)
@@ -268,15 +302,7 @@ export function mailServers<Purpose extends string>(rules: MailServerRules<Purpo
       }
     }
 
-    return {
-      host,
-      port,
-      security: wanted.security,
-      username,
-      ...(wanted.password === undefined ? {} : { password: wanted.password }),
-      fromAddress,
-      signature,
-    }
+    return { ...connection, signature }
   }
 
   async function readMailServer(

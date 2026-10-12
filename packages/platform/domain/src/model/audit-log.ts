@@ -283,6 +283,9 @@ export const quietAuditFields: readonly string[] = [
  * (opengewerk-haustechnik#31).
  */
 const foundationSecretFields: Readonly<Record<string, readonly string[]>> = {
+  // The trigger of the log of the instance leaves the sealed password out
+  // already; should a row of it ever be there, it is not spelled out either.
+  instance_settings: ['mail_server_password'],
   invitations: ['token_hash'],
   push_subscriptions: ['endpoint', 'p256dh', 'auth'],
 }
@@ -563,6 +566,13 @@ function foundationInstanceTables(
         mail_internal_hosts: 'Freigegebene Mailserver',
         backup_time: 'Uhrzeit der Sicherung',
         imported_from_environment_at: 'Übernommen aus der .env am',
+        mail_server_host: 'Mailserver der Instanz, Server',
+        mail_server_port: 'Mailserver der Instanz, Port',
+        mail_server_security: 'Mailserver der Instanz, Verschlüsselung',
+        mail_server_username: 'Mailserver der Instanz, Benutzername',
+        mail_server_from: 'Mailserver der Instanz, Absenderadresse',
+        mail_server_password: 'Mailserver der Instanz, Passwort',
+        mail_server_password_set_at: 'Mailserver der Instanz, Passwort gesetzt am',
       },
     },
     instance_operators: { label: words.operator },

@@ -505,6 +505,13 @@
       "when": 1791581272267,
       "tag": "0071_rule_units_days",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791844263612,
+      "tag": "0072_instance_mail_server",
+      "breakpoints": true
     }
   ]
 }
