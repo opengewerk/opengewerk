@@ -64,6 +64,20 @@ export interface AuditValueWords {
   /** Fields that hold a fingerprint, shortened to its start. */
   readonly fingerprints?: readonly string[]
   /**
+   * A value the rules here cannot read, written the way the application
+   * reads it elsewhere: what a field holds as structured data, the readings
+   * of a thing or its settings. Asked before every rule here, with the
+   * numbers and days of whoever reads. Null leaves the value to the rules
+   * here, an empty text says there is no value, and a long text is cut like
+   * any other. Never asked for a field whose value the log keeps to itself.
+   */
+  readonly written?: (
+    table: string,
+    field: string,
+    raw: string,
+    format: AuditFormat,
+  ) => string | null
+  /**
    * A change in one word where the application has one, "Festgeschrieben",
    * or null to leave it to the fields that moved.
    */
@@ -214,6 +228,10 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     return where === null ? own : `${own}, ${where}`
   }
 
+  /** A text in a cell, and a cell is no place for a page. */
+  const cut = (text: string): string =>
+    text.length > longestValue ? `${text.slice(0, longestValue)}…` : text
+
   const auditValue = (
     table: string,
     field: string,
@@ -224,16 +242,22 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       return null
     }
 
+    // What the log keeps to itself is read in no other way than as set.
+    const kept = language.isSecret(table, field) || hidden.has(field)
+
     // A value that points at a record behind a prefix is read as that
-    // record, whatever its field holds otherwise. Never for a field whose
-    // value the log keeps to itself.
-    const behind =
-      language.isSecret(table, field) || hidden.has(field)
-        ? null
-        : language.prefixedReferenceOf(field, raw)
+    // record, whatever its field holds otherwise.
+    const behind = kept ? null : language.prefixedReferenceOf(field, raw)
 
     if (behind) {
       return recordTitle(behind.table, behind.id, page)
+    }
+
+    // A value the application writes its own way, before any rule here.
+    const own = kept ? null : (screen.written?.(table, field, raw, format) ?? null)
+
+    if (own !== null) {
+      return own === '' ? null : cut(own)
     }
 
     const words = screen.values?.[table]?.[field] ?? foundationValues[table]?.[field]
@@ -339,7 +363,7 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       return moment(raw)
     }
 
-    return raw.length > longestValue ? `${raw.slice(0, longestValue)}…` : raw
+    return cut(raw)
   }
 
   const fieldWords = (table: string, field: string): string =>
