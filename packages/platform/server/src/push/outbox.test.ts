@@ -168,6 +168,26 @@ describe('writing a message', () => {
     ).toHaveLength(1)
   })
 
+  it('writes a message that always comes whatever its person switched off, to a signed in device only', async () => {
+    await aDevice('lena')
+    await aDevice('mia', { session: await aSession('mia', { ended: true }) })
+    await database.forTenant({ tenantId: north.id }, (tx) =>
+      tx.insert(pushOptOuts).values([
+        { tenantId: north.id, userId: 'lena', occasion: 'parcel_waiting' },
+        { tenantId: north.id, userId: 'mia', occasion: 'parcel_waiting' },
+      ]),
+    )
+
+    expect(await store.write(database, north.id, aDraft(), new Date())).toEqual([])
+    expect(
+      await store.write(database, north.id, aDraft({ always: true }), new Date()),
+    ).toHaveLength(1)
+    // Nobody is signed in on the other device: what nobody may miss is still for nobody else.
+    expect(
+      await store.write(database, north.id, aDraft({ userId: 'mia', always: true }), new Date()),
+    ).toEqual([])
+  })
+
   it('writes the test message even where a row says it was switched off', async () => {
     // No route takes the test as an occasion; a row that names it anyway, from
     // a hand in the database or an older version, does not keep a person from
