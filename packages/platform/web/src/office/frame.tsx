@@ -8,6 +8,8 @@ import { useHeadingFocus } from '../shell/heading-focus.js'
 import { EntrySuggestion } from '../shell/suggestion.js'
 import { UpdateBar } from '../shell/update-bar.js'
 import { SyncStatusBar } from '../sync/bar.js'
+import { HelpDrawer } from './help.js'
+import type { HelpSource } from './help.js'
 import { Drawer, Sidebar } from './navigation.js'
 import type { NavigationEntry, NavigationGroup } from './navigation.js'
 import { PathSlot, TopBar } from './top-bar.js'
@@ -49,6 +51,13 @@ export interface OfficeFrameProps {
    * has no search.
    */
   readonly search?: SearchSource
+  /**
+   * The help of the application (opengewerk-haustechnik#131): the question
+   * mark in the header from 1024 pixels, an entry at the foot of the
+   * navigation below, and the drawer with the text of the screen that
+   * stands. Without it there is neither.
+   */
+  readonly help?: HelpSource
 }
 
 /**
@@ -71,6 +80,7 @@ export function OfficeFrame({
   focus = false,
   strips,
   search,
+  help,
 }: OfficeFrameProps) {
   const [drawer, setDrawer] = useState(false)
   const openDrawer = useCallback(() => {
@@ -78,6 +88,16 @@ export function OfficeFrame({
   }, [])
   const closeDrawer = useCallback(() => {
     setDrawer(false)
+  }, [])
+  const [helping, setHelping] = useState(false)
+  const toggleHelp = useCallback(() => {
+    setHelping((was) => !was)
+  }, [])
+  const openHelp = useCallback(() => {
+    setHelping(true)
+  }, [])
+  const closeHelp = useCallback(() => {
+    setHelping(false)
   }, [])
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   const frame = useRef<HTMLDivElement>(null)
@@ -109,6 +129,7 @@ export function OfficeFrame({
           focus={focus}
           onSlot={setSlot}
           {...(search ? { search } : {})}
+          {...(help ? { help: { open: helping, onToggle: toggleHelp } } : {})}
         />
 
         {/* In the order of the board "Leisten im Büro": what cannot wait first,
@@ -135,7 +156,14 @@ export function OfficeFrame({
           </main>
         </div>
 
-        <Drawer open={drawer} onClose={closeDrawer} groups={navigation} foot={foot} />
+        <Drawer
+          open={drawer}
+          onClose={closeDrawer}
+          groups={navigation}
+          foot={foot}
+          {...(help ? { onHelp: openHelp } : {})}
+        />
+        {help ? <HelpDrawer open={helping} onClose={closeHelp} source={help} /> : null}
       </div>
     </Shell>
   )

@@ -1,6 +1,6 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { RefreshCw, Settings, X } from 'lucide-react'
+import { CircleQuestionMark, RefreshCw, Settings, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Fragment, useEffect, useReducer, useRef } from 'react'
 
@@ -12,6 +12,7 @@ import { sinceThen } from '../format.js'
 import { useWho } from '../session/who.js'
 import { exchangeRefusal, noConnection } from '../sync/client.js'
 import { useSyncStatus } from '../sync/provider.js'
+import { helpLabel } from './help.js'
 import { useSettingsEntries } from './settings.js'
 import { DrawerTenant } from './tenants.js'
 
@@ -302,12 +303,19 @@ export function Drawer({
   onClose,
   groups,
   foot: own,
+  onHelp,
 }: {
   readonly open: boolean
   readonly onClose: () => void
   readonly groups: readonly NavigationGroup[]
   /** Entries of the application at the foot, before the two of the foundation. */
   readonly foot: readonly NavigationEntry[]
+  /**
+   * Opens the help of the screen that stands (opengewerk-haustechnik#131):
+   * the header of a phone has no room for the question mark, so it is the
+   * last entry here. Left out, the application has no help.
+   */
+  readonly onHelp?: () => void
 }) {
   const foot = useFoot(own)
   const [theme, chooseTheme] = useTheme()
@@ -383,10 +391,23 @@ export function Drawer({
               ))}
             </Fragment>
           ))}
-          <div aria-hidden="true" className="mx-3.5 my-3 h-px bg-line" />
+          <div aria-hidden="true" className="mx-3.5 my-3 h-px shrink-0 bg-line" />
           {foot.map((entry) => (
             <EntryLink key={entry.to} entry={entry} large onFollow={onClose} />
           ))}
+          {onHelp ? (
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                onHelp()
+              }}
+              className="flex min-h-12 items-center gap-3 rounded-[5px] px-3.5 text-left text-[16px] text-ink cursor-pointer"
+            >
+              <CircleQuestionMark size={20} strokeWidth={1.9} aria-hidden="true" />
+              {helpLabel}
+            </button>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2 border-t border-line p-3">
           <div className={clsx(groupLabel, 'text-label')}>Darstellung</div>

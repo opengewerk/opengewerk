@@ -50,3 +50,9 @@ export type {
   StaffSentences,
   WayTaken,
 } from './application.js'
+
+// A text an application ships as Markdown, read into elements: the help
+// beside a screen, a quick guide, a chapter of a manual. A fixed part of
+// Markdown, and what a text uses beyond it, for the test of an application.
+export { Markdown, markdownProblems, markdownTitle, readMarkdown } from './components/markdown.js'
+export type { Block, Inline, MarkdownProps } from './components/markdown.js'
