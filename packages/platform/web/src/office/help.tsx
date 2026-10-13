@@ -93,8 +93,11 @@ export function HelpDrawer({
     queryKey: ['help', path],
     queryFn: async () => (await source.textAt(path)) ?? null,
     enabled: open,
-    // A text is part of the build: it does not change while a page is open.
+    // A text is part of the build: it does not change while a page is open,
+    // and it is there without a network, where a query would otherwise wait
+    // for one.
     staleTime: Infinity,
+    networkMode: 'always',
     retry: false,
   })
 

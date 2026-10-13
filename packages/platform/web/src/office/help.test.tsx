@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 
+import { onlineManager } from '@tanstack/react-query'
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { Archive, BookOpen, ListChecks, StickyNote } from 'lucide-react'
@@ -81,6 +82,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  onlineManager.setOnline(true)
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -235,6 +237,21 @@ describe('the help while somebody moves on', () => {
       await within(drawer).findByText('Zu dieser Seite gibt es noch keinen Hilfetext.'),
     ).toBeTruthy()
     expect(within(drawer).getByRole('heading', { level: 2, name: 'Hilfe' })).toBeTruthy()
+  })
+
+  it('shows the text without a network, where the application ships it', async () => {
+    // A query waits for a network unless told that it needs none, and the
+    // text of a page would never arrive in a cellar.
+    onlineManager.setOnline(false)
+
+    await frame({ help: source() })
+    await userEvent.click(await questionMark())
+
+    expect(
+      await within(screen.getByRole('complementary', { name: 'Hilfe' })).findByText(
+        'Hier stehen die Regale des Lagers.',
+      ),
+    ).toBeTruthy()
   })
 
   it('takes a text the application has at hand as well as one it loads', async () => {
