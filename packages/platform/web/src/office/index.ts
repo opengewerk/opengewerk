@@ -184,3 +184,9 @@ export type { MailServerWords, MailStatusWords, SignatureCase } from './mail-ser
 // account. The occasions the server names, the sentences the application.
 export { PushPanel } from './push-panel.js'
 export type { PushPanelProps, PushPanelWords } from './push-panel.js'
+
+// The help beside a screen: the question mark in the header, the entry in the
+// navigation below 1024 pixels, and the drawer with the text of the screen
+// that stands. The frame draws all three when it is handed a source (`help`).
+export { helpLabel } from './help.js'
+export type { HelpLink, HelpSource } from './help.js'

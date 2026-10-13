@@ -9,6 +9,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Büro bekommt eine Hilfe neben dem Bildschirm (`opengewerk-haustechnik#131`): gibt eine
+  Anwendung dem Rahmen ihre Texte herein (`help` an `OfficeFrame`), steht in der Kopfleiste
+  ab 1024 Pixeln das Fragezeichen "Hilfe zu dieser Seite" zwischen Suche und Person und
+  darunter derselbe Eintrag am Fuß der Navigation hinter "Menü". Die Schublade zeigt den Text
+  der Seite, die gerade steht, und folgt der Adresse; ab 1024 Pixeln liegt sie neben dem
+  Bildschirm, der dabei bedienbar bleibt, darunter über ihm. Die Texte kommen als Markdown
+  von der Anwendung und werden erst geholt, wenn jemand sie lesen will. Dazu `Markdown`, ein
+  kleiner Leser für einen festen Teil von Markdown (Überschriften, Absätze, Listen, fett,
+  Code, Verweise): aus einem Text wird nie HTML, ein Verweis führt nur in die Anwendung oder
+  über https hinaus, und `markdownProblems` nennt dem Test einer Anwendung, was ein Text
+  darüber hinaus benutzt. Eine Anwendung ohne Hilfe zeigt weder Knopf noch Eintrag, weil die
+  Texte zu den Bildschirmen einer Anwendung gehören und das Fundament keine hat.
 - Das Änderungsprotokoll benennt auch eine Liste von Verweisen (`opengewerk-haustechnik#171`):
   ein Feld, das mehrere Kennungen anderer Datensätze hält, nennt eine Anwendung in ihrem
   Vokabular unter `referenceLists`, mit der Tabelle, in die es zeigt. Bildschirm und Tabelle

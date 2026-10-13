@@ -15,6 +15,7 @@ import { accountQuery } from '../session/queries.js'
 import { useWho } from '../session/who.js'
 import { entryPath } from '../shell/entry.js'
 import { useSync } from '../sync/provider.js'
+import { HelpButton } from './help.js'
 import { OfficeSearch } from './search.js'
 import { TenantMenu } from './tenants.js'
 
@@ -40,6 +41,7 @@ export function TopBar({
   focus = false,
   onSlot,
   search,
+  help,
 }: {
   readonly menuOpen: boolean
   readonly onMenu: () => void
@@ -49,6 +51,8 @@ export function TopBar({
   readonly onSlot?: (element: HTMLElement | null) => void
   /** What the application searches, for the field before the person (#125). */
   readonly search?: SearchSource
+  /** The help of the application, for the question mark between the search and the person (#131). */
+  readonly help?: { readonly open: boolean; readonly onToggle: () => void }
 }) {
   const who = useWho()
   const { name } = useApplication()
@@ -86,6 +90,7 @@ export function TopBar({
       )}
       <div className="grow" />
       {search ? <OfficeSearch source={search} /> : null}
+      {help ? <HelpButton open={help.open} onToggle={help.onToggle} /> : null}
       <PersonMenu />
     </header>
   )
