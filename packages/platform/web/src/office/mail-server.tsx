@@ -130,6 +130,27 @@ export function MailStatusSection({ words }: { readonly words: MailStatusWords }
 }
 
 /**
+ * What tells one stored mail server from another, for the form that reads
+ * once what it begins with: everything it shows, and when the password was
+ * set, which is all a new password changes. Not when the row last changed:
+ * no answer says that (opengewerk-haustechnik#157).
+ */
+function keyOf(stored: MailServer | null): string {
+  return stored === null
+    ? 'neu'
+    : JSON.stringify([
+        stored.host,
+        stored.port,
+        stored.security,
+        stored.username,
+        stored.fromAddress,
+        stored.signature,
+        stored.password,
+        stored.passwordSetAt,
+      ])
+}
+
+/**
  * The mail server of the tenant, for whoever may read it, which an
  * application gives to few: the login to a mailbox is a way of writing in the
  * tenant's name to anybody. The form is remounted after every save, so that
@@ -160,7 +181,7 @@ export function MailServerSection({
           </SettingsText>
         ) : (
           <MailServerForm
-            key={stored.data?.updatedAt ?? 'neu'}
+            key={keyOf(stored.data)}
             stored={stored.data}
             mayWrite={mayWrite}
             words={words}

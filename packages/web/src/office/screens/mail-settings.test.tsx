@@ -138,7 +138,6 @@ describe('the mail server, as the owner sets it up', () => {
     signature: 'Viele Grüße\n{benutzer}\n\n{briefkopf}',
     password: 'set',
     passwordSetAt: '2026-09-22T08:00:00.000Z',
-    updatedAt: '2026-09-22T08:00:00.000Z',
   }
 
   it('shows what is kept, and never the password', async () => {

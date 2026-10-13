@@ -30,7 +30,6 @@ export interface MailServer {
   readonly signature: string | null
   readonly password: 'none' | 'set' | 'unreadable'
   readonly passwordSetAt: string | null
-  readonly updatedAt: string
 }
 
 /** What the form sends. A password is sent only when one was typed. */

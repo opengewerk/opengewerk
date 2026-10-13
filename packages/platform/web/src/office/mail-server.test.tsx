@@ -82,7 +82,6 @@ const kept: MailServer = {
   signature: null,
   password: 'set',
   passwordSetAt: '2026-10-02T09:00:00.000Z',
-  updatedAt: '2026-10-02T09:00:00.000Z',
 }
 
 async function theForm(): Promise<HTMLFormElement> {
