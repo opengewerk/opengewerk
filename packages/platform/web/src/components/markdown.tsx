@@ -272,6 +272,23 @@ function Line({
   )
 }
 
+const headingTags = ['h1', 'h2', 'h3', 'h4'] as const
+
+/** A heading at its level in the screen; how it looks is the caller's, by what it is in the text. */
+function Heading({
+  level,
+  className,
+  children,
+}: {
+  readonly level: number
+  readonly className: string
+  readonly children: string
+}) {
+  const Tag = headingTags[level - 1] ?? 'h4'
+
+  return <Tag className={className}>{children}</Tag>
+}
+
 export interface MarkdownProps {
   readonly source: string
   /**
@@ -282,6 +299,14 @@ export interface MarkdownProps {
   /** The type of the entry on site: 17 pixels and more room between the lines. */
   readonly large?: boolean
   /**
+   * The level of the heading the text is called by, which the headings below
+   * it follow: 2 where the text stands under the heading of a screen, as in a
+   * drawer, and 1 where the text is the screen and the head of the screen
+   * says what it is called. A reader goes through a screen by its headings,
+   * and a level that is skipped is a place they look for in vain.
+   */
+  readonly level?: 1 | 2
+  /**
    * Told when a link into the application is followed, for a place that
    * lies over the screen and has to make way for it.
    */
@@ -291,9 +316,16 @@ export interface MarkdownProps {
 /**
  * A text of the application, read and drawn in the type of a screen. A
  * heading of the second level is a label in small capitals, as over a card;
- * one of the third a line in bold.
+ * one of the third a line in bold. Which elements they are follows `level`,
+ * so that the headings of the screen stay in order.
  */
-export function Markdown({ source, withoutTitle = false, large = false, onFollow }: MarkdownProps) {
+export function Markdown({
+  source,
+  withoutTitle = false,
+  large = false,
+  level = 2,
+  onFollow,
+}: MarkdownProps) {
   const blocks = readMarkdown(source)
   const first = blocks.findIndex((block) => block.kind === 'heading' && block.level === 1)
   const shown = withoutTitle && first !== -1 ? blocks.filter((_, index) => index !== first) : blocks
@@ -301,24 +333,22 @@ export function Markdown({ source, withoutTitle = false, large = false, onFollow
   const nodes: ReactNode[] = shown.map((block, index) => {
     switch (block.kind) {
       case 'heading':
-        return block.level === 1 ? (
-          <h2
+        return (
+          <Heading
             key={index}
-            className={large ? 'text-[20px] font-semibold' : 'text-[16px] font-semibold'}
+            level={level + block.level - 1}
+            className={
+              block.level === 1
+                ? large
+                  ? 'text-[20px] font-semibold'
+                  : 'text-[16px] font-semibold'
+                : block.level === 2
+                  ? 'mt-1 font-condensed text-label font-semibold uppercase tracking-[1.1px] text-ink-faint'
+                  : `${text} font-semibold`
+            }
           >
             {block.text}
-          </h2>
-        ) : block.level === 2 ? (
-          <h3
-            key={index}
-            className="mt-1 font-condensed text-label font-semibold uppercase tracking-[1.1px] text-ink-faint"
-          >
-            {block.text}
-          </h3>
-        ) : (
-          <h4 key={index} className={`${text} font-semibold`}>
-            {block.text}
-          </h4>
+          </Heading>
         )
       case 'list': {
         const items = block.items.map((item, at) => (

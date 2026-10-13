@@ -137,6 +137,17 @@ describe('a text drawn on a screen', () => {
     expect(screen.getByRole('heading', { name: 'Kurzanleitung' })).toBeTruthy()
   })
 
+  it('puts its headings right under the head of a screen where the text is the screen', async () => {
+    // The head of the screen is the first level and says what the text is
+    // called; a section of the text is the second then, and not the third,
+    // which would leave a level out for a reader who goes by headings.
+    await drawn(text, { withoutTitle: true, level: 1 })
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Kurzanleitung' })).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 3, name: 'Sonderfall' })).toBeTruthy()
+    expect(screen.getAllByRole('heading').map((heading) => heading.tagName)).toEqual(['H2', 'H3'])
+  })
+
   it('leads into the application by its router and out of it without handing the page over', async () => {
     await drawn(text)
 
