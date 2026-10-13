@@ -39,6 +39,13 @@ import { chromium } from 'playwright-core'
  * check of an application with 106 kinds of page took 27 minutes on
  * 08.10.2026, close to the 30 a session of the browser is given in the CI.
  *
+ * A finding counts when it stands at a second measurement of the same kind of
+ * page (opengewerk-haustechnik#231). The check went red at pages nobody had
+ * changed, a different one each time: a page that had not drawn at all, or
+ * one that had not followed its window yet. What only one of two measurements
+ * found is said after the findings, with what the page reported while it was
+ * open, and fails nothing.
+ *
  * An application that asks for it (`accessibility`) has every kind of page
  * checked for what a screen reader and a keyboard need as well
  * (opengewerk-haustechnik#132): labels, roles, the order of the headings and
@@ -326,21 +333,26 @@ const drawnWithin = 10_000
  * draws its content, and the buttons in it, later than the network falls
  * quiet; measured before, it was an empty page without a heading, or a page
  * without the button it has, and the check went red at a page nobody had
- * changed, a different one each time. A screen that never draws is measured
- * as it stands after the wait, and what is missing is reported.
+ * changed, a different one each time. Whether it stands is what this
+ * answers: a screen that never drew has nothing to measure, and is a finding
+ * of its own rather than a page that passes because it is empty.
  */
 async function open(page, address, path) {
   await page.goto(address + path, { waitUntil: 'networkidle', timeout: 30_000 })
-  await page
-    .waitForFunction(
-      () => (document.querySelector('main')?.textContent ?? '').trim() !== '',
-      null,
-      {
-        timeout: drawnWithin,
-      },
-    )
-    .catch(() => {})
+
+  const drawn = await page.waitForFunction(stands, null, { timeout: drawnWithin }).then(
+    () => true,
+    () => false,
+  )
+
   await settle(page, 400)
+
+  return drawn
+}
+
+/** Whether the screen stands: whether its `main` holds something. Runs in the page. */
+function stands() {
+  return (document.querySelector('main')?.textContent ?? '').trim() !== ''
 }
 
 /** Whether a button of that name appears on the page, given the time a screen has to draw. */
@@ -364,7 +376,13 @@ function readerOf(page, address) {
     // At a desktop width, where the navigation stands open and every link
     // in it can be found.
     async open(path) {
-      await open(page, address, path)
+      // A page that did not draw has no links to follow and no button to
+      // find, and the kinds behind it would go unchecked without a word:
+      // opened once more. One that stays empty is found when it is measured.
+      if (!(await open(page, address, path))) {
+        await open(page, address, path)
+      }
+
       await resize(page, 1280)
     },
 
@@ -702,7 +720,7 @@ async function laneIn(browser, theme, themeKey) {
   }
 
   const page = await context.newPage()
-  const lane = { theme, context, page, confirmed: false, troubles: [] }
+  const lane = { theme, context, page, opened: false, confirmed: false, troubles: [], errors: [] }
   const where = (url) => kindOf(new URL(url).pathname)
 
   page.on('response', (response) => {
@@ -713,32 +731,67 @@ async function laneIn(browser, theme, themeKey) {
   page.on('requestfailed', (request) => {
     lane.troubles.push(`${request.failure()?.errorText ?? 'ohne Antwort'} ${where(request.url())}`)
   })
+  // What the script of the page itself reported: a page whose script stopped
+  // has lost no request, and until #231 a finding at such a page named nothing.
+  page.on('pageerror', (error) => {
+    lane.errors.push(error.message)
+  })
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      lane.errors.push(message.text())
+    }
+  })
 
   return lane
 }
 
 /**
- * What went wrong with the requests of a page since it was opened, as a few
- * words after a finding: an answer with an error, or a request that got none.
- * A button that comes with what the server answers, a right for instance, is
- * missing when that answer is, and waiting does not bring it back; the
- * finding says which answer it was rather than leaving it to be guessed. A
- * request the next page cut off is no trouble of the page.
+ * What went wrong at a page since it was opened, as a few words after a
+ * finding: an answer with an error, a request that got none, and what the
+ * script of the page reported itself. A button that comes with what the
+ * server answers, a right for instance, is missing when that answer is, and
+ * waiting does not bring it back; the finding says which answer it was rather
+ * than leaving it to be guessed.
+ *
+ * A request the next page cut off is no trouble of a page that stands. Of a
+ * page that did not draw it is named: the script it never ran may be the
+ * request that was cut off.
  *
  * @param {readonly string[]} troubles
+ * @param {object} [more]
+ * @param {readonly string[]} [more.errors] What the script and the console of
+ *   the page reported as errors.
+ * @param {boolean} [more.drawn] Whether the page stood, true unless said.
  */
-export function troubleNote(troubles) {
-  const told = [...new Set(troubles.filter((trouble) => !trouble.includes('ERR_ABORTED')))]
+export function troubleNote(troubles, { errors = [], drawn = true } = {}) {
+  const told = [
+    ...new Set(troubles.filter((trouble) => !drawn || !trouble.includes('ERR_ABORTED'))),
+  ]
+  const reported = [...new Set(errors.map((error) => error.replace(/\s+/g, ' ').trim()))]
+    .filter((error) => error !== '')
+    .map((error) => (error.length > 160 ? `${error.slice(0, 160)} ...` : error))
 
-  return told.length === 0 ? '' : `; beim Laden: ${told.slice(0, 5).join(', ')}`
+  return [
+    told.length === 0 ? '' : `; beim Laden: ${told.slice(0, 5).join(', ')}`,
+    reported.length === 0 ? '' : `; Fehler der Seite: ${reported.slice(0, 3).join(' | ')}`,
+  ].join('')
 }
 
-/** Opens a page, and holds the first of the lane to the theme the lane is run for. */
+/**
+ * Opens a page, says whether it drew, and holds the first one of the lane
+ * that did to the theme the lane is run for. A page that did not draw says
+ * nothing of its theme, and stopping the whole check there would be the same
+ * failure at a page nobody changed, only louder.
+ */
 async function openInTheme(lane, address, path) {
   lane.troubles.length = 0
-  await open(lane.page, address, path)
+  lane.errors.length = 0
 
-  if (!lane.confirmed) {
+  const drawn = await open(lane.page, address, path)
+
+  lane.opened = true
+
+  if (drawn && !lane.confirmed) {
     const problem = themeProblem(
       lane.theme,
       await lane.page.evaluate(() => document.documentElement.dataset.theme ?? null),
@@ -750,34 +803,151 @@ async function openInTheme(lane, address, path) {
 
     lane.confirmed = true
   }
+
+  return drawn
 }
 
-/** One kind of page at every width on one lane, and what was found wrong with it. */
+/** How a finding says that a page did not draw, after the width it was opened at. */
+const notDrawn = 'hat die Seite nach zehn Sekunden nichts gezeichnet'
+
+/**
+ * How a page that did not draw stands there, asked of the page itself: how
+ * far its document got, what it shows instead, whether the script of its
+ * entry ran, whether its timers still fire, whether a service worker answers
+ * for it, and which of its scripts arrived. A page may stay empty without one failed request and
+ * without an error (#231), and then this is all there is to go by.
+ *
+ * Whether the script ran is read from the theme: setting it is the first
+ * thing an entry does (`startTheme`), before it draws anything.
+ */
+async function stateOf(page) {
+  const state = await page
+    .evaluate(() => ({
+      ready: document.readyState,
+      text: document.body?.innerText ?? '',
+      started: document.documentElement.dataset.theme !== undefined,
+      controlled: Boolean(navigator.serviceWorker?.controller),
+      scripts: [...document.scripts]
+        .filter((script) => script.src !== '')
+        .map((script) => new URL(script.src).pathname),
+      loaded: performance.getEntriesByType('resource').map((entry) => ({
+        path: new URL(entry.name).pathname,
+        status: entry.responseStatus ?? 0,
+      })),
+    }))
+    .catch(() => null)
+
+  if (state === null) {
+    return null
+  }
+
+  // Asked from outside with a limit: on a page whose timers stand, the
+  // answer never comes.
+  const ticking = await Promise.race([
+    page
+      .evaluate(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(true)
+            }, 0)
+          }),
+      )
+      .catch(() => false),
+    new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(false)
+      }, 2000)
+    }),
+  ])
+
+  return { ...state, ticking }
+}
+
+/**
+ * The state of a page that did not draw, as a few words after its finding.
+ *
+ * @param {null | {
+ *   ready: string,
+ *   text: string,
+ *   started: boolean,
+ *   ticking: boolean,
+ *   controlled: boolean,
+ *   scripts: readonly string[],
+ *   loaded: readonly { path: string, status: number }[],
+ * }} state What the page said, or null when it did not answer.
+ */
+export function stateNote(state) {
+  if (state === null) {
+    return '; die Seite gab über sich keine Auskunft'
+  }
+
+  const scripts = state.scripts.slice(0, 4).map((path) => {
+    const answer = state.loaded.find((entry) => entry.path === path)
+
+    return `${path} ${answer === undefined ? 'nicht angekommen' : `mit ${String(answer.status)}`}`
+  })
+
+  const text = state.text.replace(/\s+/g, ' ').trim()
+
+  return [
+    `; die Seite: Dokument "${state.ready}"`,
+    text === ''
+      ? 'ohne Text'
+      : `mit dem Text "${text.length > 80 ? `${text.slice(0, 80)} ...` : text}"`,
+    state.started ? 'ihr Skript ist gelaufen' : 'ihr Skript ist nicht gelaufen',
+    state.ticking ? 'ihre Zeitgeber laufen' : 'ihre Zeitgeber stehen',
+    state.controlled ? 'mit Service Worker' : 'ohne Service Worker',
+    scripts.length === 0 ? 'ohne Skript im Dokument' : `Skripte: ${scripts.join(', ')}`,
+  ].join(', ')
+}
+
+/**
+ * One kind of page at every width on one lane, and what was found wrong with
+ * it. Each finding names the width and what it is about (`what`), which is
+ * how a second measurement is held against the first (`measuredTwice`).
+ */
 async function checkKind(lane, { kind, path, press }, { address, report, steps, accessibility }) {
   const { page, theme } = lane
   const failures = []
+  const found = (width, what, line, culprits = []) => {
+    failures.push({ kind, theme, width, what, line, culprits })
+  }
+  const noted = (drawn = true) => troubleNote(lane.troubles, { errors: lane.errors, drawn })
+  // After a page that did not draw: what went wrong on the way, and how the
+  // page stands there.
+  const emptied = async () => `${noted(false)}${stateNote(await stateOf(page))}`
+  // A photograph of what stood there, as of a page too wide: which screen,
+  // which message, and whether the page drew at all.
+  const photograph = async (width) => {
+    mkdirSync(report, { recursive: true })
+    await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
+  }
 
   // A page that has never been opened keeps the 800 pixels it was made with,
   // whatever `resize` asks: the first kind of a lane opens its page before the
   // first width, also when it has a button to press, or the check stops there.
   // One page measuring everything always began with a kind without a button.
-  if (!press || !lane.confirmed) {
-    await openInTheme(lane, address, path)
-  }
+  const drawn = !press || !lane.opened ? await openInTheme(lane, address, path) : true
 
   // A kind with a button to press opens its page in the loop below, in every
   // band anew; the first column of its tables is the plain kind's to check,
   // once per page.
   if (!press) {
+    // An empty page is no wider than its window at any width, and passed as
+    // long as nobody asked whether it stood (#231).
+    if (!drawn) {
+      await resize(page, widths[0])
+      await photograph(widths[0])
+      found(widths[0], 'empty', `bei ${String(widths[0])} px ${notDrawn}${await emptied()}`)
+
+      return failures
+    }
+
     const bare = await bareColumns(page)
 
     if (bare > 0) {
-      failures.push({
-        kind,
-        theme,
-        line: `${String(bare)} Zellen der stehenden ersten Tabellenspalte ohne Grund`,
-        culprits: [],
-      })
+      found(null, 'bare', `${String(bare)} Zellen der stehenden ersten Tabellenspalte ohne Grund`)
     }
   }
 
@@ -800,16 +970,22 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
         await opener(page, press).click()
         await settle(page, 400)
       } else {
-        // A photograph of what stood there instead, as of a page too wide:
-        // which screen, which message, and whether the page drew at all.
-        mkdirSync(report, { recursive: true })
-        await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
-        failures.push({
-          kind,
-          theme,
-          line: `bei ${String(width)} px ist "${press}" nicht zu sehen${troubleNote(lane.troubles)}`,
-          culprits: [],
-        })
+        // Asked now and not when the page was opened: a page that drew while
+        // the button was waited for is a page without the button, and one
+        // that is still empty has no button because it has nothing.
+        const stood = await page.evaluate(stands)
+
+        await photograph(width)
+
+        if (stood) {
+          found(
+            width,
+            'unreachable',
+            `bei ${String(width)} px ist "${press}" nicht zu sehen${noted()}`,
+          )
+        } else {
+          found(width, 'empty', `bei ${String(width)} px ${notDrawn}${await emptied()}`)
+        }
       }
     }
 
@@ -819,26 +995,20 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
 
     if (accessibility && accessibilityWidths.includes(width)) {
       for (const { id, help, targets } of await accessibilityOf(page)) {
-        failures.push({
-          kind,
-          theme,
-          line: `bei ${String(width)} px ${id}: ${help}${troubleNote(lane.troubles)}`,
-          culprits: targets.slice(0, 5),
-        })
+        found(
+          width,
+          `accessibility ${id}`,
+          `bei ${String(width)} px ${id}: ${help}${noted()}`,
+          targets.slice(0, 5),
+        )
       }
     }
 
     const { over, culprits } = await measure(page)
 
     if (over > 0) {
-      mkdirSync(report, { recursive: true })
-      await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
-      failures.push({
-        kind,
-        theme,
-        line: `bei ${String(width)} px ${String(over)} px zu breit`,
-        culprits,
-      })
+      await photograph(width)
+      found(width, 'wide', `bei ${String(width)} px ${String(over)} px zu breit`, culprits)
     }
   }
 
@@ -846,8 +1016,49 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
 }
 
 /**
+ * Measures a kind of page, and a second time when the first measurement
+ * found something: what stood both times, and what only one of them found.
+ *
+ * A page too wide, a button out of reach and a rule broken are there every
+ * time the page is opened. What is there once is the measuring: a page that
+ * did not start, or one measured before it had followed its window. Until
+ * #231 each of those was a red run at a page nobody had changed, made green
+ * by running it again, which is what a second measurement does here, for
+ * the one kind and in the open: what it did not confirm is handed back as
+ * well, to be said and not to count.
+ *
+ * Two findings are the same when they are about the same thing at the same
+ * width (`what`, `width`). How far a page reaches over and what its page
+ * reported may differ from one measurement to the next.
+ *
+ * @template {{ width: number | null, what: string }} Finding
+ * @param {() => Promise<Finding[]>} measure
+ * @returns {Promise<{ stood: Finding[], once: Finding[] }>}
+ */
+export async function measuredTwice(measure) {
+  const first = await measure()
+
+  if (first.length === 0) {
+    return { stood: [], once: [] }
+  }
+
+  const second = await measure()
+  const among = (findings) => (finding) =>
+    findings.some((other) => other.width === finding.width && other.what === finding.what)
+
+  return {
+    stood: second.filter(among(first)),
+    once: [
+      ...first.filter((finding) => !among(second)(finding)),
+      ...second.filter((finding) => !among(first)(finding)),
+    ],
+  }
+}
+
+/**
  * Walks and measures an application, says what it found, and sets the exit
- * code when a page is too wide or a button out of reach.
+ * code when a page is too wide, a button out of reach or a page empty at two
+ * measurements of it.
  *
  * @param {object} options
  * @param {string} options.report The folder the photographs of a failure go into.
@@ -894,6 +1105,7 @@ export async function checkWidths({
 
   const browser = await chromium.connectOverCDP(browserAddress)
   const failures = []
+  const seenOnce = []
 
   try {
     const kinds = await walk(await browser.newContext(), {
@@ -920,42 +1132,83 @@ export async function checkWidths({
         )
 
         try {
-          const found = await inLanes(asked, opened, (kind, lane) =>
-            checkKind(lane, kind, { address, report, steps, accessibility }),
+          return await inLanes(asked, opened, (kind, lane) =>
+            measuredTwice(() => checkKind(lane, kind, { address, report, steps, accessibility })),
           )
-
-          return found.flat()
         } finally {
           await Promise.all(opened.map((lane) => lane.context.close()))
         }
       }),
     )
 
-    failures.push(...passes.flat())
+    for (const { stood, once } of passes.flat()) {
+      failures.push(...stood)
+      seenOnce.push(...once)
+    }
   } finally {
     await browser.close()
   }
 
-  if (failures.length === 0) {
+  for (const line of reportOf({ stood: failures, once: seenOnce, accessibility })) {
+    console.log(line)
+  }
+
+  // A run on GitHub shows this beside the job, which stays green: what one
+  // measurement found and the next did not is the trace of whatever makes a
+  // page fail to start, and nobody reads the log of a green job for it.
+  if (seenOnce.length > 0 && process.env.GITHUB_ACTIONS === 'true') {
+    const pages = [...new Set(seenOnce.map(({ kind, theme }) => `${kind}, ${shadeOf(theme)}`))]
+
     console.log(
-      accessibility
-        ? 'Keine Seite ist breiter als ihr Fenster, jede stehende Tabellenspalte hat einen Grund, und keine verstößt gegen eine Regel der Barrierefreiheit.'
-        : 'Keine Seite ist breiter als ihr Fenster, und jede stehende Tabellenspalte hat einen Grund.',
+      `::warning title=Breitenprüfung::${counted(seenOnce.length)} bei nur einer von zwei Messungen derselben Seite, mehr im Protokoll dieses Schritts: ${pages.join('; ').replaceAll('%', '%25')}`,
     )
-
-    return
   }
 
-  console.log(`${String(failures.length)} Befunde:`)
-
-  for (const { kind, theme, line, culprits } of failures) {
-    const shade = theme === 'dark' ? 'dunkel' : 'hell'
-    console.log(`  ${kind}, ${shade}: ${line}`)
-
-    for (const culprit of culprits) {
-      console.log(`      ${culprit}`)
-    }
+  if (failures.length > 0) {
+    process.exitCode = 1
   }
+}
 
-  process.exitCode = 1
+function shadeOf(theme) {
+  return theme === 'dark' ? 'dunkel' : 'hell'
+}
+
+function counted(count) {
+  return `${String(count)} ${count === 1 ? 'Befund' : 'Befunde'}`
+}
+
+/**
+ * What the check says at its end, line by line: first what only one of two
+ * measurements of a page found, which fails nothing, then the findings that
+ * stood at both, or the sentence that there are none.
+ *
+ * @param {object} found
+ * @param {readonly object[]} found.stood The findings of both measurements.
+ * @param {readonly object[]} found.once What one measurement found and the
+ *   other did not.
+ * @param {boolean} found.accessibility Whether the rules of accessibility
+ *   were part of the check.
+ */
+export function reportOf({ stood, once, accessibility }) {
+  const said = (findings) =>
+    findings.flatMap(({ kind, theme, line, culprits }) => [
+      `  ${kind}, ${shadeOf(theme)}: ${line}`,
+      ...culprits.map((culprit) => `      ${culprit}`),
+    ])
+
+  return [
+    ...(once.length === 0
+      ? []
+      : [
+          `${counted(once.length)} bei nur einer von zwei Messungen derselben Seite, ohne Folge für das Ergebnis:`,
+          ...said(once),
+        ]),
+    ...(stood.length === 0
+      ? [
+          accessibility
+            ? 'Keine Seite ist breiter als ihr Fenster, jede stehende Tabellenspalte hat einen Grund, und keine verstößt gegen eine Regel der Barrierefreiheit.'
+            : 'Keine Seite ist breiter als ihr Fenster, und jede stehende Tabellenspalte hat einen Grund.',
+        ]
+      : [`${counted(stood.length)} bei beiden Messungen derselben Seite:`, ...said(stood)]),
+  ]
 }
