@@ -48,7 +48,7 @@ export async function auditTable(
         auditFormatInGermany.moment(change.changedAt),
         words.recordTitle(change.table, change.recordId, page),
         words.recordKind(change.table, change.recordId, page),
-        words.changeSummary(change),
+        words.changeSummary(change, page),
       ]
       const after = [way.person ?? 'Niemand', way.device, way.way]
       const fields = words.shownFields(change)

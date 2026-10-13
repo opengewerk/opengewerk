@@ -738,7 +738,7 @@ function ChangeTable({
                 {words.recordKind(change.table, change.recordId, page)}
               </span>
             </Cell>
-            <Cell className="text-ink-muted">{words.changeSummary(change)}</Cell>
+            <Cell className="text-ink-muted">{words.changeSummary(change, page)}</Cell>
             <Cell>
               <PersonCell change={change} page={page} />
             </Cell>
@@ -795,7 +795,9 @@ function PhoneList({
               <span className="text-[16px] font-semibold [overflow-wrap:anywhere]">
                 {words.recordTitle(change.table, change.recordId, page)}
               </span>
-              <span className="text-[14px] text-ink-muted">{words.changeSummary(change)}</span>
+              <span className="text-[14px] text-ink-muted">
+                {words.changeSummary(change, page)}
+              </span>
               <span className="text-[13px] text-ink-faint">
                 {[said.person ?? 'Niemand', said.device, said.way].filter(Boolean).join(' · ')}
               </span>

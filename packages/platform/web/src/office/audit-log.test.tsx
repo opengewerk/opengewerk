@@ -188,7 +188,10 @@ describe('the change log', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]?.textContent).toContain('Werkzeug und Messgeräte')
     expect(rows[0]?.textContent).toContain('Regal')
-    expect(rows[0]?.textContent).toContain('Beschriftung, Geschlossen')
+    // Two fields moved, so the column names their values (opengewerk-haustechnik#260).
+    expect(rows[0]?.textContent).toContain(
+      'Beschriftung: Werkzeug → Werkzeug und Messgeräte, Geschlossen: Nein → Ja',
+    )
     expect(rows[0]?.textContent).toContain('Mia Mitglied')
     expect(rows[0]?.textContent).toContain('Chrome auf Android · Abgleich')
     expect(rows[1]?.textContent).toContain('Zange fehlt')

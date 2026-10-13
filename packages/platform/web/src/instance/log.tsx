@@ -67,6 +67,7 @@ export function instanceRecord(
 /** The change in a few words: named where one word says it, the fields that moved otherwise. */
 export function instanceChangeSummary(
   change: AuditChange,
+  page: AuditNames,
   words: AuditWords,
   sentences: LogSentences,
 ): string {
@@ -94,7 +95,7 @@ export function instanceChangeSummary(
     return 'Eingerichtet'
   }
 
-  return words.changeSummary(change)
+  return words.changeSummary(change, page)
 }
 
 /**
@@ -207,7 +208,7 @@ export function InstanceLogScreen() {
                     </button>
                   </Cell>
                   <Cell className="text-ink-muted">
-                    {instanceChangeSummary(change, words, sentences)}
+                    {instanceChangeSummary(change, page, words, sentences)}
                   </Cell>
                   <Cell>
                     <PersonCell change={change} page={page} />
@@ -268,7 +269,7 @@ function PhoneList({
                   {instanceRecord(change, page, words, sentences)}
                 </span>
                 <span className="text-[14px] text-ink-muted">
-                  {instanceChangeSummary(change, words, sentences)}
+                  {instanceChangeSummary(change, page, words, sentences)}
                 </span>
                 <span className="text-[13px] text-ink-faint">
                   {[said.person ?? 'Niemand', said.way].join(' · ')}
