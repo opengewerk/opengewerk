@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -244,7 +244,7 @@ export function bandOf(steps, width) {
   return steps.filter((step) => width >= step).length
 }
 
-/** How long a screen may take to settle after it loaded or was resized. */
+/** How long a screen may take to settle after it loaded or a button was pressed. */
 function settle(page, milliseconds) {
   return page.waitForTimeout(milliseconds)
 }
@@ -252,7 +252,94 @@ function settle(page, milliseconds) {
 const sessions = new WeakMap()
 
 /**
- * Gives the page a window of this width, and makes sure it has one.
+ * The session of the DevTools protocol a page is sized and photographed
+ * through. One per page and kept open: the size set through a session holds
+ * only as long as the session does.
+ */
+async function sessionOf(page) {
+  if (!sessions.has(page)) {
+    sessions.set(page, await page.context().newCDPSession(page))
+  }
+
+  return sessions.get(page)
+}
+
+/**
+ * Whether the window of a page has a width and the page has drawn with it.
+ * Runs in the page, and answers once it has.
+ *
+ * A page follows its window where the browser draws a frame: there it asks
+ * the media queries again and tells whoever listens to them, the band a
+ * screen is laid out in among them (`components/band.ts`), before it runs the
+ * callbacks of that frame. So a callback that finds the window at the width
+ * runs after the page was told, and the frame after it is for what a page
+ * changes in answer.
+ *
+ * Until opengewerk-haustechnik#280 the check waited 150 milliseconds instead
+ * and measured: a page that had not drawn a frame by then still stood in the
+ * layout of the width before, a desktop's header in the window of a phone.
+ *
+ * @param {number} width
+ * @param {number} [frames] How many frames the page draws at the width before
+ *   it counts as having followed.
+ */
+export function drawnAt(width, frames = 2) {
+  return new Promise((resolve) => {
+    const next = (left) => {
+      requestAnimationFrame(() => {
+        if (window.innerWidth !== width) {
+          next(frames)
+        } else if (left > 1) {
+          next(left - 1)
+        } else {
+          resolve(true)
+        }
+      })
+    }
+
+    next(frames)
+  })
+}
+
+/**
+ * Waits until a page has followed its window to a width, and stops the check
+ * at one that does not: a page that reports another width, or draws nothing,
+ * would be measured as something it is not, and pass or fail for that.
+ *
+ * @param {object} page
+ * @param {number} width
+ * @param {number} [within] How long the page may take, in milliseconds.
+ */
+export async function followed(page, width, within = drawnWithin) {
+  let timer
+  const late = new Promise((resolve) => {
+    timer = setTimeout(resolve, within, false)
+  })
+  const drawn = page.evaluate(drawnAt, width)
+
+  try {
+    if (await Promise.race([drawn, late])) {
+      return
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+
+  // Still asked of the page, and answered or refused whenever the page moves on.
+  drawn.catch(() => {})
+
+  const seen = await page.evaluate(() => window.innerWidth)
+
+  throw new Error(
+    seen === width
+      ? `Die Seite hat ${String(within / 1000)} Sekunden nach dem Wechsel auf ${String(width)} Pixel Breite nichts neu gezeichnet.`
+      : `Das Fenster sollte ${String(width)} Pixel breit sein, die Seite meldet ${String(seen)}.`,
+  )
+}
+
+/**
+ * Gives the page a window of this width, and makes sure it has one and has
+ * followed it.
  *
  * Through a connection to a running browser, Playwright does not apply the
  * viewport a context is created with, and it skips a resize to the size it
@@ -262,27 +349,61 @@ const sessions = new WeakMap()
  * check instead of passing it.
  */
 async function resize(page, width) {
-  const height = heightFor(width)
-
-  // One session per page and kept open: the size set through a session holds
-  // only as long as the session does.
-  if (!sessions.has(page)) {
-    sessions.set(page, await page.context().newCDPSession(page))
-  }
-
-  await sessions.get(page).send('Emulation.setDeviceMetricsOverride', {
+  await (
+    await sessionOf(page)
+  ).send('Emulation.setDeviceMetricsOverride', {
     width,
-    height,
+    height: heightFor(width),
     deviceScaleFactor: 1,
     mobile: false,
   })
-  await settle(page, 150)
+  await followed(page, width)
+}
+
+/** How wide a picture is, read from the head of a PNG, or null where there is none. */
+function widthOfPicture(picture) {
+  return picture.length >= 24 && picture.toString('latin1', 12, 16) === 'IHDR'
+    ? picture.readUInt32BE(16)
+    : null
+}
+
+/**
+ * Photographs what stands in the window of a page, as wide as that window.
+ *
+ * Through the session the window is sized through, and not with Playwright's
+ * own photograph. That one cuts to the size Playwright keeps for the page,
+ * the 1280 by 720 pixels a context is created with, and leaves the page at
+ * that size: every photograph of a page too wide at 320 pixels showed it at
+ * 1280, where it was not too wide, and whatever was measured next was
+ * measured there (opengewerk-haustechnik#280).
+ *
+ * Both are asked afterwards, of the picture and of the page, and a wrong
+ * answer stops the check like a window of the wrong width does.
+ *
+ * @param {object} page
+ * @param {string} file Where the picture goes.
+ * @param {number} width The width the window was given, which the picture has.
+ */
+export async function photograph(page, file, width) {
+  const { data } = await (await sessionOf(page)).send('Page.captureScreenshot', { format: 'png' })
+  const picture = Buffer.from(data, 'base64')
+
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, picture)
+
+  const shown = widthOfPicture(picture)
+
+  if (shown !== width) {
+    throw new Error(
+      `Das Foto sollte ${String(width)} Pixel breit sein, es ist ${shown === null ? 'kein Bild' : `${String(shown)} Pixel breit`}.`,
+    )
+  }
 
   const seen = await page.evaluate(() => window.innerWidth)
 
   if (seen !== width) {
     throw new Error(
-      `Das Fenster sollte ${String(width)} Pixel breit sein, die Seite meldet ${String(seen)}.`,
+      `Nach dem Foto sollte das Fenster ${String(width)} Pixel breit sein, die Seite meldet ${String(seen)}.`,
     )
   }
 }
@@ -919,10 +1040,7 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
   const emptied = async () => `${noted(false)}${stateNote(await stateOf(page))}`
   // A photograph of what stood there, as of a page too wide: which screen,
   // which message, and whether the page drew at all.
-  const photograph = async (width) => {
-    mkdirSync(report, { recursive: true })
-    await page.screenshot({ path: fileFor(report, kind, width, theme), fullPage: false })
-  }
+  const photographed = (width) => photograph(page, fileFor(report, kind, width, theme), width)
 
   // A page that has never been opened keeps the 800 pixels it was made with,
   // whatever `resize` asks: the first kind of a lane opens its page before the
@@ -938,7 +1056,7 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
     // long as nobody asked whether it stood (#231).
     if (!drawn) {
       await resize(page, widths[0])
-      await photograph(widths[0])
+      await photographed(widths[0])
       found(widths[0], 'empty', `bei ${String(widths[0])} px ${notDrawn}${await emptied()}`)
 
       return failures
@@ -975,7 +1093,7 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
         // that is still empty has no button because it has nothing.
         const stood = await page.evaluate(stands)
 
-        await photograph(width)
+        await photographed(width)
 
         if (stood) {
           found(
@@ -1007,7 +1125,7 @@ async function checkKind(lane, { kind, path, press }, { address, report, steps, 
     const { over, culprits } = await measure(page)
 
     if (over > 0) {
-      await photograph(width)
+      await photographed(width)
       found(width, 'wide', `bei ${String(width)} px ${String(over)} px zu breit`, culprits)
     }
   }
