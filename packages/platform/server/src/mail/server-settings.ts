@@ -32,7 +32,6 @@ export interface MailServerView {
    */
   readonly password: 'none' | 'set' | 'unreadable'
   readonly passwordSetAt: Date | null
-  readonly updatedAt: Date
 }
 
 /**
@@ -184,7 +183,6 @@ function viewOf(row: SettingsRow, secret: StoredSecret): MailServerView {
     password:
       secret.state === 'readable' ? 'set' : secret.state === 'unreadable' ? 'unreadable' : 'none',
     passwordSetAt: row.passwordSetAt,
-    updatedAt: row.updatedAt,
   }
 }
 

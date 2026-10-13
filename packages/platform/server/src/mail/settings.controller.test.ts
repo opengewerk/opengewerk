@@ -262,6 +262,19 @@ describe('the mail server of a tenant', () => {
     })
     expect(JSON.stringify(saved.body)).not.toContain(password)
     expect(JSON.stringify(await serverOf())).not.toContain(password)
+    // When the password was set is said, because the form shows it; when the
+    // row last changed is not (opengewerk-haustechnik#157): no answer of an
+    // application has to hand that out for this one to work.
+    expect(Object.keys(saved.body.server as object).sort()).toEqual([
+      'fromAddress',
+      'host',
+      'password',
+      'passwordSetAt',
+      'port',
+      'security',
+      'signature',
+      'username',
+    ])
   })
 
   it('keeps the password sealed under the purpose the application named, and out of the audit log', async () => {

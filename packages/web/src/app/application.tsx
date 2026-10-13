@@ -5,13 +5,13 @@ import {
   syncEntities,
 } from '@opengewerk/domain'
 import type { InterfaceApplication } from '@opengewerk/platform-web'
+import { leavePush } from '@opengewerk/platform-web/session'
 import { directWrite, httpTransport } from '@opengewerk/platform-web/sync'
 import { ScanLine } from 'lucide-react'
 
 import { SyncClient } from '../sync/client.js'
 import { siteTransport } from '../sync/transport.js'
 import { applicationName } from './name.js'
-import { leavePush } from './push.js'
 import { records } from './records.js'
 
 /**

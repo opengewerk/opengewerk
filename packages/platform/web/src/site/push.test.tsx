@@ -3,13 +3,14 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { fakePushBrowser, forgetPushBrowser } from '../app/test-push.js'
+import { InProbe } from '../probe-application.js'
 import type { PushOverview } from '../session/push.js'
+import { fakePushBrowser, forgetPushBrowser } from '../session/test-push.js'
 import { SitePush } from './push.js'
 
 /**
- * Push in the menu of the site (#284), as the board "Menü" draws it: on or
- * off on this device, and the occasions, for a thumb.
+ * Push in the menu of the site (#284): on or off on this device, and the
+ * occasions, for a thumb.
  */
 
 let calls: { path: string; method: string; body: unknown }[]
@@ -20,7 +21,9 @@ function inQueries() {
 
   return (
     <QueryClientProvider client={client}>
-      <SitePush />
+      <InProbe>
+        <SitePush entry="site" />
+      </InProbe>
     </QueryClientProvider>
   )
 }
@@ -73,6 +76,7 @@ describe('push in the menu of the site', () => {
       expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({ entry: 'site' })
     })
     expect(screen.getByRole('checkbox', { name: 'Fällige Aufgaben' })).toBeTruthy()
+    expect(screen.getByText(/Kommen auch, wenn Probewerk geschlossen ist/)).toBeTruthy()
   })
 
   it('says it is on here, and switches it off', async () => {

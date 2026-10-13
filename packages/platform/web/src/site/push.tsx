@@ -1,31 +1,32 @@
 import { Check } from 'lucide-react'
 
-import { usePush } from '../app/push-state.js'
-
-/** Why this device cannot have push, as short as the menu needs it. */
-const blocked = {
-  unsupported: 'Dieser Browser kann keine Push-Nachrichten empfangen.',
-  install:
-    'Auf dem iPhone kommen Push-Nachrichten nur, wenn OpenGewerk über „Zum Home-Bildschirm“ als App installiert ist.',
-  denied:
-    'Der Browser lässt für diese Seite keine Benachrichtigungen zu. Erlauben lassen sie sich in seinen Einstellungen.',
-} as const
+import { useApplication } from '../application.js'
+import { usePush } from '../session/push-state.js'
 
 /**
- * Push in the menu of the site (#284), as the board "Menü" draws it: on or off
- * on this device, with 44 pixels for a thumb, and the occasions, which hold
- * for every device of the person.
+ * Push in the menu of the site (#284): on or off on this device, with 44
+ * pixels for a thumb, and the occasions, which hold for every device of the
+ * person. `entry` is what the application calls this entry to the server.
  */
-export function SitePush() {
-  const push = usePush('site')
+export function SitePush({ entry }: { readonly entry: string }) {
+  const { name } = useApplication()
+  const push = usePush(entry)
   const overview = push.overview
 
   if (overview === undefined || !overview.available) {
     // Nothing to switch without an answer or without a key. The office says
-    // under "Konto" why an instance sends no push; the menu is no place for
-    // what only its operator can change.
+    // in the account why an instance sends no push; the menu is no place for
+    // what only whoever runs the instance can change.
     return null
   }
+
+  /** Why this device cannot have push, as short as the menu needs it. */
+  const blocked = {
+    unsupported: 'Dieser Browser kann keine Push-Nachrichten empfangen.',
+    install: `Auf dem iPhone kommen Push-Nachrichten nur, wenn ${name} über „Zum Home-Bildschirm“ als App installiert ist.`,
+    denied:
+      'Der Browser lässt für diese Seite keine Benachrichtigungen zu. Erlauben lassen sie sich in seinen Einstellungen.',
+  } as const
 
   return (
     <>
@@ -89,8 +90,7 @@ export function SitePush() {
           </p>
         ) : null}
         <p className="px-1 text-[14px] leading-[1.4] text-ink-muted">
-          Kommen auch, wenn OpenGewerk geschlossen ist. Die Anlässe gelten für jedes Gerät, auf dem
-          Push an ist.
+          {`Kommen auch, wenn ${name} geschlossen ist. Die Anlässe gelten für jedes Gerät, auf dem Push an ist.`}
         </p>
       </div>
       <div aria-hidden="true" className="my-1.5 h-px bg-line" />

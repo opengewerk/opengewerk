@@ -1,7 +1,6 @@
 import { StaffScreen as Staff } from '@opengewerk/platform-web/office'
+import { mailStatus } from '@opengewerk/platform-web/session'
 import { useQuery } from '@tanstack/react-query'
-
-import { mailStatus } from '../../session/mail.js'
 
 /**
  * "Zugänge" in the office. The screen is the foundation's (ADR 0010): who

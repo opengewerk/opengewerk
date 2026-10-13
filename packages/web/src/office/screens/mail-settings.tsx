@@ -1,15 +1,21 @@
 import type { IsoDate } from '@opengewerk/domain'
 import { Button, Panel } from '@opengewerk/platform-web'
 import { date, today } from '@opengewerk/platform-web/format'
-import { Saved, SettingsPage, SettingsState, SettingsText } from '@opengewerk/platform-web/office'
+import {
+  MailServerSection,
+  MailStatusSection,
+  Saved,
+  SettingsPage,
+  SettingsState,
+  SettingsText,
+} from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
-import { mailStatus } from '../../session/mail.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
-import { MailServerSection } from './mail-server.js'
+import { mailServerWords, mailStatusWords } from './mail-words.js'
 import { History, latestPeriod, proposedFrom } from './taxes.js'
 
 /** The setting this screen switches: a signed report goes to its customer at once. */
@@ -44,7 +50,11 @@ export function MailSettingsScreen() {
       title="E-Mail-Einstellungen"
       sub="Wie dieser Betrieb E-Mails verschickt."
     >
-      {readsServer ? <MailServerSection mayWrite={writesServer} /> : <MailStatusSection />}
+      {readsServer ? (
+        <MailServerSection mayWrite={writesServer} words={mailServerWords} />
+      ) : (
+        <MailStatusSection words={mailStatusWords} />
+      )}
 
       {history.isPending ? null : history.isError ? (
         <SettingsText muted>
@@ -57,33 +67,6 @@ export function MailSettingsScreen() {
         />
       )}
     </SettingsPage>
-  )
-}
-
-/** Whether the business sends mail, for whoever may not see the server itself. */
-function MailStatusSection() {
-  const status = useQuery({ queryKey: ['mail-status'], queryFn: mailStatus })
-
-  return (
-    <Panel title="Mailserver" roomy>
-      {status.isPending ? (
-        <SettingsText muted>Wird geladen.</SettingsText>
-      ) : status.isError ? (
-        <SettingsText muted>
-          {saidWhy(status.error, 'Die Angaben zum Versand kamen nicht an.')}
-        </SettingsText>
-      ) : status.data.configured ? (
-        <SettingsText>
-          Eingerichtet. Dieser Betrieb verschickt von {status.data.from}; als Absender steht der
-          Name aus dem Briefkopf davor. Den Mailserver richtet der Inhaber hier ein.
-        </SettingsText>
-      ) : (
-        <SettingsText>
-          Nicht eingerichtet, dieser Betrieb verschickt deshalb keine E-Mails. Den Mailserver
-          richtet der Inhaber hier ein.
-        </SettingsText>
-      )}
-    </Panel>
   )
 }
 

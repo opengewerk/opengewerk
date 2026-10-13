@@ -52,6 +52,13 @@ export interface PushDraft<Entry extends string, Occasion extends string> {
   /** Where a tap leads, on a device of each entry. */
   readonly urls: Readonly<Record<Entry, string>>
   readonly expiresAt: Date
+  /**
+   * Whether the message comes whatever its person switched off
+   * (opengewerk-haustechnik#126): for what an application decides nobody
+   * may miss. Left out, the occasion is asked of the person's choices. It
+   * still goes to no device that is signed out.
+   */
+  readonly always?: boolean
 }
 
 /** Why a message did not go out, and whether waiting can help. */
@@ -97,8 +104,9 @@ export interface PushStore<Entry extends string = string, Occasion extends strin
   readonly tables: PushTables<Entry, Occasion>
   /**
    * Writes one message per device of the person, unless the person switched
-   * the occasion off or has no device that is still signed in. Once per cause
-   * and device, like a mail once per cause. Returns the messages it wrote.
+   * the occasion off or has no device that is still signed in. A draft that
+   * says `always` is written whatever was switched off. Once per cause and
+   * device, like a mail once per cause. Returns the messages it wrote.
    */
   write(
     database: Database,
@@ -168,7 +176,7 @@ export function pushStore<const Entry extends string, const Occasion extends str
     async write(database, tenantId, draft, now) {
       const actor = { tenantId, reason: 'notification' }
       const devices = await database.forTenant(actor, async (tx) => {
-        if (draft.kind !== pushTestKind) {
+        if (draft.kind !== pushTestKind && draft.always !== true) {
           const [off] = await tx
             .select({ id: pushOptOuts.id })
             .from(pushOptOuts)

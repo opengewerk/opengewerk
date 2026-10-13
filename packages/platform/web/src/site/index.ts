@@ -70,3 +70,6 @@ export { ConflictScreen } from './conflicts.js'
 // The search on site: a field over what a screen shows, and the hits in place
 // of it while words are typed. What is searched is the application's.
 export { SiteSearch } from './search.js'
+
+// Push in the menu of the site: on or off on this device, and the occasions.
+export { SitePush } from './push.js'
