@@ -63,7 +63,13 @@ export default configuration(
   // The checks of the CI as tools for every application (ADR 0010): they run
   // in Node, and the check of the widths hands functions to a browser (#218).
   runsInNode(['packages/platform/web/tools/**/*.js']),
-  runsInBoth(['packages/platform/web/tools/widths.js']),
+  runsInBoth([
+    'packages/platform/web/tools/widths.js',
+    // The check of the entries hands functions to a browser as well, and the
+    // test of their guard runs it in a document (opengewerk-haustechnik#279).
+    'packages/platform/web/tools/entry-check.js',
+    'packages/platform/web/tools/entry-guard.test.js',
+  ]),
 
   formatting,
 )

@@ -63,6 +63,11 @@ describe('the interface of the foundation', () => {
       './testing': './src/testing.ts',
       './worker': './src/worker/index.ts',
       './tools/budget': './tools/budget.js',
+      './tools/entry-check': './tools/entry-check.js',
+      './tools/entry-guard': {
+        types: './tools/entry-guard.d.ts',
+        default: './tools/entry-guard.js',
+      },
       './tools/manifests': {
         types: './tools/manifests.d.ts',
         default: './tools/manifests.js',

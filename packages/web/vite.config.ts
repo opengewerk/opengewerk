@@ -1,4 +1,5 @@
 import { foundationPaths, serverPaths } from '@opengewerk/domain'
+import { entryGuard } from '@opengewerk/platform-web/tools/entry-guard'
 import { entryManifests } from '@opengewerk/platform-web/tools/manifests'
 import react from '@vitejs/plugin-react'
 import tailwind from '@tailwindcss/vite'
@@ -50,6 +51,9 @@ export default defineConfig({
     // Both manifests, and the name in the title of both shells and in their
     // sentence for a browser without JavaScript (ADR 0010).
     entryManifests({ name: applicationName, icons, office: officeWords, site: siteWords }),
+    // An entry whose script could not be loaded loads its page anew once, and
+    // says so after that instead of staying empty (opengewerk-haustechnik#279).
+    entryGuard({ name: applicationName }),
     VitePWA({
       // Hand written, because the fallback for a navigation has to be told
       // apart by prefix: `/m/...` belongs to the site shell and everything

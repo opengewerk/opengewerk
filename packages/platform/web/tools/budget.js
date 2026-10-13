@@ -31,7 +31,7 @@ import { join } from 'node:path'
  * without end on a string of many `<script` and no `>` (CodeQL on #496). This
  * walks the document once and stops at the first tag that never closes.
  */
-function tagsOf(html, name) {
+export function tagsOf(html, name) {
   const opening = `<${name}`
   const tags = []
 
@@ -58,7 +58,7 @@ function tagsOf(html, name) {
 }
 
 /** The value of an attribute in double quotes, or null where the tag has none. */
-function attributeOf(tag, name) {
+export function attributeOf(tag, name) {
   const marker = ` ${name}="`
   const at = tag.indexOf(marker)
 
