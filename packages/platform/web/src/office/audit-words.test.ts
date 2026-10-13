@@ -345,16 +345,18 @@ describe('records and devices', () => {
 
 describe('a change in a few words', () => {
   it('says what happened to the record where one word says it', () => {
-    expect(words.changeSummary(change({ operation: 'insert' }))).toBe('Angelegt')
-    expect(words.changeSummary(change({ operation: 'delete' }))).toBe('Entfernt')
+    expect(words.changeSummary(change({ operation: 'insert' }), page)).toBe('Angelegt')
+    expect(words.changeSummary(change({ operation: 'delete' }), page)).toBe('Entfernt')
     expect(
       words.changeSummary(
         change({ fields: [{ field: 'deleted_at', before: null, after: '2026-10-03T10:00:00Z' }] }),
+        page,
       ),
     ).toBe('Als gelöscht markiert')
     expect(
       words.changeSummary(
         change({ fields: [{ field: 'deleted_at', before: '2026-10-03T10:00:00Z', after: null }] }),
+        page,
       ),
     ).toBe('Wiederhergestellt')
   })
@@ -367,6 +369,7 @@ describe('a change in a few words', () => {
           recordId: ids.letter,
           fields: [{ field: 'status', before: 'draft', after: 'sent' }],
         }),
+        page,
       ),
     ).toBe('Verschickt')
   })
@@ -389,10 +392,71 @@ describe('a change in a few words', () => {
       'updated_at',
       'closed',
     ])
-    expect(words.changeSummary(moved)).toBe('Beschriftung, Fassung, Geändert am und 1 weitere')
+    expect(words.changeSummary(moved, page)).toBe(
+      'Beschriftung, Fassung, Geändert am und 1 weitere',
+    )
     expect(
-      words.changeSummary(change({ fields: [{ field: 'id', before: null, after: ids.shelf }] })),
+      words.changeSummary(
+        change({ fields: [{ field: 'id', before: null, after: ids.shelf }] }),
+        page,
+      ),
     ).toBe('Ohne sichtbare Änderung')
+  })
+
+  it('names the values where one or two fields moved, as the opened change reads them', () => {
+    const moved = (table: string, ...fields: AuditChange['fields']) =>
+      words.changeSummary(change({ table, fields }), page)
+
+    expect(moved('shelves', { field: 'closed', before: 'false', after: 'true' })).toBe(
+      'Geschlossen: Nein → Ja',
+    )
+    // In the application's words for a value, and by the name of a record.
+    expect(moved('letters', { field: 'status', before: 'sent', after: 'draft' })).toBe(
+      'Stand: Verschickt → Entwurf',
+    )
+    expect(moved('notes', { field: 'shelf_id', before: null, after: ids.shelf })).toBe(
+      'Regal: leer → Werkzeug',
+    )
+    expect(moved('shelves', { field: 'label', before: 'Werkzeug', after: null })).toBe(
+      'Beschriftung: Werkzeug → leer',
+    )
+    // Two fields, the naming one first.
+    expect(
+      moved(
+        'shelves',
+        { field: 'closed', before: 'false', after: 'true' },
+        { field: 'label', before: 'Werkzeug', after: 'Messgeräte' },
+      ),
+    ).toBe('Beschriftung: Werkzeug → Messgeräte, Geschlossen: Nein → Ja')
+    // Three are named and not spelled out.
+    expect(
+      moved(
+        'shelves',
+        { field: 'closed', before: 'false', after: 'true' },
+        { field: 'label', before: 'Werkzeug', after: 'Messgeräte' },
+        { field: 'text', before: null, after: 'Neu' },
+      ),
+    ).toBe('Beschriftung, Geschlossen, Text')
+  })
+
+  it('says only what happened to a field whose value is long or reads the same', () => {
+    const moved = (field: string, before: string | null, after: string | null) =>
+      words.changeSummary(change({ table: 'notes', fields: [{ field, before, after }] }), page)
+    const long = 'Die Zange liegt seit gestern im Keller.'
+
+    expect(moved('text', null, long)).toBe('Text neu')
+    expect(moved('text', long, `${long} Und der Hammer auch.`)).toBe('Text geändert')
+    expect(moved('text', long, null)).toBe('Text entfernt')
+    // One long side is enough: half a pair says nothing.
+    expect(moved('text', 'Kurz', long)).toBe('Text geändert')
+    // Twenty-four characters are spelled out, the twenty-fifth is one too many.
+    expect(moved('text', 'Kurz', 'x'.repeat(24))).toBe(`Text: Kurz → ${'x'.repeat(24)}`)
+    expect(moved('text', 'Kurz', 'x'.repeat(25))).toBe('Text geändert')
+    // What the log keeps to itself reads as set before and after.
+    expect(moved('lock_code', '1234', '9876')).toBe('lock_code geändert')
+    expect(moved('lock_code', null, '9876')).toBe('lock_code: leer → gesetzt')
+    // An empty text and none are both empty.
+    expect(moved('text', '', null)).toBe('Text geändert')
   })
 
   it('says who, from where and on which way, and marks a way past the application', () => {

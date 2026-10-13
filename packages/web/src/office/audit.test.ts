@@ -156,11 +156,12 @@ describe('records and devices', () => {
 
 describe('a change in a few words', () => {
   it('says what happened to the record where one word says it', () => {
-    expect(changeSummary(change({ operation: 'insert' }))).toBe('Angelegt')
-    expect(changeSummary(change({ operation: 'delete' }))).toBe('Entfernt')
+    expect(changeSummary(change({ operation: 'insert' }), page)).toBe('Angelegt')
+    expect(changeSummary(change({ operation: 'delete' }), page)).toBe('Entfernt')
     expect(
       changeSummary(
         change({ fields: [{ field: 'deleted_at', before: null, after: '2026-09-27T10:00:00Z' }] }),
+        page,
       ),
     ).toBe('Als gelöscht markiert')
     expect(
@@ -172,6 +173,7 @@ describe('a change in a few words', () => {
             { field: 'status', before: 'draft', after: 'issued' },
           ],
         }),
+        page,
       ),
     ).toBe('Festgeschrieben')
   })
@@ -188,7 +190,17 @@ describe('a change in a few words', () => {
             { field: 'device_id', before: 'one', after: 'two' },
           ],
         }),
+        page,
       ),
     ).toBe('E-Mail, Ort, Straße und 1 weitere')
+  })
+
+  it('names the values where one or two fields moved, in the words of this application', () => {
+    expect(
+      changeSummary(
+        change({ fields: [{ field: 'city', before: 'Heidelberg', after: 'Mannheim' }] }),
+        page,
+      ),
+    ).toBe('Ort: Heidelberg → Mannheim')
   })
 })

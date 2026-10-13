@@ -392,6 +392,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   für sich, die bei jeder Breite hell und dunkel gemessen wurde, und der Gang wuchs mit jedem
   Eintrag; in der Haustechnik waren es 50 der 177 Arten, alle Seiten ihres Katalogs
 - Handwerkersoftware: der Link zu einem neuen Passwort und der Hinweis auf einen neuen Passkey gehen über den Mailserver der Instanz und nicht mehr über den Mailserver eines Betriebs (`opengewerk-haustechnik#81`, Migration `0072_instance_mail_server`). Die Regel, dass solche Mails nur auf einer Instanz mit genau einem Betrieb hinausgehen (`mayMailAccounts`), entfällt damit, und der Hinweis auf einen Passkey steht nicht mehr im Postausgang eines Betriebs. Beide Mails unterschreibt OpenGewerk und nicht mehr ein Betrieb. **Nach dem Update zu tun:** wer eine Instanz betreibt, trägt unter „Instanz verwalten“, „Einstellungen“ den Mailserver der Instanz ein. Bis dahin geht kein Link zu einem neuen Passwort und kein Hinweis auf einen Passkey hinaus, auch nicht auf einer Instanz mit einem Betrieb, auf der das bisher über dessen Mailserver ging; der Weg zurück in ein Konto ist solange der Inhaber oder `reset-password` auf dem Server.
+- Das Änderungsprotokoll nennt in der Spalte "Änderung" die Werte, wenn sich ein oder zwei
+  Felder geändert haben: "Telefon: 040 987 654 32 → 0621 400 18 24" statt "Telefon"
+  (opengewerk-haustechnik#260). Wer das Protokoll las, sah bisher nur, welches Feld sich geändert
+  hatte, und musste jede Zeile öffnen, um zu sehen, wie. Ab drei Feldern bleibt es bei den
+  Namen. Ein Wert mit mehr als 24 Zeichen wird nicht ausgeschrieben, die Zeile sagt dann, was
+  mit dem Feld geschah: "Notizen neu", "geändert" oder "entfernt". So auch bei einem Wert, den
+  das Protokoll für sich behält und der vorher wie nachher "gesetzt" heißt. Dasselbe steht in
+  der Tabelle, die das Protokoll hinausgibt, und im Protokoll der Instanz
 
 ### Behoben
 

@@ -100,6 +100,12 @@ const foundationValues: Readonly<Record<string, Readonly<Record<string, Words>>>
 /** How long a text may be in a cell before it is cut. */
 const longestValue = 300
 
+/** Up to this many fields, a change is summed up with their values and not with their names alone. */
+const fieldsSpelledOut = 2
+
+/** How long a value may be in the summary of a change before only what happened to it is said. */
+const longestSummaryValue = 24
+
 /** How long the name of a record may be in the list. */
 const longestTitle = 80
 
@@ -163,8 +169,13 @@ export interface AuditTextWords {
   readonly fieldWords: (table: string, field: string) => string
   /** The fields of a change a person wants to see, the name of the record first. */
   readonly shownFields: (change: AuditChange) => readonly AuditFieldChange[]
-  /** The change in a few words, for the column "Änderung". */
-  readonly changeSummary: (change: AuditChange) => string
+  /**
+   * The change in a few words, for the column "Änderung": what happened to
+   * the record where one word says it, the values of one or two fields that
+   * moved, before and after, and the names of the fields where more did
+   * (opengewerk-haustechnik#260).
+   */
+  readonly changeSummary: (change: AuditChange, page: AuditNames) => string
   /** Who, from where and on which way. */
   readonly wayWords: (
     change: AuditChange,
@@ -392,7 +403,30 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       )
   }
 
-  const changeSummary = (change: AuditChange): string => {
+  /**
+   * One field of a change in a few words: its values before and after where
+   * both are short, and otherwise what happened to it. Two values that read
+   * the same are not put side by side: a value the log keeps to itself reads
+   * as set either way.
+   */
+  const fieldSummary = (change: AuditChange, field: AuditFieldChange, page: AuditNames): string => {
+    const name = fieldWords(change.table, field.field)
+    const before = auditValue(change.table, field.field, field.before, page)
+    const after = auditValue(change.table, field.field, field.after, page)
+    const short = (value: string | null) => value === null || value.length <= longestSummaryValue
+
+    if (before !== after && short(before) && short(after)) {
+      return `${name}: ${before ?? emptyAuditValue} → ${after ?? emptyAuditValue}`
+    }
+
+    if (before === null && after !== null) {
+      return `${name} neu`
+    }
+
+    return before !== null && after === null ? `${name} entfernt` : `${name} geändert`
+  }
+
+  const changeSummary = (change: AuditChange, page: AuditNames): string => {
     if (change.operation === 'insert') {
       return 'Angelegt'
     }
@@ -413,11 +447,17 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       return own
     }
 
-    const names = shownFields(change).map((field) => fieldWords(change.table, field.field))
+    const shown = shownFields(change)
 
-    if (names.length === 0) {
+    if (shown.length === 0) {
       return 'Ohne sichtbare Änderung'
     }
+
+    if (shown.length <= fieldsSpelledOut) {
+      return shown.map((field) => fieldSummary(change, field, page)).join(', ')
+    }
+
+    const names = shown.map((field) => fieldWords(change.table, field.field))
 
     return names.length <= 3
       ? names.join(', ')
