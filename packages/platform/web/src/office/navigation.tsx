@@ -391,7 +391,7 @@ export function Drawer({
               ))}
             </Fragment>
           ))}
-          <div aria-hidden="true" className="mx-3.5 my-3 h-px bg-line" />
+          <div aria-hidden="true" className="mx-3.5 my-3 h-px shrink-0 bg-line" />
           {foot.map((entry) => (
             <EntryLink key={entry.to} entry={entry} large onFollow={onClose} />
           ))}

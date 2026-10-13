@@ -104,12 +104,14 @@ export function SiteMenu({
             Gilt auf diesem Gerät. Hell ist der Standard.
           </p>
         </div>
-        <div aria-hidden="true" className="my-1.5 h-px bg-line [&+&]:hidden" />
+        <div aria-hidden="true" className="my-1.5 h-px shrink-0 bg-line [&+&]:hidden" />
         {children}
         {/* A line under the rows of the application, as the board "Menü" draws
             it; where an application has no row, it would stand right under
-            the one above and is left out. */}
-        <div aria-hidden="true" className="my-1.5 h-px bg-line [&+&]:hidden" />
+            the one above and is left out. Neither line gives way when the
+            menu is taller than the window: a line of one pixel that may
+            shrink is the first thing a column takes room from. */}
+        <div aria-hidden="true" className="my-1.5 h-px shrink-0 bg-line [&+&]:hidden" />
         <a
           href={entryPath.office}
           onClick={() => {
