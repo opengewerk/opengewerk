@@ -392,6 +392,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Das Menü vor Ort zieht unter den Zeilen der Anwendung eine Linie, bevor "Zur Büroansicht" und
+  "Abmelden" folgen (`opengewerk-haustechnik#131`), wie die Tafel "Menü" sie zeichnet. Sie fehlte,
+  seit eine Anwendung eigene Zeilen in das Menü hängt, und was der Anwendung gehört, ging ohne
+  Absatz in das über, was jedes Gerät hat. Hat eine Anwendung keine Zeile, bleibt es bei der einen
+  Linie darüber.
 - Der Kopf einer Seite im Büro bleibt auf dem Desktop eine Zeile, wie auf den Tafeln: Der Titel
   gibt nach und seine Abzeichen brechen um, die Knöpfe bleiben rechts daneben. Bisher brach die
   ganze Zeile um, sobald Titel, Abzeichen und Knöpfe nicht nebeneinander passten, und die Knöpfe

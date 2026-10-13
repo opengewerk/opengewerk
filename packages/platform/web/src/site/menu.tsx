@@ -104,8 +104,12 @@ export function SiteMenu({
             Gilt auf diesem Gerät. Hell ist der Standard.
           </p>
         </div>
-        <div aria-hidden="true" className="my-1.5 h-px bg-line" />
+        <div aria-hidden="true" className="my-1.5 h-px bg-line [&+&]:hidden" />
         {children}
+        {/* A line under the rows of the application, as the board "Menü" draws
+            it; where an application has no row, it would stand right under
+            the one above and is left out. */}
+        <div aria-hidden="true" className="my-1.5 h-px bg-line [&+&]:hidden" />
         <a
           href={entryPath.office}
           onClick={() => {
