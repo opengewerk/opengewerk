@@ -450,6 +450,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Antwort des Servers kommt, etwa mit den Rechten, fehlt, wenn diese Antwort fehlt, und Warten
   bringt ihn nicht zurück; bisher stand im Bericht nur, dass er nicht zu sehen war. Zu einem solchen
   Befund liegt jetzt auch ein Foto der Seite im Bericht, wie zu einer zu breiten.
+- Ein Befund der Prüfung "Breiten und Auflösungen" zählt erst, wenn er bei einer zweiten Messung
+  derselben Seite wieder da ist (`opengewerk-haustechnik#231`). Eine zu breite Seite, ein Knopf
+  außer Reichweite und eine verletzte Regel sind bei jedem Öffnen da; was nur einmal da ist, war
+  bisher die Messung selbst, und trotz des Wartens oben wurde die Prüfung weiter an Seiten rot,
+  die niemand geändert hatte, am 13.10.2026 in drei von vier Läufen. Was nur eine der beiden
+  Messungen fand, steht im Bericht vor den Befunden, zählt nicht, und ein Lauf auf GitHub zeigt
+  dazu eine Warnung neben dem Job; die Fotos dazu lädt der Job auch dann hoch, wenn er grün ist.
+- Eine Seite, die nach zehn Sekunden nichts gezeichnet hat, ist in der Prüfung "Breiten und
+  Auflösungen" ein eigener Befund (`opengewerk-haustechnik#231`). Bisher hieß das bei einer Seite
+  mit Knopf "ist nicht zu sehen", und eine Seite ohne Knopf bestand, weil eine leere Seite nie
+  breiter ist als ihr Fenster. Der Befund nennt, was die Seite dabei meldete: Fehler ihres Skripts
+  und ihrer Konsole, auch abgebrochene Anfragen, und ihren Zustand (ob ihr Skript lief, ob ihre
+  Zeitgeber laufen, ob ein Service Worker für sie antwortet, welche Skripte ankamen). Warum eine
+  Seite manchmal nicht startet, ist damit nicht geklärt; ohne diese Angaben zeigte ein Vorkommen
+  aber nichts, woran es sich klären ließe. Der Gang durch die Seiten öffnet eine leere Seite ein
+  zweites Mal, statt die Seiten hinter ihr ungeprüft zu lassen, und eine leere erste Seite bricht
+  die Prüfung nicht mehr mit der Meldung ab, der Durchgang laufe in der falschen Farbwahl.
 - Eine Anfrage, die der Server abgelehnt hat, stellt der Abfrage-Client des Fundaments nicht ein
   zweites Mal (opengewerk/opengewerk-haustechnik#246). Bisher galt das nur für 401 und 403; ein
   404 ging noch einmal hinaus, und dieser zweite Versuch wartet auf ein Fenster, das jemand

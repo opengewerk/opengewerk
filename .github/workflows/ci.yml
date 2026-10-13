@@ -480,7 +480,8 @@ jobs:
     # Auflösungen", from 320 to 3840 pixels, light and dark, and the job fails
     # as soon as a page is wider than its window (#218). The screens are found
     # by following the links of the preview, so a new one is checked without
-    # anybody adding it here.
+    # anybody adding it here. A finding counts when a second measurement of
+    # the page finds it again (opengewerk-haustechnik#231).
     #
     # The browser is the image of the renderer in docker/compose.yaml, on the
     # network of the runner: the preview listens on 127.0.0.1 and nowhere
@@ -564,8 +565,11 @@ jobs:
           WIDTHS_BROWSER: ws://127.0.0.1:3000?token=probe&timeout=1800000
           WIDTHS_ADDRESS: http://127.0.0.1:23700
 
-      - name: Aufnahmen bei einem Fehlschlag
-        if: failure()
+      # Also after a green run that left photographs: of what only one of two
+      # measurements of a page found (opengewerk-haustechnik#231), which fails
+      # nothing and is the only trace of a page that did not start.
+      - name: Aufnahmen bei einem Befund
+        if: failure() || hashFiles('packages/web/widths-report/**') != ''
         uses: actions/upload-artifact@v7
         with:
           name: widths-report

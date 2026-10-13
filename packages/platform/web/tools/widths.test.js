@@ -14,6 +14,9 @@ import {
   heightFor,
   inLanes,
   kindOf,
+  measuredTwice,
+  reportOf,
+  stateNote,
   stepsIn,
   themeKeyIn,
   themeProblem,
@@ -27,9 +30,10 @@ import {
  * What the check of the widths decides before a browser is involved: which
  * pages are of one kind, which a scan stands for, which links are followed
  * and when the walk gives up, how the pages measuring at once share the
- * kinds, where the layouts change, which theme a pass runs in, and where a
- * photograph of a failure goes. The walk through a real
- * browser runs in the CI against the preview of an application.
+ * kinds, where the layouts change, which theme a pass runs in, where a
+ * photograph of a failure goes, and which findings stand after a second
+ * measurement. The walk through a real browser runs in the CI against the
+ * preview of an application.
  */
 
 describe('the widths of the board', () => {
@@ -407,6 +411,146 @@ describe('what went wrong while a page loaded', () => {
     expect(troubleNote(['net::ERR_ABORTED /sync/pull'])).toBe('')
     expect(troubleNote(['500 /a', '500 /b', '500 /c', '500 /d', '500 /e', '500 /f'])).toBe(
       '; beim Laden: 500 /a, 500 /b, 500 /c, 500 /d, 500 /e',
+    )
+  })
+
+  it('names what was cut off at a page that did not draw, where it may be the script the page never ran (opengewerk-haustechnik#231)', () => {
+    const troubles = ['net::ERR_ABORTED /assets/office.js', '500 /auth/tenants']
+
+    expect(troubleNote(troubles, { drawn: false })).toBe(
+      '; beim Laden: net::ERR_ABORTED /assets/office.js, 500 /auth/tenants',
+    )
+    expect(troubleNote(troubles, { drawn: true })).toBe('; beim Laden: 500 /auth/tenants')
+  })
+
+  it('says what the script of the page reported, once each, on one line and no more than three (opengewerk-haustechnik#231)', () => {
+    expect(troubleNote([], { errors: [] })).toBe('')
+    expect(
+      troubleNote(['404 /regale/:id'], {
+        errors: ['x is not\n  a function', 'x is not a function', '  '],
+      }),
+    ).toBe('; beim Laden: 404 /regale/:id; Fehler der Seite: x is not a function')
+    expect(troubleNote([], { errors: ['a', 'b', 'c', 'd'] })).toBe('; Fehler der Seite: a | b | c')
+    expect(troubleNote([], { errors: ['e'.repeat(200)] })).toBe(
+      `; Fehler der Seite: ${'e'.repeat(160)} ...`,
+    )
+  })
+})
+
+describe('a page that did not draw (opengewerk-haustechnik#231)', () => {
+  const state = {
+    ready: 'complete',
+    text: '',
+    started: false,
+    ticking: true,
+    controlled: true,
+    scripts: ['/assets/office.js', '/assets/styles.js'],
+    loaded: [
+      { path: '/assets/office.js', status: 200 },
+      { path: '/assets/styles.css', status: 200 },
+    ],
+  }
+
+  it('says how it stands there: its document, its script, its timers, its worker and which script arrived', () => {
+    expect(stateNote(state)).toBe(
+      '; die Seite: Dokument "complete", ohne Text, ihr Skript ist nicht gelaufen, ihre Zeitgeber laufen, mit Service Worker, Skripte: /assets/office.js mit 200, /assets/styles.js nicht angekommen',
+    )
+    expect(
+      stateNote({
+        ...state,
+        text: ['  Einen Moment', ` bitte ${'x'.repeat(100)}`].join('\n'),
+        started: true,
+        ticking: false,
+        controlled: false,
+        scripts: [],
+      }),
+    ).toBe(
+      `; die Seite: Dokument "complete", mit dem Text "Einen Moment bitte ${'x'.repeat(61)} ...", ihr Skript ist gelaufen, ihre Zeitgeber stehen, ohne Service Worker, ohne Skript im Dokument`,
+    )
+  })
+
+  it('says so when it did not answer at all', () => {
+    expect(stateNote(null)).toBe('; die Seite gab über sich keine Auskunft')
+  })
+})
+
+describe('a finding of the check (opengewerk-haustechnik#231)', () => {
+  const wide = { kind: '/kunden', theme: 'dark', width: 320, what: 'wide', line: 'a', culprits: [] }
+  const empty = {
+    kind: '/kunden',
+    theme: 'dark',
+    width: 768,
+    what: 'empty',
+    line: 'b',
+    culprits: [],
+  }
+
+  /** A page whose measurements find these, one after the other, and how often it was measured. */
+  function measuring(...rounds) {
+    const page = { measured: 0 }
+
+    page.measure = () => {
+      page.measured += 1
+
+      return Promise.resolve(rounds[page.measured - 1] ?? [])
+    }
+
+    return page
+  }
+
+  it('is not looked for a second time at a page the first measurement found nothing at', async () => {
+    const page = measuring([], [wide])
+
+    await expect(measuredTwice(page.measure)).resolves.toEqual({ stood: [], once: [] })
+    expect(page.measured).toBe(1)
+  })
+
+  it('stands when the second measurement of the page finds it again, as that one found it', async () => {
+    const again = { ...wide, line: 'bei 320 px 12 px zu breit' }
+    const page = measuring([wide], [again])
+
+    await expect(measuredTwice(page.measure)).resolves.toEqual({ stood: [again], once: [] })
+    expect(page.measured).toBe(2)
+  })
+
+  it('does not stand when the second measurement does not find it, and is handed back as seen once', async () => {
+    await expect(measuredTwice(measuring([empty], []).measure)).resolves.toEqual({
+      stood: [],
+      once: [empty],
+    })
+  })
+
+  it('is the same finding only at the same width and about the same thing', async () => {
+    const elsewhere = { ...wide, width: 360 }
+    const other = { ...wide, what: 'unreachable' }
+
+    await expect(
+      measuredTwice(measuring([wide, empty], [elsewhere, other, empty]).measure),
+    ).resolves.toEqual({ stood: [empty], once: [wide, elsewhere, other] })
+  })
+
+  it('is said under what stood at both measurements, and what one of them found alone before it and apart', () => {
+    const culprit = { ...wide, line: 'bei 320 px 12 px zu breit', culprits: ['span bis 332 px'] }
+    const once = { ...empty, theme: 'light', line: 'bei 768 px hat die Seite nichts gezeichnet' }
+
+    expect(reportOf({ stood: [culprit], once: [once], accessibility: true })).toEqual([
+      '1 Befund bei nur einer von zwei Messungen derselben Seite, ohne Folge für das Ergebnis:',
+      '  /kunden, hell: bei 768 px hat die Seite nichts gezeichnet',
+      '1 Befund bei beiden Messungen derselben Seite:',
+      '  /kunden, dunkel: bei 320 px 12 px zu breit',
+      '      span bis 332 px',
+    ])
+    expect(reportOf({ stood: [culprit, culprit], once: [], accessibility: true })[0]).toBe(
+      '2 Befunde bei beiden Messungen derselben Seite:',
+    )
+  })
+
+  it('leaves the check without one where nothing stood, whatever one measurement found alone', () => {
+    expect(reportOf({ stood: [], once: [], accessibility: false })).toEqual([
+      'Keine Seite ist breiter als ihr Fenster, und jede stehende Tabellenspalte hat einen Grund.',
+    ])
+    expect(reportOf({ stood: [], once: [empty], accessibility: true }).at(-1)).toBe(
+      'Keine Seite ist breiter als ihr Fenster, jede stehende Tabellenspalte hat einen Grund, und keine verstößt gegen eine Regel der Barrierefreiheit.',
     )
   })
 })
