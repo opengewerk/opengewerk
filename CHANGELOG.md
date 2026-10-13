@@ -19,8 +19,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   kleiner Leser für einen festen Teil von Markdown (Überschriften, Absätze, Listen, fett,
   Code, Verweise): aus einem Text wird nie HTML, ein Verweis führt nur in die Anwendung oder
   über https hinaus, und `markdownProblems` nennt dem Test einer Anwendung, was ein Text
-  darüber hinaus benutzt. Eine Anwendung ohne Hilfe zeigt weder Knopf noch Eintrag, weil die
-  Texte zu den Bildschirmen einer Anwendung gehören und das Fundament keine hat.
+  darüber hinaus benutzt. Mit `level` sagt eine Anwendung, auf welcher Ebene die Überschriften
+  eines Textes stehen: ist der Text der Bildschirm und nennt dessen Kopf den Titel, folgen die
+  Abschnitte als zweite Ebene, damit keine Ebene übersprungen wird. Eine Anwendung ohne Hilfe
+  zeigt weder Knopf noch Eintrag, weil die Texte zu den Bildschirmen einer Anwendung gehören
+  und das Fundament keine hat.
 - Das Änderungsprotokoll benennt auch eine Liste von Verweisen (`opengewerk-haustechnik#171`):
   ein Feld, das mehrere Kennungen anderer Datensätze hält, nennt eine Anwendung in ihrem
   Vokabular unter `referenceLists`, mit der Tabelle, in die es zeigt. Bildschirm und Tabelle
