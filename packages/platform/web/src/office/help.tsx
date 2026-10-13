@@ -5,6 +5,7 @@ import { CircleQuestionMark, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 import { isNarrow, useBand } from '../components/band.js'
+import { useButtonLook } from '../components/button.js'
 import { Markdown, markdownTitle } from '../components/markdown.js'
 
 /**
@@ -89,6 +90,8 @@ export function HelpDrawer({
   const path = useRouterState({ select: (state) => state.location.pathname })
   const close = useRef<HTMLButtonElement>(null)
   const over = isNarrow(useBand())
+  // The small button of the boards, and the height of a finger where a finger works.
+  const more = useButtonLook('secondary', 'small')
   const text = useQuery({
     queryKey: ['help', path],
     queryFn: async () => (await source.textAt(path)) ?? null,
@@ -169,9 +172,9 @@ export function HelpDrawer({
               key={link.to}
               to={link.to}
               onClick={onClose}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-line-strong bg-surface px-3 text-[13px] font-semibold text-ink no-underline lg:min-h-8"
+              className={`${more} gap-1.5 max-lg:min-h-11 max-lg:px-3`}
             >
-              <link.icon size={15} strokeWidth={2} aria-hidden="true" />
+              <link.icon size={13} strokeWidth={2.3} aria-hidden="true" className="shrink-0" />
               {link.label}
             </Link>
           ))}
