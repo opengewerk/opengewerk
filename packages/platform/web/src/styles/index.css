@@ -162,6 +162,40 @@
   }
 }
 
+/*
+ * What a shell says when the script of its entry did not start
+ * (`tools/entry-guard.js`). Plain rules and no utilities: the build writes the
+ * sentence into the page, where Tailwind reads nothing, and it has to stand
+ * without a line of the application having run. In the light theme always,
+ * since the choice of a theme is made by that script.
+ */
+@layer components {
+  .entry-notice {
+    max-width: 30rem;
+    margin: 20vh auto 0;
+    padding: 1.5rem;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+  }
+
+  .entry-notice p {
+    margin: 0 0 0.75rem;
+  }
+
+  .entry-notice button {
+    min-height: 3rem;
+    margin-top: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    border: 1px solid var(--color-copper-solid);
+    border-radius: var(--radius-control);
+    background-color: var(--color-copper-solid);
+    color: var(--color-on-copper);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
 @keyframes table-head-follows {
   to {
     translate: 0 var(--table-head-travel, 0px);

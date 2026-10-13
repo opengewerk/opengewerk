@@ -474,6 +474,36 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   eine fehlende Verbindung statt "nicht gefunden". Wiederholt wird jetzt nur, was sich durch
   erneutes Fragen ändern kann: keine Antwort, ein 5xx, 408 und 429 (`isRefusedForGood`)
 - Die Wörter des Änderungsprotokolls schlagen einen Wert nur unter den eigenen Einträgen einer Liste nach (gefunden beim Review von `opengewerk-haustechnik#261`). Das Protokoll hält, was geschrieben wurde, auch einen Wert, der `constructor`, `toString` oder `__proto__` heißt; eine einfache Liste von Wörtern antwortete darauf mit dem, was jedes Objekt mitbringt, und statt des Werts stand etwas anderes da oder der Bildschirm brach ab. Das gilt für die Wörter eines Felds, die Rollen und Rechte, die Namen von Personen und Geräten und die Titel der Datensätze.
+- Die Prüfung "Breiten und Auflösungen" fotografiert einen Befund bei der Breite, bei der er stand,
+  und misst nach einem Wechsel der Breite erst, wenn die Seite ihm gefolgt ist
+  (`opengewerk-haustechnik#280`). Jedes Foto war 1280 mal 720 Pixel groß, gleich bei welcher Breite
+  der Befund stand: das Foto von Playwright stellt die Seite auf die Größe, die Playwright für sie
+  führt, und lässt sie dort stehen, und dieselbe Breite noch einmal zu setzen, änderte daran nichts.
+  Das Foto kommt jetzt über die Sitzung des DevTools-Protokolls, die auch die Breite setzt
+  (`photograph`), und die Prüfung hält an, wenn das Bild oder das Fenster danach eine andere Breite
+  hat. Nach einem Wechsel der Breite wartete sie 150 ms und maß; eine Seite, die bis dahin kein Bild
+  gezeichnet hatte, stand noch im Zuschnitt der Breite davor und galt als "bei 320 px 150 px zu
+  breit", mit dem Suchfeld der Kopfleiste eines Desktops. Jetzt wartet sie, bis die Seite bei der
+  neuen Breite zwei Bilder gezeichnet hat (`drawnAt`, `followed`): im ersten erfährt die Seite von
+  ihrer Breite, das zweite gilt dem, was sie daraufhin ändert. Eine Seite, die in zehn Sekunden
+  nicht folgt, hält die Prüfung an, statt gemessen zu werden, wie sie dasteht
+- Startet das Skript eines Einstiegs nicht, lädt sich die Seite einmal von selbst neu und sagt es
+  danach, statt leer zu bleiben (`opengewerk-haustechnik#279`). Ein Modulskript, das selbst oder in
+  einem seiner Teile nicht geladen werden kann, läuft nie, und das Dokument merkt sich den
+  Fehlschlag: die Seite blieb in ihrer Grundfarbe stehen, ohne ein Wort, und `noscript` greift
+  nicht, weil JavaScript ja an ist. Das geschieht, wenn die Verbindung reißt, wenn eine Seite aus
+  einem Zwischenspeicher Teile nennt, die es nach einem Update nicht mehr gibt, und es wurde
+  gesehen, wo der Browser die Anfrage nach einem Skript selbst abbrach
+  (`opengewerk-haustechnik#275`). Der Bau setzt jetzt eine kleine eigene Datei vor das Skript des
+  Einstiegs und einen Satz in die Seite (`entryGuard` aus
+  `@opengewerk/platform-web/tools/entry-guard`): die Datei hört den Fehlschlag am Element des
+  Skripts, lädt die Seite einmal neu, und zeigt beim nächsten Fehlschlag den Satz mit dem Knopf
+  "Neu laden". Dass schon neu geladen wurde, hält der Reiter fest, damit ein Teil, der auf Dauer
+  fehlt, die Seite nicht ohne Ende neu lädt; eine Seite, die gestartet ist, vergisst es wieder.
+  Eine eigene Datei und kein Skript in der Seite, weil die Content-Security-Policy nichts anderes
+  zulässt. `checkEntries` (`tools/entry-check`) fragt in der CI einen echten Browser danach, an
+  beiden Einstiegen, mit einmal und mit auf Dauer abgeschnittenem Skript: ob ein Browser den
+  Fehlschlag am Element meldet, weiß kein Test ohne einen
 
 ## [0.5.0] - 2026-10-04
 

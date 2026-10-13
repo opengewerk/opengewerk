@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { storedTheme } from '../src/components/theme.ts'
 import {
@@ -10,11 +11,14 @@ import {
   accessibilityWidths,
   alsoReached,
   bandOf,
+  drawnAt,
   fileFor,
+  followed,
   heightFor,
   inLanes,
   kindOf,
   measuredTwice,
+  photograph,
   reportOf,
   stateNote,
   stepsIn,
@@ -30,9 +34,9 @@ import {
  * What the check of the widths decides before a browser is involved: which
  * pages are of one kind, which a scan stands for, which links are followed
  * and when the walk gives up, how the pages measuring at once share the
- * kinds, where the layouts change, which theme a pass runs in, where a
- * photograph of a failure goes, and which findings stand after a second
- * measurement. The walk through a real browser runs in the CI against the
+ * kinds, where the layouts change, when a page has followed its window,
+ * which theme a pass runs in, where a photograph of a failure goes and how
+ * wide it is, and which findings stand after a second measurement. The walk through a real browser runs in the CI against the
  * preview of an application.
  */
 
@@ -338,6 +342,126 @@ describe('the pages that measure at once', () => {
   })
 })
 
+describe('a page whose window was given another width (opengewerk-haustechnik#280)', () => {
+  /** A window whose frames are drawn by hand, as `drawnAt` meets it in a page. */
+  function windowOf(width) {
+    const waiting = []
+    const shown = { innerWidth: width }
+
+    vi.stubGlobal('window', shown)
+    vi.stubGlobal('requestAnimationFrame', (callback) => {
+      waiting.push(callback)
+    })
+
+    return {
+      resize(to) {
+        shown.innerWidth = to
+      },
+      /** One frame: what waited for it runs, and what that asks for waits for the next. */
+      frame() {
+        for (const callback of waiting.splice(0)) {
+          callback()
+        }
+      },
+    }
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('has followed once it drew two frames at that width, and no sooner', async () => {
+    const page = windowOf(1920)
+    let done = false
+
+    void drawnAt(320).then(() => {
+      done = true
+    })
+
+    // Frames at the width before count for nothing, however many there are.
+    page.frame()
+    page.frame()
+    page.frame()
+    await Promise.resolve()
+    expect(done).toBe(false)
+
+    // The frame the page hears of its width in, and the one for its answer.
+    page.resize(320)
+    page.frame()
+    await Promise.resolve()
+    expect(done).toBe(false)
+
+    page.frame()
+    await Promise.resolve()
+    expect(done).toBe(true)
+  })
+
+  it('counts anew when the window left that width in between', async () => {
+    const page = windowOf(320)
+    let done = false
+
+    void drawnAt(320).then(() => {
+      done = true
+    })
+
+    page.frame()
+    page.resize(1280)
+    page.frame()
+    page.resize(320)
+    page.frame()
+    await Promise.resolve()
+    expect(done).toBe(false)
+
+    page.frame()
+    await Promise.resolve()
+    expect(done).toBe(true)
+  })
+
+  /** A page that answers the question whether it has drawn when the test says so. */
+  function pageOf(reported) {
+    let answer
+
+    return {
+      follow() {
+        answer(true)
+      },
+      page: {
+        evaluate: (run) =>
+          run === drawnAt
+            ? new Promise((resolve) => {
+                answer = resolve
+              })
+            : Promise.resolve(reported),
+      },
+    }
+  }
+
+  it('is waited for until it says it has drawn at that width, however long a fixed wait would have been', async () => {
+    const { page, follow } = pageOf(320)
+    let measured = false
+    const waiting = followed(page, 320).then(() => {
+      measured = true
+    })
+
+    // Longer than the 150 milliseconds the check waited until #280.
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(measured).toBe(false)
+
+    follow()
+    await waiting
+    expect(measured).toBe(true)
+  })
+
+  it('stops the check when it does not follow in time, rather than be measured as it stands', async () => {
+    await expect(followed(pageOf(1280).page, 320, 20)).rejects.toThrow(
+      'Das Fenster sollte 320 Pixel breit sein, die Seite meldet 1280.',
+    )
+    await expect(followed(pageOf(320).page, 320, 20)).rejects.toThrow(
+      'Die Seite hat 0.02 Sekunden nach dem Wechsel auf 320 Pixel Breite nichts neu gezeichnet.',
+    )
+  })
+})
+
 describe('the theme of a pass', () => {
   const source = readFileSync(join(import.meta.dirname, '../src/components/theme.ts'), 'utf8')
 
@@ -574,6 +698,99 @@ describe('the photograph of a failure', () => {
       join('report', 'start-320-dark.png'),
     )
     expect(performance.now() - started).toBeLessThan(1000)
+  })
+
+  /** The head of a PNG that many pixels wide, which is all the check reads of a picture. */
+  function pictureOf(width, height = 844) {
+    const head = Buffer.alloc(24)
+
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(head)
+    head.writeUInt32BE(13, 8)
+    head.write('IHDR', 12, 'latin1')
+    head.writeUInt32BE(width, 16)
+    head.writeUInt32BE(height, 20)
+
+    return head
+  }
+
+  /**
+   * A page as the photograph meets it: a session of the DevTools protocol
+   * that takes the picture, and a window that reports its width afterwards.
+   */
+  function photographed({ picture, windowAfter }) {
+    const sent = []
+    const session = {
+      send: (method, params) => {
+        sent.push([method, params])
+
+        return Promise.resolve({ data: picture.toString('base64') })
+      },
+    }
+
+    return {
+      sent,
+      page: {
+        context: () => ({ newCDPSession: () => Promise.resolve(session) }),
+        evaluate: () => Promise.resolve(windowAfter),
+        screenshot: () => {
+          throw new Error('Playwright sizes the page to its own 1280 by 720 pixels for a picture.')
+        },
+      },
+    }
+  }
+
+  /** Runs with a folder for the pictures that is gone afterwards. */
+  async function inFolder(run) {
+    const folder = mkdtempSync(join(tmpdir(), 'widths-'))
+
+    try {
+      await run(folder)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
+  }
+
+  it('is taken through the session the window is sized through, as wide as the window (opengewerk-haustechnik#280)', async () => {
+    await inFolder(async (folder) => {
+      const { page, sent } = photographed({ picture: pictureOf(320), windowAfter: 320 })
+      const file = join(folder, 'report', 'konto-320-dark.png')
+
+      await photograph(page, file, 320)
+
+      expect(sent).toEqual([['Page.captureScreenshot', { format: 'png' }]])
+      expect(readFileSync(file).readUInt32BE(16)).toBe(320)
+    })
+  })
+
+  it('stops the check when the picture is not as wide as the window was (opengewerk-haustechnik#280)', async () => {
+    await inFolder(async (folder) => {
+      const file = join(folder, 'konto-320-dark.png')
+
+      await expect(
+        photograph(photographed({ picture: pictureOf(1280), windowAfter: 320 }).page, file, 320),
+      ).rejects.toThrow('Das Foto sollte 320 Pixel breit sein, es ist 1280 Pixel breit.')
+      await expect(
+        photograph(
+          photographed({ picture: Buffer.from('kein Bild'), windowAfter: 320 }).page,
+          file,
+          320,
+        ),
+      ).rejects.toThrow('Das Foto sollte 320 Pixel breit sein, es ist kein Bild.')
+    })
+  })
+
+  it('stops the check when the page reports another width after it, rather than measure on at that one (opengewerk-haustechnik#280)', async () => {
+    await inFolder(async (folder) => {
+      await expect(
+        photograph(
+          photographed({ picture: pictureOf(320), windowAfter: 1280 }).page,
+          join(folder, 'konto-320-dark.png'),
+          320,
+        ),
+      ).rejects.toThrow(
+        'Nach dem Foto sollte das Fenster 320 Pixel breit sein, die Seite meldet 1280.',
+      )
+    })
   })
 })
 

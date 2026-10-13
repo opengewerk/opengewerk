@@ -559,6 +559,16 @@ jobs:
           echo "Die Vorschau ist nach drei Minuten nicht gestartet."
           exit 1
 
+      # Both entries with their script cut off, the way a connection that
+      # breaks or a browser that drops a request leaves them: the page loads
+      # itself anew once, and says so where that does not help
+      # (opengewerk-haustechnik#279).
+      - name: Einstieg, dessen Skript nicht ankommt
+        run: pnpm --filter @opengewerk/web run entries
+        env:
+          WIDTHS_BROWSER: ws://127.0.0.1:3000?token=probe&timeout=1800000
+          WIDTHS_ADDRESS: http://127.0.0.1:23700
+
       - name: Jede Seite bei jeder Breite
         run: pnpm --filter @opengewerk/web run widths
         env:
