@@ -356,6 +356,13 @@ export function Markdown({
   const blocks = readMarkdown(source, { breaks })
   const first = blocks.findIndex((block) => block.kind === 'heading' && block.level === 1)
   const shown = withoutTitle && first !== -1 ? blocks.filter((_, index) => index !== first) : blocks
+  // The levels the text uses, in their order, so that a text somebody writes
+  // from the second level on, or with one left out, still gives the screen
+  // its headings without a gap. Counted before the title is left out, which
+  // the head of the place stands in for.
+  const used = [
+    ...new Set(blocks.flatMap((block) => (block.kind === 'heading' ? [block.level] : []))),
+  ].sort((one, other) => one - other)
   const text = large
     ? 'text-[17px] leading-[1.5]'
     : reading
@@ -367,7 +374,7 @@ export function Markdown({
         return (
           <Heading
             key={index}
-            level={level + block.level - 1}
+            level={level + used.indexOf(block.level)}
             className={
               block.level === 1
                 ? large || reading
