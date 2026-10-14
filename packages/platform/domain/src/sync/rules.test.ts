@@ -239,6 +239,62 @@ describe('a record somebody fills in at work', () => {
     expect(result).toEqual({ outcome: 'conflict', reason: 'changed_elsewhere', fields: ['title'] })
   })
 
+  it('is no conflict when the field moved on to the value the device wants', () => {
+    // Somebody else got there first and wanted the same. Nothing is
+    // overwritten, so nothing needs deciding, and the other field still lands.
+    const elsewhere: RecordState = { version: 4, title: 'Shelf by the window', text: null }
+
+    const result = decideMerge(
+      operation({
+        baseVersion: 3,
+        patches: [
+          patch('title', 'Shelf by the door', 'Shelf by the window'),
+          patch('text', null, 'Dented'),
+        ],
+      }),
+      elsewhere,
+    )
+
+    expect(result).toEqual({
+      outcome: 'apply',
+      values: { title: 'Shelf by the window', text: 'Dented' },
+    })
+  })
+
+  it('does nothing when every field already stands where the device wants it', () => {
+    const elsewhere: RecordState = { version: 4, title: 'Shelf by the window', text: 'Dented' }
+
+    const result = decideMerge(
+      operation({
+        baseVersion: 3,
+        patches: [
+          patch('title', 'Shelf by the door', 'Shelf by the window'),
+          patch('text', null, 'Dented'),
+        ],
+      }),
+      elsewhere,
+    )
+
+    expect(result).toEqual({ outcome: 'skip', reason: 'nothing_to_do' })
+  })
+
+  it('still names the field that moved on to a third value, beside one that agrees', () => {
+    const elsewhere: RecordState = { version: 4, title: 'Shelf by the window', text: 'Scratched' }
+
+    const result = decideMerge(
+      operation({
+        baseVersion: 3,
+        patches: [
+          patch('title', 'Shelf by the door', 'Shelf by the window'),
+          patch('text', null, 'Dented'),
+        ],
+      }),
+      elsewhere,
+    )
+
+    expect(result).toEqual({ outcome: 'conflict', reason: 'changed_elsewhere', fields: ['text'] })
+  })
+
   it('takes the short way when the version still matches', () => {
     const result = decideMerge(
       operation({ baseVersion: 3, patches: [patch('title', 'whatever stands here', 'New')] }),
@@ -529,10 +585,15 @@ describe('an operation that arrives twice', () => {
 
     expect(decideMerge(change, { version: 1, title: 'Old' }).outcome).toBe('apply')
 
-    // After it has been applied, `from` no longer matches, so the repeat is a
-    // conflict rather than a silent second write. That is the right way for it
-    // to fail: loud, and with both versions in hand.
+    // After it has been applied, `from` no longer matches, but the field holds
+    // what the repeat wants. Nothing is written a second time and nothing is
+    // put in front of a person, as with a delete that arrives twice.
     expect(decideMerge(change, { version: 2, title: 'New' })).toEqual({
+      outcome: 'skip',
+      reason: 'nothing_to_do',
+    })
+    // Moved on to something else in between, the repeat is a conflict again.
+    expect(decideMerge(change, { version: 3, title: 'Newer' })).toEqual({
       outcome: 'conflict',
       reason: 'changed_elsewhere',
       fields: ['title'],
@@ -628,7 +689,9 @@ describe('whatever the device sends', () => {
         value,
         value,
         (field, seen, wanted, actual) => {
-          fc.pre(!Object.is(seen, actual))
+          fc.pre(!sameValue(seen, actual))
+          // The two columns every record carries answer before any field does.
+          fc.pre(field !== 'version' && field !== 'deletedAt')
 
           const result = decideMerge(
             operation({ baseVersion: 1, patches: [{ field, from: seen, to: wanted }] }),
@@ -636,8 +699,11 @@ describe('whatever the device sends', () => {
           )
 
           // The whole promise of the merge in one line: a field the device did
-          // not see the current value of is never overwritten silently.
-          return result.outcome === 'conflict'
+          // not see the current value of is never overwritten silently. Where
+          // it already holds what the device wants, nothing is written at all.
+          return sameValue(actual, wanted)
+            ? result.outcome === 'skip'
+            : result.outcome === 'conflict'
         },
       ),
     )

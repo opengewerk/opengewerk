@@ -338,10 +338,15 @@ describe('an operation that arrives twice', () => {
 
     expect(decideMerge(change, before).outcome).toBe('apply')
 
-    // After it has been applied, `from` no longer matches, so the repeat is a
-    // conflict rather than a silent second write. That is the right way for it
-    // to fail: loud, and with both versions in hand.
-    expect(decideMerge(change, { version: 2, designation: 'Neu' }).outcome).toBe('conflict')
+    // After it has been applied, `from` no longer matches, but the field holds
+    // what the repeat wants. Nothing is written a second time and nothing is
+    // put in front of a person, as with a delete that arrives twice.
+    expect(decideMerge(change, { version: 2, designation: 'Neu' })).toEqual({
+      outcome: 'skip',
+      reason: 'nothing_to_do',
+    })
+    // Moved on to something else in between, the repeat is a conflict again.
+    expect(decideMerge(change, { version: 3, designation: 'Neuer' }).outcome).toBe('conflict')
   })
 })
 
@@ -434,7 +439,9 @@ describe('whatever the device sends', () => {
         value,
         value,
         (field, seen, wanted, actual) => {
-          fc.pre(!Object.is(seen, actual))
+          fc.pre(!sameValue(seen, actual))
+          // The two columns every record carries answer before any field does.
+          fc.pre(field !== 'version' && field !== 'deletedAt')
 
           const result = decideMerge(
             operation({ baseVersion: 1, patches: [{ field, from: seen, to: wanted }] }),
@@ -442,8 +449,11 @@ describe('whatever the device sends', () => {
           )
 
           // The whole promise of the merge in one line: a field the device did
-          // not see the current value of is never overwritten silently.
-          return result.outcome === 'conflict'
+          // not see the current value of is never overwritten silently. Where
+          // it already holds what the device wants, nothing is written at all.
+          return sameValue(actual, wanted)
+            ? result.outcome === 'skip'
+            : result.outcome === 'conflict'
         },
       ),
     )
