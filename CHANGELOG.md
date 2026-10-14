@@ -476,6 +476,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   sagte "Keine Verbindung" auf einem Gerät mit Netz, bis etwas anderes eine Runde anstieß. Eine
   gescheiterte Runde fragt weiter nichts von sich aus an, damit aus einer Ablehnung keine Schleife
   wird.
+- Ein Hinweiskasten mit zwei Knöpfen lässt dem Satz auf dem Telefon wieder seine Breite (#564).
+  Symbol, Satz und Knöpfe standen in einer Zeile, die nicht umbrach, und der Satz lief Buchstabe für
+  Buchstabe nach unten. Jetzt gehen die Knöpfe unter den Satz, wo sie nicht daneben passen, und
+  stehen auf dem Desktop weiter rechts.
 - Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
   jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
   (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen

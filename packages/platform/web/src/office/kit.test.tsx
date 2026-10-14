@@ -223,4 +223,41 @@ describe('what a card says when there is something to say', () => {
     expect(screen.getByText('Das wartet.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Los' })).toBeTruthy()
   })
+
+  it('lets two buttons go under the sentence where they do not fit beside it (#564)', () => {
+    // A line that cannot wrap left the sentence the width of a letter on a
+    // phone. Whether the line wraps is the browser's to measure; what is held
+    // here is that it may, that the sentence asks for a width of its own, and
+    // that the buttons are one item, at the right while they fit.
+    render(
+      <NoteBox
+        tone="waiting"
+        icon={TriangleAlert}
+        action={
+          <>
+            <button type="button">Zur vorhandenen Anlage</button>
+            <button type="button">Trotzdem anlegen</button>
+          </>
+        }
+      >
+        Mögliche Dublette: eine Anlage mit diesem Kennzeichen gibt es schon.
+      </NoteBox>,
+    )
+
+    const sentence = screen.getByText(/Mögliche Dublette/).parentElement as HTMLElement
+    const box = sentence.parentElement as HTMLElement
+    const buttons = screen.getByRole('button', { name: 'Trotzdem anlegen' })
+      .parentElement as HTMLElement
+
+    expect(box.className).toContain('flex-wrap')
+    expect(sentence.className).toMatch(/\bbasis-64\b/)
+    expect(sentence.className).toMatch(/\bgrow\b/)
+    expect(buttons.parentElement).toBe(box)
+    expect(buttons.className).toContain('ml-auto')
+    expect(
+      within(buttons)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Zur vorhandenen Anlage', 'Trotzdem anlegen'])
+  })
 })
