@@ -9,6 +9,7 @@ import {
   type GroupBlock,
   type GroupField,
   type IsoDate,
+  isRuleLimit,
   limitVerdict,
   type MeasurementField,
   measurementUnitSign,
@@ -203,7 +204,7 @@ function limitLegend(fields: readonly BlockField[], protocol: PrintedProtocol): 
     .map((field) => {
       const limit = field.limit
       const rule =
-        limit?.kind === 'at_least' || limit?.kind === 'at_most'
+        limit !== undefined && isRuleLimit(limit)
           ? protocol.rules.at(limit.rule, protocol.performedOn)
           : null
       const said =
@@ -222,16 +223,14 @@ function limitLegend(fields: readonly BlockField[], protocol: PrintedProtocol): 
                   ?.source ?? '',
               )}`
             : rule
-              ? `${limit?.kind === 'at_least' ? 'mindestens' : 'höchstens'} ${text(
-                  formatMeasured(
-                    limitVerdict(field, null, {
-                      rules: protocol.rules,
-                      on: protocol.performedOn,
-                      circuit: null,
-                    }).limitMilli ?? 0,
-                    field.unit,
-                    field.decimals,
-                  ),
+              ? // The limit in the words and the rounding of the engine: before a
+                // value is measured, its sentence is "Grenzwert: unter 100 je 100 ml."
+                `${text(
+                  limitVerdict(field, null, {
+                    rules: protocol.rules,
+                    on: protocol.performedOn,
+                    circuit: null,
+                  }).text.replace(/^Grenzwert: (.*)\.$/, '$1'),
                 )}; ${text(rule.source)}`
               : 'für diesen Tag kein Grenzwert hinterlegt'
 

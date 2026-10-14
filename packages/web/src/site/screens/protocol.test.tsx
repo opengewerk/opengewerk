@@ -1,6 +1,11 @@
 import 'fake-indexeddb/auto'
 
-import { type GroupBlock, readFormValues, type RecordState } from '@opengewerk/domain'
+import {
+  type GroupBlock,
+  type MeasurementField,
+  readFormValues,
+  type RecordState,
+} from '@opengewerk/domain'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -17,8 +22,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
 import { SiteJobScreen } from './jobs.js'
-import { SiteProtocolScreen } from './protocol.js'
+import { shortLimit, SiteProtocolScreen } from './protocol.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
+
+describe('the limit in short beside a measured value', () => {
+  const field: MeasurementField = {
+    kind: 'measurement',
+    key: 'zs',
+    label: 'Schleifenimpedanz',
+    unit: 'ohm',
+    decimals: 2,
+    limit: { kind: 'at_most', rule: 'probe.limit' },
+  }
+
+  it('says how a value stands to its limit, rounded towards the strict side', () => {
+    expect(shortLimit(field, 2_875)).toBe('≤ 2,87 Ω')
+    expect(shortLimit({ ...field, limit: { kind: 'at_least', rule: 'probe.limit' } }, 2_875)).toBe(
+      '≥ 2,88 Ω',
+    )
+    // Reaching the limit is outside already (opengewerk-haustechnik#93).
+    expect(shortLimit({ ...field, limit: { kind: 'below', rule: 'probe.limit' } }, 2_875)).toBe(
+      '< 2,88 Ω',
+    )
+  })
+})
 
 /**
  * #79 as it happens on site, over the steps of the boards "Prüfprotokoll,

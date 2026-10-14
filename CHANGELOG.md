@@ -11,7 +11,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 - Ein Grenzwert aus einer Regel, unter dem ein Messwert bleiben muss (`below` an `RuleLimit`,
   `opengewerk-haustechnik#93`): schon das Erreichen ist außerhalb, die Formular-Engine schreibt
-  "unter 100 je 100 ml" und `limitMark` zeigt `<`. Die Trinkwasserverordnung verlangt Maßnahmen,
+  "unter 100 je 100 ml" und `limitMark` zeigt `<`, ebenso der kurze Grenzwert im Protokoll vor Ort
+  und die Liste der Grenzwerte im gedruckten Protokoll, die ihre Worte jetzt aus der Engine nimmt.
+  Die Trinkwasserverordnung verlangt Maßnahmen,
   sobald ein Befund den technischen Maßnahmenwert für Legionellen erreicht; mit "höchstens" wäre
   genau dieser Befund als innerhalb durchgegangen.
 - Eine Einladung sagt, wofür der Zugang ist (`#623`): `GET /invitation/:token` nennt die Rollen
