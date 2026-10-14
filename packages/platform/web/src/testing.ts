@@ -16,6 +16,15 @@ export { TestServer } from './sync/test-server.js'
 // whole entry.
 export { InRouter } from './in-router.js'
 
+/**
+ * Whether a button lets nobody press it: disabled, or locked in place while it
+ * holds the focus, which is what a button that was just pressed and is now
+ * waiting is (#629). A test that asks `disabled` alone misses the second.
+ */
+export function isLocked(element: Element): boolean {
+  return element.hasAttribute('disabled') || element.getAttribute('aria-disabled') === 'true'
+}
+
 /** The design tokens as text, the way the checks of colours and classes read them. */
 export const designTokens: string = tokens
 

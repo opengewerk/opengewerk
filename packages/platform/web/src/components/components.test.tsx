@@ -1,5 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Button, IconButton } from './button.js'
@@ -39,6 +40,110 @@ describe('a button', () => {
     render(<Button>Vorschau</Button>)
 
     expect(screen.getByRole('button').className).toContain('h-control')
+  })
+
+  describe('that is locked while it works (#629)', () => {
+    /** A form whose button sends, works until the test answers, and is refused. */
+    function Sending({ answer }: { readonly answer: Promise<void> }) {
+      const [working, setWorking] = useState(false)
+      const [problem, setProblem] = useState<string | null>(null)
+      const [sent, setSent] = useState(0)
+
+      return (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            setSent((count) => count + 1)
+            setWorking(true)
+            void answer.catch((error: unknown) => {
+              setProblem(error instanceof Error ? error.message : 'Fehler')
+              setWorking(false)
+            })
+          }}
+        >
+          <input aria-label="Name" />
+          <Button type="submit" tone="primary" disabled={working}>
+            Nachweis festschreiben
+          </Button>
+          <p>{`gesendet: ${String(sent)}`}</p>
+          {problem ? <p role="alert">{problem}</p> : null}
+        </form>
+      )
+    }
+
+    it('keeps the focus while it works and after a refusal, and lets no second press through', async () => {
+      const user = userEvent.setup()
+      let refuse: (error: Error) => void = () => undefined
+      const answer = new Promise<void>((_resolve, reject) => {
+        refuse = reject
+      })
+
+      render(<Sending answer={answer} />)
+
+      const button = screen.getByRole('button', { name: 'Nachweis festschreiben' })
+
+      button.focus()
+      await user.keyboard('{Enter}')
+
+      // Working: still where the keyboard is, said to be unavailable, and
+      // deaf to another Enter.
+      expect(document.activeElement).toBe(button)
+      expect(button.getAttribute('aria-disabled')).toBe('true')
+      expect(button.hasAttribute('disabled')).toBe(false)
+      await user.keyboard('{Enter}')
+      expect(screen.getByText('gesendet: 1')).toBeDefined()
+
+      await act(async () => {
+        refuse(new Error('Der Server lehnt ab.'))
+        await answer.catch(() => undefined)
+      })
+
+      expect(screen.getByRole('alert').textContent).toBe('Der Server lehnt ab.')
+      expect(document.activeElement).toBe(button)
+      expect(button.hasAttribute('aria-disabled')).toBe(false)
+    })
+
+    it('is disabled for real when it is locked while the focus is elsewhere', async () => {
+      const user = userEvent.setup()
+
+      render(
+        <>
+          <input aria-label="Name" />
+          <Button disabled>Speichern</Button>
+        </>,
+      )
+
+      const button = screen.getByRole('button', { name: 'Speichern' })
+
+      expect(button.hasAttribute('disabled')).toBe(true)
+      expect(button.hasAttribute('aria-disabled')).toBe(false)
+
+      // Not in the order of Tab: from the field, the focus goes past it.
+      await user.click(screen.getByLabelText('Name'))
+      await user.tab()
+      expect(document.activeElement).not.toBe(button)
+    })
+
+    it('is disabled for real once the focus leaves it while it works', async () => {
+      const user = userEvent.setup()
+      const view = (disabled: boolean) => (
+        <>
+          <Button disabled={disabled}>Speichern</Button>
+          <input aria-label="Name" />
+        </>
+      )
+      const { rerender } = render(view(false))
+      const button = screen.getByRole('button', { name: 'Speichern' })
+
+      button.focus()
+      rerender(view(true))
+      expect(button.getAttribute('aria-disabled')).toBe('true')
+
+      await user.tab()
+      expect(document.activeElement).toBe(screen.getByLabelText('Name'))
+      expect(button.hasAttribute('disabled')).toBe(true)
+      expect(button.hasAttribute('aria-disabled')).toBe(false)
+    })
   })
 })
 

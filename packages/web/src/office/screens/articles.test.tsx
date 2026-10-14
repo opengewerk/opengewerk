@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 
 import type { RoleKey } from '@opengewerk/domain'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
-import { TestServer } from '@opengewerk/platform-web/testing'
+import { TestServer, isLocked } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
@@ -234,9 +234,7 @@ describe('the list of articles', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Weiter' }))
     await screen.findByText('26 bis 30 von 30')
-    expect((screen.getByRole('button', { name: 'Weiter' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    )
+    expect(isLocked(screen.getByRole('button', { name: 'Weiter' }))).toBe(true)
 
     await userEvent.type(screen.getByLabelText('Artikel durchsuchen'), 'NYM')
 
