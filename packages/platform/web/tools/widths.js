@@ -481,10 +481,21 @@ function stands() {
   return (document.querySelector('main')?.textContent ?? '').trim() !== ''
 }
 
-/** Whether a button of that name appears on the page, given the time a screen has to draw. */
-function appears(page, name) {
+/**
+ * Whether a button of that name appears on the page, given the time a screen
+ * has to draw. Waited for and not asked once: a button that comes with an
+ * answer of the server stands a moment after the page, and asked right away
+ * it counted as out of reach (#565). One that a band never draws is reported
+ * all the same, once the time is up.
+ *
+ * @param {object} page
+ * @param {string} name
+ * @param {number} [within] How long it may take, in milliseconds.
+ * @returns {Promise<boolean>}
+ */
+export function appears(page, name, within = drawnWithin) {
   return opener(page, name)
-    .waitFor({ state: 'visible', timeout: drawnWithin })
+    .waitFor({ state: 'visible', timeout: within })
     .then(
       () => true,
       () => false,

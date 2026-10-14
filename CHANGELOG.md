@@ -461,6 +461,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Anwendung mit. In der Handwerkersoftware sehen beide Bildschirme aus wie vorher. Der Lauf
   "Sicherung und Rückspielen" ruft nach dem Schritt `record` den Haken `after_record` der
   Anwendung, damit sie dort ihre Route der letzten Sicherung fragt.
+- Ein Test hält fest, dass die Breitenprüfung auf einen Knopf wartet, der erst mit einer Antwort
+  des Servers erscheint, und einen, den eine Breite nie zeichnet, weiter meldet (#565). Das Warten
+  selbst kam schon mit #591; vorher galt ein solcher Knopf als "nicht zu sehen", und die Prüfung
+  wurde an einer Seite rot, die niemand angefasst hatte.
 
 ### Behoben
 
