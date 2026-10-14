@@ -442,6 +442,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Breitenprüfung drückt nur einen Öffner, der sich drücken lässt
+  (`opengewerk-haustechnik#128`): ein gesperrter Knopf öffnet nichts, und auf ihn zu warten
+  beendete den Lauf nach einer halben Minute. Unter "Konto" ist "Ändern" der eigenen Angaben
+  gesperrt, bis sich etwas geändert hat.
 - Ein Text in `Markdown` lässt keine Ebene der Überschriften mehr aus
   (`opengewerk-haustechnik#129`): beginnt er bei `##` oder überspringt er eine, folgen die
   Überschriften trotzdem lückenlos auf den Kopf der Seite. Rechtstexte der Instanz schreibt,
