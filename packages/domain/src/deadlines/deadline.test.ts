@@ -112,6 +112,7 @@ describe('the lead and the interval', () => {
       intervalDays: 21,
       intervalMonths: null,
       responsibleUserId: null,
+      reminder: null,
     }
 
     expect(leadOf(followUp, null, null)).toBe(0)
@@ -133,6 +134,7 @@ describe('the lead and the interval', () => {
         intervalDays: 30,
         intervalMonths: null,
         responsibleUserId: null,
+        reminder: null,
       }),
     ).toBeNull()
   })

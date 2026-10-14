@@ -1,4 +1,12 @@
-import { intervalMonthsProblem, intervalProblem, leadProblem } from '@opengewerk/platform-domain'
+import {
+  type DeadlineReminder,
+  deadlineReminderLabel,
+  deadlineReminders,
+  intervalMonthsProblem,
+  intervalProblem,
+  leadProblem,
+  reminderAction,
+} from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
@@ -100,6 +108,17 @@ export function DeadlineSettingsScreen<Kind extends DeadlineKindView>(
   )
 }
 
+/**
+ * The columns of the fields of a kind, by how many there are: the interval
+ * where the kind counts one, the lead, who answers for it, and how it
+ * reminds where it reminds. The choice of a person is the widest.
+ */
+const columnsOf: Readonly<Record<number, string>> = {
+  2: 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]',
+  3: 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]',
+  4: 'grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1.2fr)]',
+}
+
 function KindCard<Kind extends DeadlineKindView>({
   kind,
   mayWrite,
@@ -118,6 +137,10 @@ function KindCard<Kind extends DeadlineKindView>({
   const [intervalText, setIntervalText] = useState(shown(own, counted ?? 0))
   const [lead, setLead] = useState(shown(kind.setting.leadDays, kind.leadDays))
   const [responsible, setResponsible] = useState(kind.setting.responsibleUserId ?? '')
+  // How the kind reminds, where it reminds at all (opengewerk-haustechnik#269).
+  const reminds = kind.actions.includes(reminderAction)
+  const ownReminder = kind.setting.reminder ?? null
+  const [reminder, setReminder] = useState<DeadlineReminder>(ownReminder ?? 'email_and_push')
   const [trouble, setTrouble] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
@@ -136,18 +159,21 @@ function KindCard<Kind extends DeadlineKindView>({
   const leadDays =
     !('count' in readLead) || readLead.count === kind.leadDays ? null : readLead.count
   const responsibleUserId = responsible === '' ? null : responsible
+  // The way of the kind is kept as the kind's own, like the values above.
+  const reminderSet = !reminds || reminder === 'email_and_push' ? null : reminder
   const unchanged =
     interval === own &&
     leadDays === kind.setting.leadDays &&
-    responsibleUserId === kind.setting.responsibleUserId
+    responsibleUserId === kind.setting.responsibleUserId &&
+    reminderSet === ownReminder
   const problem =
     ('problem' in readLead ? readLead.problem : null) ??
     (counted !== null && 'problem' in readInterval ? readInterval.problem : null)
 
   const change: DeadlineSettingChange =
     months === null
-      ? { leadDays, intervalDays: interval, responsibleUserId }
-      : { leadDays, intervalMonths: interval, responsibleUserId }
+      ? { leadDays, intervalDays: interval, responsibleUserId, reminder: reminderSet }
+      : { leadDays, intervalMonths: interval, responsibleUserId, reminder: reminderSet }
 
   const save = useMutation({
     mutationFn: () => setDeadlineSetting(kind.key, change),
@@ -173,18 +199,13 @@ function KindCard<Kind extends DeadlineKindView>({
       })),
   ]
   const words = counted === null ? null : props.intervalWords(kind)
+  const fields = (counted === null ? 2 : 3) + (reminds ? 1 : 0)
 
   return (
     <Panel title={kind.title} roomy action={props.badge?.(kind) ?? null}>
       <div className="flex flex-col gap-3">
         <SettingsText>{kind.about}</SettingsText>
-        <div
-          className={
-            counted === null
-              ? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]'
-              : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]'
-          }
-        >
+        <div className={columnsOf[fields] ?? columnsOf[2]}>
           {words === null ? null : (
             <Field
               label={words.label}
@@ -227,6 +248,22 @@ function KindCard<Kind extends DeadlineKindView>({
             }}
             options={options}
           />
+          {reminds ? (
+            <SelectField
+              label="Erinnerung"
+              value={reminder}
+              disabled={!mayWrite}
+              onChange={(value) => {
+                setReminder(value as DeadlineReminder)
+                setSaved(false)
+              }}
+              options={deadlineReminders.map((way) => ({
+                value: way,
+                label: deadlineReminderLabel[way],
+              }))}
+              hint="Push nur für Personen, die es für sich eingeschaltet haben."
+            />
+          ) : null}
         </div>
         {trouble ? (
           <p role="alert" className="text-[13px] text-conflict">

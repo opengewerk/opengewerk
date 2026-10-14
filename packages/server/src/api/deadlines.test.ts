@@ -431,6 +431,8 @@ describe('the settings of each kind', () => {
           intervalMonths: null,
           leadDays: null,
           responsibleUserId: null,
+          // The follow up of a quote makes a task and reminds nobody.
+          reminder: null,
         },
       }),
     ])
@@ -448,6 +450,7 @@ describe('the settings of each kind', () => {
       intervalDays: 21,
       intervalMonths: null,
       responsibleUserId: 'britta',
+      reminder: null,
     })
 
     // Back to the kind's own values, all three at once.
@@ -462,6 +465,7 @@ describe('the settings of each kind', () => {
       intervalDays: null,
       intervalMonths: null,
       responsibleUserId: null,
+      reminder: null,
     })
   })
 

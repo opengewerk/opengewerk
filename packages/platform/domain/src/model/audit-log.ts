@@ -401,6 +401,7 @@ function foundationTables(
         interval_days: 'Intervall',
         interval_months: 'Intervall in Monaten',
         responsible_user_id: 'Verantwortlich',
+        reminder: 'Erinnerung',
       },
     },
     deadlines: {

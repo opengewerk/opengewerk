@@ -604,7 +604,7 @@ describe('the settings of the deadlines', () => {
         server.heard.find(
           (call) => call.method === 'PUT' && call.path === '/settings/deadlines/door.check',
         )?.body,
-      ).toEqual({ leadDays: null, intervalMonths: 3, responsibleUserId: null })
+      ).toEqual({ leadDays: null, intervalMonths: 3, responsibleUserId: null, reminder: null })
     })
   })
 
@@ -635,7 +635,42 @@ describe('the settings of the deadlines', () => {
         server.heard.find(
           (call) => call.method === 'PUT' && call.path === '/settings/deadlines/parcel.pickup',
         )?.body,
-      ).toEqual({ leadDays: null, intervalDays: 10, responsibleUserId: null })
+      ).toEqual({ leadDays: null, intervalDays: 10, responsibleUserId: null, reminder: null })
+    })
+  })
+
+  it('ask how a kind that reminds does so, and send the way of the kind as its own (opengewerk-haustechnik#269)', async () => {
+    server.answer('PUT', '/settings/deadlines/parcel.pickup', {
+      ...pickup,
+      setting: { ...pickup.setting, reminder: 'email' },
+    })
+    settings()
+
+    const reminder = (await screen.findByLabelText('Erinnerung')) as HTMLSelectElement
+    // Its own way first, and no "push alone": push reaches only who switched it on.
+    expect(reminder.value).toBe('email_and_push')
+    expect([...reminder.options].map((option) => option.textContent)).toEqual([
+      'E-Mail und Push',
+      'Nur E-Mail',
+      'Keine Nachricht',
+    ])
+    expect(
+      screen.getByText('Push nur für Personen, die es für sich eingeschaltet haben.'),
+    ).toBeTruthy()
+    // The kind that does not remind is asked nothing of the sort.
+    expect(screen.getAllByLabelText('Erinnerung')).toHaveLength(1)
+
+    const user = userEvent.setup()
+    await user.selectOptions(reminder, 'email')
+    const card = reminder.closest('section') ?? document.body
+    await user.click(within(card as HTMLElement).getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(
+        server.heard.find(
+          (call) => call.method === 'PUT' && call.path === '/settings/deadlines/parcel.pickup',
+        )?.body,
+      ).toEqual({ leadDays: null, intervalDays: null, responsibleUserId: null, reminder: 'email' })
     })
   })
 

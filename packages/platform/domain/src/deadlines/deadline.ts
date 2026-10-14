@@ -223,6 +223,61 @@ export interface DeadlineSetting {
   readonly intervalDays: number | null
   readonly intervalMonths: number | null
   readonly responsibleUserId: string | null
+  /** How a deadline of the kind reminds; null is the way of the kind, by mail and by push. */
+  readonly reminder: DeadlineReminder | null
+}
+
+/**
+ * The ways a deadline of a kind reminds the person who answers for it
+ * (opengewerk-haustechnik#269). By mail and by push is what a kind does on
+ * its own; mail alone leaves the devices quiet; no message at all leaves the
+ * deadline in the list, and whatever else the kind does when its lead comes,
+ * a task or a work order, it still does.
+ *
+ * "Push alone" is not one of them: push reaches only somebody who switched it
+ * on for themselves, and a deadline that reminded only that way could
+ * remind nobody (Moritz, 14.10.2026).
+ */
+export const deadlineReminders = ['email_and_push', 'email', 'none'] as const
+
+export type DeadlineReminder = (typeof deadlineReminders)[number]
+
+/** The ways of reminding, in the words of the settings of the deadlines. */
+export const deadlineReminderLabel: Readonly<Record<DeadlineReminder, string>> = {
+  email_and_push: 'E-Mail und Push',
+  email: 'Nur E-Mail',
+  none: 'Keine Nachricht',
+}
+
+/** Whether a value is one of the ways of reminding. */
+export function isDeadlineReminder(value: unknown): value is DeadlineReminder {
+  return typeof value === 'string' && (deadlineReminders as readonly string[]).includes(value)
+}
+
+/** The channels a reminder can go out on. */
+export type ReminderChannel = 'mail' | 'push'
+
+/**
+ * Whether a deadline of a kind reminds on a channel, by what the tenant set
+ * for the kind. Nothing set is both.
+ */
+export function remindsBy(reminder: DeadlineReminder | null, channel: ReminderChannel): boolean {
+  switch (reminder ?? 'email_and_push') {
+    case 'email_and_push':
+      return true
+    case 'email':
+      return channel === 'mail'
+    case 'none':
+      return false
+  }
+}
+
+/**
+ * The ways of reminding that keep a channel quiet, for a query that leaves
+ * out the deadlines of the kinds set so (`deadlineRemindsOn` on the server).
+ */
+export function remindersQuietOn(channel: ReminderChannel): readonly DeadlineReminder[] {
+  return deadlineReminders.filter((reminder) => !remindsBy(reminder, channel))
 }
 
 /**

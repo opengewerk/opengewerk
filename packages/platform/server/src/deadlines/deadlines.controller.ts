@@ -23,6 +23,7 @@ import {
   deadlineIsLate,
   type DeadlineKind,
   deadlineListColumns,
+  type DeadlineReminder,
   deadlineReminderWords,
   type DeadlineRegistry,
   type DeadlineSetting,
@@ -30,10 +31,12 @@ import {
   deadlineStatuses,
   intervalMonthsProblem,
   intervalProblem,
+  isDeadlineReminder,
   type IsoDate,
   leadOf,
   leadProblem,
   outgoingTableRows,
+  reminderAction,
   remindOn,
   tableNamesPeople,
   type TenantId,
@@ -113,6 +116,8 @@ export interface DeadlineKindEntry {
     readonly intervalMonths: number | null
     readonly leadDays: number | null
     readonly responsibleUserId: string | null
+    /** Null is the way of the kind, by mail and by push (opengewerk-haustechnik#269). */
+    readonly reminder: DeadlineReminder | null
   }
 }
 
@@ -424,6 +429,7 @@ function kindEntries(
         intervalMonths: setting?.intervalMonths ?? null,
         leadDays: setting?.leadDays ?? null,
         responsibleUserId: setting?.responsibleUserId ?? null,
+        reminder: setting?.reminder ?? null,
       },
     }
   })
@@ -948,6 +954,20 @@ function deadlineSettingsController(
         'Die Frist ist eine Zahl von Monaten oder leer.',
       )
       const kindMonths = kind.intervalMonths ?? null
+      const reminder = fields['reminder'] ?? null
+
+      // How the kind reminds, for a kind that reminds (opengewerk-haustechnik#269).
+      if (reminder !== null && !isDeadlineReminder(reminder)) {
+        throw new BadRequestException(
+          'Die Erinnerung ist "E-Mail und Push", "Nur E-Mail" oder "Keine Nachricht".',
+        )
+      }
+
+      if (reminder !== null && !kind.actions.includes(reminderAction)) {
+        throw new BadRequestException(
+          'Diese Art erinnert nicht, eine Erinnerung lässt sich für sie nicht einstellen.',
+        )
+      }
 
       if (intervalDays !== null && kind.intervalDays === null) {
         throw new BadRequestException(
@@ -983,10 +1003,18 @@ function deadlineSettingsController(
             intervalDays,
             intervalMonths,
             responsibleUserId,
+            reminder,
           })
           .onConflictDoUpdate({
             target: [deadlineSettings.tenantId, deadlineSettings.kind],
-            set: { leadDays, intervalDays, intervalMonths, responsibleUserId, updatedAt: now },
+            set: {
+              leadDays,
+              intervalDays,
+              intervalMonths,
+              responsibleUserId,
+              reminder,
+              updatedAt: now,
+            },
           })
 
         const entry = kindEntries(this.rules, await deadlineSettingsOf(tx)).find(

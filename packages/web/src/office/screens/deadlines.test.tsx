@@ -347,6 +347,7 @@ describe('"Fristen" in the settings', () => {
         leadDays: null,
         intervalDays: 21,
         responsibleUserId: 'u-2',
+        reminder: null,
       })
     })
     expect(await screen.findByText('Gespeichert.')).toBeTruthy()

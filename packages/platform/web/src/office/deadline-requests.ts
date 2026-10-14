@@ -1,4 +1,9 @@
-import type { DeadlineResponsible, DeadlineStatus, IsoDate } from '@opengewerk/platform-domain'
+import type {
+  DeadlineReminder,
+  DeadlineResponsible,
+  DeadlineStatus,
+  IsoDate,
+} from '@opengewerk/platform-domain'
 
 import { request } from '../sync/transport.js'
 
@@ -53,6 +58,8 @@ export interface DeadlineKindView {
     readonly intervalMonths?: number | null
     readonly leadDays: number | null
     readonly responsibleUserId: string | null
+    /** How the kind reminds; null is its own way, by mail and by push (opengewerk-haustechnik#269). */
+    readonly reminder?: DeadlineReminder | null
   }
 }
 
@@ -186,6 +193,7 @@ export function deadlineSettings<Kind extends DeadlineKindView = DeadlineKindVie
 export type DeadlineSettingChange = {
   readonly leadDays: number | null
   readonly responsibleUserId: string | null
+  readonly reminder: DeadlineReminder | null
 } & ({ readonly intervalDays: number | null } | { readonly intervalMonths: number | null })
 
 export function setDeadlineSetting<Kind extends DeadlineKindView = DeadlineKindView>(
