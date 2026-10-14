@@ -504,6 +504,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   gesperrtes Element keinen Fokus halten kann; ein Bildschirmleser verlor den Ort. Jetzt trägt der
   Knopf in dieser Lage `aria-disabled`, lässt keinen Druck durch und hält den Fokus. Gesperrt,
   während der Fokus woanders steht, ist er gesperrt wie bisher.
+- Ein Hinweiskasten mit zwei Knöpfen lässt dem Satz auf dem Telefon wieder seine Breite (#564).
+  Symbol, Satz und Knöpfe standen in einer Zeile, die nicht umbrach, und der Satz lief Buchstabe für
+  Buchstabe nach unten. Jetzt gehen die Knöpfe unter den Satz, wo sie nicht daneben passen, und
+  stehen auf dem Desktop weiter rechts.
 - Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
   jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
   (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen
