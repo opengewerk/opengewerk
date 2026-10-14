@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clockTime, moment, today } from '../format.js'
 import { InProbe } from '../probe-application.js'
 import { PasskeysPanel } from './passkeys.js'
+import { isLocked } from '../testing.js'
 
 /**
  * The card "Passkeys" under "Konto" (#167, #248), `passkeys_card()` of the
@@ -547,9 +548,7 @@ describe('the passkeys under "Konto"', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => {
-      expect(
-        (screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled,
-      ).toBe(true)
+      expect(isLocked(screen.getByRole('button', { name: 'Speichern' }))).toBe(true)
     })
   })
 
@@ -612,9 +611,7 @@ describe('the passkeys under "Konto"', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }))
 
     await waitFor(() => {
-      expect(
-        (within(dialog).getByRole('button', { name: 'Löschen' }) as HTMLButtonElement).disabled,
-      ).toBe(true)
+      expect(isLocked(within(dialog).getByRole('button', { name: 'Löschen' }))).toBe(true)
     })
     expect(
       (within(dialog).getByRole('button', { name: 'Abbrechen' }) as HTMLButtonElement).disabled,
@@ -774,7 +771,7 @@ describe('the passkeys under "Konto"', () => {
 
     const waiting = (await screen.findByRole('button', { name: label })) as HTMLButtonElement
 
-    expect(waiting.disabled).toBe(true)
+    expect(isLocked(waiting)).toBe(true)
   })
 
   it('offers no adding in a browser that cannot hold a passkey, and keeps the list', async () => {

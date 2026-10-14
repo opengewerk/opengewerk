@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { InRouter } from '../in-router.js'
 import { EmptyState, entries, lastChanged, ListCard, ListScreen, SortChoice } from './list.js'
 import type { ListScreenProps } from './list.js'
+import { isLocked } from '../testing.js'
 
 /**
  * A list of the office at every width (#218, #219): cards on a phone, a
@@ -185,7 +186,7 @@ describe('a list at a desk', () => {
     expect(screen.getByText('21 bis 30 von 30')).toBeTruthy()
     expect(names()).toHaveLength(10)
     expect(names()[0]).toBe('Regal 21')
-    expect(screen.getByRole('button', { name: 'Weiter' })).toHaveProperty('disabled', true)
+    expect(isLocked(screen.getByRole('button', { name: 'Weiter' }))).toBe(true)
 
     await userEvent.click(screen.getByRole('button', { name: 'Zurück' }))
 

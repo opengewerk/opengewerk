@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { SignaturePicture } from '../components/signature.js'
 import { SignaturePad } from './signature-pad.js'
+import { isLocked } from '../testing.js'
 
 /**
  * The pad somebody signs on, with a finger or a pen: what it draws, what it
@@ -186,9 +187,7 @@ describe('the pad', () => {
 
     expect(said).toEqual(['M200,200L200,200', null])
     expect(drawn(field)).toBe('')
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Feld leeren' }).disabled).toBe(
-      true,
-    )
+    expect(isLocked(screen.getByRole('button', { name: 'Feld leeren' }))).toBe(true)
 
     // A stroke after clearing starts a new signature, not the old one again.
     fireEvent.pointerDown(field, { pointerId: 2, ...at(300, 100) })

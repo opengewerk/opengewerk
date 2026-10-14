@@ -2,7 +2,7 @@ import { workingInHeader } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { newId } from '../database/identifier.js'
 import { auditEntries, authRateLimits, authUsers, invitations } from '../schema.js'
@@ -756,6 +756,106 @@ describe('the two halves of the schema', () => {
       tx.select().from(invitations),
     )
     expect(invitationsFromNextDoor).toEqual([])
+  })
+})
+
+describe('an instance reached at more than one address (#551)', () => {
+  const inside = 'https://intern.probewerk.example.de'
+  const warnings: string[] = []
+  let twice: ProbeInstance
+
+  beforeAll(async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation((...said: unknown[]) => {
+      warnings.push(said.map(String).join(' '))
+    })
+
+    try {
+      twice = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+        trustedOrigins: [origin, inside],
+      })
+      others.push(twice)
+      // better-auth makes its context with the first request, and the warning
+      // came with it.
+      await twice.http().get(`${authenticationPath}/get-session`).set('origin', origin)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('starts without the warning that no base address is set', () => {
+    expect(warnings.filter((line) => line.includes('Base URL'))).toEqual([])
+  })
+
+  it('signs in, holds the session and offers a passkey over each address, under the cookie of before', async () => {
+    for (const address of [origin, inside]) {
+      const answer = await twice
+        .http()
+        .post(`${authenticationPath}/sign-in/email`)
+        .set('origin', address)
+        .send({ email: member.email, password })
+        .expect(200)
+      const cookies = [answer.headers['set-cookie'] ?? []].flat() as string[]
+      const session = cookies.find((cookie) => cookie.includes('session_token='))
+
+      // The name an update must not change: a new one would end every session
+      // an instance holds.
+      expect(session?.split('=')[0]).toBe('__Secure-better-auth.session_token')
+
+      const seen = await twice
+        .http()
+        .get(`${authenticationPath}/get-session`)
+        .set('origin', address)
+        .set('cookie', withCookies(cookies))
+        .expect(200)
+
+      expect((seen.body as { user: { email: string } }).user.email).toBe(member.email)
+
+      const offered = await twice
+        .http()
+        .get(`${authenticationPath}/passkey/generate-authenticate-options`)
+        .set('origin', address)
+        .expect(200)
+
+      expect((offered.body as { rpId: string }).rpId).toBe('probewerk.example.de')
+
+      // A request that carries the cookie is where the origin is asked: from
+      // either address it goes through.
+      await twice
+        .http()
+        .post(`${authenticationPath}/sign-out`)
+        .set('origin', address)
+        .set('cookie', withCookies(cookies))
+        .expect(200)
+    }
+  })
+
+  it('still refuses a request with the cookie from an address it does not trust', async () => {
+    // better-auth asks the origin of a request that carries a cookie, which is
+    // the forgery the list is there for; one without a cookie has nothing to
+    // forge.
+    const answer = await twice
+      .http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', inside)
+      .send({ email: member.email, password })
+      .expect(200)
+    const cookie = withCookies([answer.headers['set-cookie'] ?? []].flat() as string[])
+
+    await twice
+      .http()
+      .post(`${authenticationPath}/sign-out`)
+      .set('origin', 'https://fremd.example.org')
+      .set('cookie', cookie)
+      .expect(403)
+
+    const still = await twice
+      .http()
+      .get(`${authenticationPath}/get-session`)
+      .set('origin', inside)
+      .set('cookie', cookie)
+      .expect(200)
+
+    expect((still.body as { user: { email: string } }).user.email).toBe(member.email)
   })
 })
 

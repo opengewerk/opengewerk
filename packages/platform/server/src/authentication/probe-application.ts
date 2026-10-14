@@ -359,6 +359,8 @@ export interface ProbeInstanceOptions extends Pick<
   AuthenticationOptions,
   'rateLimited' | 'passwordResetMail' | 'passkeyNotice'
 > {
+  /** Where the instance is reached. Left out, at the one probe origin. */
+  readonly trustedOrigins?: readonly string[]
   /** Signs the cookies. Its own per instance, so that two of them share no session. */
   readonly secret?: string
   /** The code the first run asks for. Left out, the first run is refused. */
@@ -422,13 +424,14 @@ export async function probeInstance(
     instanceSettings = null,
     mail = null,
     additions,
+    trustedOrigins = [probeOrigin],
     ...authenticationOptions
   } = options
   const database = Database.connect(databaseUrl)
   const authentication = probeAuthentication({
     database,
     secret,
-    trustedOrigins: [probeOrigin],
+    trustedOrigins,
     // Off unless a test is about them. They count per address, and every
     // request of a test comes from the same one.
     rateLimited: false,
@@ -441,11 +444,11 @@ export async function probeInstance(
         database,
         closed ? new ClosedIdentitySource() : probeIdentities(authentication, database),
         closed
-          ? { trustedOrigins: [probeOrigin], invitationMailing, instanceSettings, mail }
+          ? { trustedOrigins, invitationMailing, instanceSettings, mail }
           : {
               authentication,
               setupCode: setupCode ?? null,
-              trustedOrigins: [probeOrigin],
+              trustedOrigins,
               invitationMailing,
               instanceSettings,
               mail,

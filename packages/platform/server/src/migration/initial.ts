@@ -142,6 +142,13 @@ export function completeInitialMigration(
 
   const guards = guardsFor(generated, options.guards ?? foundationGuards)
   const triggers = guards.flatMap(triggerStatements)
+  // The one change to what drizzle-kit wrote (#568): a unique index goes in
+  // front of the foreign keys, so that a key leaning on it finds it. Split at
+  // the mark and joined at it again, a file with nothing to move comes out as
+  // it went in.
+  const tables = uniqueIndexesBeforeKeys(generated.trim().split(statementBreakpoint)).join(
+    statementBreakpoint,
+  )
 
   const parts = [
     `-- The foundation (ADR 0010 in the repository "opengewerk"): the tables every
@@ -150,9 +157,10 @@ export function completeInitialMigration(
 --
 -- Put together by \`completeInitialMigration\` of @opengewerk/platform-server.
 -- The tables, keys and policies in the second part are what drizzle-kit
--- generated from the schema; everything else is a building block of the
--- foundation, which knows what drizzle-kit does not: the role, FORCE, the
--- grants, the functions and the triggers.
+-- generated from the schema, with a unique index moved in front of the
+-- foreign keys, where drizzle-kit wrote it after them; everything else is a
+-- building block of the foundation, which knows what drizzle-kit does not:
+-- the role, FORCE, the grants, the functions and the triggers.
 --
 -- From here on this file is frozen like every migration. A correction is a
 -- new migration, because this one has run on somebody's database.
@@ -163,7 +171,7 @@ ${readRolesBlock()}`,
 
     `-- Part 2 of 5: the tables, as drizzle-kit generated them.
 
-${generated.trim()}`,
+${tables}`,
 
     `-- Part 3 of 5: FORCE, and what the application role may do with each table.
 --

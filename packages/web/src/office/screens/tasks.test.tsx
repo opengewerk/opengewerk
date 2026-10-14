@@ -22,6 +22,7 @@ import { SyncClient } from '../../sync/client.js'
 import { JobScreen } from './jobs.js'
 import { TaskListScreen } from './tasks.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
+import { isLocked } from '@opengewerk/platform-web/testing'
 
 /**
  * The tasks of #80 on screen: on the job they hang on, in the office's own
@@ -384,7 +385,7 @@ describe('the office list of tasks', () => {
     const form = within(await screen.findByRole('region', { name: 'Neue Aufgabe' }))
 
     // One copper button at a time (#223): the head's waits for the card's.
-    expect(start.hasAttribute('disabled')).toBe(true)
+    expect(isLocked(start)).toBe(true)
 
     await person.type(await form.findByLabelText('Was zu tun ist'), 'Angebot nachfassen')
     await person.click(form.getByRole('button', { name: 'Aufgabe anlegen' }))

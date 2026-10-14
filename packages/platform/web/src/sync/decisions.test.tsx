@@ -23,6 +23,7 @@ import { SyncProvider } from './provider.js'
 import { openLocalStore } from './store.js'
 import type { PullResult, SyncTransport } from './transport.js'
 import { RequestRefused } from './transport.js'
+import { isLocked } from '../testing.js'
 
 /**
  * What somebody decides about the exchange, in an application that belongs to
@@ -867,9 +868,7 @@ describe('"Abgleich" in the office', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Jetzt abgleichen' }))
 
     await waitFor(() => {
-      expect(
-        screen.getByRole<HTMLButtonElement>('button', { name: 'Jetzt abgleichen' }).disabled,
-      ).toBe(true)
+      expect(isLocked(screen.getByRole('button', { name: 'Jetzt abgleichen' }))).toBe(true)
     })
     answer({ changes: [], cursor: 2, hasMore: false })
     await waitFor(() => {
@@ -1172,9 +1171,7 @@ describe('"Konflikte" on site', () => {
       })
     await userEvent.setup().click(screen.getByRole('button', { name: 'Erneut versuchen' }))
 
-    expect(
-      screen.getByRole<HTMLButtonElement>('button', { name: 'Erneut versuchen' }).disabled,
-    ).toBe(true)
+    expect(isLocked(screen.getByRole('button', { name: 'Erneut versuchen' }))).toBe(true)
     answer({ changes: [], cursor: 2, hasMore: false })
     await waitFor(() => {
       expect(

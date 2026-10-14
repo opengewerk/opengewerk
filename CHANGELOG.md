@@ -248,6 +248,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Läufe auf einem Stapel halten ihn mit allen Profilen an (#566). Ein Profil auf der
+  Kommandozeile tritt bei Docker Compose an die Stelle des Profils aus der `.env`, und "down" mit
+  dem Profil der Sicherung ließ den Renderer weiterlaufen, im Schritt "Datenplatte verlieren" wie
+  beim Aufräumen der CI. Der Schritt sagt jetzt, wenn ein Container bleibt.
 - Wer genau einem Mandanten angehört, wird nach der Anmeldung nicht mehr gefragt, welchem
   (#624): `TenantScreen` öffnet ihn selbst, wie ein Klick auf seine Kachel, mit dem Gerät vom
   Eingang vor Ort, und zeigt die Kachel mit dem Grund nur, wenn das nicht ging. Das war ein
@@ -267,6 +271,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   stellt seine Karten wie die Tafel: Eigene Angaben und Darstellung, Zweiter Faktor und Passwort,
   dann die Passkeys; unter dem Titel stehen die Rollen. Vor Ort steht über den Konflikten kein
   Streifen mehr, der zu ihnen führt.
+- `completeInitialMigration` stellt in der ersten Migration einer Anwendung einen eindeutigen
+  Index vor die Fremdschlüssel und sagt es im Kopf der Datei (#568). `drizzle-kit` schreibt jeden
+  Schlüssel vor jeden Index, und eine Anwendung, deren erste Migration Dateispeicher und Ablage
+  zugleich anlegt, scheiterte am Schlüssel einer Fassung auf `files`. Die Migrationen beider
+  Anwendungen bleiben, wie sie sind.
 - Der Dialog mit einem Formular (`Dialog`) steht auch unter 640 Pixeln in der Mitte des Fensters
   (`opengewerk-haustechnik#147`). Auf einem Telefon stand er am oberen Rand, damit eine Tastatur
   ihn nicht verdeckt; damit stand dieselbe Karte je nach Breite an zwei Stellen, und die Frage
@@ -461,6 +470,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Anwendung mit. In der Handwerkersoftware sehen beide Bildschirme aus wie vorher. Der Lauf
   "Sicherung und Rückspielen" ruft nach dem Schritt `record` den Haken `after_record` der
   Anwendung, damit sie dort ihre Route der letzten Sicherung fragt.
+- Ein Test hält fest, dass die Breitenprüfung auf einen Knopf wartet, der erst mit einer Antwort
+  des Servers erscheint, und einen, den eine Breite nie zeichnet, weiter meldet (#565). Das Warten
+  selbst kam schon mit #591; vorher galt ein solcher Knopf als "nicht zu sehen", und die Prüfung
+  wurde an einer Seite rot, die niemand angefasst hatte.
 
 ### Behoben
 
@@ -470,12 +483,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ablesen" abhakte, nachdem die Fristen-Engine sie mit den Ständen schon erledigt hatte. Steht jedes
   Feld schon so, wird die Änderung übersprungen, wie eine, die zweimal ankommt; ein dritter Wert
   bleibt ein Konflikt.
+- In "Zugänge" stehen die Knöpfe einer Zeile bei 1280 Pixeln wieder nebeneinander, auch wenn die
+  Spalte der Anwendung einen langen Namen zeigt (#562). Die Knöpfe gaben als Erste nach, und jede
+  Zeile wurde doppelt so hoch; in der Haustechnik traf das jeden Zugang mit dem Bereich "Alle
+  Liegenschaften". Jetzt kürzt sich die Adresse unter dem Namen mit Auslassungspunkten, und die
+  Spalten haben die Breiten der Tafel.
 - Eine Runde des Abgleichs, die während eines laufenden Austauschs angefragt wurde, findet auch
   statt, wenn dieser Austausch scheitert (#572). Hing eine Anfrage an einer schwachen Verbindung und
   kam das Netz in der Zeit zurück, fiel die Runde des Netzes mit dem Fehler weg, und der Streifen
   sagte "Keine Verbindung" auf einem Gerät mit Netz, bis etwas anderes eine Runde anstieß. Eine
   gescheiterte Runde fragt weiter nichts von sich aus an, damit aus einer Ablehnung keine Schleife
   wird.
+- Ein Knopf, der gesperrt wird, während er den Fokus hat, behält ihn (#629). Wer mit der Tastatur
+  ein Formular abschickte und eine Ablehnung bekam, stand danach am Anfang der Seite, weil ein
+  gesperrtes Element keinen Fokus halten kann; ein Bildschirmleser verlor den Ort. Jetzt trägt der
+  Knopf in dieser Lage `aria-disabled`, lässt keinen Druck durch und hält den Fokus. Gesperrt,
+  während der Fokus woanders steht, ist er gesperrt wie bisher.
 - Ein Hinweiskasten mit zwei Knöpfen lässt dem Satz auf dem Telefon wieder seine Breite (#564).
   Symbol, Satz und Knöpfe standen in einer Zeile, die nicht umbrach, und der Satz lief Buchstabe für
   Buchstabe nach unten. Jetzt gehen die Knöpfe unter den Satz, wo sie nicht daneben passen, und
@@ -602,6 +625,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   zulässt. `checkEntries` (`tools/entry-check`) fragt in der CI einen echten Browser danach, an
   beiden Einstiegen, mit einmal und mit auf Dauer abgeschnittenem Skript: ob ein Browser den
   Fehlschlag am Element meldet, weiß kein Test ohne einen
+- Eine Instanz startet ohne die Warnung von better-auth, die Basis-Adresse fehle (#551). Die
+  Anmeldung bekommt jetzt den ersten Eintrag von `TRUSTED_ORIGINS` als ihre Adresse, die auch das
+  QR-Etikett druckt; Cookies, Passkeys und jede weitere vertraute Adresse bleiben, wie sie waren.
+  Dabei fiel auf, dass better-auth seine Prüfung der Herkunft in Tests von selbst abschaltet; sie
+  steht jetzt ausdrücklich an, und die Tests laufen mit derselben Prüfung wie eine Instanz.
 
 ## [0.5.0] - 2026-10-04
 

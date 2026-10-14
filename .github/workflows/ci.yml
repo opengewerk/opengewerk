@@ -761,7 +761,8 @@ jobs:
       - name: Aufräumen
         if: always()
         working-directory: docker
-        run: docker compose --profile backup down --volumes --remove-orphans
+        # Every profile, so that the renderer goes with the rest (#566).
+        run: docker compose --profile '*' down --volumes --remove-orphans
 
   update:
     name: Update einer laufenden Instanz
