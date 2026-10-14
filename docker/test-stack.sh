@@ -186,6 +186,7 @@ update_adds='nichts'
 
 records_for_backup() { :; }
 records_for_update() { :; }
+after_record() { :; }
 after_restore() { :; }
 after_update() { :; }
 
@@ -529,6 +530,8 @@ record)
   compose exec -T app sh -c 'cat "$BACKUP_STATUS_PATH/last.json"' | tee "$temp/last.json"
   grep -q '"finishedEpoch"' "$temp/last.json"
   grep -q '"encrypted": true' "$temp/last.json"
+  # What the application makes of it, on its route (opengewerk-haustechnik#127).
+  after_record
   ;;
 
 lose-data)

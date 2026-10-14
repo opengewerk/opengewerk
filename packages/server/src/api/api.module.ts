@@ -6,7 +6,12 @@ import {
   RequestMethod,
 } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
-import { auditVocabulary, largestLogoBytes, logoMediaTypes } from '@opengewerk/domain'
+import {
+  auditVocabulary,
+  largestLogoBytes,
+  logoMediaTypes,
+  numberRangeKeys,
+} from '@opengewerk/domain'
 import {
   attachmentParts,
   auditLogParts,
@@ -24,6 +29,7 @@ import {
   MAIL,
   type MailContext,
   mailSettingsParts,
+  numberRangeParts,
   PUSH,
   type PushContext,
   pushParts,
@@ -45,6 +51,7 @@ import { deadlineRules } from '../deadlines/routes.js'
 import { mailServersOfBusinesses } from '../mail/server-settings.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
 import { pushRules } from '../notifications/push.js'
+import { changeNumberRange, numberRangesOf } from '../database/number-ranges.js'
 import { ArticleImportsController } from './article-imports.controller.js'
 import { ArticlesController } from './articles.controller.js'
 import { attachmentRights, attachmentRoutes } from './attachment-routes.js'
@@ -69,7 +76,6 @@ import { InstallationsController } from './installations.controller.js'
 import { InstructionsController } from './instructions.controller.js'
 import { JobsController } from './jobs.controller.js'
 import { LetterheadController } from './letterhead.controller.js'
-import { NumberRangesController } from './number-ranges.controller.js'
 import { ReportFieldsController } from './report-fields.controller.js'
 import { SettingsController } from './settings.controller.js'
 import { SECRETS } from './handed-in.js'
@@ -233,6 +239,15 @@ export class ApiModule implements NestModule {
     })
     // When the last backup ran, for whoever reads the settings (#130).
     const backingUp = backupStatusParts({ access, read: 'settings.read', directory: backupStatus })
+    // The number ranges of a business: read with the settings, set by whoever
+    // writes them, which is the owner, like the letterhead.
+    const numbering = numberRangeParts({
+      access,
+      read: 'settings.read',
+      write: 'settings.write',
+      keys: numberRangeKeys,
+      store: { numberRangesOf, changeNumberRange },
+    })
     // The mail server of the business, set up by whoever may write in its name
     // (#102); whether it sends at all, for whoever reads the settings.
     const pushing = pushParts({ access, rights: { write: 'push.write' }, rules: pushRules })
@@ -303,9 +318,9 @@ export class ApiModule implements NestModule {
         ReportFieldsController,
         InstructionsController,
         ...mailing.controllers,
-        NumberRangesController,
         LetterheadController,
         ...backingUp.controllers,
+        ...numbering.controllers,
       ],
       providers: [
         { provide: Database, useValue: database },

@@ -161,6 +161,10 @@ export * from './attachments/sync.js'
 export * from './backup/controller.js'
 export * from './backup/status.js'
 
+// The routes of the number ranges of a tenant, for the settings. Which
+// sequences there are and who may see and change them, the application says.
+export * from './number-ranges/controller.js'
+
 // Printing: the renderer service that turns a page into a PDF, the token a
 // module hands it in under, and what every printed page is written with. What
 // a page says, the application writes.

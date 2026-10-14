@@ -76,6 +76,14 @@ export type {
 } from './deadlines.js'
 export { DeadlineSettingsScreen } from './deadline-settings.js'
 export type { DeadlineSettingsProps } from './deadline-settings.js'
+
+// The number ranges and the backups among the settings (opengewerk-haustechnik#127):
+// the screens, and the line at the top of the office when a backup is behind.
+// Which sequences there are and what each says, the application says.
+export { changeNumberRange, NumberRangesScreen, numberRanges } from './number-ranges.js'
+export type { NumberRangesProps, NumberRangeView, NumberRangeWords } from './number-ranges.js'
+export { BackupBar, backupIsBehind, backupQuery, BackupScreen, backupStatus } from './backup.js'
+export type { BackupWords } from './backup.js'
 export {
   changeDeadline,
   deadlineKinds,

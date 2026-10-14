@@ -400,6 +400,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   mit dem Feld geschah: "Notizen neu", "geändert" oder "entfernt". So auch bei einem Wert, den
   das Protokoll für sich behält und der vorher wie nachher "gesetzt" heißt. Dasselbe steht in
   der Tabelle, die das Protokoll hinausgibt, und im Protokoll der Instanz
+- Die Nummernkreise und die Sicherung unter "Einstellungen" gehören jetzt dem Fundament
+  (`opengewerk-haustechnik#127`, ADR 0010): die Routen `GET` und `PUT /settings/number-ranges`
+  als `numberRangeParts`, die Bildschirme "Nummernkreise" und "Sicherung" und die Leiste
+  "Sicherung überfällig" als `NumberRangesScreen`, `BackupScreen` und `BackupBar` in
+  `@opengewerk/platform-web/office`. Die Haustechnik braucht dieselben Bildschirme; welche
+  Nummernkreise es gibt, wer sie sehen und ändern darf und was die Sätze sagen, gibt die
+  Anwendung mit. In der Handwerkersoftware sehen beide Bildschirme aus wie vorher. Der Lauf
+  "Sicherung und Rückspielen" ruft nach dem Schritt `record` den Haken `after_record` der
+  Anwendung, damit sie dort ihre Route der letzten Sicherung fragt.
 
 ### Behoben
 
