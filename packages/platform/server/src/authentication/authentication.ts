@@ -223,6 +223,14 @@ export function createAuthentication({
   const authentication = betterAuth({
     appName: application.name,
     secret,
+    // Where the instance is reached: the first trusted origin, the address the
+    // QR labels print as well (#551). Without it better-auth warned at every
+    // start and took the address from each request, behind the web server in
+    // front of it the inner one. Nothing that signs in depends on it here: the
+    // cookies are named by `useSecureCookies`, a passkey by its relying party
+    // below, and a request from any other trusted origin is let in by the list
+    // as before.
+    ...(trustedOrigins[0] ? { baseURL: trustedOrigins[0] } : {}),
     trustedOrigins: [...trustedOrigins],
     database: drizzleAdapter(database.authenticationHandle(), {
       provider: 'pg',
@@ -476,6 +484,10 @@ export function createAuthentication({
       // that nobody turns it off by accident. The routes of ours have theirs
       // in `SameOriginGuard`, against the same list.
       disableCSRFCheck: false,
+      // The same, for the second switch: left unsaid, better-auth turns its
+      // check of the origin off whenever it believes it runs in a test, and
+      // no test here ever met the check an instance runs with (#551).
+      disableOriginCheck: false,
     },
     plugins: [
       twoFactor({
