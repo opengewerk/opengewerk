@@ -149,7 +149,9 @@ export function GateFoot({
             href={legalAddress(kind)}
             className={clsx(
               'underline underline-offset-2',
-              onSlate ? 'text-gate-text' : 'text-ink-muted',
+              // On slate in the grey of its text, on the ground in copper, as
+              // the boards of the page "Vor der Anmeldung" draw both.
+              onSlate ? 'text-gate-text' : 'text-copper-text',
             )}
           >
             {footLabels[kind]}
