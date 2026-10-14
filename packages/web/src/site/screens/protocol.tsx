@@ -7,10 +7,12 @@ import {
   type FormSection,
   formValuesText,
   type GroupField,
+  isRuleLimit,
   limitVerdict,
   type MeasurementField,
   measurementUnitSign,
   type RecordState,
+  type RuleLimitKind,
   sealingField,
   signerNameProblem,
 } from '@opengewerk/domain'
@@ -912,18 +914,27 @@ function BlockStep({
   )
 }
 
+const limitSigns: Readonly<Record<RuleLimitKind, string>> = {
+  at_least: '≥',
+  at_most: '≤',
+  below: '<',
+}
+
 /** "≤ 2,87 Ω": the limit beside the label, as the board writes it, or nothing. */
-function shortLimit(field: MeasurementField, limitMilli: number | null): string | null {
+export function shortLimit(field: MeasurementField, limitMilli: number | null): string | null {
   if (!field.limit || limitMilli === null) {
     return null
   }
 
-  const atLeast = field.limit.kind === 'at_least'
-  // Rounded towards the strict side, as the sentence under the value is.
+  // A limit worked out of the circuit is one a value may reach at most.
+  const kind = isRuleLimit(field.limit) ? field.limit.kind : 'at_most'
+  // Rounded towards the strict side, as the sentence under the value is: down
+  // for "höchstens", up for "mindestens" and "unter".
   const step = 10 ** Math.max(0, 3 - field.decimals)
-  const shown = atLeast ? Math.ceil(limitMilli / step) * step : Math.floor(limitMilli / step) * step
+  const shown =
+    kind === 'at_most' ? Math.floor(limitMilli / step) * step : Math.ceil(limitMilli / step) * step
 
-  return `${atLeast ? '≥' : '≤'} ${formatMeasured(shown, field.unit, field.decimals)}`
+  return `${limitSigns[kind]} ${formatMeasured(shown, field.unit, field.decimals)}`
 }
 
 /**

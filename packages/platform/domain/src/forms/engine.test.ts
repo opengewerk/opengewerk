@@ -464,6 +464,34 @@ describe('the verdict on a measured value', () => {
     })
   })
 
+  it('takes the limit itself as outside when a value has to stay under it', () => {
+    const under: MeasurementField<ProbeTerms> = {
+      ...temperature,
+      limit: { kind: 'below', rule: 'probe.storage.temperature_maximum' },
+    }
+
+    expect(
+      engine.definitionProblems({
+        ...inspection,
+        sections: [{ ...inspection.sections[0]!, fields: [under] }],
+      }),
+    ).toEqual([])
+    expect(engine.limitVerdict(under, 24_900, { rules, on: '2026-10-04' })).toEqual({
+      within: true,
+      limitMilli: 25_000,
+      text: 'Innerhalb des Grenzwerts, unter 25,0 °C.',
+      source: 'Lagerordnung des Probewerks',
+    })
+    expect(engine.limitVerdict(under, 25_000, { rules, on: '2026-10-04' })).toEqual({
+      within: false,
+      limitMilli: 25_000,
+      text: 'Außerhalb des Grenzwerts, unter 25,0 °C.',
+      source: 'Lagerordnung des Probewerks',
+    })
+    // A limit a value may reach takes the same value as within.
+    expect(engine.limitVerdict(temperature, 25_000, { rules, on: '2026-10-04' }).within).toBe(true)
+  })
+
   it('works out a limit from what the block is about, and says so when it is about nothing', () => {
     expect(engine.limitVerdict(load, 81_000, { rules, on: '2026-10-04', item: boden })).toEqual({
       within: false,

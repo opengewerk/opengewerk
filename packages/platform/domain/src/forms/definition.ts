@@ -47,11 +47,21 @@ export interface FormTerms {
 }
 
 /**
+ * How a value stands to a limit taken from a rule: at least or at most the
+ * limit, which itself is within, or below it, where reaching the limit is
+ * outside already, as for an action value that asks for something once it is
+ * reached.
+ */
+export const ruleLimitKinds = ['at_least', 'at_most', 'below'] as const
+
+export type RuleLimitKind = (typeof ruleLimitKinds)[number]
+
+/**
  * A limit taken from a rule, never a number: a limit is a value with a
  * source and belongs in a rule package, for the same reason as a rate.
  */
 export interface RuleLimit {
-  readonly kind: 'at_least' | 'at_most'
+  readonly kind: RuleLimitKind
   readonly rule: string
 }
 
@@ -68,7 +78,7 @@ export type LimitSpec<T extends FormTerms = FormTerms> = RuleLimit | WorkedOutLi
 
 /** Whether a limit is taken from a rule rather than worked out. */
 export function isRuleLimit(limit: LimitSpec): limit is RuleLimit {
-  return (limit.kind === 'at_least' || limit.kind === 'at_most') && 'rule' in limit
+  return (ruleLimitKinds as readonly string[]).includes(limit.kind) && 'rule' in limit
 }
 
 /**
