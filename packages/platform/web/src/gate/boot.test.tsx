@@ -342,7 +342,10 @@ describe('starting with a network', () => {
         path.endsWith('/get-session')
           ? session(null, method)
           : path === '/auth/tenants'
-            ? [aTenant({ id: 't-nord', roles: ['lead'], secondFactor: true })]
+            ? [
+                aTenant({ id: 't-nord', roles: ['lead'], secondFactor: true }),
+                aTenant({ id: 't-sued', name: 'Probewerk Süd' }),
+              ]
             : null,
       )
       start()
@@ -367,7 +370,10 @@ describe('starting with a network', () => {
         path.endsWith('/get-session')
           ? session(null)
           : path === '/auth/tenants'
-            ? [aTenant({ id: 't-nord', roles, secondFactor })]
+            ? [
+                aTenant({ id: 't-nord', roles, secondFactor }),
+                aTenant({ id: 't-sued', name: 'Probewerk Süd' }),
+              ]
             : null,
       )
       start()
@@ -398,7 +404,10 @@ describe('starting with a network', () => {
     expect(await screen.findByRole('heading', { name: 'Das ging nicht' })).toBeTruthy()
     expect(screen.getByText('Die Liste der Mandanten kam nicht an.')).toBeTruthy()
 
-    tenants = { status: 200, body: [aTenant({ id: 't-nord' })] }
+    tenants = {
+      status: 200,
+      body: [aTenant({ id: 't-nord' }), aTenant({ id: 't-sued', name: 'Probewerk Süd' })],
+    }
     await userEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
 
     expect(await screen.findByRole('heading', { name: 'Mandant wählen' })).toBeTruthy()

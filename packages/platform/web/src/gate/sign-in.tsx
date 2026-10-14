@@ -1,7 +1,7 @@
 import type { TenantId } from '@opengewerk/platform-domain'
 import clsx from 'clsx'
 import { FingerprintPattern } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { useApplication } from '../application.js'
@@ -20,7 +20,7 @@ import {
 import type { TenantChoice } from '../session/session.js'
 import { rolesInWords } from '../session/who.js'
 import { RequestRefused } from '../sync/transport.js'
-import { Gate, GateText } from './frame.js'
+import { Gate, GateText, GateWaiting } from './frame.js'
 import { SignOutButton } from './sign-out.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -389,6 +389,10 @@ function codesLeft(left: number | null): string {
  * What a tenant is called is the application's (ADR 0010), and with it every
  * sentence here: the heading, the account that belongs to none, the one that
  * could not be chosen.
+ *
+ * One tenant is no choice (#624): it is opened once, as a click on its tile
+ * would open it, with the device on the site entry, and the tile comes back
+ * only when that fails, with the reason under it.
  */
 export function TenantScreen({
   entry,
@@ -406,6 +410,25 @@ export function TenantScreen({
   const { tenantChoice: sentences } = useApplication().sentences
   const [working, setWorking] = useState<TenantId | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
+  const only = tenants.length === 1 ? tenants[0] : undefined
+  const [opening, setOpening] = useState(only !== undefined)
+  // Once, also where a development build mounts the screen twice.
+  const opened = useRef(false)
+
+  useEffect(() => {
+    if (!only || opened.current) {
+      return
+    }
+
+    opened.current = true
+    void chooseTenant(only.id, entry === 'site' ? deviceId : undefined).then(
+      onChosen,
+      (error: unknown) => {
+        setTrouble(saidWhy(error, sentences.notChosen))
+        setOpening(false)
+      },
+    )
+  }, [only, entry, deviceId, onChosen, sentences.notChosen])
 
   async function choose(tenant: TenantChoice) {
     setWorking(tenant.id)
@@ -418,6 +441,10 @@ export function TenantScreen({
       setTrouble(saidWhy(error, sentences.notChosen))
       setWorking(null)
     }
+  }
+
+  if (opening) {
+    return <GateWaiting>Die Daten dieses Geräts werden geöffnet.</GateWaiting>
   }
 
   if (tenants.length === 0) {

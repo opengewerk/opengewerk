@@ -209,7 +209,10 @@ describe('the gate of this application', () => {
         <TenantScreen
           entry="office"
           deviceId="geraet"
-          tenants={[aTenantChoice(['owner'], { id: 't-nord', name: 'Elektro Nord GmbH' })]}
+          tenants={[
+            aTenantChoice(['owner'], { id: 't-nord', name: 'Elektro Nord GmbH' }),
+            aTenantChoice(['owner'], { id: 't-sued', name: 'Elektro Süd GmbH' }),
+          ]}
           onChosen={vi.fn()}
           onSignedOut={vi.fn()}
         />,
