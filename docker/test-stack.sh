@@ -535,7 +535,13 @@ record)
   ;;
 
 lose-data)
-  compose --profile backup down --remove-orphans
+  # Every profile (#566): a profile named on the command line stands in place
+  # of the one the .env switches on, and "down" with the profile of the backup
+  # alone left the renderer running, on a network that could not be removed
+  # under it. The step stops the whole stack, and says so if it did not.
+  compose --profile '*' down --remove-orphans
+  left=$(compose --profile '*' ps --all --quiet)
+  [ -z "$left" ] || fail "Vom Stapel sind Container geblieben: ${left}"
   docker volume rm "$database_volume" "$files_volume"
   compose up -d --wait --wait-timeout 300
 
