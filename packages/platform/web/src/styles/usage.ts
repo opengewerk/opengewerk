@@ -62,6 +62,9 @@ const builtIn: ReadonlySet<string> = new Set([
   // scale, which `@import 'tailwindcss'` brings along.
   'px',
   'dvh',
+  // `outline-offset-2` for the ring of the keyboard drawn by a frame around a
+  // field (opengewerk-haustechnik#132), 2 px out as everywhere else.
+  'offset-2',
   // `border-spacing-0` on a table whose cells draw their own borders.
   'spacing-0',
   'mono',
