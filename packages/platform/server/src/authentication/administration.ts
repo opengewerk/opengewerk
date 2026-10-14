@@ -484,7 +484,7 @@ export interface CorrectedAccount {
 }
 
 /** The key that keeps an address to one account, as the schema names it. */
-const oneAccountPerAddress = 'auth_users_email_unique'
+export const oneAccountPerAddress = 'auth_users_email_unique'
 
 /** How better-auth names a link to a new password that is still open. */
 const openPasswordResets = 'reset-password:%'
@@ -630,7 +630,7 @@ async function worksOnlyHere(
 }
 
 /** Writes the name and the address of an account, outside any tenant, where accounts are. */
-async function writeAccount(
+export async function writeAccount(
   database: Database,
   asUser: string,
   userId: string,

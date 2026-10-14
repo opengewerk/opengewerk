@@ -7,6 +7,7 @@ import {
   Get,
   Inject,
   Param,
+  Patch,
   Post,
 } from '@nestjs/common'
 import type { TenantChoice, TenantId } from '@opengewerk/platform-domain'
@@ -19,6 +20,8 @@ import { Database } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
 import { authSessions, memberships, tenants, tenantSessions } from '../schema.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
+import type { CorrectedAccount } from './administration.js'
+import { changeOwnAccount } from './own-account.js'
 import { rolesHeld } from './roles.js'
 import { sessionLifetimes } from './session-lifetime.js'
 
@@ -230,6 +233,21 @@ export class AuthenticationController {
     )
 
     return { tenantId: chosen }
+  }
+
+  /**
+   * Changes the name or the address of the account of this session, after
+   * the confirmation with the password and the code from the app, and writes
+   * it into the log of every tenant the account works in (`changeOwnAccount`).
+   * It answers with what the account is called now.
+   */
+  @Patch('account')
+  @RequiresSession()
+  async changeAccount(
+    @CurrentUser() user: SignedInUser,
+    @Body() body: unknown,
+  ): Promise<CorrectedAccount> {
+    return changeOwnAccount(this.database, user, pick(body, ['name', 'email'] as const))
   }
 
   /**

@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eigene Angaben unter "Konto" (`opengewerk-haustechnik#128`): Name und E-Mail-Adresse des
+  eigenen Kontos ändert jede Person selbst, nach der Bestätigung mit Passwort und Code aus der
+  App (`PATCH /auth/account`). Die Änderung steht im Änderungsprotokoll jedes Mandanten, für den
+  das Konto arbeitet, mit dem Weg "Eigene Angaben geändert", und ein offener Link zu einem neuen
+  Passwort endet mit der neuen Adresse. Ein Konto, das für mehrere Mandanten arbeitet oder die
+  Instanz verwaltet, ließ sich bisher gar nicht berichtigen, denn das tut nur die Person selbst.
+  Die Bestätigung zieht dafür aus dem Anlegen eines Passkeys in `Reconfirmation` um.
 - Rechtstexte der Instanz (`opengewerk-haustechnik#129`): Impressum und Datenschutzhinweise
   pflegt, wer die Instanz betreibt, in deren Bereich, und jeder liest sie ohne Anmeldung unter
   `/rechtliches`. Der Fuß der Anmeldung verlinkt nur einen Text, der hinterlegt ist, und zeigt
@@ -223,6 +230,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Bildschirme vor der Anmeldung, der Bereich der Instanz, "Konto" und die Konflikte vor Ort
+  folgen ihren Tafeln (`opengewerk-haustechnik#128`), die bis dahin niemand gegen die gebaute
+  Oberfläche gehalten hatte. Eine Anwendung kann ihren Namen an der Anmeldung als Familie und
+  Linie zeigen (`brand`, die Linie in Kupfer); eine Meldung allein in der Karte steht so groß wie
+  "Einen Moment"; der Schlüssel für die Authenticator-App steht in Vierergruppen. Im Bereich der
+  Instanz tragen die Tabellen der Mandanten und der Verwaltung eine Überschrift (ihr Satz
+  `caption`), das eigene Konto heißt dort "Sie" wie in den Zugängen, der Knopf
+  zum Benennen trägt den Satz der Anwendung, der Link für einen neuen Mandanten steht ohne
+  sichtbare Beschriftung (`hideLabel` an `Field`), "Mandant anlegen" bleibt gesperrt, solange er
+  zu sehen ist, und das Protokoll der Instanz zieht seine Karte nicht mehr bis zum Ende des
+  Fensters. Zwei Sätze zum Mailserver nennen die Anwendung nicht mehr, und der Befehl
+  `reset-password` steht als Code (`accountMailMissing` nimmt dafür ein `ReactNode`). "Konto"
+  stellt seine Karten wie die Tafel: Eigene Angaben und Darstellung, Zweiter Faktor und Passwort,
+  dann die Passkeys; unter dem Titel stehen die Rollen. Vor Ort steht über den Konflikten kein
+  Streifen mehr, der zu ihnen führt.
 - Der Dialog mit einem Formular (`Dialog`) steht auch unter 640 Pixeln in der Mitte des Fensters
   (`opengewerk-haustechnik#147`). Auf einem Telefon stand er am oberen Rand, damit eine Tastatur
   ihn nicht verdeckt; damit stand dieselbe Karte je nach Breite an zwei Stellen, und die Frage

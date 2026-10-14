@@ -212,8 +212,13 @@ const instance = {
     mailNoWayIn: 'So greift kein Betrieb über die Instanz in das Netz dahinter.',
     accountMail:
       'Über diesen Mailserver gehen die E-Mails an ein Konto: der Link zu einem neuen Passwort und der Hinweis auf einen neuen Passkey. Ein Konto gehört der Instanz und keinem Betrieb, deshalb gehen diese E-Mails nie über den Mailserver eines Betriebs.',
-    accountMailMissing:
-      'Es ist kein Mailserver eingerichtet. Wer sein Passwort vergessen hat, bekommt keinen Link; den Weg zurück in ein Konto gibt es dann nur über die Inhaberin oder den Inhaber eines Betriebs oder den Befehl reset-password auf dem Server.',
+    accountMailMissing: (
+      <>
+        Es ist kein Mailserver eingerichtet. Wer sein Passwort vergessen hat, bekommt keinen Link;
+        den Weg zurück in ein Konto gibt es dann nur über die Inhaberin oder den Inhaber eines
+        Betriebs oder den Befehl <code>reset-password</code> auf dem Server.
+      </>
+    ),
   },
   legal: {
     forAll: 'Es gilt für alle Betriebe auf dieser Instanz.',

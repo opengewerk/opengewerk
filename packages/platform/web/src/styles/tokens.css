@@ -91,12 +91,14 @@
   /* The brand beside the sign in, as the boards "Tor-Anmelden" draw it: slate
      with the mark, and the same in both grounds, so the dark block repeats
      these values rather than turning them. A lighter slate for the sentences
-     and the foot, and green for the lock of an encrypted connection. */
+     and the foot, green for the lock of an encrypted connection, and copper
+     for the line of a name the application draws in two parts. */
   --color-gate: #1b2430;
   --color-gate-text: #a8afb9;
   --color-gate-faint: #838b98;
   --color-gate-line: #38424f;
   --color-gate-lock: #62b38a;
+  --color-gate-accent: #e08a3c;
 
   /* The strips over a screen, as on the boards "Leisten im Büro" and "Leisten
      auf der Baustelle": amber while something waits, red for a conflict, and
@@ -219,6 +221,7 @@
   --color-gate-faint: #838b98;
   --color-gate-line: #38424f;
   --color-gate-lock: #62b38a;
+  --color-gate-accent: #e08a3c;
 
   --color-bar-wait: #6b5311;
   --color-on-bar-wait: #ffffff;

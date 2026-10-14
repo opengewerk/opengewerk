@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, RefreshCw, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 
-import { useApplication, useInstanceSentences } from '../application.js'
+import { useInstanceSentences } from '../application.js'
 import { Button } from '../components/button.js'
 import { Confirm } from '../components/confirm.js'
 import { Field, SelectField } from '../components/field.js'
@@ -161,7 +161,6 @@ function MailServerForm({
   readonly stored: InstanceMailServerView | null
   readonly onSaid: (said: Said | null) => void
 }) {
-  const { name } = useApplication()
   const queries = useQueryClient()
   const [host, setHost] = useState(stored?.host ?? '')
   const [security, setSecurity] = useState<SmtpSecurity>(stored?.security ?? 'starttls')
@@ -311,7 +310,7 @@ function MailServerForm({
           onChange={(event) => {
             setFromAddress(event.target.value)
           }}
-          hint={`Davor steht der Name der Anwendung, ${name}.`}
+          hint="Davor steht der Name der Anwendung."
         />
       </div>
       <div className="flex flex-wrap gap-2">

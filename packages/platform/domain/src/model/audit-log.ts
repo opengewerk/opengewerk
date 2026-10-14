@@ -620,6 +620,7 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'passkey.add': 'Passkey hinzugefügt',
   'passkey.rename': 'Passkey umbenannt',
   'passkey.remove': 'Passkey gelöscht',
+  'account.own': 'Eigene Angaben geändert',
   authentication: 'Anmeldung und Konten',
   'instance.setup': 'Ersteinrichtung',
   'invitation.redeem': 'Einladung eingelöst',

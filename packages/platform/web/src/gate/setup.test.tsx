@@ -239,7 +239,9 @@ describe('setting up a second factor', () => {
     // without a camera has to be able to set this up too.
     const picture = await screen.findByRole('img', { name: 'QR-Code für die Authenticator-App' })
     expect(picture).toBeDefined()
-    expect(screen.getByText('MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPIYDCMRTGQ2Q')).toBeDefined()
+    expect(
+      screen.getByText('MFRG GZDF MZTW Q2LK NNWG 23TP OBYX E43U OV3H O6DZ PIYD CMRT GQ2Q'),
+    ).toBeDefined()
 
     // Shown once and never again, which is why they are on the screen and not
     // behind a link.

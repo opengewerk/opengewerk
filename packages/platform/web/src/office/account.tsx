@@ -25,16 +25,19 @@ import {
   revokeDevice,
   shortestPassword,
 } from '../session/session.js'
+import { useWho } from '../session/who.js'
 import { entryPath } from '../shell/entry.js'
 import { useSync } from '../sync/provider.js'
 import { RequestRefused } from '../sync/transport.js'
 import { PageHead, Screen } from './kit.js'
+import { OwnDetails } from './own-details.js'
 import { PasskeysPanel } from './passkeys.js'
 import { Saved, SettingsText } from './settings.js'
 
 /**
- * What somebody can look after about their own account: the second factor,
- * the passkeys (#167, #248) and the devices they are signed in on.
+ * What somebody can look after about their own account: their name and
+ * address (opengewerk-haustechnik#128), the second factor, the password, the
+ * passkeys (#167, #248) and the devices they are signed in on.
  *
  * One screen and not two, because both answer the same question: who can get
  * in as me, and how do I stop them. The device list is what makes the long
@@ -42,12 +45,16 @@ import { Saved, SettingsText } from './settings.js'
  * for thirty days, which is right for somebody who works without a network
  * and wrong for a phone that was stolen.
  *
- * What an application adds to the account, its own cards, stands between the
- * passkeys and the password (ADR 0010): the tenants somebody works in, with
- * the way to a further one, and what it sends to this device.
+ * In the order of the board "Konto (3)": two cards beside each other twice at
+ * a desk, the own details and how the application looks, then the second
+ * factor and the password, under them the passkeys and the devices. What an
+ * application adds to the account, its own cards, stands between the passkeys
+ * and the devices (ADR 0010): the tenants somebody works in, with the way to a
+ * further one, and what it sends to this device.
  */
 export function AccountScreen({ children }: { readonly children?: ReactNode }) {
-  const { name, sentences } = useApplication()
+  const { sentences } = useApplication()
+  const who = useWho()
   const client = useSync()
   const queries = useQueryClient()
   const account = useQuery(accountQuery)
@@ -106,7 +113,11 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
     <Screen>
       <PageHead
         title="Konto"
-        sub={account.data ? `${account.data.name}, ${account.data.email}` : 'Dieses Konto.'}
+        sub={
+          account.data
+            ? `${account.data.name}, ${who.roles ? `${account.data.email} · ${who.roles}` : account.data.email}`
+            : 'Dieses Konto.'
+        }
         actions={
           <SignOutButton
             client={client}
@@ -128,10 +139,13 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
       ) : null}
 
       <div className="grid gap-3.5 lg:grid-cols-2">
+        <OwnDetails />
+
         <Panel title="Darstellung" roomy>
           <div className="flex flex-col gap-2.5">
             <SettingsText muted>
-              {`Wie ${name} auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät und vor der Anmeldung.`}
+              Wie die Anwendung auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen
+              Gerät und vor der Anmeldung.
             </SettingsText>
             <ThemeSwitch value={theme} onChoose={chooseTheme} className="max-w-[280px]" />
             <p className="text-[12px] leading-[1.5] text-ink-muted">
@@ -149,7 +163,7 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
           ) : account.data?.twoFactorEnabled ? (
             <div className="flex flex-col gap-2.5">
               <SettingsText>
-                {`Eingerichtet. Bei jeder Anmeldung fragt ${name} zusätzlich nach dem Code aus der App.`}
+                {`Eingerichtet. Bei jeder Anmeldung fragt die Anwendung zusätzlich nach dem Code aus der App. ${sentences.account.secondFactorFor}`}
               </SettingsText>
               <RecoveryCodes />
             </div>
@@ -186,20 +200,20 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
             </div>
           )}
         </Panel>
+
+        <Panel title="Passwort" roomy>
+          <PasswordChange
+            onChanged={() => {
+              // The other devices are signed out, so the list is a step behind.
+              void queries.invalidateQueries({ queryKey: ['devices'] })
+            }}
+          />
+        </Panel>
       </div>
 
       <PasskeysPanel />
 
       {children}
-
-      <Panel title="Passwort" roomy>
-        <PasswordChange
-          onChanged={() => {
-            // The other devices are signed out, so the list is a step behind.
-            void queries.invalidateQueries({ queryKey: ['devices'] })
-          }}
-        />
-      </Panel>
 
       {list.isPending || list.isError || list.data.length === 0 ? (
         <Panel title="Angemeldete Geräte">

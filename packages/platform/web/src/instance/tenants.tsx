@@ -72,9 +72,10 @@ export function InstanceTenantsScreen() {
         <Button
           tone="primary"
           icon={Plus}
-          disabled={creating}
+          // Also while the link is shown, as the board draws it: the link is
+          // there only now, and a new form over it would push it away.
+          disabled={creating || made !== null}
           onClick={() => {
-            setMade(null)
             setCreating(true)
           }}
         >
@@ -111,7 +112,12 @@ export function InstanceTenantsScreen() {
       ) : tenants.isError ? (
         <SettingsText muted>{saidWhy(tenants.error, 'Die Liste kam nicht an.')}</SettingsText>
       ) : (
-        <TablePanel caption={sentences.caption} cards={cards} note={sentences.note}>
+        <TablePanel
+          title={sentences.caption}
+          caption={sentences.caption}
+          cards={cards}
+          note={sentences.note}
+        >
           <thead>
             <tr>
               <Column>{sentences.tenantColumn}</Column>
@@ -140,7 +146,7 @@ export function InstanceTenantsScreen() {
   )
 }
 
-/** Whoever leads a tenant, "du" beside oneself, or the invitation still open. */
+/** Whoever leads a tenant, "Sie" beside oneself, or the invitation still open. */
 function Leads({
   tenant,
   me,
@@ -172,7 +178,7 @@ function Leads({
           <span className={`block text-[14px] font-medium ${breaks}`}>
             {lead.name}
             {lead.email.toLowerCase() === me ? (
-              <span className="ml-1.5 text-[12px] font-bold text-copper-text">du</span>
+              <span className="ml-1.5 text-[12px] font-bold text-copper-text">Sie</span>
             ) : null}
           </span>
           <span className={`block text-[12px] text-ink-faint ${breaks}`}>{lead.email}</span>
@@ -297,12 +303,13 @@ function MadeLink({ made, onDone }: { readonly made: Made; readonly onDone: () =
         </p>
         <div className="flex flex-col gap-2 rounded-[5px] border border-line bg-surface-sunken px-3 py-2.5">
           <SettingsText small>
-            {`Diesen Link an ${made.lead} geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang, und ${sentences.linkMakes}`}
+            {`Diesen Link an ${made.lead} geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang; ${sentences.linkMakes}`}
           </SettingsText>
           <div className="flex items-end gap-2">
             <div className="min-w-0 grow">
               <Field
                 label="Einladungslink"
+                hideLabel
                 readOnly
                 value={made.link}
                 onFocus={(event) => {

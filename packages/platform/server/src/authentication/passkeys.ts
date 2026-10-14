@@ -26,7 +26,7 @@ interface Recorded {
  * of the blocked ones, but it is the person's all the same, and a tenant
  * that blocked somebody may want to know what keys they hold.
  */
-async function tenantsOf(database: Database, userId: string): Promise<readonly TenantId[]> {
+export async function tenantsOf(database: Database, userId: string): Promise<readonly TenantId[]> {
   const rows = await database.forInstance(
     (tx) =>
       tx
