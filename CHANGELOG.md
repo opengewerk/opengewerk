@@ -470,6 +470,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ablesen" abhakte, nachdem die Fristen-Engine sie mit den Ständen schon erledigt hatte. Steht jedes
   Feld schon so, wird die Änderung übersprungen, wie eine, die zweimal ankommt; ein dritter Wert
   bleibt ein Konflikt.
+- Eine Runde des Abgleichs, die während eines laufenden Austauschs angefragt wurde, findet auch
+  statt, wenn dieser Austausch scheitert (#572). Hing eine Anfrage an einer schwachen Verbindung und
+  kam das Netz in der Zeit zurück, fiel die Runde des Netzes mit dem Fehler weg, und der Streifen
+  sagte "Keine Verbindung" auf einem Gerät mit Netz, bis etwas anderes eine Runde anstieß. Eine
+  gescheiterte Runde fragt weiter nichts von sich aus an, damit aus einer Ablehnung keine Schleife
+  wird.
 - Ein Knopf, der gesperrt wird, während er den Fokus hat, behält ihn (#629). Wer mit der Tastatur
   ein Formular abschickte und eine Ablehnung bekam, stand danach am Anfang der Seite, weil ein
   gesperrtes Element keinen Fokus halten kann; ein Bildschirmleser verlor den Ort. Jetzt trägt der
