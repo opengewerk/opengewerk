@@ -212,9 +212,14 @@ function keyed(path, pattern) {
   return kind
 }
 
-/** The first button of that name on the page. */
+/**
+ * The first button of that name on the page that can be pressed. A disabled
+ * one opens nothing, and waiting for it to become enabled would end the run
+ * after half a minute: "Ändern" under "Konto" waits for a change to the own
+ * details (opengewerk-haustechnik#128).
+ */
 function opener(page, name) {
-  return page.getByRole('button', { name, exact: true }).first()
+  return page.getByRole('button', { name, exact: true, disabled: false }).first()
 }
 
 /**
