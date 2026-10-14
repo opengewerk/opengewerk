@@ -141,6 +141,23 @@ const outside: LimitVerdict = {
 }
 
 describe('a measured value', () => {
+  it('shows the ring of the keyboard on its frame, as the field itself has none', () => {
+    render(
+      <MeasurementBlock
+        label="Temperatur"
+        unit="°C"
+        value={undefined}
+        verdict={null}
+        onChange={vi.fn()}
+      />,
+    )
+
+    const box = screen.getByRole('textbox', { name: 'Temperatur in °C' })
+
+    expect(box.className).toContain('outline-none')
+    expect(box.parentElement?.className).toContain('has-[:focus-visible]:outline-copper-text')
+  })
+
   it('hands on what is typed in thousandths, once it reads as a number', () => {
     const typed = vi.fn()
 
