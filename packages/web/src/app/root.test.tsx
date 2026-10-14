@@ -222,7 +222,10 @@ describe('starting this application with a network', () => {
       const answer = path.endsWith('/get-session')
         ? session(null)
         : path === '/auth/tenants'
-          ? [aTenantChoice(['owner'], { id: 't-nord', name: 'Elektro Nord' })]
+          ? [
+              aTenantChoice(['owner'], { id: 't-nord', name: 'Elektro Nord' }),
+              aTenantChoice(['owner'], { id: 't-sued', name: 'Elektro Süd' }),
+            ]
           : null
 
       return Promise.resolve(

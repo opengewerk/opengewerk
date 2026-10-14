@@ -230,6 +230,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Wer genau einem Mandanten angehört, wird nach der Anmeldung nicht mehr gefragt, welchem
+  (#624): `TenantScreen` öffnet ihn selbst, wie ein Klick auf seine Kachel, mit dem Gerät vom
+  Eingang vor Ort, und zeigt die Kachel mit dem Grund nur, wenn das nicht ging. Das war ein
+  überflüssiger Klick bei jeder Anmeldung, gerade direkt nach der Ersteinrichtung.
 - Die Bildschirme vor der Anmeldung, der Bereich der Instanz, "Konto" und die Konflikte vor Ort
   folgen ihren Tafeln (`opengewerk-haustechnik#128`), die bis dahin niemand gegen die gebaute
   Oberfläche gehalten hatte. Eine Anwendung kann ihren Namen an der Anmeldung als Familie und

@@ -1,5 +1,5 @@
 import type { TenantId } from '@opengewerk/platform-domain'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -331,6 +331,61 @@ describe('the choice of a tenant', () => {
     )
     expect(chosen).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: /Probewerk Nord/ })).toHaveProperty('disabled', false)
+  })
+
+  /**
+   * One tenant is no choice (#624): it is opened as a click on its tile would
+   * open it, with the device from the site, and nobody is asked.
+   */
+  it.each([
+    ['site', { tenantId: 't-nord', deviceId: 'device' }],
+    ['office', { tenantId: 't-nord' }],
+  ] as const)('opens the one tenant of an account by itself from the %s', async (entry, sent) => {
+    const chosen = vi.fn()
+
+    render(
+      <InProbe>
+        <TenantScreen
+          entry={entry}
+          deviceId="device"
+          tenants={[aTenant({ id: 't-nord' })]}
+          onChosen={chosen}
+          onSignedOut={vi.fn()}
+        />
+      </InProbe>,
+    )
+
+    expect(screen.getByText('Die Daten dieses Geräts werden geöffnet.')).toBeTruthy()
+    await waitFor(() => {
+      expect(chosen).toHaveBeenCalledOnce()
+    })
+    expect(calls).toEqual([{ path: '/auth/tenant', body: sent }])
+    expect(screen.queryByRole('heading', { name: 'Mandant wählen' })).toBeNull()
+  })
+
+  it('offers the one tenant as a choice once opening it failed, with the reason', async () => {
+    down.add('/auth/tenant')
+    const chosen = vi.fn()
+
+    render(
+      <InProbe>
+        <TenantScreen
+          entry="office"
+          deviceId="device"
+          tenants={[aTenant({ id: 't-nord' })]}
+          onChosen={chosen}
+          onSignedOut={vi.fn()}
+        />
+      </InProbe>,
+    )
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Der Mandant ließ sich nicht auswählen.',
+    )
+    expect(screen.getByRole('heading', { level: 1, name: 'Mandant wählen' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Probewerk Nord/ })).toHaveProperty('disabled', false)
+    expect(calls).toHaveLength(1)
+    expect(chosen).not.toHaveBeenCalled()
   })
 
   it('tells an account that belongs to none so, in the words of the application, with the way out', () => {
