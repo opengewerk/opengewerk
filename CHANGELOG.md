@@ -464,6 +464,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Runde des Abgleichs, die während eines laufenden Austauschs angefragt wurde, findet auch
+  statt, wenn dieser Austausch scheitert (#572). Hing eine Anfrage an einer schwachen Verbindung und
+  kam das Netz in der Zeit zurück, fiel die Runde des Netzes mit dem Fehler weg, und der Streifen
+  sagte "Keine Verbindung" auf einem Gerät mit Netz, bis etwas anderes eine Runde anstieß. Eine
+  gescheiterte Runde fragt weiter nichts von sich aus an, damit aus einer Ablehnung keine Schleife
+  wird.
 - Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
   jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
   (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen

@@ -1130,6 +1130,71 @@ describe('an exchange with the server', () => {
     expect(client.status().state).toBe('synced')
   })
 
+  describe('a round asked for while an exchange is under way (#572)', () => {
+    /** A push that hangs until the test lets it fail, then pushes as usual. */
+    function hangTheFirstPush(): { fail: () => void; pushes: () => number } {
+      let fail: () => void = () => undefined
+      const hanging = new Promise<never>((_resolve, reject) => {
+        fail = () => {
+          reject(new TypeError('Failed to fetch'))
+        }
+      })
+      const push = transport.push.bind(transport)
+      let pushes = 0
+
+      transport.push = (deviceId: string, operations: readonly Operation[]) => {
+        pushes += 1
+
+        return pushes === 1 ? hanging : push(deviceId, operations)
+      }
+
+      return { fail, pushes: () => pushes }
+    }
+
+    it('takes place after that exchange failed, when the network came back meanwhile', async () => {
+      const client = await start(transport)
+      const first = hangTheFirstPush()
+
+      await client.create('shelves', { name: 'Hall', kind: 'wood' })
+      await vi.waitFor(() => {
+        expect(first.pushes()).toBe(1)
+      })
+
+      // The network comes back while the push still hangs, and the push
+      // fails only afterwards.
+      globalThis.dispatchEvent(new Event('online'))
+      first.fail()
+
+      await vi.waitFor(() => {
+        expect(client.status().pending).toBe(0)
+      })
+      expect(first.pushes()).toBe(2)
+      expect(client.status().trouble).toBeNull()
+    })
+
+    it('is one more round after a refusal and no more, so a refusal is no loop', async () => {
+      // The entry starts an exchange, and the button asks again while it runs.
+      // Both rounds are refused; nothing asks for a third.
+      const client = await start(transport)
+      let pushes = 0
+      const push = transport.push.bind(transport)
+
+      transport.push = (deviceId: string, operations: readonly Operation[]) => {
+        pushes += 1
+
+        return push(deviceId, operations)
+      }
+      transport.refuse = new RequestRefused(400, 'Unbekanntes Feld: quatsch')
+
+      await client.create('shelves', { name: 'Hall', kind: 'wood' })
+      await client.synchronise()
+
+      expect(pushes).toBe(2)
+      expect(client.status().pending).toBe(1)
+      expect(client.status().trouble).toBe('Unbekanntes Feld: quatsch')
+    })
+  })
+
   it('says what went wrong rather than looking synchronised', async () => {
     const client = await start(transport)
 

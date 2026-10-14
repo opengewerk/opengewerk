@@ -928,11 +928,19 @@ export class SyncClient {
           : troubled('unreachable', 'Keine Verbindung. Die Änderungen bleiben auf dem Gerät.')),
       })
 
-      // Nothing is asked for again after a failure. Whoever comes back, the
-      // network or a person pressing the button, starts the next round; a
-      // retry from here would turn a refusal into a loop against a server
-      // that has already given its answer.
-      this.wanted = false
+      // Nothing is asked for again on account of the failure itself. Whoever
+      // comes back, the network or a person pressing the button, starts the
+      // next round; a retry from here would turn a refusal into a loop
+      // against a server that has already given its answer.
+      //
+      // What was asked for while this exchange was under way still stands
+      // (#572). The loop in `synchronise` takes every earlier request away
+      // before the exchange begins, so `wanted` holds only the later ones, and
+      // they get exactly one more round. The case is a request hanging on a
+      // weak connection while the network comes back: the round the network
+      // asked for was dropped with the failure, and the strip said "Keine
+      // Verbindung" on a device with a network until something else started
+      // a round.
     }
   }
 
