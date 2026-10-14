@@ -464,6 +464,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Abgleich legt keinen Konflikt mehr vor, wenn ein Feld anderswo schon auf den Wert gesetzt
+  wurde, den das Gerät setzen will (#601). Er verglich den Wert des Servers nur mit dem, was das
+  Gerät gesehen hatte; in der Haustechnik bekam so jeder einen Konflikt, der die Aufgabe "Zähler
+  ablesen" abhakte, nachdem die Fristen-Engine sie mit den Ständen schon erledigt hatte. Steht jedes
+  Feld schon so, wird die Änderung übersprungen, wie eine, die zweimal ankommt; ein dritter Wert
+  bleibt ein Konflikt.
 - Eine Runde des Abgleichs, die während eines laufenden Austauschs angefragt wurde, findet auch
   statt, wenn dieser Austausch scheitert (#572). Hing eine Anfrage an einer schwachen Verbindung und
   kam das Netz in der Zeit zurück, fiel die Runde des Netzes mit dem Fehler weg, und der Streifen
