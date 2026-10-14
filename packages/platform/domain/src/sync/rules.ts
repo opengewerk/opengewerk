@@ -264,15 +264,24 @@ export function syncRules(policies: Readonly<Record<string, SyncPolicy>>): SyncR
       return { outcome: 'apply', values: wanted(operation) }
     }
 
+    // A field that moved on to exactly the value the device wants is no
+    // collision: both sides agree, and a conflict would put a decision in front
+    // of a person where there is nothing to decide. The same thought as for a
+    // delete arriving at something already deleted. Only a third value, one
+    // neither the device saw nor wants, is a disagreement.
     const collided = operation.patches
-      .filter((patch) => !sameValue(current[patch.field], patch.from))
+      .filter(
+        (patch) =>
+          !sameValue(current[patch.field], patch.from) &&
+          !sameValue(current[patch.field], patch.to),
+      )
       .map((patch) => patch.field)
 
     if (collided.length > 0) {
       return { outcome: 'conflict', reason: 'changed_elsewhere', fields: collided }
     }
 
-    const changing = operation.patches.filter((patch) => !sameValue(patch.from, patch.to))
+    const changing = operation.patches.filter((patch) => !sameValue(current[patch.field], patch.to))
 
     if (changing.length === 0) {
       return { outcome: 'skip', reason: 'nothing_to_do' }

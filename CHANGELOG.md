@@ -464,6 +464,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Abgleich legt keinen Konflikt mehr vor, wenn ein Feld anderswo schon auf den Wert gesetzt
+  wurde, den das Gerät setzen will (#601). Er verglich den Wert des Servers nur mit dem, was das
+  Gerät gesehen hatte; in der Haustechnik bekam so jeder einen Konflikt, der die Aufgabe "Zähler
+  ablesen" abhakte, nachdem die Fristen-Engine sie mit den Ständen schon erledigt hatte. Steht jedes
+  Feld schon so, wird die Änderung übersprungen, wie eine, die zweimal ankommt; ein dritter Wert
+  bleibt ein Konflikt.
 - Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
   jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
   (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen
