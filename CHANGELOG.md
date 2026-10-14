@@ -603,6 +603,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   zulässt. `checkEntries` (`tools/entry-check`) fragt in der CI einen echten Browser danach, an
   beiden Einstiegen, mit einmal und mit auf Dauer abgeschnittenem Skript: ob ein Browser den
   Fehlschlag am Element meldet, weiß kein Test ohne einen
+- Eine Instanz startet ohne die Warnung von better-auth, die Basis-Adresse fehle (#551). Die
+  Anmeldung bekommt jetzt den ersten Eintrag von `TRUSTED_ORIGINS` als ihre Adresse, die auch das
+  QR-Etikett druckt; Cookies, Passkeys und jede weitere vertraute Adresse bleiben, wie sie waren.
+  Dabei fiel auf, dass better-auth seine Prüfung der Herkunft in Tests von selbst abschaltet; sie
+  steht jetzt ausdrücklich an, und die Tests laufen mit derselben Prüfung wie eine Instanz.
 
 ## [0.5.0] - 2026-10-04
 
