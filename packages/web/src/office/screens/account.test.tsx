@@ -112,29 +112,30 @@ afterEach(() => {
 })
 
 describe('"Konto" in the office', () => {
-  it('sets the businesses and the notifications between the passkeys and the password', async () => {
+  it('sets the businesses and the notifications between the passkeys and the devices', async () => {
     await mount()
     await screen.findByText('Elektro Kohm GmbH')
 
     expect(cards()).toEqual([
+      'Eigene Angaben',
       'Darstellung',
       'Zweiter Faktor',
+      'Passwort',
       'Passkeys',
       'Betriebe',
       'Benachrichtigungen',
-      'Passwort',
       'Angemeldete Geräte',
     ])
   })
 
-  it('says by its own name how it looks, and where else that can be chosen', async () => {
+  it('says how it looks, and where else that can be chosen', async () => {
     await mount()
 
     const card = within(screen.getByRole('region', { name: 'Darstellung' }))
 
     expect(
       card.getByText(
-        'Wie OpenGewerk auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät und vor der Anmeldung.',
+        'Wie die Anwendung auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät und vor der Anmeldung.',
       ),
     ).toBeTruthy()
     expect(
@@ -144,12 +145,12 @@ describe('"Konto" in the office', () => {
     ).toBeTruthy()
   })
 
-  it('says by its own name what a second factor that is set up asks for', async () => {
+  it('says what a second factor that is set up asks for, and for whom it is a duty', async () => {
     await mount()
 
     expect(
       await within(screen.getByRole('region', { name: 'Zweiter Faktor' })).findByText(
-        'Eingerichtet. Bei jeder Anmeldung fragt OpenGewerk zusätzlich nach dem Code aus der App.',
+        'Eingerichtet. Bei jeder Anmeldung fragt die Anwendung zusätzlich nach dem Code aus der App. Für die Rolle Inhaber ist er Pflicht, für alle anderen empfohlen.',
       ),
     ).toBeTruthy()
   })
