@@ -104,7 +104,7 @@ export function InstanceOperatorsScreen() {
         <SettingsText muted>{saidWhy(list.error, 'Die Liste kam nicht an.')}</SettingsText>
       ) : (
         <TablePanel
-          title="Die Konten der Verwaltung dieser Instanz"
+          title={sentences.caption}
           caption={sentences.caption}
           cards={cards}
           note={`Ohne zweiten Faktor kommt niemand hierher; eingerichtet wird er unter „Konto“. ${sentences.whoStays}`}

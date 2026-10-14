@@ -235,8 +235,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Oberfläche gehalten hatte. Eine Anwendung kann ihren Namen an der Anmeldung als Familie und
   Linie zeigen (`brand`, die Linie in Kupfer); eine Meldung allein in der Karte steht so groß wie
   "Einen Moment"; der Schlüssel für die Authenticator-App steht in Vierergruppen. Im Bereich der
-  Instanz tragen die Tabellen der Mandanten und der Verwaltung eine Überschrift (der Satz
-  `listTitle` der Anwendung), das eigene Konto heißt dort "Sie" wie in den Zugängen, der Knopf
+  Instanz tragen die Tabellen der Mandanten und der Verwaltung eine Überschrift (ihr Satz
+  `caption`), das eigene Konto heißt dort "Sie" wie in den Zugängen, der Knopf
   zum Benennen trägt den Satz der Anwendung, der Link für einen neuen Mandanten steht ohne
   sichtbare Beschriftung (`hideLabel` an `Field`), "Mandant anlegen" bleibt gesperrt, solange er
   zu sehen ist, und das Protokoll der Instanz zieht seine Karte nicht mehr bis zum Ende des

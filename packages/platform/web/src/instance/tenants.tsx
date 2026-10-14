@@ -113,7 +113,7 @@ export function InstanceTenantsScreen() {
         <SettingsText muted>{saidWhy(tenants.error, 'Die Liste kam nicht an.')}</SettingsText>
       ) : (
         <TablePanel
-          title={sentences.listTitle}
+          title={sentences.caption}
           caption={sentences.caption}
           cards={cards}
           note={sentences.note}

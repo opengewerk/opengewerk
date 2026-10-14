@@ -176,7 +176,6 @@ const instance = {
     title: 'Betriebe',
     what: 'Die Betriebe auf dieser Instanz. Jeder ist vom anderen getrennt wie zwei fremde.',
     create: 'Betrieb anlegen',
-    listTitle: 'Die Betriebe auf dieser Instanz',
     caption: 'Die Betriebe auf dieser Instanz',
     note: 'Was in einem Betrieb steht, sieht hier niemand, auch wer die Instanz betreibt nicht: nur sein Name, der Tag der Anlage und wer darin Inhaber ist.',
     tenantColumn: 'Betrieb',

@@ -425,9 +425,7 @@ export interface InstanceAreaSentences {
     readonly what: string
     /** The button that opens the form, the heading of the form, and its button. */
     readonly create: string
-    /** Over the table, as the heading of its card. */
-    readonly listTitle: string
-    /** The caption of the table, by which a screen reader names it. */
+    /** The caption of the table, by which a screen reader names it, and the heading of its card. */
     readonly caption: string
     /** Under the table: what nobody sees of a tenant here. */
     readonly note: string
@@ -453,6 +451,7 @@ export interface InstanceAreaSentences {
   }
   readonly operators: {
     readonly title: string
+    /** The caption of the table, by which a screen reader names it, and the heading of its card. */
     readonly caption: string
     /** The head of the column with their names. */
     readonly column: string
