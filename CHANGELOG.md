@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Je Fristart lässt sich einstellen, wie eine Frist erinnert: per E-Mail und Push, nur per E-Mail
+  oder mit keiner Nachricht (`opengewerk-haustechnik#269`). Bisher erinnerte jede Frist auf beiden
+  Wegen. Ohne Nachricht steht sie weiter in der Liste und legt ihre Aufgabe oder ihren Auftrag an;
+  nur per Push gibt es nicht, weil Push nur die erreicht, die es für sich eingeschaltet haben. Die
+  Handwerkersoftware bekommt die Spalte mit Migration 0074, und ihre E-Mails und Push-Nachrichten
+  fragen die Einstellung vor dem Schreiben und vor dem Senden.
 - Auch ein errechneter Grenzwert kann einer sein, unter dem ein Messwert bleiben muss (`under` an
   `WorkedOutValue`, `opengewerk-haustechnik#299`): die Formular-Engine nimmt dann den Grenzwert
   selbst als außerhalb und schreibt "unter". Die Haustechnik braucht das für einen eigenen Wert mit

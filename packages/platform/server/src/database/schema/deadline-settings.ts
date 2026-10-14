@@ -1,4 +1,5 @@
 import {
+  deadlineReminders,
   longestIntervalDays,
   longestIntervalMonths,
   longestLeadDays,
@@ -40,6 +41,9 @@ export const deadlineSettings = pgTable(
     intervalDays: integer('interval_days'),
     intervalMonths: integer('interval_months'),
     responsibleUserId: text('responsible_user_id'),
+    // How a deadline of the kind reminds (opengewerk-haustechnik#269); null is
+    // the way of the kind, by mail and by push.
+    reminder: text('reminder', { enum: deadlineReminders }),
     ...timestamps,
   },
   (table) => [
@@ -65,6 +69,10 @@ export const deadlineSettings = pgTable(
     check(
       'deadline_settings_one_unit',
       sql`${table.intervalDays} is null or ${table.intervalMonths} is null`,
+    ),
+    check(
+      'deadline_settings_reminder_known',
+      sql`${table.reminder} is null or ${table.reminder} in (${sql.raw(deadlineReminders.map((reminder) => `'${reminder}'`).join(', '))})`,
     ),
   ],
 )

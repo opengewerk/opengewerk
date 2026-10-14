@@ -10,14 +10,19 @@ import {
   deadlineKindProblems,
   deadlineIsLate,
   deadlineRegistry,
+  deadlineReminderLabel,
+  deadlineReminders,
   deadlineReminderWords,
   DeadlineRegistryError,
+  isDeadlineReminder,
   intervalMonthsProblem,
   intervalOf,
   intervalProblem,
   leadOf,
   leadProblem,
+  remindersQuietOn,
   remindOn,
+  remindsBy,
 } from './deadline.js'
 
 /**
@@ -137,6 +142,7 @@ describe('the interval', () => {
     intervalDays: 10,
     intervalMonths: 3,
     responsibleUserId: null,
+    reminder: null,
   }
 
   it('is the one the tenant set for the kind, else the one of the kind, in its unit', () => {
@@ -173,6 +179,7 @@ describe('the lead', () => {
       intervalDays: null,
       intervalMonths: null,
       responsibleUserId: null,
+      reminder: null,
     }
 
     expect(leadOf(pickup, null, null)).toBe(1)
@@ -246,5 +253,41 @@ describe('what a list says about the reminder of a deadline', () => {
     expect(deadlineIsLate(open, '2026-10-20')).toBe(false)
     expect(deadlineIsLate(open, '2026-10-21')).toBe(true)
     expect(deadlineIsLate({ ...open, status: 'done' }, '2026-10-21')).toBe(false)
+  })
+})
+
+describe('the way a deadline reminds (opengewerk-haustechnik#269)', () => {
+  it('is mail and push unless the tenant set otherwise, mail alone, or nothing at all', () => {
+    expect(remindsBy(null, 'mail')).toBe(true)
+    expect(remindsBy(null, 'push')).toBe(true)
+    expect(remindsBy('email_and_push', 'mail')).toBe(true)
+    expect(remindsBy('email_and_push', 'push')).toBe(true)
+    expect(remindsBy('email', 'mail')).toBe(true)
+    expect(remindsBy('email', 'push')).toBe(false)
+    expect(remindsBy('none', 'mail')).toBe(false)
+    expect(remindsBy('none', 'push')).toBe(false)
+  })
+
+  it('has no way that reminds by push alone', () => {
+    // Push reaches only somebody who switched it on for themselves.
+    for (const reminder of deadlineReminders) {
+      expect(!remindsBy(reminder, 'mail') && remindsBy(reminder, 'push')).toBe(false)
+    }
+  })
+
+  it('names the ways that keep each channel quiet, for the query of the writers', () => {
+    expect(remindersQuietOn('mail')).toEqual(['none'])
+    expect(remindersQuietOn('push')).toEqual(['email', 'none'])
+  })
+
+  it('has words for every way, and knows a way from anything else', () => {
+    expect(deadlineReminders.map((reminder) => deadlineReminderLabel[reminder])).toEqual([
+      'E-Mail und Push',
+      'Nur E-Mail',
+      'Keine Nachricht',
+    ])
+    expect(isDeadlineReminder('email')).toBe(true)
+    expect(isDeadlineReminder('push')).toBe(false)
+    expect(isDeadlineReminder(null)).toBe(false)
   })
 })

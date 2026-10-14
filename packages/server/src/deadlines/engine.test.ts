@@ -19,6 +19,7 @@ import {
   shipRoles,
 } from '../database/test-database.js'
 import { runMailCycle } from '../mail/worker.js'
+import { deadlineDue, dueDeadlines } from '../notifications/notify.js'
 import { type DeadlineJob, type DeadlineRow, runDeadlineCycle, runDeadlinesOf } from './engine.js'
 import { deadlineKinds } from './registry.js'
 
@@ -485,6 +486,41 @@ describe('the four actions', () => {
 
     expect(rows).toHaveLength(1)
     expect(rows[0]?.cause).toMatch(/^deadline_due:.+:2037-09-24$/)
+  })
+
+  it('write no message about the deadline where the business set its kind to remind not at all (opengewerk-haustechnik#269)', async () => {
+    const registry = deadlineRegistry([everything])
+    const job = engine({
+      registry,
+      statusHandlers: { 'probe.everything': () => Promise.resolve() },
+    })
+    const now = new Date(dueDay.getTime() + 60_000)
+
+    await aMailServer(admin, north, { from: 'rechnung@nord.example.de' })
+    await aQuote()
+    await runDeadlinesOf(job, north, dueDay)
+
+    const [raised] = await dueDeadlines(database, north, now, registry, 'mail')
+
+    expect(raised).toBeDefined()
+
+    await admin.query(
+      `insert into deadline_settings (tenant_id, kind, reminder) values ($1, 'probe.everything', 'none')`,
+      [north],
+    )
+
+    // Not asked for any more, on either way, and not sent when it was asked
+    // for before the setting changed.
+    expect(await dueDeadlines(database, north, now, registry, 'mail')).toEqual([])
+    expect(await dueDeadlines(database, north, now, registry, 'push')).toEqual([])
+    expect(
+      await deadlineDue(database, north, raised!, {
+        origin: 'https://opengewerk.example.de',
+        deadlineKinds: registry,
+      }),
+    ).toEqual([])
+    // The task it made is there; only the message stays away.
+    expect(await tasksOf()).toHaveLength(1)
   })
 
   it('roll back together when one of them fails, and try again the next time', async () => {

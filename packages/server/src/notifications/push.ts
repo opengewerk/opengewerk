@@ -118,7 +118,7 @@ export async function pushDeadlineDue(
   const actor = { tenantId, reason: 'notification' }
   const registry = context.deadlineKinds ?? deadlineKinds
   const due = await database.forTenant(actor, (tx) =>
-    deadlineStillDue(tx, tenantId, notification, registry),
+    deadlineStillDue(tx, tenantId, notification, registry, 'push'),
   )
 
   if (!due) {

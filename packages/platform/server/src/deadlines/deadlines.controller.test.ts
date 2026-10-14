@@ -9,7 +9,7 @@ import {
   type MemberIdentity,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { eq, ilike } from 'drizzle-orm'
+import { eq, ilike, sql } from 'drizzle-orm'
 import { Client, type Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -39,6 +39,7 @@ import {
   type DeadlineRules,
   type DeadlineRunEntry,
 } from './deadlines.controller.js'
+import { deadlineRemindsOn } from './settings.js'
 
 /**
  * The routes of the deadlines, on an application that is nobody's
@@ -807,6 +808,29 @@ describe('the settings of a kind', () => {
     await put('parcel.pickup', { responsibleUserId: 'sven' }).expect(422)
   })
 
+  it('take how a kind that reminds does so, and refuse it for one that does not (opengewerk-haustechnik#269)', async () => {
+    const put = (kind: string, body: object) =>
+      http().put(`/settings/deadlines/${kind}`).set(testIdentityHeader, as('lena')).send(body)
+
+    expect((await put('parcel.pickup', { reminder: 'email' }).expect(200)).body).toMatchObject({
+      setting: { reminder: 'email' },
+    })
+    expect((await put('parcel.pickup', { reminder: 'none' }).expect(200)).body).toMatchObject({
+      setting: { reminder: 'none' },
+    })
+    // Back to the way of the kind, by mail and by push.
+    expect((await put('parcel.pickup', { reminder: null }).expect(200)).body).toMatchObject({
+      setting: { reminder: null },
+    })
+    // Push alone is no way of reminding: it reaches only who switched it on.
+    expect((await put('parcel.pickup', { reminder: 'push' }).expect(400)).body.message).toBe(
+      'Die Erinnerung ist "E-Mail und Push", "Nur E-Mail" oder "Keine Nachricht".',
+    )
+    expect((await put('door.check', { reminder: 'none' }).expect(400)).body.message).toBe(
+      'Diese Art erinnert nicht, eine Erinnerung lässt sich für sie nicht einstellen.',
+    )
+  })
+
   it('are changed only with the right to change them', async () => {
     await http()
       .put('/settings/deadlines/parcel.pickup')
@@ -814,6 +838,54 @@ describe('the settings of a kind', () => {
       .send({ leadDays: 2 })
       .expect(403)
     await http().get('/settings/deadlines').set(testIdentityHeader, as('mia')).expect(200)
+  })
+})
+
+describe('whether a deadline reminds on a channel (opengewerk-haustechnik#269)', () => {
+  it('leaves out the deadlines of a kind set to keep that channel quiet, in their tenant only', async () => {
+    const here = await aDeadline({ label: 'Paket 1', dueOn: '2026-10-20' })
+    const there = await aDeadline({ tenant: south.id, label: 'Paket 2', dueOn: '2026-10-20' })
+    const reminding = (tenantId: TenantId, channel: 'mail' | 'push') =>
+      database
+        .forTenant({ tenantId, reason: 'notification' }, (tx) =>
+          tx
+            .select({ id: probeDeadlines.id })
+            .from(probeDeadlines)
+            .where(
+              deadlineRemindsOn(
+                channel,
+                sql`${probeDeadlines.tenantId}`,
+                sql`${probeDeadlines.kind}`,
+              ),
+            ),
+        )
+        .then((rows) => rows.map((row) => row.id))
+
+    // Nothing set: by mail and by push.
+    expect(await reminding(north.id, 'mail')).toEqual([here])
+    expect(await reminding(north.id, 'push')).toEqual([here])
+
+    await admin.query(
+      `insert into deadline_settings (tenant_id, kind, reminder) values ($1, 'parcel.pickup', 'email')`,
+      [north.id],
+    )
+    expect(await reminding(north.id, 'mail')).toEqual([here])
+    expect(await reminding(north.id, 'push')).toEqual([])
+    // The tenant next door has set nothing.
+    expect(await reminding(south.id, 'push')).toEqual([there])
+
+    await admin.query(`update deadline_settings set reminder = 'none' where tenant_id = $1`, [
+      north.id,
+    ])
+    expect(await reminding(north.id, 'mail')).toEqual([])
+    expect(await reminding(north.id, 'push')).toEqual([])
+
+    // A way the database does not know is refused there, whoever writes it.
+    await expect(
+      admin.query(`update deadline_settings set reminder = 'push' where tenant_id = $1`, [
+        north.id,
+      ]),
+    ).rejects.toThrow(/deadline_settings_reminder_known/)
   })
 })
 
