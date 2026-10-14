@@ -70,6 +70,7 @@ const desk = {
   expiresAt: '2026-10-02T18:00:00.000Z',
   longLived: false,
   current: true,
+  ipAddress: '192.0.2.10',
 }
 
 const phone = {
@@ -80,6 +81,7 @@ const phone = {
   expiresAt: '2026-10-28T05:30:00.000Z',
   longLived: true,
   current: false,
+  ipAddress: null,
 }
 
 beforeEach(() => {
@@ -586,6 +588,19 @@ describe('the devices of the account', () => {
     expect(rows[1]?.textContent).toContain('Chrome auf Android')
     expect(rows[1]?.textContent).not.toContain('dieses Gerät')
     expect(rows[1]?.textContent).toContain('Unterwegs, 30 Tage')
+  })
+
+  it('name the address a device signed in from, and nothing where the server knows none (#563)', async () => {
+    server.answer('GET', '/auth/devices', [desk, phone])
+    await account()
+
+    const table = await screen.findByRole('table', {
+      name: 'Geräte, auf denen dieses Konto angemeldet ist',
+    })
+    const rows = within(table).getAllByRole('row').slice(1)
+
+    expect(within(rows[0] as HTMLElement).getByText('Netzadresse 192.0.2.10')).toBeTruthy()
+    expect(rows[1]?.textContent).not.toContain('Netzadresse')
   })
 
   it('offer no sign out for the device one is looking from', async () => {

@@ -1199,8 +1199,13 @@ describe('the devices of somebody else', () => {
         .get(`/staff/${idOf(gus)}/devices`)
         .set('cookie', as)
         .expect(200)
+      const listed = answer.body as Record<string, unknown>[]
 
-      return (answer.body as { sessionId: string }[]).map((device) => device.sessionId)
+      // The address a device signed in from is for the person whose device
+      // it is, under "Konto", and for nobody who leads them (#563).
+      expect(listed.filter((device) => 'ipAddress' in device)).toEqual([])
+
+      return listed.map((device) => String(device['sessionId']))
     }
 
     const here = await sessionsSeen(cookies)

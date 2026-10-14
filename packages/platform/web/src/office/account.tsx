@@ -103,7 +103,9 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
 
   const cards: readonly TableCard[] = (list.data ?? []).map((entry) => ({
     key: entry.sessionId,
-    title: <DeviceName userAgent={entry.userAgent} current={entry.current} />,
+    title: (
+      <DeviceName userAgent={entry.userAgent} current={entry.current} address={entry.ipAddress} />
+    ),
     sub: `${moment(entry.signedInAt)} bis ${moment(entry.expiresAt)}`,
     right: sessionKind(entry.longLived),
     actions: signOutButton(entry.sessionId, deviceName(entry.userAgent), entry.current),
@@ -246,7 +248,11 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
             {list.data.map((entry) => (
               <tr key={entry.sessionId}>
                 <Cell>
-                  <DeviceName userAgent={entry.userAgent} current={entry.current} />
+                  <DeviceName
+                    userAgent={entry.userAgent}
+                    current={entry.current}
+                    address={entry.ipAddress}
+                  />
                 </Cell>
                 <Cell className="text-[13px]">{moment(entry.signedInAt)}</Cell>
                 <Cell className="text-[13px]">{moment(entry.expiresAt)}</Cell>
@@ -283,15 +289,25 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
 function DeviceName({
   userAgent,
   current,
+  address,
 }: {
   readonly userAgent: string | null
   readonly current: boolean
+  /**
+   * The address the device signed in from, under its name (#563): an
+   * address one does not know beside a device one does not have is a sign in
+   * of somebody else. Nothing where the server knows none.
+   */
+  readonly address: string | null
 }) {
   return (
     <>
       {deviceName(userAgent)}
       {current ? (
         <span className="ml-1.5 text-[12px] font-bold text-copper-text">dieses Gerät</span>
+      ) : null}
+      {address ? (
+        <span className="block text-[13px] text-ink-faint">Netzadresse {address}</span>
       ) : null}
     </>
   )

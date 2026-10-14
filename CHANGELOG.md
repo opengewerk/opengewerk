@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- "Angemeldete Geräte" unter "Konto" nennt an jedem Gerät die Netzadresse, von der es sich
+  angemeldet hat, soweit der Webserver davor sie durchreicht (#563). Die Zeile der Sitzung hielt die
+  Adresse schon, nur las sie niemand; wer jetzt eine Adresse sieht, die er nicht kennt, erkennt eine
+  Anmeldung, die nicht seine ist, und meldet das Gerät ab. Die Geräte einer Person, die die Leitung
+  unter "Zugänge" sieht, nennen sie nicht. Die Feature-Gliederung sagt es in v2.36.
 - Auch ein errechneter Grenzwert kann einer sein, unter dem ein Messwert bleiben muss (`under` an
   `WorkedOutValue`, `opengewerk-haustechnik#299`): die Formular-Engine nimmt dann den Grenzwert
   selbst als außerhalb und schreibt "unter". Die Haustechnik braucht das für einen eigenen Wert mit
