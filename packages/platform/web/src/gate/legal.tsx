@@ -40,7 +40,7 @@ export function LegalScreen({ page }: { readonly page: LegalTextKind }) {
         <BrandMark size={22} />
         <span className="text-[16px] font-semibold">{application.name}</span>
         <div className="grow" />
-        <a href="/" className="text-[13px] text-gate-text underline-offset-2 hover:underline">
+        <a href="/" className="text-[13px] text-top-muted underline underline-offset-2">
           Zur Anmeldung
         </a>
       </header>

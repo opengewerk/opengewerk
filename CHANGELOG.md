@@ -15,7 +15,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   jetzt auch auf dem Telefon Lizenz und Version. Bisher stand ein Impressum nirgends, und im
   Quelltext hätte es für jede Instanz falsch gestanden. Die Handwerkersoftware bekommt die
   Spalten mit der Migration `0073_instance_legal_texts`; ihren Bildschirm bindet sie erst mit
-  einer Tafel.
+  einer Tafel. Eine Vorschau, die ohne die Anmeldung des Fundaments startet, gibt die Texte mit
+  `legalTexts` an `authenticationParts` trotzdem aus, damit ihre Seite dort zu sehen ist.
 - Das Büro bekommt eine Hilfe neben dem Bildschirm (`opengewerk-haustechnik#131`): gibt eine
   Anwendung dem Rahmen ihre Texte herein (`help` an `OfficeFrame`), steht in der Kopfleiste
   ab 1024 Pixeln das Fragezeichen "Hilfe zu dieser Seite" zwischen Suche und Person und

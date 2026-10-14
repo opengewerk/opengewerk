@@ -167,24 +167,27 @@ function LegalText({
               {line}
             </SettingsText>
           )}
-          <div className="grow" />
-          <Button
-            icon={Eye}
-            aria-pressed={preview}
-            onClick={() => {
-              setPreview(!preview)
-            }}
-          >
-            Vorschau
-          </Button>
-          <Button
-            tone="primary"
-            type="submit"
-            icon={Check}
-            disabled={!changed || problem !== undefined || save.isPending}
-          >
-            Speichern
-          </Button>
+          {/* At the right, also where the line beside them takes a row of
+              its own, as on a phone. */}
+          <div className="ml-auto flex gap-2">
+            <Button
+              icon={Eye}
+              aria-pressed={preview}
+              onClick={() => {
+                setPreview(!preview)
+              }}
+            >
+              Vorschau
+            </Button>
+            <Button
+              tone="primary"
+              type="submit"
+              icon={Check}
+              disabled={!changed || problem !== undefined || save.isPending}
+            >
+              Speichern
+            </Button>
+          </div>
         </div>
       </form>
     </Panel>
