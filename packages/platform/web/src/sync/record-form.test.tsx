@@ -8,6 +8,7 @@ import type { EditResult } from './client.js'
 import { refusalText } from './client.js'
 import { asBoolean, asTextOrNull, RecordForm, yesOrNo } from './record-form.js'
 import type { FormField } from './record-form.js'
+import { isLocked } from '../testing.js'
 
 /**
  * A form over one record, in the one shape every screen uses: it starts from
@@ -286,7 +287,7 @@ describe('what stands in the way of a form', () => {
 
     const waiting = screen.getByRole('button', { name: 'Wird gespeichert' })
 
-    expect(waiting).toHaveProperty('disabled', true)
+    expect(isLocked(waiting)).toBe(true)
 
     await userEvent.click(waiting)
     finish({ outcome: 'queued', id: 's-1' })

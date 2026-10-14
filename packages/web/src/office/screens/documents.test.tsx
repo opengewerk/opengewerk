@@ -27,6 +27,7 @@ import { DocumentScreen } from './documents.js'
 import { JobScreen } from './jobs.js'
 import { TextSnippetScreen } from './text-snippets.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
+import { isLocked } from '@opengewerk/platform-web/testing'
 
 /**
  * The office side of #72: a quote with titles and positions, the estimate as
@@ -1221,7 +1222,7 @@ describe('invoices in the chain', () => {
     })
     // Saved, the form shows what is stored, and there is nothing left to save.
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Speichern' }).hasAttribute('disabled')).toBe(true)
+      expect(isLocked(screen.getByRole('button', { name: 'Speichern' }))).toBe(true)
     })
     expect((screen.getByLabelText('Leistung von') as HTMLInputElement).value).toBe('2026-09-01')
   })
@@ -1814,7 +1815,7 @@ describe('the text snippets', () => {
     await person.click(start)
 
     // The head's button waits while the new one is open below it (#223).
-    expect(start.hasAttribute('disabled')).toBe(true)
+    expect(isLocked(start)).toBe(true)
 
     const form = within(screen.getByRole('region', { name: 'Neuer Textbaustein' }))
 
@@ -2510,9 +2511,7 @@ describe('what came in on an invoice (#189)', () => {
     expect(
       (issuing.getByRole('checkbox', { name: /RE-2026-0001/ }) as HTMLInputElement).checked,
     ).toBe(true)
-    expect(
-      issuing.getByRole('button', { name: 'Jetzt festschreiben' }).hasAttribute('disabled'),
-    ).toBe(true)
+    expect(isLocked(issuing.getByRole('button', { name: 'Jetzt festschreiben' }))).toBe(true)
   })
 })
 

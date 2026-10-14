@@ -476,6 +476,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   sagte "Keine Verbindung" auf einem Gerät mit Netz, bis etwas anderes eine Runde anstieß. Eine
   gescheiterte Runde fragt weiter nichts von sich aus an, damit aus einer Ablehnung keine Schleife
   wird.
+- Ein Knopf, der gesperrt wird, während er den Fokus hat, behält ihn (#629). Wer mit der Tastatur
+  ein Formular abschickte und eine Ablehnung bekam, stand danach am Anfang der Seite, weil ein
+  gesperrtes Element keinen Fokus halten kann; ein Bildschirmleser verlor den Ort. Jetzt trägt der
+  Knopf in dieser Lage `aria-disabled`, lässt keinen Druck durch und hält den Fokus. Gesperrt,
+  während der Fokus woanders steht, ist er gesperrt wie bisher.
 - Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
   jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
   (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen

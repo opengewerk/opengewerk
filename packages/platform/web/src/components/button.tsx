@@ -1,6 +1,14 @@
 import clsx from 'clsx'
 import type { LucideIcon } from 'lucide-react'
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react'
+import type {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  FocusEvent,
+  MouseEvent,
+  ReactNode,
+  Ref,
+} from 'react'
+import { useState } from 'react'
 
 import { useInGate } from './gate.js'
 import type { Entry } from './surface.js'
@@ -118,6 +126,61 @@ function iconSize(size: ButtonSize, entry: Entry): { size: number; strokeWidth: 
   return size === 'small' ? { size: 13, strokeWidth: 2.3 } : { size: 15, strokeWidth: 2.3 }
 }
 
+type Locking = Pick<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'disabled' | 'onClick' | 'onFocus' | 'onBlur' | 'aria-disabled'
+>
+
+/**
+ * Keeps a button that is locked while it holds the focus from losing it
+ * (#629). A `disabled` element cannot hold the focus: the browser puts it on
+ * the page, and when the work the button started is refused, the sentence with
+ * the reason stands there while the keyboard is back at the top and a screen
+ * reader has lost its place. So a button that is locked while it has the
+ * focus, which is what pressing it and starting work does, stays focusable,
+ * says `aria-disabled` and lets no press through. One that is locked while the
+ * focus is elsewhere is disabled for real and out of the order of Tab, as
+ * before. Every caller keeps saying `disabled`; the button decides which of
+ * the two it means.
+ */
+function useLockedInPlace({
+  disabled,
+  onClick,
+  onFocus,
+  onBlur,
+  'aria-disabled': ariaDisabled,
+}: Locking) {
+  const [focused, setFocused] = useState(false)
+  const held = disabled === true && focused
+
+  return {
+    disabled: disabled === true && !held,
+    'aria-disabled': held ? true : ariaDisabled,
+    onFocus: (event: FocusEvent<HTMLButtonElement>) => {
+      setFocused(true)
+      onFocus?.(event)
+    },
+    onBlur: (event: FocusEvent<HTMLButtonElement>) => {
+      setFocused(false)
+      onBlur?.(event)
+    },
+    onClick: (event: MouseEvent<HTMLButtonElement>) => {
+      // Also what keeps a submit button from sending its form a second time.
+      if (held) {
+        event.preventDefault()
+
+        return
+      }
+
+      onClick?.(event)
+    },
+  }
+}
+
+/** The look of a locked button, whichever of the two ways it is locked. */
+const lockedLook =
+  'disabled:cursor-not-allowed aria-disabled:cursor-not-allowed disabled:bg-ground disabled:text-disabled disabled:border-line aria-disabled:bg-ground aria-disabled:text-disabled aria-disabled:border-line'
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** A prop like any other since React 19, passed on to the `<button>`. */
   readonly ref?: Ref<HTMLButtonElement>
@@ -139,7 +202,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  *
  * A button that cannot be used right now is drawn grey on the page colour, as
  * the canvas has it, whatever its tone: a faded copper button still reads as
- * the thing to press.
+ * the thing to press. While it works it keeps the focus (`useLockedInPlace`).
  */
 export function Button({
   tone = 'secondary',
@@ -149,18 +212,30 @@ export function Button({
   height,
   className,
   children,
+  disabled,
+  onClick,
+  onFocus,
+  onBlur,
+  'aria-disabled': ariaDisabled,
   ...rest
 }: ButtonProps) {
   const entry = useEntry()
   const gate = useInGate()
+  const locking = useLockedInPlace({
+    disabled,
+    onClick,
+    onFocus,
+    onBlur,
+    'aria-disabled': ariaDisabled,
+  })
 
   return (
     <button
       type="button"
       className={clsx(
         'inline-flex items-center justify-center',
-        'cursor-pointer disabled:cursor-not-allowed',
-        'disabled:bg-ground disabled:text-disabled disabled:border-line',
+        'cursor-pointer',
+        lockedLook,
         gate
           ? gateClasses(tone)
           : ['rounded-control', sizeClasses(size, entry, height), toneClasses(tone, size, entry)],
@@ -169,6 +244,7 @@ export function Button({
         className,
       )}
       {...rest}
+      {...locking}
     >
       {Icon ? (
         <Icon
@@ -244,8 +320,25 @@ export interface IconButtonProps extends Omit<ButtonProps, 'children' | 'wide' |
  * and would not fit otherwise: camera, scanner, remove. The word moves into
  * `aria-label`, which is why that one is not optional.
  */
-export function IconButton({ label, tone = 'quiet', className, ...rest }: IconButtonProps) {
+export function IconButton({
+  label,
+  tone = 'quiet',
+  className,
+  disabled,
+  onClick,
+  onFocus,
+  onBlur,
+  'aria-disabled': ariaDisabled,
+  ...rest
+}: IconButtonProps) {
   const entry = useEntry()
+  const locking = useLockedInPlace({
+    disabled,
+    onClick,
+    onFocus,
+    onBlur,
+    'aria-disabled': ariaDisabled,
+  })
 
   return (
     <button
@@ -255,10 +348,12 @@ export function IconButton({ label, tone = 'quiet', className, ...rest }: IconBu
         'inline-flex items-center justify-center',
         'h-tap w-tap min-h-tap min-w-tap rounded-control',
         'cursor-pointer disabled:cursor-not-allowed disabled:text-disabled',
+        'aria-disabled:cursor-not-allowed aria-disabled:text-disabled',
         toneClasses(tone, 'normal', entry),
         className,
       )}
       {...rest}
+      {...locking}
     />
   )
 }
