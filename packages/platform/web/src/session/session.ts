@@ -84,6 +84,8 @@ export interface DeviceEntry {
   readonly signedInAt: string
   readonly expiresAt: string
   readonly current: boolean
+  /** Where the session was signed in from, where the web server in front said so (#563). */
+  readonly ipAddress: string | null
 }
 
 /**

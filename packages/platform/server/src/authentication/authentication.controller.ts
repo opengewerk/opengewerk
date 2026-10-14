@@ -34,6 +34,15 @@ interface DeviceEntry {
   readonly signedInAt: Date
   readonly expiresAt: Date
   readonly current: boolean
+  /**
+   * The address the session was signed in from, as the web server in front
+   * passed it on (#563), so that somebody tells a sign in of their own from
+   * one that is not. For the person it belongs to and nobody else: the
+   * devices of a person under "Zugänge" do not name it. Empty where the web
+   * server passed on none, or more than one, which a client that sends an
+   * address of its own leaves behind.
+   */
+  readonly ipAddress: string | null
 }
 
 /**
@@ -266,11 +275,16 @@ export class AuthenticationController {
           longLived: authSessions.longLived,
           signedInAt: authSessions.createdAt,
           expiresAt: authSessions.expiresAt,
+          ipAddress: authSessions.ipAddress,
         })
         .from(authSessions)
         .where(eq(authSessions.userId, user.userId))
 
-      return rows.map((row) => ({ ...row, current: row.sessionId === user.sessionId }))
+      return rows.map((row) => ({
+        ...row,
+        ipAddress: row.ipAddress === '' ? null : row.ipAddress,
+        current: row.sessionId === user.sessionId,
+      }))
     }, user.userId)
   }
 
