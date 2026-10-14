@@ -14,6 +14,7 @@ export type { InstanceEntry } from './frame.js'
 
 // The screens of the area. Its log is drawn from the pieces of the change log
 // of a tenant.
+export { InstanceLegalTextsScreen } from './legal-texts.js'
 export { InstanceLogScreen } from './log.js'
 export { InstanceOperatorsScreen } from './operators.js'
 export { InstanceSettingsScreen } from './settings.js'

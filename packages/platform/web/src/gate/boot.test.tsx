@@ -323,7 +323,8 @@ describe('starting with a network', () => {
     start()
 
     expect(await screen.findByRole('heading', { name: 'Anmelden' })).toBeTruthy()
-    expect(await screen.findByText('Probelizenz 1.0 · Version 0.2.0')).toBeTruthy()
+    // Under the brand at a desk, and under the card on a phone.
+    expect(await screen.findAllByText('Probelizenz 1.0 · Version 0.2.0')).toHaveLength(2)
   })
 
   /**
@@ -444,6 +445,7 @@ describe('what a link in the address points at', () => {
   it.each([
     [`/einladung/${invitation}`, 'Willkommen bei Probewerk Süd'],
     ['/passwort/abcdefghijklmnopqrstuvwx', 'Passwort neu setzen'],
+    ['/rechtliches', 'Rechtliches'],
   ])(
     'is shown instead of the screens of whoever is signed in on this browser (%s)',
     async (address, heading) => {
@@ -483,6 +485,86 @@ describe('what a link in the address points at', () => {
       expect(screen.queryByText('Leiter im Flur vergessen')).toBeNull()
     },
   )
+})
+
+describe('the legal texts of the instance (opengewerk-haustechnik#129)', () => {
+  const texts = {
+    imprint: '**Probewerk GmbH**\nAm Probehang 4\n00001 Beispielstadt',
+    privacy: '# Datenschutz\n\n- Was zur Anmeldung nötig ist\n- <script>alert(1)</script>',
+  }
+
+  it('stand at their address for anybody, before anybody is asked who they are', async () => {
+    serverAnswers((path) =>
+      path === '/legal-texts' ? texts : path === '/setup' ? { needed: false } : null,
+    )
+    globalThis.history.replaceState(null, '', '/rechtliches/datenschutz')
+    start({ entry: 'office' })
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Rechtliches' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Datenschutz' })).toBeTruthy()
+    // What was typed stays text: a tag is shown, never run.
+    expect(screen.getByText('<script>alert(1)</script>')).toBeTruthy()
+    expect(document.querySelector('article script')).toBeNull()
+    expect(
+      screen.getByRole('link', { name: 'Datenschutzhinweise' }).getAttribute('aria-current'),
+    ).toBe('page')
+    expect(screen.queryByRole('heading', { name: 'Anmelden' })).toBeNull()
+  })
+
+  it('keep the lines of a paragraph as they were typed', async () => {
+    serverAnswers((path) =>
+      path === '/legal-texts' ? texts : path === '/setup' ? { needed: false } : null,
+    )
+    globalThis.history.replaceState(null, '', '/rechtliches')
+    start({ entry: 'office' })
+
+    const address = (await screen.findByText('Probewerk GmbH')).closest('p')
+
+    expect(address?.querySelectorAll('br')).toHaveLength(2)
+    expect(address?.textContent).toBe('Probewerk GmbHAm Probehang 400001 Beispielstadt')
+  })
+
+  it('say so for a text nobody keeps, and offer no tab for it', async () => {
+    serverAnswers((path) =>
+      path === '/legal-texts'
+        ? { imprint: null, privacy: texts.privacy }
+        : path === '/setup'
+          ? { needed: false }
+          : null,
+    )
+    globalThis.history.replaceState(null, '', '/rechtliches')
+    start({ entry: 'office' })
+
+    expect(
+      await screen.findByText('Diesen Text hat die Aufsicht noch nicht hinterlegt.'),
+    ).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Datenschutzhinweise' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Impressum' })).toBeNull()
+  })
+
+  it('are linked in the foot of the sign in, each only while it is kept', async () => {
+    serverAnswers((path) =>
+      path === '/legal-texts'
+        ? { imprint: texts.imprint, privacy: null }
+        : path === '/setup'
+          ? { needed: false }
+          : null,
+    )
+    start()
+
+    expect(await screen.findByRole('heading', { name: 'Anmelden' })).toBeTruthy()
+
+    // Once under the brand at a desk, once under the card on a phone.
+    await waitFor(() => {
+      expect(screen.getAllByRole('link', { name: 'Impressum' })).toHaveLength(2)
+    })
+
+    for (const link of screen.getAllByRole('link', { name: 'Impressum' })) {
+      expect(link.getAttribute('href')).toBe('/rechtliches')
+    }
+
+    expect(screen.queryByRole('link', { name: 'Datenschutz' })).toBeNull()
+  })
 })
 
 describe('the sync client behind the gate', () => {

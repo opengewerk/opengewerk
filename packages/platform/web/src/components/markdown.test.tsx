@@ -59,6 +59,28 @@ describe('a text read into its blocks', () => {
     })
   })
 
+  it('keeps the ends of the lines of a paragraph where it is asked to, for a text typed into a field', () => {
+    expect(readMarkdown('**Probewerk GmbH**\nAm Probehang 4', { breaks: true })).toEqual([
+      {
+        kind: 'paragraph',
+        line: [
+          { kind: 'strong', text: 'Probewerk GmbH' },
+          { kind: 'break' },
+          { kind: 'text', text: 'Am Probehang 4' },
+        ],
+      },
+    ])
+    expect(readMarkdown('**Probewerk GmbH**\nAm Probehang 4')).toEqual([
+      {
+        kind: 'paragraph',
+        line: [
+          { kind: 'strong', text: 'Probewerk GmbH' },
+          { kind: 'text', text: ' Am Probehang 4' },
+        ],
+      },
+    ])
+  })
+
   it('keeps a numbered list and one with dashes apart, although no empty line stands between them', () => {
     const lists = readMarkdown('1. Eins\n2. Zwei\n- Drei\n- Vier').flatMap((block) =>
       block.kind === 'list' ? [{ ordered: block.ordered, items: block.items.length }] : [],

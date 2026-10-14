@@ -1,10 +1,11 @@
+import type { LegalTexts } from '@opengewerk/platform-domain'
 import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Button } from '../components/button.js'
 import { Field } from '../components/field.js'
 import { InProbe } from '../probe-application.js'
-import { Gate, InstanceVersion } from './frame.js'
+import { Gate, InstanceLegalTexts, InstanceVersion } from './frame.js'
 
 /**
  * The frame before sign in (#219), as the boards of the page "Vor der
@@ -82,7 +83,8 @@ describe('the gate before sign in', () => {
       </InProbe>,
     )
 
-    expect(screen.getByText('Probelizenz 1.0 · Version 0.2.0')).toBeTruthy()
+    // Under the brand at a desk, and under the card on a phone.
+    expect(screen.getAllByText('Probelizenz 1.0 · Version 0.2.0')).toHaveLength(2)
     unmount()
 
     render(
@@ -91,8 +93,36 @@ describe('the gate before sign in', () => {
       </InProbe>,
     )
 
-    expect(screen.getByText('Probelizenz 1.0')).toBeTruthy()
+    expect(screen.getAllByText('Probelizenz 1.0')).toHaveLength(2)
     expect(screen.queryByText(/Version/)).toBeNull()
+  })
+
+  it('links the legal texts of the instance in its foot, each only while one is kept (opengewerk-haustechnik#129)', () => {
+    const withTexts = (texts: LegalTexts | null) => (
+      <InProbe>
+        <InstanceLegalTexts.Provider value={texts}>
+          <Gate title="Anmelden">Inhalt</Gate>
+        </InstanceLegalTexts.Provider>
+      </InProbe>
+    )
+    const { rerender } = render(withTexts({ imprint: 'Probewerk GmbH', privacy: null }))
+
+    expect(
+      screen.getAllByRole('link', { name: 'Impressum' }).map((link) => link.getAttribute('href')),
+    ).toEqual(['/rechtliches', '/rechtliches'])
+    expect(screen.queryByRole('link', { name: 'Datenschutz' })).toBeNull()
+
+    rerender(withTexts({ imprint: null, privacy: 'Verantwortlich ist die Probewerk GmbH.' }))
+
+    expect(
+      screen.getAllByRole('link', { name: 'Datenschutz' }).map((link) => link.getAttribute('href')),
+    ).toEqual(['/rechtliches/datenschutz', '/rechtliches/datenschutz'])
+    expect(screen.queryByRole('link', { name: 'Impressum' })).toBeNull()
+
+    // Without an answer of the server, as for a text nobody keeps.
+    rerender(withTexts(null))
+
+    expect(screen.queryAllByRole('link')).toEqual([])
   })
 
   it('shows what a step puts over its card, after the address and before the card', () => {

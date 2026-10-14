@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Rechtstexte der Instanz (`opengewerk-haustechnik#129`): Impressum und Datenschutzhinweise
+  pflegt, wer die Instanz betreibt, in deren Bereich, und jeder liest sie ohne Anmeldung unter
+  `/rechtliches`. Der Fuß der Anmeldung verlinkt nur einen Text, der hinterlegt ist, und zeigt
+  jetzt auch auf dem Telefon Lizenz und Version. Bisher stand ein Impressum nirgends, und im
+  Quelltext hätte es für jede Instanz falsch gestanden. Die Handwerkersoftware bekommt die
+  Spalten mit der Migration `0073_instance_legal_texts`; ihren Bildschirm bindet sie erst mit
+  einer Tafel.
 - Das Büro bekommt eine Hilfe neben dem Bildschirm (`opengewerk-haustechnik#131`): gibt eine
   Anwendung dem Rahmen ihre Texte herein (`help` an `OfficeFrame`), steht in der Kopfleiste
   ab 1024 Pixeln das Fragezeichen "Hilfe zu dieser Seite" zwischen Suche und Person und

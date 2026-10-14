@@ -2,7 +2,7 @@
  * The first segment of every path the server of the foundation answers itself
  * (ADR 0010): the authentication under `/api`, the routes of the sign in, the
  * first run, the people of a tenant, an invitation and the area of the
- * instance, the health check, the change log of a tenant, the sync of an
+ * instance, its legal texts for anybody, the health check, the change log of a tenant, the sync of an
  * application whose devices work without a network, the bytes of the files a
  * tenant keeps, push on one's own devices, the deadlines of a tenant, the
  * people to talk to an application keeps at its records, the files it keeps
@@ -30,6 +30,7 @@ export const foundationPaths = [
   'staff',
   'invitation',
   'instance',
+  'legal-texts',
   'health',
   'audit',
   'sync',

@@ -1,6 +1,8 @@
 import {
   invitationPath,
   isSignInMethod,
+  type LegalTextKind,
+  type LegalTexts,
   type RoleDefinition,
   type SignInMethod,
   type TenantChoice as ChoiceOf,
@@ -170,6 +172,30 @@ export async function instanceVersion(): Promise<string | null> {
     typeof answer === 'object' && answer !== null ? (answer as { version?: unknown }).version : null
 
   return typeof version === 'string' && version !== '' ? version : null
+}
+
+/**
+ * The legal texts of the instance (opengewerk-haustechnik#129), for the foot
+ * of the sign in and the page they stand on: asked without a session and
+ * without a tenant, as anybody may read them.
+ */
+export function legalTexts(): Promise<LegalTexts> {
+  return request<LegalTexts>('/legal-texts')
+}
+
+/** Where the legal texts stand: the legal notice at this path, the notice on data protection under it. */
+export const legalPath = '/rechtliches'
+
+/** The address of the page of one legal text. */
+export function legalAddress(kind: LegalTextKind): string {
+  return kind === 'imprint' ? legalPath : `${legalPath}/datenschutz`
+}
+
+/** Which legal text the address bar asks for, or null when it asks for none. */
+export function legalPage(path: string): LegalTextKind | null {
+  const trimmed = path.length > 1 ? path.replace(/\/+$/, '') : path
+
+  return trimmed === legalPath ? 'imprint' : trimmed === legalAddress('privacy') ? 'privacy' : null
 }
 
 export interface FirstRun {

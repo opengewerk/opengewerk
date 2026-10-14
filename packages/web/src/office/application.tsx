@@ -215,6 +215,9 @@ const instance = {
     accountMailMissing:
       'Es ist kein Mailserver eingerichtet. Wer sein Passwort vergessen hat, bekommt keinen Link; den Weg zurück in ein Konto gibt es dann nur über die Inhaberin oder den Inhaber eines Betriebs oder den Befehl reset-password auf dem Server.',
   },
+  legal: {
+    forAll: 'Es gilt für alle Betriebe auf dieser Instanz.',
+  },
   log: {
     what: 'Jede Änderung an der Instanz. Was in einem Betrieb geändert wird, steht in dessen Änderungsprotokoll.',
     aTenant: 'Ein Betrieb',

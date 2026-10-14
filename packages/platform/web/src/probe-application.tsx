@@ -238,6 +238,10 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
           </>
         ),
       },
+      legal: {
+        keptBy: 'Den Text pflegt die Aufsicht der Instanz.',
+        missing: 'Diesen Text hat die Aufsicht noch nicht hinterlegt.',
+      },
       // Whoever runs the instance is its "Aufsicht" here, and whoever leads a
       // tenant its "Leitung": words neither application uses for either.
       staff: {
@@ -290,6 +294,9 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
           mailNoWayIn: 'So kommt kein Mandant in das Netz dahinter.',
           accountMail: 'Mails an ein Konto gehen über diesen Server und über den keines Mandanten.',
           accountMailMissing: 'Ohne ihn bekommt niemand einen Link zu einem neuen Passwort.',
+        },
+        legal: {
+          forAll: 'Er gilt für alle Mandanten.',
         },
         log: {
           what: 'Was die Aufsicht an der Instanz geändert hat. Was in einem Mandanten geschieht, steht in dessen Protokoll.',

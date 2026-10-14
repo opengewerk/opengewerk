@@ -1,3 +1,4 @@
+import { legalTextKinds, type LegalTexts } from '@opengewerk/platform-domain'
 import clsx from 'clsx'
 import { Lock, LockOpen } from 'lucide-react'
 import { createContext, useContext, useId } from 'react'
@@ -6,6 +7,7 @@ import type { ReactNode } from 'react'
 import { useApplication } from '../application.js'
 import { BrandMark } from '../components/brand-mark.js'
 import { GateProvider } from '../components/gate.js'
+import { legalAddress } from '../session/session.js'
 
 /**
  * The frame of every step before working, as the boards of the page "Vor der
@@ -67,6 +69,8 @@ export function Gate({
             <div className="mt-5 flex flex-col gap-[15px]">{children}</div>
           </section>
         </main>
+
+        <GateFoot className="justify-center px-4 pt-3 pb-4 text-[14px] text-ink-faint lg:hidden" />
       </div>
     </GateProvider>
   )
@@ -80,13 +84,19 @@ export function Gate({
 export const InstanceVersion = createContext<string | null>(null)
 
 /**
+ * The legal texts of the instance (opengewerk-haustechnik#129), for the links
+ * in the foot. Handed in by `Boot`, which asks the server once, as for the
+ * version; a gate without them shows no link, as for a text nobody keeps.
+ */
+export const InstanceLegalTexts = createContext<LegalTexts | null>(null)
+
+/**
  * The brand at a desk: the mark, what the application is in one sentence,
- * where it runs in another, and the licence and the version under a line. The
+ * where it runs in another, and under a line the foot. The
  * words are the application's (ADR 0010); the foundation has no product to
  * name and no claim to make for one.
  */
 function Brand() {
-  const version = useContext(InstanceVersion)
   const application = useApplication()
 
   return (
@@ -101,10 +111,52 @@ function Brand() {
       </div>
       {/* The board drew a way to the help as well. There is none before
           phase 2, and a link into nothing would be worse than none (#259). */}
-      <p className="border-t border-gate-line pt-5 text-[13px] text-gate-faint">
-        {version ? `${application.licence} · Version ${version}` : application.licence}
-      </p>
+      <GateFoot onSlate className="border-t border-gate-line pt-5 text-[13px] text-gate-faint" />
     </aside>
+  )
+}
+
+/** The names of the legal texts in the foot, shorter than the headings of their page. */
+const footLabels = { imprint: 'Impressum', privacy: 'Datenschutz' } as const
+
+/**
+ * The foot of every step before working: the licence and the version, and the
+ * legal texts of the instance (opengewerk-haustechnik#129). A link only for a
+ * text that is kept: one into an empty page would be worse than none. They
+ * lead to the page of the texts, which `Boot` shows by its address, before
+ * anybody is asked who they are.
+ *
+ * At a desk under the brand on slate, on a phone under the card.
+ */
+export function GateFoot({
+  onSlate = false,
+  className,
+}: {
+  readonly onSlate?: boolean
+  readonly className?: string
+}) {
+  const version = useContext(InstanceVersion)
+  const texts = useContext(InstanceLegalTexts)
+  const application = useApplication()
+
+  return (
+    <footer className={clsx('flex flex-wrap gap-x-3.5 gap-y-1', className)}>
+      <span>{version ? `${application.licence} · Version ${version}` : application.licence}</span>
+      {legalTextKinds.map((kind) =>
+        texts?.[kind] ? (
+          <a
+            key={kind}
+            href={legalAddress(kind)}
+            className={clsx(
+              'underline underline-offset-2',
+              onSlate ? 'text-gate-text' : 'text-ink-muted',
+            )}
+          >
+            {footLabels[kind]}
+          </a>
+        ) : null,
+      )}
+    </footer>
   )
 }
 

@@ -90,6 +90,14 @@ export const instanceSettings = pgTable(
      */
     mailServerPassword: text('mail_server_password'),
     mailServerPasswordSetAt: timestamp('mail_server_password_set_at', { withTimezone: true }),
+    /**
+     * The legal texts of the instance (opengewerk-haustechnik#129), as typed
+     * on their screen: a short part of Markdown that is read into elements
+     * and never into HTML. Null while none is kept, and then no link leads to
+     * it. Who changed one and when is in the log of the instance.
+     */
+    imprint: text('imprint'),
+    privacyNotice: text('privacy_notice'),
     ...timestamps,
   },
   (table) => [

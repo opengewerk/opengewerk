@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider, queryOptions, useQuery } from '@tanst
 import type { ReactNode } from 'react'
 
 import { isRefusedForGood } from '../sync/transport.js'
-import { availableTenants, currentAccount } from './session.js'
+import { availableTenants, currentAccount, legalTexts } from './session.js'
 
 /**
  * The cache for what is not a synced record.
@@ -32,6 +32,21 @@ export const queries = new QueryClient({
       staleTime: 30_000,
     },
   },
+})
+
+/**
+ * The legal texts of the instance (opengewerk-haustechnik#129), for the foot
+ * of the sign in and the page they stand on. Asked once per page and kept:
+ * they change a handful of times in the life of an instance, and a foot that
+ * asked again on every step of the sign in would cost a request each time.
+ * Without an answer the foot shows no link, which is what it shows for a text
+ * that is not kept.
+ */
+export const legalTextsQuery = queryOptions({
+  queryKey: ['legal-texts'],
+  queryFn: legalTexts,
+  staleTime: Number.POSITIVE_INFINITY,
+  retry: false,
 })
 
 /**

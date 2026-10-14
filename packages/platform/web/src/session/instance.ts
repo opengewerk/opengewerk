@@ -1,10 +1,12 @@
 import type {
   InstanceAccess,
+  InstanceLegalTextsView,
   InstanceLogPage,
   InstanceMailServerState,
   InstanceMailServerView,
   InstanceSettingsView,
   InstanceTenantView,
+  LegalTextKind,
   OperatorView,
   SmtpSecurity,
   TenantId,
@@ -100,6 +102,21 @@ export function checkInstanceMailServer(
 
 export async function removeInstanceMailServer(): Promise<void> {
   await request('/instance/mail-server', { method: 'DELETE' })
+}
+
+/** The legal texts of the instance for their screen, each with when and by whom it was last changed (opengewerk-haustechnik#129). */
+export function instanceLegalTexts(): Promise<InstanceLegalTextsView> {
+  return request<InstanceLegalTextsView>('/instance/legal-texts')
+}
+
+/** Saves one text, or both; an empty one is taken off, and with it the link to it. */
+export function saveInstanceLegalTexts(
+  change: Partial<Record<LegalTextKind, string>>,
+): Promise<InstanceLegalTextsView> {
+  return request<InstanceLegalTextsView>('/instance/legal-texts', {
+    method: 'PUT',
+    body: JSON.stringify(change),
+  })
 }
 
 export function operators(): Promise<readonly OperatorView[]> {
