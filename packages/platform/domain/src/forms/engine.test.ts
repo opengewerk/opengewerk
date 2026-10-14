@@ -507,6 +507,50 @@ describe('the verdict on a measured value', () => {
     })
   })
 
+  it('takes a worked-out limit itself as outside when the application says a value stays under it', () => {
+    const worked = (atLeast: boolean) =>
+      formEngine<ProbeTerms>({
+        units: {
+          kilogram: { sign: 'kg' },
+          degree_celsius: { sign: '°C' },
+          cubic_metre: { sign: 'm³' },
+        },
+        lists: { shelves: shelfList },
+        limits: {
+          shelf_load: () => ({
+            limitMilli: 80_000,
+            atLeast,
+            under: true,
+            source: 'Schild am Regal',
+          }),
+        },
+        kinds: blockFieldKinds,
+      })
+    const under = worked(false)
+
+    expect(under.limitVerdict(load, 79_000, { rules, on: '2026-10-04', item: boden })).toEqual({
+      within: true,
+      limitMilli: 80_000,
+      text: 'Innerhalb des Grenzwerts, unter 80 kg.',
+      source: 'Schild am Regal',
+    })
+    expect(under.limitVerdict(load, 80_000, { rules, on: '2026-10-04', item: boden })).toEqual({
+      within: false,
+      limitMilli: 80_000,
+      text: 'Außerhalb des Grenzwerts, unter 80 kg.',
+      source: 'Schild am Regal',
+    })
+    // A limit to reach is reached by the limit itself, whatever else is said.
+    expect(
+      worked(true).limitVerdict(load, 80_000, { rules, on: '2026-10-04', item: boden }),
+    ).toEqual({
+      within: true,
+      limitMilli: 80_000,
+      text: 'Innerhalb des Grenzwerts, mindestens 80 kg.',
+      source: 'Schild am Regal',
+    })
+  })
+
   it('refuses a rule in a unit the field cannot be measured in', () => {
     const minutes: MeasurementField<ProbeTerms> = {
       ...temperature,

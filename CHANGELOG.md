@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Auch ein errechneter Grenzwert kann einer sein, unter dem ein Messwert bleiben muss (`under` an
+  `WorkedOutValue`, `opengewerk-haustechnik#299`): die Formular-Engine nimmt dann den Grenzwert
+  selbst als außerhalb und schreibt "unter". Die Haustechnik braucht das für einen eigenen Wert mit
+  Quelle in einer Vorlage, etwa den Maßnahmenwert für Legionellen; bisher konnte nur eine Regel
+  eines Pakets so messen.
 - Ein Grenzwert aus einer Regel, unter dem ein Messwert bleiben muss (`below` an `RuleLimit`,
   `opengewerk-haustechnik#93`): schon das Erreichen ist außerhalb, die Formular-Engine schreibt
   "unter 100 je 100 ml" und `limitMark` zeigt `<`, ebenso der kurze Grenzwert im Protokoll vor Ort
