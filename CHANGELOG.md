@@ -271,6 +271,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   stellt seine Karten wie die Tafel: Eigene Angaben und Darstellung, Zweiter Faktor und Passwort,
   dann die Passkeys; unter dem Titel stehen die Rollen. Vor Ort steht über den Konflikten kein
   Streifen mehr, der zu ihnen führt.
+- `completeInitialMigration` stellt in der ersten Migration einer Anwendung einen eindeutigen
+  Index vor die Fremdschlüssel und sagt es im Kopf der Datei (#568). `drizzle-kit` schreibt jeden
+  Schlüssel vor jeden Index, und eine Anwendung, deren erste Migration Dateispeicher und Ablage
+  zugleich anlegt, scheiterte am Schlüssel einer Fassung auf `files`. Die Migrationen beider
+  Anwendungen bleiben, wie sie sind.
 - Der Dialog mit einem Formular (`Dialog`) steht auch unter 640 Pixeln in der Mitte des Fensters
   (`opengewerk-haustechnik#147`). Auf einem Telefon stand er am oberen Rand, damit eine Tastatur
   ihn nicht verdeckt; damit stand dieselbe Karte je nach Breite an zwei Stellen, und die Frage

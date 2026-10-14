@@ -26,7 +26,11 @@ als eine Beschreibung je Tabelle in `src/migration/guards.ts`.
 3. `completeInitialMigrationIn(<Ordner der Migrationen>)` aus
    `@opengewerk/platform-server/migration` setzt die Bausteine darum: die Rolle davor, danach
    `FORCE` und die Rechte je Tabelle, die Funktionen und die Trigger. Die Rücknahme entsteht
-   unter `down/` daneben.
+   unter `down/` daneben. Eine Änderung nimmt es an dem, was `drizzle-kit` geschrieben hat, vor,
+   und der Kopf der Datei sagt es: ein eindeutiger Index steht vor den Fremdschlüsseln.
+   `drizzle-kit` schreibt jeden Schlüssel vor jeden Index, und der Schlüssel einer Fassung der
+   Ablage auf `files` stützt sich auf den eindeutigen Index über Mandant und Prüfsumme; in einer
+   ersten Migration, die beide Tabellen anlegt, lehnte PostgreSQL ihn sonst ab (#568).
 
 Danach ist die Datei eingefroren wie jede Migration. Eine Tabelle, die eine spätere Migration
 anlegt, bekommt ihre Anweisungen aus `guardStatements`.
