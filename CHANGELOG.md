@@ -470,6 +470,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ablesen" abhakte, nachdem die Fristen-Engine sie mit den Ständen schon erledigt hatte. Steht jedes
   Feld schon so, wird die Änderung übersprungen, wie eine, die zweimal ankommt; ein dritter Wert
   bleibt ein Konflikt.
+- In "Zugänge" stehen die Knöpfe einer Zeile bei 1280 Pixeln wieder nebeneinander, auch wenn die
+  Spalte der Anwendung einen langen Namen zeigt (#562). Die Knöpfe gaben als Erste nach, und jede
+  Zeile wurde doppelt so hoch; in der Haustechnik traf das jeden Zugang mit dem Bereich "Alle
+  Liegenschaften". Jetzt kürzt sich die Adresse unter dem Namen mit Auslassungspunkten, und die
+  Spalten haben die Breiten der Tafel.
 - Eine Runde des Abgleichs, die während eines laufenden Austauschs angefragt wurde, findet auch
   statt, wenn dieser Austausch scheitert (#572). Hing eine Anfrage an einer schwachen Verbindung und
   kam das Netz in der Zeit zurück, fiel die Runde des Netzes mit dem Fehler weg, und der Streifen
