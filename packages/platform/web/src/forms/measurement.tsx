@@ -1,12 +1,18 @@
-import type { LimitVerdict } from '@opengewerk/platform-domain'
+import type { LimitVerdict, RuleLimitKind } from '@opengewerk/platform-domain'
 import clsx from 'clsx'
 import { useId } from 'react'
 
 import { FigureInput } from './figure.js'
 
-/** A limit as the head of a measured value shows it: `≥ 60,0 °C`, `≤ 0,40 Ω`. */
-export function limitMark(kind: 'at_least' | 'at_most', limit: string): string {
-  return `${kind === 'at_least' ? '≥' : '≤'} ${limit}`
+const limitSigns: Readonly<Record<RuleLimitKind, string>> = {
+  at_least: '≥',
+  at_most: '≤',
+  below: '<',
+}
+
+/** A limit as the head of a measured value shows it: `≥ 60,0 °C`, `≤ 0,40 Ω`, `< 100 je 100 ml`. */
+export function limitMark(kind: RuleLimitKind, limit: string): string {
+  return `${limitSigns[kind]} ${limit}`
 }
 
 /** The verdict under a value, with the place its limit comes from, so that whoever reads it can check it. */

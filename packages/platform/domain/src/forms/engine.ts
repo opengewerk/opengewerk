@@ -1002,6 +1002,8 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
     }
 
     let worked: WorkedOutValue
+    // Whether the limit itself lies outside: a value has to stay under it.
+    let under = false
 
     if (isRuleLimit(limit)) {
       const record = context.rules.at(limit.rule, context.on)
@@ -1015,6 +1017,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         atLeast: limit.kind === 'at_least',
         source: record.source,
       }
+      under = limit.kind === 'below'
     } else {
       const calculator = Object.hasOwn(limits, limit.kind) ? limits[limit.kind] : undefined
 
@@ -1039,12 +1042,12 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
 
     // Written with the places of the field and rounded towards the strict
     // side: 2,875 as "höchstens 2,87", never 2,88, or a measured 2,88 would be
-    // outside a limit that reads like it.
+    // outside a limit that reads like it. A limit a value has to stay under
+    // rounds up instead: a value of two places under 2,875 is under 2,88.
     const step = 10 ** Math.max(0, 3 - field.decimals)
-    const shownLimit = atLeast
-      ? Math.ceil(limitMilli / step) * step
-      : Math.floor(limitMilli / step) * step
-    const stated = `${atLeast ? 'mindestens' : 'höchstens'} ${formatMeasured(
+    const shownLimit =
+      atLeast || under ? Math.ceil(limitMilli / step) * step : Math.floor(limitMilli / step) * step
+    const stated = `${atLeast ? 'mindestens' : under ? 'unter' : 'höchstens'} ${formatMeasured(
       shownLimit,
       field.unit,
       field.decimals,
@@ -1054,7 +1057,11 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       return { within: null, limitMilli, text: `Grenzwert: ${stated}.`, source }
     }
 
-    const within = atLeast ? measuredMilli >= limitMilli : measuredMilli <= limitMilli
+    const within = atLeast
+      ? measuredMilli >= limitMilli
+      : under
+        ? measuredMilli < limitMilli
+        : measuredMilli <= limitMilli
 
     return {
       within,

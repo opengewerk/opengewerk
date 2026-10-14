@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Grenzwert aus einer Regel, unter dem ein Messwert bleiben muss (`below` an `RuleLimit`,
+  `opengewerk-haustechnik#93`): schon das Erreichen ist außerhalb, die Formular-Engine schreibt
+  "unter 100 je 100 ml" und `limitMark` zeigt `<`. Die Trinkwasserverordnung verlangt Maßnahmen,
+  sobald ein Befund den technischen Maßnahmenwert für Legionellen erreicht; mit "höchstens" wäre
+  genau dieser Befund als innerhalb durchgegangen.
 - Eine Einladung sagt, wofür der Zugang ist (`#623`): `GET /invitation/:token` nennt die Rollen
   mit den Namen, die der Mandant ihnen gibt, und einen Satz der Anwendung über das, was sie zur
   Einladung hält (`offered` an `MembershipAdditions`, gelesen im Mandanten des Tokens, nur

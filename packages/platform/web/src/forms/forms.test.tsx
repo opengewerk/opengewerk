@@ -204,6 +204,11 @@ describe('a measured value', () => {
     expect(screen.getByText('≥ 60,0 °C')).toBeDefined()
     expect(screen.getByText(said).id).toBe(box.getAttribute('aria-describedby'))
   })
+
+  it('marks a limit by how a value stands to it', () => {
+    expect(limitMark('at_most', '0,40 Ω')).toBe('≤ 0,40 Ω')
+    expect(limitMark('below', '100 je 100 ml')).toBe('< 100 je 100 ml')
+  })
 })
 
 describe('a value whose question the screen asks above it', () => {
