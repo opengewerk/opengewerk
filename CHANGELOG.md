@@ -248,6 +248,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Läufe auf einem Stapel halten ihn mit allen Profilen an (#566). Ein Profil auf der
+  Kommandozeile tritt bei Docker Compose an die Stelle des Profils aus der `.env`, und "down" mit
+  dem Profil der Sicherung ließ den Renderer weiterlaufen, im Schritt "Datenplatte verlieren" wie
+  beim Aufräumen der CI. Der Schritt sagt jetzt, wenn ein Container bleibt.
 - Wer genau einem Mandanten angehört, wird nach der Anmeldung nicht mehr gefragt, welchem
   (#624): `TenantScreen` öffnet ihn selbst, wie ein Klick auf seine Kachel, mit dem Gerät vom
   Eingang vor Ort, und zeigt die Kachel mit dem Grund nur, wenn das nicht ging. Das war ein
