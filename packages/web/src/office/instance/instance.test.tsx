@@ -262,7 +262,7 @@ describe('the businesses on the instance in this application', () => {
     ])
     expect(
       screen.getByText(
-        'Diesen Link an Anna Weber geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang, und wer ihn öffnet, wird Inhaber des neuen Betriebs.',
+        'Diesen Link an Anna Weber geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang; wer ihn öffnet, wird Inhaber des neuen Betriebs.',
       ),
     ).toBeTruthy()
   })
@@ -281,7 +281,7 @@ describe('the settings of the instance in this application', () => {
 
     expect(
       await screen.findByText(
-        'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver. Liegt der nicht im Internet, sondern im Netz dieser Instanz, lehnt OpenGewerk ihn ab, außer er steht hier. So greift kein Betrieb über die Instanz in das Netz dahinter.',
+        'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver. Liegt der nicht im Internet, sondern im Netz dieser Instanz, wird er abgelehnt, außer er steht hier. So greift kein Betrieb über die Instanz in das Netz dahinter.',
       ),
     ).toBeTruthy()
     expect(screen.getByText('Was für alle Betriebe auf dieser Instanz gilt.')).toBeTruthy()
@@ -340,7 +340,7 @@ describe('the operators in this application', () => {
     expect(field.placeholder).toBe('name@betrieb.de')
 
     await user.type(field, 'britta@kohm.example.de')
-    await user.click(screen.getByRole('button', { name: 'Benennen' }))
+    await user.click(screen.getByRole('button', { name: 'Betreiber benennen' }))
 
     expect(await screen.findByText('Britta Büro ist jetzt Betreiber.')).toBeTruthy()
   })

@@ -161,6 +161,7 @@ describe('every route', () => {
       'GET /auth/recovery-codes',
       'GET /auth/tenants',
       'GET /instance/access',
+      'PATCH /auth/account',
       'PATCH /auth/passkeys/:passkeyId',
       'POST /auth/sign-out',
       'POST /auth/tenant',

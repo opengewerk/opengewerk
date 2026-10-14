@@ -186,7 +186,7 @@ export function InstanceLogScreen() {
               </div>
             </Panel>
           ) : null}
-          <TablePanel caption="Änderungen an der Instanz" footer={footer} grow>
+          <TablePanel caption="Änderungen an der Instanz" footer={footer}>
             <thead>
               <tr>
                 <Column className="w-[120px] min-w-[112px]">Zeitpunkt</Column>

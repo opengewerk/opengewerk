@@ -90,7 +90,7 @@ describe('the mail server of the instance among its settings', () => {
     )
     // Nothing to remove, and the name the instance writes under is the application's.
     expect(within(card).queryByRole('button', { name: 'Mailserver entfernen' })).toBeNull()
-    expect(within(card).getByText('Davor steht der Name der Anwendung, Probewerk.')).toBeTruthy()
+    expect(within(card).getByText('Davor steht der Name der Anwendung.')).toBeTruthy()
   })
 
   it('sends what was typed, the port only where one was, and says what the mail server took', async () => {

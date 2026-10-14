@@ -293,8 +293,8 @@ describe('the tenants on the instance', () => {
     expect(rows[1]?.textContent).toContain('Probewerk Nord')
     expect(rows[1]?.textContent).toContain('24.09.2026')
     // "du" beside oneself, whatever the address is written like.
-    expect(rows[1]?.textContent).toContain('Mia Mitglieddu')
-    expect(within(rows[1] as HTMLElement).getByText('du')).toBeTruthy()
+    expect(rows[1]?.textContent).toContain('Mia MitgliedSie')
+    expect(within(rows[1] as HTMLElement).getByText('Sie')).toBeTruthy()
     expect(rows[2]?.textContent).toContain('Einladung offen')
     expect(rows[2]?.textContent).toContain('anna@sued.example.de')
     expect(rows[3]?.textContent).toContain('Niemand')
@@ -321,7 +321,7 @@ describe('the tenants on the instance', () => {
     expect(
       within(boxes[0] as HTMLElement).getByText('Angelegt am 24.09.2026 · 4 Zugänge'),
     ).toBeTruthy()
-    expect(within(boxes[0] as HTMLElement).getByText('du')).toBeTruthy()
+    expect(within(boxes[0] as HTMLElement).getByText('Sie')).toBeTruthy()
     expect(within(boxes[1] as HTMLElement).getByText('Probewerk Süd')).toBeTruthy()
     expect(
       within(boxes[1] as HTMLElement).getByText('Angelegt am 27.09.2026 · 1 Zugang'),
@@ -374,7 +374,7 @@ describe('the tenants on the instance', () => {
     // person the application's.
     expect(
       screen.getByText(
-        'Diesen Link an Anna Weber geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang, und wer ihn öffnet, leitet den neuen Mandanten.',
+        'Diesen Link an Anna Weber geben. Er ist nur jetzt zu sehen, gilt einmal und sieben Tage lang; wer ihn öffnet, leitet den neuen Mandanten.',
       ),
     ).toBeTruthy()
 
@@ -463,7 +463,7 @@ describe('the settings of the instance', () => {
 
     expect(
       await screen.findByText(
-        'Ein Mandant schickt Mails über seinen Mailserver. Liegt der nicht im Internet, sondern im Netz dieser Instanz, lehnt Probewerk ihn ab, außer er steht hier. So kommt kein Mandant in das Netz dahinter.',
+        'Ein Mandant schickt Mails über seinen Mailserver. Liegt der nicht im Internet, sondern im Netz dieser Instanz, wird er abgelehnt, außer er steht hier. So kommt kein Mandant in das Netz dahinter.',
       ),
     ).toBeTruthy()
     expect(screen.getByText('Was für alle Mandanten gilt.')).toBeTruthy()
@@ -687,12 +687,12 @@ describe('whoever runs the instance', () => {
     ).toBeTruthy()
 
     await user.type(field, 'britta')
-    await user.click(screen.getByRole('button', { name: 'Benennen' }))
+    await user.click(screen.getByRole('button', { name: 'Zur Aufsicht machen' }))
     expect(screen.getByText('Die E-Mail-Adresse sieht nicht wie eine aus.')).toBeTruthy()
     expect(sent('POST', '/instance/operators')).toEqual([])
 
     await user.type(field, '@nord.example.de')
-    await user.click(screen.getByRole('button', { name: 'Benennen' }))
+    await user.click(screen.getByRole('button', { name: 'Zur Aufsicht machen' }))
 
     expect(await screen.findByText('Britta Bauer gehört jetzt zur Aufsicht.')).toBeTruthy()
     expect(sent('POST', '/instance/operators')).toEqual([{ email: 'britta@nord.example.de' }])

@@ -113,12 +113,43 @@ describe('the account screen', () => {
     expect(await screen.findByText('Mia Mitglied, mia@nord.example.de')).toBeTruthy()
   })
 
-  it('shows what the application adds between the passkeys and the password', async () => {
+  it('names the roles beside the address, as the menu of the account does', async () => {
+    server.answer('GET', '/auth/tenants', [
+      {
+        id: 't-1',
+        name: 'Probewerk Nord',
+        roles: ['lead'],
+        roleLabels: ['Leitung'],
+        rights: [],
+        secondFactor: true,
+      },
+    ])
+    await account()
+
+    expect(await screen.findByText('Mia Mitglied, mia@nord.example.de · Leitung')).toBeTruthy()
+  })
+
+  it('stands in the order of the board, the details and the password before the passkeys', async () => {
+    await account()
+
+    const order = ['Eigene Angaben', 'Darstellung', 'Zweiter Faktor', 'Passwort', 'Passkeys'].map(
+      (name) => screen.getByRole('region', { name }),
+    )
+
+    for (const [index, region] of order.slice(1).entries()) {
+      expect(
+        (order[index] as HTMLElement).compareDocumentPosition(region) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+  })
+
+  it('shows what the application adds between the passkeys and the devices', async () => {
     await account(<section aria-label="Lager">Die Regale dieser Person.</section>)
 
     const added = screen.getByRole('region', { name: 'Lager' })
     const before = screen.getByRole('region', { name: 'Passkeys' })
-    const after = screen.getByRole('region', { name: 'Passwort' })
+    const after = await screen.findByRole('region', { name: 'Angemeldete Geräte' })
 
     expect(before.compareDocumentPosition(added) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(added.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -134,13 +165,61 @@ describe('the account screen', () => {
   })
 })
 
+describe('the own details on the account screen', () => {
+  it('change after confirming again, and send only what changed', async () => {
+    server.answer('POST', '/api/auth/reconfirm', { reconfirmedUntil: '2026-10-14T10:10:00.000Z' })
+    server.answer('PATCH', '/auth/account', { name: 'Mia Neuname', email: 'mia@nord.example.de' })
+    await account()
+
+    const details = card('Eigene Angaben')
+    const name = (await details.findByDisplayValue('Mia Mitglied')) as HTMLInputElement
+
+    expect(details.getByRole('button', { name: 'Ändern' })).toHaveProperty('disabled', true)
+
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Mia Neuname')
+    await userEvent.click(details.getByRole('button', { name: 'Ändern' }))
+
+    // Nothing goes out before the confirmation.
+    expect(sent('PATCH', '/auth/account')).toEqual([])
+
+    const confirming = within(screen.getByRole('region', { name: 'Eigene Angaben bestätigen' }))
+
+    await userEvent.type(confirming.getByLabelText('Passwort'), 'ein-ordentlich-langes-passwort')
+    await userEvent.click(confirming.getByRole('button', { name: 'Weiter' }))
+
+    expect(await details.findByText('Gespeichert.')).toBeTruthy()
+    expect(sent('POST', '/api/auth/reconfirm')).toEqual([
+      { password: 'ein-ordentlich-langes-passwort' },
+    ])
+    expect(sent('PATCH', '/auth/account')).toEqual([{ name: 'Mia Neuname' }])
+  })
+
+  it('ask nothing for a name that is missing or an address without an at sign', async () => {
+    await account()
+
+    const details = card('Eigene Angaben')
+    const email = (await details.findByDisplayValue('mia@nord.example.de')) as HTMLInputElement
+
+    await userEvent.clear(email)
+    await userEvent.type(email, 'mia-ohne-at')
+    await userEvent.click(details.getByRole('button', { name: 'Ändern' }))
+
+    expect(details.getByRole('alert').textContent).toBe(
+      'Die E-Mail-Adresse sieht nicht wie eine aus.',
+    )
+    expect(screen.queryByRole('region', { name: 'Eigene Angaben bestätigen' })).toBeNull()
+    expect(sent('PATCH', '/auth/account')).toEqual([])
+  })
+})
+
 describe('light or dark on the account screen', () => {
-  it('says how the application looks on this device, by its name and in its words', async () => {
+  it('says how the application looks on this device, in its words', async () => {
     await account()
 
     expect(
       card('Darstellung').getByText(
-        'Wie Probewerk auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät und vor der Anmeldung.',
+        'Wie die Anwendung auf diesem Gerät aussieht. Hell ist der Standard, auf jedem neuen Gerät und vor der Anmeldung.',
       ),
     ).toBeTruthy()
     // That it holds on this device is the foundation's to say; where else it
@@ -219,13 +298,13 @@ describe('the second factor of the account', () => {
     ).toBeTruthy()
   })
 
-  it('says that it is set up, by the name of the application, with the recovery codes under it', async () => {
+  it('says that it is set up, for whom it is required, with the recovery codes under it', async () => {
     signedIn(true)
     await account()
 
     expect(
       await card('Zweiter Faktor').findByText(
-        'Eingerichtet. Bei jeder Anmeldung fragt Probewerk zusätzlich nach dem Code aus der App.',
+        'Eingerichtet. Bei jeder Anmeldung fragt die Anwendung zusätzlich nach dem Code aus der App. Für die Leitung ist er Pflicht.',
       ),
     ).toBeTruthy()
     expect(

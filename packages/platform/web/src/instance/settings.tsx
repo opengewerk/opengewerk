@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 
-import { useApplication, useInstanceSentences } from '../application.js'
+import { useInstanceSentences } from '../application.js'
 import { Button } from '../components/button.js'
 import { Field, TextArea } from '../components/field.js'
 import { Panel } from '../components/panel.js'
@@ -77,12 +77,11 @@ function useSave() {
 
 /**
  * The mail servers in the own network. That such a server is refused unless
- * it stands here is the foundation's rule and its sentence, with the name of
- * the application in it; how a tenant sends its mail, and what the rule keeps
- * it from, are said in the application's word for a tenant.
+ * it stands here is the foundation's rule and its sentence; how a tenant sends
+ * its mail, and what the rule keeps it from, are said in the application's
+ * word for a tenant.
  */
 function MailHosts({ settings }: { readonly settings: InstanceSettingsView }) {
-  const { name } = useApplication()
   const sentences = useInstanceSentences().settings
   const save = useSave()
   const [text, setText] = useState(settings.mailInternalHosts.join('\n'))
@@ -119,7 +118,7 @@ function MailHosts({ settings }: { readonly settings: InstanceSettingsView }) {
     <Panel title="Mailserver im eigenen Netz" roomy>
       <form noValidate onSubmit={submit} className="flex flex-col gap-3">
         <SettingsText muted>
-          {`${sentences.mailOwnServer} Liegt der nicht im Internet, sondern im Netz dieser Instanz, lehnt ${name} ihn ab, außer er steht hier. ${sentences.mailNoWayIn}`}
+          {`${sentences.mailOwnServer} Liegt der nicht im Internet, sondern im Netz dieser Instanz, wird er abgelehnt, außer er steht hier. ${sentences.mailNoWayIn}`}
         </SettingsText>
         <TextArea
           label="Freigegebene Mailserver"

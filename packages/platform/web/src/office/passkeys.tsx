@@ -133,8 +133,8 @@ export function PasskeysPanel() {
     <Panel title="Passkeys" roomy>
       <div className="flex flex-col gap-2.5">
         <SettingsText muted>
-          Mit einem Passkey meldest du dich ohne Passwort an, bestätigt mit Fingerabdruck, Gesicht
-          oder PIN am Gerät. Er zählt als zweiter Faktor.
+          Ein Passkey meldet ohne Passwort an, bestätigt mit Fingerabdruck, Gesicht oder PIN am
+          Gerät, und zählt als zweiter Faktor.
         </SettingsText>
 
         {list.isPending ? (
@@ -377,21 +377,23 @@ function RenameForm({
 }
 
 /**
- * Adding a passkey, the two steps of the boards "Einst-Passkey-Hinzufuegen"
- * and "Einst-Passkeys-390": first confirming again, then the name, and then
- * the browser's own question for fingerprint, face or PIN.
+ * Confirming again, with the password and, where the account has one, the
+ * code from the app: the first step of adding a passkey and of changing one's
+ * own name or address. The confirmation is the server's condition (#167) and
+ * holds ten minutes.
  *
- * The confirmation is the server's condition (#167) and holds ten minutes; a
- * name that takes longer sends somebody back to the first step with the
- * server's sentence.
+ * `said` is a sentence carried over from the step after, when the server sent
+ * somebody back here because the confirmation had run out.
  */
-function PasskeyAdding({
+export function Reconfirmation({
   narrow,
-  onDone,
+  said = null,
+  onConfirmed,
   onCancel,
 }: {
   readonly narrow: boolean
-  readonly onDone: () => void
+  readonly said?: string | null
+  readonly onConfirmed: () => void
   readonly onCancel: () => void
 }) {
   const application = useApplication()
@@ -400,14 +402,10 @@ function PasskeyAdding({
   // when this screen did not know of it yet, set up in another tab perhaps.
   const [codeAsked, setCodeAsked] = useState(false)
   const withCode = account.data?.twoFactorEnabled === true || codeAsked
-  const [step, setStep] = useState<'confirm' | 'name'>('confirm')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
-  const [name, setName] = useState(() => deviceName(globalThis.navigator.userAgent))
-  const [tried, setTried] = useState(false)
   const [working, setWorking] = useState(false)
-  const [trouble, setTrouble] = useState<string | null>(null)
-  const problem = passkeyNameProblem(name) ?? undefined
+  const [trouble, setTrouble] = useState<string | null>(said)
 
   async function confirm(event: FormEvent) {
     event.preventDefault()
@@ -418,7 +416,7 @@ function PasskeyAdding({
       await reconfirm(password, withCode ? code : null)
       setPassword('')
       setCode('')
-      setStep('name')
+      onConfirmed()
     } catch (error) {
       if (codeOf(error) === 'CODE_REQUIRED') {
         setCodeAsked(true)
@@ -437,6 +435,82 @@ function PasskeyAdding({
     }
   }
 
+  return (
+    <form
+      className="flex flex-col gap-2.5"
+      onSubmit={(event) => {
+        void confirm(event)
+      }}
+    >
+      <SettingsText muted>
+        {withCode
+          ? 'Zur Bestätigung dein Passwort und der Code aus der App, auch wenn du schon angemeldet bist.'
+          : 'Zur Bestätigung dein Passwort, auch wenn du schon angemeldet bist.'}
+      </SettingsText>
+      <div className={withCode && !narrow ? 'grid gap-3 lg:grid-cols-2' : 'flex flex-col gap-3'}>
+        <Field
+          label="Passwort"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => {
+            setPassword(event.target.value)
+          }}
+        />
+        {withCode ? (
+          <Field
+            label="Code aus der App"
+            numeric
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123 456"
+            maxLength={8}
+            required
+            value={code}
+            onChange={(event) => {
+              setCode(event.target.value)
+            }}
+          />
+        ) : null}
+      </div>
+      {trouble ? <Trouble>{trouble}</Trouble> : null}
+      <div className="flex flex-wrap gap-2">
+        <div className="grow" />
+        <Button onClick={onCancel}>Abbrechen</Button>
+        <Button type="submit" tone="primary" disabled={working}>
+          {working ? 'Wird geprüft' : 'Weiter'}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * Adding a passkey, the two steps of the boards "Einst-Passkey-Hinzufuegen"
+ * and "Einst-Passkeys-390": first confirming again, then the name, and then
+ * the browser's own question for fingerprint, face or PIN.
+ *
+ * A name that takes longer than the confirmation holds sends somebody back to
+ * the first step with the server's sentence.
+ */
+function PasskeyAdding({
+  narrow,
+  onDone,
+  onCancel,
+}: {
+  readonly narrow: boolean
+  readonly onDone: () => void
+  readonly onCancel: () => void
+}) {
+  const application = useApplication()
+  const [step, setStep] = useState<'confirm' | 'name'>('confirm')
+  const [name, setName] = useState(() => deviceName(globalThis.navigator.userAgent))
+  const [tried, setTried] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const problem = passkeyNameProblem(name) ?? undefined
+
   async function create(event: FormEvent) {
     event.preventDefault()
     setTried(true)
@@ -452,11 +526,13 @@ function PasskeyAdding({
       await addPasskey(name)
       onDone()
     } catch (error) {
+      const said = passkeyTrouble(error, 'Der Passkey ließ sich nicht anlegen.', application)
+
+      setTrouble(said)
+
       if (codeOf(error) === 'RECONFIRMATION_REQUIRED') {
         setStep('confirm')
       }
-
-      setTrouble(passkeyTrouble(error, 'Der Passkey ließ sich nicht anlegen.', application))
     } finally {
       setWorking(false)
     }
@@ -472,55 +548,15 @@ function PasskeyAdding({
       </h3>
 
       {step === 'confirm' ? (
-        <form
-          className="flex flex-col gap-2.5"
-          onSubmit={(event) => {
-            void confirm(event)
+        <Reconfirmation
+          narrow={narrow}
+          said={trouble}
+          onConfirmed={() => {
+            setTrouble(null)
+            setStep('name')
           }}
-        >
-          <SettingsText muted>
-            {withCode
-              ? 'Zur Bestätigung dein Passwort und der Code aus der App, auch wenn du schon angemeldet bist.'
-              : 'Zur Bestätigung dein Passwort, auch wenn du schon angemeldet bist.'}
-          </SettingsText>
-          <div
-            className={withCode && !narrow ? 'grid gap-3 lg:grid-cols-2' : 'flex flex-col gap-3'}
-          >
-            <Field
-              label="Passwort"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value)
-              }}
-            />
-            {withCode ? (
-              <Field
-                label="Code aus der App"
-                numeric
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123 456"
-                maxLength={8}
-                required
-                value={code}
-                onChange={(event) => {
-                  setCode(event.target.value)
-                }}
-              />
-            ) : null}
-          </div>
-          {trouble ? <Trouble>{trouble}</Trouble> : null}
-          <div className="flex flex-wrap gap-2">
-            <div className="grow" />
-            <Button onClick={onCancel}>Abbrechen</Button>
-            <Button type="submit" tone="primary" disabled={working}>
-              {working ? 'Wird geprüft' : 'Weiter'}
-            </Button>
-          </div>
-        </form>
+          onCancel={onCancel}
+        />
       ) : (
         <form
           noValidate

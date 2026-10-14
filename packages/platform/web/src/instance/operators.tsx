@@ -104,6 +104,7 @@ export function InstanceOperatorsScreen() {
         <SettingsText muted>{saidWhy(list.error, 'Die Liste kam nicht an.')}</SettingsText>
       ) : (
         <TablePanel
+          title="Die Konten der Verwaltung dieser Instanz"
           caption={sentences.caption}
           cards={cards}
           note={`Ohne zweiten Faktor kommt niemand hierher; eingerichtet wird er unter „Konto“. ${sentences.whoStays}`}
@@ -174,7 +175,7 @@ function Person({
     <>
       <span className={`block text-[14px] font-medium max-sm:text-[15px] ${breaks}`}>
         {operator.name}
-        {you ? <span className="ml-1.5 text-[12px] font-bold text-copper-text">du</span> : null}
+        {you ? <span className="ml-1.5 text-[12px] font-bold text-copper-text">Sie</span> : null}
       </span>
       <span className={`block text-[12px] text-ink-faint ${breaks}`}>{operator.email}</span>
     </>
@@ -240,7 +241,7 @@ function AppointForm({ onAppointed }: { readonly onAppointed: () => void }) {
           />
         </div>
         <Button tone="primary" type="submit" icon={Plus} disabled={appoint.isPending}>
-          Benennen
+          {sentences.appoint}
         </Button>
       </div>
       {trouble ? (

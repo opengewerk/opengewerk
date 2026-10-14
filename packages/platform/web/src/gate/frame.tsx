@@ -48,7 +48,14 @@ export function Gate({
         <header className="bg-gate px-5 pt-[22px] pb-[18px] text-top-ink lg:hidden">
           <div className="flex items-center gap-[11px]">
             <BrandMark size={32} />
-            <span className="text-[22px] font-semibold">{application.name}</span>
+            <span className="text-[22px] font-semibold">
+              {application.brand?.family ?? application.name}
+            </span>
+            {application.brand ? (
+              <span className="font-condensed text-[14px] font-semibold tracking-[1.3px] text-gate-accent uppercase">
+                {application.brand.line}
+              </span>
+            ) : null}
           </div>
           <Connected onSlate className="mt-3" />
         </header>
@@ -103,8 +110,16 @@ function Brand() {
     <aside className="hidden w-[470px] shrink-0 flex-col bg-gate px-10 py-11 text-top-ink lg:flex">
       <div className="flex items-center gap-[13px]">
         <BrandMark size={42} />
-        <span className="text-[27px] font-semibold tracking-[0.2px]">{application.name}</span>
+        <span className="text-[27px] font-semibold tracking-[0.2px]">
+          {application.brand?.family ?? application.name}
+        </span>
       </div>
+      {application.brand ? (
+        // Under the family, where the mark ends: 42 pixels of mark and 13 of gap.
+        <span className="mt-1 ml-[55px] font-condensed text-[15px] font-semibold tracking-[1.4px] text-gate-accent uppercase">
+          {application.brand.line}
+        </span>
+      ) : null}
       <div className="flex grow flex-col justify-center">
         <p className="text-[24px] leading-[1.4] font-medium">{application.claim}</p>
         <p className="mt-5 text-[16px] leading-[1.55] text-gate-text">{application.hosting}</p>
@@ -225,8 +240,10 @@ export function GateText({
   return (
     <p
       className={clsx(
-        'text-[15px] leading-[1.5] lg:text-[14px]',
-        muted ? 'text-ink-muted' : 'text-ink',
+        'leading-[1.5]',
+        // A message that is the whole of the card reads as large as the one
+        // of "Einen Moment"; a sentence beside a form, a step smaller.
+        muted ? 'text-[15px] text-ink-muted lg:text-[14px]' : 'text-[16px] text-ink lg:text-[15px]',
       )}
     >
       {children}

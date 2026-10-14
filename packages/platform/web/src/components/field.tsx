@@ -157,6 +157,12 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   readonly aside?: ReactNode
   /** A star beside the label, where the board of the screen marks what has to be filled in. */
   readonly starred?: boolean
+  /**
+   * The label for a screen reader alone, where the sentence over the field
+   * already says what it holds and the board draws none, as over a link that
+   * is handed out once.
+   */
+  readonly hideLabel?: boolean
 }
 
 /**
@@ -175,6 +181,7 @@ export function Field({
   unit,
   aside,
   starred = false,
+  hideLabel = false,
   className,
   ref,
   ...rest
@@ -205,7 +212,11 @@ export function Field({
 
   return (
     <div className={clsx('flex min-w-0 flex-col', look[kind].frame)}>
-      {aside ? (
+      {hideLabel ? (
+        <label htmlFor={id} className="sr-only">
+          {label}
+        </label>
+      ) : aside ? (
         <div className="flex items-baseline gap-2">
           {starred ? (
             <span className="flex grow items-baseline gap-1">

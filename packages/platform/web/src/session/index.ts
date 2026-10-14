@@ -12,6 +12,7 @@
 // somebody reaches the gate with.
 export {
   availableTenants,
+  changeOwnAccount,
   changePassword,
   chooseTenant,
   correctAccount,

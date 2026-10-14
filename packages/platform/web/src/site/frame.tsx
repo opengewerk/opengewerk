@@ -70,6 +70,7 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
     setMenuOpen(false)
   }, [])
   const places = usePlaces(tabs)
+  const path = useRouterState({ select: (state) => state.location.pathname })
   // The heading of a screen below the tabs stands in the header above the
   // content, so the frame is what is asked for it.
   const frame = useRef<HTMLDivElement>(null)
@@ -87,13 +88,18 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
             {/* The strips first, in the order of the board of the strips on
               site, then the header of the screen, then what the application
               keeps in view under them on every screen. */}
-            <SyncStatusBar
-              conflictsLink={(className) => (
-                <Link to={conflictsPath} className={className}>
-                  Ansehen
-                </Link>
-              )}
-            />
+            {/* Not over the conflicts themselves, as the board "Konflikte" draws
+              them: the strip leads there, and the card at the top of the screen
+              says the same and whether the device has a connection. */}
+            {path === conflictsPath ? null : (
+              <SyncStatusBar
+                conflictsLink={(className) => (
+                  <Link to={conflictsPath} className={className}>
+                    Ansehen
+                  </Link>
+                )}
+              />
+            )}
             <UpdateBar />
             <EntrySuggestion here="site" />
             <div ref={setSlot} />

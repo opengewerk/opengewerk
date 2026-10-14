@@ -27,6 +27,13 @@ import type { LocalStore } from './sync/store.js'
 export interface InterfaceApplication {
   /** What it is called, wherever a person reads its name. */
   readonly name: string
+  /**
+   * The name as the gate draws it beside the mark, where it is a family and
+   * a line of it: the family large, the line in small capitals in copper,
+   * under it at a desk and beside it on a phone. Without it the gate shows
+   * the name as it is.
+   */
+  readonly brand?: { readonly family: string; readonly line: string }
   /** What it is, in one sentence, beside the gate at a desk. */
   readonly claim: string
   /** Where this instance runs and whose it is, under the claim. */
@@ -418,6 +425,8 @@ export interface InstanceAreaSentences {
     readonly what: string
     /** The button that opens the form, the heading of the form, and its button. */
     readonly create: string
+    /** Over the table, as the heading of its card. */
+    readonly listTitle: string
     /** The caption of the table, by which a screen reader names it. */
     readonly caption: string
     /** Under the table: what nobody sees of a tenant here. */
@@ -438,7 +447,7 @@ export interface InstanceAreaSentences {
     readonly notCreated: string
     /**
      * After the facts of the link, that it is shown only now and holds once
-     * for seven days, behind an "und": what opening it does.
+     * for seven days, behind a semicolon: what opening it does.
      */
     readonly linkMakes: string
   }
@@ -483,7 +492,7 @@ export interface InstanceAreaSentences {
      */
     readonly accountMail: string
     /** While the instance has none: what does not happen then, and the ways back into an account that remain. */
-    readonly accountMailMissing: string
+    readonly accountMailMissing: ReactNode
   }
   readonly legal: {
     /** Beside where the legal notice stands: for whom it holds, with the application's word for a tenant. */

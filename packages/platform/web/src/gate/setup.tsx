@@ -314,7 +314,10 @@ export function SecondFactorSetup({
             Scannen, oder diesen Schlüssel eintippen:
           </p>
           <p className="font-condensed text-[18px] font-semibold tracking-[1.5px] [overflow-wrap:anywhere] text-ink">
-            {secretFrom(started.totpUri)}
+            {/* In groups of four, as the board draws it: twenty characters in a
+                row are where a finger slips, and an app takes the key with its
+                spaces as well as without. */}
+            {secretFrom(started.totpUri).replace(/(.{4})(?=.)/g, '$1 ')}
           </p>
         </div>
       </div>

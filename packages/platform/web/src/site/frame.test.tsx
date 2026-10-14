@@ -238,6 +238,16 @@ describe('what stands over a screen on site', () => {
     ).toBe('/konflikte')
   })
 
+  it('is no strip over the conflicts themselves, where the strip would lead', async () => {
+    await frame({}, { at: '/konflikte', server: withConflicts(1) })
+
+    for (const nav of await places()) {
+      await within(nav).findByRole('link', { name: 'Konflikte, einer wartet' })
+    }
+
+    expect(screen.queryByText(/Ein Konflikt wartet/)).toBeNull()
+  })
+
   it('follows the way back of a header without leaving the page', async () => {
     const { router } = await frame({}, { at: '/regale/s-1' })
 

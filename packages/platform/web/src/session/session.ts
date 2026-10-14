@@ -544,6 +544,21 @@ export interface InvitationOffer {
 }
 
 /**
+ * One's own name or address, after confirming again (`reconfirm`), as
+ * "Konto" changes it (opengewerk-haustechnik#128). The answer is what the
+ * account is called now.
+ */
+export async function changeOwnAccount(change: {
+  readonly name?: string
+  readonly email?: string
+}): Promise<{ name: string; email: string }> {
+  return request<{ name: string; email: string }>('/auth/account', {
+    method: 'PATCH',
+    body: JSON.stringify(change),
+  })
+}
+
+/**
  * A new password with the old one as confirmation (#126). Every other device
  * of the account is signed out, this one stays.
  */

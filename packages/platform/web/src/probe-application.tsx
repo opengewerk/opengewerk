@@ -262,6 +262,7 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
           title: 'Mandanten',
           what: 'Alle Mandanten dieser Instanz, jeder für sich.',
           create: 'Mandant anlegen',
+          listTitle: 'Die Mandanten auf dieser Instanz',
           caption: 'Die Mandanten dieser Instanz',
           note: 'Vom Inhalt eines Mandanten sieht die Aufsicht nichts.',
           tenantColumn: 'Mandant',
