@@ -170,6 +170,20 @@ describe('a text drawn on a screen', () => {
     expect(screen.getAllByRole('heading').map((heading) => heading.tagName)).toEqual(['H2', 'H3'])
   })
 
+  it('leaves no level out where a text begins below the first or skips one', async () => {
+    // A legal text of the instance is written by whoever runs it, and often
+    // begins at "##"; under the head of the page that is the second level.
+    await drawn('## Verantwortliche Stelle\n\nText.\n\n### Kontakt\n\nText.\n\n## Rechte', {
+      level: 2,
+    })
+
+    expect(screen.getAllByRole('heading').map((heading) => heading.tagName)).toEqual([
+      'H2',
+      'H3',
+      'H2',
+    ])
+  })
+
   it('leads into the application by its router and out of it without handing the page over', async () => {
     await drawn(text)
 

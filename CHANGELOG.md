@@ -420,6 +420,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Text in `Markdown` lässt keine Ebene der Überschriften mehr aus
+  (`opengewerk-haustechnik#129`): beginnt er bei `##` oder überspringt er eine, folgen die
+  Überschriften trotzdem lückenlos auf den Kopf der Seite. Rechtstexte der Instanz schreibt,
+  wer sie betreibt, und die Datenschutzhinweise der Vorschau sprangen auf der Seite
+  "Rechtliches" von der ersten auf die dritte Ebene, was die Breitenprüfung als Befund meldet.
 - Das Menü vor Ort zeigt seine Trennlinien wieder (`opengewerk-haustechnik#131`): war das Menü
   höher als das Fenster, wurden die Linien von einem Pixel auf null gestaucht und fehlten ganz.
   Dasselbe galt für die Linie vor dem Fuß der Navigation hinter "Menü" im Büro und im Bereich
