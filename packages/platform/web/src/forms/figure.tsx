@@ -46,7 +46,12 @@ export function FigureInput({
     <div className="flex min-w-0 flex-col gap-1">
       <div
         className={clsx(
+          // The field has no outline of its own, the frame would cut it off:
+          // the frame draws the ring of the keyboard instead, copper, 2 px
+          // and 2 px out, as every other control (board "Tastatur und
+          // Fokus"). Before, the frame only turned darker.
           'flex h-[60px] min-w-0 items-center overflow-hidden rounded-[6px] bg-input',
+          'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-copper-text',
           unread || tone === 'outside'
             ? 'border-2 border-conflict'
             : tone === 'doubt'

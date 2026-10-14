@@ -452,6 +452,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
+  jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
+  (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen
+  Rundgang ging, sah kaum, wo er stand. Jetzt zeichnet der Rahmen um das Feld den Ring.
 - Die Breitenprüfung drückt nur einen Öffner, der sich drücken lässt
   (`opengewerk-haustechnik#128`): ein gesperrter Knopf öffnet nichts, und auf ihn zu warten
   beendete den Lauf nach einer halben Minute. Unter "Konto" ist "Ändern" der eigenen Angaben
