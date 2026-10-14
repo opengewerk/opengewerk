@@ -18,6 +18,7 @@ import {
 } from '@nestjs/common'
 import type {
   InstanceAccess,
+  InstanceLegalTextsView,
   InstanceLogPage,
   InstanceMailServerState,
   InstanceMailServerView,
@@ -35,6 +36,7 @@ import { checkMailServer, type MailServerCheck } from '../mail/check.js'
 import type { MailConfiguration } from '../mail/configuration.js'
 import { MAIL, type MailContext } from '../mail/context.js'
 import { operatorAccess } from './access.js'
+import { checkedLegalTexts, readInstanceLegalTexts, saveLegalTexts } from './legal-texts.js'
 import { readInstanceLog } from './log.js'
 import {
   instanceMailConfigurationToTry,
@@ -84,7 +86,7 @@ function field(body: unknown, name: string): unknown {
 
 /**
  * The area of the instance (#188), for whoever runs it: the tenants on it
- * (#142), its settings, the accounts that run it and its log. Not the
+ * (#142), its settings, its legal texts, the accounts that run it and its log. Not the
  * workplace of any tenant; every route but the first asks for somebody who
  * runs the instance and has a second factor, and nothing here reads what is
  * in a tenant.
@@ -249,6 +251,26 @@ export class InstanceController {
     this.mailTryAllowed()
 
     return this.tryMailServer(context, configuration)
+  }
+
+  /**
+   * The legal texts of the instance (opengewerk-haustechnik#129) for their
+   * screen, each with when and by whom it was last changed. Anybody reads the
+   * texts themselves on the route of their own, `/legal-texts`.
+   */
+  @Get('legal-texts')
+  @RequiresOperator()
+  legalTexts(@CurrentUser() user: SignedInUser): Promise<InstanceLegalTextsView> {
+    return readInstanceLegalTexts(this.database, user.userId)
+  }
+
+  @Put('legal-texts')
+  @RequiresOperator()
+  changeLegalTexts(
+    @CurrentUser() user: SignedInUser,
+    @Body() body: unknown,
+  ): Promise<InstanceLegalTextsView> {
+    return saveLegalTexts(this.database, user.userId, checkedLegalTexts(body))
   }
 
   @Get('operators')

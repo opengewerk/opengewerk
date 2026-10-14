@@ -45,6 +45,13 @@ export function instanceRecord(
   words: AuditWords,
   sentences: LogSentences,
 ): string {
+  // A change of the legal texts is a change of two columns of the settings,
+  // and it is what the screen it was made on calls them
+  // (opengewerk-haustechnik#129).
+  if (change.table === 'instance_settings' && change.reason === 'instance.legal') {
+    return 'Rechtstexte der Instanz'
+  }
+
   if (change.table === 'instance_settings') {
     return 'Einstellungen der Instanz'
   }

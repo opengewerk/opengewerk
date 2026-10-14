@@ -512,6 +512,13 @@
       "when": 1791844263612,
       "tag": "0072_instance_mail_server",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1791961143604,
+      "tag": "0073_instance_legal_texts",
+      "breakpoints": true
     }
   ]
 }

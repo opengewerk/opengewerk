@@ -60,7 +60,7 @@ describe('every route', () => {
    * the one worth counting: adding one turns this test red, which makes it a
    * decision instead of a line in a diff nobody looked at twice.
    */
-  it('that answers without an identity is the health check, the setup or a link', () => {
+  it('that answers without an identity is the health check, the setup, a link or the legal texts', () => {
     const publicRoutes = routesOf(controllers)
       .filter((route) => route.isPublic)
       .map((route) => route.name)
@@ -69,6 +69,7 @@ describe('every route', () => {
     expect(publicRoutes).toEqual([
       'GET /health',
       'GET /invitation/:token',
+      'GET /legal-texts',
       'GET /setup',
       'POST /invitation/:token',
       'POST /setup',
@@ -123,6 +124,7 @@ describe('every route', () => {
       'POST /setup',
       'GET /invitation/:token',
       'POST /invitation/:token',
+      'GET /legal-texts',
     ]) {
       expect(names).not.toContain(gone)
     }

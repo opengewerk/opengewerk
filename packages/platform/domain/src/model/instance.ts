@@ -60,6 +60,47 @@ export interface InstanceMailServerState {
   readonly server: InstanceMailServerView | null
 }
 
+/**
+ * The two legal texts of an instance (opengewerk-haustechnik#129): its legal
+ * notice and its notice on data protection. Whoever runs the instance keeps
+ * them on a screen; they are in no source code, and they are the same for
+ * every tenant on it.
+ */
+export const legalTextKinds = ['imprint', 'privacy'] as const
+
+export type LegalTextKind = (typeof legalTextKinds)[number]
+
+/**
+ * The legal texts as anybody reads them, signed in or not: the text, or null
+ * where none is kept, and then no link leads to it.
+ */
+export type LegalTexts = Readonly<Record<LegalTextKind, string | null>>
+
+/** One legal text as the screen in the area of the instance shows it. */
+export interface LegalTextView {
+  readonly text: string | null
+  /** When it was last changed, ISO 8601, or null while it never was. */
+  readonly changedAt: string | null
+  /** Who changed it, by name, or null: nobody signed in, or an account that is gone. */
+  readonly changedBy: string | null
+}
+
+export type InstanceLegalTextsView = Readonly<Record<LegalTextKind, LegalTextView>>
+
+/**
+ * How long a legal text may be, in characters: room for a notice on data
+ * protection of many pages, and one text still under the limit of a request
+ * of a form if every character in it took two bytes.
+ */
+export const longestLegalText = 40_000
+
+/** Why a legal text cannot be kept as it is, or null when it can. */
+export function legalTextProblem(text: string): string | null {
+  return text.length > longestLegalText
+    ? `Höchstens ${longestLegalText.toLocaleString('de-DE')} Zeichen.`
+    : null
+}
+
 /** One of the accounts that run the instance. */
 export interface OperatorView {
   readonly userId: string

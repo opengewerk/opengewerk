@@ -344,6 +344,17 @@ export interface InterfaceSentences {
     readonly newAccount: (name: ReactNode, email: ReactNode) => ReactNode
   }
   /**
+   * The page of the legal texts of the instance, which anybody reads before
+   * signing in (opengewerk-haustechnik#129), with the application's word for
+   * whoever runs the instance.
+   */
+  readonly legal: {
+    /** Under the text: who keeps it, and where. */
+    readonly keptBy: string
+    /** In place of a text nobody has kept yet. */
+    readonly missing: string
+  }
+  /**
    * "Zugänge", where the people of a tenant are looked after. Only the office
    * shows it, so only the office hands these in: an entry that never draws
    * the screen does not load what it says.
@@ -473,6 +484,10 @@ export interface InstanceAreaSentences {
     readonly accountMail: string
     /** While the instance has none: what does not happen then, and the ways back into an account that remain. */
     readonly accountMailMissing: string
+  }
+  readonly legal: {
+    /** Beside where the legal notice stands: for whom it holds, with the application's word for a tenant. */
+    readonly forAll: string
   }
   readonly log: {
     /** Under the heading: what the log holds, and where a change in a tenant stands instead. */

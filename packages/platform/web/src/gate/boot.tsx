@@ -8,12 +8,13 @@ import { useApplication } from '../application.js'
 import { Button } from '../components/button.js'
 import type { Entry } from '../components/surface.js'
 import { deviceIdentity } from '../session/device.js'
-import { accountQuery } from '../session/queries.js'
+import { accountQuery, legalTextsQuery } from '../session/queries.js'
 import { unreachable } from '../session/remembered.js'
 import {
   availableTenants,
   instanceVersion,
   invitationToken,
+  legalPage,
   passwordResetToken,
   setupNeeded,
 } from '../session/session.js'
@@ -22,8 +23,9 @@ import type { SyncClient } from '../sync/client.js'
 import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { workIn } from '../sync/transport.js'
-import { Gate, GateText, GateWaiting, InstanceVersion } from './frame.js'
+import { Gate, GateText, GateWaiting, InstanceLegalTexts, InstanceVersion } from './frame.js'
 import { InvitationScreen } from './invitation.js'
+import { LegalScreen } from './legal.js'
 import { PasswordResetScreen } from './password-reset.js'
 import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
 import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
@@ -70,10 +72,14 @@ export function Boot({ entry, children }: { readonly entry: Entry; readonly chil
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   })
+  // The legal texts for the foot, likewise once (opengewerk-haustechnik#129).
+  const legal = useQuery(legalTextsQuery)
 
   return (
     <InstanceVersion.Provider value={version.data ?? null}>
-      <BootSteps entry={entry}>{children}</BootSteps>
+      <InstanceLegalTexts.Provider value={legal.data ?? null}>
+        <BootSteps entry={entry}>{children}</BootSteps>
+      </InstanceLegalTexts.Provider>
     </InstanceVersion.Provider>
   )
 }
@@ -90,6 +96,10 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
   // The link to a new password, recognised the same way and for the same
   // reason: whoever holds it cannot sign in (#126).
   const [resetToken] = useState(() => passwordResetToken(globalThis.location.pathname))
+  // The legal texts of the instance, for anybody, signed in or not
+  // (opengewerk-haustechnik#129): recognised the same way, before anybody is
+  // asked who they are.
+  const [legal] = useState(() => legalPage(globalThis.location.pathname))
   const [step, setStep] = useState<Step>('asking')
   const [client, setClient] = useState<SyncClient | null>(null)
   // Worked out once and then constant. A ref would say the same thing and
@@ -212,6 +222,10 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
 
   if (resetToken) {
     return <PasswordResetScreen token={resetToken} />
+  }
+
+  if (legal) {
+    return <LegalScreen page={legal} />
   }
 
   if (account.isPending) {

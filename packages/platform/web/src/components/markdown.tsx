@@ -27,6 +27,8 @@ export type Inline =
   | { readonly kind: 'strong'; readonly text: string }
   | { readonly kind: 'code'; readonly text: string }
   | { readonly kind: 'link'; readonly text: string; readonly to: string }
+  /** The end of a line inside a paragraph, for a text whose lines are kept as typed. */
+  | { readonly kind: 'break' }
 
 /** A block of a text. */
 export type Block =
@@ -95,15 +97,29 @@ const numberPattern = /^\d+\. +(.+)$/
  * A text read into its blocks. Lines that follow each other without an empty
  * one between them are one paragraph, as in Markdown; an item of a list is one
  * line.
+ *
+ * With `breaks` the lines of a paragraph keep their ends, for a text typed
+ * into a field rather than written as Markdown: an address stands line by
+ * line, as its writer sees it in the field (opengewerk-haustechnik#129).
  */
-export function readMarkdown(source: string): readonly Block[] {
+export function readMarkdown(
+  source: string,
+  { breaks = false }: { readonly breaks?: boolean } = {},
+): readonly Block[] {
   const blocks: Block[] = []
   let paragraph: string[] = []
   let list: { ordered: boolean; items: (readonly Inline[])[] } | null = null
 
   const closeParagraph = () => {
     if (paragraph.length > 0) {
-      blocks.push({ kind: 'paragraph', line: readInline(paragraph.join(' ')) })
+      blocks.push({
+        kind: 'paragraph',
+        line: breaks
+          ? paragraph.flatMap((line, index): readonly Inline[] =>
+              index === 0 ? readInline(line) : [{ kind: 'break' }, ...readInline(line)],
+            )
+          : readInline(paragraph.join(' ')),
+      })
       paragraph = []
     }
   }
@@ -230,6 +246,8 @@ function Line({
     <>
       {pieces.map((piece, index) => {
         switch (piece.kind) {
+          case 'break':
+            return <br key={index} />
           case 'strong':
             return <strong key={index}>{piece.text}</strong>
           case 'code':
@@ -299,6 +317,13 @@ export interface MarkdownProps {
   /** The type of the entry on site: 17 pixels and more room between the lines. */
   readonly large?: boolean
   /**
+   * The type of a page that is read through, as a legal text of the
+   * instance is: 15 pixels with room between the lines.
+   */
+  readonly reading?: boolean
+  /** The lines of a paragraph keep their ends, as `readMarkdown` says. */
+  readonly breaks?: boolean
+  /**
    * The level of the heading the text is called by, which the headings below
    * it follow: 2 where the text stands under the heading of a screen, as in a
    * drawer, and 1 where the text is the screen and the head of the screen
@@ -323,13 +348,19 @@ export function Markdown({
   source,
   withoutTitle = false,
   large = false,
+  reading = false,
+  breaks = false,
   level = 2,
   onFollow,
 }: MarkdownProps) {
-  const blocks = readMarkdown(source)
+  const blocks = readMarkdown(source, { breaks })
   const first = blocks.findIndex((block) => block.kind === 'heading' && block.level === 1)
   const shown = withoutTitle && first !== -1 ? blocks.filter((_, index) => index !== first) : blocks
-  const text = large ? 'text-[17px] leading-[1.5]' : 'text-[13px] leading-[1.55]'
+  const text = large
+    ? 'text-[17px] leading-[1.5]'
+    : reading
+      ? 'text-[15px] leading-[1.6]'
+      : 'text-[13px] leading-[1.55]'
   const nodes: ReactNode[] = shown.map((block, index) => {
     switch (block.kind) {
       case 'heading':
@@ -339,7 +370,7 @@ export function Markdown({
             level={level + block.level - 1}
             className={
               block.level === 1
-                ? large
+                ? large || reading
                   ? 'text-[20px] font-semibold'
                   : 'text-[16px] font-semibold'
                 : block.level === 2

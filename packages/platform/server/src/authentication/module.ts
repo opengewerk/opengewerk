@@ -2,6 +2,7 @@ import type { Provider, Type } from '@nestjs/common'
 
 import { AUTHENTICATION, SETUP_CODE } from '../api/handed-in.js'
 import { INSTANCE_SETTINGS, InstanceController } from '../instance/instance.controller.js'
+import { LegalTextsController } from '../instance/legal-texts.controller.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
@@ -20,8 +21,8 @@ export interface AuthenticationParts {
   /**
    * The authentication handle, handed in only while the instance is open.
    * That is what switches the ways in on: the first run setup, the redemption
-   * of a one time link, and the count of the recovery codes. Left out, the
-   * three controllers are not registered and their routes do not exist: a
+   * of a one time link, the count of the recovery codes and the legal texts
+   * for anybody. Left out, the four controllers are not registered and their routes do not exist: a
    * closed instance hands out nothing, and a way in that stayed open during a
    * restore would take the meaning out of closing it.
    */
@@ -69,9 +70,13 @@ export function authenticationParts(parts: AuthenticationParts): {
 
   return {
     controllers: [
-      // The first two answer without an identity. All three need the
-      // authentication handed in and are left out on a closed instance.
-      ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
+      // The first two answer without an identity, and so do the legal texts
+      // of the instance, which the foot of the sign in links to
+      // (opengewerk-haustechnik#129). All four need the authentication handed
+      // in and are left out on a closed instance.
+      ...(authentication
+        ? [SetupController, InvitationController, RecoveryCodesController, LegalTextsController]
+        : []),
       // What lives between signing in and working, the passkeys of the
       // account, who works in a tenant, and the area of the instance. Behind
       // the guard, so a closed instance answers them with 401.
