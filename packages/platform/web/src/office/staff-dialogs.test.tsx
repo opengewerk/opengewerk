@@ -267,6 +267,33 @@ describe('the accounts of a tenant, one role each', () => {
     ).toEqual(['Zugang', 'Rolle', 'Regal', 'Zustand', 'Ändern'])
   })
 
+  it('keep the buttons of a row on one line in the table, and let the address give way (#562)', async () => {
+    staffScreen()
+    await screen.findByText('Max Mitglied')
+
+    const row = rowOf('Max Mitglied')
+    const buttons = within(row).getByRole('button', { name: 'Max Mitglied bearbeiten' })
+
+    expect(buttons.parentElement?.className).toContain('flex-nowrap')
+    expect(buttons.parentElement?.className).not.toContain('flex-wrap')
+
+    const address = within(row).getByText('max@nord.example.de')
+
+    expect(address.className).toContain('truncate')
+    expect(address.getAttribute('title')).toBe('max@nord.example.de')
+    expect(
+      within(accountsTable())
+        .getAllByRole('columnheader')
+        .map((head) => head.className),
+    ).toEqual([
+      expect.not.stringContaining('w-['),
+      expect.stringContaining('w-[130px]'),
+      expect.any(String),
+      expect.stringContaining('w-[170px]'),
+      expect.stringContaining('w-[160px]'),
+    ])
+  })
+
   it('are offered as a table in the head of the page', async () => {
     staffScreen()
     await screen.findByText('Max Mitglied')

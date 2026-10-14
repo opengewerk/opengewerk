@@ -36,21 +36,36 @@ export function Who({
   email,
   you = false,
   inBox = false,
+  cut = false,
 }: {
   readonly name: string
   readonly email: string
   readonly you?: boolean
   readonly inBox?: boolean
+  /**
+   * Cut with an ellipsis where the column is too narrow, the whole of it in
+   * the title (#562): in the table the column of the access is the one that
+   * gives way, and not the buttons beside it.
+   */
+  readonly cut?: boolean
 }) {
-  const breaks = inBox ? '[overflow-wrap:anywhere]' : 'whitespace-nowrap'
+  const breaks = inBox ? '[overflow-wrap:anywhere]' : cut ? 'truncate' : 'whitespace-nowrap'
 
   return (
     <>
-      <span className={clsx('block text-[14px] font-semibold max-sm:text-[15px]', breaks)}>
+      <span
+        className={clsx('block text-[14px] font-semibold max-sm:text-[15px]', breaks)}
+        title={cut ? name : undefined}
+      >
         {name}
         {you ? <span className="ml-1.5 text-[12px] font-bold text-copper-text">Sie</span> : null}
       </span>
-      <span className={clsx('block text-[13px] text-ink-faint', breaks)}>{email}</span>
+      <span
+        className={clsx('block text-[13px] text-ink-faint', breaks)}
+        title={cut ? email : undefined}
+      >
+        {email}
+      </span>
     </>
   )
 }

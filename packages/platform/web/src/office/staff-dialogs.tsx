@@ -1,5 +1,6 @@
 import { accessRights, type RoleDefinition } from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import clsx from 'clsx'
 import { Check, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -213,9 +214,17 @@ export function StaffDialogsScreen<Value = undefined>({
     return person.lastSignInAt ? `zuletzt ${moment(person.lastSignInAt)}` : 'noch nie angemeldet'
   }
 
-  function actionsOf(person: StaffEntry) {
+  /**
+   * The buttons of an access. In the table they never wrap (#562): they are
+   * the column that gave way first when a name in the column of the
+   * application took two lines, and every row then stood twice as high. What
+   * gives way there is the address under the name.
+   */
+  function actionsOf(person: StaffEntry, inTable = false) {
     return (
-      <span className="inline-flex flex-wrap justify-end gap-1.5">
+      <span
+        className={clsx('inline-flex justify-end gap-1.5', inTable ? 'flex-nowrap' : 'flex-wrap')}
+      >
         {mayWrite ? (
           <Button
             size="small"
@@ -381,10 +390,10 @@ export function StaffDialogsScreen<Value = undefined>({
           <thead>
             <tr>
               <Column>Zugang</Column>
-              <Column className="w-[150px]">Rolle</Column>
+              <Column className="w-[130px]">Rolle</Column>
               {additions ? <Column className={additions.column}>{additions.title}</Column> : null}
-              <Column className="w-[190px]">Zustand</Column>
-              <Column numeric className="w-[176px]">
+              <Column className="w-[170px]">Zustand</Column>
+              <Column numeric className="w-[160px]">
                 <span className="sr-only">Ändern</span>
               </Column>
             </tr>
@@ -392,8 +401,8 @@ export function StaffDialogsScreen<Value = undefined>({
           <tbody>
             {people.data.map((person) => (
               <tr key={person.userId}>
-                <Cell>
-                  <Who name={person.name} email={person.email} you={person.userId === you} />
+                <Cell className="max-w-0">
+                  <Who name={person.name} email={person.email} you={person.userId === you} cut />
                 </Cell>
                 <Cell className="text-[13px] font-semibold">
                   {rolesInWords(namesOf(person.roles, available))}
@@ -407,7 +416,7 @@ export function StaffDialogsScreen<Value = undefined>({
                   </span>
                   <span className="block text-ink-faint">{lastSeen(person)}</span>
                 </Cell>
-                <Cell numeric>{actionsOf(person)}</Cell>
+                <Cell numeric>{actionsOf(person, true)}</Cell>
               </tr>
             ))}
           </tbody>
