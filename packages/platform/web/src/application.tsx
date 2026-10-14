@@ -344,11 +344,17 @@ export interface InterfaceSentences {
     /** The button under it. */
     readonly join: string
     /**
-     * For somebody new: who made the account and that only a password is
-     * missing. The name and the address come marked up, to be set into the
-     * sentence as they are.
+     * For somebody new: who made the account, what for, and that only a
+     * password is missing. The name and the address come marked up, to be set
+     * into the sentence as they are; `held` is what the invitation gives, the
+     * roles as the tenant names them and what the application said beside
+     * them through `offered` on the server, or null.
      */
-    readonly newAccount: (name: ReactNode, email: ReactNode) => ReactNode
+    readonly newAccount: (
+      name: ReactNode,
+      email: ReactNode,
+      held: { readonly roles: readonly string[]; readonly beside: string | null },
+    ) => ReactNode
   }
   /**
    * The page of the legal texts of the instance, which anybody reads before

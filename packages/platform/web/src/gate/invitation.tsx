@@ -5,7 +5,13 @@ import { useApplication } from '../application.js'
 import { Button } from '../components/button.js'
 import { Field } from '../components/field.js'
 import { accountQuery } from '../session/queries.js'
-import { invitationOffer, redeemInvitation, shortestPassword, signIn } from '../session/session.js'
+import {
+  type InvitationOffer,
+  invitationOffer,
+  redeemInvitation,
+  shortestPassword,
+  signIn,
+} from '../session/session.js'
 import { RequestRefused } from '../sync/transport.js'
 import { Gate, GateText, GateWaiting } from './frame.js'
 import { SecondFactorScreen, SignInScreen } from './sign-in.js'
@@ -90,7 +96,10 @@ function Accept({
   offer,
 }: {
   readonly token: string
-  readonly offer: { company: string; name: string; email: string; knownAccount: boolean }
+  readonly offer: Pick<
+    InvitationOffer,
+    'company' | 'name' | 'email' | 'knownAccount' | 'roles' | 'beside'
+  >
 }) {
   const { invitation: sentences } = useApplication().sentences
   const [password, setPassword] = useState('')
@@ -137,6 +146,7 @@ function Accept({
         {sentences.newAccount(
           <strong className="text-ink">{offer.name}</strong>,
           <strong className="text-ink">{offer.email}</strong>,
+          { roles: offer.roles, beside: offer.beside },
         )}
       </GateText>
 

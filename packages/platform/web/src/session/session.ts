@@ -541,6 +541,12 @@ export interface InvitationOffer {
   readonly expiresAt: string
   /** Whether this address already has an account, which keeps its password. */
   readonly knownAccount: boolean
+  /**
+   * The roles the invitation gives, as the tenant names them, and what the
+   * application says beside them, or null. Empty once the link is spent.
+   */
+  readonly roles: readonly string[]
+  readonly beside: string | null
 }
 
 /**

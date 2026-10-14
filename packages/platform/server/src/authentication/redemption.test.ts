@@ -134,7 +134,50 @@ describe('what a link is an invitation to', () => {
       name: 'Nina Neu',
       email: 'neu@example.de',
       knownAccount: false,
+      roles: ['Mitglied'],
+      beside: null,
     })
+  })
+
+  /**
+   * The route answers without a session, to whoever holds the token. So what
+   * an invitation gives is said only while somebody can still join through
+   * it, and by the names in the tenant's own rows, not the ones the
+   * application ships.
+   */
+  it('names the roles as the tenant calls them, only while the link can still be used', async () => {
+    const rename = (label: string) =>
+      admin.query(`update tenant_roles set label = $1 where tenant_id = $2 and key = 'member'`, [
+        label,
+        south.id,
+      ])
+
+    await rename('Mitarbeit')
+
+    try {
+      const open = await invite(
+        { email: 'rollen@example.de', name: 'Rita Rolle' },
+        { tenantId: south.id, roles: ['member', 'lead'] },
+      )
+
+      const offer = (await http().get(`/invitation/${open}`).expect(200)).body
+
+      expect(offer).toMatchObject({ state: 'open', beside: null })
+      expect(new Set(offer.roles)).toEqual(new Set(['Leitung', 'Mitarbeit']))
+
+      const revoked = await invite(
+        { email: 'zurueck@example.de', name: 'Zora Zurück' },
+        { tenantId: south.id, roles: ['member'], revokedAt: new Date() },
+      )
+
+      expect((await http().get(`/invitation/${revoked}`).expect(200)).body).toMatchObject({
+        state: 'revoked',
+        roles: [],
+        beside: null,
+      })
+    } finally {
+      await rename('Mitglied')
+    }
   })
 
   it('is not there for a token that was never made, and costs no query for one that has no shape', async () => {

@@ -99,6 +99,21 @@ export interface MembershipAdditions {
     },
   ): Promise<void>
   /**
+   * What an invitation that can still be used says beside its roles, in the
+   * application's words, for the screen that opens the link (#623): null
+   * where it says nothing. Asked inside the tenant the token names, reading
+   * only and with nobody signed in, since whoever opens a link has no session
+   * yet. Left out, the screen names the roles alone.
+   */
+  offered?(
+    tx: TenantTransaction,
+    invitation: {
+      readonly tenantId: TenantId
+      readonly invitationId: InvitationId
+      readonly roles: readonly string[]
+    },
+  ): Promise<string | null>
+  /**
    * With a change of somebody's roles. `said` is what the body named beside
    * the roles, undefined where it named nothing; the application decides what
    * the new roles mean for what it keeps even then.

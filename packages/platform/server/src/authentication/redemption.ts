@@ -15,6 +15,7 @@ import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
 import { hashToken } from './invitation.js'
 import { shortestPassword } from './password.js'
+import { rolesHeld } from './roles.js'
 import { createAccount, grantMembership } from './staff.js'
 
 /**
@@ -68,6 +69,24 @@ export interface InvitationOffer {
    * it. Since the account joins only signed in, that is all the token gives.
    */
   readonly knownAccount: boolean
+  /**
+   * The roles the invitation gives, by the names the tenant gives them, in
+   * the order it made them; and what the application keeps beside them, in
+   * its words (`offered`), or null. So the screen says what the account is
+   * for before anybody chooses a password (#623).
+   *
+   * Only while the link can still be used. A link that is spent says which
+   * way, and both of these come back empty: nobody is going to join through
+   * it, and what it would have given is nobody's business any more.
+   *
+   * Handed to whoever holds the token, without a session, like everything
+   * else here. That is the person the invitation is for, who learns what the
+   * account will be, or whoever made it and has not passed it on, who knows.
+   * The name of the tenant the answer gave before; the roles and the rest say
+   * what that tenant has in mind for this one person.
+   */
+  readonly roles: readonly string[]
+  readonly beside: string | null
 }
 
 /** What a redemption leaves behind. */
@@ -101,7 +120,11 @@ interface InvitationRow {
  * different sentences and only one of them is worth a second look from the
  * person holding it.
  */
-export async function offerOf(database: Database, token: string): Promise<InvitationOffer | null> {
+export async function offerOf(
+  database: Database,
+  access: Pick<AccessRules, 'additions'>,
+  token: string,
+): Promise<InvitationOffer | null> {
   const found = await lookUp(database, token)
 
   if (!found) {
@@ -109,15 +132,47 @@ export async function offerOf(database: Database, token: string): Promise<Invita
   }
 
   const { row, accountId } = found
+  const state = stateOf(row)
+  const { roles, beside } =
+    state === 'open' ? await offeredIn(database, access, row) : { roles: [], beside: null }
 
   return {
-    state: stateOf(row),
+    state,
     company: row.company,
     name: row.invited_name,
     email: row.invited_email,
     expiresAt: new Date(row.expires),
     knownAccount: accountId !== null,
+    roles,
+    beside,
   }
+}
+
+/**
+ * What an open invitation gives, read inside the tenant its token names.
+ *
+ * Reading only, and as nobody: the person holding the link has no account
+ * yet, or one that is not signed in. The names of the roles are the tenant's
+ * own rows, under the ordinary policies, which is why this cannot happen in
+ * the lookup outside any tenant.
+ */
+async function offeredIn(
+  database: Database,
+  access: Pick<AccessRules, 'additions'>,
+  row: InvitationRow,
+): Promise<{ roles: string[]; beside: string | null }> {
+  const tenantId = row.business as TenantId
+
+  return database.readingTenant({ tenantId }, async (tx) => {
+    const held = await rolesHeld(tx, tenantId, row.invited_roles)
+    const beside = await access.additions?.offered?.(tx, {
+      tenantId,
+      invitationId: row.invitation_id as InvitationId,
+      roles: row.invited_roles,
+    })
+
+    return { roles: held.map((role) => role.label), beside: beside ?? null }
+  })
 }
 
 /**
