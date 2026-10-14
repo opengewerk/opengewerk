@@ -471,6 +471,8 @@ describe('what a link in the address points at', () => {
                 email: 'neue@sued.example.de',
                 expiresAt: '2026-10-09T08:00:00.000Z',
                 knownAccount: false,
+                roles: ['Mitglied'],
+                beside: null,
               }
             : path === '/auth/tenants'
               ? [aTenant({ id: tenantId })]

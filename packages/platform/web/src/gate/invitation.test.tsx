@@ -75,6 +75,8 @@ function offer(over: Readonly<Record<string, unknown>> = {}) {
     email: 'neue@nord.example.de',
     expiresAt: new Date().toISOString(),
     knownAccount: false,
+    roles: ['Mitglied'],
+    beside: 'am Regal West',
     ...over,
   }
 }
@@ -136,12 +138,15 @@ describe('redeeming a link', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Willkommen bei Probewerk Nord' }),
     ).toBeTruthy()
-    // Who made the account is the application's sentence, with the name and
-    // the address set into it as the foundation marks them up.
+    // Who made the account and what for is the application's sentence, with
+    // the name and the address set into it as the foundation marks them up,
+    // and the roles and what the application said beside them as the server
+    // named them.
     expect(screen.getByText('Nele Neu').tagName).toBe('STRONG')
     expect(screen.getByText('neue@nord.example.de').tagName).toBe('STRONG')
     expect(screen.getByText('Nele Neu').parentElement?.textContent).toBe(
-      'Ein Mandant hat für Nele Neu einen Zugang mit der Adresse neue@nord.example.de angelegt.',
+      'Ein Mandant hat für Nele Neu einen Zugang mit der Adresse neue@nord.example.de angelegt, ' +
+        'als Mitglied am Regal West.',
     )
 
     const person = userEvent.setup()

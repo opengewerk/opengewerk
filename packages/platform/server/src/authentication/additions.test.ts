@@ -38,7 +38,7 @@ const lea = { email: 'leitung@nord.example.de', name: 'Lea Leitung' }
 const mia = { email: 'mitglied@nord.example.de', name: 'Mia Mitglied' }
 
 interface Asked {
-  readonly what: 'invited' | 'joined' | 'changed'
+  readonly what: 'invited' | 'joined' | 'offered' | 'changed'
   /** The tenant and the person of the transaction the application was called in. */
   readonly inTenant: string
   readonly asUser: string
@@ -73,6 +73,11 @@ const additions: MembershipAdditions = {
   async joined(tx, membership) {
     asked.push({ what: 'joined', ...(await workingAs(tx)), about: membership })
     answer()
+  },
+  async offered(tx, invitation) {
+    asked.push({ what: 'offered', ...(await workingAs(tx)), about: invitation })
+
+    return 'am Regal West'
   },
   async changed(tx, membership, said) {
     asked.push({ what: 'changed', ...(await workingAs(tx)), about: membership, said })
@@ -303,6 +308,50 @@ describe('what an application keeps beside a membership', () => {
         },
       },
     ])
+  })
+
+  /**
+   * The link is opened without a session, so the application is asked in the
+   * tenant the token names and as nobody, and only while the link is good.
+   */
+  it('is asked what an open invitation says beside its roles, in its tenant and as nobody, and not once the link is spent', async () => {
+    const invited = await http()
+      .post('/staff')
+      .set('cookie', await asLea())
+      .set('origin', origin)
+      .send({ email: 'offen@nord.example.de', name: 'Olga Offen', roles: ['guest'] })
+      .expect(201)
+    const token = invited.body.token as string
+
+    asked.length = 0
+
+    expect((await http().get(`/invitation/${token}`).expect(200)).body).toMatchObject({
+      state: 'open',
+      roles: ['Gast'],
+      beside: 'am Regal West',
+    })
+    expect(asked).toEqual([
+      {
+        what: 'offered',
+        inTenant: north.id,
+        asUser: '',
+        about: { tenantId: north.id, invitationId: invited.body.id, roles: ['guest'] },
+      },
+    ])
+
+    await http()
+      .post(`/invitation/${token}`)
+      .set('origin', origin)
+      .send({ password: 'was-nur-olga-kennt' })
+      .expect(201)
+    asked.length = 0
+
+    expect((await http().get(`/invitation/${token}`).expect(200)).body).toMatchObject({
+      state: 'redeemed',
+      roles: [],
+      beside: null,
+    })
+    expect(asked).toEqual([])
   })
 
   it('takes the redemption back with its refusal: no account, no membership, and the link still good', async () => {

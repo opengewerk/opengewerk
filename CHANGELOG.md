@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Einladung sagt, wofür der Zugang ist (`#623`): `GET /invitation/:token` nennt die Rollen
+  mit den Namen, die der Mandant ihnen gibt, und einen Satz der Anwendung über das, was sie zur
+  Einladung hält (`offered` an `MembershipAdditions`, gelesen im Mandanten des Tokens, nur
+  lesend und ohne Anmeldung); der Satz `newAccount` bekommt beides herein. Nur solange der Link
+  gilt, ein verbrauchter nennt beides nicht mehr. Die Tafel der Haustechnik zeigt Rolle und
+  Bereich, damit die eingeladene Person vor dem Passwort sieht, wofür das Konto ist.
 - Eigene Angaben unter "Konto" (`opengewerk-haustechnik#128`): Name und E-Mail-Adresse des
   eigenen Kontos ändert jede Person selbst, nach der Bestätigung mit Passwort und Code aus der
   App (`PATCH /auth/account`). Die Änderung steht im Änderungsprotokoll jedes Mandanten, für den

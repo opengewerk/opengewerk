@@ -202,7 +202,7 @@ describe('an invitation by mail', () => {
     const token = tokenIn(mail)
 
     expect(token).toHaveLength(43)
-    expect(await offerOf(database, token)).toMatchObject({
+    expect(await offerOf(database, {}, token)).toMatchObject({
       state: 'open',
       company: north.name,
       name: 'Nele Neu',
@@ -303,8 +303,8 @@ describe('an invitation by mail', () => {
     expect(first).toHaveLength(43)
     expect(second).toHaveLength(43)
     expect(second).not.toBe(first)
-    expect(await offerOf(database, first)).toBeNull()
-    expect(await offerOf(database, second)).toMatchObject({ state: 'open' })
+    expect(await offerOf(database, {}, first)).toBeNull()
+    expect(await offerOf(database, {}, second)).toMatchObject({ state: 'open' })
 
     const [sent] = await outboxOf(invited.body.id as string)
 

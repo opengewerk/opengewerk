@@ -37,14 +37,15 @@ export class InvitationController {
   constructor(
     private readonly database: Database,
     @Inject(AUTHENTICATION) private readonly authentication: Authentication,
-    @Inject(ACCESS_RULES) private readonly access: Pick<AccessRules, 'sentences'>,
+    @Inject(ACCESS_RULES) private readonly access: Pick<AccessRules, 'sentences' | 'additions'>,
   ) {}
 
   /**
    * What this link is an invitation to.
    *
-   * Reading only, so that the screen can name the tenant and say what is
-   * being asked for before anybody types anything. A link that has been used,
+   * Reading only, so that the screen can name the tenant, the roles and what
+   * the application says beside them, and what is being asked for, before
+   * anybody types anything. A link that has been used,
    * called back or has run out answers with which of the three it is: "this
    * was already used" and "this never existed" call for different sentences,
    * and only one of them is worth a second look from the person holding it.
@@ -58,7 +59,7 @@ export class InvitationController {
       throw new NotFoundException('Diesen Link gibt es nicht.')
     }
 
-    const offer = await offerOf(this.database, token)
+    const offer = await offerOf(this.database, this.access, token)
 
     if (!offer) {
       throw new NotFoundException('Diesen Link gibt es nicht.')

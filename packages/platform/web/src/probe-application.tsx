@@ -232,9 +232,11 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         },
         tenantIsAdded: 'Ihr Passwort bleibt, der Mandant kommt dazu.',
         join: 'Mandant übernehmen',
-        newAccount: (name, email) => (
+        newAccount: (name, email, held) => (
           <>
-            Ein Mandant hat für {name} einen Zugang mit der Adresse {email} angelegt.
+            Ein Mandant hat für {name} einen Zugang mit der Adresse {email} angelegt
+            {held.roles.length > 0 ? `, als ${held.roles.join(' und ')}` : ''}
+            {held.beside === null ? '' : ` ${held.beside}`}.
           </>
         ),
       },
