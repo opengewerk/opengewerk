@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- "Angemeldete Geräte" unter "Konto" nennt an jedem Gerät die Netzadresse, von der es sich
+  angemeldet hat, soweit der Webserver davor sie durchreicht (#563). Die Zeile der Sitzung hielt die
+  Adresse schon, nur las sie niemand; wer jetzt eine Adresse sieht, die er nicht kennt, erkennt eine
+  Anmeldung, die nicht seine ist, und meldet das Gerät ab. Die Geräte einer Person, die die Leitung
+  unter "Zugänge" sieht, nennen sie nicht. Die Feature-Gliederung sagt es in v2.36.
 - Je Fristart lässt sich einstellen, wie eine Frist erinnert: per E-Mail und Push, nur per E-Mail
   oder mit keiner Nachricht (`opengewerk-haustechnik#269`). Bisher erinnerte jede Frist auf beiden
   Wegen. Ohne Nachricht steht sie weiter in der Liste und legt ihre Aufgabe oder ihren Auftrag an;
@@ -510,6 +515,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   gesperrtes Element keinen Fokus halten kann; ein Bildschirmleser verlor den Ort. Jetzt trägt der
   Knopf in dieser Lage `aria-disabled`, lässt keinen Druck durch und hält den Fokus. Gesperrt,
   während der Fokus woanders steht, ist er gesperrt wie bisher.
+- Ein Hinweiskasten mit zwei Knöpfen lässt dem Satz auf dem Telefon wieder seine Breite (#564).
+  Symbol, Satz und Knöpfe standen in einer Zeile, die nicht umbrach, und der Satz lief Buchstabe für
+  Buchstabe nach unten. Jetzt gehen die Knöpfe unter den Satz, wo sie nicht daneben passen, und
+  stehen auf dem Desktop weiter rechts.
 - Das Feld für einen Messwert oder Zählerstand zeigt mit der Tastatur den Rahmen in Kupfer wie
   jedes andere Bedienelement (`opengewerk-haustechnik#132`). Das Feld nahm ihn sich selbst
   (`outline-none`), und sein Rahmen wurde nur dunkler; wer mit der Tastatur durch einen

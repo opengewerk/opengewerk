@@ -461,6 +461,36 @@ describe('devices', () => {
     expect(first.length).toBeGreaterThan(0)
   })
 
+  it('name the address a device signed in from to its own account (#563)', async () => {
+    const answer = await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .set('x-forwarded-for', '203.0.113.7')
+      .send({ email: member.email, password })
+      .expect(200)
+    const cookies = withCookies([answer.headers['set-cookie'] ?? []].flat() as string[])
+    const seen = await http().get('/auth/devices').set('cookie', cookies).expect(200)
+    const rows = seen.body as { current: boolean; ipAddress: string | null }[]
+
+    expect(rows.find((row) => row.current)?.ipAddress).toBe('203.0.113.7')
+  })
+
+  it('name no address that a client added to the one of the web server', async () => {
+    // A client that sends an address of its own makes two of them, and the
+    // session keeps none rather than the one the client chose.
+    const answer = await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .set('x-forwarded-for', '198.51.100.9, 203.0.113.7')
+      .send({ email: member.email, password })
+      .expect(200)
+    const cookies = withCookies([answer.headers['set-cookie'] ?? []].flat() as string[])
+    const seen = await http().get('/auth/devices').set('cookie', cookies).expect(200)
+    const rows = seen.body as { current: boolean; ipAddress: string | null }[]
+
+    expect(rows.find((row) => row.current)?.ipAddress).not.toBe('198.51.100.9')
+  })
+
   it('can be cut off from another one, and the cut off session stops working', async () => {
     const toRevoke = await signIn(member.email)
     const keeping = await signIn(member.email)

@@ -335,21 +335,24 @@ export function NoteBox({
   readonly action?: ReactNode
   readonly children: ReactNode
 }) {
+  // Symbol and sentence are one item and the action another (#564). Where
+  // both fit, the action stands at the right, as `note_box()` of the boards
+  // draws it; where they do not, as on a phone with two buttons, the action
+  // goes under the sentence. In one line that never wrapped, two buttons left
+  // the sentence the width of a letter, and it ran down the box a character
+  // at a time.
   return (
     <div
       className={clsx(
-        'flex items-center gap-2.5 rounded-[5px] border px-3.5 py-2.5 text-[13px]',
+        'flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-[5px] border px-3.5 py-2.5 text-[13px]',
         noteTones[tone],
       )}
     >
-      <Icon size={17} strokeWidth={2.1} aria-hidden="true" className="shrink-0" />
-      <span className="min-w-0 leading-[1.4]">{children}</span>
-      {action ? (
-        <>
-          <div className="grow" />
-          {action}
-        </>
-      ) : null}
+      <span className="flex min-w-0 grow basis-64 items-center gap-2.5">
+        <Icon size={17} strokeWidth={2.1} aria-hidden="true" className="shrink-0" />
+        <span className="min-w-0 leading-[1.4]">{children}</span>
+      </span>
+      {action ? <span className="ml-auto flex flex-wrap justify-end gap-2">{action}</span> : null}
     </div>
   )
 }
