@@ -452,6 +452,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   mit dem Feld geschah: "Notizen neu", "geändert" oder "entfernt". So auch bei einem Wert, den
   das Protokoll für sich behält und der vorher wie nachher "gesetzt" heißt. Dasselbe steht in
   der Tabelle, die das Protokoll hinausgibt, und im Protokoll der Instanz
+- Die Beschreibung von `versionColumns` an `attachmentsSchema` sagt, dass eine eigene Spalte an
+  der Fassung einer Datei nach dem Anlegen feststeht und keinem Schlüssel mit `ON UPDATE CASCADE`
+  folgen kann (#569). Der Auslöser, der eine Fassung hält, wie sie geschrieben wurde, lehnt auch die
+  Änderung ab, die die Kaskade auslöst, und die Anweisung dahinter scheitert als Ganzes; die nächste
+  Anwendung sucht dieselbe Stunde nicht noch einmal.
 - Die Nummernkreise und die Sicherung unter "Einstellungen" gehören jetzt dem Fundament
   (`opengewerk-haustechnik#127`, ADR 0010): die Routen `GET` und `PUT /settings/number-ranges`
   als `numberRangeParts`, die Bildschirme "Nummernkreise" und "Sicherung" und die Leiste

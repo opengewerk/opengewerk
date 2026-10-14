@@ -105,6 +105,16 @@ export interface AttachmentsOptions<
   /**
    * Columns of the application on a version, for what it keeps a version
    * apart by beyond the tenant and has to hold on every row.
+   *
+   * Such a column stands once the version is written, like every column of
+   * it (#569): `attachment_versions_stay_as_written` refuses every change to a
+   * version, for everybody, the owner of the table included. It can therefore
+   * follow no key with `ON UPDATE CASCADE`. PostgreSQL runs the cascade as an
+   * ordinary `UPDATE`, the trigger refuses it, and the statement that set the
+   * chain off fails as a whole: the row the key points at could then no
+   * longer change the value the versions follow. What can change belongs on
+   * the file, in `columns`, or is asked of the file in a restrictive policy
+   * on the versions.
    */
   readonly versionColumns?: VersionOwn
   /** The keys, checks, indexes and policies of those. */
