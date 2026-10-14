@@ -56,10 +56,16 @@ export interface RepeatList {
   }
 }
 
-/** A limit worked out, in thousandths of the field's unit, and where it comes from. */
+/**
+ * A limit worked out, in thousandths of the field's unit, and where it comes
+ * from. `under` says a value has to stay under the limit, which itself lies
+ * outside, as `below` does for a limit taken from a rule; it counts only for
+ * a limit that is not one to reach.
+ */
 export interface WorkedOutValue {
   readonly limitMilli: number
   readonly atLeast: boolean
+  readonly under?: boolean
   readonly source: string
 }
 
@@ -1003,7 +1009,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
 
     let worked: WorkedOutValue
     // Whether the limit itself lies outside: a value has to stay under it.
-    let under = false
+    let under: boolean
 
     if (isRuleLimit(limit)) {
       const record = context.rules.at(limit.rule, context.on)
@@ -1036,6 +1042,7 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
       }
 
       worked = outcome
+      under = outcome.under === true
     }
 
     const { limitMilli, atLeast, source } = worked
