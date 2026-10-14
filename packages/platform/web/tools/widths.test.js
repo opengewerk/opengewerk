@@ -10,6 +10,7 @@ import {
   accessibilityRules,
   accessibilityWidths,
   alsoReached,
+  appears,
   bandOf,
   drawnAt,
   fileFor,
@@ -459,6 +460,59 @@ describe('a page whose window was given another width (opengewerk-haustechnik#28
     await expect(followed(pageOf(320).page, 320, 20)).rejects.toThrow(
       'Die Seite hat 0.02 Sekunden nach dem Wechsel auf 320 Pixel Breite nichts neu gezeichnet.',
     )
+  })
+})
+
+describe('a button that opens a form (#565)', () => {
+  /**
+   * A page as `appears` meets it in a browser: a button of that name that
+   * stands from a moment on, or never, and a wait that gives up at its time.
+   */
+  function pageWith(drawnAfter) {
+    const opened = Date.now()
+    const asked = []
+
+    return {
+      asked,
+      getByRole(role, options) {
+        asked.push({ role, ...options })
+
+        return {
+          first: () => ({
+            waitFor: ({ state, timeout }) =>
+              new Promise((resolve, reject) => {
+                const look = () => {
+                  const waited = Date.now() - opened
+
+                  if (state === 'visible' && drawnAfter !== null && waited >= drawnAfter) {
+                    resolve()
+                  } else if (waited >= timeout) {
+                    reject(new Error('Timeout'))
+                  } else {
+                    setTimeout(look, 20)
+                  }
+                }
+
+                look()
+              }),
+          }),
+        }
+      },
+    }
+  }
+
+  it('is reachable when it comes a moment after the page, with the answer of the server', async () => {
+    const page = pageWith(300)
+
+    expect(await appears(page, 'Bereich Nord umbenennen', 2000)).toBe(true)
+    // An enabled button of exactly that name: a disabled one opens nothing.
+    expect(page.asked).toEqual([
+      { role: 'button', name: 'Bereich Nord umbenennen', exact: true, disabled: false },
+    ])
+  })
+
+  it('is still out of reach when the band never draws it, once the time is up', async () => {
+    expect(await appears(pageWith(null), 'Bereich Nord umbenennen', 400)).toBe(false)
   })
 })
 
