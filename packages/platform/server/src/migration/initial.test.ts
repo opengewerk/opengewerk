@@ -75,6 +75,22 @@ describe('a completed first migration', () => {
     expect(completed).toContain(generated)
   })
 
+  it('moves a unique index in front of the foreign keys, and says so in its head (#568)', () => {
+    // drizzle-kit writes every key before every index. A key that leans on
+    // the unique index would be refused by PostgreSQL in a first migration
+    // that creates both.
+    const index = `CREATE UNIQUE INDEX "probe_owners_lookup" ON "probe_owners" USING btree ("id");`
+    const withIndex = `${generated}${statementBreakpoint}\n${index}`
+    const moved = completeInitialMigration(withIndex, { guards })
+    const [first, key] = positions(moved, index, 'ADD CONSTRAINT "probe_things_owner_id')
+
+    expect(first).toBeLessThan(key as number)
+    expect(moved.split(index)).toHaveLength(2)
+    expect(moved).toContain('with a unique index moved in front of the')
+    // Everything else as drizzle-kit wrote it, in its order.
+    expect(moved.replace(`${index}${statementBreakpoint}\n`, '')).toContain(generated)
+  })
+
   it('forces and grants after the tables and before a function could read them', () => {
     const order = positions(
       completed,
