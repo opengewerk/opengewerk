@@ -18,7 +18,10 @@ export interface CodeReader {
   readonly read: (frame: HTMLVideoElement) => Promise<string | null>
 }
 
-/** The codes a label carries: bar codes of a serial number, and QR or Data Matrix. */
+/**
+ * The codes a label carries: bar codes of a serial number, the EAN of a
+ * manufacturer on an article, the short one included, and QR or Data Matrix.
+ */
 const formats = [
   'code_128',
   'code_39',
@@ -26,6 +29,7 @@ const formats = [
   'codabar',
   'itf',
   'ean_13',
+  'ean_8',
   'qr_code',
   'data_matrix',
 ] as const

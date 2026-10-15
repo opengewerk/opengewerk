@@ -136,7 +136,7 @@ describe('the camera', () => {
 describe('the detector of the browser', () => {
   it('reads the codes of a label it knows, the first one it finds', async () => {
     const { made, looked } = detector(
-      Promise.resolve(['aztec', 'qr_code', 'upc_a', 'ean_13', 'data_matrix', 'code_128']),
+      Promise.resolve(['aztec', 'qr_code', 'upc_a', 'ean_8', 'ean_13', 'data_matrix', 'code_128']),
       ['JA2404118772', 'a second code'],
     )
     // The reader in JavaScript could be made as well; the browser's own goes first.
@@ -147,7 +147,7 @@ describe('the detector of the browser', () => {
     expect(await reader?.read(video)).toBe('JA2404118772')
     // The formats of a label it supports, in the order of the list, and no
     // other: a format nobody prints only slows every frame down.
-    expect(made).toEqual([{ formats: ['code_128', 'ean_13', 'qr_code', 'data_matrix'] }])
+    expect(made).toEqual([{ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'data_matrix'] }])
     expect(looked).toEqual([video])
     expect(drawn).toEqual([])
   })

@@ -15,6 +15,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   ein Lager vor der Abschaltung der Vorgängeranwendung beim Pilotbetrieb, und es soll in der
   Organisation nur ein Modell davon geben; die Handwerkersoftware bindet es mit #298. Die Prüfung
   einer EAN zieht dafür aus der Handwerkersoftware ins Fundament.
+- Der Scan vor Ort liest auch den kurzen Strichcode EAN-8 über den Leser des Browsers, für die
+  Entnahme von Material per Scan in opengewerk-haustechnik#326. Kleine Artikel tragen oft nur ihn,
+  und das Lager nimmt eine EAN mit 8 Ziffern an; ZXing las ihn schon, der Leser des Browsers wurde
+  nicht danach gefragt.
 - "Angemeldete Geräte" unter "Konto" nennt an jedem Gerät die Netzadresse, von der es sich
   angemeldet hat, soweit der Webserver davor sie durchreicht (#563). Die Zeile der Sitzung hielt die
   Adresse schon, nur las sie niemand; wer jetzt eine Adresse sieht, die er nicht kennt, erkennt eine
