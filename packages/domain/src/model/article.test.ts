@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   articleProblems,
   articleUnitProblem,
-  eanProblem,
   isCalendarDay,
   priceOn,
   priceProblems,
@@ -11,21 +10,6 @@ import {
   supplierNumberProblem,
 } from './article.js'
 import { shortCodeFrom, supplierProblems } from './supplier.js'
-
-describe('the EAN of an article', () => {
-  it('takes 13 and 8 digits with the right check digit', () => {
-    expect(eanProblem('4006381333931')).toBeNull()
-    expect(eanProblem('2001042000018')).toBeNull()
-    expect(eanProblem('96385074')).toBeNull()
-  })
-
-  it('refuses a wrong check digit and a wrong length', () => {
-    expect(eanProblem('4006381333932')).toBe('Die Prüfziffer der EAN stimmt nicht.')
-    expect(eanProblem('96385075')).toBe('Die Prüfziffer der EAN stimmt nicht.')
-    expect(eanProblem('400638133393')).toBe('Eine EAN hat 13 oder 8 Ziffern.')
-    expect(eanProblem('40063813339A1')).toBe('Eine EAN hat 13 oder 8 Ziffern.')
-  })
-})
 
 describe('the fields of an article', () => {
   const article = {

@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Lager, Artikel und Lieferanten als Baustein des Fundaments (ADR 0011, für
+  opengewerk-haustechnik#325): Regeln, Einheiten und der Bestand aus seinen Buchungen in
+  `platform-domain`, die Tabellenfabrik `stockSchema` in `platform-server`. Die Haustechnik braucht
+  ein Lager vor der Abschaltung der Vorgängeranwendung beim Pilotbetrieb, und es soll in der
+  Organisation nur ein Modell davon geben; die Handwerkersoftware bindet es mit #298. Die Prüfung
+  einer EAN zieht dafür aus der Handwerkersoftware ins Fundament.
 - "Angemeldete Geräte" unter "Konto" nennt an jedem Gerät die Netzadresse, von der es sich
   angemeldet hat, soweit der Webserver davor sie durchreicht (#563). Die Zeile der Sitzung hielt die
   Adresse schon, nur las sie niemand; wer jetzt eine Adresse sieht, die er nicht kennt, erkennt eine
