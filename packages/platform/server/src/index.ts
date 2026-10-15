@@ -33,6 +33,7 @@ export * from './database/schema/rls.js'
 // records of a tenant take columns of the application as well.
 export * from './database/schema/attachments.js'
 export * from './database/schema/contacts.js'
+export * from './database/schema/stock.js'
 export * from './database/schema/labels.js'
 export * from './database/schema/deadlines.js'
 export * from './database/schema/mail-outbox.js'

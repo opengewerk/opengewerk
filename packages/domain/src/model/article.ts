@@ -6,7 +6,13 @@ import {
   type PriceBase,
   priceBaseProblem,
 } from './document-line.js'
-import type { Id, IsoDate, Synced, TenantOwned } from '@opengewerk/platform-domain'
+import {
+  eanProblem,
+  type Id,
+  type IsoDate,
+  type Synced,
+  type TenantOwned,
+} from '@opengewerk/platform-domain'
 import type { SupplierId } from './supplier.js'
 
 export type ArticleId = Id<'article'>
@@ -140,23 +146,6 @@ export const articleLimits = {
 
 /** The most a price may be, in cents: 999.999,99 euros for one unit. */
 export const priceCentsMax = 99_999_999
-
-/** What is wrong with an EAN, as a sentence, or null when nothing is. */
-export function eanProblem(value: string): string | null {
-  if (!/^(\d{8}|\d{13})$/.test(value)) {
-    return 'Eine EAN hat 13 oder 8 Ziffern.'
-  }
-
-  const digits = [...value].map(Number)
-  const check = digits.pop()
-  // From the right, the digits before the check digit weigh 3, 1, 3, and so
-  // on, which is the same rule for 13 digits as for 8.
-  const sum = digits
-    .reverse()
-    .reduce((total, digit, index) => total + digit * (index % 2 === 0 ? 3 : 1), 0)
-
-  return (10 - (sum % 10)) % 10 === check ? null : 'Die Prüfziffer der EAN stimmt nicht.'
-}
 
 /**
  * What is wrong with the fields of an article, by field, as the form shows it
