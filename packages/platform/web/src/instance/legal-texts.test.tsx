@@ -94,7 +94,7 @@ describe('the legal texts of the instance', () => {
     expect(within(imprint).getByText('Zuletzt geändert am 02.10.2026 von Anna Abel.')).toBeTruthy()
     expect(
       within(imprint).getByText(
-        'Steht im Fuß der Anmeldung und ist ohne Anmeldung zu lesen. Er gilt für alle Mandanten.',
+        'Steht im Fuß der Anmeldung und ist ohne Anmeldung unter /rechtliches zu lesen, die Datenschutzhinweise unter /rechtliches/datenschutz. Er gilt für alle Mandanten.',
       ),
     ).toBeTruthy()
     expect(

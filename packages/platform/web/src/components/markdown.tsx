@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { type AnyRouter, Link, useRouter } from '@tanstack/react-router'
 import { Fragment } from 'react'
 import type { ReactNode } from 'react'
 
@@ -242,6 +242,10 @@ function Line({
   readonly pieces: readonly Inline[]
   readonly onFollow?: (() => void) | undefined
 }) {
+  // The legal texts stand before the router (opengewerk-haustechnik#386):
+  // there a `Link` finds no router and takes the whole page down with it.
+  const routed = (useRouter({ warn: false }) as AnyRouter | null) !== null
+
   return (
     <>
       {pieces.map((piece, index) => {
@@ -260,17 +264,29 @@ function Line({
               </code>
             )
           case 'link':
-            // A path of the application goes through its router, anything else
-            // is another site and says so to the browser.
+            // A path of the application goes through its router, or without one
+            // to the address in the same window; anything else is another site
+            // and says so to the browser.
             return insidePattern.test(piece.to) ? (
-              <Link
-                key={index}
-                to={piece.to}
-                className="text-copper-text underline"
-                {...(onFollow ? { onClick: onFollow } : {})}
-              >
-                {piece.text}
-              </Link>
+              routed ? (
+                <Link
+                  key={index}
+                  to={piece.to}
+                  className="text-copper-text underline"
+                  {...(onFollow ? { onClick: onFollow } : {})}
+                >
+                  {piece.text}
+                </Link>
+              ) : (
+                <a
+                  key={index}
+                  href={piece.to}
+                  className="text-copper-text underline"
+                  {...(onFollow ? { onClick: onFollow } : {})}
+                >
+                  {piece.text}
+                </a>
+              )
             ) : (
               <a
                 key={index}

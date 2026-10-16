@@ -513,6 +513,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Rechtstexte der Instanz bleiben nicht mehr leer, wenn sie auf einen Pfad verweisen
+  (opengewerk-haustechnik#386). `Markdown` zeichnete jeden Pfad als `Link` des Routers, die
+  Rechtsseite steht aber vor dem Router; dort fand der `Link` keinen und riss die ganze Seite mit,
+  bei einer Instanz die Datenschutzhinweise mit einem Verweis auf das Impressum. Ohne Router wird ein
+  Pfad jetzt ein gewöhnlicher Verweis im selben Fenster. Unter "Rechtstexte" steht dazu, unter welchen
+  Adressen Impressum und Datenschutzhinweise zu lesen sind, damit ein Verweis zwischen beiden stimmt.
 - Der Abgleich legt keinen Konflikt mehr vor, wenn ein Feld anderswo schon auf den Wert gesetzt
   wurde, den das Gerät setzen will (#601). Er verglich den Wert des Servers nur mit dem, was das
   Gerät gesehen hatte; in der Haustechnik bekam so jeder einen Konflikt, der die Aufgabe "Zähler

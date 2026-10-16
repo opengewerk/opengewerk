@@ -535,6 +535,29 @@ describe('the legal texts of the instance (opengewerk-haustechnik#129)', () => {
     expect(address?.textContent).toBe('Probewerk GmbHAm Probehang 400001 Beispielstadt')
   })
 
+  it('lead to a path of the application without a router, as they stand before it (opengewerk-haustechnik#386)', async () => {
+    serverAnswers((path) =>
+      path === '/legal-texts'
+        ? {
+            ...texts,
+            privacy:
+              'Wer wir sind, steht bei den [Angaben zum Anbieter](/rechtliches).\n\nDie [Aufsicht](https://aufsicht.example) hilft weiter.',
+          }
+        : path === '/setup'
+          ? { needed: false }
+          : null,
+    )
+    globalThis.history.replaceState(null, '', '/rechtliches/datenschutz')
+    start({ entry: 'office' })
+
+    const inside = await screen.findByRole('link', { name: 'Angaben zum Anbieter' })
+
+    expect(inside.getAttribute('href')).toBe('/rechtliches')
+    expect(inside.getAttribute('target')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Aufsicht' }).getAttribute('target')).toBe('_blank')
+    expect(screen.getByRole('heading', { level: 1, name: 'Rechtliches' })).toBeTruthy()
+  })
+
   it('say so for a text nobody keeps, and offer no tab for it', async () => {
     serverAnswers((path) =>
       path === '/legal-texts'

@@ -16,6 +16,7 @@ import { date } from '../format.js'
 import { Saved, SettingsText } from '../office/settings.js'
 import { instanceLegalTexts, saveInstanceLegalTexts } from '../session/instance.js'
 import { legalTextsQuery } from '../session/queries.js'
+import { legalAddress } from '../session/session.js'
 import { RequestRefused } from '../sync/transport.js'
 import { InstancePage } from './frame.js'
 
@@ -129,7 +130,7 @@ function LegalText({
       <form noValidate onSubmit={submit} className="flex flex-col gap-2.5">
         {kind === 'imprint' ? (
           <SettingsText muted>
-            {`Steht im Fuß der Anmeldung und ist ohne Anmeldung zu lesen. ${sentences.forAll}`}
+            {`Steht im Fuß der Anmeldung und ist ohne Anmeldung unter ${legalAddress('imprint')} zu lesen, die Datenschutzhinweise unter ${legalAddress('privacy')}. ${sentences.forAll}`}
           </SettingsText>
         ) : null}
         <TextArea
