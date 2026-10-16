@@ -113,6 +113,16 @@ function withConflicts(count: number): TestServer {
   })
 }
 
+/** A device with a fine pointer: to the entry for a hand it looks like a desk. */
+function onADesk(): void {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(any-pointer: fine)',
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
 beforeEach(() => {
   globalThis.localStorage.clear()
   delete document.documentElement.dataset['theme']
@@ -192,6 +202,14 @@ describe('the places on site', () => {
 
     expect(within(bottom).getByRole('link', { name: 'Konflikte' }).textContent).toBe('Konflikte')
   })
+
+  it('leave out the conflicts where the application says nothing can come into conflict there', async () => {
+    await frame({ conflicts: false })
+
+    for (const nav of await places()) {
+      expect(heard(nav)).toEqual(['Regale *', 'Pakete', 'Notizen', '[Menü]'])
+    }
+  })
 })
 
 describe('what stands over a screen on site', () => {
@@ -202,12 +220,7 @@ describe('what stands over a screen on site', () => {
    */
   it('is the strips, the header of the screen and what the application keeps in view, in that order', async () => {
     // A desk on the entry for a hand is offered the other entry.
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query === '(any-pointer: fine)',
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    }))
+    onADesk()
     offerUpdate(() => {})
 
     await frame(
@@ -236,6 +249,17 @@ describe('what stands over a screen on site', () => {
         .getByRole('link', { name: 'Ansehen' })
         .getAttribute('href'),
     ).toBe('/konflikte')
+  })
+
+  it('is no suggestion of the office where there is none for the person signed in', async () => {
+    // The same desk that is offered the office above.
+    onADesk()
+
+    await frame({ office: false })
+    await places()
+
+    expect(screen.queryByText('Das sieht nach einem Schreibtisch aus.')).toBeNull()
+    expect(screen.queryByRole('link', { name: /Schreibtisch/ })).toBeNull()
   })
 
   it('is no strip over the conflicts themselves, where the strip would lead', async () => {
@@ -356,6 +380,15 @@ describe('the menu on site', () => {
 
     // So the office does not offer the way back the next morning.
     expect(globalThis.localStorage.getItem(entryChoiceKey)).toBe('office')
+  })
+
+  it('has no way to the office where there is none for the person signed in', async () => {
+    await frame({ office: false })
+
+    const sheet = await opened()
+
+    expect(within(sheet).queryByRole('link', { name: /Zum Schreibtisch/ })).toBeNull()
+    expect(within(sheet).getByRole('button', { name: 'Abmelden' })).toBeTruthy()
   })
 
   it('closes on the cross, on Escape and on a tap beside it', async () => {
