@@ -74,6 +74,21 @@ export function tableNameKey(name: string): string {
   return name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
 }
 
+/** The letters a name is written with where a program or a country writes none of them. */
+const writtenOut: Readonly<Record<string, string>> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' }
+
+/**
+ * What the name of a column is compared by: `tableNameKey`, with ä, ö, ü and
+ * ß written out, so that STRASSE and GEBAEUDE from a program without
+ * umlauts or from Switzerland are the columns "Straße" and "Gebäude", in both
+ * directions (opengewerk-haustechnik#177). For the names of columns alone: a
+ * value a table is matched by stays what `tableNameKey` makes of it, so that
+ * two names that are only alike do not fall together.
+ */
+export function tableHeadKey(name: string): string {
+  return tableNameKey(name).replace(/[äöüß]/gu, (letter) => writtenOut[letter] ?? letter)
+}
+
 /** The letters a spreadsheet gives a column: A, B and after Z on with AA. */
 export function columnLetters(index: number): string {
   let letters = ''
@@ -157,7 +172,7 @@ export type ColumnMapping = Readonly<Record<string, number>>
 
 /**
  * The choice a page starts with: every field gets the first free column that
- * is called what the field is called. Compared by `tableNameKey` and never by
+ * is called what the field is called. Compared by `tableHeadKey` and never by
  * likeness: a column that was guessed wrong is taken over wrong, one that was
  * not guessed is seen and chosen.
  */
@@ -171,13 +186,13 @@ export function suggestedMapping(
   for (const field of fields) {
     // A name of nothing but punctuation has no key, and is called like nothing.
     const keys = new Set(
-      [field.label, ...(field.names ?? [])].map(tableNameKey).filter((key) => key !== ''),
+      [field.label, ...(field.names ?? [])].map(tableHeadKey).filter((key) => key !== ''),
     )
     const column = columns.find(
       (candidate) =>
         candidate.name !== '' &&
         !taken.has(candidate.index) &&
-        keys.has(tableNameKey(candidate.name)),
+        keys.has(tableHeadKey(candidate.name)),
     )
 
     if (column) {

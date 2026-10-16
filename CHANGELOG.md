@@ -19,6 +19,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Entnahme von Material per Scan in opengewerk-haustechnik#326. Kleine Artikel tragen oft nur ihn,
   und das Lager nimmt eine EAN mit 8 Ziffern an; ZXing las ihn schon, der Leser des Browsers wurde
   nicht danach gefragt.
+- Der Import schlägt eine Spalte auch vor, wenn ihr Kopf ä, ö, ü und ß ausschreibt
+  (STRASSE, GEBAEUDE), und umgekehrt, für opengewerk-haustechnik#177. Listen aus Programmen
+  ohne Umlaute oder aus der Schweiz bekamen sonst für diese Spalten keinen Vorschlag. Das gilt nur
+  für die Köpfe der Spalten (`tableHeadKey`); die Werte, an denen ein Import wiedererkennt, bleiben
+  genau, damit nicht zwei ähnliche Namen zusammenfallen.
 - "Angemeldete Geräte" unter "Konto" nennt an jedem Gerät die Netzadresse, von der es sich
   angemeldet hat, soweit der Webserver davor sie durchreicht (#563). Die Zeile der Sitzung hielt die
   Adresse schon, nur las sie niemand; wer jetzt eine Adresse sieht, die er nicht kennt, erkennt eine

@@ -15,6 +15,7 @@ import {
   type TableField,
   tableLimits,
   tableLineCount,
+  tableHeadKey,
   tableNameKey,
   tableRecords,
   type TableSheet,
@@ -86,6 +87,21 @@ describe('what two names are compared by', () => {
   it('is empty for a name without a letter or a digit', () => {
     expect(tableNameKey(' - / . ')).toBe('')
     expect(tableNameKey('')).toBe('')
+  })
+})
+
+describe('what the names of two columns are compared by (opengewerk-haustechnik#177)', () => {
+  it('writes ä, ö, ü and ß out, in both directions', () => {
+    // Written in capitals, as a program without umlauts mostly heads its columns.
+    expect(tableHeadKey('Straße')).toBe(tableHeadKey('STRASSE'))
+    expect(tableHeadKey('Gebäude')).toBe(tableHeadKey('GEBAEUDE'))
+    expect(tableHeadKey('GRÖSSE')).toBe(tableHeadKey('GROESSE'))
+    expect(tableHeadKey('Prüf-Datum')).toBe(tableHeadKey('PRUEF DATUM'))
+  })
+
+  it('takes nothing else for the same: an o is no ö', () => {
+    expect(tableHeadKey('Größe')).not.toBe(tableHeadKey('Grosse'))
+    expect(tableHeadKey('Gebäude')).not.toBe(tableHeadKey('Gebaude'))
   })
 })
 
@@ -195,6 +211,13 @@ describe('the choice a page starts with', () => {
     expect(suggestedMapping(columnsOf('Größe', 'Raum-Nr.'), fields)).toEqual({ area: 0, number: 1 })
   })
 
+  it('knows a column whose name writes the umlauts out, and one with them for a field without (opengewerk-haustechnik#177)', () => {
+    expect(suggestedMapping(columnsOf('GROESSE', 'Raum-Nr.'), fields)).toEqual({
+      area: 0,
+      number: 1,
+    })
+  })
+
   it('compares the names as somebody reads them, whatever stands between the letters', () => {
     expect(suggestedMapping(columnsOf('RAUM NR', ' bezeichnung: ', 'Q.M.'), fields)).toEqual({
       number: 0,
@@ -206,7 +229,8 @@ describe('the choice a page starts with', () => {
   it('never guesses by likeness', () => {
     expect(
       suggestedMapping(
-        columnsOf('Raumnummern', 'Bezeichnungen', 'Flaeche', 'Grosse', 'Etagen', 'Nummer'),
+        // An umlaut written out is no likeness (opengewerk-haustechnik#177); a letter dropped is.
+        columnsOf('Raumnummern', 'Bezeichnungen', 'Flache', 'Grosse', 'Etagen', 'Nummer'),
         fields,
       ),
     ).toEqual({})
