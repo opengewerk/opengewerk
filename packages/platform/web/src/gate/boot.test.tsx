@@ -498,6 +498,65 @@ describe('what a link in the address points at', () => {
   )
 })
 
+describe('a page of the application before the sign in (opengewerk-haustechnik#332)', () => {
+  /** A probe that claims the shelves under `/r/`, and gives the sign in back where it is asked for. */
+  const application = probeApplication({
+    signedOutPage: (address) =>
+      address.pathname.startsWith('/r/') && !address.searchParams.has('anmelden') ? (
+        <h1>Regal ohne Anmeldung</h1>
+      ) : null,
+  })
+
+  it('stands at its address instead of the sign in for somebody not signed in', async () => {
+    serverAnswers((path) => (path === '/setup' ? { needed: false } : null))
+    globalThis.history.replaceState(null, '', '/r/regal-7')
+    start({ application })
+
+    expect(await screen.findByRole('heading', { name: 'Regal ohne Anmeldung' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Anmelden' })).toBeNull()
+  })
+
+  it.each(['/notizen', '/r/regal-7?anmelden'])(
+    'leaves the sign in where the application claims nothing (%s)',
+    async (address) => {
+      serverAnswers((path) => (path === '/setup' ? { needed: false } : null))
+      globalThis.history.replaceState(null, '', address)
+      start({ application })
+
+      expect(await screen.findByRole('heading', { name: 'Anmelden' })).toBeTruthy()
+      expect(screen.queryByRole('heading', { name: 'Regal ohne Anmeldung' })).toBeNull()
+    },
+  )
+
+  it('is not shown to somebody signed in, who gets the screens behind the gate', async () => {
+    const tenantId = await tenantOnTheDevice()
+
+    serverAnswers((path) =>
+      path.endsWith('/get-session')
+        ? session(tenantId)
+        : path === '/auth/tenants'
+          ? [aTenant({ id: tenantId })]
+          : path.startsWith('/sync/conflicts')
+            ? []
+            : { changes: [], cursor: 1, hasMore: false },
+    )
+    globalThis.history.replaceState(null, '', '/r/regal-7')
+    start({ application })
+
+    expect(await screen.findByText('Leiter im Flur vergessen')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Regal ohne Anmeldung' })).toBeNull()
+  })
+
+  it('waits for an instance to be set up, which comes first', async () => {
+    serverAnswers((path) => (path === '/setup' ? { needed: true } : null))
+    globalThis.history.replaceState(null, '', '/r/regal-7')
+    start({ application })
+
+    expect(await screen.findByRole('heading', { name: 'Einrichten' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Regal ohne Anmeldung' })).toBeNull()
+  })
+})
+
 describe('the legal texts of the instance (opengewerk-haustechnik#129)', () => {
   const texts = {
     imprint: '**Probewerk GmbH**\nAm Probehang 4\n00001 Beispielstadt',

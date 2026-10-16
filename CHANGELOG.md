@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Seite der Anwendung vor der Anmeldung (für opengewerk-haustechnik#332): `signedOutPage` der
+  Anwendung bekommt die Adresse, unter der die Seite geöffnet wurde, und was es zurückgibt, steht für
+  jemanden ohne Anmeldung an der Stelle der Anmeldung. Gefragt wird erst, wenn feststeht, dass niemand
+  angemeldet ist und die Instanz eingerichtet ist; wer angemeldet ist, bekommt wie bisher die Bildschirme
+  hinter dem Tor. Die Haustechnik braucht das für die Störmeldung ohne Konto über das Etikett, dessen
+  Adresse angemeldet die Akte öffnet.
 - Zwei Schalter am Rahmen vor Ort (für opengewerk-haustechnik#392): `SiteFrame` lässt mit
   `conflicts={false}` den Reiter „Konflikte“ weg und mit `office={false}` den Vorschlag, das Büro zu
   nehmen, samt dem Weg dorthin im Menü. Beide stehen ohne Angabe da wie bisher. Eine Anwendung
