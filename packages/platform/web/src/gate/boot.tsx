@@ -88,7 +88,7 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
   const queries = useQueryClient()
   // What the application starts its sync client with. One value for as long
   // as the page is open: a new one would start the client again.
-  const { startSync } = useApplication()
+  const { startSync, signedOutPage } = useApplication()
   // Read once and then constant, like the device identity below. The screen it
   // leads to leaves the address behind when it is done, so this never has to
   // notice a change.
@@ -287,6 +287,15 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
           }}
         />
       )
+    }
+
+    // A page of the application at an address of its own, in place of the
+    // sign in (opengewerk-haustechnik#332). After the account has answered,
+    // unlike a link: whoever is signed in gets the screens behind the gate.
+    const own = signedOutPage?.(new URL(globalThis.location.href))
+
+    if (own !== undefined && own !== null) {
+      return own
     }
 
     return (

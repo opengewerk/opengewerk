@@ -85,6 +85,16 @@ export interface InterfaceApplication {
    */
   readonly beforeSignIn?: ReactNode
   /**
+   * A page of the application at an address of its own, in place of the sign
+   * in, for somebody who is not signed in: as the scan of a label that takes a
+   * report without an account. Asked with the address the page was opened
+   * at, once it is clear that nobody is signed in and the instance is set up;
+   * where it answers with nothing, the sign in stands as before. Somebody
+   * signed in never sees it and gets the screens behind the gate. The page
+   * leads to the sign in by an address it answers with nothing for.
+   */
+  readonly signedOutPage?: (address: URL) => ReactNode
+  /**
    * What the application ends for this device while there is still a session
    * to end it with. Given a few seconds and never in the way: whatever it
    * does or fails to do, the sign out goes on.
