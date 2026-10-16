@@ -88,6 +88,31 @@ describe('a booking', () => {
     expect(stockMovementProblems({ kind: 'transfer', quantityMilli: 1 })).toHaveProperty('kind')
   })
 
+  it('names the other store for a transfer, and only for one', () => {
+    expect(
+      stockMovementProblems({
+        kind: 'transfer_out',
+        quantityMilli: 3000,
+        storeId: 'st-1',
+        counterpartStoreId: 'st-2',
+      }),
+    ).toEqual({})
+    expect(stockMovementProblems({ kind: 'transfer_in', quantityMilli: 3000 })).toEqual({
+      counterpartStoreId: 'Eine Umbuchung nennt das andere Lager.',
+    })
+    expect(
+      stockMovementProblems({
+        kind: 'transfer_in',
+        quantityMilli: 3000,
+        storeId: 'st-1',
+        counterpartStoreId: 'st-1',
+      }),
+    ).toEqual({ counterpartStoreId: 'Umgebucht wird in ein anderes Lager.' })
+    expect(
+      stockMovementProblems({ kind: 'receipt', quantityMilli: 1000, counterpartStoreId: 'st-2' }),
+    ).toEqual({ counterpartStoreId: 'Ein anderes Lager nennt nur eine Umbuchung.' })
+  })
+
   it('names a supplier only for a receipt', () => {
     expect(
       stockMovementProblems({ kind: 'receipt', quantityMilli: 1000, supplierId: 's-1' }),
@@ -112,6 +137,21 @@ describe('the stock', () => {
     ).toBe(3000)
     // More taken than lay there: the stock is negative and says so.
     expect(stockLevel([{ kind: 'withdrawal', quantityMilli: 1000, createdAt: at(1) }])).toBe(-1000)
+  })
+
+  it('takes a transfer out away and adds a transfer in', () => {
+    expect(
+      stockLevel([
+        { kind: 'receipt', quantityMilli: 5000, createdAt: at(1) },
+        { kind: 'transfer_out', quantityMilli: 5000, createdAt: at(2) },
+      ]),
+    ).toBe(0)
+    expect(
+      stockLevel([
+        { kind: 'receipt', quantityMilli: 2000, createdAt: at(1) },
+        { kind: 'transfer_in', quantityMilli: 3000, createdAt: at(2) },
+      ]),
+    ).toBe(5000)
   })
 
   it('is below its minimum only where the store keeps one', () => {

@@ -111,16 +111,29 @@ export interface StoreArticle extends Synced {
 
 /**
  * How a booking changes the stock: a receipt adds, a withdrawal takes away,
- * and a count sets the stock to what was found.
+ * and a count sets the stock to what was found. A transfer moves stock from
+ * one store to another as two bookings, one out of the store it leaves and
+ * one into the store it reaches, each naming the other store.
  */
-export const stockMovementKinds = ['receipt', 'count', 'withdrawal'] as const
+export const stockMovementKinds = [
+  'receipt',
+  'count',
+  'withdrawal',
+  'transfer_out',
+  'transfer_in',
+] as const
 
 export type StockMovementKind = (typeof stockMovementKinds)[number]
+
+/** The two bookings of a transfer, the ones that name the other store. */
+export const stockTransferKinds = ['transfer_out', 'transfer_in'] as const
 
 export const stockMovementKindLabel: Readonly<Record<StockMovementKind, string>> = {
   receipt: 'Eingang',
   count: 'Zählung',
   withdrawal: 'Entnahme',
+  transfer_out: 'Umbuchung',
+  transfer_in: 'Umbuchung',
 }
 
 /**
@@ -136,6 +149,8 @@ export interface StockMovement extends Synced {
   readonly quantityMilli: number
   /** Who a receipt came from, where it is said. */
   readonly supplierId: StockSupplierId | null
+  /** The other store of a transfer: where it went, or where it came from. */
+  readonly counterpartStoreId: StoreId | null
   /** Why a count corrects the stock, or what is said with a receipt or a withdrawal. */
   readonly reason: string | null
   readonly bookedBy: string
@@ -326,7 +341,7 @@ export function stockMovementProblems(
   const kind = movement['kind']
 
   if ('kind' in movement && !(stockMovementKinds as readonly unknown[]).includes(kind)) {
-    problems['kind'] = 'Gebucht wird ein Eingang, eine Zählung oder eine Entnahme.'
+    problems['kind'] = 'Gebucht wird ein Eingang, eine Zählung, eine Entnahme oder eine Umbuchung.'
   }
 
   const quantity = movement['quantityMilli']
@@ -351,13 +366,24 @@ export function stockMovementProblems(
     problems['supplierId'] = 'Einen Lieferanten nennt nur ein Eingang.'
   }
 
+  const transfer = (stockTransferKinds as readonly unknown[]).includes(kind)
+  const counterpart = movement['counterpartStoreId']
+
+  if (transfer && (typeof counterpart !== 'string' || counterpart === '')) {
+    problems['counterpartStoreId'] = 'Eine Umbuchung nennt das andere Lager.'
+  } else if (kind !== undefined && !transfer && counterpart != null) {
+    problems['counterpartStoreId'] = 'Ein anderes Lager nennt nur eine Umbuchung.'
+  } else if (transfer && counterpart === movement['storeId']) {
+    problems['counterpartStoreId'] = 'Umgebucht wird in ein anderes Lager.'
+  }
+
   return problems
 }
 
 /**
  * The stock the bookings of one article in one store make, in thousandths,
  * in the order the server took them in: a count sets it to what was found, a
- * receipt adds and a withdrawal takes away. A withdrawal of more than lies
+ * receipt and a transfer in add, a withdrawal and a transfer out take away. A withdrawal of more than lies
  * there makes it negative and says so: it happened, and the next count
  * corrects it.
  */
@@ -370,7 +396,7 @@ export function stockLevel(
       (level, movement) =>
         movement.kind === 'count'
           ? movement.quantityMilli
-          : movement.kind === 'receipt'
+          : movement.kind === 'receipt' || movement.kind === 'transfer_in'
             ? level + movement.quantityMilli
             : level - movement.quantityMilli,
       0,
