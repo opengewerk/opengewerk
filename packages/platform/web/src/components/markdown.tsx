@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { type AnyRouter, Link, useRouter } from '@tanstack/react-router'
 import { Fragment } from 'react'
 import type { ReactNode } from 'react'
 
@@ -242,6 +242,10 @@ function Line({
   readonly pieces: readonly Inline[]
   readonly onFollow?: (() => void) | undefined
 }) {
+  // The legal texts stand before the router (opengewerk-haustechnik#386):
+  // there a `Link` finds no router and takes the whole page down with it.
+  const routed = (useRouter({ warn: false }) as AnyRouter | null) !== null
+
   return (
     <>
       {pieces.map((piece, index) => {
@@ -249,7 +253,13 @@ function Line({
           case 'break':
             return <br key={index} />
           case 'strong':
-            return <strong key={index}>{piece.text}</strong>
+            // The weight of a heading, not the browser's bold, which stands too
+            // heavy beside the text (opengewerk-haustechnik#387).
+            return (
+              <strong key={index} className="font-semibold">
+                {piece.text}
+              </strong>
+            )
           case 'code':
             return (
               <code
@@ -260,17 +270,29 @@ function Line({
               </code>
             )
           case 'link':
-            // A path of the application goes through its router, anything else
-            // is another site and says so to the browser.
+            // A path of the application goes through its router, or without one
+            // to the address in the same window; anything else is another site
+            // and says so to the browser.
             return insidePattern.test(piece.to) ? (
-              <Link
-                key={index}
-                to={piece.to}
-                className="text-copper-text underline"
-                {...(onFollow ? { onClick: onFollow } : {})}
-              >
-                {piece.text}
-              </Link>
+              routed ? (
+                <Link
+                  key={index}
+                  to={piece.to}
+                  className="text-copper-text underline"
+                  {...(onFollow ? { onClick: onFollow } : {})}
+                >
+                  {piece.text}
+                </Link>
+              ) : (
+                <a
+                  key={index}
+                  href={piece.to}
+                  className="text-copper-text underline"
+                  {...(onFollow ? { onClick: onFollow } : {})}
+                >
+                  {piece.text}
+                </a>
+              )
             ) : (
               <a
                 key={index}
@@ -341,7 +363,10 @@ export interface MarkdownProps {
 /**
  * A text of the application, read and drawn in the type of a screen. A
  * heading of the second level is a label in small capitals, as over a card;
- * one of the third a line in bold. Which elements they are follows `level`,
+ * one of the third a line in bold. In a page that is read through
+ * (`reading`) the second level is a heading in the colour of the text with
+ * room above it instead, since a label there is smaller than the text under
+ * it (opengewerk-haustechnik#387). Which elements they are follows `level`,
  * so that the headings of the screen stay in order.
  */
 export function Markdown({
@@ -378,10 +403,12 @@ export function Markdown({
             className={
               block.level === 1
                 ? large || reading
-                  ? 'text-[20px] font-semibold'
+                  ? 'text-[20px] leading-[1.3] font-semibold'
                   : 'text-[16px] font-semibold'
                 : block.level === 2
-                  ? 'mt-1 font-condensed text-label font-semibold uppercase tracking-[1.1px] text-ink-faint'
+                  ? reading
+                    ? 'mt-2 text-[17px] leading-[1.35] font-semibold'
+                    : 'mt-1 font-condensed text-label font-semibold uppercase tracking-[1.1px] text-ink-faint'
                   : `${text} font-semibold`
             }
           >
