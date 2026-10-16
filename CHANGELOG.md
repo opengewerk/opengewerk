@@ -9,6 +9,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Umbuchung im Lager (für opengewerk-haustechnik#391, Nachtrag in ADR 0011): zwei neue Arten
+  einer Buchung, `transfer_out` und `transfer_in`, mit dem anderen Lager in `counterpart_store_id`,
+  und der Bestand rechnet sie mit. Damit zieht ein Artikel, der im falschen Lager angelegt wurde, mit
+  seinem Bestand um, ohne dass eine Zählung vorgibt, es sei gezählt worden.
 - Ein Leserecht je Elternteil für die Ansprechpartner (für opengewerk-haustechnik#328):
   `ContactRoutes.parentReadRight` nennt zu einer Art Datensatz das Recht, das eine Person braucht,
   um dessen Ansprechpartner zu sehen, und `GET /contacts` lässt alle anderen aus. Bisher gab es das

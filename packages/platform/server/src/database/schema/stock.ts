@@ -105,6 +105,7 @@ function movementParts() {
     kind: text('kind').notNull(),
     quantityMilli: integer('quantity_milli').notNull(),
     supplierId: reference<'supplier'>('supplier_id'),
+    counterpartStoreId: reference<'store'>('counterpart_store_id'),
     reason: text('reason'),
     bookedBy: text('booked_by').notNull(),
     bookedAt: timestamp('booked_at', { withTimezone: true }).notNull().defaultNow(),
@@ -298,6 +299,11 @@ export function stockSchema<
         name: 'stock_movements_from_a_supplier_here',
       }),
       foreignKey({
+        columns: [table.tenantId, table.counterpartStoreId],
+        foreignColumns: [stores.tenantId, stores.id],
+        name: 'stock_movements_transfer_with_a_store_here',
+      }),
+      foreignKey({
         columns: [table.tenantId, table.bookedBy],
         foreignColumns: [memberships.tenantId, memberships.userId],
         name: 'stock_movements_by_somebody_here',
@@ -327,6 +333,15 @@ export function stockSchema<
       check(
         'stock_movements_supplier_at_a_receipt',
         sql`${table.supplierId} is null or ${table.kind} = 'receipt'`,
+      ),
+      // A transfer names the other store, and only a transfer names one.
+      check(
+        'stock_movements_transfer_names_its_store',
+        sql`(${table.kind} in ('transfer_out', 'transfer_in')) = (${table.counterpartStoreId} is not null)`,
+      ),
+      check(
+        'stock_movements_transfer_elsewhere',
+        sql`${table.counterpartStoreId} is null or ${table.counterpartStoreId} <> ${table.storeId}`,
       ),
       ...(options.movements?.constraints?.(table) ?? []),
     ],

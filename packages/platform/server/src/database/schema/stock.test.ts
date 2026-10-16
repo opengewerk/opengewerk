@@ -63,6 +63,8 @@ describe('the tables of the stock', () => {
         'stock_movements_moves_something',
         'stock_movements_count_with_a_reason',
         'stock_movements_supplier_at_a_receipt',
+        'stock_movements_transfer_names_its_store',
+        'stock_movements_transfer_elsewhere',
       ]),
     )
     expect(checksOf(articles)).toEqual(
