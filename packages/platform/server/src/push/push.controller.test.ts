@@ -45,6 +45,7 @@ const people = {
   lena: { tenant: north.id, roles: ['lead'], rights: ['notes.write'] },
   mia: { tenant: north.id, roles: ['member'], rights: ['notes.write'] },
   gero: { tenant: north.id, roles: ['guest'], rights: ['members.read'] },
+  nina: { tenant: north.id, roles: ['lead'], rights: ['notes.write', 'members.read'] },
   sven: { tenant: south.id, roles: ['lead'], rights: ['notes.write'] },
 } as const
 
@@ -61,7 +62,13 @@ const rules = {
   entryRefused: 'Ein Gerät steht am Empfang ("front") oder im Büro ("back").',
   occasions: {
     parcel_waiting: { label: 'Pakete', about: 'Wenn am Empfang ein Paket für dich wartet.' },
-    visit_announced: { label: 'Besuch', about: 'Wenn sich Besuch für dich angemeldet hat.' },
+    // Only for whoever may see the members, who are the visitors' hosts:
+    // it never concerns anybody else (opengewerk-haustechnik#398).
+    visit_announced: {
+      label: 'Besuch',
+      about: 'Wenn sich Besuch für dich angemeldet hat.',
+      right: 'members.read',
+    },
   },
   test: {
     text: { title: 'Probe aus dem Probewerk', body: 'Push kommt an.' },
@@ -202,7 +209,7 @@ afterAll(async () => {
 
 describe('the account', () => {
   it('says whether the instance sends push, with its key, the occasions in their words and the devices', async () => {
-    expect(await overview('lena')).toEqual({
+    expect(await overview('nina')).toEqual({
       available: true,
       publicKey: vapid.publicKey,
       occasions: [
@@ -221,6 +228,16 @@ describe('the account', () => {
       ],
       devices: [],
     })
+  })
+
+  it('offers an occasion that names a right only to whoever holds it (opengewerk-haustechnik#398)', async () => {
+    expect((await overview('lena')).occasions.map((occasion) => occasion.key)).toEqual([
+      'parcel_waiting',
+    ])
+    expect((await overview('nina')).occasions.map((occasion) => occasion.key)).toEqual([
+      'parcel_waiting',
+      'visit_announced',
+    ])
   })
 
   it('without a key says so and takes no device', async () => {
@@ -311,7 +328,7 @@ describe('an occasion', () => {
   it('is switched off and on for the person asking and nobody else', async () => {
     const off = await http()
       .put('/push/occasions/parcel_waiting')
-      .set(testIdentityHeader, as('lena'))
+      .set(testIdentityHeader, as('nina'))
       .send({ on: false })
       .expect(200)
 
@@ -323,11 +340,11 @@ describe('an occasion', () => {
 
     await http()
       .put('/push/occasions/parcel_waiting')
-      .set(testIdentityHeader, as('lena'))
+      .set(testIdentityHeader, as('nina'))
       .send({ on: true })
       .expect(200)
 
-    expect((await overview('lena')).occasions.every((occasion) => occasion.on)).toBe(true)
+    expect((await overview('nina')).occasions.every((occasion) => occasion.on)).toBe(true)
   })
 
   it('that the application does not know, or a body without a yes or no, is refused', async () => {

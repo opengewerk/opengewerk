@@ -9,6 +9,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Anlass für Push kann ein Recht nennen (für opengewerk-haustechnik#398): `right` an den Wörtern eines
+  Anlasses, und „Konto“ bietet ihn nur an, wer das Recht hält. Bisher stand jeder Anlass bei jeder Person,
+  auch einer, die er nie betreffen kann, etwa „Eingegangene Störungen“ bei jemandem, der keine annehmen
+  darf; ein solcher Schalter ließ sich umlegen und blieb stumm. Ohne Recht steht ein Anlass wie bisher für alle da.
 - Eine Seite der Anwendung vor der Anmeldung (für opengewerk-haustechnik#332): `signedOutPage` der
   Anwendung bekommt die Adresse, unter der die Seite geöffnet wurde, und was es zurückgibt, steht für
   jemanden ohne Anmeldung an der Stelle der Anmeldung. Gefragt wird erst, wenn feststeht, dass niemand
