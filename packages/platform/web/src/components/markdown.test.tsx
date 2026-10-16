@@ -152,6 +152,24 @@ describe('a text drawn on a screen', () => {
     expect(screen.getByText('R-12', { selector: 'code' })).toBeTruthy()
   })
 
+  it('draws a section of a page read through as a heading, not as a label (opengewerk-haustechnik#387)', async () => {
+    const source = '# Impressum\n\n## Anbieter\n\n**Probewerk GmbH**'
+
+    const read = await drawn(source, { reading: true })
+    const section = screen.getByRole('heading', { name: 'Anbieter' })
+
+    expect(section.className).not.toContain('uppercase')
+    expect(section.className).toContain('text-[17px]')
+    expect(screen.getByText('Probewerk GmbH', { selector: 'strong' }).className).toBe(
+      'font-semibold',
+    )
+
+    read.unmount()
+    await drawn(source)
+
+    expect(screen.getByRole('heading', { name: 'Anbieter' }).className).toContain('uppercase')
+  })
+
   it('leaves the first heading out where the place says what the text is called', async () => {
     await drawn(text, { withoutTitle: true })
 

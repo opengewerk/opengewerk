@@ -519,6 +519,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   bei einer Instanz die Datenschutzhinweise mit einem Verweis auf das Impressum. Ohne Router wird ein
   Pfad jetzt ein gewöhnlicher Verweis im selben Fenster. Unter "Rechtstexte" steht dazu, unter welchen
   Adressen Impressum und Datenschutzhinweise zu lesen sind, damit ein Verweis zwischen beiden stimmt.
+- Fett und Überschriften eines Texts zum Durchlesen passen zum Text (opengewerk-haustechnik#387).
+  Ein Abschnitt eines Rechtstexts (`##`) kam als graues Etikett in Kapitälchen, kleiner als der Text
+  darunter, und Fett stand mit dem Gewicht 700 des Browsers, schwerer als jede Überschrift der
+  Anwendung. In `reading` ist ein Abschnitt jetzt eine Überschrift in der Farbe des Texts mit Abstand
+  davor, Fett hat überall das Gewicht 600. Die Hilfe neben einem Bildschirm behält ihre Etiketten.
 - Der Abgleich legt keinen Konflikt mehr vor, wenn ein Feld anderswo schon auf den Wert gesetzt
   wurde, den das Gerät setzen will (#601). Er verglich den Wert des Servers nur mit dem, was das
   Gerät gesehen hatte; in der Haustechnik bekam so jeder einen Konflikt, der die Aufgabe "Zähler
