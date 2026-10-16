@@ -39,6 +39,14 @@ export const PUSH_RULES = Symbol('PushRules')
 export interface PushOccasionWords {
   readonly label: string
   readonly about: string
+  /**
+   * The right without which the occasion never concerns a person, such as
+   * the right to accept what the occasion tells of: the account offers it
+   * only to whoever holds it, and a person without it is not asked about
+   * something that cannot happen to them. Left out, it is offered to
+   * everybody.
+   */
+  readonly right?: string
 }
 
 /** What an application says about push to its routes. */
@@ -90,13 +98,20 @@ const noPush =
 /** How long the test message is any use: a test that arrives an hour later tests nothing. */
 const testMinutes = 10
 
-function occasionsOf(rules: PushRules, off: ReadonlySet<string>): readonly PushOccasionView[] {
-  return Object.entries(rules.occasions).map(([key, words]) => ({
-    key,
-    label: words.label,
-    about: words.about,
-    on: !off.has(key),
-  }))
+/** The occasions the person asking may be told of, each with whether they want it. */
+function occasionsOf(
+  rules: PushRules,
+  off: ReadonlySet<string>,
+  rights: readonly string[],
+): readonly PushOccasionView[] {
+  return Object.entries(rules.occasions)
+    .filter(([, words]) => words.right === undefined || rights.includes(words.right))
+    .map(([key, words]) => ({
+      key,
+      label: words.label,
+      about: words.about,
+      on: !off.has(key),
+    }))
 }
 
 /** The rights the routes of push ask for, named by the application. */
@@ -152,7 +167,11 @@ function pushController<Right extends string>(rights: PushRights<Right>): Type<u
       return {
         available: this.push !== null,
         publicKey: this.push?.vapid.publicKey ?? null,
-        occasions: occasionsOf(this.rules, new Set(off.map((row) => row.occasion))),
+        occasions: occasionsOf(
+          this.rules,
+          new Set(off.map((row) => row.occasion)),
+          identity.rights,
+        ),
         devices: live.map((device) => ({
           id: device.id,
           label: device.label,
@@ -317,7 +336,7 @@ function pushController<Right extends string>(rights: PushRights<Right>): Type<u
           .where(eq(pushOptOuts.userId, identity.userId))
       })
 
-      return occasionsOf(this.rules, new Set(off.map((row) => row.occasion)))
+      return occasionsOf(this.rules, new Set(off.map((row) => row.occasion)), identity.rights)
     }
 
     /**
