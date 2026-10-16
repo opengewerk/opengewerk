@@ -41,6 +41,19 @@ export interface SiteFrameProps {
   readonly underHeader?: ReactNode
   /** Rows of the application in the menu, for this device. */
   readonly menu?: ReactNode
+  /**
+   * Whether the conflicts are a place among the tabs. Where nothing on the
+   * device can come into conflict, the tab would only ever stand empty, and
+   * the application leaves it out. There unless it says otherwise.
+   */
+  readonly conflicts?: boolean
+  /**
+   * Whether there is an office for the person signed in: the suggestion to
+   * use it on a device that looks like a desk, and the way to it in the menu.
+   * Where the office would only send the person back here, the application
+   * leaves both out. There unless it says otherwise.
+   */
+  readonly office?: boolean
 }
 
 /**
@@ -56,7 +69,13 @@ export interface SiteFrameProps {
  * is a second copy of anything, which is the point of one code base with two
  * entry points.
  */
-export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
+export function SiteFrame({
+  tabs,
+  underHeader,
+  menu,
+  conflicts = true,
+  office = true,
+}: SiteFrameProps) {
   // The header of a screen is drawn into this place through a portal, see
   // `SiteHeader`; the element only exists once the frame is mounted.
   const [slot, setSlot] = useState<HTMLElement | null>(null)
@@ -69,7 +88,7 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
   const closeMenu = useCallback(() => {
     setMenuOpen(false)
   }, [])
-  const places = usePlaces(tabs)
+  const places = usePlaces(tabs, conflicts)
   const path = useRouterState({ select: (state) => state.location.pathname })
   // The heading of a screen below the tabs stands in the header above the
   // content, so the frame is what is asked for it.
@@ -101,7 +120,7 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
               />
             )}
             <UpdateBar />
-            <EntrySuggestion here="site" />
+            {office ? <EntrySuggestion here="site" /> : null}
             <div ref={setSlot} />
             {underHeader}
 
@@ -116,7 +135,7 @@ export function SiteFrame({ tabs, underHeader, menu }: SiteFrameProps) {
               give way to it on a phone as they do on the boards. */}
             <div ref={setActionSlot} className="sticky bottom-0 z-20 empty:hidden" />
             <Tabs places={places} menuOpen={menuOpen} onMenu={openMenu} />
-            <SiteMenu open={menuOpen} onClose={closeMenu}>
+            <SiteMenu open={menuOpen} onClose={closeMenu} office={office}>
               {menu}
             </SiteMenu>
           </div>
@@ -139,11 +158,11 @@ interface Place {
 }
 
 /**
- * The places of the application and the conflicts after them, each lit on
- * its own path, on the paths below it and on the paths it names besides: a
- * tab stays lit on every screen it leads on to.
+ * The places of the application and the conflicts after them, where they are
+ * a place, each lit on its own path, on the paths below it and on the paths it
+ * names besides: a tab stays lit on every screen it leads on to.
  */
-function usePlaces(tabs: readonly SiteTab[]): readonly Place[] {
+function usePlaces(tabs: readonly SiteTab[], withConflicts: boolean): readonly Place[] {
   const { conflicts } = useSyncStatus()
   const path = useRouterState({ select: (state) => state.location.pathname })
   // Below a path is what follows it after a slash. The first place lives at
@@ -151,13 +170,19 @@ function usePlaces(tabs: readonly SiteTab[]): readonly Place[] {
   // follows `/` after a second slash.
   const under = (prefix: string) => path === prefix || path.startsWith(`${prefix}/`)
 
+  const places = tabs.map((tab) => ({
+    to: tab.to,
+    label: tab.label,
+    icon: tab.icon,
+    active: under(tab.to) || (tab.also ?? []).some(under),
+  }))
+
+  if (!withConflicts) {
+    return places
+  }
+
   return [
-    ...tabs.map((tab) => ({
-      to: tab.to,
-      label: tab.label,
-      icon: tab.icon,
-      active: under(tab.to) || (tab.also ?? []).some(under),
-    })),
+    ...places,
     {
       to: conflictsPath,
       label: 'Konflikte',

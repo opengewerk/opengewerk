@@ -13,8 +13,8 @@ import { useSync } from '../sync/provider.js'
 /**
  * The menu of the site, a sheet from the bottom, as the board of that menu
  * draws it: who is signed in and where, light or dark on this device, what
- * the application adds for this device, the way to the office view and
- * signing out.
+ * the application adds for this device, the way to the office view where
+ * there is one, and signing out.
  *
  * From the bottom because that is where the thumb is and where the tab that
  * opens it sits. It closes on the cross, on Escape and on a tap beside it; the
@@ -24,11 +24,14 @@ export function SiteMenu({
   open,
   onClose,
   children,
+  office = true,
 }: {
   readonly open: boolean
   readonly onClose: () => void
   /** Rows of the application, between light and dark and the way to the office. */
   readonly children?: ReactNode
+  /** Whether there is an office to go to, see `SiteFrame`. */
+  readonly office?: boolean
 }) {
   const who = useWho()
   const client = useSync()
@@ -112,21 +115,23 @@ export function SiteMenu({
             menu is taller than the window: a line of one pixel that may
             shrink is the first thing a column takes room from. */}
         <div aria-hidden="true" className="my-1.5 h-px shrink-0 bg-line [&+&]:hidden" />
-        <a
-          href={entryPath.office}
-          onClick={() => {
-            rememberEntry('office')
-          }}
-          className="flex min-h-14 items-center gap-3 rounded-[6px] px-3.5 text-[17px] text-ink no-underline"
-        >
-          <Monitor size={22} strokeWidth={1.9} aria-hidden="true" className="shrink-0" />
-          <span className="grow">
-            {sentences.goTo.office}
-            <span className="block text-[14px] text-ink-muted">
-              Mehr Übersicht, für Maus und Tastatur
+        {office ? (
+          <a
+            href={entryPath.office}
+            onClick={() => {
+              rememberEntry('office')
+            }}
+            className="flex min-h-14 items-center gap-3 rounded-[6px] px-3.5 text-[17px] text-ink no-underline"
+          >
+            <Monitor size={22} strokeWidth={1.9} aria-hidden="true" className="shrink-0" />
+            <span className="grow">
+              {sentences.goTo.office}
+              <span className="block text-[14px] text-ink-muted">
+                Mehr Übersicht, für Maus und Tastatur
+              </span>
             </span>
-          </span>
-        </a>
+          </a>
+        ) : null}
         <SignOutButton
           client={client}
           row="large"

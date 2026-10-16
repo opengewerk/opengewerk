@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Zwei Schalter am Rahmen vor Ort (für opengewerk-haustechnik#392): `SiteFrame` lässt mit
+  `conflicts={false}` den Reiter „Konflikte“ weg und mit `office={false}` den Vorschlag, das Büro zu
+  nehmen, samt dem Weg dorthin im Menü. Beide stehen ohne Angabe da wie bisher. Eine Anwendung
+  braucht das für Personen, auf deren Gerät nichts in Konflikt geraten kann und für die es kein
+  Büro gibt: der Reiter bliebe immer leer, und das Büro schickte sie gleich wieder zurück.
 - Die Umbuchung im Lager (für opengewerk-haustechnik#391, Nachtrag in ADR 0011): zwei neue Arten
   einer Buchung, `transfer_out` und `transfer_in`, mit dem anderen Lager in `counterpart_store_id`,
   und der Bestand rechnet sie mit. Damit zieht ein Artikel, der im falschen Lager angelegt wurde, mit
