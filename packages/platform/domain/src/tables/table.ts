@@ -79,7 +79,7 @@ const writtenOut: Readonly<Record<string, string>> = { ä: 'ae', ö: 'oe', ü: '
 
 /**
  * What the name of a column is compared by: `tableNameKey`, with ä, ö, ü and
- * ß written out, so that "Strasse" and "Gebaeude" from a program without
+ * ß written out, so that STRASSE and GEBAEUDE from a program without
  * umlauts or from Switzerland are the columns "Straße" and "Gebäude", in both
  * directions (opengewerk-haustechnik#177). For the names of columns alone: a
  * value a table is matched by stays what `tableNameKey` makes of it, so that

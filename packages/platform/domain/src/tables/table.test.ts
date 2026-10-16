@@ -92,10 +92,11 @@ describe('what two names are compared by', () => {
 
 describe('what the names of two columns are compared by (opengewerk-haustechnik#177)', () => {
   it('writes ä, ö, ü and ß out, in both directions', () => {
-    expect(tableHeadKey('Straße')).toBe(tableHeadKey('Strasse'))
-    expect(tableHeadKey('Gebäude')).toBe(tableHeadKey('Gebaeude'))
-    expect(tableHeadKey('GRÖSSE')).toBe(tableHeadKey('groesse'))
-    expect(tableHeadKey('Prüf-Datum')).toBe(tableHeadKey('pruef datum'))
+    // Written in capitals, as a program without umlauts mostly heads its columns.
+    expect(tableHeadKey('Straße')).toBe(tableHeadKey('STRASSE'))
+    expect(tableHeadKey('Gebäude')).toBe(tableHeadKey('GEBAEUDE'))
+    expect(tableHeadKey('GRÖSSE')).toBe(tableHeadKey('GROESSE'))
+    expect(tableHeadKey('Prüf-Datum')).toBe(tableHeadKey('PRUEF DATUM'))
   })
 
   it('takes nothing else for the same: an o is no ö', () => {
@@ -211,7 +212,7 @@ describe('the choice a page starts with', () => {
   })
 
   it('knows a column whose name writes the umlauts out, and one with them for a field without (opengewerk-haustechnik#177)', () => {
-    expect(suggestedMapping(columnsOf('Groesse', 'Raum-Nr.'), fields)).toEqual({
+    expect(suggestedMapping(columnsOf('GROESSE', 'Raum-Nr.'), fields)).toEqual({
       area: 0,
       number: 1,
     })

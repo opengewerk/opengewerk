@@ -20,7 +20,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und das Lager nimmt eine EAN mit 8 Ziffern an; ZXing las ihn schon, der Leser des Browsers wurde
   nicht danach gefragt.
 - Der Import schlägt eine Spalte auch vor, wenn ihr Kopf ä, ö, ü und ß ausschreibt
-  ("Strasse", "Gebaeude"), und umgekehrt, für opengewerk-haustechnik#177. Listen aus Programmen
+  (STRASSE, GEBAEUDE), und umgekehrt, für opengewerk-haustechnik#177. Listen aus Programmen
   ohne Umlaute oder aus der Schweiz bekamen sonst für diese Spalten keinen Vorschlag. Das gilt nur
   für die Köpfe der Spalten (`tableHeadKey`); die Werte, an denen ein Import wiedererkennt, bleiben
   genau, damit nicht zwei ähnliche Namen zusammenfallen.
