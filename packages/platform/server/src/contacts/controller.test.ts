@@ -64,7 +64,13 @@ import { type ContactPlacing, contactParts, type ContactRoutes } from './control
 const north = { id: newId<'tenant'>() as TenantId, name: 'Mandant Nord' }
 const south = { id: newId<'tenant'>() as TenantId, name: 'Mandant Süd' }
 
-const every: ProbeSyncRight[] = ['members.read', 'notes.write', 'shelves.write', 'letters.write']
+const every: ProbeSyncRight[] = [
+  'members.read',
+  'notes.write',
+  'shelves.write',
+  'letters.write',
+  'letters.read',
+]
 
 const people = {
   // Keeps shelves and writes letters: every route, every parent.
@@ -138,8 +144,9 @@ async function place({ tx, parents, creating }: ContactPlacing<'shelfId' | 'lett
 const routes: ContactRoutes<ProbeSyncRight, 'shelfId' | 'letterId', ProbeContactColumns> = {
   table: probeContacts,
   rules: probeContactRules,
-  // The people of a letter are for whoever writes letters.
+  // The people of a letter are for whoever writes letters, and to look at for whoever reads them.
   parentRight: (field) => (field === 'letterId' ? 'letters.write' : null),
+  parentReadRight: (field) => (field === 'letterId' ? 'letters.read' : null),
   place,
 }
 
@@ -487,6 +494,18 @@ describe('the contacts of an application', () => {
     expect(kept).toMatchObject({ role: null, letterId: letter, deletedAt: null })
   })
 
+  it('are left out of the list where the person lacks the right to read what they hang on', async () => {
+    await made({ letterId: letter, familyName: 'Ehlers' })
+    await made({ shelfId: shelf, familyName: 'Friese' })
+
+    // Gero reads the contacts and no letters.
+    expect((await list('gero')).map((entry) => entry.familyName)).toEqual(['Friese'])
+    expect((await list('lena')).map((entry) => entry.familyName).sort()).toEqual([
+      'Ehlers',
+      'Friese',
+    ])
+  })
+
   it('are for whoever holds the right of each route', async () => {
     const row = await made({ shelfId: shelf, familyName: 'Hansen' })
 
@@ -717,6 +736,7 @@ describe('the parts of the routes of the contacts', () => {
       'notes.write',
       'shelves.write',
       'letters.write',
+      'letters.read',
     ] as const) {
       expect(() => contactParts({ access: without(right) as never, rights, routes })).toThrow(
         `The catalogue lacks a right of the contacts: ${right}`,
