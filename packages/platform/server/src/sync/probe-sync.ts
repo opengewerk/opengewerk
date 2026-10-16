@@ -279,6 +279,7 @@ export const probeSyncCatalogue = rightsCatalogue([
   syncRights.write,
   'shelves.write',
   'letters.write',
+  'letters.read',
 ])
 
 export type ProbeSyncRight = (typeof probeSyncCatalogue.rights)[number]

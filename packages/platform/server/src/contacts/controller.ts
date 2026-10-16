@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common'
 import { type ContactRules, contactTextFields } from '@opengewerk/platform-domain'
 import { and, eq, getTableColumns, isNull } from 'drizzle-orm'
+import type { PgColumn } from 'drizzle-orm/pg-core'
 
 import { AUTHORIZATION, type Authorization, RequiresPermission } from '../api/authorization.js'
 import { pick, requireSomething } from '../api/body.js'
@@ -58,6 +59,13 @@ export interface ContactRoutes<
    * parent a contact has, and for the one a change would give it.
    */
   readonly parentRight?: (field: Parent) => Right | null
+  /**
+   * A right a person needs to read a contact, by what it hangs on: the people
+   * of one kind of record may be somebody else's to look at. The list leaves
+   * out every contact whose parent asks for a right the person lacks; the
+   * right of the route for reading is asked as well.
+   */
+  readonly parentReadRight?: (field: Parent) => Right | null
   /**
    * What the application looks at before a contact is written, in the
    * transaction that writes it: whether what the contact points at is there
@@ -231,9 +239,22 @@ function contactsController(rights: ContactRights<string>): Type<unknown> {
     @RequiresPermission(rights.read)
     list(@CurrentIdentity() identity: RequestIdentity) {
       const contacts = contactsOf(this.routes)
+      const columns = getTableColumns(contacts) as Readonly<Record<string, PgColumn>>
+      // Of a parent whose read right the person lacks, no contact at all.
+      const unread = this.routes.rules.parents.flatMap((field) => {
+        const right = this.routes.parentReadRight?.(field) ?? null
+        const column = columns[field]
+
+        return right !== null && !identity.rights.includes(right) && column !== undefined
+          ? [isNull(column)]
+          : []
+      })
 
       return this.database.forTenant(identity, (tx) =>
-        tx.select().from(contacts).where(isNull(contacts.deletedAt)),
+        tx
+          .select()
+          .from(contacts)
+          .where(and(isNull(contacts.deletedAt), ...unread)),
       )
     }
 
@@ -368,7 +389,10 @@ export function contactParts<
 ): { readonly controllers: Type<unknown>[]; readonly providers: Provider[] } {
   const { read, create, write } = parts.rights
   const { rules, table, parentRight } = parts.routes
-  const beyond = rules.parents.map((field) => parentRight?.(field) ?? null)
+  const beyond = rules.parents.flatMap((field) => [
+    parentRight?.(field) ?? null,
+    parts.routes.parentReadRight?.(field) ?? null,
+  ])
 
   for (const right of [read, create, write, ...beyond]) {
     if (right !== null && !parts.access.catalogue.isRight(right)) {

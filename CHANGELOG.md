@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Leserecht je Elternteil für die Ansprechpartner (für opengewerk-haustechnik#328):
+  `ContactRoutes.parentReadRight` nennt zu einer Art Datensatz das Recht, das eine Person braucht,
+  um dessen Ansprechpartner zu sehen, und `GET /contacts` lässt alle anderen aus. Bisher gab es das
+  nur fürs Schreiben (`parentRight`); eine Anwendung, deren Ansprechpartner auch an etwas ohne Ort
+  hängen, braucht es fürs Lesen genauso.
 - Lager, Artikel und Lieferanten als Baustein des Fundaments (ADR 0011, für
   opengewerk-haustechnik#325): Regeln, Einheiten und der Bestand aus seinen Buchungen in
   `platform-domain`, die Tabellenfabrik `stockSchema` in `platform-server`. Die Haustechnik braucht
