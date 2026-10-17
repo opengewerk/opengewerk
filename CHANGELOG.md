@@ -14,8 +14,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Zeile entfernen; Schlüssel und `leads` bleiben, wie die Zeile geschrieben wurde. `offered_rights` hält, was der
   Katalog beim letzten Speichern einer eigenen Rolle zur Wahl stellte, damit ein Recht einer späteren Fassung von
   einem weggelassenen zu unterscheiden ist. Welche Zeilen ein Mandant ändert und welche Rechte eine eigene Rolle
-  bekommt, entscheidet die Anwendung an ihren Routen; die Handwerkersoftware bietet noch keine an und zieht Spalte
-  und Rechte mit `0076_tenant_roles_of_their_own` nach. Warum: der Pilotbetrieb der Haustechnik braucht
+  bekommt, entscheidet die Anwendung an ihren Routen; dahinter hält ein Auslöser (`tenant_role_stays_whole` im
+  Baustein `setup.sql`) eine führende Rolle mit jedem Recht und dem zweiten Faktor und lässt keine Rolle gehen, die
+  ein Zugang oder eine offene Einladung nennt (`OG004`, `OG005`). Die Handwerkersoftware bietet noch keine eigenen
+  Rollen an und zieht Spalte, Rechte und Auslöser mit `0076_tenant_roles_of_their_own` nach. Warum: der Pilotbetrieb der Haustechnik braucht
   Zuschnitte, die die festen Rollen nicht hergeben.
 - Ein Zugang mit letztem Tag (für opengewerk-haustechnik#339 und #356): `memberships.last_day` und
   `invitations.last_day`, gesetzt mit der Einladung oder dem Wechsel der Rolle (`lastDay` an `POST /staff` und

@@ -121,6 +121,50 @@ AS $$
 	SELECT id FROM public.tenants ORDER BY id
 $$;--> statement-breakpoint
 
+-- What keeps a tenant led and no membership naming a role that is gone
+-- (opengewerk/opengewerk-haustechnik#346). A tenant changes and removes its
+-- roles, and the routes of an application decide which; whatever they decide,
+-- a role that leads keeps every right it has and a second factor it asks for
+-- and is never removed, and no role goes while a membership or an invitation
+-- that is still open names it. It holds the application role to it, and not
+-- the owner of the tables: a migration gives a shipped role a right it is
+-- owed, as the owner, and one that takes a role back is its own decision.
+CREATE FUNCTION "tenant_role_stays_whole"() RETURNS trigger
+	LANGUAGE plpgsql
+	SET search_path = pg_catalog, public
+AS $$
+BEGIN
+	IF current_user <> 'opengewerk_app' THEN
+		RETURN coalesce(new, old);
+	END IF;
+
+	IF tg_op = 'DELETE' THEN
+		IF old.leads THEN
+			RAISE EXCEPTION 'Eine Rolle, die einen Mandanten führt, wird nicht entfernt.'
+				USING ERRCODE = 'OG004';
+		END IF;
+
+		IF EXISTS (SELECT 1 FROM public.memberships m
+		            WHERE m.tenant_id = old.tenant_id AND old.key = ANY (m.roles))
+		   OR EXISTS (SELECT 1 FROM public.invitations i
+		               WHERE i.tenant_id = old.tenant_id AND old.key = ANY (i.roles)
+		                 AND i.redeemed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()) THEN
+			RAISE EXCEPTION 'Eine Rolle, die noch einem Zugang oder einer offenen Einladung zugeordnet ist, wird nicht entfernt.'
+				USING ERRCODE = 'OG005';
+		END IF;
+
+		RETURN old;
+	END IF;
+
+	IF old.leads AND (NOT (new.rights @> old.rights) OR (old.second_factor AND NOT new.second_factor)) THEN
+		RAISE EXCEPTION 'Eine Rolle, die einen Mandanten führt, behält jedes Recht und den zweiten Faktor.'
+			USING ERRCODE = 'OG004';
+	END IF;
+
+	RETURN new;
+END;
+$$;--> statement-breakpoint
+
 -- EXECUTE belongs to everybody by default, which for these four would mean
 -- every role in the cluster. Taken away first and given back to the one role
 -- that calls them, so that a role added later for something else does not

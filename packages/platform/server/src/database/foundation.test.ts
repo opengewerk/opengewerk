@@ -121,6 +121,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'record_change',
       'record_instance_change',
       'stamp_sync_columns',
+      'tenant_role_stays_whole',
       'tenants_with_leads',
       'verify_audit_chain',
     ])

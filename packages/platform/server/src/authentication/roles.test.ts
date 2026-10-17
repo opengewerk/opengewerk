@@ -317,6 +317,83 @@ describe('the roles a tenant starts with', () => {
       south.id,
     ])
   })
+
+  /**
+   * Whatever a route lets through, a role that leads keeps every right and its
+   * second factor and stays, and a role somebody holds or is invited to stays
+   * as well. The owner of the tables, which a migration runs as, is not held.
+   */
+  it('keep a role that leads whole and one that somebody holds in place, against the application', async () => {
+    const inNorth = { tenantId: north.id, reason: 'membership.write' }
+    const ofNorth = (key: string) =>
+      and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, key))
+    const refusedWith = (code: string, change: Promise<unknown>) =>
+      expect(change).rejects.toMatchObject({ cause: { code } })
+
+    await refusedWith(
+      'OG004',
+      instance.database.forTenant(inNorth, (tx) =>
+        tx
+          .update(tenantRoles)
+          .set({ rights: [accessRights.read] })
+          .where(ofNorth('lead')),
+      ),
+    )
+    await refusedWith(
+      'OG004',
+      instance.database.forTenant(inNorth, (tx) =>
+        tx.update(tenantRoles).set({ secondFactor: false }).where(ofNorth('lead')),
+      ),
+    )
+    await refusedWith(
+      'OG004',
+      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(ofNorth('lead'))),
+    )
+
+    // Its label changes, and a right comes to it.
+    const { rows: before } = await admin.query<{ rights: string[] }>(
+      `select rights from tenant_roles where tenant_id = $1 and key = 'lead'`,
+      [north.id],
+    )
+    const rights = before[0]?.rights ?? []
+
+    await instance.database.forTenant(inNorth, (tx) =>
+      tx
+        .update(tenantRoles)
+        .set({ label: 'Leitung', rights: [...rights, 'notes.read'] })
+        .where(ofNorth('lead')),
+    )
+    await setRole(north.id, 'lead', { rights })
+
+    // A role somebody holds, and one an invitation that is still open names.
+    await ownRole(north.id, { key: 'porter', label: 'Pforte', rights: ['members.read'] })
+    await setRolesOf(north.id, mia, ['member', 'porter'])
+    await refusedWith(
+      'OG005',
+      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(ofNorth('porter'))),
+    )
+    await setRolesOf(north.id, mia, ['member'])
+    await admin.query(
+      `insert into invitations (tenant_id, email, name, roles, token_hash, invited_by, expires_at)
+       values ($1, 'pforte@nord.example.de', 'Pia Pforte', $2, 'hash-of-the-porter', $3, now() + interval '7 days')`,
+      [north.id, ['porter'], idOf(lea)],
+    )
+    await refusedWith(
+      'OG005',
+      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(ofNorth('porter'))),
+    )
+
+    // Once the invitation ran out, nobody is left who names it.
+    await admin.query(
+      `update invitations set expires_at = now() - interval '1 day' where token_hash = 'hash-of-the-porter'`,
+    )
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.delete(tenantRoles).where(ofNorth('porter')).returning({ key: tenantRoles.key }),
+      ),
+    ).toEqual([{ key: 'porter' }])
+    await admin.query(`delete from invitations where token_hash = 'hash-of-the-porter'`)
+  })
 })
 
 describe('what somebody may do', () => {

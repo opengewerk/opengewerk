@@ -182,7 +182,9 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   makes one of its own, and removed (opengewerk/opengewerk-haustechnik#346).
  *   Of a row only its label, its rights, whether it asks for a second factor
  *   and what it was offered change; its key, which a membership names, and
- *   whether it leads stay as they were written.
+ *   whether it leads stay as they were written. A trigger keeps a role that
+ *   leads whole and a role that a membership or an open invitation names in
+ *   place (`tenant_role_stays_whole` of `setup.sql`).
  * - The files of a tenant: read and inserted. The bytes behind a row never
  *   change, so neither does the row, and a file a record points at outlives
  *   every mistake; ending one at the end of a retention period is a
@@ -238,6 +240,14 @@ export const foundationGuards: readonly TableGuard[] = [
     updatableColumns: ['label', 'rights', 'second_factor', 'offered_rights', 'updated_at'],
     audited: true,
     synced: false,
+    // A role that leads stays whole, and none goes while somebody holds it (`setup.sql`).
+    triggers: [
+      {
+        name: 'tenant_roles_stay_whole',
+        fires: 'BEFORE UPDATE OR DELETE',
+        calls: 'tenant_role_stays_whole',
+      },
+    ],
   },
   { table: 'files', grants: ['select', 'insert'], audited: true, synced: false },
   { table: 'mail_settings', grants: everything, audited: true, synced: false },
