@@ -151,6 +151,7 @@ AS $$
 	SELECT t.id, t.name, t.created_at,
 	       coalesce((SELECT array_agg(m.user_id ORDER BY m.created_at) FROM public.memberships m
 	                  WHERE m.tenant_id = t.id AND m.blocked_at IS NULL
+	                    AND (m.last_day IS NULL OR m.last_day >= (now() AT TIME ZONE 'Europe/Berlin')::date)
 	                    AND EXISTS (SELECT 1 FROM public.tenant_roles r
 	                                 WHERE r.tenant_id = t.id AND r.leads AND r.key = ANY (m.roles))), '{}'),
 	       (SELECT count(*) FROM public.memberships m WHERE m.tenant_id = t.id),

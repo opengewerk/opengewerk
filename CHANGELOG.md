@@ -13,7 +13,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `invitations.last_day`, gesetzt mit der Einladung oder dem Wechsel der Rolle (`lastDay` an `POST /staff` und
   `PATCH /staff/:userId`) und beim Einlösen übernommen. Nach dem letzten Tag, dem Tag in Deutschland, gilt der
   Zugang wie gesperrt, ohne dass jemand etwas tut: die Identität wird abgelehnt (`endedInTenant`), die Auswahl nach
-  der Anmeldung bietet den Mandanten nicht mehr an. `AccessRules.endingRoles` nennt die Rollen, die es nur mit
+  der Anmeldung bietet den Mandanten nicht mehr an, und wer Fristen verantwortet, Aufgaben und Aufträge bekommt,
+  erinnert wird oder in der Liste der Kollegen aktiv steht, ist sie nicht mehr (`stillWorks`, `beforeItsEnd`).
+  `AccessRules.endingRoles` nennt die Rollen, die es nur mit
   letztem Tag gibt; die letzte Person, die einen Mandanten führt, bekommt keinen. „Zugänge“ mit Dialogen fragt nach
   dem letzten Tag und nennt ihn im Zustand („Aktiv bis 30.11.2026“). Die Handwerkersoftware zieht die Spalten mit
   `0075_membership_last_day` nach. Warum: die Haustechnik gibt einem Prüfer von außen einen befristeten Zugang, und

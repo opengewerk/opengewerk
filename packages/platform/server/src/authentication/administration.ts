@@ -24,7 +24,7 @@ import {
 import type { AccessRules } from './access.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
-import { refuseWithoutLastDay } from './last-day.js'
+import { refuseWithoutLastDay, stillWorks } from './last-day.js'
 import { leadsItsTenant, rolesOfTenant } from './roles.js'
 
 /**
@@ -141,7 +141,11 @@ export async function listColleagues(
 ): Promise<Colleague[]> {
   const rows = await database.forTenant(identity, (tx) =>
     tx
-      .select({ userId: memberships.userId, blockedAt: memberships.blockedAt })
+      .select({
+        userId: memberships.userId,
+        blockedAt: memberships.blockedAt,
+        lastDay: memberships.lastDay,
+      })
       .from(memberships)
       .where(eq(memberships.tenantId, identity.tenantId)),
   )
@@ -156,7 +160,8 @@ export async function listColleagues(
     .map((row) => ({
       userId: row.userId,
       name: accounts.get(row.userId)?.name ?? 'Unbekanntes Konto',
-      active: row.blockedAt === null,
+      // Past the last day as well as shut out (`last-day.ts`).
+      active: stillWorks(row),
     }))
     .sort((left, right) => left.name.localeCompare(right.name, 'de'))
 }

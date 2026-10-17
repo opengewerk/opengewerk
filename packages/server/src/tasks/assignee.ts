@@ -1,5 +1,5 @@
 import type { ConflictReason, TenantId } from '@opengewerk/domain'
-import type { TenantTransaction } from '@opengewerk/platform-server'
+import { stillWorks, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
 
 import { memberships } from '../database/schema/index.js'
@@ -41,11 +41,12 @@ export async function assigneeRefusal(
   }
 
   const [member] = await tx
-    .select({ blockedAt: memberships.blockedAt })
+    .select({ blockedAt: memberships.blockedAt, lastDay: memberships.lastDay })
     .from(memberships)
     .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)))
 
-  return member && member.blockedAt === null
+  // Nobody shut out, and nobody past the last day of their access.
+  return member && stillWorks(member)
     ? null
     : { reason: 'record_missing', fields: ['assigneeUserId'] }
 }

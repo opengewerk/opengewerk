@@ -171,7 +171,7 @@ beforeEach(async () => {
   // cleared as the superuser, past the rule that keeps a message forever.
   await admin.query('delete from mail_outbox')
   await admin.query('delete from tasks')
-  await admin.query('update memberships set blocked_at = null')
+  await admin.query('update memberships set blocked_at = null, last_day = null')
 })
 
 afterAll(async () => {
@@ -237,6 +237,16 @@ describe('a task due today', () => {
 
     await admin.query("update memberships set blocked_at = now() where user_id = 'gerd'")
     await admin.query('update tasks set deleted_at = now() where id = $1', [gone])
+
+    const post = recording()
+
+    expect(await runMailCycle(job(post.transport, morning))).toMatchObject({ written: 0 })
+    expect(post.sent).toHaveLength(0)
+  })
+
+  it('is left alone for somebody past the last day of the access, without a block', async () => {
+    await aTask('gerd')
+    await admin.query("update memberships set last_day = current_date - 2 where user_id = 'gerd'")
 
     const post = recording()
 

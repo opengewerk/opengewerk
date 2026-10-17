@@ -47,6 +47,7 @@ import { RequiresPermission } from '../api/authorization.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import type { AccessRules } from '../authentication/access.js'
 import { accountsOf } from '../authentication/administration.js'
+import { stillWorks } from '../authentication/last-day.js'
 import { Database, type TenantTransaction } from '../database/database.js'
 import { deadlineSettings } from '../database/schema/deadline-settings.js'
 import type { DeadlinesTable, OwnDeadlineColumns } from '../database/schema/deadlines.js'
@@ -398,11 +399,12 @@ async function requireColleague(
   }
 
   const [member] = await tx
-    .select({ blockedAt: memberships.blockedAt })
+    .select({ blockedAt: memberships.blockedAt, lastDay: memberships.lastDay })
     .from(memberships)
     .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, value)))
 
-  if (!member || member.blockedAt !== null) {
+  // Nobody shut out, and nobody past the last day of their access.
+  if (!member || !stillWorks(member)) {
     throw new UnprocessableEntityException(refusal)
   }
 

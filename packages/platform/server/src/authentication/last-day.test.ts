@@ -14,6 +14,8 @@ import {
   probeInstance,
   probeOrigin as origin,
 } from './probe-application.js'
+import { firstLead } from '../deadlines/responsible.js'
+import { listColleagues } from './administration.js'
 import { addStaffMember } from './staff.js'
 import { currentCode } from './test-authenticator.js'
 
@@ -228,6 +230,45 @@ describe('the last day of a membership', () => {
     expect(await lastDayOf(miaId)).toBe(tomorrow())
     await change({ roles: ['member'], lastDay: null }).expect(200)
     expect(await lastDayOf(miaId)).toBeNull()
+  })
+
+  it('takes somebody off the colleagues and the leads of the tenant after it, without a block', async () => {
+    const lars = await addStaffMember(instance.authentication, instance.database, {
+      email: 'lars@nord.example.de',
+      name: 'Lars Leitung',
+      password,
+      tenantId: north.id as TenantId,
+      roles: ['lead'],
+    })
+    const leaId = userIds.get(lea.email) as string
+    const miaId = userIds.get(mia.email) as string
+    const asks = { tenantId: north.id as TenantId, userId: leaId }
+
+    expect(
+      await instance.database.forTenant(asks, (tx) => firstLead(tx, north.id as TenantId)),
+    ).toBe(leaId)
+
+    await admin.query(
+      'update memberships set last_day = $1 where tenant_id = $2 and user_id = any($3)',
+      [yesterday(), north.id, [leaId, miaId]],
+    )
+
+    try {
+      expect(
+        await instance.database.forTenant(asks, (tx) => firstLead(tx, north.id as TenantId)),
+      ).toBe(lars.userId)
+      expect(
+        Object.fromEntries(
+          (await listColleagues(instance.database, asks)).map((each) => [each.userId, each.active]),
+        ),
+      ).toMatchObject({ [leaId]: false, [miaId]: false, [lars.userId]: true })
+    } finally {
+      await admin.query('update memberships set last_day = null where tenant_id = $1', [north.id])
+      // Lars leaves again, so that Lea is the last one who leads for the test after this.
+      await admin.query('update memberships set blocked_at = now() where user_id = $1', [
+        lars.userId,
+      ])
+    }
   })
 
   it('is not given to the last one who leads the tenant', async () => {

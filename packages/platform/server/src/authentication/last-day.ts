@@ -26,6 +26,19 @@ export function hasEnded(lastDay: string | null, now: Date = new Date()): boolea
   return lastDay !== null && lastDay < berlinClock(now).day
 }
 
+/**
+ * Whether somebody still works in a tenant: not shut out and not past the
+ * last day. What can be handed to them, what reminds them and whom a list
+ * offers asks this and not the block alone, since an access past its last
+ * day counts as blocked.
+ */
+export function stillWorks(
+  member: { readonly blockedAt: Date | string | null; readonly lastDay: string | null },
+  now: Date = new Date(),
+): boolean {
+  return member.blockedAt === null && !hasEnded(member.lastDay, now)
+}
+
 const calendarDay = (value: string): boolean =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) &&
   !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&

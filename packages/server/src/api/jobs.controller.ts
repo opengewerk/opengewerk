@@ -18,6 +18,7 @@ import {
   requireFields,
   requireSomething,
   type TenantTransaction,
+  stillWorks,
 } from '@opengewerk/platform-server'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
@@ -187,7 +188,11 @@ export class JobsController {
         const able = new Set(
           (
             await tx
-              .select({ userId: memberships.userId, blockedAt: memberships.blockedAt })
+              .select({
+                userId: memberships.userId,
+                blockedAt: memberships.blockedAt,
+                lastDay: memberships.lastDay,
+              })
               .from(memberships)
               .where(
                 and(
@@ -196,7 +201,8 @@ export class JobsController {
                 ),
               )
           )
-            .filter((member) => member.blockedAt === null)
+            // Nobody shut out, and nobody past the last day of their access.
+            .filter((member) => stillWorks(member))
             .map((member) => member.userId),
         )
 
