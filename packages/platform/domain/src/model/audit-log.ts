@@ -541,6 +541,7 @@ function foundationTables(
         rights: 'Rechte',
         leads: words.leads,
         second_factor: 'Zweiter Faktor Pflicht',
+        offered_rights: 'Zur Wahl beim letzten Speichern',
       },
     },
     tenant_sessions: {

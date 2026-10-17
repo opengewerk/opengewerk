@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Rollen, die ein Mandant selbst führt (für opengewerk-haustechnik#346): die Anwendung darf an einer Zeile von
+  `tenant_roles` jetzt Bezeichnung, Rechte, zweiten Faktor und die neue Spalte `offered_rights` ändern und eine
+  Zeile entfernen; Schlüssel und `leads` bleiben, wie die Zeile geschrieben wurde. `offered_rights` hält, was der
+  Katalog beim letzten Speichern einer eigenen Rolle zur Wahl stellte, damit ein Recht einer späteren Fassung von
+  einem weggelassenen zu unterscheiden ist. Welche Zeilen ein Mandant ändert und welche Rechte eine eigene Rolle
+  bekommt, entscheidet die Anwendung an ihren Routen; die Handwerkersoftware bietet noch keine an und zieht Spalte
+  und Rechte mit `0076_tenant_roles_of_their_own` nach. Warum: der Pilotbetrieb der Haustechnik braucht
+  Zuschnitte, die die festen Rollen nicht hergeben.
 - Ein Zugang mit letztem Tag (für opengewerk-haustechnik#339 und #356): `memberships.last_day` und
   `invitations.last_day`, gesetzt mit der Einladung oder dem Wechsel der Rolle (`lastDay` an `POST /staff` und
   `PATCH /staff/:userId`) und beim Einlösen übernommen. Nach dem letzten Tag, dem Tag in Deutschland, gilt der

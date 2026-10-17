@@ -219,28 +219,6 @@ describe('the roles a tenant starts with', () => {
     expect(outside).toEqual([])
   })
 
-  /**
-   * Nothing changes or removes a role yet, so the application may not. A
-   * request that found a way to say otherwise is stopped by the grant.
-   */
-  it('cannot be changed or removed by the application', async () => {
-    const inNorth = { tenantId: north.id, reason: 'membership.write' }
-    const guest = and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, 'guest'))
-
-    await expect(
-      instance.database.forTenant(inNorth, (tx) =>
-        tx
-          .update(tenantRoles)
-          .set({ rights: [accessRights.write] })
-          .where(guest),
-      ),
-    ).rejects.toMatchObject({ cause: { code: '42501' } })
-
-    await expect(
-      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(guest)),
-    ).rejects.toMatchObject({ cause: { code: '42501' } })
-  })
-
   it('are in the log of the tenant from the first row on', async () => {
     const { rows } = await admin.query<{ field: string; new_value: string | null }>(
       `select field, new_value from audit_entries
@@ -256,6 +234,88 @@ describe('the roles a tenant starts with', () => {
       'guest',
     ])
     expect(rows.filter((row) => row.field === 'rights')).toHaveLength(3)
+  })
+
+  /**
+   * A tenant changes of a row its label, its rights, whether it asks for a
+   * second factor and what it was offered, and removes a row
+   * (opengewerk/opengewerk-haustechnik#346). Its key, which a membership
+   * names, and whether it leads stay as the row was written; a request that
+   * found a way to say otherwise is stopped by the grant.
+   */
+  it('change in what a tenant may change of them, and are removed, inside their tenant', async () => {
+    const inNorth = { tenantId: north.id, reason: 'membership.write' }
+    const ofNorth = (key: string) =>
+      and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, key))
+
+    await ownRole(north.id, { key: 'caretaker', label: 'Hausmeister', rights: ['members.read'] })
+
+    const changed = await instance.database.forTenant(inNorth, (tx) =>
+      tx
+        .update(tenantRoles)
+        .set({
+          label: 'Hausmeisterei',
+          rights: [accessRights.read],
+          secondFactor: true,
+          offeredRights: [accessRights.read, accessRights.write],
+          updatedAt: new Date(),
+        })
+        .where(ofNorth('caretaker'))
+        .returning({
+          label: tenantRoles.label,
+          rights: tenantRoles.rights,
+          secondFactor: tenantRoles.secondFactor,
+          offeredRights: tenantRoles.offeredRights,
+        }),
+    )
+
+    expect(changed).toEqual([
+      {
+        label: 'Hausmeisterei',
+        rights: [accessRights.read],
+        secondFactor: true,
+        offeredRights: [accessRights.read, accessRights.write],
+      },
+    ])
+
+    for (const change of [{ key: 'janitor' }, { leads: true }]) {
+      await expect(
+        instance.database.forTenant(inNorth, (tx) =>
+          tx.update(tenantRoles).set(change).where(ofNorth('caretaker')),
+        ),
+      ).rejects.toMatchObject({ cause: { code: '42501' } })
+    }
+
+    // A role of the tenant next door is out of reach: nothing changes and nothing goes.
+    await ownRole(south.id, { key: 'caretaker', label: 'Hausmeister', rights: ['members.read'] })
+
+    const ofSouth = and(eq(tenantRoles.tenantId, south.id), eq(tenantRoles.key, 'caretaker'))
+
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.update(tenantRoles).set({ label: 'Fremd' }).where(ofSouth).returning(),
+      ),
+    ).toEqual([])
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.delete(tenantRoles).where(ofSouth).returning(),
+      ),
+    ).toEqual([])
+
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.delete(tenantRoles).where(ofNorth('caretaker')).returning({ key: tenantRoles.key }),
+      ),
+    ).toEqual([{ key: 'caretaker' }])
+
+    const { rows } = await admin.query<{ tenant_id: string; label: string }>(
+      `select tenant_id, label from tenant_roles where key = 'caretaker' order by label`,
+    )
+
+    expect(rows).toEqual([{ tenant_id: south.id, label: 'Hausmeister' }])
+    await admin.query(`delete from tenant_roles where tenant_id = $1 and key = 'caretaker'`, [
+      south.id,
+    ])
   })
 })
 

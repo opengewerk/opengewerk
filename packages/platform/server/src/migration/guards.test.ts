@@ -185,12 +185,13 @@ describe('the tables of the foundation', () => {
     }
   })
 
-  it('let nothing that names a tenant be deleted by the application, its mail server aside', () => {
+  it('let nothing that names a tenant be deleted by the application, its roles and its mail server aside', () => {
     // Who was let in, by whom and what became of it is part of the record. A
     // person is blocked and an invitation called back, both changes the log
-    // keeps; a row that can be removed is a record with a hole in it. The
-    // mail server of a tenant is a setting and no record: it is set up and
-    // removed again, and the log keeps both.
+    // keeps; a row that can be removed is a record with a hole in it. A role
+    // and the mail server of a tenant are settings and no record: a role the
+    // tenant made is removed again (opengewerk/opengewerk-haustechnik#346),
+    // a mail server is set up and removed again, and the log keeps both.
     const ofATenant = foundationGuards.filter(
       (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
     )
@@ -198,7 +199,7 @@ describe('the tables of the foundation', () => {
     expect(ofATenant).toHaveLength(16)
     expect(
       ofATenant.filter((guard) => guard.grants.includes('delete')).map((guard) => guard.table),
-    ).toEqual(['mail_settings'])
+    ).toEqual(['tenant_roles', 'mail_settings'])
   })
 
   it('let the application name and take away who runs the instance, change its settings, and no more', () => {
