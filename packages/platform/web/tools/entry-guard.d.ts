@@ -11,6 +11,36 @@ export declare const reloadedKey: 'opengewerk.entry.reloaded'
 /** The id of the sentence in a shell, which is also the class it is styled by. */
 export declare const noticeId: 'entry-notice'
 
+/** Under this key a browser keeps the entry somebody chose. */
+export declare const choiceKey: 'opengewerk.entry'
+
+/** Under this key a browser keeps the view it was in last. */
+export declare const viewKey: 'opengewerk.entry.view'
+
+/** Where the office lives. */
+export declare const officePath: '/'
+
+/** Where the site lives. */
+export declare const sitePath: '/m/'
+
+/** What the page is told about the entries it may take it to. */
+export interface FollowedEntry {
+  /** Under what the browser keeps the choice. */
+  readonly choiceKey: string
+  /** Under what the browser keeps its last view. */
+  readonly viewKey: string
+  /** The address of the office. */
+  readonly office: string
+  /** The address of the site. */
+  readonly site: string
+}
+
+/** Takes a page to the entry that suits the view of the browser; whether it does. */
+export declare function followEntry(
+  window: Pick<Window, 'location' | 'localStorage' | 'navigator'>,
+  entry: FollowedEntry,
+): boolean
+
 /** What the watch is told about the shell it runs in. */
 export interface GuardedShell {
   /** The address of the entry script, as the shell names it. */

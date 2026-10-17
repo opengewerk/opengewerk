@@ -12,9 +12,18 @@ export interface DeviceTraits {
   readonly coarsePointer: boolean
   /** A mouse or a trackpad is available at all: `(any-pointer: fine)`. */
   readonly finePointer: boolean
+  /**
+   * The browser says it runs on a phone: `navigator.userAgentData.mobile`,
+   * or, where it has no such answer, a user agent that names a mobile device.
+   */
+  readonly phone: boolean
 }
 
 export const entryChoiceKey = 'opengewerk.entry'
+
+// The same key and the same address stand in `tools/entry-guard.js`, which
+// follows a choice of the site before the office has loaded; a test holds the
+// two together.
 
 /**
  * Which entry point suits this device.
@@ -24,12 +33,18 @@ export const entryChoiceKey = 'opengewerk.entry'
  * roof is still a building site. A breakpoint would send that tablet into the
  * office, where the controls are 34 pixels high and meant for a mouse.
  *
- * A fine pointer wins over a coarse one, because a laptop with a touchscreen
- * has both and is a desk. Neither is the case of a browser that answers no
- * media query, and there the office is the safe guess: it has every screen the
- * site entry has and more.
+ * A phone is the site, whatever else it says it has: some phones answer that
+ * a fine pointer is available, for the stylus they take, and were offered
+ * nothing. Otherwise a fine pointer wins over a coarse one, because a laptop
+ * with a touchscreen has both and is a desk. Neither is the case of a browser
+ * that answers no media query, and there the office is the safe guess: it has
+ * every screen the site entry has and more.
  */
 export function suggestedEntry(traits: DeviceTraits): Entry {
+  if (traits.phone) {
+    return 'site'
+  }
+
   if (traits.finePointer) {
     return 'office'
   }
@@ -39,8 +54,24 @@ export function suggestedEntry(traits: DeviceTraits): Entry {
 
 export function readTraits(): DeviceTraits {
   const ask = (query: string) => globalThis.matchMedia?.(query).matches === true
+  const browser = globalThis.navigator as
+    (Navigator & { readonly userAgentData?: { readonly mobile?: boolean } }) | undefined
 
-  return { coarsePointer: ask('(pointer: coarse)'), finePointer: ask('(any-pointer: fine)') }
+  return {
+    coarsePointer: ask('(pointer: coarse)'),
+    finePointer: ask('(any-pointer: fine)'),
+    phone: phoneIn(browser?.userAgentData?.mobile, browser?.userAgent ?? ''),
+  }
+}
+
+/**
+ * Whether a browser runs on a phone, by what it says of itself: the answer of
+ * `userAgentData` where it gives one (Chromium on Android, a tablet answering
+ * no), otherwise a user agent with "Mobile" or "iPhone" in it, which phones
+ * send and tablets and desks do not.
+ */
+export function phoneIn(mobile: boolean | undefined, userAgent: string): boolean {
+  return mobile ?? /\bMobile\b|\biPhone\b/.test(userAgent)
 }
 
 /**
