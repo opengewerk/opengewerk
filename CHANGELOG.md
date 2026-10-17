@@ -552,6 +552,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Auf dem Telefon öffnet sich der Einstieg vor Ort von selbst, und die Anwendung schaltet um, wenn der Browser
+  zwischen seiner mobilen und seiner Desktop-Ansicht wechselt. Bisher öffnete die Adresse der Instanz immer das
+  Büro: eine gemerkte Wahl hielt nur den Vorschlag still, und ein Telefon, das für seinen Stift einen feinen
+  Zeiger meldet, bekam gar keinen; man musste `/m` von Hand eingeben. Die Datei vor dem Einstieg
+  (`tools/entry-guard.js`) entscheidet das jetzt, bevor ein Bündel lädt. Ein Link ins Büro bleibt das Büro, ein
+  Schreibtisch auf der Seite vor Ort bleibt dort, und wer auf dem Telefon das Büro wählt, behält es.
 - Die Rechtstexte der Instanz bleiben nicht mehr leer, wenn sie auf einen Pfad verweisen
   (opengewerk-haustechnik#386). `Markdown` zeichnete jeden Pfad als `Link` des Routers, die
   Rechtsseite steht aber vor dem Router; dort fand der `Link` keinen und riss die ganze Seite mit,

@@ -6,12 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as tool from './entry-guard.js'
 import {
+  choiceKey,
   entryGuard,
+  followEntry,
   guardScript,
   guarded,
   noticeId,
   noticeOf,
+  officePath,
   reloadedKey,
+  sitePath,
+  viewKey,
   watchEntry,
 } from './entry-guard.js'
 
@@ -246,6 +251,126 @@ describe('the watch at the entry of a page', () => {
   })
 })
 
+describe('the entry that suits the view of the browser, before an entry loads', () => {
+  const phoneAgent =
+    'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36'
+  // The same phone switched to the desktop view: no "Mobile", no answer of its own.
+  const deskAgent =
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36'
+  const entry = { choiceKey, viewKey, office: officePath, site: sitePath }
+
+  /** A page at an address, in a browser with this user agent that keeps what is given. */
+  function pageAt(pathname, userAgent, kept = {}) {
+    const replace = vi.fn()
+    const storage = tabStorage(kept)
+
+    return {
+      replace,
+      kept: storage.kept,
+      window: {
+        location: { pathname, search: '', hash: '', replace },
+        navigator: { userAgent },
+        localStorage: storage,
+      },
+    }
+  }
+
+  it('takes a phone in its mobile view from the address of the instance to the site', () => {
+    const { window, replace, kept } = pageAt('/', phoneAgent)
+
+    expect(followEntry(window, entry)).toBe(true)
+    expect(replace).toHaveBeenCalledWith(sitePath)
+    expect(kept[viewKey]).toBe('phone')
+  })
+
+  it('believes what the browser answers itself before its user agent', () => {
+    const { window, replace } = pageAt('/', deskAgent)
+
+    window.navigator.userAgentData = { mobile: true }
+
+    expect(followEntry(window, entry)).toBe(true)
+    expect(replace).toHaveBeenCalledWith(sitePath)
+  })
+
+  it('leaves a desk at the address of the instance in the office', () => {
+    const { window, replace, kept } = pageAt('/', deskAgent)
+
+    expect(followEntry(window, entry)).toBe(false)
+    expect(replace).not.toHaveBeenCalled()
+    expect(kept[viewKey]).toBe('desk')
+  })
+
+  it('follows a choice of the site at the address of the instance, also on a tablet or a desk', () => {
+    const { window, replace } = pageAt('/', deskAgent, { [choiceKey]: 'site', [viewKey]: 'desk' })
+
+    expect(followEntry(window, entry)).toBe(true)
+    expect(replace).toHaveBeenCalledWith(sitePath)
+  })
+
+  it('keeps a choice of the office on a phone, as long as its view stays', () => {
+    const { window, replace } = pageAt('/', phoneAgent, {
+      [choiceKey]: 'office',
+      [viewKey]: 'phone',
+    })
+
+    expect(followEntry(window, entry)).toBe(false)
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('switches to the office when the phone is switched to its desktop view, wherever it is', () => {
+    const { window, replace, kept } = pageAt('/m/vorgaenge/v-1', deskAgent, {
+      [choiceKey]: 'site',
+      [viewKey]: 'phone',
+    })
+
+    expect(followEntry(window, entry)).toBe(true)
+    expect(replace).toHaveBeenCalledWith(officePath)
+    // The choice was made in the other view and holds no more.
+    expect(kept[choiceKey]).toBeUndefined()
+    expect(kept[viewKey]).toBe('desk')
+  })
+
+  it('switches to the site when it is switched back to its mobile view, wherever it is', () => {
+    const { window, replace } = pageAt('/pruefungen/ac-1', phoneAgent, {
+      [choiceKey]: 'office',
+      [viewKey]: 'desk',
+    })
+
+    expect(followEntry(window, entry)).toBe(true)
+    expect(replace).toHaveBeenCalledWith(sitePath)
+  })
+
+  it('leaves a link into the office as it is, and a desk on the site', () => {
+    for (const [pathname, userAgent, view] of [
+      ['/pruefungen/ac-1', phoneAgent, 'phone'],
+      ['/einladung/abc', phoneAgent, null],
+      ['/m/', deskAgent, 'desk'],
+      ['/m/vorgaenge/v-1', deskAgent, null],
+    ]) {
+      const { window, replace } = pageAt(
+        pathname,
+        userAgent,
+        view === null ? {} : { [viewKey]: view },
+      )
+
+      expect(followEntry(window, entry)).toBe(false)
+      expect(replace).not.toHaveBeenCalled()
+    }
+  })
+
+  it('stays where the browser may keep nothing, instead of failing the page', () => {
+    const replace = vi.fn()
+    const window = {
+      location: { pathname: '/', search: '', hash: '', replace },
+      navigator: { userAgent: phoneAgent },
+      localStorage: refusing,
+    }
+
+    expect(followEntry(window, entry)).toBe(false)
+    expect(replace).not.toHaveBeenCalled()
+  })
+})
+
 describe('the file the build writes', () => {
   it('is the watch as a script of its own, told its entry by the element that loads it', () => {
     const listeners = {}
@@ -271,6 +396,26 @@ describe('the file the build writes', () => {
     listeners.error({ target: { tagName: 'SCRIPT', getAttribute: () => entry } })
     expect(reload).toHaveBeenCalledTimes(1)
     expect(page.sessionStorage.kept).toEqual({ [reloadedKey]: '1' })
+  })
+
+  it('takes the page to the entry of its view first, and watches no entry of a page it leaves', () => {
+    const replace = vi.fn()
+    const listen = vi.fn()
+    const page = {
+      document: { currentScript: null, getElementById: () => null },
+      location: { pathname: '/', search: '', hash: '', replace, reload: vi.fn() },
+      navigator: {
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile/15E148',
+      },
+      localStorage: tabStorage(),
+      sessionStorage: tabStorage(),
+      addEventListener: listen,
+    }
+
+    new Function('window', 'document', guardScript())(page, page.document)
+
+    expect(replace).toHaveBeenCalledWith(sitePath)
+    expect(listen).not.toHaveBeenCalled()
   })
 
   it('imports nothing and names no module, since the policy of a page lets it run as it is only', () => {
@@ -385,11 +530,15 @@ describe('the declaration beside the script', () => {
     )
 
     expect(declared.sort()).toEqual(Object.keys(tool).sort())
-    expect(declared.length).toBe(7)
+    expect(declared.length).toBe(12)
   })
 
-  it('declares the key and the id as the script writes them', () => {
+  it('declares the keys, the id and the address as the script writes them', () => {
     expect(declaration).toContain(`export declare const reloadedKey: '${reloadedKey}'`)
     expect(declaration).toContain(`export declare const noticeId: '${noticeId}'`)
+    expect(declaration).toContain(`export declare const choiceKey: '${choiceKey}'`)
+    expect(declaration).toContain(`export declare const sitePath: '${sitePath}'`)
+    expect(declaration).toContain(`export declare const viewKey: '${viewKey}'`)
+    expect(declaration).toContain(`export declare const officePath: '${officePath}'`)
   })
 })

@@ -38,6 +38,85 @@ export const reloadedKey = 'opengewerk.entry.reloaded'
 /** The id of the sentence in a shell, which is also the class it is styled by. */
 export const noticeId = 'entry-notice'
 
+/** Under this key a browser keeps the entry somebody chose, as `entryChoiceKey` in `src/shell/entry.ts`. */
+export const choiceKey = 'opengewerk.entry'
+
+/** Under this key a browser keeps the view it was in last: `phone` or `desk`. */
+export const viewKey = 'opengewerk.entry.view'
+
+/** Where the office lives, as `entryPath.office` in `src/shell/entry.ts`. */
+export const officePath = '/'
+
+/** Where the site lives, as `entryPath.site` in `src/shell/entry.ts`. */
+export const sitePath = '/m/'
+
+/**
+ * Takes a page to the entry that suits the view of the browser, before the
+ * entry script of the page loads, so that a phone never loads the bundles of
+ * both entries (ADR 0004, addendum of 17.10.2026).
+ *
+ * The view is what the browser says of itself: a phone in its mobile view
+ * says so (`navigator.userAgentData.mobile`, otherwise "Mobile" or "iPhone"
+ * in its user agent), and one switched to the desktop view does not. That is
+ * the switch a person has in hand on a phone, and the entry follows it:
+ *
+ * - The view changed since the last page of this browser: the entry of the
+ *   new view, the site for the mobile one and the office for the desktop one,
+ *   from wherever the page is. A choice made in the other view no longer
+ *   holds and is forgotten.
+ * - Otherwise only the address of the instance itself, `/`, moves: to the
+ *   site when that was chosen, or when nothing was chosen and the browser is
+ *   in its mobile view. A link into the office stays the office, and a desk
+ *   that opens the site stays there; a choice of the office stays as well.
+ *
+ * @param {Window} window
+ * @param {object} entry
+ * @param {string} entry.choiceKey Under what the browser keeps the choice.
+ * @param {string} entry.viewKey Under what the browser keeps its last view.
+ * @param {string} entry.office The address of the office.
+ * @param {string} entry.site The address of the site.
+ * @returns {boolean} Whether the page leaves for the other entry.
+ */
+export function followEntry(window, entry) {
+  try {
+    const path = window.location.pathname
+    const here = path === '/m' || path.startsWith('/m/') ? 'site' : 'office'
+    const browser = window.navigator
+    const said = browser && browser.userAgentData && browser.userAgentData.mobile
+    const phone =
+      typeof said === 'boolean'
+        ? said
+        : /\bMobile\b|\biPhone\b/.test((browser && browser.userAgent) || '')
+    const view = phone ? 'phone' : 'desk'
+    const storage = window.localStorage
+    const before = storage.getItem(entry.viewKey)
+
+    storage.setItem(entry.viewKey, view)
+
+    let wanted = null
+
+    if (before !== null && before !== view) {
+      storage.removeItem(entry.choiceKey)
+      wanted = phone ? 'site' : 'office'
+    } else if (path === '/') {
+      const chosen = storage.getItem(entry.choiceKey)
+
+      wanted = chosen === 'site' || (chosen === null && phone) ? 'site' : null
+    }
+
+    if (wanted === null || wanted === here) {
+      return false
+    }
+
+    window.location.replace(wanted === 'site' ? entry.site : entry.office)
+
+    return true
+  } catch {
+    // A browser that may keep nothing stays where it is, as before.
+    return false
+  }
+}
+
 /**
  * Watches the entry of a page. Runs in the page as the whole of the file the
  * build writes, handed over as its own text: nothing in it comes from outside
@@ -135,11 +214,18 @@ export function watchEntry(window, shell) {
 }
 
 /**
- * The file the build writes: the watch above with what it is told, read from
- * the element that loads it, where a shell says which script is its entry.
+ * The file the build writes: the entry that suits the view of the browser
+ * first, and where the page stays, the watch above with what it is told,
+ * read from the element that loads it, where a shell says which script is
+ * its entry.
  */
 export function guardScript() {
-  return `(${watchEntry.toString()})(window, {
+  return `(${followEntry.toString()})(window, {
+  choiceKey: ${JSON.stringify(choiceKey)},
+  viewKey: ${JSON.stringify(viewKey)},
+  office: ${JSON.stringify(officePath)},
+  site: ${JSON.stringify(sitePath)},
+}) || (${watchEntry.toString()})(window, {
   entry: document.currentScript && document.currentScript.getAttribute('data-entry'),
   key: ${JSON.stringify(reloadedKey)},
   notice: ${JSON.stringify(noticeId)},
