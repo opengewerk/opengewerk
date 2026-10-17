@@ -21,6 +21,7 @@ import {
   responsibleFor,
   stillOpen,
   type TenantTransaction,
+  stillWorks,
 } from '@opengewerk/platform-server'
 import { and, eq, gte, inArray, isNull, type SQL, sql } from 'drizzle-orm'
 
@@ -356,11 +357,12 @@ export async function taskStillDue(
   }
 
   const [member] = await tx
-    .select({ blockedAt: memberships.blockedAt })
+    .select({ blockedAt: memberships.blockedAt, lastDay: memberships.lastDay })
     .from(memberships)
     .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, task.assignee)))
 
-  if (!member || member.blockedAt !== null) {
+  // Nobody shut out is reminded, and nobody past the last day of their access.
+  if (!member || !stillWorks(member)) {
     return null
   }
 

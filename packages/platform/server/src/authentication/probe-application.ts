@@ -175,6 +175,7 @@ export const probeAccess: AccessRules<ProbeRight> = {
     noTenantChosen: 'Es ist noch kein Mandant gewählt. Bitte zuerst einen Mandanten auswählen.',
     noAccessToTenant: 'Kein Zugang zu diesem Mandanten.',
     blockedInTenant: 'Dieser Zugang ist bei diesem Mandanten gesperrt.',
+    endedInTenant: 'Dieser Zugang bei diesem Mandanten ist abgelaufen.',
     alreadyWorksHere: 'Diese Adresse arbeitet schon bei diesem Mandanten.',
     notAMember: 'Dieses Konto arbeitet nicht bei diesem Mandanten.',
     accountNotOnlyHere:
@@ -302,6 +303,8 @@ export interface ProbeModuleOptions {
   readonly version?: string | null
   /** What this application keeps beside a membership. Left out, nothing. */
   readonly additions?: MembershipAdditions
+  /** The roles given only up to a last day. Left out, none. */
+  readonly endingRoles?: readonly string[]
 }
 
 @Module({})
@@ -313,7 +316,11 @@ export class ProbeModule {
     options: ProbeModuleOptions = {},
   ): DynamicModule {
     const signingIn = authenticationParts({
-      access: options.additions ? { ...probeAccess, additions: options.additions } : probeAccess,
+      access: {
+        ...probeAccess,
+        ...(options.additions ? { additions: options.additions } : {}),
+        ...(options.endingRoles ? { endingRoles: options.endingRoles } : {}),
+      },
       authentication: options.authentication,
       setupCode: options.setupCode,
       invitationMailing: options.invitationMailing,
@@ -375,6 +382,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly mail?: MailContext | null
   /** What this application keeps beside a membership. Left out, nothing. */
   readonly additions?: MembershipAdditions
+  /** The roles given only up to a last day. Left out, none. */
+  readonly endingRoles?: readonly string[]
 }
 
 /** A running instance of the probe application, and what a test asks of it. */
@@ -424,6 +433,7 @@ export async function probeInstance(
     instanceSettings = null,
     mail = null,
     additions,
+    endingRoles,
     trustedOrigins = [probeOrigin],
     ...authenticationOptions
   } = options
@@ -453,6 +463,7 @@ export async function probeInstance(
               instanceSettings,
               mail,
               ...(additions ? { additions } : {}),
+              ...(endingRoles ? { endingRoles } : {}),
             },
       ),
     ],

@@ -386,14 +386,24 @@ describe('the list of deadlines', () => {
 
     // The kind names somebody blocked: passed over, the source is next.
     await named('gero')
-    expect(await answering()).toEqual({
+    const passedOver = {
       'A von der Quelle': 'mia',
       'B eigene Person': 'lena',
       'C niemand': 'lena',
       'D nie hier gewesen': 'lena',
       'E eigene gesperrt': 'mia',
       'F Haus Ost': 'lena',
-    })
+    }
+    expect(await answering()).toEqual(passedOver)
+
+    // Past the last day of the access the same, without a block.
+    await admin.query(
+      `update memberships set blocked_at = null, last_day = current_date - 2 where user_id = 'gero'`,
+    )
+    expect(await answering()).toEqual(passedOver)
+    await admin.query(
+      `update memberships set blocked_at = now(), last_day = null where user_id = 'gero'`,
+    )
 
     // The kind names somebody who works here: before the source, after the
     // person a deadline has of its own, and not for a kind it was not set for.

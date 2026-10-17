@@ -21,6 +21,7 @@ import { isUuid } from '../database/identifier.js'
 import { authSessions, memberships, tenants, tenantSessions } from '../schema.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
 import type { CorrectedAccount } from './administration.js'
+import { beforeItsEnd } from './last-day.js'
 import { changeOwnAccount } from './own-account.js'
 import { rolesHeld } from './roles.js'
 import { sessionLifetimes } from './session-lifetime.js'
@@ -97,7 +98,14 @@ export class AuthenticationController {
           })
           .from(memberships)
           .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
-          .where(and(eq(memberships.userId, user.userId), isNull(memberships.blockedAt))),
+          .where(
+            and(
+              eq(memberships.userId, user.userId),
+              isNull(memberships.blockedAt),
+              // Nor one whose last day has passed.
+              beforeItsEnd(),
+            ),
+          ),
       user.userId,
     )
 
@@ -162,6 +170,7 @@ export class AuthenticationController {
             eq(memberships.tenantId, chosen),
             eq(memberships.userId, user.userId),
             isNull(memberships.blockedAt),
+            beforeItsEnd(),
           ),
         )
         .limit(1)

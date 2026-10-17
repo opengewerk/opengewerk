@@ -526,6 +526,13 @@
       "when": 1792015145018,
       "tag": "0074_deadline_reminder",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1792220618590,
+      "tag": "0075_membership_last_day",
+      "breakpoints": true
     }
   ]
 }

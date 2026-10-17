@@ -43,6 +43,8 @@ export const access: AccessRules<Permission> = {
     noAccessToTenant: 'Kein Zugang zu diesem Betrieb.',
     blockedInTenant:
       'Dieser Zugang ist im Betrieb gesperrt. Der Inhaber kann ihn wieder freigeben.',
+    endedInTenant:
+      'Dieser Zugang zum Betrieb ist abgelaufen. Einen neuen letzten Tag gibt der Inhaber.',
     alreadyWorksHere: 'Diese Adresse arbeitet schon in diesem Betrieb.',
     notAMember: 'Dieses Konto arbeitet nicht in diesem Betrieb.',
     accountNotOnlyHere:

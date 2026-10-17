@@ -1,6 +1,7 @@
 import type { DeadlineKind, DeadlineSetting, TenantId } from '@opengewerk/platform-domain'
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 
+import { beforeItsEnd } from '../authentication/last-day.js'
 import { leadsItsTenant } from '../authentication/roles.js'
 import type { TenantTransaction } from '../database/database.js'
 import { memberships } from '../database/schema/memberships.js'
@@ -42,6 +43,8 @@ async function whoWorksHere(
         eq(memberships.tenantId, tenantId),
         inArray(memberships.userId, [...userIds]),
         isNull(memberships.blockedAt),
+        // Nor past the last day of their access.
+        beforeItsEnd(),
       ),
     )
 
@@ -60,7 +63,14 @@ export async function firstLead(tx: TenantTransaction, tenantId: TenantId): Prom
   const [lead] = await tx
     .select({ userId: memberships.userId })
     .from(memberships)
-    .where(and(eq(memberships.tenantId, tenantId), isNull(memberships.blockedAt), leadsItsTenant()))
+    .where(
+      and(
+        eq(memberships.tenantId, tenantId),
+        isNull(memberships.blockedAt),
+        beforeItsEnd(),
+        leadsItsTenant(),
+      ),
+    )
     .orderBy(asc(memberships.createdAt), asc(memberships.userId))
     .limit(1)
 

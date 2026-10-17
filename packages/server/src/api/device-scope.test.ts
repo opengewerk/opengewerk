@@ -26,6 +26,8 @@ const people = {
   max: { name: 'Max Monteur', roles: ['technician'] },
   toni: { name: 'Toni Techniker', roles: ['technician'] },
   gesperrt: { name: 'Gerd Gesperrt', roles: ['technician'] },
+  // Past the last day of the access, without a block (opengewerk-haustechnik#339).
+  beendet: { name: 'Bea Beendet', roles: ['technician'] },
 } as const
 
 type Person = keyof typeof people
@@ -118,7 +120,8 @@ beforeAll(async () => {
       `${userId}@example.de`,
     ])
     await admin.query(
-      'insert into memberships (tenant_id, user_id, roles, blocked_at) values ($1, $2, $3, $4)',
+      `insert into memberships (tenant_id, user_id, roles, blocked_at, last_day)
+       values ($1, $2, $3, $4, case when $2 = 'beendet' then current_date - 2 end)`,
       [north.id, userId, [...person.roles], userId === 'gesperrt' ? new Date() : null],
     )
   }
@@ -307,6 +310,7 @@ describe('who is on a job', () => {
 
     expect((await assign(job, ['niemand'], 422)).message).toContain('arbeitet')
     expect((await assign(job, ['gesperrt'], 422)).message).toContain('gesperrt')
+    expect((await assign(job, ['beendet'], 422)).message).toContain('gesperrt')
   })
 
   it('is decided in the office, not on site', async () => {

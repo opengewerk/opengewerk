@@ -402,6 +402,8 @@ export interface StaffEntry {
   readonly twoFactorEnabled: boolean
   /** Whether the account has a passkey, a second factor as well (#167). */
   readonly hasPasskey: boolean
+  /** The last day they work here, none for an access without an end (for opengewerk-haustechnik#339). */
+  readonly lastDay?: string | null
 }
 
 /** Where the message with an invitation stands, for one sent by mail. */
@@ -460,6 +462,8 @@ export async function invite(wanted: {
   readonly roles: readonly string[]
   readonly send: 'link' | 'mail'
   readonly additions?: unknown
+  /** The last day of the access, left out for one without an end. */
+  readonly lastDay?: string
 }): Promise<{ link: string | null; expiresAt: string }> {
   const answer = await request<{ token: string | null; expiresAt: string }>('/staff', {
     method: 'POST',
@@ -482,16 +486,17 @@ export async function withdrawInvitation(invitationId: string): Promise<void> {
 /**
  * Gives somebody these roles, and with them what the application keeps
  * beside a membership where a screen names it (`additions`): both are written
- * or neither.
+ * or neither. A last day goes with them where it changed, null for none.
  */
 export async function setRoles(
   userId: string,
   roles: readonly string[],
   additions?: unknown,
+  lastDay?: string | null,
 ): Promise<void> {
   await request(`/staff/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ roles, additions }),
+    body: JSON.stringify({ roles, additions, ...(lastDay === undefined ? {} : { lastDay }) }),
   })
 }
 

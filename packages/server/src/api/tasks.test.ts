@@ -37,6 +37,8 @@ const people = {
   britta: { name: 'Britta Büro', tenant: north.id, roles: ['office'] },
   max: { name: 'Max Monteur', tenant: north.id, roles: ['technician'] },
   gesperrt: { name: 'Gerd Gesperrt', tenant: north.id, roles: ['technician'] },
+  // Past the last day of the access, without a block (opengewerk-haustechnik#339).
+  beendet: { name: 'Bea Beendet', tenant: north.id, roles: ['technician'] },
   sued: { name: 'Susi Süd', tenant: south.id, roles: ['owner'] },
 } as const
 
@@ -136,7 +138,8 @@ beforeAll(async () => {
       `${userId}@example.de`,
     ])
     await admin.query(
-      'insert into memberships (tenant_id, user_id, roles, blocked_at) values ($1, $2, $3, $4)',
+      `insert into memberships (tenant_id, user_id, roles, blocked_at, last_day)
+       values ($1, $2, $3, $4, case when $2 = 'beendet' then current_date - 2 end)`,
       [person.tenant, userId, [...person.roles], userId === 'gesperrt' ? new Date() : null],
     )
   }
@@ -252,6 +255,14 @@ describe('the person a task goes to', () => {
   it('is not somebody shut out of the business', async () => {
     const { receipts } = await push([
       creating(newId<'task'>(), aTask({ assigneeUserId: 'gesperrt' })),
+    ])
+
+    expect(receipts.map((receipt) => receipt.reason)).toEqual(['record_missing'])
+  })
+
+  it('is not somebody past the last day of the access', async () => {
+    const { receipts } = await push([
+      creating(newId<'task'>(), aTask({ assigneeUserId: 'beendet' })),
     ])
 
     expect(receipts.map((receipt) => receipt.reason)).toEqual(['record_missing'])
@@ -399,6 +410,7 @@ describe('the names of the people', () => {
       .expect(200)
 
     expect(answer.body).toEqual([
+      { userId: 'beendet', name: 'Bea Beendet', active: false },
       { userId: 'britta', name: 'Britta Büro', active: true },
       { userId: 'chefin', name: 'Christa Chefin', active: true },
       { userId: 'gesperrt', name: 'Gerd Gesperrt', active: false },

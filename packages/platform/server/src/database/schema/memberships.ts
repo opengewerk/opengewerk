@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import {
+  check,
+  date,
+  foreignKey,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core'
 
 import { authUsers, signInMethod } from './authentication.js'
 import { primaryId, timestamps } from './columns.js'
@@ -53,6 +62,14 @@ export const memberships = pgTable(
      * as nobody has blocked and unblocked twice.
      */
     blockedAt: timestamp('blocked_at', { withTimezone: true }),
+    /**
+     * The last day this person works in this tenant, the day in Germany and
+     * itself included; null for a membership without an end (for
+     * opengewerk-haustechnik#339 and #356). After it the membership counts as
+     * blocked, without anybody doing anything: the identity is refused and
+     * the tenant is no longer offered (`beforeItsEnd`).
+     */
+    lastDay: date('last_day', { mode: 'string' }),
     ...timestamps,
   },
   (table) => [
@@ -251,6 +268,8 @@ export const invitations = pgTable(
      * for the same reason a blocked person keeps their membership.
      */
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /** The last day of the membership the invitation becomes, null for one without an end. */
+    lastDay: date('last_day', { mode: 'string' }),
     ...timestamps,
   },
   (table) => [

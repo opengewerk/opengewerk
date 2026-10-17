@@ -7,6 +7,7 @@ import type { Database } from '../database/database.js'
 import { memberships } from '../schema.js'
 import type { AccessRules } from './access.js'
 import type { Authentication } from './authentication.js'
+import { hasEnded } from './last-day.js'
 import { rolesHeld } from './roles.js'
 import { renewSession } from './session-lifetime.js'
 
@@ -91,7 +92,11 @@ export class SessionIdentitySource<Right extends string = string> implements Ide
 
     const membership = await this.database.forTenant({ tenantId }, async (tx) => {
       const [row] = await tx
-        .select({ roles: memberships.roles, blockedAt: memberships.blockedAt })
+        .select({
+          roles: memberships.roles,
+          blockedAt: memberships.blockedAt,
+          lastDay: memberships.lastDay,
+        })
         .from(memberships)
         .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, found.user.id)))
         .limit(1)
@@ -117,6 +122,12 @@ export class SessionIdentitySource<Right extends string = string> implements Ide
       // Read fresh on every request like the roles next to it, for the same
       // reason.
       throw new ForbiddenException(this.access.sentences.blockedInTenant)
+    }
+
+    if (hasEnded(membership.lastDay)) {
+      // Past its last day the membership counts as blocked, and nobody had
+      // to do anything for it: read on every request like the block above.
+      throw new ForbiddenException(this.access.sentences.endedInTenant)
     }
 
     // What the roles add up to, read through the catalogue of the

@@ -1,5 +1,6 @@
 import {
   asksSecondFactor,
+  berlinClock,
   type RoleDefinition,
   roleNamesOf,
   staffStateOf,
@@ -88,10 +89,12 @@ export function StateOf({
   readonly person: StaffEntry
   readonly roles: readonly RoleDefinition[]
 }) {
-  const words = staffStateWords(person, roles, moment)
+  const today = berlinClock(new Date()).day
+  const words = staffStateWords(person, roles, moment, today)
 
-  return staffStateOf(person, roles) === 'blocked' ||
-    staffStateOf(person, roles) === 'factorMissing' ? (
+  const state = staffStateOf(person, roles, today)
+
+  return state === 'blocked' || state === 'ended' || state === 'factorMissing' ? (
     <b className="font-semibold text-conflict">{words}</b>
   ) : (
     <>{words}</>

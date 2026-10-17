@@ -36,6 +36,13 @@ export interface Membership {
    * pointing at an identifier nobody can resolve.
    */
   readonly blockedAt: Date | null
+  /**
+   * The last day this person works here, the day in Germany and itself
+   * included; null for a membership without an end. After it the membership
+   * counts as blocked without anybody doing anything (the foundation's
+   * `last-day.ts`).
+   */
+  readonly lastDay: string | null
   readonly createdAt: Date
   readonly updatedAt: Date
 }

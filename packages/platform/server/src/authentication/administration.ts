@@ -24,6 +24,7 @@ import {
 import type { AccessRules } from './access.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
+import { refuseWithoutLastDay, stillWorks } from './last-day.js'
 import { leadsItsTenant, rolesOfTenant } from './roles.js'
 
 /**
@@ -59,6 +60,8 @@ export interface StaffEntry {
   readonly email: string
   readonly roles: readonly string[]
   readonly blockedAt: Date | null
+  /** The last day they work here, none for a membership without an end (`last-day.ts`). */
+  readonly lastDay: string | null
   /**
    * When this tenant last saw them start work. From `tenant_sessions` and
    * not from the account: a sign in that happened at the tenant next door is
@@ -94,6 +97,8 @@ export interface InvitationEntry {
   readonly name: string
   readonly roles: readonly string[]
   readonly expiresAt: Date
+  /** The last day of the membership it becomes, none for one without an end. */
+  readonly lastDay: string | null
   readonly invitedBy: string
   /** The message it went out with, for one sent by mail. */
   readonly mail: InvitationMail | null
@@ -136,7 +141,11 @@ export async function listColleagues(
 ): Promise<Colleague[]> {
   const rows = await database.forTenant(identity, (tx) =>
     tx
-      .select({ userId: memberships.userId, blockedAt: memberships.blockedAt })
+      .select({
+        userId: memberships.userId,
+        blockedAt: memberships.blockedAt,
+        lastDay: memberships.lastDay,
+      })
       .from(memberships)
       .where(eq(memberships.tenantId, identity.tenantId)),
   )
@@ -151,7 +160,8 @@ export async function listColleagues(
     .map((row) => ({
       userId: row.userId,
       name: accounts.get(row.userId)?.name ?? 'Unbekanntes Konto',
-      active: row.blockedAt === null,
+      // Past the last day as well as shut out (`last-day.ts`).
+      active: stillWorks(row),
     }))
     .sort((left, right) => left.name.localeCompare(right.name, 'de'))
 }
@@ -184,6 +194,7 @@ export async function listStaff(
         userId: memberships.userId,
         roles: memberships.roles,
         blockedAt: memberships.blockedAt,
+        lastDay: memberships.lastDay,
       })
       .from(memberships)
       .where(eq(memberships.tenantId, identity.tenantId))
@@ -217,6 +228,7 @@ export async function listStaff(
         email: account?.email ?? '',
         roles: row.roles,
         blockedAt: row.blockedAt,
+        lastDay: row.lastDay,
         lastSignInAt: lastSeen.get(row.userId) ?? null,
         twoFactorEnabled: account?.twoFactorEnabled === true,
         hasPasskey: account?.hasPasskey === true,
@@ -242,6 +254,7 @@ export async function listInvitations(
         name: invitations.name,
         roles: invitations.roles,
         expiresAt: invitations.expiresAt,
+        lastDay: invitations.lastDay,
         invitedBy: invitations.invitedBy,
       })
       .from(invitations)
@@ -282,7 +295,7 @@ export async function listInvitations(
  * invitation is left behind that would let somebody in without it.
  */
 export async function inviteStaff(
-  access: Pick<AccessRules, 'sentences' | 'additions'>,
+  access: Pick<AccessRules, 'sentences' | 'additions' | 'endingRoles'>,
   database: Database,
   identity: TenantIdentity,
   wanted: {
@@ -291,14 +304,19 @@ export async function inviteStaff(
     readonly roles: readonly string[]
     /** What the body named beside these, for the application to read. */
     readonly additions?: unknown
+    /** The last day of the membership it becomes, none for one without an end. */
+    readonly lastDay?: string | null
   },
   options: { readonly byMail?: boolean } = {},
 ): Promise<IssuedInvitation> {
   const email = normalise(wanted.email)
   const name = wanted.name.trim()
+  const lastDay = wanted.lastDay ?? null
   const roles = await database.forTenant(identity, async (tx) =>
     checkedRoles(await rolesOfTenant(tx, identity.tenantId), wanted.roles),
   )
+
+  refuseWithoutLastDay(access, roles, lastDay)
 
   if (!email.includes('@')) {
     throw new BadRequestException('Die E-Mail-Adresse sieht nicht wie eine aus.')
@@ -335,6 +353,7 @@ export async function inviteStaff(
       tokenHash: hash,
       invitedBy: identity.userId,
       expiresAt,
+      lastDay,
     })
 
     await access.additions?.invited(
@@ -384,26 +403,37 @@ export async function revokeInvitation(
  * with nothing: a role can change what it means even then.
  */
 export async function changeRoles(
-  access: Pick<AccessRules, 'sentences' | 'additions'>,
+  access: Pick<AccessRules, 'sentences' | 'additions' | 'endingRoles'>,
   database: Database,
   identity: TenantIdentity,
   userId: string,
   wanted: readonly string[],
   additions?: unknown,
+  /** The new last day, null for none, undefined to leave it as it is. */
+  lastDay?: string | null,
 ): Promise<readonly string[]> {
   return database.forTenant(identity, async (tx) => {
     const known = await rolesOfTenant(tx, identity.tenantId)
     const roles = checkedRoles(known, wanted)
     const leading = leadingKeys(known)
     const current = await membershipOf(access, tx, identity.tenantId, userId)
+    const ends = lastDay === undefined ? current.lastDay : lastDay
+
+    refuseWithoutLastDay(access, roles, ends)
 
     if (leadsWith(current.roles, leading) && !leadsWith(roles, leading)) {
       await refuseIfLastLead(access, tx, identity.tenantId, userId)
     }
 
+    // The last one who leads the tenant gets no last day: after it, nobody
+    // would be left to give out the roles.
+    if (leadsWith(roles, leading) && ends !== null && ends !== current.lastDay) {
+      await refuseIfLastLead(access, tx, identity.tenantId, userId)
+    }
+
     await tx
       .update(memberships)
-      .set({ roles, updatedAt: new Date() })
+      .set({ roles, lastDay: ends, updatedAt: new Date() })
       .where(and(eq(memberships.tenantId, identity.tenantId), eq(memberships.userId, userId)))
 
     await access.additions?.changed(tx, { tenantId: identity.tenantId, userId, roles }, additions)
@@ -799,9 +829,13 @@ async function membershipOf(
   tx: TenantTransaction,
   tenantId: TenantId,
   userId: string,
-): Promise<{ roles: readonly string[]; blockedAt: Date | null }> {
+): Promise<{ roles: readonly string[]; blockedAt: Date | null; lastDay: string | null }> {
   const [row] = await tx
-    .select({ roles: memberships.roles, blockedAt: memberships.blockedAt })
+    .select({
+      roles: memberships.roles,
+      blockedAt: memberships.blockedAt,
+      lastDay: memberships.lastDay,
+    })
     .from(memberships)
     .where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, userId)))
     .limit(1)
@@ -813,7 +847,7 @@ async function membershipOf(
     throw new NotFoundException(access.sentences.notAMember)
   }
 
-  return { roles: row.roles, blockedAt: row.blockedAt }
+  return { roles: row.roles, blockedAt: row.blockedAt, lastDay: row.lastDay }
 }
 
 /**
@@ -867,6 +901,8 @@ async function refuseIfLastLead(
         eq(memberships.tenantId, tenantId),
         ne(memberships.userId, userId),
         isNull(memberships.blockedAt),
+        // Nor whoever leads it only up to a last day.
+        isNull(memberships.lastDay),
         leadsItsTenant(),
       ),
     )
