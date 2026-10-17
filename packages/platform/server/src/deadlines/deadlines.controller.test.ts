@@ -106,8 +106,9 @@ let followed: string[]
 const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
   table: probeDeadlines,
   registry,
-  describe: async (_tx, rows) => {
-    followed.push(`describe ${String(rows.length)}`)
+  describe: async (_tx, rows, identity) => {
+    // With who asks, so that an application names what another right hides only to its holder.
+    followed.push(`describe ${String(rows.length)} for ${identity.userId}`)
 
     return (row) => ({ parcelNumber: row.parcelNumber })
   },
@@ -331,7 +332,7 @@ describe('the list of deadlines', () => {
       responsible: { userId: 'mia', name: 'Mia Probe' },
       parcelNumber: 'P-1',
     })
-    expect(followed).toEqual(['describe 2'])
+    expect(followed).toEqual(['describe 2 for mia'])
     expect(await list('mia', 'all')).toHaveLength(3)
     expect(await list('mia', 'done')).toHaveLength(1)
   })
