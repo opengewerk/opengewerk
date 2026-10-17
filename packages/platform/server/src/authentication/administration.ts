@@ -25,7 +25,7 @@ import type { AccessRules } from './access.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
 import { refuseWithoutLastDay, stillWorks } from './last-day.js'
-import { leadsItsTenant, rolesOfTenant } from './roles.js'
+import { holdRoles, leadsItsTenant, rolesOfTenant } from './roles.js'
 
 /**
  * Who works in one tenant, and everything whoever leads it can do about it.
@@ -339,6 +339,9 @@ export async function inviteStaff(
   const id = newId<'invitation'>()
 
   await database.forTenant(identity, async (tx) => {
+    // The roles it names stay until the invitation stands (`holdRoles`).
+    refuseGone(await holdRoles(tx, identity.tenantId, roles))
+
     await tx
       .update(invitations)
       .set({ revokedAt: new Date(), updatedAt: new Date() })
@@ -415,6 +418,10 @@ export async function changeRoles(
   return database.forTenant(identity, async (tx) => {
     const known = await rolesOfTenant(tx, identity.tenantId)
     const roles = checkedRoles(known, wanted)
+
+    // The roles it names stay until the membership names them (`holdRoles`).
+    refuseGone(await holdRoles(tx, identity.tenantId, roles))
+
     const leading = leadingKeys(known)
     const current = await membershipOf(access, tx, identity.tenantId, userId)
     const ends = lastDay === undefined ? current.lastDay : lastDay
@@ -941,6 +948,15 @@ function checkedRoles(
   // A duplicate would land in the column as written and make two identical
   // memberships look different in the log.
   return [...new Set(wanted)]
+}
+
+/** A role removed while it was being given: refused as one the tenant does not have. */
+function refuseGone(gone: readonly string[]): void {
+  if (gone.length > 0) {
+    throw new BadRequestException(
+      `Unbekannte Rollen: ${gone.join(', ')}. Sie wurden gerade entfernt.`,
+    )
+  }
 }
 
 /** One spelling of an address, so that two spellings are not two people. */

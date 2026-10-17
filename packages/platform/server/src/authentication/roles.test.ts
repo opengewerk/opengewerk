@@ -394,6 +394,63 @@ describe('the roles a tenant starts with', () => {
     ).toEqual([{ key: 'porter' }])
     await admin.query(`delete from invitations where token_hash = 'hash-of-the-porter'`)
   })
+
+  /**
+   * Nothing in the database points from a membership to a role. A role
+   * removed in the moment it is given would leave a key without a row, so
+   * whoever gives roles holds them until the membership is written: a
+   * removal that came first is waited for, and the assignment is refused.
+   */
+  it('give no role that goes in the same moment, and let none go that is being given', async () => {
+    const inNorth = { tenantId: north.id, reason: 'membership.write' }
+    const runner = and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, 'runner'))
+
+    await ownRole(north.id, { key: 'runner', label: 'Bote', rights: ['members.read'] })
+
+    const asLea = await visitors.workIn(lea.email, north.id)
+    let removed: () => void = () => undefined
+    let commit: () => void = () => undefined
+    const removedYet = new Promise<void>((resolve) => {
+      removed = resolve
+    })
+    const committing = new Promise<void>((resolve) => {
+      commit = resolve
+    })
+    // The removal, held open: its row is gone for it and still there for everybody else.
+    const removing = instance.database.forTenant(inNorth, async (tx) => {
+      await tx.delete(tenantRoles).where(runner)
+      removed()
+      await committing
+    })
+
+    await removedYet
+
+    const giving = http()
+      .patch(`/staff/${idOf(gus)}`)
+      .set('cookie', asLea)
+      .set('origin', origin)
+      .send({ roles: ['guest', 'runner'] })
+      .then((answer) => answer)
+
+    // Long enough for the assignment to reach the row and wait for it.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    commit()
+    await removing
+
+    const answer = await giving
+
+    expect({ status: answer.status, message: answer.body.message }).toEqual({
+      status: 400,
+      message: 'Unbekannte Rollen: runner. Sie wurden gerade entfernt.',
+    })
+
+    const { rows } = await admin.query<{ roles: string[] }>(
+      'select roles from memberships where tenant_id = $1 and user_id = $2',
+      [north.id, idOf(gus)],
+    )
+
+    expect(rows).toEqual([{ roles: ['guest'] }])
+  })
 })
 
 describe('what somebody may do', () => {

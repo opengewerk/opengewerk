@@ -16,7 +16,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   einem weggelassenen zu unterscheiden ist. Welche Zeilen ein Mandant ändert und welche Rechte eine eigene Rolle
   bekommt, entscheidet die Anwendung an ihren Routen; dahinter hält ein Auslöser (`tenant_role_stays_whole` im
   Baustein `setup.sql`) eine führende Rolle mit jedem Recht und dem zweiten Faktor und lässt keine Rolle gehen, die
-  ein Zugang oder eine offene Einladung nennt (`OG004`, `OG005`). Die Handwerkersoftware bietet noch keine eigenen
+  ein Zugang oder eine offene Einladung nennt (`OG004`, `OG005`). Wer Rollen vergibt, hält ihre Zeilen bis zum
+  Schreiben (`holdRoles`): eine Rolle, die im selben Augenblick entfernt wird, wird nicht vergeben, sondern mit
+  „Unbekannte Rollen“ abgelehnt. Die Handwerkersoftware bietet noch keine eigenen
   Rollen an und zieht Spalte, Rechte und Auslöser mit `0076_tenant_roles_of_their_own` nach. Warum: der Pilotbetrieb der Haustechnik braucht
   Zuschnitte, die die festen Rollen nicht hergeben.
 - Ein Zugang mit letztem Tag (für opengewerk-haustechnik#339 und #356): `memberships.last_day` und
