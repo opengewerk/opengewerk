@@ -99,14 +99,18 @@ export async function grantMembership(
     readonly tenantId: TenantId
     readonly userId: string
     readonly roles: readonly string[]
+    /** The last day the invitation named, none for a membership without an end. */
+    readonly lastDay?: string | null
   },
 ): Promise<void> {
+  const lastDay = grant.lastDay ?? null
+
   await tx
     .insert(memberships)
-    .values({ tenantId: grant.tenantId, userId: grant.userId, roles: grant.roles })
+    .values({ tenantId: grant.tenantId, userId: grant.userId, roles: grant.roles, lastDay })
     .onConflictDoUpdate({
       target: [memberships.tenantId, memberships.userId],
-      set: { roles: grant.roles, blockedAt: null, updatedAt: new Date() },
+      set: { roles: grant.roles, blockedAt: null, lastDay, updatedAt: new Date() },
     })
 }
 

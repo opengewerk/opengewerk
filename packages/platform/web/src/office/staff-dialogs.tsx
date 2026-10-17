@@ -114,6 +114,11 @@ export interface StaffDialogsScreenProps<Value> {
   }
   /** What the application keeps beside a membership, where it keeps something. */
   readonly additions?: StaffAdditions<Value>
+  /**
+   * The roles given only up to a last day (`endingRoles` on the server): the
+   * dialogs ask for the last day with a star. Every other access may have one.
+   */
+  readonly endingRoles?: readonly string[]
   /** Cards of the application, between the accounts and the invitations. */
   readonly children?: ReactNode
 }
@@ -146,6 +151,7 @@ export function StaffDialogsScreen<Value = undefined>({
   roleNotes,
   sentences: own,
   additions,
+  endingRoles = [],
   children,
 }: StaffDialogsScreenProps<Value>) {
   const sentences = useStaffSentences()
@@ -478,6 +484,7 @@ export function StaffDialogsScreen<Value = undefined>({
           suggestedRole={suggestedRole}
           roleNotes={roleNotes}
           additions={additions}
+          endingRoles={endingRoles}
           onDone={(made) => {
             setCreating(false)
             setLink(made.link)
@@ -498,6 +505,7 @@ export function StaffDialogsScreen<Value = undefined>({
           roleNotes={roleNotes}
           correction={own.correction}
           additions={additions}
+          endingRoles={endingRoles}
           onSaved={refresh}
           onClose={() => {
             setEditing(null)
@@ -647,6 +655,48 @@ function RoleCards({
   )
 }
 
+/** What the dialogs say of the last day of an access (for opengewerk-haustechnik#339). */
+export const lastDayWords = {
+  label: 'Letzter Tag',
+  needed: 'Danach endet der Zugang von selbst, ohne dass jemand etwas tut.',
+  optional: 'Leer, wenn der Zugang kein Ende hat. Sonst endet er danach von selbst.',
+  missing: 'Für diese Rolle fehlt der letzte Tag.',
+} as const
+
+/**
+ * The last day of an access: with a star for a role the application gives
+ * only up to one, and left empty for an access without an end. After it the
+ * access ends by itself; the server refuses a day that has passed.
+ */
+function LastDayField({
+  value,
+  needed,
+  problem,
+  onChange,
+}: {
+  readonly value: string
+  readonly needed: boolean
+  readonly problem: string | null
+  readonly onChange: (next: string) => void
+}) {
+  return (
+    <div className="w-[300px] max-sm:w-full">
+      <Field
+        label={lastDayWords.label}
+        type="date"
+        name="lastDay"
+        starred={needed}
+        value={value}
+        hint={needed ? lastDayWords.needed : lastDayWords.optional}
+        {...(problem === null ? {} : { problem })}
+        onChange={(event) => {
+          onChange(event.target.value)
+        }}
+      />
+    </div>
+  )
+}
+
 function Trouble({ children }: { readonly children: string | null }) {
   return children ? (
     <p role="alert" className="text-[13px] font-semibold text-conflict">
@@ -662,6 +712,7 @@ function NewAccess<Value>({
   suggestedRole,
   roleNotes,
   additions,
+  endingRoles,
   onDone,
   onClose,
 }: {
@@ -671,6 +722,7 @@ function NewAccess<Value>({
   readonly suggestedRole: string
   readonly roleNotes: Readonly<Record<string, string>>
   readonly additions: StaffAdditions<Value> | undefined
+  readonly endingRoles: readonly string[]
   readonly onDone: (made: { link: string | null; email: string }) => void
   readonly onClose: () => void
 }) {
@@ -682,6 +734,9 @@ function NewAccess<Value>({
     roles.some((known) => known.key === suggestedRole) ? suggestedRole : null,
   )
   const beside = useAdditions(additions, null)
+  const [lastDay, setLastDay] = useState('')
+  const [lastDayProblem, setLastDayProblem] = useState<string | null>(null)
+  const needsLastDay = role !== null && endingRoles.includes(role)
   const [trouble, setTrouble] = useState<string | null>(null)
   // Which way is being worked on, for the button that says so.
   const [working, setWorking] = useState<'link' | 'mail' | null>(null)
@@ -695,10 +750,17 @@ function NewAccess<Value>({
       return
     }
 
+    if (needsLastDay && lastDay === '') {
+      setLastDayProblem(lastDayWords.missing)
+
+      return
+    }
+
     const send = way.current
 
     setWorking(send)
     setTrouble(null)
+    setLastDayProblem(null)
 
     try {
       const { link } = await invite({
@@ -707,6 +769,7 @@ function NewAccess<Value>({
         roles: [role],
         send,
         additions: beside.toSend(role),
+        ...(lastDay === '' ? {} : { lastDay }),
       })
 
       onDone({ link, email: email.trim() })
@@ -755,6 +818,12 @@ function NewAccess<Value>({
 
         <RoleCards roles={roles} notes={roleNotes} value={role} onChange={setRole} />
         <SecondFactorWarning needed={role !== null && asksSecondFactor([role], roles)} />
+        <LastDayField
+          value={lastDay}
+          needed={needsLastDay}
+          problem={lastDayProblem}
+          onChange={setLastDay}
+        />
         {beside.fields(role)}
 
         <SettingsText muted small>
@@ -810,6 +879,7 @@ function EditAccess<Value>({
   roleNotes,
   correction,
   additions,
+  endingRoles,
   onSaved,
   onClose,
 }: {
@@ -819,6 +889,7 @@ function EditAccess<Value>({
   readonly roleNotes: Readonly<Record<string, string>>
   readonly correction: string
   readonly additions: StaffAdditions<Value> | undefined
+  readonly endingRoles: readonly string[]
   /** After each request that went through, so that the lists behind the dialog follow. */
   readonly onSaved: () => void
   readonly onClose: () => void
@@ -836,20 +907,31 @@ function EditAccess<Value>({
   const shownRole = picked ?? (held.length === 1 ? (held[0] ?? null) : null)
   const role = picked ?? held[0] ?? null
   const beside = useAdditions(additions, person)
+  const [lastDay, setLastDay] = useState(person.lastDay ?? '')
+  const [lastDayProblem, setLastDayProblem] = useState<string | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
 
   const nameChanged = name.trim() !== person.name
   const emailChanged = email.trim() !== person.email
   const roleChanged = picked !== null && !(held.length === 1 && held[0] === picked)
+  const lastDayChanged = (lastDay === '' ? null : lastDay) !== (person.lastDay ?? null)
+  const needsLastDay = (picked === null ? held : [picked]).some((key) => endingRoles.includes(key))
 
   async function save() {
     if (role === null) {
       return
     }
 
+    if (needsLastDay && lastDay === '') {
+      setLastDayProblem(lastDayWords.missing)
+
+      return
+    }
+
     setWorking(true)
     setTrouble(null)
+    setLastDayProblem(null)
 
     try {
       if (nameChanged || emailChanged) {
@@ -860,8 +942,13 @@ function EditAccess<Value>({
         onSaved()
       }
 
-      if (roleChanged || beside.touched) {
-        await setRoles(person.userId, picked === null ? held : [picked], beside.toSend(role))
+      if (roleChanged || beside.touched || lastDayChanged) {
+        await setRoles(
+          person.userId,
+          picked === null ? held : [picked],
+          beside.toSend(role),
+          lastDayChanged ? (lastDay === '' ? null : lastDay) : undefined,
+        )
         onSaved()
       }
 
@@ -916,6 +1003,12 @@ function EditAccess<Value>({
             asksSecondFactor(picked === null ? held : [picked], roles) &&
             !(person.twoFactorEnabled || person.hasPasskey)
           }
+        />
+        <LastDayField
+          value={lastDay}
+          needed={needsLastDay}
+          problem={lastDayProblem}
+          onChange={setLastDay}
         />
         {beside.fields(role)}
 

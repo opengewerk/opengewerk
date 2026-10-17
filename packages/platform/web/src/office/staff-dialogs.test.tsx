@@ -10,7 +10,7 @@ import { aTenant, signedIn, standInServer } from '../in-frame.js'
 import type { StandIn } from '../in-frame.js'
 import { InRouter } from '../in-router.js'
 import { InProbe } from '../probe-application.js'
-import { StaffDialogsScreen } from './staff-dialogs.js'
+import { lastDayWords, StaffDialogsScreen } from './staff-dialogs.js'
 import type { StaffAdditions } from './staff-dialogs.js'
 
 /**
@@ -133,11 +133,13 @@ function staffScreen({
   byMail = false,
   suggestedRole = 'member',
   additions = shelves(),
+  endingRoles,
   children,
 }: {
   byMail?: boolean
   suggestedRole?: string
   additions?: StaffAdditions<string> | null
+  endingRoles?: readonly string[]
   children?: ReactNode
 } = {}) {
   render(
@@ -155,6 +157,7 @@ function staffScreen({
               correction: 'Was hier berichtigt wird, steht im Protokoll des Mandanten.',
             }}
             {...(additions ? { additions } : {})}
+            {...(endingRoles ? { endingRoles } : {})}
           >
             {children}
           </StaffDialogsScreen>
@@ -667,6 +670,71 @@ describe('a new access', () => {
       'Diese Person arbeitet schon im Mandanten.',
     )
     expect((within(dialog).getByLabelText(/^Name/) as HTMLInputElement).value).toBe('Max Mitglied')
+  })
+})
+
+describe('the last day of an access (for opengewerk-haustechnik#339)', () => {
+  it('is asked for with a star where a role goes only with one, and goes out with the new access', async () => {
+    server.answer('POST', '/staff', {
+      token: 'c'.repeat(43),
+      expiresAt: '2026-10-09T08:00:00.000Z',
+    })
+
+    staffScreen({ endingRoles: ['guest'] })
+
+    const person = userEvent.setup()
+    const dialog = await newAccess(person)
+
+    await person.type(within(dialog).getByLabelText(/^Name/), 'Gerd Gast')
+    await person.type(within(dialog).getByLabelText(/^E-Mail/), 'gast@nord.example.de')
+    expect(within(dialog).getByText(lastDayWords.optional)).toBeTruthy()
+    await person.click(within(dialog).getByRole('radio', { name: 'Gast' }))
+    expect(within(dialog).getByText(lastDayWords.needed)).toBeTruthy()
+    await person.click(within(dialog).getByRole('button', { name: 'Link erzeugen' }))
+
+    expect(within(dialog).getByText(lastDayWords.missing)).toBeTruthy()
+    expect(written()).toEqual([])
+
+    await person.type(within(dialog).getByLabelText(/^Letzter Tag/), '2026-11-30')
+    await person.click(within(dialog).getByRole('button', { name: 'Link erzeugen' }))
+    await untilClosed()
+
+    expect(sent('POST', '/staff')).toEqual([
+      {
+        name: 'Gerd Gast',
+        email: 'gast@nord.example.de',
+        roles: ['guest'],
+        send: 'link',
+        additions: { shelf: 'A1', for: 'guest' },
+        lastDay: '2026-11-30',
+      },
+    ])
+  })
+
+  it('is changed and taken away with the role, and the list says until when', async () => {
+    server.answer('GET', '/staff', [lea, { ...max, lastDay: '2999-11-30' }])
+    server.answer('PATCH', '/staff/u-2', {})
+
+    staffScreen()
+
+    const person = userEvent.setup()
+
+    expect((await screen.findByText(/^Aktiv bis 30\.11\.2999/)).textContent).toBe(
+      'Aktiv bis 30.11.2999',
+    )
+
+    const dialog = await accessOfMax(person)
+
+    expect((within(dialog).getByLabelText(/^Letzter Tag/) as HTMLInputElement).value).toBe(
+      '2999-11-30',
+    )
+    await person.clear(within(dialog).getByLabelText(/^Letzter Tag/))
+    await save(person, dialog)
+    await untilClosed()
+
+    expect(sent('PATCH', '/staff/u-2')).toEqual([
+      { roles: ['member'], additions: { shelf: 'A3', for: 'member' }, lastDay: null },
+    ])
   })
 })
 

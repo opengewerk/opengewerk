@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Zugang mit letztem Tag (für opengewerk-haustechnik#339 und #356): `memberships.last_day` und
+  `invitations.last_day`, gesetzt mit der Einladung oder dem Wechsel der Rolle (`lastDay` an `POST /staff` und
+  `PATCH /staff/:userId`) und beim Einlösen übernommen. Nach dem letzten Tag, dem Tag in Deutschland, gilt der
+  Zugang wie gesperrt, ohne dass jemand etwas tut: die Identität wird abgelehnt (`endedInTenant`), die Auswahl nach
+  der Anmeldung bietet den Mandanten nicht mehr an. `AccessRules.endingRoles` nennt die Rollen, die es nur mit
+  letztem Tag gibt; die letzte Person, die einen Mandanten führt, bekommt keinen. „Zugänge“ mit Dialogen fragt nach
+  dem letzten Tag und nennt ihn im Zustand („Aktiv bis 30.11.2026“). Die Handwerkersoftware zieht die Spalten mit
+  `0075_membership_last_day` nach. Warum: die Haustechnik gibt einem Prüfer von außen einen befristeten Zugang, und
+  das Ende einer Zugehörigkeit (#356) braucht dieselbe Naht.
 - Qualifikationen der Mitarbeiter als Baustein (ADR 0012, für opengewerk-haustechnik#337): Regeln in
   `platform-domain` (`model/qualification.ts`: Stufen einer Person, Prüfungen, Stand an einem Tag und ob jemand
   die geforderte Art hält) und die Tabellenfabrik `qualificationSchema()` in `platform-server` mit den eigenen

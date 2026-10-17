@@ -47,6 +47,7 @@ import {
   type StaffEntry,
 } from './administration.js'
 import { INVITATION_MAILING, type InvitationMailing } from './invitation-mailing.js'
+import { lastDayFrom } from './last-day.js'
 import { rolesOfTenant } from './roles.js'
 
 /**
@@ -127,7 +128,7 @@ export class StaffController {
           person.email,
           roleNamesOf(person.roles, roles).join(', '),
           ...(beside === null ? [] : [cells.get(person.userId) ?? null]),
-          staffStateWords(person, roles, momentInGermany),
+          staffStateWords(person, roles, momentInGermany, berlinClock(new Date()).day),
           person.lastSignInAt === null ? 'Noch nie' : momentInGermany(person.lastSignInAt),
         ]),
       },
@@ -159,7 +160,7 @@ export class StaffController {
     @CurrentIdentity() identity: RequestIdentity,
     @Body() body: unknown,
   ): Promise<IssuedInvitation> {
-    const values = pick(body, ['email', 'name', 'roles', 'send', 'additions'] as const)
+    const values = pick(body, ['email', 'name', 'roles', 'send', 'additions', 'lastDay'] as const)
 
     requireFields(values, ['email', 'name'] as const)
 
@@ -190,6 +191,7 @@ export class StaffController {
         name: text(values.name, 'name'),
         roles: rolesFrom(values.roles),
         additions: values.additions,
+        lastDay: lastDayFrom(values.lastDay) ?? null,
       },
       { byMail },
     )
@@ -255,7 +257,7 @@ export class StaffController {
     @Param('userId') userId: string,
     @Body() body: unknown,
   ): Promise<{ userId: string; roles: readonly string[] }> {
-    const values = pick(body, ['roles', 'additions'] as const)
+    const values = pick(body, ['roles', 'additions', 'lastDay'] as const)
     const roles = await changeRoles(
       this.access,
       this.database,
@@ -263,6 +265,7 @@ export class StaffController {
       userId,
       rolesFrom(values.roles),
       values.additions,
+      lastDayFrom(values.lastDay),
     )
 
     return { userId, roles }

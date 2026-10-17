@@ -54,6 +54,12 @@ export interface AccessRules<Right extends string = string> {
    * its roles and nothing else.
    */
   readonly additions?: MembershipAdditions
+  /**
+   * The roles a membership holds only up to a last day: an invitation or a
+   * change of roles that gives one of them without a last day is refused.
+   * Left out, every role may go without one.
+   */
+  readonly endingRoles?: readonly string[]
 }
 
 /**
@@ -162,6 +168,8 @@ export interface AccessSentences {
   readonly noAccessToTenant: string
   /** A membership that is blocked, and who can lift that. */
   readonly blockedInTenant: string
+  /** A membership whose last day has passed, and who can give it a new one. */
+  readonly endedInTenant: string
   /** An invitation for an address that already works in the tenant. */
   readonly alreadyWorksHere: string
   /**

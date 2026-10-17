@@ -1,3 +1,4 @@
+import type { IsoDate } from './identifier.js'
 import type { RoleDefinition } from './rights.js'
 
 /**
@@ -14,6 +15,8 @@ export interface StaffFacts {
   readonly lastSignInAt: Date | string | null
   readonly twoFactorEnabled: boolean
   readonly hasPasskey: boolean
+  /** The last day they work here, none for an access without an end (for opengewerk-haustechnik#339). */
+  readonly lastDay?: string | null
 }
 
 /** The columns of the staff as a table, as the list heads them. */
@@ -45,19 +48,25 @@ export function asksSecondFactor(
 }
 
 /**
- * Whether somebody can work: shut out, with a second factor, without the one
- * a role of theirs asks for, or simply at work. The app or a passkey, which
- * signs in only when confirmed on the device, both count as the second
- * factor.
+ * Whether somebody can work: shut out, past the last day of their access,
+ * with a second factor, without the one a role of theirs asks for, or simply
+ * at work. The app or a passkey, which signs in only when confirmed on the
+ * device, both count as the second factor.
  */
-export type StaffState = 'blocked' | 'secured' | 'factorMissing' | 'active'
+export type StaffState = 'blocked' | 'ended' | 'secured' | 'factorMissing' | 'active'
 
 export function staffStateOf(
   person: StaffFacts,
   roles: readonly Pick<RoleDefinition, 'key' | 'secondFactor'>[],
+  /** The day in Germany, against which a last day has passed. */
+  today: IsoDate,
 ): StaffState {
   if (person.blockedAt) {
     return 'blocked'
+  }
+
+  if (person.lastDay !== undefined && person.lastDay !== null && person.lastDay < today) {
+    return 'ended'
   }
 
   if (person.twoFactorEnabled || person.hasPasskey) {
@@ -72,17 +81,32 @@ export function staffStateWords(
   person: StaffFacts,
   roles: readonly Pick<RoleDefinition, 'key' | 'secondFactor'>[],
   moment: (value: Date | string) => string,
+  /** The day in Germany, against which a last day has passed. */
+  today: IsoDate,
 ): string {
-  switch (staffStateOf(person, roles)) {
+  const lastDay = person.lastDay ?? null
+  // An access with an end says it: "Aktiv bis 30.11.2026".
+  const until = lastDay === null ? '' : ` bis ${dayInWords(lastDay)}`
+
+  switch (staffStateOf(person, roles, today)) {
     case 'blocked':
       return `Gesperrt seit ${moment(person.blockedAt ?? '')}`
+    case 'ended':
+      return `Abgelaufen, letzter Tag ${dayInWords(lastDay ?? '')}`
     case 'secured':
-      return 'Aktiv, zweiter Faktor eingerichtet'
+      return `Aktiv, zweiter Faktor eingerichtet${lastDay === null ? '' : ','}${until}`
     case 'factorMissing':
-      return 'Zweiter Faktor fehlt'
+      return `Zweiter Faktor fehlt${lastDay === null ? '' : ','}${until}`
     case 'active':
-      return 'Aktiv'
+      return `Aktiv${until}`
   }
+}
+
+/** A day as it is written in Germany, "30.11.2026". */
+function dayInWords(day: string): string {
+  const [year = '', month = '', date = ''] = day.split('-')
+
+  return `${date}.${month}.${year}`
 }
 
 const inGermany = new Intl.DateTimeFormat('de-DE', {

@@ -467,6 +467,7 @@ function foundationTables(
         expires_at: 'Gültig bis',
         redeemed_at: 'Eingelöst am',
         revoked_at: 'Zurückgezogen am',
+        last_day: 'Letzter Tag',
       },
     },
     // A name or an address somebody who administers the tenant put right.
@@ -484,7 +485,10 @@ function foundationTables(
       label: 'Passkey',
       fields: { passkey_id: 'Kennung des Passkeys', removed_at: 'Gelöscht am' },
     },
-    memberships: { label: 'Zugang', fields: { roles: 'Rollen', blocked_at: 'Gesperrt am' } },
+    memberships: {
+      label: 'Zugang',
+      fields: { roles: 'Rollen', blocked_at: 'Gesperrt am', last_day: 'Letzter Tag' },
+    },
     number_ranges: {
       label: 'Nummernkreis',
       fields: { key: 'Kreis', pattern: 'Muster', next_value: 'Nächste Nummer' },

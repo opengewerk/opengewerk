@@ -279,7 +279,7 @@ export async function redeemInvitation(
             and ${invitations.revokedAt} is null
             and ${invitations.expiresAt} > now()`,
           )
-          .returning({ id: invitations.id })
+          .returning({ id: invitations.id, lastDay: invitations.lastDay })
 
         if (used.length === 0) {
           // Somebody else got here first, in the moment between the lookup above
@@ -287,7 +287,12 @@ export async function redeemInvitation(
           throw new ConflictException('Dieser Link wurde gerade eben schon benutzt.')
         }
 
-        await grantMembership(tx, { tenantId, userId: account.userId, roles })
+        await grantMembership(tx, {
+          tenantId,
+          userId: account.userId,
+          roles,
+          lastDay: used[0]?.lastDay ?? null,
+        })
         // What the invitation said about the person beside their roles holds
         // from here on, written with the membership or not at all.
         await access.additions?.joined(tx, {
