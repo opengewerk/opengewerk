@@ -304,6 +304,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- `describe` der Fristen einer Anwendung bekommt, wer fragt (für opengewerk-haustechnik#337). Warum: eine Frist
+  liest, wer Fristen ansehen darf, was sie über eine Person sagt, aber vielleicht nur, wer ein weiteres Recht hält;
+  so nennt die Haustechnik den Namen an der Frist einer Qualifikation nur, wer Qualifikationen ansieht.
 - Die Läufe auf einem Stapel halten ihn mit allen Profilen an (#566). Ein Profil auf der
   Kommandozeile tritt bei Docker Compose an die Stelle des Profils aus der `.env`, und "down" mit
   dem Profil der Sicherung ließ den Renderer weiterlaufen, im Schritt "Datenplatte verlieren" wie

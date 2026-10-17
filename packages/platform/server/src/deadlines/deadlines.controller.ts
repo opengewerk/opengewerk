@@ -294,11 +294,14 @@ export interface DeadlineRules<
   /**
    * What an entry says beside what every one says, for the rows of one list:
    * asked once, with all of them, so that the application reads what it adds
-   * in one query and not one per row.
+   * in one query and not one per row. With who asks, so that it names what
+   * a right of theirs hides only to whoever holds it: a deadline is read with
+   * the right to read deadlines, the person it concerns may need another.
    */
   readonly describe?: (
     tx: TenantTransaction,
     rows: readonly Row[],
+    identity: RequestIdentity,
   ) => Promise<(row: Row) => Readonly<Record<string, unknown>>>
   /**
    * What else the search looks in, beside the name of the source and the
@@ -668,7 +671,9 @@ function deadlinesController(
             responsibles = everybody
           }
 
-          const describe = this.rules.describe ? await this.rules.describe(tx, rows) : () => ({})
+          const describe = this.rules.describe
+            ? await this.rules.describe(tx, rows, identity)
+            : () => ({})
 
           return { rows, total, more, settings, responsibles, describe }
         },
