@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Qualifikationen der Mitarbeiter als Baustein (ADR 0012, für opengewerk-haustechnik#337): Regeln in
+  `platform-domain` (`model/qualification.ts`: Stufen einer Person, Prüfungen, Stand an einem Tag und ob jemand
+  die geforderte Art hält) und die Tabellenfabrik `qualificationSchema()` in `platform-server` mit den eigenen
+  Arten eines Mandanten und den Qualifikationen je Person, gültig bis, mit Nachweis. Warum: die Haustechnik weist
+  beim Zuteilen auf eine fehlende oder abgelaufene Qualifikation hin, und die Handwerkersoftware plant dieselben
+  Angaben für ihre Mitarbeiterakte; ein Modell statt zwei.
 - Ein Anlass für Push kann ein Recht nennen (für opengewerk-haustechnik#398): `right` an den Wörtern eines
   Anlasses, und „Konto“ bietet ihn nur an, wer das Recht hält. Bisher stand jeder Anlass bei jeder Person,
   auch einer, die er nie betreffen kann, etwa „Eingegangene Störungen“ bei jemandem, der keine annehmen
