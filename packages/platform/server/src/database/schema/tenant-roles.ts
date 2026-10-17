@@ -24,6 +24,14 @@ import { tenantColumn } from './tenants.js'
  * possible to switch off hangs on them: a tenant keeps somebody who leads it,
  * and such a role works only with a second factor. A right is something a
  * role can lose.
+ *
+ * A tenant changes its rows (opengewerk/opengewerk-haustechnik#346): its
+ * label, its rights, whether it asks for a second factor and what it was
+ * offered, and removes one. Its key and whether it leads stay as the row was
+ * written, so that a membership keeps naming the same role and no row comes
+ * to lead a tenant later. Which rows a tenant may change, and which rights a
+ * role of its own may hold, the application decides on its routes; the
+ * database holds the columns.
  */
 export const tenantRoles = pgTable(
   'tenant_roles',
@@ -42,6 +50,18 @@ export const tenantRoles = pgTable(
     rights: text('rights').array().notNull().$type<readonly string[]>(),
     leads: boolean('leads').notNull().default(false),
     secondFactor: boolean('second_factor').notNull().default(false),
+    /**
+     * The rights the catalogue offered when the role was last saved, for a
+     * role a tenant made itself. A right of the catalogue that is not in here
+     * came with a later version: it reaches the role not by itself, and whoever
+     * keeps the roles is told there is one. Empty for a role the application
+     * ships, which a migration gives a new right where it is owed one.
+     */
+    offeredRights: text('offered_rights')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`)
+      .$type<readonly string[]>(),
     ...timestamps,
   },
   (table) => [

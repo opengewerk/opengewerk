@@ -36,6 +36,12 @@ const rowLevelSecurity = '42501'
  */
 const foundationConflicts: Readonly<Record<string, string>> = {
   OG003: 'Diese Instanz ist bereits eingerichtet.',
+  // What a route could not have let through about the roles of a tenant
+  // (opengewerk/opengewerk-haustechnik#346), from the trigger on them.
+  OG004:
+    'Eine Rolle, die einen Mandanten führt, behält jedes Recht und den zweiten Faktor und wird nicht entfernt.',
+  OG005:
+    'Eine Rolle, die noch einem Zugang oder einer offenen Einladung zugeordnet ist, wird nicht entfernt.',
 }
 
 function databaseCode(error: unknown): string | undefined {

@@ -64,6 +64,36 @@ export async function rolesHeld(
 }
 
 /**
+ * Holds the rows behind these keys until the transaction ends, and says which
+ * of the keys have none (opengewerk/opengewerk-haustechnik#346).
+ *
+ * A tenant removes roles of its own, and a membership names its roles by key
+ * with nothing in the database that points from the one to the other. A role
+ * removed in the moment it is given would leave a membership naming a key
+ * without a row. Whoever gives roles holds them first: a removal that comes
+ * later waits for the end of this transaction and then finds the key named
+ * (`tenant_role_stays_whole`), and one that came first is waited for and
+ * leaves the key without a row, which the caller refuses.
+ */
+export async function holdRoles(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  keys: readonly string[],
+): Promise<readonly string[]> {
+  if (keys.length === 0) {
+    return []
+  }
+
+  const held = await tx
+    .select({ key: tenantRoles.key })
+    .from(tenantRoles)
+    .where(and(eq(tenantRoles.tenantId, tenantId), inArray(tenantRoles.key, [...keys])))
+    .for('share')
+
+  return keys.filter((key) => !held.some((row) => row.key === key))
+}
+
+/**
  * Whether a membership names a role that leads its tenant, as a condition for
  * a query over the memberships.
  *

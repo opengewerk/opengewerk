@@ -219,28 +219,6 @@ describe('the roles a tenant starts with', () => {
     expect(outside).toEqual([])
   })
 
-  /**
-   * Nothing changes or removes a role yet, so the application may not. A
-   * request that found a way to say otherwise is stopped by the grant.
-   */
-  it('cannot be changed or removed by the application', async () => {
-    const inNorth = { tenantId: north.id, reason: 'membership.write' }
-    const guest = and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, 'guest'))
-
-    await expect(
-      instance.database.forTenant(inNorth, (tx) =>
-        tx
-          .update(tenantRoles)
-          .set({ rights: [accessRights.write] })
-          .where(guest),
-      ),
-    ).rejects.toMatchObject({ cause: { code: '42501' } })
-
-    await expect(
-      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(guest)),
-    ).rejects.toMatchObject({ cause: { code: '42501' } })
-  })
-
   it('are in the log of the tenant from the first row on', async () => {
     const { rows } = await admin.query<{ field: string; new_value: string | null }>(
       `select field, new_value from audit_entries
@@ -256,6 +234,222 @@ describe('the roles a tenant starts with', () => {
       'guest',
     ])
     expect(rows.filter((row) => row.field === 'rights')).toHaveLength(3)
+  })
+
+  /**
+   * A tenant changes of a row its label, its rights, whether it asks for a
+   * second factor and what it was offered, and removes a row
+   * (opengewerk/opengewerk-haustechnik#346). Its key, which a membership
+   * names, and whether it leads stay as the row was written; a request that
+   * found a way to say otherwise is stopped by the grant.
+   */
+  it('change in what a tenant may change of them, and are removed, inside their tenant', async () => {
+    const inNorth = { tenantId: north.id, reason: 'membership.write' }
+    const ofNorth = (key: string) =>
+      and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, key))
+
+    await ownRole(north.id, { key: 'caretaker', label: 'Hausmeister', rights: ['members.read'] })
+
+    const changed = await instance.database.forTenant(inNorth, (tx) =>
+      tx
+        .update(tenantRoles)
+        .set({
+          label: 'Hausmeisterei',
+          rights: [accessRights.read],
+          secondFactor: true,
+          offeredRights: [accessRights.read, accessRights.write],
+          updatedAt: new Date(),
+        })
+        .where(ofNorth('caretaker'))
+        .returning({
+          label: tenantRoles.label,
+          rights: tenantRoles.rights,
+          secondFactor: tenantRoles.secondFactor,
+          offeredRights: tenantRoles.offeredRights,
+        }),
+    )
+
+    expect(changed).toEqual([
+      {
+        label: 'Hausmeisterei',
+        rights: [accessRights.read],
+        secondFactor: true,
+        offeredRights: [accessRights.read, accessRights.write],
+      },
+    ])
+
+    for (const change of [{ key: 'janitor' }, { leads: true }]) {
+      await expect(
+        instance.database.forTenant(inNorth, (tx) =>
+          tx.update(tenantRoles).set(change).where(ofNorth('caretaker')),
+        ),
+      ).rejects.toMatchObject({ cause: { code: '42501' } })
+    }
+
+    // A role of the tenant next door is out of reach: nothing changes and nothing goes.
+    await ownRole(south.id, { key: 'caretaker', label: 'Hausmeister', rights: ['members.read'] })
+
+    const ofSouth = and(eq(tenantRoles.tenantId, south.id), eq(tenantRoles.key, 'caretaker'))
+
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.update(tenantRoles).set({ label: 'Fremd' }).where(ofSouth).returning(),
+      ),
+    ).toEqual([])
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.delete(tenantRoles).where(ofSouth).returning(),
+      ),
+    ).toEqual([])
+
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.delete(tenantRoles).where(ofNorth('caretaker')).returning({ key: tenantRoles.key }),
+      ),
+    ).toEqual([{ key: 'caretaker' }])
+
+    const { rows } = await admin.query<{ tenant_id: string; label: string }>(
+      `select tenant_id, label from tenant_roles where key = 'caretaker' order by label`,
+    )
+
+    expect(rows).toEqual([{ tenant_id: south.id, label: 'Hausmeister' }])
+    await admin.query(`delete from tenant_roles where tenant_id = $1 and key = 'caretaker'`, [
+      south.id,
+    ])
+  })
+
+  /**
+   * Whatever a route lets through, a role that leads keeps every right and its
+   * second factor and stays, and a role somebody holds or is invited to stays
+   * as well. The owner of the tables, which a migration runs as, is not held.
+   */
+  it('keep a role that leads whole and one that somebody holds in place, against the application', async () => {
+    const inNorth = { tenantId: north.id, reason: 'membership.write' }
+    const ofNorth = (key: string) =>
+      and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, key))
+    const refusedWith = (code: string, change: Promise<unknown>) =>
+      expect(change).rejects.toMatchObject({ cause: { code } })
+
+    await refusedWith(
+      'OG004',
+      instance.database.forTenant(inNorth, (tx) =>
+        tx
+          .update(tenantRoles)
+          .set({ rights: [accessRights.read] })
+          .where(ofNorth('lead')),
+      ),
+    )
+    await refusedWith(
+      'OG004',
+      instance.database.forTenant(inNorth, (tx) =>
+        tx.update(tenantRoles).set({ secondFactor: false }).where(ofNorth('lead')),
+      ),
+    )
+    await refusedWith(
+      'OG004',
+      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(ofNorth('lead'))),
+    )
+
+    // Its label changes, and a right comes to it.
+    const { rows: before } = await admin.query<{ rights: string[] }>(
+      `select rights from tenant_roles where tenant_id = $1 and key = 'lead'`,
+      [north.id],
+    )
+    const rights = before[0]?.rights ?? []
+
+    await instance.database.forTenant(inNorth, (tx) =>
+      tx
+        .update(tenantRoles)
+        .set({ label: 'Leitung', rights: [...rights, 'notes.read'] })
+        .where(ofNorth('lead')),
+    )
+    await setRole(north.id, 'lead', { rights })
+
+    // A role somebody holds, and one an invitation that is still open names.
+    await ownRole(north.id, { key: 'porter', label: 'Pforte', rights: ['members.read'] })
+    await setRolesOf(north.id, mia, ['member', 'porter'])
+    await refusedWith(
+      'OG005',
+      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(ofNorth('porter'))),
+    )
+    await setRolesOf(north.id, mia, ['member'])
+    await admin.query(
+      `insert into invitations (tenant_id, email, name, roles, token_hash, invited_by, expires_at)
+       values ($1, 'pforte@nord.example.de', 'Pia Pforte', $2, 'hash-of-the-porter', $3, now() + interval '7 days')`,
+      [north.id, ['porter'], idOf(lea)],
+    )
+    await refusedWith(
+      'OG005',
+      instance.database.forTenant(inNorth, (tx) => tx.delete(tenantRoles).where(ofNorth('porter'))),
+    )
+
+    // Once the invitation ran out, nobody is left who names it.
+    await admin.query(
+      `update invitations set expires_at = now() - interval '1 day' where token_hash = 'hash-of-the-porter'`,
+    )
+    expect(
+      await instance.database.forTenant(inNorth, (tx) =>
+        tx.delete(tenantRoles).where(ofNorth('porter')).returning({ key: tenantRoles.key }),
+      ),
+    ).toEqual([{ key: 'porter' }])
+    await admin.query(`delete from invitations where token_hash = 'hash-of-the-porter'`)
+  })
+
+  /**
+   * Nothing in the database points from a membership to a role. A role
+   * removed in the moment it is given would leave a key without a row, so
+   * whoever gives roles holds them until the membership is written: a
+   * removal that came first is waited for, and the assignment is refused.
+   */
+  it('give no role that goes in the same moment, and let none go that is being given', async () => {
+    const inNorth = { tenantId: north.id, reason: 'membership.write' }
+    const runner = and(eq(tenantRoles.tenantId, north.id), eq(tenantRoles.key, 'runner'))
+
+    await ownRole(north.id, { key: 'runner', label: 'Bote', rights: ['members.read'] })
+
+    const asLea = await visitors.workIn(lea.email, north.id)
+    let removed: () => void = () => undefined
+    let commit: () => void = () => undefined
+    const removedYet = new Promise<void>((resolve) => {
+      removed = resolve
+    })
+    const committing = new Promise<void>((resolve) => {
+      commit = resolve
+    })
+    // The removal, held open: its row is gone for it and still there for everybody else.
+    const removing = instance.database.forTenant(inNorth, async (tx) => {
+      await tx.delete(tenantRoles).where(runner)
+      removed()
+      await committing
+    })
+
+    await removedYet
+
+    const giving = http()
+      .patch(`/staff/${idOf(gus)}`)
+      .set('cookie', asLea)
+      .set('origin', origin)
+      .send({ roles: ['guest', 'runner'] })
+      .then((answer) => answer)
+
+    // Long enough for the assignment to reach the row and wait for it.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    commit()
+    await removing
+
+    const answer = await giving
+
+    expect({ status: answer.status, message: answer.body.message }).toEqual({
+      status: 400,
+      message: 'Unbekannte Rollen: runner. Sie wurden gerade entfernt.',
+    })
+
+    const { rows } = await admin.query<{ roles: string[] }>(
+      'select roles from memberships where tenant_id = $1 and user_id = $2',
+      [north.id, idOf(gus)],
+    )
+
+    expect(rows).toEqual([{ roles: ['guest'] }])
   })
 })
 

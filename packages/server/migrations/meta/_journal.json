@@ -533,6 +533,13 @@
       "when": 1792220618590,
       "tag": "0075_membership_last_day",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1792276443247,
+      "tag": "0076_tenant_roles_of_their_own",
+      "breakpoints": true
     }
   ]
 }
