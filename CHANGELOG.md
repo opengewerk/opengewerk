@@ -564,6 +564,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Eine Antwort ohne Inhalt gilt in `request` nicht mehr als Fehler (gefunden bei opengewerk-haustechnik#346). Eine
+  Route, die etwas entfernt, antwortet mit 200 und leerem Körper; die Seite las ihn als JSON, scheiterte, nachdem
+  der Server getan hatte, worum er gebeten war, und blieb mit „ohne Verbindung“ auf einem Datensatz stehen, den es
+  nicht mehr gab, etwa auf einem entfernten Entwurf einer Übertragung.
 - Auf dem Telefon öffnet sich der Einstieg vor Ort von selbst, und die Anwendung schaltet um, wenn der Browser
   zwischen seiner mobilen und seiner Desktop-Ansicht wechselt. Bisher öffnete die Adresse der Instanz immer das
   Büro: eine gemerkte Wahl hielt nur den Vorschlag still, und ein Telefon, das für seinen Stift einen feinen

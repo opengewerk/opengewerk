@@ -165,7 +165,10 @@ export async function request<Answer>(path: string, init?: RequestInit): Promise
     return undefined as Answer
   }
 
-  return (await response.json()) as Answer
+  // A route with nothing to say, a removal, answers 200 with no body at all.
+  const body = await response.text()
+
+  return (body === '' ? undefined : JSON.parse(body)) as Answer
 }
 
 /** A file the server made for the page to save, and the name the server gave it. */
