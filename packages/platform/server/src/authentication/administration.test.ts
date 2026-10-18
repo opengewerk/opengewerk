@@ -1559,12 +1559,14 @@ describe('removing what an access that has ended no longer needs', () => {
   const ole = { email: 'ole@nord.example.de', name: 'Ole Ohneende' }
   const pia = { email: 'pia@nord.example.de', name: 'Pia Zweimal' }
   const udo = { email: 'udo@nord.example.de', name: 'Udo Instanz' }
+  const vera = { email: 'vera@nord.example.de', name: 'Vera Lauf' }
 
   beforeAll(async () => {
     for (const [person, tenantIds] of [
       [ole, [north.id]],
       [pia, [north.id, south.id]],
       [udo, [north.id]],
+      [vera, [north.id]],
     ] as const) {
       for (const tenantId of tenantIds) {
         const { userId } = await addStaffMember(instance.authentication, instance.database, {
@@ -1717,5 +1719,30 @@ describe('removing what an access that has ended no longer needs', () => {
       account: false,
     })
     expect((await account(udo))?.email).toBe(udo.email)
+  })
+
+  /**
+   * The way an application calls it from a pass of its own, which works for
+   * nobody: the tenant and the reason, and the log says the reason where
+   * otherwise it would name a person.
+   */
+  it('works for a pass that names only the tenant and its reason, and the log says the reason', async () => {
+    await passkey(vera, north.id)
+    await lastDay(vera, north.id, -1)
+
+    expect(
+      await removeAccountData(
+        probeAccess,
+        instance.database,
+        { tenantId: north.id, reason: 'membership.data_removal' },
+        idOf(vera),
+      ),
+    ).toEqual({ account: true })
+    expect((await account(vera))?.email).toBe(removedAddress(idOf(vera)))
+
+    const removed = await logged(north.id, 'member_passkeys', 'removed_at')
+
+    expect(removed.at(-1)?.new_value).not.toBeNull()
+    expect(removed.at(-1)?.reason).toBe('membership.data_removal')
   })
 })
