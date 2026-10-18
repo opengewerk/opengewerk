@@ -13,18 +13,22 @@ import type { Database, TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
 import {
   accountCorrections,
+  authAccounts,
+  authPasskeys,
   authSessions,
+  authTwoFactors,
   authUsers,
   authVerifications,
   instanceOperators,
   invitations,
+  memberPasskeys,
   memberships,
   tenantSessions,
 } from '../schema.js'
 import type { AccessRules } from './access.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
-import { refuseWithoutLastDay, stillWorks } from './last-day.js'
+import { beforeItsEnd, hasEnded, refuseWithoutLastDay, stillWorks } from './last-day.js'
 import { holdRoles, leadsItsTenant, rolesOfTenant } from './roles.js'
 
 /**
@@ -774,6 +778,143 @@ export async function revokeDeviceOf(
         ),
       ),
   )
+}
+
+/** What removing the data of an access that has ended took away. */
+export interface RemovedAccountData {
+  /**
+   * Whether the account went with it: its address, its passkeys, its second
+   * factor and its password. Only where it works for no other tenant and
+   * does not run the instance; otherwise those stay for the work it does
+   * there.
+   */
+  readonly account: boolean
+}
+
+/** The address an account is left with once its own is removed: one per account, and one nobody can receive mail at. */
+export function removedAddress(userId: string): string {
+  return `${userId}@entfernt.invalid`
+}
+
+/**
+ * Removes what an access that has ended leaves behind and no record needs
+ * (for opengewerk-haustechnik#356): every session of the person in this
+ * tenant, so that no device of theirs is signed in here, and the passkeys
+ * this tenant knew of. Where the account works for no other tenant, or only
+ * for ones whose last day has passed as well, and does not run the instance,
+ * the account itself goes too, all but its name: its address becomes one
+ * nobody receives mail at, and its passkeys, its second factor, its password
+ * and every session it still had are deleted. The name stays, because what the
+ * person signed names them, and the membership stays with its last day, for
+ * the same reason a block is not a delete.
+ *
+ * Only after the last day: before it the access still works, and taking its
+ * devices away would end it early. A second call finds nothing left and
+ * removes nothing more; what it says about the account is asked again.
+ *
+ * A membership elsewhere that is blocked counts as still working there, as
+ * in `worksOnlyHere`: blocked can be undone, and whoever is let back in
+ * should come back with the account they left with.
+ */
+export async function removeAccountData(
+  access: Pick<AccessRules, 'sentences'>,
+  database: Database,
+  identity: TenantIdentity,
+  userId: string,
+): Promise<RemovedAccountData> {
+  await database.forTenant(identity, async (tx) => {
+    const membership = await membershipOf(access, tx, identity.tenantId, userId)
+
+    if (!hasEnded(membership.lastDay)) {
+      throw new ConflictException(
+        'The access has not ended; what it holds is removed after its last day.',
+      )
+    }
+
+    await tx
+      .update(memberPasskeys)
+      .set({ removedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(memberPasskeys.tenantId, identity.tenantId),
+          eq(memberPasskeys.userId, userId),
+          isNull(memberPasskeys.removedAt),
+        ),
+      )
+    await tx
+      .update(tenantSessions)
+      .set({ endedAt: new Date() })
+      .where(
+        and(
+          eq(tenantSessions.tenantId, identity.tenantId),
+          eq(tenantSessions.userId, userId),
+          isNull(tenantSessions.endedAt),
+        ),
+      )
+  })
+
+  await database.forInstance(
+    (tx) =>
+      tx
+        .delete(authSessions)
+        .where(
+          and(eq(authSessions.userId, userId), eq(authSessions.activeTenantId, identity.tenantId)),
+        ),
+    identity.userId,
+  )
+
+  if (await worksElsewhere(database, identity.tenantId, userId)) {
+    return { account: false }
+  }
+
+  return database.forInstance(async (tx) => {
+    await tx.delete(authSessions).where(eq(authSessions.userId, userId))
+    await tx.delete(authPasskeys).where(eq(authPasskeys.userId, userId))
+    await tx.delete(authTwoFactors).where(eq(authTwoFactors.userId, userId))
+    await tx.delete(authAccounts).where(eq(authAccounts.userId, userId))
+    await tx.delete(authVerifications).where(eq(authVerifications.value, userId))
+    await tx
+      .update(authUsers)
+      .set({
+        email: removedAddress(userId),
+        emailVerified: false,
+        image: null,
+        twoFactorEnabled: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(authUsers.id, userId))
+
+    return { account: true }
+  }, identity.userId)
+}
+
+/**
+ * Whether an account still works for another tenant or runs the instance:
+ * the question `worksOnlyHere` asks, with a membership elsewhere past its
+ * last day no longer counting. Asked as the person, which is what lets the
+ * policy show their memberships elsewhere, and only the answer leaves.
+ */
+async function worksElsewhere(
+  database: Database,
+  tenantId: TenantId,
+  userId: string,
+): Promise<boolean> {
+  return database.forInstance(async (tx) => {
+    const elsewhere = await tx
+      .select({ tenantId: memberships.tenantId })
+      .from(memberships)
+      .where(
+        and(eq(memberships.userId, userId), ne(memberships.tenantId, tenantId), beforeItsEnd()),
+      )
+      .limit(1)
+    const runsTheInstance = await tx
+      .select({ id: instanceOperators.id })
+      .from(instanceOperators)
+      .where(eq(instanceOperators.userId, userId))
+      .limit(1)
+
+    return elsewhere.length > 0 || runsTheInstance.length > 0
+  }, userId)
 }
 
 /**

@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { newId } from '../database/identifier.js'
 import { applicationRole, standingInLine } from '../database/test-database.js'
 import { appointOperator } from '../instance/operators.js'
-import { listColleagues } from './administration.js'
+import { listColleagues, removeAccountData, removedAddress } from './administration.js'
 import { authenticationPath } from './authentication.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
 import {
@@ -1546,5 +1546,176 @@ describe('correcting the name and the address of somebody', () => {
 
     expect(await accountOf(idOf(nora))).toEqual(before)
     expect(await correctionsOf(idOf(nora))).toHaveLength(written)
+  })
+})
+
+/**
+ * What an access that has ended leaves behind (for
+ * opengewerk-haustechnik#356): the devices and passkeys of the tenant it
+ * ended in, and the account itself once it works nowhere else, all but the
+ * name that what the person signed still carries.
+ */
+describe('removing what an access that has ended no longer needs', () => {
+  const ole = { email: 'ole@nord.example.de', name: 'Ole Ohneende' }
+  const pia = { email: 'pia@nord.example.de', name: 'Pia Zweimal' }
+  const udo = { email: 'udo@nord.example.de', name: 'Udo Instanz' }
+
+  beforeAll(async () => {
+    for (const [person, tenantIds] of [
+      [ole, [north.id]],
+      [pia, [north.id, south.id]],
+      [udo, [north.id]],
+    ] as const) {
+      for (const tenantId of tenantIds) {
+        const { userId } = await addStaffMember(instance.authentication, instance.database, {
+          ...person,
+          password,
+          tenantId,
+          roles: ['member'],
+        })
+
+        userIds.set(person.email, userId)
+      }
+    }
+
+    await appointOperator(instance.database, probeAccess.sentences.instance, idOf(lea), udo.email)
+  })
+
+  /** The last day of a person in a tenant, set behind the routes, which refuse a day that has passed. */
+  async function lastDay(person: { readonly email: string }, tenantId: TenantId, days: number) {
+    await admin.query(
+      `update memberships set last_day = (now() at time zone 'Europe/Berlin')::date + $3::int
+        where tenant_id = $1 and user_id = $2`,
+      [tenantId, idOf(person), days],
+    )
+  }
+
+  /** A passkey of the account, and the one the tenant keeps of it. */
+  async function passkey(person: { readonly email: string }, tenantId: TenantId): Promise<string> {
+    const id = newId<'passkey'>()
+
+    await admin.query(
+      `insert into auth_passkeys (id, user_id, public_key, credential_id, counter, device_type, backed_up)
+       values ($1, $2, 'key', $1, 0, 'singleDevice', false)`,
+      [id, idOf(person)],
+    )
+    await admin.query(
+      `insert into member_passkeys (id, tenant_id, user_id, passkey_id, name)
+       values ($1, $2, $3, $4, 'Telefon')`,
+      [newId<'member-passkey'>(), tenantId, idOf(person), id],
+    )
+
+    return id
+  }
+
+  async function account(person: { readonly email: string }) {
+    const [row] = (
+      await admin.query<{ name: string; email: string }>(
+        'select name, email from auth_users where id = $1',
+        [idOf(person)],
+      )
+    ).rows
+
+    return row
+  }
+
+  async function countOf(table: string, person: { readonly email: string }, more = '') {
+    const result = await admin.query<{ n: string }>(
+      `select count(*) as n from ${table} where user_id = $1 ${more}`,
+      [idOf(person)],
+    )
+
+    return Number(result.rows[0]?.n)
+  }
+
+  const as = (tenantId: TenantId): TenantIdentity => ({ tenantId, userId: idOf(lea) })
+
+  it('is refused while the access still works, its last day included', async () => {
+    await lastDay(ole, north.id, 0)
+    const cookies = await workIn(ole.email, north.id)
+
+    await expect(
+      removeAccountData(probeAccess, instance.database, as(north.id), idOf(ole)),
+    ).rejects.toThrow(ConflictException)
+    await http().get('/probe/members').set('cookie', cookies).expect(200)
+    expect((await account(ole))?.email).toBe(ole.email)
+  })
+
+  it('takes the devices and the passkeys of the tenant it ended in, and leaves an account that works next door', async () => {
+    const inTheNorth = await workIn(pia.email, north.id)
+    const inTheSouth = await workIn(pia.email, south.id)
+    const key = await passkey(pia, north.id)
+
+    await lastDay(pia, north.id, -1)
+
+    expect(
+      await removeAccountData(probeAccess, instance.database, as(north.id), idOf(pia)),
+    ).toEqual({
+      account: false,
+    })
+
+    // Signed out of the north, still at work in the south.
+    await http().get('/probe/members').set('cookie', inTheNorth).expect(401)
+    await http().get('/probe/members').set('cookie', inTheSouth).expect(200)
+    expect(
+      await countOf('member_passkeys', pia, `and tenant_id = '${north.id}' and removed_at is null`),
+    ).toBe(0)
+    expect(await countOf('auth_passkeys', pia, `and id = '${key}'`)).toBe(1)
+    expect(await account(pia)).toEqual({ name: pia.name, email: pia.email })
+  })
+
+  it('takes the address, the passkeys, the second factor and the password of an account that works nowhere else, and keeps its name', async () => {
+    await workIn(ole.email, north.id)
+    await passkey(ole, north.id)
+    await lastDay(ole, north.id, -1)
+
+    expect(
+      await removeAccountData(probeAccess, instance.database, as(north.id), idOf(ole)),
+    ).toEqual({
+      account: true,
+    })
+
+    expect(await account(ole)).toEqual({ name: ole.name, email: removedAddress(idOf(ole)) })
+    expect(await countOf('auth_sessions', ole)).toBe(0)
+    expect(await countOf('auth_passkeys', ole)).toBe(0)
+    expect(await countOf('auth_accounts', ole)).toBe(0)
+    expect(await countOf('auth_two_factors', ole)).toBe(0)
+    // The membership stays with its last day, as a block stays: what the
+    // person signed resolves to it and to the name.
+    expect(await countOf('memberships', ole, `and tenant_id = '${north.id}'`)).toBe(1)
+
+    // Signing in again gets nowhere, with the old address or any other.
+    const refused = await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .send({ email: ole.email, password })
+    expect(refused.status).toBeGreaterThanOrEqual(400)
+
+    // A second call finds nothing left, and says the same about the account.
+    expect(
+      await removeAccountData(probeAccess, instance.database, as(north.id), idOf(ole)),
+    ).toEqual({
+      account: true,
+    })
+  })
+
+  it('counts a tenant next door whose last day has passed as gone, and somebody who runs the instance as staying', async () => {
+    await lastDay(pia, south.id, -1)
+
+    expect(
+      await removeAccountData(probeAccess, instance.database, as(south.id), idOf(pia)),
+    ).toEqual({
+      account: true,
+    })
+    expect((await account(pia))?.email).toBe(removedAddress(idOf(pia)))
+
+    await lastDay(udo, north.id, -1)
+
+    expect(
+      await removeAccountData(probeAccess, instance.database, as(north.id), idOf(udo)),
+    ).toEqual({
+      account: false,
+    })
+    expect((await account(udo))?.email).toBe(udo.email)
   })
 })
