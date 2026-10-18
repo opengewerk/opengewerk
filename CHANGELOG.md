@@ -9,6 +9,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Artikel im Lager hat einen Lagerplatz (für opengewerk-haustechnik#385): die Spalte `bin` an `store_articles`, frei
+  als Text bis zur Länge des Orts eines Lagers, mit ihrer Prüfung in Domäne und Datenbank. Warum: Wo im Lager ein
+  Artikel liegt, stand bisher behelfsweise in seiner Beschreibung, die aber für jedes Lager gilt.
+
 - Ein Datensatz, über den sein Protokoll schweigt, heißt dort, wie die Anwendung ihn angelegt hat (für
   opengewerk-haustechnik#422): `firstValues` in den Teilen des Änderungsprotokolls fragt die Anwendung nach den Werten,
   mit denen ein Datensatz geschrieben wurde, nur für ein Namensfeld, das sein Protokoll nie geschrieben hat, und was

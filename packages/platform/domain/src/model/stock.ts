@@ -60,6 +60,8 @@ export const stockLimits = {
   customerNumber: 40,
   storeName: 120,
   location: 200,
+  /** Where in a store an article lies, as long as where a store is. */
+  bin: 200,
   note: 500,
   /** The most a quantity of one booking may be, in thousandths: a million units. */
   quantityMilli: 1_000_000_000,
@@ -100,11 +102,16 @@ export interface Store extends Synced {
   readonly location: string | null
 }
 
-/** What a store keeps of an article: the minimum below which it is to be ordered. */
+/** What a store keeps of an article: where it lies and the minimum below which it is to be ordered. */
 export interface StoreArticle extends Synced {
   readonly id: StoreArticleId
   readonly storeId: StoreId
   readonly articleId: StockArticleId
+  /**
+   * Where in this store the article lies, in words: a shelf, a cabinet, a
+   * compartment (opengewerk-haustechnik#385). Another store keeps its own.
+   */
+  readonly bin: string | null
   /** Thousandths of the unit; none where the store keeps no minimum. */
   readonly minimumMilli: number | null
 }
@@ -320,13 +327,18 @@ function isQuantity(value: unknown): value is number {
   )
 }
 
-/** What is wrong with the minimum a store keeps of an article. */
+/** What is wrong with what a store keeps of an article, only the fields present: where it lies and the minimum. */
 export function storeArticleProblems(line: Readonly<Record<string, unknown>>): Readonly<Problems> {
+  const problems: Problems = {}
   const minimum = line['minimumMilli']
 
-  return minimum === undefined || minimum === null || isQuantity(minimum)
-    ? {}
-    : { minimumMilli: 'Der Mindestbestand ist eine Menge ab null.' }
+  optional(problems, line, 'bin', stockLimits.bin)
+
+  if (minimum !== undefined && minimum !== null && !isQuantity(minimum)) {
+    problems['minimumMilli'] = 'Der Mindestbestand ist eine Menge ab null.'
+  }
+
+  return problems
 }
 
 /**

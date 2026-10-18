@@ -90,6 +90,7 @@ function storeArticleParts() {
     ...tenantColumn,
     storeId: reference<'store'>('store_id').notNull(),
     articleId: reference<'article'>('article_id').notNull(),
+    bin: text('bin'),
     minimumMilli: integer('minimum_milli'),
     ...timestamps,
     ...syncColumns,
@@ -269,6 +270,7 @@ export function stockSchema<
       foreignColumns: [articles.tenantId, articles.id],
       name: 'store_articles_of_an_article_here',
     }),
+    check('store_articles_bin_fits', fitsIfThere(table.bin, stockLimits.bin)),
     check(
       'store_articles_minimum_from_zero',
       sql`${table.minimumMilli} is null or ${table.minimumMilli} between 0 and ${sql.raw(String(stockLimits.quantityMilli))}`,

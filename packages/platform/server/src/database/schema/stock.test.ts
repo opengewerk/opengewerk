@@ -73,6 +73,9 @@ describe('the tables of the stock', () => {
     expect(getTableConfig(storeArticles).uniqueConstraints.map((each) => each.name)).toContain(
       'store_articles_once',
     )
+    expect(checksOf(storeArticles)).toEqual(
+      expect.arrayContaining(['store_articles_bin_fits', 'store_articles_minimum_from_zero']),
+    )
   })
 
   it('carry the checks of the application beside their own', () => {

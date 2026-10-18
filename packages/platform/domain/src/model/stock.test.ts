@@ -67,6 +67,14 @@ describe('a supplier and a store', () => {
     expect(storeArticleProblems({ minimumMilli: -1 })).toHaveProperty('minimumMilli')
     expect(storeArticleProblems({ minimumMilli: 1.5 })).toHaveProperty('minimumMilli')
   })
+
+  it('keep where an article lies in a store as a text up to its bound, or none', () => {
+    expect(storeArticleProblems({ bin: 'Regal 3, Fach 1' })).toEqual({})
+    expect(storeArticleProblems({ bin: null })).toEqual({})
+    expect(storeArticleProblems({ bin: 'x'.repeat(stockLimits.bin) })).toEqual({})
+    expect(storeArticleProblems({ bin: 'x'.repeat(stockLimits.bin + 1) })).toHaveProperty('bin')
+    expect(storeArticleProblems({ bin: 3 })).toHaveProperty('bin')
+  })
 })
 
 describe('a booking', () => {
