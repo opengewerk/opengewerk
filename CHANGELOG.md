@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Dateien, die ein Gerät behält und wieder freigibt (für opengewerk-haustechnik#348): `holdVersion` holt die Datei
+  einer Fassung auf das Gerät und behält sie nur, wenn ihre Bytes die sind, die die Fassung nennt
+  (`rememberChecked`); `forgetFile` gibt eine geholte Datei wieder frei, eine hier gemachte erst, wenn der Server
+  sie hat (`dropFile` im lokalen Speicher). Warum: bisher hielt ein Gerät Vorschauen und eigene Fotos, aber nie die
+  Datei eines Dokuments, und eine einmal geholte Datei blieb, bis die ganze Ablage ging.
+
 - Rollen, die ein Mandant selbst führt (für opengewerk-haustechnik#346): die Anwendung darf an einer Zeile von
   `tenant_roles` jetzt Bezeichnung, Rechte, zweiten Faktor und die neue Spalte `offered_rights` ändern und eine
   Zeile entfernen; Schlüssel und `leads` bleiben, wie die Zeile geschrieben wurde. `offered_rights` hält, was der

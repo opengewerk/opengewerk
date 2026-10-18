@@ -268,6 +268,40 @@ export function usePreview(version: RecordState | undefined): string | null {
 }
 
 /**
+ * Fetches the file of a version and keeps it on this device, so that it opens
+ * without a network the next time (opengewerk-haustechnik#348). One the device
+ * holds already is not fetched again. False without a network, when the server
+ * refuses it, or when the bytes are not the ones the version names; nothing is
+ * kept then.
+ */
+export async function holdVersion(client: SyncClient, version: RecordState): Promise<boolean> {
+  const sha256 = text(version, 'sha256')
+
+  if (await client.readFile(sha256)) {
+    return true
+  }
+
+  try {
+    const response = await fetch(versionPath(String(version['id']), 'content'), {
+      credentials: 'include',
+      headers: workingInHeaders(),
+    })
+
+    if (!response.ok) {
+      return false
+    }
+
+    return await client.rememberChecked(
+      sha256,
+      await response.arrayBuffer(),
+      response.headers.get('content-type') ?? text(version, 'mediaType'),
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
  * Opens a version: from this device when it holds the file, which it does for
  * everything made here and so works without a network, and from the server
  * otherwise. In a new window, from the click that asked for it.

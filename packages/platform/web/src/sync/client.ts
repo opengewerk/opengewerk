@@ -1227,6 +1227,30 @@ export class SyncClient {
   }
 
   /**
+   * Lets go of a file fetched from the server that is no longer wanted on
+   * this device (opengewerk-haustechnik#348). A file made here that still
+   * waits for its upload stays. True when it is gone.
+   */
+  forgetFile(sha256: string): Promise<boolean> {
+    return this.store.dropFile(sha256)
+  }
+
+  /**
+   * Keeps a file fetched from the server under the hash a version names,
+   * and only when its bytes are the ones named: a damaged or a wrong answer
+   * is not kept as if it were the file (opengewerk-haustechnik#348).
+   */
+  async rememberChecked(sha256: string, bytes: ArrayBuffer, mediaType: string): Promise<boolean> {
+    if ((await sha256Of(bytes)) !== sha256) {
+      return false
+    }
+
+    await this.store.keepFile({ sha256, bytes, mediaType }, false)
+
+    return true
+  }
+
+  /**
    * Sends the files made here that the server does not have yet, oldest
    * first.
    *

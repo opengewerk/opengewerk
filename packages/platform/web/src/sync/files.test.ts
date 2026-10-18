@@ -198,6 +198,44 @@ describe('a file made on the device', () => {
   })
 })
 
+describe('a file fetched to stay on the device (opengewerk-haustechnik#348)', () => {
+  const manual = new TextEncoder().encode('%PDF-1.7 Betriebsanleitung').buffer as ArrayBuffer
+
+  it('is kept only with the bytes its hash names', async () => {
+    const client = await start()
+
+    expect(await client.rememberChecked(hashOf(manual), manual, 'application/pdf')).toBe(true)
+    expect((await client.readFile(hashOf(manual)))?.mediaType).toBe('application/pdf')
+
+    const damaged = new TextEncoder().encode('%PDF-1.7 Betriebsanl').buffer as ArrayBuffer
+
+    expect(await client.rememberChecked('b'.repeat(64), damaged, 'application/pdf')).toBe(false)
+    expect(await client.readFile('b'.repeat(64))).toBeNull()
+  })
+
+  it('leaves the device when it is no longer wanted, and a file made here never before it is up', async () => {
+    const client = await start()
+    const { sha256 } = await client.keepFile(photo, 'image/jpeg')
+
+    await client.rememberFile(hashOf(manual), manual, 'application/pdf')
+
+    expect(await client.forgetFile(hashOf(manual))).toBe(true)
+    expect(await client.readFile(hashOf(manual))).toBeNull()
+    expect(await client.forgetFile(hashOf(manual))).toBe(false)
+
+    // Made here and still waiting: it stays, whoever asks.
+    expect(await client.forgetFile(sha256)).toBe(false)
+    expect(await client.readFile(sha256)).not.toBeNull()
+
+    // Up on the server, it may go like any other.
+    await attach(client, sha256, photo.byteLength)
+    await client.synchronise()
+    expect(server.uploaded.has(sha256)).toBe(true)
+    expect(await client.forgetFile(sha256)).toBe(true)
+    expect(await client.readFile(sha256)).toBeNull()
+  })
+})
+
 describe('the store on a device from before the files', () => {
   it('keeps its records and gains the files', async () => {
     const name = 'before-the-files'
