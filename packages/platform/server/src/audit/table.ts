@@ -10,7 +10,7 @@ import {
 
 import type { Database } from '../database/database.js'
 import { type OutgoingTable, refuseOverlongTable, type TableCell } from '../tables/write.js'
-import { type AuditFilter, readAuditPage } from './log.js'
+import { type AuditFilter, type AuditFirstValues, readAuditPage } from './log.js'
 
 /**
  * The change log of a tenant as a table (opengewerk-haustechnik#236): what
@@ -31,6 +31,7 @@ export async function auditTable(
   filter: AuditFilter,
   language: AuditLanguage,
   said: AuditValueWords,
+  firstValues: AuditFirstValues | null = null,
 ): Promise<OutgoingTable> {
   const words = auditTextWords(said, auditFormatInGermany)
   const columns = auditTableColumns
@@ -38,7 +39,13 @@ export async function auditTable(
   let before = filter.before
 
   do {
-    const page = await readAuditPage(database, identity, { ...filter, before }, language)
+    const page = await readAuditPage(
+      database,
+      identity,
+      { ...filter, before },
+      language,
+      firstValues,
+    )
 
     for (const change of page.changes) {
       const way = words.wayWords(change, page)

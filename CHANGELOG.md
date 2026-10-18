@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Datensatz, über den sein Protokoll schweigt, heißt dort, wie die Anwendung ihn angelegt hat (für
+  opengewerk-haustechnik#422): `firstValues` in den Teilen des Änderungsprotokolls fragt die Anwendung nach den Werten,
+  mit denen ein Datensatz geschrieben wurde, nur für Datensätze, deren Protokoll keines ihrer Namensfelder nennt, und
+  was das Protokoll hat, gewinnt. Warum: Zeilen, die eine Anwendung in einem Zug schreibt und als einen Eintrag
+  protokolliert, hießen im Protokoll „ohne Bezeichnung“.
+
 - Über dem Protokoll eines Datensatzes kann eine Anwendung sagen, woher er stammt (für opengewerk-haustechnik#174):
   `lead` in den Wörtern des Änderungsprotokolls, ein Baustein mit Tabelle und Kennung, der nichts zeichnet, wo die
   Anwendung nichts weiß. Warum: dass ein Datensatz aus einem Import stammt, sagt keine Änderung, und das Protokoll

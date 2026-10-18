@@ -126,6 +126,11 @@ let noteId = ''
 let letterId = ''
 let lineId = ''
 let aboutId = ''
+/** A shelf the log has no entry of, written in bulk the way an application writes rows its log is silent about. */
+let silentShelfId = ''
+let silentNoteId = ''
+/** What the log asked the application about, record by record (opengewerk-haustechnik#422). */
+const askedFirst: string[][] = []
 
 beforeAll(async () => {
   foundation = await probeFoundation(probeSyncMade)
@@ -237,9 +242,57 @@ beforeAll(async () => {
   await shelf(south.id, 'susi', 'Südregal')
   await shelf(west.id, 'wanda', 'Westregal')
 
+  // A shelf written past its log, and a note on it that the log has.
+  const client = await admin.connect()
+
+  try {
+    await client.query('set session_replication_role = replica')
+
+    const { rows: silent } = await client.query<{ id: string }>(
+      'insert into shelves (tenant_id, label) values ($1, $2) returning id',
+      [north.id, 'Kiste vom Stapel'],
+    )
+
+    silentShelfId = silent[0]?.id ?? ''
+  } finally {
+    await client.query('set session_replication_role = origin')
+    client.release()
+  }
+
+  const [onSilent] = await database.forTenant(
+    { tenantId: north.id, userId: 'lea', reason: 'notes.write' },
+    (tx) =>
+      tx
+        .insert(notes)
+        .values({ tenantId: north.id, shelfId: silentShelfId as never, text: 'Ungeprüft' })
+        .returning({ id: notes.id }),
+  )
+  silentNoteId = onSilent?.id ?? ''
+
   const parts = auditLogParts({
     access: { catalogue },
     vocabulary: probeAuditVocabulary,
+    // What the application knows a record was written with: the silent shelf
+    // as it was taken in, and the shelf of tools by another name, which the
+    // log has to win against if it is ever asked.
+    firstValues: (_tx, places) => {
+      askedFirst.push(places.map((place) => `${place.table}:${place.id}`))
+
+      const said: Record<string, Readonly<Record<string, string | null>>> = {
+        [silentShelfId]: { label: 'Kiste vom Stapel' },
+        [northShelves['tools'] ?? '']: { label: 'Alter Name' },
+      }
+
+      return Promise.resolve(
+        new Map(
+          places.flatMap((place) => {
+            const values = said[place.id]
+
+            return values === undefined ? [] : [[place.id, values] as const]
+          }),
+        ),
+      )
+    },
     words: {
       values: { shelves: { closed: { true: 'zu', false: 'offen' } } },
       // The tags of a note as a sentence, the way a list of them reads.
@@ -336,6 +389,31 @@ describe('who reads the log', () => {
     const narrowed = await page('susi', `?table=shelves&record=${northShelves['tools']}`)
 
     expect(narrowed.changes).toEqual([])
+  })
+})
+
+describe('a record the log is silent about (opengewerk-haustechnik#422)', () => {
+  it('is named by what the application says it was written with, and no record the log names is asked about', async () => {
+    askedFirst.length = 0
+
+    const found = await page('lea', `?table=shelves&record=${silentShelfId}`)
+
+    expect(found.titles[silentShelfId]).toEqual({
+      table: 'shelves',
+      field: 'label',
+      title: 'Kiste vom Stapel',
+      kind: null,
+    })
+    // Asked about the silent shelf, and never about the note or a shelf the log names.
+    expect(askedFirst.flat()).toContain(`shelves:${silentShelfId}`)
+    expect(askedFirst.flat()).not.toContain(`notes:${silentNoteId}`)
+    expect(askedFirst.flat()).not.toContain(`shelves:${northShelves['tools'] ?? ''}`)
+  })
+
+  it('leaves a record the log names as the log names it', async () => {
+    const found = await page('lea', `?table=shelves&record=${northShelves['tools']}`)
+
+    expect(found.titles[northShelves['tools'] ?? '']?.title).toBe('Werkzeug und Messgeräte')
   })
 })
 
