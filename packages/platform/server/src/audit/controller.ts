@@ -32,7 +32,7 @@ import { accountsOf } from '../authentication/administration.js'
 import { Database } from '../database/database.js'
 import { tableAnswer, tableFormatOf } from '../tables/write.js'
 import { checkAuditChain } from './chain.js'
-import { type AuditFilter, everMembers, readAuditPage } from './log.js'
+import { type AuditFilter, type AuditFirstValues, everMembers, readAuditPage } from './log.js'
 import { auditTable } from './table.js'
 
 /** The token the language of the log is handed under. */
@@ -40,6 +40,9 @@ export const AUDIT_LANGUAGE = Symbol('AuditLanguage')
 
 /** The token what the application says about the values of its log is handed under. */
 export const AUDIT_WORDS = Symbol('AuditWords')
+
+/** What an application knows of the values a record was written with, or null (`AuditFirstValues`). */
+export const AUDIT_FIRST_VALUES = Symbol('AuditFirstValues')
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -157,6 +160,7 @@ export class AuditController {
     private readonly database: Database,
     @Inject(AUDIT_LANGUAGE) private readonly language: AuditLanguage,
     @Inject(AUDIT_WORDS) private readonly words: AuditValueWords,
+    @Inject(AUDIT_FIRST_VALUES) private readonly firstValues: AuditFirstValues | null,
   ) {}
 
   @Get('changes')
@@ -170,6 +174,7 @@ export class AuditController {
       identity,
       auditFilterFrom(query, this.language),
       this.language,
+      this.firstValues,
     )
   }
 
@@ -199,7 +204,14 @@ export class AuditController {
     const filter = auditFilterFrom(query, this.language)
 
     return tableAnswer(
-      await auditTable(this.database, identity, filter, this.language, this.words),
+      await auditTable(
+        this.database,
+        identity,
+        filter,
+        this.language,
+        this.words,
+        this.firstValues,
+      ),
       format,
       berlinClock(new Date()).day,
     )
@@ -239,6 +251,11 @@ export interface AuditLogParts<Right extends string> {
    * says it, for the log as a table (opengewerk-haustechnik#236).
    */
   readonly words?: Omit<AuditValueWords, 'vocabulary'>
+  /**
+   * What the application knows of the values a record was written with,
+   * where the log is silent about them (opengewerk-haustechnik#422).
+   */
+  readonly firstValues?: AuditFirstValues
 }
 
 /**
@@ -263,6 +280,7 @@ export function auditLogParts<Right extends string>(
     providers: [
       { provide: AUDIT_LANGUAGE, useValue: auditLanguage(parts.vocabulary) },
       { provide: AUDIT_WORDS, useValue: { ...parts.words, vocabulary: parts.vocabulary } },
+      { provide: AUDIT_FIRST_VALUES, useValue: parts.firstValues ?? null },
     ],
   }
 }

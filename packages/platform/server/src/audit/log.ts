@@ -50,10 +50,28 @@ function textArray(values: readonly string[]): SQL {
 }
 
 /** One record in the log: its table and its id. */
-interface Place {
+/** A record the log names, by its table and its id. */
+export interface AuditPlace {
   readonly table: string
   readonly id: string
 }
+
+type Place = AuditPlace
+
+/**
+ * What an application knows of the values a record was written with, where
+ * its log has no entry that says so: a record written while the log of its
+ * table was silent, as rows an application writes in bulk and logs as one
+ * entry of its own. Asked only for records with a naming field their log
+ * never wrote, with the transaction of the tenant, and answered by the id of
+ * the record with its fields as the log writes them, a text or nothing. What
+ * the log has of a field wins over what this says: the log says what came
+ * after.
+ */
+export type AuditFirstValues = (
+  tx: TenantTransaction,
+  places: readonly AuditPlace[],
+) => Promise<ReadonlyMap<string, Readonly<Record<string, string | null>>>>
 
 function placeKey(place: Place): string {
   return `${place.table}:${place.id}`
@@ -330,6 +348,7 @@ async function titlesOf(
   tenantId: TenantId,
   places: readonly Place[],
   language: AuditLanguage,
+  firstValues: AuditFirstValues | null,
 ): Promise<Map<string, AuditTitle>> {
   const titles = new Map<string, AuditTitle>()
 
@@ -372,6 +391,27 @@ async function titlesOf(
     latest.set(key, { ...latest.get(key), [row.field]: row.new_value })
   }
 
+  // A naming field the log of a record never wrote is taken from what the
+  // record was written with, where the application knows it; what the log
+  // wrote, a value or an emptied field, wins field by field.
+  const unnamed = places.filter((place) => {
+    const values = latest.get(placeKey(place))
+
+    return language.titleFields(place.table).some((field) => values?.[field] === undefined)
+  })
+
+  if (firstValues !== null && unnamed.length > 0) {
+    const first = await firstValues(tx, unnamed)
+
+    for (const place of unnamed) {
+      const values = first.get(place.id)
+
+      if (values !== undefined) {
+        latest.set(placeKey(place), { ...values, ...latest.get(placeKey(place)) })
+      }
+    }
+  }
+
   for (const place of places) {
     const values = latest.get(placeKey(place)) ?? {}
 
@@ -398,6 +438,7 @@ export async function readAuditPage(
   identity: { readonly tenantId: TenantId; readonly userId: string },
   filter: AuditFilter,
   language: AuditLanguage,
+  firstValues: AuditFirstValues | null = null,
 ): Promise<AuditPage> {
   const read = await database.forTenant(identity, async (tx) => {
     const places =
@@ -452,7 +493,7 @@ export async function readAuditPage(
       }
     }
 
-    const titles = await titlesOf(tx, identity.tenantId, [...named.values()], language)
+    const titles = await titlesOf(tx, identity.tenantId, [...named.values()], language, firstValues)
     // A record named after what it belongs to needs that name as well.
     const owners = new Map<string, Place>()
 
@@ -469,6 +510,7 @@ export async function readAuditPage(
       identity.tenantId,
       [...owners.values()],
       language,
+      firstValues,
     )) {
       titles.set(id, title)
     }
@@ -488,6 +530,7 @@ export async function readAuditPage(
       identity.tenantId,
       [...stoodAt.values()],
       language,
+      firstValues,
     )) {
       titles.set(id, title)
     }
