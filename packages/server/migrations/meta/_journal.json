@@ -540,6 +540,13 @@
       "when": 1792276443247,
       "tag": "0076_tenant_roles_of_their_own",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792326082951,
+      "tag": "0077_rule_units_kilograms",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Regeln zählen auch in reinen Kilogramm (für opengewerk-haustechnik#351): die Einheit `kilograms` in `ruleUnits`, und
+  Migration 0077 nimmt sie in den Typ `rule_unit` von `tenant_parameters` auf, wie 0066 und 0071. Warum: die
+  F-Gas-Verordnung von 2024 setzt die Schwellen der Dichtheitskontrolle für ungesättigte Kältemittel in Kilogramm,
+  nicht in CO2-Äquivalent.
+
 - Das Änderungsprotokoll als Tabelle spricht mit den Wörtern des Mandanten (für opengewerk-haustechnik#426):
   `tenantWords` in den Teilen des Protokolls bildet die Wörter der Werte je Anfrage in der Transaktion des Mandanten,
   an der Stelle der Wörter, die die Anwendung einmal mitgibt. Warum: was ein Mandant selbst anlegt, etwa eigene
