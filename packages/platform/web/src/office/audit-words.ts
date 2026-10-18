@@ -4,6 +4,7 @@ import {
   auditTextWords,
   type AuditValueWords,
 } from '@opengewerk/platform-domain'
+import type { ComponentType } from 'react'
 
 import { useApplication } from '../application.js'
 import { amount, date, euros, moment } from '../format.js'
@@ -29,6 +30,12 @@ export interface AuditScreenWords extends AuditValueWords {
   readonly linkWords?: (table: string) => string | null
   /** Beside the chip of one record's log: what it takes in, by the record's table. */
   readonly partsWords?: Readonly<Record<string, string>>
+  /**
+   * Over the log of one record, what the application knows of where the
+   * record came from that no change says: an import that made it, say
+   * (opengewerk-haustechnik#174). It draws nothing where it knows nothing.
+   */
+  readonly lead?: ComponentType<{ readonly table: string; readonly id: string }>
 }
 
 /** The words of the log, with the ways from it to the screens. */

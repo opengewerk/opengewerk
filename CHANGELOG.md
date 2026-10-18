@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Über dem Protokoll eines Datensatzes kann eine Anwendung sagen, woher er stammt (für opengewerk-haustechnik#174):
+  `lead` in den Wörtern des Änderungsprotokolls, ein Baustein mit Tabelle und Kennung, der nichts zeichnet, wo die
+  Anwendung nichts weiß. Warum: dass ein Datensatz aus einem Import stammt, sagt keine Änderung, und das Protokoll
+  begann bisher mit seiner ersten.
+
 - Dateien, die ein Gerät behält und wieder freigibt (für opengewerk-haustechnik#348): `holdVersion` holt die Datei
   einer Fassung auf das Gerät und behält sie nur, wenn ihre Bytes die sind, die die Fassung nennt
   (`rememberChecked`); `forgetFile` gibt eine geholte Datei wieder frei, eine hier gemachte erst, wenn der Server

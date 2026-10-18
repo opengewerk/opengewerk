@@ -419,6 +419,8 @@ describe('the log of one record', () => {
     expect(calls).toContain(`/audit/changes?table=shelves&record=${shelfId}`)
     // Narrowed to one record the kind of record is no longer a choice.
     expect(screen.queryByRole('combobox', { name: 'Art' })).toBeNull()
+    // What the application knows of where it came from stands over its log.
+    expect(screen.getByText(`Herkunft des Regals ${shelfId}`)).toBeTruthy()
   })
 
   it('takes no record the application does not open the log from', async () => {
@@ -429,6 +431,7 @@ describe('the log of one record', () => {
 
     expect(calls).toContain('/audit/changes')
     expect(screen.queryByRole('button', { name: 'Alle Datensätze zeigen' })).toBeNull()
+    expect(screen.queryByText(/Herkunft des Regals/)).toBeNull()
   })
 
   it('is opened from the record by whoever reads the log, and the button is not there for others', async () => {

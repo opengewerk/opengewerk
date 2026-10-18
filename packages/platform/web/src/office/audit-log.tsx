@@ -201,6 +201,9 @@ export function AuditLogScreen() {
                 </span>
               </div>
             ) : null}
+            {narrowed && words.screen.lead ? (
+              <words.screen.lead table={narrowed.table} id={narrowed.record} />
+            ) : null}
             <div className="flex flex-wrap items-center gap-[9px] max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5">
               {/* Two columns on a phone, and part of the row from 600 pixels on. */}
               <div className="grid grid-cols-2 gap-2.5 sm:contents">
