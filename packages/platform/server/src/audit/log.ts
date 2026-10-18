@@ -6,6 +6,7 @@ import {
   type AuditPage,
   auditPageSize,
   type AuditTitle,
+  type AuditValueWords,
   type TenantId,
   withheldAuditValue,
 } from '@opengewerk/platform-domain'
@@ -72,6 +73,17 @@ export type AuditFirstValues = (
   tx: TenantTransaction,
   places: readonly AuditPlace[],
 ) => Promise<ReadonlyMap<string, Readonly<Record<string, string | null>>>>
+
+/**
+ * The words of the values of the log for one tenant (opengewerk-haustechnik#426):
+ * what an application says about the values of its log where a tenant adds
+ * words of its own, such as the kinds and fields a tenant made itself. Asked
+ * with the transaction of the tenant each time the log goes out as a table,
+ * in the place of the words the application gave once.
+ */
+export type AuditTenantWords = (
+  tx: TenantTransaction,
+) => Promise<Omit<AuditValueWords, 'vocabulary'>>
 
 function placeKey(place: Place): string {
   return `${place.table}:${place.id}`

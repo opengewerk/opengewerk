@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Änderungsprotokoll als Tabelle spricht mit den Wörtern des Mandanten (für opengewerk-haustechnik#426):
+  `tenantWords` in den Teilen des Protokolls bildet die Wörter der Werte je Anfrage in der Transaktion des Mandanten,
+  an der Stelle der Wörter, die die Anwendung einmal mitgibt. Warum: was ein Mandant selbst anlegt, etwa eigene
+  Anlagenarten und Felder, stand in der Tabelle mit seinem Schlüssel statt mit seiner Bezeichnung.
+
 - Vor dem Einschalten von Push steht, über welchen Dienst die Nachrichten gehen (für opengewerk-haustechnik#390): auf
   der Karte „Benachrichtigungen“ im Konto und im Menü vor Ort ein Satz, dass Push über den Dienst des
   Browser-Herstellers in den USA geht, den Inhalt verschlüsselt, mit dem Risiko bei den Diensten ohne Zertifizierung

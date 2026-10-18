@@ -32,7 +32,13 @@ import { accountsOf } from '../authentication/administration.js'
 import { Database } from '../database/database.js'
 import { tableAnswer, tableFormatOf } from '../tables/write.js'
 import { checkAuditChain } from './chain.js'
-import { type AuditFilter, type AuditFirstValues, everMembers, readAuditPage } from './log.js'
+import {
+  type AuditFilter,
+  type AuditFirstValues,
+  type AuditTenantWords,
+  everMembers,
+  readAuditPage,
+} from './log.js'
 import { auditTable } from './table.js'
 
 /** The token the language of the log is handed under. */
@@ -43,6 +49,9 @@ export const AUDIT_WORDS = Symbol('AuditWords')
 
 /** What an application knows of the values a record was written with, or null (`AuditFirstValues`). */
 export const AUDIT_FIRST_VALUES = Symbol('AuditFirstValues')
+
+/** The words of the values for one tenant, or null where the words of the application hold (`AuditTenantWords`). */
+export const AUDIT_TENANT_WORDS = Symbol('AuditTenantWords')
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -161,6 +170,7 @@ export class AuditController {
     @Inject(AUDIT_LANGUAGE) private readonly language: AuditLanguage,
     @Inject(AUDIT_WORDS) private readonly words: AuditValueWords,
     @Inject(AUDIT_FIRST_VALUES) private readonly firstValues: AuditFirstValues | null,
+    @Inject(AUDIT_TENANT_WORDS) private readonly tenantWords: AuditTenantWords | null,
   ) {}
 
   @Get('changes')
@@ -202,16 +212,18 @@ export class AuditController {
 
     const format = tableFormatOf(query)
     const filter = auditFilterFrom(query, this.language)
+    // The words of this tenant where the application makes them per tenant (opengewerk-haustechnik#426).
+    const tenantWords = this.tenantWords
+    const words =
+      tenantWords === null
+        ? this.words
+        : {
+            ...(await this.database.forTenant(identity, (tx) => tenantWords(tx))),
+            vocabulary: this.words.vocabulary,
+          }
 
     return tableAnswer(
-      await auditTable(
-        this.database,
-        identity,
-        filter,
-        this.language,
-        this.words,
-        this.firstValues,
-      ),
+      await auditTable(this.database, identity, filter, this.language, words, this.firstValues),
       format,
       berlinClock(new Date()).day,
     )
@@ -256,6 +268,12 @@ export interface AuditLogParts<Right extends string> {
    * where the log is silent about them (opengewerk-haustechnik#422).
    */
   readonly firstValues?: AuditFirstValues
+  /**
+   * The words of the values for the tenant that asks, where a tenant adds
+   * words of its own (opengewerk-haustechnik#426). Without it the log as a
+   * table speaks in `words`.
+   */
+  readonly tenantWords?: AuditTenantWords
 }
 
 /**
@@ -281,6 +299,7 @@ export function auditLogParts<Right extends string>(
       { provide: AUDIT_LANGUAGE, useValue: auditLanguage(parts.vocabulary) },
       { provide: AUDIT_WORDS, useValue: { ...parts.words, vocabulary: parts.vocabulary } },
       { provide: AUDIT_FIRST_VALUES, useValue: parts.firstValues ?? null },
+      { provide: AUDIT_TENANT_WORDS, useValue: parts.tenantWords ?? null },
     ],
   }
 }
