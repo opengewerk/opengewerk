@@ -1,0 +1,3 @@
+-- Takes back 0077, and there is nothing to take back. A value cannot be taken
+-- out of an enum, and an unused one does no harm; the same choice as in the
+-- rollbacks of 0066 and 0071.

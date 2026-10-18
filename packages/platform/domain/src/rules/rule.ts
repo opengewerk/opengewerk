@@ -29,6 +29,9 @@ import type { IsoDate } from '../model/identifier.js'
  * day (1003 is the third of October), and `days_from_easter` a day that moves
  * with Easter, counted from Easter Sunday (-2 is Good Friday, 1 Easter
  * Monday). `ruleDayIn` makes a day of a year of either.
+ *
+ * Plain kilograms came with refrigerants whose thresholds count by mass and
+ * not by CO2 equivalent: a leak check from a charge of 1 kilogram.
  */
 export const ruleUnits = [
   'basis_points',
@@ -49,6 +52,7 @@ export const ruleUnits = [
   'count_per_100_ml',
   'month_day',
   'days_from_easter',
+  'kilograms',
 ] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]
