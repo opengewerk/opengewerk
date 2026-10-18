@@ -131,6 +131,8 @@ let silentShelfId = ''
 let silentNoteId = ''
 /** What the log asked the application about, record by record (opengewerk-haustechnik#422). */
 const askedFirst: string[][] = []
+/** The labels of the shelves each tenant saw when its words were made (opengewerk-haustechnik#426). */
+const wordsAskedWith: string[][] = []
 
 beforeAll(async () => {
   foundation = await probeFoundation(probeSyncMade)
@@ -293,11 +295,21 @@ beforeAll(async () => {
         ),
       )
     },
-    words: {
-      values: { shelves: { closed: { true: 'zu', false: 'offen' } } },
-      // The tags of a note as a sentence, the way a list of them reads.
-      written: (table, field, raw) =>
-        table === 'notes' && field === 'tags' ? (auditListKeys(raw) ?? []).join(' und ') : null,
+    // Words the table never takes: the tenant's own below speak in its place.
+    words: { values: { shelves: { closed: { true: 'nicht diese', false: 'nicht diese' } } } },
+    // The words of the tenant that asks (opengewerk-haustechnik#426), with what
+    // it sees in its transaction: the shelves of its own and of no other.
+    tenantWords: async (tx) => {
+      const seen = await tx.select({ label: shelves.label }).from(shelves)
+
+      wordsAskedWith.push(seen.map((each) => each.label))
+
+      return {
+        values: { shelves: { closed: { true: 'zu', false: 'offen' } } },
+        // The tags of a note as a sentence, the way a list of them reads.
+        written: (table, field, raw) =>
+          table === 'notes' && field === 'tags' ? (auditListKeys(raw) ?? []).join(' und ') : null,
+      }
     },
   })
 
@@ -868,6 +880,33 @@ describe('the log as a table', () => {
  * A value the application writes its own way reads that way in the log as a
  * table as well (opengewerk-haustechnik#263): both ask the same words.
  */
+describe('the words of the tenant that asks (opengewerk-haustechnik#426)', () => {
+  it('are made in its transaction each time the log goes out as a table', async () => {
+    for (const [person, path] of [
+      ['lea', '/audit/table?format=csv&table=shelves'],
+      ['susi', '/audit/table?format=csv&table=shelves'],
+    ] as const) {
+      const identity: MemberIdentity<Right> = {
+        userId: person,
+        tenantId: people[person].tenant,
+        roles: [],
+        rights: [...people[person].rights, 'membership.read'],
+      }
+
+      await request(app.getHttpServer())
+        .get(path)
+        .set(testIdentityHeader, JSON.stringify(identity))
+        .expect(200)
+    }
+
+    const [north, south] = wordsAskedWith.slice(-2)
+
+    expect(north).toContain('Werkzeug und Messgeräte')
+    expect(south).not.toContain('Werkzeug und Messgeräte')
+    expect(south?.length).toBeGreaterThan(0)
+  })
+})
+
 describe('a value the application writes its own way', () => {
   it('stands in the table as the application writes it', async () => {
     const [tagged] = await database.forTenant(
