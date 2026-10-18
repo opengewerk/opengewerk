@@ -119,6 +119,13 @@ export interface StaffDialogsScreenProps<Value> {
    * dialogs ask for the last day with a star. Every other access may have one.
    */
   readonly endingRoles?: readonly string[]
+  /**
+   * Under the last day of somebody who works here, while it names a day: what
+   * the application says about the end of the access, such as what still
+   * hangs on the person (for opengewerk-haustechnik#356). The dialog only
+   * shows it; what happens on the day is the application's.
+   */
+  readonly afterLastDay?: (person: StaffEntry, lastDay: string) => ReactNode
   /** Cards of the application, between the accounts and the invitations. */
   readonly children?: ReactNode
 }
@@ -152,6 +159,7 @@ export function StaffDialogsScreen<Value = undefined>({
   sentences: own,
   additions,
   endingRoles = [],
+  afterLastDay,
   children,
 }: StaffDialogsScreenProps<Value>) {
   const sentences = useStaffSentences()
@@ -506,6 +514,7 @@ export function StaffDialogsScreen<Value = undefined>({
           correction={own.correction}
           additions={additions}
           endingRoles={endingRoles}
+          afterLastDay={afterLastDay}
           onSaved={refresh}
           onClose={() => {
             setEditing(null)
@@ -880,6 +889,7 @@ function EditAccess<Value>({
   correction,
   additions,
   endingRoles,
+  afterLastDay,
   onSaved,
   onClose,
 }: {
@@ -890,6 +900,7 @@ function EditAccess<Value>({
   readonly correction: string
   readonly additions: StaffAdditions<Value> | undefined
   readonly endingRoles: readonly string[]
+  readonly afterLastDay: StaffDialogsScreenProps<Value>['afterLastDay']
   /** After each request that went through, so that the lists behind the dialog follow. */
   readonly onSaved: () => void
   readonly onClose: () => void
@@ -1010,6 +1021,9 @@ function EditAccess<Value>({
           problem={lastDayProblem}
           onChange={setLastDay}
         />
+        {afterLastDay !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(lastDay)
+          ? afterLastDay(person, lastDay)
+          : null}
         {beside.fields(role)}
 
         <AccessDevices userId={person.userId} name={person.name} mayWrite headed />

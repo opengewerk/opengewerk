@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Angaben eines beendeten Zugangs entfernen (für opengewerk-haustechnik#356): `removeAccountData` nimmt nach dem
+  letzten Tag einer Zugehörigkeit die Geräte der Person in diesem Mandanten und die Passkeys, die er von ihr kennt.
+  Arbeitet das Konto für keinen anderen Mandanten mehr, oder nur für solche, deren letzter Tag ebenfalls vorbei ist,
+  und betreibt es die Instanz nicht, gehen auch seine Adresse (`removedAddress`), seine Passkeys, sein zweiter Faktor
+  und sein Passwort; der Name bleibt, weil das, was die Person unterschrieben hat, sie nennt. Warum: die Haustechnik
+  entfernt nach einer einstellbaren Frist, was kein Nachweis mehr braucht, und das liegt bei den Konten im Fundament.
+  Dazu bekommt der Dialog eines Zugangs unter dem letzten Tag einen Platz für die Anwendung (`afterLastDay`), sobald
+  ein Tag eingetragen ist, etwa für das, was noch an der Person hängt.
+
 - Regeln zählen auch in reinen Kilogramm (für opengewerk-haustechnik#351): die Einheit `kilograms` in `ruleUnits`, und
   Migration 0077 nimmt sie in den Typ `rule_unit` von `tenant_parameters` auf, wie 0066 und 0071. Warum: die
   F-Gas-Verordnung von 2024 setzt die Schwellen der Dichtheitskontrolle für ungesättigte Kältemittel in Kilogramm,

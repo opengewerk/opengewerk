@@ -11,6 +11,7 @@ import type { StandIn } from '../in-frame.js'
 import { InRouter } from '../in-router.js'
 import { InProbe } from '../probe-application.js'
 import { lastDayWords, StaffDialogsScreen } from './staff-dialogs.js'
+import type { StaffEntry } from '../session/session.js'
 import type { StaffAdditions } from './staff-dialogs.js'
 
 /**
@@ -134,12 +135,14 @@ function staffScreen({
   suggestedRole = 'member',
   additions = shelves(),
   endingRoles,
+  afterLastDay,
   children,
 }: {
   byMail?: boolean
   suggestedRole?: string
   additions?: StaffAdditions<string> | null
   endingRoles?: readonly string[]
+  afterLastDay?: (person: StaffEntry, lastDay: string) => ReactNode
   children?: ReactNode
 } = {}) {
   render(
@@ -158,6 +161,7 @@ function staffScreen({
             }}
             {...(additions ? { additions } : {})}
             {...(endingRoles ? { endingRoles } : {})}
+            {...(afterLastDay ? { afterLastDay } : {})}
           >
             {children}
           </StaffDialogsScreen>
@@ -735,6 +739,28 @@ describe('the last day of an access (for opengewerk-haustechnik#339)', () => {
     expect(sent('PATCH', '/staff/u-2')).toEqual([
       { roles: ['member'], additions: { shelf: 'A3', for: 'member' }, lastDay: null },
     ])
+  })
+
+  it('shows under it what the application says about the end, for the person and the day entered (for opengewerk-haustechnik#356)', async () => {
+    staffScreen({
+      afterLastDay: (person, lastDay) => (
+        <p>{`Bis ${lastDay} hängt an ${person.name} noch etwas.`}</p>
+      ),
+    })
+
+    const person = userEvent.setup()
+    const dialog = await accessOfMax(person)
+
+    // Without a day nothing is said about an end.
+    expect(within(dialog).queryByText(/hängt an/)).toBeNull()
+
+    await person.type(within(dialog).getByLabelText(/^Letzter Tag/), '2999-11-30')
+
+    expect(within(dialog).getByText(`Bis 2999-11-30 hängt an ${max.name} noch etwas.`)).toBeTruthy()
+
+    await person.clear(within(dialog).getByLabelText(/^Letzter Tag/))
+
+    expect(within(dialog).queryByText(/hängt an/)).toBeNull()
   })
 })
 
