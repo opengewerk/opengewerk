@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Ausbuchung im Lager (für opengewerk-haustechnik#430): die Art `write_off` einer Buchung nimmt Bestand weg wie
+  eine Entnahme und nennt ihren Grund, in Domäne und Datenbank (`stock_movements_write_off_with_a_reason`). Warum:
+  Material, das für etwas ohne Auftrag gebraucht wird, ließ sich bisher nur über eine Zählung ausbuchen, die den
+  Bestand setzt, statt zu sagen, was weggenommen wurde und wofür.
+
 - Ein Artikel im Lager hat einen Lagerplatz (für opengewerk-haustechnik#385): die Spalte `bin` an `store_articles`, frei
   als Text bis zur Länge des Orts eines Lagers, mit ihrer Prüfung in Domäne und Datenbank. Warum: Wo im Lager ein
   Artikel liegt, stand bisher behelfsweise in seiner Beschreibung, die aber für jedes Lager gilt.

@@ -120,7 +120,9 @@ export interface StoreArticle extends Synced {
  * How a booking changes the stock: a receipt adds, a withdrawal takes away,
  * and a count sets the stock to what was found. A transfer moves stock from
  * one store to another as two bookings, one out of the store it leaves and
- * one into the store it reaches, each naming the other store.
+ * one into the store it reaches, each naming the other store. A write-off
+ * takes away like a withdrawal, for something no record of the application
+ * stands for, and says why (opengewerk-haustechnik#430).
  */
 export const stockMovementKinds = [
   'receipt',
@@ -128,6 +130,7 @@ export const stockMovementKinds = [
   'withdrawal',
   'transfer_out',
   'transfer_in',
+  'write_off',
 ] as const
 
 export type StockMovementKind = (typeof stockMovementKinds)[number]
@@ -141,7 +144,11 @@ export const stockMovementKindLabel: Readonly<Record<StockMovementKind, string>>
   withdrawal: 'Entnahme',
   transfer_out: 'Umbuchung',
   transfer_in: 'Umbuchung',
+  write_off: 'Ausbuchung',
 }
+
+/** The bookings that name their reason: a count, and a write-off. */
+export const stockKindsWithAReason = ['count', 'write_off'] as const
 
 /**
  * A booking. Its quantity is what came in, what was taken, or for a count
@@ -158,7 +165,7 @@ export interface StockMovement extends Synced {
   readonly supplierId: StockSupplierId | null
   /** The other store of a transfer: where it went, or where it came from. */
   readonly counterpartStoreId: StoreId | null
-  /** Why a count corrects the stock, or what is said with a receipt or a withdrawal. */
+  /** Why a count corrects the stock or a write-off takes it away, or what is said with a receipt or a withdrawal. */
   readonly reason: string | null
   readonly bookedBy: string
   readonly bookedAt: Date
@@ -353,7 +360,8 @@ export function stockMovementProblems(
   const kind = movement['kind']
 
   if ('kind' in movement && !(stockMovementKinds as readonly unknown[]).includes(kind)) {
-    problems['kind'] = 'Gebucht wird ein Eingang, eine Zählung, eine Entnahme oder eine Umbuchung.'
+    problems['kind'] =
+      'Gebucht wird ein Eingang, eine Zählung, eine Entnahme, eine Umbuchung oder eine Ausbuchung.'
   }
 
   const quantity = movement['quantityMilli']
@@ -370,8 +378,12 @@ export function stockMovementProblems(
 
   const reason = movement['reason']
 
-  if (kind === 'count' && (typeof reason !== 'string' || reason.trim() === '')) {
-    problems['reason'] = 'Eine Zählung nennt ihren Grund.'
+  if (
+    (stockKindsWithAReason as readonly unknown[]).includes(kind) &&
+    (typeof reason !== 'string' || reason.trim() === '')
+  ) {
+    problems['reason'] =
+      kind === 'count' ? 'Eine Zählung nennt ihren Grund.' : 'Eine Ausbuchung nennt ihren Grund.'
   }
 
   if (kind !== undefined && kind !== 'receipt' && movement['supplierId'] != null) {
@@ -395,7 +407,7 @@ export function stockMovementProblems(
 /**
  * The stock the bookings of one article in one store make, in thousandths,
  * in the order the server took them in: a count sets it to what was found, a
- * receipt and a transfer in add, a withdrawal and a transfer out take away. A withdrawal of more than lies
+ * receipt and a transfer in add, a withdrawal, a write-off and a transfer out take away. A withdrawal of more than lies
  * there makes it negative and says so: it happened, and the next count
  * corrects it.
  */

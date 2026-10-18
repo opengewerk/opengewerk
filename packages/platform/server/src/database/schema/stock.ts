@@ -331,6 +331,11 @@ export function stockSchema<
         'stock_movements_count_with_a_reason',
         sql`${table.kind} <> 'count' or ${table.reason} is not null`,
       ),
+      // A write-off says why, as a count does (opengewerk-haustechnik#430).
+      check(
+        'stock_movements_write_off_with_a_reason',
+        sql`${table.kind} <> 'write_off' or ${table.reason} is not null`,
+      ),
       check('stock_movements_reason_fits', fitsIfThere(table.reason, stockLimits.note)),
       check(
         'stock_movements_supplier_at_a_receipt',
