@@ -9,7 +9,7 @@ import {
 import { and, count, eq, inArray, isNull, like, max, ne, sql } from 'drizzle-orm'
 
 import { isUniqueViolation } from '../api/database-errors.js'
-import type { Database, TenantTransaction } from '../database/database.js'
+import type { Actor, Database, TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
 import {
   accountCorrections,
@@ -815,15 +815,19 @@ export function removedAddress(userId: string): string {
  * A membership elsewhere that is blocked counts as still working there, as
  * in `worksOnlyHere`: blocked can be undone, and whoever is let back in
  * should come back with the account they left with.
+ *
+ * `actor` is whoever does it, and may be nobody: a pass of an application
+ * that removes the data on a day it counted names only the tenant and its
+ * reason, which the log then shows.
  */
 export async function removeAccountData(
   access: Pick<AccessRules, 'sentences'>,
   database: Database,
-  identity: TenantIdentity,
+  actor: Actor,
   userId: string,
 ): Promise<RemovedAccountData> {
-  await database.forTenant(identity, async (tx) => {
-    const membership = await membershipOf(access, tx, identity.tenantId, userId)
+  await database.forTenant(actor, async (tx) => {
+    const membership = await membershipOf(access, tx, actor.tenantId, userId)
 
     if (!hasEnded(membership.lastDay)) {
       throw new ConflictException(
@@ -836,7 +840,7 @@ export async function removeAccountData(
       .set({ removedAt: new Date(), updatedAt: new Date() })
       .where(
         and(
-          eq(memberPasskeys.tenantId, identity.tenantId),
+          eq(memberPasskeys.tenantId, actor.tenantId),
           eq(memberPasskeys.userId, userId),
           isNull(memberPasskeys.removedAt),
         ),
@@ -846,7 +850,7 @@ export async function removeAccountData(
       .set({ endedAt: new Date() })
       .where(
         and(
-          eq(tenantSessions.tenantId, identity.tenantId),
+          eq(tenantSessions.tenantId, actor.tenantId),
           eq(tenantSessions.userId, userId),
           isNull(tenantSessions.endedAt),
         ),
@@ -858,12 +862,12 @@ export async function removeAccountData(
       tx
         .delete(authSessions)
         .where(
-          and(eq(authSessions.userId, userId), eq(authSessions.activeTenantId, identity.tenantId)),
+          and(eq(authSessions.userId, userId), eq(authSessions.activeTenantId, actor.tenantId)),
         ),
-    identity.userId,
+    actor.userId,
   )
 
-  if (await worksElsewhere(database, identity.tenantId, userId)) {
+  if (await worksElsewhere(database, actor.tenantId, userId)) {
     return { account: false }
   }
 
@@ -885,7 +889,7 @@ export async function removeAccountData(
       .where(eq(authUsers.id, userId))
 
     return { account: true }
-  }, identity.userId)
+  }, actor.userId)
 }
 
 /**
