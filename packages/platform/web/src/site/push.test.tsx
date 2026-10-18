@@ -69,6 +69,12 @@ describe('push in the menu of the site', () => {
     fakePushBrowser({ subscribed: false })
     render(inQueries())
 
+    // Before it is turned on, the person reads which service carries it, and where (opengewerk-haustechnik#390).
+    expect(await screen.findByText(/Alle vier haben ihren Sitz in den USA/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Datenschutzhinweise' }).getAttribute('href')).toBe(
+      '/rechtliches/datenschutz',
+    )
+
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'Einschalten' }))
 

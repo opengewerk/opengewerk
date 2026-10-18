@@ -163,5 +163,6 @@ export {
   switchOn,
 } from './push-device.js'
 export type { PushBlocker } from './push-device.js'
+export { pushNotice, pushNoticeLink } from './push-notice.js'
 export { usePush, usePushRefresh } from './push-state.js'
 export type { PushState } from './push-state.js'

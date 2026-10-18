@@ -133,6 +133,13 @@ describe('the card "Benachrichtigungen"', () => {
     serverSays('PUT', '/push/subscription', { id: 'p-1' })
     render(inQueries(thePanel()))
 
+    // Before it is turned on, the person reads which service carries it, and where (opengewerk-haustechnik#390).
+    expect(await screen.findByText(/über den Push-Dienst des Browser-Herstellers/)).toBeTruthy()
+    expect(screen.getByText(/Alle vier haben ihren Sitz in den USA/)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Datenschutzhinweise' }).getAttribute('href')).toBe(
+      '/rechtliches/datenschutz',
+    )
+
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: 'Auf diesem Gerät einschalten' }))
 
@@ -158,6 +165,7 @@ describe('the card "Benachrichtigungen"', () => {
 
     expect(await screen.findByText('Auf diesem Gerät eingeschaltet')).toBeTruthy()
     expect(screen.getByText('Chrome auf Windows, seit 27.09.2037')).toBeTruthy()
+    expect(screen.queryByText(/über den Push-Dienst des Browser-Herstellers/)).toBeNull()
 
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: 'Probenachricht senden' }))

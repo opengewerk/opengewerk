@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Vor dem Einschalten von Push steht, über welchen Dienst die Nachrichten gehen (für opengewerk-haustechnik#390): auf
+  der Karte „Benachrichtigungen“ im Konto und im Menü vor Ort ein Satz, dass Push über den Dienst des
+  Browser-Herstellers in den USA geht, den Inhalt verschlüsselt, mit dem Risiko bei den Diensten ohne Zertifizierung
+  nach dem EU-US Data Privacy Framework und dem Verweis auf die Datenschutzhinweise der Instanz (`pushNotice`).
+  Warum: für Safari und Firefox ist das Einschalten die Einwilligung nach Art. 49 Abs. 1 lit. a DSGVO, und die gilt
+  nur, wenn die Person vorher vom Risiko weiß.
+
 - Eine Ausbuchung im Lager (für opengewerk-haustechnik#430): die Art `write_off` einer Buchung nimmt Bestand weg wie
   eine Entnahme und nennt ihren Grund, in Domäne und Datenbank (`stock_movements_write_off_with_a_reason`). Warum:
   Material, das für etwas ohne Auftrag gebraucht wird, ließ sich bisher nur über eine Zählung ausbuchen, die den
