@@ -62,11 +62,11 @@ type Place = AuditPlace
  * What an application knows of the values a record was written with, where
  * its log has no entry that says so: a record written while the log of its
  * table was silent, as rows an application writes in bulk and logs as one
- * entry of its own. Asked only for records whose log names none of their
- * naming fields, with the transaction of the tenant, and answered by the id
- * of the record with its fields as the log writes them, a text or nothing.
- * What the log has of a field wins over what this says: the log says what
- * came after.
+ * entry of its own. Asked only for records with a naming field their log
+ * never wrote, with the transaction of the tenant, and answered by the id of
+ * the record with its fields as the log writes them, a text or nothing. What
+ * the log has of a field wins over what this says: the log says what came
+ * after.
  */
 export type AuditFirstValues = (
   tx: TenantTransaction,
@@ -391,13 +391,13 @@ async function titlesOf(
     latest.set(key, { ...latest.get(key), [row.field]: row.new_value })
   }
 
-  // A record whose log names none of its naming fields is named by what it
-  // was written with, where the application knows it; the log wins field by
-  // field.
+  // A naming field the log of a record never wrote is taken from what the
+  // record was written with, where the application knows it; what the log
+  // wrote, a value or an emptied field, wins field by field.
   const unnamed = places.filter((place) => {
     const values = latest.get(placeKey(place))
 
-    return language.titleFields(place.table).every((field) => values?.[field] == null)
+    return language.titleFields(place.table).some((field) => values?.[field] === undefined)
   })
 
   if (firstValues !== null && unnamed.length > 0) {
