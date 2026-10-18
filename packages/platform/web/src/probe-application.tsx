@@ -107,6 +107,8 @@ export const probeRecords: RecordWords = {
  */
 export const probeAuditWords: AuditScreenWords = {
   vocabulary: probeAuditVocabulary,
+  // Where a shelf came from, as an application says it over the log of one.
+  lead: ({ table, id }) => (table === 'shelves' ? <p>{`Herkunft des Regals ${id}`}</p> : null),
   values: { letters: { status: { draft: 'Entwurf', sent: 'Verschickt' } } },
   lists: { labels: { red: 'Rot', blue: 'Blau' } },
   hidden: ['lock_code'],
