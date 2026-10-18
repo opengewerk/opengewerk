@@ -20,6 +20,7 @@ import { TestServer } from '../sync/test-server.js'
 import {
   addAttachment,
   addVersion,
+  holdVersion,
   openVersion,
   prepareVersion,
   type ShrinkPicture,
@@ -513,5 +514,63 @@ describe('the preview of a version', () => {
     expect(without.result.current).toBeNull()
     expect(unanswered.result.current).toBeNull()
     expect(shown(client, undefined).result.current).toBeNull()
+  })
+})
+
+describe('a version held on the device (opengewerk-haustechnik#348)', () => {
+  const bytes = new TextEncoder().encode('%PDF-1.7 Schema der Heizzentrale')
+  const version = {
+    id: 'v-7',
+    attachmentId: 'd-7',
+    sha256: hashOf(bytes),
+    mediaType: 'application/pdf',
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('is fetched once, kept under its hash and opened from the device without a network', async () => {
+    const client = await start()
+    const fetched = vi.fn((path: string) =>
+      Promise.resolve(
+        path === versionPath('v-7', 'content')
+          ? new Response(bytes, { headers: { 'content-type': 'application/pdf' } })
+          : new Response('{}', { status: 404 }),
+      ),
+    )
+
+    vi.stubGlobal('fetch', fetched)
+
+    expect(await holdVersion(client, version)).toBe(true)
+    expect(await holdVersion(client, version)).toBe(true)
+    expect(fetched).toHaveBeenCalledTimes(1)
+    expect(
+      new Uint8Array((await client.readFile(version.sha256))?.bytes ?? new ArrayBuffer(0)),
+    ).toEqual(bytes)
+
+    // Without a network it opens from the device and never from the server.
+    const opened = vi.fn()
+
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    vi.stubGlobal('open', opened)
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:schema')
+    await openVersion(client, version)
+
+    expect(opened).toHaveBeenCalledWith('blob:schema', '_blank', 'noopener')
+  })
+
+  it('is not kept without a network, when the server refuses it, or when its bytes are not the ones named', async () => {
+    const client = await start()
+
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    expect(await holdVersion(client, version)).toBe(false)
+
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('{}', { status: 403 })))
+    expect(await holdVersion(client, version)).toBe(false)
+
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('%PDF-1.7 etwas anderes')))
+    expect(await holdVersion(client, version)).toBe(false)
+    expect(await client.readFile(version.sha256)).toBeNull()
   })
 })

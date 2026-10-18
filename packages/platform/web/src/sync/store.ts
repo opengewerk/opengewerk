@@ -78,6 +78,13 @@ export interface LocalStore {
   countWaitingFiles(): Promise<number>
   /** Off the list of uploads. The bytes stay, for the screens that show them. */
   fileSent(sha256: string): Promise<void>
+  /**
+   * A file off this device that an application fetched to keep and no longer
+   * wants (opengewerk-haustechnik#348). One that still waits for its upload
+   * stays, whoever asks: the server does not have it yet. True when the file
+   * is gone, false when it stays or was never here.
+   */
+  dropFile(sha256: string): Promise<boolean>
 
   /** Everything of this tenant, gone. What signing out has to do. */
   clear(): Promise<void>
@@ -465,6 +472,31 @@ export async function openLocalStore(tenantId: string, owner?: string): Promise<
       transaction.objectStore(uploadStore).delete(sha256)
 
       await finished(transaction)
+    },
+
+    async dropFile(sha256) {
+      // One transaction over both, so that a file made here in the same
+      // moment is not taken from under its upload. Each request goes out
+      // from the callback of the one before: after an `await` the
+      // transaction may have committed already.
+      const transaction = transact([fileStore, uploadStore], 'readwrite')
+      const waiting = transaction.objectStore(uploadStore).count(sha256)
+      let dropped = false
+
+      waiting.onsuccess = () => {
+        const held = transaction.objectStore(fileStore).count(sha256)
+
+        held.onsuccess = () => {
+          if (waiting.result === 0 && held.result > 0) {
+            transaction.objectStore(fileStore).delete(sha256)
+            dropped = true
+          }
+        }
+      }
+
+      await finished(transaction)
+
+      return dropped
     },
 
     async clear() {
