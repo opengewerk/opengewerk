@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react'
 
 import { useApplication } from '../application.js'
+import { pushNotice, pushNoticeLink } from '../session/push-notice.js'
 import { usePush } from '../session/push-state.js'
 
 /**
@@ -51,17 +52,26 @@ export function SitePush({ entry }: { readonly entry: string }) {
       ) : push.blocker !== null ? (
         <p className="px-1 text-[14px] leading-[1.4] text-ink-muted">{blocked[push.blocker]}</p>
       ) : (
-        <div className="flex items-center gap-2.5 px-1">
-          <span className="grow text-[16px] text-ink-muted">Auf diesem Gerät aus</span>
-          <button
-            type="button"
-            disabled={push.busy}
-            onClick={push.turnOn}
-            className="min-h-11 cursor-pointer rounded-control bg-copper-solid px-4 text-[16px] font-semibold text-on-copper"
-          >
-            Einschalten
-          </button>
-        </div>
+        <>
+          <div className="flex items-center gap-2.5 px-1">
+            <span className="grow text-[16px] text-ink-muted">Auf diesem Gerät aus</span>
+            <button
+              type="button"
+              disabled={push.busy}
+              onClick={push.turnOn}
+              className="min-h-11 cursor-pointer rounded-control bg-copper-solid px-4 text-[16px] font-semibold text-on-copper"
+            >
+              Einschalten
+            </button>
+          </div>
+          {/* Before it is turned on: which service carries it, and where (opengewerk-haustechnik#390). */}
+          <p className="px-1 text-[14px] leading-[1.4] text-ink-muted">
+            {pushNotice}{' '}
+            <a href={pushNoticeLink.href} className="text-copper-text underline underline-offset-2">
+              {pushNoticeLink.label}
+            </a>
+          </p>
+        </>
       )}
       {overview.occasions.map((occasion) => (
         <label key={occasion.key} className="flex min-h-11 items-center gap-3 px-1">

@@ -5,6 +5,7 @@ import { Button } from '../components/button.js'
 import { Panel } from '../components/panel.js'
 import { Status } from '../components/status.js'
 import { date } from '../format.js'
+import { pushNotice, pushNoticeLink } from '../session/push-notice.js'
 import { usePush } from '../session/push-state.js'
 import { NoteBox } from './kit.js'
 import { SettingsText } from './settings.js'
@@ -79,13 +80,27 @@ export function PushPanel({ entry, words }: PushPanelProps) {
             ) : push.blocker !== null ? (
               <NoteBox>{blocked[push.blocker]}</NoteBox>
             ) : (
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="text-[13px] text-ink-muted">Auf diesem Gerät ausgeschaltet.</span>
-                <div className="grow" />
-                <Button tone="primary" icon={Bell} disabled={push.busy} onClick={push.turnOn}>
-                  Auf diesem Gerät einschalten
-                </Button>
-              </div>
+              <>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="text-[13px] text-ink-muted">
+                    Auf diesem Gerät ausgeschaltet.
+                  </span>
+                  <div className="grow" />
+                  <Button tone="primary" icon={Bell} disabled={push.busy} onClick={push.turnOn}>
+                    Auf diesem Gerät einschalten
+                  </Button>
+                </div>
+                {/* Before it is turned on: which service carries it, and where (opengewerk-haustechnik#390). */}
+                <NoteBox>
+                  {pushNotice}{' '}
+                  <a
+                    href={pushNoticeLink.href}
+                    className="text-copper-text underline underline-offset-2"
+                  >
+                    {pushNoticeLink.label}
+                  </a>
+                </NoteBox>
+              </>
             )}
 
             <fieldset className="flex flex-col gap-2">
