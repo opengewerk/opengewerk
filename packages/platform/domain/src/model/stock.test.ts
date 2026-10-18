@@ -77,6 +77,48 @@ describe('a supplier and a store', () => {
   })
 })
 
+describe('a write-off (opengewerk-haustechnik#430)', () => {
+  it('takes away a quantity above zero and names its reason', () => {
+    expect(
+      stockMovementProblems({ kind: 'write_off', quantityMilli: 2000, reason: 'Für das Foyer' }),
+    ).toEqual({})
+    expect(stockMovementProblems({ kind: 'write_off', quantityMilli: 2000 })).toEqual({
+      reason: 'Eine Ausbuchung nennt ihren Grund.',
+    })
+    expect(
+      stockMovementProblems({ kind: 'write_off', quantityMilli: 2000, reason: '  ' }),
+    ).toHaveProperty('reason')
+    expect(
+      stockMovementProblems({ kind: 'write_off', quantityMilli: 0, reason: 'Für das Foyer' }),
+    ).toHaveProperty('quantityMilli')
+    expect(
+      stockMovementProblems({
+        kind: 'write_off',
+        quantityMilli: 2000,
+        reason: 'Für das Foyer',
+        supplierId: 'p-1',
+      }),
+    ).toHaveProperty('supplierId')
+  })
+
+  it('takes the stock down, below zero where it does not reach', () => {
+    const at = (second: number) => new Date(Date.UTC(2026, 9, 18, 8, 0, second))
+
+    expect(
+      stockLevel([
+        { kind: 'receipt', quantityMilli: 3000, createdAt: at(1) },
+        { kind: 'write_off', quantityMilli: 2000, createdAt: at(2) },
+      ]),
+    ).toBe(1000)
+    expect(
+      stockLevel([
+        { kind: 'receipt', quantityMilli: 1000, createdAt: at(1) },
+        { kind: 'write_off', quantityMilli: 3000, createdAt: at(2) },
+      ]),
+    ).toBe(-2000)
+  })
+})
+
 describe('a booking', () => {
   it('adds or takes away a quantity above zero, and a count finds one from zero with its reason', () => {
     expect(stockMovementProblems({ kind: 'receipt', quantityMilli: 20_000 })).toEqual({})
