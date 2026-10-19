@@ -74,7 +74,7 @@ function Waiting() {
 
 /**
  * The people to talk to at a record, on its screen in the office: the name,
- * what somebody is there, phone and e-mail to tap, and a pencil to change a
+ * what somebody is there, both numbers and the e-mail to tap, and a pencil to change a
  * contact. Removing one is in the form behind the pencil, with a question
  * first.
  *
@@ -229,6 +229,7 @@ export function ContactsPanel({
 
             const role = maybeText(contact, 'role')
             const phone = maybeText(contact, 'phone')
+            const mobile = maybeText(contact, 'mobile')
             const email = maybeText(contact, 'email')
             const link = 'text-inherit underline underline-offset-2'
             // What somebody is, then how to reach them, each only when it is
@@ -238,6 +239,11 @@ export function ContactsPanel({
               phone ? (
                 <a href={`tel:${dialable(phone)}`} className={link}>
                   {phone}
+                </a>
+              ) : null,
+              mobile ? (
+                <a href={`tel:${dialable(mobile)}`} className={link}>
+                  {mobile}
                 </a>
               ) : null,
               email ? (
@@ -277,6 +283,7 @@ export function ContactsPanel({
             const name = contactName(contact)
             const role = maybeText(contact, 'role')
             const phone = maybeText(contact, 'phone')
+            const mobile = maybeText(contact, 'mobile')
             const email = maybeText(contact, 'email')
 
             if (editing === contactId) {
@@ -295,7 +302,7 @@ export function ContactsPanel({
                     {client.isPending(contactEntity, contactId) ? <Waiting /> : null}
                   </div>
                   {role ? <div className="text-[13px] text-ink-faint">{role}</div> : null}
-                  {phone || email ? (
+                  {phone || mobile || email ? (
                     <div className="mt-0.5 flex flex-wrap gap-x-2.5 text-[13px]">
                       {phone ? (
                         <a
@@ -303,6 +310,14 @@ export function ContactsPanel({
                           className="text-copper-text underline underline-offset-2"
                         >
                           {phone}
+                        </a>
+                      ) : null}
+                      {mobile ? (
+                        <a
+                          href={`tel:${dialable(mobile)}`}
+                          className="text-copper-text underline underline-offset-2"
+                        >
+                          {mobile}
                         </a>
                       ) : null}
                       {email ? (

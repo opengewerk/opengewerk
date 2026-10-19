@@ -400,6 +400,7 @@ function foundationTables(
         family_name: 'Nachname',
         role: 'Funktion',
         phone: 'Telefon',
+        mobile: 'Mobil',
       },
     },
     deadline_settings: {

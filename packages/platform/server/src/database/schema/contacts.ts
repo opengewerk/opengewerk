@@ -22,6 +22,8 @@ function contactParts() {
     role: text('role'),
     email: text('email'),
     phone: text('phone'),
+    // A second number, mostly the mobile one (opengewerk-haustechnik#428).
+    mobile: text('mobile'),
     ...timestamps,
     ...syncColumns,
   }

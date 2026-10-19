@@ -30,6 +30,7 @@ export function contactFields(words: ContactWords): readonly FormField[] {
     { name: 'familyName', label: 'Nachname', required: true },
     { name: 'role', label: words.role.label, hint: words.role.hint },
     { name: 'phone', label: 'Telefon', kind: 'tel' },
+    { name: 'mobile', label: 'Mobil', kind: 'tel' },
     { name: 'email', label: 'E-Mail', kind: 'email' },
   ]
 }
@@ -41,6 +42,7 @@ export function asContact(values: Readonly<Record<string, string>>) {
     familyName: values['familyName']?.trim() ?? '',
     role: asTextOrNull(values['role']),
     phone: asTextOrNull(values['phone']),
+    mobile: asTextOrNull(values['mobile']),
     email: asTextOrNull(values['email']),
   }
 }

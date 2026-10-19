@@ -13,7 +13,14 @@ export const contactEntity = 'contacts'
  * The texts that say who a contact is and how to reach them, in the order a
  * form asks for them.
  */
-export const contactTextFields = ['givenName', 'familyName', 'role', 'phone', 'email'] as const
+export const contactTextFields = [
+  'givenName',
+  'familyName',
+  'role',
+  'phone',
+  'mobile',
+  'email',
+] as const
 
 export type ContactTextField = (typeof contactTextFields)[number]
 
@@ -36,6 +43,11 @@ export interface ContactPerson extends Synced {
   readonly role: string | null
   readonly email: string | null
   readonly phone: string | null
+  /**
+   * A second number beside the first, the mobile one of somebody who also has
+   * a line with an extension (opengewerk-haustechnik#428).
+   */
+  readonly mobile: string | null
 }
 
 /** The texts of a contact as a form, a route or a device hands them over. */
