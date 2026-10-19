@@ -15,8 +15,10 @@
  *
  * Never while something holds it (`holdUpdates`): a form with what has not
  * been saved, a signature on its pad, the outbox on its way to the server,
- * and anything typed since the address last changed. What is let go while the
- * page is hidden is taken then, since nobody looks. Never without a network:
+ * anything typed since the address last changed, and the camera or the
+ * picker a file input opened, which hides the page while it is open. What is
+ * let go while the page is hidden is taken then, since nobody looks. Never
+ * without a network:
  * a page without one stays on its version, and takes the new one when the
  * network comes back while nobody looks, or at the next moment.
  *
@@ -44,6 +46,14 @@ export interface UpdateSurroundings {
 
 /** How often a page that stays open asks the server for a new version. */
 const lookEvery = 60 * 60 * 1000
+
+/**
+ * How long a page that is shown again waits for what a file input delivers
+ * before it takes the camera or the picker for given up. A browser without the
+ * event `cancel` says nothing when it is, and the `change` of one that
+ * delivers may come a moment after the page is shown.
+ */
+const pickerGrace = 2 * 1000
 
 const holds = new Set<object>()
 
@@ -117,6 +127,11 @@ export function takeUpdates(
   let outdated = false
   // Something was typed since the address last changed.
   let typing: (() => void) | null = null
+  // A file input whose camera or picker is open, and what holds the version
+  // meanwhile.
+  let picking: { readonly input: HTMLInputElement; readonly release: () => void } | null = null
+  // Gives the picker up once the page has been shown again for a moment.
+  let givingUp: ReturnType<typeof setTimeout> | undefined
 
   function waiting(): ServiceWorker | null {
     // Only beside an active one. On the first visit the worker passes through
@@ -172,9 +187,17 @@ export function takeUpdates(
 
   function visibilityChanged(): void {
     if (document.visibilityState === 'hidden') {
+      // The picker hid the page again, an app chooser before the camera:
+      // it is still open.
+      clearTimeout(givingUp)
       moment()
     } else {
       look()
+
+      if (picking) {
+        clearTimeout(givingUp)
+        givingUp = setTimeout(picked, pickerGrace)
+      }
     }
   }
 
@@ -194,11 +217,53 @@ export function takeUpdates(
     typing ??= holdUpdates()
   }
 
+  // A file input opens the camera or the picker of the device, which hides the
+  // page on a phone; a reload then would lose the photo just taken. Any file
+  // input on the page, also a hidden one a button clicks, since that still
+  // sends `click` to the input. Held until it delivers or is given up.
+  function clicked(event: Event): void {
+    const input = event.target
+
+    if (input instanceof HTMLInputElement && input.type === 'file') {
+      // Held anew before the one before is let go, which would be a moment.
+      const release = holdUpdates()
+
+      picked()
+      picking = { input, release }
+      input.addEventListener('change', delivered)
+      input.addEventListener('cancel', picked)
+    }
+  }
+
+  // What the input delivered lives in the page now, like what was typed. The
+  // browser sends `input` before `change`, which `typed` hears already; this
+  // holds as well where it does not, since the change may come while the page
+  // is still hidden.
+  function delivered(): void {
+    typed()
+    picked()
+  }
+
+  // The camera or the picker delivered or was given up.
+  function picked(): void {
+    clearTimeout(givingUp)
+
+    if (picking) {
+      const { input, release } = picking
+
+      picking = null
+      input.removeEventListener('change', delivered)
+      input.removeEventListener('cancel', picked)
+      release()
+    }
+  }
+
   const timer = setInterval(look, lookEvery)
 
   workers.addEventListener('controllerchange', controllerChanged)
   document.addEventListener('visibilitychange', visibilityChanged)
   document.addEventListener('input', typed, true)
+  document.addEventListener('click', clicked, true)
   window.addEventListener('online', whileHidden)
 
   const current = {
@@ -217,9 +282,11 @@ export function takeUpdates(
       workers.removeEventListener('controllerchange', controllerChanged)
       document.removeEventListener('visibilitychange', visibilityChanged)
       document.removeEventListener('input', typed, true)
+      document.removeEventListener('click', clicked, true)
       window.removeEventListener('online', whileHidden)
       typing?.()
       typing = null
+      picked()
     },
   }
 

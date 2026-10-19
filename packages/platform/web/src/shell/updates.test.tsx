@@ -235,6 +235,131 @@ describe('a new version', () => {
   })
 })
 
+describe('a file input', () => {
+  const inputs: HTMLInputElement[] = []
+
+  /** A hidden file input, as a photo has it, which its button clicks. */
+  function aFileInput(): HTMLInputElement {
+    const input = document.createElement('input')
+
+    input.type = 'file'
+    input.hidden = true
+    document.body.append(input)
+    inputs.push(input)
+
+    return input
+  }
+
+  afterEach(() => {
+    for (const input of inputs.splice(0)) {
+      input.remove()
+    }
+  })
+
+  /**
+   * It opens the camera or the picker of the device, which hides the page on
+   * a phone; a reload then would lose the photo just taken.
+   */
+  it('holds a version that waits while its camera or picker is open, although the page is hidden', () => {
+    const page = aDevice()
+    const input = aFileInput()
+    const button = document.createElement('button')
+
+    document.body.append(button)
+    page.start()
+    page.arrive()
+    button.click()
+
+    expect(updatesHeld()).toBe(false)
+
+    input.click()
+
+    expect(updatesHeld()).toBe(true)
+
+    page.hide()
+
+    expect(page.sent).toEqual([])
+    expect(page.reloads).toBe(0)
+
+    button.remove()
+  })
+
+  it('lets it go once the input delivers, and what it delivered holds it like what was typed until the address changes', () => {
+    const page = aDevice()
+    const input = aFileInput()
+
+    page.start()
+    page.arrive()
+    input.click()
+    page.hide()
+    // The browser may deliver before the page is shown again.
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+
+    expect(page.sent).toEqual([])
+
+    page.show()
+    addressChanged()
+
+    expect(page.sent).toEqual([skipWaiting])
+    expect(page.reloads).toBe(1)
+  })
+
+  it('lets it go when the picker is given up, and while the page is hidden that is a moment', () => {
+    const page = aDevice()
+    const input = aFileInput()
+
+    page.start()
+    page.arrive()
+    input.click()
+    page.hide()
+
+    expect(page.sent).toEqual([])
+
+    input.dispatchEvent(new Event('cancel', { bubbles: true }))
+
+    expect(page.sent).toEqual([skipWaiting])
+    expect(page.reloads).toBe(1)
+  })
+
+  it('lets it go a moment after the page is shown again without either, in a browser that says nothing', () => {
+    vi.useFakeTimers()
+
+    try {
+      const page = aDevice()
+      const input = aFileInput()
+      const moment = 10 * 1000
+
+      page.start()
+      page.arrive()
+      input.click()
+      page.hide()
+      page.show()
+      // The picker hides the page again, an app chooser before the camera.
+      page.hide()
+      vi.advanceTimersByTime(moment)
+
+      expect(page.sent).toEqual([])
+
+      page.show()
+
+      expect(updatesHeld()).toBe(true)
+
+      vi.advanceTimersByTime(moment)
+
+      expect(updatesHeld()).toBe(false)
+      // A page somebody looks at waits for its next moment.
+      expect(page.sent).toEqual([])
+
+      page.hide()
+
+      expect(page.sent).toEqual([skipWaiting])
+      expect(page.reloads).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('a change of address in the router', () => {
   /** The least a frame is: the hook, a link, and the screen under it. */
   function Frame() {
