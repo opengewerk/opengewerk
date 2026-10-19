@@ -13,6 +13,9 @@ import {
 import { type InstallationId, inStructureOrder, type TenantId } from '@opengewerk/domain'
 import {
   addressLines,
+  type ChartBoard,
+  type CircuitChart,
+  circuitChartJob,
   Database,
   isUuid,
   present,
@@ -33,7 +36,6 @@ import {
   sites,
   tenants,
 } from '../database/schema/index.js'
-import { type ChartBoard, type CircuitChart, circuitChartJob } from '../electrical/circuit-chart.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 import { todayInGermany } from '../today.js'

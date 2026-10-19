@@ -1,4 +1,4 @@
-import type { AuditTableWords } from '@opengewerk/platform-domain'
+import { type AuditTableWords, structureAuditTables } from '@opengewerk/platform-domain'
 
 /**
  * What the change log calls a table and a field, in the words of the office
@@ -41,6 +41,8 @@ export const auditCommonFields: Readonly<Record<string, string>> = {
 
 /** The tables of the business, by name. */
 export const auditTables: Readonly<Record<string, AuditTableWords>> = {
+  // The electrical and the PV structure, in the foundation's words (ADR 0014).
+  ...structureAuditTables,
   article_imports: {
     label: 'Import aus DATANORM',
     fields: {
@@ -79,28 +81,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       import_id: 'Import',
     },
   },
-  board_sections: {
-    label: 'Feld eines Verteilers',
-    fields: { distribution_board_id: 'Verteiler' },
-  },
-  circuits: {
-    label: 'Stromkreis',
-    fields: {
-      distribution_board_id: 'Verteiler',
-      board_section_id: 'Feld',
-      consumer: 'Verbraucher',
-      overcurrent_device: 'Schutzeinrichtung',
-      trip_characteristic: 'Charakteristik',
-      rated_current_milli: 'Nennstrom',
-      rcd_type: 'RCD-Typ',
-      rated_residual_current_milli: 'Bemessungsdifferenzstrom',
-      cable_type: 'Leitungstyp',
-      cable_cores: 'Aderzahl',
-      cable_cross_section_milli: 'Querschnitt',
-      cable_length_milli: 'Leitungslänge',
-      cable_installation_method: 'Verlegeart',
-    },
-  },
   customer_tags: { label: 'Tag an einem Kunden', fields: { tag_id: 'Tag' } },
   customers: {
     label: 'Kunde',
@@ -113,7 +93,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       buyer_reference: 'Käuferreferenz',
     },
   },
-  distribution_boards: { label: 'Verteiler', fields: { location: 'Standort' } },
   document_files: {
     label: 'Datei eines Belegs',
     fields: { purpose: 'Zweck', file_id: 'Datei' },
@@ -173,7 +152,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       field_values: 'Felder',
     },
   },
-  equipment: { label: 'Betriebsmittel', fields: { circuit_id: 'Stromkreis' } },
   form_definitions: {
     label: 'Formular',
     fields: { key: 'Schlüssel', definition_version: 'Fassung', definition: 'Definition' },
@@ -211,10 +189,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
   installation_labels: {
     label: 'QR-Etikett',
     fields: { code: 'Code', blocked_at: 'Gesperrt am' },
-  },
-  inverters: {
-    label: 'Wechselrichter',
-    fields: { rated_power_w: 'Nennleistung in W', mpp_inputs: 'MPP-Eingänge' },
   },
   job_assignments: { label: 'Einteilung auf einen Auftrag' },
   job_notes: {
@@ -270,19 +244,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       unit_price_cents: 'Preis',
       price_base: 'Preiseinheit',
       import_id: 'Import',
-    },
-  },
-  pv_modules: {
-    label: 'PV-Modul',
-    fields: { pv_string_id: 'String', rated_power_w: 'Leistung in Wp' },
-  },
-  pv_strings: {
-    label: 'String',
-    fields: {
-      inverter_id: 'Wechselrichter',
-      mpp_input: 'MPP-Eingang',
-      azimuth_deg: 'Ausrichtung in Grad',
-      tilt_deg: 'Neigung in Grad',
     },
   },
   site_access_deliveries: {

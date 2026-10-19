@@ -61,10 +61,10 @@ describe('the figures of a circuit', () => {
         cableInstallationMethod: 'h',
       }),
     ).toEqual({
-      overcurrentDevice: 'Diese Schutzeinrichtung kennt OpenGewerk nicht.',
-      tripCharacteristic: 'Diese Charakteristik kennt OpenGewerk nicht.',
-      rcdType: 'Diesen RCD-Typ kennt OpenGewerk nicht.',
-      cableInstallationMethod: 'Diese Verlegeart kennt OpenGewerk nicht.',
+      overcurrentDevice: 'Diese Schutzeinrichtung ist unbekannt.',
+      tripCharacteristic: 'Diese Charakteristik ist unbekannt.',
+      rcdType: 'Dieser RCD-Typ ist unbekannt.',
+      cableInstallationMethod: 'Diese Verlegeart ist unbekannt.',
     })
   })
 

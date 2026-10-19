@@ -1,4 +1,11 @@
-import type { AuditPart, AuditTitleRule, AuditVocabulary } from '@opengewerk/platform-domain'
+import {
+  type AuditPart,
+  type AuditTitleRule,
+  type AuditVocabulary,
+  structureAuditParts,
+  structureAuditReferences,
+  structureAuditTitles,
+} from '@opengewerk/platform-domain'
 
 import { auditCommonFields, auditTables } from './audit-labels.js'
 import { permissionLabel, roleKeys, roles } from './authorization.js'
@@ -55,13 +62,8 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'inverters', column: 'installation_id' },
     { table: 'installation_labels', column: 'installation_id' },
   ],
-  distribution_boards: [
-    { table: 'board_sections', column: 'distribution_board_id' },
-    { table: 'circuits', column: 'distribution_board_id' },
-  ],
-  circuits: [{ table: 'equipment', column: 'circuit_id' }],
-  inverters: [{ table: 'pv_strings', column: 'inverter_id' }],
-  pv_strings: [{ table: 'pv_modules', column: 'pv_string_id' }],
+  // Below a board and an inverter the parts are the foundation's (ADR 0014).
+  ...structureAuditParts,
   jobs: [
     { table: 'job_notes', column: 'job_id' },
     { table: 'job_assignments', column: 'job_id' },
@@ -101,11 +103,7 @@ const auditReferences: Readonly<Record<string, string>> = {
   document_id: 'documents',
   predecessor_document_id: 'documents',
   source_document_id: 'documents',
-  distribution_board_id: 'distribution_boards',
-  board_section_id: 'board_sections',
-  circuit_id: 'circuits',
-  inverter_id: 'inverters',
-  pv_string_id: 'pv_strings',
+  ...structureAuditReferences,
   article_id: 'articles',
   supplier_id: 'suppliers',
   supplier_article_id: 'supplier_articles',
@@ -137,9 +135,6 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   documents: ['number', 'subject'],
   jobs: ['designation', 'number'],
   document_lines: ['designation', 'description'],
-  circuits: ['designation', 'consumer'],
-  equipment: ['designation', 'model'],
-  pv_modules: ['model', 'serial_number'],
   // A label is told apart by its code, the one thing it says (#308).
   installation_labels: ['code'],
   // An article by what it is called, a price by the day it begins, and what a
@@ -180,6 +175,7 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
  * named by both its names, which the foundation says for its table.
  */
 const auditTitles: Readonly<Record<string, AuditTitleRule>> = {
+  ...structureAuditTitles,
   ...titleFieldsByTable,
   ...Object.fromEntries(auditPersonTables.map((table) => [table, ['user_id']])),
 }

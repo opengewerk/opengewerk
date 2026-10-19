@@ -8,23 +8,18 @@ import {
   type IsoDate,
   overcurrentText,
   rcdText,
-} from '@opengewerk/domain'
-import {
-  fontFaces,
-  type PageMargin,
-  present,
-  type PrintJob,
-  text,
-  typeface,
-} from '@opengewerk/platform-server'
+} from '@opengewerk/platform-domain'
+
+import { fontFaces, present, text, typeface } from './helpers.js'
+import type { PageMargin, PrintJob } from './renderer.js'
 
 /**
  * The circuit chart of one or more boards, the list that hangs on the inside
  * of the door: which breaker feeds what, behind which RCD, over which cable.
  *
- * It is the same structure the office and the site work on, printed, and the
- * point of printing it is the next person who opens the door, who may not be
- * from this business at all. So it says who keeps it and how current it is,
+ * It is the same structure the office and the device in the hand work on,
+ * printed (ADR 0014), and the point of printing it is the next person who
+ * opens the door, who may not be from the tenant at all. So it says who keeps it and how current it is,
  * and it prints what is known about a circuit and nothing in place of what is
  * not: an empty cell is a question for whoever reads it, a guessed value is a
  * wrong answer.
@@ -66,11 +61,16 @@ export type ChartCircuit = Pick<
   | 'cableInstallationMethod'
 >
 
+/**
+ * A chart as the application hands it in: what stands at the head of every
+ * page is the application's, the boards are the structure.
+ */
 export interface CircuitChart {
-  /** Who keeps the chart: the business, with a way to reach it. */
+  /** Who keeps the chart: the tenant, with a way to reach it. */
   readonly keeper: { readonly name: string; readonly phone: string | null }
+  /** What the boards hang on, as a line: `Elektroinstallation Wohnhaus`. */
   readonly installation: string
-  /** The building, as a line: `Einfamilienhaus, Hauptstraße 1, 68535 Edingen`. */
+  /** Where it is, as a line: `Einfamilienhaus, Hauptstraße 1, 68535 Edingen`. */
   readonly site: string
   readonly boards: readonly ChartBoard[]
 }

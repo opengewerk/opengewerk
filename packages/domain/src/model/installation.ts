@@ -1,5 +1,12 @@
-import type { IsoDate, Synced } from '@opengewerk/platform-domain'
-import type { InstallationId, InverterId, SiteId } from './identifier.js'
+import type {
+  DistributionBoard,
+  Inverter,
+  InverterId,
+  IsoDate,
+  Synced,
+} from '@opengewerk/platform-domain'
+
+import type { InstallationId, SiteId } from './identifier.js'
 
 /**
  * What stands in a building and needs looking after. The inverter of a PV
@@ -49,4 +56,17 @@ export interface Installation extends Synced {
   readonly pvSystemId: InstallationId | null
   /** The inverter of that PV system it hangs at, where it hangs at one. */
   readonly inverterId: InverterId | null
+}
+
+/**
+ * A board of this application: the foundation's board (ADR 0014), hanging on
+ * an installation.
+ */
+export interface InstallationBoard extends DistributionBoard {
+  readonly installationId: InstallationId
+}
+
+/** An inverter of this application, hanging on the installation that is its PV system. */
+export interface InstallationInverter extends Inverter {
+  readonly installationId: InstallationId
 }

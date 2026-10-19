@@ -1,14 +1,16 @@
-import type { InstallationKind } from './installation.js'
-import type { Synced } from '@opengewerk/platform-domain'
-import type { InstallationId, InverterId, PvModuleId, PvStringId } from './identifier.js'
+import type { Id, Synced } from './identifier.js'
+
+export type InverterId = Id<'inverter'>
+export type PvStringId = Id<'pv-string'>
+export type PvModuleId = Id<'pv-module'>
 
 /**
- * The photovoltaic structure below an installation: inverter, string, module.
- * The same reasoning as for the electrical side, section 3.2 of the concept
- * calls it out as the analogous case. Yield data is not here, that is
- * monitoring; storage, meters and the wallbox are installations of their own,
- * which say which PV system they belong to and at which inverter they hang
- * (#300).
+ * The photovoltaic structure below an installation: inverter, string, module
+ * (#300, ADR 0014), with the same reasoning as the electrical structure
+ * beside it. What an inverter hangs on is the application's, as for a board.
+ * Yield data is not here, that is monitoring; storage, meters and the wallbox
+ * are records of the application, which say themselves which PV system they
+ * belong to and at which inverter they hang.
  *
  * Power is kept in watts, whole numbers: the inverter at the grid, "10,0 kW"
  * as 10000, a module at its rated peak, "400 Wp" as 400. Nothing on a PV
@@ -16,9 +18,9 @@ import type { InstallationId, InverterId, PvModuleId, PvStringId } from './ident
  * without a question of rounding.
  */
 
+/** An inverter, without what it hangs on, like a board. */
 export interface Inverter extends Synced {
   readonly id: InverterId
-  readonly installationId: InstallationId
   readonly designation: string
   readonly manufacturer: string | null
   readonly model: string | null
@@ -55,40 +57,10 @@ export interface PvModule extends Synced {
   readonly position: number
 }
 
-/** The kinds of installation that may say they belong to a PV system (#300). */
-export const pvCompanionKinds: readonly InstallationKind[] = ['battery', 'meter', 'wallbox']
-
-/** Whether an installation of this kind can belong to a PV system. */
-export function belongsToPvSystemKind(kind: unknown): boolean {
-  return pvCompanionKinds.includes(kind as InstallationKind)
-}
-
-function isSet(value: unknown): boolean {
-  return value !== null && value !== undefined && value !== ''
-}
-
-/**
- * Why an installation of this kind cannot name a PV system, or null. The
- * form offers the choice only for these kinds and clears it when the kind
- * changes; the check in the database says the same.
- */
-export function pvSystemLinkProblem(kind: unknown, pvSystemId: unknown): string | null {
-  return !isSet(pvSystemId) || belongsToPvSystemKind(kind)
-    ? null
-    : 'Zu einer PV-Anlage gehören nur Speicher, Zähler und Wallbox.'
-}
-
-/** Why an installation cannot name this inverter, or null: only together with its PV system. */
-export function inverterLinkProblem(pvSystemId: unknown, inverterId: unknown): string | null {
-  return !isSet(inverterId) || isSet(pvSystemId)
-    ? null
-    : 'An einem Wechselrichter hängt nur, was zu seiner PV-Anlage gehört.'
-}
-
 /**
  * The largest value each figure may take. A house has a few kilowatts, a
  * commercial roof a few hundred; ten megawatts leaves room for the largest
- * a craft business builds and still catches a figure typed in watts where
+ * roof anybody plans and still catches a figure typed in watts where
  * kilowatts were asked. A module of two kilowatts peak does not exist.
  */
 export const pvLimits = {

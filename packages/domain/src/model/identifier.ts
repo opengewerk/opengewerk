@@ -3,19 +3,13 @@ import type { Id } from '@opengewerk/platform-domain'
 /**
  * The keys of this application's entities. `Id` and the keys every
  * application shares (tenant, membership, invitation, audit entry, stored
- * file, contact) come from the foundation, as do `IsoDate`, `TenantOwned` and
+ * file, contact, the parts of the electrical and PV structure) come from the
+ * foundation, as do `IsoDate`, `TenantOwned` and
  * `Synced` (ADR 0010).
  */
 export type CustomerId = Id<'customer'>
 export type SiteId = Id<'site'>
 export type InstallationId = Id<'installation'>
-export type DistributionBoardId = Id<'distribution-board'>
-export type BoardSectionId = Id<'board-section'>
-export type CircuitId = Id<'circuit'>
-export type EquipmentId = Id<'equipment'>
-export type InverterId = Id<'inverter'>
-export type PvStringId = Id<'pv-string'>
-export type PvModuleId = Id<'pv-module'>
 export type JobId = Id<'job'>
 export type DocumentId = Id<'document'>
 export type DocumentLineId = Id<'document-line'>

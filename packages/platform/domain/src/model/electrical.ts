@@ -1,16 +1,16 @@
-import type { Synced } from '@opengewerk/platform-domain'
-import type {
-  BoardSectionId,
-  CircuitId,
-  DistributionBoardId,
-  EquipmentId,
-  InstallationId,
-} from './identifier.js'
+import type { Id, Synced } from './identifier.js'
+
+export type DistributionBoardId = Id<'distribution-board'>
+export type BoardSectionId = Id<'board-section'>
+export type CircuitId = Id<'circuit'>
+export type EquipmentId = Id<'equipment'>
 
 /**
  * The electrical structure below an installation: board, section, circuit,
- * equipment. Section 3.2 of the concept lays it out, and two things hang off
- * it that cannot hang off anything else: the test records under VDE 0100-600
+ * equipment (ADR 0014). What a board hangs on is the application's: it gives
+ * the column to the tables it makes with `electricalSchema`, and the key to
+ * its type of a board. Two things hang off the structure that cannot hang off
+ * anything else: the test records under VDE 0100-600
  * and 0105-100, whose readings are taken per circuit, and the circuit chart
  * printed for the door of the board.
  *
@@ -24,9 +24,8 @@ import type {
 /**
  * What kind of board this is. A meter cabinet is not among them: it is an
  * installation of its own and carries the boards inside it, the same way the
- * two files beside this one put the inverter below the PV system and storage,
- * meters and the wallbox next to it. A board is part of an installation, never
- * a stand in for one.
+ * file beside this one puts the inverter below the PV system. A board is part
+ * of an installation, never a stand in for one.
  */
 export const distributionBoardKinds = [
   /** Niederspannungshauptverteilung. */
@@ -185,9 +184,12 @@ export const cableInstallationMethodName: Readonly<Record<CableInstallationMetho
   g: 'G: Einadrig, frei in Luft, mit Abstand',
 }
 
+/**
+ * A board, without what it hangs on: an application adds its own key to it,
+ * as it adds the column to the table.
+ */
 export interface DistributionBoard extends Synced {
   readonly id: DistributionBoardId
-  readonly installationId: InstallationId
   readonly kind: DistributionBoardKind
   /** `HV`, `UV Küche`, whatever is written on the door. */
   readonly designation: string
@@ -208,10 +210,10 @@ export interface BoardSection extends Synced {
 }
 
 /**
- * One circuit, with what section 3.2 lists for it.
+ * One circuit, with what its chart and a test record need to know of it.
  *
- * The figures are whole numbers of thousandths, like `quantityMilli` on a
- * document line: a rated current of 16 A is 16000, a residual current of
+ * The figures are whole numbers of thousandths, like a quantity in the
+ * stock: a rated current of 16 A is 16000, a residual current of
  * 30 mA is 30, a cross section of 1.5 mm² is 1500, a length of 12.5 m is
  * 12500. No fractions travel between device and server, and a comparison
  * against a limit in the test record is a comparison of integers.
@@ -321,11 +323,11 @@ export function circuitProblems(
   const characteristic = circuit['tripCharacteristic']
 
   if (!oneOf(device, overcurrentDevices)) {
-    problems['overcurrentDevice'] = 'Diese Schutzeinrichtung kennt OpenGewerk nicht.'
+    problems['overcurrentDevice'] = 'Diese Schutzeinrichtung ist unbekannt.'
   }
 
   if (!oneOf(characteristic, tripCharacteristics)) {
-    problems['tripCharacteristic'] = 'Diese Charakteristik kennt OpenGewerk nicht.'
+    problems['tripCharacteristic'] = 'Diese Charakteristik ist unbekannt.'
   } else if (
     typeof characteristic === 'string' &&
     typeof device === 'string' &&
@@ -342,7 +344,7 @@ export function circuitProblems(
   }
 
   if (!oneOf(circuit['rcdType'], rcdTypes)) {
-    problems['rcdType'] = 'Diesen RCD-Typ kennt OpenGewerk nicht.'
+    problems['rcdType'] = 'Dieser RCD-Typ ist unbekannt.'
   }
 
   if (!wholeUpTo(circuit['ratedResidualCurrentMilli'], largest.ratedResidualCurrentMilli)) {
@@ -363,7 +365,7 @@ export function circuitProblems(
   }
 
   if (!oneOf(circuit['cableInstallationMethod'], cableInstallationMethods)) {
-    problems['cableInstallationMethod'] = 'Diese Verlegeart kennt OpenGewerk nicht.'
+    problems['cableInstallationMethod'] = 'Diese Verlegeart ist unbekannt.'
   }
 
   return problems

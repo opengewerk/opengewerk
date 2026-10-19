@@ -6,7 +6,7 @@ import type {
   RcdType,
   RecordState,
   TripCharacteristic,
-} from '@opengewerk/domain'
+} from '@opengewerk/platform-domain'
 import {
   cableInstallationMethodName,
   cableInstallationMethods,
@@ -26,10 +26,7 @@ import {
   rcdTypes,
   tripCharacteristicLabel,
   tripCharacteristics,
-} from '@opengewerk/domain'
-import { Button, Field, FieldLabel, SelectField, useEntry } from '@opengewerk/platform-web'
-import { scaledNumber } from '@opengewerk/platform-web/format'
-import { SiteActionBar } from '@opengewerk/platform-web/site'
+} from '@opengewerk/platform-domain'
 import {
   asTextOrNull,
   count,
@@ -38,18 +35,23 @@ import {
   refusalFor,
   text,
   useRelated,
-} from '@opengewerk/platform-web/sync'
-import type { Draft, EditResult, FormField } from '@opengewerk/platform-web/sync'
+} from '../sync/index.js'
+import type { Draft, EditResult, FormField } from '../sync/index.js'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { Button, Field, FieldLabel, SelectField, useEntry } from '../components/index.js'
+import { scaledNumber } from '../format.js'
+import { SiteActionBar } from '../site/action-bar.js'
 import type { SyncClient } from '../sync/client.js'
 
 /**
  * The structure below an installation as both entries show it: board,
- * section, circuit, equipment.
+ * section, circuit, equipment (ADR 0014). What a board hangs on is the
+ * application's: it asks for the boards of a record by the field that names
+ * it (`useBoardsOf`), and keeps the address of its circuit chart.
  *
  * One module for the office and the site, like the tasks. The office builds
  * the structure and the site completes it, a circuit a technician finds
@@ -80,14 +82,16 @@ export function ordered(records: readonly RecordState[]): readonly RecordState[]
   )
 }
 
-function useOrdered(entity: string, field: string, id: string | undefined) {
+/** The rows of one table that name this record in a field, in the order of the structure. */
+export function useOrdered(entity: string, field: string, id: string | undefined) {
   const related = useRelated(entity, field, id)
 
   return useMemo(() => ordered(related), [related])
 }
 
-export function useBoards(installationId: string | undefined) {
-  return useOrdered('distribution_boards', 'installationId', installationId)
+/** The boards of a record, by the field of the application that names it on a board. */
+export function useBoardsOf(field: string, id: string | undefined) {
+  return useOrdered('distribution_boards', field, id)
 }
 
 export function useSections(boardId: string | undefined) {
@@ -170,7 +174,7 @@ function figure(record: RecordState, field: string): number | null {
   return typeof value === 'number' ? value : null
 }
 
-/** The figures of a circuit record, for the texts `domain` writes them with. */
+/** The figures of a circuit record, for the texts `platform-domain` writes them with. */
 export function figuresOf(circuit: RecordState): CircuitFigures {
   return {
     overcurrentDevice: known(circuit, 'overcurrentDevice', overcurrentDevices),
@@ -203,13 +207,6 @@ export function circuitsInWords(total: number): string {
   }
 
   return total === 1 ? '1 Stromkreis' : `${String(total)} Stromkreise`
-}
-
-/** The address of the chart, for a link that opens it: every board, or one. */
-export function circuitChartAddress(installationId: string, boardId?: string): string {
-  const base = `/installations/${encodeURIComponent(installationId)}/circuit-chart`
-
-  return boardId === undefined ? base : `${base}?board=${encodeURIComponent(boardId)}`
 }
 
 export const boardFields: readonly FormField[] = [
@@ -333,12 +330,12 @@ export function readFigure(input: string, places: number, units: readonly string
 const nothing = { value: '', label: 'nicht angegeben' } as const
 
 /**
- * A circuit, with everything section 3.2 asks for.
+ * A circuit, with everything its chart and a test record ask for.
  *
  * Not a `RecordForm`: the curve depends on the device, the figures carry a
  * unit and have to be read the way somebody in Germany types them, and a
  * problem belongs to the field that has it. The checks are the ones in
- * `domain`, the same the server asks before it takes the circuit, so a
+ * `platform-domain`, the same the server asks before it takes the circuit, so a
  * figure it would refuse never reaches the outbox, where a refusal would hold
  * up everything behind it.
  *

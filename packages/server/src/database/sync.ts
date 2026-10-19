@@ -17,6 +17,8 @@ import {
   contactWithoutParent,
   serverSync,
   type SyncCheck,
+  sectionRefusal,
+  structureProblem,
   syncTables,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
@@ -25,7 +27,7 @@ import type { FoundIdentity } from '../api/identity.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
-import { pvLinkRefusal, sectionRefusal, structureProblem } from '../electrical/structure.js'
+import { pvLinkRefusal } from '../electrical/structure.js'
 import { tradeForms } from '../forms/registry.js'
 import { reportFieldsProblem } from '../forms/report-fields.js'
 import { followUpRefusal } from '../jobs/follow-up.js'
@@ -244,7 +246,7 @@ const references: Check = async ({ tx, operation, table, values, current }) => {
   }
 
   const misplaced =
-    (await sectionRefusal(tx, operation, values, current)) ??
+    (await sectionRefusal(schema.boardSections, tx, operation, values, current)) ??
     (await pvLinkRefusal(tx, operation, values, current))
 
   return misplaced ? { kind: 'conflict', reason: misplaced.reason, fields: misplaced.fields } : null
