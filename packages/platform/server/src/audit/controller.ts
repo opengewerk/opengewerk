@@ -287,6 +287,14 @@ export class AuditController {
    * with a reason. Whoever reads the log may ask; whether the person leads
    * the tenant, and whether the entry is still as it was written, the database
    * decides, and the redaction itself stands in the log.
+   *
+   * No right of its own, on purpose: who may black out a value is whoever
+   * leads the tenant (decided at opengewerk-haustechnik#355 on 19.10.2026),
+   * and leading is a property of a role, not a right one could hand to a
+   * role of a tenant's own. The restrictive policy of `audit_redactions` asks
+   * it of the membership, so no right a route could check would add to it.
+   * The log is no evidence: a value in it is a copy of what a record held,
+   * and the record and every evidence stay as they are.
    */
   @Post('entries/:id/redactions')
   @RequiresPermission(auditRights.read)
