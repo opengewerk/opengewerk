@@ -52,6 +52,12 @@ export function instanceRecord(
     return 'Rechtstexte der Instanz'
   }
 
+  // Part B of the measures and the subprocessors, as their screen calls them
+  // (opengewerk-haustechnik#358).
+  if (change.table === 'instance_settings' && change.reason === 'instance.measures') {
+    return 'Maßnahmen der Instanz'
+  }
+
   if (change.table === 'instance_settings') {
     return 'Einstellungen der Instanz'
   }

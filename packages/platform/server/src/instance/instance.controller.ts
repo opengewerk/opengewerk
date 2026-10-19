@@ -19,6 +19,7 @@ import {
 import type {
   InstanceAccess,
   InstanceLegalTextsView,
+  InstanceMeasuresView,
   InstanceLogPage,
   InstanceMailServerState,
   InstanceMailServerView,
@@ -37,6 +38,7 @@ import type { MailConfiguration } from '../mail/configuration.js'
 import { MAIL, type MailContext } from '../mail/context.js'
 import { operatorAccess } from './access.js'
 import { checkedLegalTexts, readInstanceLegalTexts, saveLegalTexts } from './legal-texts.js'
+import { checkedMeasures, readInstanceMeasures, saveMeasures } from './measures.js'
 import { readInstanceLog } from './log.js'
 import {
   instanceMailConfigurationToTry,
@@ -271,6 +273,28 @@ export class InstanceController {
     @Body() body: unknown,
   ): Promise<InstanceLegalTextsView> {
     return saveLegalTexts(this.database, user.userId, checkedLegalTexts(body))
+  }
+
+  /**
+   * Part B of the technical and organisational measures and the
+   * subprocessors (opengewerk-haustechnik#358) for their screen, with when
+   * and by whom they were last changed. A tenant reads them only inside its
+   * own documents, which the application makes.
+   */
+  @Get('measures')
+  @RequiresOperator()
+  measures(@CurrentUser() user: SignedInUser): Promise<InstanceMeasuresView> {
+    return readInstanceMeasures(this.database, user.userId)
+  }
+
+  /** Keeps part B and annex 2 whole: what the screen shows is what the request sends. */
+  @Put('measures')
+  @RequiresOperator()
+  changeMeasures(
+    @CurrentUser() user: SignedInUser,
+    @Body() body: unknown,
+  ): Promise<InstanceMeasuresView> {
+    return saveMeasures(this.database, user.userId, checkedMeasures(body))
   }
 
   @Get('operators')

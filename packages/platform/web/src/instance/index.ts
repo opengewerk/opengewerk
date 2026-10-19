@@ -16,6 +16,7 @@ export type { InstanceEntry } from './frame.js'
 // of a tenant.
 export { InstanceLegalTextsScreen } from './legal-texts.js'
 export { InstanceLogScreen } from './log.js'
+export { InstanceMeasuresScreen } from './measures.js'
 export { InstanceOperatorsScreen } from './operators.js'
 export { InstanceSettingsScreen } from './settings.js'
 export { InstanceTenantsScreen } from './tenants.js'

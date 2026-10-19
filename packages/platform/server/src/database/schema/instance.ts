@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   smallint,
   text,
@@ -98,6 +99,19 @@ export const instanceSettings = pgTable(
      */
     imprint: text('imprint'),
     privacyNotice: text('privacy_notice'),
+    /**
+     * Part B of the technical and organisational measures and the
+     * subprocessors (opengewerk-haustechnik#358), kept by whoever runs the
+     * instance and read into the measures of every tenant on it: the values
+     * of part B by the key of their field, and the rows of annex 2. Who
+     * changed them and when is in the log of the instance.
+     */
+    measures: jsonb('measures')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    subprocessors: jsonb('subprocessors')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     ...timestamps,
   },
   (table) => [
@@ -117,6 +131,11 @@ export const instanceSettings = pgTable(
       'instance_settings_mail_server_login',
       sql`(${table.mailServerPassword} is null or ${table.mailServerUsername} is not null)
         and (${table.mailServerPassword} is null) = (${table.mailServerPasswordSetAt} is null)`,
+    ),
+    check('instance_settings_measures_object', sql`jsonb_typeof(${table.measures}) = 'object'`),
+    check(
+      'instance_settings_subprocessors_list',
+      sql`jsonb_typeof(${table.subprocessors}) = 'array'`,
     ),
     check(
       'instance_settings_mail_server_port',
