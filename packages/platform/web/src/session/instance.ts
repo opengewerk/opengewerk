@@ -4,11 +4,14 @@ import type {
   InstanceLogPage,
   InstanceMailServerState,
   InstanceMailServerView,
+  InstanceMeasures,
+  InstanceMeasuresView,
   InstanceSettingsView,
   InstanceTenantView,
   LegalTextKind,
   OperatorView,
   SmtpSecurity,
+  Subprocessor,
   TenantId,
 } from '@opengewerk/platform-domain'
 import { queryOptions } from '@tanstack/react-query'
@@ -164,5 +167,21 @@ export function createTenantFor(wanted: {
       leadName: wanted.leadName,
       leadEmail: wanted.leadEmail,
     }),
+  })
+}
+
+/** Part B of the measures and the subprocessors for their screen (opengewerk-haustechnik#358). */
+export function instanceMeasures(): Promise<InstanceMeasuresView> {
+  return request<InstanceMeasuresView>('/instance/measures')
+}
+
+/** Keeps part B and annex 2 whole, as the screen shows them. */
+export function saveInstanceMeasures(change: {
+  readonly measures: InstanceMeasures
+  readonly subprocessors: readonly Subprocessor[]
+}): Promise<InstanceMeasuresView> {
+  return request<InstanceMeasuresView>('/instance/measures', {
+    method: 'PUT',
+    body: JSON.stringify(change),
   })
 }

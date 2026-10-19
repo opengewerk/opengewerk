@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Maßnahmen der Instanz (für opengewerk-haustechnik#358): Teil B der technischen und organisatorischen Maßnahmen
+  (B.1 bis B.9 der Vorlage zur Auftragsverarbeitung auf opengewerk.de) und die Unterauftragsverarbeiter pflegt, wer
+  die Instanz betreibt, auf einem eigenen Bildschirm ihres Bereichs (`InstanceMeasuresScreen`, `GET` und `PUT
+  instance/measures`), mit einem Speichern für alles. Gehalten in zwei Spalten der Einstellungen der Instanz
+  (`measures`, `subprocessors`), deren Änderungen wie jede andere im Protokoll der Instanz stehen; eine Anwendung
+  liest sie mit `readMeasures` für die Dokumente eines Mandanten, ohne den Namen dessen, der sie geändert hat. Die
+  Handwerkersoftware bekommt die Spalten mit der Migration `0079_instance_measures`; ihren Bildschirm bindet sie erst
+  mit einer Tafel. Warum: die Haustechnik erzeugt die Maßnahmen eines Betreibers als Anlage 1 zum Vertrag zur
+  Auftragsverarbeitung, und was beim Betrieb der Instanz sichergestellt ist, weiß nur, wer sie betreibt.
+
 - Ein Foto zu einem Punkt auch aus der Galerie (für die Rundgänge der Haustechnik): `PhotoTaker` hat neben
   „Foto aufnehmen“, das die Kamera sofort öffnet, einen zweiten Knopf „Aus der Galerie“ ohne `capture`. Mit
   `multiple` hält ein Punkt mehrere Fotos: ein weiteres kommt dazu statt das vorige zu ersetzen, und aus der Galerie

@@ -513,6 +513,15 @@ export interface InstanceAreaSentences {
     /** Beside where the legal notice stands: for whom it holds, with the application's word for a tenant. */
     readonly forAll: string
   }
+  /** The screen of part B of the measures and the subprocessors (opengewerk-haustechnik#358). */
+  readonly measures: {
+    /** Under the heading: what the screen holds, and for whom. */
+    readonly sub: string
+    /** Over the sections: where part B and annex 2 go, and that a tenant changes nothing of them. */
+    readonly what: string
+    /** Under the subprocessors: whose mail server does not belong in the list. */
+    readonly ownMail: string
+  }
   readonly log: {
     /** Under the heading: what the log holds, and where a change in a tenant stands instead. */
     readonly what: string

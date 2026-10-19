@@ -302,6 +302,11 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
         legal: {
           forAll: 'Er gilt für alle Mandanten.',
         },
+        measures: {
+          sub: 'Was die Aufsicht beim Führen der Instanz sicherstellt.',
+          what: 'Teil B und die Unterauftragsverarbeiter, für jeden Mandanten gleich.',
+          ownMail: 'Den Mailserver eines Mandanten trägt dieser selbst ein.',
+        },
         log: {
           what: 'Was die Aufsicht an der Instanz geändert hat. Was in einem Mandanten geschieht, steht in dessen Protokoll.',
           aTenant: 'Ein Mandant',

@@ -223,6 +223,13 @@ const instance = {
   legal: {
     forAll: 'Es gilt für alle Betriebe auf dieser Instanz.',
   },
+  // The trades application mounts no screen of the measures yet; the
+  // sentences are there for when it does (opengewerk-haustechnik#358).
+  measures: {
+    sub: 'Was der Betreiber beim Betrieb dieser Instanz sicherstellt. Es gilt für alle Betriebe auf ihr.',
+    what: 'Teil B der technischen und organisatorischen Maßnahmen und die Unterauftragsverarbeiter, wie sie Anlage 1 und 2 zum Vertrag zur Auftragsverarbeitung nennen: was beim Betrieb dieser Instanz sichergestellt ist, und wer dabei für den Betreiber arbeitet. Ein Betrieb auf dieser Instanz ändert nichts davon. Teil A bringt die Anwendung selbst mit.',
+    ownMail: 'Den Mailserver eines Betriebs trägt dieser selbst ein; er gehört nicht hierher.',
+  },
   log: {
     what: 'Jede Änderung an der Instanz. Was in einem Betrieb geändert wird, steht in dessen Änderungsprotokoll.',
     aTenant: 'Ein Betrieb',
