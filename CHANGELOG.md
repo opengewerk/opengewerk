@@ -24,7 +24,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `multiple` hält ein Punkt mehrere Fotos: ein weiteres kommt dazu statt das vorige zu ersetzen, und aus der Galerie
   lassen sich mehrere auf einmal wählen. Warum: mit `capture` öffnete das Telefon nur die Kamera, ein Foto, das schon
   gemacht war, ließ sich nicht hinzufügen. Auf dem Telefon stehen die beiden Knöpfe untereinander, weil nebeneinander
-  jede Beschriftung in zwei Zeilen umbrach; wo beide Platz haben, wie im Büro, stehen sie nebeneinander.
+  jede Beschriftung in zwei Zeilen umbrach; wo beide Platz haben, wie im Büro, stehen sie nebeneinander. Mit `compact`
+  (für opengewerk-haustechnik#451) sind es zwei kurze Knöpfe „Foto“ und „Galerie“ nebeneinander unter den Fotos, für
+  einen Punkt unter vielen in einer Liste, wo zwei Knöpfe über die ganze Breite an jedem Punkt die Liste doppelt so lang
+  machten.
 
 - Einen Wert im Änderungsprotokoll schwärzen (für opengewerk-haustechnik#355, ADR 0013): wer den Mandanten führt,
   leert den Wert davor oder danach eines Eintrags mit einem Grund (`POST audit/entries/:id/redactions`, Tabelle
@@ -406,6 +409,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Bei einer Liste, die nie null ist (`.array().notNull()`), nimmt der Abgleich die leere Liste als das, was ein Gerät
+  sah, wenn es dort nichts gesehen hat (für opengewerk-haustechnik#451). Ein Gerät hält eine Zeile von vor der
+  Spalte ohne sie und schickt beim ersten Ändern `from: null`; die Spalte kam aber mit der leeren Liste, und jede erste
+  Änderung wäre ein Konflikt gewesen. Eine Liste, die null sein darf, behält null als Wert. Warum: Die Haustechnik
+  bekommt eine solche Liste an ihren Antworten, und ein Rundgang, der beim Update läuft, soll weitere Fotos nehmen.
+
 - `describe` der Fristen einer Anwendung bekommt, wer fragt (für opengewerk-haustechnik#337). Warum: eine Frist
   liest, wer Fristen ansehen darf, was sie über eine Person sagt, aber vielleicht nur, wer ein weiteres Recht hält;
   so nennt die Haustechnik den Namen an der Frist einer Qualifikation nur, wer Qualifikationen ansieht.
@@ -642,6 +651,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wurde an einer Seite rot, die niemand angefasst hatte.
 
 ### Behoben
+
+- Ein Foto, das abgelegt wird, während der Abgleich die Dateien davor hochlädt, kommt nicht mehr als Konflikt
+  `record_missing` an seiner Prüfsumme zurück (gefunden bei opengewerk-haustechnik#451). Seine Version stand schon im
+  Ausgang, die Datei aber erst auf der Liste für den nächsten Abgleich, und der Server fand sie nicht. Jetzt wartet eine
+  Änderung, die eine noch wartende Datei nennt, samt den späteren am selben Datensatz, bis die Datei oben ist, und der
+  Abgleich geht dafür eine Runde weiter. Warum: Mehrere Fotos aus der Galerie auf einmal, bei langsamem Netz, trafen
+  das fast jedes Mal.
 
 - Ein Gerät vor Ort sieht die Konflikte, die der Server für es abgelegt hat, auch wenn die Anmeldung im Büro begann
   (gefunden bei opengewerk-haustechnik, 19.10.2026). Das Büro schickt ein Telefon auf die Seite für vor Ort, und eine

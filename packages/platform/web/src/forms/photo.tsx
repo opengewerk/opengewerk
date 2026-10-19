@@ -27,6 +27,12 @@ export interface PhotoTakerProps {
    * stand over the buttons. Without it one photo replaces the one before.
    */
   readonly multiple?: boolean
+  /**
+   * Small, for a point among many in a list (opengewerk-haustechnik#451): two
+   * short buttons side by side under the photos, where two over the whole
+   * width at every point would make the list twice as long.
+   */
+  readonly compact?: boolean
   readonly disabled?: boolean
 }
 
@@ -49,6 +55,7 @@ export function PhotoTaker({
   photo,
   onTake,
   multiple = false,
+  compact = false,
   disabled = false,
 }: PhotoTakerProps) {
   const camera = useRef<HTMLInputElement>(null)
@@ -66,6 +73,63 @@ export function PhotoTaker({
   }
 
   const again = multiple ? 'Weiteres Foto' : 'Anderes Foto'
+  const inputs = (
+    <>
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        aria-label={label}
+        onChange={(event) => {
+          took(event.target)
+        }}
+      />
+      <input
+        ref={gallery}
+        type="file"
+        accept="image/*"
+        multiple={multiple}
+        hidden
+        aria-label={fromTheGallery(label)}
+        onChange={(event) => {
+          took(event.target)
+        }}
+      />
+    </>
+  )
+
+  if (compact) {
+    return (
+      <div className="flex min-w-0 flex-col items-start gap-2">
+        {there ? photo : null}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            icon={Camera}
+            height={44}
+            disabled={disabled}
+            onClick={() => {
+              camera.current?.click()
+            }}
+          >
+            {there ? again : 'Foto'}
+          </Button>
+          <Button
+            icon={ImageIcon}
+            height={44}
+            disabled={disabled}
+            onClick={() => {
+              gallery.current?.click()
+            }}
+          >
+            Galerie
+          </Button>
+        </div>
+        {inputs}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -103,28 +167,7 @@ export function PhotoTaker({
           </Button>
         </div>
       </div>
-      <input
-        ref={camera}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        aria-label={label}
-        onChange={(event) => {
-          took(event.target)
-        }}
-      />
-      <input
-        ref={gallery}
-        type="file"
-        accept="image/*"
-        multiple={multiple}
-        hidden
-        aria-label={fromTheGallery(label)}
-        onChange={(event) => {
-          took(event.target)
-        }}
-      />
+      {inputs}
     </div>
   )
 }

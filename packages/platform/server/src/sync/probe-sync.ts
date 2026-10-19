@@ -79,6 +79,12 @@ export const notes = pgTable(
     details: jsonb('details').$type<Readonly<Record<string, unknown>>>(),
     // The letters a note is about: a list of ids, and no key behind them.
     aboutLetters: uuid('about_letters').array(),
+    // A list that is never null, empty where nothing is said, as a column
+    // added to a table that has rows already (opengewerk-haustechnik#451).
+    marks: text('marks')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     ...syncColumns,
     ...timestamps,
   },

@@ -76,6 +76,8 @@ export interface LocalStore {
   waitingFiles(): Promise<readonly StoredFile[]>
   /** How many that is, without reading a single byte of them. */
   countWaitingFiles(): Promise<number>
+  /** Their hashes, without reading a single byte of them either. */
+  waitingHashes(): Promise<ReadonlySet<string>>
   /** Off the list of uploads. The bytes stay, for the screens that show them. */
   fileSent(sha256: string): Promise<void>
   /**
@@ -464,6 +466,15 @@ export async function openLocalStore(tenantId: string, owner?: string): Promise<
       const rows = await promised<unknown[]>(transaction.objectStore(uploadStore).getAll())
 
       return rows.filter((row) => sendableBy(row, owner)).length
+    },
+
+    async waitingHashes() {
+      const transaction = transact([uploadStore], 'readonly')
+      const rows = await promised<{ sha256: string; owner?: string }[]>(
+        transaction.objectStore(uploadStore).getAll(),
+      )
+
+      return new Set(rows.filter((row) => sendableBy(row, owner)).map((row) => row.sha256))
     },
 
     async fileSent(sha256) {

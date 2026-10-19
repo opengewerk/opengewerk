@@ -370,6 +370,27 @@ describe('the photo of a point', () => {
     })
     expect(taken.mock.calls).toEqual([[first], [second]])
   })
+
+  it('is small in a list, and takes from the camera and the gallery all the same', () => {
+    const taken = vi.fn()
+    const photo = new File(['eins'], 'eins.jpg', { type: 'image/jpeg' })
+    const { rerender } = render(<PhotoTaker label="Foto zu Tür" multiple compact onTake={taken} />)
+
+    expect(screen.getByRole('button', { name: 'Foto' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Galerie' })).toBeDefined()
+    expect(screen.getByLabelText('Foto zu Tür').getAttribute('capture')).toBe('environment')
+    fireEvent.change(screen.getByLabelText('Foto zu Tür'), { target: { files: [photo] } })
+    expect(taken.mock.calls).toEqual([[photo]])
+
+    rerender(
+      <PhotoTaker label="Foto zu Tür" multiple compact photo={<span>Bild</span>} onTake={taken} />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Weiteres Foto' })).toBeDefined()
+    expect(screen.getByLabelText<HTMLInputElement>('Foto zu Tür, aus der Galerie').multiple).toBe(
+      true,
+    )
+  })
 })
 
 describe('a point in a list', () => {

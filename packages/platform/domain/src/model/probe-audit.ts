@@ -22,6 +22,7 @@ export const probeAuditVocabulary: AuditVocabulary = {
         tags: 'Schlagworte',
         details: 'Angaben',
         about_letters: 'Zu den Briefen',
+        marks: 'Markierungen',
       },
     },
     letters: { label: 'Brief', fields: { subject: 'Betreff', status: 'Stand' } },
