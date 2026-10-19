@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ChevronDown, Menu, Server, User } from 'lucide-react'
+import { ChevronDown, Menu, Server, Smartphone, User } from 'lucide-react'
 import { createContext, useEffect, useRef, useState } from 'react'
 
 import { useApplication } from '../application.js'
@@ -13,7 +13,7 @@ import { SignOutButton } from '../gate/sign-out.js'
 import { instanceAccessQuery } from '../session/instance.js'
 import { accountQuery } from '../session/queries.js'
 import { useWho } from '../session/who.js'
-import { entryPath } from '../shell/entry.js'
+import { entryPath, rememberEntry } from '../shell/entry.js'
 import { useSync } from '../sync/provider.js'
 import { HelpButton } from './help.js'
 import { OfficeSearch } from './search.js'
@@ -99,7 +99,7 @@ export function TopBar({
 /**
  * The person, and behind them what belongs to them rather than to the tenant:
  * light or dark on this device, the account, the area of the instance for
- * those who run it (#188), signing out.
+ * those who run it (#188), the way to the site entry, signing out.
  *
  * A button that opens a panel, not an ARIA menu: the panel holds a switch and
  * links, and a menu role would promise arrow keys over them that a plain list
@@ -109,6 +109,7 @@ export function TopBar({
 export function PersonMenu() {
   const who = useWho()
   const client = useSync()
+  const { entry: sentences } = useApplication().sentences
   const [theme, chooseTheme] = useTheme()
   const [open, setOpen] = useState(false)
   const frame = useRef<HTMLDivElement>(null)
@@ -200,6 +201,29 @@ export function PersonMenu() {
               Instanz verwalten
             </Link>
           ) : null}
+          <div aria-hidden="true" className="my-0.5 h-px bg-line" />
+          {/* The counterpart of the way to the office in the menu of the site
+              (opengewerk-haustechnik#464), and like it a link and not a
+              navigation, because the two entries are two documents. Following
+              it is remembered as a choice: the address of the instance leads
+              this device to the site from then on, until the office is chosen
+              there again (ADR 0004, addendum of 17.10.2026). */}
+          <a
+            href={entryPath.site}
+            onClick={() => {
+              rememberEntry('site')
+              setOpen(false)
+            }}
+            className="flex items-center gap-[9px] rounded-control px-3 py-2 text-[14px] leading-[1.2] text-ink no-underline hover:bg-surface-sunken"
+          >
+            <Smartphone size={16} strokeWidth={1.9} aria-hidden="true" className="shrink-0" />
+            <span>
+              {sentences.goTo.site}
+              <span className="mt-0.5 block text-[12px] text-ink-muted">
+                Große Knöpfe, auch ohne Netz
+              </span>
+            </span>
+          </a>
           <SignOutButton
             client={client}
             row

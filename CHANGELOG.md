@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Weg in die Ansicht für unterwegs im Kontomenü des Büros (für opengewerk-haustechnik#464): unter einem Strich
+  zwischen „Instanz verwalten“ und „Abmelden“ steht der Satz `entry.goTo.site` der Anwendung mit einem Telefon und der
+  Zeile „Große Knöpfe, auch ohne Netz“, auch im Bereich der Instanz; in der Handwerkersoftware heißt er „Zur
+  Baustellenansicht“. Er merkt sich die Wahl wie der Weg ins Büro im Menü vor Ort und öffnet `/m/`, danach führt `/` auf
+  diesem Gerät in die Ansicht für unterwegs, bis dort wieder das Büro gewählt wird. Warum: vor Ort gab es einen Weg ins
+  Büro, im Büro keinen zurück; wer am Schreibtisch oder auf einem Tablet in der Desktop-Ansicht wechseln wollte, hatte nur
+  die Leiste mit dem Vorschlag, die nicht immer erscheint, oder musste `/m` von Hand eingeben.
+
 - Eine zweite Nummer am Ansprechpartner, „Mobil“ (für opengewerk-haustechnik#428): `contactsSchema` hat die Spalte
   `mobile`, `contactTextFields` das Feld zwischen Telefon und E-Mail, und Formular, Karte im Büro, die Zeile je Person und
   die Liste vor Ort zeigen sie wie die erste Nummer, zum Antippen. Vor Ort steht die erste Nummer jetzt mit einem Hörer,
