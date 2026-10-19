@@ -652,6 +652,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Foto, das abgelegt wird, während der Abgleich die Dateien davor hochlädt, kommt nicht mehr als Konflikt
+  `record_missing` an seiner Prüfsumme zurück (gefunden bei opengewerk-haustechnik#451). Seine Version stand schon im
+  Ausgang, die Datei aber erst auf der Liste für den nächsten Abgleich, und der Server fand sie nicht. Jetzt wartet eine
+  Änderung, die eine noch wartende Datei nennt, samt den späteren am selben Datensatz, bis die Datei oben ist, und der
+  Abgleich geht dafür eine Runde weiter. Warum: Mehrere Fotos aus der Galerie auf einmal, bei langsamem Netz, trafen
+  das fast jedes Mal.
+
 - Ein Gerät vor Ort sieht die Konflikte, die der Server für es abgelegt hat, auch wenn die Anmeldung im Büro begann
   (gefunden bei opengewerk-haustechnik, 19.10.2026). Das Büro schickt ein Telefon auf die Seite für vor Ort, und eine
   dort angekommene Anmeldung nannte kein Gerät: Der Abgleich sendete unter der Kennung des Geräts, die Liste der

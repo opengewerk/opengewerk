@@ -951,7 +951,11 @@ export class SyncClient {
    * it brought in stays in, since every part is answered on its own.
    */
   private async pushOutbox(): Promise<RefusedOperation | null> {
-    for (const sent of inTransmissions(inOutboxOrder(this.outbox))) {
+    // Only where a file waits: asking the store on every exchange would put a
+    // round trip in front of every push.
+    const ready = this.filesWaiting > 0 ? await this.ready() : this.outbox
+
+    for (const sent of inTransmissions(inOutboxOrder(ready))) {
       const refused = await this.pushPart(sent)
 
       if (refused) {
@@ -1006,6 +1010,42 @@ export class SyncClient {
     this.publish({ pending: this.outbox.length })
 
     return null
+  }
+
+  /**
+   * What may go up now: everything but a record that names a file still
+   * waiting for its upload, and what comes after it for the same record
+   * (opengewerk-haustechnik#451). A photo kept while the upload of the one
+   * before it ran is on the list of uploads after that list was read; its
+   * version would reach the server ahead of its file and come back as
+   * `record_missing` on the hash. What waits goes with the next round, which
+   * this one asks for, after the file.
+   */
+  private async ready(): Promise<readonly Operation[]> {
+    const waiting = await this.store.waitingHashes()
+
+    if (waiting.size === 0) {
+      return this.outbox
+    }
+
+    const held = new Set(
+      this.outbox
+        .filter((operation) =>
+          operation.patches.some((patch) => typeof patch.to === 'string' && waiting.has(patch.to)),
+        )
+        .map((operation) => recordKey(operation.entity, operation.recordId)),
+    )
+
+    if (held.size === 0) {
+      return this.outbox
+    }
+
+    this.filesWaiting = Math.max(this.filesWaiting, waiting.size)
+    this.wanted = true
+
+    return this.outbox.filter(
+      (operation) => !held.has(recordKey(operation.entity, operation.recordId)),
+    )
   }
 
   /**

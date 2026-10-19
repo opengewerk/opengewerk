@@ -86,6 +86,53 @@ describe('a file made on the device', () => {
     expect(client.status().pending).toBe(0)
   })
 
+  it('goes up ahead of its record also when it was kept while the upload before it ran (opengewerk-haustechnik#451)', async () => {
+    const client = await start()
+    const first = await client.keepFile(photo, 'image/jpeg')
+    const second = new TextEncoder().encode('a second photo of the label').buffer as ArrayBuffer
+    const upload = server.upload.bind(server)
+    const push = server.push.bind(server)
+    const early: string[] = []
+    let taken = false
+
+    // The second photo is taken and named while the first goes up, as when
+    // several come from the gallery at once on a slow network.
+    server.upload = async (sha256, bytes, mediaType) => {
+      await upload(sha256, bytes, mediaType)
+
+      if (!taken) {
+        taken = true
+
+        const made = await client.keepFile(second, 'image/jpeg')
+
+        await attach(client, made.sha256, made.sizeBytes)
+      }
+    }
+    server.push = (deviceId, operations) => {
+      for (const operation of operations) {
+        for (const patch of operation.patches) {
+          if (patch.field === 'sha256' && typeof patch.to === 'string') {
+            if (!server.uploaded.has(patch.to)) {
+              early.push(patch.to.slice(0, 8))
+            }
+          }
+        }
+      }
+
+      return push(deviceId, operations)
+    }
+
+    await attach(client, first.sha256, first.sizeBytes)
+    await client.synchronise()
+
+    expect(early).toEqual([])
+    expect(server.all('parcels').map((parcel) => parcel['sha256'])).toEqual([
+      first.sha256,
+      hashOf(second),
+    ])
+    expect(client.status().pending).toBe(0)
+  })
+
   it('waits on the device without a network, and goes up once there is one', async () => {
     const client = await start()
 
