@@ -72,10 +72,11 @@ export function PhotoTaker({
       className={clsx('flex min-w-0 gap-2.5', multiple ? 'flex-col items-stretch' : 'items-center')}
     >
       {there ? photo : null}
-      {/* Side by side where they fit, one under the other where they do not,
-          as beside a photo on a phone. */}
+      {/* Side by side where both labels fit on one line, as in the office;
+          one under the other on a phone, where side by side each label would
+          break over two lines. */}
       <div className="flex min-w-0 grow flex-wrap gap-2">
-        <div className="min-w-0 grow basis-40">
+        <div className="min-w-0 grow basis-48">
           <Button
             icon={Camera}
             height={52}
@@ -88,7 +89,7 @@ export function PhotoTaker({
             {there ? again : 'Foto aufnehmen'}
           </Button>
         </div>
-        <div className="min-w-0 grow basis-40">
+        <div className="min-w-0 grow basis-48">
           <Button
             icon={ImageIcon}
             height={52}

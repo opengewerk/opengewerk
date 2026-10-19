@@ -13,7 +13,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   „Foto aufnehmen“, das die Kamera sofort öffnet, einen zweiten Knopf „Aus der Galerie“ ohne `capture`. Mit
   `multiple` hält ein Punkt mehrere Fotos: ein weiteres kommt dazu statt das vorige zu ersetzen, und aus der Galerie
   lassen sich mehrere auf einmal wählen. Warum: mit `capture` öffnete das Telefon nur die Kamera, ein Foto, das schon
-  gemacht war, ließ sich nicht hinzufügen.
+  gemacht war, ließ sich nicht hinzufügen. Auf dem Telefon stehen die beiden Knöpfe untereinander, weil nebeneinander
+  jede Beschriftung in zwei Zeilen umbrach; wo beide Platz haben, wie im Büro, stehen sie nebeneinander.
 
 - Einen Wert im Änderungsprotokoll schwärzen (für opengewerk-haustechnik#355, ADR 0013): wer den Mandanten führt,
   leert den Wert davor oder danach eines Eintrags mit einem Grund (`POST audit/entries/:id/redactions`, Tabelle
