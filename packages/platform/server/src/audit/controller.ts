@@ -1,10 +1,14 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   ForbiddenException,
   Get,
   Header,
   Inject,
+  NotFoundException,
+  Param,
+  Post,
   type Provider,
   Query,
   StreamableFile,
@@ -17,6 +21,9 @@ import {
   auditLanguage,
   type AuditPage,
   type AuditPerson,
+  auditRedactionProblem,
+  type AuditRedactionNote,
+  type AuditRedactionSide,
   auditRights,
   auditTableNamesPeople,
   type AuditValueWords,
@@ -24,12 +31,16 @@ import {
   berlinClock,
   tableNamesPeople,
 } from '@opengewerk/platform-domain'
+import { and, eq } from 'drizzle-orm'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import type { AccessRules } from '../authentication/access.js'
 import { accountsOf } from '../authentication/administration.js'
+import { leadsItsTenant } from '../authentication/roles.js'
 import { Database } from '../database/database.js'
+import { auditRedactions } from '../database/schema/audit.js'
+import { memberships } from '../database/schema/memberships.js'
 import { tableAnswer, tableFormatOf } from '../tables/write.js'
 import { checkAuditChain } from './chain.js'
 import {
@@ -54,6 +65,16 @@ export const AUDIT_FIRST_VALUES = Symbol('AuditFirstValues')
 export const AUDIT_TENANT_WORDS = Symbol('AuditTenantWords')
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Why an entry is not found: it is not in the log of this tenant. */
+const noSuchEntry = 'Diesen Eintrag gibt es im Änderungsprotokoll nicht.'
+
+/** Why a redaction is refused to somebody who reads the log: only whoever leads blacks out a value. */
+export const redactionNeedsLead =
+  'Einen Wert im Änderungsprotokoll schwärzt nur, wer den Mandanten führt.'
+
+/** The code PostgreSQL refuses a row with that a policy does not let through. */
+const rowLevelSecurity = '42501'
 
 /** One value of the query, or null when it is missing or empty; a repeated one is refused. */
 function one(query: Record<string, unknown>, name: string): string | null {
@@ -175,17 +196,39 @@ export class AuditController {
 
   @Get('changes')
   @RequiresPermission(auditRights.read)
-  changes(
+  async changes(
     @CurrentIdentity() identity: RequestIdentity,
     @Query() query: Record<string, unknown>,
   ): Promise<AuditPage> {
-    return readAuditPage(
-      this.database,
-      identity,
-      auditFilterFrom(query, this.language),
-      this.language,
-      this.firstValues,
-    )
+    const [page, redacts] = await Promise.all([
+      readAuditPage(
+        this.database,
+        identity,
+        auditFilterFrom(query, this.language),
+        this.language,
+        this.firstValues,
+      ),
+      this.leads(identity),
+    ])
+
+    return { ...page, redacts }
+  }
+
+  /**
+   * Whether the person leads the tenant, which a screen needs to offer the
+   * redaction of a value (ADR 0013). The policy of the redactions asks the
+   * same of the membership when one is written.
+   */
+  private leads(identity: RequestIdentity): Promise<boolean> {
+    return this.database.forTenant(identity, async (tx) => {
+      const [found] = await tx
+        .select({ userId: memberships.userId })
+        .from(memberships)
+        .where(and(eq(memberships.userId, identity.userId), leadsItsTenant()))
+        .limit(1)
+
+      return found !== undefined
+    })
   }
 
   /**
@@ -237,6 +280,83 @@ export class AuditController {
   @RequiresPermission(auditRights.read)
   chain(@CurrentIdentity() identity: RequestIdentity): Promise<AuditChainReport> {
     return checkAuditChain(this.database, identity)
+  }
+
+  /**
+   * Blacks out one value of an entry (ADR 0013): the value before or after,
+   * with a reason. Whoever reads the log may ask; whether the person leads
+   * the tenant, and whether the entry is still as it was written, the database
+   * decides, and the redaction itself stands in the log.
+   *
+   * No right of its own, on purpose: who may black out a value is whoever
+   * leads the tenant (decided at opengewerk-haustechnik#355 on 19.10.2026),
+   * and leading is a property of a role, not a right one could hand to a
+   * role of a tenant's own. The restrictive policy of `audit_redactions` asks
+   * it of the membership, so no right a route could check would add to it.
+   * The log is no evidence: a value in it is a copy of what a record held,
+   * and the record and every evidence stay as they are.
+   */
+  @Post('entries/:id/redactions')
+  @RequiresPermission(auditRights.read)
+  async redact(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ): Promise<AuditRedactionNote> {
+    if (!uuidPattern.test(id)) {
+      throw new NotFoundException(noSuchEntry)
+    }
+
+    const { side, reason } =
+      typeof body === 'object' && body !== null
+        ? (body as { side?: unknown; reason?: unknown })
+        : {}
+    const problem = auditRedactionProblem(side, reason)
+
+    if (problem !== null) {
+      throw new BadRequestException(problem)
+    }
+
+    try {
+      // A reason of its own, so that the log says a value was blacked out and not that it was read.
+      const redacting = {
+        tenantId: identity.tenantId,
+        userId: identity.userId,
+        reason: 'audit.redact',
+      }
+      const [written] = await this.database.forTenant(redacting, (tx) =>
+        tx
+          .insert(auditRedactions)
+          .values({
+            tenantId: identity.tenantId,
+            entryId: id.toLowerCase(),
+            side: side as AuditRedactionSide,
+            reason: reason as string,
+            redactedBy: identity.userId,
+          })
+          .returning({
+            at: auditRedactions.createdAt,
+            by: auditRedactions.redactedBy,
+            reason: auditRedactions.reason,
+          }),
+      )
+
+      if (written === undefined) {
+        throw new NotFoundException(noSuchEntry)
+      }
+
+      return { at: written.at.toISOString(), by: written.by, reason: written.reason }
+    } catch (error) {
+      const code = [error, (error as { cause?: unknown }).cause]
+        .map((candidate) => (candidate as { code?: unknown } | undefined)?.code)
+        .find((each) => typeof each === 'string')
+
+      if (code === rowLevelSecurity) {
+        throw new ForbiddenException(redactionNeedsLead)
+      }
+
+      throw error
+    }
   }
 
   /** Everybody who ever had a membership here, also those who have left, by name. */

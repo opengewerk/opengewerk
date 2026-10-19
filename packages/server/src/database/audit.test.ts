@@ -528,9 +528,14 @@ describe('the chain over the entries', () => {
     // This is what makes it a chain rather than a checksum per row. Somebody
     // who changes a value and recomputes that one hash has an entry that is
     // consistent with itself, and the next entry still points at the old one.
-    // Covering the tracks means rewriting everything that follows.
+    // Covering the tracks means rewriting everything that follows. Since ADR
+    // 0013 the hash goes over the fingerprint of the value, so the forger
+    // recomputes that as well.
     const broken = await whileBroken(async (run) => {
-      await run('update audit_entries set new_value = $1 where id = $2', ['Gefälscht', entry.id])
+      await run(
+        'update audit_entries set new_value = $1, new_value_digest = audit_value_digest($1) where id = $2',
+        ['Gefälscht', entry.id],
+      )
       await run(
         `update audit_entries u
             set hash = (select audit_fingerprint(e) from audit_entries e where e.id = u.id)

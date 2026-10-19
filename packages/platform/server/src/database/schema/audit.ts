@@ -1,10 +1,13 @@
 import { auditOperations } from '@opengewerk/platform-domain'
+import { sql } from 'drizzle-orm'
 import {
   bigint,
+  check,
   index,
   pgEnum,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -12,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
-import { writtenByTriggerOnly } from './rls.js'
+import { redactedByWhoeverLeads, writtenByTriggerOnly } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 export const auditOperation = pgEnum('audit_operation', auditOperations)
@@ -59,6 +62,13 @@ export const auditEntries = pgTable(
     userId: text('user_id'),
     reason: text('reason'),
     databaseRole: text('database_role').notNull(),
+    // ADR 0013, at the end so that a log that gets them later has them in the
+    // same order: the version of the fingerprint, 1 for every entry written
+    // before them, and the fingerprint of each value, which stays when the
+    // value is blacked out.
+    fingerprintVersion: smallint('fingerprint_version').notNull().default(1),
+    oldValueDigest: text('old_value_digest'),
+    newValueDigest: text('new_value_digest'),
   },
   (table) => [
     ...writtenByTriggerOnly(table.tenantId),
@@ -69,6 +79,40 @@ export const auditEntries = pgTable(
     // The chain is walked in this order, and no number may appear twice: a
     // second entry claiming a taken place is a fork, not a chain.
     unique('audit_entries_sequence').on(table.tenantId, table.sequence),
+  ],
+)
+
+/**
+ * A value of the log blacked out (ADR 0013): which entry, which side (the
+ * value before or after), why and by whom, and for an entry of version 1 the
+ * witness of the whole entry, its fingerprint over the fingerprints of its
+ * values. Written once, by whoever leads the tenant, and never changed or
+ * removed; the triggers that check and apply it are in `sql/audit.sql`, and
+ * the audit trigger writes the redaction itself into the log.
+ */
+export const auditRedactions = pgTable(
+  'audit_redactions',
+  {
+    id: primaryId<'audit-redaction'>(),
+    ...tenantColumn,
+    // No foreign key, as the entries carry none: the trigger that checks a
+    // redaction finds its entry in the tenant, and the log stays a table that
+    // nothing else holds on to.
+    entryId: uuid('entry_id').notNull(),
+    side: text('side').notNull(),
+    reason: text('reason').notNull(),
+    redactedBy: text('redacted_by').notNull(),
+    witness: text('witness'),
+    ...timestamps,
+  },
+  (table) => [
+    ...redactedByWhoeverLeads(table.tenantId),
+    unique('audit_redactions_once').on(table.entryId, table.side),
+    check('audit_redactions_side_known', sql`${table.side} in ('old', 'new')`),
+    check(
+      'audit_redactions_reason_shaped',
+      sql`${table.reason} = btrim(${table.reason}) and char_length(${table.reason}) between 1 and 500`,
+    ),
   ],
 )
 

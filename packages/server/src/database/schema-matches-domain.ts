@@ -5,6 +5,7 @@ import type {
   AttachmentVersion,
   AuditChain,
   AuditEntry,
+  AuditRedaction,
   BoardSection,
   Circuit,
   Contact,
@@ -62,6 +63,7 @@ import type {
   attachmentVersions,
   auditChains,
   auditEntries,
+  auditRedactions,
   boardSections,
   circuits,
   contacts,
@@ -208,6 +210,9 @@ export type TaskMatches = Assert<Exact<typeof tasks.$inferSelect, Task>>
 export type NumberRangeMatches = Assert<Exact<typeof numberRanges.$inferSelect, NumberRange>>
 export type AuditEntryMatches = Assert<Exact<typeof auditEntries.$inferSelect, AuditEntry>>
 export type AuditChainMatches = Assert<Exact<typeof auditChains.$inferSelect, AuditChain>>
+export type AuditRedactionMatches = Assert<
+  Exact<typeof auditRedactions.$inferSelect, AuditRedaction>
+>
 export type SyncSequenceMatches = Assert<Exact<typeof syncSequences.$inferSelect, SyncSequence>>
 export type SyncOperationMatches = Assert<Exact<typeof syncOperations.$inferSelect, SyncOperation>>
 export type SyncConflictMatches = Assert<Exact<typeof syncConflicts.$inferSelect, SyncConflict>>

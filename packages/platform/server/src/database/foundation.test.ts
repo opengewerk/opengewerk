@@ -107,8 +107,13 @@ describe('the foundation, built from its building blocks alone', () => {
     // such a table stands.
     expect(await functionNames(admin)).toEqual([
       'attachment_version_stays_as_written',
+      'audit_entry_problem',
       'audit_entry_stays',
       'audit_fingerprint',
+      'audit_redaction_applied',
+      'audit_redaction_checked',
+      'audit_value_digest',
+      'audit_witness',
       'create_first_tenant',
       'create_tenant',
       'every_tenant',
@@ -143,7 +148,7 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(26)
+    expect(tables).toHaveLength(27)
     expect(unprotected(tables)).toEqual([])
   })
 
@@ -167,8 +172,8 @@ describe('the foundation, built from its building blocks alone', () => {
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The sixteen tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(16)
+    // The seventeen tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(17)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -262,7 +267,7 @@ describe('the foundation, built from its building blocks alone', () => {
     const reading = await readDefinerFunctions(admin, { 'long_gone()': 'of an earlier day' })
 
     expect(reading.unexplained).toEqual(Object.keys(foundationDefinerFunctions).sort())
-    expect(reading.unexplained).toHaveLength(9)
+    expect(reading.unexplained).toHaveLength(11)
     expect(reading.stale).toEqual(['long_gone()'])
   })
 
@@ -282,6 +287,7 @@ describe('the foundation, built from its building blocks alone', () => {
 
     expect(coverage.watched).toEqual([
       'account_corrections',
+      'audit_redactions',
       'deadline_settings',
       'files',
       'invitations',
@@ -560,6 +566,282 @@ describe('an instance that has nothing but the foundation', () => {
     expect(chooser).toEqual([{ name: 'Probe GmbH' }])
     expect(memberships).toEqual([{ userId: owner }])
   })
+
+  // Blacking out a value of the log (ADR 0013). The owner leads through a
+  // role of the tenant that leads; an entry of version 1 is made from the
+  // newest entry, the way the log looks where it was written before.
+  describe('a value of the log blacked out', () => {
+    let reader: string
+    let oldEntry: string
+    let newEntry: string
+
+    const chain = () =>
+      database.forTenant({ tenantId }, async (tx) => {
+        const result = await tx.execute<{
+          checked: string
+          broken_at: string | null
+          problem: string | null
+        }>(sql`select * from verify_audit_chain(${tenantId})`)
+
+        return result.rows[0]
+      })
+    /** A redaction as the application writes one; `claimed` is who the row says made it, which the database does not take. */
+    const redact = (
+      userId: string,
+      entryId: string,
+      side: string,
+      reason: string,
+      claimed = userId,
+    ) =>
+      database.forTenant({ tenantId, userId, reason: 'audit.redact' }, (tx) =>
+        tx
+          .insert(schema.auditRedactions)
+          .values({ tenantId, entryId, side, reason, redactedBy: claimed }),
+      )
+    const entry = async (id: string) =>
+      (await admin.query('select * from audit_entries where id = $1', [id])).rows[0] as {
+        old_value: string | null
+        new_value: string | null
+        old_value_digest: string | null
+        new_value_digest: string | null
+        fingerprint_version: number
+      }
+
+    it('is blacked out by whoever leads, with a reason, and the chain holds, for an entry of either version', async () => {
+      await admin.query(
+        `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'lead', 'Leitung', '{}', true, false), ($1, 'reader', 'Lesen', '{}', false, false)`,
+        [tenantId],
+      )
+      await admin.query(
+        `update memberships set roles = '{lead}' where tenant_id = $1 and user_id = $2`,
+        [tenantId, owner],
+      )
+      reader = await account('leserin')
+      await admin.query(
+        `insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{reader}')`,
+        [tenantId, reader],
+      )
+
+      // The newest entry as one written before ADR 0013, and the head of the chain after it.
+      await admin.query('alter table audit_entries disable trigger audit_entries_stay')
+
+      try {
+        const { rows } = await admin.query<{ id: string }>(
+          `update audit_entries set fingerprint_version = 1, old_value_digest = null, new_value_digest = null
+            where id = (select id from audit_entries where tenant_id = $1 and new_value is not null
+                         order by sequence desc limit 1)
+            returning id`,
+          [tenantId],
+        )
+
+        oldEntry = rows[0]?.id ?? ''
+        await admin.query('update audit_entries e set hash = audit_fingerprint(e) where id = $1', [
+          oldEntry,
+        ])
+        await admin.query(
+          `update audit_chains c set head_hash = e.hash from audit_entries e
+            where e.id = $1 and c.tenant_id = e.tenant_id and c.next_sequence = e.sequence + 1`,
+          [oldEntry],
+        )
+      } finally {
+        await admin.query('alter table audit_entries enable trigger audit_entries_stay')
+      }
+
+      expect((await chain())?.problem).toBeNull()
+
+      const { rows: written } = await admin.query<{ id: string }>(
+        `select id from audit_entries where tenant_id = $1 and fingerprint_version = 2 and field = 'roles' and old_value is not null
+          order by sequence desc limit 1`,
+        [tenantId],
+      )
+
+      newEntry = written[0]?.id ?? ''
+
+      const before = await entry(oldEntry)
+
+      await redact(owner, oldEntry, 'new', 'Auskunft der Person')
+      await redact(owner, newEntry, 'old', 'Auskunft der Person', reader)
+
+      // Who blacked out a value is whoever the session names, whatever the row said.
+      const { rows: authors } = await admin.query<{ redacted_by: string }>(
+        'select redacted_by from audit_redactions where entry_id = $1',
+        [newEntry],
+      )
+
+      expect(authors).toEqual([{ redacted_by: owner }])
+
+      const gone = await entry(oldEntry)
+
+      expect(gone.new_value).toBeNull()
+      expect(gone.new_value_digest).toBe(
+        createHash('sha256')
+          .update(before.new_value ?? '')
+          .digest('hex'),
+      )
+      expect(gone.old_value).toBe(before.old_value)
+      expect((await entry(newEntry)).old_value).toBeNull()
+
+      const checked = await chain()
+
+      expect(checked?.problem).toBeNull()
+      expect(checked?.broken_at).toBeNull()
+
+      // The redaction stands in the log itself, with its reason and without the value.
+      const logged = await admin.query<{ field: string; new_value: string | null }>(
+        `select field, new_value from audit_entries where tenant_id = $1 and table_name = 'audit_redactions'`,
+        [tenantId],
+      )
+
+      expect(
+        logged.rows.filter((row) => row.field === 'reason').map((row) => row.new_value),
+      ).toEqual(['Auskunft der Person', 'Auskunft der Person'])
+      expect(JSON.stringify(logged.rows)).not.toContain(before.new_value ?? '')
+    })
+
+    it('is refused to whoever does not lead, without a reason, twice, and for an entry of another tenant', async () => {
+      const { rows } = await admin.query<{ id: string }>(
+        `select id from audit_entries where tenant_id = $1 and fingerprint_version = 2 and new_value is not null
+           and id <> $2 order by sequence limit 1`,
+        [tenantId, newEntry],
+      )
+      const target = rows[0]?.id ?? ''
+
+      expect(await errorCode(redact(reader, target, 'new', 'Auskunft'))).toBe(insufficientPrivilege)
+      expect(await errorCode(redact(owner, target, 'new', ''))).toBe('23514')
+      expect(await errorCode(redact(owner, target, 'both', 'Auskunft'))).toBe('23514')
+      expect(await errorCode(redact(owner, oldEntry, 'new', 'Noch einmal'))).toBe('OG006')
+      expect(await errorCode(redact(owner, newId(), 'new', 'Auskunft'))).toBe('OG006')
+      expect((await entry(target)).new_value).not.toBeNull()
+
+      // Whoever does not lead is refused before any entry is looked at, also
+      // one that is not there; and a row that names another tenant as well,
+      // so that whether an entry is there in it is nothing to learn here.
+      expect(await errorCode(redact(reader, newId(), 'new', 'Auskunft'))).toBe(
+        insufficientPrivilege,
+      )
+      // The person leads a second tenant as well: the row is refused for not
+      // being of the tenant of the session, before an entry of the other
+      // tenant is looked for.
+      const second = newId()
+
+      await admin.query(`insert into tenants (id, name) values ($1, 'Zweiter Mandant')`, [second])
+      await admin.query(
+        `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'lead', 'Leitung', '{}', true, false)`,
+        [second],
+      )
+      await admin.query(
+        `insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{lead}')`,
+        [second, owner],
+      )
+      expect(
+        await errorCode(
+          database.forTenant({ tenantId, userId: owner, reason: 'audit.redact' }, (tx) =>
+            tx.insert(schema.auditRedactions).values({
+              tenantId: second as never,
+              entryId: newId(),
+              side: 'new',
+              reason: 'Auskunft',
+              redactedBy: owner,
+            }),
+          ),
+        ),
+      ).toBe(insufficientPrivilege)
+
+      // And the policy refuses on its own, with the trigger in front of it out of the way.
+      await admin.query('alter table audit_redactions disable trigger audit_redaction_checked')
+
+      try {
+        expect(await errorCode(redact(reader, target, 'new', 'Auskunft'))).toBe(
+          insufficientPrivilege,
+        )
+      } finally {
+        await admin.query('alter table audit_redactions enable trigger audit_redaction_checked')
+      }
+
+      expect((await entry(target)).new_value).not.toBeNull()
+    })
+
+    it('finds an entry changed after its value was blacked out, and a value gone without a redaction', async () => {
+      await admin.query('alter table audit_entries disable trigger audit_entries_stay')
+
+      try {
+        await admin.query(`update audit_entries set reason = 'gefälscht' where id = $1`, [oldEntry])
+        expect((await chain())?.problem).toBe('Der Eintrag wurde nach dem Schwärzen verändert.')
+        await admin.query(`update audit_entries set reason = null where id = $1`, [oldEntry])
+        expect((await chain())?.problem).toBeNull()
+
+        const { rows } = await admin.query<{ id: string; new_value: string }>(
+          `select id, new_value from audit_entries where tenant_id = $1 and fingerprint_version = 2
+             and new_value is not null and id <> $2 and id <> $3 order by sequence limit 1`,
+          [tenantId, newEntry, oldEntry],
+        )
+        const plain = rows[0]
+
+        await admin.query('update audit_entries set new_value = null where id = $1', [plain?.id])
+        expect((await chain())?.problem).toBe(
+          'Ein Wert des Eintrags fehlt, ohne dass er geschwärzt wurde.',
+        )
+        await admin.query('update audit_entries set new_value = $2 where id = $1', [
+          plain?.id,
+          plain?.new_value,
+        ])
+        expect((await chain())?.problem).toBeNull()
+
+        // An entry no longer as it was written is not blacked out: the redaction would hide the change.
+        await admin.query(
+          `update audit_entries set changed_at = changed_at + interval '1 second' where id = $1`,
+          [plain?.id],
+        )
+        expect(await errorCode(redact(owner, plain?.id ?? '', 'new', 'Auskunft'))).toBe('OG006')
+        expect((await entry(plain?.id ?? '')).new_value).toBe(plain?.new_value)
+        await admin.query(
+          `update audit_entries set changed_at = changed_at - interval '1 second' where id = $1`,
+          [plain?.id],
+        )
+        expect((await chain())?.problem).toBeNull()
+      } finally {
+        await admin.query('alter table audit_entries enable trigger audit_entries_stay')
+      }
+    })
+
+    it('lets the bolt of the log through the redaction it names and nothing else', async () => {
+      const client = await admin.connect()
+
+      try {
+        await client.query('begin')
+        await client.query(`select set_config('app.redacting', $1, true)`, [`${oldEntry}:old`])
+
+        // A redaction of the old value is not written: nothing names it.
+        expect(
+          await errorCode(
+            client.query('update audit_entries set old_value = null where id = $1', [oldEntry]),
+          ),
+        ).toBe('OG002')
+      } finally {
+        await client.query('rollback')
+        client.release()
+      }
+
+      const second = await admin.connect()
+
+      try {
+        await second.query('begin')
+        await second.query(`select set_config('app.redacting', $1, true)`, [`${newEntry}:old`])
+
+        // The redaction of the old value is there, but this changes more than the value.
+        expect(
+          await errorCode(
+            second.query(`update audit_entries set reason = 'gefälscht' where id = $1`, [newEntry]),
+          ),
+        ).toBe('OG002')
+      } finally {
+        await second.query('rollback')
+        second.release()
+      }
+    })
+  })
 })
 
 describe('the rollback of the foundation', () => {
@@ -588,6 +870,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(26)
+    expect(await tableNames(admin)).toHaveLength(27)
   })
 })

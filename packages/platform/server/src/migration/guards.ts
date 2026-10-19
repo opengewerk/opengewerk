@@ -48,7 +48,7 @@ export interface TableGuard {
 }
 
 /** When a trigger of a table fires, as its statement says it. */
-export const triggerMoments = ['BEFORE INSERT', 'BEFORE UPDATE OR DELETE'] as const
+export const triggerMoments = ['BEFORE INSERT', 'AFTER INSERT', 'BEFORE UPDATE OR DELETE'] as const
 
 /** A trigger of a table that is its own, beside the log and the stamp of the sync. */
 export interface TableTrigger {
@@ -255,6 +255,18 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'deadline_runs', grants: noDelete, audited: false, synced: false },
   { table: 'audit_chains', grants: ['select'], audited: false, synced: false },
   { table: 'audit_entries', grants: ['select'], audited: false, synced: false },
+  // A value of the log blacked out (ADR 0013): added by whoever leads, checked
+  // before and applied after it is written, and itself in the log.
+  {
+    table: 'audit_redactions',
+    grants: ['select', 'insert'],
+    audited: true,
+    synced: false,
+    triggers: [
+      { name: 'audit_redaction_checked', fires: 'BEFORE INSERT', calls: 'audit_redaction_checked' },
+      { name: 'audit_redaction_applied', fires: 'AFTER INSERT', calls: 'audit_redaction_applied' },
+    ],
+  },
   { table: 'sync_sequences', grants: ['select'], audited: false, synced: false },
   { table: 'sync_operations', grants: ['select', 'insert'], audited: false, synced: false },
   { table: 'sync_conflicts', grants: noDelete, audited: false, synced: false },

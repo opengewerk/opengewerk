@@ -49,6 +49,12 @@ export interface AuditPage {
   readonly people: Readonly<Record<string, string>>
   /** By device id: the browser it last signed in with, null when nothing is known. */
   readonly devices: Readonly<Record<string, string | null>>
+  /**
+   * Whether whoever reads the page leads the tenant and so may black out a
+   * value (ADR 0013); absent where nobody may, as in the log of the instance.
+   * It allows nothing by itself, the database decides again.
+   */
+  readonly redacts?: boolean
 }
 
 /** The check of the chain as a person reads it. */
@@ -306,6 +312,8 @@ const foundationPersonFields: readonly string[] = [
   'closed_by',
   // Who stored a version of a file, written by the database.
   'created_by',
+  // Who blacked out a value of the log (ADR 0013).
+  'redacted_by',
 ]
 
 /** Fields of the foundation that point at another record, and the table they point into. */
@@ -338,6 +346,7 @@ export const foundationAuditTables = [
   'account_corrections',
   'attachment_versions',
   'attachments',
+  'audit_redactions',
   'contacts',
   'deadline_settings',
   'deadlines',
@@ -481,6 +490,18 @@ function foundationTables(
         email_after: 'E-Mail neu',
       },
     },
+    // A value of the log blacked out (ADR 0013): which entry, which side, why
+    // and by whom, and the witness of an entry written before the redactions.
+    audit_redactions: {
+      label: 'Schwärzung im Änderungsprotokoll',
+      fields: {
+        entry_id: 'Eintrag',
+        side: 'Wert',
+        reason: 'Grund',
+        redacted_by: 'Geschwärzt von',
+        witness: 'Zeuge des Eintrags',
+      },
+    },
     member_passkeys: {
       label: 'Passkey',
       fields: { passkey_id: 'Kennung des Passkeys', removed_at: 'Gelöscht am' },
@@ -595,6 +616,8 @@ function foundationInstanceTables(
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   account_corrections: ['user_id'],
+  // A redaction by its reason.
+  audit_redactions: ['reason'],
   // A version by the name its file came with; the file itself has a title.
   attachment_versions: ['file_name'],
   contacts: { joined: ['given_name', 'family_name'] },
@@ -633,6 +656,7 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'membership.create': 'Zugang über die Kommandozeile',
   'instance.settings': 'Einstellungen der Instanz ändern',
   'instance.legal': 'Rechtstexte ändern',
+  'audit.redact': 'Wert im Änderungsprotokoll geschwärzt',
   environment: 'Übernommen aus der .env',
   deadline: 'Von selbst, Fristen',
   mail: 'Von selbst, E-Mail-Versand',

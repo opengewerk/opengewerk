@@ -236,6 +236,10 @@ export async function readPolicies(
  * by a migration is a way nobody is looking at any more.
  */
 export const foundationDefinerFunctions: Readonly<Record<string, string>> = {
+  'audit_redaction_applied()':
+    'the trigger empties the value a redaction names in the log, which no role may change',
+  'audit_redaction_checked()':
+    'the trigger finds the entry a redaction is about through the policy that keeps the log to its writer',
   'create_first_tenant(company text)':
     'the one tenant a first run creates; the application has no insert on tenants',
   'create_tenant(company text)':
@@ -366,16 +370,23 @@ export function withoutTheTenant(keys: readonly TenantKey[]): TenantKey[] {
  * the same in every application (ADR 0010, point 9). If a column really has to
  * be added, the way through is a second fingerprint that old entries keep
  * being measured by, not a quiet ALTER TABLE.
+ *
+ * That is what ADR 0013 did: `fingerprint_version`, `old_value_digest` and
+ * `new_value_digest` came with a second fingerprint, and an entry of the first
+ * is measured without them, exactly as it was written.
  */
 export const auditEntryColumns: readonly string[] = [
   'change_id',
   'changed_at',
   'database_role',
   'field',
+  'fingerprint_version',
   'hash',
   'id',
   'new_value',
+  'new_value_digest',
   'old_value',
+  'old_value_digest',
   'operation',
   'previous_hash',
   'reason',
@@ -406,6 +417,11 @@ export interface OutsideTheLog {
  * tenant may see of somebody signing in is `tenant_sessions`, which carries
  * the trigger like everything else.
  *
+ * The redactions of the log (ADR 0013) carry the prefix and are watched all
+ * the same: a redaction is a change a person made, and its entry is the record
+ * of who blacked out what and why. The two tables of the log are therefore
+ * named one by one instead of by the prefix.
+ *
  * What belongs to the instance is out for the same reason as the accounts,
  * and is not without a record for it: it has a log of its own, written by a
  * trigger of its own (`instanceLogCoverage`).
@@ -415,8 +431,8 @@ export interface OutsideTheLog {
  * change a person made under its own.
  */
 export const foundationOutsideTheLog: OutsideTheLog = {
-  prefixes: ['audit_', 'sync_', 'auth_', 'instance_'],
-  tables: ['deadline_runs'],
+  prefixes: ['sync_', 'auth_', 'instance_'],
+  tables: ['audit_chains', 'audit_entries', 'deadline_runs'],
 }
 
 /** Which tables the audit trigger watches, held against which it should. */

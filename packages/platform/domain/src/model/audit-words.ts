@@ -1,4 +1,4 @@
-import type { AuditChange, AuditFieldChange } from './audit.js'
+import type { AuditChange, AuditFieldChange, AuditRedactionNote } from './audit.js'
 import {
   type AuditLanguage,
   auditLanguage,
@@ -169,6 +169,8 @@ export interface AuditTextWords {
   readonly fieldWords: (table: string, field: string) => string
   /** The fields of a change a person wants to see, the name of the record first. */
   readonly shownFields: (change: AuditChange) => readonly AuditFieldChange[]
+  /** Under a value blacked out (ADR 0013): "am …, von … Grund: …", when, by whom and why. */
+  readonly redactionWords: (note: AuditRedactionNote, page: AuditNames) => string
   /**
    * The change in a few words, for the column "Änderung": what happened to
    * the record where one word says it, the values of one or two fields that
@@ -411,8 +413,13 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
    */
   const fieldSummary = (change: AuditChange, field: AuditFieldChange, page: AuditNames): string => {
     const name = fieldWords(change.table, field.field)
-    const before = auditValue(change.table, field.field, field.before, page)
-    const after = auditValue(change.table, field.field, field.after, page)
+    // A value blacked out reads as such, so that it is not taken for one that was empty.
+    const before = field.redactedBefore
+      ? redactedAuditValue
+      : auditValue(change.table, field.field, field.before, page)
+    const after = field.redactedAfter
+      ? redactedAuditValue
+      : auditValue(change.table, field.field, field.after, page)
     const short = (value: string | null) => value === null || value.length <= longestSummaryValue
 
     if (before !== after && short(before) && short(after)) {
@@ -473,6 +480,8 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
     auditValue,
     fieldWords,
     shownFields,
+    redactionWords: (note, page) =>
+      `am ${moment(note.at)} von ${held(page.people, note.by) ?? nobody}. Grund: ${note.reason}`,
     changeSummary,
     wayWords(change, page) {
       const way = language.way(change.reason, change.databaseRole)
@@ -518,6 +527,9 @@ export const auditTableNamesPeople =
 
 /** What the opened change writes for a field without a value. */
 export const emptyAuditValue = 'leer'
+
+/** What a change in a few words writes for a value blacked out (ADR 0013). */
+export const redactedAuditValue = 'geschwärzt'
 
 const money = new Intl.NumberFormat('de-DE', {
   style: 'currency',

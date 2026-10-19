@@ -7,7 +7,7 @@ schreibt (ADR 0010, Punkt 9). Die Tabellen dazu stehen als Schema-Module unter
 | Datei | Inhalt |
 |---|---|
 | `roles.sql` | Die Rolle, als die sich die Anwendung verbindet, ohne Passwort und ohne Anmeldung, und ihr Zugang zum Schema |
-| `audit.sql` | Das Audit-Log: Fingerabdruck, schreibender Trigger, Prüfung der Hashkette und der Riegel, der einen Eintrag unveränderlich hält |
+| `audit.sql` | Das Audit-Log: Fingerabdruck, schreibender Trigger, Prüfung der Hashkette und der Riegel, der einen Eintrag unveränderlich hält, außer dem Schwärzen eines Werts durch die Person, die den Mandanten führt (ADR 0013) |
 | `sync.sql` | Der Abgleich: der Zähler je Mandant und der Stempel, der die fünf Spalten eines Datensatzes führt |
 | `setup.sql` | Was außerhalb eines Mandanten gefragt wird: ob die Instanz leer ist, der erste Mandant, die Einladung zu einem Token, die Liste der Mandanten für Hintergrundläufe; dazu der Riegel, der eine führende Rolle ganz hält und keine Rolle entfernt, die ein Zugang oder eine offene Einladung nennt |
 | `instance.sql` | Der Bereich der Instanz: ihr Protokoll mit dem Trigger, der es schreibt, und dem Riegel, der einen Eintrag unveränderlich hält, die eine Zeile der Einstellungen, der Weg zu einem weiteren Mandanten und die Liste der Mandanten mit ihrer Leitung |

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { auditRedactionProblem } from './audit.js'
 import {
   applicationRoleName,
   auditDayProblem,
@@ -360,5 +361,26 @@ describe('a day in a filter', () => {
     expect(auditDayProblem('2026-10-03')).toBeNull()
     expect(auditDayProblem('03.10.2026')).toBe('Ein Tag in der Form JJJJ-MM-TT.')
     expect(auditDayProblem('2026-13-40')).toBe('Ein Tag in der Form JJJJ-MM-TT.')
+  })
+})
+
+// A redaction (ADR 0013) is checked before it is sent, in the same words as
+// the database would refuse it: a side and a reason of 1 to 500 characters.
+describe('a redaction before it is sent', () => {
+  it('names the value before or after and gives a reason without spaces at its edge', () => {
+    expect(auditRedactionProblem('old', 'Auskunft der Person')).toBeNull()
+    expect(auditRedactionProblem('new', 'x'.repeat(500))).toBeNull()
+    expect(auditRedactionProblem('both', 'Auskunft')).toBe(
+      'Geschwärzt wird der Wert davor oder der Wert danach.',
+    )
+    expect(auditRedactionProblem(undefined, 'Auskunft')).not.toBeNull()
+
+    const shape = 'Der Grund ist 1 bis 500 Zeichen lang, ohne Leerzeichen am Rand.'
+
+    expect(auditRedactionProblem('old', '')).toBe(shape)
+    expect(auditRedactionProblem('old', ' Auskunft')).toBe(shape)
+    expect(auditRedactionProblem('old', 'Auskunft ')).toBe(shape)
+    expect(auditRedactionProblem('old', 'x'.repeat(501))).toBe(shape)
+    expect(auditRedactionProblem('old', 42)).toBe(shape)
   })
 })

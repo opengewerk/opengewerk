@@ -184,6 +184,9 @@ describe('who reads the log', () => {
       field: 'street',
       before: null,
       after: 'Rheinstraße',
+      entryId: expect.any(String),
+      redactedBefore: null,
+      redactedAfter: null,
     })
     expect(update?.userId).toBe('britta')
     expect(update?.reason).toBe('sync.write')
