@@ -290,11 +290,17 @@ BEGIN
 END;
 $$;--> statement-breakpoint
 
--- Before a redaction is written: the entry is of this tenant, the value is
--- there, and the entry is still as it was written; then the fingerprints of
--- an entry of version 1 and its witness. Who redacts is the person of the
+-- Before a redaction is written: the row is of the tenant of the session and
+-- the person of the session leads it, the entry is of this tenant, the value
+-- is there, and the entry is still as it was written; then the fingerprints
+-- of an entry of version 1 and its witness. Who redacts is the person of the
 -- session, whatever the row said. SECURITY DEFINER to read the entry through
 -- the policy that keeps the log to its writer.
+--
+-- The tenant and the lead come first, the way the policies of the table ask
+-- them, because PostgreSQL asks those policies only after this trigger: an
+-- entry of another tenant is nobody's business here, not even whether it is
+-- there, and no row of it is locked.
 CREATE FUNCTION "audit_redaction_checked"() RETURNS trigger
 	LANGUAGE plpgsql
 	SECURITY DEFINER
@@ -304,6 +310,18 @@ DECLARE
 	entry public.audit_entries;
 	found_problem text;
 BEGIN
+	IF new.tenant_id IS DISTINCT FROM nullif(current_setting('app.tenant_id', true), '')::uuid
+	   OR NOT EXISTS (
+	     SELECT 1 FROM public.memberships m
+	       JOIN public.tenant_roles r ON r.tenant_id = m.tenant_id AND r.key = ANY (m.roles) AND r.leads
+	      WHERE m.tenant_id = new.tenant_id
+	        AND m.user_id = nullif(current_setting('app.user_id', true), '')
+	        AND m.blocked_at IS NULL
+	        AND (m.last_day IS NULL OR m.last_day >= (now() AT TIME ZONE 'Europe/Berlin')::date)) THEN
+		RAISE EXCEPTION 'Einen Wert im Änderungsprotokoll schwärzt nur, wer den Mandanten führt.'
+			USING ERRCODE = 'insufficient_privilege';
+	END IF;
+
 	SELECT * INTO entry FROM public.audit_entries e
 	 WHERE e.id = new.entry_id AND e.tenant_id = new.tenant_id
 	   FOR UPDATE;

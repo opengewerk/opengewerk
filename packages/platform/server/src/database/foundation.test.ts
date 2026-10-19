@@ -713,6 +713,54 @@ describe('an instance that has nothing but the foundation', () => {
       expect(await errorCode(redact(owner, oldEntry, 'new', 'Noch einmal'))).toBe('OG006')
       expect(await errorCode(redact(owner, newId(), 'new', 'Auskunft'))).toBe('OG006')
       expect((await entry(target)).new_value).not.toBeNull()
+
+      // Whoever does not lead is refused before any entry is looked at, also
+      // one that is not there; and a row that names another tenant as well,
+      // so that whether an entry is there in it is nothing to learn here.
+      expect(await errorCode(redact(reader, newId(), 'new', 'Auskunft'))).toBe(
+        insufficientPrivilege,
+      )
+      // The person leads a second tenant as well: the row is refused for not
+      // being of the tenant of the session, before an entry of the other
+      // tenant is looked for.
+      const second = newId()
+
+      await admin.query(`insert into tenants (id, name) values ($1, 'Zweiter Mandant')`, [second])
+      await admin.query(
+        `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'lead', 'Leitung', '{}', true, false)`,
+        [second],
+      )
+      await admin.query(
+        `insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{lead}')`,
+        [second, owner],
+      )
+      expect(
+        await errorCode(
+          database.forTenant({ tenantId, userId: owner, reason: 'audit.redact' }, (tx) =>
+            tx.insert(schema.auditRedactions).values({
+              tenantId: second as never,
+              entryId: newId(),
+              side: 'new',
+              reason: 'Auskunft',
+              redactedBy: owner,
+            }),
+          ),
+        ),
+      ).toBe(insufficientPrivilege)
+
+      // And the policy refuses on its own, with the trigger in front of it out of the way.
+      await admin.query('alter table audit_redactions disable trigger audit_redaction_checked')
+
+      try {
+        expect(await errorCode(redact(reader, target, 'new', 'Auskunft'))).toBe(
+          insufficientPrivilege,
+        )
+      } finally {
+        await admin.query('alter table audit_redactions enable trigger audit_redaction_checked')
+      }
+
+      expect((await entry(target)).new_value).not.toBeNull()
     })
 
     it('finds an entry changed after its value was blacked out, and a value gone without a redaction', async () => {
