@@ -1,4 +1,5 @@
 import type {
+  BlockCircuit,
   CableInstallationMethod,
   CircuitFigures,
   DistributionBoardKind,
@@ -34,6 +35,7 @@ import {
   oneOf,
   refusalFor,
   text,
+  useRecords,
   useRelated,
 } from '../sync/index.js'
 import type { Draft, EditResult, FormField } from '../sync/index.js'
@@ -104,6 +106,72 @@ export function useCircuits(boardId: string | undefined) {
 
 export function useEquipment(circuitId: string | undefined) {
   return useOrdered('equipment', 'circuitId', circuitId)
+}
+
+/**
+ * The circuits below the boards as a block of a form keeps them, in the order
+ * of the circuit chart: board by board, on each the circuits on the board
+ * directly first and then section by section, as the chart on the door lists
+ * them. With more than one board the board goes in front of the designation,
+ * since F1 is then no longer one circuit. The boards come in the order of the
+ * chart, the sections and circuits in any order and of any board.
+ */
+export function blockCircuits(
+  boards: readonly RecordState[],
+  sections: readonly RecordState[],
+  circuits: readonly RecordState[],
+): readonly (BlockCircuit & { readonly id: string })[] {
+  const several = boards.length > 1
+
+  return boards.flatMap((board) => {
+    const own = ordered(
+      sections.filter((section) => section['distributionBoardId'] === board['id']),
+    )
+    const ownIds = new Set(own.map((section) => String(section['id'])))
+    const onBoard = circuits.filter((circuit) => circuit['distributionBoardId'] === board['id'])
+    // A circuit whose section is gone, or not on this device yet, counts as
+    // on the board directly, the way the chart prints it.
+    const direct = ordered(
+      onBoard.filter((circuit) => {
+        const section = maybeText(circuit, 'boardSectionId')
+
+        return section === null || !ownIds.has(section)
+      }),
+    )
+    const inChartOrder = [
+      ...direct,
+      ...own.flatMap((section) =>
+        ordered(onBoard.filter((circuit) => circuit['boardSectionId'] === section['id'])),
+      ),
+    ]
+
+    return inChartOrder.map((circuit) => ({
+      id: String(circuit['id']),
+      designation: several
+        ? `${text(board, 'designation')} ${text(circuit, 'designation')}`
+        : text(circuit, 'designation'),
+      consumer: maybeText(circuit, 'consumer'),
+      tripCharacteristic: known(circuit, 'tripCharacteristic', tripCharacteristics),
+      ratedCurrentMilli: figure(circuit, 'ratedCurrentMilli'),
+      ratedResidualCurrentMilli: figure(circuit, 'ratedResidualCurrentMilli'),
+    }))
+  })
+}
+
+/**
+ * The circuits of a record as a block of a form keeps them, in the order of
+ * the chart, by the field of the application that names the record on a
+ * board, as `useBoardsOf` asks for its boards.
+ */
+export function useBlockCircuitsOf(
+  field: string,
+  id: string | undefined,
+): readonly (BlockCircuit & { readonly id: string })[] {
+  const boards = useBoardsOf(field, id)
+  const sections = useRecords('board_sections')
+  const circuits = useRecords('circuits')
+
+  return useMemo(() => blockCircuits(boards, sections, circuits), [boards, sections, circuits])
 }
 
 /** The place after every sibling, for a part added at the end. */

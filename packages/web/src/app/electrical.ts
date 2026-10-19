@@ -1,4 +1,4 @@
-import { useBoardsOf } from '@opengewerk/platform-web/electrical'
+import { useBlockCircuitsOf, useBoardsOf } from '@opengewerk/platform-web/electrical'
 
 /**
  * The electrical structure below an installation, as this application binds
@@ -11,6 +11,11 @@ export * from '@opengewerk/platform-web/electrical'
 /** The boards of an installation. */
 export function useBoards(installationId: string | undefined) {
   return useBoardsOf('installationId', installationId)
+}
+
+/** The circuits of an installation as a block of a protocol keeps them, in the order of the chart. */
+export function useBlockCircuits(installationId: string | undefined) {
+  return useBlockCircuitsOf('installationId', installationId)
 }
 
 /** The address of the chart, for a link that opens it: every board, or one. */

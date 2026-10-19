@@ -43,7 +43,10 @@ export * from './deadlines/deadline.js'
 // The form engine: definitions as data with versions, values, their checks
 // and the verdict on a measured value. What a figure is counted in, what a
 // group repeats over and which limits are worked out the application says
-// (`formEngine`), and what a filled form hangs on is its own.
+// (`formEngine`), and what a filled form hangs on is its own. For a form
+// measured on circuits there is the list and the two limits worked out of a
+// circuit, which an application hands to the engine when it binds it.
+export * from './forms/circuits.js'
 export * from './forms/definition.js'
 export * from './forms/engine.js'
 export * from './forms/values.js'

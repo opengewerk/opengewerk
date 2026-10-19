@@ -1,11 +1,9 @@
-import type { IsoDate, LimitVerdict, RuleSet } from '@opengewerk/platform-domain'
+import type { CircuitFacts, IsoDate, LimitVerdict, RuleSet } from '@opengewerk/platform-domain'
 
-import type { CircuitFacts } from './circuits.js'
 import type { MeasurementField, MeasurementUnit } from './definition.js'
 import { tradeForms } from './engine.js'
 
-export { type LimitVerdict, measuredNumber } from '@opengewerk/platform-domain'
-export type { CircuitFacts } from './circuits.js'
+export { type CircuitFacts, type LimitVerdict, measuredNumber } from '@opengewerk/platform-domain'
 
 /** A value in thousandths, as it is written: `0,85 Ω`. */
 export function formatMeasured(milli: number, unit: MeasurementUnit, decimals: number): string {

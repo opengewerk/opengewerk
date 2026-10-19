@@ -22,9 +22,7 @@ import {
   sealProblems,
   type SignatureValue,
   templateValues,
-  type TripCharacteristic,
   tripCharacteristicLabel,
-  tripCharacteristics,
 } from '@opengewerk/domain'
 import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
 import {
@@ -40,15 +38,7 @@ import {
 } from '@opengewerk/platform-web'
 import { amount, date, scaledNumber, today } from '@opengewerk/platform-web/format'
 import { NotSent, SiteRow, SiteRows } from '@opengewerk/platform-web/site'
-import {
-  maybeText,
-  refusalFor,
-  text,
-  useRecords,
-  useRelated,
-  useSync,
-  useSyncStatus,
-} from '@opengewerk/platform-web/sync'
+import { refusalFor, text, useRelated, useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -57,7 +47,7 @@ import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
-import { ordered, useBoards } from './electrical.js'
+import { useBlockCircuits } from './electrical.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.
@@ -110,73 +100,6 @@ export function useProtocols(installationId: string | undefined): readonly Recor
       ),
     [related],
   )
-}
-
-function tripOf(circuit: RecordState): TripCharacteristic | null {
-  const value = circuit['tripCharacteristic']
-
-  return tripCharacteristics.includes(value as TripCharacteristic)
-    ? (value as TripCharacteristic)
-    : null
-}
-
-function figureOf(circuit: RecordState, field: string): number | null {
-  const value = circuit[field]
-
-  return typeof value === 'number' ? value : null
-}
-
-/**
- * The circuits of an installation as a block keeps them, in the order of the
- * circuit chart: board by board, on each the circuits on the board directly
- * first and then section by section, as the chart on the door lists them.
- * With more than one board the board goes in front of the designation, since
- * F1 is then no longer one circuit.
- */
-export function useBlockCircuits(
-  installationId: string | undefined,
-): readonly (BlockCircuit & { readonly id: string })[] {
-  const boards = useBoards(installationId)
-  const sections = useRecords('board_sections')
-  const circuits = useRecords('circuits')
-
-  return useMemo(() => {
-    const several = boards.length > 1
-
-    return boards.flatMap((board) => {
-      const own = ordered(
-        sections.filter((section) => section['distributionBoardId'] === board['id']),
-      )
-      const known = new Set(own.map((section) => String(section['id'])))
-      const onBoard = circuits.filter((circuit) => circuit['distributionBoardId'] === board['id'])
-      // A circuit whose section is gone, or not on this device yet, counts as
-      // on the board directly, the way the chart prints it.
-      const direct = ordered(
-        onBoard.filter((circuit) => {
-          const section = maybeText(circuit, 'boardSectionId')
-
-          return section === null || !known.has(section)
-        }),
-      )
-      const inChartOrder = [
-        ...direct,
-        ...own.flatMap((section) =>
-          ordered(onBoard.filter((circuit) => circuit['boardSectionId'] === section['id'])),
-        ),
-      ]
-
-      return inChartOrder.map((circuit) => ({
-        id: String(circuit['id']),
-        designation: several
-          ? `${text(board, 'designation')} ${text(circuit, 'designation')}`
-          : text(circuit, 'designation'),
-        consumer: maybeText(circuit, 'consumer'),
-        tripCharacteristic: tripOf(circuit),
-        ratedCurrentMilli: figureOf(circuit, 'ratedCurrentMilli'),
-        ratedResidualCurrentMilli: figureOf(circuit, 'ratedResidualCurrentMilli'),
-      }))
-    })
-  }, [boards, sections, circuits])
 }
 
 /** What a circuit is protected by, as a line under its designation: "B 16 A, 30 mA". */
