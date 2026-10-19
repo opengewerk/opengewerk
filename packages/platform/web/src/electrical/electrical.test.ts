@@ -2,6 +2,7 @@ import type { RecordState } from '@opengewerk/platform-domain'
 import { describe, expect, it } from 'vitest'
 
 import {
+  blockCircuits,
   boardTitle,
   circuitsInWords,
   circuitSummary,
@@ -49,6 +50,67 @@ describe('the parts of one level', () => {
   it('take a new one at the end', () => {
     expect(nextPosition([])).toBe(0)
     expect(nextPosition([part('a', 'F1', 0), part('b', 'F2', 4)])).toBe(5)
+  })
+
+  it('give the circuits to a form in the order of the chart, the board in front where there are several', () => {
+    const on = (
+      record: RecordState,
+      board: string,
+      section: string | null,
+      extra: Record<string, unknown> = {},
+    ) =>
+      ({
+        ...record,
+        distributionBoardId: board,
+        boardSectionId: section,
+        consumer: null,
+        ...extra,
+      }) as unknown as RecordState
+    const board = part('hv', 'HV', 0)
+    const sections = [
+      { ...part('s2', 'Reihe 2', 1), distributionBoardId: 'hv' },
+      { ...part('s1', 'Reihe 1', 0), distributionBoardId: 'hv' },
+    ] as unknown as RecordState[]
+    const circuits = [
+      on(part('c4', 'F4', 0), 'hv', 's2'),
+      on(part('c3', 'F3', 0), 'hv', 's1', {
+        consumer: 'Steckdosen Bad',
+        tripCharacteristic: 'b',
+        ratedCurrentMilli: 16_000,
+        ratedResidualCurrentMilli: 30,
+      }),
+      // On the board directly, and one whose section is gone counts the same.
+      on(part('c2', 'F2', 0), 'hv', null),
+      on(part('c1', 'F1', 0), 'hv', 'gone'),
+      on(part('x1', 'F1', 0), 'uv', null),
+    ]
+
+    const one = blockCircuits([board], sections, circuits)
+
+    expect(one.map((circuit) => circuit.id)).toEqual(['c1', 'c2', 'c3', 'c4'])
+    expect(one[2]).toEqual({
+      id: 'c3',
+      designation: 'F3',
+      consumer: 'Steckdosen Bad',
+      tripCharacteristic: 'b',
+      ratedCurrentMilli: 16_000,
+      ratedResidualCurrentMilli: 30,
+    })
+    expect(one[0]).toMatchObject({
+      tripCharacteristic: null,
+      ratedCurrentMilli: null,
+      ratedResidualCurrentMilli: null,
+    })
+
+    const two = blockCircuits([board, part('uv', 'UV', 1)], sections, circuits)
+
+    expect(two.map((circuit) => circuit.designation)).toEqual([
+      'HV F1',
+      'HV F2',
+      'HV F3',
+      'HV F4',
+      'UV F1',
+    ])
   })
 
   it('keep the modules of a string where they were put, having no name to sort by', () => {

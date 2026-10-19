@@ -1,6 +1,10 @@
-import { formEngine } from '@opengewerk/platform-domain'
+import {
+  circuitList,
+  formEngine,
+  loopImpedance,
+  residualTripCurrent,
+} from '@opengewerk/platform-domain'
 
-import { circuitList, loopImpedance, residualTripCurrent } from './circuits.js'
 import type { TradeFormTerms } from './definition.js'
 import { formUnits } from './units.js'
 

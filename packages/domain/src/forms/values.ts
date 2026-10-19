@@ -1,10 +1,10 @@
 import {
+  type BlockCircuit,
   type FieldValue,
   readFormValues as readGeneralFormValues,
   type GroupBlock as GeneralGroupBlock,
 } from '@opengewerk/platform-domain'
 
-import type { BlockCircuit } from './circuits.js'
 import type { BlockField, FormDefinition, SignatureField } from './definition.js'
 import { tradeForms } from './engine.js'
 
@@ -16,7 +16,7 @@ export {
   type SignatureValue,
 } from '@opengewerk/platform-domain'
 
-export type { BlockCircuit } from './circuits.js'
+export type { BlockCircuit } from '@opengewerk/platform-domain'
 
 /**
  * One block of a repeating group: its own values, and the circuit it is about.

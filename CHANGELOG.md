@@ -419,6 +419,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Formulare mit Stromkreis sind ein Teil des Fundaments (Nachtrag in ADR 0014, für opengewerk-haustechnik#350). In
+  `platform-domain` stehen, was ein Block von seinem Stromkreis hält (`CircuitFacts`, `BlockCircuit`, `isBlockCircuit`),
+  die Liste einer Gruppe je Stromkreis (`circuitList`) und die Rechner der Grenzwerte für Schleifenimpedanz und
+  Auslösestrom (`loopImpedance`, `residualTripCurrent`), für die Begriffe jeder Anwendung; in `platform-web` unter
+  `/electrical` die Stromkreise eines Datensatzes in der Reihenfolge des Stromkreisverzeichnisses (`useBlockCircuitsOf`).
+  Die Handwerkersoftware bindet beides, ihre Protokolle rechnen und ordnen wie bisher. Warum: die Haustechnik misst bei
+  der Prüfung ihrer elektrischen Anlagen je Stromkreis gegen dieselben Grenzwerte, und eine zweite Fassung der Rechner
+  liefe auseinander.
+
 - Die Elektro-Struktur und die PV-Struktur sind ein Baustein des Fundaments (ADR 0014, für
   opengewerk-haustechnik#180). In `platform-domain` stehen Arten, Grenzen, Prüfungen und Texte von Verteiler, Feld,
   Stromkreis, Betriebsmittel, Wechselrichter, String und Modul samt den Wörtern des Änderungsprotokolls

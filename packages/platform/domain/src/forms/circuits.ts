@@ -1,17 +1,15 @@
-import {
-  type LimitCalculator,
-  type RepeatList,
-  type TripCharacteristic,
-  tripCharacteristics,
-} from '@opengewerk/platform-domain'
-
-import type { TradeFormTerms } from './definition.js'
+import { type TripCharacteristic, tripCharacteristics } from '../model/electrical.js'
+import type { LimitCalculator, RepeatList } from './engine.js'
 
 /**
- * What the forms of this application know about circuits: the list a group
- * repeats over (#70), what a block keeps of its circuit, and the two limits
- * worked out of it. The engine is the foundation's and knows no circuit
- * (ADR 0010); this is what it is handed.
+ * What a form knows about the circuits of an electrical installation: the
+ * list a group repeats over, what a block keeps of its circuit, and the two
+ * limits worked out of it. The engine knows no circuit; an application whose
+ * forms are measured on circuits hands these to it (`formEngine`) under the
+ * names its terms give them. They take the rules by their keys, so that a
+ * rule package of an application answers them: `elektro.loop.factor_b`,
+ * `_c` and `_d`, `elektro.loop.nominal_voltage` and
+ * `elektro.rcd.trip_current_maximum`.
  */
 
 /** What a limit worked out of a circuit needs to know about it. */
@@ -26,7 +24,7 @@ export interface CircuitFacts {
 /**
  * The circuit a block is about, as it stood when the block was filled: how it
  * is named on paper, and what its limits are worked out from. Kept in the
- * block, so that a signed protocol shows the circuit and the verdict it was
+ * block, so that a signed form shows the circuit and the verdict it was
  * signed with even after the chart has changed.
  */
 export interface BlockCircuit extends CircuitFacts {
@@ -82,8 +80,11 @@ const loopFactorRule: Readonly<Partial<Record<TripCharacteristic, string>>> = {
  * the circuit: Zs × Ia ≤ U0, the largest impedance at which the breaker still
  * trips instantaneously, in thousandths of an ohm, rounded down so that the
  * limit is never looser than the rule.
+ *
+ * Written for the terms of no application in particular: it reads nothing of
+ * the field, so it is a calculator for the terms of any.
  */
-export const loopImpedance: LimitCalculator<TradeFormTerms> = (_field, { rules, on, item }) => {
+export const loopImpedance: LimitCalculator = (_field, { rules, on, item }) => {
   const circuit = item as CircuitFacts | null
   const rule = circuit?.tripCharacteristic ? loopFactorRule[circuit.tripCharacteristic] : null
   const factor = rule ? rules.at(rule, on) : null
@@ -106,11 +107,11 @@ export const loopImpedance: LimitCalculator<TradeFormTerms> = (_field, { rules, 
   }
 }
 
-/** The limit of the tripping current, a share of the rated residual current of the circuit's device. */
-export const residualTripCurrent: LimitCalculator<TradeFormTerms> = (
-  _field,
-  { rules, on, item },
-) => {
+/**
+ * The limit of the tripping current, a share of the rated residual current of
+ * the circuit's device, for the terms of any application as well.
+ */
+export const residualTripCurrent: LimitCalculator = (_field, { rules, on, item }) => {
   const circuit = item as CircuitFacts | null
   const share = rules.at('elektro.rcd.trip_current_maximum', on)
 
