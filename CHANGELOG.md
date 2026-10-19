@@ -427,6 +427,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Eine neue Fassung kommt von selbst (für opengewerk-haustechnik#465, Nachtrag in ADR 0004): die Leiste „Eine neue
+  Fassung liegt bereit.“ mit „Jetzt übernehmen“ (`UpdateBar`) ist aus Büro, Baustelle und dem Bereich der Instanz
+  entfernt, mit `offerUpdate`, `subscribeToUpdates`, `updateWaiting` und `applyUpdate`. Eine Anwendung übergibt die
+  Registrierung ihres Service Workers an `takeUpdates` aus `@opengewerk/platform-web/shell`, und die Seite übernimmt die
+  wartende Fassung selbst: beim Öffnen, wenn sie schon wartete, wenn die Seite verborgen wird, und wenn die Adresse
+  wechselt (`useUpdateOnNavigation` in den drei Rahmen). Nie, solange etwas sie hält (`holdUpdates`, `useHoldUpdates`):
+  `RecordForm` mit Eingaben, die nicht gespeichert sind, eine Unterschrift auf dem `SignaturePad`, der Postausgang,
+  während er gesendet wird, und was seit dem letzten Wechsel der Adresse getippt wurde; in der Handwerkersoftware dazu
+  der Entwurf eines Protokolls. Ohne Netz bleibt die Seite bei ihrer Fassung. Eine Seite, die offen bleibt, fragt jede
+  Stunde und bei jeder Rückkehr nach einer neuen Fassung. Für Tests steht `standInWorker` in
+  `@opengewerk/platform-web/testing`. Die Handwerkersoftware registriert ihren Service Worker mit `onRegisteredSW` und
+  einem leeren `onNeedReload`. Warum: eine neue Fassung soll ohne Zutun ankommen, auch auf einer Seite, die tagelang
+  offen steht und sonst bei der alten bliebe, selbst wenn die mit dem Server nicht mehr abgleichen kann; das Neuladen
+  ist nötig, weil eine Seite der alten Fassung ihre Bildschirme je Adresse nachlädt und der neue Worker nur die Stücke
+  der neuen hält.
+
 - Die Formulare mit Stromkreis sind ein Teil des Fundaments (Nachtrag in ADR 0014, für opengewerk-haustechnik#350). In
   `platform-domain` stehen, was ein Block von seinem Stromkreis hält (`CircuitFacts`, `BlockCircuit`, `isBlockCircuit`),
   die Liste einer Gruppe je Stromkreis (`circuitList`) und die Rechner der Grenzwerte für Schleifenimpedanz und

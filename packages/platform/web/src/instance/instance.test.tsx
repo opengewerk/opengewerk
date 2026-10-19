@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { aTenant, inFrame, signedIn, standInServer } from '../in-frame.js'
 import type { StandIn } from '../in-frame.js'
+import { standInWorker } from '../shell/test-updates.js'
 import { InstanceFrame } from './frame.js'
 import type { InstanceEntry } from './frame.js'
 import { InstanceLogScreen } from './log.js'
@@ -211,6 +212,34 @@ describe('the frame of the area', () => {
         screen.getByRole('heading', { level: 1, name: 'Einstellungen' }),
       )
     })
+  })
+
+  it('takes a new version that waits as somebody goes to another screen (opengewerk-haustechnik#465)', async () => {
+    server.answer('GET', '/instance/tenants', [])
+    server.answer('GET', '/instance/settings', {
+      mailInternalHosts: [],
+      backupTime: '02:30',
+      takenOverAt: null,
+    })
+
+    const device = standInWorker()
+
+    try {
+      await area('/instanz')
+
+      const nav = (await screen.findAllByRole('navigation', { name: 'Instanz' }))[0] as HTMLElement
+
+      device.start()
+      device.arrive()
+      await userEvent.setup().click(within(nav).getByRole('link', { name: 'Einstellungen' }))
+      await screen.findByRole('heading', { level: 1, name: 'Einstellungen' })
+
+      await waitFor(() => {
+        expect(device.reloads).toBe(1)
+      })
+    } finally {
+      device.forget()
+    }
   })
 
   it('names the application and the instance in its header, and no tenant', async () => {

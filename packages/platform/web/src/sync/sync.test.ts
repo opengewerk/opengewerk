@@ -22,6 +22,7 @@ import {
 } from './client.js'
 import { byRecord, project } from './projection.js'
 import { type LocalStore, openLocalStore } from './store.js'
+import { updatesHeld } from '../shell/updates.js'
 import type { ChangedRows, PullResult, SyncTransport } from './transport.js'
 import { RequestRefused } from './transport.js'
 
@@ -1193,6 +1194,42 @@ describe('an exchange with the server', () => {
       expect(client.status().pending).toBe(1)
       expect(client.status().trouble).toBe('Unbekanntes Feld: quatsch')
     })
+  })
+
+  it('holds a new version of the application back while the outbox is on its way, and no longer (opengewerk-haustechnik#465)', async () => {
+    const client = await start(transport)
+    const push = transport.push.bind(transport)
+    let send: () => void = () => undefined
+
+    transport.push = (deviceId: string, operations: readonly Operation[]) =>
+      new Promise((resolve, reject) => {
+        send = () => {
+          push(deviceId, operations).then(resolve, reject)
+        }
+      })
+
+    expect(updatesHeld()).toBe(false)
+
+    await client.create('shelves', { name: 'Hall', kind: 'wood' })
+    await vi.waitFor(() => {
+      expect(updatesHeld()).toBe(true)
+    })
+
+    send()
+
+    await vi.waitFor(() => {
+      expect(client.status().pending).toBe(0)
+    })
+    expect(updatesHeld()).toBe(false)
+
+    // A round that fails lets go as well.
+    transport.push = push
+    transport.refuse = new TypeError('Failed to fetch')
+    await client.create('shelves', { name: 'Hof', kind: 'wood' })
+    await client.synchronise()
+
+    expect(client.status().pending).toBe(1)
+    expect(updatesHeld()).toBe(false)
   })
 
   it('says what went wrong rather than looking synchronised', async () => {
