@@ -29,10 +29,14 @@ export * from './database/schema/rls.js'
 
 // Tables of the foundation an application makes with a list of its own: the
 // columns and the rules are the same everywhere, what the list holds is not.
-// The outbox of the mail, the deadlines, the contacts and the files in the
-// records of a tenant take columns of the application as well.
+// The outbox of the mail, the deadlines, the contacts, the files in the
+// records of a tenant and the electrical and PV structure take columns of the
+// application as well.
 export * from './database/schema/attachments.js'
 export * from './database/schema/contacts.js'
+export * from './database/schema/electrical.js'
+export * from './database/schema/own-columns.js'
+export * from './database/schema/photovoltaic.js'
 export * from './database/schema/qualifications.js'
 export * from './database/schema/stock.js'
 export * from './database/schema/labels.js'
@@ -62,6 +66,7 @@ export * from './sync/controller.js'
 export * from './sync/narrowing.js'
 export * from './sync/record-rules.js'
 export * from './sync/stamp.js'
+export * from './electrical/structure.js'
 export * from './sync/tables.js'
 
 // The change log of a tenant as a person reads it: a page of changes with the
@@ -173,6 +178,7 @@ export * from './number-ranges/controller.js'
 // module hands it in under, and what every printed page is written with. What
 // a page says, the application writes.
 export * from './print/characters.js'
+export * from './print/circuit-chart.js'
 export * from './print/helpers.js'
 export * from './print/renderer.js'
 

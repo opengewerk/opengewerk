@@ -1,8 +1,7 @@
-import type { RecordState } from '@opengewerk/domain'
+import type { RecordState } from '@opengewerk/platform-domain'
 import {
   azimuthName,
   azimuthText,
-  belongsToPvSystemKind,
   inModuleOrder,
   inverterPowerText,
   moduleBatchMax,
@@ -10,30 +9,24 @@ import {
   peakPowerText,
   pvLimits,
   pvModuleProblems,
-} from '@opengewerk/domain'
-import { Button, Field, SelectField, useEntry } from '@opengewerk/platform-web'
-import { SiteActionBar } from '@opengewerk/platform-web/site'
-import {
-  count,
-  maybeText,
-  refusalFor,
-  text,
-  useRecords,
-  useRelated,
-} from '@opengewerk/platform-web/sync'
-import type { Draft, EditResult, FormField } from '@opengewerk/platform-web/sync'
+} from '@opengewerk/platform-domain'
+import { count, maybeText, refusalFor, text, useRelated } from '../sync/index.js'
+import type { Draft, EditResult } from '../sync/index.js'
 import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { Button, Field, SelectField, useEntry } from '../components/index.js'
+import { SiteActionBar } from '../site/action-bar.js'
 import type { SyncClient } from '../sync/client.js'
-import { Group, nextPosition, ordered, problemOf, readFigure } from './electrical.js'
+import { Group, nextPosition, problemOf, readFigure, useOrdered } from './electrical.js'
 
 /**
- * The PV structure below a PV system as both entries show it (#300): inverter,
- * string, module, and the battery, meter or wallbox that belongs to the
- * system.
+ * The PV structure below a PV system as both entries show it (#300, ADR
+ * 0014): inverter, string, module. What an inverter hangs on is the
+ * application's, like a board, and so is whatever else it lets belong to a
+ * PV system.
  *
  * One module for the office and the site, like the electrical structure next
  * to it: the office builds the structure and the site completes it, a string a
@@ -42,14 +35,9 @@ import { Group, nextPosition, ordered, problemOf, readFigure } from './electrica
  * sync rules.
  */
 
-function useOrdered(entity: string, field: string, id: string | undefined) {
-  const related = useRelated(entity, field, id)
-
-  return useMemo(() => ordered(related), [related])
-}
-
-export function useInverters(installationId: string | undefined) {
-  return useOrdered('inverters', 'installationId', installationId)
+/** The inverters of a record, by the field of the application that names it on an inverter. */
+export function useInvertersOf(field: string, id: string | undefined) {
+  return useOrdered('inverters', field, id)
 }
 
 export function usePvStrings(inverterId: string | undefined) {
@@ -70,29 +58,6 @@ export function inModules(modules: readonly RecordState[]): readonly RecordState
       { id: String(right['id']), position: count(right, 'position') },
     ),
   )
-}
-
-/** The batteries, meters and wallboxes that say they belong to this PV system. */
-export function useCompanions(pvSystemId: string | undefined) {
-  return useOrdered('installations', 'pvSystemId', pvSystemId)
-}
-
-/** The modules below a PV system, over its inverters and their strings. */
-export function useSystemModules(installationId: string | undefined): readonly RecordState[] {
-  const inverters = useInverters(installationId)
-  const strings = useRecords('pv_strings')
-  const modules = useRecords('pv_modules')
-
-  return useMemo(() => {
-    const ids = new Set(inverters.map((inverter) => String(inverter['id'])))
-    const stringIds = new Set(
-      strings
-        .filter((pvString) => ids.has(text(pvString, 'inverterId')))
-        .map((pvString) => String(pvString['id'])),
-    )
-
-    return modules.filter((module) => stringIds.has(text(module, 'pvStringId')))
-  }, [inverters, strings, modules])
 }
 
 /**
@@ -292,57 +257,6 @@ export function inverterChoice(inverter: RecordState): string {
     .join(', ')
 }
 
-/**
- * The two fields of a battery, a meter or a wallbox that say where it belongs
- * (#300): the PV systems at its site, and the inverters of the one chosen.
- * Only for those three kinds, and the inverter only once a system is chosen;
- * the form hands back what does not stand as empty.
- */
-export function companionFields(
-  pvSystems: readonly RecordState[],
-  inverters: readonly RecordState[],
-): readonly FormField[] {
-  return [
-    {
-      name: 'pvSystemId',
-      label: 'Gehört zu PV-Anlage',
-      hint: 'Nur PV-Anlagen an diesem Objekt.',
-      options: [
-        { value: '', label: 'Zu keiner' },
-        ...pvSystems.map((system) => ({
-          value: String(system['id']),
-          label: text(system, 'designation'),
-        })),
-      ],
-      shownWhen: (values) => belongsToPvSystemKind(values['kind']),
-    },
-    {
-      name: 'inverterId',
-      label: 'Am Wechselrichter',
-      hint: 'Leer, wenn er an keinem hängt.',
-      optionsFor: (values) => [
-        { value: '', label: 'An keinem' },
-        ...inverters
-          .filter((inverter) => text(inverter, 'installationId') === values['pvSystemId'])
-          .map((inverter) => ({ value: String(inverter['id']), label: inverterChoice(inverter) })),
-      ],
-      shownWhen: (values) =>
-        belongsToPvSystemKind(values['kind']) && (values['pvSystemId'] ?? '') !== '',
-    },
-  ]
-}
-
-/** The link the two fields above hand back, as the installation keeps it. */
-export function asCompanion(values: Readonly<Record<string, string>>): Draft {
-  const pvSystemId = values['pvSystemId'] ?? ''
-  const inverterId = values['inverterId'] ?? ''
-
-  return {
-    pvSystemId: pvSystemId === '' ? null : pvSystemId,
-    inverterId: pvSystemId === '' || inverterId === '' ? null : inverterId,
-  }
-}
-
 // --- The forms -----------------------------------------------------------------------------------
 
 /** One field of a form of the PV structure. */
@@ -423,7 +337,7 @@ function readAll(
  * Not a `RecordForm`: the power is typed in kilowatts and kept in watts, the
  * figures are read the way somebody in Germany types them, a problem belongs
  * to the field that has it, and the directions of a string stand in a box of
- * their own. The rules are the ones in `domain`, the same the server asks, so
+ * their own. The rules are the ones in `platform-domain`, the same the server asks, so
  * that a figure it would refuse never reaches the outbox.
  */
 export function PvForm({
@@ -438,7 +352,7 @@ export function PvForm({
 }: {
   readonly fields: readonly PvField[]
   readonly record?: RecordState | null
-  /** The rules of `domain` over the values, one sentence per field. */
+  /** The rules of `platform-domain` over the values, one sentence per field. */
   readonly rules?: (values: Draft) => Readonly<Record<string, string>>
   /** The columns of the fields outside a box from 640 pixels on, in the office. */
   readonly columns?: string

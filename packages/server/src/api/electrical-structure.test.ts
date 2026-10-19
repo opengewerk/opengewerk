@@ -454,7 +454,7 @@ describe('the figures of a circuit', () => {
       400,
     )
 
-    expect(answer.message).toBe('Diese Art von Verteiler kennt OpenGewerk nicht.')
+    expect(answer.message).toBe('Diese Art von Verteiler ist unbekannt.')
   })
 })
 

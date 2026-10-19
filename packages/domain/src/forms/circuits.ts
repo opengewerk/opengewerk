@@ -1,6 +1,10 @@
-import type { LimitCalculator, RepeatList } from '@opengewerk/platform-domain'
+import {
+  type LimitCalculator,
+  type RepeatList,
+  type TripCharacteristic,
+  tripCharacteristics,
+} from '@opengewerk/platform-domain'
 
-import { type TripCharacteristic, tripCharacteristics } from '../model/electrical.js'
 import type { TradeFormTerms } from './definition.js'
 
 /**

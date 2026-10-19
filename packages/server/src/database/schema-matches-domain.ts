@@ -11,7 +11,6 @@ import type {
   Contact,
   Customer,
   CustomerTag,
-  DistributionBoard,
   Document,
   DocumentFile,
   DocumentInstructionChoices,
@@ -19,12 +18,13 @@ import type {
   DocumentSignature,
   DocumentSnapshot,
   Equipment,
+  InstallationBoard,
+  InstallationInverter,
   FormDefinitionRecord,
   FormRecord,
   Installation,
   InstallationLabel,
   Instruction,
-  Inverter,
   Job,
   JobAssignment,
   JobNote,
@@ -164,12 +164,12 @@ export type InstallationLabelMatches = Assert<
   Exact<typeof installationLabels.$inferSelect, InstallationLabel>
 >
 export type DistributionBoardMatches = Assert<
-  Exact<typeof distributionBoards.$inferSelect, DistributionBoard>
+  Exact<typeof distributionBoards.$inferSelect, InstallationBoard>
 >
 export type BoardSectionMatches = Assert<Exact<typeof boardSections.$inferSelect, BoardSection>>
 export type CircuitMatches = Assert<Exact<typeof circuits.$inferSelect, Circuit>>
 export type EquipmentMatches = Assert<Exact<typeof equipment.$inferSelect, Equipment>>
-export type InverterMatches = Assert<Exact<typeof inverters.$inferSelect, Inverter>>
+export type InverterMatches = Assert<Exact<typeof inverters.$inferSelect, InstallationInverter>>
 export type PvStringMatches = Assert<Exact<typeof pvStrings.$inferSelect, PvString>>
 export type PvModuleMatches = Assert<Exact<typeof pvModules.$inferSelect, PvModule>>
 export type JobMatches = Assert<Exact<typeof jobs.$inferSelect, Job>>

@@ -419,6 +419,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Elektro-Struktur und die PV-Struktur sind ein Baustein des Fundaments (ADR 0014, für
+  opengewerk-haustechnik#180). In `platform-domain` stehen Arten, Grenzen, Prüfungen und Texte von Verteiler, Feld,
+  Stromkreis, Betriebsmittel, Wechselrichter, String und Modul samt den Wörtern des Änderungsprotokolls
+  (`structureAuditTables`); in `platform-server` die Fabriken `electricalSchema` und `photovoltaicSchema`, die Prüfungen
+  des Abgleichs (`structureProblem`, `sectionRefusal`) und das Stromkreisverzeichnis (`circuitChartJob`); in
+  `platform-web` unter dem neuen Einstieg `/electrical` die Formulare und Teile der Bildschirme. Woran ein Verteiler und
+  ein Wechselrichter hängen, gibt eine Anwendung als eigene Spalte hinein. Die Handwerkersoftware bindet den Baustein
+  sofort, ihre Tabellen behalten ihre Namen und `drizzle-kit generate` findet keinen Unterschied, eine Instanz braucht
+  also keine Migration. Was ein Formular über eine unbekannte Art sagt, nennt keinen Produktnamen mehr („Diese
+  Schutzeinrichtung ist unbekannt.“). Warum: die Haustechnik braucht dieselbe Struktur unter ihrer
+  Niederspannungsanlage (opengewerk-haustechnik#349), und zwei Fassungen liefen auseinander; Moritz hat den Umzug am
+  08.10.2026 entschieden und das ADR am 19.10.2026 angenommen.
+
 - Bei einer Liste, die nie null ist (`.array().notNull()`), nimmt der Abgleich die leere Liste als das, was ein Gerät
   sah, wenn es dort nichts gesehen hat (für opengewerk-haustechnik#451). Ein Gerät hält eine Zeile von vor der
   Spalte ohne sie und schickt beim ersten Ändern `from: null`; die Spalte kam aber mit der leeren Liste, und jede erste

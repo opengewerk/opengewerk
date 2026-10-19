@@ -1,137 +1,18 @@
+import type { Operation, RecordState } from '@opengewerk/domain'
 import {
-  circuitFigureFields,
-  circuitProblems,
-  type ConflictReason,
-  distributionBoardKinds,
-  inverterProblems,
-  type Operation,
-  pvModuleProblems,
-  pvStringProblems,
-  type RecordState,
-} from '@opengewerk/domain'
-import { isUuid, type TenantTransaction } from '@opengewerk/platform-server'
+  isUuid,
+  type StructureRefusal,
+  type TenantTransaction,
+  valueAfter,
+} from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { boardSections, installations, inverters } from '../database/schema/index.js'
+import { installations, inverters } from '../database/schema/index.js'
 
-/** Why a part of the structure may not land where it says, in the shape of a sync conflict. */
-export interface StructureRefusal {
-  readonly reason: ConflictReason
-  readonly fields: readonly string[]
-}
-
-/** The value a field has once the operation is through: what it sets, or what the row holds. */
-function after(
-  field: string,
-  values: Readonly<Record<string, unknown>>,
-  current: RecordState | null,
-): unknown {
-  return field in values ? values[field] : (current?.[field] ?? null)
-}
-
-/**
- * The figures of the PV structure (#300), each a range of its own: the ones an
- * operation sets are the ones to judge, and one it leaves alone stands as the
- * database holds it.
- */
-const pvFigures: Readonly<
-  Record<string, (record: Readonly<Record<string, unknown>>) => Readonly<Record<string, string>>>
-> = {
-  inverters: inverterProblems,
-  pv_strings: pvStringProblems,
-  pv_modules: pvModuleProblems,
-}
-
-/**
- * What a device may not send at all, as the sentence its form shows for it,
- * or null when nothing is wrong.
- *
- * A mistake in the client and not a disagreement between two people, like a
- * payment term out of range: the forms ask the same function before anything
- * is queued. Asked here, the answer names the field; left to the database,
- * the check or the enum would refuse the whole transmission with a sentence
- * nobody on site could act on.
- *
- * The circuit is judged as it would stand afterwards, since whether a curve
- * goes with a device depends on both and a patch may carry only one. Only
- * when the operation sets one of its figures: a circuit that is only renamed
- * is not held to a figure nobody touched.
- */
-export function structureProblem(
-  entity: string,
-  values: Readonly<Record<string, unknown>>,
-  current: RecordState | null,
-): string | null {
-  if (entity === 'distribution_boards' && 'kind' in values) {
-    return (distributionBoardKinds as readonly unknown[]).includes(values['kind'])
-      ? null
-      : 'Diese Art von Verteiler kennt OpenGewerk nicht.'
-  }
-
-  const pv = pvFigures[entity]
-
-  if (pv) {
-    return Object.values(pv(values))[0] ?? null
-  }
-
-  if (entity !== 'circuits' || !circuitFigureFields.some((field) => field in values)) {
-    return null
-  }
-
-  const standing = Object.fromEntries(
-    circuitFigureFields.map((field) => [field, after(field, values, current)]),
-  )
-
-  return Object.values(circuitProblems(standing))[0] ?? null
-}
-
-/**
- * Whether the section a circuit names belongs to the board it hangs on.
- *
- * Whether the board and the section are there at all, in this business and not
- * marked as deleted, is the question every reference of every entity gets, in
- * `missingReference`. This is the one the structure adds: a section of the
- * right business can still be a section of another board. The key over
- * section and board refuses that too, but inside the transaction, where it
- * would take every other operation of the transmission along; refused here,
- * it is a conflict about this one circuit.
- *
- * Asked when a circuit is created, and whenever an operation moves it to
- * another section or another board, since the pair is what has to fit.
- */
-export async function sectionRefusal(
-  tx: TenantTransaction,
-  operation: Operation,
-  values: Readonly<Record<string, unknown>>,
-  current: RecordState | null,
-): Promise<StructureRefusal | null> {
-  if (
-    operation.entity !== 'circuits' ||
-    operation.kind === 'delete' ||
-    (operation.kind !== 'create' &&
-      !('boardSectionId' in values) &&
-      !('distributionBoardId' in values))
-  ) {
-    return null
-  }
-
-  const section = after('boardSectionId', values, current)
-
-  if (section === null) {
-    return null
-  }
-
-  const [found] = isUuid(section)
-    ? await tx
-        .select({ board: boardSections.distributionBoardId })
-        .from(boardSections)
-        .where(and(eq(boardSections.id, section as never), isNull(boardSections.deletedAt)))
-    : []
-
-  return found && found.board === after('distributionBoardId', values, current)
-    ? null
-    : { reason: 'record_missing', fields: ['boardSectionId'] }
-}
+// The checks of the structure itself, its figures and the section of a
+// circuit, are the foundation's (`structureProblem`, `sectionRefusal`, ADR
+// 0014). What stays is the link of an installation to its PV system, which
+// the foundation knows nothing of.
 
 /** Where an installation's link to a PV system does not hold, the field to name. */
 export type PvLinkMisfit = 'pvSystemId' | 'inverterId'
@@ -152,7 +33,7 @@ export async function pvLinkMisfit(
   values: Readonly<Record<string, unknown>>,
   current: RecordState | null,
 ): Promise<PvLinkMisfit | null> {
-  const system = after('pvSystemId', values, current)
+  const system = valueAfter('pvSystemId', values, current)
 
   if (system === null) {
     return null
@@ -165,11 +46,15 @@ export async function pvLinkMisfit(
         .where(and(eq(installations.id, system as never), isNull(installations.deletedAt)))
     : []
 
-  if (!found || found.kind !== 'pv_system' || found.siteId !== after('siteId', values, current)) {
+  if (
+    !found ||
+    found.kind !== 'pv_system' ||
+    found.siteId !== valueAfter('siteId', values, current)
+  ) {
     return 'pvSystemId'
   }
 
-  const inverter = after('inverterId', values, current)
+  const inverter = valueAfter('inverterId', values, current)
 
   if (inverter === null) {
     return null

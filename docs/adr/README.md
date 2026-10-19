@@ -21,7 +21,7 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0011](0011-lager-im-fundament.md) | Lager, Artikel und Lieferanten im Fundament | angenommen |
 | [0012](0012-qualifikationen-im-fundament.md) | Qualifikationen der Mitarbeiter im Fundament | angenommen |
 | [0013](0013-schwaerzen-im-aenderungsprotokoll.md) | Schwärzen im Änderungsprotokoll | angenommen |
-| [0014](0014-elektro-struktur-im-fundament.md) | Elektro-Struktur und PV-Struktur im Fundament | vorgeschlagen |
+| [0014](0014-elektro-struktur-im-fundament.md) | Elektro-Struktur und PV-Struktur im Fundament | angenommen |
 
 ## Der Tech-Stack auf einen Blick
 
@@ -40,6 +40,7 @@ Die ADRs 0002 bis 0008 wurden am 18.09.2026 gemeinsam entschieden, nachdem sie e
 | 0010 | Das Fundament in eigenen Paketen unter `packages/platform/`, Fachliches über Register; weitere Anwendungen binden einen festen Stand als Git-Submodul ein |
 | 0011 | Lager, Artikel und Lieferanten als Regeln in `platform-domain` und Tabellenfabrik in `platform-server`; der Bestand ist die Summe seiner Buchungen |
 | 0012 | Qualifikationen als Regeln in `platform-domain` und Tabellenfabrik in `platform-server`; eine Qualifikation nennt genau eine Art, ihr Nachweis bleibt an ihr |
+| 0014 | Elektro-Struktur und PV-Struktur als Regeln, Tabellenfabriken, Prüfungen, Stromkreisverzeichnis und Formulare im Fundament; woran sie hängen, sagt die Anwendung, die Tabellen behalten ihre Namen |
 
 Drei Punkte, an denen die Entscheidung von der ursprünglichen Vorlage abweicht:
 
