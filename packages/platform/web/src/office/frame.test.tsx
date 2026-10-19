@@ -8,9 +8,11 @@ import { useContext } from 'react'
 import { createPortal } from 'react-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { choiceKey, followEntry, officePath, sitePath, viewKey } from '../../tools/entry-guard.js'
 import { aTenant, inFrame, signedIn, standInServer } from '../in-frame.js'
 import type { InFrame, StandIn } from '../in-frame.js'
 import { probeApplication } from '../probe-application.js'
+import { entryChoiceKey } from '../shell/entry.js'
 import { Strip } from '../components/strip.js'
 import { standInWorker } from '../shell/test-updates.js'
 import { TestServer } from '../sync/test-server.js'
@@ -269,6 +271,64 @@ describe('the person in the header', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
 
     expect(server.heard.some((call) => call.path === '/instance/access')).toBe(false)
+  })
+
+  it('leads to the site in the words of the application, under the area of the instance and over signing out', async () => {
+    server.answer('GET', '/instance/access', { operator: true, secondFactor: true })
+    await frame()
+    await userEvent.click(await screen.findByRole('button', person))
+
+    const instance = await screen.findByRole('link', { name: 'Instanz verwalten' })
+    const site = screen.getByRole('link', { name: /Zur Ansicht für unterwegs/ })
+
+    expect(site.getAttribute('href')).toBe('/m/')
+    expect(site.textContent).toBe('Zur Ansicht für unterwegsGroße Knöpfe, auch ohne Netz')
+    expect(instance.compareDocumentPosition(site) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(
+      site.compareDocumentPosition(screen.getByRole('button', { name: 'Abmelden' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  /**
+   * The counterpart of the way to the office in the menu of the site
+   * (opengewerk-haustechnik#464). Following it is a choice and is remembered
+   * as one, so that the address of the instance leads this device to the site
+   * from then on, a desk as well as a phone.
+   */
+  it('remembers the site for somebody who follows the way there, and the address of the instance leads there from then on', async () => {
+    await frame()
+    await userEvent.click(await screen.findByRole('button', person))
+
+    const site = screen.getByRole('link', { name: /Zur Ansicht für unterwegs/ })
+
+    // The page stays where it is: a test has no second document to go to.
+    site.addEventListener('click', (event) => {
+      event.preventDefault()
+    })
+    await userEvent.click(site)
+
+    expect(globalThis.localStorage.getItem(entryChoiceKey)).toBe('site')
+    // It closes, as when any other of its links is followed.
+    expect(screen.queryByRole('button', { name: 'Abmelden' })).toBeNull()
+
+    // The next page of this browser at the address of the instance: the file
+    // before the entry reads the choice and takes the desk to the site.
+    const replace = vi.fn()
+
+    followEntry(
+      {
+        location: { pathname: '/', search: '', hash: '', replace } as unknown as Location,
+        navigator: {
+          userAgent:
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36',
+        } as Navigator,
+        localStorage: globalThis.localStorage,
+      },
+      { choiceKey, viewKey, office: officePath, site: sitePath },
+    )
+
+    expect(replace).toHaveBeenCalledWith('/m/')
   })
 
   it('starts the page again at the office once somebody signed out', async () => {

@@ -185,6 +185,39 @@ describe('the remembered choice', () => {
     }
   })
 
+  it('holds a desk at the site from the address of the instance until the office is chosen again', () => {
+    // The way to the site in the menu of the office remembers the site, the
+    // way to the office in the menu of the site the office; between the two,
+    // the address of the instance follows what was chosen last.
+    const storage = workingStorage()
+    const atTheAddress = () => {
+      const replace = vi.fn()
+
+      followEntry(
+        {
+          location: { pathname: '/', search: '', hash: '', replace } as unknown as Location,
+          navigator: {
+            userAgent:
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36',
+          } as Navigator,
+          localStorage: storage,
+        },
+        { choiceKey, viewKey, office: officePath, site: sitePath },
+      )
+
+      return replace.mock.calls
+    }
+
+    rememberEntry('site', storage)
+
+    expect(atTheAddress()).toEqual([[entryPath.site]])
+    expect(atTheAddress()).toEqual([[entryPath.site]])
+
+    rememberEntry('office', storage)
+
+    expect(atTheAddress()).toEqual([])
+  })
+
   it('comes back the way it went in', () => {
     const storage = workingStorage()
 

@@ -253,6 +253,17 @@ describe('the frame of the area', () => {
     expect(within(header).queryByText('Probewerk Nord')).toBeNull()
   })
 
+  it('has the way to the site in the menu of the person, as the office has', async () => {
+    server.answer('GET', '/instance/tenants', [])
+    await area('/instanz')
+
+    await userEvent.click(await screen.findByRole('button', { name: /Konto und Darstellung/ }))
+
+    expect(
+      screen.getByRole('link', { name: /Zur Ansicht für unterwegs/ }).getAttribute('href'),
+    ).toBe('/m/')
+  })
+
   it('opens its navigation behind "Menü" on a phone, and closes it again', async () => {
     phone()
     server.answer('GET', '/instance/tenants', [])
