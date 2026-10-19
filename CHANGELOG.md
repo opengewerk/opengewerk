@@ -24,7 +24,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `multiple` hält ein Punkt mehrere Fotos: ein weiteres kommt dazu statt das vorige zu ersetzen, und aus der Galerie
   lassen sich mehrere auf einmal wählen. Warum: mit `capture` öffnete das Telefon nur die Kamera, ein Foto, das schon
   gemacht war, ließ sich nicht hinzufügen. Auf dem Telefon stehen die beiden Knöpfe untereinander, weil nebeneinander
-  jede Beschriftung in zwei Zeilen umbrach; wo beide Platz haben, wie im Büro, stehen sie nebeneinander.
+  jede Beschriftung in zwei Zeilen umbrach; wo beide Platz haben, wie im Büro, stehen sie nebeneinander. Mit `compact`
+  (für opengewerk-haustechnik#451) sind es zwei kurze Knöpfe „Foto“ und „Galerie“ nebeneinander unter den Fotos, für
+  einen Punkt unter vielen in einer Liste, wo zwei Knöpfe über die ganze Breite an jedem Punkt die Liste doppelt so lang
+  machten.
 
 - Einen Wert im Änderungsprotokoll schwärzen (für opengewerk-haustechnik#355, ADR 0013): wer den Mandanten führt,
   leert den Wert davor oder danach eines Eintrags mit einem Grund (`POST audit/entries/:id/redactions`, Tabelle
