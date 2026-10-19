@@ -1053,6 +1053,40 @@ describe('a value of JSON or a list', () => {
     )
   })
 
+  it('takes a list that is never null as empty for a device that saw nothing in it (opengewerk-haustechnik#451)', async () => {
+    const noteId = await noteWithDetails()
+    // The device holds the note from before the list came, and sends what it
+    // saw there: nothing.
+    const marked = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [{ field: 'marks', from: null, to: '["Keller"]' }],
+      }),
+    ])
+
+    expect(outcomes(marked)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+
+    // A list that may be null keeps null as what was seen: there it is a value.
+    const bare = newId<'note'>()
+
+    await send(north.id, [
+      operation({ entity: 'notes', recordId: bare, patches: [{ field: 'text', to: 'Dach' }] }),
+    ])
+
+    const tagged = await send(north.id, [
+      operation({
+        entity: 'notes',
+        recordId: bare,
+        kind: 'update',
+        patches: [{ field: 'tags', from: null, to: '["Dach"]' }],
+      }),
+    ])
+
+    expect(outcomes(tagged)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+  })
+
   it('takes null and the text of null as nothing', async () => {
     const noteId = await noteWithDetails()
 

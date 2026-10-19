@@ -326,7 +326,14 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
           return patch
         }
 
-        const from = inJsonText(column, patch.from)
+        // A list that is never null was empty for a device that saw nothing
+        // in it: it holds the row from before the column came, and the column
+        // came empty (opengewerk-haustechnik#451). Read as null, every first
+        // change to it from such a device would be a conflict.
+        const from =
+          patch.from === null && column.dataType === 'array' && column.notNull
+            ? '[]'
+            : inJsonText(column, patch.from)
         const to = inJsonText(column, patch.to)
 
         if (from === undefined || to === undefined) {

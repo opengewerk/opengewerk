@@ -409,6 +409,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Bei einer Liste, die nie null ist (`.array().notNull()`), nimmt der Abgleich die leere Liste als das, was ein Gerät
+  sah, wenn es dort nichts gesehen hat (für opengewerk-haustechnik#451). Ein Gerät hält eine Zeile von vor der
+  Spalte ohne sie und schickt beim ersten Ändern `from: null`; die Spalte kam aber mit der leeren Liste, und jede erste
+  Änderung wäre ein Konflikt gewesen. Eine Liste, die null sein darf, behält null als Wert. Warum: Die Haustechnik
+  bekommt eine solche Liste an ihren Antworten, und ein Rundgang, der beim Update läuft, soll weitere Fotos nehmen.
+
 - `describe` der Fristen einer Anwendung bekommt, wer fragt (für opengewerk-haustechnik#337). Warum: eine Frist
   liest, wer Fristen ansehen darf, was sie über eine Person sagt, aber vielleicht nur, wer ein weiteres Recht hält;
   so nennt die Haustechnik den Namen an der Frist einer Qualifikation nur, wer Qualifikationen ansieht.
