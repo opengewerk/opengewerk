@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Foto zu einem Punkt auch aus der Galerie (für die Rundgänge der Haustechnik): `PhotoTaker` hat neben
+  „Foto aufnehmen“, das die Kamera sofort öffnet, einen zweiten Knopf „Aus der Galerie“ ohne `capture`. Mit
+  `multiple` hält ein Punkt mehrere Fotos: ein weiteres kommt dazu statt das vorige zu ersetzen, und aus der Galerie
+  lassen sich mehrere auf einmal wählen. Warum: mit `capture` öffnete das Telefon nur die Kamera, ein Foto, das schon
+  gemacht war, ließ sich nicht hinzufügen.
+
 - Einen Wert im Änderungsprotokoll schwärzen (für opengewerk-haustechnik#355, ADR 0013): wer den Mandanten führt,
   leert den Wert davor oder danach eines Eintrags mit einem Grund (`POST audit/entries/:id/redactions`, Tabelle
   `audit_redactions`, Migration 0078). Die Kette bleibt ganz: neue Einträge (Fassung 2) rechnen ihren Fingerabdruck
