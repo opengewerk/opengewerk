@@ -1,4 +1,4 @@
-import type { AuditEntryId, TenantId } from './identifier.js'
+import type { AuditEntryId, Id, TenantId } from './identifier.js'
 
 /** What happened to the record. */
 export const auditOperations = ['insert', 'update', 'delete'] as const
@@ -66,6 +66,68 @@ export interface AuditEntry {
    * application, anything else means somebody was at the database directly.
    */
   readonly databaseRole: string
+  /**
+   * How the entry is hashed (ADR 0013): 1 over its values, as every entry
+   * written before the redactions; 2 over the fingerprints of its values,
+   * which stay when a value is blacked out.
+   */
+  readonly fingerprintVersion: number
+  /** SHA-256 of each value in hex, empty for an empty value and for an entry of version 1 nobody redacted. */
+  readonly oldValueDigest: string | null
+  readonly newValueDigest: string | null
+}
+
+/** Which value of an entry a redaction blacks out: the one before or the one after. */
+export const auditRedactionSides = ['old', 'new'] as const
+
+export type AuditRedactionSide = (typeof auditRedactionSides)[number]
+
+/** How long the reason of a redaction may be. */
+export const auditRedactionReasonLength = { min: 1, max: 500 } as const
+
+export type AuditRedactionId = Id<'audit-redaction'>
+
+/**
+ * A value of the log blacked out (ADR 0013), as the table holds it: the entry,
+ * the side, why and by whom, and for an entry of version 1 the witness of the
+ * whole entry. Written once by whoever leads the tenant, never changed.
+ */
+export interface AuditRedaction {
+  readonly id: AuditRedactionId
+  readonly tenantId: TenantId
+  readonly entryId: string
+  readonly side: string
+  readonly reason: string
+  readonly redactedBy: string
+  readonly witness: string | null
+  readonly createdAt: Date
+  readonly updatedAt: Date
+}
+
+/** A redaction as a page shows it beside the value that went. */
+export interface AuditRedactionNote {
+  /** ISO 8601. */
+  readonly at: string
+  readonly by: string
+  readonly reason: string
+}
+
+/** Why a redaction is refused before it is sent: its side or its reason. */
+export function auditRedactionProblem(side: unknown, reason: unknown): string | null {
+  if (typeof side !== 'string' || !(auditRedactionSides as readonly string[]).includes(side)) {
+    return 'Geschwärzt wird der Wert davor oder der Wert danach.'
+  }
+
+  if (
+    typeof reason !== 'string' ||
+    reason.trim() !== reason ||
+    reason.length < auditRedactionReasonLength.min ||
+    reason.length > auditRedactionReasonLength.max
+  ) {
+    return `Der Grund ist 1 bis ${String(auditRedactionReasonLength.max)} Zeichen lang, ohne Leerzeichen am Rand.`
+  }
+
+  return null
 }
 
 /**
@@ -104,6 +166,11 @@ export interface AuditFieldChange {
   readonly field: string
   readonly before: string | null
   readonly after: string | null
+  /** The entry the field is, for a redaction of one of its values (ADR 0013); absent in the log of the instance. */
+  readonly entryId?: string
+  /** Where a value was blacked out: when, by whom and why. */
+  readonly redactedBefore?: AuditRedactionNote | null
+  readonly redactedAfter?: AuditRedactionNote | null
 }
 
 /**

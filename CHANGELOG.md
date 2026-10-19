@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Einen Wert im Änderungsprotokoll schwärzen (für opengewerk-haustechnik#355, ADR 0013): wer den Mandanten führt,
+  leert den Wert davor oder danach eines Eintrags mit einem Grund (`POST audit/entries/:id/redactions`, Tabelle
+  `audit_redactions`, Migration 0078). Die Kette bleibt ganz: neue Einträge (Fassung 2) rechnen ihren Fingerabdruck
+  über einen Fingerabdruck je Wert, der beim Schwärzen bleibt, und für einen Eintrag von vorher hält die Schwärzung
+  einen Zeugen des ganzen Eintrags fest; kein bestehender Eintrag wird umgeschrieben. Liste und Tabelle zeigen
+  „geschwärzt“ mit Zeitpunkt, Person und Grund, das Protokoll des Büros bietet „Schwärzen“ mit einer Rückfrage an, und
+  die Schwärzung selbst steht im Protokoll, ohne den Wert. Warum: die Haustechnik muss einen personenbezogenen Wert
+  aus dem Protokoll nehmen können, etwa auf einen Antrag auf Löschung hin, ohne dass die Prüfung der Kette danach eine
+  Manipulation meldet.
+
 - Die Angaben eines beendeten Zugangs entfernen (für opengewerk-haustechnik#356): `removeAccountData` nimmt nach dem
   letzten Tag einer Zugehörigkeit die Geräte der Person in diesem Mandanten und die Passkeys, die er von ihr kennt.
   Arbeitet das Konto für keinen anderen Mandanten mehr, oder nur für solche, deren letzter Tag ebenfalls vorbei ist,

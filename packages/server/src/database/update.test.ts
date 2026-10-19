@@ -912,6 +912,104 @@ describe('the right to remove a contact for good', () => {
   })
 })
 
+/**
+ * The log of an instance from before 0078 (ADR 0013): every entry there is
+ * hashed over its values, written by the trigger of that release. After the
+ * update it is an entry of version 1, measured exactly as it was written, so
+ * the chain checks through; whoever leads blacks out a value of it, and the
+ * chain still checks through. The rollback takes the redactions out again.
+ */
+describe('the log of an instance from before 0078', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0078_audit_redactions')
+  const customer = newId<'customer'>()
+
+  async function chain(): Promise<{
+    checked: string
+    broken_at: string | null
+    problem: string | null
+  }> {
+    const { rows } = await admin.query<{
+      checked: string
+      broken_at: string | null
+      problem: string | null
+    }>('select * from verify_audit_chain($1)', [tenant.id])
+
+    return rows[0] ?? { checked: '0', broken_at: null, problem: 'nothing' }
+  }
+
+  it('keeps its chain through the update, and a value of it is blacked out with the chain whole', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'business', 'Bauherr Nord')",
+      [customer, tenant.id],
+    )
+
+    const written = await chain()
+
+    expect(written.problem).toBeNull()
+
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+
+    expect(
+      (await admin.query('select distinct fingerprint_version from audit_entries')).rows,
+    ).toEqual([{ fingerprint_version: 1 }])
+    expect(await chain()).toEqual(written)
+
+    // Somebody who leads, and the name of the customer as the old trigger logged it.
+    await admin.query(
+      `insert into auth_users (id, name, email) values ('lead', 'Lena Leitung', 'lena@example.de')`,
+    )
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+       values ($1, 'lead', 'Leitung', '{}', true, false)`,
+      [tenant.id],
+    )
+    await admin.query(
+      "insert into memberships (tenant_id, user_id, roles) values ($1, 'lead', '{lead}')",
+      [tenant.id],
+    )
+
+    const { rows: named } = await admin.query<{ id: string }>(
+      "select id from audit_entries where table_name = 'customers' and field = 'name'",
+    )
+    const entry = named[0]?.id ?? ''
+    const client = await admin.connect()
+
+    try {
+      await client.query('begin')
+      await client.query('set local role "opengewerk_app"')
+      await client.query("select set_config('app.tenant_id', $1, true)", [tenant.id])
+      await client.query("select set_config('app.user_id', 'lead', true)")
+      await client.query(
+        `insert into audit_redactions (tenant_id, entry_id, side, reason, redacted_by)
+         values ($1, $2, 'new', 'Auskunft der Person', 'lead')`,
+        [tenant.id, entry],
+      )
+      await client.query('commit')
+    } finally {
+      client.release()
+    }
+
+    const { rows: gone } = await admin.query<{ new_value: string | null }>(
+      'select new_value from audit_entries where id = $1',
+      [entry],
+    )
+
+    expect(gone).toEqual([{ new_value: null }])
+    expect((await chain()).problem).toBeNull()
+
+    await revertMigration(admin, '0078_audit_redactions')
+
+    expect(await tableNames(admin)).not.toContain('audit_redactions')
+    expect(await columnNames(admin, 'audit_entries')).not.toContain('fingerprint_version')
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

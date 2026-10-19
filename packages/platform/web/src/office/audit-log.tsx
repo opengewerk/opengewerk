@@ -2,18 +2,34 @@ import {
   accessRights,
   type AuditChainReport,
   type AuditChange,
+  type AuditFieldChange,
   type AuditPage,
+  auditRedactionProblem,
+  auditRedactionReasonLength,
+  type AuditRedactionNote,
+  type AuditRedactionSide,
   auditRights,
 } from '@opengewerk/platform-domain'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ChevronDown, ChevronRight, History, ShieldCheck, TriangleAlert, X } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  EyeOff,
+  History,
+  ShieldCheck,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import { type ReactNode, useId, useMemo, useState } from 'react'
 
 import { useAuditSentences } from '../application.js'
 import { useBand } from '../components/band.js'
 import { Button, useButtonLook } from '../components/button.js'
+import { Choice } from '../components/choice.js'
+import { Dialog, DialogActions } from '../components/dialog.js'
+import { TextArea } from '../components/field.js'
 import { Panel, TablePanel } from '../components/panel.js'
 import { Cell, Column } from '../components/table.js'
 import { clockTime, moment } from '../format.js'
@@ -23,6 +39,7 @@ import {
   type AuditFilterView,
   auditPeople,
   auditTablePath,
+  redactAuditValue,
 } from '../session/audit.js'
 import { useRight } from '../session/queries.js'
 import { RequestRefused } from '../sync/transport.js'
@@ -64,6 +81,7 @@ function merged(pages: readonly AuditPage[]): AuditPage {
     titles: Object.assign({}, ...pages.map((page) => page.titles)) as AuditPage['titles'],
     people: Object.assign({}, ...pages.map((page) => page.people)) as AuditPage['people'],
     devices: Object.assign({}, ...pages.map((page) => page.devices)) as AuditPage['devices'],
+    redacts: pages.some((page) => page.redacts === true),
   }
 }
 
@@ -111,6 +129,10 @@ export function AuditLogScreen() {
   const [person, setPerson] = useState('')
   const [table, setTable] = useState('')
   const [opened, setOpened] = useState<string | null>(null)
+  const [redacting, setRedacting] = useState<{
+    readonly change: AuditChange
+    readonly field: AuditFieldChange
+  } | null>(null)
 
   const filter: AuditFilterView = narrowed
     ? { since, until, person, table: narrowed.table, record: narrowed.record }
@@ -261,6 +283,13 @@ export function AuditLogScreen() {
               opened={opened}
               onOpen={setOpened}
               narrowedTo={narrowed?.record ?? null}
+              {...(page.redacts === true
+                ? {
+                    onRedact: (change: AuditChange, field: AuditFieldChange) => {
+                      setRedacting({ change, field })
+                    },
+                  }
+                : {})}
             />
           ) : (
             <>
@@ -273,6 +302,13 @@ export function AuditLogScreen() {
                   onClose={() => {
                     setOpened(null)
                   }}
+                  {...(page.redacts === true
+                    ? {
+                        onRedact: (field: AuditFieldChange) => {
+                          setRedacting({ change: open, field })
+                        },
+                      }
+                    : {})}
                 />
               ) : null}
               <ChangeTable
@@ -318,6 +354,17 @@ export function AuditLogScreen() {
           ) : null}
         </>
       )}
+
+      {redacting ? (
+        <RedactDialog
+          change={redacting.change}
+          field={redacting.field}
+          page={page}
+          onClose={() => {
+            setRedacting(null)
+          }}
+        />
+      ) : null}
     </SettingsPage>
   )
 }
@@ -470,15 +517,76 @@ function Value({ text }: { readonly text: string | null }) {
 }
 
 /**
+ * One value of a field as the log holds it: blacked out (ADR 0013) with when,
+ * by whom and why under the word, so that it is not taken for an empty one,
+ * or the value itself.
+ */
+function FieldValue({
+  change,
+  field,
+  side,
+  page,
+}: {
+  readonly change: AuditChange
+  readonly field: AuditFieldChange
+  readonly side: AuditRedactionSide
+  readonly page: AuditNames
+}) {
+  const words = useAuditWords()
+  const note: AuditRedactionNote | null | undefined =
+    side === 'old' ? field.redactedBefore : field.redactedAfter
+
+  if (note) {
+    return (
+      <>
+        <span className="inline-flex items-center gap-1 text-ink-muted italic">
+          <EyeOff size={14} strokeWidth={2.1} aria-hidden="true" />
+          geschwärzt
+        </span>
+        <span className="mt-[3px] block text-[12px] leading-[1.4] text-ink-muted">
+          {words.redactionWords(note, page)}
+        </span>
+      </>
+    )
+  }
+
+  return (
+    <Value
+      text={words.auditValue(
+        change.table,
+        field.field,
+        side === 'old' ? field.before : field.after,
+        page,
+      )}
+    />
+  )
+}
+
+/** The values of a field that can still be blacked out: there, and not blacked out yet. */
+function redactableSides(field: AuditFieldChange): readonly AuditRedactionSide[] {
+  if (field.entryId === undefined) {
+    return []
+  }
+
+  return [
+    ...(field.before !== null && !field.redactedBefore ? (['old'] as const) : []),
+    ...(field.after !== null && !field.redactedAfter ? (['new'] as const) : []),
+  ]
+}
+
+/**
  * The fields of an opened change before and after, the table of the board.
  * The log of the instance (#188) shows its changes the same way.
  */
 export function FieldsTable({
   change,
   page,
+  onRedact,
 }: {
   readonly change: AuditChange
   readonly page: AuditNames
+  /** For whoever leads (ADR 0013): asks before a value of the field is blacked out. */
+  readonly onRedact?: (field: AuditFieldChange) => void
 }) {
   const words = useAuditWords()
 
@@ -494,9 +602,14 @@ export function FieldsTable({
             <th scope="col" className="px-2.5 pb-1.5">
               Vorher
             </th>
-            <th scope="col" className="pb-1.5 pl-2.5">
+            <th scope="col" className={clsx('pb-1.5', onRedact ? 'px-2.5' : 'pl-2.5')}>
               Nachher
             </th>
+            {onRedact ? (
+              <th scope="col" className="w-[120px] pb-1.5 pl-2.5">
+                <span className="sr-only">Aktion</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -506,11 +619,26 @@ export function FieldsTable({
                 {words.fieldWords(change.table, field.field)}
               </th>
               <td className="px-2.5 py-[7px] break-words text-ink-muted">
-                <Value text={words.auditValue(change.table, field.field, field.before, page)} />
+                <FieldValue change={change} field={field} side="old" page={page} />
               </td>
-              <td className="py-[7px] pl-2.5 break-words">
-                <Value text={words.auditValue(change.table, field.field, field.after, page)} />
+              <td className={clsx('py-[7px] break-words', onRedact ? 'px-2.5' : 'pl-2.5')}>
+                <FieldValue change={change} field={field} side="new" page={page} />
               </td>
+              {onRedact ? (
+                <td className="py-1 pl-2.5 text-right">
+                  {redactableSides(field).length > 0 ? (
+                    <Button
+                      size="small"
+                      icon={EyeOff}
+                      onClick={() => {
+                        onRedact(field)
+                      }}
+                    >
+                      Schwärzen
+                    </Button>
+                  ) : null}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -523,9 +651,12 @@ export function FieldsTable({
 export function FieldList({
   change,
   page,
+  onRedact,
 }: {
   readonly change: AuditChange
   readonly page: AuditNames
+  /** For whoever leads (ADR 0013): asks before a value of the field is blacked out. */
+  readonly onRedact?: (field: AuditFieldChange) => void
 }) {
   const words = useAuditWords()
 
@@ -538,12 +669,25 @@ export function FieldList({
           </dt>
           <dd className="text-[14px] text-ink-muted">
             <span className="text-[12px] text-ink-faint">Vorher </span>
-            <Value text={words.auditValue(change.table, field.field, field.before, page)} />
+            <FieldValue change={change} field={field} side="old" page={page} />
           </dd>
           <dd className="text-[14px]">
             <span className="text-[12px] text-ink-faint">Nachher </span>
-            <Value text={words.auditValue(change.table, field.field, field.after, page)} />
+            <FieldValue change={change} field={field} side="new" page={page} />
           </dd>
+          {onRedact && redactableSides(field).length > 0 ? (
+            <dd className="mt-1.5">
+              <Button
+                size="small"
+                icon={EyeOff}
+                onClick={() => {
+                  onRedact(field)
+                }}
+              >
+                Schwärzen
+              </Button>
+            </dd>
+          ) : null}
         </div>
       ))}
     </dl>
@@ -636,11 +780,13 @@ function ChangePanel({
   page,
   narrowedTo,
   onClose,
+  onRedact,
 }: {
   readonly change: AuditChange
   readonly page: AuditPage
   readonly narrowedTo: string | null
   readonly onClose: () => void
+  readonly onRedact?: (field: AuditFieldChange) => void
 }) {
   const words = useAuditWords()
 
@@ -649,13 +795,129 @@ function ChangePanel({
       title={`${words.recordKind(change.table, change.recordId, page)} ${words.recordTitle(change.table, change.recordId, page)}`}
     >
       <ChangeFacts change={change} page={page} />
-      <FieldsTable change={change} page={page} />
+      <FieldsTable change={change} page={page} {...(onRedact ? { onRedact } : {})} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ChangeLinks change={change} narrowedTo={narrowedTo} wide={false} />
         <div className="grow" />
         <Button onClick={onClose}>Schließen</Button>
       </div>
     </Panel>
+  )
+}
+
+/**
+ * The question before a value of the log is blacked out (ADR 0013), as the
+ * board "HT-Einst-Protokoll-Schwaerzen" draws it: which value, why, and what
+ * it does and does not. Offered to whoever leads; the database decides again,
+ * and a refusal is said in its words.
+ */
+function RedactDialog({
+  change,
+  field,
+  page,
+  onClose,
+}: {
+  readonly change: AuditChange
+  readonly field: AuditFieldChange
+  readonly page: AuditPage
+  readonly onClose: () => void
+}) {
+  const words = useAuditWords()
+  const queryClient = useQueryClient()
+  const sides = redactableSides(field)
+  const [side, setSide] = useState<AuditRedactionSide | null>(sides[0] ?? null)
+  const [reason, setReason] = useState('')
+  const [problem, setProblem] = useState<string | null>(null)
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const said = words.wayWords(change, page)
+
+  const redact = useMutation({
+    mutationFn: ({ entryId, chosen }: { entryId: string; chosen: AuditRedactionSide }) =>
+      redactAuditValue(entryId, chosen, reason.trim()),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['audit', 'changes'] })
+      onClose()
+    },
+    onError: (error) => {
+      setTrouble(saidWhy(error, 'Der Wert ließ sich nicht schwärzen.'))
+    },
+  })
+
+  const valueOf = (chosen: AuditRedactionSide) =>
+    words.auditValue(
+      change.table,
+      field.field,
+      chosen === 'old' ? field.before : field.after,
+      page,
+    ) ?? 'leer'
+
+  return (
+    <Dialog title="Wert im Änderungsprotokoll schwärzen?" onClose={onClose}>
+      <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
+        <dt className="text-ink-muted">Datensatz</dt>
+        <dd className="text-ink [overflow-wrap:anywhere]">
+          {`${words.recordKind(change.table, change.recordId, page)} ${words.recordTitle(change.table, change.recordId, page)}`}
+        </dd>
+        <dt className="text-ink-muted">Feld</dt>
+        <dd className="text-ink">{words.fieldWords(change.table, field.field)}</dd>
+        <dt className="text-ink-muted">Geändert</dt>
+        <dd className="text-ink">{`${when(change.changedAt)} von ${said.person ?? 'Niemand'}`}</dd>
+      </dl>
+      <Choice
+        label="Welcher Wert"
+        options={sides.map((each) => ({
+          value: each,
+          label: each === 'old' ? 'Wert vorher' : 'Wert nachher',
+          note: valueOf(each),
+        }))}
+        value={side}
+        onChange={setSide}
+      />
+      <TextArea
+        label="Grund"
+        starred
+        maxLength={auditRedactionReasonLength.max}
+        value={reason}
+        hint="Steht mit Ihrem Namen und dem Zeitpunkt am Wert und im Änderungsprotokoll. Höchstens 500 Zeichen."
+        {...(problem === null ? {} : { problem })}
+        onChange={(event) => {
+          setReason(event.target.value)
+          setProblem(null)
+        }}
+      />
+      <NoteBox tone="waiting">
+        Der Wert verschwindet aus dem Änderungsprotokoll und lässt sich nicht zurückholen. Dass hier
+        etwas stand, wer es geschwärzt hat und warum, bleibt sichtbar, und die Prüfung des
+        Protokolls bleibt vollständig. Am Datensatz selbst ändert sich nichts.
+      </NoteBox>
+      {trouble ? (
+        <p role="alert" className="text-[13px] text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+      <DialogActions>
+        <Button onClick={onClose}>Abbrechen</Button>
+        <Button
+          tone="danger"
+          icon={EyeOff}
+          disabled={redact.isPending}
+          onClick={() => {
+            const found = auditRedactionProblem(side, reason.trim())
+
+            if (found !== null || side === null || field.entryId === undefined) {
+              setProblem(found ?? 'Geschwärzt wird der Wert davor oder der Wert danach.')
+
+              return
+            }
+
+            setTrouble(null)
+            redact.mutate({ entryId: field.entryId, chosen: side })
+          }}
+        >
+          Schwärzen
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 
@@ -759,12 +1021,14 @@ function PhoneList({
   opened,
   onOpen,
   narrowedTo,
+  onRedact,
 }: {
   readonly page: AuditPage
   readonly report: AuditChainReport | undefined
   readonly opened: string | null
   readonly onOpen: (changeId: string | null) => void
   readonly narrowedTo: string | null
+  readonly onRedact?: (change: AuditChange, field: AuditFieldChange) => void
 }) {
   const words = useAuditWords()
 
@@ -808,7 +1072,17 @@ function PhoneList({
             </button>
             {isOpen ? (
               <>
-                <FieldList change={change} page={page} />
+                <FieldList
+                  change={change}
+                  page={page}
+                  {...(onRedact
+                    ? {
+                        onRedact: (field: AuditFieldChange) => {
+                          onRedact(change, field)
+                        },
+                      }
+                    : {})}
+                />
                 <div className="mt-2.5 grid grid-cols-2 gap-2">
                   <ChangeLinks change={change} narrowedTo={narrowedTo} wide />
                 </div>

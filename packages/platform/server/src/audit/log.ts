@@ -139,8 +139,18 @@ export async function recordAndParts(
   return [...found.values()]
 }
 
+/** A redaction as the query of the log hands it over, from `json_build_object`. */
+interface RedactionRow {
+  readonly at: string
+  readonly by: string
+  readonly reason: string
+}
+
 /** One row of the log as the page reads it. */
 interface EntryRow {
+  readonly entry_id: string
+  readonly redacted_old: RedactionRow | null
+  readonly redacted_new: RedactionRow | null
   readonly change_id: string
   readonly table_name: string
   readonly record_id: string
@@ -210,8 +220,12 @@ async function changesOf(
 
   while (!exhausted && changeCount <= auditPageSize) {
     const round = await tx.execute(sql`
-      select change_id::text, table_name, record_id::text, operation, field, old_value, new_value,
-             changed_at, sequence, user_id, reason, database_role
+      select id::text as entry_id, change_id::text, table_name, record_id::text, operation, field,
+             old_value, new_value, changed_at, sequence, user_id, reason, database_role,
+             (select json_build_object('at', r.created_at, 'by', r.redacted_by, 'reason', r.reason)
+                from audit_redactions r where r.entry_id = audit_entries.id and r.side = 'old') as redacted_old,
+             (select json_build_object('at', r.created_at, 'by', r.redacted_by, 'reason', r.reason)
+                from audit_redactions r where r.entry_id = audit_entries.id and r.side = 'new') as redacted_new
         from audit_entries
        where ${sql.join(conditions, sql` and `)}
          ${below === null ? sql`` : sql`and sequence < ${below}`}
@@ -238,10 +252,19 @@ async function changesOf(
   // who may read the log and trust every page to look away.
   const said = (row: EntryRow, value: string | null): string | null =>
     value !== null && language.isSecret(row.table_name, row.field) ? withheldAuditValue : value
+  // A value blacked out (ADR 0013) is empty, and the field says when, by whom
+  // and why, so that the page tells it from a value that was never there.
+  const noteOf = (redaction: RedactionRow | null) =>
+    redaction === null
+      ? null
+      : { at: new Date(redaction.at).toISOString(), by: redaction.by, reason: redaction.reason }
   const fieldOf = (row: EntryRow) => ({
     field: row.field,
     before: said(row, row.old_value),
     after: said(row, row.new_value),
+    entryId: row.entry_id,
+    redactedBefore: noteOf(row.redacted_old),
+    redactedAfter: noteOf(row.redacted_new),
   })
 
   for (const row of rows) {
@@ -474,6 +497,13 @@ export async function readAuditPage(
       }
 
       for (const field of change.fields) {
+        // Whoever blacked out a value is named on the page like whoever changed one.
+        for (const note of [field.redactedBefore, field.redactedAfter]) {
+          if (note) {
+            people.add(note.by)
+          }
+        }
+
         const target = language.referenceOf(field.field)
         const targets = language.referenceListOf(field.field)
 

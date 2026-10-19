@@ -1,6 +1,7 @@
 import {
   auditFormatInGermany,
   type AuditLanguage,
+  type AuditRedactionNote,
   auditTableColumns,
   auditTextWords,
   type AuditValueWords,
@@ -49,8 +50,11 @@ export async function auditTable(
 
     for (const change of page.changes) {
       const way = words.wayWords(change, page)
-      const valueOf = (field: string, raw: string | null): string =>
-        words.auditValue(change.table, field, raw, page) ?? emptyAuditValue
+      // A value blacked out (ADR 0013) says when, by whom and why, and is not taken for an empty one.
+      const valueOf = (field: string, raw: string | null, note?: AuditRedactionNote | null) =>
+        note
+          ? `Geschwärzt ${words.redactionWords(note, page)}`
+          : (words.auditValue(change.table, field, raw, page) ?? emptyAuditValue)
       const common = [
         auditFormatInGermany.moment(change.changedAt),
         words.recordTitle(change.table, change.recordId, page),
@@ -68,8 +72,8 @@ export async function auditTable(
         rows.push([
           ...common,
           words.fieldWords(change.table, field.field),
-          valueOf(field.field, field.before),
-          valueOf(field.field, field.after),
+          valueOf(field.field, field.before, field.redactedBefore),
+          valueOf(field.field, field.after, field.redactedAfter),
           ...after,
         ])
       }

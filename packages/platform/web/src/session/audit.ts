@@ -1,4 +1,10 @@
-import type { AuditChainReport, AuditPage, AuditPerson } from '@opengewerk/platform-domain'
+import type {
+  AuditChainReport,
+  AuditPage,
+  AuditPerson,
+  AuditRedactionNote,
+  AuditRedactionSide,
+} from '@opengewerk/platform-domain'
 
 import { request } from '../sync/transport.js'
 
@@ -67,4 +73,16 @@ export function auditChain(): Promise<AuditChainReport> {
 
 export function auditPeople(): Promise<readonly AuditPerson[]> {
   return request<readonly AuditPerson[]>('/audit/people')
+}
+
+/** Blacks out one value of an entry of the log, with a reason (ADR 0013). */
+export function redactAuditValue(
+  entryId: string,
+  side: AuditRedactionSide,
+  reason: string,
+): Promise<AuditRedactionNote> {
+  return request<AuditRedactionNote>(`/audit/entries/${encodeURIComponent(entryId)}/redactions`, {
+    method: 'POST',
+    body: JSON.stringify({ side, reason }),
+  })
 }

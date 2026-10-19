@@ -247,6 +247,30 @@ export function readableByTheOwner() {
 }
 
 /**
+ * The policies of the redactions of the log (ADR 0013): the application reads
+ * and adds them for its tenant, as everywhere, and the restrictive one narrows
+ * adding to whoever leads the tenant: a role of their membership that leads,
+ * the membership neither blocked nor past its last day, read as the
+ * application. The question stands in the policy itself and not in a
+ * function, because a new database makes its policies before the functions
+ * of the blocks. The owner reads them all, because the triggers that check
+ * and apply a redaction and the bolt of the log run as the owner and have to
+ * see the redaction they are about.
+ */
+export function redactedByWhoeverLeads(tenantId: PgColumn) {
+  return [
+    tenantIsolation(tenantId),
+    pgPolicy('redacted_by_whoever_leads', {
+      as: 'restrictive',
+      for: 'insert',
+      to: applicationRole,
+      withCheck: sql`exists (select 1 from public.memberships m join public.tenant_roles r on r.tenant_id = m.tenant_id and r.key = any (m.roles) and r.leads where m.tenant_id = ${sessionTenant()} and m.user_id = nullif(current_setting('app.user_id', true), '') and m.blocked_at is null and (m.last_day is null or m.last_day >= (now() at time zone 'Europe/Berlin')::date))`,
+    }),
+    readableByTheOwner(),
+  ]
+}
+
+/**
  * The two policies that let the first run setup create the one business an
  * empty instance needs, and keep the application from creating any.
  *

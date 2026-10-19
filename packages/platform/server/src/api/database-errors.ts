@@ -42,6 +42,10 @@ const foundationConflicts: Readonly<Record<string, string>> = {
     'Eine Rolle, die einen Mandanten führt, behält jedes Recht und den zweiten Faktor und wird nicht entfernt.',
   OG005:
     'Eine Rolle, die noch einem Zugang oder einer offenen Einladung zugeordnet ist, wird nicht entfernt.',
+  // A value of the log that cannot be blacked out (ADR 0013): the entry is not
+  // there, the value is empty or gone already, or the entry is no longer as it
+  // was written.
+  OG006: 'Dieser Wert lässt sich nicht schwärzen.',
 }
 
 function databaseCode(error: unknown): string | undefined {

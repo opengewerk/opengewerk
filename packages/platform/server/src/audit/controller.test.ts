@@ -8,6 +8,7 @@ import {
   auditListKeys,
   auditPageSize,
   type AuditPerson,
+  auditRedactionProblem,
   auditRights,
   auditTableNamesPeople,
   type MemberIdentity,
@@ -40,7 +41,7 @@ import { invitations } from '../schema.js'
 import { letterLines, letters, notes, probeSyncMade, shelves } from '../sync/probe-sync.js'
 import { tableFileOf } from '../tables/read.js'
 import { checkAuditChain } from './chain.js'
-import { auditLogParts } from './controller.js'
+import { auditLogParts, redactionNeedsLead } from './controller.js'
 
 /**
  * The change log of a tenant, for an application that is nobody's (ADR 0010):
@@ -80,7 +81,8 @@ let admin: Pool
 let database: Database
 let app: INestApplication
 
-function get(person: Person, path: string) {
+/** The header a request of the person carries. */
+function identityOf(person: Person): string {
   const { tenant, rights } = people[person]
   const identity: MemberIdentity<Right> = {
     userId: person,
@@ -89,7 +91,18 @@ function get(person: Person, path: string) {
     rights: [...rights],
   }
 
-  return request(app.getHttpServer()).get(path).set(testIdentityHeader, JSON.stringify(identity))
+  return JSON.stringify(identity)
+}
+
+function get(person: Person, path: string) {
+  return request(app.getHttpServer()).get(path).set(testIdentityHeader, identityOf(person))
+}
+
+function post(person: Person, path: string, body: object) {
+  return request(app.getHttpServer())
+    .post(path)
+    .set(testIdentityHeader, identityOf(person))
+    .send(body)
 }
 
 async function page(person: Person, query = ''): Promise<AuditPage> {
@@ -365,6 +378,9 @@ describe('who reads the log', () => {
       field: 'label',
       before: 'Werkzeug',
       after: 'Werkzeug und Messgeräte',
+      entryId: expect.any(String),
+      redactedBefore: null,
+      redactedAfter: null,
     })
     expect(update?.userId).toBe('mia')
     expect(update?.reason).toBe('shelves.write')
@@ -711,6 +727,9 @@ describe('a value the log keeps to itself', () => {
       field: 'token_hash',
       before: null,
       after: 'gesetzt',
+      entryId: expect.any(String),
+      redactedBefore: null,
+      redactedAfter: null,
     })
     // The address beside it is no secret and reads as it is.
     expect(change?.fields.find((field) => field.field === 'email')?.after).toBe('neu@example.de')
@@ -1058,5 +1077,162 @@ describe('a record told apart by what it stands at', () => {
       title: 'Werkzeug und Messgeräte',
       kind: null,
     })
+  })
+})
+
+// Blacking out a value of the log (ADR 0013) at its route. Whether the person
+// leads, the database decides from the membership; the probe has a role that
+// leads, `lead`, and Lea and Wanda get it here, Susi reads the log of the
+// south without leading it.
+describe('a value of the log blacked out at its route', () => {
+  const entryOf = async (recordId: string, operation: string) => {
+    const { rows } = await admin.query<{
+      id: string
+      old_value: string | null
+      new_value: string | null
+    }>(
+      `select id, old_value, new_value from audit_entries
+        where tenant_id = $1 and record_id = $2 and field = 'label' and operation = $3`,
+      [north.id, recordId, operation],
+    )
+
+    if (rows.length !== 1 || !rows[0]) {
+      throw new Error(`No single entry of the label, ${operation}`)
+    }
+
+    return rows[0]
+  }
+  const redaction = (person: Person, entryId: string, body: object) =>
+    post(person, `/audit/entries/${entryId}/redactions`, body)
+
+  beforeAll(async () => {
+    await admin.query(
+      `update memberships set roles = '{lead}'
+        where (tenant_id = $1 and user_id = 'lea') or (tenant_id = $2 and user_id = 'wanda')`,
+      [north.id, west.id],
+    )
+  })
+
+  it('is blacked out by whoever leads, with a reason, and the page says when, by whom and why', async () => {
+    const renamed = await entryOf(northShelves['tools'] ?? '', 'update')
+
+    expect(renamed.old_value).not.toBeNull()
+
+    const answer = await redaction('lea', renamed.id, {
+      side: 'old',
+      reason: 'Auskunft der Person',
+    }).expect(201)
+
+    expect(answer.body).toEqual({
+      at: expect.any(String),
+      by: 'lea',
+      reason: 'Auskunft der Person',
+    })
+
+    const after = await entryOf(northShelves['tools'] ?? '', 'update')
+
+    expect(after.old_value).toBeNull()
+    expect(after.new_value).toBe(renamed.new_value)
+
+    // The changes of Mia: Lea is on the page only as whoever blacked out a value.
+    const found = await page('lea', '?person=mia&table=shelves')
+    const field = found.changes
+      .flatMap((change) => change.fields)
+      .find((each) => each.entryId === renamed.id)
+
+    expect(field).toMatchObject({
+      field: 'label',
+      before: null,
+      redactedBefore: { by: 'lea', reason: 'Auskunft der Person' },
+      redactedAfter: null,
+    })
+    expect(found.changes.every((change) => change.userId === 'mia')).toBe(true)
+    expect(found.people['lea']).toBe('Lea Leitung')
+    // The page tells the screen that whoever reads it may black out a value.
+    expect(found.redacts).toBe(true)
+
+    // The redaction stands in the log on a way of its own, with its reason and without the value.
+    const logged = await page('lea', '?table=audit_redactions')
+
+    expect(logged.changes.map((change) => [change.userId, change.reason])).toEqual([
+      ['lea', 'audit.redact'],
+    ])
+    expect(logged.changes[0]?.fields.find((each) => each.field === 'reason')?.after).toBe(
+      'Auskunft der Person',
+    )
+    expect(JSON.stringify(logged)).not.toContain(renamed.old_value ?? '')
+
+    const checked = (await get('lea', '/audit/chain').expect(200)).body as AuditChainReport
+
+    expect(checked.problem).toBeNull()
+    expect(checked.brokenAt).toBeNull()
+
+    // The table says the same in place of the value, and not that it was empty.
+    const seesTheStaff: MemberIdentity<Right> = {
+      userId: 'lea',
+      tenantId: north.id,
+      roles: [],
+      rights: [auditRights.read, 'membership.read'],
+    }
+    const table = await request(app.getHttpServer())
+      .get('/audit/table?format=csv&table=shelves&person=mia')
+      .set(testIdentityHeader, JSON.stringify(seesTheStaff))
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => {
+          done(null, Buffer.concat(chunks))
+        })
+      })
+      .expect(200)
+    const rows =
+      tableFileOf(new Uint8Array(table.body as Buffer), 'Protokoll.csv').sheets[0]?.rows ?? []
+    const renamedRow = rows.find((row) => row[6] === 'Werkzeug und Messgeräte')
+
+    expect(renamedRow?.[5]).toMatch(
+      /^Geschwärzt am .+ von Lea Leitung\. Grund: Auskunft der Person$/,
+    )
+    expect(renamedRow?.[3]).toContain('geschwärzt → Werkzeug und Messgeräte')
+  })
+
+  it('is refused to whoever does not lead or cannot read the log, and for what is no value of the tenant', async () => {
+    const made = await entryOf(northShelves['other'] ?? '', 'insert')
+    const reason = { side: 'new', reason: 'Auskunft der Person' }
+
+    await redaction('mia', made.id, reason).expect(403)
+    await redaction('gero', made.id, reason).expect(403)
+
+    // Whoever reads the log of the south without leading it, at an entry of the south.
+    const { rows: south } = await admin.query<{ id: string }>(
+      `select id from audit_entries where tenant_id = $1 and new_value is not null order by sequence limit 1`,
+      [people.susi.tenant],
+    )
+    const notLeading = await redaction('susi', south[0]?.id ?? '', reason).expect(403)
+
+    expect(notLeading.body).toMatchObject({ message: redactionNeedsLead })
+    expect((await page('susi')).redacts).toBe(false)
+    // A lead of another tenant finds no such entry in hers.
+    await redaction('wanda', made.id, reason).expect(409)
+
+    const sideless = await redaction('lea', made.id, { side: 'both', reason: 'Auskunft' }).expect(
+      400,
+    )
+
+    expect(sideless.body).toMatchObject({ message: auditRedactionProblem('both', 'Auskunft') })
+    await redaction('lea', made.id, { side: 'new', reason: ' Auskunft' }).expect(400)
+    await redaction('lea', made.id, { side: 'new', reason: 'x'.repeat(501) }).expect(400)
+    await redaction('lea', made.id, { side: 'new' }).expect(400)
+    await redaction('lea', 'kein-eintrag', reason).expect(404)
+    await redaction('lea', newId(), reason).expect(409)
+    // A value that is not there: a record that was made had nothing before.
+    await redaction('lea', made.id, { side: 'old', reason: 'Auskunft' }).expect(409)
+
+    const renamed = await entryOf(northShelves['tools'] ?? '', 'update')
+
+    // Blacked out once, the value is not blacked out again.
+    await redaction('lea', renamed.id, { side: 'old', reason: 'Noch einmal' }).expect(409)
+    expect((await entryOf(northShelves['other'] ?? '', 'insert')).new_value).not.toBeNull()
   })
 })

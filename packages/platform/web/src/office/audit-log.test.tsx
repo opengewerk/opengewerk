@@ -5,7 +5,7 @@ import type {
   TenantId,
 } from '@opengewerk/platform-domain'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,6 +29,8 @@ import { useAuditWords } from './audit-words.js'
 
 let calls: string[]
 let answers: Map<string, { status: number; body: unknown }>
+/** What was sent, by address, for the requests that send something. */
+let sent: { path: string; method: string; body: unknown }[]
 
 function serverSays(path: string, body: unknown, status = 200): void {
   answers.set(path, { status, body })
@@ -150,6 +152,7 @@ function aPage(changes: readonly AuditChange[], next: number | null = null): Aud
 beforeEach(() => {
   calls = []
   answers = new Map()
+  sent = []
   windowOf(1280)
   serverSays('/audit/changes', aPage([aChange(), insertOfNote]))
   serverSays('/audit/people', [
@@ -157,8 +160,16 @@ beforeEach(() => {
     { userId: 'mia', name: 'Mia Mitglied' },
   ])
 
-  vi.stubGlobal('fetch', (path: string) => {
+  vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     calls.push(path)
+
+    if (init?.method !== undefined && init.method !== 'GET') {
+      sent.push({
+        path,
+        method: init.method,
+        body: typeof init.body === 'string' ? JSON.parse(init.body) : null,
+      })
+    }
 
     const answer = answers.get(path) ?? { status: 200, body: {} }
 
@@ -471,5 +482,176 @@ describe('on a phone', () => {
     expect(within(list).getByRole('button', { expanded: true })).toBeTruthy()
     expect(within(list).getByText('Beschriftung')).toBeTruthy()
     expect(within(list).getByRole('link', { name: 'Zum Regal' })).toBeTruthy()
+  })
+})
+
+// A value of the log blacked out (ADR 0013): shown as such with when, by whom
+// and why, and offered for blacking out where the page says the reader leads.
+describe('a value blacked out', () => {
+  const entryId = '0199cccc-0000-7000-8000-0000000000e1'
+  const note = { at: '2026-10-19T07:12:00Z', by: 'lea', reason: 'Auskunft der Person' }
+
+  /** The change of the shelf with the label before it was renamed blacked out, and the page saying whether the reader leads. */
+  function redactedPage(redacts: boolean): AuditPage {
+    const page = aPage([
+      aChange({
+        fields: [
+          {
+            field: 'closed',
+            before: 'false',
+            after: 'true',
+            entryId: '0199cccc-0000-7000-8000-0000000000e0',
+            redactedBefore: null,
+            redactedAfter: null,
+          },
+          {
+            field: 'label',
+            before: null,
+            after: 'Werkzeug und Messgeräte',
+            entryId,
+            redactedBefore: note,
+            redactedAfter: null,
+          },
+        ],
+      }),
+    ])
+
+    return { ...page, people: { ...page.people, lea: 'Lea Leitung' }, redacts }
+  }
+
+  async function opened(redacts: boolean) {
+    serverSays('/audit/changes', redactedPage(redacts))
+    signedInWith('audit.read')
+    const user = userEvent.setup()
+
+    render(inQueries(<AuditLogScreen />))
+    await user.click(await screen.findByRole('button', { name: 'Werkzeug und Messgeräte' }))
+
+    return { user, fields: screen.getByRole('table', { name: 'Felder vorher und nachher' }) }
+  }
+
+  it('says when, by whom and why, and is not taken for an empty value', async () => {
+    const { fields } = await opened(false)
+    const label = within(fields).getByRole('row', { name: /Beschriftung/ })
+
+    expect(label.textContent).toContain('geschwärzt')
+    expect(label.textContent).toContain(
+      `am ${moment(note.at)} von Lea Leitung. Grund: Auskunft der Person`,
+    )
+    expect(label.textContent).not.toContain('leer')
+  })
+
+  it('is offered only where the page says the reader leads, and only for a value still there', async () => {
+    const { fields } = await opened(false)
+
+    expect(within(fields).queryByRole('button', { name: 'Schwärzen' })).toBeNull()
+
+    cleanup()
+
+    const leading = await opened(true)
+
+    expect(
+      within(within(leading.fields).getByRole('row', { name: /Geschlossen/ })).getByRole('button', {
+        name: 'Schwärzen',
+      }),
+    ).toBeTruthy()
+    // The label has its value after still, and nothing before that is not blacked out already.
+    expect(
+      within(within(leading.fields).getByRole('row', { name: /Beschriftung/ })).getByRole(
+        'button',
+        {
+          name: 'Schwärzen',
+        },
+      ),
+    ).toBeTruthy()
+  })
+
+  it('asks which value and why, refuses without a reason, and sends what was chosen', async () => {
+    const { user, fields } = await opened(true)
+
+    await user.click(
+      within(within(fields).getByRole('row', { name: /Geschlossen/ })).getByRole('button', {
+        name: 'Schwärzen',
+      }),
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Wert im Änderungsprotokoll schwärzen?' })
+
+    expect(within(dialog).getByRole('radio', { name: 'Wert vorher' })).toHaveProperty(
+      'checked',
+      true,
+    )
+
+    await user.click(within(dialog).getByRole('button', { name: 'Schwärzen' }))
+
+    expect(within(dialog).getByText(/Der Grund ist 1 bis 500 Zeichen lang/)).toBeTruthy()
+    expect(sent).toEqual([])
+
+    await user.click(within(dialog).getByRole('radio', { name: 'Wert nachher' }))
+    await user.type(within(dialog).getByRole('textbox', { name: /Grund/ }), ' Auskunft der Person ')
+    await user.click(within(dialog).getByRole('button', { name: 'Schwärzen' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+    expect(sent).toEqual([
+      {
+        path: '/audit/entries/0199cccc-0000-7000-8000-0000000000e0/redactions',
+        method: 'POST',
+        body: { side: 'new', reason: 'Auskunft der Person' },
+      },
+    ])
+    // The log is read again, with the value gone.
+    expect(calls.filter((each) => each === '/audit/changes')).toHaveLength(2)
+  })
+
+  it('offers only the value still there, and says a refusal in the words of the server', async () => {
+    const { user, fields } = await opened(true)
+
+    serverSays(
+      `/audit/entries/${entryId}/redactions`,
+      { message: 'Dieser Wert ist leer oder schon geschwärzt.' },
+      409,
+    )
+    await user.click(
+      within(within(fields).getByRole('row', { name: /Beschriftung/ })).getByRole('button', {
+        name: 'Schwärzen',
+      }),
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Wert im Änderungsprotokoll schwärzen?' })
+
+    expect(within(dialog).queryByRole('radio', { name: 'Wert vorher' })).toBeNull()
+    expect(within(dialog).getByRole('radio', { name: 'Wert nachher' })).toHaveProperty(
+      'checked',
+      true,
+    )
+
+    await user.type(within(dialog).getByRole('textbox', { name: /Grund/ }), 'Auskunft')
+    await user.click(within(dialog).getByRole('button', { name: 'Schwärzen' }))
+
+    expect((await within(dialog).findByRole('alert')).textContent).toBe(
+      'Dieser Wert ist leer oder schon geschwärzt.',
+    )
+  })
+
+  it('is offered on a phone under the field', async () => {
+    windowOf(390)
+    serverSays('/audit/changes', redactedPage(true))
+    signedInWith('audit.read')
+    const user = userEvent.setup()
+
+    render(inQueries(<AuditLogScreen />))
+
+    const list = await screen.findByRole('list', { name: 'Änderungen' })
+
+    await user.click(within(list).getAllByRole('button', { expanded: false })[0] as HTMLElement)
+    expect(within(list).getByText(/von Lea Leitung\. Grund: Auskunft der Person/)).toBeTruthy()
+
+    await user.click(within(list).getAllByRole('button', { name: 'Schwärzen' })[0] as HTMLElement)
+
+    expect(
+      screen.getByRole('dialog', { name: 'Wert im Änderungsprotokoll schwärzen?' }),
+    ).toBeTruthy()
   })
 })
