@@ -27,7 +27,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   jede Beschriftung in zwei Zeilen umbrach; wo beide Platz haben, wie im Büro, stehen sie nebeneinander. Mit `compact`
   (für opengewerk-haustechnik#451) sind es zwei kurze Knöpfe „Foto“ und „Galerie“ nebeneinander unter den Fotos, für
   einen Punkt unter vielen in einer Liste, wo zwei Knöpfe über die ganze Breite an jedem Punkt die Liste doppelt so lang
-  machten.
+  machten. Mit `accept` (für opengewerk-haustechnik#458) bieten Kamera und Galerie nur die genannten Dateiarten an, weil
+  eine Seite ohne Anmeldung nur JPEG, PNG und WebP annimmt und ein anderes Bild aus der Galerie erst beim Senden
+  abgelehnt würde.
 
 - Einen Wert im Änderungsprotokoll schwärzen (für opengewerk-haustechnik#355, ADR 0013): wer den Mandanten führt,
   leert den Wert davor oder danach eines Eintrags mit einem Grund (`POST audit/entries/:id/redactions`, Tabelle

@@ -33,6 +33,12 @@ export interface PhotoTakerProps {
    * width at every point would make the list twice as long.
    */
   readonly compact?: boolean
+  /**
+   * The kinds of file camera and gallery offer, where an application takes
+   * fewer than every image: a page without sign-in that takes only JPEG, PNG
+   * and WebP (opengewerk-haustechnik#458). Every image without it.
+   */
+  readonly accept?: string
   readonly disabled?: boolean
 }
 
@@ -56,6 +62,7 @@ export function PhotoTaker({
   onTake,
   multiple = false,
   compact = false,
+  accept = 'image/*',
   disabled = false,
 }: PhotoTakerProps) {
   const camera = useRef<HTMLInputElement>(null)
@@ -78,7 +85,7 @@ export function PhotoTaker({
       <input
         ref={camera}
         type="file"
-        accept="image/*"
+        accept={accept}
         capture="environment"
         hidden
         aria-label={label}
@@ -89,7 +96,7 @@ export function PhotoTaker({
       <input
         ref={gallery}
         type="file"
-        accept="image/*"
+        accept={accept}
         multiple={multiple}
         hidden
         aria-label={fromTheGallery(label)}

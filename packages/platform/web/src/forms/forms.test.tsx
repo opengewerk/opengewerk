@@ -321,6 +321,23 @@ describe('the photo of a point', () => {
     expect(gallery.getAttribute('accept')).toBe('image/*')
   })
 
+  it('offers only the kinds of file it is given, at the camera and in the gallery', () => {
+    render(
+      <PhotoTaker
+        label="Foto der Störung"
+        accept="image/jpeg,image/png,image/webp"
+        onTake={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Foto der Störung').getAttribute('accept')).toBe(
+      'image/jpeg,image/png,image/webp',
+    )
+    expect(screen.getByLabelText('Foto der Störung, aus der Galerie').getAttribute('accept')).toBe(
+      'image/jpeg,image/png,image/webp',
+    )
+  })
+
   it('takes a photo chosen from the gallery like one taken, and each button opens its own input', () => {
     const taken = vi.fn()
 
