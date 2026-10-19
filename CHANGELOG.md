@@ -708,7 +708,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
-- Die Auswahl "Charakteristik" im Formular eines Stromkreises zeigt ihren Wert ganz, auch "nicht angegeben"
+- Eine neue Fassung wird nicht mehr übernommen, während die Kamera oder die Dateiauswahl eines Dateifelds offen ist,
+  und das eben aufgenommene Foto geht nicht mehr beim Neuladen verloren (für opengewerk-haustechnik#465, Nachtrag in
+  ADR 0004). Ein Dateifeld öffnet auf dem Telefon die Kamera oder die Auswahl und verbirgt damit die Seite, und eine
+  verborgene Seite übernahm eine wartende Fassung und lud neu. Jetzt hält `takeUpdates` die Fassung für jedes Dateifeld
+  der Seite vom Klick an, auch wenn ein Knopf es anklickt, bis es liefert oder aufgegeben wird (`cancel`, sonst ein
+  kurzer Augenblick nach der Rückkehr auf den Bildschirm); was es geliefert hat, hält sie danach wie Getipptes bis zum
+  nächsten Wechsel der Adresse. Warum: Die Halte kannten Formulare, Unterschriften und Getipptes, aber nicht den
+  Augenblick, in dem ein Foto entsteht, und genau dann sieht niemand auf die Seite.
+
+- Die Auswahl „Charakteristik“ im Formular eines Stromkreises zeigt ihren Wert ganz, auch „nicht angegeben“
   (gefunden bei opengewerk-haustechnik#349). Vor Ort teilte sie sich die Zeile zu gleichen Hälften mit dem Nennstrom,
   im Büro bekam sie ein Viertel des Kastens; auf einem Telefon von 390 Pixeln und in einem schmalen Dialog war das zu
   wenig, und der Wert brach ab. Jetzt ist ihre Spalte mindestens so breit wie ihre längste Wahl, der Rest geht an die
