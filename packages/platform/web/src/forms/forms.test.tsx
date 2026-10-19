@@ -309,6 +309,67 @@ describe('the photo of a point', () => {
     rerender(<PhotoTaker label="Foto zu Zähler dicht" photo={<span>Bild</span>} onTake={taken} />)
     expect(screen.getByRole('button', { name: 'Anderes Foto' })).toBeDefined()
   })
+
+  it('opens the camera straight away, and the gallery without it', () => {
+    render(<PhotoTaker label="Foto zu Zähler dicht" onTake={vi.fn()} />)
+
+    const camera = screen.getByLabelText('Foto zu Zähler dicht')
+    const gallery = screen.getByLabelText('Foto zu Zähler dicht, aus der Galerie')
+
+    expect(camera.getAttribute('capture')).toBe('environment')
+    expect(gallery.hasAttribute('capture')).toBe(false)
+    expect(gallery.getAttribute('accept')).toBe('image/*')
+  })
+
+  it('takes a photo chosen from the gallery like one taken, and each button opens its own input', () => {
+    const taken = vi.fn()
+
+    render(<PhotoTaker label="Foto zu Zähler dicht" onTake={taken} />)
+
+    const camera = screen.getByLabelText<HTMLInputElement>('Foto zu Zähler dicht')
+    const gallery = screen.getByLabelText<HTMLInputElement>('Foto zu Zähler dicht, aus der Galerie')
+    const openedCamera = vi.spyOn(camera, 'click').mockImplementation(() => undefined)
+    const openedGallery = vi.spyOn(gallery, 'click').mockImplementation(() => undefined)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aus der Galerie' }))
+    expect(openedGallery).toHaveBeenCalledTimes(1)
+    expect(openedCamera).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Foto aufnehmen' }))
+    expect(openedCamera).toHaveBeenCalledTimes(1)
+
+    const file = new File(['bild'], 'aelter.jpg', { type: 'image/jpeg' })
+
+    fireEvent.change(gallery, { target: { files: [file] } })
+    expect(taken).toHaveBeenCalledWith(file)
+  })
+
+  it('replaces one photo with one, and takes several in the order chosen where a point holds several', () => {
+    const taken = vi.fn()
+    const first = new File(['eins'], 'eins.jpg', { type: 'image/jpeg' })
+    const second = new File(['zwei'], 'zwei.jpg', { type: 'image/jpeg' })
+    const { rerender } = render(<PhotoTaker label="Foto zu Tür" onTake={taken} />)
+
+    expect(screen.getByLabelText<HTMLInputElement>('Foto zu Tür, aus der Galerie').multiple).toBe(
+      false,
+    )
+    fireEvent.change(screen.getByLabelText('Foto zu Tür, aus der Galerie'), {
+      target: { files: [first, second] },
+    })
+    expect(taken.mock.calls).toEqual([[first]])
+
+    taken.mockClear()
+    rerender(<PhotoTaker label="Foto zu Tür" multiple photo={<span>Bild</span>} onTake={taken} />)
+
+    expect(screen.getByLabelText<HTMLInputElement>('Foto zu Tür, aus der Galerie').multiple).toBe(
+      true,
+    )
+    expect(screen.getByRole('button', { name: 'Weiteres Foto' })).toBeDefined()
+    fireEvent.change(screen.getByLabelText('Foto zu Tür, aus der Galerie'), {
+      target: { files: [first, second] },
+    })
+    expect(taken.mock.calls).toEqual([[first], [second]])
+  })
 })
 
 describe('a point in a list', () => {
