@@ -754,6 +754,75 @@ describe('the sync client behind the gate', () => {
   })
 })
 
+/**
+ * The device of the session on the site (opengewerk-haustechnik, 19.10.2026):
+ * the sync sends under the device of this browser, and the server lists the
+ * conflicts of the session's device. A session signed in at a desk and sent
+ * on to the site on a phone carried none, and what the server refused for
+ * that phone was never shown on it.
+ */
+describe('the device of a session on the site', () => {
+  /** An instance whose session names `deviceId`; the tenants chosen are kept in order. */
+  function instance(tenantId: TenantId, deviceId: string | null): unknown[] {
+    const chosen: unknown[] = []
+
+    vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
+      if (path === '/auth/tenant') {
+        chosen.push(JSON.parse(String(init?.body)))
+      }
+
+      const body = path.endsWith('/get-session')
+        ? { ...session(tenantId), session: { ...session(tenantId).session, deviceId } }
+        : path === '/auth/tenants'
+          ? [aTenant({ id: tenantId })]
+          : path.startsWith('/sync/conflicts')
+            ? []
+            : { changes: [], cursor: 1, hasMore: false }
+
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+    })
+
+    return chosen
+  }
+
+  it.each([
+    ['none', null],
+    ['another', 'some-other-device'],
+  ] as const)(
+    'registers this device for a session that came with %s',
+    async (_said, sessionDevice) => {
+      const tenantId = await tenantOnTheDevice()
+      const chosen = instance(tenantId, sessionDevice)
+
+      start()
+
+      expect(await screen.findByText('Leiter im Flur vergessen')).toBeTruthy()
+      await waitFor(() => {
+        expect(chosen).toEqual([{ tenantId, deviceId: deviceIdentity() }])
+      })
+    },
+  )
+
+  it.each([
+    ['this device, on the site', 'site', 'this'],
+    ['none, at a desk', 'office', null],
+  ] as const)('leaves a session with %s as it is', async (_said, entry, sessionDevice) => {
+    const tenantId = await tenantOnTheDevice()
+    const chosen = instance(tenantId, sessionDevice === 'this' ? deviceIdentity() : null)
+
+    start({ entry })
+
+    expect(await screen.findByText('Leiter im Flur vergessen')).toBeTruthy()
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(chosen).toEqual([])
+  })
+})
+
 describe('refused with a session that is still good (#254)', () => {
   /**
    * An instance where the account says the same thing every time, and the

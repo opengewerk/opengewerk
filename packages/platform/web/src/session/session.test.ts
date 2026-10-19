@@ -102,10 +102,11 @@ describe('who is signed in', () => {
     answers = () =>
       json({
         user: { id: 'u-1', email: account.email, name: account.name, twoFactorEnabled: false },
-        session: { activeTenantId: tenantId, signInMethod: 'password' },
+        session: { activeTenantId: tenantId, signInMethod: 'password', deviceId: 'phone-1' },
       })
 
-    expect(await currentAccount()).toEqual(account)
+    expect(await currentAccount()).toEqual({ ...account, deviceId: 'phone-1' })
+    // Without the device of the session: without a network nobody knows it.
     expect(rememberedAccount()).toEqual(account)
   })
 

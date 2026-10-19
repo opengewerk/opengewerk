@@ -643,6 +643,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Ein Gerät vor Ort sieht die Konflikte, die der Server für es abgelegt hat, auch wenn die Anmeldung im Büro begann
+  (gefunden bei opengewerk-haustechnik, 19.10.2026). Das Büro schickt ein Telefon auf die Seite für vor Ort, und eine
+  dort angekommene Anmeldung nannte kein Gerät: Der Abgleich sendete unter der Kennung des Geräts, die Liste der
+  Konflikte fragte nach der der Anmeldung und blieb leer. Ein abgelehntes Foto eines Rundgangs verschwand so ohne ein
+  Wort. Jetzt trägt der Start vor Ort das Gerät für die Anmeldung ein (`registerDevice`), wie es die Anmeldung vor Ort
+  selbst tut, sobald der Server eine Anmeldung ohne Gerät oder mit einem anderen nennt; danach gilt die lange Anmeldung
+  eines Geräts (ADR 0006). Im Büro bleibt es bei der kurzen ohne Gerät. Warum: Was der Server ablehnt, muss auf dem
+  Gerät ankommen, das es geschickt hat, sonst geht es verloren.
+
 - Eine Antwort ohne Inhalt gilt in `request` nicht mehr als Fehler (gefunden bei opengewerk-haustechnik#346). Eine
   Route, die etwas entfernt, antwortet mit 200 und leerem Körper; die Seite las ihn als JSON, scheiterte, nachdem
   der Server getan hatte, worum er gebeten war, und blieb mit „ohne Verbindung“ auf einem Datensatz stehen, den es

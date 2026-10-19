@@ -1,7 +1,7 @@
 import { hasSecondFactor, type TenantId } from '@opengewerk/platform-domain'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, WifiOff } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { useApplication } from '../application.js'
@@ -16,6 +16,7 @@ import {
   invitationToken,
   legalPage,
   passwordResetToken,
+  registerDevice,
   setupNeeded,
 } from '../session/session.js'
 import type { Account } from '../session/session.js'
@@ -215,6 +216,42 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
       setStalled(false)
     }
   }, [tenantId, userId, deviceId, signedOut, round, entry, startSync])
+
+  // The device of the session as the server names it, and not known without
+  // a network. On the site it has to be this one: the sync sends under this
+  // device, and the server lists the conflicts of the session's device. A
+  // session signed in at a desk and sent on to the site on a phone carries
+  // none, and every change the server refused for that phone went to a list
+  // it was never shown; a photo of a round was gone without a word
+  // (opengewerk-haustechnik, 19.10.2026). Registered here as the sign in on
+  // the site does it, once per page and answer.
+  const sessionDevice = account.data?.deviceId
+  const registered = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (
+      entry !== 'site' ||
+      !tenantId ||
+      sessionDevice === undefined ||
+      sessionDevice === deviceId
+    ) {
+      return
+    }
+
+    const asked = `${tenantId}:${sessionDevice ?? ''}`
+
+    if (registered.current === asked) {
+      return
+    }
+
+    registered.current = asked
+    void registerDevice(tenantId, deviceId).then(
+      () => queries.invalidateQueries({ queryKey: accountQuery.queryKey }),
+      () => {
+        // Without a network or turned down: asked again at the next start.
+      },
+    )
+  }, [entry, tenantId, sessionDevice, deviceId, queries])
 
   if (token) {
     return <InvitationScreen token={token} />

@@ -63,6 +63,12 @@ export interface Account {
    * passkey carries the second factor itself, so the gate asks this as well.
    */
   readonly signInMethod: SignInMethod
+  /**
+   * The device this session is registered for, null where it is registered
+   * for none. Not there on an account kept from an earlier start: without a
+   * network nobody knows.
+   */
+  readonly deviceId?: string | null
 }
 
 /**
@@ -102,7 +108,11 @@ interface SessionAnswer {
     readonly name?: unknown
     readonly twoFactorEnabled?: unknown
   }
-  readonly session?: { readonly activeTenantId?: unknown; readonly signInMethod?: unknown }
+  readonly session?: {
+    readonly activeTenantId?: unknown
+    readonly signInMethod?: unknown
+    readonly deviceId?: unknown
+  }
 }
 
 /** Who is signed in on this browser, or nobody. */
@@ -137,6 +147,7 @@ export async function currentAccount(): Promise<Account | null> {
 
   const tenantId = answer?.session?.activeTenantId
   const signInMethod = answer?.session?.signInMethod
+  const deviceId = answer?.session?.deviceId
   const account: Account = {
     userId: user.id,
     email: typeof user.email === 'string' ? user.email : '',
@@ -144,6 +155,7 @@ export async function currentAccount(): Promise<Account | null> {
     tenantId: typeof tenantId === 'string' ? (tenantId as TenantId) : null,
     twoFactorEnabled: user.twoFactorEnabled === true,
     signInMethod: isSignInMethod(signInMethod) ? signInMethod : 'password',
+    deviceId: typeof deviceId === 'string' && deviceId !== '' ? deviceId : null,
   }
 
   rememberAccount(account)
@@ -360,6 +372,24 @@ export async function chooseTenant(tenantId: TenantId, deviceId?: string): Promi
   // The tenant this device opens without a network changes with it; until
   // the new one has been opened, it opens none (#123).
   forgetAccount()
+  await request('/auth/tenant', {
+    method: 'POST',
+    body: JSON.stringify({ tenantId, deviceId }),
+  })
+}
+
+/**
+ * Registers this device for the session, in the tenant it works in already,
+ * as the sign in on the site does: what that device sends through the sync
+ * and what the server answers about it are then the same device's, and the
+ * session is the long one of a device (ADR 0006).
+ *
+ * For a session that reached the site without it: signed in at a desk and
+ * sent on to the site on a phone, or registered for this device before its
+ * storage was emptied. The tenant does not change, so what the device opens
+ * without a network stays as it is.
+ */
+export async function registerDevice(tenantId: TenantId, deviceId: string): Promise<void> {
   await request('/auth/tenant', {
     method: 'POST',
     body: JSON.stringify({ tenantId, deviceId }),
