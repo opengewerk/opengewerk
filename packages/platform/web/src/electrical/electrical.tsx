@@ -594,7 +594,7 @@ export function CircuitForm({
           }}
           {...problemOf(problems, 'overcurrentDevice')}
         />
-        <Pair>
+        <Pair fitFirst>
           <SelectField
             label="Charakteristik"
             value={characteristic}
@@ -772,9 +772,13 @@ export function problemOf(problems: Readonly<Record<string, string>>, field: str
   return problem === undefined ? {} : { problem }
 }
 
-/** The columns of the boxes, as the canvas lays them out. */
+/**
+ * The columns of the boxes, as the canvas lays them out. The characteristic
+ * is never narrower than its longest choice, "nicht angegeben": at a quarter of
+ * a narrow box it cut that off.
+ */
 export const groupColumns = {
-  protection: 'sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]',
+  protection: 'sm:grid-cols-[minmax(0,2fr)_minmax(max-content,1fr)_minmax(0,1fr)]',
   two: 'sm:grid-cols-2',
   cable: 'sm:grid-cols-4',
 } as const
@@ -834,11 +838,29 @@ export function Group({
  * current, cores and cross section. In the office they are two more columns
  * of the box, so there it is nothing but its children.
  */
-export function Pair({ children }: { readonly children: ReactNode }) {
+export function Pair({
+  fitFirst = false,
+  children,
+}: {
+  /**
+   * The first field at least as wide as its longest choice. At half the width
+   * of a phone a list of short values still has "nicht angegeben" among them,
+   * and the half cut it off.
+   */
+  readonly fitFirst?: boolean
+  readonly children: ReactNode
+}) {
   const entry = useEntry()
 
   return entry === 'site' ? (
-    <div className="grid grid-cols-2 items-start gap-2.5">{children}</div>
+    <div
+      className={clsx(
+        'grid items-start gap-2.5',
+        fitFirst ? 'grid-cols-[minmax(max-content,1fr)_minmax(0,1fr)]' : 'grid-cols-2',
+      )}
+    >
+      {children}
+    </div>
   ) : (
     <>{children}</>
   )
