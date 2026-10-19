@@ -554,7 +554,7 @@ describe('a strip over the screen', () => {
     // `alert` is announced at once, `status` when the reader gets to it. Using
     // `alert` for a quiet state would train people to ignore it, and then the
     // one that matters goes past them too.
-    const { rerender } = render(<Strip tone="info">Eine neue Fassung liegt bereit.</Strip>)
+    const { rerender } = render(<Strip tone="info">Das sieht nach einem Schreibtisch aus.</Strip>)
     expect(screen.getByRole('status')).toBeDefined()
 
     rerender(<Strip tone="wait">3 Änderungen auf dem Gerät. Keine Verbindung.</Strip>)

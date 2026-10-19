@@ -16,6 +16,7 @@ import {
 } from '@opengewerk/platform-domain'
 import { uuidv7 } from 'uuidv7'
 
+import { holdUpdates } from '../shell/updates.js'
 import { byRecord, project, recordKey } from './projection.js'
 import type { LocalStore, StoredFile } from './store.js'
 import { isForbidden, isUnauthenticated, RequestRefused, type SyncTransport } from './transport.js'
@@ -889,11 +890,23 @@ export class SyncClient {
       // the next day for as long as the one entry stayed (#120).
       // The files first: a version names its file by hash, and the server
       // finds the file only if it arrived before the version did (#77).
-      if (this.filesWaiting > 0) {
-        await this.uploadFiles()
-      }
+      //
+      // While both are on their way, a new version of the application waits
+      // (opengewerk-haustechnik#465). Nothing would be lost by a reload, the
+      // server answers an operation it has seen with its receipt, but a photo
+      // halfway up a weak connection would begin again.
+      const sending = holdUpdates()
+      let refused: RefusedOperation | null
 
-      const refused = await this.pushOutbox()
+      try {
+        if (this.filesWaiting > 0) {
+          await this.uploadFiles()
+        }
+
+        refused = await this.pushOutbox()
+      } finally {
+        sending()
+      }
 
       await this.pullChanges()
 

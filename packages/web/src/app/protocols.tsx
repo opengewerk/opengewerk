@@ -37,6 +37,7 @@ import {
   useEntry,
 } from '@opengewerk/platform-web'
 import { amount, date, scaledNumber, today } from '@opengewerk/platform-web/format'
+import { useHoldUpdates } from '@opengewerk/platform-web/shell'
 import { NotSent, SiteRow, SiteRows } from '@opengewerk/platform-web/site'
 import { refusalFor, text, useRelated, useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
@@ -963,6 +964,9 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
   // open, replaces the draft only while nothing here is unsaved. Otherwise
   // the save that follows collides with it, and the conflict is shown.
   const unsaved = formValuesText(draft) !== base.values || performedOn !== base.performedOn
+
+  // A new version of the application waits while something here is unsaved.
+  useHoldUpdates(unsaved)
 
   if (!unsaved && (saved !== base.values || text(record, 'performedOn') !== base.performedOn)) {
     setBase({ values: saved, performedOn: text(record, 'performedOn') })

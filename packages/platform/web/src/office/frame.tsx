@@ -6,7 +6,7 @@ import type { SearchSource } from '../components/search.js'
 import { Shell } from '../components/surface.js'
 import { useHeadingFocus } from '../shell/heading-focus.js'
 import { EntrySuggestion } from '../shell/suggestion.js'
-import { UpdateBar } from '../shell/update-bar.js'
+import { useUpdateOnNavigation } from '../shell/update-hooks.js'
 import { SyncStatusBar } from '../sync/bar.js'
 import { HelpDrawer } from './help.js'
 import type { HelpSource } from './help.js'
@@ -103,6 +103,7 @@ export function OfficeFrame({
   const frame = useRef<HTMLDivElement>(null)
 
   useHeadingFocus(frame)
+  useUpdateOnNavigation()
 
   return (
     <Shell entry="office">
@@ -142,7 +143,6 @@ export function OfficeFrame({
           )}
         />
         {strips}
-        <UpdateBar />
         <EntrySuggestion here="office" />
 
         {/* The screen as tall as the window, so that a list can fill it to

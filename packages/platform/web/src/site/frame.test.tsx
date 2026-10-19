@@ -10,7 +10,7 @@ import { Button } from '../components/button.js'
 import { aTenant, inFrame, signedIn, standInServer } from '../in-frame.js'
 import type { InFrame, StandIn } from '../in-frame.js'
 import { entryChoiceKey } from '../shell/entry.js'
-import { offerUpdate } from '../shell/updates.js'
+import { standInWorker } from '../shell/test-updates.js'
 import { TestServer } from '../sync/test-server.js'
 import { SiteActionBar } from './action-bar.js'
 import { SiteFrame } from './frame.js'
@@ -221,7 +221,6 @@ describe('what stands over a screen on site', () => {
   it('is the strips, the header of the screen and what the application keeps in view, in that order', async () => {
     // A desk on the entry for a hand is offered the other entry.
     onADesk()
-    offerUpdate(() => {})
 
     await frame(
       { underHeader: <section aria-label="Läuft">Die Zählung läuft seit 07:30.</section> },
@@ -234,7 +233,6 @@ describe('what stands over a screen on site', () => {
     const text = document.body.textContent
     const order = [
       'Ein Konflikt wartet',
-      'Eine neue Fassung liegt bereit.',
       'Das sieht nach einem Schreibtisch aus.',
       'Regal am Fenster',
       'Die Zählung läuft seit 07:30.',
@@ -438,6 +436,27 @@ describe('the focus after a change of screen on site', () => {
     await waitFor(() => {
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'Pakete' }))
     })
+  })
+
+  it('takes a new version that waits as somebody goes to another place (opengewerk-haustechnik#465)', async () => {
+    const device = standInWorker()
+
+    try {
+      await frame()
+
+      const [, bottom] = await places()
+
+      device.start()
+      device.arrive()
+      await userEvent.setup().click(within(bottom).getByRole('link', { name: 'Pakete' }))
+      await screen.findByRole('heading', { level: 1, name: 'Pakete' })
+
+      await waitFor(() => {
+        expect(device.reloads).toBe(1)
+      })
+    } finally {
+      device.forget()
+    }
   })
 
   /**
