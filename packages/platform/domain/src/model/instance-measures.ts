@@ -248,7 +248,9 @@ export function checkedInstanceMeasures(
     return { problem: 'Es fehlen die Unterauftragsverarbeiter.' }
   }
 
-  const measures: Record<string, string | boolean> = {}
+  // Kept under the key of the field as this file defines it, never under a
+  // name out of the request, and in a map until the end.
+  const measures = new Map<string, string | boolean>()
 
   for (const [key, value] of Object.entries(given as Record<string, unknown>)) {
     const field = measureField(key)
@@ -263,7 +265,7 @@ export function checkedInstanceMeasures(
       }
 
       if (value) {
-        measures[key] = true
+        measures.set(field.key, true)
       }
 
       continue
@@ -283,7 +285,7 @@ export function checkedInstanceMeasures(
     }
 
     if (text !== '') {
-      measures[key] = text
+      measures.set(field.key, text)
     }
   }
 
@@ -322,5 +324,5 @@ export function checkedInstanceMeasures(
     subprocessors.push(kept as unknown as Subprocessor)
   }
 
-  return { measures, subprocessors }
+  return { measures: Object.fromEntries(measures), subprocessors }
 }
