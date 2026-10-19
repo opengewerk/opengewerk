@@ -717,6 +717,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nächsten Wechsel der Adresse. Warum: Die Halte kannten Formulare, Unterschriften und Getipptes, aber nicht den
   Augenblick, in dem ein Foto entsteht, und genau dann sieht niemand auf die Seite.
 
+- Die Auswahl „Charakteristik“ im Formular eines Stromkreises zeigt ihren Wert ganz, auch „nicht angegeben“
+  (gefunden bei opengewerk-haustechnik#349). Vor Ort teilte sie sich die Zeile zu gleichen Hälften mit dem Nennstrom,
+  im Büro bekam sie ein Viertel des Kastens; auf einem Telefon von 390 Pixeln und in einem schmalen Dialog war das zu
+  wenig, und der Wert brach ab. Jetzt ist ihre Spalte mindestens so breit wie ihre längste Wahl, der Rest geht an die
+  Felder daneben. Warum: Was im Feld steht, muss man lesen können, bevor man es ändert.
+
 - Ein Foto, das abgelegt wird, während der Abgleich die Dateien davor hochlädt, kommt nicht mehr als Konflikt
   `record_missing` an seiner Prüfsumme zurück (gefunden bei opengewerk-haustechnik#451). Seine Version stand schon im
   Ausgang, die Datei aber erst auf der Liste für den nächsten Abgleich, und der Server fand sie nicht. Jetzt wartet eine
