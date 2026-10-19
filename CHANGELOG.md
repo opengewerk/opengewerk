@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine zweite Nummer am Ansprechpartner, „Mobil“ (für opengewerk-haustechnik#428): `contactsSchema` hat die Spalte
+  `mobile`, `contactTextFields` das Feld zwischen Telefon und E-Mail, und Formular, Karte im Büro, die Zeile je Person und
+  die Liste vor Ort zeigen sie wie die erste Nummer, zum Antippen. Vor Ort steht die erste Nummer jetzt mit einem Hörer,
+  die mobile mit einem Telefon in der Hand. Die Handwerkersoftware bekommt die Spalte mit der Migration
+  `0080_contact_mobile`, ihr Abgleich nennt sie „Mobil“, und die Vorschau eines Kunden zeigt beide Nummern. Warum: viele
+  Ansprechpartner haben Festnetz mit Durchwahl und ein Mobiltelefon, und bisher blieb die zweite Nummer in der Funktion
+  oder ging verloren; Moritz hat am 18.10.2026 das eigene Feld entschieden.
+
 - Maßnahmen der Instanz (für opengewerk-haustechnik#358): Teil B der technischen und organisatorischen Maßnahmen
   (B.1 bis B.9 der Vorlage zur Auftragsverarbeitung auf opengewerk.de) und die Unterauftragsverarbeiter pflegt, wer
   die Instanz betreibt, auf einem eigenen Bildschirm ihres Bereichs (`InstanceMeasuresScreen`, `GET` und `PUT

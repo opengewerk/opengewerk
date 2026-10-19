@@ -43,6 +43,7 @@ function contact(id: string, over: Row): Row {
     role: null,
     email: null,
     phone: null,
+    mobile: null,
     ...over,
   }
 }
@@ -132,6 +133,25 @@ beforeEach(() => {
 })
 
 describe('the contacts of a record on site', () => {
+  it('offer the second number to tap beside the first (opengewerk-haustechnik#428)', async () => {
+    server.put(
+      'contacts',
+      contact('k-7', {
+        shelfId: 's-2',
+        familyName: 'Kaya',
+        phone: '040 77 88',
+        mobile: '0171 22 33',
+      }),
+    )
+    await mounted('s-2')
+
+    expect(people()).toEqual(['Kaya040 77 880171 22 33'])
+    expect(list().getByRole('link', { name: '040 77 88' }).getAttribute('href')).toBe('tel:0407788')
+    expect(list().getByRole('link', { name: '0171 22 33' }).getAttribute('href')).toBe(
+      'tel:01712233',
+    )
+  })
+
   it('say what the screen says while nobody is entered', async () => {
     await mounted('s-2')
 

@@ -53,6 +53,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   notes: 'Notizen',
   email: 'E-Mail',
   phone: 'Telefon',
+  mobile: 'Mobil',
   givenName: 'Vorname',
   familyName: 'Nachname',
   role: 'Rolle',

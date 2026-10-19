@@ -32,6 +32,7 @@ describe('the fields of the form for a contact', () => {
       ['familyName', 'Nachname'],
       ['role', 'Aufgabe'],
       ['phone', 'Telefon'],
+      ['mobile', 'Mobil'],
       ['email', 'E-Mail'],
     ])
     expect(fields.find((field) => field.name === 'role')?.hint).toBe(
@@ -45,6 +46,7 @@ describe('the fields of the form for a contact', () => {
       undefined,
       undefined,
       'tel',
+      'tel',
       'email',
     ])
   })
@@ -53,6 +55,7 @@ describe('the fields of the form for a contact', () => {
     const fields = contactFields({ role: { label: 'Aufgabe' }, add: 'Eintragen' })
 
     expect(fields.map((field) => field.hint)).toEqual([
+      undefined,
       undefined,
       undefined,
       undefined,
@@ -70,6 +73,7 @@ describe('the values a form for a contact hands over', () => {
         familyName: ' Brandt  ',
         role: '   ',
         phone: '',
+        mobile: ' 0171 22 33 ',
         email: ' lena@probewerk.example ',
       }),
     ).toEqual({
@@ -77,6 +81,7 @@ describe('the values a form for a contact hands over', () => {
       familyName: 'Brandt',
       role: null,
       phone: null,
+      mobile: '0171 22 33',
       email: 'lena@probewerk.example',
     })
   })

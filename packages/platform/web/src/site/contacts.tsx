@@ -1,6 +1,6 @@
 import { contactEntity } from '@opengewerk/platform-domain'
 import type { RecordState } from '@opengewerk/platform-domain'
-import { Mail, Smartphone } from 'lucide-react'
+import { Mail, Phone, Smartphone } from 'lucide-react'
 
 import { byName, contactName, dialable } from '../contacts/people.js'
 import { maybeText } from '../sync/fields.js'
@@ -12,8 +12,9 @@ const contactLink =
 
 /**
  * The contacts of one record on site, with phone and e-mail to tap: the name,
- * what somebody is there under it, and the number and the address side by
- * side, over a line.
+ * what somebody is there under it, and the numbers and the address side by
+ * side, over a line. The mobile number has the phone in the hand for its mark,
+ * the other one the receiver.
  *
  * To read and to call, not to correct. Whoever stands in front of a door
  * needs the number; correcting a contact is for the office, which has the
@@ -41,6 +42,7 @@ export function ContactList({
           const id = String(contact['id'])
           const role = maybeText(contact, 'role')
           const phone = maybeText(contact, 'phone')
+          const mobile = maybeText(contact, 'mobile')
           const email = maybeText(contact, 'email')
 
           return (
@@ -58,12 +60,18 @@ export function ContactList({
                   ) : null}
                 </span>
                 {role ? <span className="block text-[15px] text-ink-muted">{role}</span> : null}
-                {phone || email ? (
+                {phone || mobile || email ? (
                   <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1.5 text-[16px]">
                     {phone ? (
                       <a href={`tel:${dialable(phone)}`} className={contactLink}>
-                        <Smartphone size={17} strokeWidth={2.2} aria-hidden="true" />
+                        <Phone size={17} strokeWidth={2.2} aria-hidden="true" />
                         {phone}
+                      </a>
+                    ) : null}
+                    {mobile ? (
+                      <a href={`tel:${dialable(mobile)}`} className={contactLink}>
+                        <Smartphone size={17} strokeWidth={2.2} aria-hidden="true" />
+                        {mobile}
                       </a>
                     ) : null}
                     {email ? (

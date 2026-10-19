@@ -97,6 +97,7 @@ function contact(id: string, over: Row): Row {
     role: null,
     email: null,
     phone: null,
+    mobile: null,
     ...over,
   }
 }
@@ -192,6 +193,24 @@ describe('the contacts of a record in the office', () => {
     expect(
       card().getByRole('link', { name: 'zander@probewerk.example' }).getAttribute('href'),
     ).toBe('mailto:zander@probewerk.example')
+  })
+
+  it('dial the second number as well, after the first (opengewerk-haustechnik#428)', async () => {
+    server.put(
+      'contacts',
+      contact('k-7', {
+        shelfId: 's-1',
+        familyName: 'Kaya',
+        phone: '040 77 88',
+        mobile: '0171 22 33',
+      }),
+    )
+    await mounted()
+
+    expect(people()).toContain('Kaya040 77 880171 22 33')
+    expect(card().getByRole('link', { name: '0171 22 33' }).getAttribute('href')).toBe(
+      'tel:01712233',
+    )
   })
 
   it('are found by whichever of its records the application hangs them on', async () => {
@@ -352,6 +371,7 @@ describe('a new contact where the application makes it at its route', () => {
     await userEvent.click(card().getByRole('button', { name: 'Eintragen' }))
     await userEvent.type(card().getByLabelText(/Nachname/), 'Brandt')
     await userEvent.type(card().getByLabelText(/Telefon/), '040 55 66')
+    await userEvent.type(card().getByLabelText(/Mobil/), '0171 22 33')
     await userEvent.click(card().getByRole('button', { name: 'Eintragen' }))
 
     await waitFor(() => {
@@ -364,6 +384,7 @@ describe('a new contact where the application makes it at its route', () => {
         familyName: 'Brandt',
         role: null,
         phone: '040 55 66',
+        mobile: '0171 22 33',
         email: null,
       },
     ])
@@ -611,6 +632,24 @@ describe('the contacts of a record drawn in one line each', () => {
     const [albers] = card().getAllByRole('listitem')
 
     expect(albers?.querySelectorAll('div div')).toHaveLength(1)
+  })
+
+  it('put the second number after the first in the line, to tap as well', async () => {
+    server.put(
+      'contacts',
+      contact('k-7', {
+        shelfId: 's-1',
+        familyName: 'Kaya',
+        phone: '040 77 88',
+        mobile: '0171 22 33',
+      }),
+    )
+    await mounted({ dense: true })
+
+    expect(people()).toContain('Kaya040 77 88 · 0171 22 33')
+    expect(card().getByRole('link', { name: '0171 22 33' }).getAttribute('href')).toBe(
+      'tel:01712233',
+    )
   })
 
   it('are changed and taken away behind the same pencil', async () => {

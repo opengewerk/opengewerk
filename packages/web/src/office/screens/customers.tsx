@@ -43,7 +43,7 @@ import {
 import type { EditResult } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { ArrowRight, Check, Clock, Pencil, Plus, Tag, Users, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { addressLine, countryOptions } from '../../app/format.js'
@@ -395,17 +395,19 @@ function CustomerPreview({ customer }: { readonly customer: RecordState }) {
                     .join(' ')}
                 </b>
                 {maybeText(contact, 'role') ? `, ${text(contact, 'role')}` : ''}
-                {maybeText(contact, 'phone') ? (
-                  <>
-                    <br />
-                    <a
-                      href={`tel:${text(contact, 'phone').replace(/[^\d+]/g, '')}`}
-                      className="text-copper-text underline underline-offset-2"
-                    >
-                      {text(contact, 'phone')}
-                    </a>
-                  </>
-                ) : null}
+                {(['phone', 'mobile'] as const).map((field) =>
+                  maybeText(contact, field) ? (
+                    <Fragment key={field}>
+                      <br />
+                      <a
+                        href={`tel:${text(contact, field).replace(/[^\d+]/g, '')}`}
+                        className="text-copper-text underline underline-offset-2"
+                      >
+                        {text(contact, field)}
+                      </a>
+                    </Fragment>
+                  ) : null,
+                )}
               </li>
             ))}
           </ul>
