@@ -20,6 +20,8 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0010](0010-fundament-als-pakete.md) | Das Fundament als eigene Pakete für weitere Anwendungen | angenommen |
 | [0011](0011-lager-im-fundament.md) | Lager, Artikel und Lieferanten im Fundament | angenommen |
 | [0012](0012-qualifikationen-im-fundament.md) | Qualifikationen der Mitarbeiter im Fundament | angenommen |
+| [0013](0013-schwaerzen-im-aenderungsprotokoll.md) | Schwärzen im Änderungsprotokoll | angenommen |
+| [0014](0014-elektro-struktur-im-fundament.md) | Elektro-Struktur und PV-Struktur im Fundament | vorgeschlagen |
 
 ## Der Tech-Stack auf einen Blick
 
