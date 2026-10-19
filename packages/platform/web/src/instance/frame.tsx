@@ -14,7 +14,7 @@ import { PersonMenu } from '../office/top-bar.js'
 import { instanceAccessQuery } from '../session/instance.js'
 import { useWho } from '../session/who.js'
 import { useHeadingFocus } from '../shell/heading-focus.js'
-import { UpdateBar } from '../shell/update-bar.js'
+import { useUpdateOnNavigation } from '../shell/update-hooks.js'
 
 /** One screen of the area, as its navigation lists it. */
 export interface InstanceEntry {
@@ -330,6 +330,7 @@ export function InstanceFrame({ navigation }: { readonly navigation: readonly In
   const frame = useRef<HTMLDivElement>(null)
 
   useHeadingFocus(frame)
+  useUpdateOnNavigation()
 
   return (
     <Shell entry="office">
@@ -345,7 +346,6 @@ export function InstanceFrame({ navigation }: { readonly navigation: readonly In
         </a>
 
         <InstanceTop menuOpen={drawer} onMenu={openDrawer} />
-        <UpdateBar />
 
         <div className="flex flex-1">
           <Sidebar navigation={navigation} />

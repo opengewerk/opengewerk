@@ -1,9 +1,10 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { Shell } from '../components/surface.js'
 import type { Entry } from '../components/surface.js'
+import { updatesHeld } from '../shell/updates.js'
 import type { EditResult } from './client.js'
 import { refusalText } from './client.js'
 import { asBoolean, asTextOrNull, RecordForm, yesOrNo } from './record-form.js'
@@ -117,6 +118,33 @@ describe('a form over a record', () => {
 
     expect(screen.getByLabelText('Name').getAttribute('aria-describedby')).toBeTruthy()
     expect(screen.getByText('Wie es am Regal steht.')).toBeTruthy()
+  })
+})
+
+describe('a new version of the application', () => {
+  it('waits while the form holds what was typed and not taken (opengewerk-haustechnik#465)', async () => {
+    let answer: EditResult = { outcome: 'refused', reason: 'record_is_fixed', fields: ['name'] }
+
+    form({ onSubmit: () => Promise.resolve(answer) })
+
+    expect(updatesHeld()).toBe(false)
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Regal an der Tür')
+
+    expect(updatesHeld()).toBe(true)
+
+    // Refused, the form still holds it.
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+    await screen.findByRole('alert')
+
+    expect(updatesHeld()).toBe(true)
+
+    answer = { outcome: 'queued', id: 's-1' }
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(updatesHeld()).toBe(false)
+    })
   })
 })
 

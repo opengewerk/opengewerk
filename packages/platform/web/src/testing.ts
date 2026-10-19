@@ -44,3 +44,8 @@ export const foundationSources = import.meta.glob(['./**/*.tsx', '!./**/*.test.t
 // A browser that can take push, for the tests of the account and of the menu
 // of the site.
 export { fakePushBrowser, forgetPushBrowser } from './session/test-push.js'
+
+// A device with the service worker of an application, for the tests of when a
+// new version is taken: the registration, whether the page is shown, and
+// whether there is a network.
+export { standInWorker } from './shell/test-updates.js'

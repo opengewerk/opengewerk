@@ -7,6 +7,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { Button } from '../components/button.js'
 import { Field, SelectField, TextArea } from '../components/field.js'
 import { useEntry } from '../components/surface.js'
+import { useHoldUpdates } from '../shell/update-hooks.js'
 import { refusalFor } from './client.js'
 import type { EditResult } from './client.js'
 
@@ -141,6 +142,10 @@ export const yesOrNo = [
  * is the caller's business and the sync client's; this only has to show what a
  * refusal said, because a refusal arrives while the form is still open and
  * that is the moment it is worth anything.
+ *
+ * While it holds what was typed and not taken, a new version of the
+ * application waits (opengewerk-haustechnik#465), even when the address
+ * changes under a form that stays.
  */
 export function RecordForm({
   fields,
@@ -204,9 +209,13 @@ export function RecordForm({
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(fields.map((field) => [field.name, held(record, field)])),
   )
+  // What the form started with, or what it handed back last and was taken.
+  const [kept, setKept] = useState(values)
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [wrongFields, setWrongFields] = useState<readonly string[]>([])
+
+  useHoldUpdates(Object.keys(values).some((name) => values[name] !== kept[name]))
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -230,6 +239,8 @@ export function RecordForm({
       if (result.outcome === 'refused') {
         setTrouble(refusalFor(result))
         setWrongFields(result.fields)
+      } else {
+        setKept(values)
       }
     } catch {
       // The device could not keep it, a full store above all, where the photos

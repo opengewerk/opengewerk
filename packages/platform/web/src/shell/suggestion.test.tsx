@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,12 +7,9 @@ import type { Entry } from '../components/surface.js'
 import { InProbe } from '../probe-application.js'
 import { entryChoiceKey } from './entry.js'
 import { EntrySuggestion } from './suggestion.js'
-import { UpdateBar } from './update-bar.js'
-import { offerUpdate, updateWaiting } from './updates.js'
 
 /**
- * The two offers over a screen: the entry a device suits better, and a new
- * version that waits.
+ * The offer over a screen of the entry a device suits better.
  *
  * What the two entries are called is the application's (ADR 0010), which
  * names the second one after where its people work. The one in these tests
@@ -114,56 +111,5 @@ describe('the suggestion to switch entry', () => {
     await userEvent.click(link)
 
     expect(globalThis.localStorage.getItem(entryChoiceKey)).toBe('site')
-  })
-})
-
-describe('the offer of a new version', () => {
-  /**
-   * A module holds the offer for as long as the page is open, and nothing
-   * takes it back. So the one test that needs a page without an offer comes
-   * before every other that makes one, and says so.
-   */
-  it('is not there until the service worker has one, appears on a screen that is open, and takes it when asked', async () => {
-    expect(updateWaiting()).toBe(false)
-
-    render(
-      <Shell entry="office">
-        <UpdateBar />
-      </Shell>,
-    )
-
-    expect(screen.queryByText('Eine neue Fassung liegt bereit.')).toBeNull()
-
-    const swap = vi.fn()
-
-    // The version arrives while the screen is shown: nothing renders it again
-    // but the offer itself.
-    act(() => {
-      offerUpdate(swap)
-    })
-
-    expect(await screen.findByText('Eine neue Fassung liegt bereit.')).toBeTruthy()
-    // Waiting, not applied: swapping the code under somebody who is typing
-    // loses what they typed.
-    expect(swap).not.toHaveBeenCalled()
-
-    await userEvent.click(screen.getByRole('button', { name: 'Jetzt übernehmen' }))
-
-    expect(swap).toHaveBeenCalledOnce()
-  })
-
-  it('stands on a screen that is opened after the version arrived', async () => {
-    const swap = vi.fn()
-
-    offerUpdate(swap)
-    render(
-      <Shell entry="site">
-        <UpdateBar />
-      </Shell>,
-    )
-
-    await userEvent.click(screen.getByRole('button', { name: 'Jetzt übernehmen' }))
-
-    expect(swap).toHaveBeenCalledOnce()
   })
 })

@@ -4,6 +4,7 @@ import type { PointerEvent } from 'react'
 
 import { Button } from '../components/button.js'
 import { signatureStroke, signatureViewBox } from '../components/signature.js'
+import { useHoldUpdates } from '../shell/update-hooks.js'
 import { farEnough, pathOf, type Point, pointIn } from './strokes.js'
 
 /**
@@ -21,6 +22,10 @@ import { farEnough, pathOf, type Point, pointIn } from './strokes.js'
  *
  * `touch-none` is what keeps the page from scrolling under the pen. Without it
  * a downward stroke on a phone moves the page and draws nothing.
+ *
+ * While a signature stands on the pad, a new version of the application waits
+ * (opengewerk-haustechnik#465): the reload would wipe the pad, and the person
+ * who signed may be gone by then.
  */
 export function SignaturePad({
   label,
@@ -35,6 +40,8 @@ export function SignaturePad({
   const [drawn, setDrawn] = useState('')
   const [full, setFull] = useState(false)
   const hint = useId()
+
+  useHoldUpdates(drawn !== '')
 
   /** Keeps a new set of strokes, unless it no longer fits into one signature. */
   function keep(next: Point[][]): void {

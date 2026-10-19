@@ -11,8 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { aTenant, inFrame, signedIn, standInServer } from '../in-frame.js'
 import type { InFrame, StandIn } from '../in-frame.js'
 import { probeApplication } from '../probe-application.js'
-import { offerUpdate } from '../shell/updates.js'
 import { Strip } from '../components/strip.js'
+import { standInWorker } from '../shell/test-updates.js'
 import { TestServer } from '../sync/test-server.js'
 import { RequestRefused } from '../sync/transport.js'
 import { OfficeFrame } from './frame.js'
@@ -654,7 +654,7 @@ describe('the strips over an office screen', () => {
    * In the order of the board of the strips: what cannot wait first, the
    * offers last. What the application adds stands with what cannot wait.
    */
-  it('stand between the header and the screen: the exchange, what the application adds, a new version, the other entry', async () => {
+  it('stand between the header and the screen: the exchange, what the application adds, the other entry', async () => {
     // A device with only a finger is offered the other entry.
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(pointer: coarse)',
@@ -662,7 +662,6 @@ describe('the strips over an office screen', () => {
       addEventListener: () => {},
       removeEventListener: () => {},
     }))
-    offerUpdate(() => {})
 
     await frame(
       {
@@ -682,7 +681,6 @@ describe('the strips over an office screen', () => {
       'Menü',
       'Ein Konflikt wartet',
       'Das Lager ist seit gestern nicht gezählt.',
-      'Eine neue Fassung liegt bereit.',
       'Das sieht nach einem Gerät für unterwegs aus.',
       'Bestand',
     ].map((part) => text.indexOf(part))
@@ -718,6 +716,27 @@ describe('the focus after a change of screen in the office', () => {
     })
     // Reached by the frame and by no Tab.
     expect(heading.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('takes a new version that waits as somebody goes to another screen (opengewerk-haustechnik#465)', async () => {
+    const device = standInWorker()
+
+    try {
+      await frame()
+
+      const nav = await sidebar()
+
+      device.start()
+      device.arrive()
+      await userEvent.setup().click(within(nav).getByRole('link', { name: 'Notizen' }))
+      await screen.findByRole('heading', { level: 1, name: 'Notizen' })
+
+      await waitFor(() => {
+        expect(device.reloads).toBe(1)
+      })
+    } finally {
+      device.forget()
+    }
   })
 
   it('stands at the heading after the menu of a phone led there as well', async () => {

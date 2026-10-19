@@ -3,8 +3,8 @@
 //
 // The two entries of ADR 0004 are two documents from one code base. What
 // both of them need around their screens is here: which entry suits a device
-// and the offer to switch, and the offer to take a new version once the
-// service worker has one.
+// and the offer to switch, and a new version of the service worker taken at a
+// moment that costs nobody anything.
 
 // The two entries: where each lives, which one a device suits, what somebody
 // chose, and the strip that offers the other one. What the entries are called
@@ -22,7 +22,10 @@ export type { DeviceTraits } from './entry.js'
 export type { Entry } from '../components/surface.js'
 export { EntrySuggestion } from './suggestion.js'
 
-// A new version that waits: the service worker of an application offers it,
-// and the strip over a screen lets somebody take it at a moment they pick.
-export { applyUpdate, offerUpdate, subscribeToUpdates, updateWaiting } from './updates.js'
-export { UpdateBar } from './update-bar.js'
+// A new version that waits: the application hands over the registration of
+// its service worker, and the page takes the version by itself as it opens,
+// when it is hidden or when the address changes, never while something holds
+// it and never without a network (opengewerk-haustechnik#465).
+export { holdUpdates, takeUpdates, updatesHeld } from './updates.js'
+export type { UpdateRegistration, UpdateSurroundings } from './updates.js'
+export { useHoldUpdates, useUpdateOnNavigation } from './update-hooks.js'

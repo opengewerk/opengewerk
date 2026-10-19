@@ -1,9 +1,10 @@
 import { longestSignaturePath, signaturePathIsValid } from '@opengewerk/platform-domain'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { SignaturePicture } from '../components/signature.js'
+import { updatesHeld } from '../shell/updates.js'
 import { SignaturePad } from './signature-pad.js'
 import { isLocked } from '../testing.js'
 
@@ -274,5 +275,38 @@ describe('the pad', () => {
     fireEvent.pointerCancel(field, { pointerId: 1, ...at(100, 100) })
 
     expect(changes).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a signature on the pad', () => {
+  it('holds a new version of the application back until the pad is cleared or goes (opengewerk-haustechnik#465)', async () => {
+    const { field } = pad()
+
+    measured(field)
+
+    expect(updatesHeld()).toBe(false)
+
+    fireEvent.pointerDown(field, { pointerId: 1, ...at(50, 150) })
+
+    // From the first touch, before the stroke has ended.
+    expect(updatesHeld()).toBe(true)
+
+    fireEvent.pointerMove(field, { pointerId: 1, ...at(120, 60) })
+    fireEvent.pointerUp(field, { pointerId: 1, ...at(120, 60) })
+
+    expect(updatesHeld()).toBe(true)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Feld leeren' }))
+
+    expect(updatesHeld()).toBe(false)
+
+    fireEvent.pointerDown(field, { pointerId: 2, ...at(50, 150) })
+    fireEvent.pointerUp(field, { pointerId: 2, ...at(50, 150) })
+
+    expect(updatesHeld()).toBe(true)
+
+    cleanup()
+
+    expect(updatesHeld()).toBe(false)
   })
 })

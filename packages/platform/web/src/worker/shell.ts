@@ -187,8 +187,9 @@ export function serveShell(
     )
   })
 
-  // The application asks for the swap, this only performs it. A new version
-  // waits here until somebody who is not in the middle of something says go.
+  // The page asks for the swap, this only performs it. A new version waits
+  // here until a page says go, at a moment when nobody is in the middle of
+  // something (`takeUpdates`, opengewerk-haustechnik#465).
   //
   // The origin is checked although only a page inside this worker's scope can
   // reach it at all, so the check can never fail in practice. It is here
