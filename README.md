@@ -997,6 +997,23 @@ damit auch für den Eigentümer; ein Dump unter dieser Rolle käme entweder mit
 einer Fehlermeldung zurück oder, schlimmer, leer. Eine Sicherung, die weniger
 sehen darf als alles, ist keine.
 
+**Auf das Ziel kommt nur das fertige Archiv.** Dump und Dateispeicher entstehen
+im Container, nur für root lesbar, und gehen in einem Strom gepackt und
+verschlüsselt in eine verborgene Datei auf dem Ziel, die erst am Ende den Namen
+eines Archivs bekommt. Scheitert ein Schritt, auch age, bleibt auf dem Ziel
+nichts liegen, kein halbes Archiv und keine Teile im Klartext. Platz braucht die
+Sicherung dafür im Container, also dort, wo Docker seine Container hält, etwa so
+viel wie Dump und Dateispeicher zusammen; `TMPDIR` im Dienst verlegt das. Die
+Archive auf dem Ziel sind nur für ihren Besitzer lesbar, wer sie von dort
+weiterkopiert, tut das als root.
+
+**Jede Sicherung steht in einem Verzeichnis auf der Instanz.** Name und SHA-256
+ihres Archivs kommen in `archives.sha256` im Volume `backup-status`, das nur die
+Dienste der Sicherung beschreiben und das nie auf dem Ziel liegt. Gegen dieses
+Verzeichnis prüfen Zurückspielen und Prüfen jedes Archiv, siehe unten. Es behält
+auch Archive, die die Aufbewahrung vom Ziel genommen hat, damit ein ausgelagertes
+und zurückgeholtes Archiv prüfbar bleibt; eine Zeile sind rund hundert Bytes.
+
 ### Jede Nacht, ohne dass jemand daran denkt
 
 Eine Sicherung, an die jemand denken muss, fehlt genau an dem Tag, an dem sie
@@ -1038,6 +1055,40 @@ docker compose -f docker/compose.yaml logs backup-schedule
 docker compose -f docker/compose.yaml --profile backup run --rm backup restore.sh latest
 ```
 
+**Zuerst die Herkunft.** Das Ziel liegt in der Regel auf einer anderen Maschine,
+und wer dort schreiben kann, kann ein Archiv neben die anderen legen. Ein
+passendes Manifest sagt nur, dass es heil ist, und die Verschlüsselung sagt
+nichts darüber, wer es gemacht hat: der Empfänger ist ein öffentlicher
+Schlüssel. Deshalb nimmt `restore.sh` nur ein Archiv, das mit derselben
+Prüfsumme im Verzeichnis `archives.sha256` dieser Instanz steht, und eine
+Installation, die verschlüsselt (`BACKUP_AGE_RECIPIENT` ist gesetzt), nimmt kein
+unverschlüsseltes. Beides wird gefragt, bevor etwas entschlüsselt, entpackt oder
+gesperrt wird; ein abgelehntes Archiv stammt nicht von dieser Instanz oder ist
+nicht mehr, wie sie es geschrieben hat.
+
+**Auf einer neuen Maschine** fehlt das Verzeichnis, es lag mit dem Volume
+`backup-status` auf der alten. Dort spielt
+
+```bash
+docker compose -f docker/compose.yaml --profile backup run --rm backup restore.sh --skip-origin-check <archiv>
+```
+
+das Archiv trotzdem zurück, mit allen Prüfungen, die danach kommen. Der Schalter
+heißt, was er tut: die Herkunft prüft dann nur noch, wer ihn tippt. Also ein
+Archiv mit seinem Namen nennen, dessen Zeit und Größe zu den eigenen Sicherungen
+passen, statt `latest`, und den Schalter nur setzen, wo das Verzeichnis wirklich
+fehlt. Archive von vor dem Update, mit dem das Verzeichnis kam, stehen nicht
+darin und brauchen ihn ebenso. Er ist mit Absicht keine Einstellung in der
+`.env`: dort schaltete er die Prüfung für immer ab.
+
+**Die Datenbank spielt der Eigentümer der Tabellen zurück**, `opengewerk_owner`,
+nicht der Superuser. Ein Dump ist eine Folge von Anweisungen, und als Superuser
+liefe jede davon mit allen Rechten, auch eine, die einen Wechsel der Rolle
+zurücknimmt. Als Eigentümer kann ein Dump, was eine Migration kann, und mehr
+braucht ein Dump dieser Datenbank nicht; der Dienst `backup` bekommt dafür
+`OPENGEWERK_OWNER_PASSWORD` aus der `.env`. Der Superuser sperrt die Anwendung
+aus und liest danach für die Prüfungen alle Mandanten.
+
 Der Lauf sperrt die Anwendung für seine Dauer aus, spielt beide Teile zurück
 und prüft danach drei Dinge, von denen jedes eine Frage beantwortet, die die
 anderen nicht beantworten können:
@@ -1057,8 +1108,9 @@ Entwurf zählte offene Verbindungen und schützte vor nichts: der
 Verbindungspool schließt eine ungenutzte Verbindung nach Sekunden, die Zählung
 steht also auf null, während die Anwendung läuft. Stattdessen bekommt
 `opengewerk_app` für die Dauer des Laufs `NOLOGIN`, bestehende Verbindungen
-werden beendet, und der Superuser, der zurückspielt, ist davon nicht betroffen.
-Die gesamte Datenbank zu sperren ginge nicht, das schlösse auch ihn aus.
+werden beendet, und der Eigentümer, der zurückspielt, und der Superuser, der
+prüft, sind davon nicht betroffen. Die gesamte Datenbank zu sperren ginge
+nicht, das schlösse auch sie aus.
 
 ### Die Sicherung als Zeuge für das Audit-Log
 
@@ -1074,7 +1126,10 @@ docker compose -f docker/compose.yaml --profile backup run --rm backup verify.sh
 
 Das hält das Log der laufenden Instanz gegen die Sicherung, ohne etwas
 zurückzuspielen, und beantwortet nicht "geht die Kette auf", sondern "ist
-Eintrag Nummer N noch derselbe, den diese Sicherung gesehen hat".
+Eintrag Nummer N noch derselbe, den diese Sicherung gesehen hat". Wie beim
+Zurückspielen nur gegen ein Archiv aus dem Verzeichnis dieser Instanz, mit
+demselben Schalter für eine neue Maschine: gegen Köpfe, die jemand anderes auf
+das Ziel gelegt hat, ginge ein umgeschriebenes Log durch.
 
 Am 19.09.2026 gegengeprüft: nach einer gefälschten Änderung mit anschließend
 neu berechneter Kette meldet die Prüfung in der Datenbank

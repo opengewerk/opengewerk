@@ -625,10 +625,16 @@ jobs:
       # with another application, each finds, keeps, restores and removes only
       # its own. And the manifest: an archive that unpacks cleanly and holds a
       # changed part is turned away before the database is asked anything
-      # (opengewerk-haustechnik#31).
-      - name: Namen und Manifest der Sicherungen prüfen
+      # (opengewerk-haustechnik#31). And where an archive comes from, and that
+      # a backup reaches the target encrypted and whole or not at all
+      # (opengewerk-haustechnik#360). In the image of the backup, with its
+      # shell, its tar and a real age: the shell of the runner knows no
+      # pipefail, which backup.sh relies on.
+      - name: Namen, Manifest und Herkunft der Sicherungen prüfen
         working-directory: docker
-        run: sh test-backup.sh
+        run: |
+          docker build --quiet --tag opengewerk-backup-under-test backup
+          docker run --rm --volume "$PWD:/docker:ro" opengewerk-backup-under-test sh /docker/test-backup.sh
 
       - name: Jeder Dienst begrenzt seine Protokolle
         working-directory: docker
@@ -732,7 +738,7 @@ jobs:
         working-directory: docker
         run: sh test-stack.sh snapshot
 
-      - name: Sicherung erstellen
+      - name: Sicherung erstellen, eine gescheiterte hinterlässt nichts
         working-directory: docker
         run: sh test-stack.sh backup
 
@@ -752,7 +758,11 @@ jobs:
         working-directory: docker
         run: sh test-stack.sh compare
 
-      - name: Eine beschädigte Sicherung wird abgelehnt
+      - name: Auf einer neuen Maschine ohne Verzeichnis der Sicherungen zurückspielen
+        working-directory: docker
+        run: sh test-stack.sh new-machine
+
+      - name: Eine untergeschobene, beschädigte oder unverschlüsselte Sicherung wird abgelehnt
         working-directory: docker
         run: sh test-stack.sh corrupt
 

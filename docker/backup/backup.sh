@@ -24,12 +24,32 @@
 #    pins everything written before it. That is what turns the chain into
 #    evidence, and it costs one small file.
 #
+# And the archive reaches the target only encrypted, and only whole
+# (opengewerk-haustechnik#360). The parts are written inside this container,
+# readable by nobody but root, and packed and encrypted in one stream into a
+# hidden file on the target, which gets the name of an archive at the very
+# end. Whatever fails before that takes the hidden file and the parts with it.
+# Only then is the name and the SHA-256 of the archive recorded on the
+# instance, which restore.sh and verify.sh hold every archive to, see
+# archive-checks.sh.
+#
 # Called with --scheduled by the nightly schedule (schedule.sh), it skips an
 # instance that has no tenant: after a lost disk the empty instance would
 # otherwise become the newest archive. After every backup it records when it
 # finished in BACKUP_STATUS_PATH, which the office reads (#130).
 
 set -eu
+
+# The archive is packed and encrypted in a pipe, and a pipe answers with the
+# status of its last command alone: a tar that broke off would leave age to
+# encrypt what it got and report success. The shell of the image, busybox sh,
+# knows pipefail; a shell that does not stops here rather than without it.
+set -o pipefail
+
+# Dump, file store and archive hold every tenant. Nothing written here is for
+# anybody but the user running it; the record the office reads is made
+# readable on purpose below.
+umask 077
 
 scheduled=false
 
@@ -80,17 +100,39 @@ mkdir -p "$BACKUP_PATH"
 
 stamp=$(date -u +%Y-%m-%dT%H%M%SZ)
 name="${BACKUP_PREFIX}-${stamp}"
-work="${BACKUP_PATH}/.${name}.work"
-rm -rf "$work"
-mkdir -p "$work"
 
-# Anything that fails from here on leaves no half archive behind. A backup
-# directory holding a truncated file that looks like a backup is worse than
-# one holding nothing.
+if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
+	archive="${BACKUP_PATH}/${name}.tar.gz.age"
+else
+	archive="${BACKUP_PATH}/${name}.tar.gz"
+fi
+
+# The parts are written here, in the container, and never on the target: on a
+# share or a NAS a dump in the clear would lie there for as long as the backup
+# runs, and in its snapshots for longer. TMPDIR moves it, for a machine whose
+# containers have too little room for a dump and a copy of the file store.
+work=$(mktemp -d)
+
+# The archive is written under a hidden name, which the names of archives do
+# not match (names.sh), and renamed when it is whole.
+partial="${BACKUP_PATH}/.${name}.tmp"
+renamed=false
+recorded=false
+
+# Anything that fails before the record is written leaves nothing behind on
+# the target, neither a half archive nor a whole one nobody recorded: a backup
+# directory holding a file that looks like a backup and is none is worse than
+# one holding nothing. A signal ends the script through the same way out.
 cleanup() {
 	rm -rf "$work"
+	rm -f "$partial"
+
+	if [ "$renamed" = true ] && [ "$recorded" = false ]; then
+		rm -f "$archive"
+	fi
 }
 trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
 
 echo "Sicherung ${name} wird erstellt."
 
@@ -146,26 +188,89 @@ cat >"${work}/manifest.json" <<JSON
 JSON
 
 # --- 5. Pack, and encrypt when a key is there ------------------------------
-archive="${BACKUP_PATH}/${name}.tar.gz"
-tar --create --gzip --file "$archive" --directory "$work" .
-
+# In one stream into the hidden file: the packed archive in the clear exists
+# nowhere, not on the target and not here.
 if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
 	# A public key encrypts, and only the private key decrypts. The machine
 	# making backups therefore cannot read its own older ones, which is the
 	# point: whoever takes over the server does not get the archive with it.
-	echo "  Sicherung wird verschlüsselt."
-	age --recipient "$BACKUP_AGE_RECIPIENT" --output "${archive}.age" "$archive"
-	rm -f "$archive"
-	archive="${archive}.age"
+	echo "  Sicherung wird gepackt und verschlüsselt."
+	tar --create --gzip --file - --directory "$work" . |
+		age --recipient "$BACKUP_AGE_RECIPIENT" >"$partial"
 else
 	echo "  WARNUNG: BACKUP_AGE_RECIPIENT ist nicht gesetzt, die Sicherung liegt"
 	echo "  unverschlüsselt. Sie enthält Kundendaten und Belege."
+	tar --create --gzip --file - --directory "$work" . >"$partial"
 fi
 
-# --- 6. Retention ----------------------------------------------------------
+# Read back from the target, so that the checksum is the one of what landed
+# there.
+archive_hash=$(sha256sum "$partial" | cut -d' ' -f1)
+archive_bytes=$(stat -c %s "$partial")
+
+# A second backup in the same second would take the name of the first, and
+# when it failed after that, the first with it.
+if [ -e "$archive" ]; then
+	echo "Unter dem Namen $(basename "$archive") liegt schon eine Sicherung. Eine zweite in" >&2
+	echo "derselben Sekunde wird nicht geschrieben." >&2
+	exit 1
+fi
+
+mv "$partial" "$archive"
+renamed=true
+
+# --- 6. The record of the archive and the one the office reads -------------
+# Both on the instance, never on the target, and both written under a
+# temporary name and moved into place: the office never reads a record of a
+# backup that is not there, and restore.sh never finds half a line.
+# archives.sha256 keeps every archive this instance wrote, also after the
+# retention took it off the target, so that one fetched back from elsewhere
+# can still be held to it; a line is about a hundred bytes. last.json is read
+# by the application, which runs as another user, and is made readable for it.
+if [ -n "${BACKUP_STATUS_PATH:-}" ]; then
+	# A folder made here has to let the application through to last.json.
+	mkdir -p -m 0755 "$BACKUP_STATUS_PATH"
+	record="${BACKUP_STATUS_PATH}/archives.sha256"
+	encrypted=false
+
+	if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
+		encrypted=true
+	fi
+
+	{
+		if [ -f "$record" ]; then
+			cat "$record"
+		fi
+		printf '%s  %s\n' "$archive_hash" "$(basename "$archive")"
+	} >"${record}.tmp"
+
+	cat >"${BACKUP_STATUS_PATH}/.last.json" <<JSON
+{
+  "finished": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "finishedEpoch": $(date +%s),
+  "archive": "$(basename "$archive")",
+  "sha256": "${archive_hash}",
+  "bytes": ${archive_bytes},
+  "encrypted": ${encrypted},
+  "storageFiles": ${storage_files},
+  "auditChains": ${chains}
+}
+JSON
+	chmod 0644 "${BACKUP_STATUS_PATH}/.last.json"
+	mv "${record}.tmp" "$record"
+	mv "${BACKUP_STATUS_PATH}/.last.json" "${BACKUP_STATUS_PATH}/last.json"
+else
+	echo "  WARNUNG: BACKUP_STATUS_PATH ist nicht gesetzt, die Sicherung steht in keinem"
+	echo "  Verzeichnis. Zurückspielen lässt sie sich nur mit --skip-origin-check."
+fi
+
+recorded=true
+
+# --- 7. Retention ----------------------------------------------------------
 # Oldest first, keep the newest BACKUP_KEEP. Sorting by name works because the
 # timestamp is the name and it is written in a sortable shape. Only archives of
-# this prefix count, see names.sh.
+# this prefix count, see names.sh. After the record, so that a retention that
+# fails takes nothing of the new archive back.
 if [ "$BACKUP_KEEP" -gt 0 ]; then
 	total=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | wc -l | tr -d ' ')
 	surplus=$((total - BACKUP_KEEP))
@@ -178,31 +283,6 @@ if [ "$BACKUP_KEEP" -gt 0 ]; then
 				echo "    entfernt: $(basename "$old")"
 			done
 	fi
-fi
-
-# --- 7. The record the office reads ---------------------------------------
-# Written last, after the archive is complete, and moved into place, so that
-# the office never reads a record of a backup that is not there.
-if [ -n "${BACKUP_STATUS_PATH:-}" ]; then
-	mkdir -p "$BACKUP_STATUS_PATH"
-	encrypted=false
-
-	if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
-		encrypted=true
-	fi
-
-	cat >"${BACKUP_STATUS_PATH}/.last.json" <<JSON
-{
-  "finished": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "finishedEpoch": $(date +%s),
-  "archive": "$(basename "$archive")",
-  "bytes": $(stat -c %s "$archive"),
-  "encrypted": ${encrypted},
-  "storageFiles": ${storage_files},
-  "auditChains": ${chains}
-}
-JSON
-	mv "${BACKUP_STATUS_PATH}/.last.json" "${BACKUP_STATUS_PATH}/last.json"
 fi
 
 size=$(du -h "$archive" | cut -f1)

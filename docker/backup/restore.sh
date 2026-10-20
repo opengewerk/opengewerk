@@ -6,6 +6,12 @@
 #
 #   docker compose --profile backup run --rm backup restore.sh <archive>
 #   docker compose --profile backup run --rm backup restore.sh latest
+#   docker compose --profile backup run --rm backup restore.sh --skip-origin-check <archive>
+#
+# Before any of it the archive has to be one this instance wrote: listed in
+# its record with the same SHA-256, and encrypted when the installation
+# encrypts. --skip-origin-check is for a new machine that has no record, see
+# archive-checks.sh.
 #
 # The checks after the restore are the reason this is a script and not a page
 # in a manual. A restore that silently produced half a database would be found
@@ -37,11 +43,46 @@ set -eu
 # The names of the archives, in one place for backup, restore and verify.
 . "$(dirname "$0")/names.sh"
 
-wanted="${1:-latest}"
+# Where an archive comes from and what its chains hold.
+. "$(dirname "$0")/archive-checks.sh"
+
+wanted=''
+trusted=false
+
+for argument in "$@"; do
+	case "$argument" in
+	--skip-origin-check) trusted=true ;;
+	-*)
+		echo "Unbekannte Option ${argument}. Es gibt nur --skip-origin-check." >&2
+		exit 1
+		;;
+	*)
+		if [ -n "$wanted" ]; then
+			echo "Zurückgespielt wird eine Sicherung je Lauf, genannt waren mehrere." >&2
+			exit 1
+		fi
+
+		wanted=$argument
+		;;
+	esac
+done
+
+: "${wanted:=latest}"
 
 if [ -z "${PGPASSWORD:-}" ]; then
-	echo "PGPASSWORD fehlt. Das Rückspielen legt das Schema neu an und meldet sich" >&2
-	echo "deshalb als Superuser an." >&2
+	echo "PGPASSWORD fehlt. Das Rückspielen sperrt die Anwendung aus und prüft danach" >&2
+	echo "über alle Mandanten, beides als Superuser." >&2
+	exit 1
+fi
+
+# The database itself is restored by the owner of the tables, not by the
+# superuser. A dump is a list of statements, and one restored as the
+# superuser runs whatever it holds with every right on the machine, a step
+# back from SET ROLE included. As the owner it can do what the migrations can
+# do and nothing more, which is everything a dump of this database needs.
+if [ -z "${OPENGEWERK_OWNER_PASSWORD:-}" ]; then
+	echo "OPENGEWERK_OWNER_PASSWORD fehlt. Die Datenbank spielt die Rolle opengewerk_owner" >&2
+	echo "zurück, der die Tabellen gehören, und nicht der Superuser." >&2
 	exit 1
 fi
 
@@ -72,6 +113,12 @@ else
 fi
 
 echo "Sicherung: $(basename "$archive")"
+
+# --- Where it comes from ---------------------------------------------------
+# Before it is decrypted or unpacked, see archive-checks.sh.
+if ! check_origin "$archive" "$trusted"; then
+	refuse_origin "Es wird nichts zurückgespielt."
+fi
 
 work=$(mktemp -d)
 cleanup() {
@@ -126,6 +173,12 @@ for part in database.dump storage.tar audit-chains.tsv; do
 	fi
 done
 
+if ! check_chains "${work}/audit-chains.tsv"; then
+	echo "In audit-chains.tsv steht eine Zeile, die kein Kopf einer Kette ist: je Zeile gehören" >&2
+	echo "dorthin ein Mandant als UUID und eine Zahl. Es wird nichts zurückgespielt." >&2
+	exit 1
+fi
+
 # --- Lock the application out for the duration ------------------------------
 # Counting open connections was the first attempt at this and it protects
 # against nothing: the pool closes an idle connection after a few seconds, so
@@ -133,9 +186,9 @@ done
 # much running. A restore would then go through underneath it.
 #
 # So the role is locked instead of counted. NOLOGIN keeps new connections out,
-# terminating ends the ones that exist, and the superuser doing the restore is
-# unaffected because it is a different role. Locking the whole database would
-# not work: that shuts out this connection too.
+# terminating ends the ones that exist, and the owner restoring and the
+# superuser checking are unaffected because they are different roles. Locking
+# the whole database would not work: that shuts out these connections too.
 lock_application() {
 	psql --host "$POSTGRES_HOST" --username postgres --dbname postgres --quiet \
 		--command "alter role opengewerk_app nologin" >/dev/null
@@ -166,10 +219,13 @@ lock_application
 # --clean --if-exists throws away what is there first. Restoring into a
 # database that still holds rows would mix two states, and the result would
 # look plausible and be wrong.
+#
+# Signed in as the owner, see above, and not as the superuser with SET ROLE:
+# a statement in the dump could take that back with RESET ROLE.
 echo "  Datenbank wird zurückgespielt."
-pg_restore --host "$POSTGRES_HOST" --username postgres --dbname "$POSTGRES_DB" \
-	--clean --if-exists --no-owner --role opengewerk_owner \
-	--exit-on-error "${work}/database.dump"
+PGPASSWORD="$OPENGEWERK_OWNER_PASSWORD" pg_restore --host "$POSTGRES_HOST" \
+	--username opengewerk_owner --dbname "$POSTGRES_DB" \
+	--clean --if-exists --no-owner --exit-on-error "${work}/database.dump"
 
 # --- Restore the file store ------------------------------------------------
 echo "  Dateispeicher wird zurückgespielt."

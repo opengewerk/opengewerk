@@ -17,6 +17,11 @@
 # changed after the backup was taken.
 #
 # Nothing is written, and the application keeps running while this runs.
+#
+# Held against heads somebody else put on the target, a rewritten log would
+# pass, so the archive has to be one this instance wrote, as for restore.sh;
+# --skip-origin-check is for a new machine without the record, see
+# archive-checks.sh.
 
 set -eu
 
@@ -27,7 +32,31 @@ set -eu
 # The names of the archives, in one place for backup, restore and verify.
 . "$(dirname "$0")/names.sh"
 
-wanted="${1:-latest}"
+# Where an archive comes from and what its chains hold.
+. "$(dirname "$0")/archive-checks.sh"
+
+wanted=''
+trusted=false
+
+for argument in "$@"; do
+	case "$argument" in
+	--skip-origin-check) trusted=true ;;
+	-*)
+		echo "Unbekannte Option ${argument}. Es gibt nur --skip-origin-check." >&2
+		exit 1
+		;;
+	*)
+		if [ -n "$wanted" ]; then
+			echo "Geprüft wird gegen eine Sicherung je Lauf, genannt waren mehrere." >&2
+			exit 1
+		fi
+
+		wanted=$argument
+		;;
+	esac
+done
+
+: "${wanted:=latest}"
 
 if [ -z "${PGPASSWORD:-}" ]; then
 	echo "PGPASSWORD fehlt." >&2
@@ -64,6 +93,10 @@ fi
 
 echo "Sicherung: $(basename "$archive")"
 
+if ! check_origin "$archive" "$trusted"; then
+	refuse_origin "Es wird nichts geprüft."
+fi
+
 work=$(mktemp -d)
 cleanup() {
 	rm -rf "$work"
@@ -87,6 +120,12 @@ case "$archive" in
 	tar --extract --gzip --file "$archive" --directory "$work" ./audit-chains.tsv
 	;;
 esac
+
+if ! check_chains "${work}/audit-chains.tsv"; then
+	echo "In audit-chains.tsv steht eine Zeile, die kein Kopf einer Kette ist: je Zeile gehören" >&2
+	echo "dorthin ein Mandant als UUID und eine Zahl. Es wird nichts geprüft." >&2
+	exit 1
+fi
 
 checked=0
 problems=0
