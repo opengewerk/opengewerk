@@ -106,6 +106,8 @@ describe('the foundation, built from its building blocks alone', () => {
     // The functions come with the blocks, so that they are the same wherever
     // such a table stands.
     expect(await functionNames(admin)).toEqual([
+      'attachment_may_go',
+      'attachment_purging',
       'attachment_version_stays_as_written',
       'audit_entry_problem',
       'audit_entry_stays',
@@ -117,12 +119,14 @@ describe('the foundation, built from its building blocks alone', () => {
       'create_first_tenant',
       'create_tenant',
       'every_tenant',
+      'file_goes_with_its_document',
       'files_held',
       'instance_change_stays',
       'instance_is_empty',
       'invitation_for',
       'keep_label_blocked',
       'next_sync_sequence',
+      'purge_attachment',
       'record_attachment_uploader',
       'record_change',
       'record_instance_change',

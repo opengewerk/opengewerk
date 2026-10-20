@@ -77,10 +77,14 @@ export const fileUploads = pgTable(
     tenantIsolation(table.tenantId),
     heldByThePersonAsking(table.userId),
     uniqueIndex('file_uploads_once').on(table.tenantId, table.sha256, table.userId),
+    // Who stored a file goes with the file (#658): a row of `files` goes only
+    // with the last version of a document that named it, and then nobody has
+    // it any more. Cascading is done by the database itself, past the policy
+    // that shows each person only their own rows here.
     foreignKey({
       columns: [table.tenantId, table.sha256],
       foreignColumns: [files.tenantId, files.sha256],
       name: 'file_uploads_file_in_tenant',
-    }).onDelete('restrict'),
+    }).onDelete('cascade'),
   ],
 )
