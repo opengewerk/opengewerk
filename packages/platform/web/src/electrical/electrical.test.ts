@@ -37,6 +37,15 @@ describe('a figure somebody typed', () => {
       problem: 'Das ist keine Zahl mit höchstens 3 Nachkommastellen.',
     })
     expect(readFigure('2,5', 0)).toEqual({ problem: 'Das ist keine ganze Zahl.' })
+    expect(readFigure('- 1,5x', 3)).toEqual({ problem: 'Das ist keine Zahl.' })
+    expect(readFigure('+', 3)).toEqual({ problem: 'Das ist keine Zahl.' })
+  })
+
+  it('says it at once, also after a long run of spaces behind a sign', () => {
+    const started = performance.now()
+
+    expect(readFigure(`-${'\t'.repeat(100_000)}x`, 3)).toEqual({ problem: 'Das ist keine Zahl.' })
+    expect(performance.now() - started).toBeLessThan(500)
   })
 })
 

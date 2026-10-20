@@ -383,7 +383,10 @@ export function readFigure(input: string, places: number, units: readonly string
 
   // Letters are a different mistake from one decimal place too many, and
   // the sentence says which, so that nobody hunts for a comma in "sechzehn".
-  if (!/^[\s+-]*[\d.,\s]+$/.test(bare)) {
+  // The signs in front come off first, so that no pattern has spaces on both
+  // sides of a choice: a long run of them in front of a wrong letter would
+  // otherwise take time growing with its square.
+  if (!/^[\d.,\s]+$/.test(bare.replace(/^[\s+-]+/, ''))) {
     return { problem: 'Das ist keine Zahl.' }
   }
 

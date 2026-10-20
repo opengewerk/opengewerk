@@ -723,6 +723,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wenig, und der Wert brach ab. Jetzt ist ihre Spalte mindestens so breit wie ihre längste Wahl, der Rest geht an die
   Felder daneben. Warum: Was im Feld steht, muss man lesen können, bevor man es ändert.
 
+- Eine Zahl im Formular eines Stromkreises, die keine ist, meldet `readFigure` sofort, auch hinter einem Vorzeichen
+  und einer langen Folge von Leerzeichen oder Tabulatoren (Code-Scanning-Alert 22, `js/polynomial-redos`). Das Muster,
+  das „keine Zahl“ von „zu viele Nachkommastellen“ trennt, hatte Leerzeichen auf beiden Seiten einer Wahl, und bei
+  einer Eingabe, die am Ende scheitert, probierte es jede Teilung durch, mit einer Zeit, die mit dem Quadrat der Länge
+  wuchs. Jetzt kommen die Vorzeichen zuerst ab, und der Rest wird mit einem Muster ohne Wahl geprüft. Warum: Eine
+  eingefügte Zeichenfolge soll den Browser nicht anhalten können.
+
 - Ein Foto, das abgelegt wird, während der Abgleich die Dateien davor hochlädt, kommt nicht mehr als Konflikt
   `record_missing` an seiner Prüfsumme zurück (gefunden bei opengewerk-haustechnik#451). Seine Version stand schon im
   Ausgang, die Datei aber erst auf der Liste für den nächsten Abgleich, und der Server fand sie nicht. Jetzt wartet eine
