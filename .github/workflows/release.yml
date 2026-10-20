@@ -40,6 +40,11 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # Nothing below talks to the remote with git: merge-base and archive
+          # read what this checkout fetched, gh has its own token, and so has the
+          # login at ghcr.io. Kept in .git/config, the token that may write would
+          # lie on the disk through the whole build of the images (#644).
+          persist-credentials: false
 
       - name: Fassung aus dem Tag lesen
         id: version

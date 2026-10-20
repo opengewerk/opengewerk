@@ -956,6 +956,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Der Workflow "Release" behält den Token mit Schreibrecht nicht mehr in `.git/config` (`persist-credentials: false`,
+  #644). Warum: kein Schritt danach spricht mit git, und der Token lag sonst während des ganzen Baus der Abbilder auf
+  der Platte; die Haustechnik hält es schon so.
+
 - Die Anwendung prüft beim Start, was ihre Datenbankrolle kann, nicht nur, wie sie heißt (#685, gefunden in der
   Sicherheitsprüfung opengewerk-haustechnik#360). Ist die Rolle Superuser, hat sie `BYPASSRLS`, besitzt sie Tabellen
   oder ist sie Mitglied von `opengewerk_owner`, startet die Instanz nicht und nennt den Grund
