@@ -344,6 +344,7 @@ function foundationCommonFields(words: FoundationAuditWords): Readonly<Record<st
 /** The tables of the foundation the log of a tenant holds, by name. */
 export const foundationAuditTables = [
   'account_corrections',
+  'account_mail_server_changes',
   'attachment_versions',
   'attachments',
   'audit_redactions',
@@ -357,6 +358,7 @@ export const foundationAuditTables = [
   'member_passkeys',
   'memberships',
   'number_ranges',
+  'password_resets',
   'push_opt_outs',
   'push_outbox',
   'push_subscriptions',
@@ -491,6 +493,19 @@ function foundationTables(
         email_after: 'E-Mail neu',
       },
     },
+    // A change of the mail server of the instance, which every tenant learns
+    // of: what it was and what it is now. A side without a server is the first
+    // one set up or the last one removed.
+    account_mail_server_changes: {
+      label: 'Mailserver der Instanz geändert',
+      fields: {
+        host_before: 'Server bisher',
+        from_before: 'Absenderadresse bisher',
+        host_after: 'Server neu',
+        from_after: 'Absenderadresse neu',
+        changed_at: 'Geändert am',
+      },
+    },
     // A value of the log blacked out (ADR 0013): which entry, which side, why
     // and by whom, and the witness of an entry written before the redactions.
     audit_redactions: {
@@ -514,6 +529,11 @@ function foundationTables(
     number_ranges: {
       label: 'Nummernkreis',
       fields: { key: 'Kreis', pattern: 'Muster', next_value: 'Nächste Nummer' },
+    },
+    // A new password through a link or on the server, by whose it is and when.
+    password_resets: {
+      label: 'Passwort zurückgesetzt',
+      fields: { reset_at: 'Zurückgesetzt am' },
     },
     push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },
     push_outbox: {
@@ -619,6 +639,10 @@ function foundationInstanceTables(
  */
 const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   account_corrections: ['user_id'],
+  // A change of the mail server of the instance by the server it sends through
+  // now, and by the one it sent through when it was removed.
+  account_mail_server_changes: ['host_after', 'host_before'],
+  password_resets: ['user_id'],
   // A redaction by its reason.
   audit_redactions: ['reason'],
   // A version by the name its file came with; the file itself has a title.
@@ -653,6 +677,8 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'passkey.rename': 'Passkey umbenannt',
   'passkey.remove': 'Passkey gelöscht',
   'account.own': 'Eigene Angaben geändert',
+  'password.reset': 'Passwort zurückgesetzt',
+  'instance.mail-server': 'Mailserver der Instanz geändert',
   authentication: 'Anmeldung und Konten',
   'instance.setup': 'Ersteinrichtung',
   'invitation.redeem': 'Einladung eingelöst',
