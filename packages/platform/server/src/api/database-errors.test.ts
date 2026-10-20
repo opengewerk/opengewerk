@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { databaseErrors, isUniqueViolation } from './database-errors.js'
 
@@ -74,7 +74,7 @@ describe('what a refusal of the database becomes', () => {
 })
 
 describe('the filter', () => {
-  it('answers with the translation, status and body', () => {
+  function caught(error: unknown): { status?: number; body?: unknown } {
     const { DatabaseExceptionFilter } = databaseErrors()
     const sent: { status?: number; body?: unknown } = {}
     const response = {
@@ -89,10 +89,41 @@ describe('the filter', () => {
     }
     const host = { switchToHttp: () => ({ getResponse: () => response }) }
 
-    new DatabaseExceptionFilter().catch(fromTheDatabase({ code: '42501' }), host as never)
+    new DatabaseExceptionFilter().catch(error, host as never)
+
+    return sent
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('answers with the translation, status and body', () => {
+    const sent = caught(fromTheDatabase({ code: '42501' }))
 
     expect(sent.status).toBe(403)
     expect(sent.body).toMatchObject({ message: 'Kein Zugriff auf diesen Datensatz.' })
+  })
+
+  it('writes an error it does not know into the log, stack and all, and answers 500 without a word', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const broken = new Error('connection terminated')
+
+    const sent = caught(broken)
+
+    expect(sent.status).toBe(500)
+    expect(JSON.stringify(sent.body)).not.toContain('connection terminated')
+    expect(log).toHaveBeenCalledWith('Eine Anfrage scheiterte an einem unbekannten Fehler.', broken)
+  })
+
+  it('keeps what it knows out of the log: a refusal of the database and an answer that already is one', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    caught(fromTheDatabase({ code: '42501' }))
+    caught(fromTheDatabase({ code: '23502' }))
+    caught(new ConflictException('Schon vergeben.'))
+
+    expect(log).not.toHaveBeenCalled()
   })
 })
 

@@ -161,6 +161,16 @@ export function databaseErrors(conflicts: Readonly<Record<string, string>> = {})
       const response = host.switchToHttp().getResponse<Response>()
       const translated = answerFor(error)
 
+      // An error this filter does not know becomes a 500 that says nothing, so
+      // it has to be said somewhere else: in the log of the server, with its
+      // stack, or nobody learns what broke (#694). Registered for every route,
+      // this filter stands in for the one of Nest that would have logged it.
+      // What it knows, a refusal of the database or a body too large, is the
+      // doing of the caller and stays out of the log.
+      if (translated.getStatus() >= 500 && !(error instanceof HttpException)) {
+        console.error('Eine Anfrage scheiterte an einem unbekannten Fehler.', error)
+      }
+
       response.status(translated.getStatus()).json(translated.getResponse())
     }
   }

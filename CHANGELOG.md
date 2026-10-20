@@ -730,6 +730,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Fehlerfilter (`DatabaseExceptionFilter`) schreibt einen Fehler, den er nicht kennt, mit Stack ins Protokoll des
+  Servers, bevor er mit 500 und einem allgemeinen Satz antwortet (#694, gefunden bei opengewerk-haustechnik#475). Was
+  er kennt, eine Ablehnung der Datenbank, einen zu großen Körper oder eine fertige Antwort, bleibt draußen. Warum: Der
+  Filter steht für jede Route und ersetzt damit den von Nest, der den Fehler sonst protokolliert hätte; ein Lesefehler
+  vor einem Druck stand so in keinem Protokoll.
+
 - Eine neue Fassung wird nicht mehr übernommen, während die Kamera oder die Dateiauswahl eines Dateifelds offen ist,
   und das eben aufgenommene Foto geht nicht mehr beim Neuladen verloren (für opengewerk-haustechnik#465, Nachtrag in
   ADR 0004). Ein Dateifeld öffnet auf dem Telefon die Kamera oder die Auswahl und verbirgt damit die Seite, und eine
