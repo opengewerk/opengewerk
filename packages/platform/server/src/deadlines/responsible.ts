@@ -13,12 +13,26 @@ export interface ResponsibleFacts {
 }
 
 /** One deadline of many, with the kind and the setting that apply to it. */
-export interface ResponsibleQuestion<Key> {
+export interface ResponsibleQuestion<Key, Row extends ResponsibleFacts = ResponsibleFacts> {
   readonly key: Key
   readonly kind: DeadlineKind
   readonly setting: DeadlineSetting | null
-  readonly deadline: ResponsibleFacts
+  readonly deadline: Row
 }
+
+/**
+ * Which of the people that come into question may answer for each of these
+ * deadlines, as the application sees it (opengewerk-haustechnik#473). The
+ * foundation knows no places; an application that keeps its deadlines in
+ * places not everybody sees answers here, so that nobody is reminded of a
+ * deadline in a place they do not see, and somebody who sees it is. Asked
+ * once for all the deadlines of a question, each with the people in their
+ * order; the answer has, at the same position, the ones who may.
+ */
+export type MayAnswer<Row> = (
+  tx: TenantTransaction,
+  asked: readonly { readonly deadline: Row; readonly userIds: readonly string[] }[],
+) => Promise<readonly ReadonlySet<string>[]>
 
 /**
  * Who of the people named still works for this tenant and may be given
@@ -60,7 +74,20 @@ async function whoWorksHere(
  * second role that leads, and a question asked of a name would miss it.
  */
 export async function firstLead(tx: TenantTransaction, tenantId: TenantId): Promise<string | null> {
-  const [lead] = await tx
+  return (await leadsInOrder(tx, tenantId, 1))[0] ?? null
+}
+
+/**
+ * Everybody who leads the tenant and is not blocked, the one longest in it
+ * first: the last ones a deadline may wait with, where the application asks
+ * whether they may (`MayAnswer`) and the first of them does not see it.
+ */
+async function leadsInOrder(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  limit?: number,
+): Promise<readonly string[]> {
+  const query = tx
     .select({ userId: memberships.userId })
     .from(memberships)
     .where(
@@ -72,9 +99,9 @@ export async function firstLead(tx: TenantTransaction, tenantId: TenantId): Prom
       ),
     )
     .orderBy(asc(memberships.createdAt), asc(memberships.userId))
-    .limit(1)
+  const leads = await (limit === undefined ? query : query.limit(limit))
 
-  return lead?.userId ?? null
+  return leads.map((lead) => lead.userId)
 }
 
 /**
@@ -107,13 +134,19 @@ function candidatesOf(
  * blocked in the meantime is passed over, so a deadline never waits with a
  * person who cannot sign in.
  *
- * Null only in a tenant without anybody who leads and can sign in, which the
- * administration does not let happen.
+ * Where the application keeps its deadlines in places not everybody sees, it
+ * is asked as well (`mayAnswer`, opengewerk-haustechnik#473): a deadline then
+ * waits with the first in the same order who may answer for it, the people
+ * who lead included, and with nobody where nobody may.
+ *
+ * Otherwise null only in a tenant without anybody who leads and can sign in,
+ * which the administration does not let happen.
  */
-export async function responsibleForAll<Key>(
+export async function responsibleForAll<Key, Row extends ResponsibleFacts = ResponsibleFacts>(
   tx: TenantTransaction,
   tenantId: TenantId,
-  questions: readonly ResponsibleQuestion<Key>[],
+  questions: readonly ResponsibleQuestion<Key, Row>[],
+  mayAnswer?: MayAnswer<Row>,
 ): Promise<Map<Key, string | null>> {
   const asked = questions.map((question) => ({
     key: question.key,
@@ -123,6 +156,24 @@ export async function responsibleForAll<Key>(
     ...new Set(asked.flatMap((question) => question.candidates)),
   ])
   const answers = new Map<Key, string | null>()
+
+  if (mayAnswer !== undefined) {
+    const leads = await leadsInOrder(tx, tenantId)
+    const chains = asked.map((question) => [
+      ...new Set([...question.candidates.filter((candidate) => here.has(candidate)), ...leads]),
+    ])
+    const allowed = await mayAnswer(
+      tx,
+      questions.map((question, at) => ({ deadline: question.deadline, userIds: chains[at] ?? [] })),
+    )
+
+    asked.forEach((question, at) => {
+      answers.set(question.key, chains[at]?.find((userId) => allowed[at]?.has(userId)) ?? null)
+    })
+
+    return answers
+  }
+
   let lead: string | null | undefined
 
   for (const question of asked) {
@@ -139,14 +190,20 @@ export async function responsibleForAll<Key>(
 }
 
 /** Who answers for one deadline, by the same order. */
-export async function responsibleFor(
+export async function responsibleFor<Row extends ResponsibleFacts>(
   tx: TenantTransaction,
   tenantId: TenantId,
   kind: DeadlineKind,
   setting: DeadlineSetting | null,
-  deadline: ResponsibleFacts,
+  deadline: Row,
+  mayAnswer?: MayAnswer<Row>,
 ): Promise<string | null> {
-  const answers = await responsibleForAll(tx, tenantId, [{ key: true, kind, setting, deadline }])
+  const answers = await responsibleForAll(
+    tx,
+    tenantId,
+    [{ key: true, kind, setting, deadline }],
+    mayAnswer,
+  )
 
   return answers.get(true) ?? null
 }

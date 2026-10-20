@@ -22,7 +22,7 @@ import type {
   OwnDeadlineColumns,
 } from '../database/schema/deadlines.js'
 import { type RepeatingJob, startRepeating } from '../start/repeat.js'
-import { responsibleFor } from './responsible.js'
+import { type MayAnswer, responsibleFor } from './responsible.js'
 import { recordDeadlinePass } from './runs.js'
 import { deadlineSettingsOf } from './settings.js'
 
@@ -125,6 +125,12 @@ export interface DeadlineEngine<
   readonly now?: () => Date
   /** Where a failure is said; the log, unless a test listens. */
   readonly complain?: (line: string, error: unknown) => void
+  /**
+   * Who of the people that come into question may be reminded of a deadline,
+   * where the application keeps its deadlines in places not everybody sees
+   * (opengewerk-haustechnik#473). Without it, everybody who works here may.
+   */
+  readonly mayAnswer?: MayAnswer<DeadlinesTable<Own>['$inferSelect']>
 }
 
 /** What one pass did, for the tests and for nothing else. */
@@ -301,7 +307,14 @@ async function remindOne<
     return false
   }
 
-  const responsible = await responsibleFor(tx, tenantId, kind, setting, claimed)
+  const responsible = await responsibleFor(
+    tx,
+    tenantId,
+    kind,
+    setting,
+    claimed,
+    engine.mayAnswer as MayAnswer<KeptDeadline> | undefined,
+  )
 
   for (const action of kind.actions) {
     if (action === reminderAction) {

@@ -251,8 +251,10 @@ jobs:
           # GitHub takes at most 125000 characters for a release page, and the
           # first release carries everything since the start: 96000 on
           # 24.09.2026, more with every day. Past the limit the page points at
-          # the changelog of the tag instead of failing.
-          if len(body) > 110_000:
+          # the changelog of the tag instead of failing. The hint, the mirror
+          # and the part about installing below add less than 2500, so the
+          # changelog may take 120000; 0.6.0 had 110000 with its introduction.
+          if len(body) > 120_000:
               body = (
                   "Was diese Fassung bringt, ist für eine Release-Seite zu lang und steht im "
                   f"[CHANGELOG](https://github.com/opengewerk/opengewerk/blob/v{version}/CHANGELOG.md)."

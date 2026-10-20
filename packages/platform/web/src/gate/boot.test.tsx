@@ -337,9 +337,10 @@ describe('starting with a network', () => {
   /**
    * The second factor is asked of the session, as the server asks it
    * (opengewerk-haustechnik#360). Somebody whose role asks for it goes on to
-   * the choice after a sign in with the code or with a passkey (#167), and is
-   * asked to set the app up after one with the password alone, also where the
-   * account has the app by now.
+   * the choice after a sign in with the code or with a passkey (#167), and
+   * after one with the password alone meets the second factor: the setup of
+   * the app, or, where the account has it by now, a sign in again
+   * (opengewerk/opengewerk#691, below).
    */
   it.each([
     ['the code', { secondFactor: true, twoFactorEnabled: true }, 'Mandant wählen'],
@@ -362,6 +363,34 @@ describe('starting with a network', () => {
       start()
 
       expect(await screen.findByRole('heading', { name: heading })).toBeTruthy()
+    },
+  )
+
+  /**
+   * An account that has the app, signed in with the password alone (#691):
+   * the gate does not set the app up a second time, which better-auth
+   * refuses, and the person would be stuck. It says that the sign in needs
+   * the second factor and offers the way out. Without the app, the setup.
+   */
+  it.each([
+    ['has the app', { twoFactorEnabled: true }, true],
+    ['has no app', {}, false],
+  ] as const)(
+    'sends an account that %s, signed in without the second factor, to sign in again or to the setup',
+    async (_has, signedIn, again) => {
+      serverAnswers((path) =>
+        path.endsWith('/get-session')
+          ? session(null, signedIn)
+          : path === '/auth/tenants'
+            ? [aTenant({ id: 't-nord', roles: ['lead'], secondFactor: true })]
+            : null,
+      )
+      start()
+
+      expect(await screen.findByRole('heading', { name: 'Zweiter Faktor' })).toBeTruthy()
+      expect(screen.queryByText(/Diese Anmeldung kam ohne ihn/) !== null).toBe(again)
+      expect(screen.queryByRole('button', { name: 'Abmelden' }) !== null).toBe(again)
+      expect(screen.queryByLabelText('Passwort') !== null).toBe(!again)
     },
   )
 

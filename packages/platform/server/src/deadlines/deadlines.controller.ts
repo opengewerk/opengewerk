@@ -61,7 +61,7 @@ import {
   tableFormatOf,
 } from '../tables/write.js'
 import type { KeptDeadline } from './engine.js'
-import { responsibleForAll } from './responsible.js'
+import { type MayAnswer, responsibleForAll } from './responsible.js'
 import { deadlineRunOf } from './runs.js'
 import { deadlineSettingsOf } from './settings.js'
 
@@ -320,6 +320,13 @@ export interface DeadlineRules<
   readonly filters?: Readonly<Record<string, (value: string) => SQL | null>>
   /** What a kind says beside what every one says: the package it comes from, for one. */
   readonly kindFields?: (kind: Kind) => Readonly<Record<string, unknown>>
+  /**
+   * Who of the people that come into question may answer for a deadline,
+   * where the application keeps its deadlines in places not everybody sees
+   * (opengewerk-haustechnik#473): the list names them, and a person who may
+   * not is refused as the person of a deadline.
+   */
+  readonly mayAnswer?: MayAnswer<Row>
   /** What follows a new person for a deadline: a task it made changes hands. */
   readonly afterResponsible?: (tx: TenantTransaction, tenantId: TenantId, row: Row) => Promise<void>
   /** What follows a deadline marked done: a task it made is done with it. */
@@ -330,6 +337,8 @@ export interface DeadlineRules<
   readonly sentences: {
     /** For a person who does not work for the tenant or is blocked. */
     readonly notAColleague: string
+    /** For a person who works here but may not answer for this deadline (`mayAnswer`). */
+    readonly outsideThePlace?: string
   }
   /** The list as a table, where the application offers it. */
   readonly listAsTable?: DeadlineTableParts
@@ -620,6 +629,7 @@ function deadlinesController(
                   ? [{ key: row.id, kind, setting: settings.get(kind.key) ?? null, deadline: row }]
                   : []
               }),
+              this.rules.mayAnswer,
             )
           let rows: KeptDeadline[]
           let total: number | null = null
@@ -821,6 +831,28 @@ function deadlinesController(
             fields['responsibleUserId'],
             this.rules.sentences.notAColleague,
           )
+
+          // Nobody who could not be reminded of it (opengewerk-haustechnik#473).
+          const person = changes.responsibleUserId
+          const mayAnswer = this.rules.mayAnswer
+
+          if (person !== null && mayAnswer !== undefined) {
+            const [row] = (await tx
+              .select()
+              .from(table)
+              .where(eq(table.id, id as never))) as KeptDeadline[]
+
+            if (row !== undefined) {
+              const [allowed] = await mayAnswer(tx, [{ deadline: row, userIds: [person] }])
+
+              if (!allowed?.has(person)) {
+                throw new UnprocessableEntityException(
+                  this.rules.sentences.outsideThePlace ??
+                    'Diese Person sieht den Ort dieser Frist nicht.',
+                )
+              }
+            }
+          }
         }
 
         const [updated] = (await tx

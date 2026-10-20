@@ -7,7 +7,51 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-20
+
+Die sechste Fassung schließt acht Sicherheitslücken, die eine Prüfung vor der nächsten Fassung von
+OpenGewerk Haustechnik im gemeinsamen Fundament gefunden hat; die Advisories erscheinen mit ihr. Am
+schwersten wog, dass die Anmeldung den Körper einer Anfrage ohne Grenze las, bevor irgendetwas
+geprüft war. Dazu kommen der zweite Faktor an der Sitzung statt am Konto, eine Grenze für das
+Ablegen von Dateien, kein HTTP-Cache für Antworten der Anwendung, Grenzen nach der Adresse hinter
+dem Reverse Proxy, Konflikte des Abgleichs, die Gerät und Person gehören, und eine Sicherung, die
+nur fertig und verschlüsselt auf das Ziel kommt und nur eigene Archive zurückspielt. Die Dienste
+laufen gehärtet, der Renderer in einem eigenen Netz, und das Paket nennt jedes Abbild mit Digest und
+prüft seine Signatur vor dem Start.
+
+Das meiste, was seit 0.5.0 sonst dazukam, sind Bausteine des Fundaments für OpenGewerk Haustechnik.
+In der Handwerkersoftware zeigt das Änderungsprotokoll geänderte Werte, ein Ansprechpartner hat eine
+zweite Nummer, und eine neue Fassung wird von selbst übernommen.
+
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert; die Migrationen `0069_contacts_kept` bis
+`0087_purge_attachments` laufen von selbst. Danach:
+
+- Wer die Instanz betreibt, trägt unter „Instanz verwalten“, „Einstellungen“ den Mailserver der
+  Instanz ein. Über ihn gehen jetzt der Link zu einem neuen Passwort und der Hinweis auf einen neuen
+  Passkey, und bis er eingetragen ist, geht keines von beiden hinaus.
+- Wer nur mit dem Passwort auf einem Konto mit Authenticator-App angemeldet war, meldet sich neu an.
+- Sicherungen von vor dem Update spielt `restore.sh` nur mit `--skip-origin-check` zurück. Wer
+  verschlüsselt sichert, löscht auf dem Ziel jedes Archiv `.tar.gz` ohne Gegenstück `.age`.
+
 ### Hinzugefügt
+
+- Eine Anwendung, die ihre Fristen an Orten hält, die nicht jeder sieht, sagt dem Fundament, wer eine Frist dort
+  bekommen darf (`MayAnswer`, im Lauf der Fristen und in den Regeln der Liste, opengewerk/opengewerk-haustechnik#473).
+  Die Erinnerung geht dann an die erste Person in der gewohnten Reihenfolge, die das darf, die Leitung eingeschlossen,
+  und an niemanden, wo es niemand darf; die Liste nennt dieselbe Person, und als Person einer Frist lehnt die Route
+  jemanden ab, der den Ort nicht sieht. Ohne die Frage bleibt alles, wie es war. Warum: die Erinnerung ging nach der
+  Mitgliedschaft und nannte einer Person ohne den Bereich Art, Tag und Kennung der Frist, gefunden in der
+  Sicherheitsprüfung der Haustechnik.
+
+- Ein Dokument und seine Dateien lassen sich nach Ablauf einer Aufbewahrung endgültig löschen (#658), auf dem einen Weg,
+  den eine Anwendung dafür öffnet: `purge_attachment(dokument, titel)` löscht die Fassungen, lässt das Dokument als
+  gelöschte Hülle mit dem gegebenen Titel stehen, damit ein Gerät davon erfährt. Die Zeile jeder Datei in `files`, auf
+  die danach kein Schlüssel mehr zeigt, nimmt ein Trigger der Fassung mit, samt dem Eintrag, wer sie abgelegt hat; die
+  Anwendung selbst darf in `files` nicht löschen, eine Datei geht nur mit der Fassung, die sie nennt. Wann, entscheidet
+  die Anwendung mit `application_attachment_may_go`; ohne sie geht nichts, und die Riegel lehnen jedes andere Löschen
+  einer Fassung oder einer Datei ab, auch für den Eigentümer der Tabellen. Das Änderungsprotokoll schreibt dabei nichts
+  ab. Diese Anwendung öffnet den Weg nicht; Migration `0087_purge_attachments`. Warum: die Haustechnik markierte ein
+  Dokument nach Ablauf der Aufbewahrung nur als entfernt, und Titel, Dateinamen und Dateien blieben.
 
 - Der Dateispeicher räumt sich auf (#657): einmal am Tag nimmt ein Lauf die Bytes jeder Datei heraus, die kein
   Betrieb mehr hält und die älter als ein Tag ist, dazu liegengebliebene Reste abgebrochener Schreibvorgänge. Welche
@@ -445,6 +489,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Release-Seite nimmt den Abschnitt einer Fassung bis 120.000 Zeichen, bisher 110.000; GitHub nimmt 125.000, und
+  Hinweis und Anleitung darunter brauchen weniger als 2.500. Warum: 0.6.0 hatte mit seiner Einleitung rund 111.000
+  Zeichen, und die Seite hätte sonst nur auf den CHANGELOG verwiesen.
 - Die README hält nur noch das Wichtigste: was OpenGewerk ist, den Stand, den Schnellstart, wo die Dokumentation
   steht, Hilfe und Lizenz. Betrieb, Entwicklung sowie Funktionsumfang und Stand stehen unverändert in
   `docs/betrieb.md`, `docs/entwicklung.md` und `docs/funktionsumfang.md`; Meldungen, Kommentare, die Seite der
@@ -741,6 +788,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wurde an einer Seite rot, die niemand angefasst hatte.
 
 ### Behoben
+
+- Das Tor richtet die Authenticator-App eines Kontos, das sie schon hat, nicht noch einmal ein (#691). Kam die
+  Anmeldung ohne zweiten Faktor und verlangt eine Rolle ihn, sagt es jetzt, dass die Anmeldung ihn braucht, und bietet
+  das Abmelden an, wie die Tafel "Zweiter Faktor fehlt in der Anmeldung" der Haustechnik es zeigt. Warum: seit #690
+  gehört der zweite Faktor zur Sitzung, better-auth lehnt ein zweites Einrichten mit "already enabled" ab, und die
+  Person steckte fest.
+
+- Die Karte eines Konflikts, dessen Datensatz die Person nicht mehr sieht, sagt, warum sie leer ist (#697): "Nicht
+  mehr sichtbar" unter der Art des Datensatzes, der Satz, dass die Änderung deshalb nicht übernommen wurde, und nur
+  "Schließen", im Büro und vor Ort wie die Tafeln "Konflikt ohne Werte" der Haustechnik. Warum: seit #696 kommt ein
+  solcher Konflikt ohne Felder und Werte, und die Karte mit Grund, ohne Zeilen und mit zwei Knöpfen, die beide nur
+  schließen, sah aus wie ein Fehler der Anzeige.
 
 - Der Fehlerfilter (`DatabaseExceptionFilter`) schreibt einen Fehler, den er nicht kennt, mit Stack ins Protokoll des
   Servers, bevor er mit 500 und einem allgemeinen Satz antwortet (#694, gefunden bei opengewerk-haustechnik#475). Was
