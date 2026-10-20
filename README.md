@@ -1223,17 +1223,25 @@ nur die jeweils neueste, und wie sie ausgeliefert wird, steht in der
 [SECURITY.md](https://github.com/opengewerk/.github/blob/main/SECURITY.md) der
 Organisation.
 
-### Was beim Aufsetzen sonst noch Zeit kostet
+### Reverse Proxy
 
-- **Das Volume gehört auf `/var/lib/postgresql`, nicht auf `.../data`.** Die
-  Abbilder ab PostgreSQL 18 legen die Daten in einem Unterverzeichnis je
-  Hauptversion ab, damit ein späteres `pg_upgrade --link` nicht über eine
-  Mount-Grenze stolpert. Auf dem alten Pfad startet der Container gar nicht
-  erst, mit einer langen Meldung, in der die eine entscheidende Zeile
-  untergeht.
-- **Vor die Anwendung gehört ein Reverse Proxy mit TLS.** Sie lauscht
-  absichtlich nur auf `127.0.0.1`. Eine Anwendung, die Rechnungen führt, steht
-  nicht unverschlüsselt im Netz.
+Vor die Anwendung gehört ein Reverse Proxy mit TLS. Sie lauscht absichtlich nur
+auf `127.0.0.1`: eine Anwendung, die Rechnungen führt, steht nicht
+unverschlüsselt im Netz. Zwei Vorlagen liegen unter `docker/proxy/`, auch im
+Installationspaket: [`apache.conf`](docker/proxy/apache.conf) für Apache 2.4
+und [`nginx.conf`](docker/proxy/nginx.conf) für nginx. Jede ist für sich
+vollständig, mit der Weiterleitung von HTTP auf HTTPS, dem Zertifikat unter dem
+Pfad, den certbot anlegt, dem Proxy auf `127.0.0.1:23700` samt Host, Protokoll
+und `X-Forwarded-For`, den Grenzen je Pfad und einer Zeitgrenze für lange
+Drucke. Wie sie eingesetzt wird, steht in ihrem Kopf, und jede Zeile, die zur
+eigenen Instanz passen muss, trägt einen Kommentar; der Name darin ist
+`opengewerk.example.org`. Die CI prüft beide bei jedem Pull Request mit
+`nginx -t` und `httpd -t`, jeweils in der ältesten Fassung, die eine noch
+unterstützte Distribution mitbringt, und in der neuesten
+(`docker/test-proxy.sh`).
+
+Was darüber hinaus zu wissen ist, auch für einen anderen Proxy wie Caddy:
+
 - **Der Proxy ergänzt `X-Forwarded-For`, statt es durchzureichen.** Die
   Grenzen je Adresse, etwa fünf falsche Passwörter in der Minute, zählen nach
   dem letzten Eintrag dieses Headers, denn die Verbindung selbst kommt für jede
@@ -1244,23 +1252,11 @@ Organisation.
   Zähler, mit derselben Grenze wie eine Adresse: dann sperren wenige
   Fehlversuche eines Fremden die Anmeldung für alle. Die Anwendung schreibt das
   beim ersten Mal als Warnung ins Log. Apache mit `ProxyPass` und Caddy hängen
-  von sich aus an. nginx tut es nur mit einer Zeile im `server`-Block:
-
-  ```nginx
-  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  ```
-
-  Hat ein `location`-Block ein eigenes `proxy_set_header`, gehört die Zeile
-  auch dorthin: nginx erbt die Zeilen des `server`-Blocks dann nicht.
-
-  Für Apache im `VirtualHost` genügt `ProxyPass`; `ProxyAddHeaders` steht ohne
-  Angabe auf `On` und bleibt so:
-
-  ```apache
-  ProxyPass        / http://127.0.0.1:23700/
-  ProxyPassReverse / http://127.0.0.1:23700/
-  ProxyAddHeaders  On
-  ```
+  von sich aus an, nginx nur mit
+  `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`. Die Vorlage
+  für nginx hat die Zeile im `server`-Block. Bekommt dort ein `location`-Block
+  ein eigenes `proxy_set_header`, erbt er die Zeilen des `server`-Blocks nicht
+  mehr und braucht alle selbst.
 
   Ob es stimmt, zeigt nach einer Anmeldung „Konto“ unter „Angemeldete Geräte“:
   dort steht beim eigenen Gerät die Netzadresse, von der es kam. Steht dort
@@ -1273,45 +1269,17 @@ Organisation.
   50 MB durch. Überall sonst reichen 2 MB: das Größte dort ist das Logo im
   Briefkopf mit 1 MB, die Anmeldung unter `/api/auth/` nimmt höchstens 64 kB an
   und jede andere Route 100 kB. So erreicht ein großer Körper ohne Anmeldung die
-  Anwendung gar nicht erst. nginx nimmt ohne Angabe nur 1 MB an, Apache ab 2.4.54
-  bis 1 GB, Caddy hat keine Grenze. Was der Proxy ablehnt, kommt als 413 ohne
-  Satz an, und ein Postausgang, der daran scheitert, bleibt hängen, bis der
-  Proxy es durchlässt.
-
-  Für nginx im `server`-Block; was sonst für den Proxy gilt, etwa
-  `proxy_set_header`, steht einmal im `server`-Block und gilt in allen drei:
-
-  ```nginx
-  client_max_body_size 2m;
-
-  location / {
-      proxy_pass http://127.0.0.1:23700;
-  }
-
-  location /files/ {
-      client_max_body_size 50m;
-      proxy_pass http://127.0.0.1:23700;
-  }
-
-  location = /sync {
-      client_max_body_size 50m;
-      proxy_pass http://127.0.0.1:23700;
-  }
-  ```
-
-  Für Apache im `VirtualHost`, neben `ProxyPass`:
-
-  ```apache
-  LimitRequestBody 2097152
-
-  <Location "/files/">
-      LimitRequestBody 52428800
-  </Location>
-
-  <LocationMatch "^/sync$">
-      LimitRequestBody 52428800
-  </LocationMatch>
-  ```
+  Anwendung gar nicht erst. nginx nimmt ohne Angabe nur 1 MB an, Caddy hat keine
+  Grenze. Apache wendet `LimitRequestBody` auf eine Anfrage, die es mit
+  `ProxyPass` weiterreicht, gar nicht an; die Vorlage vergleicht deshalb mit
+  mod_rewrite die Länge, die eine Anfrage angibt. Eine Anfrage ohne Angabe der
+  Länge lässt Apache so durch, für sie gelten die Grenzen der Anwendung. Was der
+  Proxy ablehnt, kommt als 413 ohne Satz an, und ein Postausgang, der daran
+  scheitert, bleibt hängen, bis der Proxy es durchlässt.
+- **Ein Druck darf dauern.** Der Renderer bekommt für ein PDF bis zu
+  60 Sekunden, und genau so lange wartet nginx ohne Angabe auf eine Antwort,
+  bevor es mit 504 abbricht; Apache wartet so lange wie sein `Timeout`, von Haus
+  aus ebenfalls 60 Sekunden. Die Vorlagen warten 300 Sekunden.
 - **Die Sicherheits-Header setzt die Anwendung selbst, der Proxy setzt sie kein
   zweites Mal.** Jede Antwort trägt `X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options`, `Strict-Transport-Security` und die beiden
@@ -1333,6 +1301,15 @@ Organisation.
   nicht. Der Proxy speichert deshalb keine Antwort der Anwendung zwischen und
   ersetzt `Cache-Control` nicht. Prüfen lässt es sich mit
   `curl -sI https://<adresse>/health`, das `cache-control: no-store` zeigen muss.
+
+### Was beim Aufsetzen sonst noch Zeit kostet
+
+- **Das Volume gehört auf `/var/lib/postgresql`, nicht auf `.../data`.** Die
+  Abbilder ab PostgreSQL 18 legen die Daten in einem Unterverzeichnis je
+  Hauptversion ab, damit ein späteres `pg_upgrade --link` nicht über eine
+  Mount-Grenze stolpert. Auf dem alten Pfad startet der Container gar nicht
+  erst, mit einer langen Meldung, in der die eine entscheidende Zeile
+  untergeht.
 - **Die `.env` ist die einzige Datei mit Zugangsdaten.** `chmod 600`, und sie
   bleibt draußen aus dem Repository.
 - **Ein Paket entpackt root mit `tar --no-same-owner`.** Ohne die Option
