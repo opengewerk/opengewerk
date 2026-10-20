@@ -68,12 +68,12 @@ async function get(path: string, who = office, status = 200) {
   return answer.body as unknown
 }
 
-async function upload(bytes: Uint8Array): Promise<string> {
+async function upload(bytes: Uint8Array, who = office): Promise<string> {
   const sha256 = createHash('sha256').update(bytes).digest('hex')
 
   await http()
     .put(`/files/${sha256}`)
-    .set('x-test-identity', office)
+    .set('x-test-identity', who)
     .set('Content-Type', 'application/octet-stream')
     .set('X-Media-Type', 'application/octet-stream')
     .send(Buffer.from(bytes))
@@ -596,6 +596,39 @@ describe('an import that cannot start or run', () => {
       400,
     )
     await send('post', `/suppliers/${hansa}/imports`, { files: [] }, 400)
+  })
+
+  it('is refused for a file somebody else stored, until an import in reach names it or the person stores it too', async () => {
+    const colleague = JSON.stringify({ userId: 'kollegin', tenantId: north.id, roles: ['office'] })
+    const start = (sha256: string, who: string, status: number) =>
+      send(
+        'post',
+        `/suppliers/${hansa}/imports`,
+        { files: [{ name: 'DATANORM.001', sha256 }] },
+        status,
+        who,
+      )
+
+    // Stored by somebody else and named by no import: as if never stored.
+    const named = await upload(new TextEncoder().encode('Lieferung aus dem Büro\n'))
+    const refused = await start(named, colleague, 422)
+
+    expect(refused.message).toBe('Die Datei DATANORM.001 ist nicht hochgeladen worden.')
+
+    // Once an import names it, whoever sees that import may read it again.
+    await start(named, office, 202)
+    await imports.settled()
+    await start(named, colleague, 202)
+    await imports.settled()
+
+    // Stored by somebody else, and then by the person as well.
+    const twice = new TextEncoder().encode('Zweite Lieferung aus dem Büro\n')
+    const sha256 = await upload(twice)
+
+    await start(sha256, colleague, 422)
+    await upload(twice, colleague)
+    await start(sha256, colleague, 202)
+    await imports.settled()
   })
 
   it('fails with a sentence for files that are no DATANORM', async () => {

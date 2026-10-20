@@ -264,6 +264,8 @@ describe('the tables', () => {
       name === 'document_snapshots' ||
       name === 'document_files' ||
       name === 'files' ||
+      // Who stored a file, written with the file and read by that person alone.
+      name === 'file_uploads' ||
       name === 'text_snippets' ||
       name === 'instructions' ||
       name === 'document_instruction_choices' ||

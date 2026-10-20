@@ -28,6 +28,7 @@ import { syncTables } from '../sync/tables.js'
 import {
   attachmentRecordRules,
   attachmentVersionFiles,
+  attachmentVersionPlace,
   attachmentVersionSizeMismatch,
 } from './sync.js'
 
@@ -37,7 +38,8 @@ import {
  * file a scan under a shelf, at a letter or at both, and lay versions over
  * it. A file on neither, and a version that says of its bytes what only a
  * broken client says, are mistakes of the device, refused with the sentence;
- * a version whose bytes never arrived is a conflict about that one version.
+ * a version whose bytes never arrived is a conflict about that one version,
+ * and so is one whose bytes somebody else stored and no row in reach names.
  */
 
 const north = { id: newId<'tenant'>() as TenantId, name: 'Mandant Nord' }
@@ -59,6 +61,30 @@ const sync = serverSync<null>({
   checks: [recordRulesCheck(attachmentRecordRules(probeAttachmentRules)), attachmentVersionFiles()],
 })
 
+/** The same application, where a file laid over one document may be laid over another. */
+const syncNamingVersions = serverSync<null>({
+  rules: syncRules({
+    ...probePolicies,
+    attachments: { create: true, change: 'merge' },
+    attachment_versions: attachmentVersionPolicy,
+  }),
+  tables: syncTables({
+    shelves,
+    letters,
+    attachments: probeAttachments,
+    attachmentVersions: probeAttachmentVersions,
+  }),
+  checks: [
+    recordRulesCheck(attachmentRecordRules(probeAttachmentRules)),
+    attachmentVersionFiles([
+      attachmentVersionPlace({
+        attachments: probeAttachments,
+        attachmentVersions: probeAttachmentVersions,
+      }),
+    ]),
+  ],
+})
+
 let foundation: ProbeFoundation
 let admin: Pool
 let database: Database
@@ -74,10 +100,16 @@ const preview = { sha256: hashOf('preview'), sizeBytes: 7 }
 const foreign = { sha256: hashOf('foreign'), sizeBytes: 7 }
 /** Bytes nobody has stored. */
 const missing = hashOf('never uploaded')
+/** Bytes Mia stored, of the same tenant as Olga, who sends the versions, and their preview. */
+const colleagues = { sha256: hashOf('stored by mia'), sizeBytes: 13 }
+const colleaguesPreview = { sha256: hashOf('preview by mia'), sizeBytes: 14 }
 
-function inTenant<Result>(work: (tx: TenantTransaction) => Promise<Result>): Promise<Result> {
+function inTenant<Result>(
+  work: (tx: TenantTransaction) => Promise<Result>,
+  userId = 'olga',
+): Promise<Result> {
   return database.forTenant(
-    { tenantId: north.id, userId: 'olga', reason: 'sync', deviceId: 'probe-phone' },
+    { tenantId: north.id, userId, reason: 'sync', deviceId: 'probe-phone' },
     work,
   )
 }
@@ -132,8 +164,8 @@ function aVersion(attachmentId: string, fields: Record<string, SyncValue> = {}):
   })
 }
 
-function send(operations: readonly Operation[]) {
-  return inTenant((tx) => sync.applyOperations(tx, north.id, operations, null))
+function send(operations: readonly Operation[], userId = 'olga', through = sync) {
+  return inTenant((tx) => through.applyOperations(tx, north.id, operations, null), userId)
 }
 
 const outcomes = (receipts: readonly OperationReceipt[]) =>
@@ -179,16 +211,24 @@ beforeEach(async () => {
     'Lieferschein',
   ])
 
-  // The bytes travel ahead of a version: what is stored before anything is sent.
-  for (const [tenant, file] of [
-    [north.id, scan],
-    [north.id, preview],
-    [south.id, foreign],
+  // The bytes travel ahead of a version: what is stored before anything is
+  // sent, and by whom.
+  for (const [tenant, file, by] of [
+    [north.id, scan, 'olga'],
+    [north.id, preview, 'olga'],
+    [north.id, colleagues, 'mia'],
+    [north.id, colleaguesPreview, 'mia'],
+    [south.id, foreign, 'susi'],
   ] as const) {
     await admin.query(
       "insert into files (tenant_id, sha256, size_bytes, media_type) values ($1, $2, $3, 'application/pdf')",
       [tenant, file.sha256, file.sizeBytes],
     )
+    await admin.query('insert into file_uploads (tenant_id, sha256, user_id) values ($1, $2, $3)', [
+      tenant,
+      file.sha256,
+      by,
+    ])
   }
 })
 
@@ -352,6 +392,90 @@ describe('a version from a device', () => {
       { outcome: 'conflict', reason: 'record_missing', fields: ['previewSha256'] },
     ])
     expect(await keptVersions()).toEqual([])
+  })
+
+  it('whose bytes somebody else stored is a conflict like bytes that never arrived, and lands nothing', async () => {
+    const receipts = await send([
+      aVersion(attachmentId, { sha256: colleagues.sha256, sizeBytes: colleagues.sizeBytes }),
+      aVersion(attachmentId, { previewSha256: colleagues.sha256 }),
+    ])
+
+    expect(outcomes(receipts)).toEqual([
+      { outcome: 'conflict', reason: 'record_missing', fields: ['sha256'] },
+      { outcome: 'conflict', reason: 'record_missing', fields: ['previewSha256'] },
+    ])
+    expect(await keptVersions()).toEqual([])
+  })
+
+  it('lands with bytes somebody else stored once the person sends them too', async () => {
+    await admin.query(
+      "insert into file_uploads (tenant_id, sha256, user_id) values ($1, $2, 'olga')",
+      [north.id, colleagues.sha256],
+    )
+
+    const receipts = await send([
+      aVersion(attachmentId, {
+        sha256: colleagues.sha256,
+        sizeBytes: colleagues.sizeBytes,
+        previewSha256: colleagues.sha256,
+      }),
+    ])
+
+    expect(outcomes(receipts)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+  })
+
+  it('lands with bytes a version in reach names already, where the application lists its versions', async () => {
+    // Mia lays her file over the document, with a preview; Olga sees that version.
+    const byMia = await send(
+      [
+        aVersion(attachmentId, {
+          sha256: colleagues.sha256,
+          sizeBytes: colleagues.sizeBytes,
+          previewSha256: colleaguesPreview.sha256,
+        }),
+      ],
+      'mia',
+    )
+
+    expect(outcomes(byMia)).toEqual([{ outcome: 'applied', reason: null, fields: [] }])
+
+    const elsewhere = newId<'attachment'>()
+    const again = [
+      aFile({ letterId: letter, title: 'Brief' }, elsewhere),
+      aVersion(elsewhere, {
+        sha256: colleagues.sha256,
+        sizeBytes: colleagues.sizeBytes,
+        previewSha256: colleaguesPreview.sha256,
+      }),
+    ]
+
+    expect(outcomes(await send(again, 'olga', syncNamingVersions))).toEqual([
+      { outcome: 'applied', reason: null, fields: [] },
+      { outcome: 'applied', reason: null, fields: [] },
+    ])
+  })
+
+  it('finds no bytes in a version of a file removed from the records', async () => {
+    await send(
+      [aVersion(attachmentId, { sha256: colleagues.sha256, sizeBytes: colleagues.sizeBytes })],
+      'mia',
+    )
+    await send([operation({ entity: 'attachments', recordId: attachmentId, kind: 'delete' })])
+
+    const elsewhere = newId<'attachment'>()
+    const receipts = await send(
+      [
+        aFile({ letterId: letter, title: 'Brief' }, elsewhere),
+        aVersion(elsewhere, { sha256: colleagues.sha256, sizeBytes: colleagues.sizeBytes }),
+      ],
+      'olga',
+      syncNamingVersions,
+    )
+
+    expect(outcomes(receipts)).toEqual([
+      { outcome: 'applied', reason: null, fields: [] },
+      { outcome: 'conflict', reason: 'record_missing', fields: ['sha256'] },
+    ])
   })
 
   it('with a size that is not the size of its file is a mistake of the device, refused with the sentence', async () => {

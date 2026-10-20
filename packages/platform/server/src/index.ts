@@ -149,6 +149,7 @@ export * from './instance/tenants.js'
 // stored through. Who may store one, the application says.
 export * from './files/controller.js'
 export * from './files/media-type.js'
+export * from './files/naming.js'
 export * from './files/rows.js'
 export * from './files/store.js'
 export * from './files/upload-limits.js'
