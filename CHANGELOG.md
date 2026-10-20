@@ -7,6 +7,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Das Security-Review steht auf `731e352` von opengewerk/.github (opengewerk/.github#45), dem Stand, der ein
+  angehobenes Submodul selbst belegt, wie in den übrigen Repositories der Organisation.
+
 ## [0.6.1] - 2026-10-21
 
 Eine Sicherheitsfassung. Teil 2 der Prüfung vor der nächsten Fassung von OpenGewerk Haustechnik hat im
