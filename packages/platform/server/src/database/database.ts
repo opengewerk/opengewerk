@@ -3,6 +3,7 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { Pool, type PoolClient } from 'pg'
 
 import { isUuid } from './identifier.js'
+import { applicationRoleName, migrationRole } from './roles.js'
 
 /** What a caller gets inside a tenant transaction. */
 export type TenantTransaction = NodePgDatabase
@@ -411,6 +412,74 @@ export class Database {
     } catch {
       return false
     }
+  }
+
+  /**
+   * Why the role this connects as must not run an application, or null
+   * (opengewerk/opengewerk#685). Row level security does not apply to a
+   * superuser or a role with BYPASSRLS at all, and to the owner of a table only
+   * through FORCE, which a member of the owner can switch off. A name says none
+   * of that: a role of any name is asked for what it is.
+   *
+   * Asked once at the start, after `isReachable`; the answer is a sentence for
+   * whoever set up the database.
+   */
+  async roleProblem(): Promise<string | null> {
+    const { rows } = await this.pool.query<{
+      name: string
+      superuser: boolean
+      bypass: boolean
+      member: boolean
+      owns: boolean
+    }>(
+      `select r.rolname as name, r.rolsuper as superuser, r.rolbypassrls as bypass,
+              coalesce((select pg_has_role(r.oid, o.oid, 'MEMBER') from pg_roles o where o.rolname = $1),
+                       false) as member,
+              exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+                       where n.nspname = 'public' and c.relowner = r.oid) as owns
+         from pg_roles r
+        where r.rolname = current_user`,
+      [migrationRole],
+    )
+    const role = rows[0]
+
+    if (role === undefined) {
+      return null
+    }
+
+    const expected = `Erwartet wird "${applicationRoleName}", wie die Installation sie anlegt.`
+
+    if (role.superuser) {
+      return (
+        `Die Anwendung verbindet sich als "${role.name}", und diese Rolle ist Superuser. Für ` +
+        `einen Superuser gilt keine Zeilensicherheit, die Mandantentrennung greift nicht. ${expected}`
+      )
+    }
+
+    if (role.bypass) {
+      return (
+        `Die Anwendung verbindet sich als "${role.name}", und diese Rolle hat BYPASSRLS. Damit ` +
+        `gilt für sie keine Zeilensicherheit, die Mandantentrennung greift nicht. ${expected}`
+      )
+    }
+
+    if (role.owns) {
+      return (
+        `Die Anwendung verbindet sich als "${role.name}", und diese Rolle besitzt Tabellen der ` +
+        `Datenbank. Für den Eigentümer einer Tabelle gilt die Zeilensicherheit nur, solange ` +
+        `niemand sie abschaltet. ${expected}`
+      )
+    }
+
+    if (role.member) {
+      return (
+        `Die Anwendung verbindet sich als "${role.name}", und diese Rolle ist Mitglied von ` +
+        `"${migrationRole}", dem die Tabellen gehören. Damit kann sie die Zeilensicherheit ` +
+        `abschalten. ${expected}`
+      )
+    }
+
+    return null
   }
 
   async close(): Promise<void> {
