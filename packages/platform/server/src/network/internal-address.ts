@@ -37,8 +37,11 @@ for (const [network, prefix] of [
   internal.addSubnet(network, prefix, 'ipv6')
 }
 
-/** The eight groups of an IPv6 address, `::` filled in. */
-function groupsOf(address: string): readonly number[] {
+/**
+ * The eight groups of an IPv6 address, `::` filled in. Also for the key of a
+ * limit per address (`limitKey`), which counts an IPv6 address by its first four.
+ */
+export function ipv6Groups(address: string): readonly number[] {
   const [head = '', tail = ''] = address.split('::')
   const parse = (part: string) =>
     part === ''
@@ -83,7 +86,7 @@ export function isInternalAddress(address: string): boolean {
     return true
   }
 
-  const groups = groupsOf(address)
+  const groups = ipv6Groups(address)
 
   if (
     groups[0] === 0x64 &&

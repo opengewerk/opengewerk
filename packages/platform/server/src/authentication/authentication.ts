@@ -7,6 +7,7 @@ import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'b
 import { twoFactor } from 'better-auth/plugins'
 import { and, eq, exists, ne } from 'drizzle-orm'
 
+import { clientAddressHeader } from '../api/client-address.js'
 import type { ServerApplication } from '../configuration.js'
 import type { Database } from '../database/database.js'
 import {
@@ -541,10 +542,32 @@ export function createAuthentication({
       // check of the origin off whenever it believes it runs in a test, and
       // no test here ever met the check an instance runs with (#551).
       disableOriginCheck: false,
+      // The address of a client as this instance determines it, written by
+      // `nameTheClient` in front of the handler, and not better-auth's own
+      // reading of `X-Forwarded-For` (opengewerk-haustechnik#360). An IPv6
+      // address counts by its /64, as every limit per address here does
+      // (`limitKey`); better-auth keeps it so in the session as well. Where
+      // the address is not known, the header says `unknown`, which is no
+      // address, and better-auth counts every such request in one counter,
+      // `no-trusted-ip`, under the same limits as one address. That a stranger
+      // can then lock the sign in for everybody is the smaller harm, next to
+      // guessing without any limit, and the right setting of the proxy ends
+      // both; `nameTheClient` says so in the log.
+      ipAddress: {
+        ipAddressHeaders: [clientAddressHeader],
+        ipv6Subnet: 64,
+      },
     },
     plugins: [
       twoFactor({
         issuer: application.name,
+        // Ten wrong codes in a row hold the account for a quarter of an hour,
+        // from whichever address they come (opengewerk-haustechnik#360). The
+        // plugin does that by itself; written out so that nobody turns it off
+        // by accident, because it is the one limit of the sign in that counts
+        // per account and not per address. The confirmation again counts on
+        // the same column with the same numbers (`reconfirmation.ts`).
+        accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 15 * 60 },
       }),
       /**
        * Passkeys (#167, #248), back since they can be listed, renamed and

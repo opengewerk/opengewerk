@@ -5,6 +5,7 @@ import { toNodeHandler } from 'better-auth/node'
 import type { RequestHandler } from 'express'
 
 import { bodiesUpTo } from '../api/body-bytes.js'
+import { nameTheClient } from '../api/client-address.js'
 import { readJsonBodiesOnly } from '../api/origin.js'
 import { sendSecurityHeaders } from '../api/security-headers.js'
 import { type Authentication, authenticationPath } from '../authentication/authentication.js'
@@ -58,13 +59,16 @@ const authenticationBodyTooLarge = 'Diese Anfrage ist zu groß für die Anmeldun
 
 /**
  * Mounts the handler of the authentication under its path, behind the limit
- * of its bodies (`bodiesUpTo`). An instance does it in `createServer`; a test
- * that puts the authentication in front of a module of its own does it here,
- * so that it signs in through the same reading of a body as an instance.
+ * of its bodies (`bodiesUpTo`) and with the address of the client as this
+ * instance determines it (`nameTheClient`), which its limits count by. An
+ * instance does it in `createServer`; a test that puts the authentication in
+ * front of a module of its own does it here, so that it signs in through the
+ * same reading of a body and of an address as an instance.
  */
 export function mountAuthentication(application: INestApplication, handler: RequestHandler): void {
   application.use(
     authenticationPath,
+    nameTheClient,
     bodiesUpTo(largestAuthenticationBodyBytes, authenticationBodyTooLarge),
     handler,
   )
