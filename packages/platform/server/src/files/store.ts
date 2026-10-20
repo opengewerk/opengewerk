@@ -1,5 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { access, mkdir, open, readFile, rename, rm, statfs } from 'node:fs/promises'
+import {
+  access,
+  mkdir,
+  open,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  stat,
+  statfs,
+  utimes,
+} from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { sha256Pattern } from '@opengewerk/platform-domain'
@@ -30,7 +41,18 @@ export interface FileStorage {
    * on a disk of this instance, the stand in of a test, has nothing to say.
    */
   freeBytes?(): Promise<number>
+  /**
+   * Takes out what no tenant holds any more (#657), see `FileStore.sweep`. A
+   * store that keeps nothing on a disk has nothing to sweep.
+   */
+  sweep?(held: HeldFiles, before: Date): Promise<number>
 }
+
+/**
+ * Which of some names of files any tenant still holds, asked by the sweep of
+ * the store for the names it found on the disk.
+ */
+export type HeldFiles = (names: readonly string[]) => Promise<ReadonlySet<string>>
 
 /**
  * The store a module gets when nobody handed one in. It refuses on use, with a
@@ -93,6 +115,13 @@ export class FileStore implements FileStorage {
     const blob = { sha256, sizeBytes: bytes.byteLength }
 
     if (await exists(target)) {
+      // Put again: the file is as new as this put, so that the sweep of the
+      // store, which only takes what is older than its grace, leaves it
+      // alone while the row that will name it is still being written (#657).
+      const now = new Date()
+
+      await utimes(target, now, now)
+
       return blob
     }
 
@@ -132,6 +161,89 @@ export class FileStore implements FileStorage {
     return volume.bavail * volume.bsize
   }
 
+  /**
+   * Takes out of the store what no tenant holds any more (#657): every file
+   * last written or put before `before` whose name `held` does not give back,
+   * and a stray `.part` of a write that never finished, or a `.gone` of a
+   * sweep that never did. Says how many files went.
+   *
+   * The store is one for the instance and a file lies in it once, whoever
+   * stored it; whether any tenant still has a row for it is a question for
+   * the database (`held`). Between that answer and the removal a put of the
+   * same bytes may come, which finds the file there and keeps it as it is.
+   * So a file is first moved aside under a name no reader asks for, and only
+   * removed when it is still as old as it was: a put that came before the
+   * move made it new again, and it goes back; one that comes after it finds
+   * no file and writes its own.
+   */
+  async sweep(held: HeldFiles, before: Date): Promise<number> {
+    const old: string[] = []
+
+    for (const first of await entries(this.root)) {
+      for (const second of await entries(join(this.root, first))) {
+        const folder = join(this.root, first, second)
+
+        for (const name of await entries(folder)) {
+          const path = join(folder, name)
+          const written = await modified(path)
+
+          if (written === null || written >= before) {
+            continue
+          }
+
+          if (sha256Pattern.test(name)) {
+            old.push(name)
+          } else if (name.endsWith('.part') || name.endsWith('.gone')) {
+            await rm(path, { force: true })
+          }
+        }
+      }
+    }
+
+    let removed = 0
+
+    for (let start = 0; start < old.length; start += 1000) {
+      const batch = old.slice(start, start + 1000)
+      const kept = await held(batch)
+
+      for (const name of batch) {
+        if (!kept.has(name) && (await this.takeOut(name, before))) {
+          removed += 1
+        }
+      }
+    }
+
+    return removed
+  }
+
+  /** Moves a file aside and removes it, unless a put made it new meanwhile. */
+  private async takeOut(sha256: string, before: Date): Promise<boolean> {
+    const path = this.pathOf(sha256)
+    const aside = `${path}.${randomUUID()}.gone`
+
+    try {
+      await rename(path, aside)
+    } catch (error) {
+      if ((error as { code?: unknown }).code === 'ENOENT') {
+        return false
+      }
+
+      throw error
+    }
+
+    const written = await modified(aside)
+
+    if (written !== null && written >= before) {
+      await rename(aside, path)
+
+      return false
+    }
+
+    await rm(aside, { force: true })
+
+    return true
+  }
+
   /** The bytes stored under a hash, checked against it before they leave. */
   async get(sha256: string): Promise<Uint8Array> {
     let bytes: Buffer
@@ -158,6 +270,32 @@ export class FileStore implements FileStorage {
     }
 
     return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  }
+}
+
+/** The names in a folder, none when it is not there. */
+async function entries(folder: string): Promise<string[]> {
+  try {
+    return await readdir(folder)
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 'ENOENT') {
+      return []
+    }
+
+    throw error
+  }
+}
+
+/** When a file was last written or put, null when it is gone. */
+async function modified(path: string): Promise<Date | null> {
+  try {
+    return (await stat(path)).mtime
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 'ENOENT') {
+      return null
+    }
+
+    throw error
   }
 }
 
