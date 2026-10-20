@@ -7,6 +7,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Vite 8.3.3 in beiden Oberflächen, mit der Sperrdatei. Die Fassung bringt `launch-editor` 2.14.2, das unter
+  Windows `%` in Argumenten nicht maskierte (Dependabot-Alerts 1 und 2); betroffen war nur der Server für die
+  Entwicklung, nicht das gebaute Paket.
+
 ## [0.6.0] - 2026-10-20
 
 Die sechste Fassung schließt acht Sicherheitslücken, die eine Prüfung vor der nächsten Fassung von
