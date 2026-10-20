@@ -914,6 +914,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Dabei fiel auf, dass better-auth seine Prüfung der Herkunft in Tests von selbst abschaltet; sie
   steht jetzt ausdrücklich an, und die Tests laufen mit derselben Prüfung wie eine Instanz.
 
+### Sicherheit
+
+- Die Anmeldung liest den Körper einer Anfrage nur noch bis 64 kB, und `POST /sync` liest den
+  Postausgang erst, nachdem die Sitzung geprüft ist (gefunden in der Sicherheitsprüfung,
+  `opengewerk-haustechnik#360`). Bisher las der Handler von better-auth jeden Körper ohne eigene
+  Grenze und der Parser vor `/sync` bis zu 8 MB, beides bevor feststand, wer die Anfrage schickt.
+  Eine Länge über der Grenze der Anmeldung wird jetzt mit 413 abgewiesen, ohne dass gelesen wird,
+  ein Körper ohne Länge beim Lesen gezählt und abgewiesen, sobald er darüber ist; was darunter
+  bleibt, bekommt better-auth genau so, wie es gesendet wurde (`mountAuthentication`). Eine
+  Anfrage an `/sync` ohne Sitzung bekommt 401, ohne dass ihr Körper gelesen wird. Das README
+  empfiehlt dem Reverse Proxy dazu eine Grenze je Pfad, groß nur für `/files/` und `/sync`, mit
+  Beispielen für nginx und Apache.
+
 ## [0.5.0] - 2026-10-04
 
 Die fünfte Fassung bringt, was von Phase 2 gebaut ist, das Fundament in eigenen Paketen und die

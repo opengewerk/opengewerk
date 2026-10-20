@@ -1,15 +1,16 @@
 import {
   BadRequestException,
-  Body,
   Controller,
   Get,
   HttpException,
   Inject,
   NotFoundException,
   Param,
+  PayloadTooLargeException,
   Post,
   type Provider,
   Query,
+  Req,
   type Type,
 } from '@nestjs/common'
 import {
@@ -23,9 +24,12 @@ import {
   syncRights,
 } from '@opengewerk/platform-domain'
 import type { SQL } from 'drizzle-orm'
+import type { Request } from 'express'
 
 import { AUTHORIZATION, type Authorization, RequiresPermission } from '../api/authorization.js'
+import { bodyBytesOf } from '../api/body-bytes.js'
 import { CurrentIdentity, type FoundIdentity, type RequestIdentity } from '../api/identity.js'
+import { largestTransmissionBytes } from '../api/origin.js'
 import type { AccessRules } from '../authentication/access.js'
 import { Database, type TenantTransaction } from '../database/database.js'
 import {
@@ -197,6 +201,42 @@ function asSyncValue(value: unknown, what: string): SyncValue {
 }
 
 /**
+ * The outbox a transmission carries, read by its route and so only for
+ * whoever the guards let through: the parser in front of the routes passes
+ * `POST /sync` by (`readJsonBodiesOnly`). Up to eight megabytes, which no
+ * other body comes near, are read for a device somebody is signed in on, and
+ * a request without a session is turned away with its body unread.
+ *
+ * @throws PayloadTooLargeException for a transmission over the limit
+ * @throws BadRequestException for a body that is no JSON
+ */
+async function outboxOf(request: Request): Promise<unknown> {
+  // An application that still parses JSON in front of its routes, as a test
+  // of one may, has the outbox here already.
+  if (request.body !== undefined && !Buffer.isBuffer(request.body)) {
+    return request.body as unknown
+  }
+
+  const body = await bodyBytesOf(request, largestTransmissionBytes)
+
+  if (body === null) {
+    throw new PayloadTooLargeException(
+      'Eine Übertragung des Postausgangs darf höchstens 8 MB groß sein.',
+    )
+  }
+
+  if (body.byteLength === 0) {
+    return undefined
+  }
+
+  try {
+    return JSON.parse(body.toString('utf-8')) as unknown
+  } catch {
+    throw new BadRequestException('Die Anfrage ist kein gültiges JSON.')
+  }
+}
+
+/**
  * Reads what a device sent and refuses anything that is not an operation.
  *
  * The device id is taken from the transmission, not from each operation in it.
@@ -304,9 +344,9 @@ export class SyncController {
   @RequiresPermission(syncRights.write)
   async push(
     @CurrentIdentity() identity: RequestIdentity,
-    @Body() body: unknown,
+    @Req() request: Request,
   ): Promise<{ receipts: readonly OperationReceipt[] }> {
-    const { deviceId, operations } = parseOperations(body)
+    const { deviceId, operations } = parseOperations(await outboxOf(request))
 
     for (const operation of operations) {
       const needed = this.routes.permissionFor(operation.entity, operation.kind, operation.patches)

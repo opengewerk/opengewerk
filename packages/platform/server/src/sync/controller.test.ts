@@ -2,6 +2,7 @@ import 'reflect-metadata'
 
 import { ConflictException, type INestApplication } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD } from '@nestjs/core'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import { Test } from '@nestjs/testing'
 import { syncRights, type SyncValue, type TenantId } from '@opengewerk/platform-domain'
 import { eq, sql } from 'drizzle-orm'
@@ -13,7 +14,8 @@ import { type Authorization, AUTHORIZATION, AuthorizationGuard } from '../api/au
 import { databaseErrors } from '../api/database-errors.js'
 import { TRUSTED_ORIGINS } from '../api/handed-in.js'
 import { type FoundIdentity, IDENTITY_SOURCE } from '../api/identity.js'
-import { SameOriginGuard } from '../api/origin.js'
+import { largestTransmissionBytes, readJsonBodiesOnly, SameOriginGuard } from '../api/origin.js'
+import { sentByHand } from '../api/probe-sending.js'
 import { headerIdentities, testIdentityHeader } from '../api/test-identity.js'
 import { accountsOf } from '../authentication/administration.js'
 import {
@@ -108,9 +110,16 @@ let database: Database
 let app: INestApplication
 let withoutScope: INestApplication
 
-/** The HTTP side of the probe application with the routes of the sync, as an application builds it. */
+/**
+ * The HTTP side of the probe application with the routes of the sync, as an
+ * instance builds it: with JSON read in front of the routes by
+ * `readJsonBodiesOnly` and nothing else. Or, with `parserInFront`, as the test
+ * of an application may build it, with Nest's own parsers in front of every
+ * route.
+ */
 async function instanceWith<Sender = FoundIdentity<ProbeSyncIdentity>>(
   routes: SyncRoutes<ProbeSyncIdentity, ProbeSyncRight, Sender>,
+  { parserInFront = false }: { readonly parserInFront?: boolean } = {},
 ): Promise<INestApplication> {
   const syncing = syncParts({ access: probeSyncAccess, routes })
   const built = await Test.createTestingModule({
@@ -126,7 +135,13 @@ async function instanceWith<Sender = FoundIdentity<ProbeSyncIdentity>>(
       { provide: APP_FILTER, useClass: databaseErrors().DatabaseExceptionFilter },
     ],
   }).compile()
-  const instance = built.createNestApplication()
+  const instance = built.createNestApplication<NestExpressApplication>({
+    bodyParser: parserInFront,
+  })
+
+  if (!parserInFront) {
+    readJsonBodiesOnly(instance)
+  }
 
   await instance.init()
 
@@ -384,6 +399,88 @@ describe('sending an outbox', () => {
       .post('/sync')
       .send({ deviceId: 'probe-phone', operations: [] })
       .expect(401)
+  })
+
+  /**
+   * The outbox is read by its route, after the guards, and so for nobody
+   * they turn away: not as JSON, and not at all. What is no JSON is answered
+   * with 401 without a session and with what is wrong with it only with one;
+   * and four megabytes announced and ten bytes sent are answered at once,
+   * where reading them would wait for the rest.
+   */
+  it('is read only for whoever may send: without a session it is turned away unread', async () => {
+    const noJson = '{"deviceId": nicht'
+
+    await request(app.getHttpServer())
+      .post('/sync')
+      .set('Content-Type', 'application/json')
+      .send(noJson)
+      .expect(401)
+
+    const announced = await sentByHand(
+      app.getHttpServer(),
+      '/sync',
+      { 'content-type': 'application/json', 'content-length': String(4 * 1024 * 1024) },
+      ['{"deviceId"'],
+      false,
+    )
+
+    expect(announced?.status).toBe(401)
+
+    const read = await request(app.getHttpServer())
+      .post('/sync')
+      .set(testIdentityHeader, olga())
+      .set('Content-Type', 'application/json')
+      .send(noJson)
+      .expect(400)
+
+    expect(read.body).toMatchObject({ message: 'Die Anfrage ist kein gültiges JSON.' })
+  })
+
+  it('takes a transmission up to a limit of its own, far above that of a form, and not past it', async () => {
+    // Twice what every other route reads, beside an empty list of operations.
+    const large = await request(app.getHttpServer())
+      .post('/sync')
+      .set(testIdentityHeader, olga())
+      .send({ deviceId: 'probe-phone', operations: [], padding: 'x'.repeat(200 * 1024) })
+      .expect(201)
+
+    expect(large.body).toEqual({ receipts: [] })
+
+    const tooLarge = await request(app.getHttpServer())
+      .post('/sync')
+      .set(testIdentityHeader, olga())
+      .send({
+        deviceId: 'probe-phone',
+        operations: [],
+        padding: 'x'.repeat(largestTransmissionBytes),
+      })
+      .expect(413)
+
+    expect(tooLarge.body).toMatchObject({
+      message: 'Eine Übertragung des Postausgangs darf höchstens 8 MB groß sein.',
+    })
+  })
+
+  it('takes the outbox a parser in front of the route has read already, as the test of an application may build it', async () => {
+    const parsedInFront = await instanceWith(probeSyncRoutes(sync, answerFor), {
+      parserInFront: true,
+    })
+
+    try {
+      const answer = await push(
+        olga(),
+        [operation({ entity: 'notes', patches: [{ field: 'text', to: 'Zähler ablesen' }] })],
+        'probe-phone',
+        parsedInFront,
+      ).expect(201)
+
+      expect((answer.body as { receipts: { outcome: string }[] }).receipts).toMatchObject([
+        { outcome: 'applied' },
+      ])
+    } finally {
+      await parsedInFront.close()
+    }
   })
 
   it('refuses what is not an outbox, with what is wrong with it', async () => {
