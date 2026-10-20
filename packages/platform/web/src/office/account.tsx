@@ -326,6 +326,7 @@ function RecoveryCodes() {
   const left = useQuery({ queryKey: ['recovery-codes'], queryFn: recoveryCodesLeft })
   const [asking, setAsking] = useState(false)
   const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [fresh, setFresh] = useState<readonly string[] | null>(null)
@@ -336,9 +337,10 @@ function RecoveryCodes() {
     setTrouble(null)
 
     try {
-      setFresh(await newRecoveryCodes(password))
+      setFresh(await newRecoveryCodes(password, code))
       setAsking(false)
       setPassword('')
+      setCode('')
       void queries.invalidateQueries({ queryKey: ['recovery-codes'] })
     } catch (error) {
       setTrouble(
@@ -405,17 +407,31 @@ function RecoveryCodes() {
             void make(event)
           }}
         >
-          <Field
-            label="Passwort zur Bestätigung"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="sm:max-w-[280px]"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value)
-            }}
-          />
+          <div className="grid gap-3 sm:max-w-[576px] sm:grid-cols-2">
+            <Field
+              label="Passwort zur Bestätigung"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value)
+              }}
+            />
+            <Field
+              label="Code aus der App"
+              numeric
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123 456"
+              maxLength={8}
+              required
+              value={code}
+              onChange={(event) => {
+                setCode(event.target.value)
+              }}
+            />
+          </div>
           {trouble ? (
             <p role="alert" className="text-[13px] font-semibold text-conflict">
               {trouble}
@@ -429,6 +445,7 @@ function RecoveryCodes() {
               onClick={() => {
                 setAsking(false)
                 setPassword('')
+                setCode('')
                 setTrouble(null)
               }}
             >

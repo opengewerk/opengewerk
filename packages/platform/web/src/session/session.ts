@@ -331,10 +331,18 @@ export async function recoveryCodesLeft(): Promise<number | null> {
 
 /**
  * A new set of recovery codes, which replaces the old one entirely. Asks for
- * the password, because a session left open at a desk must not be enough to
- * make a new way past the second factor.
+ * the password and the code from the app, as a sign in does: a session left
+ * open at a desk, or the password alone, must not be enough to make a new way
+ * past the second factor (opengewerk-haustechnik#360). The two go first to
+ * the confirmation (`reconfirm`), and the password once more to the route of
+ * better-auth, which asks for it itself.
  */
-export async function newRecoveryCodes(password: string): Promise<readonly string[]> {
+export async function newRecoveryCodes(password: string, code: string): Promise<readonly string[]> {
+  await request(`${authentication}/reconfirm`, {
+    method: 'POST',
+    body: JSON.stringify({ password, code: code.trim() }),
+  })
+
   const answer = await request<{ backupCodes?: unknown }>(
     `${authentication}/two-factor/generate-backup-codes`,
     { method: 'POST', body: JSON.stringify({ password }) },

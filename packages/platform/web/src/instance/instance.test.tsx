@@ -78,8 +78,32 @@ function phone() {
   }))
 }
 
+/**
+ * Confirms with the password in the box that waits for it under the form, as
+ * naming somebody, taking somebody off and a tenant for somebody else ask
+ * (opengewerk-haustechnik#360).
+ */
+async function confirm(user: ReturnType<typeof userEvent.setup>) {
+  const waiting = within(await screen.findByRole('region', { name: /bestätigen$/ }))
+
+  await user.type(waiting.getByLabelText('Passwort'), 'ein-ordentlich-langes-passwort')
+  await user.click(waiting.getByRole('button', { name: 'Weiter' }))
+}
+
+/** Lets every request through to the stand-in but the ones to `path`, which find no network. */
+function offlineFor(path: string) {
+  const through = globalThis.fetch
+
+  vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input instanceof Request ? input.url : input).includes(path)
+      ? Promise.reject(new TypeError('Failed to fetch'))
+      : through(input, init),
+  )
+}
+
 beforeEach(() => {
   server = standInServer()
+  server.answer('POST', '/api/auth/reconfirm', { reconfirmedUntil: '2026-10-20T10:10:00.000Z' })
   signedIn(server, [aTenant({ name: 'Probewerk Nord' })])
   server.answer('GET', '/instance/access', { operator: true, secondFactor: true })
 })
@@ -402,6 +426,10 @@ describe('the tenants on the instance', () => {
     await user.type(within(form).getByLabelText(/Adresse der Leitung/), 'anna@ost.example.de')
     await user.click(within(form).getByRole('button', { name: 'Mandant anlegen' }))
 
+    // Nothing goes out before the confirmation with the password.
+    expect(sent('POST', '/instance/tenants')).toEqual([])
+    await confirm(user)
+
     expect(await screen.findByText('Probewerk Ost ist angelegt.')).toBeTruthy()
     // The route calls the person whoever leads the tenant.
     expect(sent('POST', '/instance/tenants')).toEqual([
@@ -459,13 +487,15 @@ describe('the tenants on the instance', () => {
     await user.type(within(form).getByLabelText('Name der Leitung'), 'Anna Weber')
     await user.type(within(form).getByLabelText(/Adresse der Leitung/), 'anna@ost.example.de')
     await user.click(within(form).getByRole('button', { name: 'Mandant anlegen' }))
+    await confirm(user)
 
     expect((await within(form).findByRole('alert')).textContent).toBe(
       'Den Mandanten gibt es schon.',
     )
 
-    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    offlineFor('/instance/tenants')
     await user.click(within(form).getByRole('button', { name: 'Mandant anlegen' }))
+    await confirm(user)
 
     await waitFor(() => {
       expect(within(form).getByRole('alert').textContent).toBe('Der Mandant kam nicht zustande.')
@@ -666,6 +696,13 @@ describe('whoever runs the instance', () => {
 
     await user.click(within(asking).getByRole('button', { name: 'Entfernen' }))
 
+    // Then the confirmation with the password, and only after it the request.
+    expect(sent('DELETE', '/instance/operators/u-2')).toEqual([])
+    expect(
+      await screen.findByRole('region', { name: 'Anna Weber aus der Aufsicht nehmen bestätigen' }),
+    ).toBeTruthy()
+    await confirm(user)
+
     await waitFor(() => {
       expect(sent('DELETE', '/instance/operators/u-2')).toHaveLength(1)
     })
@@ -693,13 +730,14 @@ describe('whoever runs the instance', () => {
 
     const table = await screen.findByRole('table', { name: 'Die Aufsicht dieser Instanz' })
 
-    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
+    offlineFor('/instance/operators/u-2')
     await user.click(
       within(table).getByRole('button', { name: 'Anna Weber aus der Aufsicht nehmen' }),
     )
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Entfernen' }),
     )
+    await confirm(user)
 
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Aus der Aufsicht nehmen ging nicht.',
@@ -733,6 +771,9 @@ describe('whoever runs the instance', () => {
 
     await user.type(field, '@nord.example.de')
     await user.click(screen.getByRole('button', { name: 'Zur Aufsicht machen' }))
+
+    expect(sent('POST', '/instance/operators')).toEqual([])
+    await confirm(user)
 
     expect(await screen.findByText('Britta Bauer gehört jetzt zur Aufsicht.')).toBeTruthy()
     expect(sent('POST', '/instance/operators')).toEqual([{ email: 'britta@nord.example.de' }])

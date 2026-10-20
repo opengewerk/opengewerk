@@ -408,6 +408,93 @@ export function passkeyAddedMessage(facts: {
   return { subject: 'Ein neuer Passkey für OpenGewerk', body }
 }
 
+/** The moment of a change, as a mail names it: day and time in Berlin. */
+function momentOf(at: Date): string {
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(at)
+}
+
+/**
+ * The mail about a new set of recovery codes (opengewerk-haustechnik#360).
+ *
+ * Sent to the account whenever new codes are made, which ends the old ones:
+ * ten codes are ten ways past the code from the app, and a set made by
+ * somebody else should not go unnoticed. No codes in it, and no link that
+ * does anything by itself.
+ */
+export function recoveryCodesRenewedMessage(facts: {
+  readonly name: string
+  readonly renewedAt: Date
+  readonly link: string
+}): MessageText {
+  const body = [
+    facts.name ? `Hallo ${facts.name},` : 'Hallo,',
+    '',
+    `für Ihren Zugang zu OpenGewerk wurden am ${momentOf(facts.renewedAt)} Uhr neue ` +
+      'Wiederherstellungscodes erzeugt. Die bisherigen gelten seitdem nicht mehr.',
+    '',
+    'Ihren Zugang sehen Sie unter „Konto“:',
+    '',
+    facts.link,
+    '',
+    'Wenn Sie die Codes nicht selbst erzeugt haben, ändern Sie Ihr Passwort, erzeugen Sie dort ' +
+      'neue Codes und sagen Sie dem Inhaber Ihres Betriebs Bescheid.',
+    '',
+    '-- ',
+    'OpenGewerk',
+  ].join('\n')
+
+  return { subject: 'Neue Wiederherstellungscodes für OpenGewerk', body }
+}
+
+/**
+ * The mail to every operator of the instance when somebody was named one or
+ * taken off (opengewerk-haustechnik#360), and to the one taken off.
+ *
+ * An operator sets up the mail server of the instance, and through it goes
+ * the link to a new password of every account. Who was named or taken off and
+ * when, and what to do if nobody announced it.
+ */
+export function operatorsChangedMessage(facts: {
+  readonly name: string
+  readonly appointed: boolean
+  readonly person: string
+  readonly personEmail: string
+  readonly changedAt: Date
+  readonly link: string
+}): MessageText {
+  const who = facts.person ? `${facts.person} (${facts.personEmail})` : facts.personEmail
+  const what = facts.appointed
+    ? `wurde ${who} zum Betreiber Ihrer OpenGewerk-Instanz benannt.`
+    : `wurde ${who} als Betreiber Ihrer OpenGewerk-Instanz entfernt.`
+
+  const body = [
+    facts.name ? `Hallo ${facts.name},` : 'Hallo,',
+    '',
+    `am ${momentOf(facts.changedAt)} Uhr ${what} Ein Betreiber verwaltet, was allen ` +
+      'Betrieben gemeinsam ist, darunter den Mailserver, über den der Link zu einem neuen ' +
+      'Passwort geht.',
+    '',
+    'Die Änderung steht im Protokoll der Instanz:',
+    '',
+    facts.link,
+    '',
+    'Wenn Ihnen niemand diese Änderung angekündigt hat, fragen Sie bei den anderen Betreibern ' +
+      'nach.',
+    '',
+    '-- ',
+    'OpenGewerk',
+  ].join('\n')
+
+  return { subject: 'Die Betreiber Ihrer OpenGewerk-Instanz haben sich geändert', body }
+}
+
 /**
  * The mail about a new mail server of the instance
  * (opengewerk-haustechnik#360), to whoever owns a business on it.

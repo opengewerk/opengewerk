@@ -370,7 +370,7 @@ export function probeIdentities(
 /** What an instance of the probe application is started with. */
 export interface ProbeInstanceOptions extends Pick<
   AuthenticationOptions,
-  'rateLimited' | 'passwordResetMail' | 'passkeyNotice'
+  'rateLimited' | 'passwordResetMail' | 'passkeyNotice' | 'recoveryCodesNotice'
 > {
   /** Where the instance is reached. Left out, at the one probe origin. */
   readonly trustedOrigins?: readonly string[]

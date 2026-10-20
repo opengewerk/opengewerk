@@ -48,3 +48,16 @@ export type PasskeyNotice = (
   owner: PasskeyOwner,
   passkey: { readonly id: string; readonly name: string },
 ) => Promise<void>
+
+/**
+ * Tells an account that it has a new set of recovery codes
+ * (opengewerk-haustechnik#360), or does nothing when nothing sends mail for
+ * it. The codes are a way past the second factor for good, and a new set
+ * ends the old one; whoever made it without being the person should not go
+ * unnoticed.
+ *
+ * Not awaited by the route. The new codes are kept by then and shown once,
+ * and a mail server that is down this minute must not cost the person the
+ * only time they see them.
+ */
+export type RecoveryCodesNotice = (owner: PasskeyOwner) => Promise<void>

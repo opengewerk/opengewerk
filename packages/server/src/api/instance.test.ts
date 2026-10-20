@@ -80,6 +80,17 @@ function http() {
 
 const message = (answer: { body: unknown }) => (answer.body as { message: string }).message
 
+/**
+ * The confirmation with password and code on the session of `person`, as the
+ * foundation keeps it (`reconfirmation.ts`): naming or taking off an operator
+ * and a business for somebody else spend one each (opengewerk-haustechnik#360).
+ */
+async function confirmed(person: Person): Promise<void> {
+  await admin.query('update auth_sessions set reconfirmed_at = now() where id = $1', [
+    `test-session-${person}`,
+  ])
+}
+
 beforeAll(async () => {
   admin = await connect()
   await resetToMigrated()
@@ -148,6 +159,7 @@ describe('who gets into the area of the instance', () => {
 
 describe('the operators', () => {
   it('are named and taken away, and a refusal calls them what this application calls them', async () => {
+    await confirmed('olga')
     const named = await http()
       .post('/instance/operators')
       .set('x-test-identity', as('olga'))
@@ -156,6 +168,7 @@ describe('the operators', () => {
 
     expect((named.body as OperatorView).userId).toBe('otto')
 
+    await confirmed('olga')
     const twice = await http()
       .post('/instance/operators')
       .set('x-test-identity', as('olga'))
@@ -164,6 +177,7 @@ describe('the operators', () => {
 
     expect(message(twice)).toBe('Dieses Konto ist schon Betreiber.')
 
+    await confirmed('olga')
     const oneself = await http()
       .delete('/instance/operators/olga')
       .set('x-test-identity', as('olga'))
@@ -171,6 +185,7 @@ describe('the operators', () => {
 
     expect(message(oneself)).toBe('Sich selbst entfernt kein Betreiber; das macht ein anderer.')
 
+    await confirmed('olga')
     const stranger = await http()
       .delete('/instance/operators/britta')
       .set('x-test-identity', as('olga'))
@@ -178,6 +193,7 @@ describe('the operators', () => {
 
     expect(message(stranger)).toBe('Dieses Konto ist kein Betreiber.')
 
+    await confirmed('olga')
     await http().delete('/instance/operators/otto').set('x-test-identity', as('olga')).expect(200)
 
     // Taken away, and at once: being an owner still opens nothing.
@@ -251,6 +267,7 @@ describe('further businesses', () => {
   })
 
   it('lets an operator create one for somebody else, with an invitation to be its owner', async () => {
+    await confirmed('olga')
     const created = await http()
       .post('/instance/tenants')
       .set('x-test-identity', as('olga'))
@@ -269,6 +286,7 @@ describe('further businesses', () => {
 
     expect(rows).toEqual([{ email: 'anna@elektro-weber.de', roles: ['owner'], invited_by: 'olga' }])
 
+    await confirmed('olga')
     const nameless = await http()
       .post('/instance/tenants')
       .set('x-test-identity', as('olga'))

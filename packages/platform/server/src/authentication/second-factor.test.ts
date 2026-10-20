@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
 import { appointOperator } from '../instance/operators.js'
+import type { PasskeyOwner } from './notices.js'
+import { recordPasswordReset } from './password-resets.js'
 import { InstanceSettingsCache } from '../instance/settings.js'
 import { authenticationPath } from './authentication.js'
 import {
@@ -43,6 +45,8 @@ let foundation: ProbeFoundation
 let admin: Pool
 let database: Database
 let instance: ProbeInstance
+/** Who was told of new recovery codes, in order. */
+const told: PasskeyOwner[] = []
 
 function post(path: string, cookies?: string) {
   const sending = instance.http().post(`${authenticationPath}${path}`).set('origin', origin)
@@ -152,6 +156,11 @@ beforeAll(async () => {
   database = Database.connect(url)
   instance = await probeInstance(url, {
     instanceSettings: await InstanceSettingsCache.load(database),
+    recoveryCodesNotice: (owner) => {
+      told.push(owner)
+
+      return Promise.resolve()
+    },
   })
 })
 
@@ -261,3 +270,94 @@ describe('the code from the app at a sign in', () => {
     )
   })
 })
+
+/**
+ * The second factor itself, past the sign in (opengewerk-haustechnik#360):
+ * whoever has a session and knows the password, but not the phone, gets no
+ * copy of the app, cannot switch it off and makes no recovery codes of their
+ * own. The codes are new only after the password and the code from the app,
+ * as a sign in asks for both, and the account is told.
+ */
+describe('the second factor of an account', () => {
+  it('is not read, switched off or renewed with a session and the password alone', async () => {
+    const email = 'nur-passwort@nord.example.de'
+
+    await leader(email)
+    const { totpUri, backupCodes } = await setUpApp(email)
+    const cookies = await withCode(email, totpUri)
+    const before = told.length
+
+    await post('/two-factor/get-totp-uri', cookies).send({ password }).expect(404)
+    await post('/two-factor/disable', cookies).send({ password }).expect(404)
+
+    const refused = await post('/two-factor/generate-backup-codes', cookies)
+      .send({ password })
+      .expect(403)
+
+    expect((refused.body as { code?: string }).code).toBe('RECONFIRMATION_REQUIRED')
+    expect(told).toHaveLength(before)
+
+    // The app still asks at the sign in, and the codes of before still open.
+    await codeAsked(email)
+    await post('/two-factor/verify-backup-code', await codeAsked(email))
+      .send({ code: backupCodes[0] })
+      .expect(200)
+  })
+
+  it('makes new recovery codes after the password and the code, once, and tells the account', async () => {
+    const email = 'neue-codes@nord.example.de'
+    const userId = await leader(email)
+    const { totpUri, backupCodes } = await setUpApp(email)
+    const cookies = await withCode(email, totpUri)
+    const before = told.length
+
+    await post('/reconfirm', cookies)
+      .send({ password, code: await currentCode(totpUri) })
+      .expect(200)
+
+    const renewed = await post('/two-factor/generate-backup-codes', cookies)
+      .send({ password })
+      .expect(200)
+    const fresh = (renewed.body as { backupCodes: string[] }).backupCodes
+
+    expect(fresh).toHaveLength(backupCodes.length)
+    await waitForTold(before + 1)
+    expect(told.slice(before)).toEqual([{ id: userId, email, name: 'Lena Leitung' }])
+
+    // The confirmation is spent with the first set.
+    await post('/two-factor/generate-backup-codes', cookies).send({ password }).expect(403)
+
+    // The old codes are gone, the new ones open.
+    await post('/two-factor/verify-backup-code', await codeAsked(email))
+      .send({ code: backupCodes[1] })
+      .expect(401)
+    await post('/two-factor/verify-backup-code', await codeAsked(email))
+      .send({ code: fresh[0] })
+      .expect(200)
+  })
+
+  it('makes no new recovery codes for a day after a reset of the password', async () => {
+    const email = 'zurueckgesetzt@nord.example.de'
+    const userId = await leader(email)
+    const { totpUri } = await setUpApp(email)
+    const cookies = await withCode(email, totpUri)
+
+    await recordPasswordReset(database, userId)
+    await post('/reconfirm', cookies)
+      .send({ password, code: await currentCode(totpUri) })
+      .expect(200)
+
+    const refused = await post('/two-factor/generate-backup-codes', cookies)
+      .send({ password })
+      .expect(403)
+
+    expect((refused.body as { code?: string }).code).toBe('PASSWORD_RECENTLY_RESET')
+  })
+})
+
+/** The notice is not awaited by the route; it has arrived once the list is this long. */
+async function waitForTold(length: number): Promise<void> {
+  for (let tries = 0; tries < 50 && told.length < length; tries += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+}

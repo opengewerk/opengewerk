@@ -10,6 +10,7 @@ import { Panel, TablePanel } from '../components/panel.js'
 import type { TableCard } from '../components/panel.js'
 import { Cell, Column } from '../components/table.js'
 import { date } from '../format.js'
+import { Reconfirmation } from '../office/passkeys.js'
 import { SettingsText } from '../office/settings.js'
 import { createTenantFor, instanceTenants } from '../session/instance.js'
 import { accountQuery } from '../session/queries.js'
@@ -202,6 +203,9 @@ function CreateForm({
   const [leadEmail, setLeadEmail] = useState('')
   const [tried, setTried] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  // A tenant with a link that makes somebody lead it waits for the confirmation
+  // with the password and the code (opengewerk-haustechnik#360).
+  const [confirming, setConfirming] = useState(false)
 
   const nameProblem = tenantNameProblem(name) ?? undefined
   const leadProblem = leadName.trim() === '' ? sentences.leadNameMissing : undefined
@@ -232,56 +236,80 @@ function CreateForm({
       return
     }
 
-    create.mutate()
+    setConfirming(true)
   }
 
   return (
-    <form noValidate onSubmit={submit} className="flex flex-col gap-3">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Field
-          label={sentences.nameLabel}
-          value={name}
-          maxLength={tenantNameMaxLength}
-          {...(tried && nameProblem ? { problem: nameProblem } : {})}
-          onChange={(event) => {
-            setName(event.target.value)
-          }}
-        />
-        <Field
-          label={sentences.leadNameLabel}
-          value={leadName}
-          autoComplete="off"
-          {...(tried && leadProblem ? { problem: leadProblem } : {})}
-          onChange={(event) => {
-            setLeadName(event.target.value)
-          }}
-        />
-        <Field
-          label={sentences.leadEmailLabel}
-          type="email"
-          value={leadEmail}
-          autoComplete="off"
-          hint={sentences.leadEmailHint}
-          {...(tried && mailProblem ? { problem: mailProblem } : {})}
-          onChange={(event) => {
-            setLeadEmail(event.target.value)
-          }}
-        />
-      </div>
-      {trouble ? (
-        <p role="alert" className="text-[13px] font-semibold text-conflict">
-          {trouble}
-        </p>
+    <div className="flex flex-col gap-3">
+      <form noValidate onSubmit={submit} className="flex flex-col gap-3">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
+          <Field
+            label={sentences.nameLabel}
+            value={name}
+            maxLength={tenantNameMaxLength}
+            {...(tried && nameProblem ? { problem: nameProblem } : {})}
+            onChange={(event) => {
+              setName(event.target.value)
+            }}
+          />
+          <Field
+            label={sentences.leadNameLabel}
+            value={leadName}
+            autoComplete="off"
+            {...(tried && leadProblem ? { problem: leadProblem } : {})}
+            onChange={(event) => {
+              setLeadName(event.target.value)
+            }}
+          />
+          <Field
+            label={sentences.leadEmailLabel}
+            type="email"
+            value={leadEmail}
+            autoComplete="off"
+            hint={sentences.leadEmailHint}
+            {...(tried && mailProblem ? { problem: mailProblem } : {})}
+            onChange={(event) => {
+              setLeadEmail(event.target.value)
+            }}
+          />
+        </div>
+        {trouble ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <SettingsText muted>{sentences.forOneself}</SettingsText>
+          <div className="grow" />
+          <Button onClick={onCancel}>Abbrechen</Button>
+          <Button
+            tone="primary"
+            type="submit"
+            icon={Plus}
+            disabled={create.isPending || confirming}
+          >
+            {sentences.create}
+          </Button>
+        </div>
+      </form>
+      {confirming ? (
+        <section
+          aria-label={`${sentences.create} bestätigen`}
+          className="rounded-[5px] border border-line bg-surface-sunken p-3"
+        >
+          <Reconfirmation
+            narrow
+            onConfirmed={() => {
+              setConfirming(false)
+              create.mutate()
+            }}
+            onCancel={() => {
+              setConfirming(false)
+            }}
+          />
+        </section>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <SettingsText muted>{sentences.forOneself}</SettingsText>
-        <div className="grow" />
-        <Button onClick={onCancel}>Abbrechen</Button>
-        <Button tone="primary" type="submit" icon={Plus} disabled={create.isPending}>
-          {sentences.create}
-        </Button>
-      </div>
-    </form>
+    </div>
   )
 }
 

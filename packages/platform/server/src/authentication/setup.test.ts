@@ -702,6 +702,15 @@ describe('the second factor a leading role cannot work without', () => {
 
     expect(again.status).toBeGreaterThanOrEqual(400)
 
+    // New codes after the password and the code, as a sign in asks for both
+    // (opengewerk-haustechnik#360).
+    await http()
+      .post(`${authenticationPath}/reconfirm`)
+      .set('cookie', signedIn)
+      .set('origin', origin)
+      .send({ password, code: await currentCode(started.body.totpURI as string) })
+      .expect(200)
+
     const renewed = await http()
       .post(`${authenticationPath}/two-factor/generate-backup-codes`)
       .set('cookie', signedIn)
