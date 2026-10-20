@@ -1233,13 +1233,53 @@ Organisation.
 - **Vor die Anwendung gehört ein Reverse Proxy mit TLS.** Sie lauscht
   absichtlich nur auf `127.0.0.1`. Eine Anwendung, die Rechnungen führt, steht
   nicht unverschlüsselt im Netz.
-- **Der Proxy lässt Anfragen bis 50 MB durch.** Eine Datei für die Ablage darf
-  25 MB haben und eine Übertragung des Postausgangs an `POST /sync` 8 MB; die
-  Grenzen, die für einen Betrieb gelten, setzt die Anwendung selbst, mit einem
-  Satz dazu. nginx nimmt ohne Angabe nur 1 MB an (`client_max_body_size 50m;`),
-  Apache und Caddy haben keine Grenze, die hier stört. Was der Proxy ablehnt,
-  kommt als 413 ohne Satz an, und ein Postausgang, der daran scheitert, bleibt
-  hängen, bis der Proxy es durchlässt.
+- **Der Proxy begrenzt Anfragen je Pfad: groß nur für Dateien und den
+  Postausgang.** Eine Datei für die Ablage an `/files/` darf 25 MB haben und
+  eine Übertragung des Postausgangs an `POST /sync` 8 MB. Beide liest die
+  Anwendung erst, wenn feststeht, wer sie schickt, und die Grenze, die für einen
+  Betrieb gilt, setzt sie selbst, mit einem Satz dazu; der Proxy lässt dort
+  50 MB durch. Überall sonst reichen 2 MB: das Größte dort ist das Logo im
+  Briefkopf mit 1 MB, die Anmeldung unter `/api/auth/` nimmt höchstens 64 kB an
+  und jede andere Route 100 kB. So erreicht ein großer Körper ohne Anmeldung die
+  Anwendung gar nicht erst. nginx nimmt ohne Angabe nur 1 MB an, Apache ab 2.4.54
+  bis 1 GB, Caddy hat keine Grenze. Was der Proxy ablehnt, kommt als 413 ohne
+  Satz an, und ein Postausgang, der daran scheitert, bleibt hängen, bis der
+  Proxy es durchlässt.
+
+  Für nginx im `server`-Block; was sonst für den Proxy gilt, etwa
+  `proxy_set_header`, steht einmal im `server`-Block und gilt in allen drei:
+
+  ```nginx
+  client_max_body_size 2m;
+
+  location / {
+      proxy_pass http://127.0.0.1:23700;
+  }
+
+  location /files/ {
+      client_max_body_size 50m;
+      proxy_pass http://127.0.0.1:23700;
+  }
+
+  location = /sync {
+      client_max_body_size 50m;
+      proxy_pass http://127.0.0.1:23700;
+  }
+  ```
+
+  Für Apache im `VirtualHost`, neben `ProxyPass`:
+
+  ```apache
+  LimitRequestBody 2097152
+
+  <Location "/files/">
+      LimitRequestBody 52428800
+  </Location>
+
+  <LocationMatch "^/sync$">
+      LimitRequestBody 52428800
+  </LocationMatch>
+  ```
 - **Die Sicherheits-Header setzt die Anwendung selbst, der Proxy setzt sie kein
   zweites Mal.** Jede Antwort trägt `X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options`, `Strict-Transport-Security` und die beiden
