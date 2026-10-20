@@ -242,13 +242,32 @@ async function outboxOf(request: Request): Promise<unknown> {
  * The device id is taken from the transmission, not from each operation in it.
  * A queue belongs to one device, and letting every entry name its own would
  * let a device write changes in somebody else's name into the conflict list.
+ *
+ * Where the session was opened as a device, the transmission has to name that
+ * device, and one that names another is refused before anything is read from
+ * it (opengewerk-haustechnik#360): a conflict lands under the device that sent
+ * it, and that is the one the session lists. Refused rather than passed over,
+ * because the one client that sends another, a page whose device was named
+ * anew a moment before the session learned it, keeps its outbox this way and
+ * sends it under the right device in the next round; passed over, its
+ * conflicts would land under a device the session no longer has. A session at
+ * a desk names no device, and its transmission keeps the one it names.
  */
-function parseOperations(body: unknown): { deviceId: string; operations: Operation[] } {
+function parseOperations(
+  body: unknown,
+  sessionDevice: string | undefined,
+): { deviceId: string; operations: Operation[] } {
   const envelope = asRecord(body, 'Der Rumpf')
   const deviceId = envelope['deviceId']
 
   if (typeof deviceId !== 'string' || deviceId.length === 0) {
     throw new BadRequestException('Es fehlt die Geräte-Kennung.')
+  }
+
+  if (sessionDevice !== undefined && deviceId !== sessionDevice) {
+    throw new BadRequestException(
+      'Die Übertragung nennt ein anderes Gerät als die Anmeldung. Bitte gleich noch einmal abgleichen.',
+    )
   }
 
   const raw = envelope['operations']
@@ -346,7 +365,7 @@ export class SyncController {
     @CurrentIdentity() identity: RequestIdentity,
     @Req() request: Request,
   ): Promise<{ receipts: readonly OperationReceipt[] }> {
-    const { deviceId, operations } = parseOperations(await outboxOf(request))
+    const { deviceId, operations } = parseOperations(await outboxOf(request), identity.deviceId)
 
     for (const operation of operations) {
       const needed = this.routes.permissionFor(operation.entity, operation.kind, operation.patches)
@@ -429,29 +448,34 @@ export class SyncController {
 
   /**
    * The list somebody has to work through: the conflicts of the device this
-   * session belongs to, and only those (GHSA-4jfj-cxqw-qgpj).
+   * session belongs to and of the person signed in on it, and only those
+   * (GHSA-4jfj-cxqw-qgpj, opengewerk-haustechnik#360). The values of a record
+   * the person no longer sees stay out (`openConflicts`).
    *
-   * The device is the session's and never one a request names, so that no
-   * query reaches the conflicts of another. A session that was not opened as
-   * a device has sent nothing through the sync and has none.
+   * Device and person are the session's and never ones a request names, so
+   * that no query reaches the conflicts of another. A session that was not
+   * opened as a device lists none.
    */
   @Get('conflicts')
   @RequiresPermission(syncRights.read)
   async conflicts(@CurrentIdentity() identity: RequestIdentity): Promise<SyncConflictRow[]> {
-    const { deviceId } = identity
+    const { deviceId, userId } = identity
 
     if (deviceId === undefined) {
       return []
     }
 
-    return this.database.forTenant(identity, (tx) => openConflicts(tx, deviceId))
+    return this.database.forTenant(identity, (tx) =>
+      openConflicts(tx, { deviceId, userId }, (entity) => this.routes.sync.tableFor(entity)),
+    )
   }
 
   /**
-   * Marks a conflict of this device as decided. What the decision was is a
-   * change like any other and comes through the ordinary routes; this only
-   * says that nobody has to look at it again. The conflict of another device
-   * is not found here, as if it did not exist.
+   * Marks a conflict of this device and this person as decided. What the
+   * decision was is a change like any other and comes through the ordinary
+   * routes; this only says that nobody has to look at it again. The conflict
+   * of another device, or of another person on this one, is not found here,
+   * as if it did not exist.
    */
   @Post('conflicts/:id/resolve')
   @RequiresPermission(syncRights.write)
@@ -459,10 +483,10 @@ export class SyncController {
     @CurrentIdentity() identity: RequestIdentity,
     @Param('id') id: string,
   ): Promise<{ resolved: string }> {
-    const { deviceId } = identity
+    const { deviceId, userId } = identity
     const closed =
       deviceId !== undefined &&
-      (await this.database.forTenant(identity, (tx) => closeConflict(tx, id, deviceId)))
+      (await this.database.forTenant(identity, (tx) => closeConflict(tx, id, { deviceId, userId })))
 
     if (!closed) {
       throw new NotFoundException()

@@ -97,6 +97,13 @@ export const syncConflicts = pgTable(
     seen: jsonb('seen').notNull().$type<Readonly<Record<string, SyncValue>>>(),
     found: jsonb('found').notNull().$type<Readonly<Record<string, SyncValue>>>(),
     deviceId: text('device_id').notNull().$type<DeviceId>(),
+    /**
+     * Whose change it was, from the session that sent it. The device alone
+     * says too little: one device can pass from hand to hand. Null only for
+     * a conflict from before the column, where the data did not tell; nobody
+     * sees such a one. Without a key to the accounts, like `updated_by`.
+     */
+    userId: text('user_id'),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     ...timestamps,

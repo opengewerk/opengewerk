@@ -335,6 +335,35 @@ describe('sending an outbox', () => {
     expect(note?.deviceId).toBe('olgas-phone')
   })
 
+  it('sends under the device of the session and refuses a transmission that names another, before anything is written', async () => {
+    const noteId = newId<'note'>()
+    const queued = operation({
+      entity: 'notes',
+      recordId: noteId,
+      patches: [{ field: 'text', to: 'Zähler ablesen' }],
+    })
+
+    const refused = await push(on(olga(), 'olgas-phone'), [queued], 'lenas-phone').expect(400)
+
+    expect((refused.body as { message: string }).message).toBe(
+      'Die Übertragung nennt ein anderes Gerät als die Anmeldung. Bitte gleich noch einmal abgleichen.',
+    )
+    expect((await admin.query('select id from sync_operations')).rows).toEqual([])
+
+    // The same outbox under the device of the session lands, and under it.
+    await push(on(olga(), 'olgas-phone'), [queued], 'olgas-phone').expect(201)
+
+    const [note] = await database.forTenant(
+      { tenantId: north.id, userId: 'olga', reason: 'probe' },
+      (tx) => tx.select().from(notes),
+    )
+
+    expect(note).toMatchObject({ id: noteId, deviceId: 'olgas-phone' })
+    expect((await admin.query('select device_id from sync_operations')).rows).toEqual([
+      { device_id: 'olgas-phone' },
+    ])
+  })
+
   it('refuses an entity the application does not sync, names the operation and writes nothing', async () => {
     const crate = operation({ entity: 'crates', patches: [{ field: 'label', to: 'Kiste' }] })
     const answer = await push(olga(), [
@@ -921,6 +950,29 @@ function resolveAs(who: string, id: string) {
     .set(testIdentityHeader, who)
 }
 
+/**
+ * Lena corrects the label of a shelf from one of her devices: a conflict,
+ * since a shelf changes with a connection only.
+ */
+async function relabelFrom(deviceId: string, shelfId: string, from: string, to: string) {
+  const sent = await push(
+    on(lena(), deviceId),
+    [
+      operation({
+        entity: 'shelves',
+        recordId: shelfId,
+        kind: 'update',
+        patches: [{ field: 'label', from, to }],
+      }),
+    ],
+    deviceId,
+  ).expect(201)
+
+  expect((sent.body as { receipts: { outcome: string }[] }).receipts).toMatchObject([
+    { outcome: 'conflict' },
+  ])
+}
+
 describe('the conflicts', () => {
   /**
    * A conflict is the device's whose change it was, and the person on it
@@ -980,6 +1032,153 @@ describe('the conflicts', () => {
 
     await resolveAs(on(lena(), 'lenas-phone'), id).expect(404)
     expect((await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body).toEqual([])
+  })
+
+  /**
+   * One device passes from hand to hand. A conflict is therefore the person's
+   * as well as the device's (opengewerk-haustechnik#360).
+   */
+  it('belongs to the person as well as the device: whoever comes next on it neither sees nor closes it, and the person sees it again', async () => {
+    const { shelfId } = await shelfWithNote('Keller', 'Zähler ablesen')
+
+    await relabelFrom('shared-tablet', shelfId, 'Keller', 'Dachboden')
+
+    const [mine] = (await conflictsOf(on(lena(), 'shared-tablet')).expect(200)).body as {
+      id: string
+    }[]
+    const id = mine?.id ?? ''
+
+    expect(mine).toMatchObject({ recordId: shelfId, deviceId: 'shared-tablet', userId: 'lena' })
+
+    // Olga on the same tablet after her neither gets the conflict nor closes it.
+    expect((await conflictsOf(on(olga(), 'shared-tablet')).expect(200)).body).toEqual([])
+    await resolveAs(on(olga(), 'shared-tablet'), id).expect(404)
+
+    // Lena again on the tablet, signed in once more: hers, open, whole.
+    expect((await conflictsOf(on(lena(), 'shared-tablet')).expect(200)).body).toMatchObject([
+      { id, wanted: { label: 'Dachboden' }, seen: { label: 'Keller' }, found: { label: 'Keller' } },
+    ])
+    await resolveAs(on(lena(), 'shared-tablet'), id).expect(201)
+  })
+
+  it('comes without fields and values while the person no longer sees the record, and is closed all the same', async () => {
+    const { shelfId } = await shelfWithNote('Geheim', 'Zähler ablesen')
+
+    await relabelFrom('lenas-phone', shelfId, 'Geheim', 'Dachboden')
+    await relabelFrom('lenas-phone', shelfId, 'Geheim', 'Speicher')
+
+    // From now on the shelf is out of Lena's sight, as a record outside her
+    // areas is in an application: a policy of the kind such an application
+    // adds, asked under the row level security of the request.
+    await admin.query(
+      `create policy hidden_from_lena on shelves as restrictive for select
+         using (label <> 'Geheim' or current_setting('app.user_id', true) <> 'lena')`,
+    )
+
+    try {
+      // One more from the phone, which had seen the label before the shelf
+      // went out of sight: the server finds nothing, the device's picture of
+      // the shelf is in it all the same.
+      await relabelFrom('lenas-phone', shelfId, 'Geheim', 'Keller')
+
+      const listed = (await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body as {
+        id: string
+        fields: string[]
+        wanted: Record<string, unknown>
+        seen: Record<string, unknown>
+        found: Record<string, unknown>
+      }[]
+
+      // That they are there, about what and why, and nothing of the shelf.
+      expect(listed).toMatchObject([
+        { entity: 'shelves', recordId: shelfId, reason: 'online_only' },
+        { entity: 'shelves', recordId: shelfId, reason: 'online_only' },
+        { entity: 'shelves', recordId: shelfId, reason: 'record_missing' },
+      ])
+      expect(
+        listed.map(({ fields, wanted, seen, found }) => ({ fields, wanted, seen, found })),
+      ).toEqual([
+        { fields: [], wanted: {}, seen: {}, found: {} },
+        { fields: [], wanted: {}, seen: {}, found: {} },
+        { fields: [], wanted: {}, seen: {}, found: {} },
+      ])
+
+      await resolveAs(on(lena(), 'lenas-phone'), listed[0]?.id ?? '').expect(201)
+    } finally {
+      await admin.query('drop policy hidden_from_lena on shelves')
+    }
+
+    // In sight again, the two left open have their values back: what is shown
+    // is asked when the list is, not when the conflict came.
+    expect((await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body).toMatchObject([
+      { wanted: { label: 'Speicher' }, seen: { label: 'Geheim' }, found: { label: 'Geheim' } },
+      { wanted: { label: 'Keller' }, seen: { label: 'Geheim' }, found: { label: null } },
+    ])
+  })
+
+  it('keeps what the person put in where it holds no value of the server: a record made on the device and refused', async () => {
+    const letterId = newId<'letter'>()
+
+    await push(lena(), [
+      operation({
+        entity: 'letters',
+        recordId: letterId,
+        patches: [{ field: 'subject', to: 'Angebot' }],
+      }),
+    ]).expect(201)
+    // Sent from the office meanwhile, so the letter takes no new line.
+    await database.forTenant(
+      { tenantId: north.id, userId: 'lena', reason: 'letters.write' },
+      (tx) =>
+        tx
+          .update(letters)
+          .set({ status: 'sent' })
+          .where(eq(letters.id, letterId as never)),
+    )
+
+    const lineId = newId<'letter-line'>()
+
+    await push(
+      on(lena(), 'lenas-phone'),
+      [
+        operation({
+          entity: 'letter_lines',
+          recordId: lineId,
+          patches: [
+            { field: 'letterId', to: letterId },
+            { field: 'quantity', to: 3 },
+          ],
+        }),
+      ],
+      'lenas-phone',
+    ).expect(201)
+
+    // The line is nowhere, so nobody sees it; what the conflict holds is what
+    // Lena put in, and she gets it to write the line anew.
+    expect((await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body).toMatchObject([
+      { recordId: lineId, reason: 'record_is_fixed', wanted: { letterId, quantity: 3 } },
+    ])
+  })
+
+  it('stays with the person who sent it from a desk, whatever device the transmission names', async () => {
+    const { noteId } = await shelfWithNote('Keller', 'Zähler ablesen')
+    const text = (to: string) =>
+      operation({
+        entity: 'notes',
+        recordId: noteId,
+        kind: 'update',
+        patches: [{ field: 'text', from: 'Zähler ablesen', to }],
+      })
+
+    await push(on(lena(), 'lenas-phone'), [text('Zähler abgelesen')], 'lenas-phone').expect(201)
+    // Olga at a desk, whose session names no device, with a transmission that
+    // names Lena's phone: the conflict is Olga's.
+    await push(olga(), [text('Zähler fehlt')], 'lenas-phone').expect(201)
+
+    expect((await conflictsOf(on(lena(), 'lenas-phone')).expect(200)).body).toEqual([])
+    expect((await conflictsOf(on(olga(), 'lenas-phone')).expect(200)).body).toMatchObject([
+      { recordId: noteId, userId: 'olga', wanted: { text: 'Zähler fehlt' } },
+    ])
   })
 })
 

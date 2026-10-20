@@ -752,6 +752,114 @@ describe('the sessions from before 0081', () => {
 })
 
 /**
+ * 0082 gives a conflict the person whose change it was
+ * (opengewerk-haustechnik#360). A conflict from before kept only its device;
+ * the person comes from the stretches of work in the business that chose that
+ * device and covered the moment the conflict came, where they name exactly one.
+ */
+describe('the conflicts from before 0082', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0082_conflict_person')
+  const elsewhere = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
+
+  /** A stretch of work with a device, from days ago until days ago or still open. */
+  async function stretch(
+    tenantId: string,
+    userId: string,
+    deviceId: string,
+    from: number,
+    until: number | null,
+  ): Promise<void> {
+    await admin.query(
+      `insert into tenant_sessions (tenant_id, user_id, session_id, device_id, started_at, ended_at)
+         values ($1, $2, $3, $4, now() - make_interval(days => $5),
+                 case when $6::int is null then null else now() - make_interval(days => $6::int) end)`,
+      [tenantId, userId, `session-${userId}-${deviceId}`, deviceId, from, until],
+    )
+  }
+
+  /** A conflict of a device, come days ago, named by its device for the test. */
+  async function conflict(tenantId: string, deviceId: string, came: number): Promise<void> {
+    await admin.query(
+      `insert into sync_conflicts (tenant_id, operation_id, entity, record_id, reason, fields,
+                                   wanted, seen, found, device_id, recorded_at, created_at)
+         values ($1, uuidv7(), 'jobs', uuidv7(), 'changed_elsewhere', '{designation}',
+                 '{}', '{}', '{}', $2, now() - make_interval(days => $3),
+                 now() - make_interval(days => $3))`,
+      [tenantId, deviceId, came],
+    )
+  }
+
+  it('get the one person who worked with their device when they came, and nobody where that is not one', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
+      tenant.id,
+      tenant.name,
+      elsewhere.id,
+      elsewhere.name,
+    ])
+    await admin.query(
+      `insert into auth_users (id, name, email)
+         values ('anna', 'Anna Abel', 'anna@example.de'),
+                ('bert', 'Bert Berg', 'bert@example.de'),
+                ('carla', 'Carla Cron', 'carla@example.de')`,
+    )
+
+    // Anna's phone, hers alone and still signed in.
+    await stretch(tenant.id, 'anna', 'anna-phone', 10, null)
+    await conflict(tenant.id, 'anna-phone', 1)
+    // A tablet passed on: Bert until three days ago, Carla since two.
+    await stretch(tenant.id, 'bert', 'shared-tablet', 5, 3)
+    await stretch(tenant.id, 'carla', 'shared-tablet', 2, null)
+    await conflict(tenant.id, 'shared-tablet', 4)
+    await conflict(tenant.id, 'shared-tablet', 1)
+    // A tablet two people were on at once: nobody can be told.
+    await stretch(tenant.id, 'bert', 'busy-tablet', 5, null)
+    await stretch(tenant.id, 'carla', 'busy-tablet', 4, null)
+    await conflict(tenant.id, 'busy-tablet', 1)
+    // A browser at a desk names a device no session chose.
+    await conflict(tenant.id, 'desk-browser', 1)
+    // A device chosen only in another business.
+    await stretch(elsewhere.id, 'anna', 'south-phone', 10, null)
+    await conflict(tenant.id, 'south-phone', 1)
+    // A device first chosen after the conflict came.
+    await stretch(tenant.id, 'anna', 'late-phone', 1, null)
+    await conflict(tenant.id, 'late-phone', 2)
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ device_id: string; came: number; user_id: string | null }>(
+      `select device_id, extract(day from now() - created_at)::int as came, user_id
+         from sync_conflicts order by device_id, created_at`,
+    )
+
+    expect(rows).toEqual([
+      { device_id: 'anna-phone', came: 1, user_id: 'anna' },
+      { device_id: 'busy-tablet', came: 1, user_id: null },
+      { device_id: 'desk-browser', came: 1, user_id: null },
+      { device_id: 'late-phone', came: 2, user_id: null },
+      { device_id: 'shared-tablet', came: 4, user_id: 'bert' },
+      { device_id: 'shared-tablet', came: 1, user_id: 'carla' },
+      { device_id: 'south-phone', came: 1, user_id: null },
+    ])
+
+    // Lifted for the statement and back afterwards.
+    const { rows: forced } = await admin.query<{ relname: string; relforcerowsecurity: boolean }>(
+      `select relname, relforcerowsecurity from pg_class
+         where relname in ('sync_conflicts', 'tenant_sessions') order by relname`,
+    )
+
+    expect(forced).toEqual([
+      { relname: 'sync_conflicts', relforcerowsecurity: true },
+      { relname: 'tenant_sessions', relforcerowsecurity: true },
+    ])
+  })
+})
+
+/**
  * 0029 changed the shipped instructions of every business with four UPDATEs,
  * and as the owner under FORCE ROW LEVEL SECURITY they found no row. 0032 says
  * the same again with FORCE lifted. These are the rows 0027 wrote, planted as

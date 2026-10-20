@@ -198,6 +198,12 @@ function operation(over: {
   }
 }
 
+/** Olga on one of her devices, whose conflicts these are: she sends every transmission here. */
+const olgaOn = (deviceId: string) => ({ deviceId, userId: 'olga' })
+
+/** The tables of the sync, which say whether a record of a conflict is seen. */
+const tablesOfTheSync = (entity: string) => sync.tableFor(entity)
+
 function send(tenantId: TenantId, operations: readonly Operation[]) {
   return inTenant(tenantId, (tx) => sync.applyOperations(tx, tenantId, operations, courier))
 }
@@ -333,7 +339,9 @@ describe('applying what a device queued up', () => {
 
     // The three pictures a person decides by: what the device wanted, what it
     // thought was there, and what was.
-    const open = await inTenant(north.id, (tx) => openConflicts(tx, 'phone-b'))
+    const open = await inTenant(north.id, (tx) =>
+      openConflicts(tx, olgaOn('phone-b'), tablesOfTheSync),
+    )
 
     expect(open).toHaveLength(1)
     expect(open[0]).toMatchObject({
@@ -345,16 +353,37 @@ describe('applying what a device queued up', () => {
       seen: { text: 'Zähler ablesen' },
       found: { text: 'Zähler abgelesen' },
       deviceId: 'phone-b',
+      // The person of the transaction that sent it.
+      userId: 'olga',
     })
 
     // The conflict is the device's whose change it was (GHSA-4jfj-cxqw-qgpj): another
-    // device of the tenant neither gets it nor closes it.
-    expect(await inTenant(north.id, (tx) => openConflicts(tx, 'phone-a'))).toEqual([])
-    expect(await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, 'phone-a'))).toBe(false)
+    // device of the tenant neither gets it nor closes it, and neither does
+    // somebody else on the same device (opengewerk-haustechnik#360).
+    const lenaOnPhoneB = { deviceId: 'phone-b', userId: 'lena' }
 
-    expect(await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, 'phone-b'))).toBe(true)
-    expect(await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, 'phone-b'))).toBe(false)
-    expect(await inTenant(north.id, (tx) => openConflicts(tx, 'phone-b'))).toEqual([])
+    expect(
+      await inTenant(north.id, (tx) => openConflicts(tx, olgaOn('phone-a'), tablesOfTheSync)),
+    ).toEqual([])
+    expect(
+      await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, olgaOn('phone-a'))),
+    ).toBe(false)
+    expect(
+      await inTenant(north.id, (tx) => openConflicts(tx, lenaOnPhoneB, tablesOfTheSync)),
+    ).toEqual([])
+    expect(await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, lenaOnPhoneB))).toBe(
+      false,
+    )
+
+    expect(
+      await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, olgaOn('phone-b'))),
+    ).toBe(true)
+    expect(
+      await inTenant(north.id, (tx) => closeConflict(tx, open[0]!.id, olgaOn('phone-b'))),
+    ).toBe(false)
+    expect(
+      await inTenant(north.id, (tx) => openConflicts(tx, olgaOn('phone-b'), tablesOfTheSync)),
+    ).toEqual([])
   })
 
   it('keeps master data to a connection: a change from a device is a conflict, online only', async () => {
@@ -1026,7 +1055,9 @@ describe('a value of JSON or a list', () => {
     ])
 
     // Read from a row that holds a list beside it, which the merge reads as text as well.
-    const [conflict] = await inTenant(north.id, (tx) => openConflicts(tx, 'phone-b'))
+    const [conflict] = await inTenant(north.id, (tx) =>
+      openConflicts(tx, olgaOn('phone-b'), tablesOfTheSync),
+    )
 
     expect(conflict).toMatchObject({
       wanted: { details: '{"rooms":2}' },

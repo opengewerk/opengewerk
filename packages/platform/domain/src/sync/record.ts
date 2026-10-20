@@ -70,6 +70,14 @@ export interface SyncConflict {
   readonly seen: Readonly<Record<string, SyncValue>>
   readonly found: Readonly<Record<string, SyncValue>>
   readonly deviceId: DeviceId
+  /**
+   * The person whose change it was, taken from the session that sent it. A
+   * conflict belongs to the device and to the person on it, and only they
+   * see it and decide it. Null only for a conflict from before the server
+   * kept the person, where nobody could be told from what it had kept, and
+   * such a conflict is shown to nobody.
+   */
+  readonly userId: string | null
   /** When the device recorded the change, not when the server heard about it. */
   readonly recordedAt: Date
   readonly resolvedAt: Date | null

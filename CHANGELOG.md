@@ -972,6 +972,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wo die Adresse fehlt, und eine Grenze je Adresse zählt nach `addressForLimits` (`limitKey`). Das
   README sagt, dass der Reverse Proxy `X-Forwarded-For` ergänzen muss, mit Beispielen für nginx und
   Apache und einer Prüfung.
+- Ein Konflikt aus dem Abgleich gehört dem Gerät und der Person, deren Änderung es war (gefunden in
+  der Sicherheitsprüfung, `opengewerk-haustechnik#360`). Bisher fragten Liste und Erledigen nur
+  nach dem Gerät, und auf einem Gerät, das weitergegeben wird, sah die nächste Person die Konflikte
+  der vorigen samt ihren Werten. Jetzt schreibt der Server die Person der Sitzung in jeden neuen Konflikt
+  (`sync_conflicts.user_id`), und `GET /sync/conflicts` und das Erledigen gelten nur für Gerät und
+  Person der Sitzung. Die Werte eines Datensatzes, den die Person nicht mehr sieht, bleiben aus der
+  Liste; ein solcher Konflikt kommt ohne Felder und Werte und lässt sich erledigen. Eine Übertragung
+  des Postausgangs, deren Gerät nicht das der Sitzung ist, wird mit 400 abgewiesen; eine Sitzung am
+  Schreibtisch nennt kein Gerät und sendet wie bisher. Die Handwerkersoftware bekommt die Spalte mit
+  der Migration `0082_conflict_person`, die einem Konflikt von vorher die eine Person gibt, die zu
+  der Zeit mit diesem Gerät im Betrieb arbeitete; lässt sich keine eindeutig sagen, sieht ihn
+  niemand.
 
 ## [0.5.0] - 2026-10-04
 

@@ -63,17 +63,23 @@ export interface Receipt {
   readonly fields: readonly string[]
 }
 
-/** One transmission, answered with its receipts, or with the message of a refusal. */
+/**
+ * One transmission, answered with its receipts, or with the message of a
+ * refusal. Under the device the session names, as a device sends it, and
+ * under one of its own for a session at a desk: the server refuses a
+ * transmission that names another device than its session.
+ */
 export async function push(
   app: INestApplication,
   who: string,
   operations: unknown[],
   expected = 201,
 ) {
+  const deviceId = (JSON.parse(who) as { deviceId?: string }).deviceId ?? 'geraet-im-keller'
   const answer = await request(app.getHttpServer())
     .post('/sync')
     .set('x-test-identity', who)
-    .send({ deviceId: 'geraet-im-keller', operations })
+    .send({ deviceId, operations })
     .expect(expected)
 
   return answer.body as { receipts: Receipt[]; message?: string; operationId?: string }
