@@ -956,6 +956,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Wer die Instanz betreibt, sieht von den offenen Einladungen zur Leitung eines Betriebs nur noch die, die jemand
+  aus dem Bereich der Instanz verschickt hat (#701, gefunden in der Sicherheitsprüfung opengewerk-haustechnik#360).
+  `tenants_with_leads()` fragt dafür `instance_operators`, das die Policy `readable_by_the_owner` bekommt; die
+  Migration `0085_instance_own_invitations` ersetzt die Funktion, der Baustein `sql/instance.sql` zieht nach. Warum:
+  die Liste nannte auch die Adressen, die die Leitung eines Betriebs selbst zur Leitung eingeladen hatte, und was in
+  einem Betrieb entsteht, liest der Bereich der Instanz nicht.
+
 - Die Anmeldung liest den Körper einer Anfrage nur noch bis 64 kB, und `POST /sync` liest den
   Postausgang erst, nachdem die Sitzung geprüft ist (gefunden in der Sicherheitsprüfung,
   `opengewerk-haustechnik#360`). Bisher las der Handler von better-auth jeden Körper ohne eigene
