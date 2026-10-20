@@ -1,12 +1,26 @@
 import { describe, expect, it } from 'vitest'
 
 import { dispositionFor, recognisedMediaType, storedMediaType } from './media-type.js'
+import { testHeicPhoto } from './test-pictures.js'
 
 /** The smallest PNG there is, one transparent pixel. */
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   'base64',
 )
+
+/** The `ftyp` box of an ISO base media file with these brands, and a few bytes after it. */
+function typeBox(major: string, ...compatible: string[]): Buffer {
+  const size = 16 + compatible.length * 4
+  const file = Buffer.alloc(size + 8)
+
+  file.writeUInt32BE(size, 0)
+  file.write('ftyp', 4, 'latin1')
+  file.write(major, 8, 'latin1')
+  compatible.forEach((brand, index) => file.write(brand, 16 + index * 4, 'latin1'))
+
+  return file
+}
 
 describe('the type the first bytes show', () => {
   it('is named for a picture a browser shows and for a PDF', () => {
@@ -26,6 +40,21 @@ describe('the type the first bytes show', () => {
     expect(recognisedMediaType(Buffer.from('GIF90a'))).toBeNull()
     expect(recognisedMediaType(Buffer.alloc(0))).toBeNull()
   })
+
+  it('is HEIC for the photo of a phone, and HEIF for a HEIF file coded otherwise', () => {
+    expect(recognisedMediaType(testHeicPhoto)).toBe('image/heic')
+    expect(recognisedMediaType(typeBox('heix', 'mif1'))).toBe('image/heic')
+    expect(recognisedMediaType(typeBox('mif1', 'MiHE', 'heic'))).toBe('image/heic')
+    expect(recognisedMediaType(typeBox('hevc', 'msf1'))).toBe('image/heic')
+    expect(recognisedMediaType(typeBox('avci', 'mif1'))).toBe('image/heif')
+    expect(recognisedMediaType(typeBox('msf1', 'iso8'))).toBe('image/heif')
+  })
+
+  it('is none for a media file that is no HEIF, and for a box that is not all there', () => {
+    expect(recognisedMediaType(typeBox('isom', 'iso2', 'mp41'))).toBeNull()
+    expect(recognisedMediaType(typeBox('heic', 'mif1').subarray(0, 18))).toBeNull()
+    expect(recognisedMediaType(Buffer.from('<html>ftypheic mif1</html>'))).toBeNull()
+  })
 })
 
 describe('the type a stored file is recorded with', () => {
@@ -42,6 +71,15 @@ describe('the type a stored file is recorded with', () => {
     expect(storedMediaType(Buffer.from('nicht leer'), 'application/pdf')).toBe(
       'application/octet-stream',
     )
+  })
+
+  it('is HEIC or HEIF only for bytes that show it, never for a declared type alone', () => {
+    const page = Buffer.from('<!doctype html><p>Kein Foto</p>')
+
+    expect(storedMediaType(testHeicPhoto, 'image/heic')).toBe('image/heic')
+    expect(storedMediaType(testHeicPhoto, 'application/octet-stream')).toBe('image/heic')
+    expect(storedMediaType(page, 'image/heic')).toBe('application/octet-stream')
+    expect(storedMediaType(page, 'image/heif; charset=utf-8')).toBe('application/octet-stream')
   })
 })
 

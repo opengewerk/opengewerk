@@ -377,11 +377,11 @@ Die Dateien eines Betriebs hängen dort, worum es in ihnen geht (Feature-Glieder
 
 **Eine neue Fassung legt sich über die alte.** Die frühere bleibt lesbar, aus demselben Grund wie beim Storno: was einmal Grundlage einer Entscheidung war, verschwindet nicht. Eine Fassung wird weder geändert noch gelöscht, die Datenbank lehnt beides ab. Entfernen nimmt eine Datei aus der Ablage, markiert sie und vernichtet nichts.
 
-**Fotos werden auf dem Gerät kleiner, bevor sie irgendwohin gehen.** Auf 2048 Pixel an der langen Kante und JPEG, meist unter einem Megabyte, dazu eine Vorschau mit 320 Pixeln für die Listen. Wer das Original braucht, setzt "Fotos in voller Größe behalten". Jede Datei darf bis zu 25 MB groß sein; das wissen Gerät und Server aus derselben Zahl in `domain`, eine zu große Datei wird also schon beim Auswählen genannt.
+**Fotos werden auf dem Gerät kleiner, bevor sie irgendwohin gehen.** Auf 2048 Pixel an der langen Kante und JPEG, meist unter einem Megabyte, dazu eine Vorschau mit 320 Pixeln für die Listen. Wer das Original braucht, setzt "Fotos in voller Größe behalten". Jede Datei darf bis zu 25 MB groß sein; das wissen Gerät und Server aus derselben Zahl in `domain`, eine zu große Datei wird also schon beim Auswählen genannt. Wie viel in einer Stunde abgelegt wird, ist ebenfalls begrenzt: ein Konto bis 1 GB, alle eines Betriebs zusammen bis 5 GB. Bleiben auf dem Datenträger der Dateien weniger als 2 GB frei, legt niemand mehr etwas ab, damit Datenbank, Drucke und Sicherung weiterlaufen. Was an einer der Grenzen hängt, bleibt auf dem Gerät und geht mit einem späteren Abgleich hoch.
 
 **Ohne Netz geht es genauso.** Das Foto aus dem Keller liegt auf dem Gerät, steht schon in der Liste und geht beim nächsten Abgleich hoch, die Datei vor der Fassung, die sie nennt. Vorschaubilder behält das Gerät, die großen Dateien holt es erst, wenn jemand eine öffnet.
 
-**Eine Datei ist kein Sonderfall der Mandantentrennung.** Hochgeladen wird nach Hash über `PUT /files/:sha256`, ausgeliefert nur nach der Kennung der Fassung (`GET /attachments/versions/:id/content` und `/preview`) und nur, wenn die Ablage dem Betrieb gehört und nicht entfernt ist. Ein fremder Betrieb bekommt eine Datei weder über die Kennung noch über den Hash. Ob eine Datei im Browser angezeigt oder heruntergeladen wird, entscheiden ihre ersten Bytes und nicht ihr Name: angezeigt werden nur erkannte Bilder und PDF. Die Rechte sind `attachment.read` und `attachment.write`, beide für alle Rollen. Die Sicherung nimmt die Dateien mit, der CI-Job "Sicherung und Rückspielen" prüft das an einer abgelegten Datei samt Fassung.
+**Eine Datei ist kein Sonderfall der Mandantentrennung.** Hochgeladen wird nach Hash über `PUT /files/:sha256`, ausgeliefert nur nach der Kennung der Fassung (`GET /attachments/versions/:id/content` und `/preview`) und nur, wenn die Ablage dem Betrieb gehört und nicht entfernt ist. Ein fremder Betrieb bekommt eine Datei weder über die Kennung noch über den Hash. Ob eine Datei im Browser angezeigt oder heruntergeladen wird, entscheiden ihre ersten Bytes und nicht ihr Name: angezeigt werden nur erkannte Bilder und PDF. Als Foto im Format HEIC oder HEIF gilt eine Datei ebenso nur, wenn ihre ersten Bytes es zeigen. Die Rechte sind `attachment.read` und `attachment.write`, beide für alle Rollen. Die Sicherung nimmt die Dateien mit, der CI-Job "Sicherung und Rückspielen" prüft das an einer abgelegten Datei samt Fassung.
 
 **Der Baustein gehört dem Fundament.** Seit `opengewerk-haustechnik#97` stehen die beiden Tabellen, die Regeln, die Auslieferung, die Prüfungen des Abgleichs und das, was auf dem Gerät aus einer gewählten Datei wird, im Fundament (ADR 0010), weil auch die Haustechnik eine Ablage führt, dort an Ort, Anlage und Vorgang. Diese Anwendung sagt, woran eine Datei bei ihr hängt, mit welchem Recht sie gelesen wird und in welchen Sätzen (`tradeAttachments` in `domain`, `api/attachment-routes.ts`); die Karte "Dateien" und die Liste "Fotos und Dateien" zeichnet sie weiter selbst.
 
@@ -1064,7 +1064,11 @@ Prüfsumme im Verzeichnis `archives.sha256` dieser Instanz steht, und eine
 Installation, die verschlüsselt (`BACKUP_AGE_RECIPIENT` ist gesetzt), nimmt kein
 unverschlüsseltes. Beides wird gefragt, bevor etwas entschlüsselt, entpackt oder
 gesperrt wird; ein abgelehntes Archiv stammt nicht von dieser Instanz oder ist
-nicht mehr, wie sie es geschrieben hat.
+nicht mehr, wie sie es geschrieben hat. Das Archiv wird dafür einmal vom Ziel in
+den Container kopiert, und geprüft und gelesen wird nur diese Kopie: eine Datei,
+die auf dem Ziel geprüft wurde, könnte beim Lesen schon eine andere sein. Die
+Kopie ist verschlüsselt, wenn das Archiv es ist, und braucht so viel Platz wie
+das Archiv.
 
 **Auf einer neuen Maschine** fehlt das Verzeichnis, es lag mit dem Volume
 `backup-status` auf der alten. Dort spielt

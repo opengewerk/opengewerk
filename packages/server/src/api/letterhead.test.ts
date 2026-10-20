@@ -29,6 +29,17 @@ let database: Database
 let app: INestApplication
 let storageRoot: string
 
+/** A store that can be told its volume is full, for the room a logo has to leave. */
+class Store extends FileStore {
+  full = false
+
+  override freeBytes(): Promise<number> {
+    return this.full ? Promise.resolve(0) : super.freeBytes()
+  }
+}
+
+let store: Store
+
 const owner = () => as(north.id, 'owner')
 
 const png = Buffer.from(
@@ -53,8 +64,10 @@ beforeAll(async () => {
   storageRoot = mkdtempSync(join(tmpdir(), 'opengewerk-letterhead-'))
   database = Database.connect(applicationDatabaseUrl())
 
+  store = new Store(storageRoot)
+
   const built = await Test.createTestingModule({
-    imports: [ApiModule.create(database, identities, { files: new FileStore(storageRoot) })],
+    imports: [ApiModule.create(database, identities, { files: store })],
   }).compile()
 
   app = built.createNestApplication()
@@ -216,6 +229,31 @@ describe('the logo', () => {
       .set('content-type', 'image/png')
       .send(Buffer.concat([png, Buffer.alloc(3_000_000)]))
       .expect(413)
+  })
+
+  it('is refused while the volume of the files has no room left, and nothing is kept', async () => {
+    const other = Buffer.concat([png, Buffer.from('ein anderes Logo')])
+
+    store.full = true
+
+    try {
+      const refused = await http()
+        .put('/settings/letterhead/logo')
+        .set('x-test-identity', owner())
+        .set('content-type', 'image/png')
+        .send(other)
+        .expect(507)
+
+      expect((refused.body as { message: string }).message).toContain('kaum noch Platz')
+    } finally {
+      store.full = false
+    }
+
+    const { rows } = await admin.query<{ count: string }>(
+      'select count(*) from files where size_bytes = $1',
+      [other.byteLength],
+    )
+    expect(Number(rows[0]?.count)).toBe(0)
   })
 
   it('can be taken off again, and the file stays for what was printed with it', async () => {

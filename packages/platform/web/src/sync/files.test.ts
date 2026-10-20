@@ -196,6 +196,37 @@ describe('a file made on the device', () => {
     expect(client.status().pending).toBe(0)
   })
 
+  it('stays on the device while the server says not now, over a 429, a 507 or a 500', async () => {
+    const client = await start()
+    const answers = [
+      [429, 'Von diesem Konto ist in der letzten Stunde schon so viel abgelegt worden.'],
+      [507, 'Auf dem Speicher für Dateien ist kaum noch Platz frei.'],
+      [500, 'Der Server hat die Anfrage abgelehnt (500).'],
+    ] as const
+
+    // Refused before the file is kept: making the records asks for an
+    // exchange of its own, and that one must not find the server willing.
+    server.refuseUploads = new RequestRefused(answers[0][0], answers[0][1], {})
+
+    const { sha256, sizeBytes } = await client.keepFile(photo, 'image/jpeg')
+
+    await attach(client, sha256, sizeBytes)
+
+    for (const [status, sentence] of answers) {
+      server.refuseUploads = new RequestRefused(status, sentence, {})
+      await client.synchronise()
+
+      expect(client.status().trouble).toBe(sentence)
+      expect(server.sent).toEqual([])
+    }
+
+    server.refuseUploads = null
+    await client.synchronise()
+
+    expect([...server.uploaded.keys()]).toEqual([sha256])
+    expect(client.status().pending).toBe(0)
+  })
+
   it('stays on the device over a 401 as well, and the session is asked for again', async () => {
     let signedOut = 0
     const client = await SyncClient.start({

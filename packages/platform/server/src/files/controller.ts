@@ -26,6 +26,7 @@ import { files } from '../database/schema/files.js'
 import { storedMediaType } from './media-type.js'
 import { fileRowFor } from './rows.js'
 import { type FileStorage, noFileStorage } from './store.js'
+import { type UploadAllowance, uploadAllowance, UploadLimits } from './upload-limits.js'
 
 /**
  * The content addressed file store, under which a module hands it to the
@@ -62,6 +63,7 @@ function filesController(right: string): Type<unknown> {
     constructor(
       readonly database: Database,
       @Inject(FILE_STORE) readonly store: FileStorage,
+      readonly limits: UploadLimits,
     ) {}
 
     /**
@@ -69,7 +71,9 @@ function filesController(right: string): Type<unknown> {
      * form can send, and the type the browser gave it travels in
      * `X-Media-Type`. The hash in the address has to be the hash of the body:
      * a file damaged on its way is refused here and not stored under a name
-     * that claims otherwise.
+     * that claims otherwise. And it has to fit into what the account and the
+     * tenant may still store in this hour, and into the room the volume
+     * keeps (`UploadLimits`).
      */
     @Put(':sha256')
     @RequiresPermission(right)
@@ -108,6 +112,8 @@ function filesController(right: string): Type<unknown> {
 
       const declared = request.header('x-media-type') ?? ''
 
+      await this.limits.admit(identity, bytes.byteLength)
+
       // Into the store first, then the row: the other order could leave a
       // row pointing at a file nobody wrote.
       const blob = await this.store.put(bytes)
@@ -138,6 +144,11 @@ export interface FileParts<Right extends string> {
   readonly upload: Right
   /** The store, or none: a module without one refuses every file with a sentence. */
   readonly store?: FileStorage
+  /**
+   * How much may be stored within an hour and how much room stays free, the
+   * foundation's numbers unless the application has its own.
+   */
+  readonly allowance?: UploadAllowance
 }
 
 /**
@@ -148,6 +159,11 @@ export interface FileParts<Right extends string> {
  *
  * The module has nothing to read the body with in front of the route. The
  * route reads it itself, once the guards have let the request through.
+ *
+ * Beside the store it hands in the limits of storing (`UploadLimits`), one
+ * for the whole module: every route of the application that takes a file
+ * asks them before the bytes go into the store, and they count across all of
+ * those routes.
  */
 export function fileParts<Right extends string>(
   parts: FileParts<Right>,
@@ -156,8 +172,16 @@ export function fileParts<Right extends string>(
     throw new Error(`The catalogue lacks the right to store a file: ${parts.upload}`)
   }
 
+  const store = parts.store ?? noFileStorage
+
   return {
     controllers: [filesController(parts.upload)],
-    providers: [{ provide: FILE_STORE, useValue: parts.store ?? noFileStorage }],
+    providers: [
+      { provide: FILE_STORE, useValue: store },
+      {
+        provide: UploadLimits,
+        useValue: new UploadLimits(store, parts.allowance ?? uploadAllowance),
+      },
+    ],
   }
 }
