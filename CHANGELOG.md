@@ -21,6 +21,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Vorladen der Anwendung oder die Suche nach einer neuen Fassung das Netz länger als 30 Sekunden beschäftigte
   (opengewerk/opengewerk-haustechnik#492); ob eine Seite steht, entscheidet weiter, ob ihr Inhalt gezeichnet ist.
 
+### Sicherheit
+
+- Vite 8.3.3 in beiden Oberflächen, mit der Sperrdatei. Die Fassung bringt `launch-editor` 2.14.2, das unter
+  Windows `%` in Argumenten nicht maskierte (Dependabot-Alerts 1 und 2); betroffen war nur der Server für die
+  Entwicklung, nicht das gebaute Paket.
+
 ## [0.6.0] - 2026-10-20
 
 Die sechste Fassung schließt acht Sicherheitslücken, die eine Prüfung vor der nächsten Fassung von
