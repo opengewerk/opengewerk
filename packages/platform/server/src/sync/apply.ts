@@ -9,7 +9,18 @@ import {
   type SyncRules,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { and, asc, eq, getTableColumns, getTableName, gt, isNull, type SQL, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  getTableName,
+  gt,
+  inArray,
+  isNull,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import type { TenantTransaction } from '../database/database.js'
@@ -602,6 +613,11 @@ async function record(
         interesting.map((field) => [field, result.current?.[field] ?? null]),
       ),
       deviceId: operation.deviceId,
+      // The person of the transaction, which is the session that sent it:
+      // every transmission runs in `forTenant` with the identity of its
+      // request. A device can pass from hand to hand, so it alone does not
+      // say whose the conflict is (opengewerk-haustechnik#360).
+      userId: sql`nullif(current_setting('app.user_id', true), '')`,
       recordedAt: operation.recordedAt,
     })
   }
@@ -627,48 +643,124 @@ async function record(
 export type SyncConflictRow = typeof syncConflicts.$inferSelect
 
 /**
- * The conflicts one device still has to decide, oldest first.
- *
- * Only that device's, never the tenant's. A conflict carries the values the
- * device wanted to write, the ones it had seen and the ones the server found,
- * and the person who decides it is the one whose change it was (ADR 0005).
- * Listing them for everybody with the right to sync handed out values of
- * records a device is no longer given since it holds only its part of the
- * tenant, and let anyone mark somebody else's conflict decided
- * (GHSA-4jfj-cxqw-qgpj, opengewerk-haustechnik#31).
+ * Whose conflicts a request asks about: the device of its session and the
+ * person signed in on it, both from the session and never from the request.
  */
-export async function openConflicts(
-  tx: TenantTransaction,
-  deviceId: string,
-): Promise<SyncConflictRow[]> {
-  return await tx
-    .select()
-    .from(syncConflicts)
-    .where(and(isNull(syncConflicts.resolvedAt), eq(syncConflicts.deviceId, deviceId as never)))
-    .orderBy(asc(syncConflicts.recordedAt))
+export interface ConflictOwner {
+  readonly deviceId: string
+  readonly userId: string
+}
+
+/** The conflicts of one device and one person on it, and nobody else's. */
+function ownedBy(owner: ConflictOwner): SQL | undefined {
+  return and(
+    eq(syncConflicts.deviceId, owner.deviceId as never),
+    eq(syncConflicts.userId, owner.userId),
+  )
 }
 
 /**
- * Marks a conflict of this device as decided. What the decision was is a
- * change like any other and comes through the ordinary routes; this only says
- * that nobody has to look at it again. A conflict of another device is not
- * found, as if it did not exist.
+ * Whether a conflict holds a value of a record on the server: what the server
+ * found there, or what the device had seen of it. A conflict about a record
+ * that was not there for the person when it came, a record made on the
+ * device for one, holds neither, only what the person put in.
+ */
+function holdsValuesOfTheServer(conflict: SyncConflictRow): boolean {
+  return [conflict.found, conflict.seen].some((values) =>
+    Object.values(values).some((value) => value !== null),
+  )
+}
+
+/**
+ * The records among those of the conflicts that the person asking sees,
+ * asked in the transaction of the request, so under its row level security
+ * and nothing else. A record marked as deleted is seen; a record of an entity
+ * nothing knows is not.
+ */
+async function seenRecords(
+  tx: TenantTransaction,
+  conflicts: readonly SyncConflictRow[],
+  tableFor: (entity: string) => PgTable | null,
+): Promise<Set<string>> {
+  const seen = new Set<string>()
+
+  for (const entity of new Set(conflicts.map((conflict) => conflict.entity))) {
+    const table = tableFor(entity)
+    const id = table ? (getTableColumns(table) as Record<string, PgColumn>)['id'] : undefined
+
+    if (!table || !id) {
+      continue
+    }
+
+    const ids = conflicts
+      .filter((conflict) => conflict.entity === entity)
+      .map((conflict) => conflict.recordId)
+    const rows = await tx.select({ id }).from(table).where(inArray(id, ids))
+
+    for (const row of rows) {
+      seen.add(`${entity}:${String(row.id)}`)
+    }
+  }
+
+  return seen
+}
+
+/**
+ * The conflicts one device and the person on it still have to decide, oldest
+ * first.
+ *
+ * Only theirs, never the tenant's. A conflict carries the values the device
+ * wanted to write, the ones it had seen and the ones the server found, and the
+ * person who decides it is the one whose change it was (ADR 0005). Listing
+ * them for everybody with the right to sync handed out values of records a
+ * device is no longer given since it holds only its part of the tenant, and
+ * let anyone mark somebody else's conflict decided (GHSA-4jfj-cxqw-qgpj,
+ * opengewerk-haustechnik#31). The device alone was not enough either: one
+ * device passes from hand to hand, and the next person on it saw the
+ * conflicts of the one before (opengewerk-haustechnik#360).
+ *
+ * The values of a record on the server go out only while the person still
+ * sees that record, under the row level security of the transaction: a
+ * conflict outlives the area somebody worked in. Where the person no longer
+ * sees it, the conflict comes without fields and values, so that it can be
+ * closed and says no more than that it is there. A conflict without a value
+ * of the server keeps what the person put in.
+ */
+export async function openConflicts(
+  tx: TenantTransaction,
+  owner: ConflictOwner,
+  tableFor: (entity: string) => PgTable | null,
+): Promise<SyncConflictRow[]> {
+  const open = await tx
+    .select()
+    .from(syncConflicts)
+    .where(and(isNull(syncConflicts.resolvedAt), ownedBy(owner)))
+    .orderBy(asc(syncConflicts.recordedAt))
+  const seen = await seenRecords(tx, open, tableFor)
+
+  return open.map((conflict) =>
+    holdsValuesOfTheServer(conflict) && !seen.has(`${conflict.entity}:${conflict.recordId}`)
+      ? { ...conflict, fields: [], wanted: {}, seen: {}, found: {} }
+      : conflict,
+  )
+}
+
+/**
+ * Marks a conflict of this device and this person as decided. What the
+ * decision was is a change like any other and comes through the ordinary
+ * routes; this only says that nobody has to look at it again. A conflict of
+ * another device, or of another person on this one, is not found, as if it
+ * did not exist.
  */
 export async function closeConflict(
   tx: TenantTransaction,
   id: string,
-  deviceId: string,
+  owner: ConflictOwner,
 ): Promise<boolean> {
   const closed = await tx
     .update(syncConflicts)
     .set({ resolvedAt: new Date() })
-    .where(
-      and(
-        eq(syncConflicts.id, id as never),
-        eq(syncConflicts.deviceId, deviceId as never),
-        isNull(syncConflicts.resolvedAt),
-      ),
-    )
+    .where(and(eq(syncConflicts.id, id as never), ownedBy(owner), isNull(syncConflicts.resolvedAt)))
     .returning({ id: syncConflicts.id })
 
   return closed.length > 0
