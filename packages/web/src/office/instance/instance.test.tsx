@@ -126,9 +126,25 @@ async function mount(path: string) {
   return router
 }
 
+/** Confirms with the password in the box that waits for it under the form. */
+async function confirm(user: ReturnType<typeof userEvent.setup>) {
+  const waiting = within(await screen.findByRole('region', { name: /bestätigen$/ }))
+
+  await user.type(waiting.getByLabelText('Passwort'), 'ein-ordentlich-langes-passwort')
+
+  const code = waiting.queryByLabelText('Code aus der App')
+
+  if (code) {
+    await user.type(code, '123456')
+  }
+
+  await user.click(waiting.getByRole('button', { name: 'Weiter' }))
+}
+
 beforeEach(() => {
   answers = new Map()
   calls = []
+  answer('POST', '/api/auth/reconfirm', { reconfirmedUntil: '2026-10-20T10:10:00.000Z' })
   answer('GET', '/api/auth/get-session', {
     user: {
       id: 'u-1',
@@ -255,6 +271,9 @@ describe('the businesses on the instance in this application', () => {
     await user.type(within(form).getByLabelText('Name des Inhabers'), 'Anna Weber')
     await user.type(within(form).getByLabelText(/E-Mail des Inhabers/), 'anna@elektro-weber.de')
     await user.click(within(form).getByRole('button', { name: 'Betrieb anlegen' }))
+    // After the confirmation with the password, which the foundation asks for
+    // (opengewerk-haustechnik#360).
+    await confirm(user)
 
     expect(await screen.findByText('Elektro Weber OHG ist angelegt.')).toBeTruthy()
     expect(sent('POST', '/instance/tenants')).toEqual([
@@ -341,6 +360,7 @@ describe('the operators in this application', () => {
 
     await user.type(field, 'britta@kohm.example.de')
     await user.click(screen.getByRole('button', { name: 'Betreiber benennen' }))
+    await confirm(user)
 
     expect(await screen.findByText('Britta Büro ist jetzt Betreiber.')).toBeTruthy()
   })
