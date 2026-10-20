@@ -995,6 +995,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   der Migration `0082_conflict_person`, die einem Konflikt von vorher die eine Person gibt, die zu
   der Zeit mit diesem Gerät im Betrieb arbeitete; lässt sich keine eindeutig sagen, sieht ihn
   niemand.
+- Wer Dateien ablegt, legt in einer Stunde höchstens eine feste Menge ab, und unter einem freien
+  Rest auf dem Datenträger der Dateien wird nichts mehr abgelegt (gefunden in der
+  Sicherheitsprüfung, `opengewerk-haustechnik#360`). Bisher war nur die einzelne Datei auf 25 MB
+  begrenzt, weder ihre Zahl noch ihre Summe, und weil der Speicher nach dem Inhalt entdoppelt,
+  zählte jede neue Datei voll. Jetzt fragt `PUT /files/:sha256` vor dem Speichern `UploadLimits`:
+  ein Konto legt in der letzten Stunde bis 1 GB ab, alle eines Mandanten zusammen bis 5 GB, eine
+  Datei zählt dabei mindestens 100 kB, und darüber kommt 429 mit einem Satz. Bleiben auf dem
+  Datenträger weniger als 2 GB frei, kommt 507, damit Datenbank, Drucke und Sicherung weiterlaufen.
+  Anwendungen bekommen `UploadLimits` aus `fileParts` und fragen es auf ihren eigenen Wegen zum
+  Ablegen, die Handwerkersoftware beim Logo des Briefkopfs. Das Gerät behält eine Datei, die mit
+  429, 507 oder einem Fehler des Servers zurückkommt, und schickt sie beim nächsten Abgleich;
+  bisher ließ es sie bei jeder Antwort außer 401 und 403 fallen. HEIC und HEIF gelten nur noch,
+  wenn die `ftyp`-Box der Datei sie zeigt; ein Inhalt, der nur als HEIC angegeben ist, wird als
+  `application/octet-stream` abgelegt, und ein Weg, der nur ein Foto nimmt, weist ihn ab.
 
 ## [0.5.0] - 2026-10-04
 
