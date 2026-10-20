@@ -254,6 +254,8 @@ export const foundationDefinerFunctions: Readonly<Record<string, string>> = {
     'the application may not write the counter of a tenant; the number is handed out by this alone',
   'record_change()': 'the trigger writes the log of a tenant whoever made the change',
   'record_instance_change()': 'the trigger writes the log of the instance whoever made the change',
+  'version_takes_its_files()':
+    'a file goes with the version of a document going for good, and the application may not delete files',
   'tenants_with_leads()':
     'whoever runs the instance sees every tenant by name, day and who leads it, and no row of one',
 }

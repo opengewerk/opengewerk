@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Dokument und seine Dateien lassen sich nach Ablauf einer Aufbewahrung endgültig löschen (#658), auf dem einen Weg,
+  den eine Anwendung dafür öffnet: `purge_attachment(dokument, titel)` löscht die Fassungen, lässt das Dokument als
+  gelöschte Hülle mit dem gegebenen Titel stehen, damit ein Gerät davon erfährt. Die Zeile jeder Datei in `files`, auf
+  die danach kein Schlüssel mehr zeigt, nimmt ein Trigger der Fassung mit, samt dem Eintrag, wer sie abgelegt hat; die
+  Anwendung selbst darf in `files` nicht löschen, eine Datei geht nur mit der Fassung, die sie nennt. Wann, entscheidet
+  die Anwendung mit `application_attachment_may_go`; ohne sie geht nichts, und die Riegel lehnen jedes andere Löschen
+  einer Fassung oder einer Datei ab, auch für den Eigentümer der Tabellen. Das Änderungsprotokoll schreibt dabei nichts
+  ab. Diese Anwendung öffnet den Weg nicht; Migration `0087_purge_attachments`. Warum: die Haustechnik markierte ein
+  Dokument nach Ablauf der Aufbewahrung nur als entfernt, und Titel, Dateinamen und Dateien blieben.
+
 - Der Dateispeicher räumt sich auf (#657): einmal am Tag nimmt ein Lauf die Bytes jeder Datei heraus, die kein
   Betrieb mehr hält und die älter als ein Tag ist, dazu liegengebliebene Reste abgebrochener Schreibvorgänge. Welche
   Namen noch gehalten werden, beantwortet `files_held` mit den Rechten des Eigentümers (Migration `0086_file_sweep`,
@@ -742,6 +752,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Das Tor richtet die Authenticator-App eines Kontos, das sie schon hat, nicht noch einmal ein (#691). Kam die
+  Anmeldung ohne zweiten Faktor und verlangt eine Rolle ihn, sagt es jetzt, dass die Anmeldung ihn braucht, und bietet
+  das Abmelden an, wie die Tafel "Zweiter Faktor fehlt in der Anmeldung" der Haustechnik es zeigt. Warum: seit #690
+  gehört der zweite Faktor zur Sitzung, better-auth lehnt ein zweites Einrichten mit "already enabled" ab, und die
+  Person steckte fest.
+
 - Die Karte eines Konflikts, dessen Datensatz die Person nicht mehr sieht, sagt, warum sie leer ist (#697): "Nicht
   mehr sichtbar" unter der Art des Datensatzes, der Satz, dass die Änderung deshalb nicht übernommen wurde, und nur
   "Schließen", im Büro und vor Ort wie die Tafeln "Konflikt ohne Werte" der Haustechnik. Warum: seit #696 kommt ein
@@ -980,6 +996,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 - Der Workflow "Release" behält den Token mit Schreibrecht nicht mehr in `.git/config` (`persist-credentials: false`,
   #644). Warum: kein Schritt danach spricht mit git, und der Token lag sonst während des ganzen Baus der Abbilder auf
   der Platte; die Haustechnik hält es schon so.
+
+- Das Installationspaket nennt jedes Abbild der Anwendung mit Fassung und Digest, und `start.sh` prüft ihre Signatur
+  mit `cosign`, bevor es sie holt (#687, gefunden in der Sicherheitsprüfung opengewerk-haustechnik#360). Ohne `cosign`
+  sagt der Start, wie man von Hand prüft; ein Paket mit Digest startet immer seine eigene Fassung, eine Fassung in der
+  `.env` gilt nur für einen Checkout. Die Basisabbilder im Bau (`node:24-alpine`, `postgres:18-alpine`) und die
+  Datenbank in `compose.yaml` stehen auf einem Digest, den Dependabot nachzieht; `test-stack.sh base-images` prüft
+  das und dass die Sicherung auf dem Abbild der Datenbank baut. `docker/kit-images.sh` schreibt Fassung und Digests
+  in das Paket, für beide Anwendungen gleich. Warum: ein Tag nennt, was zuletzt darunter geschoben wurde, und die
+  Signatur der Abbilder prüfte bisher niemand.
 
 - Die Anwendung prüft beim Start, was ihre Datenbankrolle kann, nicht nur, wie sie heißt (#685, gefunden in der
   Sicherheitsprüfung opengewerk-haustechnik#360). Ist die Rolle Superuser, hat sie `BYPASSRLS`, besitzt sie Tabellen

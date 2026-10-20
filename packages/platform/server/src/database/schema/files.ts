@@ -2,7 +2,12 @@ import { sql } from 'drizzle-orm'
 import { bigint, check, foreignKey, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
-import { heldByThePersonAsking, readableByTheOwner, tenantIsolation } from './rls.js'
+import {
+  deletableByTheOwner,
+  heldByThePersonAsking,
+  readableByTheOwner,
+  tenantIsolation,
+} from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**
@@ -19,9 +24,11 @@ import { tenantColumn } from './tenants.js'
  *
  * Inserted and read, never changed and never deleted by the application: the
  * grant stops at INSERT. A file a record points at has to outlive every
- * mistake, and deleting files at the end of a retention period is a procedure
- * of its own that nothing here does yet. The bytes of a file no row names any
- * more the sweep of the store takes out (`sweepFileStore`, #657).
+ * mistake. A row goes only with the last version of a document that goes for
+ * good at the end of a retention, taken by the trigger of the version as the
+ * owner of the tables (`version_takes_its_files`, #658). The bytes of a file
+ * no row names any more the sweep of the store takes out (`sweepFileStore`,
+ * #657).
  */
 export const files = pgTable(
   'files',
@@ -39,6 +46,9 @@ export const files = pgTable(
     // sweep of the store which of the names it found any tenant still holds
     // (`files_held`, #657). It hands out nothing else.
     readableByTheOwner(),
+    // For the trigger that takes the file of a version going with its document
+    // (#658); the trigger on the table lets only that file through.
+    deletableByTheOwner(),
     unique('files_tenant_id_key').on(table.tenantId, table.id),
     uniqueIndex('files_content').on(table.tenantId, table.sha256),
     // The name in the store is the hash, so a malformed one is a file that
@@ -77,10 +87,14 @@ export const fileUploads = pgTable(
     tenantIsolation(table.tenantId),
     heldByThePersonAsking(table.userId),
     uniqueIndex('file_uploads_once').on(table.tenantId, table.sha256, table.userId),
+    // Who stored a file goes with the file (#658): a row of `files` goes only
+    // with the last version of a document that named it, and then nobody has
+    // it any more. Cascading is done by the database itself, past the policy
+    // that shows each person only their own rows here.
     foreignKey({
       columns: [table.tenantId, table.sha256],
       foreignColumns: [files.tenantId, files.sha256],
       name: 'file_uploads_file_in_tenant',
-    }).onDelete('restrict'),
+    }).onDelete('cascade'),
   ],
 )

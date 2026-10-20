@@ -610,6 +610,13 @@
       "when": 1792506948673,
       "tag": "0086_file_sweep",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1792510307164,
+      "tag": "0087_purge_attachments",
+      "breakpoints": true
     }
   ]
 }

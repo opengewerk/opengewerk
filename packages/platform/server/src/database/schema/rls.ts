@@ -247,6 +247,21 @@ export function readableByTheOwner() {
 }
 
 /**
+ * Deleting for the owner of the tables, every row: for the trigger that takes
+ * the file of a version that goes with its document (`version_takes_its_files`,
+ * #658), which runs as the owner because the application may not delete there.
+ * What it may take its own trigger on the table decides.
+ */
+export function deletableByTheOwner() {
+  return pgPolicy('deletable_by_the_owner', {
+    as: 'permissive',
+    for: 'delete',
+    to: 'current_user',
+    using: sql`true`,
+  })
+}
+
+/**
  * The person of the transaction and nobody else: a row of theirs is all the
  * application reads and all it adds. Restrictive, so that the isolation of the
  * tenant beside it still holds, and nothing for a transaction without a

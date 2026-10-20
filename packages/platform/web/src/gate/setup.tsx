@@ -16,6 +16,7 @@ import {
 } from '../session/session.js'
 import { RequestRefused } from '../sync/transport.js'
 import { Gate, GateText } from './frame.js'
+import { SignOutButton } from './sign-out.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -387,6 +388,27 @@ export function SecondFactorSetupScreen({ onDone }: { readonly onDone: () => voi
         {sentences.required} Richten Sie ihn mit einer Authenticator-App auf dem Telefon ein.
       </GateText>
       <SecondFactorSetup onDone={onDone} />
+    </Gate>
+  )
+}
+
+/**
+ * An account that has an app, a session without the second factor, and a role
+ * that asks for one (opengewerk/opengewerk#691). Since #690 the factor belongs
+ * to the session, and setting the app up again is refused by better-auth as
+ * already done: the person would be stuck. What is missing is a sign in with
+ * the code or a passkey, so that is what the gate says, with the way to it.
+ */
+export function SecondFactorSignInAgainScreen({ onDone }: { readonly onDone: () => void }) {
+  const { secondFactor: sentences } = useApplication().sentences
+
+  return (
+    <Gate title="Zweiter Faktor" width={600}>
+      <GateText>
+        {sentences.required} Diese Anmeldung kam ohne ihn, obwohl das Konto eine Authenticator-App
+        hat. Melden Sie sich ab und wieder an, mit dem Code aus der App oder mit einem Passkey.
+      </GateText>
+      <SignOutButton client={null} onSignedOut={onDone} wide primary />
     </Gate>
   )
 }

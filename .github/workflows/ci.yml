@@ -644,6 +644,10 @@ jobs:
         working-directory: docker
         run: sh test-stack.sh hardening
 
+      - name: Jedes Abbild und jede Basis per Digest, die Sicherung auf dem Abbild der Datenbank
+        working-directory: docker
+        run: sh test-stack.sh base-images
+
       - name: Die Rollen nehmen jedes Passwort aus der .env
         working-directory: docker
         run: sh test-roles.sh
