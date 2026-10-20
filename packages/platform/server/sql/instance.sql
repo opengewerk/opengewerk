@@ -141,6 +141,12 @@ $$;--> statement-breakpoint
 -- a role of that tenant that leads. It runs as the owner of the tables, which
 -- is why `tenant_roles` carries `readable_by_the_owner` like the tables beside
 -- it.
+--
+-- Of the invitations it names only those somebody who runs the instance sent,
+-- which is how a tenant gets its first lead (opengewerk-haustechnik#474): one
+-- the lead of a tenant sends is something that came about in the tenant, and
+-- whoever runs the instance reads nothing of that. `instance_operators` carries
+-- `readable_by_the_owner` for this.
 CREATE FUNCTION "tenants_with_leads"()
 	RETURNS TABLE (id uuid, name text, created_at timestamptz, leads text[], members bigint, invited_leads text[])
 	LANGUAGE sql
@@ -159,7 +165,9 @@ AS $$
 	                  WHERE i.tenant_id = t.id
 	                    AND i.redeemed_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()
 	                    AND EXISTS (SELECT 1 FROM public.tenant_roles r
-	                                 WHERE r.tenant_id = t.id AND r.leads AND r.key = ANY (i.roles))), '{}')
+	                                 WHERE r.tenant_id = t.id AND r.leads AND r.key = ANY (i.roles))
+	                    AND EXISTS (SELECT 1 FROM public.instance_operators o
+	                                 WHERE o.user_id = i.invited_by)), '{}')
 	  FROM public.tenants t
 	 ORDER BY t.created_at, t.name
 $$;--> statement-breakpoint
